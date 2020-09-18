@@ -7,17 +7,21 @@
 package modcmd
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/modfile"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 var cmdEdit = &base.Command{
@@ -51,16 +55,28 @@ The -exclude=path@version and -dropexclude=path@version flags
 add and drop an exclusion for the given module path and version.
 Note that -exclude=path@version is a no-op if that exclusion already exists.
 
-The -replace=old[@v]=new[@v] and -dropreplace=old[@v] flags
-add and drop a replacement of the given module path and version pair.
-If the @v in old@v is omitted, the replacement applies to all versions
-with the old module path. If the @v in new@v is omitted, the new path
-should be a local module root directory, not a module path.
-Note that -replace overrides any existing replacements for old[@v].
+The -replace=old[@v]=new[@v] flag adds a replacement of the given
+module path and version pair. If the @v in old@v is omitted, a
+replacement without a version on the left side is added, which applies
+to all versions of the old module path. If the @v in new@v is omitted,
+the new path should be a local module root directory, not a module
+path. Note that -replace overrides any redundant replacements for old[@v],
+so omitting @v will drop existing replacements for specific versions.
+
+The -dropreplace=old[@v] flag drops a replacement of the given
+module path and version pair. If the @v is omitted, a replacement without
+a version on the left side is dropped.
+
+The -retract=version and -dropretract=version flags add and drop a
+retraction on the given version. The version may be a single version
+like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+-retract=version is a no-op if that retraction already exists.
 
 The -require, -droprequire, -exclude, -dropexclude, -replace,
-and -dropreplace editing flags may be repeated, and the changes
-are applied in the order given.
+-dropreplace, -retract, and -dropretract editing flags may be repeated,
+and the changes are applied in the order given.
+
+The -go=version flag sets the expected Go language version.
 
 The -print flag prints the final go.mod in its text format instead of
 writing it back to go.mod.
@@ -74,7 +90,8 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 	}
 
 	type GoMod struct {
-		Module Module
+		Module  Module
+		Go      string
 		Require []Require
 		Exclude []Module
 		Replace []Replace
@@ -91,6 +108,15 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		New Module
 	}
 
+	type Retract struct {
+		Low       string
+		High      string
+		Rationale string
+	}
+
+Retract entries representing a single version (not an interval) will have
+the "Low" and "High" fields set to the same value.
+
 Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
@@ -102,8 +128,8 @@ by invoking 'go mod edit' with -require, -exclude, and so on.
 }
 
 var (
-	editFmt = cmdEdit.Flag.Bool("fmt", false, "")
-	// editGo     = cmdEdit.Flag.String("go", "", "")
+	editFmt    = cmdEdit.Flag.Bool("fmt", false, "")
+	editGo     = cmdEdit.Flag.String("go", "", "")
 	editJSON   = cmdEdit.Flag.Bool("json", false, "")
 	editPrint  = cmdEdit.Flag.Bool("print", false, "")
 	editModule = cmdEdit.Flag.String("module", "", "")
@@ -124,13 +150,17 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
 	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
+	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
+	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 
+	base.AddModCommonFlags(&cmdEdit.Flag)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 
-func runEdit(cmd *base.Command, args []string) {
+func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	anyFlags :=
 		*editModule != "" ||
+			*editGo != "" ||
 			*editJSON ||
 			*editPrint ||
 			*editFmt ||
@@ -151,19 +181,22 @@ func runEdit(cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		modload.MustInit()
-		gomod = filepath.Join(modload.ModRoot, "go.mod")
+		gomod = modload.ModFilePath()
 	}
 
 	if *editModule != "" {
-		if err := module.CheckPath(*editModule); err != nil {
+		if err := module.CheckImportPath(*editModule); err != nil {
 			base.Fatalf("go mod: invalid -module: %v", err)
 		}
 	}
 
-	// TODO(rsc): Implement -go= once we start advertising it.
+	if *editGo != "" {
+		if !modfile.GoVersionRE.MatchString(*editGo) {
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
+		}
+	}
 
-	data, err := ioutil.ReadFile(gomod)
+	data, err := lockedfile.Read(gomod)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -174,7 +207,13 @@ func runEdit(cmd *base.Command, args []string) {
 	}
 
 	if *editModule != "" {
-		modFile.AddModuleStmt(modload.CmdModModule)
+		modFile.AddModuleStmt(*editModule)
+	}
+
+	if *editGo != "" {
+		if err := modFile.AddGoStmt(*editGo); err != nil {
+			base.Fatalf("go: internal error: %v", err)
+		}
 	}
 
 	if len(edits) > 0 {
@@ -190,17 +229,29 @@ func runEdit(cmd *base.Command, args []string) {
 		return
 	}
 
-	data, err = modFile.Format()
+	out, err := modFile.Format()
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
 	if *editPrint {
-		os.Stdout.Write(data)
+		os.Stdout.Write(out)
 		return
 	}
 
-	if err := ioutil.WriteFile(gomod, data, 0666); err != nil {
+	// Make a best-effort attempt to acquire the side lock, only to exclude
+	// previous versions of the 'go' command from making simultaneous edits.
+	if unlock, err := modfetch.SideLock(); err == nil {
+		defer unlock()
+	}
+
+	err = lockedfile.Transform(gomod, func(lockedData []byte) ([]byte, error) {
+		if !bytes.Equal(lockedData, data) {
+			return nil, errors.New("go.mod changed during editing; not overwriting")
+		}
+		return out, nil
+	})
+	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 }
@@ -212,16 +263,11 @@ func parsePathVersion(flag, arg string) (path, version string) {
 		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
 	}
 	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 
-	// We don't call modfile.CheckPathVersion, because that insists
-	// on versions being in semver form, but here we want to allow
-	// versions like "master" or "1234abcdef", which the go command will resolve
-	// the next time it runs (or during -fix).
-	// Even so, we need to make sure the version is a valid token.
-	if modfile.MustQuote(version) {
+	if !allowedVersionArg(version) {
 		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
 	}
 
@@ -234,7 +280,7 @@ func parsePath(flag, arg string) (path string) {
 		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
 	}
 	path = arg
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 	return path
@@ -248,15 +294,51 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 	} else {
 		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	}
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		if !allowDirPath || !modfile.IsDirectoryPath(path) {
 			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
 		}
 	}
-	if path != arg && modfile.MustQuote(version) {
+	if path != arg && !allowedVersionArg(version) {
 		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
 	}
 	return path, version, nil
+}
+
+// parseVersionInterval parses a single version like "v1.2.3" or a closed
+// interval like "[v1.2.3,v1.4.5]". Note that a single version has the same
+// representation as an interval with equal upper and lower bounds: both
+// Low and High are set.
+func parseVersionInterval(arg string) (modfile.VersionInterval, error) {
+	if !strings.HasPrefix(arg, "[") {
+		if !allowedVersionArg(arg) {
+			return modfile.VersionInterval{}, fmt.Errorf("invalid version: %q", arg)
+		}
+		return modfile.VersionInterval{Low: arg, High: arg}, nil
+	}
+	if !strings.HasSuffix(arg, "]") {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	s := arg[1 : len(arg)-1]
+	i := strings.Index(s, ",")
+	if i < 0 {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	low := strings.TrimSpace(s[:i])
+	high := strings.TrimSpace(s[i+1:])
+	if !allowedVersionArg(low) || !allowedVersionArg(high) {
+		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
+	}
+	return modfile.VersionInterval{Low: low, High: high}, nil
+}
+
+// allowedVersionArg returns whether a token may be used as a version in go.mod.
+// We don't call modfile.CheckPathVersion, because that insists on versions
+// being in semver form, but here we want to allow versions like "master" or
+// "1234abcdef", which the go command will resolve the next time it runs (or
+// during -fix).  Even so, we need to make sure the version is a valid token.
+func allowedVersionArg(arg string) bool {
+	return !modfile.MustQuote(arg)
 }
 
 // flagRequire implements the -require flag.
@@ -341,12 +423,40 @@ func flagDropReplace(arg string) {
 	})
 }
 
+// flagRetract implements the -retract flag.
+func flagRetract(arg string) {
+	vi, err := parseVersionInterval(arg)
+	if err != nil {
+		base.Fatalf("go mod: -retract=%s: %v", arg, err)
+	}
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.AddRetract(vi, ""); err != nil {
+			base.Fatalf("go mod: -retract=%s: %v", arg, err)
+		}
+	})
+}
+
+// flagDropRetract implements the -dropretract flag.
+func flagDropRetract(arg string) {
+	vi, err := parseVersionInterval(arg)
+	if err != nil {
+		base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+	}
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.DropRetract(vi); err != nil {
+			base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+		}
+	})
+}
+
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module  module.Version
+	Go      string `json:",omitempty"`
 	Require []requireJSON
 	Exclude []module.Version
 	Replace []replaceJSON
+	Retract []retractJSON
 }
 
 type requireJSON struct {
@@ -360,10 +470,21 @@ type replaceJSON struct {
 	New module.Version
 }
 
+type retractJSON struct {
+	Low       string `json:",omitempty"`
+	High      string `json:",omitempty"`
+	Rationale string `json:",omitempty"`
+}
+
 // editPrintJSON prints the -json output.
 func editPrintJSON(modFile *modfile.File) {
 	var f fileJSON
-	f.Module = modFile.Module.Mod
+	if modFile.Module != nil {
+		f.Module = modFile.Module.Mod
+	}
+	if modFile.Go != nil {
+		f.Go = modFile.Go.Version
+	}
 	for _, r := range modFile.Require {
 		f.Require = append(f.Require, requireJSON{Path: r.Mod.Path, Version: r.Mod.Version, Indirect: r.Indirect})
 	}
@@ -372,6 +493,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, r := range modFile.Replace {
 		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
+	}
+	for _, r := range modFile.Retract {
+		f.Retract = append(f.Retract, retractJSON{r.Low, r.High, r.Rationale})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

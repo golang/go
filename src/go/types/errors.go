@@ -7,9 +7,11 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 	"strings"
 )
 
@@ -24,8 +26,13 @@ func unreachable() {
 }
 
 func (check *Checker) qualifier(pkg *Package) string {
+	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
-		return pkg.path
+		// If the same package name was used by multiple packages, display the full path.
+		if check.pkgCnt[pkg.name] > 1 {
+			return strconv.Quote(pkg.path)
+		}
+		return pkg.name
 	}
 	return ""
 }
@@ -66,19 +73,34 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.sprintf(format, args...))
 }
 
-func (check *Checker) err(pos token.Pos, msg string, soft bool) {
+func (check *Checker) err(err error) {
+	if err == nil {
+		return
+	}
+	var e Error
+	isInternal := errors.As(err, &e)
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
 	// exclude them if these strings are not at the beginning,
 	// and only if we have at least one error already reported.
-	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
+	isInvalidErr := isInternal && (strings.Index(e.Msg, "invalid operand") > 0 || strings.Index(e.Msg, "invalid type") > 0)
+	if check.firstErr != nil && isInvalidErr {
 		return
 	}
 
-	err := Error{check.fset, pos, msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
+	}
+
+	if trace {
+		pos := e.Pos
+		msg := e.Msg
+		if !isInternal {
+			msg = err.Error()
+			pos = token.NoPos
+		}
+		check.trace(pos, "ERROR: %s", msg)
 	}
 
 	f := check.conf.Error
@@ -89,15 +111,30 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 }
 
 func (check *Checker) error(pos token.Pos, msg string) {
-	check.err(pos, msg, false)
+	check.err(Error{Fset: check.fset, Pos: pos, Msg: msg})
+}
+
+// newErrorf creates a new Error, but does not handle it.
+func (check *Checker) newErrorf(pos token.Pos, format string, args ...interface{}) error {
+	return Error{
+		Fset: check.fset,
+		Pos:  pos,
+		Msg:  check.sprintf(format, args...),
+		Soft: false,
+	}
 }
 
 func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.err(pos, check.sprintf(format, args...), false)
+	check.error(pos, check.sprintf(format, args...))
 }
 
 func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
-	check.err(pos, check.sprintf(format, args...), true)
+	check.err(Error{
+		Fset: check.fset,
+		Pos:  pos,
+		Msg:  check.sprintf(format, args...),
+		Soft: true,
+	})
 }
 
 func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {

@@ -1,4 +1,4 @@
-// +build !nacl,!js
+// +build !nacl,!js,!aix,!gcflags_noopt
 // run
 
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -217,6 +217,11 @@ func main() {
 		return
 	}
 	defer os.RemoveAll(dir)
+	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
+
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
+		log.Panic(err)
+	}
 
 	tests = strings.Replace(tests, "\t", " ", -1)
 	tests = commentRE.ReplaceAllString(tests, "")
@@ -278,6 +283,9 @@ TestCases:
 		case "amd64":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+		case "riscv64":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER A0\n")
 		case "s390x":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER R10\n")
@@ -304,17 +312,17 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 752 (880-128).
+				// The limit was originally 128 but is now 800 (928-128).
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra bytes.
 				if i == 0 {
-					size += (880 - 128) - 128
+					size += (928 - 128) - 128
 					// Noopt builds have a larger stackguard.
 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
 					// This increase is included in objabi.StackGuard
 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 						if s == "-N" {
-							size += 880
+							size += 928
 						}
 					}
 				}

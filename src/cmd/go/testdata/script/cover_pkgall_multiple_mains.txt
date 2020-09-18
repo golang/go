@@ -1,0 +1,46 @@
+# This test checks that multiple main packages can be tested
+# with -coverpkg=all without duplicate symbol errors.
+# Verifies golang.org/issue/30374, golang.org/issue/34114.
+
+[short] skip
+cd $GOPATH/src/example.com/cov
+
+env GO111MODULE=on
+go test -coverpkg=all ./...
+
+env GO111MODULE=off
+go test -coverpkg=all ./...
+
+-- $GOPATH/src/example.com/cov/go.mod --
+module example.com/cov
+
+-- $GOPATH/src/example.com/cov/mainonly/mainonly.go --
+package main
+
+func main() {}
+
+-- $GOPATH/src/example.com/cov/mainwithtest/mainwithtest.go --
+package main
+
+func main() {}
+
+func Foo() {}
+
+-- $GOPATH/src/example.com/cov/mainwithtest/mainwithtest_test.go --
+package main
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+  Foo()
+}
+
+-- $GOPATH/src/example.com/cov/xtest/x.go --
+package x
+
+-- $GOPATH/src/example.com/cov/xtest/x_test.go --
+package x_test
+
+import "testing"
+
+func TestX(t *testing.T) {}

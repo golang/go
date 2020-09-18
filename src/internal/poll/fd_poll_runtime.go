@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd windows solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd windows solaris
 
 package poll
 
@@ -11,13 +11,14 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	_ "unsafe" // for go:linkname
 )
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
 func runtime_pollServerInit()
-func runtime_pollServerDescriptor() uintptr
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
@@ -25,6 +26,7 @@ func runtime_pollWaitCanceled(ctx uintptr, mode int) int
 func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
+func runtime_isPollServerDescriptor(fd uintptr) bool
 
 type pollDesc struct {
 	runtimeCtx uintptr
@@ -40,7 +42,7 @@ func (pd *pollDesc) init(fd *FD) error {
 			runtime_pollUnblock(ctx)
 			runtime_pollClose(ctx)
 		}
-		return syscall.Errno(errno)
+		return errnoErr(syscall.Errno(errno))
 	}
 	pd.runtimeCtx = ctx
 	return nil
@@ -105,14 +107,25 @@ func (pd *pollDesc) pollable() bool {
 	return pd.runtimeCtx != 0
 }
 
+// Error values returned by runtime_pollReset and runtime_pollWait.
+// These must match the values in runtime/netpoll.go.
+const (
+	pollNoError        = 0
+	pollErrClosing     = 1
+	pollErrTimeout     = 2
+	pollErrNotPollable = 3
+)
+
 func convertErr(res int, isFile bool) error {
 	switch res {
-	case 0:
+	case pollNoError:
 		return nil
-	case 1:
+	case pollErrClosing:
 		return errClosing(isFile)
-	case 2:
-		return ErrTimeout
+	case pollErrTimeout:
+		return ErrDeadlineExceeded
+	case pollErrNotPollable:
+		return ErrNotPollable
 	}
 	println("unreachable: ", res)
 	panic("unreachable")
@@ -134,15 +147,12 @@ func (fd *FD) SetWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
-	diff := int64(time.Until(t))
-	d := runtimeNano() + diff
-	if d <= 0 && diff > 0 {
-		// If the user has a deadline in the future, but the delay calculation
-		// overflows, then set the deadline to the maximum possible value.
-		d = 1<<63 - 1
-	}
-	if t.IsZero() {
-		d = 0
+	var d int64
+	if !t.IsZero() {
+		d = int64(time.Until(t))
+		if d == 0 {
+			d = -1 // don't confuse deadline right now with no deadline
+		}
 	}
 	if err := fd.incref(); err != nil {
 		return err
@@ -155,8 +165,8 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	return nil
 }
 
-// PollDescriptor returns the descriptor being used by the poller,
-// or ^uintptr(0) if there isn't one. This is only used for testing.
-func PollDescriptor() uintptr {
-	return runtime_pollServerDescriptor()
+// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+// This is only used for testing.
+func IsPollDescriptor(fd uintptr) bool {
+	return runtime_isPollServerDescriptor(fd)
 }

@@ -1,0 +1,33 @@
+# For issue 41355
+[short] skip
+
+! go test -v cleanup_failnow/panic_nocleanup_test.go
+stdout '(?s)panic: die \[recovered\].*panic: die'
+! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
+
+! go test -v cleanup_failnow/panic_withcleanup_test.go
+stdout '(?s)panic: die \[recovered\].*panic: die'
+! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
+
+-- cleanup_failnow/panic_nocleanup_test.go --
+package panic_nocleanup_test
+import "testing"
+func TestX(t *testing.T) {
+	t.Run("x", func(t *testing.T) {
+		panic("die")
+	})
+}
+
+-- cleanup_failnow/panic_withcleanup_test.go --
+package panic_withcleanup_test
+import "testing"
+func TestCleanupWithFailNow(t *testing.T) {
+	t.Cleanup(func() {
+		t.FailNow()
+	})
+	t.Run("x", func(t *testing.T) {
+		t.Run("y", func(t *testing.T) {
+			panic("die")
+		})
+	})
+}

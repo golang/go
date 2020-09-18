@@ -26,7 +26,10 @@ func (f *File) Readdir(n int) ([]FileInfo, error) {
 	return f.readdir(n)
 }
 
-// Readdirnames reads and returns a slice of names from the directory f.
+// Readdirnames reads the contents of the directory associated with file
+// and returns a slice of up to n names of files in the directory,
+// in directory order. Subsequent calls on the same file will yield
+// further names.
 //
 // If n > 0, Readdirnames returns at most n names. In this case, if
 // Readdirnames returns an empty slice, it will return a non-nil error

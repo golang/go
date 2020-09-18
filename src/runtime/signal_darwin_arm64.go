@@ -67,6 +67,7 @@ func (c *sigctxt) set_sigaddr(x uint64) {
 	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 	switch sig {
 	case _SIGTRAP:

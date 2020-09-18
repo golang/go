@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!nacl,!plan9,!js
+// +build !windows,!plan9,!js
 
 package syslog
 
@@ -53,7 +53,7 @@ func testableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "darwin":
 			switch runtime.GOARCH {
-			case "arm", "arm64":
+			case "arm64":
 				return false
 			}
 		case "android":
@@ -356,7 +356,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	}
 
 	// count all the messages arriving
-	count := make(chan int)
+	count := make(chan int, 1)
 	go func() {
 		ct := 0
 		for range done {

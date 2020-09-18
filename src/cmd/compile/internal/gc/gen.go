@@ -11,7 +11,18 @@ import (
 	"strconv"
 )
 
+// sysfunc looks up Go function name in package runtime. This function
+// must follow the internal calling convention.
 func sysfunc(name string) *obj.LSym {
+	s := Runtimepkg.Lookup(name)
+	s.SetFunc(true)
+	return s.Linksym()
+}
+
+// sysvar looks up a variable (or assembly function) name in package
+// runtime. If this is a function, it may have a special calling
+// convention.
+func sysvar(name string) *obj.LSym {
 	return Runtimepkg.Lookup(name).Linksym()
 }
 
@@ -41,14 +52,14 @@ func autotmpname(n int) string {
 // make a new Node off the books
 func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
 	if curfn == nil {
-		Fatalf("no curfn for tempname")
+		Fatalf("no curfn for tempAt")
 	}
 	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
-		Dump("tempname", curfn)
-		Fatalf("adding tempname to wrong closure function")
+		Dump("tempAt", curfn)
+		Fatalf("adding tempAt to wrong closure function")
 	}
 	if t == nil {
-		Fatalf("tempname called with nil type")
+		Fatalf("tempAt called with nil type")
 	}
 
 	s := &types.Sym{

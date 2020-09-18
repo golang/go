@@ -8,13 +8,14 @@ package modcmd
 
 import (
 	"bufio"
+	"context"
 	"os"
 	"sort"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
-	"cmd/go/internal/par"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdGraph = &base.Command{
@@ -29,11 +30,17 @@ path@version, except for the main module, which has no @version suffix.
 	Run: runGraph,
 }
 
-func runGraph(cmd *base.Command, args []string) {
+func init() {
+	base.AddModCommonFlags(&cmdGraph.Flag)
+}
+
+func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod graph: graph takes no arguments")
 	}
-	modload.LoadBuildList()
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
+	modload.LoadAllModules(ctx)
 
 	reqs := modload.MinReqs()
 	format := func(m module.Version) string {
@@ -43,23 +50,25 @@ func runGraph(cmd *base.Command, args []string) {
 		return m.Path + "@" + m.Version
 	}
 
-	// Note: using par.Work only to manage work queue.
-	// No parallelism here, so no locking.
 	var out []string
 	var deps int // index in out where deps start
-	var work par.Work
-	work.Add(modload.Target)
-	work.Do(1, func(item interface{}) {
-		m := item.(module.Version)
+	seen := map[module.Version]bool{modload.Target: true}
+	queue := []module.Version{modload.Target}
+	for len(queue) > 0 {
+		var m module.Version
+		m, queue = queue[0], queue[1:]
 		list, _ := reqs.Required(m)
 		for _, r := range list {
-			work.Add(r)
+			if !seen[r] {
+				queue = append(queue, r)
+				seen[r] = true
+			}
 			out = append(out, format(m)+" "+format(r)+"\n")
 		}
 		if m == modload.Target {
 			deps = len(out)
 		}
-	})
+	}
 
 	sort.Slice(out[deps:], func(i, j int) bool {
 		return out[deps+i][0] < out[deps+j][0]

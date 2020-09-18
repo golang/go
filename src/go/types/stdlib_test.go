@@ -27,27 +27,29 @@ import (
 	. "go/types"
 )
 
-var (
-	pkgCount int // number of packages processed
-	start    time.Time
-
-	// Use the same importer for all std lib tests to
-	// avoid repeated importing of the same packages.
-	stdLibImporter = importer.Default()
-)
+// Use the same importer for all std lib tests to
+// avoid repeated importing of the same packages.
+var stdLibImporter = importer.Default()
 
 func TestStdlib(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	start = time.Now()
-	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
+	pkgCount := 0
+	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
+		typecheck(t, dir, filenames)
+		pkgCount++
+	}, t.Error)
+
 	if testing.Verbose() {
-		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
+		fmt.Println(pkgCount, "packages typechecked in", duration)
 	}
 }
 
-// firstComment returns the contents of the first comment in
-// the given file, assuming there's one within the first KB.
+// firstComment returns the contents of the first non-empty comment in
+// the given file, "skip", or the empty string. No matter the present
+// comments, if any of them contains a build tag, the result is always
+// "skip". Only comments before the "package" token and within the first
+// 4K of the file are considered.
 func firstComment(filename string) string {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -55,11 +57,12 @@ func firstComment(filename string) string {
 	}
 	defer f.Close()
 
-	var src [1 << 10]byte // read at most 1KB
+	var src [4 << 10]byte // read at most 4KB
 	n, _ := f.Read(src[:])
 
+	var first string
 	var s scanner.Scanner
-	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil, scanner.ScanComments)
+	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil /* ignore errors */, scanner.ScanComments)
 	for {
 		_, tok, lit := s.Scan()
 		switch tok {
@@ -68,9 +71,17 @@ func firstComment(filename string) string {
 			if lit[1] == '*' {
 				lit = lit[:len(lit)-2]
 			}
-			return strings.TrimSpace(lit[2:])
-		case token.EOF:
-			return ""
+			contents := strings.TrimSpace(lit[2:])
+			if strings.HasPrefix(contents, "+build ") {
+				return "skip"
+			}
+			if first == "" {
+				first = contents // contents may be "" but that's ok
+			}
+			// continue as we may still see build tags
+
+		case token.PACKAGE, token.EOF:
+			return first
 		}
 	}
 }
@@ -142,15 +153,9 @@ func TestStdTest(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	// test/recover4.go is only built for Linux and Darwin.
-	// TODO(gri) Remove once tests consider +build tags (issue 10370).
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
-		return
-	}
-
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
-		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
+		"directive.go",   // tests compiler rejection of bad directive placement - ignore
 	)
 }
 
@@ -166,7 +171,6 @@ func TestStdFixed(t *testing.T) {
 		"issue6889.go",   // gc-specific test
 		"issue7746.go",   // large constants - consumes too much memory
 		"issue11362.go",  // canonical import path check
-		"issue15002.go",  // uses Mmap; testTestDir should consult build tags
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
@@ -176,6 +180,9 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
+		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 	)
 }
 
@@ -227,7 +234,6 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	}
 	info := Info{Uses: make(map[*ast.Ident]Object)}
 	conf.Check(path, fset, files, &info)
-	pkgCount++
 
 	// Perform checks of API invariants.
 
@@ -270,39 +276,48 @@ func pkgFilenames(dir string) ([]string, error) {
 	return filenames, nil
 }
 
-// Note: Could use filepath.Walk instead of walkDirs but that wouldn't
-//       necessarily be shorter or clearer after adding the code to
-//       terminate early for -short tests.
+func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...interface{})) time.Duration {
+	w := walker{time.Now(), 10 * time.Millisecond, pkgh, errh}
+	w.walk(dir)
+	return time.Since(w.start)
+}
 
-func walkDirs(t *testing.T, dir string) {
+type walker struct {
+	start time.Time
+	dmax  time.Duration
+	pkgh  func(dir string, filenames []string)
+	errh  func(args ...interface{})
+}
+
+func (w *walker) walk(dir string) {
 	// limit run time for short tests
-	if testing.Short() && time.Since(start) >= 10*time.Millisecond {
+	if testing.Short() && time.Since(w.start) >= w.dmax {
 		return
 	}
 
 	fis, err := ioutil.ReadDir(dir)
 	if err != nil {
-		t.Error(err)
+		w.errh(err)
 		return
 	}
 
-	// typecheck package in directory
+	// apply pkgh to the files in directory dir
 	// but ignore files directly under $GOROOT/src (might be temporary test files).
 	if dir != filepath.Join(runtime.GOROOT(), "src") {
 		files, err := pkgFilenames(dir)
 		if err != nil {
-			t.Error(err)
+			w.errh(err)
 			return
 		}
 		if files != nil {
-			typecheck(t, dir, files)
+			w.pkgh(dir, files)
 		}
 	}
 
 	// traverse subdirectories, but don't walk into testdata
 	for _, fi := range fis {
 		if fi.IsDir() && fi.Name() != "testdata" {
-			walkDirs(t, filepath.Join(dir, fi.Name()))
+			w.walk(filepath.Join(dir, fi.Name()))
 		}
 	}
 }

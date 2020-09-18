@@ -9,28 +9,48 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func MustHaveDebugOptionsEnabled(t *testing.T) {
+func TestMinimalFeatures(t *testing.T) {
+	if runtime.GOARCH == "arm64" {
+		switch runtime.GOOS {
+		case "linux", "android":
+		default:
+			t.Skipf("%s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+		}
+	}
+
+	for _, o := range Options {
+		if o.Required && !*o.Feature {
+			t.Errorf("%v expected true, got false", o.Name)
+		}
+	}
+}
+
+func MustHaveDebugOptionsSupport(t *testing.T) {
 	if !DebugOptions {
-		t.Skipf("skipping test: cpu feature options not enabled")
+		t.Skipf("skipping test: cpu feature options not supported by OS")
 	}
 }
 
 func runDebugOptionsTest(t *testing.T, test string, options string) {
-	MustHaveDebugOptionsEnabled(t)
+	MustHaveDebugOptionsSupport(t)
 
 	testenv.MustHaveExec(t)
 
-	env := "GODEBUGCPU=" + options
+	env := "GODEBUG=" + options
 
 	cmd := exec.Command(os.Args[0], "-test.run="+test)
 	cmd.Env = append(cmd.Env, env)
 
 	output, err := cmd.CombinedOutput()
-	got := strings.TrimSpace(string(output))
+	lines := strings.Fields(string(output))
+	lastline := lines[len(lines)-1]
+
+	got := strings.TrimSpace(lastline)
 	want := "PASS"
 	if err != nil || got != want {
 		t.Fatalf("%s with %s: want %s, got %v", test, env, want, got)
@@ -38,19 +58,20 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 }
 
 func TestDisableAllCapabilities(t *testing.T) {
-	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=0")
+	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
 }
 
 func TestAllCapabilitiesDisabled(t *testing.T) {
-	MustHaveDebugOptionsEnabled(t)
+	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUGCPU") != "all=0" {
-		t.Skipf("skipping test: GODEBUGCPU=all=0 not set")
+	if os.Getenv("GODEBUG") != "cpu.all=off" {
+		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 
 	for _, o := range Options {
-		if got := *o.Feature; got != false {
-			t.Errorf("%v: expected false, got %v", o.Name, got)
+		want := o.Required
+		if got := *o.Feature; got != want {
+			t.Errorf("%v: expected %v, got %v", o.Name, want, got)
 		}
 	}
 }

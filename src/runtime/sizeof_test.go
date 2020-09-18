@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
-
 package runtime_test
 
 import (
@@ -23,7 +21,8 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{runtime.G{}, 216, 376}, // g, but exported for testing
+		{runtime.G{}, 216, 376},   // g, but exported for testing
+		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
 	}
 
 	for _, tt := range tests {

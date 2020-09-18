@@ -43,7 +43,7 @@ var (
 	s11 = &v
 	s12 = -(u + *t11) / *&v
 	s13 = a /* ERROR "shifted operand" */ << d
-	s14 = i << j /* ERROR "must be unsigned" */
+	s14 = i << j
 	s18 = math.Pi * 10.0
 	s19 = s1 /* ERROR "cannot call" */ ()
  	s20 = f0 /* ERROR "no value" */ ()
@@ -62,7 +62,7 @@ var (
 	t11 *complex64 = &v
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
-	t14 int = i << j /* ERROR "must be unsigned" */
+	t14 int = i << j
 	t15 math /* ERROR "not in selector" */
 	t16 math.xxx /* ERROR "not declared" */
 	t17 math /* ERROR "not a type" */ .Pi

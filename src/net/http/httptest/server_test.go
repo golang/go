@@ -202,3 +202,39 @@ func TestServerZeroValueClose(t *testing.T) {
 
 	ts.Close() // tests that it doesn't panic
 }
+
+func TestTLSServerWithHTTP2(t *testing.T) {
+	modes := []struct {
+		name      string
+		wantProto string
+	}{
+		{"http1", "HTTP/1.1"},
+		{"http2", "HTTP/2.0"},
+	}
+
+	for _, tt := range modes {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Proto", r.Proto)
+			}))
+
+			switch tt.name {
+			case "http2":
+				cst.EnableHTTP2 = true
+				cst.StartTLS()
+			default:
+				cst.Start()
+			}
+
+			defer cst.Close()
+
+			res, err := cst.Client().Get(cst.URL)
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
+			}
+			if g, w := res.Header.Get("X-Proto"), tt.wantProto; g != w {
+				t.Fatalf("X-Proto header mismatch:\n\tgot:  %q\n\twant: %q", g, w)
+			}
+		})
+	}
+}

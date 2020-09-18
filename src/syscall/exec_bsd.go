@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+// +build dragonfly freebsd netbsd openbsd
 
 package syscall
 
 import (
-	"runtime"
 	"unsafe"
 )
 
@@ -16,12 +15,23 @@ type SysProcAttr struct {
 	Credential *Credential // Credential.
 	Ptrace     bool        // Enable tracing.
 	Setsid     bool        // Create session.
-	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
-	Setctty    bool        // Set controlling terminal to fd Ctty
-	Noctty     bool        // Detach fd 0 from controlling terminal
-	Ctty       int         // Controlling TTY fd
-	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
-	Pgid       int         // Child's process group ID if Setpgid.
+	// Setpgid sets the process group ID of the child to Pgid,
+	// or, if Pgid == 0, to the new child's process ID.
+	Setpgid bool
+	// Setctty sets the controlling terminal of the child to
+	// file descriptor Ctty. Ctty must be a descriptor number
+	// in the child process: an index into ProcAttr.Files.
+	// This is only meaningful if Setsid is true.
+	Setctty bool
+	Noctty  bool // Detach fd 0 from controlling terminal
+	Ctty    int  // Controlling TTY fd
+	// Foreground places the child process group in the foreground.
+	// This implies Setpgid. The Ctty field must be set to
+	// the descriptor of the controlling TTY.
+	// Unlike Setctty, in this case Ctty must be a descriptor
+	// number in the parent process.
+	Foreground bool
+	Pgid       int // Child's process group ID if Setpgid.
 }
 
 // Implemented in runtime package.
@@ -43,7 +53,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var (
-		r1, r2 uintptr
+		r1     uintptr
 		err1   Errno
 		nextfd int
 		i      int
@@ -62,23 +72,13 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 	nextfd++
 
-	darwin := runtime.GOOS == "darwin"
-
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+	r1, _, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
-	}
-
-	// On Darwin:
-	//	r1 = child pid in both parent and child.
-	//	r2 = 0 in parent, 1 in child.
-	// Convert to normal Unix r1 = 0 in child.
-	if darwin && r2 == 1 {
-		r1 = 0
 	}
 
 	if r1 != 0 {

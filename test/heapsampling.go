@@ -18,76 +18,201 @@ var a16 *[16]byte
 var a512 *[512]byte
 var a256 *[256]byte
 var a1k *[1024]byte
-var a64k *[64 * 1024]byte
+var a16k *[16 * 1024]byte
+var a17k *[17 * 1024]byte
+var a18k *[18 * 1024]byte
 
-// This test checks that heap sampling produces reasonable
-// results. Note that heap sampling uses randomization, so the results
-// vary for run to run. This test only checks that the resulting
-// values appear reasonable.
+// This test checks that heap sampling produces reasonable results.
+// Note that heap sampling uses randomization, so the results vary for
+// run to run. To avoid flakes, this test performs multiple
+// experiments and only complains if all of them consistently fail.
 func main() {
-	const countInterleaved = 10000
-	allocInterleaved(countInterleaved)
-	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, []int64{256 * 1024, 1024, 256 * 1024, 512, 256 * 1024, 256})
+	// Sample at 16K instead of default 512K to exercise sampling more heavily.
+	runtime.MemProfileRate = 16 * 1024
 
-	const count = 100000
-	alloc(count)
-	checkAllocations(getMemProfileRecords(), "main.alloc", count, []int64{1024, 512, 256})
+	if err := testInterleavedAllocations(); err != nil {
+		panic(err.Error())
+	}
+	if err := testSmallAllocations(); err != nil {
+		panic(err.Error())
+	}
 }
 
-// allocInterleaved stress-tests the heap sampling logic by
-// interleaving large and small allocations.
+// Repeatedly exercise a set of allocations and check that the heap
+// profile collected by the runtime unsamples to a reasonable
+// value. Because sampling is based on randomization, there can be
+// significant variability on the unsampled data. To account for that,
+// the testcase allows for a 10% margin of error, but only fails if it
+// consistently fails across three experiments, avoiding flakes.
+func testInterleavedAllocations() error {
+	const iters = 100000
+	// Sizes of the allocations performed by each experiment.
+	frames := []string{"main.allocInterleaved1", "main.allocInterleaved2", "main.allocInterleaved3"}
+
+	// Pass if at least one of three experiments has no errors. Use a separate
+	// function for each experiment to identify each experiment in the profile.
+	allocInterleaved1(iters)
+	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, allocInterleavedSizes) == nil {
+		// Passed on first try, report no error.
+		return nil
+	}
+	allocInterleaved2(iters)
+	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, allocInterleavedSizes) == nil {
+		// Passed on second try, report no error.
+		return nil
+	}
+	allocInterleaved3(iters)
+	// If it fails a third time, we may be onto something.
+	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, allocInterleavedSizes)
+}
+
+var allocInterleavedSizes = []int64{17 * 1024, 1024, 18 * 1024, 512, 16 * 1024, 256}
+
+// allocInterleaved stress-tests the heap sampling logic by interleaving large and small allocations.
 func allocInterleaved(n int) {
 	for i := 0; i < n; i++ {
 		// Test verification depends on these lines being contiguous.
-		a64k = new([64 * 1024]byte)
+		a17k = new([17 * 1024]byte)
 		a1k = new([1024]byte)
-		a64k = new([64 * 1024]byte)
+		a18k = new([18 * 1024]byte)
 		a512 = new([512]byte)
-		a64k = new([64 * 1024]byte)
+		a16k = new([16 * 1024]byte)
 		a256 = new([256]byte)
+		// Test verification depends on these lines being contiguous.
 	}
 }
 
-// alloc performs only small allocations for sanity testing.
-func alloc(n int) {
+func allocInterleaved1(n int) {
+	allocInterleaved(n)
+}
+
+func allocInterleaved2(n int) {
+	allocInterleaved(n)
+}
+
+func allocInterleaved3(n int) {
+	allocInterleaved(n)
+}
+
+// Repeatedly exercise a set of allocations and check that the heap
+// profile collected by the runtime unsamples to a reasonable
+// value. Because sampling is based on randomization, there can be
+// significant variability on the unsampled data. To account for that,
+// the testcase allows for a 10% margin of error, but only fails if it
+// consistently fails across three experiments, avoiding flakes.
+func testSmallAllocations() error {
+	const iters = 100000
+	// Sizes of the allocations performed by each experiment.
+	sizes := []int64{1024, 512, 256}
+	frames := []string{"main.allocSmall1", "main.allocSmall2", "main.allocSmall3"}
+
+	// Pass if at least one of three experiments has no errors. Use a separate
+	// function for each experiment to identify each experiment in the profile.
+	allocSmall1(iters)
+	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, sizes) == nil {
+		// Passed on first try, report no error.
+		return nil
+	}
+	allocSmall2(iters)
+	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, sizes) == nil {
+		// Passed on second try, report no error.
+		return nil
+	}
+	allocSmall3(iters)
+	// If it fails a third time, we may be onto something.
+	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, sizes)
+}
+
+// allocSmall performs only small allocations for sanity testing.
+func allocSmall(n int) {
 	for i := 0; i < n; i++ {
 		// Test verification depends on these lines being contiguous.
 		a1k = new([1024]byte)
 		a512 = new([512]byte)
 		a256 = new([256]byte)
 	}
+}
+
+// Three separate instances of testing to avoid flakes. Will report an error
+// only if they all consistently report failures.
+func allocSmall1(n int) {
+	allocSmall(n)
+}
+
+func allocSmall2(n int) {
+	allocSmall(n)
+}
+
+func allocSmall3(n int) {
+	allocSmall(n)
 }
 
 // checkAllocations validates that the profile records collected for
 // the named function are consistent with count contiguous allocations
 // of the specified sizes.
-func checkAllocations(records []runtime.MemProfileRecord, fname string, count int64, size []int64) {
-	a := allocObjects(records, fname)
-	firstLine := 0
-	for ln := range a {
+// Check multiple functions and only report consistent failures across
+// multiple tests.
+// Look only at samples that include the named frames, and group the
+// allocations by their line number. All these allocations are done from
+// the same leaf function, so their line numbers are the same.
+func checkAllocations(records []runtime.MemProfileRecord, frames []string, count int64, size []int64) error {
+	objectsPerLine := map[int][]int64{}
+	bytesPerLine := map[int][]int64{}
+	totalCount := []int64{}
+	// Compute the line number of the first allocation. All the
+	// allocations are from the same leaf, so pick the first one.
+	var firstLine int
+	for ln := range allocObjects(records, frames[0]) {
 		if firstLine == 0 || firstLine > ln {
 			firstLine = ln
 		}
 	}
-	var totalcount int64
+	for _, frame := range frames {
+		var objectCount int64
+		a := allocObjects(records, frame)
+		for s := range size {
+			// Allocations of size size[s] should be on line firstLine + s.
+			ln := firstLine + s
+			objectsPerLine[ln] = append(objectsPerLine[ln], a[ln].objects)
+			bytesPerLine[ln] = append(bytesPerLine[ln], a[ln].bytes)
+			objectCount += a[ln].objects
+		}
+		totalCount = append(totalCount, objectCount)
+	}
 	for i, w := range size {
 		ln := firstLine + i
-		s := a[ln]
-		checkValue(fname, ln, "objects", count, s.objects)
-		checkValue(fname, ln, "bytes", count*w, s.bytes)
-		totalcount += s.objects
+		if err := checkValue(frames[0], ln, "objects", count, objectsPerLine[ln]); err != nil {
+			return err
+		}
+		if err := checkValue(frames[0], ln, "bytes", count*w, bytesPerLine[ln]); err != nil {
+			return err
+		}
 	}
-	// Check the total number of allocations, to ensure some sampling occurred.
-	if totalwant := count * int64(len(size)); totalcount <= 0 || totalcount > totalwant*1024 {
-		panic(fmt.Sprintf("%s want total count > 0 && <= %d, got %d", fname, totalwant*1024, totalcount))
-	}
+	return checkValue(frames[0], 0, "total", count*int64(len(size)), totalCount)
 }
 
-// checkValue checks an unsampled value against a range.
-func checkValue(fname string, ln int, name string, want, got int64) {
-	if got < 0 || got > 1024*want {
-		panic(fmt.Sprintf("%s:%d want %s >= 0 && <= %d, got %d", fname, ln, name, 1024*want, got))
+// checkValue checks an unsampled value against its expected value.
+// Given that this is a sampled value, it will be unexact and will change
+// from run to run. Only report it as a failure if all the values land
+// consistently far from the expected value.
+func checkValue(fname string, ln int, testName string, want int64, got []int64) error {
+	if got == nil {
+		return fmt.Errorf("Unexpected empty result")
 	}
+	min, max := got[0], got[0]
+	for _, g := range got[1:] {
+		if g < min {
+			min = g
+		}
+		if g > max {
+			max = g
+		}
+	}
+	margin := want / 10 // 10% margin.
+	if min > want+margin || max < want-margin {
+		return fmt.Errorf("%s:%d want %s in [%d: %d], got %v", fname, ln, testName, want-margin, want+margin, got)
+	}
+	return nil
 }
 
 func getMemProfileRecords() []runtime.MemProfileRecord {
@@ -124,24 +249,35 @@ type allocStat struct {
 	bytes, objects int64
 }
 
-// allocObjects examines the profile records for the named function
-// and returns the allocation stats aggregated by source line number.
+// allocObjects examines the profile records for samples including the
+// named function and returns the allocation stats aggregated by
+// source line number of the allocation (at the leaf frame).
 func allocObjects(records []runtime.MemProfileRecord, function string) map[int]allocStat {
 	a := make(map[int]allocStat)
 	for _, r := range records {
+		var pcs []uintptr
 		for _, s := range r.Stack0 {
 			if s == 0 {
 				break
 			}
-			if f := runtime.FuncForPC(s); f != nil {
-				name := f.Name()
-				_, line := f.FileLine(s)
-				if name == function {
-					allocStat := a[line]
-					allocStat.bytes += r.AllocBytes
-					allocStat.objects += r.AllocObjects
-					a[line] = allocStat
-				}
+			pcs = append(pcs, s)
+		}
+		frames := runtime.CallersFrames(pcs)
+		line := 0
+		for {
+			frame, more := frames.Next()
+			name := frame.Function
+			if line == 0 {
+				line = frame.Line
+			}
+			if name == function {
+				allocStat := a[line]
+				allocStat.bytes += r.AllocBytes
+				allocStat.objects += r.AllocObjects
+				a[line] = allocStat
+			}
+			if !more {
+				break
 			}
 		}
 	}

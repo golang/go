@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package trace
 
 import (
@@ -171,7 +175,7 @@ func (r *Region) End() {
 	userRegion(r.id, regionEndCode, r.regionType)
 }
 
-// IsEnabled returns whether tracing is enabled.
+// IsEnabled reports whether tracing is enabled.
 // The information is advisory only. The tracing status
 // may have changed by the time this function returns.
 func IsEnabled() bool {

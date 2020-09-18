@@ -15,6 +15,7 @@ package fnv
 import (
 	"errors"
 	"hash"
+	"math/bits"
 )
 
 type (
@@ -137,18 +138,12 @@ func (s *sum64a) Write(data []byte) (int, error) {
 
 func (s *sum128) Write(data []byte) (int, error) {
 	for _, c := range data {
-		// Compute the multiplication in 4 parts to simplify carrying
-		s1l := (s[1] & 0xffffffff) * prime128Lower
-		s1h := (s[1] >> 32) * prime128Lower
-		s0l := (s[0]&0xffffffff)*prime128Lower + (s[1]&0xffffffff)<<prime128Shift
-		s0h := (s[0]>>32)*prime128Lower + (s[1]>>32)<<prime128Shift
-		// Carries
-		s1h += s1l >> 32
-		s0l += s1h >> 32
-		s0h += s0l >> 32
+		// Compute the multiplication
+		s0, s1 := bits.Mul64(prime128Lower, s[1])
+		s0 += s[1]<<prime128Shift + prime128Lower*s[0]
 		// Update the values
-		s[1] = (s1l & 0xffffffff) + (s1h << 32)
-		s[0] = (s0l & 0xffffffff) + (s0h << 32)
+		s[1] = s1
+		s[0] = s0
 		s[1] ^= uint64(c)
 	}
 	return len(data), nil
@@ -157,18 +152,12 @@ func (s *sum128) Write(data []byte) (int, error) {
 func (s *sum128a) Write(data []byte) (int, error) {
 	for _, c := range data {
 		s[1] ^= uint64(c)
-		// Compute the multiplication in 4 parts to simplify carrying
-		s1l := (s[1] & 0xffffffff) * prime128Lower
-		s1h := (s[1] >> 32) * prime128Lower
-		s0l := (s[0]&0xffffffff)*prime128Lower + (s[1]&0xffffffff)<<prime128Shift
-		s0h := (s[0]>>32)*prime128Lower + (s[1]>>32)<<prime128Shift
-		// Carries
-		s1h += s1l >> 32
-		s0l += s1h >> 32
-		s0h += s0l >> 32
+		// Compute the multiplication
+		s0, s1 := bits.Mul64(prime128Lower, s[1])
+		s0 += s[1]<<prime128Shift + prime128Lower*s[0]
 		// Update the values
-		s[1] = (s1l & 0xffffffff) + (s1h << 32)
-		s[0] = (s0l & 0xffffffff) + (s0h << 32)
+		s[1] = s1
+		s[0] = s0
 	}
 	return len(data), nil
 }

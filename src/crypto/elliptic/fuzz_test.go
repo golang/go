@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 arm64
+// +build amd64 arm64 ppc64le
 
 package elliptic
 
@@ -22,7 +22,7 @@ func TestFuzz(t *testing.T) {
 	var timeout *time.Timer
 
 	if testing.Short() {
-		timeout = time.NewTimer(500 * time.Millisecond)
+		timeout = time.NewTimer(10 * time.Millisecond)
 	} else {
 		timeout = time.NewTimer(2 * time.Second)
 	}

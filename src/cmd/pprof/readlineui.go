@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains an driver.UI implementation
+// This file contains a driver.UI implementation
 // that provides the readline functionality if possible.
 
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
@@ -101,7 +101,7 @@ func colorize(msg string) string {
 	return colorEscape + msg + colorResetEscape
 }
 
-// IsTerminal returns whether the UI is known to be tied to an
+// IsTerminal reports whether the UI is known to be tied to an
 // interactive terminal (as opposed to being redirected to a file).
 func (r *readlineUI) IsTerminal() bool {
 	const stdout = 1

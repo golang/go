@@ -49,6 +49,23 @@ import "math"
 
 // Exp returns e**x, the base-e exponential of x.
 func Exp(x complex128) complex128 {
+	switch re, im := real(x), imag(x); {
+	case math.IsInf(re, 0):
+		switch {
+		case re > 0 && im == 0:
+			return x
+		case math.IsInf(im, 0) || math.IsNaN(im):
+			if re < 0 {
+				return complex(0, math.Copysign(0, im))
+			} else {
+				return complex(math.Inf(1.0), math.NaN())
+			}
+		}
+	case math.IsNaN(re):
+		if im == 0 {
+			return complex(math.NaN(), im)
+		}
+	}
 	r := math.Exp(real(x))
 	s, c := math.Sincos(imag(x))
 	return complex(r*c, r*s)

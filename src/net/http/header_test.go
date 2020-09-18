@@ -7,6 +7,7 @@ package http
 import (
 	"bytes"
 	"internal/race"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -176,6 +177,14 @@ func TestHasToken(t *testing.T) {
 	}
 }
 
+func TestNilHeaderClone(t *testing.T) {
+	t1 := Header(nil)
+	t2 := t1.Clone()
+	if t2 != nil {
+		t.Errorf("cloned header does not match original: got: %+v; want: %+v", t2, nil)
+	}
+}
+
 var testHeader = Header{
 	"Content-Length": {"123"},
 	"Content-Type":   {"text/plain"},
@@ -209,5 +218,36 @@ func TestHeaderWriteSubsetAllocs(t *testing.T) {
 	})
 	if n > 0 {
 		t.Errorf("allocs = %g; want 0", n)
+	}
+}
+
+// Issue 34878: test that every call to
+// cloneOrMakeHeader never returns a nil Header.
+func TestCloneOrMakeHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		in, want Header
+	}{
+		{"nil", nil, Header{}},
+		{"empty", Header{}, Header{}},
+		{
+			name: "non-empty",
+			in:   Header{"foo": {"bar"}},
+			want: Header{"foo": {"bar"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cloneOrMakeHeader(tt.in)
+			if got == nil {
+				t.Fatal("unexpected nil Header")
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("Got:  %#v\nWant: %#v", got, tt.want)
+			}
+			got.Add("A", "B")
+			got.Get("A")
+		})
 	}
 }

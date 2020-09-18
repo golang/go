@@ -7,7 +7,7 @@ package ssa
 // convert to machine-dependent ops
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
-	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue)
+	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue, removeDeadValues)
 }
 
 // checkLower checks for unlowered opcodes and fails if we find one.
@@ -21,7 +21,7 @@ func checkLower(f *Func) {
 				continue // lowered
 			}
 			switch v.Op {
-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert:
+			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert, OpInlMark:
 				continue // ok not to lower
 			case OpGetG:
 				if f.Config.hasGReg {

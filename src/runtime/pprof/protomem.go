@@ -27,30 +27,27 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defau
 	values := []int64{0, 0, 0, 0}
 	var locs []uint64
 	for _, r := range p {
-		locs = locs[:0]
 		hideRuntime := true
 		for tries := 0; tries < 2; tries++ {
-			for _, addr := range r.Stack() {
-				// For heap profiles, all stack
-				// addresses are return PCs, which is
-				// what locForPC expects.
-				if hideRuntime {
+			stk := r.Stack()
+			// For heap profiles, all stack
+			// addresses are return PCs, which is
+			// what appendLocsForStack expects.
+			if hideRuntime {
+				for i, addr := range stk {
 					if f := runtime.FuncForPC(addr); f != nil && strings.HasPrefix(f.Name(), "runtime.") {
 						continue
 					}
 					// Found non-runtime. Show any runtime uses above it.
-					hideRuntime = false
+					stk = stk[i:]
+					break
 				}
-				l := b.locForPC(addr)
-				if l == 0 { // runtime.goexit
-					continue
-				}
-				locs = append(locs, l)
 			}
+			locs = b.appendLocsForStack(locs[:0], stk)
 			if len(locs) > 0 {
 				break
 			}
-			hideRuntime = false // try again, and show all frames
+			hideRuntime = false // try again, and show all frames next time.
 		}
 
 		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)

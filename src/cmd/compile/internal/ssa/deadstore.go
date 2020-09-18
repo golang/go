@@ -73,9 +73,11 @@ func dse(f *Func) {
 		}
 
 		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
-		// An "address" is an SSA Value which encodes both the address and size of
-		// the write. This code will not remove dead stores to the same address
-		// of different types.
+		// A "shadowed address" is a pointer and a size describing a memory region that
+		// is known to be written. We keep track of shadowed addresses in the shadowed
+		// map, mapping the ID of the address to the size of the shadowed region.
+		// Since we're walking backwards, writes to a shadowed region are useless,
+		// as they will be immediately overwritten.
 		shadowed.clear()
 		v := last
 
@@ -93,17 +95,13 @@ func dse(f *Func) {
 				sz = v.AuxInt
 			}
 			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
-				// Modify store into a copy
+				// Modify the store/zero into a copy of the memory state,
+				// effectively eliding the store operation.
 				if v.Op == OpStore {
 					// store addr value mem
 					v.SetArgs1(v.Args[2])
 				} else {
 					// zero addr mem
-					typesz := v.Args[0].Type.Elem().Size()
-					if sz != typesz {
-						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
-							sz, typesz, v.LongString())
-					}
 					v.SetArgs1(v.Args[1])
 				}
 				v.Aux = nil
@@ -170,6 +168,11 @@ func elimDeadAutosGeneric(f *Func) {
 			return
 		case OpVarLive:
 			// Don't delete the auto if it needs to be kept alive.
+
+			// We depend on this check to keep the autotmp stack slots
+			// for open-coded defers from being removed (since they
+			// may not be used by the inline code, but will be used by
+			// panic processing).
 			n, ok := v.Aux.(GCNode)
 			if !ok || n.StorageClass() != ClassAuto {
 				return
@@ -180,7 +183,7 @@ func elimDeadAutosGeneric(f *Func) {
 			}
 			return
 		case OpStore, OpMove, OpZero:
-			// v should be elimated if we eliminate the auto.
+			// v should be eliminated if we eliminate the auto.
 			n, ok := addr[args[0]]
 			if ok && elim[v] == nil {
 				elim[v] = n
@@ -264,12 +267,11 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = visit(v) || changed
 			}
 			// keep the auto if its address reaches a control value
-			if b.Control == nil {
-				continue
-			}
-			if n, ok := addr[b.Control]; ok && !used[n] {
-				used[n] = true
-				changed = true
+			for _, c := range b.ControlValues() {
+				if n, ok := addr[c]; ok && !used[n] {
+					used[n] = true
+					changed = true
+				}
 			}
 		}
 		if !changed {

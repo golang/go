@@ -20,7 +20,7 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(57|59):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(60|62):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -37,6 +37,7 @@ var tests = []tester{
 	{0, "XXX", "XXX"},
 	{Ldate, "", Rdate + " "},
 	{Ltime, "", Rtime + " "},
+	{Ltime | Lmsgprefix, "XXX", Rtime + " XXX"},
 	{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
 	{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
 	{Llongfile, "", Rlongfile + " "},
@@ -45,6 +46,8 @@ var tests = []tester{
 	// everything at once:
 	{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
 	{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Llongfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " XXX"},
+	{Ldate | Ltime | Lmicroseconds | Lshortfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " XXX"},
 }
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
@@ -61,9 +64,9 @@ func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat 
 	line := buf.String()
 	line = line[0 : len(line)-1]
 	pattern = "^" + pattern + "hello 23 world$"
-	matched, err4 := regexp.MatchString(pattern, line)
-	if err4 != nil {
-		t.Fatal("pattern did not compile:", err4)
+	matched, err := regexp.MatchString(pattern, line)
+	if err != nil {
+		t.Fatal("pattern did not compile:", err)
 	}
 	if !matched {
 		t.Errorf("log output should match %q is %q", pattern, line)

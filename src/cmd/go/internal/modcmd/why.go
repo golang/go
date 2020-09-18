@@ -5,11 +5,14 @@
 package modcmd
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
+	"context"
 	"fmt"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/modload"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdWhy = &base.Command{
@@ -54,24 +57,30 @@ var (
 
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
+	base.AddModCommonFlags(&cmdWhy.Flag)
 }
 
-func runWhy(cmd *base.Command, args []string) {
+func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 	loadALL := modload.LoadALL
 	if *whyVendor {
 		loadALL = modload.LoadVendor
+	} else {
+		modload.LoadTests = true
 	}
 	if *whyM {
 		listU := false
 		listVersions := false
+		listRetractions := false
 		for _, arg := range args {
 			if strings.Contains(arg, "@") {
 				base.Fatalf("go mod why: module query not allowed")
 			}
 		}
-		mods := modload.ListModules(args, listU, listVersions)
+		mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
 		byModule := make(map[module.Version][]string)
-		for _, path := range loadALL() {
+		for _, path := range loadALL(ctx) {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
 				byModule[m] = append(byModule[m], path)
@@ -100,8 +109,8 @@ func runWhy(cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		matches := modload.ImportPaths(args) // resolve to packages
-		loadALL()                            // rebuild graph, from main module (not from named packages)
+		matches := modload.ImportPaths(ctx, args) // resolve to packages
+		loadALL(ctx)                              // rebuild graph, from main module (not from named packages)
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {

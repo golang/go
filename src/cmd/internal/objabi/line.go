@@ -7,6 +7,7 @@ package objabi
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // WorkingDir returns the current working directory
@@ -21,30 +22,61 @@ func WorkingDir() string {
 	return filepath.ToSlash(path)
 }
 
-// AbsFile returns the absolute filename for file in the given directory.
-// It also removes a leading pathPrefix, or else rewrites a leading $GOROOT
-// prefix to the literal "$GOROOT".
+// AbsFile returns the absolute filename for file in the given directory,
+// as rewritten by the rewrites argument.
+// For unrewritten paths, AbsFile rewrites a leading $GOROOT prefix to the literal "$GOROOT".
 // If the resulting path is the empty string, the result is "??".
-func AbsFile(dir, file, pathPrefix string) string {
+//
+// The rewrites argument is a ;-separated list of rewrites.
+// Each rewrite is of the form "prefix" or "prefix=>replace",
+// where prefix must match a leading sequence of path elements
+// and is either removed entirely or replaced by the replacement.
+func AbsFile(dir, file, rewrites string) string {
 	abs := file
 	if dir != "" && !filepath.IsAbs(file) {
 		abs = filepath.Join(dir, file)
 	}
 
-	if pathPrefix != "" && hasPathPrefix(abs, pathPrefix) {
-		if abs == pathPrefix {
-			abs = ""
-		} else {
-			abs = abs[len(pathPrefix)+1:]
+	start := 0
+	for i := 0; i <= len(rewrites); i++ {
+		if i == len(rewrites) || rewrites[i] == ';' {
+			if new, ok := applyRewrite(abs, rewrites[start:i]); ok {
+				abs = new
+				goto Rewritten
+			}
+			start = i + 1
 		}
-	} else if hasPathPrefix(abs, GOROOT) {
+	}
+	if hasPathPrefix(abs, GOROOT) {
 		abs = "$GOROOT" + abs[len(GOROOT):]
 	}
+
+Rewritten:
 	if abs == "" {
 		abs = "??"
 	}
-
 	return abs
+}
+
+// applyRewrite applies the rewrite to the path,
+// returning the rewritten path and a boolean
+// indicating whether the rewrite applied at all.
+func applyRewrite(path, rewrite string) (string, bool) {
+	prefix, replace := rewrite, ""
+	if j := strings.LastIndex(rewrite, "=>"); j >= 0 {
+		prefix, replace = rewrite[:j], rewrite[j+len("=>"):]
+	}
+
+	if prefix == "" || !hasPathPrefix(path, prefix) {
+		return path, false
+	}
+	if len(path) == len(prefix) {
+		return replace, true
+	}
+	if replace == "" {
+		return path[len(prefix)+1:], true
+	}
+	return replace + path[len(prefix):], true
 }
 
 // Does s have t as a path prefix?

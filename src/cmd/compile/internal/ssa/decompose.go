@@ -23,9 +23,11 @@ func decomposeBuiltIn(f *Func) {
 	}
 
 	// Decompose other values
-	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
+	// Note: deadcode is false because we need to keep the original
+	// values around so the name component resolution below can still work.
+	applyRewrite(f, rewriteBlockdec, rewriteValuedec, leaveDeadValues)
 	if f.Config.RegSize == 4 {
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, leaveDeadValues)
 	}
 
 	// Split up named values into their components.
@@ -139,7 +141,7 @@ func decomposeStringPhi(v *Value) {
 
 func decomposeSlicePhi(v *Value) {
 	types := &v.Block.Func.Config.Types
-	ptrType := types.BytePtr
+	ptrType := v.Type.Elem().PtrTo()
 	lenType := types.Int
 
 	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
@@ -212,6 +214,10 @@ func decomposeInterfacePhi(v *Value) {
 	v.reset(OpIMake)
 	v.AddArg(itab)
 	v.AddArg(data)
+}
+
+func decomposeArgs(f *Func) {
+	applyRewrite(f, rewriteBlockdecArgs, rewriteValuedecArgs, removeDeadValues)
 }
 
 func decomposeUser(f *Func) {

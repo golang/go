@@ -214,20 +214,9 @@ func (f *extFloat) Normalize() uint {
 // Multiply sets f to the product f*g: the result is correctly rounded,
 // but not normalized.
 func (f *extFloat) Multiply(g extFloat) {
-	fhi, flo := f.mant>>32, uint64(uint32(f.mant))
-	ghi, glo := g.mant>>32, uint64(uint32(g.mant))
-
-	// Cross products.
-	cross1 := fhi * glo
-	cross2 := flo * ghi
-
-	// f.mant*g.mant is fhi*ghi << 64 + (cross1+cross2) << 32 + flo*glo
-	f.mant = fhi*ghi + (cross1 >> 32) + (cross2 >> 32)
-	rem := uint64(uint32(cross1)) + uint64(uint32(cross2)) + ((flo * glo) >> 32)
+	hi, lo := bits.Mul64(f.mant, g.mant)
 	// Round up.
-	rem += (1 << 31)
-
-	f.mant += (rem >> 32)
+	f.mant = hi + (lo >> 63)
 	f.exp = f.exp + g.exp + 64
 }
 
@@ -242,8 +231,30 @@ var uint64pow10 = [...]uint64{
 // float32 depending on flt.
 func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
 	const uint64digits = 19
+
+	// Errors (in the "numerical approximation" sense, not the "Go's error
+	// type" sense) in this function are measured as multiples of 1/8 of a ULP,
+	// so that "1/2 of a ULP" can be represented in integer arithmetic.
+	//
+	// The C++ double-conversion library also uses this 8x scaling factor:
+	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L291
+	// but this Go implementation has a bug, where it forgets to scale other
+	// calculations (further below in this function) by the same number. The
+	// C++ implementation does not forget:
+	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L366
+	//
+	// Scaling the "errors" in the "is mant_extra in the range (halfway ±
+	// errors)" check, but not scaling the other values, means that we return
+	// ok=false (and fall back to a slower atof code path) more often than we
+	// could. This affects performance but not correctness.
+	//
+	// Longer term, we could fix the forgot-to-scale bug (and look carefully
+	// for correctness regressions; https://codereview.appspot.com/5494068
+	// landed in 2011), or replace this atof algorithm with a faster one (e.g.
+	// Ryu). Shorter term, this comment will suffice.
 	const errorscale = 8
-	errors := 0 // An upper bound for error, computed in errorscale*ulp.
+
+	errors := 0 // An upper bound for error, computed in ULP/errorscale.
 	if trunc {
 		// the decimal number was truncated.
 		errors += errorscale / 2

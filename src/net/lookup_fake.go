@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build nacl js,wasm
+// +build js,wasm
 
 package net
 
@@ -19,7 +19,7 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	return nil, syscall.ENOPROTOOPT
 }
 
-func (*Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (*Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 

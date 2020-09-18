@@ -356,7 +356,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
@@ -407,9 +407,9 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.out() {
-		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
 	}
-	nret = round(nret, sys.PtrSize)
+	nret = alignUp(nret, sys.PtrSize)
 
 	// make sure we have a finalizer goroutine
 	createfing()

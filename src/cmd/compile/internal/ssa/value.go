@@ -47,12 +47,15 @@ type Value struct {
 	// Source position
 	Pos src.XPos
 
-	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	// Use count. Each appearance in Value.Args and Block.Controls counts once.
 	Uses int32
 
 	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
 	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
 	OnWasmStack bool
+
+	// Is this value in the per-function constant cache? If so, remove from cache before changing it or recycling it.
+	InCache bool
 
 	// Storage for the first three args
 	argstorage [3]*Value
@@ -126,6 +129,13 @@ func (v *Value) AuxValAndOff() ValAndOff {
 	return ValAndOff(v.AuxInt)
 }
 
+func (v *Value) AuxArm64BitField() arm64BitField {
+	if opcodeTable[v.Op].auxType != auxARM64BitField {
+		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
+	}
+	return arm64BitField(v.AuxInt)
+}
+
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
@@ -175,15 +185,19 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxARM64BitField:
+		lsb := v.AuxArm64BitField().getARM64BFlsb()
+		width := v.AuxArm64BitField().getARM64BFwidth()
+		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp:
+	case auxSym, auxCall, auxTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
-	case auxSymOff, auxSymInt32, auxTypSize:
+	case auxSymOff, auxCallOff, auxTypSize:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
@@ -199,7 +213,11 @@ func (v *Value) auxString() string {
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	case auxCCop:
-		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+		return fmt.Sprintf(" {%s}", Op(v.AuxInt))
+	case auxS390XCCMask, auxS390XRotateParams:
+		return fmt.Sprintf(" {%v}", v.Aux)
+	case auxFlagConstant:
+		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
 	}
 	return ""
 }
@@ -214,6 +232,58 @@ func (v *Value) AddArg(w *Value) {
 	v.Args = append(v.Args, w)
 	w.Uses++
 }
+
+//go:noinline
+func (v *Value) AddArg2(w1, w2 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2)
+	w1.Uses++
+	w2.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg3(w1, w2, w3 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2, w3)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg4(w1, w2, w3, w4 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg5(w1, w2, w3, w4, w5 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg6(w1, w2, w3, w4, w5, w6 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5, w6)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+	w6.Uses++
+}
+
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -238,10 +308,16 @@ func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 }
-func (v *Value) SetArgs2(a *Value, b *Value) {
+func (v *Value) SetArgs2(a, b *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
+}
+func (v *Value) SetArgs3(a, b, c *Value) {
+	v.resetArgs()
+	v.AddArg(a)
+	v.AddArg(b)
+	v.AddArg(c)
 }
 
 func (v *Value) resetArgs() {
@@ -254,18 +330,37 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// reset is called from most rewrite rules.
+// Allowing it to be inlined increases the size
+// of cmd/compile by almost 10%, and slows it down.
+//go:noinline
 func (v *Value) reset(op Op) {
-	v.Op = op
-	if op != OpCopy && notStmtBoundary(op) {
-		// Special case for OpCopy because of how it is used in rewrite
-		v.Pos = v.Pos.WithNotStmt()
+	if v.InCache {
+		v.Block.Func.unCache(v)
 	}
+	v.Op = op
 	v.resetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
 }
 
+// copyOf is called from rewrite rules.
+// It modifies v to be (Copy a).
+//go:noinline
+func (v *Value) copyOf(a *Value) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
+	v.Op = OpCopy
+	v.resetArgs()
+	v.AddArg(a)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.Type = a.Type
+}
+
 // copyInto makes a new value identical to v and adds it to the end of b.
+// unlike copyIntoWithXPos this does not check for v.Pos being a statement.
 func (v *Value) copyInto(b *Block) *Value {
 	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
@@ -281,7 +376,14 @@ func (v *Value) copyInto(b *Block) *Value {
 
 // copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
 // The supplied position is used as the position of the new value.
+// Because this is used for rematerialization, check for case that (rematerialized)
+// input to value with position 'pos' carried a statement mark, and that the supplied
+// position (of the instruction using the rematerialized value) is not marked, and
+// preserve that mark if its line matches the supplied position.
 func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+	if v.Pos.IsStmt() == src.PosIsStmt && pos.IsStmt() != src.PosIsStmt && v.Pos.SameFileAndLine(pos) {
+		pos = pos.WithIsStmt()
+	}
 	c := b.NewValue0(pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
@@ -300,7 +402,7 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 
-// isGenericIntConst returns whether v is a generic integer constant.
+// isGenericIntConst reports whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
@@ -366,4 +468,24 @@ func (v *Value) LackingPos() bool {
 	// with respect to their source position.
 	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
+}
+
+// removeable reports whether the value v can be removed from the SSA graph entirely
+// if its use count drops to 0.
+func (v *Value) removeable() bool {
+	if v.Type.IsVoid() {
+		// Void ops, like nil pointer checks, must stay.
+		return false
+	}
+	if v.Type.IsMemory() {
+		// All memory ops aren't needed here, but we do need
+		// to keep calls at least (because they might have
+		// syncronization operations we can't see).
+		return false
+	}
+	if v.Op.HasSideEffects() {
+		// These are mostly synchronization operations.
+		return false
+	}
+	return true
 }

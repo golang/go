@@ -1,4 +1,4 @@
-// errorcheck -0 -d=ssa/opt/debug=3
+// errorcheck -0 -d=ssa/opt/debug=1
 
 package main
 

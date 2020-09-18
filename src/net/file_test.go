@@ -31,7 +31,7 @@ var fileConnTests = []struct {
 
 func TestFileConn(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
+	case "plan9", "windows":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -138,7 +138,7 @@ var fileListenerTests = []struct {
 
 func TestFileListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
+	case "plan9", "windows":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -230,7 +230,7 @@ var filePacketConnTests = []struct {
 
 func TestFilePacketConn(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
+	case "plan9", "windows":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -297,7 +297,7 @@ func TestFilePacketConn(t *testing.T) {
 // Issue 24483.
 func TestFileCloseRace(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
+	case "plan9", "windows":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !testableNetwork("tcp") {

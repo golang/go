@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 // chtmpdir changes the working directory to a new temporary directory and
@@ -186,7 +187,7 @@ func TestLinuxDeathSignal(t *testing.T) {
 	}
 
 	cmd := exec.Command(tmpBinary)
-	cmd.Env = []string{"GO_DEATHSIG_PARENT=1"}
+	cmd.Env = append(os.Environ(), "GO_DEATHSIG_PARENT=1")
 	chldStdin, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatalf("failed to create new stdin pipe: %v", err)
@@ -224,7 +225,10 @@ func TestLinuxDeathSignal(t *testing.T) {
 
 func deathSignalParent() {
 	cmd := exec.Command(os.Args[0])
-	cmd.Env = []string{"GO_DEATHSIG_CHILD=1"}
+	cmd.Env = append(os.Environ(),
+		"GO_DEATHSIG_PARENT=",
+		"GO_DEATHSIG_CHILD=1",
+	)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	attrs := syscall.SysProcAttr{
@@ -294,8 +298,16 @@ func TestSyscallNoError(t *testing.T) {
 	// On Linux there are currently no syscalls which don't fail and return
 	// a value larger than 0xfffffffffffff001 so we could test RawSyscall
 	// vs. RawSyscallNoError on 64bit architectures.
-	if runtime.GOARCH != "386" && runtime.GOARCH != "arm" {
+	if unsafe.Sizeof(uintptr(0)) != 4 {
 		t.Skip("skipping on non-32bit architecture")
+	}
+
+	// See https://golang.org/issue/35422
+	// On MIPS, Linux returns whether the syscall had an error in a separate
+	// register (R7), not using a negative return value as on other
+	// architectures.
+	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" {
+		t.Skipf("skipping on %s", runtime.GOARCH)
 	}
 
 	if os.Getuid() != 0 {
@@ -347,7 +359,7 @@ func TestSyscallNoError(t *testing.T) {
 	}
 
 	cmd := exec.Command(tmpBinary)
-	cmd.Env = []string{"GO_SYSCALL_NOERROR=1"}
+	cmd.Env = append(os.Environ(), "GO_SYSCALL_NOERROR=1")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -359,8 +371,22 @@ func TestSyscallNoError(t *testing.T) {
 		strconv.FormatUint(uint64(-uid), 10) + " / " +
 		strconv.FormatUint(uint64(uid), 10)
 	if got != want {
-		t.Errorf("expected %s, got %s", want, got)
+		if filesystemIsNoSUID(tmpBinary) {
+			t.Skip("skipping test when temp dir is mounted nosuid")
+		}
+		// formatted so the values are aligned for easier comparison
+		t.Errorf("expected %s,\ngot      %s", want, got)
 	}
+}
+
+// filesystemIsNoSUID reports whether the filesystem for the given
+// path is mounted nosuid.
+func filesystemIsNoSUID(path string) bool {
+	var st syscall.Statfs_t
+	if syscall.Statfs(path, &st) != nil {
+		return false
+	}
+	return st.Flags&syscall.MS_NOSUID != 0
 }
 
 func syscallNoError() {

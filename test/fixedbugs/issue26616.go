@@ -6,13 +6,13 @@
 
 package p
 
-var x int = three() // ERROR "1 variable but 3 values"
+var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
 
 func f() {
-	var _ int = three() // ERROR "1 variable but 3 values"
-	var a int = three() // ERROR "1 variable but 3 values"
-	a = three()         // ERROR "1 variable but 3 values"
-	b := three()        // ERROR "1 variable but 3 values"
+	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values"
 
 	_, _ = a, b
 }

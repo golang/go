@@ -5,44 +5,62 @@
 package modload
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
-	"cmd/go/internal/module"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+
+	"golang.org/x/mod/module"
 )
 
-func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
-	mods := listModules(args)
-	if listU || listVersions {
-		var work par.Work
+func ListModules(ctx context.Context, args []string, listU, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	mods := listModules(ctx, args, listVersions, listRetracted)
+
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
+	if listU || listVersions || listRetracted {
 		for _, m := range mods {
-			work.Add(m)
+			add := func(m *modinfo.ModulePublic) {
+				sem <- token{}
+				go func() {
+					if listU {
+						addUpdate(ctx, m)
+					}
+					if listVersions {
+						addVersions(ctx, m, listRetracted)
+					}
+					if listRetracted || listU {
+						addRetraction(ctx, m)
+					}
+					<-sem
+				}()
+			}
+
+			add(m)
 			if m.Replace != nil {
-				work.Add(m.Replace)
+				add(m.Replace)
 			}
 		}
-		work.Do(10, func(item interface{}) {
-			m := item.(*modinfo.ModulePublic)
-			if listU {
-				addUpdate(m)
-			}
-			if listVersions {
-				addVersions(m)
-			}
-		})
 	}
+	// Fill semaphore channel to wait for all tasks to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
+	}
+
 	return mods
 }
 
-func listModules(args []string) []*modinfo.ModulePublic {
-	LoadBuildList()
+func listModules(ctx context.Context, args []string, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	LoadAllModules(ctx)
 	if len(args) == 0 {
-		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
+		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true, listRetracted)}
 	}
 
 	var mods []*modinfo.ModulePublic
@@ -54,19 +72,37 @@ func listModules(args []string) []*modinfo.ModulePublic {
 		if search.IsRelativePath(arg) {
 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
 		}
+		if !HasModRoot() && (arg == "all" || strings.Contains(arg, "...")) {
+			base.Fatalf("go: cannot match %q: working directory is not part of a module", arg)
+		}
 		if i := strings.Index(arg, "@"); i >= 0 {
-			info, err := Query(arg[:i], arg[i+1:], nil)
+			path := arg[:i]
+			vers := arg[i+1:]
+			var current string
+			for _, m := range buildList {
+				if m.Path == path {
+					current = m.Version
+					break
+				}
+			}
+
+			allowed := CheckAllowed
+			if IsRevisionQuery(vers) || listRetracted {
+				// Allow excluded and retracted versions if the user asked for a
+				// specific revision or used 'go list -retracted'.
+				allowed = nil
+			}
+			info, err := Query(ctx, path, vers, current, allowed)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
-					Path:    arg[:i],
-					Version: arg[i+1:],
-					Error: &modinfo.ModuleError{
-						Err: err.Error(),
-					},
+					Path:    path,
+					Version: vers,
+					Error:   modinfoError(path, vers, err),
 				})
 				continue
 			}
-			mods = append(mods, moduleInfo(module.Version{Path: arg[:i], Version: info.Version}, false))
+			mod := moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false, listRetracted)
+			mods = append(mods, mod)
 			continue
 		}
 
@@ -83,22 +119,50 @@ func listModules(args []string) []*modinfo.ModulePublic {
 		}
 		matched := false
 		for i, m := range buildList {
+			if i == 0 && !HasModRoot() {
+				// The root module doesn't actually exist: omit it.
+				continue
+			}
 			if match(m.Path) {
 				matched = true
 				if !matchedBuildList[i] {
 					matchedBuildList[i] = true
-					mods = append(mods, moduleInfo(m, true))
+					mods = append(mods, moduleInfo(ctx, m, true, listRetracted))
 				}
 			}
 		}
 		if !matched {
 			if literal {
-				mods = append(mods, &modinfo.ModulePublic{
-					Path: arg,
-					Error: &modinfo.ModuleError{
-						Err: fmt.Sprintf("module %q is not a known dependency", arg),
-					},
-				})
+				if listVersions {
+					// Don't make the user provide an explicit '@latest' when they're
+					// explicitly asking what the available versions are.
+					// Instead, resolve the module, even if it isn't an existing dependency.
+					info, err := Query(ctx, arg, "latest", "", nil)
+					if err == nil {
+						mod := moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false, listRetracted)
+						mods = append(mods, mod)
+					} else {
+						mods = append(mods, &modinfo.ModulePublic{
+							Path:  arg,
+							Error: modinfoError(arg, "", err),
+						})
+					}
+					continue
+				}
+				if cfg.BuildMod == "vendor" {
+					// In vendor mode, we can't determine whether a missing module is “a
+					// known dependency” because the module graph is incomplete.
+					// Give a more explicit error message.
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
+					})
+				} else {
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("not a known dependency")),
+					})
+				}
 			} else {
 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 			}
@@ -106,4 +170,22 @@ func listModules(args []string) []*modinfo.ModulePublic {
 	}
 
 	return mods
+}
+
+// modinfoError wraps an error to create an error message in
+// modinfo.ModuleError with minimal redundancy.
+func modinfoError(path, vers string, err error) *modinfo.ModuleError {
+	var nerr *NoMatchingVersionError
+	var merr *module.ModuleError
+	if errors.As(err, &nerr) {
+		// NoMatchingVersionError contains the query, so we don't mention the
+		// query again in ModuleError.
+		err = &module.ModuleError{Path: path, Err: err}
+	} else if !errors.As(err, &merr) {
+		// If the error does not contain path and version, wrap it in a
+		// module.ModuleError.
+		err = &module.ModuleError{Path: path, Version: vers, Err: err}
+	}
+
+	return &modinfo.ModuleError{Err: err.Error()}
 }

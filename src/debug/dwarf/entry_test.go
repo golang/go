@@ -6,6 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
+	"encoding/binary"
 	"reflect"
 	"testing"
 )
@@ -141,8 +142,10 @@ func Test64Bit(t *testing.T) {
 	// compilation unit except by using XCOFF, so this is
 	// hand-written.
 	tests := []struct {
-		name string
-		info []byte
+		name      string
+		info      []byte
+		addrSize  int
+		byteOrder binary.ByteOrder
 	}{
 		{
 			"32-bit little",
@@ -157,6 +160,7 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
+			8, binary.LittleEndian,
 		},
 		{
 			"64-bit little",
@@ -171,6 +175,7 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
+			8, binary.LittleEndian,
 		},
 		{
 			"64-bit big",
@@ -185,13 +190,22 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
+			8, binary.BigEndian,
 		},
 	}
 
 	for _, test := range tests {
-		_, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
+		data, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %v", test.name, err)
+		}
+
+		r := data.Reader()
+		if r.AddressSize() != test.addrSize {
+			t.Errorf("%s: got address size %d, want %d", test.name, r.AddressSize(), test.addrSize)
+		}
+		if r.ByteOrder() != test.byteOrder {
+			t.Errorf("%s: got byte order %s, want %s", test.name, r.ByteOrder(), test.byteOrder)
 		}
 	}
 }

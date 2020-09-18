@@ -57,6 +57,10 @@ func remainder(x, y float64) float64 {
 		y = -y
 	}
 	if x == y {
+		if sign {
+			zero := 0.0
+			return -zero
+		}
 		return 0
 	}
 	if y <= HalfMax {

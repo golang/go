@@ -294,12 +294,12 @@ var anyRune = []rune{0, unicode.MaxRune}
 // makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
 // the match engine can always tell which branch to take. The routine may modify
 // p if it is turned into a onepass Prog. If it isn't possible for this to be a
-// onepass Prog, the Prog notOnePass is returned. makeOnePass is recursive
+// onepass Prog, the Prog nil is returned. makeOnePass is recursive
 // to the size of the Prog.
 func makeOnePass(p *onePassProg) *onePassProg {
 	// If the machine is very long, it's not worth the time to check if we can use one pass.
 	if len(p.Inst) >= 1000 {
-		return notOnePass
+		return nil
 	}
 
 	var (
@@ -446,11 +446,11 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		visitQueue.clear()
 		pc := instQueue.next()
 		if !check(pc, m) {
-			p = notOnePass
+			p = nil
 			break
 		}
 	}
-	if p != notOnePass {
+	if p != nil {
 		for i := range p.Inst {
 			p.Inst[i].Rune = onePassRunes[i]
 		}
@@ -458,20 +458,18 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	return p
 }
 
-var notOnePass *onePassProg = nil
-
 // compileOnePass returns a new *syntax.Prog suitable for onePass execution if the original Prog
-// can be recharacterized as a one-pass regexp program, or syntax.notOnePass if the
+// can be recharacterized as a one-pass regexp program, or syntax.nil if the
 // Prog cannot be converted. For a one pass prog, the fundamental condition that must
 // be true is: at any InstAlt, there must be no ambiguity about what branch to  take.
 func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 	if prog.Start == 0 {
-		return notOnePass
+		return nil
 	}
 	// onepass regexp is anchored
 	if prog.Inst[prog.Start].Op != syntax.InstEmptyWidth ||
 		syntax.EmptyOp(prog.Inst[prog.Start].Arg)&syntax.EmptyBeginText != syntax.EmptyBeginText {
-		return notOnePass
+		return nil
 	}
 	// every instruction leading to InstMatch must be EmptyEndText
 	for _, inst := range prog.Inst {
@@ -479,18 +477,18 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 		switch inst.Op {
 		default:
 			if opOut == syntax.InstMatch {
-				return notOnePass
+				return nil
 			}
 		case syntax.InstAlt, syntax.InstAltMatch:
 			if opOut == syntax.InstMatch || prog.Inst[inst.Arg].Op == syntax.InstMatch {
-				return notOnePass
+				return nil
 			}
 		case syntax.InstEmptyWidth:
 			if opOut == syntax.InstMatch {
 				if syntax.EmptyOp(inst.Arg)&syntax.EmptyEndText == syntax.EmptyEndText {
 					continue
 				}
-				return notOnePass
+				return nil
 			}
 		}
 	}
@@ -501,7 +499,7 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 	// checkAmbiguity on InstAlts, build onepass Prog if possible
 	p = makeOnePass(p)
 
-	if p != notOnePass {
+	if p != nil {
 		cleanupOnePass(p, prog)
 	}
 	return p

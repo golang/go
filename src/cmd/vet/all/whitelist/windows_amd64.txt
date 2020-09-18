@@ -1,9 +1,0 @@
-// windows/amd64-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_windows_amd64.s: [amd64] ctrlhandler: 16(SP) should be _type+0(FP)
-runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte ret+8(FP)
-runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
-runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
-runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
-runtime/sys_windows_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time
-runtime/zcallback_windows.s: [amd64] callbackasm: function callbackasm missing Go declaration

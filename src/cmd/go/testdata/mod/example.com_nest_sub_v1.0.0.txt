@@ -1,0 +1,12 @@
+Written by hand.
+Test case for nested modules without an explicit relationship.
+This is nested below the top-level module.
+
+-- .mod --
+module example.com/nest/sub
+-- .info --
+{"Version": "v1.0.0"}
+-- go.mod --
+module example.com/nest/sub
+-- y/y.go --
+package y

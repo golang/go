@@ -137,12 +137,18 @@ func (v *Map) Init() *Map {
 	return v
 }
 
-// updateKeys updates the sorted list of keys in v.keys.
+// addKey updates the sorted list of keys in v.keys.
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	v.keys = append(v.keys, key)
-	sort.Strings(v.keys)
+	// Using insertion sort to place key into the already-sorted v.keys.
+	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
+		v.keys = append(v.keys, key)
+	} else if v.keys[i] != key {
+		v.keys = append(v.keys, "")
+		copy(v.keys[i+1:], v.keys[i:])
+		v.keys[i] = key
+	}
 }
 
 func (v *Map) Get(key string) Var {
@@ -196,6 +202,17 @@ func (v *Map) AddFloat(key string, delta float64) {
 	// Add to Float; ignore otherwise.
 	if iv, ok := i.(*Float); ok {
 		iv.Add(delta)
+	}
+}
+
+// Delete deletes the given key from the map.
+func (v *Map) Delete(key string) {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	i := sort.SearchStrings(v.keys, key)
+	if i < len(v.keys) && key == v.keys[i] {
+		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+		v.m.Delete(key)
 	}
 }
 

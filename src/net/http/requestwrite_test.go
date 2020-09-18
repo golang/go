@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -349,7 +350,7 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
+			errReader := iotest.ErrReader(err)
 			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
 		},
 
@@ -369,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
+			errReader := iotest.ErrReader(err)
 			return ioutil.NopCloser(errReader)
 		},
 
@@ -511,6 +512,101 @@ var reqWriteTests = []reqWriteTest{
 			"Host: [fe80::1]:8080\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
+	},
+
+	// CONNECT without Opaque
+	21: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+			},
+		},
+		// What we used to do, locking that behavior in:
+		WantWrite: "CONNECT proxy.com HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// CONNECT with Opaque
+	22: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+				Opaque: "backend:443",
+			},
+		},
+		WantWrite: "CONNECT backend:443 HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// Verify that a nil header value doesn't get written.
+	23: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": nil,
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+	24: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": []string{},
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+
+	25: {
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host:     "www.example.com",
+				RawQuery: "new\nline", // or any CTL
+			},
+		},
+		WantError: errors.New("net/http: can't write control character in Request.URL"),
+	},
+
+	26: { // Request with nil body and PATCH method. Issue #40978
+		Req: Request{
+			Method:        "PATCH",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+		Body: nil,
+		WantWrite: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+		WantProxy: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
 	},
 }
 

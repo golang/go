@@ -266,14 +266,14 @@ func (l *loop) isWithinOrEq(ll *loop) bool {
 // we're relying on loop nests to not be terribly deep.
 func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
 	var o *loop
-	for o = l.outer; o != nil && !sdom.isAncestorEq(o.header, b); o = o.outer {
+	for o = l.outer; o != nil && !sdom.IsAncestorEq(o.header, b); o = o.outer {
 	}
 	return o
 }
 
 func loopnestfor(f *Func) *loopnest {
 	po := f.postorder()
-	sdom := f.sdom()
+	sdom := f.Sdom()
 	b2l := make([]*loop, f.NumBlocks())
 	loops := make([]*loop, 0)
 	visited := make([]bool, f.NumBlocks())
@@ -305,7 +305,7 @@ func loopnestfor(f *Func) *loopnest {
 			bb := e.b
 			l := b2l[bb.ID]
 
-			if sdom.isAncestorEq(bb, b) { // Found a loop header
+			if sdom.IsAncestorEq(bb, b) { // Found a loop header
 				if f.pass != nil && f.pass.debug > 4 {
 					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
 				}
@@ -324,7 +324,7 @@ func loopnestfor(f *Func) *loopnest {
 				// Perhaps a loop header is inherited.
 				// is there any loop containing our successor whose
 				// header dominates b?
-				if !sdom.isAncestorEq(l.header, b) {
+				if !sdom.IsAncestorEq(l.header, b) {
 					l = l.nearestOuterLoop(sdom, b)
 				}
 				if f.pass != nil && f.pass.debug > 4 {

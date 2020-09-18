@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/bytealg"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -301,37 +302,43 @@ type dbgVar struct {
 var debug struct {
 	allocfreetrace     int32
 	cgocheck           int32
+	clobberfree        int32
 	efence             int32
 	gccheckmark        int32
 	gcpacertrace       int32
 	gcshrinkstackoff   int32
-	gcrescanstacks     int32
 	gcstoptheworld     int32
 	gctrace            int32
 	invalidptr         int32
+	madvdontneed       int32 // for Linux; issue 28466
 	sbrk               int32
 	scavenge           int32
+	scavtrace          int32
 	scheddetail        int32
 	schedtrace         int32
 	tracebackancestors int32
+	asyncpreemptoff    int32
 }
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"clobberfree", &debug.clobberfree},
 	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
+	{"scavtrace", &debug.scavtrace},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"tracebackancestors", &debug.tracebackancestors},
+	{"asyncpreemptoff", &debug.asyncpreemptoff},
 }
 
 func parsedebugvars() {
@@ -341,13 +348,13 @@ func parsedebugvars() {
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
-		i := index(p, ",")
+		i := bytealg.IndexByteString(p, ',')
 		if i < 0 {
 			field, p = p, ""
 		} else {
 			field, p = p[:i], p[i+1:]
 		}
-		i = index(field, "=")
+		i = bytealg.IndexByteString(field, '=')
 		if i < 0 {
 			continue
 		}
@@ -410,13 +417,16 @@ func setTraceback(level string) {
 // This is a very special function, do not use it if you are not sure what you are doing.
 // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
 // Handles overflow in a time-specific manner.
+// This keeps us within no-split stack limits on 32-bit processors.
 //go:nosplit
 func timediv(v int64, div int32, rem *int32) int32 {
 	res := int32(0)
 	for bit := 30; bit >= 0; bit-- {
 		if v >= int64(div)<<uint(bit) {
 			v = v - (int64(div) << uint(bit))
-			res += 1 << uint(bit)
+			// Before this for loop, res was 0, thus all these
+			// power of 2 increments are now just bitsets.
+			res |= 1 << uint(bit)
 		}
 	}
 	if v >= int64(div) {
@@ -450,11 +460,6 @@ func releasem(mp *m) {
 	}
 }
 
-//go:nosplit
-func gomcache() *mcache {
-	return getg().m.mcache
-}
-
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	modules := activeModules()
@@ -479,11 +484,23 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
 }
 
-// reflect_resolveTextOff resolves an function pointer offset from a base type.
+// reflect_resolveTextOff resolves a function pointer offset from a base type.
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return (*_type)(rtype).textOff(textOff(off))
 
+}
+
+// reflectlite_resolveNameOff resolves a name offset from a base pointer.
+//go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
+func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+}
+
+// reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
+//go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
+func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
 }
 
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.

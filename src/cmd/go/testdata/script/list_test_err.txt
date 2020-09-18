@@ -1,0 +1,129 @@
+env GO111MODULE=off
+
+# issue 28491: errors in test source files should not prevent
+# "go list -test" from returning useful information.
+
+# go list prints information for package, internal test,
+# external test, but not testmain package when there is a
+# syntax error in test sources.
+! go list -test -deps syntaxerr
+stdout pkgdep
+stdout testdep_a
+stdout testdep_b
+stdout ^syntaxerr$
+stdout '^syntaxerr \[syntaxerr.test\]'
+stdout '^syntaxerr_test \[syntaxerr.test\]'
+! stdout '^syntaxerr\.test'
+stderr 'expected declaration'
+
+# go list -e prints information for all test packages.
+# The syntax error is shown in the package error field.
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' syntaxerr
+stdout 'pkgdep <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_b <nil>'
+stdout 'syntaxerr <nil>'
+stdout 'syntaxerr \[syntaxerr.test\] <nil>'
+stdout 'syntaxerr_test \[syntaxerr.test\] <nil>'
+stdout 'syntaxerr\.test "[^"]*expected declaration'
+! stderr 'expected declaration'
+
+[short] stop
+
+# go list prints partial information with test naming error
+! go list -test -deps nameerr
+stdout pkgdep
+stdout testdep_a
+stdout testdep_b
+stderr 'wrong signature for TestBad'
+
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' nameerr
+stdout 'pkgdep <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_b <nil>'
+stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
+! stderr 'wrong signature for TestBad'
+
+# go list prints partial information with error if test has cyclic import
+! go list -test -deps cycleerr
+stdout cycleerr
+stderr 'import cycle not allowed in test'
+
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' cycleerr
+stdout 'cycleerr <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_cycle <nil>'
+stdout 'cycleerr \[cycleerr.test\] "[^"]*import cycle not allowed in test'
+! stderr 'import cycle not allowed in test'
+
+-- syntaxerr/syntaxerr.go --
+package syntaxerr
+
+import _ "pkgdep"
+
+-- syntaxerr/syntaxerr_ie_test.go --
+package syntaxerr
+
+!!!syntax error
+
+-- syntaxerr/syntaxerr_xe_test.go --
+package syntaxerr_test
+
+!!!syntax error
+
+-- syntaxerr/syntaxerr_i_test.go --
+package syntaxerr
+
+import _ "testdep_a"
+
+-- syntaxerr/syntaxerr_x_test.go --
+package syntaxerr
+
+import _ "testdep_b"
+
+-- nameerr/nameerr.go --
+package nameerr
+
+import _ "pkgdep"
+
+-- nameerr/nameerr_i_test.go --
+package nameerr
+
+import (
+  _ "testdep_a"
+  "testing"
+)
+
+func TestBad(t *testing.B) {}
+
+-- nameerr/nameerr_x_test.go --
+package nameerr_test
+
+import (
+  _ "testdep_b"
+  "testing"
+)
+
+func TestBad(t *testing.B) {}
+
+-- cycleerr/cycleerr_test.go --
+package cycleerr
+
+import (
+  _ "testdep_a"
+  _ "testdep_cycle"
+)
+
+-- pkgdep/pkgdep.go --
+package pkgdep
+
+-- testdep_a/testdep_a.go --
+package testdep_a
+
+-- testdep_b/testdep_b.go --
+package testdep_b
+
+-- testdep_cycle/testdep_cycle.go --
+package testdep_cycle
+
+import _ "cycleerr"

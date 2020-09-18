@@ -4,83 +4,160 @@
 
 package modload
 
+// This file contains the module-mode package loader, as well as some accessory
+// functions pertaining to the package import graph.
+//
+// There are several exported entry points into package loading (such as
+// ImportPathsQuiet and LoadALL), but they are all implemented in terms of
+// loadFromRoots, which itself manipulates an instance of the loader struct.
+//
+// Although most of the loading state is maintained in the loader struct,
+// one key piece - the build list - is a global, so that it can be modified
+// separate from the loading operation, such as during "go get"
+// upgrades/downgrades or in "go mod" operations.
+// TODO(#40775): It might be nice to make the loader take and return
+// a buildList rather than hard-coding use of the global.
+//
+// Loading is an iterative process. On each iteration, we try to load the
+// requested packages and their transitive imports, then try to resolve modules
+// for any imported packages that are still missing.
+//
+// The first step of each iteration identifies a set of “root” packages.
+// Normally the root packages are exactly those matching the named pattern
+// arguments. However, for the "all" meta-pattern and related functions
+// (LoadALL, LoadVendor), the final set of packages is computed from the package
+// import graph, and therefore cannot be an initial input to loading that graph.
+// Instead, the root packages for the "all" pattern are those contained in the
+// main module, and allPatternIsRoot parameter to the loader instructs it to
+// dynamically expand those roots to the full "all" pattern as loading
+// progresses.
+//
+// The pkgInAll flag on each loadPkg instance tracks whether that
+// package is known to match the "all" meta-pattern.
+// A package matches the "all" pattern if:
+// 	- it is in the main module, or
+// 	- it is imported by any test in the main module, or
+// 	- it is imported by another package in "all", or
+// 	- the main module specifies a go version ≤ 1.15, and the package is imported
+// 	  by a *test of* another package in "all".
+//
+// When we implement lazy loading, we will record the modules providing packages
+// in "all" even when we are only loading individual packages, so we set the
+// pkgInAll flag regardless of the whether the "all" pattern is a root.
+// (This is necessary to maintain the “import invariant” described in
+// https://golang.org/design/36460-lazy-module-loading.)
+//
+// Because "go mod vendor" prunes out the tests of vendored packages, the
+// behavior of the "all" pattern with -mod=vendor in Go 1.11–1.15 is the same
+// as the "all" pattern (regardless of the -mod flag) in 1.16+.
+// The allClosesOverTests parameter to the loader indicates whether the "all"
+// pattern should close over tests (as in Go 1.11–1.15) or stop at only those
+// packages transitively imported by the packages and tests in the main module
+// ("all" in Go 1.16+ and "go mod vendor" in Go 1.11+).
+//
+// Note that it is possible for a loaded package NOT to be in "all" even when we
+// are loading the "all" pattern. For example, packages that are transitive
+// dependencies of other roots named on the command line must be loaded, but are
+// not in "all". (The mod_notall test illustrates this behavior.)
+// Similarly, if the LoadTests flag is set but the "all" pattern does not close
+// over test dependencies, then when we load the test of a package that is in
+// "all" but outside the main module, the dependencies of that test will not
+// necessarily themselves be in "all". That configuration does not arise in Go
+// 1.11–1.15, but it will be possible with lazy loading in Go 1.16+.
+//
+// Loading proceeds from the roots, using a parallel work-queue with a limit on
+// the amount of active work (to avoid saturating disks, CPU cores, and/or
+// network connections). Each package is added to the queue the first time it is
+// imported by another package. When we have finished identifying the imports of
+// a package, we add the test for that package if it is needed. A test may be
+// needed if:
+// 	- the package matches a root pattern and tests of the roots were requested, or
+// 	- the package is in the main module and the "all" pattern is requested
+// 	  (because the "all" pattern includes the dependencies of tests in the main
+// 	  module), or
+// 	- the package is in "all" and the definition of "all" we are using includes
+// 	  dependencies of tests (as is the case in Go ≤1.15).
+//
+// After all available packages have been loaded, we examine the results to
+// identify any requested or imported packages that are still missing, and if
+// so, which modules we could add to the module graph in order to make the
+// missing packages available. We add those to the module graph and iterate,
+// until either all packages resolve successfully or we cannot identify any
+// module that would resolve any remaining missing package.
+//
+// If the main module is “tidy” (that is, if "go mod tidy" is a no-op for it)
+// and all requested packages are in "all", then loading completes in a single
+// iteration.
+// TODO(bcmills): We should also be able to load in a single iteration if the
+// requested packages all come from modules that are themselves tidy, regardless
+// of whether those packages are in "all". Today, that requires two iterations
+// if those packages are not found in existing dependencies of the main module.
+
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path"
+	pathpkg "path"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
-)
 
-// buildList is the list of modules to use for building packages.
-// It is initialized by calling ImportPaths, ImportFromFiles,
-// LoadALL, or LoadBuildList, each of which uses loaded.load.
-//
-// Ideally, exactly ONE of those functions would be called,
-// and exactly once. Most of the time, that's true.
-// During "go get" it may not be. TODO(rsc): Figure out if
-// that restriction can be established, or else document why not.
-//
-var buildList []module.Version
+	"golang.org/x/mod/module"
+)
 
 // loaded is the most recently-used package loader.
 // It holds details about individual packages.
-//
-// Note that loaded.buildList is only valid during a load operation;
-// afterward, it is copied back into the global buildList,
-// which should be used instead.
 var loaded *loader
 
 // ImportPaths returns the set of packages matching the args (patterns),
-// adding modules to the build list as needed to satisfy new imports.
-func ImportPaths(patterns []string) []*search.Match {
-	InitMod()
+// on the target platform. Modules may be added to the build list
+// to satisfy new imports.
+func ImportPaths(ctx context.Context, patterns []string) []*search.Match {
+	matches := ImportPathsQuiet(ctx, patterns, imports.Tags())
+	search.WarnUnmatched(matches)
+	return matches
+}
 
+// ImportPathsQuiet is like ImportPaths but does not warn about patterns with
+// no matches. It also lets the caller specify a set of build tags to match
+// packages. The build tags should typically be imports.Tags() or
+// imports.AnyTags(); a nil map has no special meaning.
+func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bool) []*search.Match {
+	InitMod(ctx)
+
+	allPatternIsRoot := false
 	var matches []*search.Match
 	for _, pattern := range search.CleanPatterns(patterns) {
-		m := &search.Match{
-			Pattern: pattern,
-			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
+		matches = append(matches, search.NewMatch(pattern))
+		if pattern == "all" {
+			allPatternIsRoot = true
 		}
-		if m.Literal {
-			m.Pkgs = []string{pattern}
-		}
-		matches = append(matches, m)
 	}
 
-	fsDirs := make([][]string, len(matches))
-	loaded = newLoader()
-	updateMatches := func(iterating bool) {
-		for i, m := range matches {
+	updateMatches := func(ld *loader) {
+		for _, m := range matches {
 			switch {
-			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
+			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
-				if fsDirs[i] == nil {
-					var dirs []string
-					if m.Literal {
-						dirs = []string{m.Pattern}
-					} else {
-						dirs = search.MatchPackagesInFS(m.Pattern).Pkgs
-					}
-					fsDirs[i] = dirs
+				if m.Dirs == nil {
+					matchLocalDirs(m)
 				}
 
 				// Make a copy of the directory list and translate to import paths.
@@ -89,161 +166,272 @@ func ImportPaths(patterns []string) []*search.Match {
 				// from not being in the build list to being in it and back as
 				// the exact version of a particular module increases during
 				// the loader iterations.
-				m.Pkgs = str.StringList(fsDirs[i])
-				for i, pkg := range m.Pkgs {
-					dir := pkg
-					if !filepath.IsAbs(dir) {
-						dir = filepath.Join(cwd, pkg)
-					} else {
-						dir = filepath.Clean(dir)
-					}
+				m.Pkgs = m.Pkgs[:0]
+				for _, dir := range m.Dirs {
+					pkg, err := resolveLocalPackage(dir)
+					if err != nil {
+						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
+						}
 
-					// Note: The checks for @ here are just to avoid misinterpreting
-					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
-					// It's not strictly necessary but helpful to keep the checks.
-					if dir == ModRoot {
-						pkg = Target.Path
-					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) && !strings.Contains(dir[len(ModRoot):], "@") {
-						suffix := filepath.ToSlash(dir[len(ModRoot):])
-						if strings.HasPrefix(suffix, "/vendor/") {
-							// TODO getmode vendor check
-							pkg = strings.TrimPrefix(suffix, "/vendor/")
-						} else {
-							pkg = Target.Path + suffix
+						// If we're outside of a module, ensure that the failure mode
+						// indicates that.
+						ModRoot()
+
+						if ld != nil {
+							m.AddError(err)
 						}
-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && !strings.Contains(sub, "@") {
-						pkg = filepath.ToSlash(sub)
-					} else if path := pathInModuleCache(dir); path != "" {
-						pkg = path
-					} else {
-						pkg = ""
-						if !iterating {
-							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
-						}
+						continue
 					}
-					info, err := os.Stat(dir)
-					if err != nil || !info.IsDir() {
-						// If the directory does not exist,
-						// don't turn it into an import path
-						// that will trigger a lookup.
-						pkg = ""
-						if !iterating {
-							if err != nil {
-								base.Errorf("go: no such directory %v", m.Pattern)
-							} else {
-								base.Errorf("go: %s is not a directory", m.Pattern)
-							}
-						}
-					}
-					m.Pkgs[i] = pkg
+					m.Pkgs = append(m.Pkgs, pkg)
 				}
 
-			case strings.Contains(m.Pattern, "..."):
-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, true, buildList)
+			case m.IsLiteral():
+				m.Pkgs = []string{m.Pattern()}
 
-			case m.Pattern == "all":
-				loaded.testAll = true
-				if iterating {
-					// Enumerate the packages in the main module.
-					// We'll load the dependencies as we find them.
-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+			case strings.Contains(m.Pattern(), "..."):
+				m.Errs = m.Errs[:0]
+				matchPackages(ctx, m, tags, includeStd, buildList)
+
+			case m.Pattern() == "all":
+				if ld == nil {
+					// The initial roots are the packages in the main module.
+					// loadFromRoots will expand that to "all".
+					m.Errs = m.Errs[:0]
+					matchPackages(ctx, m, tags, omitStd, []module.Version{Target})
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
-					m.Pkgs = loaded.computePatternAll(m.Pkgs)
+					m.Pkgs = ld.computePatternAll()
 				}
 
-			case search.IsMetaPackage(m.Pattern): // std, cmd
-				if len(m.Pkgs) == 0 {
-					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
+			case m.Pattern() == "std" || m.Pattern() == "cmd":
+				if m.Pkgs == nil {
+					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
+
+			default:
+				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
 			}
 		}
 	}
 
-	loaded.load(func() []string {
-		var roots []string
-		updateMatches(true)
-		for _, m := range matches {
-			for _, pkg := range m.Pkgs {
-				if pkg != "" {
-					roots = append(roots, pkg)
-				}
+	loaded = loadFromRoots(loaderParams{
+		tags:               tags,
+		allPatternIsRoot:   allPatternIsRoot,
+		allClosesOverTests: index.allPatternClosesOverTests(),
+
+		listRoots: func() (roots []string) {
+			updateMatches(nil)
+			for _, m := range matches {
+				roots = append(roots, m.Pkgs...)
 			}
-		}
-		return roots
+			return roots
+		},
 	})
 
 	// One last pass to finalize wildcards.
-	updateMatches(false)
-
-	// A given module path may be used as itself or as a replacement for another
-	// module, but not both at the same time. Otherwise, the aliasing behavior is
-	// too subtle (see https://golang.org/issue/26607), and we don't want to
-	// commit to a specific behavior at this point.
-	firstPath := make(map[module.Version]string, len(buildList))
-	for _, mod := range buildList {
-		src := mod
-		if rep := Replacement(mod); rep.Path != "" {
-			src = rep
-		}
-		if prev, ok := firstPath[src]; !ok {
-			firstPath[src] = mod.Path
-		} else if prev != mod.Path {
-			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
-		}
-	}
-	base.ExitIfErrors()
+	updateMatches(loaded)
+	checkMultiplePaths()
 	WriteGoMod()
 
-	search.WarnUnmatched(matches)
 	return matches
 }
+
+// matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
+// outside of the standard library and active modules.
+func matchLocalDirs(m *search.Match) {
+	if !m.IsLocal() {
+		panic(fmt.Sprintf("internal error: resolveLocalDirs on non-local pattern %s", m.Pattern()))
+	}
+
+	if i := strings.Index(m.Pattern(), "..."); i >= 0 {
+		// The pattern is local, but it is a wildcard. Its packages will
+		// only resolve to paths if they are inside of the standard
+		// library, the main module, or some dependency of the main
+		// module. Verify that before we walk the filesystem: a filesystem
+		// walk in a directory like /var or /etc can be very expensive!
+		dir := filepath.Dir(filepath.Clean(m.Pattern()[:i+3]))
+		absDir := dir
+		if !filepath.IsAbs(dir) {
+			absDir = filepath.Join(base.Cwd, dir)
+		}
+		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(absDir) == "" {
+			m.Dirs = []string{}
+			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+			return
+		}
+	}
+
+	m.MatchDirs()
+}
+
+// resolveLocalPackage resolves a filesystem path to a package path.
+func resolveLocalPackage(dir string) (string, error) {
+	var absDir string
+	if filepath.IsAbs(dir) {
+		absDir = filepath.Clean(dir)
+	} else {
+		absDir = filepath.Join(base.Cwd, dir)
+	}
+
+	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
+	if err != nil && (bp == nil || len(bp.IgnoredGoFiles) == 0) {
+		// golang.org/issue/32917: We should resolve a relative path to a
+		// package path only if the relative path actually contains the code
+		// for that package.
+		//
+		// If the named directory does not exist or contains no Go files,
+		// the package does not exist.
+		// Other errors may affect package loading, but not resolution.
+		if _, err := os.Stat(absDir); err != nil {
+			if os.IsNotExist(err) {
+				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
+				// messages will be easier for users to search for.
+				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
+			}
+			return "", err
+		}
+		if _, noGo := err.(*build.NoGoError); noGo {
+			// A directory that does not contain any Go source files — even ignored
+			// ones! — is not a Go package, and we can't resolve it to a package
+			// path because that path could plausibly be provided by some other
+			// module.
+			//
+			// Any other error indicates that the package “exists” (at least in the
+			// sense that it cannot exist in any other module), but has some other
+			// problem (such as a syntax error).
+			return "", err
+		}
+	}
+
+	if modRoot != "" && absDir == modRoot {
+		if absDir == cfg.GOROOTsrc {
+			return "", errPkgIsGorootSrc
+		}
+		return targetPrefix, nil
+	}
+
+	// Note: The checks for @ here are just to avoid misinterpreting
+	// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+	// It's not strictly necessary but helpful to keep the checks.
+	if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
+		suffix := filepath.ToSlash(absDir[len(modRoot):])
+		if strings.HasPrefix(suffix, "/vendor/") {
+			if cfg.BuildMod != "vendor" {
+				return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+			}
+
+			readVendorList()
+			pkg := strings.TrimPrefix(suffix, "/vendor/")
+			if _, ok := vendorPkgModule[pkg]; !ok {
+				return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+			}
+			return pkg, nil
+		}
+
+		if targetPrefix == "" {
+			pkg := strings.TrimPrefix(suffix, "/")
+			if pkg == "builtin" {
+				// "builtin" is a pseudo-package with a real source file.
+				// It's not included in "std", so it shouldn't resolve from "."
+				// within module "std" either.
+				return "", errPkgIsBuiltin
+			}
+			return pkg, nil
+		}
+
+		pkg := targetPrefix + suffix
+		if _, ok, err := dirInModule(pkg, targetPrefix, modRoot, true); err != nil {
+			return "", err
+		} else if !ok {
+			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
+		}
+		return pkg, nil
+	}
+
+	if sub := search.InDir(absDir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+		pkg := filepath.ToSlash(sub)
+		if pkg == "builtin" {
+			return "", errPkgIsBuiltin
+		}
+		return pkg, nil
+	}
+
+	pkg := pathInModuleCache(absDir)
+	if pkg == "" {
+		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
+	}
+	return pkg, nil
+}
+
+var (
+	errDirectoryNotFound = errors.New("directory not found")
+	errPkgIsGorootSrc    = errors.New("GOROOT/src is not an importable package")
+	errPkgIsBuiltin      = errors.New(`"builtin" is a pseudo-package, not an importable package`)
+)
 
 // pathInModuleCache returns the import path of the directory dir,
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(dir string) string {
-	for _, m := range buildList[1:] {
-		root, err := modfetch.DownloadDir(m)
-		if err != nil {
-			continue
-		}
-		if sub := search.InDir(dir, root); sub != "" {
-			sub = filepath.ToSlash(sub)
-			if !strings.Contains(sub, "/vendor/") && !strings.HasPrefix(sub, "vendor/") && !strings.Contains(sub, "@") {
-				return path.Join(m.Path, filepath.ToSlash(sub))
+	tryMod := func(m module.Version) (string, bool) {
+		var root string
+		var err error
+		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
+			root = repl.Path
+			if !filepath.IsAbs(root) {
+				root = filepath.Join(ModRoot(), root)
 			}
+		} else if repl.Path != "" {
+			root, err = modfetch.DownloadDir(repl)
+		} else {
+			root, err = modfetch.DownloadDir(m)
+		}
+		if err != nil {
+			return "", false
+		}
+
+		sub := search.InDir(dir, root)
+		if sub == "" {
+			return "", false
+		}
+		sub = filepath.ToSlash(sub)
+		if strings.Contains(sub, "/vendor/") || strings.HasPrefix(sub, "vendor/") || strings.Contains(sub, "@") {
+			return "", false
+		}
+
+		return path.Join(m.Path, filepath.ToSlash(sub)), true
+	}
+
+	for _, m := range buildList[1:] {
+		if importPath, ok := tryMod(m); ok {
+			// checkMultiplePaths ensures that a module can be used for at most one
+			// requirement, so this must be it.
+			return importPath
 		}
 	}
 	return ""
 }
 
-// warnPattern returns list, the result of matching pattern,
-// but if list is empty then first it prints a warning about
-// the pattern not matching any packages.
-func warnPattern(pattern string, list []string) []string {
-	if len(list) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
-	return list
-}
-
 // ImportFromFiles adds modules to the build list as needed
 // to satisfy the imports in the named Go source files.
-func ImportFromFiles(gofiles []string) {
-	InitMod()
+func ImportFromFiles(ctx context.Context, gofiles []string) {
+	InitMod(ctx)
 
-	imports, testImports, err := imports.ScanFiles(gofiles, imports.Tags())
+	tags := imports.Tags()
+	imports, testImports, err := imports.ScanFiles(gofiles, tags)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
-	loaded = newLoader()
-	loaded.load(func() []string {
-		var roots []string
-		roots = append(roots, imports...)
-		roots = append(roots, testImports...)
-		return roots
+	loaded = loadFromRoots(loaderParams{
+		tags: tags,
+		listRoots: func() (roots []string) {
+			roots = append(roots, imports...)
+			roots = append(roots, testImports...)
+			return roots
+		},
+		allClosesOverTests: index.allPatternClosesOverTests(),
 	})
 	WriteGoMod()
 }
@@ -251,41 +439,27 @@ func ImportFromFiles(gofiles []string) {
 // DirImportPath returns the effective import path for dir,
 // provided it is within the main module, or else returns ".".
 func DirImportPath(dir string) string {
+	if modRoot == "" {
+		return "."
+	}
+
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(cwd, dir)
+		dir = filepath.Join(base.Cwd, dir)
 	} else {
 		dir = filepath.Clean(dir)
 	}
 
-	if dir == ModRoot {
-		return Target.Path
+	if dir == modRoot {
+		return targetPrefix
 	}
-	if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
-		suffix := filepath.ToSlash(dir[len(ModRoot):])
+	if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
+		suffix := filepath.ToSlash(dir[len(modRoot):])
 		if strings.HasPrefix(suffix, "/vendor/") {
 			return strings.TrimPrefix(suffix, "/vendor/")
 		}
-		return Target.Path + suffix
+		return targetPrefix + suffix
 	}
 	return "."
-}
-
-// LoadBuildList loads and returns the build list from go.mod.
-// The loading of the build list happens automatically in ImportPaths:
-// LoadBuildList need only be called if ImportPaths is not
-// (typically in commands that care about the module but
-// no particular package).
-func LoadBuildList() []module.Version {
-	InitMod()
-	ReloadBuildList()
-	WriteGoMod()
-	return buildList
-}
-
-func ReloadBuildList() []module.Version {
-	loaded = newLoader()
-	loaded.load(func() []string { return nil })
-	return buildList
 }
 
 // LoadALL returns the set of all packages in the current module
@@ -294,65 +468,63 @@ func ReloadBuildList() []module.Version {
 // It adds modules to the build list as needed to satisfy new imports.
 // This set is useful for deciding whether a particular import is needed
 // anywhere in a module.
-func LoadALL() []string {
-	return loadAll(true)
+//
+// In modules that specify "go 1.16" or higher, ALL follows only one layer of
+// test dependencies. In "go 1.15" or lower, ALL follows the imports of tests of
+// dependencies of tests.
+func LoadALL(ctx context.Context) []string {
+	InitMod(ctx)
+	return loadAll(ctx, index.allPatternClosesOverTests())
 }
 
 // LoadVendor is like LoadALL but only follows test dependencies
 // for tests in the main module. Tests in dependency modules are
 // ignored completely.
 // This set is useful for identifying the which packages to include in a vendor directory.
-func LoadVendor() []string {
-	return loadAll(false)
+func LoadVendor(ctx context.Context) []string {
+	InitMod(ctx)
+	// 'go mod vendor' has never followed test dependencies since Go 1.11.
+	const closeOverTests = false
+	return loadAll(ctx, closeOverTests)
 }
 
-func loadAll(testAll bool) []string {
-	InitMod()
-
-	loaded = newLoader()
-	loaded.isALL = true
-	loaded.tags = anyTags
-	loaded.testAll = testAll
-	if !testAll {
-		loaded.testRoots = true
-	}
-	all := TargetPackages()
-	loaded.load(func() []string { return all })
+func loadAll(ctx context.Context, closeOverTests bool) []string {
+	inTarget := TargetPackages(ctx, "...")
+	loaded = loadFromRoots(loaderParams{
+		tags:               imports.AnyTags(),
+		listRoots:          func() []string { return inTarget.Pkgs },
+		allPatternIsRoot:   true,
+		allClosesOverTests: closeOverTests,
+	})
+	checkMultiplePaths()
 	WriteGoMod()
 
 	var paths []string
 	for _, pkg := range loaded.pkgs {
-		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
-			continue // Package doesn't actually exist.
+		if pkg.err != nil {
+			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+			continue
 		}
 		paths = append(paths, pkg.path)
 	}
+	for _, err := range inTarget.Errs {
+		base.Errorf("%v", err)
+	}
+	base.ExitIfErrors()
 	return paths
 }
 
-// anyTags is a special tags map that satisfies nearly all build tag expressions.
-// Only "ignore" and malformed build tag requirements are considered false.
-var anyTags = map[string]bool{"*": true}
+// TargetPackages returns the list of packages in the target (top-level) module
+// matching pattern, which may be relative to the working directory, under all
+// build tag settings.
+func TargetPackages(ctx context.Context, pattern string) *search.Match {
+	// TargetPackages is relative to the main module, so ensure that the main
+	// module is a thing that can contain packages.
+	ModRoot()
 
-// TargetPackages returns the list of packages in the target (top-level) module,
-// under all build tag settings.
-func TargetPackages() []string {
-	return matchPackages("...", anyTags, false, []module.Version{Target})
-}
-
-// BuildList returns the module build list,
-// typically constructed by a previous call to
-// LoadBuildList or ImportPaths.
-// The caller must not modify the returned list.
-func BuildList() []module.Version {
-	return buildList
-}
-
-// SetBuildList sets the module build list.
-// The caller is responsible for ensuring that the list is valid.
-// SetBuildList does not retain a reference to the original list.
-func SetBuildList(list []module.Version) {
-	buildList = append([]module.Version{}, list...)
+	m := search.NewMatch(pattern)
+	matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{Target})
+	return m
 }
 
 // ImportMap returns the actual package import path
@@ -386,17 +558,41 @@ func PackageModule(path string) module.Version {
 	return pkg.mod
 }
 
-// ModuleUsedDirectly reports whether the main module directly imports
-// some package in the module with the given path.
-func ModuleUsedDirectly(path string) bool {
-	return loaded.direct[path]
+// PackageImports returns the imports for the package named by the import path.
+// Test imports will be returned as well if tests were loaded for the package
+// (i.e., if "all" was loaded or if LoadTests was set and the path was matched
+// by a command line argument). PackageImports will return nil for
+// unknown package paths.
+func PackageImports(path string) (imports, testImports []string) {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
+		return nil, nil
+	}
+	imports = make([]string, len(pkg.imports))
+	for i, p := range pkg.imports {
+		imports[i] = p.path
+	}
+	if pkg.test != nil {
+		testImports = make([]string, len(pkg.test.imports))
+		for i, p := range pkg.test.imports {
+			testImports[i] = p.path
+		}
+	}
+	return imports, testImports
 }
 
 // Lookup returns the source directory, import path, and any loading error for
-// the package at path.
+// the package at path as imported from the package in parentDir.
 // Lookup requires that one of the Load functions in this package has already
 // been called.
-func Lookup(path string) (dir, realPath string, err error) {
+func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath string, err error) {
+	if path == "" {
+		panic("Lookup called with empty package path")
+	}
+
+	if parentIsStd {
+		path = loaded.stdVendor(parentPath, path)
+	}
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
 	if !ok {
 		// The loader should have found all the relevant paths.
@@ -420,68 +616,148 @@ func Lookup(path string) (dir, realPath string, err error) {
 // the required packages for a particular build,
 // checking that the packages are available in the module set,
 // and updating the module set if needed.
-// Loading is an iterative process: try to load all the needed packages,
-// but if imports are missing, try to resolve those imports, and repeat.
-//
-// Although most of the loading state is maintained in the loader struct,
-// one key piece - the build list - is a global, so that it can be modified
-// separate from the loading operation, such as during "go get"
-// upgrades/downgrades or in "go mod" operations.
-// TODO(rsc): It might be nice to make the loader take and return
-// a buildList rather than hard-coding use of the global.
 type loader struct {
-	tags      map[string]bool // tags for scanDir
-	testRoots bool            // include tests for roots
-	isALL     bool            // created with LoadALL
-	testAll   bool            // include tests for all packages
+	loaderParams
+
+	work *par.Queue
 
 	// reset on each iteration
 	roots    []*loadPkg
-	pkgs     []*loadPkg
-	work     *par.Work  // current work queue
-	pkgCache *par.Cache // map from string to *loadPkg
+	pkgCache *par.Cache // package path (string) → *loadPkg
+	pkgs     []*loadPkg // transitive closure of loaded packages and tests; populated in buildStacks
 
 	// computed at end of iterations
-	direct    map[string]bool   // imported directly by main module
-	goVersion map[string]string // go version recorded in each module
+	direct map[string]bool // imported directly by main module
+}
+
+type loaderParams struct {
+	tags               map[string]bool // tags for scanDir
+	listRoots          func() []string
+	allPatternIsRoot   bool // Is the "all" pattern an additional root?
+	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
 }
 
 // LoadTests controls whether the loaders load tests of the root packages.
 var LoadTests bool
 
-func newLoader() *loader {
-	ld := new(loader)
-	ld.tags = imports.Tags()
-	ld.testRoots = LoadTests
-	return ld
-}
-
 func (ld *loader) reset() {
+	select {
+	case <-ld.work.Idle():
+	default:
+		panic("loader.reset when not idle")
+	}
+
 	ld.roots = nil
-	ld.pkgs = nil
-	ld.work = new(par.Work)
 	ld.pkgCache = new(par.Cache)
+	ld.pkgs = nil
 }
 
 // A loadPkg records information about a single loaded package.
 type loadPkg struct {
-	path        string         // import path
+	// Populated at construction time:
+	path   string // import path
+	testOf *loadPkg
+
+	// Populated at construction time and updated by (*loader).applyPkgFlags:
+	flags atomicLoadPkgFlags
+
+	// Populated by (*loader).load:
 	mod         module.Version // module providing package
 	dir         string         // directory containing source code
-	imports     []*loadPkg     // packages imported by this one
 	err         error          // error loading package
-	stack       *loadPkg       // package importing this one in minimal import stack for this pkg
-	test        *loadPkg       // package with test imports, if we need test
-	testOf      *loadPkg
-	testImports []string // test-only imports, saved for use by pkg.test.
+	imports     []*loadPkg     // packages imported by this one
+	testImports []string       // test-only imports, saved for use by pkg.test.
+	inStd       bool
+
+	// Populated by (*loader).pkgTest:
+	testOnce sync.Once
+	test     *loadPkg
+
+	// Populated by postprocessing in (*loader).buildStacks:
+	stack *loadPkg // package importing this one in minimal import stack for this pkg
+}
+
+// loadPkgFlags is a set of flags tracking metadata about a package.
+type loadPkgFlags int8
+
+const (
+	// pkgInAll indicates that the package is in the "all" package pattern,
+	// regardless of whether we are loading the "all" package pattern.
+	//
+	// When the pkgInAll flag and pkgImportsLoaded flags are both set, the caller
+	// who set the last of those flags must propagate the pkgInAll marking to all
+	// of the imports of the marked package.
+	//
+	// A test is marked with pkgInAll if that test would promote the packages it
+	// imports to be in "all" (such as when the test is itself within the main
+	// module, or when ld.allClosesOverTests is true).
+	pkgInAll loadPkgFlags = 1 << iota
+
+	// pkgIsRoot indicates that the package matches one of the root package
+	// patterns requested by the caller.
+	//
+	// If LoadTests is set, then when pkgIsRoot and pkgImportsLoaded are both set,
+	// the caller who set the last of those flags must populate a test for the
+	// package (in the pkg.test field).
+	//
+	// If the "all" pattern is included as a root, then non-test packages in "all"
+	// are also roots (and must be marked pkgIsRoot).
+	pkgIsRoot
+
+	// pkgImportsLoaded indicates that the imports and testImports fields of a
+	// loadPkg have been populated.
+	pkgImportsLoaded
+)
+
+// has reports whether all of the flags in cond are set in f.
+func (f loadPkgFlags) has(cond loadPkgFlags) bool {
+	return f&cond == cond
+}
+
+// An atomicLoadPkgFlags stores a loadPkgFlags for which individual flags can be
+// added atomically.
+type atomicLoadPkgFlags struct {
+	bits int32
+}
+
+// update sets the given flags in af (in addition to any flags already set).
+//
+// update returns the previous flag state so that the caller may determine which
+// flags were newly-set.
+func (af *atomicLoadPkgFlags) update(flags loadPkgFlags) (old loadPkgFlags) {
+	for {
+		old := atomic.LoadInt32(&af.bits)
+		new := old | int32(flags)
+		if new == old || atomic.CompareAndSwapInt32(&af.bits, old, new) {
+			return loadPkgFlags(old)
+		}
+	}
+}
+
+// has reports whether all of the flags in cond are set in af.
+func (af *atomicLoadPkgFlags) has(cond loadPkgFlags) bool {
+	return loadPkgFlags(atomic.LoadInt32(&af.bits))&cond == cond
+}
+
+// isTest reports whether pkg is a test of another package.
+func (pkg *loadPkg) isTest() bool {
+	return pkg.testOf != nil
 }
 
 var errMissing = errors.New("cannot find package")
 
-// load attempts to load the build graph needed to process a set of root packages.
-// The set of root packages is defined by the addRoots function,
-// which must call add(path) with the import path of each root package.
-func (ld *loader) load(roots func() []string) {
+// loadFromRoots attempts to load the build graph needed to process a set of
+// root packages and their dependencies.
+//
+// The set of root packages is returned by the params.listRoots function, and
+// expanded to the full set of packages by tracing imports (and possibly tests)
+// as needed.
+func loadFromRoots(params loaderParams) *loader {
+	ld := &loader{
+		loaderParams: params,
+		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
+	}
+
 	var err error
 	reqs := Reqs()
 	buildList, err = mvs.BuildList(Target, reqs)
@@ -489,41 +765,34 @@ func (ld *loader) load(roots func() []string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	added := make(map[string]bool)
+	addedModuleFor := make(map[string]bool)
 	for {
 		ld.reset()
-		if roots != nil {
-			// Note: the returned roots can change on each iteration,
-			// since the expansion of package patterns depends on the
-			// build list we're using.
-			for _, path := range roots() {
-				ld.work.Add(ld.pkg(path, true))
+
+		// Load the root packages and their imports.
+		// Note: the returned roots can change on each iteration,
+		// since the expansion of package patterns depends on the
+		// build list we're using.
+		inRoots := map[*loadPkg]bool{}
+		for _, path := range ld.listRoots() {
+			root := ld.pkg(path, pkgIsRoot)
+			if !inRoots[root] {
+				ld.roots = append(ld.roots, root)
+				inRoots[root] = true
 			}
 		}
-		ld.work.Do(10, ld.doPkg)
+
+		// ld.pkg adds imported packages to the work queue and calls applyPkgFlags,
+		// which adds tests (and test dependencies) as needed.
+		//
+		// When all of the work in the queue has completed, we'll know that the
+		// transitive closure of dependencies has been loaded.
+		<-ld.work.Idle()
+
 		ld.buildStacks()
-		numAdded := 0
-		haveMod := make(map[module.Version]bool)
-		for _, m := range buildList {
-			haveMod[m] = true
-		}
-		for _, pkg := range ld.pkgs {
-			if err, ok := pkg.err.(*ImportMissingError); ok && err.Module.Path != "" {
-				if added[pkg.path] {
-					base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
-				}
-				added[pkg.path] = true
-				numAdded++
-				if !haveMod[err.Module] {
-					haveMod[err.Module] = true
-					buildList = append(buildList, err.Module)
-				}
-				continue
-			}
-			// Leave other errors for Import or load.Packages to report.
-		}
-		base.ExitIfErrors()
-		if numAdded == 0 {
+
+		modAddedBy := ld.resolveMissingImports(addedModuleFor)
+		if len(modAddedBy) == 0 {
 			break
 		}
 
@@ -531,6 +800,14 @@ func (ld *loader) load(roots func() []string) {
 		reqs = Reqs()
 		buildList, err = mvs.BuildList(Target, reqs)
 		if err != nil {
+			// If an error was found in a newly added module, report the package
+			// import stack instead of the module requirement stack. Packages
+			// are more descriptive.
+			if err, ok := err.(*mvs.BuildListError); ok {
+				if pkg := modAddedBy[err.Module()]; pkg != nil {
+					base.Fatalf("go: %s: %v", pkg.stackText(), err.Err)
+				}
+			}
 			base.Fatalf("go: %v", err)
 		}
 	}
@@ -548,122 +825,312 @@ func (ld *loader) load(roots func() []string) {
 		}
 	}
 
-	// Add Go versions, computed during walk.
-	ld.goVersion = make(map[string]string)
-	for _, m := range buildList {
-		v, _ := reqs.(*mvsReqs).versions.Load(m)
-		ld.goVersion[m.Path], _ = v.(string)
-	}
-
-	// Mix in direct markings (really, lack of indirect markings)
-	// from go.mod, unless we scanned the whole module
-	// and can therefore be sure we know better than go.mod.
-	if !ld.isALL && modFile != nil {
+	// If we didn't scan all of the imports from the main module, or didn't use
+	// imports.AnyTags, then we didn't necessarily load every package that
+	// contributes “direct” imports — so we can't safely mark existing
+	// dependencies as indirect-only.
+	// Conservatively mark those dependencies as direct.
+	if modFile != nil && (!ld.allPatternIsRoot || !reflect.DeepEqual(ld.tags, imports.AnyTags())) {
 		for _, r := range modFile.Require {
 			if !r.Indirect {
 				ld.direct[r.Mod.Path] = true
 			}
 		}
 	}
+
+	return ld
 }
 
-// pkg returns the *loadPkg for path, creating and queuing it if needed.
-// If the package should be tested, its test is created but not queued
-// (the test is queued after processing pkg).
-// If isRoot is true, the pkg is being queued as one of the roots of the work graph.
-func (ld *loader) pkg(path string, isRoot bool) *loadPkg {
-	return ld.pkgCache.Do(path, func() interface{} {
+// resolveMissingImports adds module dependencies to the global build list
+// in order to resolve missing packages from pkgs.
+//
+// The newly-resolved packages are added to the addedModuleFor map, and
+// resolveMissingImports returns a map from each newly-added module version to
+// the first package for which that module was added.
+func (ld *loader) resolveMissingImports(addedModuleFor map[string]bool) (modAddedBy map[module.Version]*loadPkg) {
+	var needPkgs []*loadPkg
+	for _, pkg := range ld.pkgs {
+		if pkg.isTest() {
+			// If we are missing a test, we are also missing its non-test version, and
+			// we should only add the missing import once.
+			continue
+		}
+		if pkg.err != errImportMissing {
+			// Leave other errors for Import or load.Packages to report.
+			continue
+		}
+
+		needPkgs = append(needPkgs, pkg)
+
+		pkg := pkg
+		ld.work.Add(func() {
+			pkg.mod, pkg.err = queryImport(context.TODO(), pkg.path)
+		})
+	}
+	<-ld.work.Idle()
+
+	modAddedBy = map[module.Version]*loadPkg{}
+	for _, pkg := range needPkgs {
+		if pkg.err != nil {
+			continue
+		}
+
+		fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, pkg.mod.Path, pkg.mod.Version)
+		if addedModuleFor[pkg.path] {
+			// TODO(bcmills): This should only be an error if pkg.mod is the same
+			// version we already tried to add previously.
+			base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
+		}
+		if modAddedBy[pkg.mod] == nil {
+			modAddedBy[pkg.mod] = pkg
+			buildList = append(buildList, pkg.mod)
+		}
+	}
+
+	return modAddedBy
+}
+
+// pkg locates the *loadPkg for path, creating and queuing it for loading if
+// needed, and updates its state to reflect the given flags.
+//
+// The imports of the returned *loadPkg will be loaded asynchronously in the
+// ld.work queue, and its test (if requested) will also be populated once
+// imports have been resolved. When ld.work goes idle, all transitive imports of
+// the requested package (and its test, if requested) will have been loaded.
+func (ld *loader) pkg(path string, flags loadPkgFlags) *loadPkg {
+	if flags.has(pkgImportsLoaded) {
+		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
+	}
+
+	pkg := ld.pkgCache.Do(path, func() interface{} {
 		pkg := &loadPkg{
 			path: path,
 		}
-		if ld.testRoots && isRoot || ld.testAll {
-			test := &loadPkg{
-				path:   path,
-				testOf: pkg,
-			}
-			pkg.test = test
-		}
-		if isRoot {
-			ld.roots = append(ld.roots, pkg)
-		}
-		ld.work.Add(pkg)
+		ld.applyPkgFlags(pkg, flags)
+
+		ld.work.Add(func() { ld.load(pkg) })
 		return pkg
 	}).(*loadPkg)
+
+	ld.applyPkgFlags(pkg, flags)
+	return pkg
 }
 
-// doPkg processes a package on the work queue.
-func (ld *loader) doPkg(item interface{}) {
-	// TODO: what about replacements?
-	pkg := item.(*loadPkg)
-	var imports []string
-	if pkg.testOf != nil {
-		pkg.dir = pkg.testOf.dir
-		pkg.mod = pkg.testOf.mod
-		imports = pkg.testOf.testImports
-	} else {
-		if strings.Contains(pkg.path, "@") {
-			// Leave for error during load.
-			return
-		}
-		if build.IsLocalImport(pkg.path) {
-			// Leave for error during load.
-			// (Module mode does not allow local imports.)
-			return
+// applyPkgFlags updates pkg.flags to set the given flags and propagate the
+// (transitive) effects of those flags, possibly loading or enqueueing further
+// packages as a result.
+func (ld *loader) applyPkgFlags(pkg *loadPkg, flags loadPkgFlags) {
+	if flags == 0 {
+		return
+	}
+
+	if flags.has(pkgInAll) && ld.allPatternIsRoot && !pkg.isTest() {
+		// This package matches a root pattern by virtue of being in "all".
+		flags |= pkgIsRoot
+	}
+
+	old := pkg.flags.update(flags)
+	new := old | flags
+	if new == old || !new.has(pkgImportsLoaded) {
+		// We either didn't change the state of pkg, or we don't know anything about
+		// its dependencies yet. Either way, we can't usefully load its test or
+		// update its dependencies.
+		return
+	}
+
+	if !pkg.isTest() {
+		// Check whether we should add (or update the flags for) a test for pkg.
+		// ld.pkgTest is idempotent and extra invocations are inexpensive,
+		// so it's ok if we call it more than is strictly necessary.
+		wantTest := false
+		switch {
+		case ld.allPatternIsRoot && pkg.mod == Target:
+			// We are loading the "all" pattern, which includes packages imported by
+			// tests in the main module. This package is in the main module, so we
+			// need to identify the imports of its test even if LoadTests is not set.
+			//
+			// (We will filter out the extra tests explicitly in computePatternAll.)
+			wantTest = true
+
+		case ld.allPatternIsRoot && ld.allClosesOverTests && new.has(pkgInAll):
+			// This variant of the "all" pattern includes imports of tests of every
+			// package that is itself in "all", and pkg is in "all", so its test is
+			// also in "all" (as above).
+			wantTest = true
+
+		case LoadTests && new.has(pkgIsRoot):
+			// LoadTest explicitly requests tests of “the root packages”.
+			wantTest = true
 		}
 
-		pkg.mod, pkg.dir, pkg.err = Import(pkg.path)
-		if pkg.dir == "" {
-			return
-		}
-		var testImports []string
-		var err error
-		imports, testImports, err = scanDir(pkg.dir, ld.tags)
-		if err != nil {
-			pkg.err = err
-			return
-		}
-		if pkg.test != nil {
-			pkg.testImports = testImports
+		if wantTest {
+			var testFlags loadPkgFlags
+			if pkg.mod == Target || (ld.allClosesOverTests && new.has(pkgInAll)) {
+				// Tests of packages in the main module are in "all", in the sense that
+				// they cause the packages they import to also be in "all". So are tests
+				// of packages in "all" if "all" closes over test dependencies.
+				testFlags |= pkgInAll
+			}
+			ld.pkgTest(pkg, testFlags)
 		}
 	}
 
+	if new.has(pkgInAll) && !old.has(pkgInAll|pkgImportsLoaded) {
+		// We have just marked pkg with pkgInAll, or we have just loaded its
+		// imports, or both. Now is the time to propagate pkgInAll to the imports.
+		for _, dep := range pkg.imports {
+			ld.applyPkgFlags(dep, pkgInAll)
+		}
+	}
+}
+
+// load loads an individual package.
+func (ld *loader) load(pkg *loadPkg) {
+	if strings.Contains(pkg.path, "@") {
+		// Leave for error during load.
+		return
+	}
+	if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
+		// Leave for error during load.
+		// (Module mode does not allow local imports.)
+		return
+	}
+
+	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path)
+	if pkg.dir == "" {
+		return
+	}
+	if pkg.mod == Target {
+		// Go ahead and mark pkg as in "all". This provides the invariant that a
+		// package that is *only* imported by other packages in "all" is always
+		// marked as such before loading its imports.
+		//
+		// We don't actually rely on that invariant at the moment, but it may
+		// improve efficiency somewhat and makes the behavior a bit easier to reason
+		// about (by reducing churn on the flag bits of dependencies), and costs
+		// essentially nothing (these atomic flag ops are essentially free compared
+		// to scanning source code for imports).
+		ld.applyPkgFlags(pkg, pkgInAll)
+	}
+
+	imports, testImports, err := scanDir(pkg.dir, ld.tags)
+	if err != nil {
+		pkg.err = err
+		return
+	}
+
+	pkg.inStd = (search.IsStandardImportPath(pkg.path) && search.InDir(pkg.dir, cfg.GOROOTsrc) != "")
+
+	pkg.imports = make([]*loadPkg, 0, len(imports))
+	var importFlags loadPkgFlags
+	if pkg.flags.has(pkgInAll) {
+		importFlags = pkgInAll
+	}
 	for _, path := range imports {
-		pkg.imports = append(pkg.imports, ld.pkg(path, false))
+		if pkg.inStd {
+			// Imports from packages in "std" and "cmd" should resolve using
+			// GOROOT/src/vendor even when "std" is not the main module.
+			path = ld.stdVendor(pkg.path, path)
+		}
+		pkg.imports = append(pkg.imports, ld.pkg(path, importFlags))
+	}
+	pkg.testImports = testImports
+
+	ld.applyPkgFlags(pkg, pkgImportsLoaded)
+}
+
+// pkgTest locates the test of pkg, creating it if needed, and updates its state
+// to reflect the given flags.
+//
+// pkgTest requires that the imports of pkg have already been loaded (flagged
+// with pkgImportsLoaded).
+func (ld *loader) pkgTest(pkg *loadPkg, testFlags loadPkgFlags) *loadPkg {
+	if pkg.isTest() {
+		panic("pkgTest called on a test package")
 	}
 
-	// Now that pkg.dir, pkg.mod, pkg.testImports are set, we can queue pkg.test.
-	// TODO: All that's left is creating new imports. Why not just do it now?
-	if pkg.test != nil {
-		ld.work.Add(pkg.test)
+	createdTest := false
+	pkg.testOnce.Do(func() {
+		pkg.test = &loadPkg{
+			path:   pkg.path,
+			testOf: pkg,
+			mod:    pkg.mod,
+			dir:    pkg.dir,
+			err:    pkg.err,
+			inStd:  pkg.inStd,
+		}
+		ld.applyPkgFlags(pkg.test, testFlags)
+		createdTest = true
+	})
+
+	test := pkg.test
+	if createdTest {
+		test.imports = make([]*loadPkg, 0, len(pkg.testImports))
+		var importFlags loadPkgFlags
+		if test.flags.has(pkgInAll) {
+			importFlags = pkgInAll
+		}
+		for _, path := range pkg.testImports {
+			if pkg.inStd {
+				path = ld.stdVendor(test.path, path)
+			}
+			test.imports = append(test.imports, ld.pkg(path, importFlags))
+		}
+		pkg.testImports = nil
+		ld.applyPkgFlags(test, pkgImportsLoaded)
+	} else {
+		ld.applyPkgFlags(test, testFlags)
 	}
+
+	return test
+}
+
+// stdVendor returns the canonical import path for the package with the given
+// path when imported from the standard-library package at parentPath.
+func (ld *loader) stdVendor(parentPath, path string) string {
+	if search.IsStandardImportPath(path) {
+		return path
+	}
+
+	if str.HasPathPrefix(parentPath, "cmd") {
+		if Target.Path != "cmd" {
+			vendorPath := pathpkg.Join("cmd", "vendor", path)
+			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+				return vendorPath
+			}
+		}
+	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
+		// If we are outside of the 'std' module, resolve imports from within 'std'
+		// to the vendor directory.
+		//
+		// Do the same for importers beginning with the prefix 'vendor/' even if we
+		// are *inside* of the 'std' module: the 'vendor/' packages that resolve
+		// globally from GOROOT/src/vendor (and are listed as part of 'go list std')
+		// are distinct from the real module dependencies, and cannot import
+		// internal packages from the real module.
+		//
+		// (Note that although the 'vendor/' packages match the 'std' *package*
+		// pattern, they are not part of the std *module*, and do not affect
+		// 'go mod tidy' and similar module commands when working within std.)
+		vendorPath := pathpkg.Join("vendor", path)
+		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+			return vendorPath
+		}
+	}
+
+	// Not vendored: resolve from modules.
+	return path
 }
 
 // computePatternAll returns the list of packages matching pattern "all",
 // starting with a list of the import paths for the packages in the main module.
-func (ld *loader) computePatternAll(paths []string) []string {
-	seen := make(map[*loadPkg]bool)
-	var all []string
-	var walk func(*loadPkg)
-	walk = func(pkg *loadPkg) {
-		if seen[pkg] {
-			return
-		}
-		seen[pkg] = true
-		if pkg.testOf == nil {
+func (ld *loader) computePatternAll() (all []string) {
+	for _, pkg := range ld.pkgs {
+		if pkg.flags.has(pkgInAll) && !pkg.isTest() {
 			all = append(all, pkg.path)
 		}
-		for _, p := range pkg.imports {
-			walk(p)
-		}
-		if p := pkg.test; p != nil {
-			walk(p)
-		}
-	}
-	for _, path := range paths {
-		walk(ld.pkg(path, false))
 	}
 	sort.Strings(all)
-
 	return all
 }
 
@@ -733,27 +1200,33 @@ func (ld *loader) buildStacks() {
 // stackText builds the import stack text to use when
 // reporting an error in pkg. It has the general form
 //
-//	import root ->
-//		import other ->
-//		import other2 ->
-//		import pkg
+//	root imports
+//		other imports
+//		other2 tested by
+//		other2.test imports
+//		pkg
 //
 func (pkg *loadPkg) stackText() string {
 	var stack []*loadPkg
-	for p := pkg.stack; p != nil; p = p.stack {
+	for p := pkg; p != nil; p = p.stack {
 		stack = append(stack, p)
 	}
 
 	var buf bytes.Buffer
 	for i := len(stack) - 1; i >= 0; i-- {
 		p := stack[i]
+		fmt.Fprint(&buf, p.path)
 		if p.testOf != nil {
-			fmt.Fprintf(&buf, "test ->\n\t")
-		} else {
-			fmt.Fprintf(&buf, "import %q ->\n\t", p.path)
+			fmt.Fprint(&buf, ".test")
+		}
+		if i > 0 {
+			if stack[i-1].testOf == p {
+				fmt.Fprint(&buf, " tested by\n\t")
+			} else {
+				fmt.Fprint(&buf, " imports\n\t")
+			}
 		}
 	}
-	fmt.Fprintf(&buf, "import %q", pkg.path)
 	return buf.String()
 }
 
@@ -800,268 +1273,4 @@ func WhyDepth(path string) int {
 		n++
 	}
 	return n
-}
-
-// Replacement returns the replacement for mod, if any, from go.mod.
-// If there is no replacement for mod, Replacement returns
-// a module.Version with Path == "".
-func Replacement(mod module.Version) module.Version {
-	if modFile == nil {
-		// Happens during testing.
-		return module.Version{}
-	}
-
-	var found *modfile.Replace
-	for _, r := range modFile.Replace {
-		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
-			found = r // keep going
-		}
-	}
-	if found == nil {
-		return module.Version{}
-	}
-	return found.New
-}
-
-// mvsReqs implements mvs.Reqs for module semantic versions,
-// with any exclusions or replacements applied internally.
-type mvsReqs struct {
-	buildList []module.Version
-	cache     par.Cache
-	versions  sync.Map
-}
-
-// Reqs returns the current module requirement graph.
-// Future calls to SetBuildList do not affect the operation
-// of the returned Reqs.
-func Reqs() mvs.Reqs {
-	r := &mvsReqs{
-		buildList: buildList,
-	}
-	return r
-}
-
-func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	type cached struct {
-		list []module.Version
-		err  error
-	}
-
-	c := r.cache.Do(mod, func() interface{} {
-		list, err := r.required(mod)
-		if err != nil {
-			return cached{nil, err}
-		}
-		for i, mv := range list {
-			for excluded[mv] {
-				mv1, err := r.next(mv)
-				if err != nil {
-					return cached{nil, err}
-				}
-				if mv1.Version == "none" {
-					return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-				}
-				mv = mv1
-			}
-			list[i] = mv
-		}
-
-		return cached{list, nil}
-	}).(cached)
-
-	return c.list, c.err
-}
-
-var vendorOnce sync.Once
-
-var (
-	vendorList []module.Version
-	vendorMap  map[string]module.Version
-)
-
-// readVendorList reads the list of vendored modules from vendor/modules.txt.
-func readVendorList() {
-	vendorOnce.Do(func() {
-		vendorList = nil
-		vendorMap = make(map[string]module.Version)
-		data, _ := ioutil.ReadFile(filepath.Join(ModRoot, "vendor/modules.txt"))
-		var m module.Version
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, "# ") {
-				f := strings.Fields(line)
-				m = module.Version{}
-				if len(f) == 3 && semver.IsValid(f[2]) {
-					m = module.Version{Path: f[1], Version: f[2]}
-					vendorList = append(vendorList, m)
-				}
-			} else if m.Path != "" {
-				f := strings.Fields(line)
-				if len(f) == 1 {
-					vendorMap[f[0]] = m
-				}
-			}
-		}
-	})
-}
-
-func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
-	var list []module.Version
-	for _, r := range f.Require {
-		list = append(list, r.Mod)
-	}
-	return list
-}
-
-func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
-	if mod == Target {
-		if modFile.Go != nil {
-			r.versions.LoadOrStore(mod, modFile.Go.Version)
-		}
-		var list []module.Version
-		return append(list, r.buildList[1:]...), nil
-	}
-
-	if cfg.BuildMod == "vendor" {
-		// For every module other than the target,
-		// return the full list of modules from modules.txt.
-		readVendorList()
-		return vendorList, nil
-	}
-
-	origPath := mod.Path
-	if repl := Replacement(mod); repl.Path != "" {
-		if repl.Version == "" {
-			// TODO: need to slip the new version into the tags list etc.
-			dir := repl.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot, dir)
-			}
-			gomod := filepath.Join(dir, "go.mod")
-			data, err := ioutil.ReadFile(gomod)
-			if err != nil {
-				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
-				return nil, ErrRequire
-			}
-			f, err := modfile.ParseLax(gomod, data, nil)
-			if err != nil {
-				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
-				return nil, ErrRequire
-			}
-			if f.Go != nil {
-				r.versions.LoadOrStore(mod, f.Go.Version)
-			}
-			return r.modFileToList(f), nil
-		}
-		mod = repl
-	}
-
-	if mod.Version == "none" {
-		return nil, nil
-	}
-
-	if !semver.IsValid(mod.Version) {
-		// Disallow the broader queries supported by fetch.Lookup.
-		base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", mod.Path, mod.Version)
-	}
-
-	data, err := modfetch.GoMod(mod.Path, mod.Version)
-	if err != nil {
-		base.Errorf("go: %s@%s: %v\n", mod.Path, mod.Version, err)
-		return nil, ErrRequire
-	}
-	f, err := modfile.ParseLax("go.mod", data, nil)
-	if err != nil {
-		base.Errorf("go: %s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
-		return nil, ErrRequire
-	}
-
-	if f.Module == nil {
-		base.Errorf("go: %s@%s: parsing go.mod: missing module line", mod.Path, mod.Version)
-		return nil, ErrRequire
-	}
-	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		base.Errorf("go: %s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
-		return nil, ErrRequire
-	}
-	if f.Go != nil {
-		r.versions.LoadOrStore(mod, f.Go.Version)
-	}
-
-	return r.modFileToList(f), nil
-}
-
-// ErrRequire is the sentinel error returned when Require encounters problems.
-// It prints the problems directly to standard error, so that multiple errors
-// can be displayed easily.
-var ErrRequire = errors.New("error loading module requirements")
-
-func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && semver.Compare(v1, v2) == -1 {
-		return v2
-	}
-	return v1
-}
-
-// Upgrade is a no-op, here to implement mvs.Reqs.
-// The upgrade logic for go get -u is in ../modget/get.go.
-func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
-	return m, nil
-}
-
-func versions(path string) ([]string, error) {
-	// Note: modfetch.Lookup and repo.Versions are cached,
-	// so there's no need for us to add extra caching here.
-	repo, err := modfetch.Lookup(path)
-	if err != nil {
-		return nil, err
-	}
-	return repo.Versions("")
-}
-
-// Previous returns the tagged version of m.Path immediately prior to
-// m.Version, or version "none" if no prior version is tagged.
-func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
-	if i > 0 {
-		return module.Version{Path: m.Path, Version: list[i-1]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-// next returns the next version of m.Path after m.Version.
-// It is only used by the exclusion processing in the Required method,
-// not called directly by MVS.
-func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) > 0 })
-	if i < len(list) {
-		return module.Version{Path: m.Path, Version: list[i]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-func fetch(mod module.Version) (dir string, isLocal bool, err error) {
-	if mod == Target {
-		return ModRoot, true, nil
-	}
-	if r := Replacement(mod); r.Path != "" {
-		if r.Version == "" {
-			dir = r.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot, dir)
-			}
-			return dir, true, nil
-		}
-		mod = r
-	}
-
-	dir, err = modfetch.Download(mod)
-	return dir, false, err
 }

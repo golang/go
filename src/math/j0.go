@@ -38,7 +38,7 @@ package math
 //                      = 1/sqrt(2) * (cos(x) + sin(x))
 //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
 //                      = 1/sqrt(2) * (sin(x) - cos(x))
-//         (To avoid cancelation, use
+//         (To avoid cancellation, use
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 //         to compute the worse one.)
 //
@@ -186,7 +186,7 @@ func Y0(x float64) float64 {
 		//             =  1/sqrt(2) * (sin(x) + cos(x))
 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//             =  1/sqrt(2) * (sin(x) - cos(x))
-		// To avoid cancelation, use
+		// To avoid cancellation, use
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 		// to compute the worse one.
 

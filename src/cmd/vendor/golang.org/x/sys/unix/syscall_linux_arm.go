@@ -19,12 +19,18 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
+//sysnb	pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
+	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
 	err = pipe2(&pp, 0)
+	if err == ENOSYS {
+		err = pipe(&pp)
+	}
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
 	return
@@ -74,7 +80,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)
-//sys	Dup2(oldfd int, newfd int) (err error)
+//sys	dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
@@ -89,10 +95,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Pause() (err error)
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
-//sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
-//sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+//sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
+//sys	setfsuid(uid int) (prev int, err error) = SYS_SETFSUID32
 //sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
@@ -245,6 +252,10 @@ func (msghdr *Msghdr) SetControllen(length int) {
 	msghdr.Controllen = uint32(length)
 }
 
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = uint32(length)
+}
+
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
@@ -256,4 +267,25 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 		return poll(nil, 0, timeout)
 	}
 	return poll(&fds[0], len(fds), timeout)
+}
+
+//sys	armSyncFileRange(fd int, flags int, off int64, n int64) (err error) = SYS_ARM_SYNC_FILE_RANGE
+
+func SyncFileRange(fd int, off int64, n int64, flags int) error {
+	// The sync_file_range and arm_sync_file_range syscalls differ only in the
+	// order of their arguments.
+	return armSyncFileRange(fd, flags, off, n)
+}
+
+//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
+
+func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error {
+	cmdlineLen := len(cmdline)
+	if cmdlineLen > 0 {
+		// Account for the additional NULL byte added by
+		// BytePtrFromString in kexecFileLoad. The kexec_file_load
+		// syscall expects a NULL-terminated string.
+		cmdlineLen++
+	}
+	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
 }

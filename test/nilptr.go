@@ -7,6 +7,9 @@
 // Test that the implementation catches nil ptr indirection
 // in a large address space.
 
+// +build !aix
+// Address space starts at 1<<32 on AIX, so dummy is too far.
+
 package main
 
 import "unsafe"

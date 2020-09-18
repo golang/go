@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,11 +19,12 @@ import (
 // fmt.scanf routines. See issue 6853.
 func TestScanfRemoval(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Make a directory to work in.
 	dir, err := ioutil.TempDir("", "issue6853a-")
 	if err != nil {
-		log.Fatalf("could not create directory: %v", err)
+		t.Fatalf("could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -32,7 +32,7 @@ func TestScanfRemoval(t *testing.T) {
 	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
 	if err != nil {
-		log.Fatalf("could not create source file: %v", err)
+		t.Fatalf("could not create source file: %v", err)
 	}
 	f.Write([]byte(`
 package main
@@ -50,28 +50,29 @@ func main() {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("could not build target: %v", err)
+		t.Fatalf("could not build target: %v", err)
 	}
 
 	// Check destination to see if scanf code was included.
 	cmd = exec.Command(testenv.GoToolPath(t), "tool", "nm", dst)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("could not read target: %v", err)
+		t.Fatalf("could not read target: %v", err)
 	}
 	if bytes.Contains(out, []byte("scanInt")) {
-		log.Fatalf("scanf code not removed from helloworld")
+		t.Fatalf("scanf code not removed from helloworld")
 	}
 }
 
 // Make sure -S prints assembly code. See issue 14515.
 func TestDashS(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Make a directory to work in.
 	dir, err := ioutil.TempDir("", "issue14515-")
 	if err != nil {
-		log.Fatalf("could not create directory: %v", err)
+		t.Fatalf("could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -79,7 +80,7 @@ func TestDashS(t *testing.T) {
 	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
 	if err != nil {
-		log.Fatalf("could not create source file: %v", err)
+		t.Fatalf("could not create source file: %v", err)
 	}
 	f.Write([]byte(`
 package main
@@ -94,7 +95,7 @@ func main() {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("could not build target: %v", err)
+		t.Fatalf("could not build target: %v", err)
 	}
 
 	patterns := []string{

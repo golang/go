@@ -15,13 +15,20 @@
 // func RawSyscall(trap int32, a1, a2, a3 int32) (r1, r2, err int32);
 // func RawSyscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
 
+// See comment in runtime/sys_openbsd_arm.s re this construction.
+#define NOOP	MOVW    R0, R0
+#define	INVOKE_SYSCALL	\
+	SWI	$0;	\
+	NOOP;		\
+	NOOP
+
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL runtime·entersyscall(SB)
 	MOVW trap+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
-	SWI $0
+	INVOKE_SYSCALL
 	MOVW $0, R2
 	BCS error
 	MOVW R0, r1+16(FP)		// ret 1
@@ -46,7 +53,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	MOVW a4+16(FP), R3		// arg 4
 	MOVW R13, R4
 	MOVW $a5+20(FP), R13		// arg 5 to arg 6 are passed on stack
-	SWI $0
+	INVOKE_SYSCALL
 	MOVW R4, R13
 	MOVW $0, R2
 	BCS error6
@@ -72,7 +79,7 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	MOVW a4+16(FP), R3		// arg 4
 	MOVW R13, R4
 	MOVW $a5+20(FP), R13		// arg 5 to arg 9 are passed on stack
-	SWI $0
+	INVOKE_SYSCALL
 	MOVW R4, R13
 	MOVW $0, R2
 	BCS error9
@@ -94,7 +101,7 @@ TEXT	·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
-	SWI $0
+	INVOKE_SYSCALL
 	MOVW $0, R2
 	BCS errorr
 	MOVW R0, r1+16(FP)		// ret 1
@@ -116,7 +123,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW a4+16(FP), R3		// arg 4
 	MOVW R13, R4
 	MOVW $a5+20(FP), R13		// arg 5 to arg 6 are passed on stack
-	SWI $0
+	INVOKE_SYSCALL
 	MOVW R4, R13
 	MOVW $0, R2
 	BCS errorr6

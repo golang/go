@@ -7,11 +7,6 @@
 // by the gc compilers.
 package gosym
 
-// The table format is a variant of the format used in Plan 9's a.out
-// format, documented at https://9p.io/magic/man2html/6/a.out.
-// The best reference for the differences between the Plan 9 format
-// and the Go format is the runtime source, specifically ../../runtime/symtab.c.
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -40,13 +35,21 @@ func (s *Sym) Static() bool { return s.Type >= 'a' }
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
 func (s *Sym) PackageName() string {
-	pathend := strings.LastIndex(s.Name, "/")
+	name := s.Name
+
+	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
+	// See variable reservedimports in cmd/compile/internal/gc/subr.go
+	if strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.") {
+		return ""
+	}
+
+	pathend := strings.LastIndex(name, "/")
 	if pathend < 0 {
 		pathend = 0
 	}
 
-	if i := strings.Index(s.Name[pathend:], "."); i != -1 {
-		return s.Name[:pathend+i]
+	if i := strings.Index(name[pathend:], "."); i != -1 {
+		return name[:pathend+i]
 	}
 	return ""
 }
@@ -118,8 +121,8 @@ type Obj struct {
 type Table struct {
 	Syms  []Sym // nil for Go 1.3 and later binaries
 	Funcs []Func
-	Files map[string]*Obj // nil for Go 1.2 and later binaries
-	Objs  []Obj           // nil for Go 1.2 and later binaries
+	Files map[string]*Obj // for Go 1.2 and later all files map to one Obj
+	Objs  []Obj           // for Go 1.2 and later only one Obj in slice
 
 	go12line *LineTable // Go 1.2 line number table
 }

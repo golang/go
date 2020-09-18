@@ -1,4 +1,8 @@
 env GO111MODULE=on
+[short] skip
+
+# Populate go.mod and go.sum.
+go mod tidy
 
 # initial conditions: using sampler v1.3.0, not listed in go.mod.
 go list -deps
@@ -19,9 +23,19 @@ cmp go.mod go.mod.good
 go list -mod=vendor
 cmp go.mod go.mod.good
 
+# With a clean (and empty) module cache, 'go list -mod=vendor' should not download modules.
+go clean -modcache
+env GOPROXY=off
+! go list ...
+go list -mod=vendor ...
+
+# However, it should still list packages in the main module.
+go list -mod=vendor m/...
+stdout m
+
 -- go.mod --
 module m
-
+go 1.12
 -- x.go --
 package x
 import _ "rsc.io/quote"

@@ -18,6 +18,7 @@ path to this file based on the path to the runtime package.
 from __future__ import print_function
 import re
 import sys
+import gdb
 
 print("Loading Go Runtime support.", file=sys.stderr)
 #http://python3porting.com/differences.html
@@ -98,11 +99,11 @@ class SliceValue:
 #  Pretty Printers
 #
 
-
+# The patterns for matching types are permissive because gdb 8.2 switched to matching on (we think) typedef names instead of C syntax names.
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string( \*)?$')
+	pattern = re.compile(r'^(struct string( \*)?|string)$')
 
 	def __init__(self, val):
 		self.val = val
@@ -118,7 +119,7 @@ class StringTypePrinter:
 class SliceTypePrinter:
 	"Pretty print slices."
 
-	pattern = re.compile(r'^struct \[\]')
+	pattern = re.compile(r'^(struct \[\]|\[\])')
 
 	def __init__(self, val):
 		self.val = val
@@ -127,7 +128,10 @@ class SliceTypePrinter:
 		return 'array'
 
 	def to_string(self):
-		return str(self.val.type)[6:]  # skip 'struct '
+		t = str(self.val.type)
+		if (t.startswith("struct ")):
+			return t[len("struct "):]
+		return t
 
 	def children(self):
 		sval = SliceValue(self.val)
@@ -195,7 +199,7 @@ class ChanTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(r'^struct hchan<.*>$')
+	pattern = re.compile(r'^chan ')
 
 	def __init__(self, val):
 		self.val = val
@@ -209,7 +213,7 @@ class ChanTypePrinter:
 	def children(self):
 		# see chan.c chanbuf(). et is the type stolen from hchan<T>::recvq->first->elem
 		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
-		ptr = (self.val.address + 1).cast(et.pointer())
+		ptr = (self.val.address["buf"]).cast(et)
 		for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
 			yield ('[{0}]'.format(i), (ptr + j).dereference())
@@ -229,8 +233,6 @@ def makematcher(klass):
 	return matcher
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
-
-
 #
 #  Utilities
 #
@@ -353,7 +355,8 @@ class IfacePrinter:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
+			return "({typename}){data}".format(
+				typename=iface_dtype_name(self.val), data=self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
@@ -510,6 +513,10 @@ class GoroutineCmd(gdb.Command):
 
 	Usage: (gdb) goroutine <goid> <gdbcmd>
 
+	You could pass "all" as <goid> to apply <gdbcmd> to all goroutines.
+
+	For example: (gdb) goroutine all <gdbcmd>
+
 	Note that it is ill-defined to modify state in the context of a goroutine.
 	Restrict yourself to inspecting values.
 	"""
@@ -518,9 +525,20 @@ class GoroutineCmd(gdb.Command):
 		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
 	def invoke(self, arg, _from_tty):
-		goid, cmd = arg.split(None, 1)
-		goid = gdb.parse_and_eval(goid)
-		pc, sp = find_goroutine(int(goid))
+		goid_str, cmd = arg.split(None, 1)
+		goids = []
+
+		if goid_str == 'all':
+			for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+				goids.append(int(ptr['goid']))
+		else:
+			goids = [int(gdb.parse_and_eval(goid_str))]
+
+		for goid in goids:
+			self.invoke_per_goid(goid, cmd)
+
+	def invoke_per_goid(self, goid, cmd):
+		pc, sp = find_goroutine(goid)
 		if not pc:
 			print("No such goroutine: ", goid)
 			return
@@ -528,13 +546,19 @@ class GoroutineCmd(gdb.Command):
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')
+		# In GDB, assignments to sp must be done from the
+		# top-most frame, so select frame 0 first.
+		gdb.execute('select-frame 0')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$sp = $save_sp')
+			# In GDB, assignments to sp must be done from the
+			# top-most frame, so select frame 0 first.
+			gdb.execute('select-frame 0')
 			gdb.parse_and_eval('$pc = $save_pc')
+			gdb.parse_and_eval('$sp = $save_sp')
 			save_frame.select()
 
 

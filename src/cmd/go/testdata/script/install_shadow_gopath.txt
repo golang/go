@@ -1,0 +1,20 @@
+# Tests Issue #3562
+# go get foo.io (not foo.io/subdir) was not working consistently.
+
+[!net] skip
+
+env GO111MODULE=off
+env GOPATH=$WORK/gopath1${:}$WORK/gopath2
+
+mkdir $WORK/gopath1/src/test
+mkdir $WORK/gopath2/src/test
+cp main.go $WORK/gopath2/src/test/main.go
+cd $WORK/gopath2/src/test
+
+! go install
+stderr 'no install location for.*gopath2.src.test: hidden by .*gopath1.src.test'
+
+-- main.go --
+package main
+
+func main() {}

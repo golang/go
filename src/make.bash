@@ -34,6 +34,9 @@
 # controls the default behavior of the linker's -linkmode option.  The
 # default value depends on the system.
 #
+# GO_LDSO: Sets the default dynamic linker/loader (ld.so) to be used
+# by the internal linker.
+#
 # CC: Command line to run to compile C code for GOHOSTARCH.
 # Default is "gcc". Also supported: "clang".
 #
@@ -62,8 +65,10 @@
 
 set -e
 
+export GOENV=off
 unset GOBIN # Issue 14340
 unset GOFLAGS
+unset GO111MODULE
 
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
@@ -125,6 +130,15 @@ if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
 fi
 
+# On Alpine Linux, use the musl dynamic linker/loader
+if [ -f "/etc/alpine-release" ]; then
+	if type readelf >/dev/null 2>&1; then
+		echo "int main() { return 0; }" | ${CC:-gcc} -o ./test-alpine-ldso -x c -
+		export GO_LDSO=$(readelf -l ./test-alpine-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/')
+		rm -f ./test-alpine-ldso
+	fi
+fi
+
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 
@@ -148,14 +162,15 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
 		fi
 	fi
 done; unset IFS
-echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
-if $verbose; then
-	echo cmd/dist
-fi
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
+fi
+GOROOT_BOOTSTRAP_VERSION=$($GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+if $verbose; then
+	echo cmd/dist
 fi
 if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
@@ -163,7 +178,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	exit 1
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)

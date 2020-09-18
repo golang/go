@@ -57,7 +57,6 @@ func testMain(m *testing.M) int {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	WorkRoot = dir
 
 	if testenv.HasExternalNetwork() && testenv.HasExec() {
 		// Clone gitrepo1 into a local directory.
@@ -78,7 +77,16 @@ func testMain(m *testing.M) int {
 
 func testRepo(remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		return LocalGitRepo(filepath.ToSlash(localGitRepo))
+		// Convert absolute path to file URL. LocalGitRepo will not accept
+		// Windows absolute paths because they look like a host:path remote.
+		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+		var url string
+		if strings.HasPrefix(localGitRepo, "/") {
+			url = "file://" + localGitRepo
+		} else {
+			url = "file:///" + filepath.ToSlash(localGitRepo)
+		}
+		return LocalGitRepo(url)
 	}
 	kind := "git"
 	for _, k := range []string{"hg"} {
@@ -246,12 +254,11 @@ func TestReadFile(t *testing.T) {
 }
 
 var readZipTests = []struct {
-	repo         string
-	rev          string
-	subdir       string
-	actualSubdir string
-	err          string
-	files        map[string]uint64
+	repo   string
+	rev    string
+	subdir string
+	err    string
+	files  map[string]uint64
 }{
 	{
 		repo:   gitrepo1,
@@ -408,7 +415,7 @@ func TestReadZip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			rc, actualSubdir, err := r.ReadZip(tt.rev, tt.subdir, 100000)
+			rc, err := r.ReadZip(tt.rev, tt.subdir, 100000)
 			if err != nil {
 				if tt.err == "" {
 					t.Fatalf("ReadZip: unexpected error %v", err)
@@ -424,9 +431,6 @@ func TestReadZip(t *testing.T) {
 			defer rc.Close()
 			if tt.err != "" {
 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
-			}
-			if actualSubdir != tt.actualSubdir {
-				t.Fatalf("ReadZip: actualSubdir = %q, want %q", actualSubdir, tt.actualSubdir)
 			}
 			zipdata, err := ioutil.ReadAll(rc)
 			if err != nil {

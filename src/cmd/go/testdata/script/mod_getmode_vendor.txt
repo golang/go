@@ -1,19 +1,26 @@
 env GO111MODULE=on
 
-go get -m rsc.io/quote@v1.5.1
+go get -d rsc.io/quote@v1.5.1
 go mod vendor
 env GOPATH=$WORK/empty
 env GOPROXY=file:///nonexist
 
 go list -mod=vendor
-go list -mod=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
+go list -mod=vendor -f '{{with .Module}}{{.Path}} {{.Version}}{{end}} {{.Dir}}' all
 stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
-stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
+stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
 
 ! go list -mod=vendor -m rsc.io/quote@latest
-stderr 'module lookup disabled by -mod=vendor'
+stderr 'go list -m: rsc.io/quote@latest: cannot query module due to -mod=vendor'
 ! go get -mod=vendor -u
-stderr 'go get: disabled by -mod=vendor'
+stderr 'flag provided but not defined: -mod'
+
+# Since we don't have a complete module graph, 'go list -m' queries
+# that require the complete graph should fail with a useful error.
+! go list -mod=vendor -m all
+stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+! go list -mod=vendor -m ...
+stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 -- go.mod --
 module x

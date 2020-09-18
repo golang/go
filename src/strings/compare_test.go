@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	. "strings"
 	"testing"
+	"unsafe"
 )
 
 var compareTests = []struct {
@@ -53,6 +54,12 @@ func TestCompareIdenticalString(t *testing.T) {
 }
 
 func TestCompareStrings(t *testing.T) {
+	// unsafeString converts a []byte to a string with no allocation.
+	// The caller must not modify b while the result string is in use.
+	unsafeString := func(b []byte) string {
+		return *(*string)(unsafe.Pointer(&b))
+	}
+
 	lengths := make([]int, 0) // lengths to test in ascending order
 	for i := 0; i <= 128; i++ {
 		lengths = append(lengths, i)
@@ -79,7 +86,7 @@ func TestCompareStrings(t *testing.T) {
 			b[i] = 9
 		}
 
-		sa, sb := string(a), string(b)
+		sa, sb := unsafeString(a), unsafeString(b)
 		cmp := Compare(sa[:len], sb[:len])
 		if cmp != 0 {
 			t.Errorf(`CompareIdentical(%d) = %d`, len, cmp)
@@ -96,12 +103,12 @@ func TestCompareStrings(t *testing.T) {
 		}
 		for k := lastLen; k < len; k++ {
 			b[k] = a[k] - 1
-			cmp = Compare(string(a[:len]), string(b[:len]))
+			cmp = Compare(unsafeString(a[:len]), unsafeString(b[:len]))
 			if cmp != 1 {
 				t.Errorf(`CompareAbigger(%d,%d) = %d`, len, k, cmp)
 			}
 			b[k] = a[k] + 1
-			cmp = Compare(string(a[:len]), string(b[:len]))
+			cmp = Compare(unsafeString(a[:len]), unsafeString(b[:len]))
 			if cmp != -1 {
 				t.Errorf(`CompareBbigger(%d,%d) = %d`, len, k, cmp)
 			}

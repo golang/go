@@ -202,7 +202,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	// FIPS 186-3, section 4.6
 
 	n := priv.Q.BitLen()
-	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n&7 != 0 {
+	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n%8 != 0 {
 		err = ErrInvalidPublicKey
 		return
 	}
@@ -279,9 +279,12 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	}
 
 	w := new(big.Int).ModInverse(s, pub.Q)
+	if w == nil {
+		return false
+	}
 
 	n := pub.Q.BitLen()
-	if n&7 != 0 {
+	if n%8 != 0 {
 		return false
 	}
 	z := new(big.Int).SetBytes(hash)

@@ -290,9 +290,15 @@ func TestScan(t *testing.T) {
 	testScan(t, GoTokens&^SkipComments)
 }
 
-func TestIllegalExponent(t *testing.T) {
+func TestInvalidExponent(t *testing.T) {
 	const src = "1.5e 1.5E 1e+ 1e- 1.5z"
 	s := new(Scanner).Init(strings.NewReader(src))
+	s.Error = func(s *Scanner, msg string) {
+		const want = "exponent has no digits"
+		if msg != want {
+			t.Errorf("%s: got error %q; want %q", s.TokenText(), msg, want)
+		}
+	}
 	checkTokErr(t, s, 1, Float, "1.5e")
 	checkTokErr(t, s, 1, Float, "1.5E")
 	checkTokErr(t, s, 1, Float, "1e+")
@@ -372,7 +378,7 @@ func TestScanSelectedMask(t *testing.T) {
 	testScanSelectedMode(t, 0, 0)
 	testScanSelectedMode(t, ScanIdents, Ident)
 	// Don't test ScanInts and ScanNumbers since some parts of
-	// the floats in the source look like (illegal) octal ints
+	// the floats in the source look like (invalid) octal ints
 	// and ScanNumbers may return either Int or Float.
 	testScanSelectedMode(t, ScanChars, Char)
 	testScanSelectedMode(t, ScanStrings, String)
@@ -474,34 +480,34 @@ func testError(t *testing.T, src, pos, msg string, tok rune) {
 }
 
 func TestError(t *testing.T) {
-	testError(t, "\x00", "<input>:1:1", "illegal character NUL", 0)
-	testError(t, "\x80", "<input>:1:1", "illegal UTF-8 encoding", utf8.RuneError)
-	testError(t, "\xff", "<input>:1:1", "illegal UTF-8 encoding", utf8.RuneError)
+	testError(t, "\x00", "<input>:1:1", "invalid character NUL", 0)
+	testError(t, "\x80", "<input>:1:1", "invalid UTF-8 encoding", utf8.RuneError)
+	testError(t, "\xff", "<input>:1:1", "invalid UTF-8 encoding", utf8.RuneError)
 
-	testError(t, "a\x00", "<input>:1:2", "illegal character NUL", Ident)
-	testError(t, "ab\x80", "<input>:1:3", "illegal UTF-8 encoding", Ident)
-	testError(t, "abc\xff", "<input>:1:4", "illegal UTF-8 encoding", Ident)
+	testError(t, "a\x00", "<input>:1:2", "invalid character NUL", Ident)
+	testError(t, "ab\x80", "<input>:1:3", "invalid UTF-8 encoding", Ident)
+	testError(t, "abc\xff", "<input>:1:4", "invalid UTF-8 encoding", Ident)
 
-	testError(t, `"a`+"\x00", "<input>:1:3", "illegal character NUL", String)
-	testError(t, `"ab`+"\x80", "<input>:1:4", "illegal UTF-8 encoding", String)
-	testError(t, `"abc`+"\xff", "<input>:1:5", "illegal UTF-8 encoding", String)
+	testError(t, `"a`+"\x00", "<input>:1:3", "invalid character NUL", String)
+	testError(t, `"ab`+"\x80", "<input>:1:4", "invalid UTF-8 encoding", String)
+	testError(t, `"abc`+"\xff", "<input>:1:5", "invalid UTF-8 encoding", String)
 
-	testError(t, "`a"+"\x00", "<input>:1:3", "illegal character NUL", RawString)
-	testError(t, "`ab"+"\x80", "<input>:1:4", "illegal UTF-8 encoding", RawString)
-	testError(t, "`abc"+"\xff", "<input>:1:5", "illegal UTF-8 encoding", RawString)
+	testError(t, "`a"+"\x00", "<input>:1:3", "invalid character NUL", RawString)
+	testError(t, "`ab"+"\x80", "<input>:1:4", "invalid UTF-8 encoding", RawString)
+	testError(t, "`abc"+"\xff", "<input>:1:5", "invalid UTF-8 encoding", RawString)
 
-	testError(t, `'\"'`, "<input>:1:3", "illegal char escape", Char)
-	testError(t, `"\'"`, "<input>:1:3", "illegal char escape", String)
+	testError(t, `'\"'`, "<input>:1:3", "invalid char escape", Char)
+	testError(t, `"\'"`, "<input>:1:3", "invalid char escape", String)
 
-	testError(t, `01238`, "<input>:1:6", "illegal octal number", Int)
-	testError(t, `01238123`, "<input>:1:9", "illegal octal number", Int)
-	testError(t, `0x`, "<input>:1:3", "illegal hexadecimal number", Int)
-	testError(t, `0xg`, "<input>:1:3", "illegal hexadecimal number", Int)
-	testError(t, `'aa'`, "<input>:1:4", "illegal char literal", Char)
-	testError(t, `1.5e`, "<input>:1:5", "illegal exponent", Float)
-	testError(t, `1.5E`, "<input>:1:5", "illegal exponent", Float)
-	testError(t, `1.5e+`, "<input>:1:6", "illegal exponent", Float)
-	testError(t, `1.5e-`, "<input>:1:6", "illegal exponent", Float)
+	testError(t, `01238`, "<input>:1:6", "invalid digit '8' in octal literal", Int)
+	testError(t, `01238123`, "<input>:1:9", "invalid digit '8' in octal literal", Int)
+	testError(t, `0x`, "<input>:1:3", "hexadecimal literal has no digits", Int)
+	testError(t, `0xg`, "<input>:1:3", "hexadecimal literal has no digits", Int)
+	testError(t, `'aa'`, "<input>:1:4", "invalid char literal", Char)
+	testError(t, `1.5e`, "<input>:1:5", "exponent has no digits", Float)
+	testError(t, `1.5E`, "<input>:1:5", "exponent has no digits", Float)
+	testError(t, `1.5e+`, "<input>:1:6", "exponent has no digits", Float)
+	testError(t, `1.5e-`, "<input>:1:6", "exponent has no digits", Float)
 
 	testError(t, `'`, "<input>:1:2", "literal not terminated", Char)
 	testError(t, `'`+"\n", "<input>:1:2", "literal not terminated", Char)
@@ -690,5 +696,220 @@ func TestScanEOFHandling(t *testing.T) {
 
 	if r != 1 {
 		t.Errorf("scanner called Read %d times, not once", r)
+	}
+}
+
+func TestIssue29723(t *testing.T) {
+	s := new(Scanner).Init(strings.NewReader(`x "`))
+	s.Error = func(s *Scanner, _ string) {
+		got := s.TokenText() // this call shouldn't panic
+		const want = `"`
+		if got != want {
+			t.Errorf("got %q; want %q", got, want)
+		}
+	}
+	for r := s.Scan(); r != EOF; r = s.Scan() {
+	}
+}
+
+func TestNumbers(t *testing.T) {
+	for _, test := range []struct {
+		tok              rune
+		src, tokens, err string
+	}{
+		// binaries
+		{Int, "0b0", "0b0", ""},
+		{Int, "0b1010", "0b1010", ""},
+		{Int, "0B1110", "0B1110", ""},
+
+		{Int, "0b", "0b", "binary literal has no digits"},
+		{Int, "0b0190", "0b0190", "invalid digit '9' in binary literal"},
+		{Int, "0b01a0", "0b01 a0", ""}, // only accept 0-9
+
+		// binary floats (invalid)
+		{Float, "0b.", "0b.", "invalid radix point in binary literal"},
+		{Float, "0b.1", "0b.1", "invalid radix point in binary literal"},
+		{Float, "0b1.0", "0b1.0", "invalid radix point in binary literal"},
+		{Float, "0b1e10", "0b1e10", "'e' exponent requires decimal mantissa"},
+		{Float, "0b1P-1", "0b1P-1", "'P' exponent requires hexadecimal mantissa"},
+
+		// octals
+		{Int, "0o0", "0o0", ""},
+		{Int, "0o1234", "0o1234", ""},
+		{Int, "0O1234", "0O1234", ""},
+
+		{Int, "0o", "0o", "octal literal has no digits"},
+		{Int, "0o8123", "0o8123", "invalid digit '8' in octal literal"},
+		{Int, "0o1293", "0o1293", "invalid digit '9' in octal literal"},
+		{Int, "0o12a3", "0o12 a3", ""}, // only accept 0-9
+
+		// octal floats (invalid)
+		{Float, "0o.", "0o.", "invalid radix point in octal literal"},
+		{Float, "0o.2", "0o.2", "invalid radix point in octal literal"},
+		{Float, "0o1.2", "0o1.2", "invalid radix point in octal literal"},
+		{Float, "0o1E+2", "0o1E+2", "'E' exponent requires decimal mantissa"},
+		{Float, "0o1p10", "0o1p10", "'p' exponent requires hexadecimal mantissa"},
+
+		// 0-octals
+		{Int, "0", "0", ""},
+		{Int, "0123", "0123", ""},
+
+		{Int, "08123", "08123", "invalid digit '8' in octal literal"},
+		{Int, "01293", "01293", "invalid digit '9' in octal literal"},
+		{Int, "0F.", "0 F .", ""}, // only accept 0-9
+		{Int, "0123F.", "0123 F .", ""},
+		{Int, "0123456x", "0123456 x", ""},
+
+		// decimals
+		{Int, "1", "1", ""},
+		{Int, "1234", "1234", ""},
+
+		{Int, "1f", "1 f", ""}, // only accept 0-9
+
+		// decimal floats
+		{Float, "0.", "0.", ""},
+		{Float, "123.", "123.", ""},
+		{Float, "0123.", "0123.", ""},
+
+		{Float, ".0", ".0", ""},
+		{Float, ".123", ".123", ""},
+		{Float, ".0123", ".0123", ""},
+
+		{Float, "0.0", "0.0", ""},
+		{Float, "123.123", "123.123", ""},
+		{Float, "0123.0123", "0123.0123", ""},
+
+		{Float, "0e0", "0e0", ""},
+		{Float, "123e+0", "123e+0", ""},
+		{Float, "0123E-1", "0123E-1", ""},
+
+		{Float, "0.e+1", "0.e+1", ""},
+		{Float, "123.E-10", "123.E-10", ""},
+		{Float, "0123.e123", "0123.e123", ""},
+
+		{Float, ".0e-1", ".0e-1", ""},
+		{Float, ".123E+10", ".123E+10", ""},
+		{Float, ".0123E123", ".0123E123", ""},
+
+		{Float, "0.0e1", "0.0e1", ""},
+		{Float, "123.123E-10", "123.123E-10", ""},
+		{Float, "0123.0123e+456", "0123.0123e+456", ""},
+
+		{Float, "0e", "0e", "exponent has no digits"},
+		{Float, "0E+", "0E+", "exponent has no digits"},
+		{Float, "1e+f", "1e+ f", "exponent has no digits"},
+		{Float, "0p0", "0p0", "'p' exponent requires hexadecimal mantissa"},
+		{Float, "1.0P-1", "1.0P-1", "'P' exponent requires hexadecimal mantissa"},
+
+		// hexadecimals
+		{Int, "0x0", "0x0", ""},
+		{Int, "0x1234", "0x1234", ""},
+		{Int, "0xcafef00d", "0xcafef00d", ""},
+		{Int, "0XCAFEF00D", "0XCAFEF00D", ""},
+
+		{Int, "0x", "0x", "hexadecimal literal has no digits"},
+		{Int, "0x1g", "0x1 g", ""},
+
+		// hexadecimal floats
+		{Float, "0x0p0", "0x0p0", ""},
+		{Float, "0x12efp-123", "0x12efp-123", ""},
+		{Float, "0xABCD.p+0", "0xABCD.p+0", ""},
+		{Float, "0x.0189P-0", "0x.0189P-0", ""},
+		{Float, "0x1.ffffp+1023", "0x1.ffffp+1023", ""},
+
+		{Float, "0x.", "0x.", "hexadecimal literal has no digits"},
+		{Float, "0x0.", "0x0.", "hexadecimal mantissa requires a 'p' exponent"},
+		{Float, "0x.0", "0x.0", "hexadecimal mantissa requires a 'p' exponent"},
+		{Float, "0x1.1", "0x1.1", "hexadecimal mantissa requires a 'p' exponent"},
+		{Float, "0x1.1e0", "0x1.1e0", "hexadecimal mantissa requires a 'p' exponent"},
+		{Float, "0x1.2gp1a", "0x1.2 gp1a", "hexadecimal mantissa requires a 'p' exponent"},
+		{Float, "0x0p", "0x0p", "exponent has no digits"},
+		{Float, "0xeP-", "0xeP-", "exponent has no digits"},
+		{Float, "0x1234PAB", "0x1234P AB", "exponent has no digits"},
+		{Float, "0x1.2p1a", "0x1.2p1 a", ""},
+
+		// separators
+		{Int, "0b_1000_0001", "0b_1000_0001", ""},
+		{Int, "0o_600", "0o_600", ""},
+		{Int, "0_466", "0_466", ""},
+		{Int, "1_000", "1_000", ""},
+		{Float, "1_000.000_1", "1_000.000_1", ""},
+		{Int, "0x_f00d", "0x_f00d", ""},
+		{Float, "0x_f00d.0p1_2", "0x_f00d.0p1_2", ""},
+
+		{Int, "0b__1000", "0b__1000", "'_' must separate successive digits"},
+		{Int, "0o60___0", "0o60___0", "'_' must separate successive digits"},
+		{Int, "0466_", "0466_", "'_' must separate successive digits"},
+		{Float, "1_.", "1_.", "'_' must separate successive digits"},
+		{Float, "0._1", "0._1", "'_' must separate successive digits"},
+		{Float, "2.7_e0", "2.7_e0", "'_' must separate successive digits"},
+		{Int, "0x___0", "0x___0", "'_' must separate successive digits"},
+		{Float, "0x1.0_p0", "0x1.0_p0", "'_' must separate successive digits"},
+	} {
+		s := new(Scanner).Init(strings.NewReader(test.src))
+		var err string
+		s.Error = func(s *Scanner, msg string) {
+			if err == "" {
+				err = msg
+			}
+		}
+
+		for i, want := range strings.Split(test.tokens, " ") {
+			err = ""
+			tok := s.Scan()
+			lit := s.TokenText()
+			if i == 0 {
+				if tok != test.tok {
+					t.Errorf("%q: got token %s; want %s", test.src, TokenString(tok), TokenString(test.tok))
+				}
+				if err != test.err {
+					t.Errorf("%q: got error %q; want %q", test.src, err, test.err)
+				}
+			}
+			if lit != want {
+				t.Errorf("%q: got literal %q (%s); want %s", test.src, lit, TokenString(tok), want)
+			}
+		}
+
+		// make sure we read all
+		if tok := s.Scan(); tok != EOF {
+			t.Errorf("%q: got %s; want EOF", test.src, TokenString(tok))
+		}
+	}
+}
+
+func TestIssue30320(t *testing.T) {
+	for _, test := range []struct {
+		in, want string
+		mode     uint
+	}{
+		{"foo01.bar31.xx-0-1-1-0", "01 31 0 1 1 0", ScanInts},
+		{"foo0/12/0/5.67", "0 12 0 5 67", ScanInts},
+		{"xxx1e0yyy", "1 0", ScanInts},
+		{"1_2", "1_2", ScanInts},
+		{"xxx1.0yyy2e3ee", "1 0 2 3", ScanInts},
+		{"xxx1.0yyy2e3ee", "1.0 2e3", ScanFloats},
+	} {
+		got := extractInts(test.in, test.mode)
+		if got != test.want {
+			t.Errorf("%q: got %q; want %q", test.in, got, test.want)
+		}
+	}
+}
+
+func extractInts(t string, mode uint) (res string) {
+	var s Scanner
+	s.Init(strings.NewReader(t))
+	s.Mode = mode
+	for {
+		switch tok := s.Scan(); tok {
+		case Int, Float:
+			if len(res) > 0 {
+				res += " "
+			}
+			res += s.TokenText()
+		case EOF:
+			return
+		}
 	}
 }

@@ -1,0 +1,18 @@
+# Tests Issue #21895
+
+[!msan] [!race] skip 'skipping because both msan and the race detector are not supported'
+
+env CGO_ENABLED=0
+
+[race] ! go install -race triv.go
+[race] stderr '-race requires cgo'
+[race] ! stderr '-msan'
+
+[msan] ! go install -msan triv.go
+[msan] stderr '-msan requires cgo'
+[msan] ! stderr '-race'
+
+-- triv.go --
+package main
+
+func main() {}

@@ -48,3 +48,32 @@ TEXT	·Store(SB),NOSPLIT,$0-8
 	BLT	2(PC)
 	DMB	MB_ISH
 	RET
+
+TEXT	·Load8(SB),NOSPLIT|NOFRAME,$0-5
+	MOVW	addr+0(FP), R0
+	MOVB	(R0), R1
+
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BLT	2(PC)
+	DMB	MB_ISH
+
+	MOVB	R1, ret+4(FP)
+	RET
+
+TEXT	·Store8(SB),NOSPLIT,$0-5
+	MOVW	addr+0(FP), R1
+	MOVB	v+4(FP), R2
+
+	MOVB	runtime·goarm(SB), R8
+	CMP	$7, R8
+	BLT	2(PC)
+	DMB	MB_ISH
+
+	MOVB	R2, (R1)
+
+	CMP	$7, R8
+	BLT	2(PC)
+	DMB	MB_ISH
+	RET
+

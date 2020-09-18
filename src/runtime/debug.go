@@ -10,9 +10,8 @@ import (
 )
 
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
-// simultaneously and returns the previous setting. If n < 1, it does not
-// change the current setting.
-// The number of logical CPUs on the local machine can be queried with NumCPU.
+// simultaneously and returns the previous setting. It defaults to
+// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
 	if GOARCH == "wasm" && n > 1 {
@@ -26,12 +25,12 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorld("GOMAXPROCS")
+	stopTheWorldGC("GOMAXPROCS")
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	startTheWorld()
+	startTheWorldGC()
 	return ret
 }
 
@@ -56,4 +55,9 @@ func NumCgoCall() int64 {
 // NumGoroutine returns the number of goroutines that currently exist.
 func NumGoroutine() int {
 	return int(gcount())
+}
+
+//go:linkname debug_modinfo runtime/debug.modinfo
+func debug_modinfo() string {
+	return modinfo
 }

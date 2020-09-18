@@ -160,7 +160,7 @@ func doDemangle(name string, options ...Option) (ret AST, err error) {
 	}
 
 	st := &state{str: name, verbose: verbose}
-	a := st.encoding(params)
+	a := st.encoding(params, notForLocalName)
 
 	// Accept a clone suffix.
 	if clones {
@@ -249,10 +249,17 @@ func adjustErr(err error, adj int) error {
 	return err
 }
 
+type forLocalNameType int
+
+const (
+	forLocalName forLocalNameType = iota
+	notForLocalName
+)
+
 // encoding ::= <(function) name> <bare-function-type>
 //              <(data) name>
 //              <special-name>
-func (st *state) encoding(params bool) AST {
+func (st *state) encoding(params bool, local forLocalNameType) AST {
 	if len(st.str) < 1 {
 		st.fail("expected encoding")
 	}
@@ -315,6 +322,14 @@ func (st *state) encoding(params bool) AST {
 	}
 
 	ft = simplify(ft)
+
+	// For a local name, discard the return type, so that it
+	// doesn't get confused with the top level return type.
+	if local == forLocalName {
+		if functype, ok := ft.(*FunctionType); ok {
+			functype.Return = nil
+		}
+	}
 
 	// Any top-level qualifiers belong to the function type.
 	if mwq != nil {
@@ -526,13 +541,22 @@ func (st *state) prefix() AST {
 		} else {
 			switch st.str[0] {
 			case 'C':
-				if len(st.str) < 2 {
+				inheriting := false
+				st.advance(1)
+				if len(st.str) > 0 && st.str[0] == 'I' {
+					inheriting = true
+					st.advance(1)
+				}
+				if len(st.str) < 1 {
 					st.fail("expected constructor type")
 				}
 				if last == nil {
 					st.fail("constructor before name is seen")
 				}
-				st.advance(2)
+				st.advance(1)
+				if inheriting {
+					last = st.demangleType(false)
+				}
 				next = &Constructor{Name: getLast(last)}
 			case 'D':
 				if len(st.str) > 1 && (st.str[1] == 'T' || st.str[1] == 't') {
@@ -834,7 +858,7 @@ func (st *state) operatorName(inExpression bool) (AST, int) {
 //              ::= Z <(function) encoding> E d [<parameter> number>] _ <entity name>
 func (st *state) localName() AST {
 	st.checkChar('Z')
-	fn := st.encoding(true)
+	fn := st.encoding(true, forLocalName)
 	if len(st.str) == 0 || st.str[0] != 'E' {
 		st.fail("expected E after local name")
 	}
@@ -851,7 +875,7 @@ func (st *state) localName() AST {
 			st.advance(1)
 			num = st.compactNumber()
 		}
-		var n AST = st.name()
+		n := st.name()
 		n = st.discriminator(n)
 		if num >= 0 {
 			n = &DefaultArg{Num: num, Arg: n}
@@ -939,16 +963,16 @@ func (st *state) specialName() AST {
 			return &Special{Prefix: "typeinfo name for ", Val: t}
 		case 'h':
 			st.callOffset('h')
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "non-virtual thunk to ", Val: v}
 		case 'v':
 			st.callOffset('v')
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "virtual thunk to ", Val: v}
 		case 'c':
 			st.callOffset(0)
 			st.callOffset(0)
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "covariant return thunk to ", Val: v}
 		case 'C':
 			derived := st.demangleType(false)
@@ -995,7 +1019,7 @@ func (st *state) specialName() AST {
 			i := st.number()
 			return &Special{Prefix: fmt.Sprintf("reference temporary #%d for ", i), Val: n}
 		case 'A':
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "hidden alias for ", Val: v}
 		case 'T':
 			if len(st.str) == 0 {
@@ -1003,7 +1027,7 @@ func (st *state) specialName() AST {
 			}
 			c := st.str[0]
 			st.advance(1)
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			switch c {
 			case 'n':
 				return &Special{Prefix: "non-transaction clone for ", Val: v}
@@ -2065,7 +2089,7 @@ func (st *state) exprPrimary() AST {
 			st.fail("expected mangled name")
 		}
 		st.advance(1)
-		ret = st.encoding(true)
+		ret = st.encoding(true, notForLocalName)
 	} else {
 		t := st.demangleType(false)
 
@@ -2073,6 +2097,9 @@ func (st *state) exprPrimary() AST {
 		if len(st.str) > 0 && st.str[0] == 'n' {
 			neg = true
 			st.advance(1)
+		}
+		if len(st.str) > 0 && st.str[0] == 'E' {
+			st.fail("missing literal value")
 		}
 		i := 0
 		for len(st.str) > i && st.str[i] != 'E' {

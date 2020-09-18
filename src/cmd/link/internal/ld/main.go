@@ -1,5 +1,5 @@
 // Inferno utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,9 +32,10 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"cmd/link/internal/sym"
+	"cmd/link/internal/benchmark"
 	"flag"
 	"log"
 	"os"
@@ -46,6 +47,7 @@ import (
 var (
 	pkglistfornote []byte
 	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
+	ownTmpDir      bool // set to true if tmp dir created by linker (e.g. no -tmpdir)
 )
 
 func init() {
@@ -72,28 +74,30 @@ var (
 	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
-	flagA           = flag.Bool("a", false, "disassemble output")
-	FlagC           = flag.Bool("c", false, "dump call graph")
-	FlagD           = flag.Bool("d", false, "disable dynamic executable")
-	flagF           = flag.Bool("f", false, "ignore version mismatch")
-	flagG           = flag.Bool("g", false, "disable go package data checks")
-	flagH           = flag.Bool("h", false, "halt on error")
-	flagN           = flag.Bool("n", false, "dump symbol table")
-	FlagS           = flag.Bool("s", false, "disable symbol table")
-	flagU           = flag.Bool("u", false, "reject unsafe packages")
-	FlagW           = flag.Bool("w", false, "disable DWARF generation")
-	Flag8           bool // use 64-bit addresses in symbol table
-	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
-	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
-
-	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
-	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
-	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
-	flagEntrySymbol = flag.String("E", "", "set `entry` symbol name")
+	flagA             = flag.Bool("a", false, "no-op (deprecated)")
+	FlagC             = flag.Bool("c", false, "dump call graph")
+	FlagD             = flag.Bool("d", false, "disable dynamic executable")
+	flagF             = flag.Bool("f", false, "ignore version mismatch")
+	flagG             = flag.Bool("g", false, "disable go package data checks")
+	flagH             = flag.Bool("h", false, "halt on error")
+	flagN             = flag.Bool("n", false, "dump symbol table")
+	FlagS             = flag.Bool("s", false, "disable symbol table")
+	FlagW             = flag.Bool("w", false, "disable DWARF generation")
+	flag8             bool // use 64-bit addresses in symbol table
+	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+	FlagDebugTextSize = flag.Int("debugppc64textsize", 0, "debug PPC64 text section max")
+	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
+	FlagTextAddr      = flag.Int64("T", -1, "set text segment `address`")
+	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
 
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+
+	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
 )
 
 // Main is the main entry point for the linker code.
@@ -117,7 +121,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	// TODO(matloob): define these above and then check flag values here
 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
-		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	flagHeadType := flag.String("H", "", "set header `type`")
 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
@@ -133,6 +137,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	objabi.Flagparse(usage)
 
+	if ctxt.Debugvlog > 0 {
+		// dump symbol info on crash
+		defer func() { ctxt.loader.Dump() }()
+	}
+
 	switch *flagHeadType {
 	case "":
 	case "windowsgui":
@@ -144,10 +153,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 			usage()
 		}
 	}
-
-	if objabi.Fieldtrack_enabled != 0 {
-		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
+	if ctxt.HeadType == objabi.Hunknown {
+		ctxt.HeadType.Set(objabi.GOOS)
 	}
+
+	checkStrictDups = *FlagStrictDups
 
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {
@@ -167,13 +177,24 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	interpreter = *flagInterpreter
 
-	libinit(ctxt) // creates outfile
-
-	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
+	// enable benchmarking
+	var bench *benchmark.Metrics
+	if len(*benchmarkFlag) != 0 {
+		if *benchmarkFlag == "mem" {
+			bench = benchmark.New(benchmark.GC, *benchmarkFileFlag)
+		} else if *benchmarkFlag == "cpu" {
+			bench = benchmark.New(benchmark.NoGC, *benchmarkFileFlag)
+		} else {
+			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
+			usage()
+		}
 	}
 
+	bench.Start("libinit")
+	libinit(ctxt) // creates outfile
+	bench.Start("computeTLSOffset")
 	ctxt.computeTLSOffset()
+	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
 
 	if ctxt.linkShared && !ctxt.IsELF {
@@ -181,9 +202,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
 	}
 
+	zerofp := goobj.FingerprintType{}
 	switch ctxt.BuildMode {
 	case BuildModeShared:
 		for i := 0; i < flag.NArg(); i++ {
@@ -197,56 +219,131 @@ func Main(arch *sys.Arch, theArch Arch) {
 			}
 			pkglistfornote = append(pkglistfornote, pkgpath...)
 			pkglistfornote = append(pkglistfornote, '\n')
-			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
+			addlibpath(ctxt, "command line", "command line", file, pkgpath, "", zerofp)
 		}
 	case BuildModePlugin:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "", zerofp)
 	default:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "", zerofp)
 	}
+	bench.Start("loadlib")
 	ctxt.loadlib()
 
-	ctxt.dostrdata()
+	bench.Start("deadcode")
 	deadcode(ctxt)
-	dwarfGenerateDebugInfo(ctxt)
+
+	bench.Start("linksetup")
+	ctxt.linksetup()
+
+	bench.Start("dostrdata")
+	ctxt.dostrdata()
 	if objabi.Fieldtrack_enabled != 0 {
-		fieldtrack(ctxt)
+		bench.Start("fieldtrack")
+		fieldtrack(ctxt.Arch, ctxt.loader)
 	}
-	ctxt.mangleTypeSym()
+
+	bench.Start("dwarfGenerateDebugInfo")
+	dwarfGenerateDebugInfo(ctxt)
+
+	bench.Start("callgraph")
 	ctxt.callgraph()
 
-	ctxt.doelf()
-	if ctxt.HeadType == objabi.Hdarwin {
+	bench.Start("dostkcheck")
+	ctxt.dostkcheck()
+
+	bench.Start("mangleTypeSym")
+	ctxt.mangleTypeSym()
+
+	if ctxt.IsELF {
+		bench.Start("doelf")
+		ctxt.doelf()
+	}
+	if ctxt.IsDarwin() {
+		bench.Start("domacho")
 		ctxt.domacho()
 	}
-	ctxt.dostkcheck()
-	if ctxt.HeadType == objabi.Hwindows {
+	if ctxt.IsWindows() {
+		bench.Start("dope")
 		ctxt.dope()
+		bench.Start("windynrelocsyms")
+		ctxt.windynrelocsyms()
 	}
-	ctxt.addexport()
-	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
-	ctxt.textbuildid()
-	ctxt.textaddress()
-	ctxt.pclntab()
-	ctxt.findfunctab()
-	ctxt.typelink()
-	ctxt.symtab()
-	ctxt.dodata()
-	order := ctxt.address()
-	ctxt.reloc()
-	dwarfcompress(ctxt)
-	ctxt.layout(order)
-	thearch.Asmb(ctxt)
-	ctxt.undef()
-	ctxt.hostlink()
-	ctxt.archive()
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f cpu time\n", Cputime())
-		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
-		ctxt.Logf("%d liveness data\n", liveness)
+	if ctxt.IsAIX() {
+		bench.Start("doxcoff")
+		ctxt.doxcoff()
 	}
 
+	bench.Start("textbuildid")
+	ctxt.textbuildid()
+	bench.Start("addexport")
+	setupdynexp(ctxt)
+	ctxt.setArchSyms()
+	ctxt.addexport()
+	bench.Start("Gentext")
+	thearch.Gentext(ctxt, ctxt.loader) // trampolines, call stubs, etc.
+
+	bench.Start("textaddress")
+	ctxt.textaddress()
+	bench.Start("typelink")
+	ctxt.typelink()
+	bench.Start("buildinfo")
+	ctxt.buildinfo()
+	bench.Start("pclntab")
+	containers := ctxt.findContainerSyms()
+	pclnState := ctxt.pclntab(containers)
+	bench.Start("findfunctab")
+	ctxt.findfunctab(pclnState, containers)
+	bench.Start("dwarfGenerateDebugSyms")
+	dwarfGenerateDebugSyms(ctxt)
+	bench.Start("symtab")
+	symGroupType := ctxt.symtab(pclnState)
+	bench.Start("dodata")
+	ctxt.dodata(symGroupType)
+	bench.Start("address")
+	order := ctxt.address()
+	bench.Start("dwarfcompress")
+	dwarfcompress(ctxt)
+	bench.Start("layout")
+	filesize := ctxt.layout(order)
+
+	// Write out the output file.
+	// It is split into two parts (Asmb and Asmb2). The first
+	// part writes most of the content (sections and segments),
+	// for which we have computed the size and offset, in a
+	// mmap'd region. The second part writes more content, for
+	// which we don't know the size.
+	if ctxt.Arch.Family != sys.Wasm {
+		// Don't mmap if we're building for Wasm. Wasm file
+		// layout is very different so filesize is meaningless.
+		if err := ctxt.Out.Mmap(filesize); err != nil {
+			panic(err)
+		}
+	}
+	// asmb will redirect symbols to the output file mmap, and relocations
+	// will be applied directly there.
+	bench.Start("Asmb")
+	asmb(ctxt)
+	// Generate large symbols.
+	for s, f := range ctxt.generatorSyms {
+		f(ctxt, s)
+	}
+	bench.Start("Asmb2")
+	asmb2(ctxt)
+
+	bench.Start("Munmap")
+	ctxt.Out.Close() // Close handles Munmapping if necessary.
+
+	bench.Start("hostlink")
+	ctxt.hostlink()
+	if ctxt.Debugvlog != 0 {
+		ctxt.Logf("%s", ctxt.loader.Stat())
+		ctxt.Logf("%d liveness data\n", liveness)
+	}
+	bench.Start("Flush")
 	ctxt.Bso.Flush()
+	bench.Start("archive")
+	ctxt.archive()
+	bench.Report(os.Stdout)
 
 	errorexit()
 }
@@ -286,8 +383,13 @@ func startProfile() {
 			log.Fatalf("%v", err)
 		}
 		AtExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
+			// Profile all outstanding allocations.
+			runtime.GC()
+			// compilebench parses the memory profile to extract memstats,
+			// which are only written in the legacy pprof format.
+			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+			const writeLegacyFormat = 1
+			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
 			}
 		})

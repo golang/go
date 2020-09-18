@@ -729,3 +729,27 @@ func BenchmarkRagged(b *testing.B) {
 		})
 	}
 }
+
+const codeSnippet = `
+some command
+
+foo	# aligned
+barbaz	# comments
+
+but
+mostly
+single
+cell
+lines
+`
+
+func BenchmarkCode(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+		// The code is small, so it's reasonable for the tabwriter user
+		// to write it all at once, or buffer the writes.
+		w.Write([]byte(codeSnippet))
+		w.Flush()
+	}
+}

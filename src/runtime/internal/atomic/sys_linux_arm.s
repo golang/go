@@ -29,9 +29,9 @@ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	·armcas(SB)
-	JMP	·kernelcas<>(SB)
+	JMP	kernelcas<>(SB)
 
-TEXT runtime∕internal∕atomic·kernelcas<>(SB),NOSPLIT,$0
+TEXT kernelcas<>(SB),NOSPLIT,$0
 	MOVW	ptr+0(FP), R2
 	// trigger potential paging fault here,
 	// because we don't know how to traceback through __kuser_cmpxchg
@@ -96,6 +96,44 @@ native_barrier:
 
 store:
 	MOVW	R2, (R1)
+
+	CMP	$7, R8
+	BGE	native_barrier2
+	BL	memory_barrier<>(SB)
+	RET
+native_barrier2:
+	DMB	MB_ISH
+	RET
+
+TEXT	·Load8(SB),NOSPLIT,$0-5
+	MOVW	addr+0(FP), R0
+	MOVB	(R0), R1
+
+	MOVB	runtime·goarm(SB), R11
+	CMP	$7, R11
+	BGE	native_barrier
+	BL	memory_barrier<>(SB)
+	B	end
+native_barrier:
+	DMB	MB_ISH
+end:
+	MOVB	R1, ret+4(FP)
+	RET
+
+TEXT	·Store8(SB),NOSPLIT,$0-5
+	MOVW	addr+0(FP), R1
+	MOVB	v+4(FP), R2
+
+	MOVB	runtime·goarm(SB), R8
+	CMP	$7, R8
+	BGE	native_barrier
+	BL	memory_barrier<>(SB)
+	B	store
+native_barrier:
+	DMB	MB_ISH
+
+store:
+	MOVB	R2, (R1)
 
 	CMP	$7, R8
 	BGE	native_barrier2

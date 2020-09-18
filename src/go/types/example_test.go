@@ -5,7 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-// +build !arm,!arm64,!nacl
+// +build !arm,!arm64
 
 package types_test
 
@@ -51,6 +51,7 @@ type Celsius float64
 func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
 func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
 const Boiling Celsius = 100
+func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
 `},
 	} {
 		f, err := parser.ParseFile(fset, file.name, file.input, 0)
@@ -81,23 +82,33 @@ const Boiling Celsius = 100
 	// .  const temperature.Boiling temperature.Celsius
 	// .  type temperature.Celsius float64
 	// .  func temperature.FToC(f float64) temperature.Celsius
+	// .  func temperature.Unused()
 	// .  func temperature.main()
-	//
 	// .  main.go scope {
 	// .  .  package fmt
-	//
 	// .  .  function scope {
 	// .  .  .  var freezing temperature.Celsius
-	// .  .  }.  }
+	// .  .  }
+	// .  }
 	// .  celsius.go scope {
 	// .  .  package fmt
-	//
 	// .  .  function scope {
 	// .  .  .  var c temperature.Celsius
 	// .  .  }
 	// .  .  function scope {
 	// .  .  .  var f float64
-	// .  .  }.  }}
+	// .  .  }
+	// .  .  function scope {
+	// .  .  .  block scope {
+	// .  .  .  }
+	// .  .  .  block scope {
+	// .  .  .  .  block scope {
+	// .  .  .  .  .  var x int
+	// .  .  .  .  }
+	// .  .  .  }
+	// .  .  }
+	// .  }
+	// }
 }
 
 // ExampleMethodSet prints the method sets of various types.
@@ -109,6 +120,9 @@ import "fmt"
 type Celsius float64
 func (c Celsius) String() string  { return fmt.Sprintf("%g°C", c) }
 func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
+
+type S struct { I; m int }
+type I interface { m() byte }
 `
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "celsius.go", input, 0)
@@ -136,6 +150,11 @@ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
 		fmt.Println()
 	}
 
+	// Print the method set of S.
+	styp := pkg.Scope().Lookup("S").Type()
+	fmt.Printf("Method set of %s:\n", styp)
+	fmt.Println(types.NewMethodSet(styp))
+
 	// Output:
 	// Method set of temperature.Celsius:
 	// method (temperature.Celsius) String() string
@@ -143,6 +162,9 @@ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
 	// Method set of *temperature.Celsius:
 	// method (*temperature.Celsius) SetF(f float64)
 	// method (*temperature.Celsius) String() string
+	//
+	// Method set of temperature.S:
+	// MethodSet {}
 }
 
 // ExampleInfo prints various facts recorded by the type checker in a

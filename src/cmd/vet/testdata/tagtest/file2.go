@@ -6,5 +6,8 @@
 
 package main
 
-func ignore() {
+import "fmt"
+
+func main() {
+	fmt.Printf("%s", 0)
 }

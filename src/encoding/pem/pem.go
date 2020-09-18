@@ -50,14 +50,22 @@ func getLine(data []byte) (line, rest []byte) {
 	return bytes.TrimRight(data[0:i], " \t"), data[j:]
 }
 
-// removeWhitespace returns a copy of its input with all spaces, tab and
-// newline characters removed.
-func removeWhitespace(data []byte) []byte {
+// removeSpacesAndTabs returns a copy of its input with all spaces and tabs
+// removed, if there were any. Otherwise, the input is returned unchanged.
+//
+// The base64 decoder already skips newline characters, so we don't need to
+// filter them out here.
+func removeSpacesAndTabs(data []byte) []byte {
+	if !bytes.ContainsAny(data, " \t") {
+		// Fast path; most base64 data within PEM contains newlines, but
+		// no spaces nor tabs. Skip the extra alloc and work.
+		return data
+	}
 	result := make([]byte, len(data))
 	n := 0
 
 	for _, b := range data {
-		if b == ' ' || b == '\t' || b == '\r' || b == '\n' {
+		if b == ' ' || b == '\t' {
 			continue
 		}
 		result[n] = b
@@ -155,7 +163,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		return decodeError(data, rest)
 	}
 
-	base64Data := removeWhitespace(rest[:endIndex])
+	base64Data := removeSpacesAndTabs(rest[:endIndex])
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {

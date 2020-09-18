@@ -4,30 +4,6 @@
 
 package ssa
 
-// When breaking up a combined load-compare to separated load and compare operations,
-// opLoad specifies the load operation, and opCmp specifies the compare operation.
-type typeCmdLoadMap struct {
-	opLoad Op
-	opCmp  Op
-}
-
-var opCmpLoadMap = map[Op]typeCmdLoadMap{
-	OpAMD64CMPQload:      {OpAMD64MOVQload, OpAMD64CMPQ},
-	OpAMD64CMPLload:      {OpAMD64MOVLload, OpAMD64CMPL},
-	OpAMD64CMPWload:      {OpAMD64MOVWload, OpAMD64CMPW},
-	OpAMD64CMPBload:      {OpAMD64MOVBload, OpAMD64CMPB},
-	Op386CMPLload:        {Op386MOVLload, Op386CMPL},
-	Op386CMPWload:        {Op386MOVWload, Op386CMPW},
-	Op386CMPBload:        {Op386MOVBload, Op386CMPB},
-	OpAMD64CMPQconstload: {OpAMD64MOVQload, OpAMD64CMPQconst},
-	OpAMD64CMPLconstload: {OpAMD64MOVLload, OpAMD64CMPLconst},
-	OpAMD64CMPWconstload: {OpAMD64MOVWload, OpAMD64CMPWconst},
-	OpAMD64CMPBconstload: {OpAMD64MOVBload, OpAMD64CMPBconst},
-	Op386CMPLconstload:   {Op386MOVLload, Op386CMPLconst},
-	Op386CMPWconstload:   {Op386MOVWload, Op386CMPWconst},
-	Op386CMPBconstload:   {Op386MOVBload, Op386CMPBconst},
-}
-
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
@@ -42,9 +18,17 @@ func flagalloc(f *Func) {
 			// Walk values backwards to figure out what flag
 			// value we want in the flag register at the start
 			// of the block.
-			flag := end[b.ID]
-			if b.Control != nil && b.Control.Type.IsFlags() {
-				flag = b.Control
+			var flag *Value
+			for _, c := range b.ControlValues() {
+				if c.Type.IsFlags() {
+					if flag != nil {
+						panic("cannot have multiple controls using flags")
+					}
+					flag = c
+				}
+			}
+			if flag == nil {
+				flag = end[b.ID]
 			}
 			for j := len(b.Values) - 1; j >= 0; j-- {
 				v := b.Values[j]
@@ -73,13 +57,15 @@ func flagalloc(f *Func) {
 	// we can leave in the flags register at the end of the block. (There
 	// is no place to put a flag regeneration instruction.)
 	for _, b := range f.Blocks {
-		v := b.Control
-		if v != nil && v.Type.IsFlags() && end[b.ID] != v {
-			end[b.ID] = nil
-		}
 		if b.Kind == BlockDefer {
 			// Defer blocks internally use/clobber the flags value.
 			end[b.ID] = nil
+			continue
+		}
+		for _, v := range b.ControlValues() {
+			if v.Type.IsFlags() && end[b.ID] != v {
+				end[b.ID] = nil
+			}
 		}
 	}
 
@@ -109,8 +95,10 @@ func flagalloc(f *Func) {
 				flag = v
 			}
 		}
-		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
-			spill[v.ID] = true
+		for _, v := range b.ControlValues() {
+			if v != flag && v.Type.IsFlags() {
+				spill[v.ID] = true
+			}
 		}
 		if v := end[b.ID]; v != nil && v != flag {
 			spill[v.ID] = true
@@ -118,7 +106,7 @@ func flagalloc(f *Func) {
 	}
 
 	// Add flag spill and recomputation where they are needed.
-	// TODO: Remove original instructions if they are never used.
+	var remove []*Value // values that should be checked for possible removal
 	var oldSched []*Value
 	for _, b := range f.Blocks {
 		oldSched = append(oldSched[:0], b.Values...)
@@ -142,67 +130,11 @@ func flagalloc(f *Func) {
 
 			// If v will be spilled, and v uses memory, then we must split it
 			// into a load + a flag generator.
-			// TODO: figure out how to do this without arch-dependent code.
 			if spill[v.ID] && v.MemoryArg() != nil {
-				switch v.Op {
-				case OpAMD64CMPQload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPLload, Op386CMPLload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPWload, Op386CMPWload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-				case OpAMD64CMPBload, Op386CMPBload:
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = 0
-					v.Aux = nil
-					v.SetArgs2(load, v.Args[1])
-
-				case OpAMD64CMPQconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPLconstload, Op386CMPLconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPWconstload, Op386CMPWconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-				case OpAMD64CMPBconstload, Op386CMPBconstload:
-					vo := v.AuxValAndOff()
-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
-					v.Op = opCmpLoadMap[v.Op].opCmp
-					v.AuxInt = vo.Val()
-					v.Aux = nil
-					v.SetArgs1(load)
-
-				default:
+				remove = append(remove, v)
+				if !f.Config.splitLoad(v) {
 					f.Fatalf("can't split flag generator: %s", v.LongString())
 				}
-
 			}
 
 			// Make sure any flag arg of v is in the flags register.
@@ -230,27 +162,85 @@ func flagalloc(f *Func) {
 				flag = v
 			}
 		}
-		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
-			// Recalculate control value.
-			c := copyFlags(v, b)
-			b.SetControl(c)
-			flag = v
+		for i, v := range b.ControlValues() {
+			if v != flag && v.Type.IsFlags() {
+				// Recalculate control value.
+				remove = append(remove, v)
+				c := copyFlags(v, b)
+				b.ReplaceControl(i, c)
+				flag = v
+			}
 		}
 		if v := end[b.ID]; v != nil && v != flag {
 			// Need to reissue flag generator for use by
 			// subsequent blocks.
+			remove = append(remove, v)
 			copyFlags(v, b)
 			// Note: this flag generator is not properly linked up
 			// with the flag users. This breaks the SSA representation.
 			// We could fix up the users with another pass, but for now
-			// we'll just leave it.  (Regalloc has the same issue for
+			// we'll just leave it. (Regalloc has the same issue for
 			// standard regs, and it runs next.)
+			// For this reason, take care not to add this flag
+			// generator to the remove list.
 		}
 	}
 
 	// Save live flag state for later.
 	for _, b := range f.Blocks {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
+	}
+
+	const go115flagallocdeadcode = true
+	if !go115flagallocdeadcode {
+		return
+	}
+
+	// Remove any now-dead values.
+	// The number of values to remove is likely small,
+	// and removing them requires processing all values in a block,
+	// so minimize the number of blocks that we touch.
+
+	// Shrink remove to contain only dead values, and clobber those dead values.
+	for i := 0; i < len(remove); i++ {
+		v := remove[i]
+		if v.Uses == 0 {
+			v.reset(OpInvalid)
+			continue
+		}
+		// Remove v.
+		last := len(remove) - 1
+		remove[i] = remove[last]
+		remove[last] = nil
+		remove = remove[:last]
+		i-- // reprocess value at i
+	}
+
+	if len(remove) == 0 {
+		return
+	}
+
+	removeBlocks := f.newSparseSet(f.NumBlocks())
+	defer f.retSparseSet(removeBlocks)
+	for _, v := range remove {
+		removeBlocks.add(v.Block.ID)
+	}
+
+	// Process affected blocks, preserving value order.
+	for _, b := range f.Blocks {
+		if !removeBlocks.contains(b.ID) {
+			continue
+		}
+		i := 0
+		for j := 0; j < len(b.Values); j++ {
+			v := b.Values[j]
+			if v.Op == OpInvalid {
+				continue
+			}
+			b.Values[i] = v
+			i++
+		}
+		b.truncateValues(i)
 	}
 }
 

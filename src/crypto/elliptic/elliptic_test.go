@@ -5,6 +5,7 @@
 package elliptic
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -417,41 +418,62 @@ func TestP256Mult(t *testing.T) {
 	}
 }
 
+func testInfinity(t *testing.T, curve Curve) {
+	_, x, y, _ := GenerateKey(curve, rand.Reader)
+	x, y = curve.ScalarMult(x, y, curve.Params().N.Bytes())
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("x^q != ∞")
+	}
+
+	x, y = curve.ScalarBaseMult([]byte{0})
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("b^0 != ∞")
+		x.SetInt64(0)
+		y.SetInt64(0)
+	}
+
+	x2, y2 := curve.Double(x, y)
+	if x2.Sign() != 0 || y2.Sign() != 0 {
+		t.Errorf("2∞ != ∞")
+	}
+
+	baseX := curve.Params().Gx
+	baseY := curve.Params().Gy
+
+	x3, y3 := curve.Add(baseX, baseY, x, y)
+	if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
+		t.Errorf("x+∞ != x")
+	}
+
+	x4, y4 := curve.Add(x, y, baseX, baseY)
+	if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
+		t.Errorf("∞+x != x")
+	}
+
+	if curve.IsOnCurve(x, y) {
+		t.Errorf("IsOnCurve(∞) == true")
+	}
+}
+
 func TestInfinity(t *testing.T) {
 	tests := []struct {
 		name  string
 		curve Curve
 	}{
-		{"p224", P224()},
-		{"p256", P256()},
+		{"P-224", P224()},
+		{"P-256", P256()},
+		{"P-256/Generic", P256().Params()},
+		{"P-384", P384()},
+		{"P-521", P521()},
 	}
-
+	if testing.Short() {
+		tests = tests[:1]
+	}
 	for _, test := range tests {
 		curve := test.curve
-		x, y := curve.ScalarBaseMult(nil)
-		if x.Sign() != 0 || y.Sign() != 0 {
-			t.Errorf("%s: x^0 != ∞", test.name)
-		}
-		x.SetInt64(0)
-		y.SetInt64(0)
-
-		x2, y2 := curve.Double(x, y)
-		if x2.Sign() != 0 || y2.Sign() != 0 {
-			t.Errorf("%s: 2∞ != ∞", test.name)
-		}
-
-		baseX := curve.Params().Gx
-		baseY := curve.Params().Gy
-
-		x3, y3 := curve.Add(baseX, baseY, x, y)
-		if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
-			t.Errorf("%s: x+∞ != x", test.name)
-		}
-
-		x4, y4 := curve.Add(x, y, baseX, baseY)
-		if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
-			t.Errorf("%s: ∞+x != x", test.name)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			testInfinity(t, curve)
+		})
 	}
 }
 
@@ -626,5 +648,76 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
 
 	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
 		t.Errorf("Unmarshal accepts invalid Y coordinate")
+	}
+}
+
+func TestMarshalCompressed(t *testing.T) {
+	t.Run("P-256/03", func(t *testing.T) {
+		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
+		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
+		y, _ := new(big.Int).SetString("66200849279091436748794323380043701364391950689352563629885086590854940586447", 10)
+		testMarshalCompressed(t, P256(), x, y, data)
+	})
+	t.Run("P-256/02", func(t *testing.T) {
+		data, _ := hex.DecodeString("021e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
+		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
+		y, _ := new(big.Int).SetString("49591239931264812013903123569363872165694192725937750565648544718012157267504", 10)
+		testMarshalCompressed(t, P256(), x, y, data)
+	})
+
+	t.Run("Invalid", func(t *testing.T) {
+		data, _ := hex.DecodeString("02fd4bf61763b46581fd9174d623516cf3c81edd40e29ffa2777fb6cb0ae3ce535")
+		X, Y := UnmarshalCompressed(P256(), data)
+		if X != nil || Y != nil {
+			t.Error("expected an error for invalid encoding")
+		}
+	})
+
+	if testing.Short() {
+		t.Skip("skipping other curves on short test")
+	}
+
+	t.Run("P-224", func(t *testing.T) {
+		_, x, y, err := GenerateKey(P224(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testMarshalCompressed(t, P224(), x, y, nil)
+	})
+	t.Run("P-384", func(t *testing.T) {
+		_, x, y, err := GenerateKey(P384(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testMarshalCompressed(t, P384(), x, y, nil)
+	})
+	t.Run("P-521", func(t *testing.T) {
+		_, x, y, err := GenerateKey(P521(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testMarshalCompressed(t, P521(), x, y, nil)
+	})
+}
+
+func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte) {
+	if !curve.IsOnCurve(x, y) {
+		t.Fatal("invalid test point")
+	}
+	got := MarshalCompressed(curve, x, y)
+	if want != nil && !bytes.Equal(got, want) {
+		t.Errorf("got unexpected MarshalCompressed result: got %x, want %x", got, want)
+	}
+
+	X, Y := UnmarshalCompressed(curve, got)
+	if X == nil || Y == nil {
+		t.Fatalf("UnmarshalCompressed failed unexpectedly")
+	}
+
+	if !curve.IsOnCurve(X, Y) {
+		t.Error("UnmarshalCompressed returned a point not on the curve")
+	}
+	if X.Cmp(x) != 0 || Y.Cmp(y) != 0 {
+		t.Errorf("point did not round-trip correctly: got (%v, %v), want (%v, %v)", X, Y, x, y)
 	}
 }

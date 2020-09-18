@@ -276,7 +276,7 @@ CodewalkViewer.prototype.changeSelectedComment = function(target) {
   }
 
   // Force original file even if user hasn't changed comments since they may
-  // have nagivated away from it within the iframe without us knowing.
+  // have navigated away from it within the iframe without us knowing.
   this.navigateToCode(currentFile);
 };
 

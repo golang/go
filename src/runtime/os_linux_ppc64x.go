@@ -20,3 +20,5 @@ func archauxv(tag, val uintptr) {
 		cpu.HWCap2 = uint(val)
 	}
 }
+
+func osArchInit() {}

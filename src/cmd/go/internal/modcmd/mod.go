@@ -5,7 +5,9 @@
 // Package modcmd implements the ``go mod'' command.
 package modcmd
 
-import "cmd/go/internal/base"
+import (
+	"cmd/go/internal/base"
+)
 
 var CmdMod = &base.Command{
 	UsageLine: "go mod",

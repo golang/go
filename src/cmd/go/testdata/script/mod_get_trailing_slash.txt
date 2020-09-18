@@ -1,0 +1,33 @@
+# Populate go.sum
+go mod download
+
+# go list should succeed to load a package ending with ".go" if the path does
+# not correspond to an existing local file. Listing a pattern ending with
+# ".go/" should try to list a package regardless of whether a file exists at the
+# path without the suffixed "/" or not.
+go list example.com/dotgo.go
+stdout ^example.com/dotgo.go$
+go list example.com/dotgo.go/
+stdout ^example.com/dotgo.go$
+
+# go get -d should succeed in either case, with or without a version.
+# Arguments are interpreted as packages or package patterns with versions,
+# not source files.
+go get -d example.com/dotgo.go
+go get -d example.com/dotgo.go/
+go get -d example.com/dotgo.go@v1.0.0
+go get -d example.com/dotgo.go/@v1.0.0
+
+# go get (without -d) should also succeed in either case.
+[short] skip
+go get example.com/dotgo.go
+go get example.com/dotgo.go/
+go get example.com/dotgo.go@v1.0.0
+go get example.com/dotgo.go/@v1.0.0
+
+-- go.mod --
+module m
+
+go 1.13
+
+require example.com/dotgo.go v1.0.0

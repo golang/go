@@ -125,11 +125,11 @@ func cutSpace(r rune) rune {
 func TestProbablyPrime(t *testing.T) {
 	nreps := 20
 	if testing.Short() {
-		nreps = 3
+		nreps = 1
 	}
 	for i, s := range primes {
 		p, _ := new(Int).SetString(s, 10)
-		if !p.ProbablyPrime(nreps) || !p.ProbablyPrime(1) || !p.ProbablyPrime(0) {
+		if !p.ProbablyPrime(nreps) || nreps != 1 && !p.ProbablyPrime(1) || !p.ProbablyPrime(0) {
 			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
 		}
 	}
@@ -137,7 +137,7 @@ func TestProbablyPrime(t *testing.T) {
 	for i, s := range composites {
 		s = strings.Map(cutSpace, s)
 		c, _ := new(Int).SetString(s, 10)
-		if c.ProbablyPrime(nreps) || c.ProbablyPrime(1) || c.ProbablyPrime(0) {
+		if c.ProbablyPrime(nreps) || nreps != 1 && c.ProbablyPrime(1) || c.ProbablyPrime(0) {
 			t.Errorf("#%d composite found to be prime (%s)", i, s)
 		}
 	}
@@ -197,6 +197,14 @@ func TestLucasPseudoprimes(t *testing.T) {
 func testPseudoprimes(t *testing.T, name string, cond func(nat) bool, want []int) {
 	n := nat{1}
 	for i := 3; i < 100000; i += 2 {
+		if testing.Short() {
+			if len(want) == 0 {
+				break
+			}
+			if i < want[0]-2 {
+				i = want[0] - 2
+			}
+		}
 		n[0] = Word(i)
 		pseudo := cond(n)
 		if pseudo && (len(want) == 0 || i != want[0]) {

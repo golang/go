@@ -137,4 +137,5 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	MOVDU	R0, 8(R3)
 	RET
 
-// TODO: Implement runtime·duffcopy.
+TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
+	UNDEF

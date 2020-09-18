@@ -49,7 +49,7 @@ func Pipe2(p []int, flags int) (err error) {
 
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
-//sys	Dup2(oldfd int, newfd int) (err error)
+//sys	dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64_64
@@ -68,9 +68,10 @@ func Pipe2(p []int, flags int) (err error) {
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
-//sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
-//sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+//sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
+//sys	setfsuid(uid int) (prev int, err error) = SYS_SETFSUID32
 //sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
@@ -369,6 +370,10 @@ func (iov *Iovec) SetLen(length int) {
 
 func (msghdr *Msghdr) SetControllen(length int) {
 	msghdr.Controllen = uint32(length)
+}
+
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = uint32(length)
 }
 
 func (cmsg *Cmsghdr) SetLen(length int) {

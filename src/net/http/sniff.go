@@ -37,9 +37,21 @@ func DetectContentType(data []byte) string {
 	return "application/octet-stream" // fallback
 }
 
+// isWS reports whether the provided byte is a whitespace byte (0xWS)
+// as defined in https://mimesniff.spec.whatwg.org/#terminology.
 func isWS(b byte) bool {
 	switch b {
 	case '\t', '\n', '\x0c', '\r', ' ':
+		return true
+	}
+	return false
+}
+
+// isTT reports whether the provided byte is a tag-terminating byte (0xTT)
+// as defined in https://mimesniff.spec.whatwg.org/#terminology.
+func isTT(b byte) bool {
+	switch b {
+	case ' ', '>':
 		return true
 	}
 	return false
@@ -69,33 +81,57 @@ var sniffSignatures = []sniffSig{
 	htmlSig("<BR"),
 	htmlSig("<P"),
 	htmlSig("<!--"),
-
-	&maskedSig{mask: []byte("\xFF\xFF\xFF\xFF\xFF"), pat: []byte("<?xml"), skipWS: true, ct: "text/xml; charset=utf-8"},
-
+	&maskedSig{
+		mask:   []byte("\xFF\xFF\xFF\xFF\xFF"),
+		pat:    []byte("<?xml"),
+		skipWS: true,
+		ct:     "text/xml; charset=utf-8"},
 	&exactSig{[]byte("%PDF-"), "application/pdf"},
 	&exactSig{[]byte("%!PS-Adobe-"), "application/postscript"},
 
 	// UTF BOMs.
-	&maskedSig{mask: []byte("\xFF\xFF\x00\x00"), pat: []byte("\xFE\xFF\x00\x00"), ct: "text/plain; charset=utf-16be"},
-	&maskedSig{mask: []byte("\xFF\xFF\x00\x00"), pat: []byte("\xFF\xFE\x00\x00"), ct: "text/plain; charset=utf-16le"},
-	&maskedSig{mask: []byte("\xFF\xFF\xFF\x00"), pat: []byte("\xEF\xBB\xBF\x00"), ct: "text/plain; charset=utf-8"},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\x00\x00"),
+		pat:  []byte("\xFE\xFF\x00\x00"),
+		ct:   "text/plain; charset=utf-16be",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\x00\x00"),
+		pat:  []byte("\xFF\xFE\x00\x00"),
+		ct:   "text/plain; charset=utf-16le",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\x00"),
+		pat:  []byte("\xEF\xBB\xBF\x00"),
+		ct:   "text/plain; charset=utf-8",
+	},
 
+	// Image types
+	// For posterity, we originally returned "image/vnd.microsoft.icon" from
+	// https://tools.ietf.org/html/draft-ietf-websec-mime-sniff-03#section-7
+	// https://codereview.appspot.com/4746042
+	// but that has since been replaced with "image/x-icon" in Section 6.2
+	// of https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern
+	&exactSig{[]byte("\x00\x00\x01\x00"), "image/x-icon"},
+	&exactSig{[]byte("\x00\x00\x02\x00"), "image/x-icon"},
+	&exactSig{[]byte("BM"), "image/bmp"},
 	&exactSig{[]byte("GIF87a"), "image/gif"},
 	&exactSig{[]byte("GIF89a"), "image/gif"},
-	&exactSig{[]byte("\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"), "image/png"},
-	&exactSig{[]byte("\xFF\xD8\xFF"), "image/jpeg"},
-	&exactSig{[]byte("BM"), "image/bmp"},
 	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF"),
 		pat:  []byte("RIFF\x00\x00\x00\x00WEBPVP"),
 		ct:   "image/webp",
 	},
-	&exactSig{[]byte("\x00\x00\x01\x00"), "image/vnd.microsoft.icon"},
+	&exactSig{[]byte("\x89PNG\x0D\x0A\x1A\x0A"), "image/png"},
+	&exactSig{[]byte("\xFF\xD8\xFF"), "image/jpeg"},
 
+	// Audio and Video types
+	// Enforce the pattern match ordering as prescribed in
+	// https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
 	&maskedSig{
-		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
-		pat:  []byte("RIFF\x00\x00\x00\x00WAVE"),
-		ct:   "audio/wave",
+		mask: []byte("\xFF\xFF\xFF\xFF"),
+		pat:  []byte(".snd"),
+		ct:   "audio/basic",
 	},
 	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
@@ -103,9 +139,9 @@ var sniffSignatures = []sniffSig{
 		ct:   "audio/aiff",
 	},
 	&maskedSig{
-		mask: []byte("\xFF\xFF\xFF\xFF"),
-		pat:  []byte(".snd"),
-		ct:   "audio/basic",
+		mask: []byte("\xFF\xFF\xFF"),
+		pat:  []byte("ID3"),
+		ct:   "audio/mpeg",
 	},
 	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\xFF"),
@@ -118,20 +154,24 @@ var sniffSignatures = []sniffSig{
 		ct:   "audio/midi",
 	},
 	&maskedSig{
-		mask: []byte("\xFF\xFF\xFF"),
-		pat:  []byte("ID3"),
-		ct:   "audio/mpeg",
-	},
-	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
 		pat:  []byte("RIFF\x00\x00\x00\x00AVI "),
 		ct:   "video/avi",
 	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("RIFF\x00\x00\x00\x00WAVE"),
+		ct:   "audio/wave",
+	},
+	// 6.2.0.2. video/mp4
+	mp4Sig{},
+	// 6.2.0.3. video/webm
+	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
 
-	// Fonts
+	// Font types
 	&maskedSig{
 		// 34 NULL bytes followed by the string "LP"
-		pat: []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x4C\x50"),
+		pat: []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00LP"),
 		// 34 NULL bytes followed by \xF\xF
 		mask: []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF"),
 		ct:   "application/vnd.ms-fontobject",
@@ -142,14 +182,19 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("wOFF"), "font/woff"},
 	&exactSig{[]byte("wOF2"), "font/woff2"},
 
-	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
-	&exactSig{[]byte("\x52\x61\x72\x20\x1A\x07\x00"), "application/x-rar-compressed"},
-	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
+	// Archive types
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
+	&exactSig{[]byte("PK\x03\x04"), "application/zip"},
+	// RAR's signatures are incorrectly defined by the MIME spec as per
+	//    https://github.com/whatwg/mimesniff/issues/63
+	// However, RAR Labs correctly defines it at:
+	//    https://www.rarlab.com/technote.htm#rarsign
+	// so we use the definition from RAR Labs.
+	// TODO: do whatever the spec ends up doing.
+	&exactSig{[]byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},     // RAR v1.5-v4.0
+	&exactSig{[]byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
 
 	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
-
-	mp4Sig{},
 
 	textSig{}, // should be last
 }
@@ -182,12 +227,12 @@ func (m *maskedSig) match(data []byte, firstNonWS int) string {
 	if len(m.pat) != len(m.mask) {
 		return ""
 	}
-	if len(data) < len(m.mask) {
+	if len(data) < len(m.pat) {
 		return ""
 	}
-	for i, mask := range m.mask {
-		db := data[i] & mask
-		if db != m.pat[i] {
+	for i, pb := range m.pat {
+		maskedData := data[i] & m.mask[i]
+		if maskedData != pb {
 			return ""
 		}
 	}
@@ -210,8 +255,8 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
 			return ""
 		}
 	}
-	// Next byte must be space or right angle bracket.
-	if db := data[len(h)]; db != ' ' && db != '>' {
+	// Next byte must be a tag-terminating byte(0xTT).
+	if !isTT(data[len(h)]) {
 		return ""
 	}
 	return "text/html; charset=utf-8"
@@ -229,7 +274,7 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 		return ""
 	}
 	boxSize := int(binary.BigEndian.Uint32(data[:4]))
-	if boxSize%4 != 0 || len(data) < boxSize {
+	if len(data) < boxSize || boxSize%4 != 0 {
 		return ""
 	}
 	if !bytes.Equal(data[4:8], mp4ftype) {
@@ -237,7 +282,7 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 	}
 	for st := 8; st < boxSize; st += 4 {
 		if st == 12 {
-			// minor version number
+			// Ignores the four bytes that correspond to the version number of the "major brand".
 			continue
 		}
 		if bytes.Equal(data[st:st+3], mp4) {

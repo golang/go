@@ -8,6 +8,11 @@ import "unsafe"
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x10000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -134,12 +139,9 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = x
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = int64(timediv(ns, 1e9, &ts.tv_nsec))
 }
 
 type timeval struct {

@@ -249,6 +249,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			fallthrough
 
 		case ABC,
+			ABRC,
 			ABEQ,
 			ABGE,
 			ABGT,
@@ -260,6 +261,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ABR,
 			ABVC,
 			ABVS,
+			ACRJ,
+			ACGRJ,
+			ACLRJ,
+			ACLGRJ,
+			ACIJ,
+			ACGIJ,
+			ACLIJ,
+			ACLGIJ,
 			ACMPBEQ,
 			ACMPBGE,
 			ACMPBGT,
@@ -274,17 +283,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ACMPUBNE:
 			q = p
 			p.Mark |= BRANCH
-			if p.Pcond != nil {
-				q := p.Pcond
-				for q.As == obj.ANOP {
-					q = q.Link
-					p.Pcond = q
-				}
-			}
-
-		case obj.ANOP:
-			q.Link = p.Link /* q is non-nop */
-			p.Link.Mark |= p.Mark
 
 		default:
 			q = p
@@ -326,6 +324,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoSplit() {
 				p, pPreempt = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
+				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 				wasSplit = true //need post part of split
 			}
 
@@ -335,7 +334,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// Store link register before decrementing SP, so if a signal comes
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
-				q = obj.Appendp(p, c.newprog)
+				// This sequence is not async preemptible, as if we open a frame
+				// at the current SP, it will clobber the saved LR.
+				q = c.ctxt.StartUnsafePoint(p, c.newprog)
+
+				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_LR
@@ -351,6 +354,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = autosize
+
+				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
 			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have
@@ -449,8 +454,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 
 				q.As = obj.ANOP
-				p1.Pcond = q
-				p2.Pcond = q
+				p1.To.SetTarget(q)
+				p2.To.SetTarget(q)
 			}
 
 		case obj.ARET:
@@ -560,15 +565,16 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
 	q = nil
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
-		//	CMP	stackguard, SP
-
-		//p.To.Type = obj.TYPE_REG
-		//p.To.Reg = REGSP
-
-		// q1: BLT	done
+		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
 
 		p = obj.Appendp(p, c.newprog)
 		//q1 = p
@@ -577,22 +583,11 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p.Reg = REGSP
 		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
-		//p = obj.Appendp(ctxt, p)
-
-		//p.As = ACMPU
-		//p.From.Type = obj.TYPE_REG
-		//p.From.Reg = REG_R3
-		//p.To.Type = obj.TYPE_REG
-		//p.To.Reg = REGSP
-
-		//p = obj.Appendp(ctxt, p)
-		//p.As = ABGE
-		//p.To.Type = obj.TYPE_BRANCH
 
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	ADD $-(framesize-StackSmall), SP, R4
-		//	CMP stackguard, R4
+		//	CMPUBGE stackguard, R4, label-of-call-to-morestack
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = AADD
@@ -624,7 +619,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		//	ADD	$StackGuard, SP, R4
 		//	SUB	R3, R4
 		//	MOVD	$(framesize+(StackGuard-StackSmall)), TEMP
-		//	CMPUBGE	TEMP, R4
+		//	CMPUBGE	TEMP, R4, label-of-call-to-morestack
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = ACMP
@@ -641,7 +636,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackGuard
+		p.From.Offset = int64(objabi.StackGuard)
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R4
@@ -656,7 +651,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + objabi.StackGuard - objabi.StackSmall
+		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGTMP
 
@@ -679,18 +674,19 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)
-	pPre.Pcond = p
+	pPre.To.SetTarget(p)
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_LR
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R5
 	if pPreempt != nil {
-		pPreempt.Pcond = p
+		pPreempt.To.SetTarget(p)
 	}
 
 	// BL	runtime.morestack(SB)
@@ -706,12 +702,14 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 
+	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+
 	// BR	start
 	p = obj.Appendp(p, c.newprog)
 
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = c.cursym.Func.Text.Link
+	p.To.SetTarget(c.cursym.Func.Text.Link)
 	return p
 }
 

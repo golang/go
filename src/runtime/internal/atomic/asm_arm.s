@@ -53,10 +53,16 @@ casfail:
 TEXT runtime∕internal∕atomic·Loadp(SB),NOSPLIT|NOFRAME,$0-8
 	B runtime∕internal∕atomic·Load(SB)
 
+TEXT runtime∕internal∕atomic·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
+	B runtime∕internal∕atomic·Load(SB)
+
 TEXT runtime∕internal∕atomic·Casuintptr(SB),NOSPLIT,$0-13
 	B	runtime∕internal∕atomic·Cas(SB)
 
 TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0-13
+	B	runtime∕internal∕atomic·Cas(SB)
+
+TEXT runtime∕internal∕atomic·CasRel(SB),NOSPLIT,$0-13
 	B	runtime∕internal∕atomic·Cas(SB)
 
 TEXT runtime∕internal∕atomic·Loaduintptr(SB),NOSPLIT,$0-8
@@ -69,6 +75,9 @@ TEXT runtime∕internal∕atomic·Storeuintptr(SB),NOSPLIT,$0-8
 	B	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·StorepNoWB(SB),NOSPLIT,$0-8
+	B	runtime∕internal∕atomic·Store(SB)
+
+TEXT runtime∕internal∕atomic·StoreRel(SB),NOSPLIT,$0-8
 	B	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·Xadduintptr(SB),NOSPLIT,$0-12

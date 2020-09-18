@@ -6,11 +6,7 @@ package syscall
 
 import "unsafe"
 
-// See http://www.freebsd.org/doc/en/books/porters-handbook/freebsd-versions.html.
-var freebsdVersion uint32
-
 func init() {
-	freebsdVersion, _ = SysctlUint32("kern.osreldate")
 	conf, _ := Sysctl("kern.conftxt")
 	for i, j := 0, 0; j < len(conf); j++ {
 		if conf[j] != '\n' {

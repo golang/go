@@ -193,12 +193,12 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 					var params, results []string
 					for _, p := range fn.Type.Params.List {
 						t := gofmt(p.Type)
-						t = strings.Replace(t, "_Ctype_", "C.", -1)
+						t = strings.ReplaceAll(t, "_Ctype_", "C.")
 						params = append(params, t)
 					}
 					for _, r := range fn.Type.Results.List {
 						t := gofmt(r.Type)
-						t = strings.Replace(t, "_Ctype_", "C.", -1)
+						t = strings.ReplaceAll(t, "_Ctype_", "C.")
 						results = append(results, t)
 					}
 					cfg.External["C."+fn.Name.Name[7:]] = joinFunc(params, results)

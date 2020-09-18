@@ -9,22 +9,34 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
+var tmpDir string
+
 func main() {
-	run("go", "tool", "compile", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
+	fb, err := filepath.Abs("fixedbugs")
+	if err == nil {
+		tmpDir, err = ioutil.TempDir("", "bug302")
+	}
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	run("go", "tool", "compile", filepath.Join(fb, "bug302.dir", "p.go"))
 	run("go", "tool", "pack", "grc", "pp.a", "p.o")
-	run("go", "tool", "compile", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
-	os.Remove("p.o")
-	os.Remove("pp.a")
-	os.Remove("main.o")
+	run("go", "tool", "compile", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
 }
 
 func run(cmd string, args ...string) {
-	out, err := exec.Command(cmd, args...).CombinedOutput()
+	c := exec.Command(cmd, args...)
+	c.Dir = tmpDir
+	out, err := c.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
 		fmt.Println(err)

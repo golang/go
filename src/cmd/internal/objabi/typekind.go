@@ -36,6 +36,5 @@ const (
 	KindUnsafePointer
 	KindDirectIface = 1 << 5
 	KindGCProg      = 1 << 6
-	KindNoPointers  = 1 << 7
 	KindMask        = (1 << 5) - 1
 )

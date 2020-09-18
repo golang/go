@@ -7,16 +7,16 @@ package modconv
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
-	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
-	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // ConvertLegacyConfig converts legacy config to modfile.
@@ -41,50 +41,68 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 
 	// Convert requirements block, which may use raw SHA1 hashes as versions,
 	// to valid semver requirement list, respecting major versions.
-	var work par.Work
-	for _, r := range mf.Require {
+	versions := make([]module.Version, len(mf.Require))
+	replace := make(map[string]*modfile.Replace)
+
+	for _, r := range mf.Replace {
+		replace[r.New.Path] = r
+		replace[r.Old.Path] = r
+	}
+
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
+	for i, r := range mf.Require {
 		m := r.Mod
 		if m.Path == "" {
 			continue
 		}
-		work.Add(r.Mod)
+		if re, ok := replace[m.Path]; ok {
+			m = re.New
+		}
+		sem <- token{}
+		go func(i int, m module.Version) {
+			defer func() { <-sem }()
+			repo, info, err := modfetch.ImportRepoRev(m.Path, m.Version)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), m.Path, m.Version, err)
+				return
+			}
+
+			path := repo.ModulePath()
+			versions[i].Path = path
+			versions[i].Version = info.Version
+		}(i, m)
+	}
+	// Fill semaphore channel to wait for all tasks to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
 	}
 
-	var (
-		mu   sync.Mutex
-		need = make(map[string]string)
-	)
-	work.Do(10, func(item interface{}) {
-		r := item.(module.Version)
-		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), r.Path, r.Version, err)
-			return
+	need := map[string]string{}
+	for _, v := range versions {
+		if v.Path == "" {
+			continue
 		}
-		mu.Lock()
-		path := repo.ModulePath()
 		// Don't use semver.Max here; need to preserve +incompatible suffix.
-		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
-			need[path] = info.Version
+		if needv, ok := need[v.Path]; !ok || semver.Compare(needv, v.Version) < 0 {
+			need[v.Path] = v.Version
 		}
-		mu.Unlock()
-	})
-
-	var paths []string
+	}
+	paths := make([]string, 0, len(need))
 	for path := range need {
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
+		if re, ok := replace[path]; ok {
+			err := f.AddReplace(re.Old.Path, re.Old.Version, path, need[path])
+			if err != nil {
+				return fmt.Errorf("add replace: %v", err)
+			}
+		}
 		f.AddNewRequire(path, need[path], false)
 	}
 
-	for _, r := range mf.Replace {
-		err := f.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
-		if err != nil {
-			return fmt.Errorf("add replace: %v", err)
-		}
-	}
 	f.Cleanup()
 	return nil
 }

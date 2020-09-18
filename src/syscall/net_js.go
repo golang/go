@@ -42,7 +42,7 @@ const (
 const (
 	_ = iota
 	F_DUPFD_CLOEXEC
-	SYS_FCNTL = 500 // unsupported; same value as net_nacl.go
+	SYS_FCNTL = 500 // unsupported
 )
 
 type Sockaddr interface {

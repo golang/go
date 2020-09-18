@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":    "x1val",
-		"xx":   "x2val",
-		"foo":  "fooval",
-		"bar":  "barval", // same key length as "foo"
-		"xxxx": "x4val",
+		"x":                      "x1val",
+		"xx":                     "x2val",
+		"foo":                    "fooval",
+		"bar":                    "barval", // same key length as "foo"
+		"xxxx":                   "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})
@@ -993,6 +993,27 @@ func benchmarkMapDeleteStr(b *testing.B, n int) {
 	}
 }
 
+func benchmarkMapDeletePointer(b *testing.B, n int) {
+	i2p := make([]*int, n)
+	for i := 0; i < n; i++ {
+		i2p[i] = new(int)
+	}
+	a := make(map[*int]int, n)
+	b.ResetTimer()
+	k := 0
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := 0; j < n; j++ {
+				a[i2p[j]] = j
+			}
+			k = i
+			b.StartTimer()
+		}
+		delete(a, i2p[i-k])
+	}
+}
+
 func runWith(f func(*testing.B, int), v ...int) func(*testing.B) {
 	return func(b *testing.B) {
 		for _, n := range v {
@@ -1023,6 +1044,7 @@ func BenchmarkMapDelete(b *testing.B) {
 	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
 	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
+	b.Run("Pointer", runWith(benchmarkMapDeletePointer, 100, 1000, 10000))
 }
 
 func TestDeferDeleteSlow(t *testing.T) {
@@ -1129,5 +1151,91 @@ func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
 	m[key2]++
 	if n2 := m[key2]; n2 != 1 {
 		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestMapTombstones(t *testing.T) {
+	m := map[int]int{}
+	const N = 10000
+	// Fill a map.
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete half of the entries.
+	for i := 0; i < N; i += 2 {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+	// Add new entries to fill in holes.
+	for i := N; i < 3*N/2; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete everything.
+	for i := 0; i < 3*N/2; i++ {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+}
+
+type canString int
+
+func (c canString) String() string {
+	return fmt.Sprintf("%d", int(c))
+}
+
+func TestMapInterfaceKey(t *testing.T) {
+	// Test all the special cases in runtime.typehash.
+	type GrabBag struct {
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		s    string
+		i0   interface{}
+		i1   interface {
+			String() string
+		}
+		a [4]string
+	}
+
+	m := map[interface{}]bool{}
+	// Put a bunch of data in m, so that a bad hash is likely to
+	// lead to a bad bucket, which will lead to a missed lookup.
+	for i := 0; i < 1000; i++ {
+		m[i] = true
+	}
+	m[GrabBag{f32: 1.0}] = true
+	if !m[GrabBag{f32: 1.0}] {
+		panic("f32 not found")
+	}
+	m[GrabBag{f64: 1.0}] = true
+	if !m[GrabBag{f64: 1.0}] {
+		panic("f64 not found")
+	}
+	m[GrabBag{c64: 1.0i}] = true
+	if !m[GrabBag{c64: 1.0i}] {
+		panic("c64 not found")
+	}
+	m[GrabBag{c128: 1.0i}] = true
+	if !m[GrabBag{c128: 1.0i}] {
+		panic("c128 not found")
+	}
+	m[GrabBag{s: "foo"}] = true
+	if !m[GrabBag{s: "foo"}] {
+		panic("string not found")
+	}
+	m[GrabBag{i0: "foo"}] = true
+	if !m[GrabBag{i0: "foo"}] {
+		panic("interface{} not found")
+	}
+	m[GrabBag{i1: canString(5)}] = true
+	if !m[GrabBag{i1: canString(5)}] {
+		panic("interface{String() string} not found")
+	}
+	m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] = true
+	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
+		panic("array not found")
 	}
 }

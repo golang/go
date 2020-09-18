@@ -43,8 +43,9 @@ func TestLineELFGCC(t *testing.T) {
 		{Address: 0x40060f, File: file2C, Line: 6, IsStmt: true},
 		{Address: 0x400611, EndSequence: true},
 	}
+	files := [][]*LineFile{{nil, file1H, file1C}, {nil, file2C}}
 
-	testLineTable(t, want, elfData(t, "testdata/line-gcc.elf"))
+	testLineTable(t, want, files, elfData(t, "testdata/line-gcc.elf"))
 }
 
 func TestLineGCCWindows(t *testing.T) {
@@ -83,8 +84,9 @@ func TestLineGCCWindows(t *testing.T) {
 		{Address: 0x401595, File: file2C, Line: 6, IsStmt: true},
 		{Address: 0x40159b, EndSequence: true},
 	}
+	files := [][]*LineFile{{nil, file1H, file1C}, {nil, file2C}}
 
-	testLineTable(t, want, peData(t, "testdata/line-gcc-win.bin"))
+	testLineTable(t, want, files, peData(t, "testdata/line-gcc-win.bin"))
 }
 
 func TestLineELFClang(t *testing.T) {
@@ -110,8 +112,9 @@ func TestLineELFClang(t *testing.T) {
 		{Address: 0x4005a7, File: file2C, Line: 6, IsStmt: true},
 		{Address: 0x4005b0, EndSequence: true},
 	}
+	files := [][]*LineFile{{nil, file1C, file1H}, {nil, file2C}}
 
-	testLineTable(t, want, elfData(t, "testdata/line-clang.elf"))
+	testLineTable(t, want, files, elfData(t, "testdata/line-clang.elf"))
 }
 
 func TestLineSeek(t *testing.T) {
@@ -190,7 +193,7 @@ func TestLineSeek(t *testing.T) {
 	}
 }
 
-func testLineTable(t *testing.T, want []LineEntry, d *Data) {
+func testLineTable(t *testing.T, want []LineEntry, files [][]*LineFile, d *Data) {
 	// Get line table from d.
 	var got []LineEntry
 	dr := d.Reader()
@@ -206,6 +209,12 @@ func testLineTable(t *testing.T, want []LineEntry, d *Data) {
 			dr.SkipChildren()
 			continue
 		}
+
+		// Ignore system compilation units (this happens in
+		// the Windows binary). We'll still decode the line
+		// table, but won't check it.
+		name := ent.Val(AttrName).(string)
+		ignore := strings.HasPrefix(name, "C:/crossdev/") || strings.HasPrefix(name, "../../")
 
 		// Decode CU's line table.
 		lr, err := d.LineReader(ent)
@@ -225,11 +234,22 @@ func testLineTable(t *testing.T, want []LineEntry, d *Data) {
 				t.Fatal("lr.Next:", err)
 			}
 			// Ignore sources from the Windows build environment.
-			if strings.HasPrefix(line.File.Name, "C:\\crossdev\\") ||
-				strings.HasPrefix(line.File.Name, "C:/crossdev/") {
+			if ignore {
 				continue
 			}
 			got = append(got, line)
+		}
+
+		// Check file table.
+		if !ignore {
+			if !compareFiles(files[0], lr.Files()) {
+				t.Log("File tables do not match. Got:")
+				dumpFiles(t, lr.Files())
+				t.Log("Want:")
+				dumpFiles(t, files[0])
+				t.Fail()
+			}
+			files = files[1:]
 		}
 	}
 
@@ -240,6 +260,32 @@ func testLineTable(t *testing.T, want []LineEntry, d *Data) {
 		t.Log("Want:")
 		dumpLines(t, want)
 		t.FailNow()
+	}
+}
+
+func compareFiles(a, b []*LineFile) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] == nil && b[i] == nil {
+			continue
+		}
+		if a[i] != nil && b[i] != nil && a[i].Name == b[i].Name {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func dumpFiles(t *testing.T, files []*LineFile) {
+	for i, f := range files {
+		name := "<nil>"
+		if f != nil {
+			name = f.Name
+		}
+		t.Logf("  %d %s", i, name)
 	}
 }
 

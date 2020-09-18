@@ -21,7 +21,7 @@ import (
 // change the behavior of these methods; use Read or ReadMsgIP
 // instead.
 
-// BUG(mikio): On JS, NaCl and Plan 9, methods and functions related
+// BUG(mikio): On JS and Plan 9, methods and functions related
 // to IPConn are not implemented.
 
 // BUG(mikio): On Windows, the File method of IPConn is not

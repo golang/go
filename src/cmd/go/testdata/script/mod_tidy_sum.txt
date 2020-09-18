@@ -1,12 +1,12 @@
 env GO111MODULE=on
 
 # go.sum should list directly used modules and dependencies
-go get rsc.io/quote@v1.5.2
+go get -d rsc.io/quote@v1.5.2
 go mod tidy
 grep rsc.io/sampler go.sum
 
 # go.sum should not normally lose old entries
-go get rsc.io/quote@v1.0.0
+go get -d rsc.io/quote@v1.0.0
 grep 'rsc.io/quote v1.0.0' go.sum
 grep 'rsc.io/quote v1.5.2' go.sum
 grep rsc.io/sampler go.sum

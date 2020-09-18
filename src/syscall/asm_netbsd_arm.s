@@ -62,7 +62,7 @@ error6:
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
-	MOVW trap+0(FP), R0 // sigcall num
+	MOVW num+0(FP), R0 // sigcall num
 	MOVW a1+4(FP), R1 // a1
 	MOVW a2+8(FP), R2 // a2
 	MOVW a3+12(FP), R3 // a3

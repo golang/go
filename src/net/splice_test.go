@@ -24,6 +24,8 @@ func TestSplice(t *testing.T) {
 		t.Skip("skipping unix-to-tcp tests")
 	}
 	t.Run("unix-to-tcp", func(t *testing.T) { testSplice(t, "unix", "tcp") })
+	t.Run("no-unixpacket", testSpliceNoUnixpacket)
+	t.Run("no-unixgram", testSpliceNoUnixgram)
 }
 
 func testSplice(t *testing.T, upNet, downNet string) {
@@ -208,6 +210,57 @@ func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
 	wg.Wait()
 }
 
+func testSpliceNoUnixpacket(t *testing.T) {
+	clientUp, serverUp, err := spliceTestSocketPair("unixpacket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientUp.Close()
+	defer serverUp.Close()
+	clientDown, serverDown, err := spliceTestSocketPair("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientDown.Close()
+	defer serverDown.Close()
+	// If splice called poll.Splice here, we'd get err == syscall.EINVAL
+	// and handled == false.  If poll.Splice gets an EINVAL on the first
+	// try, it assumes the kernel it's running on doesn't support splice
+	// for unix sockets and returns handled == false. This works for our
+	// purposes by somewhat of an accident, but is not entirely correct.
+	//
+	// What we want is err == nil and handled == false, i.e. we never
+	// called poll.Splice, because we know the unix socket's network.
+	_, err, handled := splice(serverDown.(*TCPConn).fd, serverUp)
+	if err != nil || handled != false {
+		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
+	}
+}
+
+func testSpliceNoUnixgram(t *testing.T) {
+	addr, err := ResolveUnixAddr("unixgram", testUnixAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(addr.Name)
+	up, err := ListenUnixgram("unixgram", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer up.Close()
+	clientDown, serverDown, err := spliceTestSocketPair("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientDown.Close()
+	defer serverDown.Close()
+	// Analogous to testSpliceNoUnixpacket.
+	_, err, handled := splice(serverDown.(*TCPConn).fd, up)
+	if err != nil || handled != false {
+		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
+	}
+}
+
 func BenchmarkSplice(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
@@ -316,6 +369,7 @@ func startSpliceClient(conn Conn, op string, chunkSize, totalSize int) (func(), 
 		"GO_NET_TEST_SPLICE_OP=" + op,
 		"GO_NET_TEST_SPLICE_CHUNK_SIZE=" + strconv.Itoa(chunkSize),
 		"GO_NET_TEST_SPLICE_TOTAL_SIZE=" + strconv.Itoa(totalSize),
+		"TMPDIR=" + os.Getenv("TMPDIR"),
 	}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
 	cmd.Stdout = os.Stdout

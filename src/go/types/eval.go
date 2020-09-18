@@ -6,6 +6,7 @@ package types
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 )
@@ -16,22 +17,43 @@ import (
 // complete position information relative to the provided file
 // set.
 //
+// The meaning of the parameters fset, pkg, and pos is the
+// same as in CheckExpr. An error is returned if expr cannot
+// be parsed successfully, or the resulting expr AST cannot be
+// type-checked.
+func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ TypeAndValue, err error) {
+	// parse expressions
+	node, err := parser.ParseExprFrom(fset, "eval", expr, 0)
+	if err != nil {
+		return TypeAndValue{}, err
+	}
+
+	info := &Info{
+		Types: make(map[ast.Expr]TypeAndValue),
+	}
+	err = CheckExpr(fset, pkg, pos, node, info)
+	return info.Types[node], err
+}
+
+// CheckExpr type checks the expression expr as if it had appeared at
+// position pos of package pkg. Type information about the expression
+// is recorded in info.
+//
 // If pkg == nil, the Universe scope is used and the provided
 // position pos is ignored. If pkg != nil, and pos is invalid,
 // the package scope is used. Otherwise, pos must belong to the
 // package.
 //
 // An error is returned if pos is not within the package or
-// if the node cannot be evaluated.
+// if the node cannot be type-checked.
 //
-// Note: Eval should not be used instead of running Check to compute
-// types and values, but in addition to Check. Eval will re-evaluate
-// its argument each time, and it also does not know about the context
-// in which an expression is used (e.g., an assignment). Thus, top-
-// level untyped constants will return an untyped type rather then the
-// respective context-specific type.
+// Note: Eval and CheckExpr should not be used instead of running Check
+// to compute types and values, but in addition to Check, as these
+// functions ignore the context in which an expression is used (e.g., an
+// assignment). Thus, top-level untyped constants will return an
+// untyped type rather then the respective context-specific type.
 //
-func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ TypeAndValue, err error) {
+func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, info *Info) (err error) {
 	// determine scope
 	var scope *Scope
 	if pkg == nil {
@@ -56,27 +78,22 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
 			}
 			// s == nil || s == pkg.scope
 			if s == nil {
-				return TypeAndValue{}, fmt.Errorf("no position %s found in package %s", fset.Position(pos), pkg.name)
+				return fmt.Errorf("no position %s found in package %s", fset.Position(pos), pkg.name)
 			}
 		}
 	}
 
-	// parse expressions
-	node, err := parser.ParseExprFrom(fset, "eval", expr, 0)
-	if err != nil {
-		return TypeAndValue{}, err
-	}
-
 	// initialize checker
-	check := NewChecker(nil, fset, pkg, nil)
+	check := NewChecker(nil, fset, pkg, info)
 	check.scope = scope
 	check.pos = pos
 	defer check.handleBailout(&err)
 
 	// evaluate node
 	var x operand
-	check.rawExpr(&x, node, nil)
+	check.rawExpr(&x, expr, nil)
 	check.processDelayed(0) // incl. all functions
+	check.recordUntyped()
 
-	return TypeAndValue{x.mode, x.typ, x.val}, nil
+	return nil
 }

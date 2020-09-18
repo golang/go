@@ -36,9 +36,9 @@ TEXT crosscall2(SB),NOSPLIT,$0x110-0 /* also need to save xmm6 - xmm15 */
 	MOVQ	DX, 0x0(SP)	/* arg */
 	MOVQ	R8, 0x8(SP)	/* argsize (includes padding) */
 	MOVQ	R9, 0x10(SP)	/* ctxt */
-	
+
 	CALL	CX	/* fn */
-	
+
 	MOVQ	0x48(SP), DI
 	MOVQ	0x50(SP), SI
 	MOVUPS	0x60(SP), X6
@@ -64,5 +64,5 @@ TEXT crosscall2(SB),NOSPLIT,$0x110-0 /* also need to save xmm6 - xmm15 */
 	MOVQ	0x30(SP), R13
 	MOVQ	0x38(SP), R14
 	MOVQ	0x40(SP), R15
-	
+
 	RET

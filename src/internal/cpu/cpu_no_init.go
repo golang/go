@@ -4,12 +4,13 @@
 
 // +build !386
 // +build !amd64
-// +build !amd64p32
 // +build !arm
 // +build !arm64
 // +build !ppc64
 // +build !ppc64le
 // +build !s390x
+// +build !mips64
+// +build !mips64le
 
 package cpu
 

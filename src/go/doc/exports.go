@@ -17,7 +17,7 @@ import (
 func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	j := 0
 	for _, x := range list {
-		if ast.IsExported(x.Name) {
+		if token.IsExported(x.Name) {
 			list[j] = x
 			j++
 		}
@@ -59,7 +59,7 @@ func filterExprList(list []ast.Expr, filter Filter, export bool) []ast.Expr {
 // and reports whether at least one exported name exists.
 func updateIdentList(list []*ast.Ident) (hasExported bool) {
 	for i, x := range list {
-		if ast.IsExported(x.Name) {
+		if token.IsExported(x.Name) {
 			hasExported = true
 		} else {
 			list[i] = underscore
@@ -121,7 +121,7 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp 
 		if n := len(field.Names); n == 0 {
 			// anonymous field
 			fname := r.recordAnonymousField(parent, field.Type)
-			if ast.IsExported(fname) {
+			if token.IsExported(fname) {
 				keepField = true
 			} else if ityp != nil && fname == "error" {
 				// possibly the predeclared error interface; keep
@@ -199,7 +199,7 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
-		s.Values = filterExprList(s.Values, ast.IsExported, true)
+		s.Values = filterExprList(s.Values, token.IsExported, true)
 		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
 			// If there are values declared on RHS, just replace the unexported
 			// identifiers on the LHS with underscore, so that it matches
@@ -219,7 +219,7 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 			}
 		}
 	case *ast.TypeSpec:
-		if name := s.Name.Name; ast.IsExported(name) {
+		if name := s.Name.Name; token.IsExported(name) {
 			r.filterType(r.lookupType(s.Name.Name), s.Type)
 			return true
 		} else if name == "error" {
@@ -290,7 +290,7 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
 		// conflicting method will be filtered here, too -
 		// thus, removing these methods early will not lead
 		// to the false removal of possible conflicts
-		return ast.IsExported(d.Name.Name)
+		return token.IsExported(d.Name.Name)
 	}
 	return false
 }

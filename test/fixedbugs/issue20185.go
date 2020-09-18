@@ -19,7 +19,7 @@ func F() {
 const x = 1
 
 func G() {
-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped number\)"
+	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)"
 	default:
 	}
 }

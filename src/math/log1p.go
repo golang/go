@@ -122,10 +122,7 @@ func log1p(x float64) float64 {
 		return Inf(1)
 	}
 
-	absx := x
-	if absx < 0 {
-		absx = -absx
-	}
+	absx := Abs(x)
 
 	var f float64
 	var iu uint64
@@ -151,12 +148,13 @@ func log1p(x float64) float64 {
 			u = 1.0 + x
 			iu = Float64bits(u)
 			k = int((iu >> 52) - 1023)
+			// correction term
 			if k > 0 {
 				c = 1.0 - (u - x)
 			} else {
-				c = x - (u - 1.0) // correction term
-				c /= u
+				c = x - (u - 1.0)
 			}
+			c /= u
 		} else {
 			u = x
 			iu = Float64bits(u)

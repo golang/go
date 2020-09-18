@@ -28,18 +28,23 @@ Scripts also have access to these other environment variables:
 
 	GOARCH=<target GOARCH>
 	GOCACHE=<actual GOCACHE being used outside the test>
+	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
+	GOEXPSTRING=<value of objabi.Expstring(), from GOEXPERIMENT when toolchain built>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
+	GOROOT_FINAL=<actual GOROOT_FINAL>
+	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
+	GODEBUG=<actual GODEBUG>
 	devnull=<value of os.DevNull>
+	goversion=<current Go version; for example, 1.12>
+	:=<OS-specific path list separator>
 
-The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
-
-The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+The scripts' supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs
 in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
 containing the listed contents.
@@ -64,6 +69,10 @@ The command prefix ! indicates that the command on the rest of the line
 (typically go or a matching predicate) must fail, not succeed. Only certain
 commands support this prefix. They are indicated below by [!] in the synopsis.
 
+The command prefix ? indicates that the command on the rest of the line
+may or may not succeed, but the test should continue regardless.
+Commands that support this prefix are indicated by [?].
+
 The command prefix [cond] indicates that the command on the rest of the line
 should only run when the condition is satisfied. The available conditions are:
 
@@ -74,16 +83,30 @@ should only run when the condition is satisfied. The available conditions are:
    - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
    - [net] for whether the external network can be used
    - [link] for testenv.HasLink()
+   - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
+   - [case-sensitive] for whether the file system is case-sensitive
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+   - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
+   - [buildmode:value] for whether -buildmode=value is supported
 
 A condition can be negated: [!short] means to run the rest of the line
-when testing.Short() is false.
+when testing.Short() is false. Multiple conditions may be given for a single
+command, for example, '[linux] [amd64] skip'. The command will run if all conditions
+are satisfied.
 
 The commands are:
 
+- [! | ?] cc args... [&]
+  Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
+  added automatically before args.
+
 - cd dir
   Change to the given directory for future commands.
+
+- chmod perm path...
+  Change the permissions of the files or directories named by the path arguments
+  to be equal to perm. Only numerical permissions are supported.
 
 - cmp file1 file2
   Check that the named files have the same content.
@@ -92,29 +115,48 @@ The commands are:
   from the most recent exec or go command.
   (If the files have differing content, the failure prints a diff.)
 
-- cp src... dst
+- cmpenv file1 file2
+  Like cmp, but environment variables are substituted in the file contents
+  before the comparison. For example, $GOOS is replaced by the target GOOS.
+
+- [! | ?] cp src... dst
   Copy the listed files to the target file or existing directory.
+  src can include "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
 
-- env [key=value...]
-  With no arguments, print the environment (useful for debugging).
+- env [-r] [key=value...]
+  With no arguments, print the environment to stdout
+  (useful for debugging and for verifying initial state).
   Otherwise add the listed key=value pairs to the environment.
+  The -r flag causes the values to be escaped using regexp.QuoteMeta
+  before being recorded.
 
-- [!] exec program [args...]
+- [! | ?] exec program [args...] [&]
   Run the given executable program with the arguments.
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
 
-- [!] exists [-readonly] file...
+  If the last token is '&', the program executes in the background. The standard
+  output and standard error of the previous command is cleared, but the output
+  of the background process is buffered — and checking of its exit status is
+  delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
+  test. If any background processes remain at the end of the test, they
+  are terminated using os.Interrupt (if supported) or os.Kill and the test
+  must not depend upon their exit status.
+
+- [!] exists [-readonly] [-exec] file...
   Each of the listed files or directories must (or must not) exist.
   If -readonly is given, the files or directories must be unwritable.
+  If -exec is given, the files or directories must be executable.
 
-- [!] go args...
+- [! | ?] go args... [&]
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 
-- [!] grep [-count=N] pattern file
+- [!] grep [-count=N] [-q] pattern file
   The file's content must (or must not) match the regular expression pattern.
   For positive matches, -count=N specifies an exact number of matches to require.
+  The -q flag disables printing the file content on a mismatch.
 
 - mkdir path...
   Create the listed directories, if they do not already exists.
@@ -131,17 +173,24 @@ The commands are:
 
 - [!] stderr [-count=N] pattern
   Apply the grep command (see above) to the standard error
-  from the most recent exec or go command.
+  from the most recent exec, go, or wait command.
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec or go command.
+  from the most recent exec, go, wait, or env command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
 
 - symlink file -> target
   Create file as a symlink to target. The -> (like in ls -l output) is required.
+
+- wait
+  Wait for all 'exec' and 'go' commands started in the background (with the '&'
+  token) to exit, and display success or failure status for them.
+  After a call to wait, the 'stderr' and 'stdout' commands will apply to the
+  concatenation of the corresponding streams of the background commands,
+  in the order in which those commands were started.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)

@@ -15,9 +15,6 @@ func (fd *FD) Fsync() error {
 	}
 	defer fd.decref()
 
-	_, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd.Sysfd), syscall.F_FULLFSYNC, 0)
-	if e1 != 0 {
-		return e1
-	}
-	return nil
+	_, e1 := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
+	return e1
 }

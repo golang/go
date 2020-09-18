@@ -19,13 +19,20 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
-	"cmd/internal/src"
 	"crypto/md5"
-	"crypto/sha1"
 	"fmt"
-	"os"
 	"strings"
 )
+
+// go115ReduceLiveness disables register maps and only produces stack
+// maps at call sites.
+//
+// In Go 1.15, we changed debug call injection to use conservative
+// scanning instead of precise pointer maps, so these are no longer
+// necessary.
+//
+// Keep in sync with runtime/preempt.go:go115ReduceLiveness.
+const go115ReduceLiveness = true
 
 // OpVarDef is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
@@ -78,6 +85,10 @@ import (
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
+// TODO: get rid of OpVarKill here. It's useful for stack frame allocation
+// so the compiler can allocate two temps to the same location. Here it's now
+// useless, since the implementation of stack objects.
+
 // BlockEffects summarizes the liveness effects on an SSA block.
 type BlockEffects struct {
 	// Computed during Liveness.prologue using only the content of
@@ -85,23 +96,15 @@ type BlockEffects struct {
 	//
 	//	uevar: upward exposed variables (used before set in block)
 	//	varkill: killed variables (set in block)
-	//	avarinit: addrtaken variables set or used (proof of initialization)
-	uevar    varRegVec
-	varkill  varRegVec
-	avarinit bvec
+	uevar   varRegVec
+	varkill varRegVec
 
 	// Computed during Liveness.solve using control flow information:
 	//
 	//	livein: variables live at block entry
 	//	liveout: variables live at block exit
-	//	avarinitany: addrtaken variables possibly initialized at block exit
-	//		(initialized in block or at exit from any predecessor block)
-	//	avarinitall: addrtaken variables certainly initialized at block exit
-	//		(initialized in block or at exit from all predecessor blocks)
-	livein      varRegVec
-	liveout     varRegVec
-	avarinitany bvec
-	avarinitall bvec
+	livein  varRegVec
+	liveout varRegVec
 }
 
 // A collection of global state used by liveness analysis.
@@ -114,7 +117,11 @@ type Liveness struct {
 
 	be []BlockEffects
 
-	// unsafePoints bit i is set if Value ID i is not a safe point.
+	// allUnsafe indicates that all points in this function are
+	// unsafe-points.
+	allUnsafe bool
+	// unsafePoints bit i is set if Value ID i is an unsafe-point
+	// (preemption is not allowed). Only valid if !allUnsafe.
 	unsafePoints bvec
 
 	// An array with a bit vector for each safe point in the
@@ -137,59 +144,82 @@ type Liveness struct {
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
 type LivenessMap struct {
-	m []LivenessIndex
+	vals map[ssa.ID]LivenessIndex
+	// The set of live, pointer-containing variables at the deferreturn
+	// call (only set when open-coded defers are used).
+	deferreturn LivenessIndex
 }
 
-func (m *LivenessMap) reset(ids int) {
-	m2 := m.m
-	if ids > cap(m2) {
-		m2 = make([]LivenessIndex, ids)
+func (m *LivenessMap) reset() {
+	if m.vals == nil {
+		m.vals = make(map[ssa.ID]LivenessIndex)
 	} else {
-		m2 = m2[:ids]
+		for k := range m.vals {
+			delete(m.vals, k)
+		}
 	}
-	none := LivenessInvalid
-	for i := range m2 {
-		m2[i] = none
-	}
-	m.m = m2
+	m.deferreturn = LivenessInvalid
 }
 
 func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
-	m.m[v.ID] = i
+	m.vals[v.ID] = i
 }
 
 func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
-	if int(v.ID) < len(m.m) {
-		return m.m[int(v.ID)]
+	if !go115ReduceLiveness {
+		// All safe-points are in the map, so if v isn't in
+		// the map, it's an unsafe-point.
+		if idx, ok := m.vals[v.ID]; ok {
+			return idx
+		}
+		return LivenessInvalid
 	}
-	// Not a safe point.
-	return LivenessInvalid
+
+	// If v isn't in the map, then it's a "don't care" and not an
+	// unsafe-point.
+	if idx, ok := m.vals[v.ID]; ok {
+		return idx
+	}
+	return LivenessIndex{StackMapDontCare, StackMapDontCare, false}
 }
 
-// LivenessIndex stores the liveness map index for a safe-point.
+// LivenessIndex stores the liveness map information for a Value.
 type LivenessIndex struct {
 	stackMapIndex int
-	regMapIndex   int
+	regMapIndex   int // only for !go115ReduceLiveness
+
+	// isUnsafePoint indicates that this is an unsafe-point.
+	//
+	// Note that it's possible for a call Value to have a stack
+	// map while also being an unsafe-point. This means it cannot
+	// be preempted at this instruction, but that a preemption or
+	// stack growth may happen in the called function.
+	isUnsafePoint bool
 }
 
-// LivenessInvalid indicates an unsafe point.
-//
-// We use index -2 because PCDATA tables conventionally start at -1,
-// so -1 is used to mean the entry liveness map (which is actually at
-// index 0; sigh). TODO(austin): Maybe we should use PCDATA+1 as the
-// index into the liveness map so -1 uniquely refers to the entry
-// liveness map.
-var LivenessInvalid = LivenessIndex{-2, -2}
+// LivenessInvalid indicates an unsafe point with no stack map.
+var LivenessInvalid = LivenessIndex{StackMapDontCare, StackMapDontCare, true} // only for !go115ReduceLiveness
 
-func (idx LivenessIndex) Valid() bool {
-	return idx.stackMapIndex >= 0
+// StackMapDontCare indicates that the stack map index at a Value
+// doesn't matter.
+//
+// This is a sentinel value that should never be emitted to the PCDATA
+// stream. We use -1000 because that's obviously never a valid stack
+// index (but -1 is).
+const StackMapDontCare = -1000
+
+func (idx LivenessIndex) StackMapValid() bool {
+	return idx.stackMapIndex != StackMapDontCare
+}
+
+func (idx LivenessIndex) RegMapValid() bool {
+	return idx.regMapIndex != StackMapDontCare
 }
 
 type progeffectscache struct {
-	textavarinit []int32
-	retuevar     []int32
-	tailuevar    []int32
-	initialized  bool
+	retuevar    []int32
+	tailuevar   []int32
+	initialized bool
 }
 
 // varRegVec contains liveness bitmaps for variables and registers.
@@ -229,7 +259,7 @@ func (v *varRegVec) AndNot(v1, v2 varRegVec) {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func livenessShouldTrack(n *Node) bool {
-	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
+	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Type.HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -264,24 +294,13 @@ func (lv *Liveness) initcache() {
 			// all the parameters for correctness, and similarly it must not
 			// read the out arguments - they won't be set until the new
 			// function runs.
-
 			lv.cache.tailuevar = append(lv.cache.tailuevar, int32(i))
 
-			if node.Addrtaken() {
-				lv.cache.textavarinit = append(lv.cache.textavarinit, int32(i))
-			}
-
 		case PPARAMOUT:
-			// If the result had its address taken, it is being tracked
-			// by the avarinit code, which does not use uevar.
-			// If we added it to uevar too, we'd not see any kill
-			// and decide that the variable was live entry, which it is not.
-			// So only use uevar in the non-addrtaken case.
-			// The p.to.type == obj.TYPE_NONE limits the bvset to
-			// non-tail-call return instructions; see note below for details.
-			if !node.Addrtaken() {
-				lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
-			}
+			// All results are live at every return point.
+			// Note that this point is after escaping return values
+			// are copied back to the stack using their PAUTOHEAP references.
+			lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
 		}
 	}
 }
@@ -291,21 +310,13 @@ func (lv *Liveness) initcache() {
 //
 // The possible flags are:
 //	uevar - used by the instruction
-//	varkill - killed by the instruction
-//		for variables without address taken, means variable was set
-//		for variables with address taken, means variable was marked dead
-//	avarinit - initialized or referred to by the instruction,
-//		only for variables with address taken but not escaping to heap
-//
-// The avarinit output serves as a signal that the data has been
-// initialized, because any use of a variable must come after its
-// initialization.
+//	varkill - killed by the instruction (set)
+// A kill happens after the use (for an instruction that updates a value, for example).
 type liveEffect int
 
 const (
 	uevar liveEffect = 1 << iota
 	varkill
-	avarinit
 )
 
 // valueEffects returns the index of a variable in lv.vars and the
@@ -329,27 +340,17 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	}
 
 	var effect liveEffect
-	if n.Addrtaken() {
-		if v.Op != ssa.OpVarKill {
-			effect |= avarinit
-		}
-		if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill {
-			effect |= varkill
-		}
-	} else {
-		// Read is a read, obviously.
-		// Addr by itself is also implicitly a read.
-		//
-		// Addr|Write means that the address is being taken
-		// but only so that the instruction can write to the value.
-		// It is not a read.
-
-		if e&ssa.SymRead != 0 || e&(ssa.SymAddr|ssa.SymWrite) == ssa.SymAddr {
-			effect |= uevar
-		}
-		if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
-			effect |= varkill
-		}
+	// Read is a read, obviously.
+	//
+	// Addr is a read also, as any subsequent holder of the pointer must be able
+	// to see all the values (including initialization) written so far.
+	// This also prevents a variable from "coming back from the dead" and presenting
+	// stale pointers to the garbage collector. See issue 28445.
+	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
+		effect |= uevar
+	}
+	if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
+		effect |= varkill
 	}
 
 	if effect == 0 {
@@ -401,6 +402,9 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 
 // regEffects returns the registers affected by v.
 func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+	if go115ReduceLiveness {
+		return 0, 0
+	}
 	if v.Op == ssa.OpPhi {
 		// All phi node arguments must come from the same
 		// register and the result must also go to that
@@ -432,7 +436,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 		case ssa.LocalSlot:
 			return mask
 		case *ssa.Register:
-			if ptrOnly && !v.Type.HasHeapPointer() {
+			if ptrOnly && !v.Type.HasPointers() {
 				return mask
 			}
 			regs[0] = loc
@@ -443,11 +447,11 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 			if v.Type.Etype != types.TTUPLE {
 				v.Fatalf("location pair %s has non-tuple type %v", loc, v.Type)
 			}
-			for i, loc1 := range loc {
+			for i, loc1 := range &loc {
 				if loc1 == nil {
 					continue
 				}
-				if ptrOnly && !v.Type.FieldType(i).HasHeapPointer() {
+				if ptrOnly && !v.Type.FieldType(i).HasPointers() {
 					continue
 				}
 				regs[nreg] = loc1.(*ssa.Register)
@@ -482,7 +486,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 	return uevar, kill
 }
 
-type liveRegMask uint32
+type liveRegMask uint32 // only if !go115ReduceLiveness
 
 func (m liveRegMask) niceString(config *ssa.Config) string {
 	if m == 0 {
@@ -521,7 +525,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 
 	// Significant sources of allocation are kept in the ssa.Cache
 	// and reused. Surprisingly, the bit vectors themselves aren't
-	// a major source of allocation, but the slices are.
+	// a major source of allocation, but the liveness maps are.
 	if lc, _ := f.Cache.Liveness.(*livenessFuncCache); lc == nil {
 		// Prep the cache so liveness can fill it later.
 		f.Cache.Liveness = new(livenessFuncCache)
@@ -529,7 +533,8 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		if cap(lc.be) >= f.NumBlocks() {
 			lv.be = lc.be[:f.NumBlocks()]
 		}
-		lv.livenessMap = LivenessMap{lc.livenessMap.m[:0]}
+		lv.livenessMap = LivenessMap{vals: lc.livenessMap.vals, deferreturn: LivenessInvalid}
+		lc.livenessMap.vals = nil
 	}
 	if lv.be == nil {
 		lv.be = make([]BlockEffects, f.NumBlocks())
@@ -545,11 +550,8 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		be.varkill = varRegVec{vars: bulk.next()}
 		be.livein = varRegVec{vars: bulk.next()}
 		be.liveout = varRegVec{vars: bulk.next()}
-		be.avarinit = bulk.next()
-		be.avarinitany = bulk.next()
-		be.avarinitall = bulk.next()
 	}
-	lv.livenessMap.reset(lv.f.NumValues())
+	lv.livenessMap.reset()
 
 	lv.markUnsafePoints()
 	return lv
@@ -566,14 +568,14 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
+	if !t.HasPointers() {
+		// Note: this case ensures that pointers to go:notinheap types
+		// are not considered pointers by garbage collection and stack copying.
+		return
+	}
 
 	switch t.Etype {
-	case TINT8, TUINT8, TINT16, TUINT16,
-		TINT32, TUINT32, TINT64, TUINT64,
-		TINT, TUINT, TUINTPTR, TBOOL,
-		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
-
-	case TPTR32, TPTR64, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
@@ -669,15 +671,39 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 	}
 }
 
+// allUnsafe indicates that all points in this function are
+// unsafe-points.
+func allUnsafe(f *ssa.Func) bool {
+	// The runtime assumes the only safe-points are function
+	// prologues (because that's how it used to be). We could and
+	// should improve that, but for now keep consider all points
+	// in the runtime unsafe. obj will add prologues and their
+	// safe-points.
+	//
+	// go:nosplit functions are similar. Since safe points used to
+	// be coupled with stack checks, go:nosplit often actually
+	// means "no safe points in this function".
+	return compiling_runtime || f.NoSplit
+}
+
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
 func (lv *Liveness) markUnsafePoints() {
-	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
-		// No complex analysis necessary. Do this on the fly
-		// in issafepoint.
+	if allUnsafe(lv.f) {
+		// No complex analysis necessary.
+		lv.allUnsafe = true
 		return
 	}
 
 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
+
+	// Mark architecture-specific unsafe points.
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			if v.Op.UnsafePoint() {
+				lv.unsafePoints.Set(int32(v.ID))
+			}
+		}
+	}
 
 	// Mark write barrier unsafe points.
 	for _, wbBlock := range lv.f.WBLoads {
@@ -710,7 +736,7 @@ func (lv *Liveness) markUnsafePoints() {
 		// single op that does the memory load from the flag
 		// address, so we look for that.
 		var load *ssa.Value
-		v := wbBlock.Control
+		v := wbBlock.Controls[0]
 		for {
 			if sym, ok := v.Aux.(*obj.LSym); ok && sym == writeBarrier {
 				load = v
@@ -819,20 +845,28 @@ func (lv *Liveness) markUnsafePoints() {
 	}
 }
 
-// Returns true for instructions that are safe points that must be annotated
-// with liveness information.
-func (lv *Liveness) issafepoint(v *ssa.Value) bool {
-	// The runtime was written with the assumption that
-	// safe-points only appear at call sites (because that's how
-	// it used to be). We could and should improve that, but for
-	// now keep the old safe-point rules in the runtime.
-	//
-	// go:nosplit functions are similar. Since safe points used to
-	// be coupled with stack checks, go:nosplit often actually
-	// means "no safe points in this function".
-	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
-		return v.Op.IsCall()
+// Returns true for instructions that must have a stack map.
+//
+// This does not necessarily mean the instruction is a safe-point. In
+// particular, call Values can have a stack map in case the callee
+// grows the stack, but not themselves be a safe-point.
+func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+	// The runtime only has safe-points in function prologues, so
+	// we only need stack maps at call sites. go:nosplit functions
+	// are similar.
+	if go115ReduceLiveness || compiling_runtime || lv.f.NoSplit {
+		if !v.Op.IsCall() {
+			return false
+		}
+		// typedmemclr and typedmemmove are write barriers and
+		// deeply non-preemptible. They are unsafe points and
+		// hence should not have liveness maps.
+		if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
+			return false
+		}
+		return true
 	}
+
 	switch v.Op {
 	case ssa.OpInitMem, ssa.OpArg, ssa.OpSP, ssa.OpSB,
 		ssa.OpSelect0, ssa.OpSelect1, ssa.OpGetG,
@@ -869,19 +903,6 @@ func (lv *Liveness) prologue() {
 			}
 			be.uevar.regs |= regUevar
 		}
-
-		// Walk the block instructions forward to update avarinit bits.
-		// avarinit describes the effect at the end of the block, not the beginning.
-		for _, val := range b.Values {
-			pos, e := lv.valueEffects(val)
-			// No need for regEffects because registers never appear in avarinit.
-			if e&varkill != 0 {
-				be.avarinit.Unset(pos)
-			}
-			if e&avarinit != 0 {
-				be.avarinit.Set(pos)
-			}
-		}
 	}
 }
 
@@ -892,50 +913,9 @@ func (lv *Liveness) solve() {
 	nvars := int32(len(lv.vars))
 	newlivein := varRegVec{vars: bvalloc(nvars)}
 	newliveout := varRegVec{vars: bvalloc(nvars)}
-	any := bvalloc(nvars)
-	all := bvalloc(nvars)
 
-	// Push avarinitall, avarinitany forward.
-	// avarinitall says the addressed var is initialized along all paths reaching the block exit.
-	// avarinitany says the addressed var is initialized along some path reaching the block exit.
-	for _, b := range lv.f.Blocks {
-		be := lv.blockEffects(b)
-		if b == lv.f.Entry {
-			be.avarinitall.Copy(be.avarinit)
-		} else {
-			be.avarinitall.Clear()
-			be.avarinitall.Not()
-		}
-		be.avarinitany.Copy(be.avarinit)
-	}
-
-	// Walk blocks in the general direction of propagation (RPO
-	// for avarinit{any,all}, and PO for live{in,out}). This
-	// improves convergence.
+	// Walk blocks in postorder ordering. This improves convergence.
 	po := lv.f.Postorder()
-
-	for change := true; change; {
-		change = false
-		for i := len(po) - 1; i >= 0; i-- {
-			b := po[i]
-			be := lv.blockEffects(b)
-			lv.avarinitanyall(b, any, all)
-
-			any.AndNot(any, be.varkill.vars)
-			all.AndNot(all, be.varkill.vars)
-			any.Or(any, be.avarinit)
-			all.Or(all, be.avarinit)
-			if !any.Eq(be.avarinitany) {
-				change = true
-				be.avarinitany.Copy(any)
-			}
-
-			if !all.Eq(be.avarinitall) {
-				change = true
-				be.avarinitall.Copy(all)
-			}
-		}
-	}
 
 	// Iterate through the blocks in reverse round-robin fashion. A work
 	// queue might be slightly faster. As is, the number of iterations is
@@ -957,7 +937,7 @@ func (lv *Liveness) solve() {
 					newliveout.vars.Set(pos)
 				}
 			case ssa.BlockExit:
-				// nothing to do
+				// panic exit - nothing to do
 			default:
 				// A variable is live on output from this block
 				// if it is live on input to some successor.
@@ -975,7 +955,7 @@ func (lv *Liveness) solve() {
 			}
 
 			// A variable is live on input to this block
-			// if it is live on output from this block and
+			// if it is used by this block, or live on output from this block and
 			// not set by the code in this block.
 			//
 			// in[b] = uevar[b] \cup (out[b] \setminus varkill[b])
@@ -990,8 +970,6 @@ func (lv *Liveness) solve() {
 func (lv *Liveness) epilogue() {
 	nvars := int32(len(lv.vars))
 	liveout := varRegVec{vars: bvalloc(nvars)}
-	any := bvalloc(nvars)
-	all := bvalloc(nvars)
 	livedefer := bvalloc(nvars) // always-live variables
 
 	// If there is a defer (that could recover), then all output
@@ -1004,7 +982,7 @@ func (lv *Liveness) epilogue() {
 	if lv.fn.Func.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == PPARAMOUT {
-				if n.IsOutputParamHeapAddr() {
+				if n.Name.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					Fatalf("variable %v both output param and heap output param", n)
 				}
@@ -1016,9 +994,23 @@ func (lv *Liveness) epilogue() {
 				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
-			if n.IsOutputParamHeapAddr() {
+			if n.Name.IsOutputParamHeapAddr() {
+				// This variable will be overwritten early in the function
+				// prologue (from the result of a mallocgc) but we need to
+				// zero it in case that malloc causes a stack scan.
 				n.Name.SetNeedzero(true)
 				livedefer.Set(int32(i))
+			}
+			if n.Name.OpenDeferSlot() {
+				// Open-coded defer args slots must be live
+				// everywhere in a function, since a panic can
+				// occur (almost) anywhere. Because it is live
+				// everywhere, it must be zeroed on entry.
+				livedefer.Set(int32(i))
+				// It was already marked as Needzero when created.
+				if !n.Name.Needzero() {
+					Fatalf("all pointer-containing defer arg slots should have Needzero set")
+				}
 			}
 		}
 	}
@@ -1033,9 +1025,6 @@ func (lv *Liveness) epilogue() {
 	{
 		// Reserve an entry for function entry.
 		live := bvalloc(nvars)
-		for _, pos := range lv.cache.textavarinit {
-			live.Set(pos)
-		}
 		lv.livevars = append(lv.livevars, varRegVec{vars: live})
 	}
 
@@ -1043,53 +1032,14 @@ func (lv *Liveness) epilogue() {
 		be := lv.blockEffects(b)
 		firstBitmapIndex := len(lv.livevars)
 
-		// Compute avarinitany and avarinitall for entry to block.
-		// This duplicates information known during Liveness.solve
-		// but avoids storing two more vectors for each block.
-		lv.avarinitanyall(b, any, all)
-
 		// Walk forward through the basic block instructions and
 		// allocate liveness maps for those instructions that need them.
-		// Seed the maps with information about the addrtaken variables.
 		for _, v := range b.Values {
-			pos, e := lv.valueEffects(v)
-			// No need for regEffects because registers never appear in avarinit.
-			if e&varkill != 0 {
-				any.Unset(pos)
-				all.Unset(pos)
-			}
-			if e&avarinit != 0 {
-				any.Set(pos)
-				all.Set(pos)
-			}
-
-			if !lv.issafepoint(v) {
+			if !lv.hasStackMap(v) {
 				continue
 			}
 
-			// Annotate ambiguously live variables so that they can
-			// be zeroed at function entry and at VARKILL points.
-			// liveout is dead here and used as a temporary.
-			liveout.vars.AndNot(any, all)
-			if !liveout.vars.IsEmpty() {
-				for pos := int32(0); pos < liveout.vars.n; pos++ {
-					if !liveout.vars.Get(pos) {
-						continue
-					}
-					all.Set(pos) // silence future warnings in this block
-					n := lv.vars[pos]
-					if !n.Name.Needzero() {
-						n.Name.SetNeedzero(true)
-						if debuglive >= 1 {
-							Warnl(v.Pos, "%v: %L is ambiguously live", lv.fn.Func.Nname, n)
-						}
-					}
-				}
-			}
-
-			// Live stuff first.
 			live := bvalloc(nvars)
-			live.Copy(any)
 			lv.livevars = append(lv.livevars, varRegVec{vars: live})
 		}
 
@@ -1100,7 +1050,7 @@ func (lv *Liveness) epilogue() {
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 
-			if lv.issafepoint(v) {
+			if lv.hasStackMap(v) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.
 
@@ -1128,6 +1078,17 @@ func (lv *Liveness) epilogue() {
 				Fatalf("bad index for entry point: %v", index)
 			}
 
+			// Check to make sure only input variables are live.
+			for i, n := range lv.vars {
+				if !liveout.vars.Get(int32(i)) {
+					continue
+				}
+				if n.Class() == PPARAM {
+					continue // ok
+				}
+				Fatalf("bad live variable at entry of %v: %L", lv.fn.Func.Nname, n)
+			}
+
 			// Record live variables.
 			live := &lv.livevars[index]
 			live.Or(*live, liveout)
@@ -1138,11 +1099,11 @@ func (lv *Liveness) epilogue() {
 		// of the context register, so it's dead after the call.
 		index = int32(firstBitmapIndex)
 		for _, v := range b.Values {
-			if lv.issafepoint(v) {
+			if lv.hasStackMap(v) {
 				live := lv.livevars[index]
 				if v.Op.IsCall() && live.regs != 0 {
 					lv.printDebug()
-					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
+					v.Fatalf("%v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
 				}
 				index++
 			}
@@ -1150,6 +1111,17 @@ func (lv *Liveness) epilogue() {
 
 		// The liveness maps for this block are now complete. Compact them.
 		lv.compact(b)
+	}
+
+	// If we have an open-coded deferreturn call, make a liveness map for it.
+	if lv.fn.Func.OpenCodedDeferDisallowed() {
+		lv.livenessMap.deferreturn = LivenessInvalid
+	} else {
+		lv.livenessMap.deferreturn = LivenessIndex{
+			stackMapIndex: lv.stackMapSet.add(livedefer),
+			regMapIndex:   0, // entry regMap, containing no live registers
+			isUnsafePoint: false,
+		}
 	}
 
 	// Done compacting. Throw out the stack map set.
@@ -1161,194 +1133,18 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
-	// Check that no registers are live at function entry.
-	// The context register, if any, comes from a
-	// LoweredGetClosurePtr operation first thing in the function,
-	// so it doesn't appear live at entry.
-	if regs := lv.regMaps[0]; regs != 0 {
-		lv.printDebug()
-		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
-	}
-}
-
-func (lv *Liveness) clobber() {
-	// The clobberdead experiment inserts code to clobber all the dead variables (locals and args)
-	// before and after every safepoint. This experiment is useful for debugging the generation
-	// of live pointer bitmaps.
-	if objabi.Clobberdead_enabled == 0 {
-		return
-	}
-	var varSize int64
-	for _, n := range lv.vars {
-		varSize += n.Type.Size()
-	}
-	if len(lv.stackMaps) > 1000 || varSize > 10000 {
-		// Be careful to avoid doing too much work.
-		// Bail if >1000 safepoints or >10000 bytes of variables.
-		// Otherwise, giant functions make this experiment generate too much code.
-		return
-	}
-	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
-		// Clobber only functions where the hash of the function name matches a pattern.
-		// Useful for binary searching for a miscompiled function.
-		hstr := ""
-		for _, b := range sha1.Sum([]byte(lv.fn.funcname())) {
-			hstr += fmt.Sprintf("%08b", b)
+	if !go115ReduceLiveness {
+		// Check that no registers are live at function entry.
+		// The context register, if any, comes from a
+		// LoweredGetClosurePtr operation first thing in the function,
+		// so it doesn't appear live at entry.
+		if regs := lv.regMaps[0]; regs != 0 {
+			lv.printDebug()
+			lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
 		}
-		if !strings.HasSuffix(hstr, h) {
-			return
-		}
-		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
-	}
-	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
-		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
-		// The code we add here clobbers parts of the stack in the child.
-		// When the parent resumes, it is using the same stack frame. But the
-		// child has clobbered stack variables that the parent needs. Boom!
-		// In particular, the sys argument gets clobbered.
-		// Note to self: GOCLOBBERDEADHASH=011100101110
-		//
-		// runtime.wbBufFlush must not modify its arguments. See the comments
-		// in runtime/mwbbuf.go:wbBufFlush.
-		return
-	}
-
-	var oldSched []*ssa.Value
-	for _, b := range lv.f.Blocks {
-		// Copy block's values to a temporary.
-		oldSched = append(oldSched[:0], b.Values...)
-		b.Values = b.Values[:0]
-
-		// Clobber all dead variables at entry.
-		if b == lv.f.Entry {
-			for len(oldSched) > 0 && len(oldSched[0].Args) == 0 {
-				// Skip argless ops. We need to skip at least
-				// the lowered ClosurePtr op, because it
-				// really wants to be first. This will also
-				// skip ops like InitMem and SP, which are ok.
-				b.Values = append(b.Values, oldSched[0])
-				oldSched = oldSched[1:]
-			}
-			clobber(lv, b, lv.stackMaps[0])
-		}
-
-		// Copy values into schedule, adding clobbering around safepoints.
-		for _, v := range oldSched {
-			if !lv.issafepoint(v) {
-				b.Values = append(b.Values, v)
-				continue
-			}
-			before := true
-			if v.Op.IsCall() && v.Aux != nil && v.Aux.(*obj.LSym) == typedmemmove {
-				// Can't put clobber code before the call to typedmemmove.
-				// The variable to-be-copied is marked as dead
-				// at the callsite. That is ok, though, as typedmemmove
-				// is marked as nosplit, and the first thing it does
-				// is to call memmove (also nosplit), after which
-				// the source value is dead.
-				// See issue 16026.
-				before = false
-			}
-			if before {
-				clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
-			}
-			b.Values = append(b.Values, v)
-			clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
-		}
-	}
-}
-
-// clobber generates code to clobber all dead variables (those not marked in live).
-// Clobbering instructions are added to the end of b.Values.
-func clobber(lv *Liveness, b *ssa.Block, live bvec) {
-	for i, n := range lv.vars {
-		if !live.Get(int32(i)) {
-			clobberVar(b, n)
-		}
-	}
-}
-
-// clobberVar generates code to trash the pointers in v.
-// Clobbering instructions are added to the end of b.Values.
-func clobberVar(b *ssa.Block, v *Node) {
-	clobberWalk(b, v, 0, v.Type)
-}
-
-// b = block to which we append instructions
-// v = variable
-// offset = offset of (sub-portion of) variable to clobber (in bytes)
-// t = type of sub-portion of v.
-func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
-	if !types.Haspointers(t) {
-		return
-	}
-	switch t.Etype {
-	case TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
-		clobberPtr(b, v, offset)
-
-	case TSTRING:
-		// struct { byte *str; int len; }
-		clobberPtr(b, v, offset)
-
-	case TINTER:
-		// struct { Itab *tab; void *data; }
-		// or, when isnilinter(t)==true:
-		// struct { Type *type; void *data; }
-		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
-		clobberPtr(b, v, offset+int64(Widthptr))
-
-	case TSLICE:
-		// struct { byte *array; int len; int cap; }
-		clobberPtr(b, v, offset)
-
-	case TARRAY:
-		for i := int64(0); i < t.NumElem(); i++ {
-			clobberWalk(b, v, offset+i*t.Elem().Size(), t.Elem())
-		}
-
-	case TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
-			clobberWalk(b, v, offset+t1.Offset, t1.Type)
-		}
-
-	default:
-		Fatalf("clobberWalk: unexpected type, %v", t)
-	}
-}
-
-// clobberPtr generates a clobber of the pointer at offset offset in v.
-// The clobber instruction is added at the end of b.
-func clobberPtr(b *ssa.Block, v *Node, offset int64) {
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
-}
-
-func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
-	if len(b.Preds) == 0 {
-		any.Clear()
-		all.Clear()
-		for _, pos := range lv.cache.textavarinit {
-			any.Set(pos)
-			all.Set(pos)
-		}
-		return
-	}
-
-	be := lv.blockEffects(b.Preds[0].Block())
-	any.Copy(be.avarinitany)
-	all.Copy(be.avarinitall)
-
-	for _, pred := range b.Preds[1:] {
-		be := lv.blockEffects(pred.Block())
-		any.Or(any, be.avarinitany)
-		all.And(all, be.avarinitall)
 	}
 }
 
@@ -1369,7 +1165,7 @@ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
 func (lv *Liveness) compact(b *ssa.Block) {
-	add := func(live varRegVec) LivenessIndex {
+	add := func(live varRegVec, isUnsafePoint bool) LivenessIndex { // only if !go115ReduceLiveness
 		// Deduplicate the stack map.
 		stackIndex := lv.stackMapSet.add(live.vars)
 		// Deduplicate the register map.
@@ -1379,17 +1175,33 @@ func (lv *Liveness) compact(b *ssa.Block) {
 			lv.regMapSet[live.regs] = regIndex
 			lv.regMaps = append(lv.regMaps, live.regs)
 		}
-		return LivenessIndex{stackIndex, regIndex}
+		return LivenessIndex{stackIndex, regIndex, isUnsafePoint}
 	}
 	pos := 0
 	if b == lv.f.Entry {
 		// Handle entry stack map.
-		add(lv.livevars[0])
+		if !go115ReduceLiveness {
+			add(lv.livevars[0], false)
+		} else {
+			lv.stackMapSet.add(lv.livevars[0].vars)
+		}
 		pos++
 	}
 	for _, v := range b.Values {
-		if lv.issafepoint(v) {
-			lv.livenessMap.set(v, add(lv.livevars[pos]))
+		if go115ReduceLiveness {
+			hasStackMap := lv.hasStackMap(v)
+			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
+			idx := LivenessIndex{StackMapDontCare, StackMapDontCare, isUnsafePoint}
+			if hasStackMap {
+				idx.stackMapIndex = lv.stackMapSet.add(lv.livevars[pos].vars)
+				pos++
+			}
+			if hasStackMap || isUnsafePoint {
+				lv.livenessMap.set(v, idx)
+			}
+		} else if lv.hasStackMap(v) {
+			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
+			lv.livenessMap.set(v, add(lv.livevars[pos], isUnsafePoint))
 			pos++
 		}
 	}
@@ -1419,8 +1231,8 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 	s := "live at "
 	if v == nil {
 		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
-	} else if sym, ok := v.Aux.(*obj.LSym); ok {
-		fn := sym.Name
+	} else if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
+		fn := sym.Fn.Name
 		if pos := strings.Index(fn, "."); pos >= 0 {
 			fn = fn[pos+1:]
 		}
@@ -1494,7 +1306,6 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool, re
 func (lv *Liveness) printDebug() {
 	fmt.Printf("liveness: %s\n", lv.fn.funcname())
 
-	pcdata := 0
 	for i, b := range lv.f.Blocks {
 		if i > 0 {
 			fmt.Printf("\n")
@@ -1530,7 +1341,7 @@ func (lv *Liveness) printDebug() {
 		// program listing, with individual effects listed
 
 		if b == lv.f.Entry {
-			live := lv.stackMaps[pcdata]
+			live := lv.stackMaps[0]
 			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
 			fmt.Printf("\tlive=")
 			printed = false
@@ -1550,45 +1361,49 @@ func (lv *Liveness) printDebug() {
 		for _, v := range b.Values {
 			fmt.Printf("(%s) %v\n", linestr(v.Pos), v.LongString())
 
-			if pos := lv.livenessMap.Get(v); pos.Valid() {
-				pcdata = pos.stackMapIndex
-			}
+			pcdata := lv.livenessMap.Get(v)
 
 			pos, effect := lv.valueEffects(v)
 			regUevar, regKill := lv.regEffects(v)
 			printed = false
 			printed = lv.printeffect(printed, "uevar", pos, effect&uevar != 0, regUevar)
 			printed = lv.printeffect(printed, "varkill", pos, effect&varkill != 0, regKill)
-			printed = lv.printeffect(printed, "avarinit", pos, effect&avarinit != 0, 0)
 			if printed {
 				fmt.Printf("\n")
 			}
 
-			if !lv.issafepoint(v) {
-				continue
+			if pcdata.StackMapValid() || pcdata.RegMapValid() {
+				fmt.Printf("\tlive=")
+				printed = false
+				if pcdata.StackMapValid() {
+					live := lv.stackMaps[pcdata.stackMapIndex]
+					for j, n := range lv.vars {
+						if !live.Get(int32(j)) {
+							continue
+						}
+						if printed {
+							fmt.Printf(",")
+						}
+						fmt.Printf("%v", n)
+						printed = true
+					}
+				}
+				if pcdata.RegMapValid() { // only if !go115ReduceLiveness
+					regLive := lv.regMaps[pcdata.regMapIndex]
+					if regLive != 0 {
+						if printed {
+							fmt.Printf(",")
+						}
+						fmt.Printf("%s", regLive.niceString(lv.f.Config))
+						printed = true
+					}
+				}
+				fmt.Printf("\n")
 			}
 
-			live := lv.stackMaps[pcdata]
-			fmt.Printf("\tlive=")
-			printed = false
-			for j, n := range lv.vars {
-				if !live.Get(int32(j)) {
-					continue
-				}
-				if printed {
-					fmt.Printf(",")
-				}
-				fmt.Printf("%v", n)
-				printed = true
+			if pcdata.isUnsafePoint {
+				fmt.Printf("\tunsafe-point\n")
 			}
-			regLive := lv.regMaps[lv.livenessMap.Get(v).regMapIndex]
-			if regLive != 0 {
-				if printed {
-					fmt.Printf(",")
-				}
-				fmt.Printf("%s", regLive.niceString(lv.f.Config))
-			}
-			fmt.Printf("\n")
 		}
 
 		// bb bitsets
@@ -1596,9 +1411,6 @@ func (lv *Liveness) printDebug() {
 		printed = false
 		printed = lv.printbvec(printed, "varkill", be.varkill)
 		printed = lv.printbvec(printed, "liveout", be.liveout)
-		printed = lv.printbvec(printed, "avarinit", varRegVec{vars: be.avarinit})
-		printed = lv.printbvec(printed, "avarinitany", varRegVec{vars: be.avarinitany})
-		printed = lv.printbvec(printed, "avarinitall", varRegVec{vars: be.avarinitall})
 		if printed {
 			fmt.Printf("\n")
 		}
@@ -1611,7 +1423,7 @@ func (lv *Liveness) printDebug() {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
@@ -1639,13 +1451,16 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 	// This would require shifting all bitmaps.
 	maxLocals := lv.stkptrsize
 
+	// Temporary symbols for encoding bitmaps.
+	var argsSymTmp, liveSymTmp, regsSymTmp obj.LSym
+
 	args := bvalloc(int32(maxArgs / int64(Widthptr)))
-	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
+	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
 
 	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
-	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
+	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
 
 	for _, live := range lv.stackMaps {
 		args.Clear()
@@ -1653,41 +1468,52 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 
 		lv.pointerMap(live, lv.vars, args, locals)
 
-		aoff = dbvec(argssym, aoff, args)
-		loff = dbvec(livesym, loff, locals)
+		aoff = dbvec(&argsSymTmp, aoff, args)
+		loff = dbvec(&liveSymTmp, loff, locals)
 	}
 
-	regs := bvalloc(lv.usedRegs())
-	roff := duint32(regssym, 0, uint32(len(lv.regMaps))) // number of bitmaps
-	roff = duint32(regssym, roff, uint32(regs.n))        // number of bits in each bitmap
-	if regs.n > 32 {
-		// Our uint32 conversion below won't work.
-		Fatalf("GP registers overflow uint32")
-	}
+	if !go115ReduceLiveness {
+		regs := bvalloc(lv.usedRegs())
+		roff := duint32(&regsSymTmp, 0, uint32(len(lv.regMaps))) // number of bitmaps
+		roff = duint32(&regsSymTmp, roff, uint32(regs.n))        // number of bits in each bitmap
+		if regs.n > 32 {
+			// Our uint32 conversion below won't work.
+			Fatalf("GP registers overflow uint32")
+		}
 
-	if regs.n > 0 {
-		for _, live := range lv.regMaps {
-			regs.Clear()
-			regs.b[0] = uint32(live)
-			roff = dbvec(regssym, roff, regs)
+		if regs.n > 0 {
+			for _, live := range lv.regMaps {
+				regs.Clear()
+				regs.b[0] = uint32(live)
+				roff = dbvec(&regsSymTmp, roff, regs)
+			}
 		}
 	}
 
 	// Give these LSyms content-addressable names,
 	// so that they can be de-duplicated.
 	// This provides significant binary size savings.
-	// It is safe to rename these LSyms because
-	// they are tracked separately from ctxt.hash.
-	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
-	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
-	regssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(regssym.P))
+	//
+	// These symbols will be added to Ctxt.Data by addGCLocals
+	// after parallel compilation is done.
+	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
+		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
+			lsym.P = tmpSym.P
+			lsym.Set(obj.AttrContentAddressable, true)
+		})
+	}
+	if !go115ReduceLiveness {
+		return makeSym(&argsSymTmp), makeSym(&liveSymTmp), makeSym(&regsSymTmp)
+	}
+	// TODO(go115ReduceLiveness): Remove regsSym result
+	return makeSym(&argsSymTmp), makeSym(&liveSymTmp), nil
 }
 
 // Entry pointer for liveness analysis. Solves for the liveness of
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func) LivenessMap {
+func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	// Construct the global liveness state.
 	vars, idx := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
@@ -1696,12 +1522,11 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 	lv.prologue()
 	lv.solve()
 	lv.epilogue()
-	lv.clobber()
 	if debuglive > 0 {
 		lv.showlive(nil, lv.stackMaps[0])
 		for _, b := range f.Blocks {
 			for _, val := range b.Values {
-				if idx := lv.livenessMap.Get(val); idx.Valid() {
+				if idx := lv.livenessMap.Get(val); idx.StackMapValid() {
 					lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
 				}
 			}
@@ -1720,14 +1545,71 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 			}
 			cache.be = lv.be
 		}
-		if cap(lv.livenessMap.m) < 2000 {
+		if len(lv.livenessMap.vals) < 2000 {
 			cache.livenessMap = lv.livenessMap
 		}
 	}
 
 	// Emit the live pointer map data structures
-	if ls := e.curfn.Func.lsym; ls != nil {
-		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
+	ls := e.curfn.Func.lsym
+	ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
+
+	p := pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = ls.Func.GCArgs
+
+	p = pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = ls.Func.GCLocals
+
+	if !go115ReduceLiveness {
+		p = pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ls.Func.GCRegs
 	}
+
 	return lv.livenessMap
+}
+
+// isfat reports whether a variable of type t needs multiple assignments to initialize.
+// For example:
+//
+// 	type T struct { x, y int }
+// 	x := T{x: 0, y: 1}
+//
+// Then we need:
+//
+// 	var t T
+// 	t.x = 0
+// 	t.y = 1
+//
+// to fully initialize t.
+func isfat(t *types.Type) bool {
+	if t != nil {
+		switch t.Etype {
+		case TSLICE, TSTRING,
+			TINTER: // maybe remove later
+			return true
+		case TARRAY:
+			// Array of 1 element, check if element is fat
+			if t.NumElem() == 1 {
+				return isfat(t.Elem())
+			}
+			return true
+		case TSTRUCT:
+			// Struct with 1 field, check if field is fat
+			if t.NumFields() == 1 {
+				return isfat(t.Field(0).Type)
+			}
+			return true
+		}
+	}
+
+	return false
 }

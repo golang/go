@@ -207,6 +207,18 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
+// Tests that this doesn't panic. (Issue 30165)
+func TestServeFileDirPanicEmptyPath(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.URL.Path = ""
+	ServeFile(rec, req, "testdata")
+	res := rec.Result()
+	if res.StatusCode != 301 {
+		t.Errorf("code = %v; want 301", res.Status)
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 }{
@@ -583,16 +595,23 @@ func TestFileServerZeroByte(t *testing.T) {
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
 
-	res, err := Get(ts.URL + "/..\x00")
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	defer c.Close()
+	_, err = fmt.Fprintf(c, "GET /..\x00 HTTP/1.0\r\n\r\n")
 	if err != nil {
-		t.Fatal("reading Body:", err)
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	bufr := bufio.NewReader(io.TeeReader(c, &got))
+	res, err := ReadResponse(bufr, nil)
+	if err != nil {
+		t.Fatal("ReadResponse: ", err)
 	}
 	if res.StatusCode == 200 {
-		t.Errorf("got status 200; want an error. Body is:\n%s", string(b))
+		t.Errorf("got status 200; want an error. Body is:\n%s", got.Bytes())
 	}
 }
 
@@ -826,6 +845,15 @@ func TestServeContent(t *testing.T) {
 			serveETag: `"foo"`,
 			reqHeader: map[string]string{
 				"If-None-Match": `"Foo"`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+		},
+		"if_none_match_malformed": {
+			file:      "testdata/style.css",
+			serveETag: `"foo"`,
+			reqHeader: map[string]string{
+				"If-None-Match": `,`,
 			},
 			wantStatus:      200,
 			wantContentType: "text/css; charset=utf-8",
@@ -1103,21 +1131,21 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 	defer ln.Close()
 
-	syscalls := "sendfile,sendfile64"
-	switch runtime.GOARCH {
-	case "mips64", "mips64le", "s390x":
-		// strace on the above platforms doesn't support sendfile64
-		// and will error out if we specify that with `-e trace='.
-		syscalls = "sendfile"
-	}
-
 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
-	if err := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=^$").Run(); err != nil {
+	if err := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
 		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
+	filename := fmt.Sprintf("1kb-%d", os.Getpid())
+	filepath := path.Join(os.TempDir(), filename)
+
+	if err := ioutil.WriteFile(filepath, bytes.Repeat([]byte{'a'}, 1<<10), 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath)
+
 	var buf bytes.Buffer
-	child := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
@@ -1126,7 +1154,7 @@ func TestLinuxSendfile(t *testing.T) {
 		t.Skipf("skipping; failed to start straced child: %v", err)
 	}
 
-	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
+	res, err := Get(fmt.Sprintf("http://%s/%s", ln.Addr(), filename))
 	if err != nil {
 		t.Fatalf("http client error: %v", err)
 	}
@@ -1140,7 +1168,7 @@ func TestLinuxSendfile(t *testing.T) {
 	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
-	rx := regexp.MustCompile(`sendfile(64)?\(`)
+	rx := regexp.MustCompile(`\b(n64:)?sendfile(64)?\(`)
 	out := buf.String()
 	if !rx.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)
@@ -1172,7 +1200,7 @@ func TestLinuxSendfileChild(*testing.T) {
 		panic(err)
 	}
 	mux := NewServeMux()
-	mux.Handle("/", FileServer(Dir("testdata")))
+	mux.Handle("/", FileServer(Dir(os.TempDir())))
 	mux.HandleFunc("/quit", func(ResponseWriter, *Request) {
 		os.Exit(0)
 	})
@@ -1286,5 +1314,63 @@ func Test_scanETag(t *testing.T) {
 		if etag != test.wantETag || remain != test.wantRemain {
 			t.Errorf("scanETag(%q)=%q %q, want %q %q", test.in, etag, remain, test.wantETag, test.wantRemain)
 		}
+	}
+}
+
+// Issue 40940: Ensure that we only accept non-negative suffix-lengths
+// in "Range": "bytes=-N", and should reject "bytes=--2".
+func TestServeFileRejectsInvalidSuffixLengths_h1(t *testing.T) {
+	testServeFileRejectsInvalidSuffixLengths(t, h1Mode)
+}
+func TestServeFileRejectsInvalidSuffixLengths_h2(t *testing.T) {
+	testServeFileRejectsInvalidSuffixLengths(t, h2Mode)
+}
+
+func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := httptest.NewUnstartedServer(FileServer(Dir("testdata")))
+	cst.EnableHTTP2 = h2
+	cst.StartTLS()
+	defer cst.Close()
+
+	tests := []struct {
+		r        string
+		wantCode int
+		wantBody string
+	}{
+		{"bytes=--6", 416, "invalid range\n"},
+		{"bytes=--0", 416, "invalid range\n"},
+		{"bytes=---0", 416, "invalid range\n"},
+		{"bytes=-6", 206, "hello\n"},
+		{"bytes=6-", 206, "html says hello\n"},
+		{"bytes=-6-", 416, "invalid range\n"},
+		{"bytes=-0", 206, ""},
+		{"bytes=", 200, "index.html says hello\n"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.r, func(t *testing.T) {
+			req, err := NewRequest("GET", cst.URL+"/index.html", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Range", tt.r)
+			res, err := cst.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if g, w := res.StatusCode, tt.wantCode; g != w {
+				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
+			}
+			slurp, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if g, w := string(slurp), tt.wantBody; g != w {
+				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
+			}
+		})
 	}
 }

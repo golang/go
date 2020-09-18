@@ -19,7 +19,7 @@ func g(*byte) string
 
 func h(e int) {
 	var x [32]byte // ERROR "moved to heap: x$"
-	g(&f(x[:])[0]) // ERROR "&f\(x\[:\]\)\[0\] escapes to heap$" "x escapes to heap$"
+	g(&f(x[:])[0])
 }
 
 type Node struct {
@@ -33,10 +33,10 @@ func walk(np **Node) int { // ERROR "leaking param content: np"
 	if n == nil {
 		return 0
 	}
-	wl := walk(&n.left)  // ERROR "walk &n.left does not escape"
-	wr := walk(&n.right) // ERROR "walk &n.right does not escape"
+	wl := walk(&n.left)
+	wr := walk(&n.right)
 	if wl < wr {
-		n.left, n.right = n.right, n.left
+		n.left, n.right = n.right, n.left // ERROR "ignoring self-assignment"
 		wl, wr = wr, wl
 	}
 	*np = n
@@ -44,11 +44,11 @@ func walk(np **Node) int { // ERROR "leaking param content: np"
 }
 
 // Test for bug where func var f used prototype's escape analysis results.
-func prototype(xyz []string) {} // ERROR "prototype xyz does not escape"
+func prototype(xyz []string) {} // ERROR "xyz does not escape"
 func bar() {
 	var got [][]string
 	f := prototype
 	f = func(ss []string) { got = append(got, ss) } // ERROR "leaking param: ss" "func literal does not escape"
 	s := "string"
-	f([]string{s}) // ERROR "\[\]string literal escapes to heap"
+	f([]string{s}) // ERROR "\[\]string{...} escapes to heap"
 }

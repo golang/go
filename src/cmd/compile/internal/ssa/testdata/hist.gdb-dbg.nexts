@@ -9,7 +9,7 @@ l.end.y = 4
 61:		sink = dx + dy            //gdb-opt=(dx,dy)
 63:		hist := make([]int, 7)                                //gdb-opt=(dx/O,dy/O) // TODO sink is missing if this code is in 'test' instead of 'main'
 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A) // TODO cannedInput/A is missing if this code is in 'test' instead of 'main'
-hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+hist = {array = <A>, len = 7, cap = 7}
 65:		if len(os.Args) > 1 {
 73:		scanner := bufio.NewScanner(reader)
 74:		for scanner.Scan() { //gdb-opt=(scanner/A)

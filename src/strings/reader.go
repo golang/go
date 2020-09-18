@@ -13,6 +13,7 @@ import (
 // A Reader implements the io.Reader, io.ReaderAt, io.Seeker, io.WriterTo,
 // io.ByteScanner, and io.RuneScanner interfaces by reading
 // from a string.
+// The zero value for Reader operates like a Reader of an empty string.
 type Reader struct {
 	s        string
 	i        int64 // current reading index
@@ -70,10 +71,10 @@ func (r *Reader) ReadByte() (byte, error) {
 }
 
 func (r *Reader) UnreadByte() error {
-	r.prevRune = -1
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadByte: at beginning of string")
 	}
+	r.prevRune = -1
 	r.i--
 	return nil
 }
@@ -94,6 +95,9 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 }
 
 func (r *Reader) UnreadRune() error {
+	if r.i <= 0 {
+		return errors.New("strings.Reader.UnreadRune: at beginning of string")
+	}
 	if r.prevRune < 0 {
 		return errors.New("strings.Reader.UnreadRune: previous operation was not ReadRune")
 	}

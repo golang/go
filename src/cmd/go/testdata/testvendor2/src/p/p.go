@@ -1,3 +1,0 @@
-package p
-
-import "x"

@@ -49,6 +49,9 @@ func main() {
 		if target == "linux" {
 			fmt.Fprintf(&buf, "// +build !android\n") // must explicitly exclude android for linux
 		}
+		if target == "solaris" {
+			fmt.Fprintf(&buf, "// +build !illumos\n") // must explicitly exclude illumos for solaris
+		}
 		fmt.Fprintf(&buf, "// +build %s\n\n", target) // must explicitly include target for bootstrapping purposes
 		fmt.Fprintf(&buf, "package sys\n\n")
 		fmt.Fprintf(&buf, "const GOOS = `%s`\n\n", target)

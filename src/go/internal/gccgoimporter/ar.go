@@ -9,6 +9,7 @@ import (
 	"debug/elf"
 	"errors"
 	"fmt"
+	"internal/xcoff"
 	"io"
 	"strconv"
 	"strings"
@@ -65,13 +66,13 @@ func arExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
 	case armagt:
 		return nil, errors.New("unsupported thin archive")
 	case armagb:
-		return nil, errors.New("unsupported AIX big archive")
+		return aixBigArExportData(archive)
 	default:
 		return nil, fmt.Errorf("unrecognized archive file format %q", buf[:])
 	}
 }
 
-// standardArExportData returns export data form a standard archive.
+// standardArExportData returns export data from a standard archive.
 func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
 	off := int64(len(armag))
 	for {
@@ -124,6 +125,28 @@ func elfFromAr(member *io.SectionReader) (io.ReadSeeker, error) {
 		return nil, nil
 	}
 	return sec.Open(), nil
+}
+
+// aixBigArExportData returns export data from an AIX big archive.
+func aixBigArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
+	archiveAt := readerAtFromSeeker(archive)
+	arch, err := xcoff.NewArchive(archiveAt)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, mem := range arch.Members {
+		f, err := arch.GetFile(mem.Name)
+		if err != nil {
+			return nil, err
+		}
+		sdat := f.CSect(".go_export")
+		if sdat != nil {
+			return bytes.NewReader(sdat), nil
+		}
+	}
+
+	return nil, fmt.Errorf(".go_export not found in this archive")
 }
 
 // readerAtFromSeeker turns an io.ReadSeeker into an io.ReaderAt.

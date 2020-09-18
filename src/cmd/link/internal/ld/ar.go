@@ -1,5 +1,5 @@
 // Inferno utils/include/ar.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/include/ar.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/include/ar.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -104,15 +104,13 @@ func hostArchive(ctxt *Link, name string) {
 	any := true
 	for any {
 		var load []uint64
-		for _, s := range ctxt.Syms.Allsym {
-			for i := range s.R {
-				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
-				if r.Sym != nil && r.Sym.Type == sym.SXREF {
-					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
-						load = append(load, off)
-						loaded[off] = true
-					}
-				}
+		returnAllUndefs := -1
+		undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+		for _, symIdx := range undefs {
+			name := ctxt.loader.SymName(symIdx)
+			if off := armap[name]; off != 0 && !loaded[off] {
+				load = append(load, off)
+				loaded[off] = true
 			}
 		}
 
@@ -126,7 +124,7 @@ func hostArchive(ctxt *Link, name string) {
 
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
-			f.Seek(h.off, 0)
+			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
 

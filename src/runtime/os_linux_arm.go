@@ -4,20 +4,12 @@
 
 package runtime
 
-import (
-	"internal/cpu"
-	"unsafe"
-)
+import "internal/cpu"
 
 const (
-	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
-
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
 )
-
-var randomNumber uint32
-var armArch uint8 = 6 // we default to ARMv6
 
 func checkgoarm() {
 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
@@ -40,19 +32,6 @@ func checkgoarm() {
 
 func archauxv(tag, val uintptr) {
 	switch tag {
-	case _AT_RANDOM:
-		// sysargs filled in startupRandomData, but that
-		// pointer may not be word aligned, so we must treat
-		// it as a byte array.
-		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
-			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
-
-	case _AT_PLATFORM: // v5l, v6l, v7l
-		t := *(*uint8)(unsafe.Pointer(val + 1))
-		if '5' <= t && t <= '7' {
-			armArch = t - '0'
-		}
-
 	case _AT_HWCAP:
 		cpu.HWCap = uint(val)
 	case _AT_HWCAP2:
@@ -60,10 +39,11 @@ func archauxv(tag, val uintptr) {
 	}
 }
 
+func osArchInit() {}
+
 //go:nosplit
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// randomNumber provides better seeding of fastrand.
-	return nanotime() + int64(randomNumber)
+	return nanotime()
 }

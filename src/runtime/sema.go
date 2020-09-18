@@ -53,22 +53,22 @@ var semtable [semTabSize]struct {
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile, 0)
 }
 
 //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
 func poll_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile, 0)
 }
 
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
-func sync_runtime_Semrelease(addr *uint32, handoff bool) {
-	semrelease1(addr, handoff)
+func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+	semrelease1(addr, handoff, skipframes)
 }
 
 //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
-func sync_runtime_SemacquireMutex(addr *uint32, lifo bool) {
-	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile)
+func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes)
 }
 
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
@@ -92,10 +92,10 @@ const (
 
 // Called from runtime.
 func semacquire(addr *uint32) {
-	semacquire1(addr, false, 0)
+	semacquire1(addr, false, 0, 0)
 }
 
-func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
+func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int) {
 	gp := getg()
 	if gp != gp.m.curg {
 		throw("semacquire not on the G stack")
@@ -129,7 +129,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 		s.acquiretime = t0
 	}
 	for {
-		lock(&root.lock)
+		lockWithRank(&root.lock, lockRankRoot)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
 		atomic.Xadd(&root.nwait, 1)
 		// Check cansemacquire to avoid missed wakeup.
@@ -141,22 +141,22 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
+		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
 	}
 	if s.releasetime > 0 {
-		blockevent(s.releasetime-t0, 3)
+		blockevent(s.releasetime-t0, 3+skipframes)
 	}
 	releaseSudog(s)
 }
 
 func semrelease(addr *uint32) {
-	semrelease1(addr, false)
+	semrelease1(addr, false, 0)
 }
 
-func semrelease1(addr *uint32, handoff bool) {
+func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	root := semroot(addr)
 	atomic.Xadd(addr, 1)
 
@@ -168,7 +168,7 @@ func semrelease1(addr *uint32, handoff bool) {
 	}
 
 	// Harder case: search for a waiter and wake it.
-	lock(&root.lock)
+	lockWithRank(&root.lock, lockRankRoot)
 	if atomic.Load(&root.nwait) == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
@@ -180,10 +180,10 @@ func semrelease1(addr *uint32, handoff bool) {
 		atomic.Xadd(&root.nwait, -1)
 	}
 	unlock(&root.lock)
-	if s != nil { // May be slow, so unlock first
+	if s != nil { // May be slow or even yield, so unlock first
 		acquiretime := s.acquiretime
 		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3)
+			mutexevent(t0-acquiretime, 3+skipframes)
 		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
@@ -191,7 +191,26 @@ func semrelease1(addr *uint32, handoff bool) {
 		if handoff && cansemacquire(addr) {
 			s.ticket = 1
 		}
-		readyWithTime(s, 5)
+		readyWithTime(s, 5+skipframes)
+		if s.ticket == 1 && getg().m.locks == 0 {
+			// Direct G handoff
+			// readyWithTime has added the waiter G as runnext in the
+			// current P; we now call the scheduler so that we start running
+			// the waiter G immediately.
+			// Note that waiter inherits our time slice: this is desirable
+			// to avoid having a highly contended semaphore hog the P
+			// indefinitely. goyield is like Gosched, but it emits a
+			// "preempted" trace event instead and, more importantly, puts
+			// the current G on the local runq instead of the global one.
+			// We only do this in the starving regime (handoff=true), as in
+			// the non-starving case it is possible for a different waiter
+			// to acquire the semaphore while we are yielding/scheduling,
+			// and this would be wasteful. We wait instead to enter starving
+			// regime, and then we start to do direct handoffs of ticket and
+			// P.
+			// See issue 33747 for discussion.
+			goyield()
+		}
 	}
 }
 
@@ -373,19 +392,11 @@ Found:
 func (root *semaRoot) rotateLeft(x *sudog) {
 	// p -> (x a (y b c))
 	p := x.parent
-	a, y := x.prev, x.next
-	b, c := y.prev, y.next
+	y := x.next
+	b := y.prev
 
 	y.prev = x
 	x.parent = y
-	y.next = c
-	if c != nil {
-		c.parent = y
-	}
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = b
 	if b != nil {
 		b.parent = x
@@ -409,22 +420,14 @@ func (root *semaRoot) rotateLeft(x *sudog) {
 func (root *semaRoot) rotateRight(y *sudog) {
 	// p -> (y (x a b) c)
 	p := y.parent
-	x, c := y.prev, y.next
-	a, b := x.prev, x.next
+	x := y.prev
+	b := x.next
 
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = y
 	y.parent = x
 	y.prev = b
 	if b != nil {
 		b.parent = y
-	}
-	y.next = c
-	if c != nil {
-		c.parent = y
 	}
 
 	x.parent = p
@@ -483,7 +486,7 @@ func notifyListAdd(l *notifyList) uint32 {
 // notifyListAdd was called, it returns immediately. Otherwise, it blocks.
 //go:linkname notifyListWait sync.runtime_notifyListWait
 func notifyListWait(l *notifyList, t uint32) {
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 
 	// Return right away if this ticket has already been notified.
 	if less(t, l.notify) {
@@ -525,7 +528,7 @@ func notifyListNotifyAll(l *notifyList) {
 
 	// Pull the list out into a local variable, waiters will be readied
 	// outside the lock.
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 	s := l.head
 	l.head = nil
 	l.tail = nil
@@ -555,7 +558,7 @@ func notifyListNotifyOne(l *notifyList) {
 		return
 	}
 
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 
 	// Re-check under the lock if we need to do anything.
 	t := l.notify

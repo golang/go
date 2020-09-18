@@ -257,6 +257,16 @@ func TestTypesInfo(t *testing.T) {
 			`(string, bool)`,
 		},
 
+		// issue 28277
+		{`package issue28277_a; func f(...int)`,
+			`...int`,
+			`[]int`,
+		},
+		{`package issue28277_b; func f(a, b int, c ...[]struct{})`,
+			`...[]struct{}`,
+			`[][]struct{}`,
+		},
+
 		// tests for broken code that doesn't parse or type-check
 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
@@ -389,6 +399,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package t0; type _ int`, `int`, `type`},
 		{`package t1; type _ []int`, `[]int`, `type`},
 		{`package t2; type _ func()`, `func()`, `type`},
+		{`package t3; type _ func(int)`, `int`, `type`},
+		{`package t3; type _ func(...int)`, `...int`, `type`},
 
 		// built-ins
 		{`package b0; var _ = len("")`, `len`, `builtin`},
@@ -1216,6 +1228,50 @@ func F(){
 			t.Errorf("%s: got %v, want %v",
 				fset.Position(id.Pos()), gotObj, wantObj)
 			continue
+		}
+	}
+}
+
+func TestConvertibleTo(t *testing.T) {
+	for _, test := range []struct {
+		v, t Type
+		want bool
+	}{
+		{Typ[Int], Typ[Int], true},
+		{Typ[Int], Typ[Float32], true},
+		{newDefined(Typ[Int]), Typ[Int], true},
+		{newDefined(new(Struct)), new(Struct), true},
+		{newDefined(Typ[Int]), new(Struct), false},
+		{Typ[UntypedInt], Typ[Int], true},
+		// Untyped string values are not permitted by the spec, so the below
+		// behavior is undefined.
+		{Typ[UntypedString], Typ[String], true},
+	} {
+		if got := ConvertibleTo(test.v, test.t); got != test.want {
+			t.Errorf("ConvertibleTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
+		}
+	}
+}
+
+func TestAssignableTo(t *testing.T) {
+	for _, test := range []struct {
+		v, t Type
+		want bool
+	}{
+		{Typ[Int], Typ[Int], true},
+		{Typ[Int], Typ[Float32], false},
+		{newDefined(Typ[Int]), Typ[Int], false},
+		{newDefined(new(Struct)), new(Struct), true},
+		{Typ[UntypedBool], Typ[Bool], true},
+		{Typ[UntypedString], Typ[Bool], false},
+		// Neither untyped string nor untyped numeric assignments arise during
+		// normal type checking, so the below behavior is technically undefined by
+		// the spec.
+		{Typ[UntypedString], Typ[String], true},
+		{Typ[UntypedInt], Typ[Int], true},
+	} {
+		if got := AssignableTo(test.v, test.t); got != test.want {
+			t.Errorf("AssignableTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
 		}
 	}
 }

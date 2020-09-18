@@ -302,7 +302,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// Check that LEAL is permitted to use overflowing offset.
 	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
 	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
-	// Make sure MOV CR/DR continues to work after changing it's movtabs.
+	// Make sure MOV CR/DR continues to work after changing its movtabs.
 	MOVQ CR0, AX // 0f20c0
 	MOVQ CR0, DX // 0f20c2
 	MOVQ CR4, DI // 0f20e7
@@ -1049,5 +1049,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VADDPD Z2, Z9, Z21 // 62e1b54858ea
 	VADDPD Z21, Z2, Z9 // 6231ed4858cd
 	VADDPD Z9, Z21, Z2 // 62d1d54058d1
+
+	CLWB (BX) // 660fae33
+	CLDEMOTE (BX) // 0f1c03
+	TPAUSE BX // 660faef3
+	UMONITOR BX // f30faef3
+	UMWAIT BX // f20faef3
 	// End of tests.
 	RET

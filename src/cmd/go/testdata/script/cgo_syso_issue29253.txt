@@ -1,0 +1,31 @@
+env GO111MODULE=off
+[short] skip
+
+# This test tests that we can link in-package syso files that provides symbols
+# for cgo. See issue 29253.
+[!cgo] stop
+[!gc] stop
+cc -c -o pkg/o.syso ext.c
+go build main.go
+
+-- ext.c --
+// +build ignore
+
+int f() { return 42; }
+-- pkg/pkg.go --
+package pkg
+
+// extern int f(void);
+import "C"
+
+func init() {
+	if v := C.f(); v != 42 {
+		panic(v)
+	}
+}
+-- main.go --
+package main
+
+import _ "pkg"
+
+func main() {}

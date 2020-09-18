@@ -6,6 +6,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -27,8 +28,10 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
 	"cmd/internal/test2json"
 )
@@ -72,10 +75,10 @@ As part of building a test binary, go test runs go vet on the package
 and its test source files to identify significant problems. If go vet
 finds any problems, go test reports those and does not run the test
 binary. Only a high-confidence subset of the default go vet checks are
-used. That subset is: 'atomic', 'bool', 'buildtags', 'nilfunc', and
-'printf'. You can see the documentation for these and other vet tests
-via "go doc cmd/vet". To disable the running of go vet, use the
--vet=off flag.
+used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
+'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
+the documentation for these and other vet tests via "go doc cmd/vet".
+To disable the running of go vet, use the -vet=off flag.
 
 All test output and summary lines are printed to the go command's
 standard output, even if the test printed them to its own standard
@@ -101,7 +104,10 @@ package test passes, go test prints only the final 'ok' summary
 line. If a package test fails, go test prints the full test output.
 If invoked with the -bench or -v flag, go test prints the full
 output even for passing package tests, in order to display the
-requested benchmark results or verbose logging.
+requested benchmark results or verbose logging. After the package
+tests for all of the listed packages finish, and their output is
+printed, go test prints a final 'FAIL' status if any package test
+has failed.
 
 In package list mode only, go test caches successful package test
 results to avoid unnecessary repeated running of tests. When the
@@ -124,16 +130,6 @@ A cached test result is treated as executing in no time at all,
 so a successful package test result will be cached and reused
 regardless of -timeout setting.
 
-` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
-
-For more about build flags, see 'go help build'.
-For more about specifying packages, see 'go help packages'.
-
-See also: go build, go vet.
-`,
-}
-
-const testFlag1 = `
 In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-args
@@ -164,15 +160,13 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    The test still runs (unless -c or -i is specified).
 
 The test binary also accepts flags that control execution of the test; these
-flags are also accessible by 'go test'.
-`
+flags are also accessible by 'go test'. See 'go help testflag' for details.
 
-// Usage prints the usage message for 'go test -h' and exits.
-func Usage() {
-	os.Stderr.WriteString("usage: " + testUsage + "\n\n" +
-		strings.TrimSpace(testFlag1) + "\n\n\t" +
-		strings.TrimSpace(testFlag2) + "\n")
-	os.Exit(2)
+For more about build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
+
+See also: go build, go vet.
+`,
 }
 
 var HelpTestflag = &base.Command{
@@ -190,11 +184,6 @@ options of pprof control how the information is presented.
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
 
-	` + strings.TrimSpace(testFlag2) + `
-`,
-}
-
-const testFlag2 = `
 	-bench regexp
 	    Run only those benchmarks matching a regular expression.
 	    By default, no benchmarks are run.
@@ -212,6 +201,8 @@ const testFlag2 = `
 	    Run enough iterations of each benchmark to take t, specified
 	    as a time.Duration (for example, -benchtime 1h30s).
 	    The default is 1 second (1s).
+	    The special syntax Nx means to run the benchmark N times
+	    (for example, -benchtime 100x).
 
 	-count n
 	    Run each test and benchmark n times (default 1).
@@ -412,7 +403,8 @@ In the first example, the -x and the second -v are passed through to the
 test binary unchanged and with no effect on the go command itself.
 In the second example, the argument math is passed through to the test
 binary, instead of being interpreted as the package list.
-`
+`,
+}
 
 var HelpTestfunc = &base.Command{
 	UsageLine: "testfunc",
@@ -476,33 +468,78 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC            bool            // -c flag
-	testCover        bool            // -cover flag
-	testCoverMode    string          // -covermode flag
-	testCoverPaths   []string        // -coverpkg flag
-	testCoverPkgs    []*load.Package // -coverpkg flag
-	testCoverProfile string          // -coverprofile flag
-	testOutputDir    string          // -outputdir flag
-	testO            string          // -o flag
-	testProfile      string          // profiling flag that limits test to one package
-	testNeedBinary   bool            // profile needs to keep binary around
-	testJSON         bool            // -json flag
-	testV            bool            // -v flag
-	testTimeout      string          // -timeout flag
-	testArgs         []string
-	testBench        bool
-	testList         bool
-	testShowPass     bool   // show passing output
-	testVetList      string // -vet flag
-	pkgArgs          []string
-	pkgs             []*load.Package
-
-	testKillTimeout = 10 * time.Minute
-	testCacheExpire time.Time // ignore cached test results before this time
+	testBench        string                            // -bench flag
+	testC            bool                              // -c flag
+	testCover        bool                              // -cover flag
+	testCoverMode    string                            // -covermode flag
+	testCoverPaths   []string                          // -coverpkg flag
+	testCoverPkgs    []*load.Package                   // -coverpkg flag
+	testCoverProfile string                            // -coverprofile flag
+	testJSON         bool                              // -json flag
+	testList         string                            // -list flag
+	testO            string                            // -o flag
+	testOutputDir    = base.Cwd                        // -outputdir flag
+	testTimeout      time.Duration                     // -timeout flag
+	testV            bool                              // -v flag
+	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
 )
 
-// testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
-var testVetFlags = []string{
+var (
+	testArgs []string
+	pkgArgs  []string
+	pkgs     []*load.Package
+
+	testHelp bool // -help option passed to test via -args
+
+	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
+	testCacheExpire time.Time                    // ignore cached test results before this time
+
+	testBlockProfile, testCPUProfile, testMemProfile, testMutexProfile, testTrace string // profiling flag that limits test to one package
+)
+
+// testProfile returns the name of an arbitrary single-package profiling flag
+// that is set, if any.
+func testProfile() string {
+	switch {
+	case testBlockProfile != "":
+		return "-blockprofile"
+	case testCPUProfile != "":
+		return "-cpuprofile"
+	case testMemProfile != "":
+		return "-memprofile"
+	case testMutexProfile != "":
+		return "-mutexprofile"
+	case testTrace != "":
+		return "-trace"
+	default:
+		return ""
+	}
+}
+
+// testNeedBinary reports whether the test needs to keep the binary around.
+func testNeedBinary() bool {
+	switch {
+	case testBlockProfile != "":
+		return true
+	case testCPUProfile != "":
+		return true
+	case testMemProfile != "":
+		return true
+	case testMutexProfile != "":
+		return true
+	case testO != "":
+		return true
+	default:
+		return false
+	}
+}
+
+// testShowPass reports whether the output for a passing test should be shown.
+func testShowPass() bool {
+	return testV || (testList != "") || testHelp
+}
+
+var defaultVetFlags = []string{
 	// TODO(rsc): Decide which tests are enabled by default.
 	// See golang.org/issue/18085.
 	// "-asmdecl",
@@ -513,13 +550,16 @@ var testVetFlags = []string{
 	// "-cgocall",
 	// "-composites",
 	// "-copylocks",
+	"-errorsas",
 	// "-httpresponse",
+	"-ifaceassert",
 	// "-lostcancel",
 	// "-methods",
 	"-nilfunc",
 	"-printf",
 	// "-rangeloops",
 	// "-shift",
+	"-stringintconv",
 	// "-structtags",
 	// "-tests",
 	// "-unreachable",
@@ -527,17 +567,35 @@ var testVetFlags = []string{
 	// "-unusedresult",
 }
 
-func runTest(cmd *base.Command, args []string) {
+func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	pkgArgs, testArgs = testFlags(args)
 
+	if cfg.DebugTrace != "" {
+		var close func() error
+		var err error
+		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
+		if err != nil {
+			base.Fatalf("failed to start trace: %v", err)
+		}
+		defer func() {
+			if err := close(); err != nil {
+				base.Fatalf("failed to stop trace: %v", err)
+			}
+		}()
+	}
+
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	defer span.Done()
+
 	work.FindExecCmd() // initialize cached result
 
 	work.BuildInit()
-	work.VetFlags = testVetFlags
+	work.VetFlags = testVet.flags
+	work.VetExplicit = testVet.explicit
 
-	pkgs = load.PackagesForBuild(pkgArgs)
+	pkgs = load.PackagesForBuild(ctx, pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
@@ -548,28 +606,19 @@ func runTest(cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
-	if testProfile != "" && len(pkgs) != 1 {
-		base.Fatalf("cannot use %s flag with multiple packages", testProfile)
+	if testProfile() != "" && len(pkgs) != 1 {
+		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
 	initCoverProfile()
 	defer closeCoverProfile()
 
-	// If a test timeout was given and is parseable, set our kill timeout
+	// If a test timeout is finite, set our kill timeout
 	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
-		testKillTimeout = dt + 1*time.Minute
-	} else if err == nil && dt == 0 {
-		// An explicit zero disables the test timeout.
-		// Let it have one century (almost) before we kill it.
-		testKillTimeout = 100 * 365 * 24 * time.Hour
+	if testTimeout > 0 {
+		testKillTimeout = testTimeout + 1*time.Minute
 	}
-
-	// show passing test output (after buffering) with -v flag.
-	// must buffer because tests are running in parallel, and
-	// otherwise the output will get mixed.
-	testShowPass = testV || testList
 
 	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
 	if cfg.BuildI && testO != "" {
@@ -580,7 +629,7 @@ func runTest(cmd *base.Command, args []string) {
 	// (We implement go clean -testcache by writing an expiration date
 	// instead of searching out and deleting test result cache entries.)
 	if dir := cache.DefaultDir(); dir != "off" {
-		if data, _ := ioutil.ReadFile(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+		if data, _ := lockedfile.Read(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
 			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
 				testCacheExpire = time.Unix(0, t)
 			}
@@ -628,7 +677,7 @@ func runTest(cmd *base.Command, args []string) {
 		sort.Strings(all)
 
 		a := &work.Action{Mode: "go test -i"}
-		for _, p := range load.PackagesForBuild(all) {
+		for _, p := range load.PackagesForBuild(ctx, all) {
 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
 				// gccgo's standard library packages
 				// can not be reinstalled.
@@ -636,7 +685,7 @@ func runTest(cmd *base.Command, args []string) {
 			}
 			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
 		}
-		b.Do(a)
+		b.Do(ctx, a)
 		if !testC || a.Failed {
 			return
 		}
@@ -653,7 +702,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 
 		// Select for coverage all dependencies matching the testCoverPaths patterns.
-		for _, p := range load.TestPackageList(pkgs) {
+		for _, p := range load.TestPackageList(ctx, pkgs) {
 			haveMatch := false
 			for i := range testCoverPaths {
 				if match[i](p) {
@@ -715,7 +764,7 @@ func runTest(cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, p)
+		buildTest, runTest, printTest, err := builderTest(&b, ctx, p)
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -733,7 +782,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &work.Action{Mode: "go test", Deps: prints}
+	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
@@ -744,7 +793,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Force benchmarks to run in serial.
-	if !testC && testBench {
+	if !testC && (testBench != "") {
 		// The first run must wait for all builds.
 		// Later runs must wait for the previous run's print.
 		for i, run := range runs {
@@ -756,7 +805,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 	}
 
-	b.Do(root)
+	b.Do(ctx, root)
 }
 
 // ensures that package p imports the named package
@@ -767,7 +816,7 @@ func ensureImport(p *load.Package, pkg string) {
 		}
 	}
 
-	p1 := load.LoadPackage(pkg, &load.ImportStack{})
+	p1 := load.LoadImportWithFlags(pkg, p.Dir, p, &load.ImportStack{}, nil, 0)
 	if p1.Error != nil {
 		base.Fatalf("load %s: %v", pkg, p1.Error)
 	}
@@ -782,7 +831,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
@@ -805,7 +854,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			DeclVars: declareCoverVars,
 		}
 	}
-	pmain, ptest, pxtest, err := load.TestPackagesFor(p, cover)
+	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, p, cover)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -818,7 +867,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if p.ImportPath == "command-line-arguments" {
 		elem = p.Name
 	} else {
-		_, elem = path.Split(p.ImportPath)
+		elem = p.DefaultExecName()
 	}
 	testBinary := elem + ".test"
 
@@ -828,7 +877,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 
 	pmain.Dir = testDir
-	pmain.Internal.OmitDebug = !testC && !testNeedBinary
+	pmain.Internal.OmitDebug = !testC && !testNeedBinary()
 
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
@@ -876,7 +925,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 	buildAction = a
 	var installAction, cleanAction *work.Action
-	if testC || testNeedBinary {
+	if testC || testNeedBinary() {
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
 		if testO != "" {
@@ -885,15 +934,19 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				target = filepath.Join(base.Cwd, target)
 			}
 		}
-		pmain.Target = target
-		installAction = &work.Action{
-			Mode:    "test build",
-			Func:    work.BuildInstallFunc,
-			Deps:    []*work.Action{buildAction},
-			Package: pmain,
-			Target:  target,
+		if target == os.DevNull {
+			runAction = buildAction
+		} else {
+			pmain.Target = target
+			installAction = &work.Action{
+				Mode:    "test build",
+				Func:    work.BuildInstallFunc,
+				Deps:    []*work.Action{buildAction},
+				Package: pmain,
+				Target:  target,
+			}
+			runAction = installAction // make sure runAction != nil even if not running test
 		}
-		runAction = installAction // make sure runAction != nil even if not running test
 	}
 	var vetRunAction *work.Action
 	if testC {
@@ -949,7 +1002,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 }
 
 func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
-	if testVetList == "off" {
+	if testVet.off {
 		return
 	}
 
@@ -1034,7 +1087,7 @@ func (lockedStdout) Write(b []byte) (int, error) {
 }
 
 // builderRunTest is the action for running a test binary.
-func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	if a.Failed {
 		// We were unable to build the binary.
 		a.Failed = false
@@ -1045,14 +1098,18 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	var stdout io.Writer = os.Stdout
+	var err error
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
-		defer json.Close()
+		defer func() {
+			json.Exited(err)
+			json.Close()
+		}()
 		stdout = json
 	}
 
 	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || testBench {
+	if len(pkgArgs) == 0 || (testBench != "") {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
 		// or when benchmarking.
@@ -1072,7 +1129,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		// possible even when multiple tests are being run: the JSON output
 		// events are attributed to specific package tests, so interlacing them
 		// is OK.
-		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
+		if testShowPass() && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
 			// Write both to stdout and buf, for possible saving
 			// to cache, and for looking for the "no tests to run" message.
 			stdout = io.MultiWriter(stdout, &buf)
@@ -1107,7 +1164,8 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	if !c.disableCache && len(execCmd) == 0 {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, testArgs)
+	panicArg := "-test.paniconexit0"
+	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1127,7 +1185,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
-	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
+	cmd.Env = base.AppendPWD(cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)], cmd.Dir)
 	cmd.Stdout = stdout
 	cmd.Stderr = stdout
 
@@ -1151,7 +1209,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	t0 := time.Now()
-	err := cmd.Start()
+	err = cmd.Start()
 
 	// This is a last-ditch deadline to detect and
 	// stop wedged test binaries, to keep the builders
@@ -1194,7 +1252,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	if err == nil {
 		norun := ""
-		if !testShowPass && !testJSON {
+		if !testShowPass() && !testJSON {
 			buf.Reset()
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
@@ -1209,6 +1267,14 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		if len(out) == 0 {
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
 		}
+		// NOTE(golang.org/issue/37555): test2json reports that a test passes
+		// unless "FAIL" is printed at the beginning of a line. The test may not
+		// actually print that if it panics, exits, or terminates abnormally,
+		// so we print it here. We can't always check whether it was printed
+		// because some tests need stdout to be a terminal (golang.org/issue/34791),
+		// not a pipe.
+		// TODO(golang.org/issue/29062): tests that exit with status 0 without
+		// printing a final result should fail.
 		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 	}
 
@@ -1236,6 +1302,15 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		return false
 	}
 
+	if a.Package.Root == "" {
+		// Caching does not apply to tests outside of any module, GOPATH, or GOROOT.
+		if cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: caching disabled for package outside of module root, GOPATH, or GOROOT: %s\n", a.Package.ImportPath)
+		}
+		c.disableCache = true
+		return false
+	}
+
 	var cacheArgs []string
 	for _, arg := range testArgs {
 		i := strings.Index(arg, "=")
@@ -1252,15 +1327,12 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			"-test.parallel",
 			"-test.run",
 			"-test.short",
+			"-test.timeout",
 			"-test.v":
 			// These are cacheable.
 			// Note that this list is documented above,
 			// so if you add to this list, update the docs too.
 			cacheArgs = append(cacheArgs, arg)
-
-		case "-test.timeout":
-			// Special case: this is cacheable but ignored during the hash.
-			// Do not add to cacheArgs.
 
 		default:
 			// nothing else is cacheable
@@ -1423,8 +1495,8 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if !inDir(name, a.Package.Root) {
-				// Do not recheck files outside the GOPATH or GOROOT root.
+			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
+				// Do not recheck files outside the module, GOPATH, or GOROOT root.
 				break
 			}
 			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
@@ -1432,8 +1504,8 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if !inDir(name, a.Package.Root) {
-				// Do not recheck files outside the GOPATH or GOROOT root.
+			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
+				// Do not recheck files outside the module, GOPATH, or GOROOT root.
 				break
 			}
 			fh, err := hashOpen(name)
@@ -1593,7 +1665,7 @@ func coveragePercentage(out []byte) string {
 }
 
 // builderCleanTest is the action for cleaning up after a test.
-func builderCleanTest(b *work.Builder, a *work.Action) error {
+func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	if cfg.BuildWork {
 		return nil
 	}
@@ -1605,7 +1677,7 @@ func builderCleanTest(b *work.Builder, a *work.Action) error {
 }
 
 // builderPrintTest is the action for printing a test result.
-func builderPrintTest(b *work.Builder, a *work.Action) error {
+func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	clean := a.Deps[0]
 	run := clean.Deps[0]
 	if run.TestOutput != nil {
@@ -1616,7 +1688,7 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
 }
 
 // builderNoTest is the action for testing a package with no test files.
-func builderNoTest(b *work.Builder, a *work.Action) error {
+func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	var stdout io.Writer = os.Stdout
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
@@ -1624,5 +1696,16 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
 		stdout = json
 	}
 	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
+	return nil
+}
+
+// printExitStatus is the action for printing the exit status
+func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
+	if !testJSON && len(pkgArgs) != 0 {
+		if base.GetExitStatus() != 0 {
+			fmt.Println("FAIL")
+			return nil
+		}
+	}
 	return nil
 }

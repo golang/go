@@ -6,4 +6,4 @@ package rand
 
 // maxGetRandomRead is the maximum number of bytes to ask for in one call to the
 // getrandom() syscall. In FreeBSD at most 256 bytes will be returned per call.
-const maxGetRandomRead = (1 << 8)
+const maxGetRandomRead = 1 << 8

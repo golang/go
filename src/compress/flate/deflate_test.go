@@ -161,7 +161,7 @@ func TestVeryLongSparseChunk(t *testing.T) {
 		t.Errorf("NewWriter: %v", err)
 		return
 	}
-	if _, err = io.Copy(w, &sparseReader{l: 23E8}); err != nil {
+	if _, err = io.Copy(w, &sparseReader{l: 23e8}); err != nil {
 		t.Errorf("Compress failed: %v", err)
 		return
 	}
@@ -345,6 +345,9 @@ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int)
 func TestDeflateInflate(t *testing.T) {
 	t.Parallel()
 	for i, h := range deflateInflateTests {
+		if testing.Short() && len(h.in) > 10000 {
+			continue
+		}
 		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
 	}
 }
@@ -371,9 +374,9 @@ var deflateInflateStringTests = []deflateInflateStringTest{
 		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683},
 	},
 	{
-		"../testdata/Mark.Twain-Tom.Sawyer.txt",
-		"Mark.Twain-Tom.Sawyer",
-		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295, 233460},
+		"../../testdata/Isaac.Newton-Opticks.txt",
+		"Isaac.Newton-Opticks",
+		[...]int{567248, 218338, 198211, 193152, 181100, 175427, 175427, 173597, 173422, 173422, 325240},
 	},
 }
 
@@ -509,33 +512,57 @@ func TestWriterReset(t *testing.T) {
 			t.Errorf("level %d Writer not reset after Reset", level)
 		}
 	}
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, NoCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, DefaultCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, BestCompression) })
-	dict := []byte("we are the world")
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, NoCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, DefaultCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, BestCompression, dict) })
+
+	levels := []int{0, 1, 2, 5, 9}
+	for _, level := range levels {
+		t.Run(fmt.Sprint(level), func(t *testing.T) {
+			testResetOutput(t, level, nil)
+		})
+	}
+
+	t.Run("dict", func(t *testing.T) {
+		for _, level := range levels {
+			t.Run(fmt.Sprint(level), func(t *testing.T) {
+				testResetOutput(t, level, nil)
+			})
+		}
+	})
 }
 
-func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error)) {
+func testResetOutput(t *testing.T, level int, dict []byte) {
+	writeData := func(w *Writer) {
+		msg := []byte("now is the time for all good gophers")
+		w.Write(msg)
+		w.Flush()
+
+		hello := []byte("hello world")
+		for i := 0; i < 1024; i++ {
+			w.Write(hello)
+		}
+
+		fill := bytes.Repeat([]byte("x"), 65000)
+		w.Write(fill)
+	}
+
 	buf := new(bytes.Buffer)
-	w, err := newWriter(buf)
+	var w *Writer
+	var err error
+	if dict == nil {
+		w, err = NewWriter(buf, level)
+	} else {
+		w, err = NewWriterDict(buf, level, dict)
+	}
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
 	}
-	b := []byte("hello world")
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+
+	writeData(w)
 	w.Close()
 	out1 := buf.Bytes()
 
 	buf2 := new(bytes.Buffer)
 	w.Reset(buf2)
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+	writeData(w)
 	w.Close()
 	out2 := buf2.Bytes()
 
@@ -591,6 +618,9 @@ func TestBestSpeed(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
+		if i >= 3 && testing.Short() {
+			break
+		}
 		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
 			tc[0] = firstN
 		outer:
@@ -654,7 +684,7 @@ func (w *failWriter) Write(b []byte) (int, error) {
 
 func TestWriterPersistentError(t *testing.T) {
 	t.Parallel()
-	d, err := ioutil.ReadFile("../testdata/Mark.Twain-Tom.Sawyer.txt")
+	d, err := ioutil.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

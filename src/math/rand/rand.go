@@ -261,15 +261,20 @@ func (r *Rand) Read(p []byte) (n int, err error) {
 	if lk, ok := r.src.(*lockedSource); ok {
 		return lk.read(p, &r.readVal, &r.readPos)
 	}
-	return read(p, r.Int63, &r.readVal, &r.readPos)
+	return read(p, r.src, &r.readVal, &r.readPos)
 }
 
-func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, err error) {
+func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error) {
 	pos := *readPos
 	val := *readVal
+	rng, _ := src.(*rngSource)
 	for n = 0; n < len(p); n++ {
 		if pos == 0 {
-			val = int63()
+			if rng != nil {
+				val = rng.Int63()
+			} else {
+				val = src.Int63()
+			}
 			pos = 7
 		}
 		p[n] = byte(val)
@@ -285,12 +290,15 @@ func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, e
  * Top-level convenience functions
  */
 
-var globalRand = New(&lockedSource{src: NewSource(1).(Source64)})
+var globalRand = New(&lockedSource{src: NewSource(1).(*rngSource)})
+
+// Type assert that globalRand's source is a lockedSource whose src is a *rngSource.
+var _ *rngSource = globalRand.src.(*lockedSource).src
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
 // if seeded by Seed(1). Seed values that have the same remainder when
-// divided by 2^31-1 generate the same pseudo-random sequence.
+// divided by 2³¹-1 generate the same pseudo-random sequence.
 // Seed, unlike the Rand.Seed method, is safe for concurrent use.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
@@ -373,7 +381,7 @@ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {
 	lk  sync.Mutex
-	src Source64
+	src *rngSource
 }
 
 func (r *lockedSource) Int63() (n int64) {
@@ -407,7 +415,7 @@ func (r *lockedSource) seedPos(seed int64, readPos *int8) {
 // read implements Read for a lockedSource without a race condition.
 func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
 	r.lk.Lock()
-	n, err = read(p, r.src.Int63, readVal, readPos)
+	n, err = read(p, r.src, readVal, readPos)
 	r.lk.Unlock()
 	return
 }

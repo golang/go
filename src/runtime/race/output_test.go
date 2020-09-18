@@ -24,7 +24,7 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(pkgdir)
-	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "-gcflags=all=-l", "testing").CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "testing").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go install -race: %v\n%s", err, out)
 	}
@@ -56,8 +56,8 @@ func TestOutput(t *testing.T) {
 		if err := f.Close(); err != nil {
 			t.Fatalf("failed to close file: %v", err)
 		}
-		// Pass -l to the compiler to test stack traces.
-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, "-gcflags=all=-l", src)
+
+		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
 		for _, env := range os.Environ() {
 			if strings.HasPrefix(env, "GODEBUG=") ||
@@ -217,6 +217,52 @@ func main() {
       .*/runtime/string\.go:.*
   main\.main\.func1\(\)
       .*/main.go:7`},
+
+	// Test for https://golang.org/issue/33309
+	{"midstack_inlining_traceback", "run", "linux", "atexit_sleep_ms=0", `
+package main
+
+var x int
+
+func main() {
+	c := make(chan int)
+	go f(c)
+	x = 1
+	<-c
+}
+
+func f(c chan int) {
+	g(c)
+}
+
+func g(c chan int) {
+	h(c)
+}
+
+func h(c chan int) {
+	c <- x
+}
+`, `==================
+WARNING: DATA RACE
+Read at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.h\(\)
+      .+/main\.go:22 \+0x[0-9,a-f]+
+  main\.g\(\)
+      .+/main\.go:18 \+0x[0-9,a-f]+
+  main\.f\(\)
+      .+/main\.go:14 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .+/main\.go:9 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .+/main\.go:8 \+0x[0-9,a-f]+
+==================
+Found 1 data race\(s\)
+exit status 66
+`},
 
 	// Test for https://golang.org/issue/17190
 	{"external_cgo_thread", "run", "linux", "atexit_sleep_ms=0", `

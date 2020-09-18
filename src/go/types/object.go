@@ -7,7 +7,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/constant"
 	"go/token"
 )
@@ -59,7 +58,7 @@ type Object interface {
 // Id returns name if it is exported, otherwise it
 // returns the name qualified with the package path.
 func Id(pkg *Package, name string) string {
-	if ast.IsExported(name) {
+	if token.IsExported(name) {
 		return name
 	}
 	// unexported names need the package path for differentiation
@@ -139,7 +138,7 @@ func (obj *object) Type() Type { return obj.typ }
 // Exported reports whether the object is exported (starts with a capital letter).
 // It doesn't take into account whether the object is in a local (function) scope
 // or not.
-func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
+func (obj *object) Exported() bool { return token.IsExported(obj.name) }
 
 // Id is a wrapper for Id(obj.Pkg(), obj.Name()).
 func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
@@ -294,6 +293,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
+	hasPtrRecv bool // only valid for methods that don't have a type yet
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -304,7 +304,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

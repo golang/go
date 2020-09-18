@@ -1,0 +1,58 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Decompose compound argument values
+// Do this early to simplify tracking names for debugging.
+
+(Arg {n} [off]) && v.Type.IsString() =>
+  (StringMake
+    (Arg <typ.BytePtr> {n} [off])
+    (Arg <typ.Int> {n} [off+int32(config.PtrSize)]))
+
+(Arg {n} [off]) && v.Type.IsSlice() =>
+  (SliceMake
+    (Arg <v.Type.Elem().PtrTo()> {n} [off])
+    (Arg <typ.Int> {n} [off+int32(config.PtrSize)])
+    (Arg <typ.Int> {n} [off+2*int32(config.PtrSize)]))
+
+(Arg {n} [off]) && v.Type.IsInterface() =>
+  (IMake
+    (Arg <typ.Uintptr> {n} [off])
+    (Arg <typ.BytePtr> {n} [off+int32(config.PtrSize)]))
+
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 =>
+  (ComplexMake
+    (Arg <typ.Float64> {n} [off])
+    (Arg <typ.Float64> {n} [off+8]))
+
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 =>
+  (ComplexMake
+    (Arg <typ.Float32> {n} [off])
+    (Arg <typ.Float32> {n} [off+4]))
+
+(Arg <t>) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
+  (StructMake0)
+(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
+  (StructMake1
+    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))]))
+(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
+  (StructMake2
+    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))]))
+(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
+  (StructMake3
+    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))])
+    (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))]))
+(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
+  (StructMake4
+    (Arg <t.FieldType(0)> {n} [off+int32(t.FieldOff(0))])
+    (Arg <t.FieldType(1)> {n} [off+int32(t.FieldOff(1))])
+    (Arg <t.FieldType(2)> {n} [off+int32(t.FieldOff(2))])
+    (Arg <t.FieldType(3)> {n} [off+int32(t.FieldOff(3))]))
+
+(Arg <t>) && t.IsArray() && t.NumElem() == 0 =>
+  (ArrayMake0)
+(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
+  (ArrayMake1 (Arg <t.Elem()> {n} [off]))

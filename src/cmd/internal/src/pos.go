@@ -7,8 +7,9 @@
 package src
 
 import (
+	"bytes"
 	"fmt"
-	"strconv"
+	"io"
 )
 
 // A Pos encodes a source position consisting of a (line, column) number pair
@@ -129,13 +130,22 @@ func (p Pos) String() string {
 // shown as well, as in "filename:line[origfile:origline:origcolumn] if
 // showOrig is set.
 func (p Pos) Format(showCol, showOrig bool) string {
+	buf := new(bytes.Buffer)
+	p.WriteTo(buf, showCol, showOrig)
+	return buf.String()
+}
+
+// WriteTo a position to w, formatted as Format does.
+func (p Pos) WriteTo(w io.Writer, showCol, showOrig bool) {
 	if !p.IsKnown() {
-		return "<unknown line number>"
+		io.WriteString(w, "<unknown line number>")
+		return
 	}
 
 	if b := p.base; b == b.Pos().base {
 		// base is file base (incl. nil)
-		return format(p.Filename(), p.Line(), p.Col(), showCol)
+		format(w, p.Filename(), p.Line(), p.Col(), showCol)
+		return
 	}
 
 	// base is relative
@@ -146,22 +156,32 @@ func (p Pos) Format(showCol, showOrig bool) string {
 	// that's provided via a line directive).
 	// TODO(gri) This may not be true if we have an inlining base.
 	// We may want to differentiate at some point.
-	s := format(p.RelFilename(), p.RelLine(), p.RelCol(), showCol)
+	format(w, p.RelFilename(), p.RelLine(), p.RelCol(), showCol)
 	if showOrig {
-		s += "[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
+		io.WriteString(w, "[")
+		format(w, p.Filename(), p.Line(), p.Col(), showCol)
+		io.WriteString(w, "]")
 	}
-	return s
 }
 
 // format formats a (filename, line, col) tuple as "filename:line" (showCol
 // is false or col == 0) or "filename:line:column" (showCol is true and col != 0).
-func format(filename string, line, col uint, showCol bool) string {
-	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+func format(w io.Writer, filename string, line, col uint, showCol bool) {
+	io.WriteString(w, filename)
+	io.WriteString(w, ":")
+	fmt.Fprint(w, line)
 	// col == 0 and col == colMax are interpreted as unknown column values
 	if showCol && 0 < col && col < colMax {
-		s += ":" + strconv.FormatUint(uint64(col), 10)
+		io.WriteString(w, ":")
+		fmt.Fprint(w, col)
 	}
-	return s
+}
+
+// formatstr wraps format to return a string.
+func formatstr(filename string, line, col uint, showCol bool) string {
+	buf := new(bytes.Buffer)
+	format(buf, filename, line, col, showCol)
+	return buf.String()
 }
 
 // ----------------------------------------------------------------------------
@@ -301,16 +321,19 @@ type lico uint32
 // The bitfield order is chosen to make IsStmt be the least significant
 // part of a position; its use is to communicate statement edges through
 // instruction scrambling in code generation, not to impose an order.
-// TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
+// TODO: Prologue and epilogue are perhaps better handled as pseudo-ops for the assembler,
 // because they have almost no interaction with other uses of the position.
 const (
-	lineBits, lineMax     = 20, 1<<lineBits - 1
+	lineBits, lineMax     = 20, 1<<lineBits - 2
+	bogusLine             = 1 // Used to disrupt infinite loops to prevent debugger looping
 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
 	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
 
 	isStmtShift = 0
+	isStmtMask  = isStmtMax << isStmtShift
 	xlogueShift = isStmtBits + isStmtShift
+	xlogueMask  = xlogueMax << xlogueShift
 	colShift    = xlogueBits + xlogueShift
 	lineShift   = colBits + colShift
 )
@@ -343,7 +366,7 @@ const (
 	// positions.
 	//
 	PosDefaultStmt uint = iota // Default; position is not a statement boundary, but might be if optimization removes the designated statement boundary
-	PosIsStmt                  // Position is a statement bounday; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
+	PosIsStmt                  // Position is a statement boundary; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
 	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
 )
 
@@ -355,6 +378,16 @@ const (
 	PosEpilogueBegin
 )
 
+func makeLicoRaw(line, col uint) lico {
+	return lico(line<<lineShift | col<<colShift)
+}
+
+// This is a not-position that will not be elided.
+// Depending on the debugger (gdb or delve) it may or may not be displayed.
+func makeBogusLico() lico {
+	return makeLicoRaw(bogusLine, 0).withIsStmt()
+}
+
 func makeLico(line, col uint) lico {
 	if line > lineMax {
 		// cannot represent line, use max. line so we have some information
@@ -365,11 +398,12 @@ func makeLico(line, col uint) lico {
 		col = colMax
 	}
 	// default is not-sure-if-statement
-	return lico(line<<lineShift | col<<colShift)
+	return makeLicoRaw(line, col)
 }
 
-func (x lico) Line() uint { return uint(x) >> lineShift }
-func (x lico) Col() uint  { return uint(x) >> colShift & colMax }
+func (x lico) Line() uint           { return uint(x) >> lineShift }
+func (x lico) SameLine(y lico) bool { return 0 == (x^y)&^lico(1<<lineShift-1) }
+func (x lico) Col() uint            { return uint(x) >> colShift & colMax }
 func (x lico) IsStmt() uint {
 	if x == 0 {
 		return PosNotStmt
@@ -429,4 +463,8 @@ func (x lico) lineNumberHTML() string {
 		pfx = ""
 	}
 	return fmt.Sprintf("<%s>%s%d</%s>", style, pfx, x.Line(), style)
+}
+
+func (x lico) atColumn1() lico {
+	return makeLico(x.Line(), 1).withIsStmt()
 }

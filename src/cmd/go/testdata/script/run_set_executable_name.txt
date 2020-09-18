@@ -1,0 +1,50 @@
+env GO111MODULE=on
+[short] skip
+
+# Check for correct naming of temporary executable
+
+#Test for single file specified
+cd x/y/z
+go run foo.go
+stderr 'foo'
+
+#Test for current directory
+go run .
+stderr 'z'
+
+#Test for set path
+go run m/x/y/z/
+stderr 'z'
+
+-- m/x/y/z/foo.go --
+package main
+import(
+	"os"
+	"path/filepath"
+)
+func main() {
+	println(filepath.Base(os.Args[0]))
+}
+
+-- x/y/z/foo.go --
+package main
+import(
+	"os"
+	"path/filepath"
+)
+func main() {
+	println(filepath.Base(os.Args[0]))
+}
+
+-- x/y/z/foo.go --
+package main
+import(
+	"os"
+	"path/filepath"
+)
+func main() {
+	println(filepath.Base(os.Args[0]))
+}
+
+-- go.mod --
+module m

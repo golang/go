@@ -326,7 +326,7 @@ func push(s *gc.SSAGenState, v *ssa.Value) {
 }
 
 // popAndSave pops a value off of the floating-point stack and stores
-// it in the reigster assigned to v.
+// it in the register assigned to v.
 func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
 	r := v.Reg()
 	if _, ok := s.SSEto387[r]; ok {

@@ -1,7 +1,0 @@
-// mips-specific (big endian) vet whitelist. See readme.txt for details.
-
-// Work around if-def'd code. Will be fixed by golang.org/issue/17544.
-runtime/sys_linux_mipsx.s: [mips] walltime: invalid offset sec_lo+0(FP); expected sec_lo+4(FP)
-runtime/sys_linux_mipsx.s: [mips] walltime: invalid offset sec_hi+4(FP); expected sec_hi+0(FP)
-runtime/sys_linux_mipsx.s: [mips] nanotime: invalid offset ret_lo+0(FP); expected ret_lo+4(FP)
-runtime/sys_linux_mipsx.s: [mips] nanotime: invalid offset ret_hi+4(FP); expected ret_hi+0(FP)

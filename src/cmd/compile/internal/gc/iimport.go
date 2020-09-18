@@ -10,9 +10,12 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
+	"cmd/internal/goobj"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"strings"
@@ -94,7 +97,7 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func iimport(pkg *types.Pkg, in *bio.Reader) {
+func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
 	ir := &intReader{in, pkg}
 
 	version := ir.uint64()
@@ -117,7 +120,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) {
 	stringData := data[:sLen]
 	declData := data[sLen:]
 
-	in.Seek(int64(sLen+dLen), os.SEEK_CUR)
+	in.MustSeek(int64(sLen+dLen), os.SEEK_CUR)
 
 	p := &iimporter{
 		ipkg: pkg,
@@ -187,6 +190,14 @@ func iimport(pkg *types.Pkg, in *bio.Reader) {
 			inlineImporter[s] = iimporterAndOffset{p, off}
 		}
 	}
+
+	// Fingerprint.
+	_, err = io.ReadFull(in, fingerprint[:])
+	if err != nil {
+		yyerror("import %s: error reading fingerprint", pkg.Path)
+		errorexit()
+	}
+	return fingerprint
 }
 
 type iimporter struct {
@@ -242,9 +253,10 @@ type importReader struct {
 	strings.Reader
 	p *iimporter
 
-	currPkg  *types.Pkg
-	prevBase *src.PosBase
-	prevLine int64
+	currPkg    *types.Pkg
+	prevBase   *src.PosBase
+	prevLine   int64
+	prevColumn int64
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -298,23 +310,13 @@ func (r *importReader) doDecl(n *Node) {
 
 		// We also need to defer width calculations until
 		// after the underlying type has been assigned.
-		//
-		// TODO(mdempsky): Add nesting support directly to
-		// {defer,resume}checkwidth? Width calculations are
-		// already deferred during initial typechecking, but
-		// not when we're expanding inline function bodies, so
-		// we currently need to handle both cases here.
-		deferring := defercalc != 0
-		if !deferring {
-			defercheckwidth()
-		}
+		defercheckwidth()
 		underlying := r.typ()
-		copytype(typenod(t), underlying)
-		if !deferring {
-			resumecheckwidth()
-		}
+		setUnderlying(t, underlying)
+		resumecheckwidth()
 
 		if underlying.IsInterface() {
+			r.typeExt(t)
 			break
 		}
 
@@ -334,6 +336,7 @@ func (r *importReader) doDecl(n *Node) {
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
 			m.Type = mtyp
 			m.SetClass(PFUNC)
+			// methodSym already marked m.Sym as a function.
 
 			// (comment from parser.go)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -344,6 +347,7 @@ func (r *importReader) doDecl(n *Node) {
 		}
 		t.Methods().Set(ms)
 
+		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
@@ -384,8 +388,6 @@ func (p *importReader) value() (typ *types.Type, v Val) {
 		p.float(&x.Imag, typ)
 		v.U = x
 	}
-
-	typ = idealType(typ)
 	return
 }
 
@@ -458,16 +460,16 @@ func (r *importReader) qualifiedIdent() *types.Sym {
 
 func (r *importReader) pos() src.XPos {
 	delta := r.int64()
-	if delta != deltaNewFile {
-		r.prevLine += delta
-	} else if l := r.int64(); l == -1 {
-		r.prevLine += deltaNewFile
-	} else {
-		r.prevBase = r.posBase()
-		r.prevLine = l
+	r.prevColumn += delta >> 1
+	if delta&1 != 0 {
+		delta = r.int64()
+		r.prevLine += delta >> 1
+		if delta&1 != 0 {
+			r.prevBase = r.posBase()
+		}
 	}
 
-	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 {
+	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 && r.prevColumn == 0 {
 		// TODO(mdempsky): Remove once we reliably write
 		// position information for all nodes.
 		return src.NoXPos
@@ -476,7 +478,7 @@ func (r *importReader) pos() src.XPos {
 	if r.prevBase == nil {
 		Fatalf("missing posbase")
 	}
-	pos := src.MakePos(r.prevBase, uint(r.prevLine), 0)
+	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
 	return Ctxt.PosTable.XPos(pos)
 }
 
@@ -607,7 +609,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
 	params := r.paramList()
 	results := r.paramList()
 	if n := len(params); n > 0 {
-		params[n-1].SetIsddd(r.bool())
+		params[n-1].SetIsDDD(r.bool())
 	}
 	t := functypefield(recv, params, results)
 	t.SetPkg(r.currPkg)
@@ -662,13 +664,15 @@ func (r *importReader) byte() byte {
 
 func (r *importReader) varExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 }
 
 func (r *importReader) funcExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			f.Note = r.string()
 		}
@@ -693,6 +697,29 @@ func (r *importReader) methExt(m *types.Field) {
 func (r *importReader) linkname(s *types.Sym) {
 	s.Linkname = r.string()
 }
+
+func (r *importReader) symIdx(s *types.Sym) {
+	lsym := s.Linksym()
+	idx := int32(r.int64())
+	if idx != -1 {
+		if s.Linkname != "" {
+			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+		}
+		lsym.SymIdx = idx
+		lsym.Set(obj.AttrIndexed, true)
+	}
+}
+
+func (r *importReader) typeExt(t *types.Type) {
+	i, pi := r.int64(), r.int64()
+	if i != -1 && pi != -1 {
+		typeSymIdx[t] = [2]int64{i, pi}
+	}
+}
+
+// Map imported type T to the index of type descriptor symbols of T and *T,
+// so we can use index to reference the symbol.
+var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *Node) {
 	if len(n.Func.Inl.Body) != 0 {
@@ -784,9 +811,6 @@ func (r *importReader) node() *Node {
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
 
-	// case ODDDARG:
-	//	unimplemented
-
 	case OLITERAL:
 		pos := r.pos()
 		typ, val := r.value()
@@ -813,19 +837,8 @@ func (r *importReader) node() *Node {
 	// case OCLOSURE:
 	//	unimplemented
 
-	case OPTRLIT:
-		pos := r.pos()
-		n := npos(pos, r.expr())
-		if !r.bool() /* !implicit, i.e. '&' operator */ {
-			if n.Op == OCOMPLIT {
-				// Special case for &T{...}: turn into (*T){...}.
-				n.Right = nodl(pos, OIND, n.Right, nil)
-				n.Right.SetImplicit(true)
-			} else {
-				n = nodl(pos, OADDR, n, nil)
-			}
-		}
-		return n
+	// case OPTRLIT:
+	//	unreachable - mapped to case OADDR below by exporter
 
 	case OSTRUCTLIT:
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
@@ -886,7 +899,7 @@ func (r *importReader) node() *Node {
 		n.SetSliceBounds(low, high, max)
 		return n
 
-	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+	// case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, ORUNES2STR, OSTR2BYTES, OSTR2RUNES, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case OCONV:
@@ -898,7 +911,7 @@ func (r *importReader) node() *Node {
 		n := npos(r.pos(), builtinCall(op))
 		n.List.Set(r.exprList())
 		if op == OAPPEND {
-			n.SetIsddd(r.bool())
+			n.SetIsDDD(r.bool())
 		}
 		return n
 
@@ -906,9 +919,11 @@ func (r *importReader) node() *Node {
 	// 	unreachable - mapped to OCALL case below by exporter
 
 	case OCALL:
-		n := nodl(r.pos(), OCALL, r.expr(), nil)
+		n := nodl(r.pos(), OCALL, nil, nil)
+		n.Ninit.Set(r.stmtList())
+		n.Left = r.expr()
 		n.List.Set(r.exprList())
-		n.SetIsddd(r.bool())
+		n.SetIsDDD(r.bool())
 		return n
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
@@ -918,7 +933,7 @@ func (r *importReader) node() *Node {
 		return n
 
 	// unary expressions
-	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
 		return nodl(r.pos(), op, r.expr(), nil)
 
 	// binary expressions
@@ -934,9 +949,6 @@ func (r *importReader) node() *Node {
 			x = nodl(pos, OADD, x, y)
 		}
 		return x
-
-	// case OCMPSTR, OCMPIFACE:
-	// 	unreachable - mapped to std comparison operators by exporter
 
 	// --------------------------------------------------------------------
 	// statements
@@ -984,7 +996,7 @@ func (r *importReader) node() *Node {
 	// case ORETJMP:
 	// 	unreachable - generated by compiler for trampolin routines (not exported)
 
-	case OPROC, ODEFER:
+	case OGO, ODEFER:
 		return nodl(r.pos(), op, r.expr(), nil)
 
 	case OIF:
@@ -1016,19 +1028,13 @@ func (r *importReader) node() *Node {
 		n.List.Set(r.stmtList())
 		return n
 
-	// case OCASE, OXCASE:
-	// 	unreachable - mapped to OXCASE case below by exporter
-
-	case OXCASE:
-		n := nodl(r.pos(), OXCASE, nil, nil)
+	case OCASE:
+		n := nodl(r.pos(), OCASE, nil, nil)
 		n.List.Set(r.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
 		n.Nbody.Set(r.stmtList())
 		return n
-
-	// case OFALL:
-	// 	unreachable - mapped to OXFALL case below by exporter
 
 	case OFALL:
 		n := nodl(r.pos(), OFALL, nil, nil)
@@ -1046,14 +1052,16 @@ func (r *importReader) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
+		n := nodl(r.pos(), op, nil, nil)
+		n.Sym = lookup(r.string())
+		return n
 
 	case OEND:
 		return nil
 
 	default:
 		Fatalf("cannot import %v (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", op, int(op))
+			"\t==> please file an issue and assign to gri@", op, int(op))
 		panic("unreachable") // satisfy compiler
 	}
 }

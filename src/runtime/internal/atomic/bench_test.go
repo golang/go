@@ -43,6 +43,46 @@ func BenchmarkAtomicStore(b *testing.B) {
 	}
 }
 
+func BenchmarkAnd8(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.And8(&x[255], uint8(i))
+	}
+}
+
+func BenchmarkAnd8Parallel(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint8(0)
+		for pb.Next() {
+			atomic.And8(&x[255], i)
+			i++
+		}
+	})
+}
+
+func BenchmarkOr8(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.Or8(&x[255], uint8(i))
+	}
+}
+
+func BenchmarkOr8Parallel(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint8(0)
+		for pb.Next() {
+			atomic.Or8(&x[255], i)
+			i++
+		}
+	})
+}
+
 func BenchmarkXadd(b *testing.B) {
 	var x uint32
 	ptr := &x

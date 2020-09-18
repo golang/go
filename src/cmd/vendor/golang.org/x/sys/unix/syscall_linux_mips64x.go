@@ -7,12 +7,11 @@
 
 package unix
 
-//sys	Dup2(oldfd int, newfd int) (err error)
+//sys	dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
-//sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -25,6 +24,7 @@ package unix
 //sys	Pause() (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
@@ -36,8 +36,8 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
 }
 
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
-//sys	Setfsgid(gid int) (err error)
-//sys	Setfsuid(uid int) (err error)
+//sys	setfsgid(gid int) (prev int, err error)
+//sys	setfsuid(uid int) (prev int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
@@ -148,12 +148,20 @@ type stat_t struct {
 }
 
 //sys	fstat(fd int, st *stat_t) (err error)
+//sys	fstatat(dirfd int, path string, st *stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	lstat(path string, st *stat_t) (err error)
 //sys	stat(path string, st *stat_t) (err error)
 
 func Fstat(fd int, s *Stat_t) (err error) {
 	st := &stat_t{}
 	err = fstat(fd, st)
+	fillStat_t(s, st)
+	return
+}
+
+func Fstatat(dirfd int, path string, s *Stat_t, flags int) (err error) {
+	st := &stat_t{}
+	err = fstatat(dirfd, path, st, flags)
 	fillStat_t(s, st)
 	return
 }
@@ -200,8 +208,16 @@ func (msghdr *Msghdr) SetControllen(length int) {
 	msghdr.Controllen = uint64(length)
 }
 
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = uint64(length)
+}
+
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
+}
+
+func InotifyInit() (fd int, err error) {
+	return InotifyInit1(0)
 }
 
 //sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)

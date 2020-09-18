@@ -7,6 +7,7 @@ package http
 import (
 	"log"
 	"net"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -36,9 +37,9 @@ type Cookie struct {
 	Unparsed []string // Raw text of unparsed attribute-value pairs
 }
 
-// SameSite allows a server define a cookie attribute making it impossible for
+// SameSite allows a server to define a cookie attribute making it impossible for
 // the browser to send this cookie along with cross-site requests. The main
-// goal is mitigate the risk of cross-origin information leakage, and provides
+// goal is to mitigate the risk of cross-origin information leakage, and provide
 // some protection against cross-site request forgery attacks.
 //
 // See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
@@ -48,6 +49,7 @@ const (
 	SameSiteDefaultMode SameSite = iota + 1
 	SameSiteLaxMode
 	SameSiteStrictMode
+	SameSiteNoneMode
 )
 
 // readSetCookies parses all "Set-Cookie" values from
@@ -59,11 +61,11 @@ func readSetCookies(h Header) []*Cookie {
 	}
 	cookies := make([]*Cookie, 0, cookieCount)
 	for _, line := range h["Set-Cookie"] {
-		parts := strings.Split(strings.TrimSpace(line), ";")
+		parts := strings.Split(textproto.TrimString(line), ";")
 		if len(parts) == 1 && parts[0] == "" {
 			continue
 		}
-		parts[0] = strings.TrimSpace(parts[0])
+		parts[0] = textproto.TrimString(parts[0])
 		j := strings.Index(parts[0], "=")
 		if j < 0 {
 			continue
@@ -82,7 +84,7 @@ func readSetCookies(h Header) []*Cookie {
 			Raw:   line,
 		}
 		for i := 1; i < len(parts); i++ {
-			parts[i] = strings.TrimSpace(parts[i])
+			parts[i] = textproto.TrimString(parts[i])
 			if len(parts[i]) == 0 {
 				continue
 			}
@@ -105,6 +107,8 @@ func readSetCookies(h Header) []*Cookie {
 					c.SameSite = SameSiteLaxMode
 				case "strict":
 					c.SameSite = SameSiteStrictMode
+				case "none":
+					c.SameSite = SameSiteNoneMode
 				default:
 					c.SameSite = SameSiteDefaultMode
 				}
@@ -168,8 +172,12 @@ func (c *Cookie) String() string {
 	if c == nil || !isCookieNameValid(c.Name) {
 		return ""
 	}
+	// extraCookieLength derived from typical length of cookie attributes
+	// see RFC 6265 Sec 4.1.
+	const extraCookieLength = 110
 	var b strings.Builder
-	b.WriteString(sanitizeCookieName(c.Name))
+	b.Grow(len(c.Name) + len(c.Value) + len(c.Domain) + len(c.Path) + extraCookieLength)
+	b.WriteString(c.Name)
 	b.WriteRune('=')
 	b.WriteString(sanitizeCookieValue(c.Value))
 
@@ -213,6 +221,8 @@ func (c *Cookie) String() string {
 	switch c.SameSite {
 	case SameSiteDefaultMode:
 		b.WriteString("; SameSite")
+	case SameSiteNoneMode:
+		b.WriteString("; SameSite=None")
 	case SameSiteLaxMode:
 		b.WriteString("; SameSite=Lax")
 	case SameSiteStrictMode:
@@ -226,25 +236,28 @@ func (c *Cookie) String() string {
 //
 // if filter isn't empty, only cookies of that name are returned
 func readCookies(h Header, filter string) []*Cookie {
-	lines, ok := h["Cookie"]
-	if !ok {
+	lines := h["Cookie"]
+	if len(lines) == 0 {
 		return []*Cookie{}
 	}
 
-	cookies := []*Cookie{}
+	cookies := make([]*Cookie, 0, len(lines)+strings.Count(lines[0], ";"))
 	for _, line := range lines {
-		parts := strings.Split(strings.TrimSpace(line), ";")
-		if len(parts) == 1 && parts[0] == "" {
-			continue
-		}
-		// Per-line attributes
-		for i := 0; i < len(parts); i++ {
-			parts[i] = strings.TrimSpace(parts[i])
-			if len(parts[i]) == 0 {
+		line = textproto.TrimString(line)
+
+		var part string
+		for len(line) > 0 { // continue since we have rest
+			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
+				part, line = line[:splitIndex], line[splitIndex+1:]
+			} else {
+				part, line = line, ""
+			}
+			part = textproto.TrimString(part)
+			if len(part) == 0 {
 				continue
 			}
-			name, val := parts[i], ""
-			if j := strings.Index(name, "="); j >= 0 {
+			name, val := part, ""
+			if j := strings.Index(part, "="); j >= 0 {
 				name, val = name[:j], name[j+1:]
 			}
 			if !isCookieNameValid(name) {
@@ -263,7 +276,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	return cookies
 }
 
-// validCookieDomain returns whether v is a valid cookie domain-value.
+// validCookieDomain reports whether v is a valid cookie domain-value.
 func validCookieDomain(v string) bool {
 	if isCookieDomainName(v) {
 		return true
@@ -274,13 +287,13 @@ func validCookieDomain(v string) bool {
 	return false
 }
 
-// validCookieExpires returns whether v is a valid cookie expires-value.
+// validCookieExpires reports whether v is a valid cookie expires-value.
 func validCookieExpires(t time.Time) bool {
 	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
 	return t.Year() >= 1601
 }
 
-// isCookieDomainName returns whether s is a valid domain name or a valid
+// isCookieDomainName reports whether s is a valid domain name or a valid
 // domain name with a leading dot '.'.  It is almost a direct copy of
 // package net's isDomainName.
 func isCookieDomainName(s string) bool {
@@ -341,6 +354,7 @@ func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
+// sanitizeCookieValue produces a suitable cookie-value from v.
 // https://tools.ietf.org/html/rfc6265#section-4.1.1
 // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
 // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
@@ -348,8 +362,8 @@ func sanitizeCookieName(n string) string {
 //           ; whitespace DQUOTE, comma, semicolon,
 //           ; and backslash
 // We loosen this as spaces and commas are common in cookie values
-// but we produce a quoted cookie-value in when value starts or ends
-// with a comma or space.
+// but we produce a quoted cookie-value if and only if v contains
+// commas or spaces.
 // See https://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string) string {
 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)

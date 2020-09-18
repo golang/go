@@ -94,8 +94,6 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 	return si.Query(dargs)
 }
 
-var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")
-
 func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (driver.Tx, error) {
 	if ciCtx, is := ci.(driver.ConnBeginTx); is {
 		dopts := driver.TxOptions{}

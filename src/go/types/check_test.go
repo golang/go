@@ -34,6 +34,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -42,8 +43,9 @@ import (
 )
 
 var (
-	listErrors = flag.Bool("errlist", false, "list errors")
-	testFiles  = flag.String("files", "", "space-separated list of test files")
+	haltOnError = flag.Bool("halt", false, "halt on error")
+	listErrors  = flag.Bool("errlist", false, "list errors")
+	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
 
 // The test filenames do not end in .go so that they are invisible
@@ -88,10 +90,10 @@ var tests = [][]string{
 	{"testdata/stmt1.src"},
 	{"testdata/gotos.src"},
 	{"testdata/labels.src"},
+	{"testdata/literals.src"},
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
 	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
-	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
 }
 
 var fset = token.NewFileSet()
@@ -253,11 +255,14 @@ func checkFiles(t *testing.T, testfiles []string) {
 	// typecheck and collect typechecker errors
 	var conf Config
 	// special case for importC.src
-	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
+	if len(testfiles) == 1 && strings.HasSuffix(testfiles[0], "importC.src") {
 		conf.FakeImportC = true
 	}
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
+		if *haltOnError {
+			defer panic(err)
+		}
 		if *listErrors {
 			t.Error(err)
 			return
@@ -305,5 +310,29 @@ func TestCheck(t *testing.T) {
 	// Otherwise, run all the tests.
 	for _, files := range tests {
 		checkFiles(t, files)
+	}
+}
+
+func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
+
+func testDir(t *testing.T, dir string) {
+	testenv.MustHaveGoBuild(t)
+
+	fis, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, fi := range fis {
+		testname := filepath.Base(fi.Name())
+		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
+		t.Run(testname, func(t *testing.T) {
+			filename := filepath.Join(dir, fi.Name())
+			if fi.IsDir() {
+				t.Errorf("skipped directory %q", filename)
+				return
+			}
+			checkFiles(t, []string{filename})
+		})
 	}
 }

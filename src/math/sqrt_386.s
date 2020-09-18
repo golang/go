@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// func Sqrt(x float64) float64	
+// func Sqrt(x float64) float64
 TEXT ·Sqrt(SB),NOSPLIT,$0
 	FMOVD   x+0(FP),F0
 	FSQRT

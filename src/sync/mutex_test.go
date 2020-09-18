@@ -21,7 +21,7 @@ import (
 func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
 	for i := 0; i < loops; i++ {
 		Runtime_Semacquire(s)
-		Runtime_Semrelease(s, false)
+		Runtime_Semrelease(s, false, 0)
 	}
 	cdone <- true
 }
@@ -194,7 +194,7 @@ func TestMutexFairness(t *testing.T) {
 			}
 		}
 	}()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for i := 0; i < 10; i++ {
 			time.Sleep(100 * time.Microsecond)

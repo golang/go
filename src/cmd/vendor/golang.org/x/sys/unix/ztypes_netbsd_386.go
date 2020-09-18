@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x4
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x4
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x4
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x4
+	SizeofLongLong = 0x8
 )
 
 type (
@@ -57,26 +57,53 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev           uint64
-	Mode          uint32
-	Ino           uint64
-	Nlink         uint32
-	Uid           uint32
-	Gid           uint32
-	Rdev          uint64
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Birthtimespec Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       uint32
-	Flags         uint32
-	Gen           uint32
-	Spare         [2]uint32
+	Dev     uint64
+	Mode    uint32
+	Ino     uint64
+	Nlink   uint32
+	Uid     uint32
+	Gid     uint32
+	Rdev    uint64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize uint32
+	Flags   uint32
+	Gen     uint32
+	Spare   [2]uint32
 }
 
 type Statfs_t [0]byte
+
+type Statvfs_t struct {
+	Flag        uint32
+	Bsize       uint32
+	Frsize      uint32
+	Iosize      uint32
+	Blocks      uint64
+	Bfree       uint64
+	Bavail      uint64
+	Bresvd      uint64
+	Files       uint64
+	Ffree       uint64
+	Favail      uint64
+	Fresvd      uint64
+	Syncreads   uint64
+	Syncwrites  uint64
+	Asyncreads  uint64
+	Asyncwrites uint64
+	Fsidx       Fsid
+	Fsid        uint32
+	Namemax     uint32
+	Owner       uint32
+	Spare       [4]uint32
+	Fstypename  [32]byte
+	Mntonname   [1024]byte
+	Mntfromname [1024]byte
+}
 
 type Flock_t struct {
 	Start  int64
@@ -101,6 +128,11 @@ type Fsid struct {
 
 const (
 	PathMax = 0x400
+)
+
+const (
+	ST_WAIT   = 0x1
+	ST_NOWAIT = 0x2
 )
 
 const (
@@ -402,8 +434,16 @@ type Winsize struct {
 	Ypixel uint16
 }
 
+type Ptmget struct {
+	Cfd int32
+	Sfd int32
+	Cn  [1024]byte
+	Sn  [1024]byte
+}
+
 const (
 	AT_FDCWD            = -0x64
+	AT_SYMLINK_FOLLOW   = 0x400
 	AT_SYMLINK_NOFOLLOW = 0x200
 )
 
@@ -445,4 +485,14 @@ type Utsname struct {
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+}
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct {
+	Hz      int32
+	Tick    int32
+	Tickadj int32
+	Stathz  int32
+	Profhz  int32
 }

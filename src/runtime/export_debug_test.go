@@ -20,7 +20,7 @@ import (
 //
 // On success, InjectDebugCall returns the panic value of fn or nil.
 // If fn did not panic, its results will be available in args.
-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (interface{}, error) {
+func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
 	if gp.lockedm == 0 {
 		return nil, plainError("goroutine not locked to thread")
 	}
@@ -48,25 +48,48 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
 
 	h := new(debugCallHandler)
 	h.gp = gp
+	// gp may not be running right now, but we can still get the M
+	// it will run on since it's locked.
+	h.mp = gp.lockedm.ptr()
 	h.fv, h.argp, h.argSize = fv, argp, argSize
 	h.handleF = h.handle // Avoid allocating closure during signal
-	noteclear(&h.done)
 
 	defer func() { testSigtrap = nil }()
-	testSigtrap = h.inject
-	if err := tkill(tid); err != nil {
-		return nil, err
+	for i := 0; ; i++ {
+		testSigtrap = h.inject
+		noteclear(&h.done)
+		h.err = ""
+
+		if err := tkill(tid); err != nil {
+			return nil, err
+		}
+		// Wait for completion.
+		notetsleepg(&h.done, -1)
+		if h.err != "" {
+			switch h.err {
+			case "call not at safe point":
+				if returnOnUnsafePoint {
+					// This is for TestDebugCallUnsafePoint.
+					return nil, h.err
+				}
+				fallthrough
+			case "retry _Grunnable", "executing on Go runtime stack", "call from within the Go runtime":
+				// These are transient states. Try to get out of them.
+				if i < 100 {
+					usleep(100)
+					Gosched()
+					continue
+				}
+			}
+			return nil, h.err
+		}
+		return h.panic, nil
 	}
-	// Wait for completion.
-	notetsleepg(&h.done, -1)
-	if len(h.err) != 0 {
-		return nil, h.err
-	}
-	return h.panic, nil
 }
 
 type debugCallHandler struct {
 	gp      *g
+	mp      *m
 	fv      *funcval
 	argp    unsafe.Pointer
 	argSize uintptr
@@ -83,8 +106,8 @@ type debugCallHandler struct {
 func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 	switch h.gp.atomicstatus {
 	case _Grunning:
-		if getg().m != h.gp.m {
-			println("trap on wrong M", getg().m, h.gp.m)
+		if getg().m != h.mp {
+			println("trap on wrong M", getg().m, h.mp)
 			return false
 		}
 		// Push current PC on the stack.
@@ -99,19 +122,25 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		h.savedRegs.fpstate = nil
 		// Set PC to debugCallV1.
 		ctxt.set_rip(uint64(funcPC(debugCallV1)))
+		// Call injected. Switch to the debugCall protocol.
+		testSigtrap = h.handleF
+	case _Grunnable:
+		// Ask InjectDebugCall to pause for a bit and then try
+		// again to interrupt this goroutine.
+		h.err = plainError("retry _Grunnable")
+		notewakeup(&h.done)
 	default:
 		h.err = plainError("goroutine in unexpected state at call inject")
-		return true
+		notewakeup(&h.done)
 	}
-	// Switch to the debugCall protocol and resume execution.
-	testSigtrap = h.handleF
+	// Resume execution.
 	return true
 }
 
 func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 	// Sanity check.
-	if getg().m != h.gp.m {
-		println("trap on wrong M", getg().m, h.gp.m)
+	if getg().m != h.mp {
+		println("trap on wrong M", getg().m, h.mp)
 		return false
 	}
 	f := findfunc(uintptr(ctxt.rip()))
@@ -149,6 +178,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		sp := ctxt.rsp()
 		reason := *(*string)(unsafe.Pointer(uintptr(sp)))
 		h.err = plainError(reason)
+		// Don't wake h.done. We need to transition to status 16 first.
 	case 16:
 		// Restore all registers except RIP and RSP.
 		rip, rsp := ctxt.rip(), ctxt.rsp()
@@ -162,6 +192,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		notewakeup(&h.done)
 	default:
 		h.err = plainError("unexpected debugCallV1 status")
+		notewakeup(&h.done)
 	}
 	// Resume execution.
 	return true

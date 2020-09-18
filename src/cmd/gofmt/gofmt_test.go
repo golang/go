@@ -112,7 +112,7 @@ func runTest(t *testing.T, in, out string) {
 		}
 
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
-		d, err := diff(expected, got, in)
+		d, err := diffWithReplaceTempFile(expected, got, in)
 		if err == nil {
 			t.Errorf("%s", d)
 		}
@@ -194,13 +194,13 @@ func TestDiff(t *testing.T) {
 	in := []byte("first\nsecond\n")
 	out := []byte("first\nthird\n")
 	filename := "difftest.txt"
-	b, err := diff(in, out, filename)
+	b, err := diffWithReplaceTempFile(in, out, filename)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if runtime.GOOS == "windows" {
-		b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
+		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
 	}
 
 	bs := bytes.SplitN(b, []byte{'\n'}, 3)

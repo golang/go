@@ -1,5 +1,5 @@
 // Inferno utils/5l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,7 +34,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"fmt"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
@@ -49,12 +48,12 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:         minAlign,
 		Dwarfregsp:       dwarfRegSP,
 		Dwarfreglr:       dwarfRegLR,
-		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb,
+		Extreloc:         extreloc,
 		Elfreloc1:        elfreloc1,
+		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
@@ -81,9 +80,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 16*1024 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 16 * 1024
 		}
@@ -94,29 +90,8 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
-
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		ld.HEADR = 0x10000
-		ld.Funcalign = 16
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
-		}
-	}
-
-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
 	}
 }

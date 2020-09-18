@@ -24,6 +24,10 @@ const (
 
 	ctrue  = true
 	cfalse = !ctrue
+
+	// Issue #34563
+	_ = string(int(123))
+	_ = string(rune(456))
 )
 
 const (
@@ -157,10 +161,49 @@ func interfaces() {
 		"for interface{}==int comipiler == runtime")
 }
 
+// Test that typed floating-point and complex arithmetic
+// is computed with correct precision.
+func truncate() {
+	const (
+		x30 = 1 << 30
+		x60 = 1 << 60
+
+		staticF32 = float32(x30) + 1 - x30
+		staticF64 = float64(x60) + 1 - x60
+		staticC64 = complex64(x30) + 1 - x30
+		staticC128 = complex128(x60) + 1 - x60
+	)
+	dynamicF32 := float32(x30)
+	dynamicF32 += 1
+	dynamicF32 -= x30
+
+	dynamicF64 := float64(x60)
+	dynamicF64 += 1
+	dynamicF64 -= x60
+
+	dynamicC64 := complex64(x30)
+	dynamicC64 += 1
+	dynamicC64 -= x30
+
+	dynamicC128 := complex128(x60)
+	dynamicC128 += 1
+	dynamicC128 -= x60
+
+	assert(staticF32 == 0, "staticF32 == 0")
+	assert(staticF64 == 0, "staticF64 == 0")
+	assert(dynamicF32 == 0, "dynamicF32 == 0")
+	assert(dynamicF64 == 0, "dynamicF64 == 0")
+	assert(staticC64 == 0, "staticC64 == 0")
+	assert(staticC128 == 0, "staticC128 == 0")
+	assert(dynamicC64 == 0, "dynamicC64 == 0")
+	assert(dynamicC128 == 0, "dynamicC128 == 0")
+}
+
 func main() {
 	ints()
 	floats()
 	interfaces()
+	truncate()
 
 	assert(ctrue == true, "ctrue == true")
 	assert(cfalse == false, "cfalse == false")

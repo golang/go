@@ -6,6 +6,7 @@ package gosym
 
 import (
 	"bytes"
+	"compress/gzip"
 	"debug/elf"
 	"internal/testenv"
 	"io/ioutil"
@@ -33,33 +34,10 @@ func dotest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// This command builds pclinetest from pclinetest.asm;
-	// the resulting binary looks like it was built from pclinetest.s,
-	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", pclinetestBinary+".o", "pclinetest.asm")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	// stamp .o file as being 'package main' so that go tool link will accept it
-	data, err := ioutil.ReadFile(pclinetestBinary + ".o")
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := bytes.IndexByte(data, '\n')
-	if i < 0 {
-		t.Fatal("bad binary")
-	}
-	data = append(append(data[:i:i], "\nmain"...), data[i:]...)
-	if err := ioutil.WriteFile(pclinetestBinary+".o", data, 0666); err != nil {
-		t.Fatal(err)
-	}
-
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-H", "linux",
-		"-o", pclinetestBinary, pclinetestBinary+".o")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", pclinetestBinary)
+	cmd.Dir = "testdata"
+	cmd.Env = append(os.Environ(), "GOOS=linux")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -79,7 +57,7 @@ func endtest() {
 // These tests open and examine the test binary, and use elf.Open to do so.
 func skipIfNotELF(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
 		// OK.
 	default:
 		t.Skipf("skipping on non-ELF system %s", runtime.GOOS)
@@ -220,6 +198,9 @@ func TestLineAline(t *testing.T) {
 }
 
 func TestPCLine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	dotest(t)
 	defer endtest()
 
@@ -232,7 +213,7 @@ func TestPCLine(t *testing.T) {
 	}
 
 	// Test PCToLine
-	sym := tab.LookupFunc("linefrompc")
+	sym := tab.LookupFunc("main.linefrompc")
 	wantLine := 0
 	for pc := sym.Entry; pc < sym.End; pc++ {
 		off := pc - text.Addr // TODO(rsc): should not need off; bug in 8g
@@ -244,13 +225,13 @@ func TestPCLine(t *testing.T) {
 		file, line, fn := tab.PCToLine(pc)
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if !strings.HasSuffix(file, "pclinetest.asm") || line != wantLine || fn != sym {
-			t.Errorf("PCToLine(%#x) = %s:%d (%s), want %s:%d (%s)", pc, file, line, fn.Name, "pclinetest.asm", wantLine, sym.Name)
+		} else if !strings.HasSuffix(file, "pclinetest.s") || line != wantLine || fn != sym {
+			t.Errorf("PCToLine(%#x) = %s:%d (%s), want %s:%d (%s)", pc, file, line, fn.Name, "pclinetest.s", wantLine, sym.Name)
 		}
 	}
 
 	// Test LineToPC
-	sym = tab.LookupFunc("pcfromline")
+	sym = tab.LookupFunc("main.pcfromline")
 	lookupline := -1
 	wantLine = 0
 	off := uint64(0) // TODO(rsc): should not need off; bug in 8g
@@ -283,5 +264,53 @@ func TestPCLine(t *testing.T) {
 			}
 		}
 		off = pc + 1 - text.Addr
+	}
+}
+
+// Test that we can parse a pclntab from 1.15.
+// The file was compiled in /tmp/hello.go:
+// [BEGIN]
+// package main
+//
+// func main() {
+//    println("hello")
+// }
+// [END]
+func Test115PclnParsing(t *testing.T) {
+	zippedDat, err := ioutil.ReadFile("testdata/pcln115.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gzReader *gzip.Reader
+	gzReader, err = gzip.NewReader(bytes.NewBuffer(zippedDat))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dat []byte
+	dat, err = ioutil.ReadAll(gzReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const textStart = 0x1001000
+	pcln := NewLineTable(dat, textStart)
+	var tab *Table
+	tab, err = NewTable(nil, pcln)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f *Func
+	var pc uint64
+	pc, f, err = tab.LineToPC("/tmp/hello.go", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pcln.version != ver12 {
+		t.Fatal("Expected pcln to parse as an older version")
+	}
+	if pc != 0x105c280 {
+		t.Fatalf("expect pc = 0x105c280, got 0x%x", pc)
+	}
+	if f.Name != "main.main" {
+		t.Fatalf("expected to parse name as main.main, got %v", f.Name)
 	}
 }

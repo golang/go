@@ -153,6 +153,7 @@ var indexAnyTests = []IndexTest{
 	{"", "abc", -1},
 	{"a", "", -1},
 	{"a", "a", 0},
+	{"\x80", "\xffb", 0},
 	{"aaa", "a", 0},
 	{"abc", "xyz", -1},
 	{"abc", "xcz", 2},
@@ -163,6 +164,7 @@ var indexAnyTests = []IndexTest{
 	{dots + dots + dots, " ", -1},
 	{"012abcba210", "\xffb", 4},
 	{"012\x80bcb\x80210", "\xffb", 3},
+	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
 }
 
 var lastIndexAnyTests = []IndexTest{
@@ -171,6 +173,7 @@ var lastIndexAnyTests = []IndexTest{
 	{"", "abc", -1},
 	{"a", "", -1},
 	{"a", "a", 0},
+	{"\x80", "\xffb", 0},
 	{"aaa", "a", 2},
 	{"abc", "xyz", -1},
 	{"abc", "ab", 1},
@@ -181,6 +184,7 @@ var lastIndexAnyTests = []IndexTest{
 	{dots + dots + dots, " ", -1},
 	{"012abcba210", "\xffb", 6},
 	{"012\x80bcb\x80210", "\xffb", 7},
+	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
@@ -194,10 +198,24 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
 	}
 }
 
-func TestIndex(t *testing.T)        { runIndexTests(t, Index, "Index", indexTests) }
-func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
-func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
+func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+func TestLastIndexAny(t *testing.T) {
+	runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests)
+}
+
+func TestIndexByte(t *testing.T) {
+	for _, tt := range indexTests {
+		if len(tt.sep) != 1 {
+			continue
+		}
+		pos := IndexByte(tt.s, tt.sep[0])
+		if pos != tt.out {
+			t.Errorf(`IndexByte(%q, %q) = %v; want %v`, tt.s, tt.sep[0], pos, tt.out)
+		}
+	}
+}
 
 func TestLastIndexByte(t *testing.T) {
 	testCases := []IndexTest{
@@ -646,10 +664,10 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, r) {
 			return r
 		}
-		return '?'
+		return utf8.RuneError
 	}
 	m = Map(replaceNotLatin, "Hello\255World")
-	expect = "Hello?World"
+	expect = "Hello\uFFFDWorld"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
 	}
@@ -664,8 +682,8 @@ func TestMap(t *testing.T) {
 		}
 		return r
 	}
-	s := string(utf8.RuneSelf) + string(utf8.MaxRune)
-	r := string(utf8.MaxRune) + string(utf8.RuneSelf) // reverse of s
+	s := string(rune(utf8.RuneSelf)) + string(utf8.MaxRune)
+	r := string(utf8.MaxRune) + string(rune(utf8.RuneSelf)) // reverse of s
 	m = Map(encode, s)
 	if m != r {
 		t.Errorf("encoding not handled correctly: expected %q got %q", r, m)
@@ -692,6 +710,36 @@ func TestMap(t *testing.T) {
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+var toValidUTF8Tests = []struct {
+	in   string
+	repl string
+	out  string
+}{
+	{"", "\uFFFD", ""},
+	{"abc", "\uFFFD", "abc"},
+	{"\uFDDD", "\uFFFD", "\uFDDD"},
+	{"a\xffb", "\uFFFD", "a\uFFFDb"},
+	{"a\xffb\uFFFD", "X", "aXb\uFFFD"},
+	{"a☺\xffb☺\xC0\xAFc☺\xff", "", "a☺b☺c☺"},
+	{"a☺\xffb☺\xC0\xAFc☺\xff", "日本語", "a☺日本語b☺日本語c☺日本語"},
+	{"\xC0\xAF", "\uFFFD", "\uFFFD"},
+	{"\xE0\x80\xAF", "\uFFFD", "\uFFFD"},
+	{"\xed\xa0\x80", "abc", "abc"},
+	{"\xed\xbf\xbf", "\uFFFD", "\uFFFD"},
+	{"\xF0\x80\x80\xaf", "☺", "☺"},
+	{"\xF8\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
+	{"\xFC\x80\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
+}
+
+func TestToValidUTF8(t *testing.T) {
+	for _, tc := range toValidUTF8Tests {
+		got := ToValidUTF8(tc.in, tc.repl)
+		if got != tc.out {
+			t.Errorf("ToValidUTF8(%q, %q) = %q; want %q", tc.in, tc.repl, got, tc.out)
+		}
+	}
+}
 
 func BenchmarkToUpper(b *testing.B) {
 	for _, tc := range upperTests {
@@ -839,6 +887,26 @@ func BenchmarkTrim(b *testing.B) {
 	}
 }
 
+func BenchmarkToValidUTF8(b *testing.B) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"Valid", "typical"},
+		{"InvalidASCII", "foo\xffbar"},
+		{"InvalidNonASCII", "日本語\xff日本語"},
+	}
+	replacement := "\uFFFD"
+	b.ResetTimer()
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ToValidUTF8(test.input, replacement)
+			}
+		})
+	}
+}
+
 type predicate struct {
 	f    func(rune) bool
 	name string
@@ -864,23 +932,66 @@ func not(p predicate) predicate {
 }
 
 var trimFuncTests = []struct {
-	f       predicate
-	in, out string
+	f        predicate
+	in       string
+	trimOut  string
+	leftOut  string
+	rightOut string
 }{
-	{isSpace, space + " hello " + space, "hello"},
-	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
-	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
-	{not(isSpace), "hello" + space + "hello", space},
-	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
-	{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
-	{not(isValidRune), "\xc0a\xc0", "a"},
+	{isSpace, space + " hello " + space,
+		"hello",
+		"hello " + space,
+		space + " hello"},
+	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51",
+		"hello",
+		"hello34\u0e50\u0e51",
+		"\u0e50\u0e5212hello"},
+	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		"hello",
+		"helloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		"\u2C6F\u2C6F\u2C6F\u2C6FABCDhello"},
+	{not(isSpace), "hello" + space + "hello",
+		space,
+		space + "hello",
+		"hello" + space},
+	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo",
+		"\u0e50\u0e521234\u0e50\u0e51",
+		"\u0e50\u0e521234\u0e50\u0e51helo",
+		"hello\u0e50\u0e521234\u0e50\u0e51"},
+	{isValidRune, "ab\xc0a\xc0cd",
+		"\xc0a\xc0",
+		"\xc0a\xc0cd",
+		"ab\xc0a\xc0"},
+	{not(isValidRune), "\xc0a\xc0",
+		"a",
+		"a\xc0",
+		"\xc0a"},
+	{isSpace, "",
+		"",
+		"",
+		""},
+	{isSpace, " ",
+		"",
+		"",
+		""},
 }
 
 func TestTrimFunc(t *testing.T) {
 	for _, tc := range trimFuncTests {
-		actual := TrimFunc(tc.in, tc.f.f)
-		if actual != tc.out {
-			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.f.name, actual, tc.out)
+		trimmers := []struct {
+			name string
+			trim func(s string, f func(r rune) bool) string
+			out  string
+		}{
+			{"TrimFunc", TrimFunc, tc.trimOut},
+			{"TrimLeftFunc", TrimLeftFunc, tc.leftOut},
+			{"TrimRightFunc", TrimRightFunc, tc.rightOut},
+		}
+		for _, trimmer := range trimmers {
+			actual := trimmer.trim(tc.in, tc.f.f)
+			if actual != trimmer.out {
+				t.Errorf("%s(%q, %q) = %q; want %q", trimmer.name, tc.in, tc.f.name, actual, trimmer.out)
+			}
 		}
 	}
 }
@@ -1242,6 +1353,12 @@ func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+		}
+		if tt.n == -1 {
+			s := ReplaceAll(tt.in, tt.old, tt.new)
+			if s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
 		}
 	}
 }
@@ -1674,13 +1791,55 @@ func BenchmarkRepeat(b *testing.B) {
 }
 
 func BenchmarkIndexAnyASCII(b *testing.B) {
-	x := Repeat("#", 4096) // Never matches set
-	cs := "0123456789abcdef"
-	for k := 1; k <= 4096; k <<= 4 {
-		for j := 1; j <= 16; j <<= 1 {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					IndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkIndexAnyUTF8(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					IndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkLastIndexAnyASCII(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					LastIndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkLastIndexAnyUTF8(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					LastIndexAny(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1723,5 +1882,30 @@ func BenchmarkJoin(b *testing.B) {
 				Join(vals, " and ")
 			}
 		})
+	}
+}
+
+func BenchmarkTrimSpace(b *testing.B) {
+	tests := []struct{ name, input string }{
+		{"NoTrim", "typical"},
+		{"ASCII", "  foo bar  "},
+		{"SomeNonASCII", "    \u2000\t\r\n x\t\t\r\r\ny\n \u3000    "},
+		{"JustNonASCII", "\u2000\u2000\u2000☺☺☺☺\u3000\u3000\u3000"},
+	}
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				TrimSpace(test.input)
+			}
+		})
+	}
+}
+
+var stringSink string
+
+func BenchmarkReplaceAll(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		stringSink = ReplaceAll("banana", "a", "<>")
 	}
 }

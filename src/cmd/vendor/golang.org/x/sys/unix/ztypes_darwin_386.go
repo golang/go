@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x4
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x4
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x4
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x4
+	SizeofLongLong = 0x8
 )
 
 type (
@@ -59,24 +59,24 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev           int32
-	Mode          uint16
-	Nlink         uint16
-	Ino           uint64
-	Uid           uint32
-	Gid           uint32
-	Rdev          int32
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Birthtimespec Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       int32
-	Flags         uint32
-	Gen           uint32
-	Lspare        int32
-	Qspare        [2]int64
+	Dev     int32
+	Mode    uint16
+	Nlink   uint16
+	Ino     uint64
+	Uid     uint32
+	Gid     uint32
+	Rdev    int32
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint32
+	Lspare  int32
+	Qspare  [2]int64
 }
 
 type Statfs_t struct {
@@ -486,4 +486,14 @@ type Utsname struct {
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+}
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct {
+	Hz      int32
+	Tick    int32
+	Tickadj int32
+	Stathz  int32
+	Profhz  int32
 }

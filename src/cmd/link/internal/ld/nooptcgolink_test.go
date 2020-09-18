@@ -15,6 +15,11 @@ import (
 )
 
 func TestNooptCgoBuild(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	t.Parallel()
+
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	dir, err := ioutil.TempDir("", "go-build")

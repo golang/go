@@ -23,6 +23,7 @@ y = 1
 30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
 x = 0
 y = 5
+31:		fmt.Println(x, y)
 0: 5
 35:			f1(a)
 38:				f2(b)

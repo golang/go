@@ -24,8 +24,6 @@ const (
 
 	// From <sys/lwp.h>
 	_LWP_DETACHED = 0x00000040
-
-	_EAGAIN = 35
 )
 
 type mOS struct {
@@ -49,8 +47,9 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 func lwp_tramp()
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_kill(tid int32, sig int)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)
@@ -72,7 +71,11 @@ func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -92,18 +95,28 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 
 // From NetBSD's <sys/sysctl.h>
 const (
-	_CTL_HW      = 6
-	_HW_NCPU     = 3
-	_HW_PAGESIZE = 7
+	_CTL_HW        = 6
+	_HW_NCPU       = 3
+	_HW_PAGESIZE   = 7
+	_HW_NCPUONLINE = 16
 )
 
-func getncpu() int32 {
-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
-	out := uint32(0)
+func sysctlInt(mib []uint32) (int32, bool) {
+	var out int32
 	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
+	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret < 0 {
+		return 0, false
+	}
+	return out, true
+}
+
+func getncpu() int32 {
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPUONLINE}); ok {
+		return int32(n)
+	}
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
+		return int32(n)
 	}
 	return 1
 }
@@ -148,9 +161,7 @@ func semasleep(ns int64) int32 {
 			if wait <= 0 {
 				return -1
 			}
-			var nsec int32
-			ts.set_sec(timediv(wait, 1000000000, &nsec))
-			ts.set_nsec(nsec)
+			ts.setNsec(wait)
 			tsp = &ts
 		}
 		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
@@ -330,6 +341,7 @@ func sigdelset(mask *sigset, i int) {
 	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
@@ -362,4 +374,18 @@ func sysauxv(auxv []uintptr) {
 			physPageSize = val
 		}
 	}
+}
+
+// raise sends signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(lwp_self(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(int32(mp.procid), sig)
 }

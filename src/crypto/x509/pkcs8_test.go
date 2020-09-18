@@ -7,10 +7,12 @@ package x509
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/hex"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -38,6 +40,9 @@ var pkcs8P384PrivateKeyHex = `3081b6020100301006072a8648ce3d020106052b8104002204
 // regenerate this you may, randomly, find that it's a byte shorter than
 // expected and the Go test will fail to recreate it exactly.
 var pkcs8P521PrivateKeyHex = `3081ee020100301006072a8648ce3d020106052b810400230481d63081d3020101044200cfe0b87113a205cf291bb9a8cd1a74ac6c7b2ebb8199aaa9a5010d8b8012276fa3c22ac913369fa61beec2a3b8b4516bc049bde4fb3b745ac11b56ab23ac52e361a1818903818600040138f75acdd03fbafa4f047a8e4b272ba9d555c667962b76f6f232911a5786a0964e5edea6bd21a6f8725720958de049c6e3e6661c1c91b227cebee916c0319ed6ca003db0a3206d372229baf9dd25d868bf81140a518114803ce40c1855074d68c4e9dab9e65efba7064c703b400f1767f217dac82715ac1f6d88c74baf47a7971de4ea`
+
+// From RFC 8410, Section 7.
+var pkcs8Ed25519PrivateKeyHex = `302e020100300506032b657004220420d4ee72dbf913584ad5b6d8f1f769f8ad3afe7c28cbf1d4fbe097a88f44755842`
 
 func TestPKCS8(t *testing.T) {
 	tests := []struct {
@@ -75,6 +80,11 @@ func TestPKCS8(t *testing.T) {
 			keyType: reflect.TypeOf(&ecdsa.PrivateKey{}),
 			curve:   elliptic.P521(),
 		},
+		{
+			name:    "Ed25519 private key",
+			keyHex:  pkcs8Ed25519PrivateKeyHex,
+			keyType: reflect.TypeOf(ed25519.PrivateKey{}),
+		},
 	}
 
 	for _, test := range tests {
@@ -102,8 +112,29 @@ func TestPKCS8(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(derBytes, reserialised) {
-			t.Errorf("%s: marshalled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
+		}
+	}
+}
+
+const hexPKCS8TestPKCS1Key = "3082025c02010002818100b1a1e0945b9289c4d3f1329f8a982c4a2dcd59bfd372fb8085a9c517554607ebd2f7990eef216ac9f4605f71a03b04f42a5255b158cf8e0844191f5119348baa44c35056e20609bcf9510f30ead4b481c81d7865fb27b8e0090e112b717f3ee08cdfc4012da1f1f7cf2a1bc34c73a54a12b06372d09714742dd7895eadde4aa5020301000102818062b7fa1db93e993e40237de4d89b7591cc1ea1d04fed4904c643f17ae4334557b4295270d0491c161cb02a9af557978b32b20b59c267a721c4e6c956c2d147046e9ae5f2da36db0106d70021fa9343455f8f973a4b355a26fd19e6b39dee0405ea2b32deddf0f4817759ef705d02b34faab9ca93c6766e9f722290f119f34449024100d9c29a4a013a90e35fd1be14a3f747c589fac613a695282d61812a711906b8a0876c6181f0333ca1066596f57bff47e7cfcabf19c0fc69d9cd76df743038b3cb024100d0d3546fecf879b5551f2bd2c05e6385f2718a08a6face3d2aecc9d7e03645a480a46c81662c12ad6bd6901e3bd4f38029462de7290859567cdf371c79088d4f024100c254150657e460ea58573fcf01a82a4791e3d6223135c8bdfed69afe84fbe7857274f8eb5165180507455f9b4105c6b08b51fe8a481bb986a202245576b713530240045700003b7a867d0041df9547ae2e7f50248febd21c9040b12dae9c2feab0d3d4609668b208e4727a3541557f84d372ac68eaf74ce1018a4c9a0ef92682c8fd02405769731480bb3a4570abf422527c5f34bf732fa6c1e08cc322753c511ce055fac20fc770025663ad3165324314df907f1f1942f0448a7e9cdbf87ecd98b92156"
+const hexPKCS8TestECKey = "3081a40201010430bdb9839c08ee793d1157886a7a758a3c8b2a17a4df48f17ace57c72c56b4723cf21dcda21d4e1ad57ff034f19fcfd98ea00706052b81040022a16403620004feea808b5ee2429cfcce13c32160e1c960990bd050bb0fdf7222f3decd0a55008e32a6aa3c9062051c4cba92a7a3b178b24567412d43cdd2f882fa5addddd726fe3e208d2c26d733a773a597abb749714df7256ead5105fa6e7b3650de236b50"
+
+var pkcs8MismatchKeyTests = []struct {
+	hexKey        string
+	errorContains string
+}{
+	{hexKey: hexPKCS8TestECKey, errorContains: "use ParseECPrivateKey instead"},
+	{hexKey: hexPKCS8TestPKCS1Key, errorContains: "use ParsePKCS1PrivateKey instead"},
+}
+
+func TestPKCS8MismatchKeyFormat(t *testing.T) {
+	for i, test := range pkcs8MismatchKeyTests {
+		derBytes, _ := hex.DecodeString(test.hexKey)
+		_, err := ParsePKCS8PrivateKey(derBytes)
+		if !strings.Contains(err.Error(), test.errorContains) {
+			t.Errorf("#%d: expected error containing %q, got %s", i, test.errorContains, err)
 		}
 	}
 }

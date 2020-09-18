@@ -433,14 +433,27 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 		opts.Drawer = draw.FloydSteinberg
 	}
 
-	pm, ok := m.(*image.Paletted)
-	if !ok || len(pm.Palette) > opts.NumColors {
+	pm, _ := m.(*image.Paletted)
+	if pm == nil {
+		if cp, ok := m.ColorModel().(color.Palette); ok {
+			pm = image.NewPaletted(b, cp)
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					pm.Set(x, y, cp.Convert(m.At(x, y)))
+				}
+			}
+		}
+	}
+	if pm == nil || len(pm.Palette) > opts.NumColors {
+		// Set pm to be a palettedized copy of m, including its bounds, which
+		// might not start at (0, 0).
+		//
 		// TODO: Pick a better sub-sample of the Plan 9 palette.
 		pm = image.NewPaletted(b, palette.Plan9[:opts.NumColors])
 		if opts.Quantizer != nil {
 			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
 		}
-		opts.Drawer.Draw(pm, b, m, image.ZP)
+		opts.Drawer.Draw(pm, b, m, b.Min)
 	}
 
 	// When calling Encode instead of EncodeAll, the single-frame image is

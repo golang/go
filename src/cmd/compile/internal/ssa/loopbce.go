@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type indVarFlags uint8
 
@@ -24,6 +27,39 @@ type indVar struct {
 	//	min <  ind <  max    [if flags == indVarMinExc]
 	//	min <= ind <= max    [if flags == indVarMaxInc]
 	//	min <  ind <= max    [if flags == indVarMinExc|indVarMaxInc]
+}
+
+// parseIndVar checks whether the SSA value passed as argument is a valid induction
+// variable, and, if so, extracts:
+//   * the minimum bound
+//   * the increment value
+//   * the "next" value (SSA value that is Phi'd into the induction variable every loop)
+// Currently, we detect induction variables that match (Phi min nxt),
+// with nxt being (Add inc ind).
+// If it can't parse the induction variable correctly, it returns (nil, nil, nil).
+func parseIndVar(ind *Value) (min, inc, nxt *Value) {
+	if ind.Op != OpPhi {
+		return
+	}
+
+	if n := ind.Args[0]; n.Op == OpAdd64 && (n.Args[0] == ind || n.Args[1] == ind) {
+		min, nxt = ind.Args[1], n
+	} else if n := ind.Args[1]; n.Op == OpAdd64 && (n.Args[0] == ind || n.Args[1] == ind) {
+		min, nxt = ind.Args[0], n
+	} else {
+		// Not a recognized induction variable.
+		return
+	}
+
+	if nxt.Args[0] == ind { // nxt = ind + inc
+		inc = nxt.Args[1]
+	} else if nxt.Args[1] == ind { // nxt = inc + ind
+		inc = nxt.Args[0]
+	} else {
+		panic("unreachable") // one of the cases must be true from the above.
+	}
+
+	return
 }
 
 // findIndVar finds induction variables in a function.
@@ -47,7 +83,7 @@ type indVar struct {
 // TODO: handle 32 bit operations
 func findIndVar(f *Func) []indVar {
 	var iv []indVar
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	for _, b := range f.Blocks {
 		if b.Kind != BlockIf || len(b.Preds) != 2 {
@@ -59,51 +95,37 @@ func findIndVar(f *Func) []indVar {
 
 		// Check thet the control if it either ind </<= max or max >/>= ind.
 		// TODO: Handle 32-bit comparisons.
-		switch b.Control.Op {
+		// TODO: Handle unsigned comparisons?
+		c := b.Controls[0]
+		switch c.Op {
 		case OpLeq64:
 			flags |= indVarMaxInc
 			fallthrough
 		case OpLess64:
-			ind, max = b.Control.Args[0], b.Control.Args[1]
-		case OpGeq64:
-			flags |= indVarMaxInc
-			fallthrough
-		case OpGreater64:
-			ind, max = b.Control.Args[1], b.Control.Args[0]
+			ind, max = c.Args[0], c.Args[1]
 		default:
 			continue
 		}
 
-		// See if the arguments are reversed (i < len() <=> len() > i)
+		// See if this is really an induction variable
 		less := true
-		if max.Op == OpPhi {
+		min, inc, nxt := parseIndVar(ind)
+		if min == nil {
+			// We failed to parse the induction variable. Before punting, we want to check
+			// whether the control op was written with arguments in non-idiomatic order,
+			// so that we believe being "max" (the upper bound) is actually the induction
+			// variable itself. This would happen for code like:
+			//     for i := 0; len(n) > i; i++
+			min, inc, nxt = parseIndVar(max)
+			if min == nil {
+				// No recognied induction variable on either operand
+				continue
+			}
+
+			// Ok, the arguments were reversed. Swap them, and remember that we're
+			// looking at a ind >/>= loop (so the induction must be decrementing).
 			ind, max = max, ind
 			less = false
-		}
-
-		// Check that the induction variable is a phi that depends on itself.
-		if ind.Op != OpPhi {
-			continue
-		}
-
-		// Extract min and nxt knowing that nxt is an addition (e.g. Add64).
-		var min, nxt *Value // minimum, and next value
-		if n := ind.Args[0]; n.Op == OpAdd64 && (n.Args[0] == ind || n.Args[1] == ind) {
-			min, nxt = ind.Args[1], n
-		} else if n := ind.Args[1]; n.Op == OpAdd64 && (n.Args[0] == ind || n.Args[1] == ind) {
-			min, nxt = ind.Args[0], n
-		} else {
-			// Not a recognized induction variable.
-			continue
-		}
-
-		var inc *Value
-		if nxt.Args[0] == ind { // nxt = ind + inc
-			inc = nxt.Args[1]
-		} else if nxt.Args[1] == ind { // nxt = inc + ind
-			inc = nxt.Args[0]
-		} else {
-			panic("unreachable") // one of the cases must be true from the above.
 		}
 
 		// Expect the increment to be a nonzero constant.
@@ -160,20 +182,106 @@ func findIndVar(f *Func) []indVar {
 
 		// Second condition: b.Succs[0] dominates nxt so that
 		// nxt is computed when inc < max, meaning nxt <= max.
-		if !sdom.isAncestorEq(b.Succs[0].b, nxt.Block) {
+		if !sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
 			// inc+ind can only be reached through the branch that enters the loop.
 			continue
 		}
 
-		// We can only guarantee that the loops runs within limits of induction variable
-		// if the increment is ±1 or when the limits are constants.
-		if step != 1 {
+		// We can only guarantee that the loop runs within limits of induction variable
+		// if (one of)
+		// (1) the increment is ±1
+		// (2) the limits are constants
+		// (3) loop is of the form k0 upto Known_not_negative-k inclusive, step <= k
+		// (4) loop is of the form k0 upto Known_not_negative-k exclusive, step <= k+1
+		// (5) loop is of the form Known_not_negative downto k0, minint+step < k0
+		if step > 1 {
 			ok := false
 			if min.Op == OpConst64 && max.Op == OpConst64 {
 				if max.AuxInt > min.AuxInt && max.AuxInt%step == min.AuxInt%step { // handle overflow
 					ok = true
 				}
 			}
+			// Handle induction variables of these forms.
+			// KNN is known-not-negative.
+			// SIGNED ARITHMETIC ONLY. (see switch on c above)
+			// Possibilities for KNN are len and cap; perhaps we can infer others.
+			// for i := 0; i <= KNN-k    ; i += k
+			// for i := 0; i <  KNN-(k-1); i += k
+			// Also handle decreasing.
+
+			// "Proof" copied from https://go-review.googlesource.com/c/go/+/104041/10/src/cmd/compile/internal/ssa/loopbce.go#164
+			//
+			//	In the case of
+			//	// PC is Positive Constant
+			//	L := len(A)-PC
+			//	for i := 0; i < L; i = i+PC
+			//
+			//	we know:
+			//
+			//	0 + PC does not over/underflow.
+			//	len(A)-PC does not over/underflow
+			//	maximum value for L is MaxInt-PC
+			//	i < L <= MaxInt-PC means i + PC < MaxInt hence no overflow.
+
+			// To match in SSA:
+			// if  (a) min.Op == OpConst64(k0)
+			// and (b) k0 >= MININT + step
+			// and (c) max.Op == OpSubtract(Op{StringLen,SliceLen,SliceCap}, k)
+			// or  (c) max.Op == OpAdd(Op{StringLen,SliceLen,SliceCap}, -k)
+			// or  (c) max.Op == Op{StringLen,SliceLen,SliceCap}
+			// and (d) if upto loop, require indVarMaxInc && step <= k or !indVarMaxInc && step-1 <= k
+
+			if min.Op == OpConst64 && min.AuxInt >= step+math.MinInt64 {
+				knn := max
+				k := int64(0)
+				var kArg *Value
+
+				switch max.Op {
+				case OpSub64:
+					knn = max.Args[0]
+					kArg = max.Args[1]
+
+				case OpAdd64:
+					knn = max.Args[0]
+					kArg = max.Args[1]
+					if knn.Op == OpConst64 {
+						knn, kArg = kArg, knn
+					}
+				}
+				switch knn.Op {
+				case OpSliceLen, OpStringLen, OpSliceCap:
+				default:
+					knn = nil
+				}
+
+				if kArg != nil && kArg.Op == OpConst64 {
+					k = kArg.AuxInt
+					if max.Op == OpAdd64 {
+						k = -k
+					}
+				}
+				if k >= 0 && knn != nil {
+					if inc.AuxInt > 0 { // increasing iteration
+						// The concern for the relation between step and k is to ensure that iv never exceeds knn
+						// i.e., iv < knn-(K-1) ==> iv + K <= knn; iv <= knn-K ==> iv +K < knn
+						if step <= k || flags&indVarMaxInc == 0 && step-1 == k {
+							ok = true
+						}
+					} else { // decreasing iteration
+						// Will be decrementing from max towards min; max is knn-k; will only attempt decrement if
+						// knn-k >[=] min; underflow is only a concern if min-step is not smaller than min.
+						// This all assumes signed integer arithmetic
+						// This is already assured by the test above: min.AuxInt >= step+math.MinInt64
+						ok = true
+					}
+				}
+			}
+
+			// TODO: other unrolling idioms
+			// for i := 0; i < KNN - KNN % k ; i += k
+			// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
+			// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
+
 			if !ok {
 				continue
 			}

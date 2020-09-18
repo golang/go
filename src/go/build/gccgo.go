@@ -12,9 +12,3 @@ import "runtime"
 func getToolDir() string {
 	return envOr("GCCGOTOOLDIR", runtime.GCCGOTOOLDIR)
 }
-
-// isStandardPackage returns whether path names a standard library package.
-// This uses a list generated at build time.
-func isStandardPackage(path string) bool {
-	return stdpkg[path]
-}

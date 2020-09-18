@@ -15,7 +15,7 @@ import (
 	"text/template/parse"
 )
 
-func TestAddParseTree(t *testing.T) {
+func TestAddParseTreeHTML(t *testing.T) {
 	root := Must(New("root").Parse(`{{define "a"}} {{.}} {{template "b"}} {{.}} "></a>{{end}}`))
 	tree, err := parse.Parse("t", `{{define "b"}}<a href="{{end}}`, "", "", nil, nil)
 	if err != nil {

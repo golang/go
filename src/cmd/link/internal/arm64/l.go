@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -64,7 +64,7 @@ package arm64
 const (
 	maxAlign  = 32 // max data alignment
 	minAlign  = 1  // min data alignment
-	funcAlign = 8
+	funcAlign = 16
 )
 
 /* Used by ../internal/ld/dwarf.go */

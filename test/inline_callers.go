@@ -31,7 +31,7 @@ func testCallers(skp int) (frames []string) {
 	skip = skp
 	f()
 	for i := 0; i < npcs; i++ {
-		fn := runtime.FuncForPC(pcs[i])
+		fn := runtime.FuncForPC(pcs[i] - 1)
 		frames = append(frames, fn.Name())
 		if fn.Name() == "main.main" {
 			break
@@ -56,11 +56,11 @@ func testCallersFrames(skp int) (frames []string) {
 }
 
 var expectedFrames [][]string = [][]string{
-	0: {"runtime.Callers", "main.testCallers", "main.main"},
-	1: {"main.testCallers", "main.main"},
-	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+	0: {"runtime.Callers", "main.h", "main.g", "main.f", "main.testCallers", "main.main"},
+	1: {"main.h", "main.g", "main.f", "main.testCallers", "main.main"},
+	2: {"main.g", "main.f", "main.testCallers", "main.main"},
+	3: {"main.f", "main.testCallers", "main.main"},
+	4: {"main.testCallers", "main.main"},
 	5: {"main.main"},
 }
 

@@ -1,0 +1,19 @@
+# Test that calling t.Fatal in a benchmark causes a non-zero exit status.
+
+! go test -run '^$' -bench . benchfatal
+! stdout ^ok
+! stderr ^ok
+stdout FAIL.*benchfatal
+
+-- go.mod --
+module benchfatal
+
+go 1.16
+-- x_test.go --
+package benchfatal
+
+import "testing"
+
+func BenchmarkThatCallsFatal(b *testing.B) {
+	b.Fatal("called by benchmark")
+}

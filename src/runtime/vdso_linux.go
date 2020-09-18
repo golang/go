@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build 386 amd64 arm arm64 ppc64 ppc64le
+// +build 386 amd64 arm arm64 mips64 mips64le ppc64 ppc64le
 
 package runtime
 
@@ -280,7 +280,8 @@ func vdsoauxv(tag, val uintptr) {
 	}
 }
 
-// vdsoMarker returns whether PC is on the VDSO page.
+// vdsoMarker reports whether PC is on the VDSO page.
+//go:nosplit
 func inVDSOPage(pc uintptr) bool {
 	for _, k := range vdsoSymbolKeys {
 		if *k.ptr != 0 {

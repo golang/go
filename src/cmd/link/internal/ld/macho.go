@@ -5,9 +5,16 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"debug/macho"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 )
@@ -45,10 +52,19 @@ type MachoSeg struct {
 	flag       uint32
 }
 
+// MachoPlatformLoad represents a LC_VERSION_MIN_* or
+// LC_BUILD_VERSION load command.
+type MachoPlatformLoad struct {
+	platform MachoPlatform // One of PLATFORM_* constants.
+	cmd      MachoLoad
+}
+
 type MachoLoad struct {
 	type_ uint32
 	data  []uint32
 }
+
+type MachoPlatform int
 
 /*
  * Total amount of space to reserve at the start of the file
@@ -126,7 +142,7 @@ const (
 	LC_SUB_LIBRARY              = 0x15
 	LC_TWOLEVEL_HINTS           = 0x16
 	LC_PREBIND_CKSUM            = 0x17
-	LC_LOAD_WEAK_DYLIB          = 0x18
+	LC_LOAD_WEAK_DYLIB          = 0x80000018
 	LC_SEGMENT_64               = 0x19
 	LC_ROUTINES_64              = 0x1a
 	LC_UUID                     = 0x1b
@@ -167,12 +183,22 @@ const (
 	S_ATTR_SOME_INSTRUCTIONS   = 0x00000400
 )
 
+const (
+	PLATFORM_MACOS    MachoPlatform = 1
+	PLATFORM_IOS      MachoPlatform = 2
+	PLATFORM_TVOS     MachoPlatform = 3
+	PLATFORM_WATCHOS  MachoPlatform = 4
+	PLATFORM_BRIDGEOS MachoPlatform = 5
+)
+
 // Mach-O file writing
 // https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
 var machohdr MachoHdr
 
 var load []MachoLoad
+
+var machoPlatform MachoPlatform
 
 var seg [16]MachoSeg
 
@@ -191,7 +217,7 @@ const (
 
 var nkind [NumSymKind]int
 
-var sortsym []*sym.Symbol
+var sortsym []loader.Sym
 
 var nsortsym int
 
@@ -365,35 +391,87 @@ func (ctxt *Link) domacho() {
 		return
 	}
 
+	// Copy platform load command.
+	for _, h := range hostobj {
+		load, err := hostobjMachoPlatform(&h)
+		if err != nil {
+			Exitf("%v", err)
+		}
+		if load != nil {
+			machoPlatform = load.platform
+			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
+			copy(ml.data, load.cmd.data)
+			break
+		}
+	}
+	if machoPlatform == 0 {
+		switch ctxt.Arch.Family {
+		default:
+			machoPlatform = PLATFORM_MACOS
+			if ctxt.LinkMode == LinkInternal {
+				// For lldb, must say LC_VERSION_MIN_MACOSX or else
+				// it won't know that this Mach-O binary is from OS X
+				// (could be iOS or WatchOS instead).
+				// Go on iOS uses linkmode=external, and linkmode=external
+				// adds this itself. So we only need this code for linkmode=internal
+				// and we can assume OS X.
+				//
+				// See golang.org/issues/12941.
+				//
+				// The version must be at least 10.9; see golang.org/issues/30488.
+				ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+				ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
+				ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
+			}
+		case sys.ARM, sys.ARM64:
+			machoPlatform = PLATFORM_IOS
+		}
+	}
+
 	// empirically, string table must begin with " \x00".
-	s := ctxt.Syms.Lookup(".machosymstr", 0)
+	s := ctxt.loader.LookupOrCreateSym(".machosymstr", 0)
+	sb := ctxt.loader.MakeSymbolUpdater(s)
 
-	s.Type = sym.SMACHOSYMSTR
-	s.Attr |= sym.AttrReachable
-	s.AddUint8(' ')
-	s.AddUint8('\x00')
+	sb.SetType(sym.SMACHOSYMSTR)
+	sb.SetReachable(true)
+	sb.AddUint8(' ')
+	sb.AddUint8('\x00')
 
-	s = ctxt.Syms.Lookup(".machosymtab", 0)
-	s.Type = sym.SMACHOSYMTAB
-	s.Attr |= sym.AttrReachable
+	s = ctxt.loader.LookupOrCreateSym(".machosymtab", 0)
+	sb = ctxt.loader.MakeSymbolUpdater(s)
+	sb.SetType(sym.SMACHOSYMTAB)
+	sb.SetReachable(true)
 
-	if ctxt.LinkMode != LinkExternal {
-		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
-		s.Type = sym.SMACHOPLT
-		s.Attr |= sym.AttrReachable
+	if ctxt.IsInternal() {
+		s = ctxt.loader.LookupOrCreateSym(".plt", 0) // will be __symbol_stub
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
-		s.Type = sym.SMACHOGOT
-		s.Attr |= sym.AttrReachable
-		s.Align = 4
+		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOGOT)
+		sb.SetReachable(true)
+		sb.SetAlign(4)
 
-		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
-		s.Type = sym.SMACHOINDIRECTPLT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.plt", 0) // indirect table for .plt
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
-		s.Type = sym.SMACHOINDIRECTGOT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.got", 0) // indirect table for .got
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTGOT)
+		sb.SetReachable(true)
+	}
+
+	// Add a dummy symbol that will become the __asm marker section.
+	if ctxt.IsExternal() {
+		s = ctxt.loader.LookupOrCreateSym(".llvmasm", 0)
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHO)
+		sb.SetReachable(true)
+		sb.AddUint8(0)
 	}
 }
 
@@ -421,17 +499,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
 func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
-	var msect *MachoSect
-	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe) ||
-		(ctxt.Arch.Family == sys.ARM && ctxt.BuildMode != BuildModeExe)) {
-		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
-		// complains about absolute relocs in __TEXT, so if the section is not
-		// executable, put it in __DATA segment.
-		msect = newMachoSect(mseg, buf, "__DATA")
-	} else {
-		msect = newMachoSect(mseg, buf, segname)
-	}
+	msect := newMachoSect(mseg, buf, segname)
 
 	if sect.Rellen > 0 {
 		msect.reloc = uint32(sect.Reloff)
@@ -473,7 +541,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	if sect.Name == ".got" {
 		msect.name = "__nl_symbol_ptr"
 		msect.flag = S_NON_LAZY_SYMBOL_POINTERS
-		msect.res1 = uint32(ctxt.Syms.Lookup(".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
+		msect.res1 = uint32(ctxt.loader.SymSize(ctxt.ArchSyms.LinkEditPLT) / 4) /* offset into indirect symbol table */
 	}
 
 	if sect.Name == ".init_array" {
@@ -481,12 +549,31 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 		msect.flag = S_MOD_INIT_FUNC_POINTERS
 	}
 
+	// Some platforms such as watchOS and tvOS require binaries with
+	// bitcode enabled. The Go toolchain can't output bitcode, so use
+	// a marker section in the __LLVM segment, "__asm", to tell the Apple
+	// toolchain that the Go text came from assembler and thus has no
+	// bitcode. This is not true, but Kotlin/Native, Rust and Flutter
+	// are also using this trick.
+	if sect.Name == ".llvmasm" {
+		msect.name = "__asm"
+		msect.segname = "__LLVM"
+	}
+
 	if segname == "__DWARF" {
 		msect.flag |= S_ATTR_DEBUG
 	}
 }
 
-func Asmbmacho(ctxt *Link) {
+func asmbMacho(ctxt *Link) {
+	machlink := doMachoLink(ctxt)
+	if !*FlagS && ctxt.IsExternal() {
+		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+		ctxt.Out.SeekSet(symo)
+		machoEmitReloc(ctxt)
+	}
+	ctxt.Out.SeekSet(0)
+
 	/* apple MACH */
 	va := *FlagTextAddr - int64(HEADR)
 
@@ -495,10 +582,6 @@ func Asmbmacho(ctxt *Link) {
 	default:
 		Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
 
-	case sys.ARM:
-		mh.cpu = MACHO_CPU_ARM
-		mh.subcpu = MACHO_SUBCPU_ARMV7
-
 	case sys.AMD64:
 		mh.cpu = MACHO_CPU_AMD64
 		mh.subcpu = MACHO_SUBCPU_X86
@@ -506,10 +589,6 @@ func Asmbmacho(ctxt *Link) {
 	case sys.ARM64:
 		mh.cpu = MACHO_CPU_ARM64
 		mh.subcpu = MACHO_SUBCPU_ARM64_ALL
-
-	case sys.I386:
-		mh.cpu = MACHO_CPU_386
-		mh.subcpu = MACHO_SUBCPU_X86
 	}
 
 	var ms *MachoSeg
@@ -518,12 +597,8 @@ func Asmbmacho(ctxt *Link) {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
-			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
-		} else {
-			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
-		}
+		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+		ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
 	}
 
 	/* segment for zero page */
@@ -549,13 +624,28 @@ func Asmbmacho(ctxt *Link) {
 		machoshbits(ctxt, ms, sect, "__TEXT")
 	}
 
+	/* rodata */
+	if ctxt.LinkMode != LinkExternal && Segrelrodata.Length > 0 {
+		ms = newMachoSeg("__DATA_CONST", 20)
+		ms.vaddr = Segrelrodata.Vaddr
+		ms.vsize = Segrelrodata.Length
+		ms.fileoffset = Segrelrodata.Fileoff
+		ms.filesize = Segrelrodata.Filelen
+		ms.prot1 = 3
+		ms.prot2 = 3
+		ms.flag = 0x10 // SG_READ_ONLY
+	}
+
+	for _, sect := range Segrelrodata.Sections {
+		machoshbits(ctxt, ms, sect, "__DATA_CONST")
+	}
+
 	/* data */
 	if ctxt.LinkMode != LinkExternal {
-		w := int64(Segdata.Length)
 		ms = newMachoSeg("__DATA", 20)
-		ms.vaddr = uint64(va) + uint64(v)
-		ms.vsize = uint64(w)
-		ms.fileoffset = uint64(v)
+		ms.vaddr = Segdata.Vaddr
+		ms.vsize = Segdata.Length
+		ms.fileoffset = Segdata.Fileoff
 		ms.filesize = Segdata.Filelen
 		ms.prot1 = 3
 		ms.prot2 = 3
@@ -584,12 +674,6 @@ func Asmbmacho(ctxt *Link) {
 		default:
 			Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
 
-		case sys.ARM:
-			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 17+2)
-			ml.data[0] = 1                           /* thread type */
-			ml.data[1] = 17                          /* word count */
-			ml.data[2+15] = uint32(Entryvalue(ctxt)) /* start pc */
-
 		case sys.AMD64:
 			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 42+2)
 			ml.data[0] = 4                           /* thread type */
@@ -603,26 +687,22 @@ func Asmbmacho(ctxt *Link) {
 			ml.data[1] = 68                          /* word count */
 			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
-
-		case sys.I386:
-			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 16+2)
-			ml.data[0] = 1                           /* thread type */
-			ml.data[1] = 16                          /* word count */
-			ml.data[2+10] = uint32(Entryvalue(ctxt)) /* start pc */
 		}
 	}
 
 	if !*FlagD {
+		ldr := ctxt.loader
+
 		// must match domacholink below
-		s1 := ctxt.Syms.Lookup(".machosymtab", 0)
-		s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
-		s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
-		s4 := ctxt.Syms.Lookup(".machosymstr", 0)
+		s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+		s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+		s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
+		s4 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
-			ms.vsize = uint64(s1.Size) + uint64(s2.Size) + uint64(s3.Size) + uint64(s4.Size)
+			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
+			ms.vsize = uint64(s1) + uint64(s2) + uint64(s3) + uint64(s4)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
 			ms.prot1 = 7
@@ -630,10 +710,10 @@ func Asmbmacho(ctxt *Link) {
 		}
 
 		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
-		ml.data[0] = uint32(linkoff)                               /* symoff */
-		ml.data[1] = uint32(nsortsym)                              /* nsyms */
-		ml.data[2] = uint32(linkoff + s1.Size + s2.Size + s3.Size) /* stroff */
-		ml.data[3] = uint32(s4.Size)                               /* strsize */
+		ml.data[0] = uint32(linkoff)                /* symoff */
+		ml.data[1] = uint32(nsortsym)               /* nsyms */
+		ml.data[2] = uint32(linkoff + s1 + s2 + s3) /* stroff */
+		ml.data[3] = uint32(s4)                     /* strsize */
 
 		machodysymtab(ctxt)
 
@@ -653,105 +733,131 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if ctxt.LinkMode == LinkInternal {
-		// For lldb, must say LC_VERSION_MIN_MACOSX or else
-		// it won't know that this Mach-O binary is from OS X
-		// (could be iOS or WatchOS instead).
-		// Go on iOS uses linkmode=external, and linkmode=external
-		// adds this itself. So we only need this code for linkmode=internal
-		// and we can assume OS X.
-		//
-		// See golang.org/issues/12941.
-		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
-		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
-	}
-
 	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
 		Exitf("HEADR too small: %d > %d", a, HEADR)
 	}
 }
 
-func symkind(s *sym.Symbol) int {
-	if s.Type == sym.SDYNIMPORT {
+func symkind(ldr *loader.Loader, s loader.Sym) int {
+	if ldr.SymType(s) == sym.SDYNIMPORT {
 		return SymKindUndef
 	}
-	if s.Attr.CgoExport() {
+	if ldr.AttrCgoExport(s) {
 		return SymKindExtdef
 	}
 	return SymKindLocal
 }
 
-func addsym(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64, gotype *sym.Symbol) {
-	if s == nil {
-		return
+func collectmachosyms(ctxt *Link) {
+	ldr := ctxt.loader
+
+	addsym := func(s loader.Sym) {
+		sortsym = append(sortsym, s)
+		nkind[symkind(ldr, s)]++
 	}
 
-	switch type_ {
-	default:
-		return
-
-	case DataSym, BSSSym, TextSym:
-		break
+	// Add special runtime.text and runtime.etext symbols.
+	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
+	// See data.go:/textaddress
+	if !ctxt.DynlinkingGo() {
+		s := ldr.Lookup("runtime.text", 0)
+		if ldr.SymType(s) == sym.STEXT {
+			addsym(s)
+		}
+		s = ldr.Lookup("runtime.etext", 0)
+		if ldr.SymType(s) == sym.STEXT {
+			addsym(s)
+		}
 	}
 
-	if sortsym != nil {
-		sortsym[nsortsym] = s
-		nkind[symkind(s)]++
+	// Add text symbols.
+	for _, s := range ctxt.Textp {
+		addsym(s)
 	}
 
-	nsortsym++
-}
-
-type machoscmp []*sym.Symbol
-
-func (x machoscmp) Len() int {
-	return len(x)
-}
-
-func (x machoscmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x machoscmp) Less(i, j int) bool {
-	s1 := x[i]
-	s2 := x[j]
-
-	k1 := symkind(s1)
-	k2 := symkind(s2)
-	if k1 != k2 {
-		return k1 < k2
+	shouldBeInSymbolTable := func(s loader.Sym) bool {
+		if ldr.AttrNotInSymbolTable(s) {
+			return false
+		}
+		name := ldr.RawSymName(s) // TODO: try not to read the name
+		if name == "" || name[0] == '.' {
+			return false
+		}
+		return true
 	}
 
-	return s1.Extname() < s2.Extname()
-}
+	// Add data symbols and external references.
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		t := ldr.SymType(s)
+		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+			if t == sym.STLSBSS {
+				// TLSBSS is not used on darwin. See data.go:allocateDataSections
+				continue
+			}
+			if !shouldBeInSymbolTable(s) {
+				continue
+			}
+			addsym(s)
+		}
 
-func machogenasmsym(ctxt *Link) {
-	genasmsym(ctxt, addsym)
-	for _, s := range ctxt.Syms.Allsym {
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
-			if s.Attr.Reachable() {
-				addsym(ctxt, s, "", DataSym, 0, nil)
+		switch t {
+		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			addsym(s)
+		}
+
+		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
+		if t == sym.SDYNIMPORT && ldr.SymDynimplib(s) == "/usr/lib/libSystem.B.dylib" {
+			// But only on macOS.
+			if machoPlatform == PLATFORM_MACOS {
+				switch n := ldr.SymExtname(s); n {
+				case "fdopendir":
+					switch objabi.GOARCH {
+					case "amd64":
+						ldr.SetSymExtname(s, n+"$INODE64")
+					case "386":
+						ldr.SetSymExtname(s, n+"$INODE64$UNIX2003")
+					}
+				case "readdir_r", "getfsstat":
+					switch objabi.GOARCH {
+					case "amd64", "386":
+						ldr.SetSymExtname(s, n+"$INODE64")
+					}
+				}
 			}
 		}
 	}
+
+	nsortsym = len(sortsym)
 }
 
 func machosymorder(ctxt *Link) {
+	ldr := ctxt.loader
+
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
-	for i := range dynexp {
-		dynexp[i].Attr |= sym.AttrReachable
+	for _, s := range ctxt.dynexp {
+		if !ldr.AttrReachable(s) {
+			panic("dynexp symbol is not reachable")
+		}
 	}
-	machogenasmsym(ctxt)
-	sortsym = make([]*sym.Symbol, nsortsym)
-	nsortsym = 0
-	machogenasmsym(ctxt)
-	sort.Sort(machoscmp(sortsym[:nsortsym]))
-	for i := 0; i < nsortsym; i++ {
-		sortsym[i].Dynid = int32(i)
+	collectmachosyms(ctxt)
+	sort.Slice(sortsym[:nsortsym], func(i, j int) bool {
+		s1 := sortsym[i]
+		s2 := sortsym[j]
+		k1 := symkind(ldr, s1)
+		k2 := symkind(ldr, s2)
+		if k1 != k2 {
+			return k1 < k2
+		}
+		return ldr.SymExtname(s1) < ldr.SymExtname(s2) // Note: unnamed symbols are not added in collectmachosyms
+	})
+	for i, s := range sortsym {
+		ldr.SetSymDynid(s, int32(i))
 	}
 }
 
@@ -759,37 +865,39 @@ func machosymorder(ctxt *Link) {
 //
 // When dynamically linking, all non-local variables and plugin-exported
 // symbols need to be exported.
-func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
-	if !ctxt.DynlinkingGo() || s.Attr.Local() {
+func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
+	if !ctxt.DynlinkingGo() || ldr.AttrLocal(s) {
 		return false
 	}
-	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname(), objabi.PathToPrefix(*flagPluginPath)) {
+	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(ldr.SymExtname(s), objabi.PathToPrefix(*flagPluginPath)) {
 		return true
 	}
-	if strings.HasPrefix(s.Name, "go.itab.") {
+	name := ldr.RawSymName(s)
+	if strings.HasPrefix(name, "go.itab.") {
 		return true
 	}
-	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {
+	if strings.HasPrefix(name, "type.") && !strings.HasPrefix(name, "type..") {
 		// reduce runtime typemap pressure, but do not
 		// export alg functions (type..*), as these
 		// appear in pclntable.
 		return true
 	}
-	if strings.HasPrefix(s.Name, "go.link.pkghash") {
+	if strings.HasPrefix(name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= sym.SELFSECT // only writable sections
+	return ldr.SymType(s) >= sym.SFirstWritable // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
-	symtab := ctxt.Syms.Lookup(".machosymtab", 0)
-	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
+	ldr := ctxt.loader
+	symtab := ldr.CreateSymForUpdate(".machosymtab", 0)
+	symstr := ldr.CreateSymForUpdate(".machosymstr", 0)
 
-	for i := 0; i < nsortsym; i++ {
-		s := sortsym[i]
-		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
+	for _, s := range sortsym[:nsortsym] {
+		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
 
-		export := machoShouldExport(ctxt, s)
+		export := machoShouldExport(ctxt, ldr, s)
+		isGoSymbol := strings.Contains(ldr.SymExtname(s), ".")
 
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
@@ -798,37 +906,37 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
-		if cexport || export {
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(ldr.SymName(s)))
+		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
+		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
 			symtab.AddUint8(0)                                // no section
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
 			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
 		} else {
-			if s.Attr.CgoExport() || export {
+			if ldr.AttrCgoExport(s) || export {
 				symtab.AddUint8(0x0f)
 			} else {
 				symtab.AddUint8(0x0e)
 			}
 			o := s
-			for o.Outer != nil {
-				o = o.Outer
+			if outer := ldr.OuterSym(o); outer != 0 {
+				o = outer
 			}
-			if o.Sect == nil {
-				Errorf(s, "missing section for symbol")
+			if ldr.SymSect(o) == nil {
+				ldr.Errorf(s, "missing section for symbol")
 				symtab.AddUint8(0)
 			} else {
-				symtab.AddUint8(uint8(o.Sect.Extnum))
+				symtab.AddUint8(uint8(ldr.SymSect(o).Extnum))
 			}
 			symtab.AddUint16(ctxt.Arch, 0) // desc
-			symtab.AddUintXX(ctxt.Arch, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
+			symtab.AddUintXX(ctxt.Arch, uint64(ldr.SymAddr(s)), ctxt.Arch.PtrSize)
 		}
 	}
 }
@@ -855,13 +963,14 @@ func machodysymtab(ctxt *Link) {
 	ml.data[10] = 0 /* extrefsymoff */
 	ml.data[11] = 0 /* nextrefsyms */
 
-	// must match domacholink below
-	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
+	ldr := ctxt.loader
 
-	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
-	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
-	ml.data[12] = uint32(linkoff + s1.Size)       /* indirectsymoff */
-	ml.data[13] = uint32((s2.Size + s3.Size) / 4) /* nindirectsyms */
+	// must match domacholink below
+	s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+	s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+	s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
+	ml.data[12] = uint32(linkoff + s1)  /* indirectsymoff */
+	ml.data[13] = uint32((s2 + s3) / 4) /* nindirectsyms */
 
 	ml.data[14] = 0 /* extreloff */
 	ml.data[15] = 0 /* nextrel */
@@ -869,15 +978,16 @@ func machodysymtab(ctxt *Link) {
 	ml.data[17] = 0 /* nlocrel */
 }
 
-func Domacholink(ctxt *Link) int64 {
+func doMachoLink(ctxt *Link) int64 {
 	machosymtab(ctxt)
 
-	// write data that will be linkedit section
-	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
+	ldr := ctxt.loader
 
-	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
-	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
-	s4 := ctxt.Syms.Lookup(".machosymstr", 0)
+	// write data that will be linkedit section
+	s1 := ldr.Lookup(".machosymtab", 0)
+	s2 := ctxt.ArchSyms.LinkEditPLT
+	s3 := ctxt.ArchSyms.LinkEditGOT
+	s4 := ldr.Lookup(".machosymstr", 0)
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary. This allows pure (non-cgo) Go binaries
@@ -896,37 +1006,38 @@ func Domacholink(ctxt *Link) int64 {
 	// boundary, codesign_allocate will not need to apply
 	// any alignment padding itself, working around the
 	// issue.
-	for s4.Size%16 != 0 {
-		s4.AddUint8(0)
+	s4b := ldr.MakeSymbolUpdater(s4)
+	for s4b.Size()%16 != 0 {
+		s4b.AddUint8(0)
 	}
 
-	size := int(s1.Size + s2.Size + s3.Size + s4.Size)
+	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4))
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
 		ctxt.Out.SeekSet(linkoff)
 
-		ctxt.Out.Write(s1.P[:s1.Size])
-		ctxt.Out.Write(s2.P[:s2.Size])
-		ctxt.Out.Write(s3.P[:s3.Size])
-		ctxt.Out.Write(s4.P[:s4.Size])
+		ctxt.Out.Write(ldr.Data(s1))
+		ctxt.Out.Write(ldr.Data(s2))
+		ctxt.Out.Write(ldr.Data(s3))
+		ctxt.Out.Write(ldr.Data(s4))
 	}
 
 	return Rnd(int64(size), int64(*FlagRound))
 }
 
-func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return
 	}
+	ldr := ctxt.loader
 
-	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
-		if !s.Attr.Reachable() {
+		if !ldr.AttrReachable(s) {
 			continue
 		}
-		if uint64(s.Value) >= sect.Vaddr {
+		if uint64(ldr.SymValue(s)) >= sect.Vaddr {
 			syms = syms[i:]
 			break
 		}
@@ -934,46 +1045,122 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 
 	eaddr := int32(sect.Vaddr + sect.Length)
 	for _, s := range syms {
-		if !s.Attr.Reachable() {
+		if !ldr.AttrReachable(s) {
 			continue
 		}
-		if s.Value >= int64(eaddr) {
+		if ldr.SymValue(s) >= int64(eaddr) {
 			break
 		}
-		for ri := range s.R {
-			r := &s.R[ri]
-			if r.Done {
+
+		// Compute external relocations on the go, and pass to Machoreloc1
+		// to stream out.
+		relocs := ldr.Relocs(s)
+		for ri := 0; ri < relocs.Count(); ri++ {
+			r := relocs.At(ri)
+			rr, ok := extreloc(ctxt, ldr, s, r)
+			if !ok {
 				continue
 			}
-			if r.Xsym == nil {
-				Errorf(s, "missing xsym in relocation")
+			if rr.Xsym == 0 {
+				ldr.Errorf(s, "missing xsym in relocation")
 				continue
 			}
-			if !r.Xsym.Attr.Reachable() {
-				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+			if !ldr.AttrReachable(rr.Xsym) {
+				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
 			}
-			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
-				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
 	}
 
-	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+	// sanity check
+	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
+		panic("machorelocsect: size mismatch")
+	}
 }
 
-func Machoemitreloc(ctxt *Link) {
+func machoEmitReloc(ctxt *Link) {
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
 	}
 
-	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
+	sizeExtRelocs(ctxt, thearch.MachorelocSize)
+	relocSect, wg := relocSectFn(ctxt, machorelocsect)
+
+	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, sect, datap)
+		relocSect(ctxt, sect, ctxt.datap)
+	}
+	for _, sect := range Segrelrodata.Sections {
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, sect, datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
-	for _, sect := range Segdwarf.Sections {
-		machorelocsect(ctxt, sect, dwarfp)
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != loader.Sym(sect.Sym) ||
+			ctxt.loader.SymSect(si.secSym()) != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
+		relocSect(ctxt, sect, si.syms)
 	}
+	wg.Wait()
+}
+
+// hostobjMachoPlatform returns the first platform load command found
+// in the host object, if any.
+func hostobjMachoPlatform(h *Hostobj) (*MachoPlatformLoad, error) {
+	f, err := os.Open(h.file)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to open host object: %v\n", h.file, err)
+	}
+	defer f.Close()
+	sr := io.NewSectionReader(f, h.off, h.length)
+	m, err := macho.NewFile(sr)
+	if err != nil {
+		// Not a valid Mach-O file.
+		return nil, nil
+	}
+	return peekMachoPlatform(m)
+}
+
+// peekMachoPlatform returns the first LC_VERSION_MIN_* or LC_BUILD_VERSION
+// load command found in the Mach-O file, if any.
+func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
+	for _, cmd := range m.Loads {
+		raw := cmd.Raw()
+		ml := MachoLoad{
+			type_: m.ByteOrder.Uint32(raw),
+		}
+		// Skip the type and command length.
+		data := raw[8:]
+		var p MachoPlatform
+		switch ml.type_ {
+		case LC_VERSION_MIN_IPHONEOS:
+			p = PLATFORM_IOS
+		case LC_VERSION_MIN_MACOSX:
+			p = PLATFORM_MACOS
+		case LC_VERSION_MIN_WATCHOS:
+			p = PLATFORM_WATCHOS
+		case LC_VERSION_MIN_TVOS:
+			p = PLATFORM_TVOS
+		case LC_BUILD_VERSION:
+			p = MachoPlatform(m.ByteOrder.Uint32(data))
+		default:
+			continue
+		}
+		ml.data = make([]uint32, len(data)/4)
+		r := bytes.NewReader(data)
+		if err := binary.Read(r, m.ByteOrder, &ml.data); err != nil {
+			return nil, err
+		}
+		return &MachoPlatformLoad{
+			platform: p,
+			cmd:      ml,
+		}, nil
+	}
+	return nil, nil
 }

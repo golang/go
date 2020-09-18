@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
 # latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
-go list
+go get -d
 go list -m all
 stdout 'rsc.io/quote v1.5.2'
 

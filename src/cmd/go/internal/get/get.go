@@ -6,8 +6,8 @@
 package get
 
 import (
+	"context"
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,8 +18,11 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/vcs"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var CmdGet = &base.Command{
@@ -41,7 +44,10 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
+custom domains using insecure schemes such as HTTP. Use with caution. The
+GOINSECURE environment variable is usually a better alternative, since it
+provides control over which modules may be retrieved using an insecure scheme.
+See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -103,25 +109,18 @@ var (
 	getT   = CmdGet.Flag.Bool("t", false, "")
 	getU   = CmdGet.Flag.Bool("u", false, "")
 	getFix = CmdGet.Flag.Bool("fix", false, "")
-
-	Insecure bool
 )
 
 func init() {
-	work.AddBuildFlags(CmdGet)
+	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
+	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 }
 
-func runGet(cmd *base.Command, args []string) {
+func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.ModulesEnabled {
 		// Should not happen: main.go should install the separate module-enabled get code.
 		base.Fatalf("go get: modules not implemented")
-	}
-	if cfg.GoModInGOPATH != "" {
-		// Warn about not using modules with GO111MODULE=auto when go.mod exists.
-		// To silence the warning, users can set GO111MODULE=off.
-		fmt.Fprintf(os.Stderr, "go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring %s;\n\tsee 'go help modules'\n", base.ShortPath(cfg.GoModInGOPATH))
 	}
 
 	work.BuildInit()
@@ -177,13 +176,7 @@ func runGet(cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	// In order to rebuild packages information completely,
-	// we need to clear commands cache. Command packages are
-	// referring to evicted packages from the package cache.
-	// This leads to duplicated loads of the standard packages.
-	load.ClearCmdCache()
-
-	pkgs := load.PackagesForBuild(args)
+	pkgs := load.PackagesForBuild(ctx, args)
 
 	// Phase 3. Install.
 	if *getD {
@@ -193,7 +186,7 @@ func runGet(cmd *base.Command, args []string) {
 		return
 	}
 
-	work.InstallPackages(args, pkgs)
+	work.InstallPackages(ctx, args, pkgs)
 }
 
 // downloadPaths prepares the list of paths to pass to download.
@@ -205,12 +198,28 @@ func downloadPaths(patterns []string) []string {
 	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
 			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
+			continue
+		}
+
+		// Guard against 'go get x.go', a common mistake.
+		// Note that package and module paths may end with '.go', so only print an error
+		// if the argument has no slash or refers to an existing file.
+		if strings.HasSuffix(arg, ".go") {
+			if !strings.Contains(arg, "/") {
+				base.Errorf("go get %s: arguments must be package or module paths", arg)
+				continue
+			}
+			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
+			}
 		}
 	}
+	base.ExitIfErrors()
+
 	var pkgs []string
 	for _, m := range search.ImportPathsQuiet(patterns) {
-		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
-			pkgs = append(pkgs, m.Pattern)
+		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern(), "...") {
+			pkgs = append(pkgs, m.Pattern())
 		} else {
 			pkgs = append(pkgs, m.Pkgs...)
 		}
@@ -232,7 +241,7 @@ var downloadCache = map[string]bool{}
 var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
-// for the package named by the argument.
+// for the package or pattern named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
 	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
@@ -240,9 +249,10 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	}
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return load.LoadPackageNoFlags(path, stk)
+			mode := 0 // don't do module or vendor resolution
+			return load.LoadImport(context.TODO(), path, base.Cwd, nil, stk, nil, mode)
 		}
-		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		return load.LoadImport(context.TODO(), path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
@@ -284,7 +294,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		stk.Push(arg)
 		err := downloadPackage(p)
 		if err != nil {
-			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err.Error()})
+			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err})
 			stk.Pop()
 			return
 		}
@@ -295,10 +305,16 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// We delay this until after reloadPackage so that the old entry
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
-			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg).Pkgs
+			match := search.NewMatch(arg)
+			if match.IsLocal() {
+				match.MatchDirs()
+				args = match.Dirs
 			} else {
-				args = search.MatchPackages(arg).Pkgs
+				match.MatchPackages()
+				args = match.Pkgs
+			}
+			for _, err := range match.Errs {
+				base.Errorf("%s", err)
 			}
 			isWildcard = true
 		}
@@ -365,7 +381,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 				stk.Push(path)
 				err := &load.PackageError{
 					ImportStack: stk.Copy(),
-					Err:         "must be imported as " + path[j+len("vendor/"):],
+					Err:         load.ImportErrorf(path, "%s must be imported as %s", path, path[j+len("vendor/"):]),
 				}
 				stk.Pop()
 				base.Errorf("%s", err)
@@ -391,29 +407,45 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 // to make the first copy of or update a copy of the given package.
 func downloadPackage(p *load.Package) error {
 	var (
-		vcs            *vcsCmd
+		vcsCmd         *vcs.Cmd
 		repo, rootPath string
 		err            error
 		blindRepo      bool // set if the repo has unusual configuration
 	)
 
-	security := web.Secure
-	if Insecure {
+	// p can be either a real package, or a pseudo-package whose “import path” is
+	// actually a wildcard pattern.
+	// Trim the path at the element containing the first wildcard,
+	// and hope that it applies to the wildcarded parts too.
+	// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
+	importPrefix := p.ImportPath
+	if i := strings.Index(importPrefix, "..."); i >= 0 {
+		slash := strings.LastIndexByte(importPrefix[:i], '/')
+		if slash < 0 {
+			return fmt.Errorf("cannot expand ... in %q", p.ImportPath)
+		}
+		importPrefix = importPrefix[:slash]
+	}
+	if err := module.CheckImportPath(importPrefix); err != nil {
+		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+	}
+	security := web.SecureOnly
+	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
 		security = web.Insecure
 	}
 
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		vcs, rootPath, err = vcsFromDir(p.Dir, p.Internal.Build.SrcRoot)
+		vcsCmd, rootPath, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
 		if err != nil {
 			return err
 		}
 		repo = "<local>" // should be unused; make distinctive
 
 		// Double-check where it came from.
-		if *getU && vcs.remoteRepo != nil {
+		if *getU && vcsCmd.RemoteRepo != nil {
 			dir := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
-			remote, err := vcs.remoteRepo(vcs, dir)
+			remote, err := vcsCmd.RemoteRepo(vcsCmd, dir)
 			if err != nil {
 				// Proceed anyway. The package is present; we likely just don't understand
 				// the repo configuration (e.g. unusual remote protocol).
@@ -421,10 +453,10 @@ func downloadPackage(p *load.Package) error {
 			}
 			repo = remote
 			if !*getF && err == nil {
-				if rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security); err == nil {
+				if rr, err := vcs.RepoRootForImportPath(importPrefix, vcs.IgnoreMod, security); err == nil {
 					repo := rr.Repo
-					if rr.vcs.resolveRepo != nil {
-						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
+					if rr.VCS.ResolveRepo != nil {
+						resolved, err := rr.VCS.ResolveRepo(rr.VCS, dir, repo)
 						if err == nil {
 							repo = resolved
 						}
@@ -438,13 +470,13 @@ func downloadPackage(p *load.Package) error {
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security)
+		rr, err := vcs.RepoRootForImportPath(importPrefix, vcs.IgnoreMod, security)
 		if err != nil {
 			return err
 		}
-		vcs, repo, rootPath = rr.vcs, rr.Repo, rr.Root
+		vcsCmd, repo, rootPath = rr.VCS, rr.Repo, rr.Root
 	}
-	if !blindRepo && !vcs.isSecure(repo) && !Insecure {
+	if !blindRepo && !vcsCmd.IsSecure(repo) && security != web.Insecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 
@@ -467,7 +499,7 @@ func downloadPackage(p *load.Package) error {
 	}
 	root := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
 
-	if err := checkNestedVCS(vcs, root, p.Internal.Build.SrcRoot); err != nil {
+	if err := vcs.CheckNested(vcsCmd, root, p.Internal.Build.SrcRoot); err != nil {
 		return err
 	}
 
@@ -483,7 +515,7 @@ func downloadPackage(p *load.Package) error {
 
 	// Check that this is an appropriate place for the repo to be checked out.
 	// The target directory must either not exist or have a repo checked out already.
-	meta := filepath.Join(root, "."+vcs.cmd)
+	meta := filepath.Join(root, "."+vcsCmd.Cmd)
 	if _, err := os.Stat(meta); err != nil {
 		// Metadata file or directory does not exist. Prepare to checkout new copy.
 		// Some version control tools require the target directory not to exist.
@@ -504,12 +536,12 @@ func downloadPackage(p *load.Package) error {
 			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.Internal.Build.Root)
 		}
 
-		if err = vcs.create(root, repo); err != nil {
+		if err = vcsCmd.Create(root, repo); err != nil {
 			return err
 		}
 	} else {
 		// Metadata directory does exist; download incremental updates.
-		if err = vcs.download(root); err != nil {
+		if err = vcsCmd.Download(root); err != nil {
 			return err
 		}
 	}
@@ -518,12 +550,12 @@ func downloadPackage(p *load.Package) error {
 		// Do not show tag sync in -n; it's noise more than anything,
 		// and since we're not running commands, no tag will be found.
 		// But avoid printing nothing.
-		fmt.Fprintf(os.Stderr, "# cd %s; %s sync/update\n", root, vcs.cmd)
+		fmt.Fprintf(os.Stderr, "# cd %s; %s sync/update\n", root, vcsCmd.Cmd)
 		return nil
 	}
 
 	// Select and sync to appropriate version of the repository.
-	tags, err := vcs.tags(root)
+	tags, err := vcsCmd.Tags(root)
 	if err != nil {
 		return err
 	}
@@ -531,7 +563,7 @@ func downloadPackage(p *load.Package) error {
 	if i := strings.Index(vers, " "); i >= 0 {
 		vers = vers[:i]
 	}
-	if err := vcs.tagSync(root, selectTag(vers, tags)); err != nil {
+	if err := vcsCmd.TagSync(root, selectTag(vers, tags)); err != nil {
 		return err
 	}
 

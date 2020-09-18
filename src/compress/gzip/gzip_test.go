@@ -214,6 +214,9 @@ func TestConcat(t *testing.T) {
 	w.Close()
 
 	r, err := NewReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data, err := ioutil.ReadAll(r)
 	if string(data) != "hello world\n" || err != nil {
 		t.Fatalf("ReadAll = %q, %v, want %q, nil", data, err, "hello world")

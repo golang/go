@@ -45,10 +45,10 @@ type textBytes []byte
 
 func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
 
-// A converter holds the state of a test-to-JSON conversion.
+// A Converter holds the state of a test-to-JSON conversion.
 // It implements io.WriteCloser; the caller writes test output in,
 // and the converter writes JSON output to w.
-type converter struct {
+type Converter struct {
 	w        io.Writer  // JSON output stream
 	pkg      string     // package to name in events
 	mode     Mode       // mode bits
@@ -100,9 +100,9 @@ var (
 //
 // The pkg string, if present, specifies the import path to
 // report in the JSON stream.
-func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
-	c := new(converter)
-	*c = converter{
+func NewConverter(w io.Writer, pkg string, mode Mode) *Converter {
+	c := new(Converter)
+	*c = Converter{
 		w:     w,
 		pkg:   pkg,
 		mode:  mode,
@@ -122,14 +122,30 @@ func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
 }
 
 // Write writes the test input to the converter.
-func (c *converter) Write(b []byte) (int, error) {
+func (c *Converter) Write(b []byte) (int, error) {
 	c.input.write(b)
 	return len(b), nil
 }
 
+// Exited marks the test process as having exited with the given error.
+func (c *Converter) Exited(err error) {
+	if err == nil {
+		c.result = "pass"
+	} else {
+		c.result = "fail"
+	}
+}
+
 var (
+	// printed by test on successful run.
 	bigPass = []byte("PASS\n")
+
+	// printed by test after a normal test failure.
 	bigFail = []byte("FAIL\n")
+
+	// printed by 'go test' along with an error if the test binary terminates
+	// with an error.
+	bigFailErrorPrefix = []byte("FAIL\t")
 
 	updates = [][]byte{
 		[]byte("=== RUN   "),
@@ -153,9 +169,9 @@ var (
 // handleInputLine handles a single whole test output line.
 // It must write the line to c.output but may choose to do so
 // before or after emitting other events.
-func (c *converter) handleInputLine(line []byte) {
+func (c *Converter) handleInputLine(line []byte) {
 	// Final PASS or FAIL.
-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
+	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
 		c.flushReport(0)
 		c.output.write(line)
 		if bytes.Equal(line, bigPass) {
@@ -204,8 +220,18 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 	}
 
+	// Not a special test output line.
 	if !ok {
-		// Not a special test output line.
+		// Lookup the name of the test which produced the output using the
+		// indentation of the output as an index into the stack of the current
+		// subtests.
+		// If the indentation is greater than the number of current subtests
+		// then the output must have included extra indentation. We can't
+		// determine which subtest produced this output, so we default to the
+		// old behaviour of assuming the most recently run subtest produced it.
+		if indent > 0 && indent <= len(c.report) {
+			c.testName = c.report[indent-1].Test
+		}
 		c.output.write(origLine)
 		return
 	}
@@ -269,7 +295,7 @@ func (c *converter) handleInputLine(line []byte) {
 }
 
 // flushReport flushes all pending PASS/FAIL reports at levels >= depth.
-func (c *converter) flushReport(depth int) {
+func (c *Converter) flushReport(depth int) {
 	c.testName = ""
 	for len(c.report) > depth {
 		e := c.report[len(c.report)-1]
@@ -281,23 +307,22 @@ func (c *converter) flushReport(depth int) {
 // Close marks the end of the go test output.
 // It flushes any pending input and then output (only partial lines at this point)
 // and then emits the final overall package-level pass/fail event.
-func (c *converter) Close() error {
+func (c *Converter) Close() error {
 	c.input.flush()
 	c.output.flush()
-	e := &event{Action: "fail"}
 	if c.result != "" {
-		e.Action = c.result
+		e := &event{Action: c.result}
+		if c.mode&Timestamp != 0 {
+			dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
+			e.Elapsed = &dt
+		}
+		c.writeEvent(e)
 	}
-	if c.mode&Timestamp != 0 {
-		dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
-		e.Elapsed = &dt
-	}
-	c.writeEvent(e)
 	return nil
 }
 
 // writeOutputEvent writes a single output event with the given bytes.
-func (c *converter) writeOutputEvent(out []byte) {
+func (c *Converter) writeOutputEvent(out []byte) {
 	c.writeEvent(&event{
 		Action: "output",
 		Output: (*textBytes)(&out),
@@ -306,7 +331,7 @@ func (c *converter) writeOutputEvent(out []byte) {
 
 // writeEvent writes a single event.
 // It adds the package, time (if requested), and test name (if needed).
-func (c *converter) writeEvent(e *event) {
+func (c *Converter) writeEvent(e *event) {
 	e.Package = c.pkg
 	if c.mode&Timestamp != 0 {
 		t := time.Now()

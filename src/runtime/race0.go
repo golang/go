@@ -29,6 +29,7 @@ func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { th
 func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { throw("race") }
 func raceacquire(addr unsafe.Pointer)                                       { throw("race") }
 func raceacquireg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+func raceacquirectx(racectx uintptr, addr unsafe.Pointer)                   { throw("race") }
 func racerelease(addr unsafe.Pointer)                                       { throw("race") }
 func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
 func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
@@ -38,3 +39,4 @@ func racemalloc(p unsafe.Pointer, sz uintptr)                               { th
 func racefree(p unsafe.Pointer, sz uintptr)                                 { throw("race") }
 func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
 func racegoend()                                                            { throw("race") }
+func racectxend(racectx uintptr)                                            { throw("race") }

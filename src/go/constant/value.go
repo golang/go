@@ -170,7 +170,7 @@ func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
 func (x intVal) String() string   { return x.val.String() }
 func (x ratVal) String() string   { return rtof(x).String() }
 
-// String returns returns a decimal approximation of the Float value.
+// String returns a decimal approximation of the Float value.
 func (x floatVal) String() string {
 	f := x.val
 
@@ -315,8 +315,9 @@ func makeFloatFromLiteral(lit string) Value {
 				// but it'll take forever to parse as a Rat.
 				lit = "0"
 			}
-			r, _ := newRat().SetString(lit)
-			return ratVal{r}
+			if r, ok := newRat().SetString(lit); ok {
+				return ratVal{r}
+			}
 		}
 		// otherwise use floats
 		return makeFloat(f)
@@ -527,6 +528,68 @@ func Float64Val(x Value) (float64, bool) {
 		return 0, false
 	default:
 		panic(fmt.Sprintf("%v not a Float", x))
+	}
+}
+
+// Val returns the underlying value for a given constant. Since it returns an
+// interface, it is up to the caller to type assert the result to the expected
+// type. The possible dynamic return types are:
+//
+//    x Kind             type of result
+//    -----------------------------------------
+//    Bool               bool
+//    String             string
+//    Int                int64 or *big.Int
+//    Float              *big.Float or *big.Rat
+//    everything else    nil
+//
+func Val(x Value) interface{} {
+	switch x := x.(type) {
+	case boolVal:
+		return bool(x)
+	case *stringVal:
+		return x.string()
+	case int64Val:
+		return int64(x)
+	case intVal:
+		return x.val
+	case ratVal:
+		return x.val
+	case floatVal:
+		return x.val
+	default:
+		return nil
+	}
+}
+
+// Make returns the Value for x.
+//
+//    type of x        result Kind
+//    ----------------------------
+//    bool             Bool
+//    string           String
+//    int64            Int
+//    *big.Int         Int
+//    *big.Float       Float
+//    *big.Rat         Float
+//    anything else    Unknown
+//
+func Make(x interface{}) Value {
+	switch x := x.(type) {
+	case bool:
+		return boolVal(x)
+	case string:
+		return &stringVal{s: x}
+	case int64:
+		return int64Val(x)
+	case *big.Int:
+		return intVal{x}
+	case *big.Rat:
+		return ratVal{x}
+	case *big.Float:
+		return floatVal{x}
+	default:
+		return unknownVal{}
 	}
 }
 

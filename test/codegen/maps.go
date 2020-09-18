@@ -38,6 +38,35 @@ func AccessString2(m map[string]int) bool {
 }
 
 // ------------------- //
+//  String Conversion  //
+// ------------------- //
+
+func LookupStringConversionSimple(m map[string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[string(bytes)]
+}
+
+func LookupStringConversionStructLit(m map[struct{ string }]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[struct{ string }{string(bytes)}]
+}
+
+func LookupStringConversionArrayLit(m map[[2]string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[2]string{string(bytes), string(bytes)}]
+}
+
+func LookupStringConversionNestedLit(m map[[1]struct{ s [1]string }]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[1]struct{ s [1]string }{struct{ s [1]string }{s: [1]string{string(bytes)}}}]
+}
+
+func LookupStringConversionKeyedArrayLit(m map[[2]string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	return m[[2]string{0: string(bytes)}]
+}
+
+// ------------------- //
 //     Map Clear       //
 // ------------------- //
 

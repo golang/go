@@ -185,8 +185,10 @@ func main() {
 		log.Fatal("source format error:", err)
 	}
 	fd, err := os.Create(*output)
-	_, err = fd.Write(source)
 	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := fd.Write(source); err != nil {
 		log.Fatal(err)
 	}
 }

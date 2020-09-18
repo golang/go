@@ -31,7 +31,7 @@
 //
 // See FIPS 197 for specification, and see Daemen and Rijmen's Rijndael submission
 // for implementation details.
-//	https://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+//	https://csrc.nist.gov/csrc/media/publications/fips/197/final/documents/fips-197.pdf
 //	https://csrc.nist.gov/archive/aes/rijndael/Rijndael-ammended.pdf
 
 package aes

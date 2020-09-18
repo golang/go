@@ -4,7 +4,7 @@
 
 // +build !lldb
 // +build darwin
-// +build arm arm64
+// +build arm64
 
 #include <stdint.h>
 

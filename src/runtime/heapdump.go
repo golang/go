@@ -195,7 +195,7 @@ func dumptype(t *_type) {
 		dwritebyte('.')
 		dwrite(name.str, uintptr(name.len))
 	}
-	dumpbool(t.kind&kindDirectIface == 0 || t.kind&kindNoPointers == 0)
+	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
 
 // dump an object
@@ -346,7 +346,7 @@ func dumpgoroutine(gp *g) {
 	dumpint(uint64(gp.goid))
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
-	dumpbool(isSystemGoroutine(gp))
+	dumpbool(isSystemGoroutine(gp, false))
 	dumpbool(false) // isbackground
 	dumpint(uint64(gp.waitsince))
 	dumpstr(gp.waitreason.String())
@@ -371,7 +371,12 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		if d.fn == nil {
+			// d.fn can be nil for open-coded defers
+			dumpint(uint64(0))
+		} else {
+			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
 	for p := gp._panic; p != nil; p = p.link {
@@ -428,9 +433,9 @@ func dumproots() {
 	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
 	dumpfields(firstmoduledata.gcbssmask)
 
-	// MSpan.types
+	// mspan.types
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state.get() == mSpanInUse {
 			// Finalizers
 			for sp := s.specials; sp != nil; sp = sp.next {
 				if sp.kind != _KindSpecialFinalizer {
@@ -453,7 +458,7 @@ var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
 	for _, s := range mheap_.allspans {
-		if s.state != _MSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		p := s.base()
@@ -616,7 +621,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 func dumpmemprof() {
 	iterate_memprof(dumpmemprof_callback)
 	for _, s := range mheap_.allspans {
-		if s.state != _MSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		for sp := s.specials; sp != nil; sp = sp.next {
@@ -637,7 +642,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
 func mdump() {
 	// make sure we're done sweeping
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state.get() == mSpanInUse {
 			s.ensureSwept()
 		}
 	}
@@ -661,7 +666,7 @@ func writeheapdump_m(fd uintptr) {
 	_g_.waitreason = waitReasonDumpingHeap
 
 	// Update stats so we can dump them.
-	// As a side effect, flushes all the MCaches so the MSpan.freelist
+	// As a side effect, flushes all the mcaches so the mspan.freelist
 	// lists contain all the free objects.
 	updatememstats()
 
@@ -708,7 +713,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		if i != 1 && !hbits.morePointers() {
+		if !hbits.morePointers() {
 			break // end of object
 		}
 		if hbits.isPointer() {

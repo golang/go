@@ -7,16 +7,15 @@ package modconv
 import (
 	"strings"
 
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 func ParseVendorYML(file string, data []byte) (*modfile.File, error) {
 	mf := new(modfile.File)
 	vendors := false
 	path := ""
-	for lineno, line := range strings.Split(string(data), "\n") {
-		lineno++
+	for _, line := range strings.Split(string(data), "\n") {
 		if line == "" {
 			continue
 		}

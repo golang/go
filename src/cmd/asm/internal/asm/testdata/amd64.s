@@ -143,6 +143,10 @@ loop:
 	MOVB	foo+32(SP)(CX*4), AH		// 8a648c20
 	MOVB	foo+32323(SP)(CX*8), R9		// 448a8ccc437e0000
 
+// Tests for TLS reference.
+	MOVQ	(TLS), AX
+	MOVQ	8(TLS), DX
+
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET // c3
 	RET	foo(SB)

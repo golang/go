@@ -42,8 +42,10 @@ func sigprocmask(how int32, new, old *sigset) {
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func getthrid() int32
+func thrkill(tid int32, sig int)
 
 //go:noescape
 func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
@@ -60,11 +62,14 @@ func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 const (
 	_ESRCH       = 3
-	_EAGAIN      = 35
 	_EWOULDBLOCK = _EAGAIN
 	_ENOTSUP     = 91
 
@@ -84,9 +89,10 @@ const (
 	_CTL_KERN   = 1
 	_KERN_OSREV = 3
 
-	_CTL_HW      = 6
-	_HW_NCPU     = 3
-	_HW_PAGESIZE = 7
+	_CTL_HW        = 6
+	_HW_NCPU       = 3
+	_HW_PAGESIZE   = 7
+	_HW_NCPUONLINE = 25
 )
 
 func sysctlInt(mib []uint32) (int32, bool) {
@@ -100,9 +106,14 @@ func sysctlInt(mib []uint32) (int32, bool) {
 }
 
 func getncpu() int32 {
-	// Fetch hw.ncpu via sysctl.
-	if ncpu, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
-		return int32(ncpu)
+	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
+	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
+	// disabled (hw.smt=0). See https://golang.org/issue/30127
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPUONLINE}); ok {
+		return int32(n)
+	}
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
+		return int32(n)
 	}
 	return 1
 }
@@ -133,10 +144,7 @@ func semasleep(ns int64) int32 {
 	var tsp *timespec
 	if ns >= 0 {
 		var ts timespec
-		var nsec int32
-		ns += nanotime()
-		ts.set_sec(int64(timediv(ns, 1000000000, &nsec)))
-		ts.set_nsec(nsec)
+		ts.setNsec(ns + nanotime())
 		tsp = &ts
 	}
 
@@ -187,7 +195,7 @@ func newosproc(mp *m) {
 	// rather than at the top of it.
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
-		tf_tid:   (*int32)(unsafe.Pointer(&mp.procid)),
+		tf_tid:   nil, // minit will record tid
 		tf_stack: uintptr(stk) - sys.PtrSize,
 	}
 
@@ -235,10 +243,7 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
-	// m.procid is a uint64, but tfork writes an int32. Fix it up.
-	_g_ := getg()
-	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
-
+	getg().m.procid = uint64(getthrid())
 	minitSignals()
 }
 
@@ -299,6 +304,7 @@ func sigdelset(mask *sigset, i int) {
 	*mask &^= 1 << (uint32(i) - 1)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
@@ -332,4 +338,13 @@ func osStackRemap(s *mspan, flags int32) {
 		print("runtime: remapping stack memory ", hex(s.base()), " ", s.npages*pageSize, " a=", a, " err=", err, "\n")
 		throw("remapping stack memory failed")
 	}
+}
+
+//go:nosplit
+func raise(sig uint32) {
+	thrkill(getthrid(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	thrkill(int32(mp.procid), sig)
 }

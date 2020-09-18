@@ -90,6 +90,9 @@ func goroutineLeaked() bool {
 // (all.bash), but as a serial test otherwise. Using t.Parallel isn't
 // compatible with the afterTest func in non-short mode.
 func setParallel(t *testing.T) {
+	if strings.Contains(t.Name(), "HTTP2") {
+		http.CondSkipHTTP2(t)
+	}
 	if testing.Short() {
 		t.Parallel()
 	}
@@ -122,7 +125,7 @@ func afterTest(t testing.TB) {
 		").noteClientGone(":     "a closenotifier sender",
 	}
 	var stacks string
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		bad = ""
 		stacks = strings.Join(interestingGoroutines(), "\n\n")
 		for substr, what := range badSubstring {

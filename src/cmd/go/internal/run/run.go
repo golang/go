@@ -6,8 +6,10 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -22,7 +24,7 @@ var CmdRun = &base.Command{
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.
-Typically the package is specified as a list of .go source files,
+Typically the package is specified as a list of .go source files from a single directory,
 but it may also be an import path, file system path, or pattern
 matching a single known package, as in 'go run .' or 'go run my/cmd'.
 
@@ -32,7 +34,7 @@ If the -exec flag is given, 'go run' invokes the binary using xprog:
 If the -exec flag is not given, GOOS or GOARCH is different from the system
 default, and a program named go_$GOOS_$GOARCH_exec can be found
 on the current search path, 'go run' invokes the binary using that program,
-for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
+for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
 
@@ -48,7 +50,7 @@ See also: go build.
 func init() {
 	CmdRun.Run = runRun // break init loop
 
-	work.AddBuildFlags(CmdRun)
+	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -56,7 +58,7 @@ func printStderr(args ...interface{}) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 
-func runRun(cmd *base.Command, args []string) {
+func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit()
 	var b work.Builder
 	b.Init()
@@ -75,9 +77,12 @@ func runRun(cmd *base.Command, args []string) {
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(files)
+		p = load.GoFilesPackage(ctx, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		pkgs := load.PackagesAndErrors(args[:1])
+		pkgs := load.PackagesAndErrors(ctx, args[:1])
+		if len(pkgs) == 0 {
+			base.Fatalf("go run: no packages loaded from %s", args[0])
+		}
 		if len(pkgs) > 1 {
 			var names []string
 			for _, p := range pkgs {
@@ -91,10 +96,10 @@ func runRun(cmd *base.Command, args []string) {
 		base.Fatalf("go run: no go files listed")
 	}
 	cmdArgs := args[i:]
-
 	if p.Error != nil {
 		base.Fatalf("%s", p.Error)
 	}
+
 	p.Internal.OmitDebug = true
 	if len(p.DepsErrors) > 0 {
 		// Since these are errors in dependencies,
@@ -114,29 +119,34 @@ func runRun(cmd *base.Command, args []string) {
 		base.Fatalf("go run: cannot run non-main package")
 	}
 	p.Target = "" // must build - not up to date
-	var src string
-	if len(p.GoFiles) > 0 {
-		src = p.GoFiles[0]
-	} else if len(p.CgoFiles) > 0 {
-		src = p.CgoFiles[0]
-	} else {
-		// this case could only happen if the provided source uses cgo
-		// while cgo is disabled.
-		hint := ""
-		if !cfg.BuildContext.CgoEnabled {
-			hint = " (cgo is disabled)"
+	if p.Internal.CmdlineFiles {
+		//set executable name if go file is given as cmd-argument
+		var src string
+		if len(p.GoFiles) > 0 {
+			src = p.GoFiles[0]
+		} else if len(p.CgoFiles) > 0 {
+			src = p.CgoFiles[0]
+		} else {
+			// this case could only happen if the provided source uses cgo
+			// while cgo is disabled.
+			hint := ""
+			if !cfg.BuildContext.CgoEnabled {
+				hint = " (cgo is disabled)"
+			}
+			base.Fatalf("go run: no suitable source files%s", hint)
 		}
-		base.Fatalf("go run: no suitable source files%s", hint)
+		p.Internal.ExeName = src[:len(src)-len(".go")]
+	} else {
+		p.Internal.ExeName = path.Base(p.ImportPath)
 	}
-	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
-	b.Do(a)
+	b.Do(ctx, a)
 }
 
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
-func buildRunProgram(b *work.Builder, a *work.Action) error {
+func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "%s", strings.Join(cmdline, " "))

@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // +build mips64 mips64le
 // +build linux
 
@@ -7,6 +11,7 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
+	_ENOSYS = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -18,6 +23,7 @@ const (
 	_MAP_FIXED   = 0x10
 
 	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
 
@@ -98,12 +104,10 @@ type timespec struct {
 	tv_nsec int64
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = x
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = int64(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {
@@ -146,6 +150,7 @@ type epollevent struct {
 
 const (
 	_O_RDONLY    = 0x0
+	_O_NONBLOCK  = 0x80
 	_O_CLOEXEC   = 0x80000
 	_SA_RESTORER = 0
 )

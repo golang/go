@@ -24,12 +24,14 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-104
 
 	// shift around the last three arguments so they're at the
 	// top of the stack when the syscall is called.
+	// note that we are scribbling over the Go arguments now.
+	MOVQ	SP, CX	// hide (SP) writes from vet
 	MOVQ	a7+56(FP), R11 // arg 7
-	MOVQ	R11, 8(SP)
+	MOVQ	R11, 8(CX)
 	MOVQ	a8+64(FP), R11 // arg 8
-	MOVQ	R11, 16(SP)
+	MOVQ	R11, 16(CX)
 	MOVQ	a9+72(FP), R11 // arg 9
-	MOVQ	R11, 24(SP)
+	MOVQ	R11, 24(CX)
 
 	SYSCALL
 	JCC	ok9

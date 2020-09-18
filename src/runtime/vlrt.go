@@ -1,5 +1,5 @@
 // Inferno's libkern/vlrt-arm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/vlrt-arm.c
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -130,9 +130,6 @@ func uint64mod(n, d uint64) uint64 {
 	return r
 }
 
-//go:nosplit
-// nosplit because division is used in syscall context in nanotime on darwin/386
-// and darwin/arm where stack splits are not allowed.
 func int64div(n, d int64) int64 {
 	// Check for 32 bit operands
 	if int64(int32(n)) == n && int64(int32(d)) == d {

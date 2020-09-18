@@ -194,7 +194,7 @@ func newEVEXSuffix() evexSuffix {
 	return evexSuffix{rounding: rcUnset}
 }
 
-// evexSuffixMap maps obj.X86suffix to it's decoded version.
+// evexSuffixMap maps obj.X86suffix to its decoded version.
 // Filled during init().
 var evexSuffixMap [255]evexSuffix
 

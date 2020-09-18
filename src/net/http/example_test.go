@@ -132,7 +132,7 @@ func ExampleServer_Shutdown() {
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		// Error starting or closing listener:
-		log.Printf("HTTP server ListenAndServe: %v", err)
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
 	}
 
 	<-idleConnsClosed
@@ -172,4 +172,22 @@ func ExampleHandleFunc() {
 	http.HandleFunc("/endpoint", h2)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func newPeopleHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "This is the people handler.")
+	})
+}
+
+func ExampleNotFoundHandler() {
+	mux := http.NewServeMux()
+
+	// Create sample handler to returns 404
+	mux.Handle("/resources", http.NotFoundHandler())
+
+	// Create sample handler that returns 200
+	mux.Handle("/resources/people/", newPeopleHandler())
+
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

@@ -6,6 +6,35 @@
 // drivers as used by package sql.
 //
 // Most code should use package sql.
+//
+// The driver interface has evolved over time. Drivers should implement
+// Connector and DriverContext interfaces.
+// The Connector.Connect and Driver.Open methods should never return ErrBadConn.
+// ErrBadConn should only be returned from Validator, SessionResetter, or
+// a query method if the connection is already in an invalid (e.g. closed) state.
+//
+// All Conn implementations should implement the following interfaces:
+// Pinger, SessionResetter, and Validator.
+//
+// If named parameters or context are supported, the driver's Conn should implement:
+// ExecerContext, QueryerContext, ConnPrepareContext, and ConnBeginTx.
+//
+// To support custom data types, implement NamedValueChecker. NamedValueChecker
+// also allows queries to accept per-query options as a parameter by returning
+// ErrRemoveArgument from CheckNamedValue.
+//
+// If multiple result sets are supported, Rows should implement RowsNextResultSet.
+// If the driver knows how to describe the types present in the returned result
+// it should implement the following interfaces: RowsColumnTypeScanType,
+// RowsColumnTypeDatabaseTypeName, RowsColumnTypeLength, RowsColumnTypeNullable,
+// and RowsColumnTypePrecisionScale. A given row value may also return a Rows
+// type, which may represent a database cursor value.
+//
+// Before a connection is returned to the connection pool after use, IsValid is
+// called if implemented. Before a connection is reused for another query,
+// ResetSession is called if implemented. If a connection is never returned to the
+// connection pool but immediately reused, then ResetSession is called prior to
+// reuse but IsValid is not called.
 package driver
 
 import (
@@ -24,6 +53,11 @@ import (
 //   []byte
 //   string
 //   time.Time
+//
+// If the driver supports cursors, a returned Value may also implement the Rows interface
+// in this package. This is used, for example, when a user selects a cursor
+// such as "select cursor(select * from my_table) from dual". If the Rows
+// from the select is closed, the cursor Rows will also be closed.
 type Value interface{}
 
 // NamedValue holds both the value name and value.
@@ -62,7 +96,7 @@ type Driver interface {
 
 // If a Driver implements DriverContext, then sql.DB will call
 // OpenConnector to obtain a Connector and then invoke
-// that Connector's Conn method to obtain each needed connection,
+// that Connector's Connect method to obtain each needed connection,
 // instead of invoking the Driver's Open method for each connection.
 // The two-step sequence allows drivers to parse the name just once
 // and also provides access to per-Conn contexts.
@@ -89,7 +123,9 @@ type Connector interface {
 	//
 	// The provided context.Context is for dialing purposes only
 	// (see net.DialContext) and should not be stored or used for
-	// other purposes.
+	// other purposes. A default timeout should still be used
+	// when dialing as a connection pool may call Connect
+	// asynchronously to any query.
 	//
 	// The returned connection is only used by one goroutine at a
 	// time.
@@ -132,7 +168,7 @@ type Pinger interface {
 
 // Execer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn implements neither ExecerContext nor Execer Execer,
+// If a Conn implements neither ExecerContext nor Execer,
 // the sql package's DB.Exec will first prepare a query, execute the statement,
 // and then close the statement.
 //
@@ -200,6 +236,9 @@ type Conn interface {
 	// connections and only calls Close when there's a surplus of
 	// idle connections, it shouldn't be necessary for drivers to
 	// do their own connection caching.
+	//
+	// Drivers must ensure all network calls made by Close
+	// do not block indefinitely (e.g. apply a timeout).
 	Close() error
 
 	// Begin starts and returns a new transaction.
@@ -250,13 +289,21 @@ type ConnBeginTx interface {
 // SessionResetter may be implemented by Conn to allow drivers to reset the
 // session state associated with the connection and to signal a bad connection.
 type SessionResetter interface {
-	// ResetSession is called while a connection is in the connection
-	// pool. No queries will run on this connection until this method returns.
-	//
-	// If the connection is bad this should return driver.ErrBadConn to prevent
-	// the connection from being returned to the connection pool. Any other
-	// error will be discarded.
+	// ResetSession is called prior to executing a query on the connection
+	// if the connection has been used before. If the driver returns ErrBadConn
+	// the connection is discarded.
 	ResetSession(ctx context.Context) error
+}
+
+// Validator may be implemented by Conn to allow drivers to
+// signal if a connection is valid or if it should be discarded.
+//
+// If implemented, drivers may return the underlying error from queries,
+// even if the connection should be discarded by the connection pool.
+type Validator interface {
+	// IsValid is called prior to placing the connection into the
+	// connection pool. The connection will be discarded if false is returned.
+	IsValid() bool
 }
 
 // Result is the result of a query execution.
@@ -278,6 +325,9 @@ type Stmt interface {
 	//
 	// As of Go 1.1, a Stmt will not be closed if it's in use
 	// by any queries.
+	//
+	// Drivers must ensure all network calls made by Close
+	// do not block indefinitely (e.g. apply a timeout).
 	Close() error
 
 	// NumInput returns the number of placeholder parameters.
@@ -469,7 +519,7 @@ type RowsAffected int64
 var _ Result = RowsAffected(0)
 
 func (RowsAffected) LastInsertId() (int64, error) {
-	return 0, errors.New("no LastInsertId available")
+	return 0, errors.New("LastInsertId is not supported by this driver")
 }
 
 func (v RowsAffected) RowsAffected() (int64, error) {

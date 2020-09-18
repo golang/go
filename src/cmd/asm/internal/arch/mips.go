@@ -33,12 +33,13 @@ func IsMIPSCMP(op obj.As) bool {
 }
 
 // IsMIPSMUL reports whether the op (as defined by an mips.A* constant) is
-// one of the MUL/DIV/REM instructions that require special handling.
+// one of the MUL/DIV/REM/MADD/MSUB instructions that require special handling.
 func IsMIPSMUL(op obj.As) bool {
 	switch op {
 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,
-		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU:
+		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU,
+		mips.AMADD, mips.AMSUB:
 		return true
 	}
 	return false
@@ -61,6 +62,10 @@ func mipsRegisterNumber(name string, n int16) (int16, bool) {
 	case "R":
 		if 0 <= n && n <= 31 {
 			return mips.REG_R0 + n, true
+		}
+	case "W":
+		if 0 <= n && n <= 31 {
+			return mips.REG_W0 + n, true
 		}
 	}
 	return 0, false

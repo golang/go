@@ -19,22 +19,6 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
 	MOVD	$ret+24(FP), R2 // &ret => R9
 	BR	indexbytebody<>(SB)
 
-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
-	MOVD	b_base+0(FP), R3// b_base => R3
-	MOVD	b_len+8(FP), R4 // b_len => R4
-	MOVBZ	c+24(FP), R5    // c => R5
-	MOVD	$ret+32(FP), R2 // &ret => R9
-	BR	indexbytebody<>(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
-	MOVD	s_base+0(FP), R3// s_base => R3
-	MOVD	s_len+8(FP), R4 // s_len => R4
-	MOVBZ	c+16(FP), R5    // c => R5
-	MOVD	$ret+24(FP), R2 // &ret => R9
-	BR	indexbytebody<>(SB)
-
 // input:
 // R3: s
 // R4: s_len

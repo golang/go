@@ -134,12 +134,9 @@ func signalWaitUntilIdle() {
 //go:linkname signal_enable os/signal.signal_enable
 func signal_enable(s uint32) {
 	if !sig.inuse {
-		// The first call to signal_enable is for us
-		// to use for initialization. It does not pass
-		// signal information in m.
+		// This is the first call to signal_enable. Initialize.
 		sig.inuse = true // enable reception of signals; cannot disable
 		noteclear(&sig.note)
-		return
 	}
 }
 

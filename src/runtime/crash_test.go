@@ -55,6 +55,16 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 		t.Fatal(err)
 	}
 
+	return runBuiltTestProg(t, exe, name, env...)
+}
+
+func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
@@ -64,7 +74,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	cmd.Stdout = &b
 	cmd.Stderr = &b
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting %s %s: %v", binary, name, err)
+		t.Fatalf("starting %s %s: %v", exe, name, err)
 	}
 
 	// If the process doesn't complete within 1 minute,
@@ -92,7 +102,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	}()
 
 	if err := cmd.Wait(); err != nil {
-		t.Logf("%s %s exit status: %v", binary, name, err)
+		t.Logf("%s %s exit status: %v", exe, name, err)
 	}
 	close(done)
 
@@ -103,8 +113,6 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	if *flagQuick {
 		t.Skip("-quick")
 	}
-
-	checkStaleRuntime(t)
 
 	testprog.Lock()
 	defer testprog.Unlock()
@@ -143,31 +151,12 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	return exe, nil
 }
 
-var (
-	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
-	staleRuntimeErr  error
-)
-
-func checkStaleRuntime(t *testing.T) {
-	staleRuntimeOnce.Do(func() {
-		// 'go run' uses the installed copy of runtime.a, which may be out of date.
-		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
-		if err != nil {
-			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
-			return
-		}
-		if string(out) != "false\n" {
-			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
-			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
-			if err != nil {
-				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
-			}
-			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
-			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
-		}
-	})
-	if staleRuntimeErr != nil {
-		t.Fatal(staleRuntimeErr)
+func TestVDSO(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "SignalInVDSO")
+	want := "success\n"
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
 	}
 }
 
@@ -225,9 +214,23 @@ func TestGoexitDeadlock(t *testing.T) {
 
 func TestStackOverflow(t *testing.T) {
 	output := runTestProg(t, "testprog", "StackOverflow")
-	want := "runtime: goroutine stack exceeds 1474560-byte limit\nfatal error: stack overflow"
-	if !strings.HasPrefix(output, want) {
-		t.Fatalf("output does not start with %q:\n%s", want, output)
+	want := []string{
+		"runtime: goroutine stack exceeds 1474560-byte limit\n",
+		"fatal error: stack overflow",
+		// information about the current SP and stack bounds
+		"runtime: sp=",
+		"stack=[",
+	}
+	if !strings.HasPrefix(output, want[0]) {
+		t.Errorf("output does not start with %q", want[0])
+	}
+	for _, s := range want[1:] {
+		if !strings.Contains(output, s) {
+			t.Errorf("output does not contain %q", s)
+		}
+	}
+	if t.Failed() {
+		t.Logf("output:\n%s", output)
 	}
 }
 
@@ -244,6 +247,41 @@ func TestRecursivePanic(t *testing.T) {
 	want := `wrap: bad
 panic: again
 
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic2(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic2")
+	want := `first panic
+second panic
+panic: third panic
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic3(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic3")
+	want := `panic: first panic
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
+func TestRecursivePanic4(t *testing.T) {
+	output := runTestProg(t, "testprog", "RecursivePanic4")
+	want := `panic: first panic [recovered]
+	panic: second panic
 `
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
@@ -382,26 +420,32 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 }
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
-	// 1. defer a function that recovers
-	// 2. defer a function that panics
-	// 3. call goexit
-	// Goexit should run the #2 defer. Its panic
-	// should be caught by the #1 defer, and execution
-	// should resume in the caller. Like the Goexit
-	// never happened!
-	defer func() {
-		r := recover()
-		if r == nil {
-			panic("bad recover")
-		}
-	}()
-	defer func() {
-		panic("hello")
-	}()
-	runtime.Goexit()
+	t.Parallel()
+	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
 }
 
 func TestNetpollDeadlock(t *testing.T) {
+	if os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" {
+		// A suspected kernel bug in macOS 10.12 occasionally results in
+		// an apparent deadlock when dialing localhost. The errors have not
+		// been observed on newer versions of the OS, so we don't plan to work
+		// around them. See https://golang.org/issue/22019.
+		testenv.SkipFlaky(t, 22019)
+	}
+
 	t.Parallel()
 	output := runTestProg(t, "testprognet", "NetpollDeadlock")
 	want := "done\n"
@@ -413,7 +457,7 @@ func TestNetpollDeadlock(t *testing.T) {
 func TestPanicTraceback(t *testing.T) {
 	t.Parallel()
 	output := runTestProg(t, "testprog", "PanicTraceback")
-	want := "panic: hello"
+	want := "panic: hello\n\tpanic: panic pt2\n\tpanic: panic pt1\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
@@ -686,7 +730,7 @@ func init() {
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -724,4 +768,16 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// Test that panic message is not clobbered.
+// See issue 30150.
+func TestDoublePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "DoublePanic", "GODEBUG=clobberfree=1")
+	wants := []string{"panic: XXX", "panic: YYY"}
+	for _, want := range wants {
+		if !strings.Contains(output, want) {
+			t.Errorf("output:\n%s\n\nwant output containing: %s", output, want)
+		}
+	}
 }

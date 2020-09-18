@@ -91,7 +91,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 					}
 					continue
 				} else if okValues := groups[name]; okValues != nil {
-					o.UI.PrintErr(fmt.Errorf("Unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
+					o.UI.PrintErr(fmt.Errorf("unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
 					continue
 				}
 			}
@@ -267,7 +267,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 		}
 	}
 	if c == nil {
-		return nil, nil, fmt.Errorf("Unrecognized command: %q", name)
+		return nil, nil, fmt.Errorf("unrecognized command: %q", name)
 	}
 
 	if c.hasParam {
@@ -294,7 +294,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 			if outputFile == "" {
 				i++
 				if i >= len(args) {
-					return nil, nil, fmt.Errorf("Unexpected end of line after >")
+					return nil, nil, fmt.Errorf("unexpected end of line after >")
 				}
 				outputFile = args[i]
 			}
@@ -407,7 +407,7 @@ func newCompleter(fns []string) func(string) string {
 	}
 }
 
-// matchCommand attempts to match a string token to the prefix of a Command.
+// matchVariableOrCommand attempts to match a string token to the prefix of a Command.
 func matchVariableOrCommand(v variables, token string) string {
 	token = strings.ToLower(token)
 	found := ""

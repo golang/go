@@ -8,6 +8,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/poll"
 	"io"
@@ -91,7 +92,7 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
+	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
@@ -101,7 +102,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, poll.ErrNetClosing, errMissingAddress, errNoSuitableAddress,
+	case errCanceled, ErrClosed, errMissingAddress, errNoSuitableAddress,
 		context.DeadlineExceeded, context.Canceled:
 		return nil
 	}
@@ -144,7 +145,7 @@ func TestDialError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "dial error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -185,7 +186,7 @@ func TestDialError(t *testing.T) {
 
 func TestProtocolDialError(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "solaris":
+	case "solaris", "illumos":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -214,7 +215,7 @@ func TestProtocolDialError(t *testing.T) {
 
 func TestDialAddrError(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv4() || !supportsIPv6() {
@@ -293,7 +294,7 @@ func TestListenError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterListen, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -353,7 +354,7 @@ func TestListenPacketError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 
@@ -376,7 +377,7 @@ func TestListenPacketError(t *testing.T) {
 
 func TestProtocolListenError(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -436,7 +437,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout:
+	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -471,14 +472,14 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
+	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, poll.ErrNetClosing, errMissingAddress, poll.ErrTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+	case errCanceled, ErrClosed, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -508,6 +509,10 @@ func parseCloseError(nestedErr error, isShutdown bool) error {
 		return fmt.Errorf("error string %q does not contain expected string %q", nestedErr, want)
 	}
 
+	if !isShutdown && !errors.Is(nestedErr, ErrClosed) {
+		return fmt.Errorf("errors.Is(%v, errClosed) returns false, want true", nestedErr)
+	}
+
 	switch err := nestedErr.(type) {
 	case *OpError:
 		if err := err.isValid(); err != nil {
@@ -531,7 +536,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing:
+	case ErrClosed:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -627,7 +632,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout:
+	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -706,7 +711,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing:
+	case ErrClosed:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)

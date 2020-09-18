@@ -1,4 +1,8 @@
 env GO111MODULE=on
+[short] skip
+
+# Populate go.sum.
+go mod tidy
 
 go list -test all
 stdout rsc.io/quote

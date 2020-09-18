@@ -21,6 +21,7 @@ type Tree struct {
 	Name      string    // name of the template represented by the tree.
 	ParseName string    // name of the top-level template during parsing, for error messages.
 	Root      *ListNode // top-level root of the tree.
+	Mode      Mode      // parsing mode.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
 	funcs     []map[string]interface{}
@@ -29,7 +30,15 @@ type Tree struct {
 	peekCount int
 	vars      []string // variables defined at the moment.
 	treeSet   map[string]*Tree
+	mode      Mode
 }
+
+// A mode value is a set of flags (or 0). Modes control parser behavior.
+type Mode uint
+
+const (
+	ParseComments Mode = 1 << iota // parse comments and add them to AST
+)
 
 // Copy returns a copy of the Tree. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -108,13 +117,8 @@ func (t *Tree) nextNonSpace() (token item) {
 }
 
 // peekNonSpace returns but does not consume the next non-space token.
-func (t *Tree) peekNonSpace() (token item) {
-	for {
-		token = t.next()
-		if token.typ != itemSpace {
-			break
-		}
-	}
+func (t *Tree) peekNonSpace() item {
+	token := t.nextNonSpace()
 	t.backup()
 	return token
 }
@@ -148,9 +152,6 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 	}
 	lineNum := 1 + strings.Count(text, "\n")
 	context = n.String()
-	if len(context) > 20 {
-		context = fmt.Sprintf("%.20s...", context)
-	}
 	return fmt.Sprintf("%s:%d:%d", tree.ParseName, lineNum, byteNum), context
 }
 
@@ -228,7 +229,8 @@ func (t *Tree) stopParse() {
 func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim), treeSet)
+	emitComment := t.Mode&ParseComments != 0
+	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim, emitComment), treeSet)
 	t.text = text
 	t.parse()
 	t.add()
@@ -248,12 +250,14 @@ func (t *Tree) add() {
 	}
 }
 
-// IsEmptyTree reports whether this tree (node) is empty of everything but space.
+// IsEmptyTree reports whether this tree (node) is empty of everything but space or comments.
 func IsEmptyTree(n Node) bool {
 	switch n := n.(type) {
 	case nil:
 		return true
 	case *ActionNode:
+	case *CommentNode:
+		return true
 	case *IfNode:
 	case *ListNode:
 		for _, node := range n.Nodes {
@@ -284,6 +288,7 @@ func (t *Tree) parse() {
 			if t.nextNonSpace().typ == itemDefine {
 				newT := New("definition") // name will be updated once we know it.
 				newT.text = t.text
+				newT.Mode = t.Mode
 				newT.ParseName = t.ParseName
 				newT.startParse(t.funcs, t.lex, t.treeSet)
 				newT.parseDefinition()
@@ -339,13 +344,15 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
 }
 
 // textOrAction:
-//	text | action
+//	text | comment | action
 func (t *Tree) textOrAction() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemText:
 		return t.newText(token.pos, token.val)
 	case itemLeftDelim:
 		return t.action()
+	case itemComment:
+		return t.newComment(token.pos, token.val)
 	default:
 		t.unexpected(token, "input")
 	}
@@ -383,46 +390,44 @@ func (t *Tree) action() (n Node) {
 // Pipeline:
 //	declarations? command ('|' command)*
 func (t *Tree) pipeline(context string) (pipe *PipeNode) {
-	decl := false
-	var vars []*VariableNode
 	token := t.peekNonSpace()
-	pos := token.pos
+	pipe = t.newPipeline(token.pos, token.line, nil)
 	// Are there declarations or assignments?
-	for {
-		if v := t.peekNonSpace(); v.typ == itemVariable {
-			t.next()
-			// Since space is a token, we need 3-token look-ahead here in the worst case:
-			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
-			// argument variable rather than a declaration. So remember the token
-			// adjacent to the variable so we can push it back if necessary.
-			tokenAfterVariable := t.peek()
-			next := t.peekNonSpace()
-			switch {
-			case next.typ == itemAssign, next.typ == itemDeclare,
-				next.typ == itemChar && next.val == ",":
-				t.nextNonSpace()
-				variable := t.newVariable(v.pos, v.val)
-				vars = append(vars, variable)
-				t.vars = append(t.vars, v.val)
-				if next.typ == itemDeclare {
-					decl = true
+decls:
+	if v := t.peekNonSpace(); v.typ == itemVariable {
+		t.next()
+		// Since space is a token, we need 3-token look-ahead here in the worst case:
+		// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
+		// argument variable rather than a declaration. So remember the token
+		// adjacent to the variable so we can push it back if necessary.
+		tokenAfterVariable := t.peek()
+		next := t.peekNonSpace()
+		switch {
+		case next.typ == itemAssign, next.typ == itemDeclare:
+			pipe.IsAssign = next.typ == itemAssign
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+		case next.typ == itemChar && next.val == ",":
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+			if context == "range" && len(pipe.Decl) < 2 {
+				switch t.peekNonSpace().typ {
+				case itemVariable, itemRightDelim, itemRightParen:
+					// second initialized variable in a range pipeline
+					goto decls
+				default:
+					t.errorf("range can only initialize variables")
 				}
-				if next.typ == itemChar && next.val == "," {
-					if context == "range" && len(vars) < 2 {
-						continue
-					}
-					t.errorf("too many declarations in %s", context)
-				}
-			case tokenAfterVariable.typ == itemSpace:
-				t.backup3(v, tokenAfterVariable)
-			default:
-				t.backup2(v)
 			}
+			t.errorf("too many declarations in %s", context)
+		case tokenAfterVariable.typ == itemSpace:
+			t.backup3(v, tokenAfterVariable)
+		default:
+			t.backup2(v)
 		}
-		break
 	}
-	pipe = t.newPipeline(pos, token.line, vars)
-	pipe.IsAssign = !decl
 	for {
 		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:
@@ -549,6 +554,7 @@ func (t *Tree) blockControl() Node {
 
 	block := New(name) // name will be updated once we know it.
 	block.text = t.text
+	block.Mode = t.Mode
 	block.ParseName = t.ParseName
 	block.startParse(t.funcs, t.lex, t.treeSet)
 	var end Node

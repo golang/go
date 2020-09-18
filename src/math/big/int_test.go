@@ -533,6 +533,9 @@ var expTests = []struct {
 	{"1", "0", "", "1"},
 	{"-10", "0", "", "1"},
 	{"1234", "-1", "", "1"},
+	{"1234", "-1", "0", "1"},
+	{"17", "-100", "1234", "865"},
+	{"2", "-100", "1234", ""},
 
 	// m == 1
 	{"0", "0", "1", "0"},
@@ -605,10 +608,15 @@ func TestExp(t *testing.T) {
 	for i, test := range expTests {
 		x, ok1 := new(Int).SetString(test.x, 0)
 		y, ok2 := new(Int).SetString(test.y, 0)
-		out, ok3 := new(Int).SetString(test.out, 0)
 
-		var ok4 bool
-		var m *Int
+		var ok3, ok4 bool
+		var out, m *Int
+
+		if len(test.out) == 0 {
+			out, ok3 = nil, true
+		} else {
+			out, ok3 = new(Int).SetString(test.out, 0)
+		}
 
 		if len(test.m) == 0 {
 			m, ok4 = nil, true
@@ -622,10 +630,10 @@ func TestExp(t *testing.T) {
 		}
 
 		z1 := new(Int).Exp(x, y, m)
-		if !isNormalized(z1) {
+		if z1 != nil && !isNormalized(z1) {
 			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
-		if z1.Cmp(out) != 0 {
+		if !(z1 == nil && out == nil || z1.Cmp(out) == 0) {
 			t.Errorf("#%d: got %x want %x", i, z1, out)
 		}
 
@@ -749,20 +757,19 @@ var gcdTests = []struct {
 }{
 	// a <= 0 || b <= 0
 	{"0", "0", "0", "0", "0"},
-	{"0", "0", "0", "0", "7"},
-	{"0", "0", "0", "11", "0"},
-	{"0", "0", "0", "-77", "35"},
-	{"0", "0", "0", "64515", "-24310"},
-	{"0", "0", "0", "-64515", "-24310"},
+	{"7", "0", "1", "0", "7"},
+	{"7", "0", "-1", "0", "-7"},
+	{"11", "1", "0", "11", "0"},
+	{"7", "-1", "-2", "-77", "35"},
+	{"935", "-3", "8", "64515", "24310"},
+	{"935", "-3", "-8", "64515", "-24310"},
+	{"935", "3", "-8", "-64515", "-24310"},
 
 	{"1", "-9", "47", "120", "23"},
 	{"7", "1", "-2", "77", "35"},
 	{"935", "-3", "8", "64515", "24310"},
 	{"935000000000000000", "-3", "8", "64515000000000000000", "24310000000000000000"},
 	{"1", "-221", "22059940471369027483332068679400581064239780177629666810348940098015901108344", "98920366548084643601728869055592650835572950932266967461790948584315647051443", "991"},
-
-	// test early exit (after one Euclidean iteration) in binaryGCD
-	{"1", "", "", "1", "98920366548084643601728869055592650835572950932266967461790948584315647051443"},
 }
 
 func testGcd(t *testing.T, d, x, y, a, b *Int) {
@@ -793,12 +800,50 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 	if a2.Cmp(d) != 0 {
 		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, a2, d)
 	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
+	}
 
 	a2 = new(Int).Set(a)
 	b2 = new(Int).Set(b)
 	b2.GCD(X, Y, a2, b2) // result is same as 2nd argument
 	if b2.Cmp(d) != 0 {
 		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, b2, d)
+	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	D = new(Int).GCD(a2, b2, a2, b2) // x = a, y = b
+	if D.Cmp(d) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
+	}
+	if x != nil && a2.Cmp(x) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, a2, x)
+	}
+	if y != nil && b2.Cmp(y) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, b2, y)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	D = new(Int).GCD(b2, a2, a2, b2) // x = b, y = a
+	if D.Cmp(d) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
+	}
+	if x != nil && b2.Cmp(x) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, b2, x)
+	}
+	if y != nil && a2.Cmp(y) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, a2, y)
 	}
 }
 
@@ -1024,6 +1069,20 @@ func TestCmpAbs(t *testing.T) {
 					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
 				}
 			}
+		}
+	}
+}
+
+func TestIntCmpSelf(t *testing.T) {
+	for _, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		got := x.Cmp(x)
+		want := 0
+		if got != want {
+			t.Errorf("x = %s: x.Cmp(x): got %d; want %d", x, got, want)
 		}
 	}
 }
@@ -1297,6 +1356,31 @@ func TestBitSet(t *testing.T) {
 	z.SetBit(NewInt(0), 2, 1)
 	if z.Cmp(NewInt(4)) != 0 {
 		t.Errorf("destination leaked into result; got %s want 4", z)
+	}
+}
+
+var tzbTests = []struct {
+	in  string
+	out uint
+}{
+	{"0", 0},
+	{"1", 0},
+	{"-1", 0},
+	{"4", 2},
+	{"-8", 3},
+	{"0x4000000000000000000", 74},
+	{"-0x8000000000000000000", 75},
+}
+
+func TestTrailingZeroBits(t *testing.T) {
+	for i, test := range tzbTests {
+		in, _ := new(Int).SetString(test.in, 0)
+		want := test.out
+		got := in.TrailingZeroBits()
+
+		if got != want {
+			t.Errorf("#%d: got %v want %v", i, got, want)
+		}
 	}
 }
 
@@ -1745,11 +1829,68 @@ func benchmarkDiv(b *testing.B, aSize, bSize int) {
 }
 
 func BenchmarkDiv(b *testing.B) {
-	min, max, step := 10, 100000, 10
-	for i := min; i <= max; i *= step {
+	sizes := []int{
+		10, 20, 50, 100, 200, 500, 1000,
+		1e4, 1e5, 1e6, 1e7,
+	}
+	for _, i := range sizes {
 		j := 2 * i
 		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
 			benchmarkDiv(b, j, i)
+		})
+	}
+}
+
+func TestFillBytes(t *testing.T) {
+	checkResult := func(t *testing.T, buf []byte, want *Int) {
+		t.Helper()
+		got := new(Int).SetBytes(buf)
+		if got.CmpAbs(want) != 0 {
+			t.Errorf("got 0x%x, want 0x%x: %x", got, want, buf)
+		}
+	}
+	panics := func(f func()) (panic bool) {
+		defer func() { panic = recover() != nil }()
+		f()
+		return
+	}
+
+	for _, n := range []string{
+		"0",
+		"1000",
+		"0xffffffff",
+		"-0xffffffff",
+		"0xffffffffffffffff",
+		"0x10000000000000000",
+		"0xabababababababababababababababababababababababababa",
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	} {
+		t.Run(n, func(t *testing.T) {
+			t.Logf(n)
+			x, ok := new(Int).SetString(n, 0)
+			if !ok {
+				panic("invalid test entry")
+			}
+
+			// Perfectly sized buffer.
+			byteLen := (x.BitLen() + 7) / 8
+			buf := make([]byte, byteLen)
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Way larger, checking all bytes get zeroed.
+			buf = make([]byte, 100)
+			for i := range buf {
+				buf[i] = 0xff
+			}
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Too small.
+			if byteLen > 0 {
+				buf = make([]byte, byteLen-1)
+				if !panics(func() { x.FillBytes(buf) }) {
+					t.Errorf("expected panic for small buffer and value %x", x)
+				}
+			}
 		})
 	}
 }

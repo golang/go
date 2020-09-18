@@ -1,5 +1,5 @@
 // Inferno's libkern/vlop-arm.s
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlop-arm.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/vlop-arm.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -30,7 +30,7 @@
 
 // func runtime·udiv(n, d uint32) (q, r uint32)
 // compiler knowns the register usage of this function
-// Reference: 
+// Reference:
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
 // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
 #define Rq	R0 // input d, output q
@@ -40,9 +40,7 @@
 #define Ra	R11
 
 // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
-// Note: this function does not have a frame. If it ever needs a frame,
-// the RET instruction will clobber R12 on nacl, and the compiler's register
-// allocator needs to know.
+// Note: this function does not have a frame.
 TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
 	MOVBU	internal∕cpu·ARM+const_offsetARMHasIDIVA(SB), Ra
 	CMP	$0, Ra

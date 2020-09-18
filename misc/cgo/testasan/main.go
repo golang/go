@@ -36,14 +36,21 @@ thread(void *p)
 import "C"
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 )
 
 func main() {
+	start := time.Now()
+
 	// ensure that we can function normally
 	var v [][]byte
 	for i := 0; i < 1000; i++ {
 		time.Sleep(10 * time.Microsecond)
 		v = append(v, make([]byte, 64<<10))
 	}
+
+	fmt.Printf("ok\t%s\t%s\n", filepath.Base(os.Args[0]), time.Since(start).Round(time.Millisecond))
 }

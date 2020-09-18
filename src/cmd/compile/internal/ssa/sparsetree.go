@@ -98,9 +98,9 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
 	s := "\n" + strings.Repeat("\t", i) + b.String() + "->["
 	for i, e := range b.Succs {
 		if i > 0 {
-			s = s + ","
+			s += ","
 		}
-		s = s + e.b.String()
+		s += e.b.String()
 	}
 	s += "]"
 	if c0 := t[b.ID].child; c0 != nil {
@@ -179,7 +179,7 @@ func (t SparseTree) Child(x *Block) *Block {
 }
 
 // isAncestorEq reports whether x is an ancestor of or equal to y.
-func (t SparseTree) isAncestorEq(x, y *Block) bool {
+func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {
 		return true
 	}
@@ -223,7 +223,7 @@ func (t SparseTree) domorder(x *Block) int32 {
 	// entry(x) < entry(y) allows cases x-dom-y and x-then-y.
 	// But by supposition, x does not dominate y. So we have x-then-y.
 	//
-	// For contractidion, assume x dominates z.
+	// For contradiction, assume x dominates z.
 	// Then entry(x) < entry(z) < exit(z) < exit(x).
 	// But we know x-then-y, so entry(x) < exit(x) < entry(y) < exit(y).
 	// Combining those, entry(x) < entry(z) < exit(z) < exit(x) < entry(y) < exit(y).

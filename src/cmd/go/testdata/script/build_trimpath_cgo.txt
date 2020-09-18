@@ -1,0 +1,156 @@
+# This test builds a cgo binary and verifies the source directory path
+# does not appear in the binary, either literally or in compressed DWARF.
+# TODO(golang.org/issue/36072): ideally we should build a binary from identical
+# sources in different directories and verify the binary and all intermediate
+# files are identical.
+
+[short] skip
+[!cgo] skip
+
+# Check that the source path appears when -trimpath is not used.
+go build -o hello.exe .
+grep -q gopath[/\\]src hello.exe
+go run ./list-dwarf hello.exe
+stdout gopath[/\\]src
+
+# Check that the source path does not appear when -trimpath is used.
+[aix] stop # can't inspect XCOFF binaries
+go build -trimpath -o hello.exe .
+! grep -q gopath[/\\]src hello.exe
+go run ./list-dwarf hello.exe
+! stdout gopath/src
+
+-- go.mod --
+module m
+
+go 1.14
+-- hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("Hello, world!\n"); }
+
+-- hello.go --
+package main
+
+// void say_hello();
+import "C"
+
+func main() {
+	C.say_hello()
+}
+
+-- list-dwarf/list-dwarf.go --
+package main
+
+import (
+	"debug/dwarf"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"sort"
+)
+
+func main() {
+	files, err := run(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, file := range files {
+		fmt.Println(file)
+	}
+}
+
+func run(exePath string) ([]string, error) {
+	dwarfData, err := readDWARF(exePath)
+	if err != nil {
+		return nil, err
+	}
+
+	dwarfReader := dwarfData.Reader()
+	files := make(map[string]bool)
+	for {
+		e, err := dwarfReader.Next()
+		if err != nil {
+			return nil, err
+		}
+		if e == nil {
+			break
+		}
+		lr, err := dwarfData.LineReader(e)
+		if err != nil {
+			return nil, err
+		}
+		if lr == nil {
+			continue
+		}
+
+		var le dwarf.LineEntry
+		for {
+			if err := lr.Next(&le); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, err
+			}
+			files[le.File.Name] = true
+		}
+	}
+
+	sortedFiles := make([]string, 0, len(files))
+	for file := range files {
+		sortedFiles = append(sortedFiles, file)
+	}
+	sort.Strings(sortedFiles)
+	return sortedFiles, nil
+}
+-- list-dwarf/read_darwin.go --
+package main
+
+import (
+	"debug/dwarf"
+	"debug/macho"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	machoFile, err := macho.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer machoFile.Close()
+	return machoFile.DWARF()
+}
+-- list-dwarf/read_elf.go --
+// +build android dragonfly freebsd illumos linux netbsd openbsd solaris
+
+package main
+
+import (
+	"debug/dwarf"
+	"debug/elf"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	elfFile, err := elf.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer elfFile.Close()
+	return elfFile.DWARF()
+}
+-- list-dwarf/read_windows.go --
+package main
+
+import (
+	"debug/dwarf"
+	"debug/pe"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	peFile, err := pe.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer peFile.Close()
+	return peFile.DWARF()
+}
