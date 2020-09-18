@@ -128,6 +128,11 @@ func main() {
 		maxstacksize = 250000000
 	}
 
+	// An upper limit for max stack size. Used to avoid random crashes
+	// after calling SetMaxStack and trying to allocate a stack that is too big,
+	// since stackalloc works with 32-bit sizes.
+	maxstackceiling = 2 * maxstacksize
+
 	// Allow newproc to start new Ms.
 	mainStarted = true
 
