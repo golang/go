@@ -1374,7 +1374,7 @@ func (s *snapshot) getWorkspaceModuleHandle(ctx context.Context) (*workspaceModu
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		s := arg.(*snapshot)
 		data := &workspaceModuleData{}
-		data.file, data.err = s.buildWorkspaceModule(ctx)
+		data.file, data.err = s.BuildWorkspaceModFile(ctx)
 		return data
 	})
 	wsModule = &workspaceModuleHandle{
@@ -1386,9 +1386,9 @@ func (s *snapshot) getWorkspaceModuleHandle(ctx context.Context) (*workspaceModu
 	return s.workspaceModuleHandle, nil
 }
 
-// buildWorkspaceModule generates a workspace module given the modules in the
+// BuildWorkspaceModFile generates a workspace module given the modules in the
 // the workspace.
-func (s *snapshot) buildWorkspaceModule(ctx context.Context) (*modfile.File, error) {
+func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, error) {
 	file := &modfile.File{}
 	file.AddModuleStmt("gopls-workspace")
 

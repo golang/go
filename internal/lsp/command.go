@@ -10,8 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"path"
+	"path/filepath"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -79,6 +81,9 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	// matters for regtests, where having a continuous thread of work is
 	// convenient for assertions.
 	work := s.progress.start(ctx, title, "Running...", params.WorkDoneToken, cancel)
+	if command.Synchronous {
+		return nil, s.runCommand(ctx, work, command, params.Arguments)
+	}
 	go func() {
 		defer cancel()
 		err := s.runCommand(ctx, work, command, params.Arguments)
@@ -217,6 +222,39 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		snapshot, release := sv.Snapshot(ctx)
 		defer release()
 		s.diagnoseSnapshot(snapshot)
+	case source.CommandGenerateGoplsMod:
+		var v source.View
+		if len(args) == 0 {
+			views := s.session.Views()
+			if len(views) != 1 {
+				return fmt.Errorf("cannot resolve view: have %d views", len(views))
+			}
+			v = views[0]
+		} else {
+			var uri protocol.DocumentURI
+			if err := source.UnmarshalArgs(args, &uri); err != nil {
+				return err
+			}
+			var err error
+			v, err = s.session.ViewOf(uri.SpanURI())
+			if err != nil {
+				return err
+			}
+		}
+		snapshot, release := v.Snapshot(ctx)
+		defer release()
+		modFile, err := snapshot.BuildWorkspaceModFile(ctx)
+		if err != nil {
+			return errors.Errorf("getting workspace mod file: %w", err)
+		}
+		content, err := modFile.Format()
+		if err != nil {
+			return errors.Errorf("formatting mod file: %w", err)
+		}
+		filename := filepath.Join(v.Folder().Filename(), "gopls.mod")
+		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
+			return errors.Errorf("writing mod file: %w", err)
+		}
 	default:
 		return fmt.Errorf("unsupported command: %s", command.Name)
 	}

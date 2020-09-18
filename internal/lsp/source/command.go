@@ -22,6 +22,10 @@ import (
 type Command struct {
 	Name, Title string
 
+	// Synchronous controls whether the command executes synchronously within the
+	// ExecuteCommand request (applying suggested fixes is always synchronous).
+	Synchronous bool
+
 	// appliesFn is an optional field to indicate whether or not a command can
 	// be applied to the given inputs. If it returns false, we should not
 	// suggest this command for these inputs.
@@ -55,6 +59,7 @@ var Commands = []*Command{
 	CommandExtractVariable,
 	CommandExtractFunction,
 	CommandToggleDetails,
+	CommandGenerateGoplsMod,
 }
 
 var (
@@ -134,6 +139,13 @@ var (
 			_, ok, _ := canExtractFunction(fset, rng, src, file, info)
 			return ok
 		},
+	}
+
+	// CommandGenerateGoplsMod (re)generates the gopls.mod file.
+	CommandGenerateGoplsMod = &Command{
+		Name:        "generate_gopls_mod",
+		Title:       "Generate gopls.mod",
+		Synchronous: true,
 	}
 )
 

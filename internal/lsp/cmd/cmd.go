@@ -192,6 +192,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&signature{app: app},
 		&suggestedFix{app: app},
 		&symbols{app: app},
+		&workspace{app: app},
 		&workspaceSymbol{app: app},
 	}
 }

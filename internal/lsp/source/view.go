@@ -94,6 +94,10 @@ type Snapshot interface {
 	// the given go.mod file.
 	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
 
+	// BuildWorkspaceModFile builds the contents of mod file to be used for
+	// multi-module workspace.
+	BuildWorkspaceModFile(ctx context.Context) (*modfile.File, error)
+
 	// BuiltinPackage returns information about the special builtin package.
 	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)
 
