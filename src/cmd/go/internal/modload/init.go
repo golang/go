@@ -209,7 +209,6 @@ func Init() {
 	}
 
 	cfg.ModulesEnabled = true
-	// load.ModDirImportPath = DirImportPath
 
 	if modRoot == "" {
 		// We're in module mode, but not inside a module.
