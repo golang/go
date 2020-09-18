@@ -284,14 +284,23 @@ func goschedguarded() {
 	mcall(goschedguarded_m)
 }
 
-// Puts the current goroutine into a waiting state and calls unlockf.
+// Puts the current goroutine into a waiting state and calls unlockf on the
+// system stack.
+//
 // If unlockf returns false, the goroutine is resumed.
+//
 // unlockf must not access this G's stack, as it may be moved between
 // the call to gopark and the call to unlockf.
-// Reason explains why the goroutine has been parked.
-// It is displayed in stack traces and heap dumps.
-// Reasons should be unique and descriptive.
-// Do not re-use reasons, add new ones.
+//
+// Note that because unlockf is called after putting the G into a waiting
+// state, the G may have already been readied by the time unlockf is called
+// unless there is external synchronization preventing the G from being
+// readied. If unlockf returns false, it must guarantee that the G cannot be
+// externally readied.
+//
+// Reason explains why the goroutine has been parked. It is displayed in stack
+// traces and heap dumps. Reasons should be unique and descriptive. Do not
+// re-use reasons, add new ones.
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
 	if reason != waitReasonSleep {
 		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
