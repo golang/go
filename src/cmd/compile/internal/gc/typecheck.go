@@ -717,18 +717,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if t.Etype == TIDEAL {
-			switch {
-			case l.Type == types.Idealcomplex || r.Type == types.Idealcomplex:
-				t = types.Idealcomplex
-			case l.Type == types.Idealfloat || r.Type == types.Idealfloat:
-				t = types.Idealfloat
-			case l.Type == types.Idealrune || r.Type == types.Idealrune:
-				t = types.Idealrune
-			case l.Type == types.Idealint || r.Type == types.Idealint:
-				t = types.Idealint
-			default:
-				Fatalf("bad untyped type: %v", t)
-			}
+			t = mixUntyped(l.Type, r.Type)
 		}
 		if dt := defaultType(t); !okfor[op][dt.Etype] {
 			yyerror("invalid operation: %v (operator %v not defined on %v)", n, op, t)

@@ -1072,12 +1072,7 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 		return l, r
 	}
 
-	nn := l
-	if ctype(r.Type) > ctype(l.Type) {
-		nn = r
-	}
-
-	t := defaultType(nn.Type)
+	t := defaultType(mixUntyped(l.Type, r.Type))
 	l = convlit(l, t)
 	r = convlit(r, t)
 	return l, r
@@ -1100,6 +1095,14 @@ func ctype(t *types.Type) Ctype {
 	}
 	Fatalf("bad type %v", t)
 	panic("unreachable")
+}
+
+func mixUntyped(t1, t2 *types.Type) *types.Type {
+	t := t1
+	if ctype(t2) > ctype(t1) {
+		t = t2
+	}
+	return t
 }
 
 func defaultType(t *types.Type) *types.Type {
