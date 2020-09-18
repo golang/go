@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
+// +build aix darwin,amd64 dragonfly freebsd linux,!android netbsd openbsd solaris
 
 package time_test
 
@@ -22,11 +22,11 @@ func TestEnvTZUsage(t *testing.T) {
 	}
 	defer time.ForceUSPacificForTesting()
 
-        localZoneName := "Local"
-	// The file may not exists on FreeBSD.
-        if _, err := os.Stat("/etc/localtime"); os.IsNotExist(err) {
-            localZoneName = "UTC"
-        }
+	localZoneName := "Local"
+	// The file may not exist.
+	if _, err := os.Stat("/etc/localtime"); os.IsNotExist(err) {
+		localZoneName = "UTC"
+	}
 
 	cases := []struct {
 		nilFlag bool
@@ -57,7 +57,7 @@ func TestEnvTZUsage(t *testing.T) {
 	}
 
 	time.ResetLocalOnceForTest()
-	// The file may not exists on Solaris 2 and IRIX 6.
+	// The file may not exist on Solaris 2 and IRIX 6.
 	path := "/usr/share/zoneinfo/Asia/Shanghai"
 	os.Setenv(env, path)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
