@@ -188,9 +188,9 @@ func (e *invalidImportError) Unwrap() error {
 // importFromBuildList can return an empty directory string, for fake packages
 // like "C" and "unsafe".
 //
-// If the package cannot be found in the current build list,
+// If the package cannot be found in buildList,
 // importFromBuildList returns an *ImportMissingError.
-func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
+func importFromBuildList(ctx context.Context, path string, buildList []module.Version) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
 	}

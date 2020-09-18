@@ -110,6 +110,16 @@ Do not send CLs removing the interior tags from such phrases.
   See <code>go</code> <code>help</code> <code>environment</code> for details.
 </p>
 
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
+<p><!-- golang.org/cl/263267 -->
+  <code>go</code> <code>get</code> <code>example.com/mod@patch</code> now
+  requires that some version of <code>example.com/mod</code> already be
+  required by the main module.
+  (However, <code>go</code> <code>get</code> <code>-u=patch</code> continues
+  to patch even newly-added dependencies.)
+</p>
+
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
 
 <p><!-- golang.org/cl/240623 -->

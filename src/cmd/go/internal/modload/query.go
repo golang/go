@@ -47,8 +47,9 @@ import (
 //   with non-prereleases preferred over prereleases.
 // - a repository commit identifier or tag, denoting that commit.
 //
-// current denotes the current version of the module; it may be "" if the
-// current version is unknown or should not be considered. If query is
+// current denotes the currently-selected version of the module; it may be
+// "none" if no version is currently selected, or "" if the currently-selected
+// version is unknown or should not be considered. If query is
 // "upgrade" or "patch", current will be returned if it is a newer
 // semantic version or a chronologically later pseudo-version than the
 // version that would otherwise be chosen. This prevents accidental downgrades
@@ -98,7 +99,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
 	defer span.Done()
 
-	if current != "" && !semver.IsValid(current) {
+	if current != "" && current != "none" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
 	}
 	if cfg.BuildMod == "vendor" {
@@ -109,7 +110,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	if path == Target.Path {
-		if query != "latest" && query != "upgrade" && query != "patch" {
+		if query != "upgrade" && query != "patch" {
 			return nil, &QueryMatchesMainModuleError{Pattern: path, Query: query}
 		}
 		if err := allowed(ctx, Target); err != nil {
@@ -236,7 +237,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		}
 	}
 
-	if (query == "upgrade" || query == "patch") && current != "" {
+	if (query == "upgrade" || query == "patch") && current != "" && current != "none" {
 		// "upgrade" and "patch" may stay on the current version if allowed.
 		if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
 			return nil, err
@@ -323,7 +324,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 		qm.mayUseLatest = true
 
 	case query == "upgrade":
-		if current == "" {
+		if current == "" || current == "none" {
 			qm.mayUseLatest = true
 		} else {
 			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
@@ -331,6 +332,9 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 		}
 
 	case query == "patch":
+		if current == "none" {
+			return nil, &NoPatchBaseError{path}
+		}
 		if current == "" {
 			qm.mayUseLatest = true
 		} else {
@@ -554,6 +558,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 
 	if i := strings.Index(pattern, "..."); i >= 0 {
 		base = pathpkg.Dir(pattern[:i+3])
+		if base == "." {
+			return nil, nil, &WildcardInFirstElementError{Pattern: pattern, Query: query}
+		}
 		match = func(mod module.Version, root string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
 			matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{mod})
@@ -578,7 +585,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	if HasModRoot() {
 		m := match(Target, modRoot, true)
 		if len(m.Pkgs) > 0 {
-			if query != "latest" && query != "upgrade" && query != "patch" {
+			if query != "upgrade" && query != "patch" {
 				return nil, nil, &QueryMatchesPackagesInMainModuleError{
 					Pattern:  pattern,
 					Query:    query,
@@ -598,7 +605,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 			return nil, nil, err
 		}
 
-		if query != "latest" && query != "upgrade" && query != "patch" && matchPattern(Target.Path) {
+		if query != "upgrade" && query != "patch" && matchPattern(Target.Path) {
 			if err := allowed(ctx, Target); err == nil {
 				modOnly = &QueryResult{
 					Mod: Target,
@@ -724,6 +731,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 	var (
 		noPackage   *PackageNotInModuleError
 		noVersion   *NoMatchingVersionError
+		noPatchBase *NoPatchBaseError
 		notExistErr error
 	)
 	for _, r := range results {
@@ -739,6 +747,10 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		case *NoMatchingVersionError:
 			if noVersion == nil {
 				noVersion = rErr
+			}
+		case *NoPatchBaseError:
+			if noPatchBase == nil {
+				noPatchBase = rErr
 			}
 		default:
 			if errors.Is(rErr, fs.ErrNotExist) {
@@ -771,6 +783,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 			err = noPackage
 		case noVersion != nil:
 			err = noVersion
+		case noPatchBase != nil:
+			err = noPatchBase
 		case notExistErr != nil:
 			err = notExistErr
 		default:
@@ -795,10 +809,32 @@ type NoMatchingVersionError struct {
 
 func (e *NoMatchingVersionError) Error() string {
 	currentSuffix := ""
-	if (e.query == "upgrade" || e.query == "patch") && e.current != "" {
+	if (e.query == "upgrade" || e.query == "patch") && e.current != "" && e.current != "none" {
 		currentSuffix = fmt.Sprintf(" (current version is %s)", e.current)
 	}
 	return fmt.Sprintf("no matching versions for query %q", e.query) + currentSuffix
+}
+
+// A NoPatchBaseError indicates that Query was called with the query "patch"
+// but with a current version of "" or "none".
+type NoPatchBaseError struct {
+	path string
+}
+
+func (e *NoPatchBaseError) Error() string {
+	return fmt.Sprintf(`can't query version "patch" of module %s: no existing version is required`, e.path)
+}
+
+// A WildcardInFirstElementError indicates that a pattern passed to QueryPattern
+// had a wildcard in its first path element, and therefore had no pattern-prefix
+// modules to search in.
+type WildcardInFirstElementError struct {
+	Pattern string
+	Query   string
+}
+
+func (e *WildcardInFirstElementError) Error() string {
+	return fmt.Sprintf("no modules to query for %s@%s because first path element contains a wildcard", e.Pattern, e.Query)
 }
 
 // A PackageNotInModuleError indicates that QueryPattern found a candidate
