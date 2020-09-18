@@ -151,10 +151,13 @@ type PackageOpts struct {
 	// declare 'go 1.16' or higher.
 	UseVendorAll bool
 
-	// AllowErrors indicates that LoadPackages should not log errors in resolving
-	// patterns or imports, and should not terminate the process if such an error
-	// occurs.
+	// AllowErrors indicates that LoadPackages should not terminate the process if
+	// an error occurs.
 	AllowErrors bool
+
+	// SilenceErrors indicates that LoadPackages should not print errors
+	// that occur while loading packages. SilenceErrors implies AllowErrors.
+	SilenceErrors bool
 
 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
 	// patterns that did not match any packages.
@@ -263,23 +266,31 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	// One last pass to finalize wildcards.
 	updateMatches(loaded)
-	checkMultiplePaths()
-	WriteGoMod()
 
+	// Report errors, if any.
+	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
-		if pkg.err != nil && !opts.AllowErrors {
-			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+		if pkg.err != nil && !opts.SilenceErrors {
+			if opts.AllowErrors {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+			} else {
+				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+			}
 		}
 		if !pkg.isTest() {
 			loadedPackages = append(loadedPackages, pkg.path)
 		}
 	}
-	if !opts.AllowErrors {
+	if !opts.SilenceErrors {
 		// Also list errors in matching patterns (such as directory permission
 		// errors for wildcard patterns).
 		for _, match := range matches {
 			for _, err := range match.Errs {
-				base.Errorf("%v", err)
+				if opts.AllowErrors {
+					fmt.Fprintf(os.Stderr, "%v\n", err)
+				} else {
+					base.Errorf("%v", err)
+				}
 			}
 		}
 	}
@@ -289,6 +300,8 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		search.WarnUnmatched(matches)
 	}
 
+	// Success! Update go.mod (if needed) and return the results.
+	WriteGoMod()
 	sort.Strings(loadedPackages)
 	return matches, loadedPackages
 }

@@ -406,7 +406,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 				Tags:                     imports.AnyTags(),
 				ResolveMissingImports:    true, // dubious; see https://golang.org/issue/32567
 				LoadTests:                *getT,
-				AllowErrors:              true, // Errors may be fixed by subsequent upgrades or downgrades.
+				SilenceErrors:            true, // Errors may be fixed by subsequent upgrades or downgrades.
 				SilenceUnmatchedWarnings: true, // We will warn after iterating below.
 			}
 			matches, _ = modload.LoadPackages(ctx, loadOpts, pkgPatterns...)

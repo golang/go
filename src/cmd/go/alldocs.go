@@ -1231,7 +1231,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-v]
+// 	go mod tidy [-e] [-v]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1242,12 +1242,15 @@
 // The -v flag causes tidy to print information about removed modules
 // to standard error.
 //
+// The -e flag causes tidy to attempt to proceed despite errors
+// encountered while loading packages.
+//
 //
 // Make vendored copy of dependencies
 //
 // Usage:
 //
-// 	go mod vendor [-v]
+// 	go mod vendor [-e] [-v]
 //
 // Vendor resets the main module's vendor directory to include all packages
 // needed to build and test all the main module's packages.
@@ -1255,6 +1258,9 @@
 //
 // The -v flag causes vendor to print the names of vendored
 // modules and packages to standard error.
+//
+// The -e flag causes vendor to attempt to proceed despite errors
+// encountered while loading packages.
 //
 //
 // Verify dependencies have expected content

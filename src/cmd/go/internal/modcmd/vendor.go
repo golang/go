@@ -25,7 +25,7 @@ import (
 )
 
 var cmdVendor = &base.Command{
-	UsageLine: "go mod vendor [-v]",
+	UsageLine: "go mod vendor [-e] [-v]",
 	Short:     "make vendored copy of dependencies",
 	Long: `
 Vendor resets the main module's vendor directory to include all packages
@@ -34,12 +34,18 @@ It does not include test code for vendored packages.
 
 The -v flag causes vendor to print the names of vendored
 modules and packages to standard error.
+
+The -e flag causes vendor to attempt to proceed despite errors
+encountered while loading packages.
 	`,
 	Run: runVendor,
 }
 
+var vendorE bool // if true, report errors but proceed anyway
+
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
@@ -54,6 +60,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 		Tags:                  imports.AnyTags(),
 		ResolveMissingImports: true,
 		UseVendorAll:          true,
+		AllowErrors:           vendorE,
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
