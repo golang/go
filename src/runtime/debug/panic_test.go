@@ -9,6 +9,7 @@
 package debug_test
 
 import (
+	"runtime"
 	"runtime/debug"
 	"syscall"
 	"testing"
@@ -16,6 +17,12 @@ import (
 )
 
 func TestPanicOnFault(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("s390x fault addresses are missing the low order bits")
+	}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skip("darwin/arm64 doesn't provide fault addresses")
+	}
 	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
 	if err != nil {
 		t.Fatalf("can't map anonymous memory: %s", err)
