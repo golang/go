@@ -18,6 +18,12 @@ go test -fuzz Fuzz success_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
+# Test error with seed corpus in f.Fuzz
+! go test -run FuzzError fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'error here'
+
 [short] stop
 
 # Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
@@ -29,6 +35,39 @@ stdout FAIL
 go test skipped_fuzz_test.go
 stdout ok
 ! stdout FAIL
+
+# Test that multiple calls to f.Fuzz causes a non-zero exit status.
+! go test multiple_fuzz_calls_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test that missing *T in f.Fuzz causes a non-zero exit status.
+! go test incomplete_fuzz_call_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test success with seed corpus in f.Fuzz
+go test -run FuzzPass fuzz_add_test.go
+stdout ok
+! stdout FAIL
+! stdout 'off by one error'
+
+# Test fatal with seed corpus in f.Fuzz
+! go test -run FuzzFatal fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'fatal here'
+
+# Test panic with seed corpus in f.Fuzz
+! go test -run FuzzPanic fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'off by one error'
+
+# Test panic(nil) with seed corpus in f.Fuzz
+! go test -run FuzzNilPanic fuzz_add_test.go
+! stdout ^ok
+stdout FAIL
 
 -- fail_fuzz_test.go --
 package fail_fuzz
@@ -63,4 +102,87 @@ import "testing"
 
 func Fuzz(f *testing.F) {
     f.Skip()
+}
+
+-- multiple_fuzz_calls_fuzz_test.go --
+package multiple_fuzz_calls_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Fuzz(func(t *testing.T, b []byte) {
+        // no-op
+    })
+
+    f.Fuzz(func(t *testing.T, b []byte) {
+        // this second call should panic
+    })
+}
+
+-- incomplete_fuzz_call_fuzz_test.go --
+package incomplete_fuzz_call_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Fuzz(func(b []byte) {
+        // this is missing *testing.T as the first param, so should panic
+    })
+}
+
+-- fuzz_add_test.go --
+package fuzz_add
+
+import "testing"
+
+func add(f *testing.F) {
+    f.Helper()
+    f.Add([]byte("123"))
+    f.Add([]byte("12345"))
+    f.Add([]byte(""))
+}
+
+func FuzzPass(f *testing.F) {
+    add(f)
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if len(b) == -1 {
+            t.Fatal("fatal here") // will not be executed
+        }
+    })
+}
+
+func FuzzError(f *testing.F) {
+    add(f)
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if len(b) == 3 {
+            t.Error("error here")
+        }
+    })
+}
+
+func FuzzFatal(f *testing.F) {
+    add(f)
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if len(b) == 0 {
+            t.Fatal("fatal here")
+        }
+    })
+}
+
+func FuzzPanic(f *testing.F) {
+    add(f)
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if len(b) == 5 {
+            panic("off by one error")
+        }
+    })
+}
+
+func FuzzNilPanic(f *testing.F) {
+    add(f)
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if len(b) == 3 {
+            panic(nil)
+        }
+    })
 }

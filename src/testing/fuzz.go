@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -27,11 +28,12 @@ type InternalFuzzTarget struct {
 // F is a type passed to fuzz targets for fuzz testing.
 type F struct {
 	common
-	context  *fuzzContext
-	corpus   []corpusEntry // corpus is the in-memory corpus
-	result   FuzzResult    // result is the result of running the fuzz target
-	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
-	fuzz     bool          // fuzz indicates whether or not the fuzzing engine should run
+	context    *fuzzContext
+	corpus     []corpusEntry // corpus is the in-memory corpus
+	result     FuzzResult    // result is the result of running the fuzz target
+	fuzzFunc   func(f *F)    // fuzzFunc is the function which makes up the fuzz target
+	fuzz       bool          // fuzz indicates whether the fuzzing engine should run
+	fuzzCalled bool          // fuzzCalled indicates whether f.Fuzz has been called for this target
 }
 
 // corpus corpusEntry
@@ -60,21 +62,73 @@ func (f *F) Add(args ...interface{}) {
 }
 
 // Fuzz runs the fuzz function, ff, for fuzz testing. It runs ff in a separate
-// goroutine. Only one call to Fuzz is allowed per fuzz target, and any
-// subsequent calls will panic. If ff fails for a set of arguments, those
-// arguments will be added to the seed corpus.
+// goroutine. Only the first call to Fuzz will be executed, and any subsequent
+// calls will panic. If ff fails for a set of arguments, those arguments will be
+// added to the seed corpus.
 func (f *F) Fuzz(ff interface{}) {
-	return
+	if f.fuzzCalled {
+		panic("testing: found more than one call to Fuzz, will skip")
+	}
+	f.fuzzCalled = true
+
+	fn, ok := ff.(func(*T, []byte))
+	if !ok {
+		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
+	}
+
+	var errStr string
+	run := func(t *T, b []byte) {
+		defer func() {
+			err := recover()
+			// If the function has recovered but the test hasn't finished,
+			// it is due to a nil panic or runtime.GoExit.
+			if !t.finished && err == nil {
+				err = errNilPanicOrGoexit
+			}
+			if err != nil {
+				t.Fail()
+				t.output = []byte(fmt.Sprintf("    panic: %s\n", err))
+			}
+			f.setRan()
+			t.signal <- true // signal that the test has finished
+		}()
+		fn(t, b)
+		t.finished = true
+	}
+
+	// Run the seed corpus first
+	for _, c := range f.corpus {
+		t := &T{
+			common: common{
+				signal: make(chan bool),
+				w:      f.w,
+				chatty: f.chatty,
+			},
+			context: newTestContext(1, nil),
+		}
+		go run(t, c.b)
+		<-t.signal
+		if t.Failed() {
+			f.Fail()
+			errStr += string(t.output)
+		}
+	}
+	if f.Failed() {
+		f.result = FuzzResult{Error: errors.New(errStr)}
+		return
+	}
+
+	// TODO: if f.fuzz is set, run fuzzing engine
 }
 
-func (f *F) report(name string) {
+func (f *F) report() {
 	if f.Failed() {
-		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", name, f.result.String())
+		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", f.name, f.result.String())
 	} else if f.chatty != nil {
 		if f.Skipped() {
-			f.chatty.Updatef(name, "SKIP\n")
+			f.chatty.Updatef(f.name, "SKIP\n")
 		} else {
-			f.chatty.Updatef(name, "PASS\n")
+			f.chatty.Updatef(f.name, "PASS\n")
 		}
 	}
 }
@@ -100,7 +154,7 @@ func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
 
 // runTarget runs the given target, handling panics and exits
 // within the test, and reporting errors.
-func (f *F) runTarget(fn func(f *F)) {
+func (f *F) runTarget(fn func(*F)) {
 	defer func() {
 		err := recover()
 		// If the function has recovered but the test hasn't finished,
@@ -112,7 +166,7 @@ func (f *F) runTarget(fn func(f *F)) {
 			f.Fail()
 			f.result = FuzzResult{Error: fmt.Errorf("%s", err)}
 		}
-		f.report(f.name)
+		f.report()
 		f.setRan()
 		f.signal <- true // signal that the test has finished
 	}()
@@ -133,7 +187,7 @@ func (r FuzzResult) String() string {
 	if r.Error == nil {
 		return s
 	}
-	s = fmt.Sprintf("error: %s", r.Error.Error())
+	s = fmt.Sprintf("%s", r.Error.Error())
 	if r.Crasher != nil {
 		s += fmt.Sprintf("\ncrasher: %b", r.Crasher)
 	}
