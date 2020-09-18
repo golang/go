@@ -420,12 +420,15 @@ type ImportPathError interface {
 	ImportPath() string
 }
 
+var (
+	_ ImportPathError = (*importError)(nil)
+	_ ImportPathError = (*modload.ImportMissingError)(nil)
+)
+
 type importError struct {
 	importPath string
 	err        error // created with fmt.Errorf
 }
-
-var _ ImportPathError = (*importError)(nil)
 
 func ImportErrorf(path, format string, args ...interface{}) ImportPathError {
 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
@@ -882,7 +885,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
 // because of global mutable state that cannot safely be read and written
 // concurrently. In particular, packageDataCache may be cleared by "go get"
 // in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
-// modified by modload.ImportPaths (modload.ImportPaths).
+// modified by modload.ImportPaths.
 type preload struct {
 	cancel chan struct{}
 	sema   chan struct{}
