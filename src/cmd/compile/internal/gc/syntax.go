@@ -716,7 +716,7 @@ const (
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
-	ODELETE        // delete(Left, Right)
+	ODELETE        // delete(List)
 	ODOT           // Left.Sym (Left is of struct type)
 	ODOTPTR        // Left.Sym (Left is of pointer to struct type)
 	ODOTMETH       // Left.Sym (Left is non-interface, Right is method name)
