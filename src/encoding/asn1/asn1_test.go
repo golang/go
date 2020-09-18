@@ -518,6 +518,29 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
+var invalidUnmarshalTests = []struct {
+	b    []byte
+	v    interface{}
+	want string
+}{
+	{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal(nil)"},
+	{b: []byte{0x05, 0x00}, v: RawValue{}, want: "asn1: Unmarshal(non-pointer asn1.RawValue)"},
+	{b: []byte{0x05, 0x00}, v: (*RawValue)(nil), want: "asn1: Unmarshal(nil *asn1.RawValue)"},
+}
+
+func TestInvalidUnmarshal(t *testing.T) {
+	for _, test := range invalidUnmarshalTests {
+		_, err := Unmarshal(test.b, test.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if got := err.Error(); got != test.want {
+			t.Errorf("Unmarshal = %q; want %q", got, test.want)
+		}
+	}
+}
+
 type Certificate struct {
 	TBSCertificate     TBSCertificate
 	SignatureAlgorithm AlgorithmIdentifier
