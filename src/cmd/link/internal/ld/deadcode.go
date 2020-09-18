@@ -174,13 +174,9 @@ func (d *deadcodePass) flood() {
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
 			a := d.ldr.Aux(symIdx, i)
-			if a.Type() == goobj.AuxGotype && !d.ctxt.linkShared {
+			if a.Type() == goobj.AuxGotype {
 				// A symbol being reachable doesn't imply we need its
 				// type descriptor. Don't mark it.
-				// TODO: when -linkshared, the GCProg generation code
-				// seems to need it. I'm not sure why. I think it could
-				// just reach to the type descriptor's data without
-				// requiring to mark it reachable.
 				continue
 			}
 			d.mark(a.Sym(), symIdx)
