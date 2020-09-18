@@ -2164,7 +2164,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 		loadOpts := modload.PackageOpts{
 			ResolveMissingImports: true,
 			LoadTests:             ModResolveTests,
-			AllowErrors:           true,
+			SilenceErrors:         true,
 		}
 		matches, _ = modload.LoadPackages(ctx, loadOpts, patterns...)
 	} else {

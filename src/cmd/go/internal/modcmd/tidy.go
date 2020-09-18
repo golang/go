@@ -15,7 +15,7 @@ import (
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-v]",
+	UsageLine: "go mod tidy [-e] [-v]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -26,12 +26,18 @@ to go.sum and removes any unnecessary ones.
 
 The -v flag causes tidy to print information about removed modules
 to standard error.
+
+The -e flag causes tidy to attempt to proceed despite errors
+encountered while loading packages.
 	`,
+	Run: runTidy,
 }
 
+var tidyE bool // if true, report errors but proceed anyway.
+
 func init() {
-	cmdTidy.Run = runTidy // break init cycle
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
@@ -57,8 +63,9 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		Tags:                  imports.AnyTags(),
 		ResolveMissingImports: true,
 		LoadTests:             true,
-		AllowErrors:           false, // TODO(#26603): Make this a flag.
+		AllowErrors:           tidyE,
 	}, "all")
+
 	modload.TidyBuildList()
 	modload.TrimGoSum()
 	modload.WriteGoMod()
