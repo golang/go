@@ -597,6 +597,45 @@ func TestCopyTokenCharData(t *testing.T) {
 	}
 }
 
+func TestCopyTokenComment(t *testing.T) {
+	data := []byte("same data")
+	var tok1 Token = Comment(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) != Comment")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) uses same buffer.")
+	}
+}
+
+func TestCopyTokenDirective(t *testing.T) {
+	data := []byte("same data")
+	var tok1 Token = Directive(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Directive) != Directive")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Directive) uses same buffer.")
+	}
+}
+
+func TestCopyTokenProcInst(t *testing.T) {
+	data := []byte("same data")
+	var tok1 Token = ProcInst{"hello", data}
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(ProcInst) != ProcInst")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(ProcInst) uses same buffer.")
+	}
+}
+
 func TestCopyTokenStartElement(t *testing.T) {
 	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}}
 	var tok1 Token = elt
@@ -610,6 +649,19 @@ func TestCopyTokenStartElement(t *testing.T) {
 	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de"}
 	if reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses same buffer.")
+	}
+}
+
+func TestCopyTokenDefaultCase(t *testing.T) {
+	data := []byte("same data")
+	var tok1 = Token(data)
+	tok2 := CopyToken(data)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Token]) != Token")
+	}
+	data[1] = 'o'
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(CharData) uses different buffer.")
 	}
 }
 
