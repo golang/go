@@ -360,9 +360,14 @@ func TestSetOutput(t *testing.T) {
 	flags.SetOutput(&buf)
 	flags.Init("test", ContinueOnError)
 	flags.Parse([]string{"-unknown"})
-	if out := buf.String(); !strings.Contains(out, "-unknown") {
-		t.Logf("expected output mentioning unknown; got %q", out)
+	out := buf.String()
+	if out == "" {
+		t.Error("expected output, got nothing")
 	}
+	if strings.Contains(out, "-unknown") {
+		return
+	}
+	t.Errorf("expected output mentioning unknown; got %q", out)
 }
 
 // This tests that one can reset the flags. This still works but not well, and is
