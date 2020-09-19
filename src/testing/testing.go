@@ -1091,10 +1091,16 @@ func tRunner(t *T, fn func(t *T)) {
 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
 		didPanic := false
 		defer func() {
-			t.signal <- signal
-			if err != nil && !didPanic {
+			if didPanic {
+				return
+			}
+			if err != nil {
 				panic(err)
 			}
+			// Only report that the test is complete if it doesn't panic,
+			// as otherwise the test binary can exit before the panic is
+			// reported to the user. See issue 41479.
+			t.signal <- signal
 		}()
 
 		doPanic := func(err interface{}) {
