@@ -1118,7 +1118,7 @@ func Unmarshal(b []byte, val interface{}) (rest []byte, err error) {
 func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return nil, &InvalidUnmarshalError{v.Type()}
+		return nil, &InvalidUnmarshalError{reflect.TypeOf(val)}
 	}
 	offset, err := parseField(v.Elem(), b, 0, parseFieldParameters(params))
 	if err != nil {
