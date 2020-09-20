@@ -404,35 +404,35 @@
 (ConstBool [c]) => (MOVLconst [int32(b2i(c))])
 
 // Lowering calls
-(StaticCall ...) -> (CALLstatic ...)
-(ClosureCall ...) -> (CALLclosure ...)
-(InterCall ...) -> (CALLinter ...)
+(StaticCall ...) => (CALLstatic ...)
+(ClosureCall ...) => (CALLclosure ...)
+(InterCall ...) => (CALLinter ...)
 
 // Lowering conditional moves
 // If the condition is a SETxx, we can just run a CMOV from the comparison that was
 // setting the flags.
 // Legend: HI=unsigned ABOVE, CS=unsigned BELOW, CC=unsigned ABOVE EQUAL, LS=unsigned BELOW EQUAL
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && (is64BitInt(t) || isPtr(t))
-    -> (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
+    => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is32BitInt(t)
-    -> (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
+    => (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
-    -> (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
+    => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 
 // If the condition does not set the flags, we need to generate a comparison.
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1
-    -> (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
+    => (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2
-    -> (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
+    => (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4
-    -> (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
+    => (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
 
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
-    -> (CMOVQNE y x (CMPQconst [0] check))
+    => (CMOVQNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)
-    -> (CMOVLNE y x (CMPQconst [0] check))
+    => (CMOVLNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is16BitInt(t)
-    -> (CMOVWNE y x (CMPQconst [0] check))
+    => (CMOVWNE y x (CMPQconst [0] check))
 
 // Absorb InvertFlags
 (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))
@@ -465,7 +465,7 @@
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 
 (HasCPUFeature {s}) => (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
-(Addr ...) -> (LEAQ ...)
+(Addr {sym} base) => (LEAQ {sym} base)
 (LocalAddr {sym} base _) => (LEAQ {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 => (SETLstore [off] {sym} ptr x mem)
@@ -501,10 +501,10 @@
 (If cond yes no) => (NE (TESTB cond cond) yes no)
 
 // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
-(AtomicLoad8 ...) -> (MOVBatomicload ...)
-(AtomicLoad32 ...) -> (MOVLatomicload ...)
-(AtomicLoad64 ...) -> (MOVQatomicload ...)
-(AtomicLoadPtr ...) -> (MOVQatomicload ...)
+(AtomicLoad8 ptr mem) => (MOVBatomicload ptr mem)
+(AtomicLoad32 ptr mem) => (MOVLatomicload ptr mem)
+(AtomicLoad64 ptr mem) => (MOVQatomicload ptr mem)
+(AtomicLoadPtr ptr mem) => (MOVQatomicload ptr mem)
 
 // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
 // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
@@ -526,15 +526,15 @@
 (Select1     (AddTupleFirst64   _ tuple)) => (Select1 tuple)
 
 // Atomic compare and swap.
-(AtomicCompareAndSwap32 ...) -> (CMPXCHGLlock ...)
-(AtomicCompareAndSwap64 ...) -> (CMPXCHGQlock ...)
+(AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
+(AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)
 
 // Atomic memory updates.
-(AtomicAnd8 ...) -> (ANDBlock ...)
-(AtomicOr8 ...) -> (ORBlock ...)
+(AtomicAnd8 ptr val mem) => (ANDBlock ptr val mem)
+(AtomicOr8 ptr val mem) => (ORBlock ptr val mem)
 
 // Write barrier.
-(WB ...) -> (LoweredWB ...)
+(WB ...) => (LoweredWB ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
@@ -853,7 +853,7 @@
      (ANDL (SHRW x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])))
            (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])) [16]))))
   && v.Type.Size() == 2
-  -> (ROLW x y)
+  => (ROLW x y)
 (ORL (SHRW x (AND(Q|L)const y [15]))
      (SHLL x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16]))))
   && v.Type.Size() == 2
