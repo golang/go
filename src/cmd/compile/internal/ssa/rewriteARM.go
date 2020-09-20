@@ -14333,17 +14333,17 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [2] {t} dst src mem)
-	// cond: t.(*types.Type).Alignment()%2 == 0
+	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore dst (MOVHUload src mem) mem)
 	for {
-		if v.AuxInt != 2 {
+		if auxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(t.(*types.Type).Alignment()%2 == 0) {
+		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpARMMOVHstore)
@@ -14374,17 +14374,17 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [4] {t} dst src mem)
-	// cond: t.(*types.Type).Alignment()%4 == 0
+	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore dst (MOVWload src mem) mem)
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(t.(*types.Type).Alignment()%4 == 0) {
+		if !(t.Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpARMMOVWstore)
@@ -14394,23 +14394,23 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [4] {t} dst src mem)
-	// cond: t.(*types.Type).Alignment()%2 == 0
+	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [2] dst (MOVHUload [2] src mem) (MOVHstore dst (MOVHUload src mem) mem))
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(t.(*types.Type).Alignment()%2 == 0) {
+		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpARMMOVHstore)
-		v.AuxInt = 2
+		v.AuxInt = int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, OpARMMOVHUload, typ.UInt16)
-		v0.AuxInt = 2
+		v0.AuxInt = int32ToAuxInt(2)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpARMMOVHstore, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpARMMOVHUload, typ.UInt16)
@@ -14480,38 +14480,38 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
+	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
 	for {
-		s := v.AuxInt
-		t := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
+		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMDUFFCOPY)
-		v.AuxInt = 8 * (128 - s/4)
+		v.AuxInt = int64ToAuxInt(8 * (128 - s/4))
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: ((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)
-	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
+	// cond: ((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s)
+	// result: (LoweredMove [t.Alignment()] dst src (ADDconst <src.Type> src [int32(s-moveSize(t.Alignment(), config))]) mem)
 	for {
-		s := v.AuxInt
-		t := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)) {
+		if !(((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMLoweredMove)
-		v.AuxInt = t.(*types.Type).Alignment()
+		v.AuxInt = int64ToAuxInt(t.Alignment())
 		v0 := b.NewValue0(v.Pos, OpARMADDconst, src.Type)
-		v0.AuxInt = s - moveSize(t.(*types.Type).Alignment(), config)
+		v0.AuxInt = int32ToAuxInt(int32(s - moveSize(t.Alignment(), config)))
 		v0.AddArg(src)
 		v.AddArg4(dst, src, v0, mem)
 		return true
@@ -15678,14 +15678,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 1
+	// cond: t.Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 1) {
+		if !(t.Size() == 1) {
 			break
 		}
 		v.reset(OpARMMOVBstore)
@@ -15693,14 +15693,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 2
+	// cond: t.Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 2) {
+		if !(t.Size() == 2) {
 			break
 		}
 		v.reset(OpARMMOVHstore)
@@ -15708,14 +15708,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 4 && !is32BitFloat(val.Type)
+	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
 	// result: (MOVWstore ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 4 && !is32BitFloat(val.Type)) {
+		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARMMOVWstore)
@@ -15723,14 +15723,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 4 && is32BitFloat(val.Type)
+	// cond: t.Size() == 4 && is32BitFloat(val.Type)
 	// result: (MOVFstore ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 4 && is32BitFloat(val.Type)) {
+		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARMMOVFstore)
@@ -15738,14 +15738,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 8 && is64BitFloat(val.Type)
+	// cond: t.Size() == 8 && is64BitFloat(val.Type)
 	// result: (MOVDstore ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 8 && is64BitFloat(val.Type)) {
+		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARMMOVDstore)
@@ -15785,80 +15785,80 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [2] {t} ptr mem)
-	// cond: t.(*types.Type).Alignment()%2 == 0
+	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore ptr (MOVWconst [0]) mem)
 	for {
-		if v.AuxInt != 2 {
+		if auxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
-		if !(t.(*types.Type).Alignment()%2 == 0) {
+		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpARMMOVHstore)
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v0.AuxInt = 0
+		v0.AuxInt = int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (Zero [2] ptr mem)
 	// result: (MOVBstore [1] ptr (MOVWconst [0]) (MOVBstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		if v.AuxInt != 2 {
+		if auxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
 		ptr := v_0
 		mem := v_1
 		v.reset(OpARMMOVBstore)
-		v.AuxInt = 1
+		v.AuxInt = int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v0.AuxInt = 0
+		v0.AuxInt = int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
-		v1.AuxInt = 0
+		v1.AuxInt = int32ToAuxInt(0)
 		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
 	}
 	// match: (Zero [4] {t} ptr mem)
-	// cond: t.(*types.Type).Alignment()%4 == 0
+	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore ptr (MOVWconst [0]) mem)
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
-		if !(t.(*types.Type).Alignment()%4 == 0) {
+		if !(t.Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpARMMOVWstore)
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v0.AuxInt = 0
+		v0.AuxInt = int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (Zero [4] {t} ptr mem)
-	// cond: t.(*types.Type).Alignment()%2 == 0
+	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [2] ptr (MOVWconst [0]) (MOVHstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
-		if !(t.(*types.Type).Alignment()%2 == 0) {
+		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpARMMOVHstore)
-		v.AuxInt = 2
+		v.AuxInt = int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v0.AuxInt = 0
+		v0.AuxInt = int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpARMMOVHstore, types.TypeMem)
-		v1.AuxInt = 0
+		v1.AuxInt = int32ToAuxInt(0)
 		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
@@ -15909,41 +15909,41 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] {t} ptr mem)
-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
+	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice
 	// result: (DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
 	for {
-		s := v.AuxInt
-		t := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
-		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice) {
+		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpARMDUFFZERO)
-		v.AuxInt = 4 * (128 - s/4)
+		v.AuxInt = int64ToAuxInt(4 * (128 - s/4))
 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v0.AuxInt = 0
+		v0.AuxInt = int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (Zero [s] {t} ptr mem)
-	// cond: (s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0
-	// result: (LoweredZero [t.(*types.Type).Alignment()] ptr (ADDconst <ptr.Type> ptr [s-moveSize(t.(*types.Type).Alignment(), config)]) (MOVWconst [0]) mem)
+	// cond: (s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0
+	// result: (LoweredZero [t.Alignment()] ptr (ADDconst <ptr.Type> ptr [int32(s-moveSize(t.Alignment(), config))]) (MOVWconst [0]) mem)
 	for {
-		s := v.AuxInt
-		t := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
-		if !((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) {
+		if !((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) {
 			break
 		}
 		v.reset(OpARMLoweredZero)
-		v.AuxInt = t.(*types.Type).Alignment()
+		v.AuxInt = int64ToAuxInt(t.Alignment())
 		v0 := b.NewValue0(v.Pos, OpARMADDconst, ptr.Type)
-		v0.AuxInt = s - moveSize(t.(*types.Type).Alignment(), config)
+		v0.AuxInt = int32ToAuxInt(int32(s - moveSize(t.Alignment(), config)))
 		v0.AddArg(ptr)
 		v1 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v1.AuxInt = 0
+		v1.AuxInt = int32ToAuxInt(0)
 		v.AddArg4(ptr, v0, v1, mem)
 		return true
 	}
