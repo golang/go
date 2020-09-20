@@ -535,8 +535,8 @@ func TestInvalidUnmarshal(t *testing.T) {
 			t.Errorf("Unmarshal expecting error, got nil")
 			continue
 		}
-		if got := err.Error(); got != test.want {
-			t.Errorf("Unmarshal = %q; want %q", got, test.want)
+		if g, w := err.Error(), test.want; g != w {
+			t.Errorf("InvalidUnmarshalError mismatch\nGot:  %q\nWant: %q", g, w)
 		}
 	}
 }
