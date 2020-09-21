@@ -44,10 +44,11 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution. The
-GOINSECURE environment variable is usually a better alternative, since it
-provides control over which modules may be retrieved using an insecure scheme.
-See 'go help environment' for details.
+custom domains using insecure schemes such as HTTP. Use with caution.
+This flag is deprecated and will be removed in a future version of go.
+The GOINSECURE environment variable is usually a better alternative, since
+it provides control over which modules may be retrieved using an insecure
+scheme. See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -127,6 +128,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
+	}
+	if cfg.Insecure {
+		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
 	}
 
 	// Disable any prompting for passwords by Git.
