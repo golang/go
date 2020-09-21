@@ -46,56 +46,51 @@ type runner struct {
 
 func testSource(t *testing.T, exporter packagestest.Exporter) {
 	ctx := tests.Context(t)
-	data := tests.Load(t, exporter, "../testdata")
-	for _, datum := range data {
-		defer datum.Exported.Cleanup()
+	datum := tests.Load(t, exporter, "../testdata")
+	defer datum.Exported.Cleanup()
 
-		cache := cache.New(ctx, nil)
-		session := cache.NewSession(ctx)
-		options := source.DefaultOptions().Clone()
-		tests.DefaultOptions(options)
-		options.Env = datum.Config.Env
-		view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
-		release()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer view.Shutdown(ctx)
+	cache := cache.New(ctx, nil)
+	session := cache.NewSession(ctx)
+	options := source.DefaultOptions().Clone()
+	tests.DefaultOptions(options)
+	options.Env = datum.Config.Env
+	view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
+	release()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer view.Shutdown(ctx)
 
-		// Enable type error analyses for tests.
-		// TODO(golang/go#38212): Delete this once they are enabled by default.
-		tests.EnableAllAnalyzers(view, options)
-		view.SetOptions(ctx, options)
-		var modifications []source.FileModification
-		for filename, content := range datum.Config.Overlay {
-			kind := source.DetectLanguage("", filename)
-			if kind != source.Go {
-				continue
-			}
-			modifications = append(modifications, source.FileModification{
-				URI:        span.URIFromPath(filename),
-				Action:     source.Open,
-				Version:    -1,
-				Text:       content,
-				LanguageID: "go",
-			})
+	// Enable type error analyses for tests.
+	// TODO(golang/go#38212): Delete this once they are enabled by default.
+	tests.EnableAllAnalyzers(view, options)
+	view.SetOptions(ctx, options)
+	var modifications []source.FileModification
+	for filename, content := range datum.Config.Overlay {
+		kind := source.DetectLanguage("", filename)
+		if kind != source.Go {
+			continue
 		}
-		if err := session.ModifyFiles(ctx, modifications); err != nil {
-			t.Fatal(err)
-		}
-		snapshot, release := view.Snapshot(ctx)
-		defer release()
-		r := &runner{
-			view:     view,
-			snapshot: snapshot,
-			data:     datum,
-			ctx:      ctx,
-		}
-		t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
-			t.Helper()
-			tests.Run(t, r, datum)
+		modifications = append(modifications, source.FileModification{
+			URI:        span.URIFromPath(filename),
+			Action:     source.Open,
+			Version:    -1,
+			Text:       content,
+			LanguageID: "go",
 		})
 	}
+	if err := session.ModifyFiles(ctx, modifications); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, release := view.Snapshot(ctx)
+	defer release()
+	r := &runner{
+		view:     view,
+		snapshot: snapshot,
+		data:     datum,
+		ctx:      ctx,
+	}
+	tests.Run(t, r, datum)
 }
 
 func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {

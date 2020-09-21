@@ -53,14 +53,9 @@ func TestCommandLine(testdata string, options func(*source.Options)) func(*testi
 		}
 		ctx := tests.Context(t)
 		ts := NewTestServer(ctx, options)
-		data := tests.Load(t, exporter, testdata)
-		for _, datum := range data {
-			defer datum.Exported.Cleanup()
-			t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
-				t.Helper()
-				tests.Run(t, NewRunner(exporter, datum, ctx, ts.Addr, options), datum)
-			})
-		}
+		datum := tests.Load(t, exporter, testdata)
+		defer datum.Exported.Cleanup()
+		tests.Run(t, NewRunner(exporter, datum, ctx, ts.Addr, options), datum)
 		cmd.CloseTestConnections(ctx)
 	}
 }

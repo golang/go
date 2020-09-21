@@ -110,7 +110,6 @@ type Data struct {
 	t         testing.TB
 	fragments map[string]string
 	dir       string
-	Folder    string
 	golden    map[string]*Golden
 
 	ModfileFlagAvailable bool
@@ -243,216 +242,177 @@ func DefaultOptions(o *source.Options) {
 	o.ExperimentalWorkspaceModule = true
 }
 
-// Load creates the folder structure required when testing with modules.
-// The directory structure of a test needs to look like the example below:
-//
-// - dir
-// 	 - primarymod
-// 		 - .go files
-// 		 - packages
-// 		 - go.mod (optional)
-// 	 - modules
-//		 - repoa
-//			 - mod1
-//				 - .go files
-//				 -  packages
-//				 - go.mod (optional)
-//			 - mod2
-//		 - repob
-//			 - mod1
-//
-// All the files that are primarily being tested should be in the primarymod folder,
-// any auxillary packages should be declared in the modules folder.
-// The modules folder requires each module to have the following format: repo/module
-// Then inside each repo/module, there can be any number of packages and files that are
-// needed to test the primarymod.
-func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
+func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
-	folders, err := testFolders(dir)
-	if err != nil {
-		t.Fatalf("could not get test folders for %v, %v", dir, err)
+	datum := &Data{
+		CallHierarchy:                 make(CallHierarchy),
+		CodeLens:                      make(CodeLens),
+		Diagnostics:                   make(Diagnostics),
+		CompletionItems:               make(CompletionItems),
+		Completions:                   make(Completions),
+		CompletionSnippets:            make(CompletionSnippets),
+		UnimportedCompletions:         make(UnimportedCompletions),
+		DeepCompletions:               make(DeepCompletions),
+		FuzzyCompletions:              make(FuzzyCompletions),
+		RankCompletions:               make(RankCompletions),
+		CaseSensitiveCompletions:      make(CaseSensitiveCompletions),
+		Definitions:                   make(Definitions),
+		Implementations:               make(Implementations),
+		Highlights:                    make(Highlights),
+		References:                    make(References),
+		Renames:                       make(Renames),
+		PrepareRenames:                make(PrepareRenames),
+		SuggestedFixes:                make(SuggestedFixes),
+		FunctionExtractions:           make(FunctionExtractions),
+		Symbols:                       make(Symbols),
+		symbolsChildren:               make(SymbolsChildren),
+		symbolInformation:             make(SymbolInformation),
+		WorkspaceSymbols:              make(WorkspaceSymbols),
+		FuzzyWorkspaceSymbols:         make(WorkspaceSymbols),
+		CaseSensitiveWorkspaceSymbols: make(WorkspaceSymbols),
+		Signatures:                    make(Signatures),
+		Links:                         make(Links),
+
+		t:         t,
+		dir:       dir,
+		fragments: map[string]string{},
+		golden:    map[string]*Golden{},
+		mappers:   map[span.URI]*protocol.ColumnMapper{},
 	}
 
-	var data []*Data
-	for _, folder := range folders {
-		datum := &Data{
-			CallHierarchy:                 make(CallHierarchy),
-			CodeLens:                      make(CodeLens),
-			Diagnostics:                   make(Diagnostics),
-			CompletionItems:               make(CompletionItems),
-			Completions:                   make(Completions),
-			CompletionSnippets:            make(CompletionSnippets),
-			UnimportedCompletions:         make(UnimportedCompletions),
-			DeepCompletions:               make(DeepCompletions),
-			FuzzyCompletions:              make(FuzzyCompletions),
-			RankCompletions:               make(RankCompletions),
-			CaseSensitiveCompletions:      make(CaseSensitiveCompletions),
-			Definitions:                   make(Definitions),
-			Implementations:               make(Implementations),
-			Highlights:                    make(Highlights),
-			References:                    make(References),
-			Renames:                       make(Renames),
-			PrepareRenames:                make(PrepareRenames),
-			SuggestedFixes:                make(SuggestedFixes),
-			FunctionExtractions:           make(FunctionExtractions),
-			Symbols:                       make(Symbols),
-			symbolsChildren:               make(SymbolsChildren),
-			symbolInformation:             make(SymbolInformation),
-			WorkspaceSymbols:              make(WorkspaceSymbols),
-			FuzzyWorkspaceSymbols:         make(WorkspaceSymbols),
-			CaseSensitiveWorkspaceSymbols: make(WorkspaceSymbols),
-			Signatures:                    make(Signatures),
-			Links:                         make(Links),
-
-			t:         t,
-			dir:       folder,
-			Folder:    folder,
-			fragments: map[string]string{},
-			golden:    map[string]*Golden{},
-			mappers:   map[span.URI]*protocol.ColumnMapper{},
+	if !*UpdateGolden {
+		summary := filepath.Join(filepath.FromSlash(dir), summaryFile+goldenFileSuffix)
+		if _, err := os.Stat(summary); os.IsNotExist(err) {
+			t.Fatalf("could not find golden file summary.txt in %#v", dir)
 		}
+		archive, err := txtar.ParseFile(summary)
+		if err != nil {
+			t.Fatalf("could not read golden file %v/%v: %v", dir, summary, err)
+		}
+		datum.golden[summaryFile] = &Golden{
+			Filename: summary,
+			Archive:  archive,
+		}
+	}
 
-		if !*UpdateGolden {
-			summary := filepath.Join(filepath.FromSlash(folder), summaryFile+goldenFileSuffix)
-			if _, err := os.Stat(summary); os.IsNotExist(err) {
-				t.Fatalf("could not find golden file summary.txt in %#v", folder)
-			}
-			archive, err := txtar.ParseFile(summary)
+	files := packagestest.MustCopyFileTree(dir)
+	overlays := map[string][]byte{}
+	for fragment, operation := range files {
+		if trimmed := strings.TrimSuffix(fragment, goldenFileSuffix); trimmed != fragment {
+			delete(files, fragment)
+			goldFile := filepath.Join(dir, fragment)
+			archive, err := txtar.ParseFile(goldFile)
 			if err != nil {
-				t.Fatalf("could not read golden file %v/%v: %v", folder, summary, err)
+				t.Fatalf("could not read golden file %v: %v", fragment, err)
 			}
-			datum.golden[summaryFile] = &Golden{
-				Filename: summary,
+			datum.golden[trimmed] = &Golden{
+				Filename: goldFile,
 				Archive:  archive,
 			}
-		}
-
-		modules, _ := packagestest.GroupFilesByModules(folder)
-		for i, m := range modules {
-			for fragment, operation := range m.Files {
-				if trimmed := strings.TrimSuffix(fragment, goldenFileSuffix); trimmed != fragment {
-					delete(m.Files, fragment)
-					goldFile := filepath.Join(m.Name, fragment)
-					if i == 0 {
-						goldFile = filepath.Join(m.Name, "primarymod", fragment)
-					}
-					archive, err := txtar.ParseFile(goldFile)
-					if err != nil {
-						t.Fatalf("could not read golden file %v: %v", fragment, err)
-					}
-					datum.golden[trimmed] = &Golden{
-						Filename: goldFile,
-						Archive:  archive,
-					}
-				} else if trimmed := strings.TrimSuffix(fragment, inFileSuffix); trimmed != fragment {
-					delete(m.Files, fragment)
-					m.Files[trimmed] = operation
-				} else if index := strings.Index(fragment, overlayFileSuffix); index >= 0 {
-					delete(m.Files, fragment)
-					partial := fragment[:index] + fragment[index+len(overlayFileSuffix):]
-					overlayFile := filepath.Join(m.Name, fragment)
-					if i == 0 {
-						overlayFile = filepath.Join(m.Name, "primarymod", fragment)
-					}
-					contents, err := ioutil.ReadFile(overlayFile)
-					if err != nil {
-						t.Fatal(err)
-					}
-					m.Overlay[partial] = contents
-				}
+		} else if trimmed := strings.TrimSuffix(fragment, inFileSuffix); trimmed != fragment {
+			delete(files, fragment)
+			files[trimmed] = operation
+		} else if index := strings.Index(fragment, overlayFileSuffix); index >= 0 {
+			delete(files, fragment)
+			partial := fragment[:index] + fragment[index+len(overlayFileSuffix):]
+			contents, err := ioutil.ReadFile(filepath.Join(dir, fragment))
+			if err != nil {
+				t.Fatal(err)
 			}
+			overlays[partial] = contents
 		}
-		if len(modules) > 0 {
-			// For certain LSP related tests to run, make sure that the primary
-			// module for the passed in directory is testModule.
-			modules[0].Name = testModule
-		}
-		// Add exampleModule to provide tests with another pkg.
-		datum.Exported = packagestest.Export(t, exporter, modules)
-		for _, m := range modules {
-			for fragment := range m.Files {
-				filename := datum.Exported.File(m.Name, fragment)
-				datum.fragments[filename] = fragment
-			}
-		}
-
-		// Turn off go/packages debug logging.
-		datum.Exported.Config.Logf = nil
-		datum.Config.Logf = nil
-
-		// Merge the exported.Config with the view.Config.
-		datum.Config = *datum.Exported.Config
-		datum.Config.Fset = token.NewFileSet()
-		datum.Config.Context = Context(nil)
-		datum.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-			panic("ParseFile should not be called")
-		}
-
-		// Do a first pass to collect special markers for completion and workspace symbols.
-		if err := datum.Exported.Expect(map[string]interface{}{
-			"item": func(name string, r packagestest.Range, _ []string) {
-				datum.Exported.Mark(name, r)
-			},
-			"symbol": func(name string, r packagestest.Range, _ []string) {
-				datum.Exported.Mark(name, r)
-			},
-		}); err != nil {
-			t.Fatal(err)
-		}
-
-		// Collect any data that needs to be used by subsequent tests.
-		if err := datum.Exported.Expect(map[string]interface{}{
-			"codelens":        datum.collectCodeLens,
-			"diag":            datum.collectDiagnostics,
-			"item":            datum.collectCompletionItems,
-			"complete":        datum.collectCompletions(CompletionDefault),
-			"unimported":      datum.collectCompletions(CompletionUnimported),
-			"deep":            datum.collectCompletions(CompletionDeep),
-			"fuzzy":           datum.collectCompletions(CompletionFuzzy),
-			"casesensitive":   datum.collectCompletions(CompletionCaseSensitive),
-			"rank":            datum.collectCompletions(CompletionRank),
-			"snippet":         datum.collectCompletionSnippets,
-			"fold":            datum.collectFoldingRanges,
-			"format":          datum.collectFormats,
-			"import":          datum.collectImports,
-			"godef":           datum.collectDefinitions,
-			"implementations": datum.collectImplementations,
-			"typdef":          datum.collectTypeDefinitions,
-			"hover":           datum.collectHoverDefinitions,
-			"highlight":       datum.collectHighlights,
-			"refs":            datum.collectReferences,
-			"rename":          datum.collectRenames,
-			"prepare":         datum.collectPrepareRenames,
-			"symbol":          datum.collectSymbols,
-			"signature":       datum.collectSignatures,
-			"link":            datum.collectLinks,
-			"suggestedfix":    datum.collectSuggestedFixes,
-			"extractfunc":     datum.collectFunctionExtractions,
-			"incomingcalls":   datum.collectIncomingCalls,
-			"outgoingcalls":   datum.collectOutgoingCalls,
-		}); err != nil {
-			t.Fatal(err)
-		}
-		for _, symbols := range datum.Symbols {
-			for i := range symbols {
-				children := datum.symbolsChildren[symbols[i].Name]
-				symbols[i].Children = children
-			}
-		}
-		// Collect names for the entries that require golden files.
-		if err := datum.Exported.Expect(map[string]interface{}{
-			"godef":                        datum.collectDefinitionNames,
-			"hover":                        datum.collectDefinitionNames,
-			"workspacesymbol":              datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
-			"workspacesymbolfuzzy":         datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
-			"workspacesymbolcasesensitive": datum.collectWorkspaceSymbols(WorkspaceSymbolsCaseSensitive),
-		}); err != nil {
-			t.Fatal(err)
-		}
-		data = append(data, datum)
 	}
-	return data
+
+	modules := []packagestest.Module{
+		{
+			Name:    testModule,
+			Files:   files,
+			Overlay: overlays,
+		},
+	} // Add exampleModule to provide tests with another pkg.
+	datum.Exported = packagestest.Export(t, exporter, modules)
+	for _, m := range modules {
+		for fragment := range m.Files {
+			filename := datum.Exported.File(m.Name, fragment)
+			datum.fragments[filename] = fragment
+		}
+	}
+
+	// Turn off go/packages debug logging.
+	datum.Exported.Config.Logf = nil
+	datum.Config.Logf = nil
+
+	// Merge the exported.Config with the view.Config.
+	datum.Config = *datum.Exported.Config
+	datum.Config.Fset = token.NewFileSet()
+	datum.Config.Context = Context(nil)
+	datum.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+		panic("ParseFile should not be called")
+	}
+
+	// Do a first pass to collect special markers for completion and workspace symbols.
+	if err := datum.Exported.Expect(map[string]interface{}{
+		"item": func(name string, r packagestest.Range, _ []string) {
+			datum.Exported.Mark(name, r)
+		},
+		"symbol": func(name string, r packagestest.Range, _ []string) {
+			datum.Exported.Mark(name, r)
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Collect any data that needs to be used by subsequent tests.
+	if err := datum.Exported.Expect(map[string]interface{}{
+		"codelens":        datum.collectCodeLens,
+		"diag":            datum.collectDiagnostics,
+		"item":            datum.collectCompletionItems,
+		"complete":        datum.collectCompletions(CompletionDefault),
+		"unimported":      datum.collectCompletions(CompletionUnimported),
+		"deep":            datum.collectCompletions(CompletionDeep),
+		"fuzzy":           datum.collectCompletions(CompletionFuzzy),
+		"casesensitive":   datum.collectCompletions(CompletionCaseSensitive),
+		"rank":            datum.collectCompletions(CompletionRank),
+		"snippet":         datum.collectCompletionSnippets,
+		"fold":            datum.collectFoldingRanges,
+		"format":          datum.collectFormats,
+		"import":          datum.collectImports,
+		"godef":           datum.collectDefinitions,
+		"implementations": datum.collectImplementations,
+		"typdef":          datum.collectTypeDefinitions,
+		"hover":           datum.collectHoverDefinitions,
+		"highlight":       datum.collectHighlights,
+		"refs":            datum.collectReferences,
+		"rename":          datum.collectRenames,
+		"prepare":         datum.collectPrepareRenames,
+		"symbol":          datum.collectSymbols,
+		"signature":       datum.collectSignatures,
+		"link":            datum.collectLinks,
+		"suggestedfix":    datum.collectSuggestedFixes,
+		"extractfunc":     datum.collectFunctionExtractions,
+		"incomingcalls":   datum.collectIncomingCalls,
+		"outgoingcalls":   datum.collectOutgoingCalls,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, symbols := range datum.Symbols {
+		for i := range symbols {
+			children := datum.symbolsChildren[symbols[i].Name]
+			symbols[i].Children = children
+		}
+	}
+	// Collect names for the entries that require golden files.
+	if err := datum.Exported.Expect(map[string]interface{}{
+		"godef":                        datum.collectDefinitionNames,
+		"hover":                        datum.collectDefinitionNames,
+		"workspacesymbol":              datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
+		"workspacesymbolfuzzy":         datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
+		"workspacesymbolcasesensitive": datum.collectWorkspaceSymbols(WorkspaceSymbolsCaseSensitive),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return datum
 }
 
 func Run(t *testing.T, tests Tests, data *Data) {
@@ -1316,28 +1276,6 @@ func CopyFolderToTempDir(folder string) (string, error) {
 		}
 	}
 	return dst, nil
-}
-
-func testFolders(root string) ([]string, error) {
-	// Check if this only has one test directory.
-	if _, err := os.Stat(filepath.Join(filepath.FromSlash(root), "primarymod")); !os.IsNotExist(err) {
-		return []string{root}, nil
-	}
-	folders := []string{}
-	root = filepath.FromSlash(root)
-	// Get all test directories that are one level deeper than root.
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, _ error) error {
-		if !info.IsDir() {
-			return nil
-		}
-		if filepath.Dir(path) == root {
-			folders = append(folders, filepath.ToSlash(path))
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return folders, nil
 }
 
 func shouldSkip(data *Data, uri span.URI) bool {
