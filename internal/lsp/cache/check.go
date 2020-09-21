@@ -33,7 +33,7 @@ type packageHandle struct {
 
 	goFiles, compiledGoFiles []*parseGoHandle
 
-	// mode is the mode the the files were parsed in.
+	// mode is the mode the files were parsed in.
 	mode source.ParseMode
 
 	// m is the metadata associated with the package.

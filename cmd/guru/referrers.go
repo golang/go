@@ -95,7 +95,7 @@ func referrers(q *Query) error {
 		if pkglevel {
 			return globalReferrersPkgLevel(q, obj, fset)
 		}
-		// We'll use the the object's position to identify it in the larger program.
+		// We'll use the object's position to identify it in the larger program.
 		objposn := fset.Position(obj.Pos())
 		defpkg := obj.Pkg().Path() // defining package
 		return globalReferrers(q, qpos.info.Pkg.Path(), defpkg, objposn)

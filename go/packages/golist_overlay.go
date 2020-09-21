@@ -253,7 +253,7 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 	return modifiedPkgs, needPkgs, err
 }
 
-// resolveImport finds the the ID of a package given its import path.
+// resolveImport finds the ID of a package given its import path.
 // In particular, it will find the right vendored copy when in GOPATH mode.
 func (state *golistState) resolveImport(sourceDir, importPath string) (string, error) {
 	env, err := state.getEnv()

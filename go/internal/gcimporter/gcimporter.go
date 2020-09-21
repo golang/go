@@ -491,7 +491,7 @@ func (p *parser) parseMapType(parent *types.Package) types.Type {
 //
 // For unqualified and anonymous names, the returned package is the parent
 // package unless parent == nil, in which case the returned package is the
-// package being imported. (The parent package is not nil if the the name
+// package being imported. (The parent package is not nil if the name
 // is an unqualified struct field or interface method name belonging to a
 // type declared in another package.)
 //

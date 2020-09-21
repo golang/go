@@ -6,7 +6,7 @@
 # instructions on how to use this.
 
 substitutions:
-  # This bucket must be owned by the the GCP project executing the build. If
+  # This bucket must be owned by the GCP project executing the build. If
   # you are running this from your own project, override using --substitutions.
   _RESULT_BUCKET: 'golang-gopls_integration_tests'
 

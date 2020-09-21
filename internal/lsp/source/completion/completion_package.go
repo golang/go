@@ -204,7 +204,7 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 }
 
 // packageSuggestions returns a list of packages from workspace packages that
-// have the given prefix and are used in the the same directory as the given
+// have the given prefix and are used in the same directory as the given
 // file. This also includes test packages for these packages (<pkg>_test) and
 // the directory name itself.
 func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) ([]candidate, error) {

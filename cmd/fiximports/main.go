@@ -266,7 +266,7 @@ func fiximports(packages ...string) bool {
 
 					// TODO(adonovan): should we make an HTTP request to
 					// see if there's an HTTP redirect, a "go-import" meta tag,
-					// or an import comment in the the latest revision?
+					// or an import comment in the latest revision?
 					// It would duplicate a lot of logic from "go get".
 				}
 				break
