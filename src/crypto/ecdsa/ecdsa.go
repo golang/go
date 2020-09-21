@@ -280,7 +280,7 @@ func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve
 // SignASN1 signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
-// returns the ASN.1 encoded signature. The security of the private key
+// returns the ASN.1 DER encoded signature. The security of the private key
 // depends on the entropy of rand.
 func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	return priv.Sign(rand, hash, nil)
@@ -334,7 +334,7 @@ func verifyGeneric(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int)
 	return x.Cmp(r) == 0
 }
 
-// VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the
+// VerifyASN1 verifies the ASN.1 DER encoded signature, sig, of hash using the
 // public key, pub. Its return value records whether the signature is valid.
 func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
 	var (
