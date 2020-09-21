@@ -59,7 +59,6 @@ var (
 	defaultOptions *Options
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer -output enums_string.go -type ImportShortcut,HoverKind,Matcher,SymbolMatcher,SymbolStyle
 //go:generate go run golang.org/x/tools/internal/lsp/source/genopts -output options_json.go
 
 // DefaultOptions is the options that are used for Gopls execution independent
@@ -120,8 +119,10 @@ func DefaultOptions() *Options {
 				CompleteUnimported:      true,
 				CompletionDocumentation: true,
 				DeepCompletion:          true,
+				ImportShortcut:          Both,
 				Matcher:                 Fuzzy,
 				SymbolMatcher:           SymbolFuzzy,
+				SymbolStyle:             PackageQualifiedSymbols,
 			},
 			Hooks: Hooks{
 				ComputeEdits:         myers.ComputeEdits,
@@ -179,15 +180,7 @@ type UserOptions struct {
 	Env []string
 
 	// HoverKind controls the information that appears in the hover text.
-	// It must be one of:
-	// * `"NoDocumentation"`
-	// * `"SynopsisDocumentation"`
-	// * `"FullDocumentation"`
-	//
-	// Authors of editor clients may wish to handle hover text differently, and so might use different settings. The options below are not intended for use by anyone other than the authors of editor plugins.
-	//
-	// * `"SingleLine"`
-	// * `"Structured"`
+	// SingleLine and Structured are intended for use only by authors of editor plugins.
 	HoverKind HoverKind
 
 	// Placeholders enables placeholders for function parameters or struct fields in completion responses.
@@ -291,36 +284,24 @@ type ExperimentalOptions struct {
 	// At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
 	DeepCompletion bool
 
-	// Matcher sets the algorithm that is used when calculating completion candidates. Must be one of:
-	//
-	// * `"fuzzy"`
-	// * `"caseSensitive"`
-	// * `"caseInsensitive"`
+	// Matcher sets the algorithm that is used when calculating completion candidates.
 	Matcher Matcher
 
 	// Annotations suppress various kinds of optimization diagnostics
 	// that would be reported by the gc_details command.
-	//   noNilcheck suppresses display of nilchecks.
-	//   noEscape suppresses escape choices.
-	//   noInline suppresses inlining choices.
-	//   noBounds suppresses bounds checking diagnositcs.
+	//  * noNilcheck suppresses display of nilchecks.
+	//  * noEscape suppresses escape choices.
+	//  * noInline suppresses inlining choices.
+	//  * noBounds suppresses bounds checking diagnostics.
 	Annotations map[string]bool
 
 	// Staticcheck enables additional analyses from staticcheck.io.
 	Staticcheck bool
 
-	// SymbolMatcher sets the algorithm that is used when finding workspace symbols. Must be one of:
-	//
-	// * `"fuzzy"`
-	// * `"caseSensitive"`
-	// * `"caseInsensitive"`
+	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
 	SymbolMatcher SymbolMatcher
 
-	// SymbolStyle specifies what style of symbols to return in symbol requests. Must be one of:
-	//
-	// * `"full"`
-	// * `"dynamic"`
-	// * `"package"`
+	// SymbolStyle specifies what style of symbols to return in symbol requests.
 	SymbolStyle SymbolStyle
 
 	// LinksInHover toggles the presence of links to documentation in hover.
@@ -330,11 +311,7 @@ type ExperimentalOptions struct {
 	TempModfile bool
 
 	// ImportShortcut specifies whether import statements should link to
-	// documentation or go to definitions. Must be one of:
-	//
-	// * `"both"`
-	// * `"link"`
-	// * `"definition"`
+	// documentation or go to definitions.
 	ImportShortcut ImportShortcut
 
 	// VerboseWorkDoneProgress controls whether the LSP server should send
@@ -370,12 +347,12 @@ type DebuggingOptions struct {
 	LiteralCompletions bool
 }
 
-type ImportShortcut int
+type ImportShortcut string
 
 const (
-	Both ImportShortcut = iota
-	Link
-	Definition
+	Both       ImportShortcut = "Both"
+	Link       ImportShortcut = "Link"
+	Definition ImportShortcut = "Definition"
 )
 
 func (s ImportShortcut) ShowLinks() bool {
@@ -386,44 +363,44 @@ func (s ImportShortcut) ShowDefinition() bool {
 	return s == Both || s == Definition
 }
 
-type Matcher int
+type Matcher string
 
 const (
-	Fuzzy = Matcher(iota)
-	CaseInsensitive
-	CaseSensitive
+	Fuzzy           Matcher = "Fuzzy"
+	CaseInsensitive Matcher = "CaseInsensitive"
+	CaseSensitive   Matcher = "CaseSensitive"
 )
 
-type SymbolMatcher int
+type SymbolMatcher string
 
 const (
-	SymbolFuzzy = SymbolMatcher(iota)
-	SymbolCaseInsensitive
-	SymbolCaseSensitive
+	SymbolFuzzy           SymbolMatcher = "Fuzzy"
+	SymbolCaseInsensitive SymbolMatcher = "CaseInsensitive"
+	SymbolCaseSensitive   SymbolMatcher = "CaseSensitive"
 )
 
-type SymbolStyle int
+type SymbolStyle string
 
 const (
-	PackageQualifiedSymbols = SymbolStyle(iota)
-	FullyQualifiedSymbols
-	DynamicSymbols
+	PackageQualifiedSymbols SymbolStyle = "Package"
+	FullyQualifiedSymbols   SymbolStyle = "Full"
+	DynamicSymbols          SymbolStyle = "Dynamic"
 )
 
-type HoverKind int
+type HoverKind string
 
 const (
-	SingleLine = HoverKind(iota)
-	NoDocumentation
-	SynopsisDocumentation
-	FullDocumentation
+	SingleLine            HoverKind = "SingleLine"
+	NoDocumentation       HoverKind = "NoDocumentation"
+	SynopsisDocumentation HoverKind = "SynopsisDocumentation"
+	FullDocumentation     HoverKind = "FullDocumentation"
 
 	// Structured is an experimental setting that returns a structured hover format.
 	// This format separates the signature from the documentation, so that the client
 	// can do more manipulation of these fields.
 	//
 	// This should only be used by clients that support this behavior.
-	Structured
+	Structured HoverKind = "Structured"
 )
 
 type OptionResults []OptionResult

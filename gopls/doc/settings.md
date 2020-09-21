@@ -23,26 +23,29 @@ buildFlags is the set of flags passed on to the build system when invoked.
 It is applied to queries like `go list`, which is used when discovering files.
 The most common use is to set `-tags`.
 
+
 Default: `[]`.
 ### **env** *[]string*
 env adds environment variables to external commands run by `gopls`, most notably `go list`.
 
+
 Default: `[]`.
-### **hoverKind** *golang.org/x/tools/internal/lsp/source.HoverKind*
+### **hoverKind** *enum*
 hoverKind controls the information that appears in the hover text.
-It must be one of:
-* `"NoDocumentation"`
-* `"SynopsisDocumentation"`
-* `"FullDocumentation"`
+SingleLine and Structured are intended for use only by authors of editor plugins.
+Must be one of:
 
-Authors of editor clients may wish to handle hover text differently, and so might use different settings. The options below are not intended for use by anyone other than the authors of editor plugins.
+ * `"FullDocumentation"`
+ * `"NoDocumentation"`
+ * `"SingleLine"`
+ * `"Structured"`
+ * `"SynopsisDocumentation"`
 
-* `"SingleLine"`
-* `"Structured"`
 
 Default: `"FullDocumentation"`.
 ### **usePlaceholders** *bool*
 placeholders enables placeholders for function parameters or struct fields in completion responses.
+
 
 Default: `false`.
 ### **linkTarget** *string*
@@ -54,14 +57,17 @@ It might be one of:
 
 If company chooses to use its own `godoc.org`, its address can be used as well.
 
+
 Default: `"pkg.go.dev"`.
 ### **local** *string*
 local is the equivalent of the `goimports -local` flag, which puts imports beginning with this string after 3rd-party packages.
 It should be the prefix of the import path whose imports should be grouped separately.
 
+
 Default: `""`.
 ### **gofumpt** *bool*
 gofumpt indicates if we should run gofumpt formatting.
+
 
 Default: `false`.
 <!-- END User: DO NOT MANUALLY EDIT THIS SECTION -->
@@ -86,7 +92,8 @@ Example Usage:
 ...
 ```
 
-Default: `null`.
+
+Default: `{}`.
 ### **codelens** *map[string]bool*
 overrides the enabled/disabled state of various code lenses. Currently, we
 support several code lenses:
@@ -108,13 +115,16 @@ Example Usage:
 }
 ```
 
+
 Default: `{"gc_details":false,"generate":true,"regenerate_cgo":true,"tidy":true,"upgrade_dependency":true,"vendor":true}`.
 ### **completionDocumentation** *bool*
 completionDocumentation enables documentation with completion results.
 
+
 Default: `true`.
 ### **completeUnimported** *bool*
 completeUnimported enables completion for packages that you do not currently import.
+
 
 Default: `true`.
 ### **deepCompletion** *bool*
@@ -139,64 +149,78 @@ func main() {
 
 At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
 
-Default: `true`.
-### **matcher** *golang.org/x/tools/internal/lsp/source.Matcher*
-matcher sets the algorithm that is used when calculating completion candidates. Must be one of:
 
-* `"fuzzy"`
-* `"caseSensitive"`
-* `"caseInsensitive"`
+Default: `true`.
+### **matcher** *enum*
+matcher sets the algorithm that is used when calculating completion candidates.
+Must be one of:
+
+ * `"CaseInsensitive"`
+ * `"CaseSensitive"`
+ * `"Fuzzy"`
+
 
 Default: `"Fuzzy"`.
 ### **annotations** *map[string]bool*
 annotations suppress various kinds of optimization diagnostics
 that would be reported by the gc_details command.
-  noNilcheck suppresses display of nilchecks.
-  noEscape suppresses escape choices.
-  noInline suppresses inlining choices.
-  noBounds suppresses bounds checking diagnositcs.
+ * noNilcheck suppresses display of nilchecks.
+ * noEscape suppresses escape choices.
+ * noInline suppresses inlining choices.
+ * noBounds suppresses bounds checking diagnostics.
 
-Default: `null`.
+
+Default: `{}`.
 ### **staticcheck** *bool*
 staticcheck enables additional analyses from staticcheck.io.
 
+
 Default: `false`.
-### **symbolMatcher** *golang.org/x/tools/internal/lsp/source.SymbolMatcher*
-symbolMatcher sets the algorithm that is used when finding workspace symbols. Must be one of:
+### **symbolMatcher** *enum*
+symbolMatcher sets the algorithm that is used when finding workspace symbols.
+Must be one of:
 
-* `"fuzzy"`
-* `"caseSensitive"`
-* `"caseInsensitive"`
+ * `"CaseInsensitive"`
+ * `"CaseSensitive"`
+ * `"Fuzzy"`
 
-Default: `"SymbolFuzzy"`.
-### **symbolStyle** *golang.org/x/tools/internal/lsp/source.SymbolStyle*
-symbolStyle specifies what style of symbols to return in symbol requests. Must be one of:
 
-* `"full"`
-* `"dynamic"`
-* `"package"`
+Default: `"Fuzzy"`.
+### **symbolStyle** *enum*
+symbolStyle specifies what style of symbols to return in symbol requests.
+Must be one of:
 
-Default: `"PackageQualifiedSymbols"`.
+ * `"Dynamic"`
+ * `"Full"`
+ * `"Package"`
+
+
+Default: `"Package"`.
 ### **linksInHover** *bool*
 linksInHover toggles the presence of links to documentation in hover.
+
 
 Default: `true`.
 ### **tempModfile** *bool*
 tempModfile controls the use of the -modfile flag in Go 1.14.
 
-Default: `true`.
-### **importShortcut** *golang.org/x/tools/internal/lsp/source.ImportShortcut*
-importShortcut specifies whether import statements should link to
-documentation or go to definitions. Must be one of:
 
-* `"both"`
-* `"link"`
-* `"definition"`
+Default: `true`.
+### **importShortcut** *enum*
+importShortcut specifies whether import statements should link to
+documentation or go to definitions.
+Must be one of:
+
+ * `"Both"`
+ * `"Definition"`
+ * `"Link"`
+
 
 Default: `"Both"`.
 ### **verboseWorkDoneProgress** *bool*
 verboseWorkDoneProgress controls whether the LSP server should send
 progress reports for all work done outside the scope of an RPC.
+
 
 Default: `false`.
 ### **expandWorkspaceToModule** *bool*
@@ -204,10 +228,12 @@ expandWorkspaceToModule instructs `gopls` to expand the scope of the workspace t
 modules containing the workspace folders. Set this to false to avoid loading
 your entire module. This is particularly useful for those working in a monorepo.
 
+
 Default: `true`.
 ### **experimentalWorkspaceModule** *bool*
 experimentalWorkspaceModule opts a user into the experimental support
 for multi-module workspaces.
+
 
 Default: `false`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->

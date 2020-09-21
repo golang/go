@@ -47,10 +47,11 @@ func doMain() error {
 }
 
 type option struct {
-	Name    string
-	Type    string
-	Doc     string
-	Default string
+	Name       string
+	Type       string
+	Doc        string
+	EnumValues []string
+	Default    string
 }
 
 func rewriteDoc(doc []byte, categories map[string][]option) ([]byte, error) {
@@ -67,7 +68,14 @@ func rewriteDoc(doc []byte, categories map[string][]option) ([]byte, error) {
 func rewriteSection(doc []byte, categories map[string][]option, category string) ([]byte, error) {
 	section := bytes.NewBuffer(nil)
 	for _, opt := range categories[category] {
-		fmt.Fprintf(section, "### **%v** *%v*\n%v\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, opt.Default)
+		var enumValues string
+		if len(opt.EnumValues) > 0 {
+			enumValues = "Must be one of:\n\n"
+			for _, val := range opt.EnumValues {
+				enumValues += fmt.Sprintf(" * `%v`\n", val)
+			}
+		}
+		fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues, opt.Default)
 	}
 	re := regexp.MustCompile(fmt.Sprintf(`(?s)<!-- BEGIN %v.* -->\n(.*?)<!-- END %v.* -->`, category, category))
 	idx := re.FindSubmatchIndex(doc)

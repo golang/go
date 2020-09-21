@@ -93,10 +93,11 @@ func generate() ([]byte, error) {
 }
 
 type option struct {
-	Name    string
-	Type    string
-	Doc     string
-	Default string
+	Name       string
+	Type       string
+	Doc        string
+	EnumValues []string
+	Default    string
 }
 
 func loadOptions(category reflect.Value, pkg *packages.Package) ([]option, error) {
@@ -117,13 +118,15 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]option, error
 		return nil, fmt.Errorf("no file for opts type %v", optsType)
 	}
 
+	enums := loadEnums(pkg)
+
 	var opts []option
 	optsStruct := optsType.Type().Underlying().(*types.Struct)
 	for i := 0; i < optsStruct.NumFields(); i++ {
 		// The types field gives us the type.
 		typesField := optsStruct.Field(i)
 		path, _ := astutil.PathEnclosingInterval(file, typesField.Pos(), typesField.Pos())
-		if len(path) < 1 {
+		if len(path) < 2 {
 			return nil, fmt.Errorf("could not find AST node for field %v", typesField)
 		}
 		// The AST field gives us the doc.
@@ -138,32 +141,52 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]option, error
 			return nil, fmt.Errorf("could not find reflect field for %v", typesField.Name())
 		}
 
-		// Format the default value. String values should look like strings. Other stuff should look like JSON literals.
-		var defString string
-		switch def := reflectField.Interface().(type) {
-		case fmt.Stringer:
-			defString = `"` + def.String() + `"`
-		case string:
-			defString = `"` + def + `"`
-		default:
-			defString = fmt.Sprint(def)
+		// Format the default value. VSCode exposes settings as JSON, so showing them as JSON is reasonable.
+		// Nil values format as "null" so print them as hardcoded empty values.
+		def := reflectField.Interface()
+		defBytes, err := json.Marshal(def)
+		if err != nil {
+			return nil, err
 		}
-		if reflectField.Kind() == reflect.Map {
-			b, err := json.Marshal(reflectField.Interface())
-			if err != nil {
-				return nil, err
+
+		switch reflectField.Type().Kind() {
+		case reflect.Map:
+			if reflectField.IsNil() {
+				defBytes = []byte("{}")
 			}
-			defString = string(b)
+		case reflect.Slice:
+			if reflectField.IsNil() {
+				defBytes = []byte("[]")
+			}
+		}
+
+		typ := typesField.Type().String()
+		if _, ok := enums[typesField.Type()]; ok {
+			typ = "enum"
 		}
 
 		opts = append(opts, option{
-			Name:    lowerFirst(typesField.Name()),
-			Type:    typesField.Type().String(),
-			Doc:     lowerFirst(astField.Doc.Text()),
-			Default: defString,
+			Name:       lowerFirst(typesField.Name()),
+			Type:       typ,
+			Doc:        lowerFirst(astField.Doc.Text()),
+			Default:    string(defBytes),
+			EnumValues: enums[typesField.Type()],
 		})
 	}
 	return opts, nil
+}
+
+func loadEnums(pkg *packages.Package) map[types.Type][]string {
+	enums := map[types.Type][]string{}
+	for _, name := range pkg.Types.Scope().Names() {
+		obj := pkg.Types.Scope().Lookup(name)
+		cnst, ok := obj.(*types.Const)
+		if !ok {
+			continue
+		}
+		enums[obj.Type()] = append(enums[obj.Type()], cnst.Val().ExactString())
+	}
+	return enums
 }
 
 func lowerFirst(x string) string {
