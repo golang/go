@@ -243,10 +243,6 @@ func DefaultOptions(o *source.Options) {
 	o.ExperimentalWorkspaceModule = true
 }
 
-var (
-	go115 = false
-)
-
 // Load creates the folder structure required when testing with modules.
 // The directory structure of a test needs to look like the example below:
 //
@@ -473,8 +469,8 @@ func Run(t *testing.T, tests Tests, data *Data) {
 					if strings.Contains(t.Name(), "cgo") {
 						testenv.NeedsTool(t, "cgo")
 					}
-					if !go115 && strings.Contains(t.Name(), "declarecgo") {
-						t.Skip("test requires Go 1.15")
+					if strings.Contains(t.Name(), "declarecgo") {
+						testenv.NeedsGo1Point(t, 15)
 					}
 					test(t, src, e, data.CompletionItems)
 				})
@@ -658,8 +654,8 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				if strings.Contains(t.Name(), "cgo") {
 					testenv.NeedsTool(t, "cgo")
 				}
-				if !go115 && strings.Contains(t.Name(), "declarecgo") {
-					t.Skip("test requires Go 1.15")
+				if strings.Contains(t.Name(), "declarecgo") {
+					testenv.NeedsGo1Point(t, 15)
 				}
 				tests.Definition(t, spn, d)
 			})
