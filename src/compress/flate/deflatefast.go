@@ -270,7 +270,7 @@ func (e *deflateFast) matchLen(s, t int32, src []byte) int32 {
 func (e *deflateFast) reset() {
 	e.prev = e.prev[:0]
 	// Bump the offset, so all matches will fail distance check.
-	// Nothing should be >= e.cur in the table
+	// Nothing should be >= e.cur in the table.
 	e.cur += maxMatchOffset
 
 	// Protect against e.cur wraparound.
@@ -297,7 +297,7 @@ func (e *deflateFast) shiftOffsets() {
 	for i := range e.table[:] {
 		v := e.table[i].offset - e.cur + maxMatchOffset + 1
 		if v < 0 {
-			// Indicate that this is invalid
+			// Indicate that this table entry is invalid.
 			v = 0
 		}
 		e.table[i].offset = v
