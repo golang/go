@@ -158,6 +158,9 @@ type completer struct {
 	// triggerCharacter is the character that triggered this request, if any.
 	triggerCharacter string
 
+	// fh is a handle to the file associated with this completion request.
+	fh source.FileHandle
+
 	// filename is the name of the file associated with this completion request.
 	filename string
 
@@ -456,6 +459,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		snapshot:                  snapshot,
 		qf:                        source.Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo()),
 		triggerCharacter:          triggerCharacter,
+		fh:                        fh,
 		filename:                  fh.URI().Filename(),
 		file:                      pgf.File,
 		path:                      path,
@@ -497,27 +501,42 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	c.inference = expectedCandidate(ctx, c)
 
-	defer c.sortItems()
+	err = c.collectCompletions(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	// Deep search collected candidates and their members for more candidates.
+	c.deepSearch(ctx)
+
+	// Statement candidates offer an entire statement in certain contexts, as
+	// opposed to a single object. Add statement candidates last because they
+	// depend on other candidates having already been collected.
+	c.addStatementCandidates()
+
+	c.sortItems()
+	return c.items, c.getSurrounding(), nil
+}
+
+// collectCompletions adds possible completion candidates to either the deep
+// search queue or completion items directly for different completion contexts.
+func (c *completer) collectCompletions(ctx context.Context) error {
 	// Inside import blocks, return completions for unimported packages.
-	for _, importSpec := range pgf.File.Imports {
-		if !(importSpec.Path.Pos() <= rng.Start && rng.Start <= importSpec.Path.End()) {
+	for _, importSpec := range c.file.Imports {
+		if !(importSpec.Path.Pos() <= c.pos && c.pos <= importSpec.Path.End()) {
 			continue
 		}
-		if err := c.populateImportCompletions(ctx, importSpec); err != nil {
-			return nil, nil, err
-		}
-		return c.items, c.getSurrounding(), nil
+		return c.populateImportCompletions(ctx, importSpec)
 	}
 
 	// Inside comments, offer completions for the name of the relevant symbol.
-	for _, comment := range pgf.File.Comments {
-		if comment.Pos() < rng.Start && rng.Start <= comment.End() {
+	for _, comment := range c.file.Comments {
+		if comment.Pos() < c.pos && c.pos <= comment.End() {
 			// Deep completion doesn't work properly in comments since we don't
 			// have a type object to complete further.
 			c.deepState.enabled = false
 			c.populateCommentCompletions(ctx, comment)
-			return c.items, c.getSurrounding(), nil
+			return nil
 		}
 	}
 
@@ -528,69 +547,45 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		if c.enclosingCompositeLiteral.inKey {
 			c.deepState.enabled = false
 		}
-		if err := c.structLiteralFieldName(ctx); err != nil {
-			return nil, nil, err
-		}
-		return c.items, c.getSurrounding(), nil
+		return c.structLiteralFieldName(ctx)
 	}
 
 	if lt := c.wantLabelCompletion(); lt != labelNone {
 		c.labels(ctx, lt)
-		return c.items, c.getSurrounding(), nil
+		return nil
 	}
 
 	if c.emptySwitchStmt() {
 		// Empty switch statements only admit "default" and "case" keywords.
 		c.addKeywordItems(map[string]bool{}, highScore, CASE, DEFAULT)
-		return c.items, c.getSurrounding(), nil
+		return nil
 	}
 
-	switch n := path[0].(type) {
+	switch n := c.path[0].(type) {
 	case *ast.Ident:
-		if pgf.File.Name == n {
-			if err := c.packageNameCompletions(ctx, fh.URI(), n); err != nil {
-				return nil, nil, err
-			}
-			return c.items, c.getSurrounding(), nil
-		} else if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
+		if c.file.Name == n {
+			return c.packageNameCompletions(ctx, c.fh.URI(), n)
+		} else if sel, ok := c.path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
 			// Is this the Sel part of a selector?
-			if err := c.selector(ctx, sel); err != nil {
-				return nil, nil, err
-			}
-		} else if err := c.lexical(ctx); err != nil {
-			return nil, nil, err
+			return c.selector(ctx, sel)
 		}
+		return c.lexical(ctx)
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		if err := c.selector(ctx, &ast.SelectorExpr{X: n.X}); err != nil {
-			return nil, nil, err
-		}
-
+		return c.selector(ctx, &ast.SelectorExpr{X: n.X})
 	case *ast.SelectorExpr:
-		if err := c.selector(ctx, n); err != nil {
-			return nil, nil, err
-		}
-
+		return c.selector(ctx, n)
 	// At the file scope, only keywords are allowed.
 	case *ast.BadDecl, *ast.File:
 		c.addKeywordCompletions()
-
 	default:
 		// fallback to lexical completions
-		if err := c.lexical(ctx); err != nil {
-			return nil, nil, err
-		}
+		return c.lexical(ctx)
 	}
 
-	// Statement candidates offer an entire statement in certain
-	// contexts, as opposed to a single object. Add statement candidates
-	// last because they depend on other candidates having already been
-	// collected.
-	c.addStatementCandidates()
-
-	return c.items, c.getSurrounding(), nil
+	return nil
 }
 
 // containingIdent returns the *ast.Ident containing pos, if any. It
@@ -788,7 +783,8 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkgToConsider, pkg.IdentName))
 		cand := candidate{obj: obj, name: namePrefix + name + nameSuffix, score: score}
 		// We use c.item here to be able to manually update the detail for a
-		// candidate. c.found doesn't give us access to the completion item.
+		// candidate. deepSearch doesn't give us access to the completion item,
+		// so we don't enqueue the item here.
 		if item, err := c.item(ctx, cand); err == nil {
 			item.Detail = fmt.Sprintf("%q", pkgToConsider)
 			c.items = append(c.items, item)
@@ -838,7 +834,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 							continue
 						}
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
-						c.found(ctx, candidate{obj: obj, score: stdScore})
+						c.deepState.enqueue(&searchPath{}, candidate{obj: obj, score: stdScore})
 					}
 				case *ast.TypeSpec:
 					// add TypeSpec fields to completion
@@ -865,8 +861,10 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 						score = highScore
 					}
 
-					// we use c.item in addFieldItems so we have to use c.item here to ensure scoring
-					// order is maintained. c.found manipulates the score
+					// we use c.item in addFieldItems so we have to use c.item
+					// here to ensure scoring order is maintained. deepSearch
+					// manipulates the score so we can't enqueue the item
+					// directly.
 					if item, err := c.item(ctx, candidate{obj: obj, name: obj.Name(), score: score}); err == nil {
 						c.items = append(c.items, item)
 					}
@@ -897,8 +895,10 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 						}
 						for i := 0; i < recvStruct.NumFields(); i++ {
 							field := recvStruct.Field(i)
-							// we use c.item in addFieldItems so we have to use c.item here to ensure scoring
-							// order is maintained. c.found maniplulates the score
+							// we use c.item in addFieldItems so we have to
+							// use c.item here to ensure scoring order is
+							// maintained. deepSearch manipulates the score so
+							// we can't enqueue the items directly.
 							item, err := c.item(ctx, candidate{obj: field, name: field.Name(), score: lowScore})
 							if err != nil {
 								continue
@@ -918,8 +918,8 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				continue
 			}
 
-			// We don't want to expandFuncCall inside comments.
-			// c.found() doesn't respect this setting
+			// We don't want to expandFuncCall inside comments. deepSearch
+			// doesn't respect this setting so we don't enqueue the item here.
 			item, err := c.item(ctx, candidate{
 				obj:            obj,
 				name:           obj.Name(),
@@ -1005,8 +1005,8 @@ func (c *completer) addFieldItems(ctx context.Context, fields *ast.FieldList) {
 				expandFuncCall: false,
 				score:          score,
 			}
-			// We don't want to expandFuncCall inside comments.
-			// c.found() doesn't respect this setting
+			// We don't want to expandFuncCall inside comments. deepSearch
+			// doesn't respect this setting so we don't enqueue the item here.
 			if item, err := c.item(ctx, cand); err == nil {
 				c.items = append(c.items, item)
 			}
@@ -1042,7 +1042,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
 			candidates := c.packageMembers(ctx, pkgName.Imported(), stdScore, nil)
 			for _, cand := range candidates {
-				c.found(ctx, cand)
+				c.deepState.enqueue(&searchPath{}, cand)
 			}
 			return nil
 		}
@@ -1053,7 +1053,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	if ok {
 		candidates := c.methodsAndFields(ctx, tv.Type, tv.Addressable(), nil)
 		for _, cand := range candidates {
-			c.found(ctx, cand)
+			c.deepState.enqueue(&searchPath{}, cand)
 		}
 		return nil
 	}
@@ -1110,7 +1110,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		}
 		candidates := c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevances[path]), imp)
 		for _, cand := range candidates {
-			c.found(ctx, cand)
+			c.deepState.enqueue(&searchPath{}, cand)
 		}
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
@@ -1132,7 +1132,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
 			score := unimportedScore(pkgExport.Fix.Relevance)
-			c.found(ctx, candidate{
+			c.deepState.enqueue(&searchPath{}, candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
 				imp: &importInfo{
@@ -1277,7 +1277,7 @@ func (c *completer) lexical(ctx context.Context) error {
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(ctx, candidate{
+				c.deepState.enqueue(&searchPath{}, candidate{
 					obj:         obj,
 					score:       score,
 					addressable: isVar(obj),
@@ -1306,7 +1306,7 @@ func (c *completer) lexical(ctx context.Context) error {
 					if imports.ImportPathToAssumedName(pkg.Path()) != pkg.Name() {
 						imp.name = pkg.Name()
 					}
-					c.found(ctx, candidate{
+					c.deepState.enqueue(&searchPath{}, candidate{
 						obj:   obj,
 						score: stdScore,
 						imp:   imp,
@@ -1345,7 +1345,7 @@ func (c *completer) lexical(ctx context.Context) error {
 				// Make sure the type name matches before considering
 				// candidate. This cuts down on useless candidates.
 				if c.matchingTypeName(&fakeNamedType) {
-					c.found(ctx, fakeNamedType)
+					c.deepState.enqueue(&searchPath{}, fakeNamedType)
 				}
 			}
 		}
@@ -1405,7 +1405,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		if count >= maxUnimportedPackageNames {
 			return nil
 		}
-		c.found(ctx, candidate{
+		c.deepState.enqueue(&searchPath{}, candidate{
 			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
@@ -1436,7 +1436,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		// multiple packages of the same name as completion suggestions, since
 		// only one will be chosen.
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-		c.found(ctx, candidate{
+		c.deepState.enqueue(&searchPath{}, candidate{
 			obj:   obj,
 			score: unimportedScore(pkg.Relevance),
 			imp: &importInfo{
@@ -1498,7 +1498,7 @@ func (c *completer) structLiteralFieldName(ctx context.Context) error {
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
 			if !addedFields[field] {
-				c.found(ctx, candidate{
+				c.deepState.enqueue(&searchPath{}, candidate{
 					obj:   field,
 					score: highScore,
 				})

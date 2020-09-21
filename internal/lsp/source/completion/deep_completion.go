@@ -32,8 +32,7 @@ const MaxDeepCompletions = 3
 // "deep completion" refers to searching into objects' fields and methods to
 // find more completion candidates.
 type deepCompletionState struct {
-	// enabled indicates wether deep completion is permitted. It should be
-	// reset to original value if manually disabled for an individual case.
+	// enabled indicates wether deep completion is permitted.
 	enabled bool
 
 	// queueClosed is used to disable adding new items to search queue once
@@ -121,14 +120,6 @@ func (s *deepCompletionState) inDeepCompletion() bool {
 	return len(s.curPath.path) > 0
 }
 
-// reset resets deepCompletionState since found might be called multiple times.
-// We don't reset high scores since multiple calls to found still respect the
-// same MaxDeepCompletions count.
-func (s *deepCompletionState) reset() {
-	s.searchQueue = nil
-	s.curPath = &searchPath{}
-}
-
 // appendToSearchPath appends an object to a given searchPath.
 func appendToSearchPath(oldPath searchPath, obj types.Object, invoke bool) *searchPath {
 	name := obj.Name()
@@ -146,26 +137,23 @@ func appendToSearchPath(oldPath searchPath, obj types.Object, invoke bool) *sear
 	}
 }
 
-// found adds a candidate to completion items if it's a valid suggestion and
-// searches the candidate's subordinate objects for more completion items if
-// deep completion is enabled.
-func (c *completer) found(ctx context.Context, cand candidate) {
-	// reset state at the end so current state doesn't affect completions done
-	// outside c.found.
-	defer c.deepState.reset()
-
-	// At the top level, dedupe by object.
-	if c.seen[cand.obj] {
-		return
-	}
-	c.seen[cand.obj] = true
-
-	c.deepState.enqueue(&searchPath{}, cand)
+// deepSearch searches a candidate and its subordinate objects for completion
+// items if deep completion is enabled and adds the valid candidates to
+// completion items.
+func (c *completer) deepSearch(ctx context.Context) {
 outer:
 	for len(c.deepState.searchQueue) > 0 {
 		item := c.deepState.dequeue()
-		curCand := item.cand
-		obj := curCand.obj
+		cand := item.cand
+		obj := cand.obj
+
+		// At the top level, dedupe by object.
+		if len(item.searchPath.path) == 0 {
+			if c.seen[cand.obj] {
+				continue
+			}
+			c.seen[cand.obj] = true
+		}
 
 		// If obj is not accessible because it lives in another package and is
 		// not exported, don't treat it as a completion candidate.
@@ -194,7 +182,7 @@ outer:
 		// update tracked current path since other functions might check it.
 		c.deepState.curPath = item.searchPath
 
-		c.addCandidate(ctx, curCand)
+		c.addCandidate(ctx, cand)
 
 		c.deepState.candidateCount++
 		if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
@@ -235,7 +223,7 @@ outer:
 			if sig.Params().Len() == 0 && sig.Results().Len() == 1 {
 				newSearchPath := appendToSearchPath(*item.searchPath, obj, true)
 				// The result of a function call is not addressable.
-				candidates := c.methodsAndFields(ctx, sig.Results().At(0).Type(), false, curCand.imp)
+				candidates := c.methodsAndFields(ctx, sig.Results().At(0).Type(), false, cand.imp)
 				c.deepState.enqueue(newSearchPath, candidates...)
 			}
 		}
@@ -243,10 +231,10 @@ outer:
 		newSearchPath := appendToSearchPath(*item.searchPath, obj, false)
 		switch obj := obj.(type) {
 		case *types.PkgName:
-			candidates := c.packageMembers(ctx, obj.Imported(), stdScore, curCand.imp)
+			candidates := c.packageMembers(ctx, obj.Imported(), stdScore, cand.imp)
 			c.deepState.enqueue(newSearchPath, candidates...)
 		default:
-			candidates := c.methodsAndFields(ctx, obj.Type(), curCand.addressable, curCand.imp)
+			candidates := c.methodsAndFields(ctx, obj.Type(), cand.addressable, cand.imp)
 			c.deepState.enqueue(newSearchPath, candidates...)
 		}
 	}
