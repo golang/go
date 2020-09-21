@@ -3,7 +3,7 @@ CallHierarchyCount = 1
 CodeLensCount = 5
 CompletionsCount = 255
 CompletionSnippetCount = 85
-UnimportedCompletionsCount = 6
+UnimportedCompletionsCount = 5
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 8
 RankedCompletionsCount = 157
@@ -25,6 +25,6 @@ WorkspaceSymbolsCount = 2
 FuzzyWorkspaceSymbolsCount = 3
 CaseSensitiveWorkspaceSymbolsCount = 2
 SignaturesCount = 32
-LinksCount = 8
+LinksCount = 7
 ImplementationsCount = 14
 

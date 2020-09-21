@@ -2,7 +2,6 @@ package unimported
 
 func _() {
 	http //@unimported("p", nethttp)
-	pkg  //@unimported("g", externalpackage)
 	// container/ring is extremely unlikely to be imported by anything, so shouldn't have type information.
 	ring.Ring     //@unimported("Ring", ringring)
 	signature.Foo //@unimported("Foo", signaturefoo)
@@ -12,8 +11,6 @@ func _() {
 
 // Create markers for unimported std lib packages. Only for use by this test.
 /* http */ //@item(nethttp, "http", "\"net/http\"", "package")
-
-/* pkg */ //@item(externalpackage, "pkg", "\"example.com/extramodule/pkg\"", "package")
 
 /* ring.Ring */ //@item(ringring, "Ring", "(from \"container/ring\")", "var")
 

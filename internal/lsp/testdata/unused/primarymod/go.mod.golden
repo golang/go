@@ -1,5 +1,0 @@
--- suggestedfix_go.mod_5_1 --
-module unused
-
-go 1.12
-

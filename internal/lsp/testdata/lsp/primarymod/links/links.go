@@ -6,8 +6,6 @@ import (
 	"golang.org/x/tools/internal/lsp/foo" //@link(`golang.org/x/tools/internal/lsp/foo`,`https://pkg.go.dev/golang.org/x/tools/internal/lsp/foo`)
 
 	_ "database/sql" //@link(`database/sql`, `https://pkg.go.dev/database/sql`)
-
-	_ "example.com/extramodule/pkg" //@link(`example.com/extramodule/pkg`,`https://pkg.go.dev/example.com/extramodule@v1.0.0/pkg`)
 )
 
 var (

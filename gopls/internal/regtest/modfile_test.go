@@ -5,6 +5,7 @@
 package regtest
 
 import (
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
@@ -100,6 +101,54 @@ func main() {
 	})
 }
 
+// Tests that multiple missing dependencies gives good single fixes.
+func TestMissingDependencyFixes(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+-- main.go --
+package main
+
+import "example.com/blah"
+import "random.org/blah"
+
+var _, _ = blah.Name, hello.Name
+`
+
+	const want = `module mod.com
+
+go 1.12
+
+require random.org v1.2.3
+`
+
+	withOptions(WithProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("main.go", `"random.org/blah"`),
+				ReadDiagnostics("main.go", &d),
+			),
+		)
+		var randomDiag protocol.Diagnostic
+		for _, diag := range d.Diagnostics {
+			if strings.Contains(diag.Message, "random.org") {
+				randomDiag = diag
+			}
+		}
+		env.OpenFile("go.mod")
+		env.ApplyQuickFixes("main.go", []protocol.Diagnostic{randomDiag})
+		if got := env.Editor.BufferText("go.mod"); got != want {
+			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
+		}
+	})
+}
+
 func TestIndirectDependencyFix(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
@@ -138,6 +187,46 @@ require example.com v1.2.3
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
 		}
 	}, WithProxyFiles(proxy))
+}
+
+func TestUnusedDiag(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const proxy = `
+-- example.com@v1.0.0/x.go --
+package pkg
+const X = 1
+`
+	const files = `
+-- go.mod --
+module mod.com
+go 1.14
+require example.com v1.0.0
+
+-- main.go --
+package main
+func main() {}
+`
+
+	const want = `module mod.com
+
+go 1.14
+`
+
+	withOptions(WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("go.mod", `require example.com`),
+				ReadDiagnostics("go.mod", &d),
+			),
+		)
+		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		if got := env.Editor.BufferText("go.mod"); got != want {
+			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
+		}
+	})
 }
 
 // Test to reproduce golang/go#39041. It adds a new require to a go.mod file
