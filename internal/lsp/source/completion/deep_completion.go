@@ -11,19 +11,6 @@ import (
 	"time"
 )
 
-// searchItem represents a candidate in deep completion search queue.
-type searchItem struct {
-	*searchPath
-	cand candidate
-}
-
-// searchPath holds the path from search root (excluding the item itself) for
-// a searchItem.
-type searchPath struct {
-	path  []types.Object
-	names []string
-}
-
 // MaxDeepCompletions limits deep completion results because in most cases
 // there are too many to be useful.
 const MaxDeepCompletions = 3
@@ -40,10 +27,7 @@ type deepCompletionState struct {
 	queueClosed bool
 
 	// searchQueue holds the current breadth first search queue.
-	searchQueue []searchItem
-
-	// curPath tracks the current deep completion search path.
-	curPath *searchPath
+	searchQueue []candidate
 
 	// highScores tracks the highest deep candidate scores we have found
 	// so far. This is used to avoid work for low scoring deep candidates.
@@ -54,27 +38,25 @@ type deepCompletionState struct {
 	candidateCount int
 }
 
-// enqueue adds candidates to the search queue.
-func (s *deepCompletionState) enqueue(path *searchPath, candidates ...candidate) {
-	for _, cand := range candidates {
-		s.searchQueue = append(s.searchQueue, searchItem{path, cand})
-	}
+// enqueue adds a candidate to the search queue.
+func (s *deepCompletionState) enqueue(cand candidate) {
+	s.searchQueue = append(s.searchQueue, cand)
 }
 
 // dequeue removes and returns the leftmost element from the search queue.
-func (s *deepCompletionState) dequeue() *searchItem {
-	var item *searchItem
-	item, s.searchQueue = &s.searchQueue[0], s.searchQueue[1:]
-	return item
+func (s *deepCompletionState) dequeue() *candidate {
+	var cand *candidate
+	cand, s.searchQueue = &s.searchQueue[0], s.searchQueue[1:]
+	return cand
 }
 
 // scorePenalty computes a deep candidate score penalty. A candidate is
 // penalized based on depth to favor shallower candidates. We also give a
 // slight bonus to unexported objects and a slight additional penalty to
 // function objects.
-func (s *deepCompletionState) scorePenalty() float64 {
+func (s *deepCompletionState) scorePenalty(cand *candidate) float64 {
 	var deepPenalty float64
-	for _, dc := range s.curPath.path {
+	for _, dc := range cand.path {
 		deepPenalty++
 
 		if !dc.Exported() {
@@ -115,26 +97,19 @@ func (s *deepCompletionState) isHighScore(score float64) bool {
 	return false
 }
 
-// inDeepCompletion returns if we're currently searching an object's members.
-func (s *deepCompletionState) inDeepCompletion() bool {
-	return len(s.curPath.path) > 0
-}
-
-// appendToSearchPath appends an object to a given searchPath.
-func appendToSearchPath(oldPath searchPath, obj types.Object, invoke bool) *searchPath {
+// newPath returns path from search root for an object following a given
+// candidate.
+func (s *deepCompletionState) newPath(cand *candidate, obj types.Object, invoke bool) ([]types.Object, []string) {
 	name := obj.Name()
 	if invoke {
 		name += "()"
 	}
 
 	// copy the slice since we don't want to overwrite the original slice.
-	path := append([]types.Object{}, oldPath.path...)
-	names := append([]string{}, oldPath.names...)
+	path := append([]types.Object{}, cand.path...)
+	names := append([]string{}, cand.names...)
 
-	return &searchPath{
-		path:  append(path, obj),
-		names: append(names, name),
-	}
+	return append(path, obj), append(names, name)
 }
 
 // deepSearch searches a candidate and its subordinate objects for completion
@@ -143,12 +118,11 @@ func appendToSearchPath(oldPath searchPath, obj types.Object, invoke bool) *sear
 func (c *completer) deepSearch(ctx context.Context) {
 outer:
 	for len(c.deepState.searchQueue) > 0 {
-		item := c.deepState.dequeue()
-		cand := item.cand
+		cand := c.deepState.dequeue()
 		obj := cand.obj
 
 		// At the top level, dedupe by object.
-		if len(item.searchPath.path) == 0 {
+		if len(cand.path) == 0 {
 			if c.seen[cand.obj] {
 				continue
 			}
@@ -173,14 +147,11 @@ outer:
 		// We don't dedupe by object because we want to allow both "foo.Baz"
 		// and "bar.Baz" even though "Baz" is represented the same types.Object
 		// in both.
-		for _, seenObj := range item.path {
+		for _, seenObj := range cand.path {
 			if seenObj == obj {
 				continue outer
 			}
 		}
-
-		// update tracked current path since other functions might check it.
-		c.deepState.curPath = item.searchPath
 
 		c.addCandidate(ctx, cand)
 
@@ -221,33 +192,42 @@ outer:
 			// If obj is a function that takes no arguments and returns one
 			// value, keep searching across the function call.
 			if sig.Params().Len() == 0 && sig.Results().Len() == 1 {
-				newSearchPath := appendToSearchPath(*item.searchPath, obj, true)
+				path, names := c.deepState.newPath(cand, obj, true)
 				// The result of a function call is not addressable.
 				candidates := c.methodsAndFields(ctx, sig.Results().At(0).Type(), false, cand.imp)
-				c.deepState.enqueue(newSearchPath, candidates...)
+				for _, newCand := range candidates {
+					newCand.path, newCand.names = path, names
+					c.deepState.enqueue(newCand)
+				}
 			}
 		}
 
-		newSearchPath := appendToSearchPath(*item.searchPath, obj, false)
+		path, names := c.deepState.newPath(cand, obj, false)
 		switch obj := obj.(type) {
 		case *types.PkgName:
 			candidates := c.packageMembers(ctx, obj.Imported(), stdScore, cand.imp)
-			c.deepState.enqueue(newSearchPath, candidates...)
+			for _, newCand := range candidates {
+				newCand.path, newCand.names = path, names
+				c.deepState.enqueue(newCand)
+			}
 		default:
 			candidates := c.methodsAndFields(ctx, obj.Type(), cand.addressable, cand.imp)
-			c.deepState.enqueue(newSearchPath, candidates...)
+			for _, newCand := range candidates {
+				newCand.path, newCand.names = path, names
+				c.deepState.enqueue(newCand)
+			}
 		}
 	}
 }
 
 // addCandidate adds a completion candidate to suggestions, without searching
 // its members for more candidates.
-func (c *completer) addCandidate(ctx context.Context, cand candidate) {
+func (c *completer) addCandidate(ctx context.Context, cand *candidate) {
 	obj := cand.obj
-	if c.matchingCandidate(&cand) {
+	if c.matchingCandidate(cand) {
 		cand.score *= highScore
 
-		if p := c.penalty(&cand); p > 0 {
+		if p := c.penalty(cand); p > 0 {
 			cand.score *= (1 - p)
 		}
 	} else if isTypeName(obj) {
@@ -273,21 +253,21 @@ func (c *completer) addCandidate(ctx context.Context, cand candidate) {
 	}
 
 	// Favor shallow matches by lowering score according to depth.
-	cand.score -= cand.score * c.deepState.scorePenalty()
+	cand.score -= cand.score * c.deepState.scorePenalty(cand)
 
 	if cand.score < 0 {
 		cand.score = 0
 	}
 
-	cand.name = strings.Join(append(c.deepState.curPath.names, cand.obj.Name()), ".")
+	cand.name = strings.Join(append(cand.names, cand.obj.Name()), ".")
 	matchScore := c.matcher.Score(cand.name)
 	if matchScore > 0 {
 		cand.score *= float64(matchScore)
 
 		// Avoid calling c.item() for deep candidates that wouldn't be in the top
 		// MaxDeepCompletions anyway.
-		if !c.deepState.inDeepCompletion() || c.deepState.isHighScore(cand.score) {
-			if item, err := c.item(ctx, cand); err == nil {
+		if len(cand.path) == 0 || c.deepState.isHighScore(cand.score) {
+			if item, err := c.item(ctx, *cand); err == nil {
 				c.items = append(c.items, item)
 			}
 		}
@@ -300,7 +280,7 @@ func (c *completer) addCandidate(ctx context.Context, cand candidate) {
 // in another switch case statement.
 func (c *completer) penalty(cand *candidate) float64 {
 	for _, p := range c.inference.penalized {
-		if c.objChainMatches(cand.obj, p.objChain) {
+		if c.objChainMatches(cand, p.objChain) {
 			return p.penalty
 		}
 	}
@@ -310,7 +290,7 @@ func (c *completer) penalty(cand *candidate) float64 {
 
 // objChainMatches reports whether cand combined with the surrounding
 // object prefix matches chain.
-func (c *completer) objChainMatches(cand types.Object, chain []types.Object) bool {
+func (c *completer) objChainMatches(cand *candidate, chain []types.Object) bool {
 	// For example, when completing:
 	//
 	//   foo.ba<>
@@ -318,12 +298,11 @@ func (c *completer) objChainMatches(cand types.Object, chain []types.Object) boo
 	// If we are considering the deep candidate "bar.baz", cand is baz,
 	// objChain is [foo] and deepChain is [bar]. We would match the
 	// chain [foo, bar, baz].
-
-	if len(chain) != len(c.inference.objChain)+len(c.deepState.curPath.path)+1 {
+	if len(chain) != len(c.inference.objChain)+len(cand.path)+1 {
 		return false
 	}
 
-	if chain[len(chain)-1] != cand {
+	if chain[len(chain)-1] != cand.obj {
 		return false
 	}
 
@@ -333,7 +312,7 @@ func (c *completer) objChainMatches(cand types.Object, chain []types.Object) boo
 		}
 	}
 
-	for i, o := range c.deepState.curPath.path {
+	for i, o := range cand.path {
 		if chain[i+len(c.inference.objChain)] != o {
 			return false
 		}

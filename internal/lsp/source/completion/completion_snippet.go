@@ -11,7 +11,7 @@ import (
 )
 
 // structFieldSnippets calculates the snippet for struct literal field names.
-func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
+func (c *completer) structFieldSnippet(cand candidate, label, detail string) *snippet.Builder {
 	if !c.wantStructFieldCompletions() {
 		return nil
 	}
@@ -19,7 +19,7 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 	// If we are in a deep completion then we can't be completing a field
 	// name (e.g. "Foo{f<>}" completing to "Foo{f.Bar}" should not generate
 	// a snippet).
-	if c.deepState.inDeepCompletion() {
+	if len(cand.path) > 0 {
 		return nil
 	}
 

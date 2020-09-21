@@ -58,7 +58,7 @@ func (c *completer) labels(ctx context.Context, lt labelType) {
 	addLabel := func(score float64, l *ast.LabeledStmt) {
 		labelObj := c.pkg.GetTypesInfo().ObjectOf(l.Label)
 		if labelObj != nil {
-			c.deepState.enqueue(&searchPath{}, candidate{obj: labelObj, score: score})
+			c.deepState.enqueue(candidate{obj: labelObj, score: score})
 		}
 	}
 

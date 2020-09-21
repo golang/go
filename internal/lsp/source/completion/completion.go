@@ -332,6 +332,15 @@ type candidate struct {
 	// name is the deep object name path, e.g. "foo.bar"
 	name string
 
+	// path holds the path from the search root (excluding the candidate
+	// itself) for a deep candidate.
+	path []types.Object
+
+	// names tracks the names of objects from search root (excluding the
+	// candidate itself) for a deep candidate. This also includes
+	// expanded calls for function invocations.
+	names []string
+
 	// expandFuncCall is true if obj should be invoked in the completion.
 	// For example, expandFuncCall=true yields "foo()", expandFuncCall=false yields "foo".
 	expandFuncCall bool
@@ -469,7 +478,6 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),
 		deepState: deepCompletionState{
 			enabled: opts.DeepCompletion,
-			curPath: &searchPath{},
 		},
 		opts: &completionOptions{
 			matcher:           opts.Matcher,
@@ -834,7 +842,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 							continue
 						}
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
-						c.deepState.enqueue(&searchPath{}, candidate{obj: obj, score: stdScore})
+						c.deepState.enqueue(candidate{obj: obj, score: stdScore})
 					}
 				case *ast.TypeSpec:
 					// add TypeSpec fields to completion
@@ -1042,7 +1050,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
 			candidates := c.packageMembers(ctx, pkgName.Imported(), stdScore, nil)
 			for _, cand := range candidates {
-				c.deepState.enqueue(&searchPath{}, cand)
+				c.deepState.enqueue(cand)
 			}
 			return nil
 		}
@@ -1053,7 +1061,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	if ok {
 		candidates := c.methodsAndFields(ctx, tv.Type, tv.Addressable(), nil)
 		for _, cand := range candidates {
-			c.deepState.enqueue(&searchPath{}, cand)
+			c.deepState.enqueue(cand)
 		}
 		return nil
 	}
@@ -1110,7 +1118,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		}
 		candidates := c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevances[path]), imp)
 		for _, cand := range candidates {
-			c.deepState.enqueue(&searchPath{}, cand)
+			c.deepState.enqueue(cand)
 		}
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
@@ -1132,7 +1140,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
 			score := unimportedScore(pkgExport.Fix.Relevance)
-			c.deepState.enqueue(&searchPath{}, candidate{
+			c.deepState.enqueue(candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
 				imp: &importInfo{
@@ -1277,7 +1285,7 @@ func (c *completer) lexical(ctx context.Context) error {
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.deepState.enqueue(&searchPath{}, candidate{
+				c.deepState.enqueue(candidate{
 					obj:         obj,
 					score:       score,
 					addressable: isVar(obj),
@@ -1306,7 +1314,7 @@ func (c *completer) lexical(ctx context.Context) error {
 					if imports.ImportPathToAssumedName(pkg.Path()) != pkg.Name() {
 						imp.name = pkg.Name()
 					}
-					c.deepState.enqueue(&searchPath{}, candidate{
+					c.deepState.enqueue(candidate{
 						obj:   obj,
 						score: stdScore,
 						imp:   imp,
@@ -1345,7 +1353,7 @@ func (c *completer) lexical(ctx context.Context) error {
 				// Make sure the type name matches before considering
 				// candidate. This cuts down on useless candidates.
 				if c.matchingTypeName(&fakeNamedType) {
-					c.deepState.enqueue(&searchPath{}, fakeNamedType)
+					c.deepState.enqueue(fakeNamedType)
 				}
 			}
 		}
@@ -1405,7 +1413,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		if count >= maxUnimportedPackageNames {
 			return nil
 		}
-		c.deepState.enqueue(&searchPath{}, candidate{
+		c.deepState.enqueue(candidate{
 			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
@@ -1436,7 +1444,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		// multiple packages of the same name as completion suggestions, since
 		// only one will be chosen.
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-		c.deepState.enqueue(&searchPath{}, candidate{
+		c.deepState.enqueue(candidate{
 			obj:   obj,
 			score: unimportedScore(pkg.Relevance),
 			imp: &importInfo{
@@ -1498,7 +1506,7 @@ func (c *completer) structLiteralFieldName(ctx context.Context) error {
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
 			if !addedFields[field] {
-				c.deepState.enqueue(&searchPath{}, candidate{
+				c.deepState.enqueue(candidate{
 					obj:   field,
 					score: highScore,
 				})

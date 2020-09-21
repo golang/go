@@ -65,7 +65,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
-			snip = c.structFieldSnippet(label, detail)
+			snip = c.structFieldSnippet(cand, label, detail)
 		} else {
 			kind = protocol.VariableCompletion
 		}
@@ -160,7 +160,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		Detail:              detail,
 		Kind:                kind,
 		Score:               cand.score,
-		Depth:               len(c.deepState.curPath.path),
+		Depth:               len(cand.path),
 		snippet:             snip,
 		obj:                 obj,
 	}
