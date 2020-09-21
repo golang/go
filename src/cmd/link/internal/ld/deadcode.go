@@ -153,6 +153,20 @@ func (d *deadcodePass) flood() {
 				// do nothing for now as we still load all type symbols.
 				continue
 			}
+			if t == objabi.R_USEIFACE {
+				// R_USEIFACE is a marker relocation that tells the linker the type is
+				// converted to an interface, i.e. should have UsedInIface set. See the
+				// comment below for why we need to unset the Reachable bit and re-mark it.
+				rs := r.Sym()
+				if !d.ldr.AttrUsedInIface(rs) {
+					d.ldr.SetAttrUsedInIface(rs, true)
+					if d.ldr.AttrReachable(rs) {
+						d.ldr.SetAttrReachable(rs, false)
+						d.mark(rs, symIdx)
+					}
+				}
+				continue
+			}
 			rs := r.Sym()
 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
 				// If a type is converted to an interface, it is possible to obtain an
