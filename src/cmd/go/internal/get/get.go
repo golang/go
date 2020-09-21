@@ -130,7 +130,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go get: cannot use -f flag without -u")
 	}
 	if cfg.Insecure {
-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see go help get for details\n")
+		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
 	}
 
 	// Disable any prompting for passwords by Git.

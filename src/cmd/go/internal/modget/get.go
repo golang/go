@@ -282,7 +282,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
 	}
 	if cfg.Insecure {
-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see go help get for details\n")
+		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
 	}
 	modload.LoadTests = *getT
 
