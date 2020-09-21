@@ -66,7 +66,10 @@ func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, e
 func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) {
 	fi, statErr := os.Stat(uri.Filename())
 	if statErr != nil {
-		return &fileHandle{err: statErr}, nil
+		return &fileHandle{
+			err: statErr,
+			uri: uri,
+		}, nil
 	}
 
 	c.fileMu.Lock()

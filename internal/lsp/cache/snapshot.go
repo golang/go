@@ -973,11 +973,9 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 				delete(result.modWhyHandles, k)
 			}
 		}
-		currentExists := currentFH.URI() != ""
-		if currentExists {
-			if _, err := currentFH.Read(); os.IsNotExist(err) {
-				currentExists = false
-			}
+		currentExists := true
+		if _, err := currentFH.Read(); os.IsNotExist(err) {
+			currentExists = false
 		}
 		// If the file invalidation is for a go.mod. originalFH is nil if the
 		// file is newly created.
