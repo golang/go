@@ -14,7 +14,6 @@ import (
 	"sort"
 	"testing"
 
-	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
@@ -31,7 +30,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLSP(t *testing.T) {
-	packagestest.TestAll(t, testLSP)
+	tests.RunTests(t, "testdata", true, testLSP)
 }
 
 type runner struct {
@@ -41,10 +40,8 @@ type runner struct {
 	ctx         context.Context
 }
 
-func testLSP(t *testing.T, exporter packagestest.Exporter) {
+func testLSP(t *testing.T, datum *tests.Data) {
 	ctx := tests.Context(t)
-	datum := tests.Load(t, exporter, "testdata")
-	defer datum.Exported.Cleanup()
 
 	cache := cache.New(ctx, nil)
 	session := cache.NewSession(ctx)

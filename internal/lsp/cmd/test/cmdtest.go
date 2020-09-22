@@ -46,18 +46,17 @@ type normalizer struct {
 	fragment string
 }
 
-func TestCommandLine(testdata string, options func(*source.Options)) func(*testing.T, packagestest.Exporter) {
-	return func(t *testing.T, exporter packagestest.Exporter) {
-		if stat, err := os.Stat(testdata); err != nil || !stat.IsDir() {
-			t.Skip("testdata directory not present")
-		}
+func TestCommandLine(t *testing.T, testdata string, options func(*source.Options)) {
+	// On Android, the testdata directory is not copied to the runner.
+	if stat, err := os.Stat(testdata); err != nil || !stat.IsDir() {
+		t.Skip("testdata directory not present")
+	}
+	tests.RunTests(t, testdata, false, func(t *testing.T, datum *tests.Data) {
 		ctx := tests.Context(t)
 		ts := NewTestServer(ctx, options)
-		datum := tests.Load(t, exporter, testdata)
-		defer datum.Exported.Cleanup()
-		tests.Run(t, NewRunner(exporter, datum, ctx, ts.Addr, options), datum)
+		tests.Run(t, NewRunner(datum, ctx, ts.Addr, options), datum)
 		cmd.CloseTestConnections(ctx)
-	}
+	})
 }
 
 func NewTestServer(ctx context.Context, options func(*source.Options)) *servertest.TCPServer {
@@ -67,9 +66,8 @@ func NewTestServer(ctx context.Context, options func(*source.Options)) *serverte
 	return servertest.NewTCPServer(ctx, ss, nil)
 }
 
-func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {
+func NewRunner(data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {
 	r := &runner{
-		exporter:    exporter,
 		data:        data,
 		ctx:         ctx,
 		options:     options,

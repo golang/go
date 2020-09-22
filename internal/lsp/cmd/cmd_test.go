@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"testing"
 
-	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -25,12 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCommandLine(t *testing.T) {
-	packagestest.TestAll(t,
-		cmdtest.TestCommandLine(
-			"../testdata",
-			tests.DefaultOptions,
-		),
-	)
+	cmdtest.TestCommandLine(t, "../testdata", tests.DefaultOptions)
 }
 
 func TestDefinitionHelpExample(t *testing.T) {
@@ -53,7 +47,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		fmt.Sprintf("%v:%v:%v", thisFile, cmd.ExampleLine, cmd.ExampleColumn),
 		fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
 		args := append(baseArgs, query)
-		r := cmdtest.NewRunner(nil, nil, ctx, ts.Addr, nil)
+		r := cmdtest.NewRunner(nil, ctx, ts.Addr, nil)
 		got, _ := r.NormalizeGoplsCmd(t, args...)
 		if !expect.MatchString(got) {
 			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
