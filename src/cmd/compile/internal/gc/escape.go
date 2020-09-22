@@ -771,10 +771,11 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		var fn *Node
 		switch call.Op {
 		case OCALLFUNC:
-			if call.Left.Op == ONAME && call.Left.Class() == PFUNC {
-				fn = call.Left
-			} else if call.Left.Op == OCLOSURE {
-				fn = call.Left.Func.Closure.Func.Nname
+			switch v := staticValue(call.Left); {
+			case v.Op == ONAME && v.Class() == PFUNC:
+				fn = v
+			case v.Op == OCLOSURE:
+				fn = v.Func.Closure.Func.Nname
 			}
 		case OCALLMETH:
 			fn = asNode(call.Left.Type.FuncType().Nname)

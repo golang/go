@@ -751,6 +751,55 @@ func inlinableClosure(n *Node) *Node {
 	return f
 }
 
+func staticValue(n *Node) *Node {
+	for {
+		n1 := staticValue1(n)
+		if n1 == nil {
+			return n
+		}
+		n = n1
+	}
+}
+
+// staticValue1 implements a simple SSA-like optimization.
+func staticValue1(n *Node) *Node {
+	if n.Op != ONAME || n.Class() != PAUTO || n.Name.Addrtaken() {
+		return nil
+	}
+
+	defn := n.Name.Defn
+	if defn == nil {
+		return nil
+	}
+
+	var rhs *Node
+FindRHS:
+	switch defn.Op {
+	case OAS:
+		rhs = defn.Right
+	case OAS2:
+		for i, lhs := range defn.List.Slice() {
+			if lhs == n {
+				rhs = defn.Rlist.Index(i)
+				break FindRHS
+			}
+		}
+		Fatalf("%v missing from LHS of %v", n, defn)
+	default:
+		return nil
+	}
+	if rhs == nil {
+		Fatalf("RHS is nil: %v", defn)
+	}
+
+	unsafe, _ := reassigned(n)
+	if unsafe {
+		return nil
+	}
+
+	return rhs
+}
+
 // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
 // indicating whether the name has any assignments other than its declaration.
 // The second return value is the first such assignment encountered in the walk, if any. It is mostly
