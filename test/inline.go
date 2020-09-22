@@ -49,6 +49,12 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
+func _() int { // ERROR "can inline _"
+	tmp1 := h
+	tmp2 := tmp1
+	return tmp2(0) // ERROR "inlining call to h"
+}
+
 var somethingWrong error
 
 // local closures can be inlined
@@ -58,6 +64,9 @@ func l(x, y int) (int, int, error) {
 	}
 	if x == y {
 		e(somethingWrong) // ERROR "inlining call to l.func1"
+	} else {
+		f := e
+		f(nil) // ERROR "inlining call to l.func1"
 	}
 	return y, x, nil
 }
