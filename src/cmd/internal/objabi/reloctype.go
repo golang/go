@@ -94,6 +94,12 @@ const (
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACE
+	// R_USEIFACEMETHOD marks an interface method that is used in the function
+	// this relocation is applied to. The target is an interface type descriptor.
+	// The addend is the offset of the method in the type descriptor.
+	// This is a marker relocation (0-sized), for the linker's reachabililty
+	// analysis.
+	R_USEIFACEMETHOD
 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a

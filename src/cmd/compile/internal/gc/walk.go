@@ -565,6 +565,7 @@ opswitch:
 	case OCALLINTER, OCALLFUNC, OCALLMETH:
 		if n.Op == OCALLINTER {
 			usemethod(n)
+			markUsedIfaceMethod(n)
 		}
 
 		if n.Op == OCALLFUNC && n.Left.Op == OCLOSURE {
@@ -1628,6 +1629,20 @@ func markTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 	r := obj.Addrel(from)
 	r.Sym = tsym
 	r.Type = objabi.R_USEIFACE
+}
+
+// markUsedIfaceMethod marks that an interface method is used in the current
+// function. n is OCALLINTER node.
+func markUsedIfaceMethod(n *Node) {
+	ityp := n.Left.Left.Type
+	tsym := typenamesym(ityp).Linksym()
+	r := obj.Addrel(Curfn.Func.lsym)
+	r.Sym = tsym
+	// n.Left.Xoffset is the method index * Widthptr (the offset of code pointer
+	// in itab).
+	midx := n.Left.Xoffset / int64(Widthptr)
+	r.Add = ifaceMethodOffset(ityp, midx)
+	r.Type = objabi.R_USEIFACEMETHOD
 }
 
 // rtconvfn returns the parameter and result types that will be used by a
