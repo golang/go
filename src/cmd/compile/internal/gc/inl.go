@@ -831,16 +831,19 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 	return nil
 }
 
-func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
-	if n := asNode(t.Nname); n != nil && !n.isBlank() {
-		inlvar := inlvars[n]
-		if inlvar == nil {
-			Fatalf("missing inlvar for %v\n", n)
-		}
-		return inlvar
+func inlParam(t *types.Field, as *Node, inlvars map[*Node]*Node) *Node {
+	n := asNode(t.Nname)
+	if n == nil || n.isBlank() {
+		return nblank
 	}
 
-	return typecheck(nblank, ctxExpr|ctxAssign)
+	inlvar := inlvars[n]
+	if inlvar == nil {
+		Fatalf("missing inlvar for %v", n)
+	}
+	as.Ninit.Append(nod(ODCL, inlvar, nil))
+	inlvar.Name.Defn = as
+	return inlvar
 }
 
 var inlgen int
@@ -970,14 +973,15 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 			continue
 		}
 		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
-			continue
+			// TODO(mdempsky): Remove once I'm confident
+			// this never actually happens. We currently
+			// perform inlining before escape analysis, so
+			// nothing should have moved to the heap yet.
+			Fatalf("impossible: %v", ln)
 		}
-		inlvars[ln] = typecheck(inlvar(ln), ctxExpr)
-		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
-			ninit.Append(nod(ODCL, inlvars[ln], nil))
-		}
+		inlf := typecheck(inlvar(ln), ctxExpr)
+		inlvars[ln] = inlf
 		if genDwarfInline > 0 {
-			inlf := inlvars[ln]
 			if ln.Class() == PPARAM {
 				inlf.Name.SetInlFormal(true)
 			} else {
@@ -1019,56 +1023,42 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 
 	// Assign arguments to the parameters' temp names.
 	as := nod(OAS2, nil, nil)
-	as.Rlist.Set(n.List.Slice())
+	as.SetColas(true)
+	if n.Op == OCALLMETH {
+		if n.Left.Left == nil {
+			Fatalf("method call without receiver: %+v", n)
+		}
+		as.Rlist.Append(n.Left.Left)
+	}
+	as.Rlist.Append(n.List.Slice()...)
 
 	// For non-dotted calls to variadic functions, we assign the
 	// variadic parameter's temp name separately.
 	var vas *Node
 
-	if fn.IsMethod() {
-		rcv := fn.Type.Recv()
-
-		if n.Left.Op == ODOTMETH {
-			// For x.M(...), assign x directly to the
-			// receiver parameter.
-			if n.Left.Left == nil {
-				Fatalf("method call without receiver: %+v", n)
-			}
-			ras := nod(OAS, tinlvar(rcv, inlvars), n.Left.Left)
-			ras = typecheck(ras, ctxStmt)
-			ninit.Append(ras)
-		} else {
-			// For T.M(...), add the receiver parameter to
-			// as.List, so it's assigned by the normal
-			// arguments.
-			if as.Rlist.Len() == 0 {
-				Fatalf("non-method call to method without first arg: %+v", n)
-			}
-			as.List.Append(tinlvar(rcv, inlvars))
-		}
+	if recv := fn.Type.Recv(); recv != nil {
+		as.List.Append(inlParam(recv, as, inlvars))
 	}
-
 	for _, param := range fn.Type.Params().Fields().Slice() {
 		// For ordinary parameters or variadic parameters in
 		// dotted calls, just add the variable to the
 		// assignment list, and we're done.
 		if !param.IsDDD() || n.IsDDD() {
-			as.List.Append(tinlvar(param, inlvars))
+			as.List.Append(inlParam(param, as, inlvars))
 			continue
 		}
 
 		// Otherwise, we need to collect the remaining values
 		// to pass as a slice.
 
-		numvals := n.List.Len()
-
 		x := as.List.Len()
-		for as.List.Len() < numvals {
+		for as.List.Len() < as.Rlist.Len() {
 			as.List.Append(argvar(param.Type, as.List.Len()))
 		}
 		varargs := as.List.Slice()[x:]
 
-		vas = nod(OAS, tinlvar(param, inlvars), nil)
+		vas = nod(OAS, nil, nil)
+		vas.Left = inlParam(param, vas, inlvars)
 		if len(varargs) == 0 {
 			vas.Right = nodnil()
 			vas.Right.Type = param.Type
