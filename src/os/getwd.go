@@ -112,10 +112,10 @@ func Getwd() (dir string, err error) {
 
 	Found:
 		pd, err := fd.Stat()
+		fd.Close()
 		if err != nil {
 			return "", err
 		}
-		fd.Close()
 		if SameFile(pd, root) {
 			break
 		}
