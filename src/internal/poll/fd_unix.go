@@ -152,7 +152,7 @@ func (fd *FD) Read(p []byte) (int, error) {
 		p = p[:maxRW]
 	}
 	for {
-		n, err := ignoringEINTR(syscall.Read, fd.Sysfd, p)
+		n, err := ignoringEINTR(func() (int, error) { return syscall.Read(fd.Sysfd, p) })
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
@@ -264,7 +264,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 		if fd.IsStream && max-nn > maxRW {
 			max = nn + maxRW
 		}
-		n, err := ignoringEINTR(syscall.Write, fd.Sysfd, p[nn:max])
+		n, err := ignoringEINTR(func() (int, error) { return syscall.Write(fd.Sysfd, p[nn:max]) })
 		if n > 0 {
 			nn += n
 		}
@@ -423,7 +423,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 	}
 	defer fd.decref()
 	for {
-		n, err := ignoringEINTR(syscall.ReadDirent, fd.Sysfd, buf)
+		n, err := ignoringEINTR(func() (int, error) { return syscall.ReadDirent(fd.Sysfd, buf) })
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
@@ -514,7 +514,7 @@ func (fd *FD) WriteOnce(p []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	return ignoringEINTR(syscall.Write, fd.Sysfd, p)
+	return ignoringEINTR(func() (int, error) { return syscall.Write(fd.Sysfd, p) })
 }
 
 // RawRead invokes the user-defined function f for a read operation.
@@ -562,9 +562,9 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 // installed without setting SA_RESTART. None of these are the common case,
 // but there are enough of them that it seems that we can't avoid
 // an EINTR loop.
-func ignoringEINTR(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
+func ignoringEINTR(fn func() (int, error)) (int, error) {
 	for {
-		n, err := fn(fd, p)
+		n, err := fn()
 		if err != syscall.EINTR {
 			return n, err
 		}
