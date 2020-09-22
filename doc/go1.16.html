@@ -286,6 +286,11 @@ Do not send CLs removing the interior tags from such phrases.
      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
     </p>
+
+    <p><!-- CL 256498, golang.org/issue/36990 -->
+    Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
+    spec (no attribute is set) instead of generating a SameSite key without a value.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
