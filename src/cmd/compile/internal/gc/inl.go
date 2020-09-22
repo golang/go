@@ -385,14 +385,11 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	case OCLOSURE,
 		OCALLPART,
 		ORANGE,
-		OFOR,
-		OFORUNTIL,
 		OSELECT,
 		OTYPESW,
 		OGO,
 		ODEFER,
 		ODCLTYPE, // can't print yet
-		OBREAK,
 		ORETJMP:
 		v.reason = "unhandled op " + n.Op.String()
 		return true
@@ -400,9 +397,22 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	case OAPPEND:
 		v.budget -= inlineExtraAppendCost
 
-	case ODCLCONST, OEMPTY, OFALL, OLABEL:
+	case ODCLCONST, OEMPTY, OFALL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
+
+	case OLABEL:
+		// TODO(mdempsky): Add support for inlining labeled control statements.
+		if n.labeledControl() != nil {
+			v.reason = "labeled control"
+			return true
+		}
+
+	case OBREAK, OCONTINUE:
+		if n.Sym != nil {
+			// Should have short-circuited due to labeledControl above.
+			Fatalf("unexpected labeled break/continue: %v", n)
+		}
 
 	case OIF:
 		if Isconst(n.Left, CTBOOL) {

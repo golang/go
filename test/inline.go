@@ -197,3 +197,26 @@ func gg(x int) { // ERROR "can inline gg"
 func hh(x int) { // ERROR "can inline hh"
 	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
 }
+
+// Issue #14768 - make sure we can inline for loops.
+func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
+	for {
+		if fn() {
+			break
+		} else {
+			continue
+		}
+	}
+}
+
+// BAD: for2 should be inlineable too.
+func for2(fn func() bool) { // ERROR "fn does not escape"
+Loop:
+	for {
+		if fn() {
+			break Loop
+		} else {
+			continue Loop
+		}
+	}
+}
