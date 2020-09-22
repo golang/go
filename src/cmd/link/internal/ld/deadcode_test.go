@@ -33,6 +33,7 @@ func TestDeadcode(t *testing.T) {
 		{"ifacemethod", "", "main.T.M"},
 		{"ifacemethod2", "main.T.M", ""},
 		{"ifacemethod3", "main.S.M", ""},
+		{"ifacemethod4", "", "main.T.M"},
 	}
 	for _, test := range tests {
 		test := test

@@ -61,8 +61,9 @@ const (
 	MAXELEMSIZE = 128
 )
 
-func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
+func structfieldSize() int { return 3 * Widthptr }       // Sizeof(runtime.structfield{})
+func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imethod{})
+func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
@@ -1420,6 +1421,20 @@ func dtypesym(t *types.Type) *obj.LSym {
 	lsym.Set(obj.AttrMakeTypelink, keep)
 
 	return lsym
+}
+
+// ifaceMethodOffset returns the offset of the i-th method in the interface
+// type descriptor, ityp.
+func ifaceMethodOffset(ityp *types.Type, i int64) int64 {
+	// interface type descriptor layout is struct {
+	//   _type        // commonSize
+	//   pkgpath      // 1 word
+	//   []imethod    // 3 words (pointing to [...]imethod below)
+	//   uncommontype // uncommonSize
+	//   [...]imethod
+	// }
+	// The size of imethod is 8.
+	return int64(commonSize()+4*Widthptr+uncommonSize(ityp)) + i*8
 }
 
 // for each itabEntry, gather the methods on
