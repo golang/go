@@ -1134,94 +1134,94 @@
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
 (MOV(Q|L|W|B|SS|SD|O|BQSX|WQSX|LQSX)load [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOV(Q|L|W|B|SS|SD|O|BQSX|WQSX|LQSX)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	(MOV(Q|L|W|B|SS|SD|O|BQSX|WQSX|LQSX)load [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
 (MOV(Q|L|W|B|SS|SD|O)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOV(Q|L|W|B|SS|SD|O)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOV(Q|L|W|B)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
-	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	(MOV(Q|L|W|B|SS|SD|O)store [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+(MOV(Q|L|W|B)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off) =>
+	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
 (SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
 ((ADD|SUB|AND|OR|XOR)Qload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {mergeSymTyped(sym1,sym2)} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSymTyped(sym1,sym2)} val base mem)
 (CMP(Q|L|W|B)load [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(CMP(Q|L|W|B)load [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	(CMP(Q|L|W|B)load [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
 (CMP(Q|L|W|B)constload [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	(CMP(Q|L|W|B)constload [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	&& ValAndOff(valoff1).canAdd32(off2) && canMergeSym(sym1, sym2) =>
+	(CMP(Q|L|W|B)constload [ValAndOff(valoff1).addOffset32(off2)] {mergeSymTyped(sym1,sym2)} base mem)
 
 ((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSymTyped(sym1,sym2)} val base mem)
 ((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSymTyped(sym1,sym2)} val base mem)
 ((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	&& ValAndOff(valoff1).canAdd32(off2) && canMergeSym(sym1, sym2) =>
+	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSymTyped(sym1,sym2)} base mem)
 ((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
-	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+	&& ValAndOff(valoff1).canAdd32(off2) && canMergeSym(sym1, sym2) =>
+	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSymTyped(sym1,sym2)} base mem)
 ((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
 ((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
-	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
 
 // fold LEAQs together
-(LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ [off1+off2] {mergeSym(sym1,sym2)} x)
+(LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ [off1+off2] {mergeSymTyped(sym1,sym2)} x)
 
 // LEAQ into LEAQ1
-(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ1 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAQ1 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
 
 // LEAQ1 into LEAQ
-(LEAQ [off1] {sym1} (LEAQ1 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-       (LEAQ1 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ1 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+       (LEAQ1 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
 
 // LEAQ into LEAQ[248]
-(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ2 [off1+off2] {mergeSym(sym1,sym2)} x y)
-(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ4 [off1+off2] {mergeSym(sym1,sym2)} x y)
-(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ8 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAQ2 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAQ4 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAQ8 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
 
 // LEAQ[248] into LEAQ
-(LEAQ [off1] {sym1} (LEAQ2 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ2 [off1+off2] {mergeSym(sym1,sym2)} x y)
-(LEAQ [off1] {sym1} (LEAQ4 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ4 [off1+off2] {mergeSym(sym1,sym2)} x y)
-(LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ8 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ2 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ2 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ4 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ4 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ8 [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
 
 // LEAQ[1248] into LEAQ[1248]. Only some such merges are possible.
-(LEAQ1 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ2 [off1+off2] {mergeSym(sym1, sym2)} x y)
-(LEAQ1 [off1] {sym1} x (LEAQ1 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-      (LEAQ2 [off1+off2] {mergeSym(sym1, sym2)} y x)
-(LEAQ2 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(off1+2*off2) && sym2 == nil ->
+(LEAQ1 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ2 [off1+off2] {mergeSymTyped(sym1, sym2)} x y)
+(LEAQ1 [off1] {sym1} x (LEAQ1 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAQ2 [off1+off2] {mergeSymTyped(sym1, sym2)} y x)
+(LEAQ2 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(int64(off1)+2*int64(off2)) && sym2 == nil =>
       (LEAQ4 [off1+2*off2] {sym1} x y)
-(LEAQ4 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(off1+4*off2) && sym2 == nil ->
+(LEAQ4 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(int64(off1)+4*int64(off2)) && sym2 == nil =>
       (LEAQ8 [off1+4*off2] {sym1} x y)
 // TODO: more?
 
 // Lower LEAQ2/4/8 when the offset is a constant
-(LEAQ2 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*2) ->
-	(LEAQ [off+scale*2] {sym} x)
-(LEAQ4 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*4) ->
-	(LEAQ [off+scale*4] {sym} x)
-(LEAQ8 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*8) ->
-	(LEAQ [off+scale*8] {sym} x)
+(LEAQ2 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(int64(off)+int64(scale)*2) =>
+	(LEAQ [off+int32(scale)*2] {sym} x)
+(LEAQ4 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(int64(off)+int64(scale)*4) =>
+	(LEAQ [off+int32(scale)*4] {sym} x)
+(LEAQ8 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(int64(off)+int64(scale)*8) =>
+	(LEAQ [off+int32(scale)*8] {sym} x)
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
