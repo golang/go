@@ -151,8 +151,8 @@ var _typekind = []string{
 }
 
 func typekind(t *types.Type) string {
-	if t.IsSlice() {
-		return "slice"
+	if t.IsUntyped() {
+		return fmt.Sprintf("%v", t)
 	}
 	et := t.Etype
 	if int(et) < len(_typekind) {
@@ -736,7 +736,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			t = mixUntyped(l.Type, r.Type)
 		}
 		if dt := defaultType(t); !okfor[op][dt.Etype] {
-			yyerror("invalid operation: %v (operator %v not defined on %v)", n, op, t)
+			yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(t))
 			n.Type = nil
 			return n
 		}
