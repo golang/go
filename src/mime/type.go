@@ -72,6 +72,7 @@ var builtinTypesLower = map[string]string{
 	".svg":  "image/svg+xml",
 	".wasm": "application/wasm",
 	".webp": "image/webp",
+	".avif": "image/avif",
 	".xml":  "text/xml; charset=utf-8",
 }
 
