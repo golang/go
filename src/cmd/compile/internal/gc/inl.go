@@ -325,18 +325,10 @@ func (v *hairyVisitor) visit(n *Node) bool {
 			break
 		}
 
-		if fn := n.Left.Func; fn != nil && fn.Inl != nil {
-			v.budget -= fn.Inl.Cost
+		if fn := inlCallee(n.Left); fn != nil && fn.Func.Inl != nil {
+			v.budget -= fn.Func.Inl.Cost
 			break
 		}
-		if n.Left.isMethodExpression() {
-			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl != nil {
-				v.budget -= d.Func.Inl.Cost
-				break
-			}
-		}
-		// TODO(mdempsky): Budget for OCLOSURE calls if we
-		// ever allow that. See #15561 and #23093.
 
 		// Call cost for non-leaf inlining.
 		v.budget -= v.extraCallCost
@@ -679,53 +671,11 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
-		if n.Left.Func != nil && n.Left.Func.Inl != nil && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left, maxCost, inlMap)
-		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
-			n = mkinlcall(n, asNode(n.Left.Sym.Def), maxCost, inlMap)
-		} else if n.Left.Op == OCLOSURE {
-			if f := inlinableClosure(n.Left); f != nil {
-				n = mkinlcall(n, f, maxCost, inlMap)
-			}
-		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
-			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
-				if f := inlinableClosure(d.Right); f != nil {
-					// NB: this check is necessary to prevent indirect re-assignment of the variable
-					// having the address taken after the invocation or only used for reads is actually fine
-					// but we have no easy way to distinguish the safe cases
-					if d.Left.Name.Addrtaken() {
-						if Debug['m'] > 1 {
-							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
-						}
-						if logopt.Enabled() {
-							logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
-								fmt.Sprintf("%v cannot be inlined (escaping closure variable)", n.Left))
-						}
-						break
-					}
-
-					// ensure the variable is never re-assigned
-					if unsafe, a := reassigned(n.Left); unsafe {
-						if Debug['m'] > 1 {
-							if a != nil {
-								fmt.Printf("%v: cannot inline re-assigned closure variable at %v: %v\n", n.Line(), a.Line(), a)
-								if logopt.Enabled() {
-									logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
-										fmt.Sprintf("%v cannot be inlined (re-assigned closure variable)", a))
-								}
-							} else {
-								fmt.Printf("%v: cannot inline global closure variable %v\n", n.Line(), n.Left)
-								if logopt.Enabled() {
-									logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
-										fmt.Sprintf("%v cannot be inlined (global closure variable)", n.Left))
-								}
-							}
-						}
-						break
-					}
-					n = mkinlcall(n, f, maxCost, inlMap)
-				}
-			}
+		if isIntrinsicCall(n) {
+			break
+		}
+		if fn := inlCallee(n.Left); fn != nil && fn.Func.Inl != nil {
+			n = mkinlcall(n, fn, maxCost, inlMap)
 		}
 
 	case OCALLMETH:
@@ -749,16 +699,22 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	return n
 }
 
-// inlinableClosure takes an OCLOSURE node and follows linkage to the matching ONAME with
-// the inlinable body. Returns nil if the function is not inlinable.
-func inlinableClosure(n *Node) *Node {
-	c := n.Func.Closure
-	caninl(c)
-	f := c.Func.Nname
-	if f == nil || f.Func.Inl == nil {
-		return nil
+// inlCallee takes a function-typed expression and returns the underlying function ONAME
+// that it refers to if statically known. Otherwise, it returns nil.
+func inlCallee(fn *Node) *Node {
+	fn = staticValue(fn)
+	switch {
+	case fn.Op == ONAME && fn.Class() == PFUNC:
+		if fn.isMethodExpression() {
+			return asNode(fn.Sym.Def)
+		}
+		return fn
+	case fn.Op == OCLOSURE:
+		c := fn.Func.Closure
+		caninl(c)
+		return c.Func.Nname
 	}
-	return f
+	return nil
 }
 
 func staticValue(n *Node) *Node {
@@ -771,7 +727,9 @@ func staticValue(n *Node) *Node {
 	}
 }
 
-// staticValue1 implements a simple SSA-like optimization.
+// staticValue1 implements a simple SSA-like optimization. If n is a local variable
+// that is initialized and never reassigned, staticValue1 returns the initializer
+// expression. Otherwise, it returns nil.
 func staticValue1(n *Node) *Node {
 	if n.Op != ONAME || n.Class() != PAUTO || n.Name.Addrtaken() {
 		return nil
