@@ -215,7 +215,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		for _, s := range snapshots {
 			if s.View() == view {
 				if snapshot != nil {
-					return errors.Errorf("duplicate snapshots for the same view")
+					return errors.New("duplicate snapshots for the same view")
 				}
 				snapshot = s
 			}

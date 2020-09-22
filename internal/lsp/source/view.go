@@ -407,9 +407,8 @@ type FileHandle interface {
 	URI() span.URI
 	Kind() FileKind
 
-	// Identity returns a FileIdentity for the file, even if there was an error
-	// reading it.
-	// It is a fatal error to call Identity on a file that has not yet been read.
+	// FileIdentity returns a FileIdentity for the file, even if there was an
+	// error reading it.
 	FileIdentity() FileIdentity
 	// Read reads the contents of a file.
 	// If the file is not available, returns a nil slice and an error.

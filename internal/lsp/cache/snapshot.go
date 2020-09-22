@@ -733,8 +733,11 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	return s.files[f.URI()]
 }
 
-// GetFile returns a File for the given URI. It will always succeed because it
-// adds the file to the managed set if needed.
+// GetFile returns a File for the given URI. If the file is unknown it is added
+// to the managed set.
+//
+// GetFile succeeds even if the file does not exist. A non-nil error return
+// indicates some type of internal error, for example if ctx is cancelled.
 func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
 	f, err := s.view.getFile(uri)
 	if err != nil {
@@ -1426,6 +1429,25 @@ func (s *snapshot) getWorkspaceModuleHandle(ctx context.Context) (*workspaceModu
 		}
 		fhs = append(fhs, fh)
 	}
+	goplsModURI := span.URIFromPath(filepath.Join(s.view.Folder().Filename(), "gopls.mod"))
+	goplsModFH, err := s.GetFile(ctx, goplsModURI)
+	if err != nil {
+		return nil, err
+	}
+	_, err = goplsModFH.Read()
+	switch {
+	case err == nil:
+		// We have a gopls.mod. Our handle only depends on it.
+		fhs = []source.FileHandle{goplsModFH}
+	case os.IsNotExist(err):
+		// No gopls.mod, so we must build the workspace mod file automatically.
+		// Defensively ensure that the goplsModFH is nil as this controls automatic
+		// building of the workspace mod file.
+		goplsModFH = nil
+	default:
+		return nil, errors.Errorf("error getting gopls.mod: %w", err)
+	}
+
 	sort.Slice(fhs, func(i, j int) bool {
 		return fhs[i].URI() < fhs[j].URI()
 	})
@@ -1435,6 +1457,13 @@ func (s *snapshot) getWorkspaceModuleHandle(ctx context.Context) (*workspaceModu
 	}
 	key := workspaceModuleKey(hashContents([]byte(k)))
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		if goplsModFH != nil {
+			parsed, err := s.ParseMod(ctx, goplsModFH)
+			if err != nil {
+				return &workspaceModuleData{err: err}
+			}
+			return &workspaceModuleData{file: parsed.File}
+		}
 		s := arg.(*snapshot)
 		data := &workspaceModuleData{}
 		data.file, data.err = s.BuildWorkspaceModFile(ctx)
@@ -1450,7 +1479,7 @@ func (s *snapshot) getWorkspaceModuleHandle(ctx context.Context) (*workspaceModu
 }
 
 // BuildWorkspaceModFile generates a workspace module given the modules in the
-// the workspace.
+// the workspace. It does not read gopls.mod.
 func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, error) {
 	file := &modfile.File{}
 	file.AddModuleStmt("gopls-workspace")

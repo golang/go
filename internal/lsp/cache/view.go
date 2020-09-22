@@ -314,11 +314,8 @@ func minorOptionsChange(a, b *source.Options) bool {
 	copy(bBuildFlags, b.BuildFlags)
 	sort.Strings(aBuildFlags)
 	sort.Strings(bBuildFlags)
-	if !reflect.DeepEqual(aBuildFlags, bBuildFlags) {
-		return false
-	}
 	// the rest of the options are benign
-	return true
+	return reflect.DeepEqual(aBuildFlags, bBuildFlags)
 }
 
 func (v *View) SetOptions(ctx context.Context, options *source.Options) (source.View, error) {
