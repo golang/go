@@ -74,6 +74,15 @@ Do not send CLs removing the interior tags from such phrases.
   that is still considered to be a passing test.
 </p>
 
+<p><!-- golang.org/issue/37519 -->
+  The <code>go get -insecure</code> flag is deprecated and will be removed
+  in a future version. The <code>GOINSECURE</code> environment variable is
+  usually a better alternative, since it provides control over which modules
+  may be retrieved using an insecure scheme. It should be noted that the
+  <code>-insecure</code> flag also turns the module checksum validation off.
+  <code>GOINSECURE</code>does not do that, use <code>GONOSUMDB</code>.
+</p>
+
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
 
 <p><!-- golang.org/cl/240623 -->
