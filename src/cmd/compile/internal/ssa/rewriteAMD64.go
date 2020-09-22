@@ -6811,90 +6811,90 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (CMPBconst (MOVLconst [x]) [y])
-	// cond: int8(x)==int8(y)
+	// cond: int8(x)==y
 	// result: (FlagEQ)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int8(x) == int8(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int8(x) == y) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
-	// cond: int8(x)<int8(y) && uint8(x)<uint8(y)
+	// cond: int8(x)<y && uint8(x)<uint8(y)
 	// result: (FlagLT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int8(x) < int8(y) && uint8(x) < uint8(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int8(x) < y && uint8(x) < uint8(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
-	// cond: int8(x)<int8(y) && uint8(x)>uint8(y)
+	// cond: int8(x)<y && uint8(x)>uint8(y)
 	// result: (FlagLT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int8(x) < int8(y) && uint8(x) > uint8(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int8(x) < y && uint8(x) > uint8(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_UGT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
-	// cond: int8(x)>int8(y) && uint8(x)<uint8(y)
+	// cond: int8(x)>y && uint8(x)<uint8(y)
 	// result: (FlagGT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int8(x) > int8(y) && uint8(x) < uint8(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int8(x) > y && uint8(x) < uint8(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_ULT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
-	// cond: int8(x)>int8(y) && uint8(x)>uint8(y)
+	// cond: int8(x)>y && uint8(x)>uint8(y)
 	// result: (FlagGT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int8(x) > int8(y) && uint8(x) > uint8(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int8(x) > y && uint8(x) > uint8(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_UGT)
 		return true
 	}
 	// match: (CMPBconst (ANDLconst _ [m]) [n])
-	// cond: 0 <= int8(m) && int8(m) < int8(n)
+	// cond: 0 <= m && int8(m) < n
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt8(v.AuxInt)
 		if v_0.Op != OpAMD64ANDLconst {
 			break
 		}
-		m := v_0.AuxInt
-		if !(0 <= int8(m) && int8(m) < int8(n)) {
+		m := auxIntToInt32(v_0.AuxInt)
+		if !(0 <= m && int8(m) < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -7197,75 +7197,75 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (CMPLconst (MOVLconst [x]) [y])
-	// cond: int32(x)==int32(y)
+	// cond: x==y
 	// result: (FlagEQ)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int32(x) == int32(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(x == y) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
-	// cond: int32(x)<int32(y) && uint32(x)<uint32(y)
+	// cond: x<y && uint32(x)<uint32(y)
 	// result: (FlagLT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int32(x) < int32(y) && uint32(x) < uint32(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(x < y && uint32(x) < uint32(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
-	// cond: int32(x)<int32(y) && uint32(x)>uint32(y)
+	// cond: x<y && uint32(x)>uint32(y)
 	// result: (FlagLT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int32(x) < int32(y) && uint32(x) > uint32(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(x < y && uint32(x) > uint32(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_UGT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
-	// cond: int32(x)>int32(y) && uint32(x)<uint32(y)
+	// cond: x>y && uint32(x)<uint32(y)
 	// result: (FlagGT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int32(x) > int32(y) && uint32(x) < uint32(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(x > y && uint32(x) < uint32(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_ULT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
-	// cond: int32(x)>int32(y) && uint32(x)>uint32(y)
+	// cond: x>y && uint32(x)>uint32(y)
 	// result: (FlagGT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int32(x) > int32(y) && uint32(x) > uint32(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(x > y && uint32(x) > uint32(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_UGT)
@@ -7275,11 +7275,11 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 	// cond: 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64SHRLconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt8(v_0.AuxInt)
 		if !(0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)) {
 			break
 		}
@@ -7287,15 +7287,15 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPLconst (ANDLconst _ [m]) [n])
-	// cond: 0 <= int32(m) && int32(m) < int32(n)
+	// cond: 0 <= m && m < n
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64ANDLconst {
 			break
 		}
-		m := v_0.AuxInt
-		if !(0 <= int32(m) && int32(m) < int32(n)) {
+		m := auxIntToInt32(v_0.AuxInt)
+		if !(0 <= m && m < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -7561,11 +7561,11 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpAMD64MOVQconst {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x == y) {
 			break
 		}
@@ -7579,11 +7579,11 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpAMD64MOVQconst {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x < y && uint64(x) < uint64(y)) {
 			break
 		}
@@ -7597,11 +7597,11 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpAMD64MOVQconst {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x < y && uint64(x) > uint64(y)) {
 			break
 		}
@@ -7615,11 +7615,11 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpAMD64MOVQconst {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x > y && uint64(x) < uint64(y)) {
 			break
 		}
@@ -7633,11 +7633,11 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpAMD64MOVQconst {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x > y && uint64(x) > uint64(y)) {
 			break
 		}
@@ -7730,75 +7730,75 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPQconst (MOVQconst [x]) [y])
-	// cond: x==y
+	// cond: x==int64(y)
 	// result: (FlagEQ)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(x == y) {
+		x := auxIntToInt64(v_0.AuxInt)
+		if !(x == int64(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
 		return true
 	}
 	// match: (CMPQconst (MOVQconst [x]) [y])
-	// cond: x<y && uint64(x)<uint64(y)
+	// cond: x<int64(y) && uint64(x)<uint64(int64(y))
 	// result: (FlagLT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(x < y && uint64(x) < uint64(y)) {
+		x := auxIntToInt64(v_0.AuxInt)
+		if !(x < int64(y) && uint64(x) < uint64(int64(y))) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
 	// match: (CMPQconst (MOVQconst [x]) [y])
-	// cond: x<y && uint64(x)>uint64(y)
+	// cond: x<int64(y) && uint64(x)>uint64(int64(y))
 	// result: (FlagLT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(x < y && uint64(x) > uint64(y)) {
+		x := auxIntToInt64(v_0.AuxInt)
+		if !(x < int64(y) && uint64(x) > uint64(int64(y))) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_UGT)
 		return true
 	}
 	// match: (CMPQconst (MOVQconst [x]) [y])
-	// cond: x>y && uint64(x)<uint64(y)
+	// cond: x>int64(y) && uint64(x)<uint64(int64(y))
 	// result: (FlagGT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(x > y && uint64(x) < uint64(y)) {
+		x := auxIntToInt64(v_0.AuxInt)
+		if !(x > int64(y) && uint64(x) < uint64(int64(y))) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_ULT)
 		return true
 	}
 	// match: (CMPQconst (MOVQconst [x]) [y])
-	// cond: x>y && uint64(x)>uint64(y)
+	// cond: x>int64(y) && uint64(x)>uint64(int64(y))
 	// result: (FlagGT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(x > y && uint64(x) > uint64(y)) {
+		x := auxIntToInt64(v_0.AuxInt)
+		if !(x > int64(y) && uint64(x) > uint64(int64(y))) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_UGT)
@@ -7808,7 +7808,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: 0xFF < c
 	// result: (FlagLT_ULT)
 	for {
-		c := v.AuxInt
+		c := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVBQZX || !(0xFF < c) {
 			break
 		}
@@ -7819,19 +7819,8 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: 0xFFFF < c
 	// result: (FlagLT_ULT)
 	for {
-		c := v.AuxInt
+		c := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64MOVWQZX || !(0xFFFF < c) {
-			break
-		}
-		v.reset(OpAMD64FlagLT_ULT)
-		return true
-	}
-	// match: (CMPQconst (MOVLQZX _) [c])
-	// cond: 0xFFFFFFFF < c
-	// result: (FlagLT_ULT)
-	for {
-		c := v.AuxInt
-		if v_0.Op != OpAMD64MOVLQZX || !(0xFFFFFFFF < c) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -7841,11 +7830,11 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n)
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64SHRQconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt8(v_0.AuxInt)
 		if !(0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n)) {
 			break
 		}
@@ -7856,11 +7845,11 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: 0 <= m && m < n
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64ANDQconst {
 			break
 		}
-		m := v_0.AuxInt
+		m := auxIntToInt32(v_0.AuxInt)
 		if !(0 <= m && m < n) {
 			break
 		}
@@ -7871,11 +7860,11 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: 0 <= m && m < n
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpAMD64ANDLconst {
 			break
 		}
-		m := v_0.AuxInt
+		m := auxIntToInt32(v_0.AuxInt)
 		if !(0 <= m && m < n) {
 			break
 		}
@@ -8179,90 +8168,90 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (CMPWconst (MOVLconst [x]) [y])
-	// cond: int16(x)==int16(y)
+	// cond: int16(x)==y
 	// result: (FlagEQ)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int16(x) == int16(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int16(x) == y) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
-	// cond: int16(x)<int16(y) && uint16(x)<uint16(y)
+	// cond: int16(x)<y && uint16(x)<uint16(y)
 	// result: (FlagLT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int16(x) < int16(y) && uint16(x) < uint16(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int16(x) < y && uint16(x) < uint16(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
-	// cond: int16(x)<int16(y) && uint16(x)>uint16(y)
+	// cond: int16(x)<y && uint16(x)>uint16(y)
 	// result: (FlagLT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int16(x) < int16(y) && uint16(x) > uint16(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int16(x) < y && uint16(x) > uint16(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_UGT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
-	// cond: int16(x)>int16(y) && uint16(x)<uint16(y)
+	// cond: int16(x)>y && uint16(x)<uint16(y)
 	// result: (FlagGT_ULT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int16(x) > int16(y) && uint16(x) < uint16(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int16(x) > y && uint16(x) < uint16(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_ULT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
-	// cond: int16(x)>int16(y) && uint16(x)>uint16(y)
+	// cond: int16(x)>y && uint16(x)>uint16(y)
 	// result: (FlagGT_UGT)
 	for {
-		y := v.AuxInt
+		y := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
-		x := v_0.AuxInt
-		if !(int16(x) > int16(y) && uint16(x) > uint16(y)) {
+		x := auxIntToInt32(v_0.AuxInt)
+		if !(int16(x) > y && uint16(x) > uint16(y)) {
 			break
 		}
 		v.reset(OpAMD64FlagGT_UGT)
 		return true
 	}
 	// match: (CMPWconst (ANDLconst _ [m]) [n])
-	// cond: 0 <= int16(m) && int16(m) < int16(n)
+	// cond: 0 <= m && int16(m) < n
 	// result: (FlagLT_ULT)
 	for {
-		n := v.AuxInt
+		n := auxIntToInt16(v.AuxInt)
 		if v_0.Op != OpAMD64ANDLconst {
 			break
 		}
-		m := v_0.AuxInt
-		if !(0 <= int16(m) && int16(m) < int16(n)) {
+		m := auxIntToInt32(v_0.AuxInt)
+		if !(0 <= m && int16(m) < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
