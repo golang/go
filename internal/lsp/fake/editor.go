@@ -178,6 +178,7 @@ func (e *Editor) configuration() map[string]interface{} {
 		"verboseWorkDoneProgress": true,
 		"env":                     e.overlayEnv(),
 		"expandWorkspaceToModule": !e.Config.LimitWorkspaceScope,
+		"completionBudget":        "10s",
 	}
 
 	if e.Config.CodeLens != nil {

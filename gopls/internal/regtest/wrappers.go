@@ -270,6 +270,16 @@ func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
 	return locations
 }
 
+// Completion executes a completion request on the server.
+func (e *Env) Completion(path string, pos fake.Pos) *protocol.CompletionList {
+	e.T.Helper()
+	completions, err := e.Editor.Completion(e.Ctx, path, pos)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return completions
+}
+
 // CodeAction calls testDocument/codeAction for the given path, and calls
 // t.Fatal if there are errors.
 func (e *Env) CodeAction(path string) []protocol.CodeAction {

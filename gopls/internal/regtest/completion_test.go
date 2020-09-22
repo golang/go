@@ -131,10 +131,8 @@ pac
 					)
 				}
 				env.OpenFile(tc.filename)
-				completions, err := env.Editor.Completion(env.Ctx, tc.filename, env.RegexpSearch(tc.filename, tc.triggerRegexp))
-				if err != nil {
-					t.Fatal(err)
-				}
+				completions := env.Completion(tc.filename, env.RegexpSearch(tc.filename, tc.triggerRegexp))
+
 				// Check that the completion item suggestions are in the range
 				// of the file.
 				lineCount := len(strings.Split(env.Editor.BufferText(tc.filename), "\n"))
@@ -183,13 +181,10 @@ package ma
 	want := []string{"ma", "ma_test", "main", "math", "math_test"}
 	run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("math/add.go")
-		completions, err := env.Editor.Completion(env.Ctx, "math/add.go", fake.Pos{
+		completions := env.Completion("math/add.go", fake.Pos{
 			Line:   0,
 			Column: 10,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		diff := compareCompletionResults(want, completions.Items)
 		if diff != "" {
