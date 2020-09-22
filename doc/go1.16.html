@@ -43,6 +43,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="modules">Modules</h4>
+
 <p><!-- golang.org/issue/40276 -->
   <code>go</code> <code>install</code> now accepts arguments with
   version suffixes (for example, <code>go</code> <code>install</code>
@@ -64,12 +66,14 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: write and link to tutorial or blog post
 </p>
 
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
+
 <p><!-- golang.org/issue/29062 -->
-  When using <code>go test</code>, a test that
+  When using <code>go</code> <code>test</code>, a test that
   calls <code>os.Exit(0)</code> during execution of a test function
   will now be considered to fail.
   This will help catch cases in which a test calls code that calls
-  os.Exit(0) and thereby stops running all future tests.
+  <code>os.Exit(0)</code> and thereby stops running all future tests.
   If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
   that is still considered to be a passing test.
 </p>
