@@ -253,6 +253,9 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 // in which case this returns some name - it doesn't matter which.
 func (r *gitRepo) findRef(hash string) (ref string, ok bool) {
 	r.refsOnce.Do(r.loadRefs)
+	if r.refsErr != nil {
+		return "", r.refsErr
+	}
 	for ref, h := range r.refs {
 		if h == hash {
 			return ref, true
