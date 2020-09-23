@@ -12877,6 +12877,24 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
 		}
 		break
 	}
+	// match: (SLDconst [c] z:(MOVWreg x))
+	// cond: c < 32 && objabi.GOPPC64 >= 9
+	// result: (EXTSWSLconst [c] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVWreg {
+			break
+		}
+		x := z.Args[0]
+		if !(c < 32 && objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64EXTSWSLconst)
+		v.AuxInt = int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
@@ -12999,6 +13017,24 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
 			return true
 		}
 		break
+	}
+	// match: (SLWconst [c] z:(MOVWreg x))
+	// cond: c < 32 && objabi.GOPPC64 >= 9
+	// result: (EXTSWSLconst [c] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVWreg {
+			break
+		}
+		x := z.Args[0]
+		if !(c < 32 && objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64EXTSWSLconst)
+		v.AuxInt = int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
 	}
 	return false
 }

@@ -1025,6 +1025,8 @@
 (SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
 (SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+// special case for power9
+(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
 
 // Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)

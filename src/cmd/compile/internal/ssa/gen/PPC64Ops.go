@@ -223,6 +223,7 @@ func init() {
 
 		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
+		{name: "EXTSWSLconst", argLength: 1, reg: gp11, asm: "EXTSWSLI", aux: "Int64"},
 
 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
