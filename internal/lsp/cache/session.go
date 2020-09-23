@@ -260,8 +260,8 @@ func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Op
 	// Walk the view's folder to find all modules in the view.
 	modules := make(map[span.URI]*moduleRoot)
 	return modules, filepath.Walk(root.Filename(), func(path string, info os.FileInfo, err error) error {
-		// Ignore any errors we may encounter while visiting files.
 		if err != nil {
+			// Probably a permission error. Keep looking.
 			return filepath.SkipDir
 		}
 		// For any path that is not the workspace folder, check if the path
