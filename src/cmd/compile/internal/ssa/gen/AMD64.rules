@@ -1286,116 +1286,116 @@
 // TODO: DIVxU also.
 
 // Absorb flag constants into SBB ops.
-(SBBQcarrymask (FlagEQ)) -> (MOVQconst [0])
-(SBBQcarrymask (FlagLT_ULT)) -> (MOVQconst [-1])
-(SBBQcarrymask (FlagLT_UGT)) -> (MOVQconst [0])
-(SBBQcarrymask (FlagGT_ULT)) -> (MOVQconst [-1])
-(SBBQcarrymask (FlagGT_UGT)) -> (MOVQconst [0])
-(SBBLcarrymask (FlagEQ)) -> (MOVLconst [0])
-(SBBLcarrymask (FlagLT_ULT)) -> (MOVLconst [-1])
-(SBBLcarrymask (FlagLT_UGT)) -> (MOVLconst [0])
-(SBBLcarrymask (FlagGT_ULT)) -> (MOVLconst [-1])
-(SBBLcarrymask (FlagGT_UGT)) -> (MOVLconst [0])
+(SBBQcarrymask (FlagEQ))     => (MOVQconst [0])
+(SBBQcarrymask (FlagLT_ULT)) => (MOVQconst [-1])
+(SBBQcarrymask (FlagLT_UGT)) => (MOVQconst [0])
+(SBBQcarrymask (FlagGT_ULT)) => (MOVQconst [-1])
+(SBBQcarrymask (FlagGT_UGT)) => (MOVQconst [0])
+(SBBLcarrymask (FlagEQ))     => (MOVLconst [0])
+(SBBLcarrymask (FlagLT_ULT)) => (MOVLconst [-1])
+(SBBLcarrymask (FlagLT_UGT)) => (MOVLconst [0])
+(SBBLcarrymask (FlagGT_ULT)) => (MOVLconst [-1])
+(SBBLcarrymask (FlagGT_UGT)) => (MOVLconst [0])
 
 // Absorb flag constants into branches.
-((EQ|LE|GE|ULE|UGE) (FlagEQ) yes no) -> (First yes no)
-((NE|LT|GT|ULT|UGT) (FlagEQ) yes no) -> (First no yes)
-((NE|LT|LE|ULT|ULE) (FlagLT_ULT) yes no) -> (First yes no)
-((EQ|GT|GE|UGT|UGE) (FlagLT_ULT) yes no) -> (First no yes)
-((NE|LT|LE|UGT|UGE) (FlagLT_UGT) yes no) -> (First yes no)
-((EQ|GT|GE|ULT|ULE) (FlagLT_UGT) yes no) -> (First no yes)
-((NE|GT|GE|ULT|ULE) (FlagGT_ULT) yes no) -> (First yes no)
-((EQ|LT|LE|UGT|UGE) (FlagGT_ULT) yes no) -> (First no yes)
-((NE|GT|GE|UGT|UGE) (FlagGT_UGT) yes no) -> (First yes no)
-((EQ|LT|LE|ULT|ULE) (FlagGT_UGT) yes no) -> (First no yes)
+((EQ|LE|GE|ULE|UGE) (FlagEQ) yes no)     => (First yes no)
+((NE|LT|GT|ULT|UGT) (FlagEQ) yes no)     => (First no yes)
+((NE|LT|LE|ULT|ULE) (FlagLT_ULT) yes no) => (First yes no)
+((EQ|GT|GE|UGT|UGE) (FlagLT_ULT) yes no) => (First no yes)
+((NE|LT|LE|UGT|UGE) (FlagLT_UGT) yes no) => (First yes no)
+((EQ|GT|GE|ULT|ULE) (FlagLT_UGT) yes no) => (First no yes)
+((NE|GT|GE|ULT|ULE) (FlagGT_ULT) yes no) => (First yes no)
+((EQ|LT|LE|UGT|UGE) (FlagGT_ULT) yes no) => (First no yes)
+((NE|GT|GE|UGT|UGE) (FlagGT_UGT) yes no) => (First yes no)
+((EQ|LT|LE|ULT|ULE) (FlagGT_UGT) yes no) => (First no yes)
 
 // Absorb flag constants into SETxx ops.
-((SETEQ|SETLE|SETGE|SETBE|SETAE) (FlagEQ))     -> (MOVLconst [1])
-((SETNE|SETL|SETG|SETB|SETA)     (FlagEQ))     -> (MOVLconst [0])
-((SETNE|SETL|SETLE|SETB|SETBE)   (FlagLT_ULT)) -> (MOVLconst [1])
-((SETEQ|SETG|SETGE|SETA|SETAE)   (FlagLT_ULT)) -> (MOVLconst [0])
-((SETNE|SETL|SETLE|SETA|SETAE)   (FlagLT_UGT)) -> (MOVLconst [1])
-((SETEQ|SETG|SETGE|SETB|SETBE)   (FlagLT_UGT)) -> (MOVLconst [0])
-((SETNE|SETG|SETGE|SETB|SETBE)   (FlagGT_ULT)) -> (MOVLconst [1])
-((SETEQ|SETL|SETLE|SETA|SETAE)   (FlagGT_ULT)) -> (MOVLconst [0])
-((SETNE|SETG|SETGE|SETA|SETAE)   (FlagGT_UGT)) -> (MOVLconst [1])
-((SETEQ|SETL|SETLE|SETB|SETBE)   (FlagGT_UGT)) -> (MOVLconst [0])
+((SETEQ|SETLE|SETGE|SETBE|SETAE) (FlagEQ))     => (MOVLconst [1])
+((SETNE|SETL|SETG|SETB|SETA)     (FlagEQ))     => (MOVLconst [0])
+((SETNE|SETL|SETLE|SETB|SETBE)   (FlagLT_ULT)) => (MOVLconst [1])
+((SETEQ|SETG|SETGE|SETA|SETAE)   (FlagLT_ULT)) => (MOVLconst [0])
+((SETNE|SETL|SETLE|SETA|SETAE)   (FlagLT_UGT)) => (MOVLconst [1])
+((SETEQ|SETG|SETGE|SETB|SETBE)   (FlagLT_UGT)) => (MOVLconst [0])
+((SETNE|SETG|SETGE|SETB|SETBE)   (FlagGT_ULT)) => (MOVLconst [1])
+((SETEQ|SETL|SETLE|SETA|SETAE)   (FlagGT_ULT)) => (MOVLconst [0])
+((SETNE|SETG|SETGE|SETA|SETAE)   (FlagGT_UGT)) => (MOVLconst [1])
+((SETEQ|SETL|SETLE|SETB|SETBE)   (FlagGT_UGT)) => (MOVLconst [0])
 
-(SETEQstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETEQstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETEQstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETEQstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETEQstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETEQstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETEQstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETNEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETNEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETNEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETNEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETNEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETNEstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETNEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETLstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETLstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETLstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETLstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETLstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLstore  [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLstore  [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLstore  [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETLEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETLEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETLEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETLEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETLEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLEstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETLEstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETLEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETGstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETGstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETGstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETGstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETGstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGstore  [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGstore  [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGstore  [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETGEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETGEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETGEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETGEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETGEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGEstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETGEstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETGEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETBstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETBstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETBstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETBstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETBstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBstore  [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBstore  [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBstore  [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETBEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETBEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETBEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETBEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETBEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBEstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETBEstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETBEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
 
-(SETAstore  [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETAstore  [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETAstore  [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETAstore  [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETAstore  [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAstore  [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAstore  [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAstore  [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
-(SETAEstore [off] {sym} ptr (FlagEQ)     mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETAEstore [off] {sym} ptr (FlagLT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETAEstore [off] {sym} ptr (FlagLT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
-(SETAEstore [off] {sym} ptr (FlagGT_ULT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
-(SETAEstore [off] {sym} ptr (FlagGT_UGT) mem) -> (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagEQ)     mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagLT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAEstore [off] {sym} ptr (FlagLT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
+(SETAEstore [off] {sym} ptr (FlagGT_ULT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [0]) mem)
+(SETAEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
 // Remove redundant *const ops
-(ADDQconst [0] x) -> x
-(ADDLconst [c] x) && int32(c)==0 -> x
-(SUBQconst [0] x) -> x
-(SUBLconst [c] x) && int32(c) == 0 -> x
-(ANDQconst [0] _)                 -> (MOVQconst [0])
-(ANDLconst [c] _) && int32(c)==0  -> (MOVLconst [0])
-(ANDQconst [-1] x)                -> x
-(ANDLconst [c] x) && int32(c)==-1 -> x
-(ORQconst [0] x)                  -> x
-(ORLconst [c] x) && int32(c)==0   -> x
-(ORQconst [-1] _)                 -> (MOVQconst [-1])
-(ORLconst [c] _) && int32(c)==-1  -> (MOVLconst [-1])
-(XORQconst [0] x)                  -> x
-(XORLconst [c] x) && int32(c)==0   -> x
+(ADDQconst [0] x)          => x
+(ADDLconst [c] x) && c==0  => x
+(SUBQconst [0] x)          => x
+(SUBLconst [c] x) && c==0  => x
+(ANDQconst [0] _)          => (MOVQconst [0])
+(ANDLconst [c] _) && c==0  => (MOVLconst [0])
+(ANDQconst [-1] x)         => x
+(ANDLconst [c] x) && c==-1 => x
+(ORQconst [0] x)           => x
+(ORLconst [c] x)  && c==0  => x
+(ORQconst [-1] _)          => (MOVQconst [-1])
+(ORLconst [c] _)  && c==-1 => (MOVLconst [-1])
+(XORQconst [0] x)          => x
+(XORLconst [c] x) && c==0  => x
 // TODO: since we got rid of the W/B versions, we might miss
 // things like (ANDLconst [0x100] x) which were formerly
 // (ANDBconst [0] x).  Probably doesn't happen very often.
