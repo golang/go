@@ -313,7 +313,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
+			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(target.Arch, uint64(r.Add()))
 			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
 		}
@@ -997,7 +997,7 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		plt.SetSize(plt.Size() + 8)
 
 		rela.AddAddrPlus(ctxt.Arch, plt.Sym(), int64(ldr.SymPlt(s)))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
+		rela.AddUint64(ctxt.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ctxt.Errorf(s, "addpltsym: unsupported binary format")
@@ -1053,7 +1053,7 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
 	du := ldr.MakeSymbolUpdater(ctxt.Dynamic)
-	ld.Elfwritedynentsymplus(ctxt, du, ld.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
+	ld.Elfwritedynentsymplus(ctxt, du, elf.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
 
 	return glink
 }
