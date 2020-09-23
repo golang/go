@@ -1,0 +1,16 @@
+Written by hand.
+Test module with a root package added in v0.1.0 and removed in v0.2.0.
+
+-- .mod --
+module example.net/pkgremoved
+
+go 1.16
+-- .info --
+{"Version": "v0.1.0"}
+-- go.mod --
+module example.net/pkgremoved
+
+go 1.16
+-- pkgremoved.go --
+// Package pkgremoved exists in v0.1.0.
+package pkgremoved
