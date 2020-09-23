@@ -61,11 +61,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
+	"html"
 	"internal/profile"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -352,6 +353,13 @@ var profileDescriptions = map[string]string{
 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
 }
 
+type profileEntry struct {
+	Name  string
+	Href  string
+	Desc  string
+	Count int
+}
+
 // Index responds with the pprof-formatted profile named by the request.
 // For example, "/debug/pprof/heap" serves the "heap" profile.
 // Index responds to a request for "/debug/pprof/" with an HTML page
@@ -368,17 +376,11 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	type profile struct {
-		Name  string
-		Href  string
-		Desc  string
-		Count int
-	}
-	var profiles []profile
+	var profiles []profileEntry
 	for _, p := range pprof.Profiles() {
-		profiles = append(profiles, profile{
+		profiles = append(profiles, profileEntry{
 			Name:  p.Name(),
-			Href:  p.Name() + "?debug=1",
+			Href:  p.Name(),
 			Desc:  profileDescriptions[p.Name()],
 			Count: p.Count(),
 		})
@@ -386,7 +388,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 	// Adding other profiles exposed from within this package
 	for _, p := range []string{"cmdline", "profile", "trace"} {
-		profiles = append(profiles, profile{
+		profiles = append(profiles, profileEntry{
 			Name: p,
 			Href: p,
 			Desc: profileDescriptions[p],
@@ -397,12 +399,14 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		return profiles[i].Name < profiles[j].Name
 	})
 
-	if err := indexTmpl.Execute(w, profiles); err != nil {
+	if err := indexTmplExecute(w, profiles); err != nil {
 		log.Print(err)
 	}
 }
 
-var indexTmpl = template.Must(template.New("index").Parse(`<html>
+func indexTmplExecute(w io.Writer, profiles []profileEntry) error {
+	var b bytes.Buffer
+	b.WriteString(`<html>
 <head>
 <title>/debug/pprof/</title>
 <style>
@@ -418,22 +422,28 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
 Types of profiles available:
 <table>
 <thead><td>Count</td><td>Profile</td></thead>
-{{range .}}
-	<tr>
-	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>
-	</tr>
-{{end}}
-</table>
+`)
+
+	for _, profile := range profiles {
+		link := &url.URL{Path: profile.Href, RawQuery: "debug=1"}
+		fmt.Fprintf(&b, "<tr><td>%d</td><td><a href='%s'>%s</a></td></tr>\n", profile.Count, link, html.EscapeString(profile.Name))
+	}
+
+	b.WriteString(`</table>
 <a href="goroutine?debug=2">full goroutine stack dump</a>
 <br/>
 <p>
 Profile Descriptions:
 <ul>
-{{range .}}
-<li><div class=profile-name>{{.Name}}:</div> {{.Desc}}</li>
-{{end}}
-</ul>
+`)
+	for _, profile := range profiles {
+		fmt.Fprintf(&b, "<li><div class=profile-name>%s: </div> %s</li>\n", html.EscapeString(profile.Name), html.EscapeString(profile.Desc))
+	}
+	b.WriteString(`</ul>
 </p>
 </body>
-</html>
-`))
+</html>`)
+
+	_, err := w.Write(b.Bytes())
+	return err
+}
