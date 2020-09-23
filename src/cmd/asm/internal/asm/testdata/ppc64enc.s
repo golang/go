@@ -266,6 +266,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SRDCC R3, R4                    // 7c841c37
 	ROTLW $16, R3, R4               // 5464803e
 	ROTLW R3, R4, R5                // 5c85183e
+	EXTSWSLI $3, R4, R5             // 7c851ef4
 	RLWMI $7, R3, $65535, R6        // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
 	RLWNM $3, R4, $7, R6            // 54861f7e

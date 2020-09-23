@@ -182,7 +182,7 @@ func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byt
 	return f, g
 }
 
-func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, uint16, uint32, uint64) {
+func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64) (uint8, uint16, uint32, uint64, int64) {
 
 	// ppc64le:-"AND","CLRLSLWI"
 	// ppc64:-"AND","CLRLSLWI"
@@ -202,7 +202,10 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, u
 	// ppc64le:-"AND","CLRLSLDI"
 	// ppc64:-"AND","CLRLSLDI"
 	i := (v64 & 0xFFFFFFFF) << 5
-	return f, g, h, i
+	// ppc64le/power9:-"SLD","EXTSWSLI"
+	// ppc64/power9:-"SLD","EXTSWSLI"
+	j := int64(x32+32)*8
+	return f, g, h, i, j
 }
 
 func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
