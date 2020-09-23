@@ -1070,7 +1070,6 @@ func (c *Conn) readHandshake() (interface{}, error) {
 }
 
 var (
-	errClosed   = errors.New("tls: use of closed connection")
 	errShutdown = errors.New("tls: protocol is shutdown")
 )
 
@@ -1080,7 +1079,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	for {
 		x := atomic.LoadInt32(&c.activeCall)
 		if x&1 != 0 {
-			return 0, errClosed
+			return 0, net.ErrClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
 			break
@@ -1285,7 +1284,7 @@ func (c *Conn) Close() error {
 	for {
 		x = atomic.LoadInt32(&c.activeCall)
 		if x&1 != 0 {
-			return errClosed
+			return net.ErrClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x|1) {
 			break
