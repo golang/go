@@ -449,7 +449,7 @@ var depsRules = `
 	OS, compress/gzip, regexp
 	< internal/profile;
 
-	html/template, internal/profile, net/http, runtime/pprof, runtime/trace
+	html, internal/profile, net/http, runtime/pprof, runtime/trace
 	< net/http/pprof;
 
 	# RPC
