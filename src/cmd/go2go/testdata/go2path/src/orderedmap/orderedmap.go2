@@ -45,7 +45,7 @@ func NewOrdered[K constraints.Ordered, V any]() *Map[K, V] {
 		case k1 == k2:
 			return 0
 		default:
-			return -1
+			return 1
 		}
 	})
 }
