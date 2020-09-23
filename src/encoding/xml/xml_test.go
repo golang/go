@@ -706,8 +706,8 @@ func TestSyntaxErrorLineNum(t *testing.T) {
 	if !ok {
 		t.Error("Expected SyntaxError.")
 	}
-	if synerr.Line != 3 {
-		t.Error("SyntaxError didn't have correct line number.")
+	if synerr.Error() != `XML syntax error on line 3: expected element name after </` {
+		t.Error("SyntaxError didn't have correct message or line number.")
 	}
 }
 
