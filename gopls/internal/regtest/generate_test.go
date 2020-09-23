@@ -20,7 +20,7 @@ func TestGenerateProgress(t *testing.T) {
 module fake.test
 
 go 1.14
--- generate.go --
+-- lib/generate.go --
 // +build ignore
 
 package main
@@ -30,7 +30,7 @@ import "io/ioutil"
 func main() {
 	ioutil.WriteFile("generated.go", []byte("package lib\n\nconst answer = 42"), 0644)
 }
--- lib.go --
+-- lib/lib.go --
 package lib
 
 func GetAnswer() int {
@@ -42,13 +42,13 @@ func GetAnswer() int {
 
 	runner.Run(t, generatedWorkspace, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("lib.go", "answer"),
+			env.DiagnosticAtRegexp("lib/lib.go", "answer"),
 		)
-		env.RunGenerate(".")
+		env.RunGenerate("./lib")
 		env.Await(
 			OnceMet(
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
-				EmptyDiagnostics("lib.go")),
+				EmptyDiagnostics("lib/lib.go")),
 		)
 	})
 }

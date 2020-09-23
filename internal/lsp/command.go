@@ -347,9 +347,11 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, ur
 
 	er := &eventWriter{ctx: ctx, operation: "generate"}
 	args := []string{"-x"}
+	dir := uri.Filename()
 	if recursive {
-		args = append(args, "./...")
+		dir = filepath.Join(dir, "...")
 	}
+	args = append(args, dir)
 
 	stderr := io.MultiWriter(er, workDoneWriter{work})
 
