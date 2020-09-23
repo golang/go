@@ -584,6 +584,37 @@ func TestValuelessAttrs(t *testing.T) {
 	}
 }
 
+const testInputAutoClose = `
+<lol>
+<lol></lol>
+`
+
+var cookedTokensAutoClose = []Token{
+	CharData("\n"),
+	StartElement{Name:Name{Space:"", Local:"lol"}, Attr:[]Attr{}},
+	EndElement{Name:Name{Space:"", Local:"lol"}},
+	CharData("\n"),
+	StartElement{Name:Name{Space:"", Local:"lol"}, Attr:[]Attr{}},
+	EndElement{Name:Name{Space:"", Local:"lol"}},
+	CharData("\n"),
+}
+
+func TestTokenAutoClose(t *testing.T) {
+	d := NewDecoder(strings.NewReader(testInputAutoClose))
+	d.Strict = false
+	d.AutoClose = []string{"LOL"}
+
+	for i, want := range cookedTokensAutoClose {
+		have, err := d.Token()
+		if err != nil {
+			t.Fatalf("token %d: unexpected error: %s", i, err)
+		}
+		if !reflect.DeepEqual(have, want) {
+			t.Errorf("token %d = %#v want %#v", i, have, want)
+		}
+	}
+}
+
 func TestCopyTokenCharData(t *testing.T) {
 	data := []byte("same data")
 	var tok1 Token = CharData(data)
@@ -729,7 +760,6 @@ var characterTests = []struct {
 }
 
 func TestDisallowedCharacters(t *testing.T) {
-
 	for i, tt := range characterTests {
 		d := NewDecoder(strings.NewReader(tt.in))
 		var err error
