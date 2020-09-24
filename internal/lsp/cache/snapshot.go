@@ -125,18 +125,13 @@ func (s *snapshot) FileSet() *token.FileSet {
 	return s.view.session.cache.fset
 }
 
-// config returns a *packages.Config with the working directory set to the
-// view's root.
-func (s *snapshot) config(ctx context.Context) *packages.Config {
-	return s.configWithDir(ctx, s.view.rootURI.Filename())
-}
-
-// configWithDir returns the configuration used for the snapshot's interaction
-// with the go/packages API. It uses the given working directory.
+// config returns the configuration used for the snapshot's interaction with
+// the go/packages API. It uses the given working directory.
+//
 // TODO(rstambler): go/packages requires that we do not provide overlays for
 // multiple modules in on config, so buildOverlay needs to filter overlays by
 // module.
-func (s *snapshot) configWithDir(ctx context.Context, dir string) *packages.Config {
+func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 	s.view.optionsMu.Lock()
 	env, buildFlags := s.view.envLocked()
 	verboseOutput := s.view.options.VerboseOutput
@@ -174,8 +169,8 @@ func (s *snapshot) configWithDir(ctx context.Context, dir string) *packages.Conf
 	return cfg
 }
 
-func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []string) error {
-	cfg := s.config(ctx)
+func (s *snapshot) RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error {
+	cfg := s.config(ctx, wd)
 	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, false, verb, args)
 	if err != nil {
 		return err
@@ -184,11 +179,6 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []s
 
 	_, err = runner.Run(ctx, *inv)
 	return err
-}
-
-func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
-	cfg := s.config(ctx)
-	return s.runGoCommandWithConfig(ctx, cfg, verb, args)
 }
 
 func (s *snapshot) runGoCommandWithConfig(ctx context.Context, cfg *packages.Config, verb string, args []string) (*bytes.Buffer, error) {
@@ -201,8 +191,8 @@ func (s *snapshot) runGoCommandWithConfig(ctx context.Context, cfg *packages.Con
 	return runner.Run(ctx, *inv)
 }
 
-func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
-	cfg := s.config(ctx)
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, wd, verb string, args []string, stdout, stderr io.Writer) error {
+	cfg := s.config(ctx, wd)
 	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
 	if err != nil {
 		return err
@@ -605,6 +595,30 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 		}
 	}
 	return results, nil
+}
+
+func (s *snapshot) GoModForFile(ctx context.Context, fh source.FileHandle) (source.VersionedFileHandle, error) {
+	if fh.Kind() != source.Go {
+		return nil, fmt.Errorf("expected Go file, got %s", fh.Kind())
+	}
+	if len(s.modules) == 0 {
+		if s.view.modURI == "" {
+			return nil, errors.New("no modules in this view")
+		}
+		return s.GetFile(ctx, s.view.modURI)
+	}
+	var match span.URI
+	for _, m := range s.modules {
+		// Add an os.PathSeparator to the end of each directory to make sure
+		// that foo/apple/banana does not match foo/a.
+		if !strings.HasPrefix(fh.URI().Filename()+string(os.PathSeparator), m.rootURI.Filename()+string(os.PathSeparator)) {
+			continue
+		}
+		if len(m.modURI) > len(match) {
+			match = m.modURI
+		}
+	}
+	return s.GetFile(ctx, match)
 }
 
 func (s *snapshot) getPackage(id packageID, mode source.ParseMode) *packageHandle {

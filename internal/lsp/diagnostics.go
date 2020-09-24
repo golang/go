@@ -391,10 +391,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 }
 
 func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, modErr, loadErr error) bool {
-	modURI := snapshot.View().ModFile()
-
-	// If the folder has no Go code in it, we shouldn't spam the user with a
-	// warning.
+	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
 	var hasGo bool
 	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(info.Name(), ".go") {
@@ -408,7 +405,7 @@ func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot
 	}
 
 	// All other workarounds are for errors associated with modules.
-	if modURI == "" {
+	if len(snapshot.View().ModFiles()) == 0 {
 		return false
 	}
 
@@ -430,13 +427,24 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 			return true
 		}
-		if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
-			}); err != nil {
-				if err != nil {
-					event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
+		// Right now, we don't have a good way of mapping the error message
+		// to a specific module, so this will re-run `go mod vendor` in every
+		// known module with a vendor directory.
+		// TODO(rstambler): Only re-run `go mod vendor` in the relevant module.
+		for _, uri := range snapshot.View().ModFiles() {
+			// Check that there is a vendor directory in the module before
+			// running `go mod vendor`.
+			if info, _ := os.Stat(filepath.Join(filepath.Dir(uri.Filename()), "vendor")); info == nil {
+				continue
+			}
+			if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(uri), "mod", []string{"vendor"}...); err != nil {
+				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Error,
+					Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
+				}); err != nil {
+					if err != nil {
+						event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
+					}
 				}
 			}
 		}
@@ -449,18 +457,22 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 		return false
 	}
 	if errors.Is(loadErr, source.PackagesLoadError) {
-		fh, err := snapshot.GetFile(ctx, modURI)
-		if err != nil {
-			return false
+		// TODO(rstambler): Construct the diagnostics in internal/lsp/cache
+		// so that we can avoid this here.
+		for _, uri := range snapshot.View().ModFiles() {
+			fh, err := snapshot.GetFile(ctx, uri)
+			if err != nil {
+				return false
+			}
+			diag, err := mod.ExtractGoCommandError(ctx, snapshot, fh, loadErr)
+			if err != nil {
+				return false
+			}
+			s.publishReports(ctx, snapshot, map[idWithAnalysis]map[string]*source.Diagnostic{
+				{id: fh.VersionedFileIdentity()}: {diagnosticKey(diag): diag},
+			})
+			return true
 		}
-		diag, err := mod.ExtractGoCommandError(ctx, snapshot, fh, loadErr)
-		if err != nil {
-			return false
-		}
-		s.publishReports(ctx, snapshot, map[idWithAnalysis]map[string]*source.Diagnostic{
-			{id: fh.VersionedFileIdentity()}: {diagnosticKey(diag): diag},
-		})
-		return true
 	}
 	return false
 }

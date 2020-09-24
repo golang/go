@@ -51,12 +51,8 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	switch fh.Kind() {
 	case source.Mod:
-		// TODO: Support code actions for views with multiple modules.
-		if snapshot.View().ModFile() == "" {
-			return nil, nil
-		}
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, diagnostics)
+			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
 			if err == source.ErrTmpModfileUnsupported {
 				return nil, nil
 			}
@@ -66,7 +62,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			codeActions = append(codeActions, modQuickFixes...)
 		}
 		if wanted[protocol.SourceOrganizeImports] {
-			action, err := goModTidy(ctx, snapshot)
+			action, err := goModTidy(ctx, snapshot, fh)
 			if err == source.ErrTmpModfileUnsupported {
 				return nil, nil
 			}
@@ -138,7 +134,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 				// If there are any diagnostics relating to the go.mod file,
 				// add their corresponding quick fixes.
-				modQuickFixes, err := moduleQuickFixes(ctx, snapshot, diagnostics)
+				modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
 				if err != nil {
 					// Not a fatal error.
 					event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
@@ -457,10 +453,17 @@ func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) [
 	}
 }
 
-func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	modFH, err := snapshot.GetFile(ctx, snapshot.View().ModFile())
-	if err != nil {
-		return nil, err
+func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	var modFH source.VersionedFileHandle
+	switch fh.Kind() {
+	case source.Mod:
+		modFH = fh
+	case source.Go:
+		var err error
+		modFH, err = snapshot.GoModForFile(ctx, fh)
+		if err != nil {
+			return nil, err
+		}
 	}
 	tidied, err := snapshot.ModTidy(ctx, modFH)
 	if err == source.ErrTmpModfileUnsupported {
@@ -512,21 +515,17 @@ func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
 	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
 }
 
-func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAction, error) {
-	modFH, err := snapshot.GetFile(ctx, snapshot.View().ModFile())
+func goModTidy(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) (*protocol.CodeAction, error) {
+	tidied, err := snapshot.ModTidy(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	tidied, err := snapshot.ModTidy(ctx, modFH)
-	if err != nil {
-		return nil, err
-	}
-	left, err := modFH.Read()
+	left, err := fh.Read()
 	if err != nil {
 		return nil, err
 	}
 	right := tidied.TidiedContent
-	edits := snapshot.View().Options().ComputeEdits(modFH.URI(), string(left), string(right))
+	edits := snapshot.View().Options().ComputeEdits(fh.URI(), string(left), string(right))
 	protocolEdits, err := source.ToProtocolEdits(tidied.Parsed.Mapper, edits)
 	if err != nil {
 		return nil, err
@@ -537,13 +536,13 @@ func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAct
 		Edit: protocol.WorkspaceEdit{
 			DocumentChanges: []protocol.TextDocumentEdit{{
 				TextDocument: protocol.VersionedTextDocumentIdentifier{
-					Version: modFH.Version(),
+					Version: fh.Version(),
 					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-						URI: protocol.URIFromSpanURI(modFH.URI()),
+						URI: protocol.URIFromSpanURI(fh.URI()),
 					},
 				},
 				Edits: protocolEdits,
 			}},
 		},
-	}, nil
+	}, err
 }

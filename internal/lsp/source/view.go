@@ -5,7 +5,6 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -70,15 +69,14 @@ type Snapshot interface {
 
 	// RunGoCommandPiped runs the given `go` command in the view, using the
 	// provided stdout and stderr. It will use the -modfile flag, if possible.
-	RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error
-
-	// RunGoCommand runs the given `go` command in the view. It will use the
-	// -modfile flag, if possible.
-	RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error)
+	// If the provided working directory is empty, the snapshot's root folder
+	// will be used as the working directory.
+	RunGoCommandPiped(ctx context.Context, wd, verb string, args []string, stdout, stderr io.Writer) error
 
 	// RunGoCommandDirect runs the given `go` command, never using the
-	// -modfile flag.
-	RunGoCommandDirect(ctx context.Context, verb string, args []string) error
+	// -modfile flag. If the provided working directory is empty, the
+	// snapshot's root folder will be used as the working directory.
+	RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error
 
 	// ParseMod is used to parse go.mod files.
 	ParseMod(ctx context.Context, fh FileHandle) (*ParsedModule, error)
@@ -94,6 +92,9 @@ type Snapshot interface {
 	// ModTidy returns the results of `go mod tidy` for the module specified by
 	// the given go.mod file.
 	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
+
+	// GoModForFile returns the go.mod file handle for the given Go file.
+	GoModForFile(ctx context.Context, fh FileHandle) (VersionedFileHandle, error)
 
 	// BuildWorkspaceModFile builds the contents of mod file to be used for
 	// multi-module workspace.
@@ -158,11 +159,11 @@ type View interface {
 	// Name returns the name this view was constructed with.
 	Name() string
 
-	// Folder returns the root folder for this view.
+	// Folder returns the folder with which this view was created.
 	Folder() span.URI
 
-	// ModFile is the go.mod file at the root of this view. It may not exist.
-	ModFile() span.URI
+	// ModFiles is the go.mod file at the root of this view. It may not exist.
+	ModFiles() []span.URI
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.

@@ -88,8 +88,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
-	cfg := s.config(ctx)
-
 	cleanup := func() {}
 
 	var modFH, sumFH source.FileHandle
@@ -107,6 +105,8 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 	}
 
+	wdir := s.view.rootURI.Filename()
+	var buildFlags []string
 	switch {
 	case s.view.workspaceMode&usesWorkspaceModule != 0:
 		var (
@@ -117,15 +117,18 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		cfg.Dir = tmpDir.Filename()
+		wdir = tmpDir.Filename()
 	case s.view.workspaceMode&tempModfile != 0:
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
 			return err
 		}
-		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
+
+	cfg := s.config(ctx, wdir)
+	cfg.BuildFlags = append(cfg.BuildFlags, buildFlags...)
 
 	modMod, err := s.view.needsModEqualsMod(ctx, modFH)
 	if err != nil {

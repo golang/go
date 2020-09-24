@@ -16,10 +16,16 @@ import (
 )
 
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
-	uri := snapshot.View().ModFile()
+	var found bool
+	for _, uri := range snapshot.View().ModFiles() {
+		if fh.URI() == uri {
+			found = true
+			break
+		}
+	}
 
-	// For now, we only provide hover information for the view's go.mod file.
-	if uri == "" || fh.URI() != uri {
+	// We only provide hover information for the view's go.mod files.
+	if !found {
 		return nil, nil
 	}
 

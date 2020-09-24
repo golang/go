@@ -63,7 +63,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	view.SetOptions(ctx, options)
 
 	// Only run the -modfile specific tests in module mode with Go 1.14 or above.
-	datum.ModfileFlagAvailable = view.ModFile() != "" && testenv.Go1Point() >= 14
+	datum.ModfileFlagAvailable = len(view.ModFiles()) > 0 && testenv.Go1Point() >= 14
 
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {

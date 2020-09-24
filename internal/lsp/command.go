@@ -262,9 +262,10 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	if err != nil {
 		return err
 	}
+	wdir := filepath.Dir(uri.SpanURI().Filename())
 	snapshot, release := view.Snapshot(ctx)
 	defer release()
-	return snapshot.RunGoCommandDirect(ctx, verb, args)
+	return snapshot.RunGoCommandDirect(ctx, wdir, verb, args)
 }
 
 func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, work *workDone, tests, benchmarks []string) error {
@@ -282,11 +283,13 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	ew := &eventWriter{ctx: ctx, operation: "test"}
 	out := io.MultiWriter(ew, workDoneWriter{work}, buf)
 
+	wdir := filepath.Dir(uri.SpanURI().Filename())
+
 	// Run `go test -run Func` on each test.
 	var failedTests int
 	for _, funcName := range tests {
 		args := []string{pkgPath, "-v", "-count=1", "-run", fmt.Sprintf("^%s$", funcName)}
-		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
+		if err := snapshot.RunGoCommandPiped(ctx, wdir, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -298,7 +301,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	var failedBenchmarks int
 	for _, funcName := range benchmarks {
 		args := []string{pkgPath, "-v", "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)}
-		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
+		if err := snapshot.RunGoCommandPiped(ctx, wdir, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -342,15 +345,15 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, ur
 
 	er := &eventWriter{ctx: ctx, operation: "generate"}
 	args := []string{"-x"}
-	dir := uri.Filename()
+	pattern := "."
 	if recursive {
-		dir = filepath.Join(dir, "...")
+		pattern = "..."
 	}
-	args = append(args, dir)
+	args = append(args, pattern)
 
 	stderr := io.MultiWriter(er, workDoneWriter{work})
 
-	if err := snapshot.RunGoCommandPiped(ctx, "generate", args, er, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, uri.Filename(), "generate", args, er, stderr); err != nil {
 		return err
 	}
 	return nil

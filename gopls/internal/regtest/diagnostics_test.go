@@ -59,15 +59,13 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 	})
 }
 
-const onlyMod = `
+func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
+	const onlyMod = `
 -- go.mod --
 module mod.com
 
 go 1.12
 `
-
-func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, onlyMod, func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", `package main
 
@@ -85,12 +83,11 @@ func m() {
 	})
 }
 
-const brokenFile = `package main
+func TestDiagnosticErrorInNewFile(t *testing.T) {
+	const brokenFile = `package main
 
 const Foo = "abc
 `
-
-func TestDiagnosticErrorInNewFile(t *testing.T) {
 	runner.Run(t, brokenFile, func(t *testing.T, env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
 		env.Await(env.DiagnosticAtRegexp("broken.go", "\"abc"))

@@ -206,7 +206,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 		return handle.why(ctx, s)
 	}
 	// Make sure to use the module root as the working directory.
-	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
+	cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
@@ -298,7 +298,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		return handle.upgrades(ctx, s)
 	}
 	// Use the module root as the working directory.
-	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
+	cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),

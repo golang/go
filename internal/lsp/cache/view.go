@@ -213,8 +213,11 @@ func (v *View) ValidBuildConfiguration() bool {
 	return v.hasValidBuildConfiguration
 }
 
-func (v *View) ModFile() span.URI {
-	return v.modURI
+func (v *View) ModFiles() []span.URI {
+	if v.modURI == "" {
+		return nil
+	}
+	return []span.URI{v.modURI}
 }
 
 // tempModFile creates a temporary go.mod file based on the contents of the
@@ -276,7 +279,7 @@ func (v *View) Name() string {
 	return v.name
 }
 
-// Folder returns the root of this view.
+// Folder returns the folder at the base of this view.
 func (v *View) Folder() span.URI {
 	return v.folder
 }

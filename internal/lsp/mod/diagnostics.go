@@ -23,44 +23,40 @@ import (
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	uri := snapshot.View().ModFile()
-	if uri == "" {
-		return nil, nil
-	}
-
-	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(uri))
+	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
 
-	fh, err := snapshot.GetFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	tidied, err := snapshot.ModTidy(ctx, fh)
-	if err == source.ErrTmpModfileUnsupported {
-		return nil, nil
-	}
-	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{
-		fh.VersionedFileIdentity(): {},
-	}
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range tidied.Errors {
-		diag := &source.Diagnostic{
-			Message: e.Message,
-			Range:   e.Range,
-			Source:  e.Category,
-		}
-		if e.Category == "syntax" {
-			diag.Severity = protocol.SeverityError
-		} else {
-			diag.Severity = protocol.SeverityWarning
-		}
-		fh, err := snapshot.GetFile(ctx, e.URI)
+	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{}
+	for _, uri := range snapshot.View().ModFiles() {
+		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], diag)
+		reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
+		tidied, err := snapshot.ModTidy(ctx, fh)
+		if err == source.ErrTmpModfileUnsupported {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range tidied.Errors {
+			diag := &source.Diagnostic{
+				Message: e.Message,
+				Range:   e.Range,
+				Source:  e.Category,
+			}
+			if e.Category == "syntax" {
+				diag.Severity = protocol.SeverityError
+			} else {
+				diag.Severity = protocol.SeverityWarning
+			}
+			fh, err := snapshot.GetFile(ctx, e.URI)
+			if err != nil {
+				return nil, err
+			}
+			reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], diag)
+		}
 	}
 	return reports, nil
 }
