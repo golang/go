@@ -33,6 +33,15 @@ package hello
 const Name = "Hello"
 `
 
+func runModfileTest(t *testing.T, files, proxy string, f TestFunc) {
+	t.Run("normal", func(t *testing.T) {
+		withOptions(WithProxyFiles(proxy)).run(t, files, f)
+	})
+	t.Run("nested", func(t *testing.T) {
+		withOptions(WithProxyFiles(proxy), NestWorkdir(), WithModes(Experimental)).run(t, files, f)
+	})
+}
+
 func TestModFileModification(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
@@ -50,7 +59,7 @@ func main() {
 }
 `
 	t.Run("basic", func(t *testing.T) {
-		withOptions(WithProxyFiles(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
+		runModfileTest(t, untidyModule, proxy, func(t *testing.T, env *Env) {
 			// Open the file and make sure that the initial workspace load does not
 			// modify the go.mod file.
 			goModContent := env.ReadWorkspaceFile("go.mod")
@@ -77,7 +86,7 @@ func main() {
 	t.Run("delete main.go", func(t *testing.T) {
 		t.Skip("This test will be flaky until golang/go#40269 is resolved.")
 
-		withOptions(WithProxyFiles(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
+		runModfileTest(t, untidyModule, proxy, func(t *testing.T, env *Env) {
 			goModContent := env.ReadWorkspaceFile("go.mod")
 			mainContent := env.ReadWorkspaceFile("main.go")
 			env.OpenFile("main.go")
@@ -126,7 +135,7 @@ go 1.12
 require random.org v1.2.3
 `
 
-	withOptions(WithProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
+	runModfileTest(t, mod, proxy, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -172,7 +181,7 @@ go 1.12
 
 require example.com v1.2.3
 `
-	runner.Run(t, mod, func(t *testing.T, env *Env) {
+	runModfileTest(t, mod, proxy, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -185,7 +194,7 @@ require example.com v1.2.3
 		if got := env.Editor.BufferText("go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
 		}
-	}, WithProxyFiles(proxy))
+	})
 }
 
 func TestUnusedDiag(t *testing.T) {
@@ -212,7 +221,7 @@ func main() {}
 go 1.14
 `
 
-	withOptions(WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+	runModfileTest(t, files, proxy, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -266,7 +275,7 @@ import (
 func _() {
     caire.RemoveTempImage()
 }`
-	runner.Run(t, repro, func(t *testing.T, env *Env) {
+	runModfileTest(t, repro, proxy, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -288,7 +297,7 @@ require (
 		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", tests.Diff(want, got))
 		}
-	}, WithProxyFiles(proxy))
+	})
 }
 
 // TODO: For this test to be effective, the sandbox's file watcher must respect
@@ -310,13 +319,13 @@ package main
 func main() {
 	fmt.Println(blah.Name)
 `
-	runner.Run(t, mod, func(t *testing.T, env *Env) {
+	runModfileTest(t, mod, proxy, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("go.mod", "require"))
 		env.RunGoCommand("mod", "tidy")
 		env.Await(
 			EmptyDiagnostics("go.mod"),
 		)
-	}, WithProxyFiles(proxy))
+	})
 }
 
 // Tests golang/go#39784: a missing indirect dependency, necessary
@@ -409,7 +418,7 @@ func main() {
 
 	// Start from a bad state/bad IWL, and confirm that we recover.
 	t.Run("bad", func(t *testing.T) {
-		runner.Run(t, unknown, func(t *testing.T, env *Env) {
+		runModfileTest(t, unknown, proxy, func(t *testing.T, env *Env) {
 			env.OpenFile("go.mod")
 			env.Await(
 				env.DiagnosticAtRegexp("go.mod", "example.com v1.2.2"),
@@ -419,7 +428,7 @@ func main() {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)
-		}, WithProxyFiles(proxy))
+		})
 	})
 
 	const known = `
@@ -441,7 +450,7 @@ func main() {
 	// Start from a good state, transform to a bad state, and confirm that we
 	// still recover.
 	t.Run("good", func(t *testing.T) {
-		runner.Run(t, known, func(t *testing.T, env *Env) {
+		runModfileTest(t, known, proxy, func(t *testing.T, env *Env) {
 			env.OpenFile("go.mod")
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", "x = "),
@@ -456,7 +465,7 @@ func main() {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)
-		}, WithProxyFiles(proxy))
+		})
 	})
 }
 
@@ -501,7 +510,7 @@ func main() {
 	println(blah.Name)
 }
 `
-	withOptions(WithProxyFiles(badProxy)).run(t, module, func(t *testing.T, env *Env) {
+	runModfileTest(t, module, badProxy, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.Await(
 			env.DiagnosticAtRegexp("go.mod", "require example.com v1.2.3"),

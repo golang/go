@@ -39,7 +39,6 @@ const (
 	// and communicates over pipes to mimic the gopls sidecar execution mode,
 	// which communicates over stdin/stderr.
 	Singleton Mode = 1 << iota
-
 	// Forwarded forwards connections to a shared in-process gopls instance.
 	Forwarded
 	// SeparateProcess forwards connection to a shared separate gopls process.
@@ -77,13 +76,14 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editor    fake.EditorConfig
-	sandbox   fake.SandboxConfig
-	modes     Mode
-	timeout   time.Duration
-	debugAddr string
-	skipLogs  bool
-	skipHooks bool
+	editor      fake.EditorConfig
+	sandbox     fake.SandboxConfig
+	modes       Mode
+	timeout     time.Duration
+	debugAddr   string
+	skipLogs    bool
+	skipHooks   bool
+	nestWorkdir bool
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -153,7 +153,7 @@ func WithoutWorkspaceFolders() RunOption {
 // tests need to check other cases.
 func WithRootPath(path string) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.editor.EditorRootPath = path
+		opts.editor.WorkspaceRoot = path
 	})
 }
 
@@ -209,10 +209,18 @@ func WithGOPROXY(goproxy string) RunOption {
 	})
 }
 
-// WithLimitWorkspaceScope sets the LimitWorkspaceScope configuration.
-func WithLimitWorkspaceScope() RunOption {
+// LimitWorkspaceScope sets the LimitWorkspaceScope configuration.
+func LimitWorkspaceScope() RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.editor.LimitWorkspaceScope = true
+	})
+}
+
+// NestWorkdir inserts the sandbox working directory in a subdirectory of the
+// editor workspace.
+func NestWorkdir() RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.nestWorkdir = true
 	})
 }
 
@@ -262,15 +270,24 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				di.MonitorMemory(ctx)
 			}
 
-			tempDir := filepath.Join(r.TempDir, filepath.FromSlash(t.Name()))
-			if err := os.MkdirAll(tempDir, 0755); err != nil {
+			rootDir := filepath.Join(r.TempDir, filepath.FromSlash(t.Name()))
+			if err := os.MkdirAll(rootDir, 0755); err != nil {
 				t.Fatal(err)
 			}
+			if config.nestWorkdir {
+				config.sandbox.Workdir = "work/nested"
+			}
 			config.sandbox.Files = files
-			config.sandbox.RootDir = tempDir
+			config.sandbox.RootDir = rootDir
 			sandbox, err := fake.NewSandbox(&config.sandbox)
 			if err != nil {
 				t.Fatal(err)
+			}
+			workdir := sandbox.Workdir.RootURI().SpanURI().Filename()
+			if config.nestWorkdir {
+				// Now that we know the actual workdir, set our workspace to be the
+				// parent directory.
+				config.editor.WorkspaceRoot = filepath.Clean(filepath.Join(workdir, ".."))
 			}
 			// Deferring the closure of ws until the end of the entire test suite
 			// has, in testing, given the LSP server time to properly shutdown and

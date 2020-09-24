@@ -1246,7 +1246,7 @@ func main() {
 			env.DiagnosticAtRegexp("main.go", "x"),
 		)
 	})
-	withOptions(WithRootPath("a"), WithLimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(WithRootPath("a"), LimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
 			NoDiagnostics("main.go"),

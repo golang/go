@@ -81,9 +81,9 @@ type EditorConfig struct {
 	// workspace folders nor a root URI.
 	WithoutWorkspaceFolders bool
 
-	// EditorRootPath specifies the root path of the workspace folder used when
+	// WorkspaceRoot specifies the root path of the workspace folder used when
 	// initializing gopls in the sandbox. If empty, the Workdir is used.
-	EditorRootPath string
+	WorkspaceRoot string
 
 	// EnableStaticcheck enables staticcheck analyzers.
 	EnableStaticcheck bool
@@ -121,7 +121,7 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))
-	if err := e.initialize(ctx, e.Config.WithoutWorkspaceFolders, e.Config.EditorRootPath); err != nil {
+	if err := e.initialize(ctx, e.Config.WithoutWorkspaceFolders, e.Config.WorkspaceRoot); err != nil {
 		return nil, err
 	}
 	e.sandbox.Workdir.AddWatcher(e.onFileChanges)
