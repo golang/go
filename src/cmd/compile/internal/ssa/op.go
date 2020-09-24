@@ -297,6 +297,13 @@ func makeValAndOff32(val, off int32) ValAndOff {
 	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
 }
 
+func makeValAndOff64(val, off int64) ValAndOff {
+	if !validValAndOff(val, off) {
+		panic("invalid makeValAndOff64")
+	}
+	return ValAndOff(val<<32 + int64(uint32(off)))
+}
+
 func (x ValAndOff) canAdd(off int64) bool {
 	newoff := x.Off() + off
 	return newoff == int64(int32(newoff))
