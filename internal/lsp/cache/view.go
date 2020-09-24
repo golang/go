@@ -1069,7 +1069,7 @@ func determineWorkspaceMode(options *source.Options, validBuildConfiguration boo
 		mode |= moduleMode
 	}
 	// The -modfile flag is available for Go versions >= 1.14.
-	if options.TempModfile && ws.goversion >= 14 {
+	if ws.modURI != "" && options.TempModfile && ws.goversion >= 14 {
 		mode |= tempModfile
 	}
 	// Don't default to multi-workspace mode if one of the modules contains a
