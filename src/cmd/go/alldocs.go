@@ -664,11 +664,12 @@
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
 // This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable is usually a better alternative, since
-// it provides control over which modules may be retrieved using an insecure
-// scheme. It should be noted that the -insecure flag also turns the module
-// checksum validation off. GOINSECURE does not do that, use GONOSUMDB.
-// See 'go help environment' for details.
+// The GOINSECURE environment variable should be used instead, since it
+// provides control over which modules may be retrieved using an insecure
+// scheme. Unlike the -insecure flag, GOINSECURE does not disable module
+// sum validation using the checksum database. The GOPRIVATE or GONOSUMDB
+// environment variable may be used instead. See 'go help environment'
+// for details.
 //
 // The second step is to download (if needed), build, and install
 // the named packages.
@@ -2214,8 +2215,8 @@
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
 // This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable is usually a better alternative, since
-// it provides control over which modules may be retrieved using an insecure
+// The GOINSECURE environment variable should be used instead, since it
+// provides control over which modules may be retrieved using an insecure
 // scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
