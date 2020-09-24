@@ -65,6 +65,20 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	var reportsMu sync.Mutex
 	reports := map[idWithAnalysis]map[string]*source.Diagnostic{}
+	addReport := func(id source.VersionedFileIdentity, withAnalysis bool, diags []*source.Diagnostic) {
+		reportsMu.Lock()
+		defer reportsMu.Unlock()
+		key := idWithAnalysis{
+			id:           id,
+			withAnalysis: withAnalysis,
+		}
+		if _, ok := reports[key]; !ok {
+			reports[key] = map[string]*source.Diagnostic{}
+		}
+		for _, d := range diags {
+			reports[key][diagnosticKey(d)] = d
+		}
+	}
 
 	// First, diagnose the go.mod file.
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
@@ -79,16 +93,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
 			continue
 		}
-		key := idWithAnalysis{
-			id:           id,
-			withAnalysis: true, // treat go.mod diagnostics like analyses
-		}
-		if _, ok := reports[key]; !ok {
-			reports[key] = map[string]*source.Diagnostic{}
-		}
-		for _, d := range diags {
-			reports[key][diagnosticKey(d)] = d
-		}
+		addReport(id, true, diags) // treat go.mod diagnostics like analyses
 	}
 
 	// Diagnose all of the packages in the workspace.
@@ -166,18 +171,8 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			}
 
 			// Add all reports to the global map, checking for duplicates.
-			reportsMu.Lock()
 			for id, diags := range pkgReports {
-				key := idWithAnalysis{
-					id:           id,
-					withAnalysis: withAnalysis,
-				}
-				if _, ok := reports[key]; !ok {
-					reports[key] = map[string]*source.Diagnostic{}
-				}
-				for _, d := range diags {
-					reports[key][diagnosticKey(d)] = d
-				}
+				addReport(id, withAnalysis, diags)
 			}
 			// If gc optimization details are available, add them to the
 			// diagnostic reports.
@@ -187,23 +182,64 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 					event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()))
 				}
 				for id, diags := range gcReports {
-					key := idWithAnalysis{
-						id:           id,
-						withAnalysis: withAnalysis,
-					}
-					if _, ok := reports[key]; !ok {
-						reports[key] = map[string]*source.Diagnostic{}
-					}
-					for _, d := range diags {
-						reports[key][diagnosticKey(d)] = d
-					}
+					addReport(id, withAnalysis, diags)
 				}
 			}
-			reportsMu.Unlock()
 		}(pkg)
+	}
+	// Confirm that every opened file belongs to a package (if any exist in
+	// the workspace). Otherwise, add a diagnostic to the file.
+	if len(wsPkgs) > 0 {
+		for _, o := range s.session.Overlays() {
+			diagnostic := s.checkForOrphanedFile(ctx, snapshot, o.URI())
+			if diagnostic == nil {
+				continue
+			}
+			// Lock the reports map, since the per-package goroutines may
+			// not have completed yet.
+			addReport(o.VersionedFileIdentity(), true, []*source.Diagnostic{diagnostic})
+		}
 	}
 	wg.Wait()
 	return reports, showMsg
+}
+
+// checkForOrphanedFile checks that the given URIs can be mapped to packages.
+// If they cannot and the workspace is not otherwise unloaded, it also surfaces
+// a warning, suggesting that the user check the file for build tags.
+func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, uri span.URI) *source.Diagnostic {
+	fh, err := snapshot.GetFile(ctx, uri)
+	if err != nil || fh.Kind() != source.Go {
+		return nil
+	}
+	pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
+	if len(pkgs) > 0 || err == nil {
+		return nil
+	}
+	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)
+	if err != nil {
+		return nil
+	}
+	spn, err := span.NewRange(snapshot.FileSet(), pgf.File.Name.Pos(), pgf.File.Name.End()).Span()
+	if err != nil {
+		return nil
+	}
+	rng, err := pgf.Mapper.Range(spn)
+	if err != nil {
+		return nil
+	}
+	// TODO(rstambler): We should be able to parse the build tags in the
+	// file and show a more specific error message. For now, put the diagnostic
+	// on the package declaration.
+	return &source.Diagnostic{
+		Range: rng,
+		Message: fmt.Sprintf(`No packages found for open file %s: %v.
+If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlag" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
+Otherwise, see the troubleshooting guidelines for help investigating (https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md).
+`, uri.Filename(), err),
+		Severity: protocol.SeverityWarning,
+		Source:   "compiler",
+	}
 }
 
 // diagnosticKey creates a unique identifier for a given diagnostic, since we

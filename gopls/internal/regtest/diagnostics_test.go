@@ -1348,7 +1348,7 @@ func _() {
 		)
 		env.OpenFile("a/a_ignore.go")
 		env.Await(
-			ShownMessage("No packages found for open file"),
+			DiagnosticAt("a/a_ignore.go", 2, 8),
 		)
 	})
 }
