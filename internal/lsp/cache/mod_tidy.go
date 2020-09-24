@@ -106,6 +106,9 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 				err: err,
 			}
 		}
+		// Get a new config to avoid races, since it may be modified by
+		// goCommandInvocation.
+		cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
 		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, cfg, true, "mod", []string{"tidy"})
 		if err != nil {
 			return &modTidyData{err: err}
