@@ -390,6 +390,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
 		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
 			if !ldr.AttrReachable(rs) {
+				if rt == objabi.R_METHODOFF {
+					// Set it to a sentinel value. The runtime knows this is not pointing to
+					// anything valid.
+					o = -1
+					break
+				}
 				continue
 			}
 			fallthrough
