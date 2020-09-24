@@ -61,7 +61,7 @@ func ispkgin(pkgs []string) bool {
 }
 
 func instrument(fn *ir.Func) {
-	if fn.Pragma&ir.Norace != 0 {
+	if fn.Pragma&ir.Norace != 0 || (fn.Sym().Linksym() != nil && fn.Sym().Linksym().ABIWrapper()) {
 		return
 	}
 
