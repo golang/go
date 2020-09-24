@@ -287,6 +287,54 @@ func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
 func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode) ([]source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
+	phs, err := s.packageHandlesForFile(ctx, uri, mode)
+	if err != nil {
+		return nil, err
+	}
+	var pkgs []source.Package
+	for _, ph := range phs {
+		pkg, err := ph.check(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs, nil
+}
+
+func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
+	ctx = event.Label(ctx, tag.URI.Of(uri))
+
+	phs, err := s.packageHandlesForFile(ctx, uri, mode)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(phs) < 1 {
+		return nil, errors.Errorf("no packages")
+	}
+
+	ph := phs[0]
+	for _, handle := range phs[1:] {
+		switch pkgPolicy {
+		case source.WidestPackage:
+			if ph == nil || len(handle.CompiledGoFiles()) > len(ph.CompiledGoFiles()) {
+				ph = handle
+			}
+		case source.NarrowestPackage:
+			if ph == nil || len(handle.CompiledGoFiles()) < len(ph.CompiledGoFiles()) {
+				ph = handle
+			}
+		}
+	}
+	if ph == nil {
+		return nil, errors.Errorf("no packages in input")
+	}
+
+	return ph.check(ctx, s)
+}
+
+func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode) ([]*packageHandle, error) {
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
@@ -310,7 +358,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 		}
 	}
 	// Get the list of IDs from the snapshot again, in case it has changed.
-	var pkgs []source.Package
+	var phs []*packageHandle
 	for _, id := range s.getIDsForURI(uri) {
 		var parseModes []source.ParseMode
 		switch mode {
@@ -327,22 +375,15 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 		}
 
 		for _, parseMode := range parseModes {
-			pkg, err := s.checkedPackage(ctx, id, parseMode)
+			ph, err := s.buildPackageHandle(ctx, id, parseMode)
 			if err != nil {
 				return nil, err
 			}
-			pkgs = append(pkgs, pkg)
+			phs = append(phs, ph)
 		}
 	}
-	return pkgs, nil
-}
 
-func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
-	ph, err := s.buildPackageHandle(ctx, id, mode)
-	if err != nil {
-		return nil, err
-	}
-	return ph.check(ctx, s)
+	return phs, nil
 }
 
 func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]source.Package, error) {
@@ -364,6 +405,14 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 		pkgs = append(pkgs, pkg)
 	}
 	return pkgs, nil
+}
+
+func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
+	ph, err := s.buildPackageHandle(ctx, id, mode)
+	if err != nil {
+		return nil, err
+	}
+	return ph.check(ctx, s)
 }
 
 // transitiveReverseDependencies populates the uris map with file URIs

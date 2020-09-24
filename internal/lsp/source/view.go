@@ -106,6 +106,10 @@ type Snapshot interface {
 	// in mode.
 	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode) ([]Package, error)
 
+	// PackageForFile returns a single package that this file belongs to,
+	// checked in mode and filtered by the package policy.
+	PackageForFile(ctx context.Context, uri span.URI, mode TypecheckMode, selectPackage PackageFilter) (Package, error)
+
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package, checked in TypecheckWorkspace mode.
 	GetReverseDependencies(ctx context.Context, id string) ([]Package, error)
@@ -126,6 +130,23 @@ type Snapshot interface {
 	// within a module, this is the module root and any replace targets.
 	WorkspaceDirectories(ctx context.Context) []span.URI
 }
+
+// PackageFilter sets how a package is filtered out from a set of packages
+// containing a given file.
+type PackageFilter int
+
+const (
+	// NarrowestPackage picks the "narrowest" package for a given file.
+	// By "narrowest" package, we mean the package with the fewest number of
+	// files that includes the given file. This solves the problem of test
+	// variants, as the test will have more files than the non-test package.
+	NarrowestPackage PackageFilter = iota
+
+	// WidestPackage returns the Package containing the most files.
+	// This is useful for something like diagnostics, where we'd prefer to
+	// offer diagnostics for as many files as possible.
+	WidestPackage
+)
 
 // View represents a single workspace.
 // This is the level at which we maintain configuration like working directory

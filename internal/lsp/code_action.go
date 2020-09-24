@@ -123,11 +123,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckFull)
-		if err != nil {
-			return nil, err
-		}
-		pkg, err := source.WidestPackage(pkgs)
+		pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
 		if err != nil {
 			return nil, err
 		}
