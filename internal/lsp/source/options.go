@@ -59,7 +59,7 @@ var (
 	defaultOptions *Options
 )
 
-//go:generate go run golang.org/x/tools/internal/lsp/source/genopts -output options_json.go
+//go:generate go run golang.org/x/tools/internal/lsp/source/genapijson -output api_json.go
 
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
@@ -101,8 +101,7 @@ func DefaultOptions() *Options {
 				LinkTarget: "pkg.go.dev",
 			},
 			DebuggingOptions: DebuggingOptions{
-				CompletionBudget:   100 * time.Millisecond,
-				LiteralCompletions: true,
+				CompletionBudget: 100 * time.Millisecond,
 			},
 			ExperimentalOptions: ExperimentalOptions{
 				TempModfile:             true,
@@ -123,6 +122,7 @@ func DefaultOptions() *Options {
 				Matcher:                 Fuzzy,
 				SymbolMatcher:           SymbolFuzzy,
 				SymbolStyle:             PackageQualifiedSymbols,
+				LiteralCompletions:      true,
 			},
 			Hooks: Hooks{
 				ComputeEdits:         myers.ComputeEdits,
@@ -235,20 +235,15 @@ type ExperimentalOptions struct {
 	// ```
 	Analyses map[string]bool
 
-	// Overrides the enabled/disabled state of various code lenses. Currently, we
-	// support several code lenses:
-	//
-	// * `generate`: run `go generate` as specified by a `//go:generate` directive.
-	// * `upgrade_dependency`: upgrade a dependency listed in a `go.mod` file.
-	// * `test`: run `go test -run` for a test func.
-	// * `gc_details`: Show the gc compiler's choices for inline analysis and escaping.
+	// Codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+	// section of settings.md for the list of supported lenses.
 	//
 	// Example Usage:
 	// ```json5
 	// "gopls": {
 	// ...
 	//   "codelens": {
-	//     "generate": false,  // Don't run `go generate`.
+	//     "generate": false,  // Don't show the `go generate` lens.
 	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
 	//   }
 	// ...
@@ -262,7 +257,7 @@ type ExperimentalOptions struct {
 	// CompleteUnimported enables completion for packages that you do not currently import.
 	CompleteUnimported bool
 
-	// DeepCompletion If true, this turns on the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
+	// DeepCompletion enables the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
 	//
 	// Consider this example:
 	//
@@ -326,6 +321,11 @@ type ExperimentalOptions struct {
 	// ExperimentalWorkspaceModule opts a user into the experimental support
 	// for multi-module workspaces.
 	ExperimentalWorkspaceModule bool
+
+	// LiteralCompletions controls whether literal candidates such as
+	// "&someStruct{}" are offered. Tests disable this flag to simplify
+	// their expected values.
+	LiteralCompletions bool
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may
@@ -340,11 +340,6 @@ type DebuggingOptions struct {
 	// dynamically reduce the search scope to ensure we return timely
 	// results. Zero means unlimited.
 	CompletionBudget time.Duration
-
-	// LiteralCompletions controls whether literal candidates such as
-	// "&someStruct{}" are offered. Tests disable this flag to simplify
-	// their expected values.
-	LiteralCompletions bool
 }
 
 type ImportShortcut string
@@ -899,4 +894,30 @@ func urlRegexp() *regexp.Regexp {
 	re := regexp.MustCompile(`\b(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?\b`)
 	re.Longest()
 	return re
+}
+
+type APIJSON struct {
+	Options  map[string][]*OptionJSON
+	Commands []*CommandJSON
+	Lenses   []*LensJSON
+}
+
+type OptionJSON struct {
+	Name       string
+	Type       string
+	Doc        string
+	EnumValues []string
+	Default    string
+}
+
+type CommandJSON struct {
+	Command string
+	Title   string
+	Doc     string
+}
+
+type LensJSON struct {
+	Lens  string
+	Title string
+	Doc   string
 }

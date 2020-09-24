@@ -83,17 +83,17 @@ func (b *bug) Run(ctx context.Context, args ...string) error {
 	return nil
 }
 
-type settingsJson struct{}
+type apiJSON struct{}
 
-func (sj *settingsJson) Name() string      { return "settings-json" }
-func (sj *settingsJson) Usage() string     { return "" }
-func (sj *settingsJson) ShortHelp() string { return "print json describing gopls settings" }
-func (sj *settingsJson) DetailedHelp(f *flag.FlagSet) {
+func (sj *apiJSON) Name() string      { return "api-json" }
+func (sj *apiJSON) Usage() string     { return "" }
+func (sj *apiJSON) ShortHelp() string { return "print json describing gopls API" }
+func (sj *apiJSON) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), ``)
 	f.PrintDefaults()
 }
 
-func (sj *settingsJson) Run(ctx context.Context, args ...string) error {
-	fmt.Fprintf(os.Stdout, source.OptionsJson)
+func (sj *apiJSON) Run(ctx context.Context, args ...string) error {
+	fmt.Fprintf(os.Stdout, source.GeneratedAPIJSON)
 	return nil
 }

@@ -16,7 +16,7 @@ func TestGenerate(t *testing.T) {
 	testenv.NeedsGoBuild(t) // This is a lie. We actually need the source code.
 	testenv.NeedsGoPackages(t)
 
-	got, err := ioutil.ReadFile("../options_json.go")
+	got, err := ioutil.ReadFile("../api_json.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,6 +25,6 @@ func TestGenerate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(got, want) {
-		t.Error("options_json is out of sync. Run `go generate ./internal/lsp/source` from the root of tools.")
+		t.Error("api_json is out of sync. Run `go generate ./internal/lsp/source` from the root of tools.")
 	}
 }

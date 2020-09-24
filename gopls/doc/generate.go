@@ -11,79 +11,101 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"golang.org/x/tools/internal/lsp/source"
 )
 
 func main() {
-	if err := doMain(); err != nil {
+	if _, err := doMain(".", true); err != nil {
 		fmt.Fprintf(os.Stderr, "Generation failed: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func doMain() error {
-	var opts map[string][]option
-	if err := json.Unmarshal([]byte(source.OptionsJson), &opts); err != nil {
-		return err
+func doMain(baseDir string, write bool) (bool, error) {
+	api := &source.APIJSON{}
+	if err := json.Unmarshal([]byte(source.GeneratedAPIJSON), api); err != nil {
+		return false, err
 	}
 
-	doc, err := ioutil.ReadFile("gopls/doc/settings.md")
-	if err != nil {
-		return err
+	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/settings.md"), api, write, rewriteSettings); !ok || err != nil {
+		return ok, err
+	}
+	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/commands.md"), api, write, rewriteCommands); !ok || err != nil {
+		return ok, err
 	}
 
-	content, err := rewriteDoc(doc, opts)
-	if err != nil {
-		return err
-	}
-
-	if err := ioutil.WriteFile("gopls/doc/settings.md", content, 0); err != nil {
-		return err
-	}
-
-	return nil
+	return true, nil
 }
 
-type option struct {
-	Name       string
-	Type       string
-	Doc        string
-	EnumValues []string
-	Default    string
+func rewriteFile(file string, api *source.APIJSON, write bool, rewrite func([]byte, *source.APIJSON) ([]byte, error)) (bool, error) {
+	doc, err := ioutil.ReadFile(file)
+	if err != nil {
+		return false, err
+	}
+
+	content, err := rewrite(doc, api)
+	if err != nil {
+		return false, fmt.Errorf("rewriting %q: %v", file, err)
+	}
+
+	if !bytes.Equal(doc, content) && !write {
+		return false, nil
+	}
+
+	if err := ioutil.WriteFile(file, content, 0); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
-func rewriteDoc(doc []byte, categories map[string][]option) ([]byte, error) {
-	var err error
-	for _, cat := range []string{"User", "Experimental"} {
-		doc, err = rewriteSection(doc, categories, cat)
+func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
+	var result []byte
+	for category, opts := range api.Options {
+		section := bytes.NewBuffer(nil)
+		for _, opt := range opts {
+			var enumValues string
+			if len(opt.EnumValues) > 0 {
+				enumValues = "Must be one of:\n\n"
+				for _, val := range opt.EnumValues {
+					enumValues += fmt.Sprintf(" * `%v`\n", val)
+				}
+			}
+			fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues, opt.Default)
+		}
+		var err error
+		result, err = replaceSection(doc, category, section.Bytes())
 		if err != nil {
 			return nil, err
 		}
 	}
-	return doc, nil
+
+	section := bytes.NewBuffer(nil)
+	for _, lens := range api.Lenses {
+		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", lens.Title, lens.Lens, lens.Doc)
+	}
+	return replaceSection(result, "Lenses", section.Bytes())
 }
 
-func rewriteSection(doc []byte, categories map[string][]option, category string) ([]byte, error) {
+func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
 	section := bytes.NewBuffer(nil)
-	for _, opt := range categories[category] {
-		var enumValues string
-		if len(opt.EnumValues) > 0 {
-			enumValues = "Must be one of:\n\n"
-			for _, val := range opt.EnumValues {
-				enumValues += fmt.Sprintf(" * `%v`\n", val)
-			}
-		}
-		fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues, opt.Default)
+	for _, command := range api.Commands {
+		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", command.Title, command.Command, command.Doc)
 	}
-	re := regexp.MustCompile(fmt.Sprintf(`(?s)<!-- BEGIN %v.* -->\n(.*?)<!-- END %v.* -->`, category, category))
+	return replaceSection(doc, "Commands", section.Bytes())
+}
+
+func replaceSection(doc []byte, sectionName string, replacement []byte) ([]byte, error) {
+	re := regexp.MustCompile(fmt.Sprintf(`(?s)<!-- BEGIN %v.* -->\n(.*?)<!-- END %v.* -->`, sectionName, sectionName))
 	idx := re.FindSubmatchIndex(doc)
 	if idx == nil {
-		return nil, fmt.Errorf("could not find section %v", category)
+		return nil, fmt.Errorf("could not find section %q", sectionName)
 	}
 	result := append([]byte(nil), doc[:idx[2]]...)
-	result = append(result, section.Bytes()...)
+	result = append(result, replacement...)
 	result = append(result, doc[idx[3]:]...)
 	return result, nil
 }

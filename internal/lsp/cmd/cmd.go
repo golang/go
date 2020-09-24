@@ -170,7 +170,7 @@ func (app *Application) mainCommands() []tool.Application {
 		&app.Serve,
 		&version{app: app},
 		&bug{},
-		&settingsJson{},
+		&apiJSON{},
 	}
 }
 

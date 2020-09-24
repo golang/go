@@ -95,20 +95,15 @@ Example Usage:
 
 Default: `{}`.
 ### **codelens** *map[string]bool*
-overrides the enabled/disabled state of various code lenses. Currently, we
-support several code lenses:
-
-* `generate`: run `go generate` as specified by a `//go:generate` directive.
-* `upgrade_dependency`: upgrade a dependency listed in a `go.mod` file.
-* `test`: run `go test -run` for a test func.
-* `gc_details`: Show the gc compiler's choices for inline analysis and escaping.
+codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+section of settings.md for the list of supported lenses.
 
 Example Usage:
 ```json5
 "gopls": {
 ...
   "codelens": {
-    "generate": false,  // Don't run `go generate`.
+    "generate": false,  // Don't show the `go generate` lens.
     "gc_details": true  // Show a code lens toggling the display of gc's choices.
   }
 ...
@@ -128,7 +123,7 @@ completeUnimported enables completion for packages that you do not currently imp
 
 Default: `true`.
 ### **deepCompletion** *bool*
-deepCompletion If true, this turns on the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
+deepCompletion enables the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
 
 Consider this example:
 
@@ -236,4 +231,81 @@ for multi-module workspaces.
 
 
 Default: `false`.
+### **literalCompletions** *bool*
+literalCompletions controls whether literal candidates such as
+"&someStruct{}" are offered. Tests disable this flag to simplify
+their expected values.
+
+
+Default: `true`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
+
+## Debugging
+
+The below settings are for use in debugging `gopls`. Like the experimental options, they may be deprecated or changed in the future.
+
+<!-- BEGIN Debugging: DO NOT MANUALLY EDIT THIS SECTION -->
+### **verboseOutput** *bool*
+verboseOutput enables additional debug logging.
+
+
+Default: `false`.
+### **completionBudget** *time.Duration*
+completionBudget is the soft latency goal for completion requests. Most
+requests finish in a couple milliseconds, but in some cases deep
+completions can take much longer. As we use up our budget we
+dynamically reduce the search scope to ensure we return timely
+results. Zero means unlimited.
+
+
+Default: `100000000`.
+<!-- END Debugging: DO NOT MANUALLY EDIT THIS SECTION -->
+
+## Code Lenses
+
+These are the code lenses that `gopls` currently supports. They can be enabled and disabled using the `codeLenses` setting, documented above. The names and features are subject to change.
+
+<!-- BEGIN Lenses: DO NOT MANUALLY EDIT THIS SECTION -->
+### **Run go generate**
+Identifier: `generate`
+
+generate runs `go generate` for a given directory.
+
+
+### **Regenerate cgo**
+Identifier: `regenerate_cgo`
+
+regenerate_cgo regenerates cgo definitions.
+
+
+### **Run test(s)**
+Identifier: `test`
+
+test runs `go test` for a specific test function.
+
+
+### **Run go mod tidy**
+Identifier: `tidy`
+
+tidy runs `go mod tidy` for a module.
+
+
+### **Upgrade dependency**
+Identifier: `upgrade_dependency`
+
+upgrade_dependency upgrades a dependency.
+
+
+### **Run go mod vendor**
+Identifier: `vendor`
+
+vendor runs `go mod vendor` for a module.
+
+
+### **Toggle gc_details**
+Identifier: `gc_details`
+
+gc_details controls calculation of gc annotations.
+
+
+<!-- END Lenses: DO NOT MANUALLY EDIT THIS SECTION -->
