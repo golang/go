@@ -1144,3 +1144,26 @@ func initializeTypesPackage() {
 
 	initUniverse()
 }
+
+// useNewABIWrapGen returns TRUE if the compiler should generate an
+// ABI wrapper for the function 'f'.
+func useABIWrapGen(f *ir.Func) bool {
+	if !base.Flag.ABIWrap {
+		return false
+	}
+
+	// Support limit option for bisecting.
+	if base.Flag.ABIWrapLimit == 1 {
+		return false
+	}
+	if base.Flag.ABIWrapLimit < 1 {
+		return true
+	}
+	base.Flag.ABIWrapLimit--
+	if base.Debug.ABIWrap != 0 && base.Flag.ABIWrapLimit == 1 {
+		fmt.Fprintf(os.Stderr, "=-= limit reached after new wrapper for %s\n",
+			f.LSym.Name)
+	}
+
+	return true
+}

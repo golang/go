@@ -32,7 +32,6 @@ func emitptrargsmap(fn *ir.Func) {
 		return
 	}
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
-
 	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
@@ -399,7 +398,11 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
-		if expect := fn.Sym().Linksym(); fnsym != expect {
+		expect := fn.Sym().Linksym()
+		if fnsym.ABI() == obj.ABI0 {
+			expect = fn.Sym().LinksymABI0()
+		}
+		if fnsym != expect {
 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 		}
 	}
