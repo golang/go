@@ -734,7 +734,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		if r.Sym != nil {
 			name = r.Sym.Name
 			if ctxt.Debugasm > 1 {
-				ver = fmt.Sprintf("<%d>", s.ABI())
+				ver = fmt.Sprintf("<%d>", r.Sym.ABI())
 			}
 		} else if r.Type == objabi.R_TLS_LE {
 			name = "TLS"
