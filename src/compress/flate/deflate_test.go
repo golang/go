@@ -923,21 +923,21 @@ func TestBestSpeedShiftOffsets(t *testing.T) {
 	// Part 1 before wrap, should match clean state.
 	got := len(enc.encode(nil, testData))
 	if wantFirstTokens != got {
-		t.Errorf("want %d tokens, got %d", wantFirstTokens, got)
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
 	}
 
-	// Verify we are about to wrap
+	// Verify we are about to wrap.
 	if enc.cur != bufferReset {
-		t.Errorf("want e.cur to be at bufferReset (%d), got %d", bufferReset, enc.cur)
+		t.Errorf("got %d, want e.cur to be at bufferReset (%d)", enc.cur, bufferReset)
 	}
 
 	// Part 2 should match clean state as well even if wrapped.
 	got = len(enc.encode(nil, testData))
 	if wantSecondTokens != got {
-		t.Errorf("want %d tokens, got %d", wantSecondTokens, got)
+		t.Errorf("got %d, want %d token", got, wantSecondTokens)
 	}
 
-	// Verify that we wrapped
+	// Verify that we wrapped.
 	if enc.cur >= bufferReset {
 		t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, enc.cur)
 	}
@@ -949,7 +949,7 @@ func TestBestSpeedShiftOffsets(t *testing.T) {
 	// Ensure that no matches were picked up.
 	got = len(enc.encode(nil, testData))
 	if wantFirstTokens != got {
-		t.Errorf("want %d tokens, got %d", wantFirstTokens, got)
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
 	}
 }
 
