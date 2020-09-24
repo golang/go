@@ -166,10 +166,14 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		return nil, nil, func() {}, err
 	}
 
-	// Find all of the modules in the workspace.
-	modules, err := findWorkspaceModules(ctx, ws.rootURI, options)
-	if err != nil {
-		return nil, nil, func() {}, err
+	// If workspace module mode is enabled, find all of the modules in the
+	// workspace.
+	var modules map[span.URI]*moduleRoot
+	if options.ExperimentalWorkspaceModule {
+		modules, err = findWorkspaceModules(ctx, ws.rootURI, options)
+		if err != nil {
+			return nil, nil, func() {}, err
+		}
 	}
 
 	// Now that we have set all required fields,
