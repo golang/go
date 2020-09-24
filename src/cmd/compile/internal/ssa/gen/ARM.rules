@@ -243,8 +243,8 @@
 (Leq16U x y) => (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) => (LessEqualU (CMP x y))
 
-(OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
-(OffPtr [off] ptr) -> (ADDconst [off] ptr)
+(OffPtr [off] ptr:(SP)) => (MOVWaddr [int32(off)] ptr)
+(OffPtr [off] ptr) => (ADDconst [int32(off)] ptr)
 
 (Addr ...) -> (MOVWaddr ...)
 (LocalAddr {sym} base _) => (MOVWaddr {sym} base)
@@ -1470,6 +1470,6 @@
 (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRLreg x y z) yes no)
 (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRAreg x y z) yes no)
 
-(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
