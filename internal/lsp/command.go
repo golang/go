@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"path"
 	"path/filepath"
 
 	"golang.org/x/tools/internal/event"
@@ -203,7 +201,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if err := source.UnmarshalArgs(args, &fileURI); err != nil {
 			return err
 		}
-		pkgDir := span.URIFromPath(path.Dir(fileURI.Filename()))
+		pkgDir := span.URIFromPath(filepath.Dir(fileURI.Filename()))
 		s.gcOptimizationDetailsMu.Lock()
 		if _, ok := s.gcOptimizatonDetails[pkgDir]; ok {
 			delete(s.gcOptimizatonDetails, pkgDir)
@@ -211,8 +209,6 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 			s.gcOptimizatonDetails[pkgDir] = struct{}{}
 		}
 		s.gcOptimizationDetailsMu.Unlock()
-		event.Log(ctx, fmt.Sprintf("gc_details %s now %v %v", pkgDir, s.gcOptimizatonDetails[pkgDir],
-			s.gcOptimizatonDetails))
 		// need to recompute diagnostics.
 		// so find the snapshot
 		sv, err := s.session.ViewOf(fileURI)
@@ -290,7 +286,6 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	var failedTests int
 	for _, funcName := range tests {
 		args := []string{pkgPath, "-v", "-count=1", "-run", fmt.Sprintf("^%s$", funcName)}
-		log.Printf("running with these args: %v", args)
 		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err

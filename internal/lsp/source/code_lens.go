@@ -242,14 +242,12 @@ func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.CodeLens{
-		{
-			Range: rng,
-			Command: protocol.Command{
-				Title:     "Toggle gc annotation details",
-				Command:   CommandToggleDetails.Name,
-				Arguments: jsonArgs,
-			},
+	return []protocol.CodeLens{{
+		Range: rng,
+		Command: protocol.Command{
+			Title:     "Toggle gc annotation details",
+			Command:   CommandToggleDetails.Name,
+			Arguments: jsonArgs,
 		},
-	}, nil
+	}}, nil
 }

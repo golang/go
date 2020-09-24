@@ -5,6 +5,8 @@
 package regtest
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -177,24 +179,7 @@ func main() {
 `
 	runner.Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		lenses := env.CodeLens("go.mod")
-		want := "Tidy module"
-		var found protocol.CodeLens
-		for _, lens := range lenses {
-			if lens.Command.Title == want {
-				found = lens
-				break
-			}
-		}
-		if found.Command.Command == "" {
-			t.Fatalf("did not find lens %q, got %v", want, found.Command)
-		}
-		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
-			Command:   found.Command.Command,
-			Arguments: found.Command.Arguments,
-		}); err != nil {
-			t.Fatal(err)
-		}
+		env.ExecuteCodeLensCommand("go.mod", source.CommandTidy)
 		env.Await(NoOutstandingWork())
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
@@ -239,19 +224,62 @@ func Foo() {
 		env.Await(env.DiagnosticAtRegexp("cgo.go", `C\.(fortytwo)`))
 
 		// Regenerate cgo, fixing the diagnostic.
-		lenses := env.CodeLens("cgo.go")
-		var lens protocol.CodeLens
-		for _, l := range lenses {
-			if l.Command.Command == source.CommandRegenerateCgo.Name {
-				lens = l
+		env.ExecuteCodeLensCommand("cgo.go", source.CommandRegenerateCgo)
+		env.Await(EmptyDiagnostics("cgo.go"))
+	})
+}
+
+func TestGCDetails(t *testing.T) {
+	testenv.NeedsGo1Point(t, 15)
+	if runtime.GOOS == "android" {
+		t.Skipf("the gc details code lens doesn't work on Android")
+	}
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.15
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	var x string
+	fmt.Println(x)
+}
+`
+	withOptions(
+		EditorConfig{CodeLens: map[string]bool{"gc_details": true}},
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(InitialWorkspaceLoad)
+		env.OpenFile("main.go")
+		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
+		d := &protocol.PublishDiagnosticsParams{}
+		env.Await(
+			OnceMet(
+				DiagnosticAt("main.go", 6, 12),
+				ReadDiagnostics("main.go", d),
+			),
+		)
+		// Confirm that the diagnostics come from the gc details code lens.
+		var found bool
+		for _, d := range d.Diagnostics {
+			if d.Severity != protocol.SeverityInformation {
+				t.Fatalf("unexpected diagnostic severity %v, wanted Information", d.Severity)
+			}
+			if strings.Contains(d.Message, "x escapes") {
+				found = true
 			}
 		}
-		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
-			Command:   lens.Command.Command,
-			Arguments: lens.Command.Arguments,
-		}); err != nil {
-			t.Fatal(err)
+		if !found {
+			t.Fatalf(`expected to find diagnostic with message "escape(x escapes to heap)", found none`)
 		}
-		env.Await(EmptyDiagnostics("cgo.go"))
+		// Toggle the GC details code lens again so now it should be off.
+		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
 	})
 }

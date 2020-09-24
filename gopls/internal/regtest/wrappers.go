@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
 )
 
@@ -257,6 +258,29 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 		e.T.Fatal(err)
 	}
 	return lens
+}
+
+// ExecuteCodeLensCommand executes the command for the code lens matching the
+// given command name.
+func (e *Env) ExecuteCodeLensCommand(path string, cmd *source.Command) {
+	lenses := e.CodeLens(path)
+	var lens protocol.CodeLens
+	var found bool
+	for _, l := range lenses {
+		if l.Command.Command == cmd.Name {
+			lens = l
+			found = true
+		}
+	}
+	if !found {
+		e.T.Fatalf("found no command with the title %s", cmd.Name)
+	}
+	if _, err := e.Editor.Server.ExecuteCommand(e.Ctx, &protocol.ExecuteCommandParams{
+		Command:   lens.Command.Command,
+		Arguments: lens.Command.Arguments,
+	}); err != nil {
+		e.T.Fatal(err)
+	}
 }
 
 // References calls textDocument/references for the given path at the given
