@@ -3298,6 +3298,9 @@ type TextDocumentClientCapabilities struct {
 	 * @since 3.16.0
 	 */
 	CallHierarchy CallHierarchyClientCapabilities `json:"callHierarchy,omitempty"`
+
+	// missing in source, generated
+	SemanticTokens *SemanticTokensClientCapabilities `json:"semanticTokens,omitempty"`
 }
 
 /**
@@ -3859,6 +3862,20 @@ type WorkspaceSymbolParams struct {
 	Query string `json:"query"`
 	WorkDoneProgressParams
 	PartialResultParams
+}
+
+// generated
+type SemanticTokensClientCapabilities struct {
+	TokenModifiers []string
+	Formats        []string
+	Requests       struct {
+		Range bool
+		Full  struct {
+			Delta bool
+		}
+	}
+	DynamicRegistration bool
+	TokenTypes          []string
 }
 
 const (

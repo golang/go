@@ -313,6 +313,10 @@ type ExperimentalOptions struct {
 	// progress reports for all work done outside the scope of an RPC.
 	VerboseWorkDoneProgress bool
 
+	// SemanticTokens controls whether the LSP server will send
+	// semantic tokens to the client.
+	SemanticTokens bool
+
 	// ExpandWorkspaceToModule instructs `gopls` to expand the scope of the workspace to include the
 	// modules containing the workspace folders. Set this to false to avoid loading
 	// your entire module. This is particularly useful for those working in a monorepo.
@@ -679,6 +683,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "gofumpt":
 		result.setBool(&o.Gofumpt)
+
+	case "semantictokens":
+		result.setBool(&o.SemanticTokens)
 
 	case "expandWorkspaceToModule":
 		result.setBool(&o.ExpandWorkspaceToModule)

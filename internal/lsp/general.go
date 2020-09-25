@@ -86,7 +86,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	goplsVer := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, goplsVer, true, debug.PlainText)
 
-	return &protocol.InitializeResult{
+	ans := &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CallHierarchyProvider: true,
 			CodeActionProvider:    codeActionProvider,
@@ -132,7 +132,25 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 			Name:    "gopls",
 			Version: goplsVer.String(),
 		},
-	}, nil
+	}
+
+	st := params.Capabilities.TextDocument.SemanticTokens
+	if st != nil {
+		tokTypes, tokModifiers := rememberToks(st.TokenTypes, st.TokenModifiers)
+		// check that st.TokenFormat is "relative"
+		v := &protocol.SemanticTokensOptions{
+			Legend: protocol.SemanticTokensLegend{
+				// TODO(pjw): trim these to what we use (and an unused one
+				// at position 0 of TokTypes, to catch typos)
+				TokenTypes:     tokTypes,
+				TokenModifiers: tokModifiers,
+			},
+			Range: true,
+			Full:  true,
+		}
+		ans.Capabilities.SemanticTokensProvider = v
+	}
+	return ans, nil
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {

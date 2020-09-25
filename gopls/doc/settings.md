@@ -218,6 +218,12 @@ progress reports for all work done outside the scope of an RPC.
 
 
 Default: `false`.
+### **semanticTokens** *bool*
+semanticTokens controls whether the LSP server will send
+semantic tokens to the client.
+
+
+Default: `false`.
 ### **expandWorkspaceToModule** *bool*
 expandWorkspaceToModule instructs `gopls` to expand the scope of the workspace to include the
 modules containing the workspace folders. Set this to false to avoid loading
