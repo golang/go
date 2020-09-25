@@ -338,7 +338,9 @@ func Hello() int {
 	var x int
 }
 `
-	run(t, multiModule, func(t *testing.T, env *Env) {
+	withOptions(
+		WithProxyFiles(workspaceModuleProxy),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
 		env.Await(
 			OnceMet(

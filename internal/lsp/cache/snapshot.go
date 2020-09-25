@@ -809,8 +809,8 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	// If the view's build configuration is invalid, we cannot reload by package path.
-	// Just reload the directory instead.
+	// If the view's build configuration is invalid, we cannot reload by
+	// package path. Just reload the directory instead.
 	if !s.view.hasValidBuildConfiguration {
 		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
 	}
@@ -1001,6 +1001,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		result.modules[k] = v
 	}
 
+	var modulesChanged, shouldReinitializeView bool
+
 	// transitiveIDs keeps track of transitive reverse dependencies.
 	// If an ID is present in the map, invalidate its types.
 	// If an ID's value is true, invalidate its metadata too.
@@ -1044,6 +1046,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		currentMod := currentExists && currentFH.Kind() == source.Mod
 		originalMod := originalFH != nil && originalFH.Kind() == source.Mod
 		if currentMod || originalMod {
+			modulesChanged = true
+
 			// If the view's go.mod file's contents have changed, invalidate
 			// the metadata for every known package in the snapshot.
 			if invalidateMetadata {
@@ -1061,16 +1065,15 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			rootURI := span.URIFromPath(filepath.Dir(withoutURI.Filename()))
 			if currentMod {
 				if _, ok := result.modules[rootURI]; !ok {
-					m := newModule(ctx, currentFH.URI())
-					result.modules[m.rootURI] = m
-					result.view.definitelyReinitialize()
+					result.modules[rootURI] = newModule(ctx, currentFH.URI())
+					shouldReinitializeView = true
 				}
 			} else if originalMod {
 				// Similarly, we need to retry the IWL if a go.mod in the workspace
 				// was deleted.
 				if _, ok := result.modules[rootURI]; ok {
 					delete(result.modules, rootURI)
-					result.view.definitelyReinitialize()
+					shouldReinitializeView = true
 				}
 			}
 		}
@@ -1090,12 +1093,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 					mod.sumURI = ""
 				}
 			}
-		}
-		if withoutURI == s.view.modURI {
-			// The go.mod's replace directives may have changed. We may
-			// need to update our set of workspace directories. Use the new
-			// snapshot, as it can be locked without causing issues.
-			result.workspaceDirectories = result.findWorkspaceDirectories(ctx, currentFH)
 		}
 
 		// If this is a file we don't yet know about,
@@ -1147,6 +1144,14 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		// Make sure to remove the changed file from the unloadable set.
 		delete(result.unloadableFiles, withoutURI)
 	}
+
+	// When modules change, we need to recompute their workspace directories,
+	// as replace directives may have changed.
+	if modulesChanged {
+		// Use the new snapshot, as it can be locked without causing issues.
+		result.workspaceDirectories = result.findWorkspaceDirectories(ctx)
+	}
+
 	// Copy the package type information.
 	for k, v := range s.packages {
 		if _, ok := transitiveIDs[k.id]; ok {
@@ -1206,6 +1211,10 @@ copyIDs:
 		}
 
 		result.workspacePackages[id] = pkgPath
+	}
+
+	if shouldReinitializeView && s.view.hasValidBuildConfiguration {
+		s.view.definitelyReinitialize()
 	}
 
 	// Inherit all of the go.mod-related handles.
@@ -1309,35 +1318,35 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 //
 // It assumes that the file handle is the view's go.mod file, if it has one.
 // The caller need not be holding the snapshot's mutex, but it might be.
-func (s *snapshot) findWorkspaceDirectories(ctx context.Context, modFH source.FileHandle) map[span.URI]struct{} {
-	m := map[span.URI]struct{}{
-		s.view.rootURI: {},
-	}
+func (s *snapshot) findWorkspaceDirectories(ctx context.Context) map[span.URI]struct{} {
 	// If the view does not have a go.mod file, only the root directory
 	// is known. In GOPATH mode, we should really watch the entire GOPATH,
 	// but that's too expensive.
-	modURI := s.view.modURI
-	if modURI == "" {
-		return m
+	dirs := map[span.URI]struct{}{
+		s.view.rootURI: {},
 	}
-	if modFH == nil {
-		return m
-	}
-	// Ignore parse errors. An invalid go.mod is not fatal.
-	mod, err := s.ParseMod(ctx, modFH)
-	if err != nil {
-		return m
-	}
-	for _, r := range mod.File.Replace {
-		// We may be replacing a module with a different version, not a path
-		// on disk.
-		if r.New.Version != "" {
+	for _, m := range s.modules {
+		fh, err := s.GetFile(ctx, m.modURI)
+		if err != nil {
 			continue
 		}
-		uri := span.URIFromPath(r.New.Path)
-		m[uri] = struct{}{}
+		// Ignore parse errors. An invalid go.mod is not fatal.
+		// TODO(rstambler): Try to preserve existing watched directories as
+		// much as possible, otherwise we will thrash when a go.mod is edited.
+		mod, err := s.ParseMod(ctx, fh)
+		if err != nil {
+			continue
+		}
+		for _, r := range mod.File.Replace {
+			// We may be replacing a module with a different version, not a path
+			// on disk.
+			if r.New.Version != "" {
+				continue
+			}
+			dirs[span.URIFromPath(r.New.Path)] = struct{}{}
+		}
 	}
-	return m
+	return dirs
 }
 
 func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, error) {

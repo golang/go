@@ -227,14 +227,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		modules:           modules,
 	}
 
-	// TODO(rstambler): Change this function to work without a snapshot.
-	// Set the first snapshot's workspace directories. The view's modURI was
-	// set by setBuildInformation.
-	var fh source.FileHandle
-	if v.modURI != "" {
-		fh, _ = s.GetFile(ctx, v.modURI)
-	}
-	v.snapshot.workspaceDirectories = v.snapshot.findWorkspaceDirectories(ctx, fh)
+	v.snapshot.workspaceDirectories = v.snapshot.findWorkspaceDirectories(ctx)
 
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
