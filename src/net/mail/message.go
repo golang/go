@@ -741,7 +741,8 @@ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, e
 		return word, true, nil
 	}
 
-	if _, ok := err.(mime.CharsetError); ok {
+	var charsetErr mime.CharsetError
+	if errors.As(err, &charsetErr) {
 		return s, true, err
 	}
 

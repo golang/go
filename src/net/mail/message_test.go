@@ -6,6 +6,7 @@ package mail
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -898,6 +899,13 @@ func TestAddressParserUnsupportedCharset(t *testing.T) {
 			(&AddressParser{WordDecoder: &mime.WordDecoder{
 				CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
 					return nil, mime.CharsetError(charset)
+				},
+			}}).Parse,
+		},
+		{
+			(&AddressParser{WordDecoder: &mime.WordDecoder{
+				CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
+					return nil, fmt.Errorf("%w", mime.CharsetError(charset))
 				},
 			}}).Parse,
 		},
