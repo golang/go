@@ -666,7 +666,7 @@
 // module sum validation using the checksum database. Use with caution.
 // This flag is deprecated and will be removed in a future version of go.
 // To permit the use of insecure schemes, use the GOINSECURE environment
-// variable instead. To disable module sum validation, use GOPRIVATE or
+// variable instead. To bypass module sum validation, use GOPRIVATE or
 // GONOSUMDB. See 'go help environment' for details.
 //
 // The second step is to download (if needed), build, and install
