@@ -115,14 +115,12 @@ require downgrading other dependencies, and 'go get' does
 this automatically as well.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
+custom domains using insecure schemes such as HTTP, and also bypassess
+module sum validation using the checksum database. Use with caution.
 This flag is deprecated and will be removed in a future version of go.
-The GOINSECURE environment variable should be used instead, since it
-provides control over which modules may be retrieved using an insecure
-scheme. Unlike the -insecure flag, GOINSECURE does not disable module
-sum validation using the checksum database. The GOPRIVATE or GONOSUMDB
-environment variable may be used instead. See 'go help environment'
-for details.
+To permit the use of insecure schemes, use the GOINSECURE environment
+variable instead. To disable module sum validation, use GOPRIVATE or
+GONOSUMDB. See 'go help environment' for details.
 
 The second step is to download (if needed), build, and install
 the named packages.
