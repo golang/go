@@ -517,6 +517,7 @@ ccflags="$@"
 		$2 ~ /^CP_/ ||
 		$2 ~ /^CPUSTATES$/ ||
 		$2 ~ /^ALG_/ ||
+		$2 ~ /^FI(CLONE|DEDUPERANGE)/ ||
 		$2 ~ /^FS_(POLICY_FLAGS|KEY_DESC|ENCRYPTION_MODE|[A-Z0-9_]+_KEY_SIZE)/ ||
 		$2 ~ /^FS_IOC_.*(ENCRYPTION|VERITY|[GS]ETFLAGS)/ ||
 		$2 ~ /^FS_VERITY_/ ||

@@ -40,7 +40,7 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sys v0.0.0-20200918174421-af09f7315aff
+# golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix

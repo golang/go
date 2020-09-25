@@ -39,7 +39,7 @@ func initOptions() {
 
 func archInit() {
 	switch runtime.GOOS {
-	case "android", "darwin", "netbsd":
+	case "android", "darwin", "ios", "netbsd":
 		// Android and iOS don't seem to allow reading these registers.
 		//
 		// NetBSD:

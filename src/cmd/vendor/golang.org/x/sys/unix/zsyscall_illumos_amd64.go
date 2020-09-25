@@ -13,7 +13,7 @@ import (
 //go:cgo_import_dynamic libc_preadv preadv "libc.so"
 //go:cgo_import_dynamic libc_writev writev "libc.so"
 //go:cgo_import_dynamic libc_pwritev pwritev "libc.so"
-//go:cgo_import_dynamic libc_accept4 accept4 "libc.so"
+//go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
 //go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
 
 //go:linkname procreadv libc_readv
