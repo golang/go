@@ -36,7 +36,7 @@ func TestLSP(t *testing.T) {
 type runner struct {
 	server      *Server
 	data        *tests.Data
-	diagnostics map[span.URI]map[string]*source.Diagnostic
+	diagnostics map[span.URI][]*source.Diagnostic
 	ctx         context.Context
 }
 
@@ -83,12 +83,22 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		t.Fatal(err)
 	}
 	r := &runner{
-		server: NewServer(session, nil),
+		server: NewServer(session, testClient{}),
 		data:   datum,
 		ctx:    ctx,
 	}
 	tests.Run(t, r, datum)
+}
 
+// testClient stubs any client functions that may be called by LSP functions.
+type testClient struct {
+	protocol.Client
+}
+
+// Trivially implement PublishDiagnostics so that we can call
+// server.publishReports below to de-dup sent diagnostics.
+func (c testClient) PublishDiagnostics(context.Context, *protocol.PublishDiagnosticsParams) error {
+	return nil
 }
 
 func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {
@@ -170,17 +180,8 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	// Get the diagnostics for this view if we have not done it before.
-	if r.diagnostics == nil {
-		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
-		v := r.server.session.View(r.data.Config.Dir)
-		// Always run diagnostics with analysis.
-		snapshot, release := v.Snapshot(r.ctx)
-		defer release()
-		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
-		for key, diags := range reports {
-			r.diagnostics[key.id.URI] = diags
-		}
-	}
+	v := r.server.session.View(r.data.Config.Dir)
+	r.collectDiagnostics(v)
 	var got []*source.Diagnostic
 	for _, d := range r.diagnostics[uri] {
 		got = append(got, d)
@@ -445,16 +446,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		t.Fatal(err)
 	}
 	// Get the diagnostics for this view if we have not done it before.
-	if r.diagnostics == nil {
-		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
-		// Always run diagnostics with analysis.
-		snapshot, release := view.Snapshot(r.ctx)
-		defer release()
-		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
-		for key, diags := range reports {
-			r.diagnostics[key.id.URI] = diags
-		}
-	}
+	r.collectDiagnostics(view)
 	var diagnostics []protocol.Diagnostic
 	for _, d := range r.diagnostics[uri] {
 		// Compare the start positions rather than the entire range because
@@ -1121,5 +1113,33 @@ func TestBytesOffset(t *testing.T) {
 		if err == nil && got.Offset() != test.want {
 			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
 		}
+	}
+}
+
+func (r *runner) collectDiagnostics(view source.View) {
+	if r.diagnostics != nil {
+		return
+	}
+	r.diagnostics = make(map[span.URI][]*source.Diagnostic)
+
+	snapshot, release := view.Snapshot(r.ctx)
+	defer release()
+
+	// Always run diagnostics with analysis.
+	reports, _ := r.server.diagnose(r.ctx, snapshot, true)
+	r.server.publishReports(r.ctx, snapshot, reports)
+	for uri, sent := range r.server.delivered {
+		var diagnostics []*source.Diagnostic
+		for _, d := range sent.sorted {
+			diagnostics = append(diagnostics, &source.Diagnostic{
+				Range:    d.Range,
+				Message:  d.Message,
+				Related:  d.Related,
+				Severity: d.Severity,
+				Source:   d.Source,
+				Tags:     d.Tags,
+			})
+		}
+		r.diagnostics[uri] = diagnostics
 	}
 }
