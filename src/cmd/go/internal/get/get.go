@@ -46,8 +46,8 @@ before resolving dependencies or building the code.
 The -insecure flag permits fetching from repositories and resolving
 custom domains using insecure schemes such as HTTP. Use with caution.
 This flag is deprecated and will be removed in a future version of go.
-The GOINSECURE environment variable is usually a better alternative, since
-it provides control over which modules may be retrieved using an insecure
+The GOINSECURE environment variable should be used instead, since it
+provides control over which packages may be retrieved using an insecure
 scheme. See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
