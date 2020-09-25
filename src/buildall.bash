@@ -3,10 +3,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# Usage: buildall.sh [-e] [pattern]
+# Usage: buildall.bash [-e] [pattern]
 #
 # buildall.bash builds the standard library for all Go-supported
-# architectures. It is used by the "all-compile" trybot builder,
+# architectures. It is used by the "misc-compile" trybot builders,
 # as a smoke test to quickly flag portability issues.
 #
 # Options:
@@ -42,7 +42,7 @@ gettargets() {
 }
 
 selectedtargets() {
-	gettargets | egrep -v 'android-arm|darwin-arm64' | egrep "$pattern"
+	gettargets | egrep "$pattern"
 }
 
 # put linux first in the target list to get all the architectures up front.
