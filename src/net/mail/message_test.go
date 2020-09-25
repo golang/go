@@ -881,6 +881,38 @@ func TestAddressParser(t *testing.T) {
 	}
 }
 
+func TestAddressParserUnsupportedCharset(t *testing.T) {
+	tests := []struct {
+		parse func(string) (*Address, error)
+	}{
+		{
+			ParseAddress,
+		},
+		{
+			(&AddressParser{}).Parse,
+		},
+		{
+			(&AddressParser{WordDecoder: &mime.WordDecoder{}}).Parse,
+		},
+		{
+			(&AddressParser{WordDecoder: &mime.WordDecoder{
+				CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
+					return nil, mime.CharsetError(charset)
+				},
+			}}).Parse,
+		},
+	}
+
+	for _, test := range tests {
+		v := `=?x-unknown?Q?John?= <john@example.com>`
+
+		_, err := test.parse(v)
+		if err == nil {
+			t.Error("should have failed on unsupported charset")
+		}
+	}
+}
+
 func TestAddressString(t *testing.T) {
 	tests := []struct {
 		addr *Address

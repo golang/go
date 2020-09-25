@@ -29,6 +29,12 @@ var (
 	errInvalidWord = errors.New("mime: invalid RFC 2047 encoded-word")
 )
 
+type CharsetError string
+
+func (e CharsetError) Error() string {
+	return fmt.Sprintf("charset not supported: %q", string(e))
+}
+
 // Encode returns the encoded-word form of s. If s is ASCII without special
 // characters, it is returned unchanged. The provided charset is the IANA
 // charset name of s. It is case insensitive.
@@ -340,7 +346,7 @@ func (d *WordDecoder) convert(buf *strings.Builder, charset string, content []by
 		}
 	default:
 		if d.CharsetReader == nil {
-			return fmt.Errorf("mime: unhandled charset %q", charset)
+			return CharsetError(charset)
 		}
 		r, err := d.CharsetReader(strings.ToLower(charset), bytes.NewReader(content))
 		if err != nil {

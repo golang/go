@@ -741,7 +741,7 @@ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, e
 		return word, true, nil
 	}
 
-	if _, ok := err.(charsetError); ok {
+	if _, ok := err.(mime.CharsetError); ok {
 		return s, true, err
 	}
 
@@ -751,14 +751,8 @@ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, e
 
 var rfc2047Decoder = mime.WordDecoder{
 	CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
-		return nil, charsetError(charset)
+		return nil, mime.CharsetError(charset)
 	},
-}
-
-type charsetError string
-
-func (e charsetError) Error() string {
-	return fmt.Sprintf("charset not supported: %q", string(e))
 }
 
 // isAtext reports whether r is an RFC 5322 atext character.
