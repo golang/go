@@ -164,6 +164,16 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<h3 id="ctypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+
+<p><!-- CL 256897 -->
+  I/O operations on closing or closed TLS connections can now be detected using
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the only way to reliably detect this case was to match the string returned
+  by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
 
 <p><!-- CL 250357 -->
