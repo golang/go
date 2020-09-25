@@ -100,9 +100,82 @@ autocmd BufWritePre *.go :call CocAction('runCommand', 'editor.action.organizeIm
 
 In vim classic only, use the experimental [`govim`], simply follow the [install steps][govim-install].
 
-## nvim-lsp
+## Neovim v0.5.0+
 
-To use the new builtin lsp client from neovim, using `nvim-lsp`, follow the install steps [neovim/nvim-lsp] and check the gopls [configuration][nvim-lsp-config].
+To use the new (still experimental) native LSP client in Neovim, make sure you
+[install][nvim-install] the prerelease v0.5.0 version of Neovim (aka “nightly”),
+the `nvim-lspconfig` configuration helper plugin, and check the
+[`gopls` configuration section][nvim-lspconfig] there.
+
+### Custom configuration
+
+You can add custom configuration using Lua.  Here is an example of enabling the
+`unusedparams` check as well as `staticcheck`:
+
+```vim
+lua <<EOF
+  nvim_lsp = require "nvim_lsp"
+  nvim_lsp.gopls.setup {
+    cmd = {"gopls", "serve"},
+    settings = {
+      gopls = {
+        analyses = {
+          unusedparams = true,
+        },
+        staticcheck = true,
+      },
+    },
+  }
+EOF
+```
+
+### Imports
+
+To get your imports ordered on save, like `goimports` does, you can define
+a helper function in Lua:
+
+```vim
+lua <<EOF
+  -- …
+
+  function goimports(timeoutms)
+    local context = { source = { organizeImports = true } }
+    vim.validate { context = { context, "t", true } }
+
+    local params = vim.lsp.util.make_range_params()
+    params.context = context
+
+    local method = "textDocument/codeAction"
+    local resp = vim.lsp.buf_request_sync(0, method, params, timeoutms)
+    if resp and resp[1] then
+      local result = resp[1].result
+      if result and result[1] then
+        local edit = result[1].edit
+        vim.lsp.util.apply_workspace_edit(edit)
+      end
+    end
+
+    vim.lsp.buf.formatting()
+  end
+EOF
+
+autocmd BufWritePre *.go lua goimports(1000)
+```
+
+(Taken from the [discussion][nvim-lspconfig-imports] on Neovim issue tracker.)
+
+### Omnifunc
+
+To make your <kbd>Ctrl</kbd>+<kbd>x</kbd>,<kbd>Ctrl</kbd>+<kbd>o</kbd> work, add
+this to your `init.vim`:
+
+```vim
+autocmd FileType go setlocal omnifunc=v:lua.vim.lsp.omnifunc
+```
+
+### Additional Links
+
+* [Neovim's official LSP documentation][nvim-docs].
 
 [vim-go]: https://github.com/fatih/vim-go
 [LanguageClient-neovim]: https://github.com/autozimu/LanguageClient-neovim
@@ -114,5 +187,7 @@ To use the new builtin lsp client from neovim, using `nvim-lsp`, follow the inst
 [coc.nvim]: https://github.com/neoclide/coc.nvim/
 [`govim`]: https://github.com/myitcv/govim
 [govim-install]: https://github.com/myitcv/govim/blob/master/README.md#govim---go-development-plugin-for-vim8
-[neovim/nvim-lsp]: https://github.com/neovim/nvim-lsp#install
-[nvim-lsp-config]: https://github.com/neovim/nvim-lsp#gopls
+[nvim-docs]: https://neovim.io/doc/user/lsp.html
+[nvim-install]: https://github.com/neovim/neovim/wiki/Installing-Neovim
+[nvim-lspconfig]: https://github.com/neovim/nvim-lspconfig#gopls
+[nvim-lspconfig-imports]: https://github.com/neovim/nvim-lspconfig/issues/115
