@@ -112,6 +112,31 @@ func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) {
 	return &value, err
 }
 
+// IoctlFileClone performs an FICLONERANGE ioctl operation to clone the range of
+// data conveyed in value to the file associated with the file descriptor
+// destFd. See the ioctl_ficlonerange(2) man page for details.
+func IoctlFileCloneRange(destFd int, value *FileCloneRange) error {
+	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+}
+
+// IoctlFileClone performs an FICLONE ioctl operation to clone the entire file
+// associated with the file description srcFd to the file associated with the
+// file descriptor destFd. See the ioctl_ficlone(2) man page for details.
+func IoctlFileClone(destFd, srcFd int) error {
+	return ioctl(destFd, FICLONE, uintptr(srcFd))
+}
+
+// IoctlFileClone performs an FIDEDUPERANGE ioctl operation to share the range of
+// data conveyed in value with the file associated with the file descriptor
+// destFd. See the ioctl_fideduperange(2) man page for details.
+func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
+	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+}
+
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
 
 func Link(oldpath string, newpath string) (err error) {

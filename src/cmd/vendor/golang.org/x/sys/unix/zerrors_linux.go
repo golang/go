@@ -686,6 +686,7 @@ const (
 	FD_CLOEXEC                                  = 0x1
 	FD_SETSIZE                                  = 0x400
 	FF0                                         = 0x0
+	FIDEDUPERANGE                               = 0xc0189436
 	FSCRYPT_KEY_DESCRIPTOR_SIZE                 = 0x8
 	FSCRYPT_KEY_DESC_PREFIX                     = "fscrypt:"
 	FSCRYPT_KEY_DESC_PREFIX_SIZE                = 0x8

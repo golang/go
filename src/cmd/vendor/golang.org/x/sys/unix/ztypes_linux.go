@@ -76,6 +76,21 @@ type Fsid struct {
 	Val [2]int32
 }
 
+type FileCloneRange struct {
+	Src_fd      int64
+	Src_offset  uint64
+	Src_length  uint64
+	Dest_offset uint64
+}
+
+type FileDedupeRange struct {
+	Src_offset uint64
+	Src_length uint64
+	Dest_count uint16
+	Reserved1  uint16
+	Reserved2  uint32
+}
+
 type FscryptPolicy struct {
 	Version                   uint8
 	Contents_encryption_mode  uint8
