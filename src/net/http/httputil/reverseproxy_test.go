@@ -1157,6 +1157,9 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("X-Header", "X-Value")
 		rproxy.ServeHTTP(rw, req)
+		if got, want := rw.Header().Get("X-Modified"), "true"; got != want {
+			t.Errorf("response writer X-Modified header = %q; want %q", got, want)
+		}
 	})
 
 	frontendProxy := httptest.NewServer(handler)
