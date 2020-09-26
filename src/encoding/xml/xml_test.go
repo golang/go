@@ -190,6 +190,7 @@ var xmlInput = []string{
 	"<t/><![CDATA[d",
 	"<t/><![CDATA[d]",
 	"<t/><![CDATA[d]]",
+	"<p></p",
 
 	// other Syntax errors
 	"<>",
@@ -426,6 +427,29 @@ func TestToken(t *testing.T) {
 		}
 		if !reflect.DeepEqual(have, want) {
 			t.Errorf("token %d = %#v want %#v", i, have, want)
+		}
+	}
+}
+
+func TestTokenErrors(t *testing.T) {
+	tests := []struct {
+		input  string
+		expectedError string
+	}{
+		{`<body xmlns="ns1"></x>`, `XML syntax error on line 1: unexpected end element </x>`},
+	}
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(test.input))
+		d.Strict = false
+
+		var err error
+		for _, err = d.Token(); err == nil; _, err = d.Token() {
+		}
+		if _, ok := err.(*SyntaxError); !ok {
+			t.Fatalf(`xmlInput "%s": expected SyntaxError not received`, test.input)
+		}
+		if err.Error() != test.expectedError {
+			t.Fatalf(`err.Error() = "%s", want "%s"`, err.Error(), test.expectedError)
 		}
 	}
 }
@@ -693,21 +717,6 @@ func TestCopyTokenDefaultCase(t *testing.T) {
 	data[1] = 'o'
 	if !reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses different buffer.")
-	}
-}
-
-func TestSyntaxErrorLineNum(t *testing.T) {
-	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
-	d := NewDecoder(strings.NewReader(testInput))
-	var err error
-	for _, err = d.Token(); err == nil; _, err = d.Token() {
-	}
-	synerr, ok := err.(*SyntaxError)
-	if !ok {
-		t.Error("Expected SyntaxError.")
-	}
-	if synerr.Error() != `XML syntax error on line 3: expected element name after </` {
-		t.Error("SyntaxError didn't have correct message or line number.")
 	}
 }
 
