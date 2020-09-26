@@ -1053,7 +1053,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 
 		if mustHeapAlloc(n) {
 			why := "too large for stack"
-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
+			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || (n.Right != nil && !Isconst(n.Right, CTINT))) {
 				why = "non-constant size"
 			}
 			e.flow(e.heapHole().addr(n, why), loc)
