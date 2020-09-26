@@ -110,15 +110,15 @@ func contentID(buildID string) string {
 
 // hashToString converts the hash h to a string to be recorded
 // in package archives and binaries as part of the build ID.
-// We use the first 96 bits of the hash and encode it in base64,
-// resulting in a 16-byte string. Because this is only used for
+// We use the first 120 bits of the hash (5 chunks of 24 bits each) and encode
+// it in base64, resulting in a 20-byte string. Because this is only used for
 // detecting the need to rebuild installed files (not for lookups
-// in the object file cache), 96 bits are sufficient to drive the
+// in the object file cache), 120 bits are sufficient to drive the
 // probability of a false "do not need to rebuild" decision to effectively zero.
 // We embed two different hashes in archives and four in binaries,
-// so cutting to 16 bytes is a significant savings when build IDs are displayed.
-// (16*4+3 = 67 bytes compared to 64*4+3 = 259 bytes for the
-// more straightforward option of printing the entire h in hex).
+// so cutting to 20 bytes is a significant savings when build IDs are displayed.
+// (20*4+3 = 83 bytes compared to 64*4+3 = 259 bytes for the
+// more straightforward option of printing the entire h in base64).
 func hashToString(h [cache.HashSize]byte) string {
 	const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 	const chunks = 5
@@ -425,7 +425,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
 	// the actionID half; if it also appeared in the input that would be like an
-	// engineered 96-bit partial SHA256 collision.
+	// engineered 120-bit partial SHA256 collision.
 	a.actionID = actionHash
 	actionID := hashToString(actionHash)
 	if a.json != nil {
