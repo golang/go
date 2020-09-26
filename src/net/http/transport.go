@@ -2599,6 +2599,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	var respHeaderTimer <-chan time.Time
 	cancelChan := req.Request.Cancel
 	ctxDoneChan := req.Context().Done()
+	pcClosed := pc.closech
 	for {
 		testHookWaitResLoop()
 		select {
@@ -2618,11 +2619,15 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 				defer timer.Stop() // prevent leaks
 				respHeaderTimer = timer.C
 			}
-		case <-pc.closech:
-			if debugRoundTrip {
-				req.logf("closech recv: %T %#v", pc.closed, pc.closed)
+		case <-pcClosed:
+			pcClosed = nil
+			// check if we are still using the connection
+			if pc.t.replaceReqCanceler(req.cancelKey, nil) {
+				if debugRoundTrip {
+					req.logf("closech recv: %T %#v", pc.closed, pc.closed)
+				}
+				return nil, pc.mapRoundTripError(req, startBytesWritten, pc.closed)
 			}
-			return nil, pc.mapRoundTripError(req, startBytesWritten, pc.closed)
 		case <-respHeaderTimer:
 			if debugRoundTrip {
 				req.logf("timeout waiting for response headers.")
