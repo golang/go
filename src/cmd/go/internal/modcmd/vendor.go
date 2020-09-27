@@ -65,7 +65,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
-	checkCaseInsensitivePathsDuplications(modload.LoadBuildList())
+	checkCaseInsensitivePathsDuplications(modload.LoadedModules())
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
