@@ -1278,9 +1278,12 @@
 (CMPBconst (ANDLconst _ [m]) [n]) && 0 <= m && int8(m)  < n => (FlagLT_ULT)
 
 // TESTQ c c sets flags like CMPQ c 0.
-(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c == 0 -> (FlagEQ)
-(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c < 0 -> (FlagLT_UGT)
-(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c > 0 -> (FlagGT_UGT)
+(TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c == 0 => (FlagEQ)
+(TESTLconst [c] (MOVLconst [c])) && c == 0 => (FlagEQ)
+(TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c < 0  => (FlagLT_UGT)
+(TESTLconst [c] (MOVLconst [c])) && c < 0  => (FlagLT_UGT)
+(TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c > 0  => (FlagGT_UGT)
+(TESTLconst [c] (MOVLconst [c])) && c > 0  => (FlagGT_UGT)
 
 // TODO: DIVxU also.
 
@@ -2157,13 +2160,13 @@
 // If possible, put a rematerializeable value in the first argument slot,
 // to reduce the odds that another value will be have to spilled
 // specifically to free up AX.
-(HMUL(Q|L)  x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)  y x)
-(HMUL(Q|L)U x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)U y x)
+(HMUL(Q|L)  x y) && !x.rematerializeable() && y.rematerializeable() => (HMUL(Q|L)  y x)
+(HMUL(Q|L)U x y) && !x.rematerializeable() && y.rematerializeable() => (HMUL(Q|L)U y x)
 
 // Fold loads into compares
 // Note: these may be undone by the flagalloc pass.
-(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
-(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
+(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
+(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
 
 (CMP(Q|L)const l:(MOV(Q|L)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
@@ -2174,22 +2177,22 @@
 	&& clobber(l) =>
 @l.Block (CMP(W|B)constload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 
-(CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
-(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
-(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
-(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+(CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,int64(off)) => (CMPQconstload {sym} [makeValAndOff64(c,int64(off))] ptr mem)
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(c),int64(off)) => (CMPLconstload {sym} [makeValAndOff32(c,off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),int64(off)) => (CMPWconstload {sym} [makeValAndOff32(int32(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),int64(off)) => (CMPBconstload {sym} [makeValAndOff32(int32(int8(c)),off)] ptr mem)
 
 (TEST(Q|L|W|B)  l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) l2)
         && l == l2
 	&& l.Uses == 2
-	&& validValAndOff(0,off)
-	&& clobber(l) ->
-  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)
+	&& validValAndOff(0, int64(off))
+	&& clobber(l) =>
+  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff64(0, int64(off))] ptr mem)
 
-(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
-(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
-(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
-(MOVOstore [dstOff] {dstSym} ptr (MOVOload [srcOff] {srcSym} (SB) _) mem) && symIsRO(srcSym) ->
-  (MOVQstore [dstOff+8] {dstSym} ptr (MOVQconst [int64(read64(srcSym, srcOff+8, config.ctxt.Arch.ByteOrder))])
-    (MOVQstore [dstOff] {dstSym} ptr (MOVQconst [int64(read64(srcSym, srcOff, config.ctxt.Arch.ByteOrder))]) mem))
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVQload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVOstore [dstOff] {dstSym} ptr (MOVOload [srcOff] {srcSym} (SB) _) mem) && symIsRO(srcSym) =>
+  (MOVQstore [dstOff+8] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff)+8, config.ctxt.Arch.ByteOrder))])
+    (MOVQstore [dstOff] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff), config.ctxt.Arch.ByteOrder))]) mem))
