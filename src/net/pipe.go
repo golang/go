@@ -141,7 +141,7 @@ func (*pipe) RemoteAddr() Addr { return pipeAddr{} }
 func (p *pipe) Read(b []byte) (int, error) {
 	n, err := p.read(b)
 	if err != nil && err != io.EOF && err != io.ErrClosedPipe {
-		err = &OpError{Op: "read", Net: "pipe", Err: err}
+		err = &OpError{Op: OpRead, Net: "pipe", Err: err}
 	}
 	return n, err
 }
@@ -173,7 +173,7 @@ func (p *pipe) read(b []byte) (n int, err error) {
 func (p *pipe) Write(b []byte) (int, error) {
 	n, err := p.write(b)
 	if err != nil && err != io.ErrClosedPipe {
-		err = &OpError{Op: "write", Net: "pipe", Err: err}
+		err = &OpError{Op: OpWrite, Net: "pipe", Err: err}
 	}
 	return n, err
 }

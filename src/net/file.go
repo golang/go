@@ -21,7 +21,7 @@ func (f fileAddr) String() string { return string(f) }
 func FileConn(f *os.File) (c Conn, err error) {
 	c, err = fileConn(f)
 	if err != nil {
-		err = &OpError{Op: "file", Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
+		err = &OpError{Op: OpFile, Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
 	}
 	return
 }
@@ -33,7 +33,7 @@ func FileConn(f *os.File) (c Conn, err error) {
 func FileListener(f *os.File) (ln Listener, err error) {
 	ln, err = fileListener(f)
 	if err != nil {
-		err = &OpError{Op: "file", Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
+		err = &OpError{Op: OpFile, Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
 	}
 	return
 }
@@ -45,7 +45,7 @@ func FileListener(f *os.File) (ln Listener, err error) {
 func FilePacketConn(f *os.File) (c PacketConn, err error) {
 	c, err = filePacketConn(f)
 	if err != nil {
-		err = &OpError{Op: "file", Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
+		err = &OpError{Op: OpFile, Net: "file+net", Source: nil, Addr: fileAddr(f.Name()), Err: err}
 	}
 	return
 }

@@ -1235,7 +1235,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 			case resolveOK:
 				// Handle below.
 			case resolveOpError:
-				return dnsmessage.Message{}, &OpError{Op: "write", Err: fmt.Errorf("socket on fire")}
+				return dnsmessage.Message{}, &OpError{Op: OpWrite, Err: fmt.Errorf("socket on fire")}
 			case resolveServfail:
 				return dnsmessage.Message{
 					Header: dnsmessage.Header{

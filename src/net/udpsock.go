@@ -18,6 +18,13 @@ import (
 // BUG(mikio): On JS, methods and functions related to UDPConn are not
 // implemented.
 
+// The name of network
+const (
+	UDP  = "upd"
+	UDP4 = "upd4"
+	UDP6 = "udp6"
+)
+
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
 	IP   IP
@@ -26,7 +33,7 @@ type UDPAddr struct {
 }
 
 // Network returns the address's network name, "udp".
-func (a *UDPAddr) Network() string { return "udp" }
+func (a *UDPAddr) Network() string { return UDP }
 
 func (a *UDPAddr) String() string {
 	if a == nil {
@@ -70,9 +77,9 @@ func (a *UDPAddr) opAddr() Addr {
 // parameters.
 func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	switch network {
-	case "udp", "udp4", "udp6":
+	case UDP, UDP4, UDP6:
 	case "": // a hint wildcard for Go 1.0 undocumented behavior
-		network = "udp"
+		network = UDP
 	default:
 		return nil, UnknownNetworkError(network)
 	}
@@ -105,7 +112,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
 	}
 	n, addr, err := c.readFrom(b)
 	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpRead, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, addr, err
 }
@@ -117,7 +124,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	}
 	n, addr, err := c.readFrom(b)
 	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpRead, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	if addr == nil {
 		return n, nil, err
@@ -138,7 +145,7 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 	}
 	n, oobn, flags, addr, err = c.readMsg(b, oob)
 	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpRead, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return
 }
@@ -150,7 +157,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	}
 	n, err := c.writeTo(b, addr)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
+		err = &OpError{Op: OpWrite, Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
 	}
 	return n, err
 }
@@ -162,11 +169,11 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*UDPAddr)
 	if !ok {
-		return 0, &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: syscall.EINVAL}
+		return 0, &OpError{Op: OpWrite, Net: c.fd.net, Source: c.fd.laddr, Addr: addr, Err: syscall.EINVAL}
 	}
 	n, err := c.writeTo(b, a)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: a.opAddr(), Err: err}
+		err = &OpError{Op: OpWrite, Net: c.fd.net, Source: c.fd.laddr, Addr: a.opAddr(), Err: err}
 	}
 	return n, err
 }
@@ -185,7 +192,7 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 	}
 	n, oobn, err = c.writeMsg(b, oob, addr)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
+		err = &OpError{Op: OpWrite, Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
 	}
 	return
 }
@@ -201,17 +208,17 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 // local system is assumed.
 func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch network {
-	case "udp", "udp4", "udp6":
+	case UDP, UDP4, UDP6:
 	default:
-		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
+		return nil, &OpError{Op: OpDial, Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+		return nil, &OpError{Op: OpDial, Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
 	c, err := sd.dialUDP(context.Background(), laddr, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, &OpError{Op: OpDial, Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
@@ -227,9 +234,9 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 // chosen.
 func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 	switch network {
-	case "udp", "udp4", "udp6":
+	case UDP, UDP4, UDP6:
 	default:
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+		return nil, &OpError{Op: OpListen, Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
 		laddr = &UDPAddr{}
@@ -237,7 +244,7 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 	sl := &sysListener{network: network, address: laddr.String()}
 	c, err := sl.listenUDP(context.Background(), laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: OpListen, Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
@@ -261,17 +268,17 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 // golang.org/x/net/ipv6 packages for general purpose uses.
 func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
 	switch network {
-	case "udp", "udp4", "udp6":
+	case UDP, UDP4, UDP6:
 	default:
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: UnknownNetworkError(network)}
+		return nil, &OpError{Op: OpListen, Net: network, Source: nil, Addr: gaddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if gaddr == nil || gaddr.IP == nil {
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
+		return nil, &OpError{Op: OpListen, Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
 	}
 	sl := &sysListener{network: network, address: gaddr.String()}
 	c, err := sl.listenMulticastUDP(context.Background(), ifi, gaddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
+		return nil, &OpError{Op: OpListen, Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
 	}
 	return c, nil
 }

@@ -182,7 +182,7 @@ func (c *conn) Read(b []byte) (int, error) {
 	}
 	n, err := c.fd.Read(b)
 	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpRead, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -194,7 +194,7 @@ func (c *conn) Write(b []byte) (int, error) {
 	}
 	n, err := c.fd.Write(b)
 	if err != nil {
-		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpWrite, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -206,7 +206,7 @@ func (c *conn) Close() error {
 	}
 	err := c.fd.Close()
 	if err != nil {
-		err = &OpError{Op: "close", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpClose, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return err
 }
@@ -237,7 +237,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: OpSet, Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -248,7 +248,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.SetReadDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: OpSet, Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -259,7 +259,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 		return syscall.EINVAL
 	}
 	if err := c.fd.SetWriteDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: OpSet, Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -271,7 +271,7 @@ func (c *conn) SetReadBuffer(bytes int) error {
 		return syscall.EINVAL
 	}
 	if err := setReadBuffer(c.fd, bytes); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: OpSet, Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -283,7 +283,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 		return syscall.EINVAL
 	}
 	if err := setWriteBuffer(c.fd, bytes); err != nil {
-		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+		return &OpError{Op: OpSet, Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
 }
@@ -298,7 +298,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
-		err = &OpError{Op: "file", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: OpFile, Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return
 }
@@ -429,6 +429,19 @@ func mapErr(err error) error {
 	}
 }
 
+// The operations for OpError
+const (
+	OpAccept   = "accept"
+	OpClose    = "close"
+	OpDial     = "dial"
+	OpFile     = "file"
+	OpListen   = "listen"
+	OpRead     = "read"
+	OpReadFrom = "readfrom"
+	OpSet      = "set"
+	OpWrite    = "write"
+)
+
 // OpError is the error type usually returned by functions in the net
 // package. It describes the operation, network type, and address of
 // an error.
@@ -515,7 +528,7 @@ type temporary interface {
 func (e *OpError) Temporary() bool {
 	// Treat ECONNRESET and ECONNABORTED as temporary errors when
 	// they come from calling accept. See issue 6163.
-	if e.Op == "accept" && isConnError(e.Err) {
+	if e.Op == OpAccept && isConnError(e.Err) {
 		return true
 	}
 
