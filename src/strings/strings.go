@@ -564,10 +564,11 @@ func ToUpper(s string) string {
 		}
 		var b Builder
 		b.Grow(len(s))
+		var less byte = 'a' - 'A'
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'a' <= c && c <= 'z' {
-				c -= 'a' - 'A'
+				c -= less
 			}
 			b.WriteByte(c)
 		}
