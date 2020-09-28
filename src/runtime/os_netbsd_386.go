@@ -14,3 +14,6 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
 	mc.__gregs[_REG_EDX] = uint32(uintptr(unsafe.Pointer(gp)))
 	mc.__gregs[_REG_ESI] = uint32(fn)
 }
+
+func archauxv(auxv []uintptr) {
+}

@@ -359,6 +359,7 @@ func sysargs(argc int32, argv **byte) {
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
 	sysauxv(auxv[:])
+	archauxv(auxv[:])
 }
 
 const (
