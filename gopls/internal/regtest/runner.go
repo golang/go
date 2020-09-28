@@ -288,17 +288,29 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 
 type loggingFramer struct {
 	mu      sync.Mutex
-	buffers []*bytes.Buffer
+	buffers []*safeBuffer
+}
+
+// safeBuffer is a threadsafe buffer for logs.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *safeBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
 }
 
 func (s *loggingFramer) framer(f jsonrpc2.Framer) jsonrpc2.Framer {
 	return func(nc net.Conn) jsonrpc2.Stream {
 		s.mu.Lock()
-		var buf bytes.Buffer
-		s.buffers = append(s.buffers, &buf)
+		buf := &safeBuffer{buf: bytes.Buffer{}}
+		s.buffers = append(s.buffers, buf)
 		s.mu.Unlock()
 		stream := f(nc)
-		return protocol.LoggingStream(stream, &buf)
+		return protocol.LoggingStream(stream, buf)
 	}
 }
 
@@ -308,9 +320,9 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 
 	for i, buf := range s.buffers {
 		fmt.Fprintf(os.Stderr, "#### Start Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
-		// Re-buffer buf to avoid a data rate (io.Copy mutates src).
-		writeBuf := bytes.NewBuffer(buf.Bytes())
-		io.Copy(w, writeBuf)
+		buf.mu.Lock()
+		io.Copy(w, &buf.buf)
+		buf.mu.Unlock()
 		fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
 	}
 }
