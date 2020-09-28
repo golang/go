@@ -37,7 +37,6 @@ GOROOT="$(cd .. && pwd)"
 
 gettargets() {
 	../bin/go tool dist list | sed -e 's|/|-|'
-	echo linux-386-387
 	echo linux-arm-arm5
 }
 
@@ -64,14 +63,10 @@ do
 	echo "### Building $target"
 	export GOOS=$(echo $target | sed 's/-.*//')
 	export GOARCH=$(echo $target | sed 's/.*-//')
-	unset GO386 GOARM
+	unset GOARM
 	if [ "$GOARCH" = "arm5" ]; then
 		export GOARCH=arm
 		export GOARM=5
-	fi
-	if [ "$GOARCH" = "387" ]; then
-		export GOARCH=386
-		export GO386=387
 	fi
 
 	# Build and vet everything.
