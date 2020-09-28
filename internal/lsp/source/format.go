@@ -93,7 +93,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	if err := snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot, pgf, opts)
 		return err
 	}); err != nil {

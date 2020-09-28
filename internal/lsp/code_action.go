@@ -459,11 +459,15 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 	case source.Mod:
 		modFH = fh
 	case source.Go:
-		modURI, err := snapshot.GoModForFile(ctx, fh.URI())
+		modURI := snapshot.GoModForFile(ctx, fh.URI())
+		if modURI == "" {
+			return nil, nil
+		}
+		var err error
+		modFH, err = snapshot.GetFile(ctx, modURI)
 		if err != nil {
 			return nil, err
 		}
-		modFH, err = snapshot.GetFile(ctx, modURI)
 	}
 	tidied, err := snapshot.ModTidy(ctx, modFH)
 	if err == source.ErrTmpModfileUnsupported {

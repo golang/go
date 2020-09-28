@@ -130,11 +130,9 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		return nil, nil
 	}
 	var (
-		showMsg     *protocol.ShowMessageParams
-		wg          sync.WaitGroup
-		seenFilesMu sync.Mutex
+		showMsg *protocol.ShowMessageParams
+		wg      sync.WaitGroup
 	)
-	seenFiles := make(map[span.URI]struct{})
 	for _, pkg := range wsPkgs {
 		wg.Add(1)
 		go func(pkg source.Package) {
@@ -143,10 +141,6 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			withAnalysis := alwaysAnalyze // only run analyses for packages with open files
 			var gcDetailsDir span.URI     // find the package's optimization details, if available
 			for _, pgf := range pkg.CompiledGoFiles() {
-				seenFilesMu.Lock()
-				seenFiles[pgf.URI] = struct{}{}
-				seenFilesMu.Unlock()
-
 				if snapshot.IsOpen(pgf.URI) {
 					withAnalysis = true
 				}
@@ -198,19 +192,23 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 	// the workspace). Otherwise, add a diagnostic to the file.
 	if len(wsPkgs) > 0 {
 		for _, o := range s.session.Overlays() {
-			seenFilesMu.Lock()
-			_, ok := seenFiles[o.URI()]
-			seenFilesMu.Unlock()
-			if ok {
+			// Check if we already have diagnostic reports for the given file,
+			// meaning that we have already seen its package.
+			var seen bool
+			for _, withAnalysis := range []bool{true, false} {
+				_, ok := reports[idWithAnalysis{
+					id:           o.VersionedFileIdentity(),
+					withAnalysis: withAnalysis,
+				}]
+				seen = seen || ok
+			}
+			if seen {
 				continue
 			}
-
-			diagnostic := s.checkForOrphanedFile(ctx, snapshot, o.URI())
+			diagnostic := s.checkForOrphanedFile(ctx, snapshot, o)
 			if diagnostic == nil {
 				continue
 			}
-			// Lock the reports map, since the per-package goroutines may
-			// not have completed yet.
 			addReport(o.VersionedFileIdentity(), true, []*source.Diagnostic{diagnostic})
 		}
 	}
@@ -220,12 +218,11 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 // checkForOrphanedFile checks that the given URIs can be mapped to packages.
 // If they cannot and the workspace is not otherwise unloaded, it also surfaces
 // a warning, suggesting that the user check the file for build tags.
-func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, uri span.URI) *source.Diagnostic {
-	fh, err := snapshot.GetFile(ctx, uri)
-	if err != nil || fh.Kind() != source.Go {
+func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) *source.Diagnostic {
+	if fh.Kind() != source.Go {
 		return nil
 	}
-	pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
+	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace)
 	if len(pkgs) > 0 || err == nil {
 		return nil
 	}
@@ -249,7 +246,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 		Message: fmt.Sprintf(`No packages found for open file %s: %v.
 If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlag" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
 Otherwise, see the troubleshooting guidelines for help investigating (https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md).
-`, uri.Filename(), err),
+`, fh.URI().Filename(), err),
 		Severity: protocol.SeverityWarning,
 		Source:   "compiler",
 	}

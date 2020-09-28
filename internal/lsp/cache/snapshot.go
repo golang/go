@@ -201,11 +201,14 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, wd, verb string, args 
 	return runner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
-// Assumes that modURI is only provided when the -modfile flag is enabled.
 func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
 	cleanup = func() {} // fallback
+	modURI := s.GoModForFile(ctx, span.URIFromPath(cfg.Dir))
 	if allowTempModfile && s.view.workspaceMode&tempModfile != 0 {
-		modFH, err := s.GetFile(ctx, s.view.modURI)
+		if modURI == "" {
+			return "", nil, nil, cleanup, fmt.Errorf("no go.mod file found in %s", cfg.Dir)
+		}
+		modFH, err := s.GetFile(ctx, modURI)
 		if err != nil {
 			return "", nil, nil, cleanup, err
 		}
@@ -219,14 +222,18 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config
 		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
 	if verb != "mod" && verb != "get" {
-		var modFH source.FileHandle
-		if s.view.modURI != "" {
-			modFH, err = s.GetFile(ctx, s.view.modURI)
+		var modContent []byte
+		if modURI != "" {
+			modFH, err := s.GetFile(ctx, modURI)
 			if err != nil {
 				return "", nil, nil, cleanup, err
 			}
+			modContent, err = modFH.Read()
+			if err != nil {
+				return "", nil, nil, nil, err
+			}
 		}
-		modMod, err := s.view.needsModEqualsMod(ctx, modFH)
+		modMod, err := s.view.needsModEqualsMod(ctx, modURI, modContent)
 		if err != nil {
 			return "", nil, nil, cleanup, err
 		}
@@ -597,25 +604,17 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	return results, nil
 }
 
-func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) (span.URI, error) {
-	if len(s.modules) == 0 {
-		if s.view.modURI == "" {
-			return "", errors.New("no modules in this view")
-		}
-		return s.view.modURI, nil
-	}
+func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) span.URI {
 	var match span.URI
 	for _, m := range s.modules {
-		// Add an os.PathSeparator to the end of each directory to make sure
-		// that foo/apple/banana does not match foo/a.
-		if !strings.HasPrefix(uri.Filename()+string(os.PathSeparator), m.rootURI.Filename()+string(os.PathSeparator)) {
+		if !isSubdirectory(m.rootURI.Filename(), uri.Filename()) {
 			continue
 		}
 		if len(m.modURI) > len(match) {
 			match = m.modURI
 		}
 	}
-	return match, nil
+	return match
 }
 
 func (s *snapshot) getPackage(id packageID, mode source.ParseMode) *packageHandle {

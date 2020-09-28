@@ -82,24 +82,11 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	defer done()
 
 	cleanup := func() {}
-
-	var modFH, sumFH source.FileHandle
-	var err error
-	if s.view.modURI != "" {
-		modFH, err = s.GetFile(ctx, s.view.modURI)
-		if err != nil {
-			return err
-		}
-	}
-	if s.view.sumURI != "" {
-		sumFH, err = s.GetFile(ctx, s.view.sumURI)
-		if err != nil {
-			return err
-		}
-	}
-
 	wdir := s.view.rootURI.Filename()
+
 	var buildFlags []string
+	var modURI span.URI
+	var modContent []byte
 	switch {
 	case s.view.workspaceMode&usesWorkspaceModule != 0:
 		var (
@@ -111,7 +98,33 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			return err
 		}
 		wdir = tmpDir.Filename()
+		modURI = span.URIFromPath(filepath.Join(wdir, "go.mod"))
+		modContent, err = ioutil.ReadFile(modURI.Filename())
+		if err != nil {
+			return err
+		}
 	case s.view.workspaceMode&tempModfile != 0:
+		// -modfile is unsupported when there are > 1 modules in the workspace.
+		if len(s.modules) != 1 {
+			panic(fmt.Sprintf("unsupported use of -modfile, expected 1 module, got %v", len(s.modules)))
+		}
+		var mod *moduleRoot
+		for _, m := range s.modules { // range to access the only element
+			mod = m
+		}
+		modURI = mod.modURI
+		modFH, err := s.GetFile(ctx, mod.modURI)
+		if err != nil {
+			return err
+		}
+		modContent, err = modFH.Read()
+		var sumFH source.FileHandle
+		if mod.sumURI != "" {
+			sumFH, err = s.GetFile(ctx, mod.sumURI)
+			if err != nil {
+				return err
+			}
+		}
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
@@ -123,7 +136,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	cfg := s.config(ctx, wdir)
 	cfg.BuildFlags = append(cfg.BuildFlags, buildFlags...)
 
-	modMod, err := s.view.needsModEqualsMod(ctx, modFH)
+	modMod, err := s.view.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
 		return err
 	}

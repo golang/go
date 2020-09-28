@@ -357,7 +357,6 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 		if _, ok := fullEnv[s[0]]; ok {
 			fullEnv[s[0]] = s[1]
 		}
-
 	}
 	fmt.Fprintf(w, "go env for %v\n(root %s)\n(valid build configuration = %v)\n(build flags: %v)\n",
 		s.view.folder.Filename(), s.view.rootURI.Filename(), s.view.hasValidBuildConfiguration, buildFlags)
@@ -367,9 +366,9 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
-	v.importsMu.Lock()
-	defer v.importsMu.Unlock()
+func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
+	s.view.importsMu.Lock()
+	defer s.view.importsMu.Unlock()
 
 	// Use temporary go.mod files, but always go to disk for the contents.
 	// Rebuilding the cache is expensive, and we don't want to do it for
@@ -377,28 +376,41 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	var modFH, sumFH source.FileHandle
 	var modFileIdentifier string
 	var err error
-	if v.modURI != "" {
-		modFH, err = v.session.cache.getFile(ctx, v.modURI)
+	// TODO(heschik): Change the goimports logic to use a persistent workspace
+	// module for workspace module mode.
+	//
+	// Get the go.mod file that corresponds to this view's root URI. This is
+	// broken because it assumes that the view's root is a module, but this is
+	// not more broken than the previous state--it is a temporary hack that
+	// should be removed ASAP.
+	var match *moduleRoot
+	for _, m := range s.modules {
+		if m.rootURI == s.view.rootURI {
+			match = m
+		}
+	}
+	if match != nil {
+		modFH, err = s.GetFile(ctx, match.modURI)
 		if err != nil {
 			return err
 		}
 		modFileIdentifier = modFH.FileIdentity().Hash
-	}
-	if v.sumURI != "" {
-		sumFH, err = v.session.cache.getFile(ctx, v.sumURI)
-		if err != nil {
-			return err
+		if match.sumURI != "" {
+			sumFH, err = s.GetFile(ctx, match.sumURI)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	// v.goEnv is immutable -- changes make a new view. Options can change.
 	// We can't compare build flags directly because we may add -modfile.
-	v.optionsMu.Lock()
-	localPrefix := v.options.Local
-	currentBuildFlags := v.options.BuildFlags
-	changed := !reflect.DeepEqual(currentBuildFlags, v.cachedBuildFlags) ||
-		v.options.VerboseOutput != (v.processEnv.Logf != nil) ||
-		modFileIdentifier != v.cachedModFileIdentifier
-	v.optionsMu.Unlock()
+	s.view.optionsMu.Lock()
+	localPrefix := s.view.options.Local
+	currentBuildFlags := s.view.options.BuildFlags
+	changed := !reflect.DeepEqual(currentBuildFlags, s.view.cachedBuildFlags) ||
+		s.view.options.VerboseOutput != (s.view.processEnv.Logf != nil) ||
+		modFileIdentifier != s.view.cachedModFileIdentifier
+	s.view.optionsMu.Unlock()
 
 	// If anything relevant to imports has changed, clear caches and
 	// update the processEnv. Clearing caches blocks on any background
@@ -407,15 +419,15 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		// As a special case, skip cleanup the first time -- we haven't fully
 		// initialized the environment yet and calling GetResolver will do
 		// unnecessary work and potentially mess up the go.mod file.
-		if v.cleanupProcessEnv != nil {
-			if resolver, err := v.processEnv.GetResolver(); err == nil {
+		if s.view.cleanupProcessEnv != nil {
+			if resolver, err := s.view.processEnv.GetResolver(); err == nil {
 				resolver.(*imports.ModuleResolver).ClearForNewMod()
 			}
-			v.cleanupProcessEnv()
+			s.view.cleanupProcessEnv()
 		}
-		v.cachedModFileIdentifier = modFileIdentifier
-		v.cachedBuildFlags = currentBuildFlags
-		v.cleanupProcessEnv, err = v.populateProcessEnv(ctx, modFH, sumFH)
+		s.view.cachedModFileIdentifier = modFileIdentifier
+		s.view.cachedBuildFlags = currentBuildFlags
+		s.view.cleanupProcessEnv, err = s.view.populateProcessEnv(ctx, modFH, sumFH)
 		if err != nil {
 			return err
 		}
@@ -430,7 +442,7 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		FormatOnly:  false,
 		TabIndent:   true,
 		TabWidth:    8,
-		Env:         v.processEnv,
+		Env:         s.view.processEnv,
 		LocalPrefix: localPrefix,
 	}
 
@@ -438,14 +450,14 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		return err
 	}
 
-	if v.cacheRefreshTimer == nil {
+	if s.view.cacheRefreshTimer == nil {
 		// Don't refresh more than twice per minute.
 		delay := 30 * time.Second
 		// Don't spend more than a couple percent of the time refreshing.
-		if adaptive := 50 * v.cacheRefreshDuration; adaptive > delay {
+		if adaptive := 50 * s.view.cacheRefreshDuration; adaptive > delay {
 			delay = adaptive
 		}
-		v.cacheRefreshTimer = time.AfterFunc(delay, v.refreshProcessEnv)
+		s.view.cacheRefreshTimer = time.AfterFunc(delay, s.view.refreshProcessEnv)
 	}
 
 	return nil
@@ -497,7 +509,16 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 	}
 	pe.Env["GO111MODULE"] = v.go111module
 
-	modmod, err := v.needsModEqualsMod(ctx, modFH)
+	var modURI span.URI
+	var modContent []byte
+	if modFH != nil {
+		modURI = modFH.URI()
+		modContent, err = modFH.Read()
+		if err != nil {
+			return nil, err
+		}
+	}
+	modmod, err := v.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
 		return cleanup, err
 	}
@@ -654,8 +675,9 @@ func (s *snapshot) IgnoredFile(uri span.URI) bool {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
+		prefixes = append(prefixes, s.view.gomodcache)
 		for _, m := range s.modules {
-			prefixes = []string{m.rootURI.Filename(), s.view.gomodcache}
+			prefixes = append(prefixes, m.rootURI.Filename())
 		}
 	}
 	for _, prefix := range prefixes {
@@ -898,9 +920,6 @@ func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modules 
 	}
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
-	if ws.modURI != "" {
-		return true
-	}
 	if len(modules) > 0 {
 		return true
 	}
@@ -1011,7 +1030,11 @@ func globsMatchPath(globs, target string) bool {
 
 var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 
-func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (bool, error) {
+// TODO(rstambler): Consolidate modURI and modContent back into a FileHandle
+// after we have a version of the workspace go.mod file on disk. Getting a
+// FileHandle from the cache for temporary files is problematic, since we
+// cannot delete it.
+func (v *View) needsModEqualsMod(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
 	if v.goversion < 16 || v.workspaceMode&moduleMode == 0 {
 		return false, nil
 	}
@@ -1028,21 +1051,11 @@ func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (
 		return modFlag == "vendor", nil
 	}
 
-	// In workspace module mode, there may not be a go.mod file.
-	// TODO: Once vendor mode is designed, update to check if it's on, however that works.
-	if modFH == nil {
-		return true, nil
-	}
-
-	modBytes, err := modFH.Read()
+	modFile, err := modfile.Parse(modURI.Filename(), modContent, nil)
 	if err != nil {
 		return false, err
 	}
-	modFile, err := modfile.Parse(modFH.URI().Filename(), modBytes, nil)
-	if err != nil {
-		return false, err
-	}
-	if fi, err := os.Stat(filepath.Join(filepath.Dir(v.modURI.Filename()), "vendor")); err != nil || !fi.IsDir() {
+	if fi, err := os.Stat(filepath.Join(v.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return true, nil
 	}
 	vendorEnabled := modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
@@ -1061,15 +1074,12 @@ func determineWorkspaceMode(options *source.Options, validBuildConfiguration boo
 	// If the view is not in a module and contains no modules, but still has a
 	// valid workspace configuration, do not create the workspace module.
 	// It could be using GOPATH or a different build system entirely.
-	if ws.modURI == "" && len(modules) == 0 && validBuildConfiguration {
+	if len(modules) == 0 && validBuildConfiguration {
 		return mode
 	}
-	// Check if we should be using module mode.
-	if ws.modURI != "" || len(modules) > 0 {
-		mode |= moduleMode
-	}
+	mode |= moduleMode
 	// The -modfile flag is available for Go versions >= 1.14.
-	if ws.modURI != "" && options.TempModfile && ws.goversion >= 14 {
+	if options.TempModfile && ws.goversion >= 14 {
 		mode |= tempModfile
 	}
 	// Don't default to multi-workspace mode if one of the modules contains a

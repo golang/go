@@ -90,6 +90,10 @@ type Snapshot interface {
 	// snapshot's root folder will be used as the working directory.
 	RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error
 
+	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
+	// Note: the process env contains cached module and filesystem state.
+	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
+
 	// ModFiles are the go.mod files enclosed in the snapshot's view and known
 	// to the snapshot.
 	ModFiles() []span.URI
@@ -110,7 +114,7 @@ type Snapshot interface {
 	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
 
 	// GoModForFile returns the URI of the go.mod file for the given URI.
-	GoModForFile(ctx context.Context, uri span.URI) (span.URI, error)
+	GoModForFile(ctx context.Context, uri span.URI) span.URI
 
 	// BuildWorkspaceModFile builds the contents of mod file to be used for
 	// multi-module workspace.
@@ -184,10 +188,6 @@ type View interface {
 
 	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)
-
-	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
-	// Note: the process env contains cached module and filesystem state.
-	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
 
 	// Options returns a copy of the Options for this view.
 	Options() *Options

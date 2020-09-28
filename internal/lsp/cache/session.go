@@ -167,7 +167,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// If workspace module mode is enabled, find all of the modules in the
-	// workspace.
+	// workspace. By default, we just find the root module.
 	var modules map[span.URI]*moduleRoot
 	modules, err = findWorkspaceModules(ctx, ws.rootURI, options)
 	if err != nil {
@@ -254,6 +254,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 //
 // It assumes that the caller has not yet created the view, and therefore does
 // not lock any of the internal data structures before accessing them.
+//
+// TODO(rstambler): Check overlays for go.mod files.
 func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Options) (map[span.URI]*moduleRoot, error) {
 	// Walk the view's folder to find all modules in the view.
 	modules := make(map[span.URI]*moduleRoot)

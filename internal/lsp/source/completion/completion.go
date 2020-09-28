@@ -799,7 +799,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		}
 	}
 
-	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		return imports.GetImportPaths(ctx, searchImports, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 }
@@ -1092,7 +1092,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			var err error
 			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return err
@@ -1153,7 +1153,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 			cancel()
 		}
 	}
-	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 }
@@ -1386,7 +1386,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			var err error
 			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return err
@@ -1454,7 +1454,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		})
 		count++
 	}
-	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 }

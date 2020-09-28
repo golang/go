@@ -257,8 +257,8 @@ func Hello() int {
 	})
 }
 
-// This change tests that the version of the module used changes after it has
-// been added to the workspace.
+// Tests that the version of the module used changes after it has been added
+// to the workspace.
 func TestCreateModule_Interdependent(t *testing.T) {
 	const multiModule = `
 -- moda/a/go.mod --
