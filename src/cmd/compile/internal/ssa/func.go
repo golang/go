@@ -58,6 +58,9 @@ type Func struct {
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
 
+	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+	RegArgs []ArgPair
+
 	// WBLoads is a list of Blocks that branch on the write
 	// barrier flag. Safe-points are disabled from the OpLoad that
 	// reads the write-barrier flag until the control flow rejoins
