@@ -1114,7 +1114,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.Spadj = -framesize
 
 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
-	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
+	spill := ctxt.StartUnsafePoint(pcdata, newprog)
+	pcdata = ctxt.SpillRegisterArgs(spill, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func().Text.Pos
@@ -1139,7 +1140,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		progedit(ctxt, callend.Link, newprog)
 	}
 
-	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
+	pcdata = ctxt.UnspillRegisterArgs(callend, newprog)
+	pcdata = ctxt.EndUnsafePoint(pcdata, newprog, -1)
 
 	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
@@ -1147,9 +1149,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jmp.To.SetTarget(cursym.Func().Text.Link)
 	jmp.Spadj = +framesize
 
-	jls.To.SetTarget(call)
+	jls.To.SetTarget(spill)
 	if q1 != nil {
-		q1.To.SetTarget(call)
+		q1.To.SetTarget(spill)
 	}
 
 	return end

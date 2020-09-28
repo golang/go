@@ -766,6 +766,17 @@ type Auto struct {
 	Gotype  *LSym
 }
 
+// RegArg provides spill/fill information for a register-resident argument
+// to a function.  These need spilling/filling in the safepoint/stackgrowth case.
+// At the time of fill/spill, the offset must be adjusted by the architecture-dependent
+// adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
+// at Offset+8 because the return address was pushed.
+type RegArg struct {
+	Addr           Addr
+	Reg            int16
+	Spill, Unspill As
+}
+
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
@@ -796,10 +807,11 @@ type Link struct {
 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
+	RegArgs            []RegArg
 
-	InParallel    bool // parallel backend phase in effect
-	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
-	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+	InParallel      bool // parallel backend phase in effect
+	UseBASEntries   bool // use Base Address Selection Entries in location lists and PC ranges
+	IsAsm           bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
 
 	// state for writing objects
 	Text []*LSym
@@ -842,6 +854,32 @@ func (ctxt *Link) Diag(format string, args ...interface{}) {
 func (ctxt *Link) Logf(format string, args ...interface{}) {
 	fmt.Fprintf(ctxt.Bso, format, args...)
 	ctxt.Bso.Flush()
+}
+
+func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+	// Spill register args.
+	for _, ra := range ctxt.RegArgs {
+		spill := Appendp(last, pa)
+		spill.As = ra.Spill
+		spill.From.Type = TYPE_REG
+		spill.From.Reg = ra.Reg
+		spill.To = ra.Addr
+		last = spill
+	}
+	return last
+}
+
+func (ctxt *Link) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+	// Unspill any spilled register args
+	for _, ra := range ctxt.RegArgs {
+		unspill := Appendp(last, pa)
+		unspill.As = ra.Unspill
+		unspill.From = ra.Addr
+		unspill.To.Type = TYPE_REG
+		unspill.To.Reg = ra.Reg
+		last = unspill
+	}
+	return last
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
