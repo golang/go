@@ -511,6 +511,7 @@ func dimportpath(p *types.Pkg) {
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	p.Pathsym = s
 }
 
@@ -638,6 +639,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 	}
 	ot := dnameData(s, 0, name, tag, pkg, exported)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	return s
 }
 

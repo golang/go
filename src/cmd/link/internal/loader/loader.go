@@ -2153,11 +2153,11 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	l.npkgsyms = l.NSym()
 	// Preallocate some space (a few hundreds KB) for some symbols.
 	// As of Go 1.15, linking cmd/compile has ~8000 hashed64 symbols and
-	// ~13000 hashed symbols.
+	// ~27000 hashed symbols.
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, 10000),
-		hashedSyms:   make(map[goobj.HashType]symAndSize, 15000),
+		hashedSyms:   make(map[goobj.HashType]symAndSize, 30000),
 	}
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
