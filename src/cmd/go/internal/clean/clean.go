@@ -276,6 +276,13 @@ func clean(p *load.Package) {
 			elem,
 			elem+".exe",
 		)
+		// Binary's module name isn't 'main'
+		if modload.Enabled() && p.Name != p.ImportPath {
+			allRemove = append(allRemove,
+				p.ImportPath,
+				p.ImportPath+".exe",
+			)
+		}
 	}
 
 	// Remove package test executables.
