@@ -419,27 +419,33 @@ const (
 	C_SBRA // for TYPE_BRANCH
 	C_LBRA
 
-	C_ZAUTO      // 0(RSP)
-	C_NSAUTO_8   // -256 <= x < 0, 0 mod 8
-	C_NSAUTO_4   // -256 <= x < 0, 0 mod 4
-	C_NSAUTO     // -256 <= x < 0
-	C_NPAUTO     // -512 <= x < 0, 0 mod 8
-	C_NAUTO4K    // -4095 <= x < 0
-	C_PSAUTO_8   // 0 to 255, 0 mod 8
-	C_PSAUTO_4   // 0 to 255, 0 mod 4
-	C_PSAUTO     // 0 to 255
-	C_PPAUTO     // 0 to 504, 0 mod 8
-	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
-	C_UAUTO4K_4  // 0 to 4095, 0 mod 4
-	C_UAUTO4K_2  // 0 to 4095, 0 mod 2
-	C_UAUTO4K    // 0 to 4095
-	C_UAUTO8K_8  // 0 to 8190, 0 mod 8
-	C_UAUTO8K_4  // 0 to 8190, 0 mod 4
-	C_UAUTO8K    // 0 to 8190, 0 mod 2
-	C_UAUTO16K_8 // 0 to 16380, 0 mod 8
-	C_UAUTO16K   // 0 to 16380, 0 mod 4
-	C_UAUTO32K   // 0 to 32760, 0 mod 8
-	C_LAUTO      // any other 32-bit constant
+	C_ZAUTO       // 0(RSP)
+	C_NSAUTO_8    // -256 <= x < 0, 0 mod 8
+	C_NSAUTO_4    // -256 <= x < 0, 0 mod 4
+	C_NSAUTO      // -256 <= x < 0
+	C_NPAUTO      // -512 <= x < 0, 0 mod 8
+	C_NAUTO4K     // -4095 <= x < 0
+	C_PSAUTO_8    // 0 to 255, 0 mod 8
+	C_PSAUTO_4    // 0 to 255, 0 mod 4
+	C_PSAUTO      // 0 to 255
+	C_PPAUTO_16   // 0 to 504, 0 mod 16
+	C_PPAUTO      // 0 to 504, 0 mod 8
+	C_UAUTO4K_16  // 0 to 4095, 0 mod 16
+	C_UAUTO4K_8   // 0 to 4095, 0 mod 8
+	C_UAUTO4K_4   // 0 to 4095, 0 mod 4
+	C_UAUTO4K_2   // 0 to 4095, 0 mod 2
+	C_UAUTO4K     // 0 to 4095
+	C_UAUTO8K_16  // 0 to 8190, 0 mod 16
+	C_UAUTO8K_8   // 0 to 8190, 0 mod 8
+	C_UAUTO8K_4   // 0 to 8190, 0 mod 4
+	C_UAUTO8K     // 0 to 8190, 0 mod 2  + C_PSAUTO
+	C_UAUTO16K_16 // 0 to 16380, 0 mod 16
+	C_UAUTO16K_8  // 0 to 16380, 0 mod 8
+	C_UAUTO16K    // 0 to 16380, 0 mod 4 + C_PSAUTO
+	C_UAUTO32K_16 // 0 to 32760, 0 mod 16 + C_PSAUTO
+	C_UAUTO32K    // 0 to 32760, 0 mod 8 + C_PSAUTO
+	C_UAUTO64K    // 0 to 65520, 0 mod 16 + C_PSAUTO
+	C_LAUTO       // any other 32-bit constant
 
 	C_SEXT1  // 0 to 4095, direct
 	C_SEXT2  // 0 to 8190
@@ -457,17 +463,23 @@ const (
 	C_PSOREG_8
 	C_PSOREG_4
 	C_PSOREG
+	C_PPOREG_16
 	C_PPOREG
+	C_UOREG4K_16
 	C_UOREG4K_8
 	C_UOREG4K_4
 	C_UOREG4K_2
 	C_UOREG4K
+	C_UOREG8K_16
 	C_UOREG8K_8
 	C_UOREG8K_4
 	C_UOREG8K
+	C_UOREG16K_16
 	C_UOREG16K_8
 	C_UOREG16K
+	C_UOREG32K_16
 	C_UOREG32K
+	C_UOREG64K
 	C_LOREG
 
 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
@@ -873,6 +885,7 @@ const (
 	AFDIVS
 	AFLDPD
 	AFLDPS
+	AFMOVQ
 	AFMOVD
 	AFMOVS
 	AVMOVQ
@@ -1001,6 +1014,7 @@ const (
 	AVUZP2
 	AVSHL
 	AVSRI
+	AVSLI
 	AVBSL
 	AVBIT
 	AVTBL
@@ -1008,6 +1022,9 @@ const (
 	AVZIP1
 	AVZIP2
 	AVCMTST
+	AVUADDW2
+	AVUADDW
+	AVUSRA
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL

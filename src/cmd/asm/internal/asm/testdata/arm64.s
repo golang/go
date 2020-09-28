@@ -454,6 +454,17 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	F20, (R2)                                       // 540000fd
 	FMOVD.P	F20, 8(R1)                                      // 348400fc
 	FMOVD.W	8(R1), F20                                      // 348c40fc
+	FMOVQ.P	F13, 11(R10)                                    // 4db5803c
+	FMOVQ.W	F15, 11(R20)                                    // 8fbe803c
+	FMOVQ.P	11(R10), F13                                    // 4db5c03c
+	FMOVQ.W	11(R20), F15                                    // 8fbec03c
+	FMOVQ	F10, 65520(R10)                                 // 4afdbf3d
+	FMOVQ	F11, 64(RSP)                                    // eb13803d
+	FMOVQ	F11, 8(R20)                                     // 8b82803c
+	FMOVQ	F11, 4(R20)                                     // 8b42803c
+	FMOVQ	32(R5), F2                                      // a208c03d
+	FMOVQ	65520(R10), F10                                 // 4afdff3d
+	FMOVQ	64(RSP), F11                                    // eb13c03d
 	PRFM	(R2), PLDL1KEEP                                 // 400080f9
 	PRFM	16(R2), PLDL1KEEP                               // 400880f9
 	PRFM	48(R6), PSTL2STRM                               // d31880f9
