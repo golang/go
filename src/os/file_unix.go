@@ -68,7 +68,7 @@ type file struct {
 // a finalizer might be run. On Unix systems this will cause the SetDeadline
 // methods to stop working.
 //
-// As an alternative, see the f.SyscallCon method.
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
