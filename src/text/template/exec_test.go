@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -1696,4 +1697,41 @@ func TestIssue31810(t *testing.T) {
 	if b.String() != "result" {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
 	}
+}
+
+// Issue 39807: data race in html/template & text/template
+func TestIssue39807(t *testing.T) {
+	var wg sync.WaitGroup
+
+	tplFoo, err := New("foo").Parse(`{{ template "bar" . }}`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tplBar, err := New("bar").Parse("bar")
+	if err != nil {
+		t.Error(err)
+	}
+
+	gofuncs := 10
+	numTemplates := 10
+
+	for i := 1; i <= gofuncs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numTemplates; j++ {
+				_, err := tplFoo.AddParseTree(tplBar.Name(), tplBar.Tree)
+				if err != nil {
+					t.Error(err)
+				}
+				err = tplFoo.Execute(ioutil.Discard, nil)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 }
