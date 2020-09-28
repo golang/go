@@ -140,7 +140,6 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
 	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		// Add a replace directive and expect the files that gopls is watching
 		// to change.
 		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
@@ -198,7 +197,6 @@ func Hello() int {
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
@@ -240,7 +238,6 @@ func Hello() int {
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("moda/a/a.go")
 
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
@@ -284,7 +281,6 @@ func main() {
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("moda/a/a.go")
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {
@@ -343,7 +339,6 @@ func Hello() int {
 }
 `
 	run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("modb/go.mod")
 		env.Await(
 			OnceMet(
@@ -399,7 +394,6 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("moda/a/a.go")
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {

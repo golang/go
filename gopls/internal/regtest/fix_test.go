@@ -28,7 +28,6 @@ func Foo() {
 }
 `
 	runner.Run(t, basic, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("main.go")
 		if err := env.Editor.RefactorRewrite(env.Ctx, "main.go", &protocol.Range{
 			Start: protocol.Position{

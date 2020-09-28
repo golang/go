@@ -37,9 +37,7 @@ func TestBenchmarkIWL(t *testing.T) {
 
 	results := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
-				env.Await(InitialWorkspaceLoad)
-			})
+			withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {})
 		}
 	})
 

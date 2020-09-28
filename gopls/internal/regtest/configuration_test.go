@@ -26,7 +26,6 @@ package a
 const ThisVariable = 7
 `
 	run(t, files, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("a/a.go")
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),

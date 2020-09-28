@@ -46,7 +46,6 @@ func benchmarkCompletion(options completionBenchOptions, t *testing.T) {
 	opts = append(opts, SkipHooks(false))
 
 	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile(options.file)
 
 		// Run edits required for this completion.

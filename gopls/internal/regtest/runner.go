@@ -281,6 +281,8 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				}
 				env.CloseEditor()
 			}()
+			// Always await the initial workspace load.
+			env.Await(InitialWorkspaceLoad)
 			test(t, env)
 		})
 	}

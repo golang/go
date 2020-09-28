@@ -253,7 +253,6 @@ func main() {
 	withOptions(
 		EditorConfig{CodeLens: map[string]bool{"gc_details": true}},
 	).run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("main.go")
 		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
 		d := &protocol.PublishDiagnosticsParams{}

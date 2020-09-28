@@ -189,7 +189,6 @@ func TestA(t *testing.T) {
 }
 `
 	run(t, pkg, func(t *testing.T, env *Env) {
-		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("a/a.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
