@@ -46,23 +46,6 @@ type SyntaxError struct {
 
 func (e SyntaxError) Error() string { return "asn1: syntax error: " + e.Msg }
 
-// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
-// (The argument to Unmarshal must be a non-nil pointer.)
-type InvalidUnmarshalError struct {
-	Type reflect.Type
-}
-
-func (e *InvalidUnmarshalError) Error() string {
-	if e.Type == nil {
-		return "asn1: Unmarshal(nil)"
-	}
-
-	if e.Type.Kind() != reflect.Ptr {
-		return "asn1: Unmarshal(non-pointer " + e.Type.String() + ")"
-	}
-	return "asn1: Unmarshal(nil " + e.Type.String() + ")"
-}
-
 // We start by dealing with each of the primitive types in turn.
 
 // BOOLEAN
@@ -1053,7 +1036,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // and uses the reflect package to fill in an arbitrary value pointed at by val.
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names. If val
-// is null or not a pointer, Unmarshal returns an InvalidUnmarshalError.
+// is null or not a pointer, Unmarshal returns an invalidUnmarshalError.
 //
 // After parsing b, any bytes that were leftover and not used to fill
 // val will be returned in rest. When parsing a SEQUENCE into a struct,
@@ -1113,12 +1096,29 @@ func Unmarshal(b []byte, val interface{}) (rest []byte, err error) {
 	return UnmarshalWithParams(b, val, "")
 }
 
+// An invalidUnmarshalError describes an invalid argument passed to Unmarshal.
+// (The argument to Unmarshal must be a non-nil pointer.)
+type invalidUnmarshalError struct {
+	Type reflect.Type
+}
+
+func (e *invalidUnmarshalError) Error() string {
+	if e.Type == nil {
+		return "asn1: Unmarshal recipient value is nil"
+	}
+
+	if e.Type.Kind() != reflect.Ptr {
+		return "asn1: Unmarshal recipient value is non-pointer " + e.Type.String()
+	}
+	return "asn1: Unmarshal recipient value is nil " + e.Type.String()
+}
+
 // UnmarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
 func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return nil, &InvalidUnmarshalError{reflect.TypeOf(val)}
+		return nil, &invalidUnmarshalError{reflect.TypeOf(val)}
 	}
 	offset, err := parseField(v.Elem(), b, 0, parseFieldParameters(params))
 	if err != nil {

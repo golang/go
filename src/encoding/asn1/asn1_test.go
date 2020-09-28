@@ -524,9 +524,9 @@ func TestInvalidUnmarshal(t *testing.T) {
 		v    interface{}
 		want string
 	}{
-		{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal(nil)"},
-		{b: []byte{0x05, 0x00}, v: RawValue{}, want: "asn1: Unmarshal(non-pointer asn1.RawValue)"},
-		{b: []byte{0x05, 0x00}, v: (*RawValue)(nil), want: "asn1: Unmarshal(nil *asn1.RawValue)"},
+		{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal recipient value is nil"},
+		{b: []byte{0x05, 0x00}, v: RawValue{}, want: "asn1: Unmarshal recipient value is non-pointer asn1.RawValue"},
+		{b: []byte{0x05, 0x00}, v: (*RawValue)(nil), want: "asn1: Unmarshal recipient value is nil *asn1.RawValue"},
 	}
 
 	for _, test := range tests {
