@@ -187,8 +187,8 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
 	// ppc64le:-"AND","CLRLSLWI"
 	// ppc64:-"AND","CLRLSLWI"
 	f := (v8 &0xF) << 2
-	// ppc64le:-"AND","CLRLSLWI"
-        // ppc64:-"AND","CLRLSLWI"
+	// ppc64le:"CLRLSLWI"
+	// ppc64:"CLRLSLWI"
 	f += byte(v16)<<3
 	// ppc64le:-"AND","CLRLSLWI"
 	// ppc64:-"AND","CLRLSLWI"
@@ -196,12 +196,15 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
 	// ppc64le:-"AND","CLRLSLWI"
 	// ppc64:-"AND","CLRLSLWI"
 	h := (v32 & 0xFFFFF) << 2
-	// ppc64le:-"AND","CLRLSLWI"
-        // ppc64:-"AND","CLRLSLWI"
-	h += uint32(v64)<<4
-	// ppc64le:-"AND","CLRLSLDI"
-	// ppc64:-"AND","CLRLSLDI"
+	// ppc64le:"CLRLSLDI"
+	// ppc64:"CLRLSLDI"
 	i := (v64 & 0xFFFFFFFF) << 5
+	// ppc64le:-"CLRLSLDI"
+	// ppc64:-"CLRLSLDI"
+	i += (v64 & 0xFFFFFFF) << 38
+	// ppc64le/power9:-"CLRLSLDI"
+	// ppc64/power9:-"CLRLSLDI"
+	i += (v64 & 0xFFFF00) << 10
 	// ppc64le/power9:-"SLD","EXTSWSLI"
 	// ppc64/power9:-"SLD","EXTSWSLI"
 	j := int64(x32+32)*8

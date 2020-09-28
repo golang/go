@@ -2749,7 +2749,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			me := int(d)
 			sh := c.regoff(&p.From)
 			if me < 0 || me > 63 || sh > 63 {
-				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
+				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh, p)
 			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
 
@@ -2757,19 +2757,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			mb := int(d)
 			sh := c.regoff(&p.From)
 			if mb < 0 || mb > 63 || sh > 63 {
-				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
+				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh, p)
 			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
 
 		case ACLRLSLDI:
 			// This is an extended mnemonic defined in the ISA section C.8.1
-			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
+			// clrlsldi ra,rs,b,n --> rldic ra,rs,n,b-n
 			// It maps onto RLDIC so is directly generated here based on the operands from
 			// the clrlsldi.
-			b := int(d)
-			n := c.regoff(&p.From)
-			if n > int32(b) || b > 63 {
-				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
+			n := int32(d)
+			b := c.regoff(&p.From)
+			if n > b || b > 63 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
 			}
 			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
@@ -3395,14 +3395,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		switch p.As {
 		case ACLRLSLWI:
-			b := c.regoff(p.GetFrom3())
+			n := c.regoff(p.GetFrom3())
 			// This is an extended mnemonic described in the ISA C.8.2
-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
 			// It maps onto rlwinm which is directly generated here.
-			if v < 0 || v > 32 || b > 32 {
-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			if n > v || v >= 32 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
 			}
-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
 		default:
 			var mask [2]uint8
 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
@@ -3414,16 +3415,16 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		switch p.As {
 		case ACLRLSLWI:
-			b := c.regoff(p.GetFrom3())
-			if v > b || b > 32 {
+			n := c.regoff(p.GetFrom3())
+			if n > v || v >= 32 {
 				// Message will match operands from the ISA even though in the
 				// code it uses 'v'
-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
 			}
 			// This is an extended mnemonic described in the ISA C.8.2
-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
 			// It generates the rlwinm directly here.
-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
 		default:
 			var mask [2]uint8
 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))

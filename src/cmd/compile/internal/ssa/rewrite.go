@@ -1380,8 +1380,8 @@ func GetPPC64Shiftme(auxint int64) int64 {
 	return int64(int8(auxint))
 }
 
-// Catch the simple ones first
-// TODO: Later catch more cases
+// This verifies that the mask occupies the
+// rightmost bits.
 func isPPC64ValidShiftMask(v int64) bool {
 	if ((v + 1) & v) == 0 {
 		return true
