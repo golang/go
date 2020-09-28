@@ -229,6 +229,25 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
+  <dd>
+    <p><!-- CL 257939 -->
+      The <a href="/pkg/crypto/dsa/"><code>crypto/dsa</code></a> package is now deprecated.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+  </dd>
+</dl><!-- crypto/dsa -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 257939 -->
+      DSA signature verification is no longer supported. Note that DSA signature
+      generation was never supported.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- CL 233637 -->
