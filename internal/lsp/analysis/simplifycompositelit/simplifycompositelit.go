@@ -14,8 +14,6 @@ import (
 	"go/printer"
 	"go/token"
 	"reflect"
-	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -189,16 +187,10 @@ func match(pattern, val reflect.Value) bool {
 	return p.Interface() == v.Interface()
 }
 
-func isWildcard(s string) bool {
-	rune, size := utf8.DecodeRuneInString(s)
-	return size == len(s) && unicode.IsLower(rune)
-}
-
 // Values/types for special cases.
 var (
 	identType     = reflect.TypeOf((*ast.Ident)(nil))
 	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
 	positionType  = reflect.TypeOf(token.NoPos)
 	callExprType  = reflect.TypeOf((*ast.CallExpr)(nil))
-	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
 )

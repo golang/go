@@ -17,7 +17,6 @@ import (
 	"sync"
 	"testing"
 
-	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/cmd"
@@ -31,7 +30,6 @@ import (
 )
 
 type runner struct {
-	exporter    packagestest.Exporter
 	data        *tests.Data
 	ctx         context.Context
 	options     func(*source.Options)

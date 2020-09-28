@@ -312,10 +312,6 @@ package main
 func main() {
 	fmt.Println(blah.Name)
 `
-	const want = `module mod.com
-
-go 1.12
-`
 	runner.Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("go.mod", "require"))
 		env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"tidy"})

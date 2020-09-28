@@ -366,7 +366,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		if found {
 			return pkg, nil
 		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %s, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, rawErrors)
+		return nil, errors.Errorf("no parsed files for package %s, expected: %v, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, rawErrors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
 	}

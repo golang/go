@@ -140,9 +140,6 @@ func bestMatch(fullPath string, matcher matcherFunc) (string, float64) {
 //  * A symbolizer determines how we extract the symbol for an object. This
 //    enables the 'symbolStyle' configuration option.
 type symbolCollector struct {
-	// query is the user-supplied query passed to the Symbol method.
-	query string
-
 	// These types parameterize the symbol-matching pass.
 	matcher    matcherFunc
 	symbolizer symbolizer

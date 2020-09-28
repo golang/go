@@ -512,14 +512,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	return snapshots, releases, deletionsSlice, nil
 }
 
-func (s *Session) isOpen(uri span.URI) bool {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	_, open := s.overlays[uri]
-	return open
-}
-
 func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
