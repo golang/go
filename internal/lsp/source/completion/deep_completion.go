@@ -22,8 +22,8 @@ type deepCompletionState struct {
 	// enabled indicates wether deep completion is permitted.
 	enabled bool
 
-	// queueClosed is used to disable adding new items to search queue once
-	// we're running out of our time budget.
+	// queueClosed is used to disable adding new sub-fields to search queue
+	// once we're running out of our time budget.
 	queueClosed bool
 
 	// searchQueue holds the current breadth first search queue.
@@ -158,14 +158,16 @@ outer:
 		c.deepState.candidateCount++
 		if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
 			spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
-			if spent > 1.0 {
+			select {
+			case <-ctx.Done():
 				return
-			}
-			// If we are almost out of budgeted time, no further elements
-			// should be added to the queue. This ensures remaining time is
-			// used for processing current queue.
-			if !c.deepState.queueClosed && spent >= 0.85 {
-				c.deepState.queueClosed = true
+			default:
+				// If we are almost out of budgeted time, no further elements
+				// should be added to the queue. This ensures remaining time is
+				// used for processing current queue.
+				if !c.deepState.queueClosed && spent >= 0.85 {
+					c.deepState.queueClosed = true
+				}
 			}
 		}
 

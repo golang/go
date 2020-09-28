@@ -179,6 +179,11 @@ type completer struct {
 	// items is the list of completion items returned.
 	items []CompletionItem
 
+	// completionCallbacks is a list of callbacks to collect completions that
+	// require expensive operations. This includes operations where we search
+	// through the entire module cache.
+	completionCallbacks []func(opts *imports.Options) error
+
 	// surrounding describes the identifier surrounding the position.
 	surrounding *Selection
 
@@ -516,6 +521,17 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	// Deep search collected candidates and their members for more candidates.
 	c.deepSearch(ctx)
+	c.deepState.searchQueue = nil
+
+	for _, callback := range c.completionCallbacks {
+		if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Search candidates populated by expensive operations like
+	// unimportedMembers etc. for more completion items.
+	c.deepSearch(ctx)
 
 	// Statement candidates offer an entire statement in certain contexts, as
 	// opposed to a single object. Add statement candidates last because they
@@ -799,9 +815,10 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		}
 	}
 
-	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
 		return imports.GetImportPaths(ctx, searchImports, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
+	return nil
 }
 
 // populateCommentCompletions yields completions for comments preceding or in declarations.
@@ -1126,7 +1143,6 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	var mu sync.Mutex
 	add := func(pkgExport imports.PackageExport) {
@@ -1153,9 +1169,12 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 			cancel()
 		}
 	}
-	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+
+	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
+		defer cancel()
 		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
+	return nil
 }
 
 // unimportedScore returns a score for an unimported package that is generally
@@ -1422,7 +1441,6 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	var mu sync.Mutex
 	add := func(pkg imports.ImportFix) {
@@ -1454,9 +1472,11 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		})
 		count++
 	}
-	return c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
+		defer cancel()
 		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
+	return nil
 }
 
 // alreadyImports reports whether f has an import with the specified path.
