@@ -114,7 +114,7 @@ again:
 	if h.growing() {
 		growWork_fast32(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 
 	var insertb *bmap
 	var inserti uintptr
@@ -158,7 +158,7 @@ bucketloop:
 	}
 
 	if insertb == nil {
-		// all current buckets are full, allocate a new one.
+		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
 		insertb = h.newoverflow(t, b)
 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
@@ -204,7 +204,7 @@ again:
 	if h.growing() {
 		growWork_fast32(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 
 	var insertb *bmap
 	var inserti uintptr
@@ -248,7 +248,7 @@ bucketloop:
 	}
 
 	if insertb == nil {
-		// all current buckets are full, allocate a new one.
+		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
 		insertb = h.newoverflow(t, b)
 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
 	}
