@@ -1770,7 +1770,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 				n.Type = nil
 				return n
 			}
-			if !checkmake(t, "len", l) || r != nil && !checkmake(t, "cap", r) {
+			if !checkmake(t, "len", &l) || r != nil && !checkmake(t, "cap", &r) {
 				n.Type = nil
 				return n
 			}
@@ -1794,7 +1794,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 					n.Type = nil
 					return n
 				}
-				if !checkmake(t, "size", l) {
+				if !checkmake(t, "size", &l) {
 					n.Type = nil
 					return n
 				}
@@ -1815,7 +1815,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 					n.Type = nil
 					return n
 				}
-				if !checkmake(t, "buffer", l) {
+				if !checkmake(t, "buffer", &l) {
 					n.Type = nil
 					return n
 				}
@@ -3729,7 +3729,8 @@ ret:
 	n.SetWalkdef(1)
 }
 
-func checkmake(t *types.Type, arg string, n *Node) bool {
+func checkmake(t *types.Type, arg string, np **Node) bool {
+	n := *np
 	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
 		yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
 		return false
@@ -3739,12 +3740,12 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
 	// to avoid redundant "constant NNN overflows int" errors.
 	switch consttype(n) {
 	case CTINT, CTRUNE, CTFLT, CTCPLX:
-		n.SetVal(toint(n.Val()))
-		if n.Val().U.(*Mpint).CmpInt64(0) < 0 {
+		v := toint(n.Val()).U.(*Mpint)
+		if v.CmpInt64(0) < 0 {
 			yyerror("negative %s argument in make(%v)", arg, t)
 			return false
 		}
-		if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+		if v.Cmp(maxintval[TINT]) > 0 {
 			yyerror("%s argument too large in make(%v)", arg, t)
 			return false
 		}
@@ -3756,6 +3757,7 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
 	// for instance, indexlit might be called here and incorporate some
 	// of the bounds checks done for make.
 	n = defaultlit(n, types.Types[TINT])
+	*np = n
 
 	return true
 }
