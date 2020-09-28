@@ -32,6 +32,14 @@ type Snapshot interface {
 	// Fileset returns the Fileset used to parse all the Go files in this snapshot.
 	FileSet() *token.FileSet
 
+	// ValidBuildConfiguration returns true if there is some error in the
+	// user's workspace. In particular, if they are both outside of a module
+	// and their GOPATH.
+	ValidBuildConfiguration() bool
+
+	// WriteEnv writes the view-specific environment to the io.Writer.
+	WriteEnv(ctx context.Context, w io.Writer) error
+
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
 	FindFile(uri span.URI) VersionedFileHandle
@@ -48,6 +56,10 @@ type Snapshot interface {
 
 	// IsSaved returns whether the contents are saved on disk or not.
 	IsSaved(uri span.URI) bool
+
+	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
+	// workspace.
+	IgnoredFile(uri span.URI) bool
 
 	// ParseGo returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
@@ -78,6 +90,10 @@ type Snapshot interface {
 	// snapshot's root folder will be used as the working directory.
 	RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error
 
+	// ModFiles are the go.mod files enclosed in the snapshot's view and known
+	// to the snapshot.
+	ModFiles() []span.URI
+
 	// ParseMod is used to parse go.mod files.
 	ParseMod(ctx context.Context, fh FileHandle) (*ParsedModule, error)
 
@@ -93,8 +109,8 @@ type Snapshot interface {
 	// the given go.mod file.
 	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
 
-	// GoModForFile returns the go.mod file handle for the given Go file.
-	GoModForFile(ctx context.Context, fh FileHandle) (VersionedFileHandle, error)
+	// GoModForFile returns the URI of the go.mod file for the given URI.
+	GoModForFile(ctx context.Context, uri span.URI) (span.URI, error)
 
 	// BuildWorkspaceModFile builds the contents of mod file to be used for
 	// multi-module workspace.
@@ -162,18 +178,12 @@ type View interface {
 	// Folder returns the folder with which this view was created.
 	Folder() span.URI
 
-	// ModFiles is the go.mod file at the root of this view. It may not exist.
-	ModFiles() []span.URI
-
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
 	BackgroundContext() context.Context
 
 	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)
-
-	// WriteEnv writes the view-specific environment to the io.Writer.
-	WriteEnv(ctx context.Context, w io.Writer) error
 
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
@@ -194,18 +204,9 @@ type View interface {
 	// Rebuild rebuilds the current view, replacing the original view in its session.
 	Rebuild(ctx context.Context) (Snapshot, func(), error)
 
-	// InvalidBuildConfiguration returns true if there is some error in the
-	// user's workspace. In particular, if they are both outside of a module
-	// and their GOPATH.
-	ValidBuildConfiguration() bool
-
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
-
-	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
-	// workspace.
-	IgnoredFile(uri span.URI) bool
 }
 
 type BuiltinPackage struct {

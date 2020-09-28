@@ -597,28 +597,25 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	return results, nil
 }
 
-func (s *snapshot) GoModForFile(ctx context.Context, fh source.FileHandle) (source.VersionedFileHandle, error) {
-	if fh.Kind() != source.Go {
-		return nil, fmt.Errorf("expected Go file, got %s", fh.Kind())
-	}
+func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) (span.URI, error) {
 	if len(s.modules) == 0 {
 		if s.view.modURI == "" {
-			return nil, errors.New("no modules in this view")
+			return "", errors.New("no modules in this view")
 		}
-		return s.GetFile(ctx, s.view.modURI)
+		return s.view.modURI, nil
 	}
 	var match span.URI
 	for _, m := range s.modules {
 		// Add an os.PathSeparator to the end of each directory to make sure
 		// that foo/apple/banana does not match foo/a.
-		if !strings.HasPrefix(fh.URI().Filename()+string(os.PathSeparator), m.rootURI.Filename()+string(os.PathSeparator)) {
+		if !strings.HasPrefix(uri.Filename()+string(os.PathSeparator), m.rootURI.Filename()+string(os.PathSeparator)) {
 			continue
 		}
 		if len(m.modURI) > len(match) {
 			match = m.modURI
 		}
 	}
-	return s.GetFile(ctx, match)
+	return match, nil
 }
 
 func (s *snapshot) getPackage(id packageID, mode source.ParseMode) *packageHandle {
@@ -1065,7 +1062,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			rootURI := span.URIFromPath(filepath.Dir(withoutURI.Filename()))
 			if currentMod {
 				if _, ok := result.modules[rootURI]; !ok {
-					result.addModule(ctx, currentFH.URI())
+					m := newModule(ctx, currentFH.URI())
+					result.modules[m.rootURI] = m
 					result.view.definitelyReinitialize()
 				}
 			} else if originalMod {
@@ -1542,13 +1540,13 @@ func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, er
 	return file, nil
 }
 
-func (s *snapshot) addModule(ctx context.Context, modURI span.URI) {
+func newModule(ctx context.Context, modURI span.URI) *moduleRoot {
 	rootURI := span.URIFromPath(filepath.Dir(modURI.Filename()))
 	sumURI := span.URIFromPath(sumFilename(modURI))
 	if info, _ := os.Stat(sumURI.Filename()); info == nil {
 		sumURI = ""
 	}
-	s.modules[rootURI] = &moduleRoot{
+	return &moduleRoot{
 		rootURI: rootURI,
 		modURI:  modURI,
 		sumURI:  sumURI,

@@ -339,7 +339,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	})
 }
 
-func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, uri span.URI, recursive bool, work *workDone) error {
+func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, dir span.URI, recursive bool, work *workDone) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -353,7 +353,7 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, ur
 
 	stderr := io.MultiWriter(er, workDoneWriter{work})
 
-	if err := snapshot.RunGoCommandPiped(ctx, uri.Filename(), "generate", args, er, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, dir.Filename(), "generate", args, er, stderr); err != nil {
 		return err
 	}
 	return nil

@@ -49,8 +49,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	tests.DefaultOptions(options)
 	session.SetOptions(options)
 	options.Env = datum.Config.Env
-	view, _, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
-	release()
+	view, snapshot, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +62,8 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	view.SetOptions(ctx, options)
 
 	// Only run the -modfile specific tests in module mode with Go 1.14 or above.
-	datum.ModfileFlagAvailable = len(view.ModFiles()) > 0 && testenv.Go1Point() >= 14
+	datum.ModfileFlagAvailable = len(snapshot.ModFiles()) > 0 && testenv.Go1Point() >= 14
+	release()
 
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {

@@ -17,7 +17,7 @@ import (
 
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
 	var found bool
-	for _, uri := range snapshot.View().ModFiles() {
+	for _, uri := range snapshot.ModFiles() {
 		if fh.URI() == uri {
 			found = true
 			break

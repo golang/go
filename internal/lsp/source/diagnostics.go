@@ -41,7 +41,7 @@ type RelatedInformation struct {
 func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalysis bool) (map[VersionedFileIdentity][]*Diagnostic, bool, error) {
 	onlyIgnoredFiles := true
 	for _, pgf := range pkg.CompiledGoFiles() {
-		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.View().IgnoredFile(pgf.URI)
+		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.IgnoredFile(pgf.URI)
 	}
 	if onlyIgnoredFiles {
 		return nil, false, nil

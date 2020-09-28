@@ -130,9 +130,11 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		return nil, nil
 	}
 	var (
-		showMsg *protocol.ShowMessageParams
-		wg      sync.WaitGroup
+		showMsg     *protocol.ShowMessageParams
+		wg          sync.WaitGroup
+		seenFilesMu sync.Mutex
 	)
+	seenFiles := make(map[span.URI]struct{})
 	for _, pkg := range wsPkgs {
 		wg.Add(1)
 		go func(pkg source.Package) {
@@ -141,6 +143,10 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			withAnalysis := alwaysAnalyze // only run analyses for packages with open files
 			var gcDetailsDir span.URI     // find the package's optimization details, if available
 			for _, pgf := range pkg.CompiledGoFiles() {
+				seenFilesMu.Lock()
+				seenFiles[pgf.URI] = struct{}{}
+				seenFilesMu.Unlock()
+
 				if snapshot.IsOpen(pgf.URI) {
 					withAnalysis = true
 				}
@@ -159,7 +165,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.
-			if warn && !snapshot.View().ValidBuildConfiguration() {
+			if warn && !snapshot.ValidBuildConfiguration() {
 				showMsg = &protocol.ShowMessageParams{
 					Type:    protocol.Warning,
 					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor to a directory in your module. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
@@ -187,10 +193,18 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			}
 		}(pkg)
 	}
+	wg.Wait()
 	// Confirm that every opened file belongs to a package (if any exist in
 	// the workspace). Otherwise, add a diagnostic to the file.
 	if len(wsPkgs) > 0 {
 		for _, o := range s.session.Overlays() {
+			seenFilesMu.Lock()
+			_, ok := seenFiles[o.URI()]
+			seenFilesMu.Unlock()
+			if ok {
+				continue
+			}
+
 			diagnostic := s.checkForOrphanedFile(ctx, snapshot, o.URI())
 			if diagnostic == nil {
 				continue
@@ -200,7 +214,6 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			addReport(o.VersionedFileIdentity(), true, []*source.Diagnostic{diagnostic})
 		}
 	}
-	wg.Wait()
 	return reports, showMsg
 }
 
@@ -405,7 +418,7 @@ func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot
 	}
 
 	// All other workarounds are for errors associated with modules.
-	if len(snapshot.View().ModFiles()) == 0 {
+	if len(snapshot.ModFiles()) == 0 {
 		return false
 	}
 
@@ -431,7 +444,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 		// to a specific module, so this will re-run `go mod vendor` in every
 		// known module with a vendor directory.
 		// TODO(rstambler): Only re-run `go mod vendor` in the relevant module.
-		for _, uri := range snapshot.View().ModFiles() {
+		for _, uri := range snapshot.ModFiles() {
 			// Check that there is a vendor directory in the module before
 			// running `go mod vendor`.
 			if info, _ := os.Stat(filepath.Join(filepath.Dir(uri.Filename()), "vendor")); info == nil {
@@ -459,7 +472,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 	if errors.Is(loadErr, source.PackagesLoadError) {
 		// TODO(rstambler): Construct the diagnostics in internal/lsp/cache
 		// so that we can avoid this here.
-		for _, uri := range snapshot.View().ModFiles() {
+		for _, uri := range snapshot.ModFiles() {
 			fh, err := snapshot.GetFile(ctx, uri)
 			if err != nil {
 				return false

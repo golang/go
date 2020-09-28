@@ -27,7 +27,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 	defer done()
 
 	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{}
-	for _, uri := range snapshot.View().ModFiles() {
+	for _, uri := range snapshot.ModFiles() {
 		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err

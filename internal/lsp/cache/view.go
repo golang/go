@@ -209,15 +209,15 @@ func (f *fileBase) addURI(uri span.URI) int {
 
 func (v *View) ID() string { return v.id }
 
-func (v *View) ValidBuildConfiguration() bool {
-	return v.hasValidBuildConfiguration
+func (s *snapshot) ValidBuildConfiguration() bool {
+	return s.view.hasValidBuildConfiguration
 }
 
-func (v *View) ModFiles() []span.URI {
-	if v.modURI == "" {
+func (s *snapshot) ModFiles() []span.URI {
+	if s.view.modURI == "" {
 		return nil
 	}
-	return []span.URI{v.modURI}
+	return []span.URI{s.view.modURI}
 }
 
 // tempModFile creates a temporary go.mod file based on the contents of the
@@ -340,13 +340,13 @@ func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
 	return snapshot, release, nil
 }
 
-func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
-	v.optionsMu.Lock()
-	env, buildFlags := v.envLocked()
-	v.optionsMu.Unlock()
+func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
+	s.view.optionsMu.Lock()
+	env, buildFlags := s.view.envLocked()
+	s.view.optionsMu.Unlock()
 
 	fullEnv := make(map[string]string)
-	for k, v := range v.goEnv {
+	for k, v := range s.view.goEnv {
 		fullEnv[k] = v
 	}
 	for _, v := range env {
@@ -360,7 +360,7 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 
 	}
 	fmt.Fprintf(w, "go env for %v\n(root %s)\n(valid build configuration = %v)\n(build flags: %v)\n",
-		v.folder.Filename(), v.rootURI.Filename(), v.hasValidBuildConfiguration, buildFlags)
+		s.view.folder.Filename(), s.view.rootURI.Filename(), s.view.hasValidBuildConfiguration, buildFlags)
 	for k, v := range fullEnv {
 		fmt.Fprintf(w, "%s=%s\n", k, v)
 	}
@@ -646,18 +646,18 @@ func (v *View) BackgroundContext() context.Context {
 	return v.backgroundCtx
 }
 
-func (v *View) IgnoredFile(uri span.URI) bool {
+func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
-	if v.modURI == "" {
-		for _, entry := range filepath.SplitList(v.gopath) {
+	if len(s.modules) == 0 {
+		for _, entry := range filepath.SplitList(s.view.gopath) {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
-		mainMod := filepath.Dir(v.modURI.Filename())
-		prefixes = []string{mainMod, v.gomodcache}
+		for _, m := range s.modules {
+			prefixes = []string{m.rootURI.Filename(), s.view.gomodcache}
+		}
 	}
-
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(filename, prefix) {
 			return checkIgnored(filename[len(prefix):])

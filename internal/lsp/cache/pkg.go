@@ -42,7 +42,6 @@ type (
 // Declare explicit types for files and directories to distinguish between the two.
 type (
 	fileURI         span.URI
-	directoryURI    span.URI
 	moduleLoadScope string
 	viewLoadScope   span.URI
 )

@@ -58,16 +58,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			query = append(query, string(scope))
 		case fileURI:
 			query = append(query, fmt.Sprintf("file=%s", span.URI(scope).Filename()))
-		case directoryURI:
-			filename := span.URI(scope).Filename()
-			q := fmt.Sprintf("%s/...", filename)
-			// Simplify the query if it will be run in the requested directory.
-			// This ensures compatibility with Go 1.12 that doesn't allow
-			// <directory>/... in GOPATH mode.
-			if s.view.rootURI.Filename() == filename {
-				q = "./..."
-			}
-			query = append(query, q)
 		case moduleLoadScope:
 			query = append(query, fmt.Sprintf("%s/...", scope))
 		case viewLoadScope:
@@ -82,7 +72,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
 		switch scope.(type) {
-		case directoryURI, viewLoadScope:
+		case viewLoadScope:
 			containsDir = true
 		}
 	}

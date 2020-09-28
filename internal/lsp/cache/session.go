@@ -169,11 +169,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// If workspace module mode is enabled, find all of the modules in the
 	// workspace.
 	var modules map[span.URI]*moduleRoot
-	if options.ExperimentalWorkspaceModule {
-		modules, err = findWorkspaceModules(ctx, ws.rootURI, options)
-		if err != nil {
-			return nil, nil, func() {}, err
-		}
+	modules, err = findWorkspaceModules(ctx, ws.rootURI, options)
+	if err != nil {
+		return nil, nil, func() {}, err
 	}
 
 	// Now that we have set all required fields,
@@ -276,17 +274,14 @@ func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Op
 			}
 		}
 		// We're only interested in go.mod files.
-		if filepath.Base(path) != "go.mod" {
-			return nil
+		if filepath.Base(path) == "go.mod" {
+			m := newModule(ctx, span.URIFromPath(path))
+			modules[m.rootURI] = m
 		}
-		// At this point, we definitely have a go.mod file in the workspace,
-		// so add it to the view.
-		modURI := span.URIFromPath(path)
-		rootURI := span.URIFromPath(filepath.Dir(path))
-		modules[rootURI] = &moduleRoot{
-			rootURI: rootURI,
-			modURI:  modURI,
-			sumURI:  span.URIFromPath(sumFilename(modURI)),
+		// If we are not using experimental workspace modules, don't continue
+		// the search past the view's root.
+		if !options.ExperimentalWorkspaceModule {
+			return filepath.SkipDir
 		}
 		return nil
 	})
