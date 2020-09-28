@@ -63,7 +63,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
 			// build system, don't load subdirectories.
-			if !s.view.hasValidBuildConfiguration {
+			if !s.ValidBuildConfiguration() {
 				query = append(query, "./")
 			} else {
 				query = append(query, "./...")

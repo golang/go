@@ -125,6 +125,17 @@ func (s *snapshot) FileSet() *token.FileSet {
 	return s.view.session.cache.fset
 }
 
+func (s *snapshot) ModFiles() []span.URI {
+	if s.view.modURI == "" {
+		return nil
+	}
+	return []span.URI{s.view.modURI}
+}
+
+func (s *snapshot) ValidBuildConfiguration() bool {
+	return validBuildConfiguration(s.view.rootURI, &s.view.workspaceInformation, s.modules)
+}
+
 // config returns the configuration used for the snapshot's interaction with
 // the go/packages API. It uses the given working directory.
 //
@@ -811,7 +822,7 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// If the view's build configuration is invalid, we cannot reload by
 	// package path. Just reload the directory instead.
-	if !s.view.hasValidBuildConfiguration {
+	if !s.ValidBuildConfiguration() {
 		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
 	}
 
@@ -1213,7 +1224,7 @@ copyIDs:
 		result.workspacePackages[id] = pkgPath
 	}
 
-	if shouldReinitializeView && s.view.hasValidBuildConfiguration {
+	if shouldReinitializeView {
 		s.view.definitelyReinitialize()
 	}
 
