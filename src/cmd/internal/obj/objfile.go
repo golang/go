@@ -372,6 +372,13 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
 	h := sha1.New()
+	// Don't dedup type symbols with others, as they are in a different
+	// section.
+	if strings.HasPrefix(s.Name, "type.") {
+		h.Write([]byte{'T'})
+	} else {
+		h.Write([]byte{0})
+	}
 	// The compiler trims trailing zeros _sometimes_. We just do
 	// it always.
 	h.Write(bytes.TrimRight(s.P, "\x00"))
