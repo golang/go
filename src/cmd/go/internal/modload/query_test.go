@@ -45,7 +45,7 @@ var (
 	queryRepoV3 = queryRepo + "/v3"
 
 	// Empty version list (no semver tags), not actually empty.
-	emptyRepo = "vcs-test.golang.org/git/emptytest.git"
+	emptyRepoPath = "vcs-test.golang.org/git/emptytest.git"
 )
 
 var queryTests = []struct {
@@ -121,14 +121,14 @@ var queryTests = []struct {
 	{path: queryRepo, query: "upgrade", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "upgrade", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
-	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "upgrade" (current version is v1.9.9)`},
+	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `vcs-test.golang.org/git/querytest.git@v1.9.9: disallowed module version`},
 	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
 	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: "patch", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
-	{path: queryRepo, query: "patch", current: "v1.99.99", err: `no matching versions for query "patch" (current version is v1.99.99)`},
+	{path: queryRepo, query: "patch", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
@@ -171,9 +171,9 @@ var queryTests = []struct {
 	// That should prevent us from resolving any version for the /v3 path.
 	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
 
-	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
-	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
-	{path: emptyRepo, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
+	{path: emptyRepoPath, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
+	{path: emptyRepoPath, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
+	{path: emptyRepoPath, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
 }
 
 func TestQuery(t *testing.T) {
@@ -189,7 +189,7 @@ func TestQuery(t *testing.T) {
 		}
 		allowed := func(ctx context.Context, m module.Version) error {
 			if ok, _ := path.Match(allow, m.Version); !ok {
-				return ErrDisallowed
+				return module.VersionError(m, ErrDisallowed)
 			}
 			return nil
 		}
@@ -200,17 +200,17 @@ func TestQuery(t *testing.T) {
 			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
-					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)
+					t.Errorf("Query(_, %q, %q, %q, %v) = %v, want error %q", tt.path, tt.query, tt.current, allow, info.Version, tt.err)
 				} else if err.Error() != tt.err {
-					t.Errorf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
+					t.Errorf("Query(_, %q, %q, %q, %v): %v\nwant error %q", tt.path, tt.query, tt.current, allow, err, tt.err)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("Query(%q, %q, %v): %v", tt.path, tt.query, allow, err)
+				t.Fatalf("Query(_, %q, %q, %q, %v): %v\nwant %v", tt.path, tt.query, tt.current, allow, err, tt.vers)
 			}
 			if info.Version != tt.vers {
-				t.Errorf("Query(%q, %q, %v) = %v, want %v", tt.path, tt.query, allow, info.Version, tt.vers)
+				t.Errorf("Query(_, %q, %q, %q, %v) = %v, want %v", tt.path, tt.query, tt.current, allow, info.Version, tt.vers)
 			}
 		})
 	}
