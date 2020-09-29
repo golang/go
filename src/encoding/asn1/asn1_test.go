@@ -518,7 +518,7 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
-func TestInvalidUnmarshal(t *testing.T) {
+func TestUnmarshalWithNilOrNonPointer(t *testing.T) {
 	tests := []struct {
 		b    []byte
 		v    interface{}
