@@ -41,26 +41,29 @@ func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) 
 	return 0, 0, false // A mismatch
 }
 
-// zeroExtendAndCopy pads src with leading zeros until it has the size given.
-// It then copies the padded src into the dst. Bytes beyond size in dst are
-// not modified.
-func zeroExtendAndCopy(dst, src []byte, size int) {
-	nz := size - len(src)
-	if nz < 0 {
-		panic("src is too long")
+func hashToBytes(dst, hash []byte, c elliptic.Curve) {
+	l := len(dst)
+	if n := c.Params().N.BitLen(); n == l*8 {
+		// allocation free path for curves with a length that is a whole number of bytes
+		if len(hash) >= l {
+			// truncate hash
+			copy(dst, hash[:l])
+			return
+		}
+		// pad hash with leading zeros
+		p := l - len(hash)
+		for i := 0; i < p; i++ {
+			dst[i] = 0
+		}
+		copy(dst[p:], hash)
+		return
 	}
-	// the compiler should replace this loop with a memclr call
-	z := dst[:nz]
-	for i := range z {
-		z[i] = 0
-	}
-	copy(dst[nz:size], src[:size-nz])
-	return
+	// TODO(mundaym): avoid hashToInt call here
+	hashToInt(hash, c).FillBytes(dst)
 }
 
 func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
 	if functionCode, blockSize, ok := canUseKDSA(c); ok {
-		e := hashToInt(hash, c)
 		for {
 			var k *big.Int
 			k, err = randFieldElement(c, *csprng)
@@ -89,17 +92,12 @@ func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash 
 			// different curves and is set by canUseKDSA function.
 			var params [4096]byte
 
-			startingOffset := 2 * blockSize // Set the starting location for copying
 			// Copy content into the parameter block. In the sign case,
 			// we copy hashed message, private key and random number into
-			// the parameter block. Since those are consecutive components in the parameter
-			// block, we use a for loop here.
-			for i, v := range []*big.Int{e, priv.D, k} {
-				startPosition := startingOffset + i*blockSize
-				endPosition := startPosition + blockSize
-				zeroExtendAndCopy(params[startPosition:endPosition], v.Bytes(), blockSize)
-			}
-
+			// the parameter block.
+			hashToBytes(params[2*blockSize:3*blockSize], hash, c)
+			priv.D.FillBytes(params[3*blockSize : 4*blockSize])
+			k.FillBytes(params[4*blockSize : 5*blockSize])
 			// Convert verify function code into a sign function code by adding 8.
 			// We also need to set the 'deterministic' bit in the function code, by
 			// adding 128, in order to stop the instruction using its own random number
@@ -124,7 +122,6 @@ func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash 
 
 func verify(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
 	if functionCode, blockSize, ok := canUseKDSA(c); ok {
-		e := hashToInt(hash, c)
 		// The parameter block looks like the following for verify:
 		// 	+---------------------+
 		// 	|   Signature(R)      |
@@ -149,13 +146,11 @@ func verify(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
 		// Copy content into the parameter block. In the verify case,
 		// we copy signature (r), signature(s), hashed message, public key x component,
 		// and public key y component into the parameter block.
-		// Since those are consecutive components in the parameter block, we use a for loop here.
-		for i, v := range []*big.Int{r, s, e, pub.X, pub.Y} {
-			startPosition := i * blockSize
-			endPosition := startPosition + blockSize
-			zeroExtendAndCopy(params[startPosition:endPosition], v.Bytes(), blockSize)
-		}
-
+		r.FillBytes(params[0*blockSize : 1*blockSize])
+		s.FillBytes(params[1*blockSize : 2*blockSize])
+		hashToBytes(params[2*blockSize:3*blockSize], hash, c)
+		pub.X.FillBytes(params[3*blockSize : 4*blockSize])
+		pub.Y.FillBytes(params[4*blockSize : 5*blockSize])
 		return kdsa(functionCode, &params) == 0
 	}
 	return verifyGeneric(pub, c, hash, r, s)
