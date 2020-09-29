@@ -163,8 +163,9 @@ func Init() {
 		// Running 'go mod init': go.mod will be created in current directory.
 		modRoot = base.Cwd
 	} else if RootMode == NoRoot {
-		// TODO(jayconrod): report an error if -mod -modfile is explicitly set on
-		// the command line. Ignore those flags if they come from GOFLAGS.
+		if cfg.ModFile != "" && !base.InGOFLAGS("-modfile") {
+			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
+		}
 		modRoot = ""
 	} else {
 		modRoot = findModuleRoot(base.Cwd)
