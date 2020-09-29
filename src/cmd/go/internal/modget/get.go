@@ -874,6 +874,8 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	allowed := modload.CheckAllowed
 	if modload.IsRevisionQuery(vers) {
 		allowed = modload.CheckExclusions
+	} else if vers == "upgrade" || vers == "patch" {
+		allowed = checkAllowedOrCurrent(prevM.Version)
 	}
 
 	// If the query must be a module path, try only that module path.
@@ -979,5 +981,20 @@ func logOncef(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
 		fmt.Fprintln(os.Stderr, msg)
+	}
+}
+
+// checkAllowedOrCurrent is like modload.CheckAllowed, but always allows the
+// current version (even if it is retracted or otherwise excluded).
+func checkAllowedOrCurrent(current string) modload.AllowedFunc {
+	if current == "" {
+		return modload.CheckAllowed
+	}
+
+	return func(ctx context.Context, m module.Version) error {
+		if m.Version == current {
+			return nil
+		}
+		return modload.CheckAllowed(ctx, m)
 	}
 }

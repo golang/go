@@ -32,8 +32,17 @@ type Repo interface {
 
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
+	//
 	// Versions should be returned sorted in semver order
 	// (implementations can use SortVersions).
+	//
+	// Versions returns a non-nil error only if there was a problem
+	// fetching the list of versions: it may return an empty list
+	// along with a nil error if the list of matching versions
+	// is known to be empty.
+	//
+	// If the underlying repository does not exist,
+	// Versions returns an error matching errors.Is(_, os.NotExist).
 	Versions(prefix string) ([]string, error)
 
 	// Stat returns information about the revision rev.
