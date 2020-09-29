@@ -286,6 +286,7 @@ func main() {
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {
 			t.Errorf("expected %s, got %v", want, original)
 		}
+		env.CloseBuffer(original)
 		env.WriteWorkspaceFiles(map[string]string{
 			"modb/go.mod": "module b.com",
 			"modb/b/b.go": `package b

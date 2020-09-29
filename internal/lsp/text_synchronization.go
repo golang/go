@@ -251,31 +251,6 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	}
 
 	for snapshot, uris := range snapshotSet {
-		// If a modification comes in for the view's go.mod file and the view
-		// was never properly initialized, or the view does not have
-		// a go.mod file, try to recreate the associated view.
-		if len(snapshot.ModFiles()) == 0 {
-			for _, uri := range uris {
-				// Don't rebuild the view until the go.mod is on disk.
-				if !snapshot.IsSaved(uri) {
-					continue
-				}
-				fh, err := snapshot.GetFile(ctx, uri)
-				if err != nil {
-					return err
-				}
-				switch fh.Kind() {
-				case source.Mod:
-					newSnapshot, release, err := snapshot.View().Rebuild(ctx)
-					releases = append(releases, release)
-					if err != nil {
-						return err
-					}
-					// Update the snapshot to the rebuilt one.
-					snapshot = newSnapshot
-				}
-			}
-		}
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()

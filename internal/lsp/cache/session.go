@@ -483,13 +483,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 					deletions[c.URI] = struct{}{}
 				}
 			}
-			// If the file change is to a go.mod file, and initialization for
-			// the view has previously failed, we should attempt to retry.
-			// TODO(rstambler): We can use unsaved contents with -modfile, so
-			// maybe we should do that and retry on any change?
-			if fh.Kind() == source.Mod && (c.OnDisk || c.Action == source.Save) {
-				view.maybeReinitialize()
-			}
 		}
 	}
 	var snapshots []source.Snapshot

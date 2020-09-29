@@ -801,8 +801,13 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 	defer v.snapshotMu.Unlock()
 
 	oldSnapshot := v.snapshot
-	v.snapshot = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
+	var reinitialize reinitializeView
+	v.snapshot, reinitialize = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
 	go oldSnapshot.generation.Destroy()
+
+	if reinitialize == maybeReinit || reinitialize == definitelyReinit {
+		v.reinitialize(reinitialize == definitelyReinit)
+	}
 
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
 }
@@ -816,14 +821,6 @@ func (v *View) cancelBackground() {
 	}
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
-}
-
-func (v *View) maybeReinitialize() {
-	v.reinitialize(false)
-}
-
-func (v *View) definitelyReinitialize() {
-	v.reinitialize(true)
 }
 
 func (v *View) reinitialize(force bool) {
