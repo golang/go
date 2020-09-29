@@ -575,7 +575,7 @@ func (c *completer) collectCompletions(ctx context.Context) error {
 	}
 
 	if lt := c.wantLabelCompletion(); lt != labelNone {
-		c.labels(ctx, lt)
+		c.labels(lt)
 		return nil
 	}
 
@@ -1065,7 +1065,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			candidates := c.packageMembers(ctx, pkgName.Imported(), stdScore, nil)
+			candidates := c.packageMembers(pkgName.Imported(), stdScore, nil)
 			for _, cand := range candidates {
 				c.deepState.enqueue(cand)
 			}
@@ -1076,7 +1076,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Invariant: sel is a true selector.
 	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
 	if ok {
-		candidates := c.methodsAndFields(ctx, tv.Type, tv.Addressable(), nil)
+		candidates := c.methodsAndFields(tv.Type, tv.Addressable(), nil)
 		for _, cand := range candidates {
 			c.deepState.enqueue(cand)
 		}
@@ -1133,7 +1133,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		candidates := c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevances[path]), imp)
+		candidates := c.packageMembers(pkg.GetTypes(), unimportedScore(relevances[path]), imp)
 		for _, cand := range candidates {
 			c.deepState.enqueue(cand)
 		}
@@ -1183,7 +1183,7 @@ func unimportedScore(relevance int) float64 {
 	return (stdScore + .1*float64(relevance)) / 2
 }
 
-func (c *completer) packageMembers(ctx context.Context, pkg *types.Package, score float64, imp *importInfo) []candidate {
+func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo) []candidate {
 	var candidates []candidate
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
@@ -1198,7 +1198,7 @@ func (c *completer) packageMembers(ctx context.Context, pkg *types.Package, scor
 	return candidates
 }
 
-func (c *completer) methodsAndFields(ctx context.Context, typ types.Type, addressable bool, imp *importInfo) []candidate {
+func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo) []candidate {
 	mset := c.methodSetCache[methodSetKey{typ, addressable}]
 	if mset == nil {
 		if addressable && !types.IsInterface(typ) && !isPointer(typ) {

@@ -104,7 +104,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// If this candidate needs an additional import statement,
 	// add the additional text edits needed.
 	if cand.imp != nil {
-		addlEdits, err := c.importEdits(ctx, cand.imp)
+		addlEdits, err := c.importEdits(cand.imp)
 		if err != nil {
 			return CompletionItem{}, err
 		}
@@ -211,7 +211,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 }
 
 // importEdits produces the text edits necessary to add the given import to the current file.
-func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protocol.TextEdit, error) {
+func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 	if imp == nil {
 		return nil, nil
 	}
@@ -221,7 +221,7 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 		return nil, err
 	}
 
-	return source.ComputeOneImportFixEdits(ctx, c.snapshot, pgf, &imports.ImportFix{
+	return source.ComputeOneImportFixEdits(c.snapshot, pgf, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,

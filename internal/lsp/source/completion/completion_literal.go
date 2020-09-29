@@ -98,7 +98,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 		matchName = types.TypeString(t.Elem(), qf)
 	}
 
-	addlEdits, err := c.importEdits(ctx, imp)
+	addlEdits, err := c.importEdits(imp)
 	if err != nil {
 		event.Error(ctx, "error adding import for literal candidate", err)
 		return
