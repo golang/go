@@ -152,19 +152,13 @@ ok:
 
 // func pipe() (r, w int32, errno int32)
 TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVW	$0, R0
+	ADD	$8, RSP, R0
+	MOVW	$0, R1
 	SVC	$SYS_pipe2
 	BCC	pipeok
-	MOVW	$-1,R1
-	MOVW	R1, r+0(FP)
-	MOVW	R1, w+4(FP)
 	NEG	R0, R0
-	MOVW	R0, errno+8(FP)
-	RET
 pipeok:
-	MOVW	R0, r+0(FP)
-	MOVW	R1, w+4(FP)
-	MOVW	ZR, errno+8(FP)
+	MOVW	R0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
