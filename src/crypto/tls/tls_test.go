@@ -841,6 +841,13 @@ func TestCloneNonFuncFields(t *testing.T) {
 	}
 }
 
+func TestCloneNilConfig(t *testing.T) {
+	var config *Config
+	if cc := config.Clone(); cc != nil {
+		t.Fatalf("Clone with nil should return nil, got: %+v", cc)
+	}
+}
+
 // changeImplConn is a net.Conn which can change its Write and Close
 // methods.
 type changeImplConn struct {
