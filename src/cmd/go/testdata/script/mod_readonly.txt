@@ -13,7 +13,7 @@ cmp go.mod go.mod.empty
 # -mod=readonly should be set by default.
 env GOFLAGS=
 ! go list all
-stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote$'
+stderr '^x.go:2:8: no required module provides package rsc\.io/quote; try ''go mod tidy'' to add it$'
 cmp go.mod go.mod.empty
 
 env GOFLAGS=-mod=readonly
@@ -68,6 +68,23 @@ cp go.mod.indirect go.mod
 go list all
 cmp go.mod go.mod.indirect
 
+
+# If we identify a missing package as a dependency of some other package in the
+# main module, we should suggest 'go mod tidy' instead of resolving it.
+
+cp go.mod.untidy go.mod
+! go list all
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
+
+! go list -deps .
+stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
+
+# However, if we didn't see an import from the main module, we should suggest
+# 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
+! go list rsc.io/quote
+stderr '^no required module provides package rsc.io/quote; try ''go get -d rsc.io/quote'' to add it$'
+
+
 -- go.mod --
 module m
 
@@ -102,4 +119,12 @@ require (
 	rsc.io/quote v1.5.2 // indirect
 	rsc.io/sampler v1.3.0 // indirect
 	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.untidy --
+module m
+
+go 1.20
+
+require (
+	rsc.io/sampler v1.3.0 // indirect
 )
