@@ -26,12 +26,14 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var errImportMissing = errors.New("import missing")
-
 type ImportMissingError struct {
 	Path     string
 	Module   module.Version
 	QueryErr error
+
+	// inAll indicates whether Path is in the "all" package pattern,
+	// and thus would be added by 'go mod tidy'.
+	inAll bool
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
@@ -46,7 +48,19 @@ func (e *ImportMissingError) Error() string {
 		if e.QueryErr != nil {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		return "cannot find module providing package " + e.Path
+		if cfg.BuildMod == "mod" {
+			return "cannot find module providing package " + e.Path
+		}
+
+		suggestion := ""
+		if !HasModRoot() {
+			suggestion = ": working directory is not part of a module"
+		} else if e.inAll {
+			suggestion = "; try 'go mod tidy' to add it"
+		} else {
+			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
+		}
+		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
 	}
 
 	if e.newMissingVersion != "" {
@@ -132,7 +146,7 @@ func (e *invalidImportError) Unwrap() error {
 // like "C" and "unsafe".
 //
 // If the package cannot be found in the current build list,
-// importFromBuildList returns errImportMissing as the error.
+// importFromBuildList returns an *ImportMissingError.
 func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
@@ -143,6 +157,10 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 	if path == "C" || path == "unsafe" {
 		// There's no directory for import "C" or import "unsafe".
 		return module.Version{}, "", nil
+	}
+	// Before any further lookup, check that the path is valid.
+	if err := module.CheckImportPath(path); err != nil {
+		return module.Version{}, "", &invalidImportError{importPath: path, err: err}
 	}
 
 	// Is the package in the standard library?
@@ -212,20 +230,13 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
 
-	return module.Version{}, "", errImportMissing
+	return module.Version{}, "", &ImportMissingError{Path: path}
 }
 
 // queryImport attempts to locate a module that can be added to the current
 // build list to provide the package with the given import path.
 func queryImport(ctx context.Context, path string) (module.Version, error) {
 	pathIsStd := search.IsStandardImportPath(path)
-
-	if modRoot == "" && !allowMissingModuleImports {
-		return module.Version{}, &ImportMissingError{
-			Path:     path,
-			QueryErr: errors.New("working directory is not part of a module"),
-		}
-	}
 
 	// Not on build list.
 	// To avoid spurious remote fetches, next try the latest replacement for each
@@ -289,11 +300,6 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 				Replacement: Replacement(mods[0]),
 			}
 		}
-	}
-
-	// Before any further lookup, check that the path is valid.
-	if err := module.CheckImportPath(path); err != nil {
-		return module.Version{}, &invalidImportError{importPath: path, err: err}
 	}
 
 	if pathIsStd {

@@ -270,11 +270,19 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// Report errors, if any.
 	checkMultiplePaths()
 	for _, pkg := range loaded.pkgs {
-		if pkg.err != nil && !opts.SilenceErrors {
-			if opts.AllowErrors {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
-			} else {
-				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+		if pkg.err != nil {
+			if pkg.flags.has(pkgInAll) {
+				if imErr := (*ImportMissingError)(nil); errors.As(pkg.err, &imErr) {
+					imErr.inAll = true
+				}
+			}
+
+			if !opts.SilenceErrors {
+				if opts.AllowErrors {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+				} else {
+					base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+				}
 			}
 		}
 		if !pkg.isTest() {
@@ -809,7 +817,7 @@ func loadFromRoots(params loaderParams) *loader {
 
 		ld.buildStacks()
 
-		if !ld.resolveMissing {
+		if !ld.resolveMissing || (!HasModRoot() && !allowMissingModuleImports) {
 			// We've loaded as much as we can without resolving missing imports.
 			break
 		}
@@ -872,12 +880,15 @@ func loadFromRoots(params loaderParams) *loader {
 func (ld *loader) resolveMissingImports(addedModuleFor map[string]bool) (modAddedBy map[module.Version]*loadPkg) {
 	var needPkgs []*loadPkg
 	for _, pkg := range ld.pkgs {
+		if pkg.err == nil {
+			continue
+		}
 		if pkg.isTest() {
 			// If we are missing a test, we are also missing its non-test version, and
 			// we should only add the missing import once.
 			continue
 		}
-		if pkg.err != errImportMissing {
+		if !errors.As(pkg.err, new(*ImportMissingError)) {
 			// Leave other errors for Import or load.Packages to report.
 			continue
 		}
