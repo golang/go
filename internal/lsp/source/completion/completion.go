@@ -859,6 +859,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 							continue
 						}
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
+						if matchScore := c.matcher.Score(name.String()); matchScore <= 0 {
+							continue
+						}
 						c.deepState.enqueue(candidate{obj: obj, score: stdScore})
 					}
 				case *ast.TypeSpec:
@@ -878,6 +881,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 					}
 
 					obj := c.pkg.GetTypesInfo().ObjectOf(spec.Name)
+					if matchScore := c.matcher.Score(obj.Name()); matchScore <= 0 {
+						continue
+					}
 					// Type name should get a higher score than fields but not highScore by default
 					// since field near a comment cursor gets a highScore
 					score := stdScore * 1.1
@@ -924,6 +930,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 							// use c.item here to ensure scoring order is
 							// maintained. deepSearch manipulates the score so
 							// we can't enqueue the items directly.
+							if matchScore := c.matcher.Score(field.Name()); matchScore <= 0 {
+								continue
+							}
 							item, err := c.item(ctx, candidate{obj: field, name: field.Name(), score: lowScore})
 							if err != nil {
 								continue
@@ -943,6 +952,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				continue
 			}
 
+			if matchScore := c.matcher.Score(obj.Name()); matchScore <= 0 {
+				continue
+			}
 			// We don't want to expandFuncCall inside comments. deepSearch
 			// doesn't respect this setting so we don't enqueue the item here.
 			item, err := c.item(ctx, candidate{
@@ -1013,6 +1025,10 @@ func (c *completer) addFieldItems(ctx context.Context, fields *ast.FieldList) {
 			}
 			obj := c.pkg.GetTypesInfo().ObjectOf(name)
 			if obj == nil {
+				continue
+			}
+
+			if matchScore := c.matcher.Score(obj.Name()); matchScore <= 0 {
 				continue
 			}
 
