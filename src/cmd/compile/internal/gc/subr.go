@@ -1921,3 +1921,13 @@ func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
 	ind.SetBounded(true)
 	return ind
 }
+
+// typePos returns the position associated with t.
+// This is where t was declared or where it appeared as a type expression.
+func typePos(t *types.Type) src.XPos {
+	n := asNode(t.Nod)
+	if n == nil || !n.Pos.IsKnown() {
+		Fatalf("bad type: %v", t)
+	}
+	return n.Pos
+}

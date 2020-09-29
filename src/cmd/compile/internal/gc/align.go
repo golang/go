@@ -5,7 +5,9 @@
 package gc
 
 import (
+	"bytes"
 	"cmd/compile/internal/types"
+	"fmt"
 	"sort"
 )
 
@@ -173,6 +175,91 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 	return o
 }
 
+// findTypeLoop searches for an invalid type declaration loop involving
+// type t and reports whether one is found. If so, path contains the
+// loop.
+//
+// path points to a slice used for tracking the sequence of types
+// visited. Using a pointer to a slice allows the slice capacity to
+// grow and limit reallocations.
+func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+	// We implement a simple DFS loop-finding algorithm. This
+	// could be faster, but type cycles are rare.
+
+	if t.Sym != nil {
+		// Declared type. Check for loops and otherwise
+		// recurse on the type expression used in the type
+		// declaration.
+
+		for i, x := range *path {
+			if x == t {
+				*path = (*path)[i:]
+				return true
+			}
+		}
+
+		*path = append(*path, t)
+		if findTypeLoop(asNode(t.Nod).Name.Param.Ntype.Type, path) {
+			return true
+		}
+		*path = (*path)[:len(*path)-1]
+	} else {
+		// Anonymous type. Recurse on contained types.
+
+		switch t.Etype {
+		case TARRAY:
+			if findTypeLoop(t.Elem(), path) {
+				return true
+			}
+		case TSTRUCT:
+			for _, f := range t.Fields().Slice() {
+				if findTypeLoop(f.Type, path) {
+					return true
+				}
+			}
+		case TINTER:
+			for _, m := range t.Methods().Slice() {
+				if m.Type.IsInterface() { // embedded interface
+					if findTypeLoop(m.Type, path) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func reportTypeLoop(t *types.Type) {
+	if t.Broke() {
+		return
+	}
+
+	var l []*types.Type
+	if !findTypeLoop(t, &l) {
+		Fatalf("failed to find type loop for: %v", t)
+	}
+
+	// Rotate loop so that the earliest type declaration is first.
+	i := 0
+	for j, t := range l[1:] {
+		if typePos(t).Before(typePos(l[i])) {
+			i = j + 1
+		}
+	}
+	l = append(l[i:], l[:i]...)
+
+	var msg bytes.Buffer
+	fmt.Fprintf(&msg, "invalid recursive type %v\n", l[0])
+	for _, t := range l {
+		fmt.Fprintf(&msg, "\t%v: %v refers to\n", linestr(typePos(t)), t)
+		t.SetBroke(true)
+	}
+	fmt.Fprintf(&msg, "\t%v: %v", linestr(typePos(l[0])), l[0])
+	yyerrorl(typePos(l[0]), msg.String())
+}
+
 // dowidth calculates and stores the size and alignment for t.
 // If sizeCalculationDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
@@ -192,11 +279,7 @@ func dowidth(t *types.Type) {
 	}
 
 	if t.Width == -2 {
-		if !t.Broke() {
-			t.SetBroke(true)
-			yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
-		}
-
+		reportTypeLoop(t)
 		t.Width = 0
 		t.Align = 1
 		return
@@ -308,10 +391,7 @@ func dowidth(t *types.Type) {
 		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in
-		if !t.Broke() {
-			t.SetBroke(true)
-			yyerror("invalid recursive type %v", t)
-		}
+		reportTypeLoop(t)
 		w = 1 // anything will do
 
 	case TANY:
