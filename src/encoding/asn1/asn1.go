@@ -1036,7 +1036,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // and uses the reflect package to fill in an arbitrary value pointed at by val.
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names. If val
-// is null or not a pointer, Unmarshal returns an invalidUnmarshalError.
+// is null or not a pointer, Unmarshal returns an error.
 //
 // After parsing b, any bytes that were leftover and not used to fill
 // val will be returned in rest. When parsing a SEQUENCE into a struct,
