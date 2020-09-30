@@ -5265,6 +5265,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 		if len(data) > 0 {
 			wrote, err := st.body.Write(data)
 			if err != nil {
+				sc.sendWindowUpdate(nil, int(f.Length)-wrote)
 				return http2streamError(id, http2ErrCodeStreamClosed)
 			}
 			if wrote != len(data) {
