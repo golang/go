@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"golang.org/x/tools/internal/gocommand"
 )
 
 type PrintMode int
@@ -47,17 +45,6 @@ func PrintVersionInfo(ctx context.Context, w io.Writer, verbose bool, mode Print
 	}
 	section(w, mode, "Build info", func() {
 		printBuildInfo(w, true, mode)
-	})
-	fmt.Fprint(w, "\n")
-	section(w, mode, "Go info", func() {
-		gocmdRunner := &gocommand.Runner{}
-		version, err := gocmdRunner.Run(ctx, gocommand.Invocation{
-			Verb: "version",
-		})
-		if err != nil {
-			panic(err)
-		}
-		fmt.Fprintln(w, version.String())
 	})
 }
 

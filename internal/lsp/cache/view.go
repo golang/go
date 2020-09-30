@@ -358,8 +358,26 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 			fullEnv[s[0]] = s[1]
 		}
 	}
-	fmt.Fprintf(w, "go env for %v\n(root %s)\n(valid build configuration = %v)\n(build flags: %v)\n",
-		s.view.folder.Filename(), s.view.rootURI.Filename(), s.view.hasValidBuildConfiguration, buildFlags)
+	goVersion, err := s.view.session.gocmdRunner.Run(ctx, gocommand.Invocation{
+		Verb:       "version",
+		BuildFlags: buildFlags,
+		Env:        env,
+		WorkingDir: s.view.rootURI.Filename(),
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, `go env for %v
+(root %s)
+(go version %s)
+(valid build configuration = %v)
+(build flags: %v)
+`,
+		s.view.folder.Filename(),
+		s.view.rootURI.Filename(),
+		goVersion.String(),
+		s.view.hasValidBuildConfiguration,
+		buildFlags)
 	for k, v := range fullEnv {
 		fmt.Fprintf(w, "%s=%s\n", k, v)
 	}
