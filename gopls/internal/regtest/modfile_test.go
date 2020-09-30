@@ -587,9 +587,9 @@ func main() {
 			Env: map[string]string{
 				"GOFLAGS": "-mod=readonly",
 			},
-			WithoutExperimentalWorkspaceModule: true,
 		},
 		WithProxyFiles(proxy),
+		WithModes(WithoutExperiments),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
@@ -639,6 +639,7 @@ func main() {
 `
 	withOptions(
 		WithProxyFiles(workspaceProxy),
+		WithModes(Experimental),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.3"),

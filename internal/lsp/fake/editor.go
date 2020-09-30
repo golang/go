@@ -85,12 +85,6 @@ type EditorConfig struct {
 	// EnableStaticcheck enables staticcheck analyzers.
 	EnableStaticcheck bool
 
-	// WithoutExperimentalWorkspaceModule disables the experimental workspace
-	// module.
-	// TODO(rstambler): This mode is temporary and should be removed when
-	// golang.org/cl/258518 is merged.
-	WithoutExperimentalWorkspaceModule bool
-
 	// AllExperiments sets the "allExperiments" configuration, which enables
 	// all of gopls's opt-in settings.
 	AllExperiments bool
@@ -203,12 +197,6 @@ func (e *Editor) configuration() map[string]interface{} {
 	if e.Config.EnableStaticcheck {
 		config["staticcheck"] = true
 	}
-	// Default to using the experimental workspace module mode, unless
-	// explicitly configured.
-	if !e.Config.WithoutExperimentalWorkspaceModule {
-		config["experimentalWorkspaceModule"] = true
-	}
-
 	if e.Config.AllExperiments {
 		config["allExperiments"] = true
 	}
@@ -217,6 +205,7 @@ func (e *Editor) configuration() map[string]interface{} {
 	// default... and probably change to the new settings name.
 	// config["experimentalDiagnosticsDelay"] = "10ms"
 
+	// ExperimentalWorkspaceModule is only set as a mode, not a configuration.
 	return config
 }
 

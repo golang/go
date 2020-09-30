@@ -40,9 +40,7 @@ func _() {
 `
 	// TODO(rstambler): Remove this when golang/go#41819 is resolved.
 	withOptions(
-		EditorConfig{
-			WithoutExperimentalWorkspaceModule: true,
-		},
+		WithModes(WithoutExperiments),
 		WithProxyFiles(basicProxy),
 	).run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")

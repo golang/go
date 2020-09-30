@@ -282,9 +282,9 @@ func Hello() {
 	})
 
 	t.Run("without workspace module", func(t *testing.T) {
-		withOptions(EditorConfig{
-			WithoutExperimentalWorkspaceModule: true,
-		}).run(t, noMod, func(t *testing.T, env *Env) {
+		withOptions(
+			WithModes(WithoutExperiments),
+		).run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			)
