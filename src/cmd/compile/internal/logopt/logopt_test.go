@@ -55,6 +55,34 @@ func wantN(t *testing.T, out string, desired string, n int) {
 	}
 }
 
+func TestPathStuff(t *testing.T) {
+	sep := string(filepath.Separator)
+	if path, whine := parseLogPath("file:///c:foo"); path != "c:foo" || whine != "" { // good path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if path, whine := parseLogPath("file:///foo"); path != sep+"foo" || whine != "" { // good path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if path, whine := parseLogPath("foo"); path != "" || whine == "" { // BAD path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if sep == "\\" { // On WINDOWS ONLY
+		if path, whine := parseLogPath("C:/foo"); path != "C:\\foo" || whine != "" { // good path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+		if path, whine := parseLogPath("c:foo"); path != "" || whine == "" { // BAD path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+		if path, whine := parseLogPath("/foo"); path != "" || whine == "" { // BAD path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+	} else { // ON UNIX ONLY
+		if path, whine := parseLogPath("/foo"); path != sep+"foo" || whine != "" { // good path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+	}
+}
+
 func TestLogOpt(t *testing.T) {
 	t.Parallel()
 

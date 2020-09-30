@@ -106,38 +106,66 @@ func (d *deadcodePass) flood() {
 
 		if isgotype {
 			usedInIface = d.ldr.AttrUsedInIface(symIdx)
-			p := d.ldr.Data(symIdx)
-			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
-				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
-					if d.ctxt.Debugvlog > 1 {
-						d.ctxt.Logf("reached iface method: %v\n", sig)
-					}
-					d.ifaceMethod[sig] = true
-				}
-			}
 		}
 
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)
 			t := r.Type()
-			if t == objabi.R_WEAKADDROFF {
+			switch t {
+			case objabi.R_WEAKADDROFF:
 				continue
-			}
-			if t == objabi.R_METHODOFF {
+			case objabi.R_METHODOFF:
 				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
 				}
 				if usedInIface {
 					methods = append(methods, methodref{src: symIdx, r: i})
+					// The method descriptor is itself a type descriptor, and
+					// it can be used to reach other types, e.g. by using
+					// reflect.Type.Method(i).Type.In(j). We need to traverse
+					// its child types with UsedInIface set. (See also the
+					// comment below.)
+					rs := r.Sym()
+					if !d.ldr.AttrUsedInIface(rs) {
+						d.ldr.SetAttrUsedInIface(rs, true)
+						if d.ldr.AttrReachable(rs) {
+							d.ldr.SetAttrReachable(rs, false)
+							d.mark(rs, symIdx)
+						}
+					}
 				}
 				i += 2
 				continue
-			}
-			if t == objabi.R_USETYPE {
+			case objabi.R_USETYPE:
 				// type symbol used for DWARF. we need to load the symbol but it may not
 				// be otherwise reachable in the program.
 				// do nothing for now as we still load all type symbols.
+				continue
+			case objabi.R_USEIFACE:
+				// R_USEIFACE is a marker relocation that tells the linker the type is
+				// converted to an interface, i.e. should have UsedInIface set. See the
+				// comment below for why we need to unset the Reachable bit and re-mark it.
+				rs := r.Sym()
+				if !d.ldr.AttrUsedInIface(rs) {
+					d.ldr.SetAttrUsedInIface(rs, true)
+					if d.ldr.AttrReachable(rs) {
+						d.ldr.SetAttrReachable(rs, false)
+						d.mark(rs, symIdx)
+					}
+				}
+				continue
+			case objabi.R_USEIFACEMETHOD:
+				// R_USEIFACEMETHOD is a marker relocation that marks an interface
+				// method as used.
+				rs := r.Sym()
+				if d.ldr.SymType(rs) != sym.SDYNIMPORT { // don't decode DYNIMPORT symbol (we'll mark all exported methods anyway)
+					m := d.decodeIfaceMethod(d.ldr, d.ctxt.Arch, rs, r.Add())
+					if d.ctxt.Debugvlog > 1 {
+						d.ctxt.Logf("reached iface method: %v\n", m)
+					}
+					d.ifaceMethod[m] = true
+				}
 				continue
 			}
 			rs := r.Sym()
@@ -161,13 +189,9 @@ func (d *deadcodePass) flood() {
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
 			a := d.ldr.Aux(symIdx, i)
-			if a.Type() == goobj.AuxGotype && !d.ctxt.linkShared {
+			if a.Type() == goobj.AuxGotype {
 				// A symbol being reachable doesn't imply we need its
 				// type descriptor. Don't mark it.
-				// TODO: when -linkshared, the GCProg generation code
-				// seems to need it. I'm not sure why. I think it could
-				// just reach to the type descriptor's data without
-				// requiring to mark it reachable.
 				continue
 			}
 			d.mark(a.Sym(), symIdx)
@@ -215,9 +239,15 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 		if *flagDumpDep {
 			to := d.ldr.SymName(symIdx)
 			if to != "" {
+				if d.ldr.AttrUsedInIface(symIdx) {
+					to += " <UsedInIface>"
+				}
 				from := "_"
 				if parent != 0 {
 					from = d.ldr.SymName(parent)
+					if d.ldr.AttrUsedInIface(parent) {
+						from += " <UsedInIface>"
+					}
 				}
 				fmt.Printf("%s -> %s\n", from, to)
 			}
@@ -349,23 +379,17 @@ func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symId
 	return methods
 }
 
-func (d *deadcodePass) decodeIfaceMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
+// Decode the method of interface type symbol symIdx at offset off.
+func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off int64) methodsig {
 	p := ldr.Data(symIdx)
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
-	rel := decodeReloc(ldr, symIdx, relocs, int32(commonsize(arch)+arch.PtrSize))
-	s := rel.Sym()
-	if s == 0 {
-		return nil
-	}
-	if s != symIdx {
-		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", ldr.SymName(symIdx)))
-	}
-	off := int(rel.Add()) // array of reflect.imethod values
-	numMethods := int(decodetypeIfaceMethodCount(arch, p))
-	sizeofIMethod := 4 + 4
-	return d.decodeMethodSig(ldr, arch, symIdx, relocs, off, sizeofIMethod, numMethods)
+	relocs := ldr.Relocs(symIdx)
+	var m methodsig
+	m.name = decodetypeName(ldr, symIdx, &relocs, int(off))
+	m.typ = decodeRelocSym(ldr, symIdx, &relocs, int32(off+4))
+	return m
 }
 
 func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {

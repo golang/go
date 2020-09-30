@@ -21,7 +21,7 @@ func TestTicker(t *testing.T) {
 	delta := 20 * Millisecond
 
 	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
 		// The following test will run ticker count/2 times then reset
 		// the ticker to double the duration for the rest of count/2.
 		// Since tick frequency is limited on Darwin ARM64, use even

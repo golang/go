@@ -108,6 +108,9 @@ func (p *Package) writeDefs() {
 	sort.Strings(typedefNames)
 	for _, name := range typedefNames {
 		def := typedef[name]
+		if def.NotInHeap {
+			fmt.Fprintf(fgo2, "//go:notinheap\n")
+		}
 		fmt.Fprintf(fgo2, "type %s ", name)
 		// We don't have source info for these types, so write them out without source info.
 		// Otherwise types would look like:

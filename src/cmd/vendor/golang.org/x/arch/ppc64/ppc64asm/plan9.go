@@ -112,7 +112,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	case STDCXCC, STWCXCC, STHCXCC, STBCXCC:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
-	case STXVD2X, STXVW4X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
+	case STXVX, STXVD2X, STXVW4X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
 	case STXV:
@@ -127,7 +127,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
-	case LXVD2X, LXVW4X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
+	case LXVX, LXVD2X, LXVW4X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
 	case LXV:

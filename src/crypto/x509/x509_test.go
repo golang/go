@@ -2702,3 +2702,164 @@ func TestCreateRevocationList(t *testing.T) {
 		})
 	}
 }
+
+func TestRSAPSAParameters(t *testing.T) {
+	generateParams := func(hashFunc crypto.Hash) []byte {
+		var hashOID asn1.ObjectIdentifier
+
+		switch hashFunc {
+		case crypto.SHA256:
+			hashOID = oidSHA256
+		case crypto.SHA384:
+			hashOID = oidSHA384
+		case crypto.SHA512:
+			hashOID = oidSHA512
+		}
+
+		params := pssParameters{
+			Hash: pkix.AlgorithmIdentifier{
+				Algorithm:  hashOID,
+				Parameters: asn1.NullRawValue,
+			},
+			MGF: pkix.AlgorithmIdentifier{
+				Algorithm: oidMGF1,
+			},
+			SaltLength:   hashFunc.Size(),
+			TrailerField: 1,
+		}
+
+		mgf1Params := pkix.AlgorithmIdentifier{
+			Algorithm:  hashOID,
+			Parameters: asn1.NullRawValue,
+		}
+
+		var err error
+		params.MGF.Parameters.FullBytes, err = asn1.Marshal(mgf1Params)
+		if err != nil {
+			t.Fatalf("failed to marshal MGF parameters: %s", err)
+		}
+
+		serialized, err := asn1.Marshal(params)
+		if err != nil {
+			t.Fatalf("failed to marshal parameters: %s", err)
+		}
+
+		return serialized
+	}
+
+	for h, params := range hashToPSSParameters {
+		generated := generateParams(h)
+		if !bytes.Equal(params.FullBytes, generated) {
+			t.Errorf("hardcoded parameters for %s didn't match generated parameters: got (generated) %x, wanted (hardcoded) %x", h, generated, params.FullBytes)
+		}
+	}
+}
+
+func TestUnknownExtKey(t *testing.T) {
+	const errorContains = "unknown extended key usage"
+
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"foo"},
+		ExtKeyUsage:  []ExtKeyUsage{ExtKeyUsage(-1)},
+	}
+	signer, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Errorf("failed to generate key for TestUnknownExtKey")
+	}
+
+	_, err = CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
+	if !strings.Contains(err.Error(), errorContains) {
+		t.Errorf("expected error containing %q, got %s", errorContains, err)
+	}
+}
+
+func TestIA5SANEnforcement(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa.GenerateKey failed: %s", err)
+	}
+
+	testURL, err := url.Parse("https://example.com/")
+	if err != nil {
+		t.Fatalf("url.Parse failed: %s", err)
+	}
+	testURL.RawQuery = "∞"
+
+	marshalTests := []struct {
+		name          string
+		template      *Certificate
+		expectedError string
+	}{
+		{
+			name: "marshal: unicode dNSName",
+			template: &Certificate{
+				SerialNumber: big.NewInt(0),
+				DNSNames:     []string{"∞"},
+			},
+			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
+		},
+		{
+			name: "marshal: unicode rfc822Name",
+			template: &Certificate{
+				SerialNumber:   big.NewInt(0),
+				EmailAddresses: []string{"∞"},
+			},
+			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
+		},
+		{
+			name: "marshal: unicode uniformResourceIdentifier",
+			template: &Certificate{
+				SerialNumber: big.NewInt(0),
+				URIs:         []*url.URL{testURL},
+			},
+			expectedError: "x509: \"https://example.com/?∞\" cannot be encoded as an IA5String",
+		},
+	}
+
+	for _, tc := range marshalTests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := CreateCertificate(rand.Reader, tc.template, tc.template, k.Public(), k)
+			if err == nil {
+				t.Errorf("expected CreateCertificate to fail with template: %v", tc.template)
+			} else if err.Error() != tc.expectedError {
+				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
+			}
+		})
+	}
+
+	unmarshalTests := []struct {
+		name          string
+		cert          string
+		expectedError string
+	}{
+		{
+			name:          "unmarshal: unicode dNSName",
+			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000424bcc48180d8d9db794028f2575ebe3cac79f04d7b0d0151c5292e588aac3668c495f108c626168462e0668c9705e08a211dd103a659d2684e0adf8c2bfd47baa315301330110603551d110101ff040730058203e2889e300a06082a8648ce3d04030203490030460221008ac7827ac326a6ee0fa70b2afe99af575ec60b975f820f3c25f60fff43fbccd0022100bffeed93556722d43d13e461d5b3e33efc61f6349300327d3a0196cb6da501c2",
+			expectedError: "x509: SAN dNSName is malformed",
+		},
+		{
+			name:          "unmarshal: unicode rfc822Name",
+			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000405cb4c4ba72aac980f7b11b0285191425e29e196ce7c5df1c83f56886566e517f196657cc1b73de89ab84ce503fd634e2f2af88fde24c63ca536dc3a5eed2665a315301330110603551d110101ff040730058103e2889e300a06082a8648ce3d0403020349003046022100ed1431cd4b9bb03d88d1511a0ec128a51204375764c716280dc36e2a60142c8902210088c96d25cfaf97eea851ff17d87bb6fe619d6546656e1739f35c3566051c3d0f",
+			expectedError: "x509: SAN rfc822Name is malformed",
+		},
+		{
+			name:          "unmarshal: unicode uniformResourceIdentifier",
+			cert:          "3082011b3081c3a003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d03010703420004ce0a79b511701d9188e1ea76bcc5907f1db51de6cc1a037b803f256e8588145ca409d120288bfeb4e38f3088104674d374b35bb91fc80d768d1d519dbe2b0b5aa32a302830260603551d110101ff041c301a861868747470733a2f2f6578616d706c652e636f6d2f3fe2889e300a06082a8648ce3d0403020347003044022044f4697779fd1dae1e382d2452413c5c5ca67851e267d6bc64a8d164977c172c0220505015e657637aa1945d46e7650b6f59b968fc1508ca8b152c99f782446dfc81",
+			expectedError: "x509: SAN uniformResourceIdentifier is malformed",
+		},
+	}
+
+	for _, tc := range unmarshalTests {
+		der, err := hex.DecodeString(tc.cert)
+		if err != nil {
+			t.Fatalf("failed to decode test cert: %s", err)
+		}
+		_, err = ParseCertificate(der)
+		if err == nil {
+			t.Error("expected CreateCertificate to fail")
+		} else if err.Error() != tc.expectedError {
+			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
+		}
+	}
+}

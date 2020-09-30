@@ -453,6 +453,10 @@ type g struct {
 	// copying needs to acquire channel locks to protect these
 	// areas of the stack.
 	activeStackChans bool
+	// parkingOnChan indicates that the goroutine is about to
+	// park on a chansend or chanrecv. Used to signal an unsafe point
+	// for stack shrinking. It's a boolean value, but is updated atomically.
+	parkingOnChan uint8
 
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
@@ -1057,4 +1061,4 @@ var (
 )
 
 // Must agree with cmd/internal/objabi.Framepointer_enabled.
-const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
+const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")

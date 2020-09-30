@@ -71,11 +71,15 @@ const (
 	EXTPROC                          = 0x10000
 	FF1                              = 0x8000
 	FFDLY                            = 0x8000
+	FICLONE                          = 0x80049409
+	FICLONERANGE                     = 0x8020940d
 	FLUSHO                           = 0x2000
 	FS_IOC_ENABLE_VERITY             = 0x80806685
 	FS_IOC_GETFLAGS                  = 0x40086601
+	FS_IOC_GET_ENCRYPTION_NONCE      = 0x4010661b
 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+	FS_IOC_SETFLAGS                  = 0x80086602
 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
 	F_GETLK                          = 0xe
 	F_GETLK64                        = 0xe

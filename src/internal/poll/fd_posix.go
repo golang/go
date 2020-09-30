@@ -29,17 +29,6 @@ func (fd *FD) Shutdown(how int) error {
 	return syscall.Shutdown(fd.Sysfd, how)
 }
 
-// Fchmod wraps syscall.Fchmod.
-func (fd *FD) Fchmod(mode uint32) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return ignoringEINTR(func() error {
-		return syscall.Fchmod(fd.Sysfd, mode)
-	})
-}
-
 // Fchown wraps syscall.Fchown.
 func (fd *FD) Fchown(uid, gid int) error {
 	if err := fd.incref(); err != nil {

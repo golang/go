@@ -13,7 +13,6 @@ import (
 	"sort"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
@@ -39,14 +38,8 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod graph: graph takes no arguments")
 	}
-	// Checks go mod expected behavior
-	if !modload.Enabled() {
-		if cfg.Getenv("GO111MODULE") == "off" {
-			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-		} else {
-			base.Fatalf("go: cannot find main module; see 'go help modules'")
-		}
-	}
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 	modload.LoadAllModules(ctx)
 
 	reqs := modload.MinReqs()

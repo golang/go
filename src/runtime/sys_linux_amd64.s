@@ -40,6 +40,7 @@
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
 #define SYS_epoll_create	213
+#define SYS_clock_gettime	228
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
 #define SYS_tgkill		234
@@ -241,15 +242,15 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
+	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	0(SP), SI
 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
-	MOVL	$0, DI // CLOCK_REALTIME
-	LEAQ	0(SP), SI
 	CALL	AX
+ret:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
-ret:
 	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
@@ -264,13 +265,8 @@ ret:
 	MOVL	DX, nsec+8(FP)
 	RET
 fallback:
-	LEAQ	0(SP), DI
-	MOVQ	$0, SI
-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
-	CALL	AX
-	MOVQ	0(SP), AX	// sec
-	MOVL	8(SP), DX	// usec
-	IMULQ	$1000, DX
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
 	JMP ret
 
 // func nanotime1() int64
@@ -306,15 +302,15 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
+	MOVL	$1, DI // CLOCK_MONOTONIC
+	LEAQ	0(SP), SI
 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
-	MOVL	$1, DI // CLOCK_MONOTONIC
-	LEAQ	0(SP), SI
 	CALL	AX
+ret:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
-ret:
 	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
@@ -332,13 +328,8 @@ ret:
 	MOVQ	AX, ret+0(FP)
 	RET
 fallback:
-	LEAQ	0(SP), DI
-	MOVQ	$0, SI
-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
-	CALL	AX
-	MOVQ	0(SP), AX	// sec
-	MOVL	8(SP), DX	// usec
-	IMULQ	$1000, DX
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
 	JMP	ret
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28

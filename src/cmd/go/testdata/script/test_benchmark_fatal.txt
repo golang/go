@@ -5,7 +5,11 @@
 ! stderr ^ok
 stdout FAIL.*benchfatal
 
--- benchfatal/x_test.go --
+-- go.mod --
+module benchfatal
+
+go 1.16
+-- x_test.go --
 package benchfatal
 
 import "testing"

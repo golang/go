@@ -231,6 +231,11 @@ func compile(fn *Node) {
 		return
 	}
 
+	// Set up the function's LSym early to avoid data races with the assemblers.
+	// Do this before walk, as walk needs the LSym to set attributes/relocations
+	// (e.g. in markTypeUsedInInterface).
+	fn.Func.initLSym(true)
+
 	walk(fn)
 	if nerrors != 0 {
 		return
@@ -249,9 +254,6 @@ func compile(fn *Node) {
 		// See issue 29870.
 		return
 	}
-
-	// Set up the function's LSym early to avoid data races with the assemblers.
-	fn.Func.initLSym(true)
 
 	// Make sure type syms are declared for all types that might
 	// be types of stack objects. We need to do this here

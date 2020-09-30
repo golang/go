@@ -3,18 +3,22 @@
 
 go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
 
--- coverdep/p.go --
+-- go.mod --
+module coverdep
+
+go 1.16
+-- p.go --
 package p
 
 import _ "coverdep/p1"
 
 func F() {
 }
--- coverdep/p1/p1.go --
+-- p1/p1.go --
 package p1
 
 import _ "errors"
--- coverdep/p_test.go --
+-- p_test.go --
 package p
 
 import "testing"

@@ -30,10 +30,9 @@
 // indicates scanning can ignore the rest of the allocation.
 //
 // The 2-bit entries are split when written into the byte, so that the top half
-// of the byte contains 4 high bits and the bottom half contains 4 low (pointer)
-// bits.
-// This form allows a copy from the 1-bit to the 4-bit form to keep the
-// pointer bits contiguous, instead of having to space them out.
+// of the byte contains 4 high (scan) bits and the bottom half contains 4 low
+// (pointer) bits. This form allows a copy from the 1-bit to the 4-bit form to
+// keep the pointer bits contiguous, instead of having to space them out.
 //
 // The code makes use of the fact that the zero value for a heap
 // bitmap means scalar/dead. This property must be preserved when
@@ -816,6 +815,12 @@ func (s *mspan) countAlloc() int {
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	const doubleCheck = false // slow but helpful; enable to test modifications to this code
 
+	const (
+		mask1 = bitPointer | bitScan                        // 00010001
+		mask2 = bitPointer | bitScan | mask1<<heapBitsShift // 00110011
+		mask3 = bitPointer | bitScan | mask2<<heapBitsShift // 01110111
+	)
+
 	// dataSize is always size rounded up to the next malloc size class,
 	// except in the case of allocating a defer block, in which case
 	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
@@ -844,11 +849,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	h := heapBitsForAddr(x)
 	ptrmask := typ.gcdata // start of 1-bit pointer mask (or GC program, handled below)
 
-	// Heap bitmap bits for 2-word object are only 4 bits,
-	// so also shared with objects next to it.
-	// This is called out as a special case primarily for 32-bit systems,
-	// so that on 32-bit systems the code below can assume all objects
-	// are 4-word aligned (because they're all 16-byte aligned).
+	// 2-word objects only have 4 bitmap bits and 3-word objects only have 6 bitmap bits.
+	// Therefore, these objects share a heap bitmap byte with the objects next to them.
+	// These are called out as a special case primarily so the code below can assume all
+	// objects are at least 4 words long and that their bitmaps start either at the beginning
+	// of a bitmap byte, or half-way in (h.shift of 0 and 2 respectively).
+
 	if size == 2*sys.PtrSize {
 		if typ.size == sys.PtrSize {
 			// We're allocating a block big enough to hold two pointers.
@@ -865,7 +871,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 				*h.bitp &^= (bitPointer | bitScan | (bitPointer|bitScan)<<heapBitsShift) << h.shift
 				*h.bitp |= (bitPointer | bitScan) << h.shift
 			} else {
-				// 2-element slice of pointer.
+				// 2-element array of pointer.
 				*h.bitp |= (bitPointer | bitScan | (bitPointer|bitScan)<<heapBitsShift) << h.shift
 			}
 			return
@@ -885,6 +891,70 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// appropriate ones.
 		*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
 		*h.bitp |= uint8(hb << h.shift)
+		return
+	} else if size == 3*sys.PtrSize {
+		b := uint8(*ptrmask)
+		if doubleCheck {
+			if b == 0 {
+				println("runtime: invalid type ", typ.string())
+				throw("heapBitsSetType: called with non-pointer type")
+			}
+			if sys.PtrSize != 8 {
+				throw("heapBitsSetType: unexpected 3 pointer wide size class on 32 bit")
+			}
+			if typ.kind&kindGCProg != 0 {
+				throw("heapBitsSetType: unexpected GC prog for 3 pointer wide size class")
+			}
+			if typ.size == 2*sys.PtrSize {
+				print("runtime: heapBitsSetType size=", size, " but typ.size=", typ.size, "\n")
+				throw("heapBitsSetType: inconsistent object sizes")
+			}
+		}
+		if typ.size == sys.PtrSize {
+			// The type contains a pointer otherwise heapBitsSetType wouldn't have been called.
+			// Since the type is only 1 pointer wide and contains a pointer, its gcdata must be exactly 1.
+			if doubleCheck && *typ.gcdata != 1 {
+				print("runtime: heapBitsSetType size=", size, " typ.size=", typ.size, "but *typ.gcdata", *typ.gcdata, "\n")
+				throw("heapBitsSetType: unexpected gcdata for 1 pointer wide type size in 3 pointer wide size class")
+			}
+			// 3 element array of pointers. Unrolling ptrmask 3 times into p yields 00000111.
+			b = 7
+		}
+
+		hb := b & 7
+		// Set bitScan bits for all pointers.
+		hb |= hb << wordsPerBitmapByte
+		// First bitScan bit is always set since the type contains pointers.
+		hb |= bitScan
+		// Second bitScan bit needs to also be set if the third bitScan bit is set.
+		hb |= hb & (bitScan << (2 * heapBitsShift)) >> 1
+
+		// For h.shift > 1 heap bits cross a byte boundary and need to be written part
+		// to h.bitp and part to the next h.bitp.
+		switch h.shift {
+		case 0:
+			*h.bitp &^= mask3 << 0
+			*h.bitp |= hb << 0
+		case 1:
+			*h.bitp &^= mask3 << 1
+			*h.bitp |= hb << 1
+		case 2:
+			*h.bitp &^= mask2 << 2
+			*h.bitp |= (hb & mask2) << 2
+			// Two words written to the first byte.
+			// Advance two words to get to the next byte.
+			h = h.next().next()
+			*h.bitp &^= mask1
+			*h.bitp |= (hb >> 2) & mask1
+		case 3:
+			*h.bitp &^= mask1 << 3
+			*h.bitp |= (hb & mask1) << 3
+			// One word written to the first byte.
+			// Advance one word to get to the next byte.
+			h = h.next()
+			*h.bitp &^= mask2
+			*h.bitp |= (hb >> 1) & mask2
+		}
 		return
 	}
 
@@ -1079,7 +1149,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// word must be set to scan since there are pointers
 		// somewhere in the object.
 		// In all following words, we set the scan/dead
-		// appropriately to indicate that the object contains
+		// appropriately to indicate that the object continues
 		// to the next 2-bit entry in the bitmap.
 		//
 		// We set four bits at a time here, but if the object
@@ -1095,12 +1165,22 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		b >>= 4
 		nb -= 4
 
-	case sys.PtrSize == 8 && h.shift == 2:
+	case h.shift == 2:
 		// Ptrmask and heap bitmap are misaligned.
+		//
+		// On 32 bit architectures only the 6-word object that corresponds
+		// to a 24 bytes size class can start with h.shift of 2 here since
+		// all other non 16 byte aligned size classes have been handled by
+		// special code paths at the beginning of heapBitsSetType on 32 bit.
+		//
+		// Many size classes are only 16 byte aligned. On 64 bit architectures
+		// this results in a heap bitmap position starting with a h.shift of 2.
+		//
 		// The bits for the first two words are in a byte shared
 		// with another object, so we must be careful with the bits
 		// already there.
-		// We took care of 1-word and 2-word objects above,
+		//
+		// We took care of 1-word, 2-word, and 3-word objects above,
 		// so this is at least a 6-word object.
 		hb = (b & (bitPointer | bitPointer<<heapBitsShift)) << (2 * heapBitsShift)
 		hb |= bitScan << (2 * heapBitsShift)
@@ -1113,7 +1193,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		*hbitp |= uint8(hb)
 		hbitp = add1(hbitp)
 		if w += 2; w >= nw {
-			// We know that there is more data, because we handled 2-word objects above.
+			// We know that there is more data, because we handled 2-word and 3-word objects above.
 			// This must be at least a 6-word object. If we're out of pointer words,
 			// mark no scan in next bitmap byte and finish.
 			hb = 0
@@ -1248,12 +1328,12 @@ Phase4:
 		// Handle the first byte specially if it's shared. See
 		// Phase 1 for why this is the only special case we need.
 		if doubleCheck {
-			if !(h.shift == 0 || (sys.PtrSize == 8 && h.shift == 2)) {
+			if !(h.shift == 0 || h.shift == 2) {
 				print("x=", x, " size=", size, " cnw=", h.shift, "\n")
 				throw("bad start shift")
 			}
 		}
-		if sys.PtrSize == 8 && h.shift == 2 {
+		if h.shift == 2 {
 			*h.bitp = *h.bitp&^((bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift)<<(2*heapBitsShift)) | *src
 			h = h.next().next()
 			cnw -= 2

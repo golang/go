@@ -122,9 +122,9 @@ func init() {
 	)
 
 	var WasmOps = []opData{
-		{name: "LoweredStaticCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", call: true, symEffect: "None"},            // call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
-		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, 0}, clobbers: callerSave}, aux: "Int64", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "LoweredStaticCall", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", call: true},                                // call static function aux.(*obj.LSym). arg0=mem, auxint=argsize, returns mem
+		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, 0}, clobbers: callerSave}, aux: "CallOff", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // returns base+aux+auxint, arg0=base
 		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64"},                // large move. arg0=dst, arg1=src, arg2=mem, auxint=len/8, returns mem
@@ -137,7 +137,7 @@ func init() {
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
 		// LoweredConvert converts between pointers and integers.
-		// We have a special op for this so as to not confuse GC
+		// We have a special op for this so as to not confuse GCCallOff
 		// (particularly stack maps). It takes a memory arg so it
 		// gets correctly ordered with respect to GC safepoints.
 		// arg0=ptr/int arg1=mem, output=int/ptr

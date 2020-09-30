@@ -648,7 +648,8 @@ func String(t Transformer, s string) (result string, n int, err error) {
 	// Transform the remaining input, growing dst and src buffers as necessary.
 	for {
 		n := copy(src, s[pSrc:])
-		nDst, nSrc, err := t.Transform(dst[pDst:], src[:n], pSrc+n == len(s))
+		atEOF := pSrc+n == len(s)
+		nDst, nSrc, err := t.Transform(dst[pDst:], src[:n], atEOF)
 		pDst += nDst
 		pSrc += nSrc
 
@@ -659,6 +660,9 @@ func String(t Transformer, s string) (result string, n int, err error) {
 				dst = grow(dst, pDst)
 			}
 		} else if err == ErrShortSrc {
+			if atEOF {
+				return string(dst[:pDst]), pSrc, err
+			}
 			if nSrc == 0 {
 				src = grow(src, 0)
 			}

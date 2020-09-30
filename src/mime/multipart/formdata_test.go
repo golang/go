@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -49,6 +50,23 @@ func TestReadFormWithNamelessFile(t *testing.T) {
 
 	if g, e := f.Value["hiddenfile"][0], filebContents; g != e {
 		t.Errorf("hiddenfile value = %q, want %q", g, e)
+	}
+}
+
+// Issue 40430: Ensure that we report integer overflows in additions of maxMemory,
+// instead of silently and subtly failing without indication.
+func TestReadFormMaxMemoryOverflow(t *testing.T) {
+	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
+	r := NewReader(b, boundary)
+	f, err := r.ReadForm(math.MaxInt64)
+	if err == nil {
+		t.Fatal("Unexpected a non-nil error")
+	}
+	if f != nil {
+		t.Fatalf("Unexpected returned a non-nil form: %v\n", f)
+	}
+	if g, w := err.Error(), "integer overflow from maxMemory"; !strings.Contains(g, w) {
+		t.Errorf(`Error mismatch\n%q\ndid not contain\n%q`, g, w)
 	}
 }
 

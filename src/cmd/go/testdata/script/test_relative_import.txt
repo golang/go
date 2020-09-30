@@ -1,4 +1,5 @@
 # Relative imports in go test
+env GO111MODULE=off # relative import not supported in module mode
 
 # Run tests outside GOPATH.
 env GOPATH=$WORK/tmp

@@ -17,15 +17,6 @@ TEXT ·mulWW(SB), NOSPLIT, $0
 	MOVD   R11, z0+24(FP)
 	RET
 
-// func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB), NOSPLIT, $0
-	MOVD x1+0(FP), R10
-	MOVD x0+8(FP), R11
-	MOVD y+16(FP), R5
-	WORD $0xb98700a5   // dlgr r10,r5
-	MOVD R11, q+24(FP)
-	MOVD R10, r+32(FP)
-	RET
 
 // DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
 // func addVV(z, x, y []Word) (c Word)
@@ -990,27 +981,3 @@ E6:
 	MOVD R4, c+56(FP)
 	RET
 
-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1(*8) , (R0 set to 0) + use R11 + use R7 for i
-TEXT ·divWVW(SB), NOSPLIT, $0
-	MOVD z+0(FP), R2
-	MOVD xn+24(FP), R10  // r = xn
-	MOVD x+32(FP), R8
-	MOVD y+56(FP), R9
-	MOVD z_len+8(FP), R7 // i = z
-	SLD  $3, R7, R1      // i*8
-	MOVD $0, R0          // make sure it's zero
-	BR   E7
-
-L7:
-	MOVD (R8)(R1*1), R11
-	WORD $0xB98700A9     // DLGR R10,R9
-	MOVD R11, (R2)(R1*1)
-
-E7:
-	SUB $1, R7 // i--
-	SUB $8, R1
-	BGE L7     // i >= 0
-
-	MOVD R10, r+64(FP)
-	RET

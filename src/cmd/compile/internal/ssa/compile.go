@@ -433,6 +433,7 @@ var passes = [...]pass{
 	{name: "early fuse", fn: fuseEarly},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
+	{name: "expand calls", fn:expandCalls, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain

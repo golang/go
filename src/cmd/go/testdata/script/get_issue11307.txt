@@ -2,6 +2,7 @@
 
 [!net] skip
 [!exec:git] skip
+env GO111MODULE=off
 
 env GOPATH=$WORK/tmp/gopath
 go get github.com/rsc/go-get-issue-11307

@@ -1075,6 +1075,7 @@ func tRunner(t *T, fn func(t *T)) {
 		// If the test panicked, print any test output before dying.
 		err := recover()
 		signal := true
+
 		if !t.finished && err == nil {
 			err = errNilPanicOrGoexit
 			for p := t.parent; p != nil; p = p.parent {
@@ -1086,6 +1087,21 @@ func tRunner(t *T, fn func(t *T)) {
 				}
 			}
 		}
+		// Use a deferred call to ensure that we report that the test is
+		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+		didPanic := false
+		defer func() {
+			if didPanic {
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+			// Only report that the test is complete if it doesn't panic,
+			// as otherwise the test binary can exit before the panic is
+			// reported to the user. See issue 41479.
+			t.signal <- signal
+		}()
 
 		doPanic := func(err interface{}) {
 			t.Fail()
@@ -1103,6 +1119,7 @@ func tRunner(t *T, fn func(t *T)) {
 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
 				}
 			}
+			didPanic = true
 			panic(err)
 		}
 		if err != nil {
@@ -1144,7 +1161,6 @@ func tRunner(t *T, fn func(t *T)) {
 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
 		}
-		t.signal <- signal
 	}()
 	defer func() {
 		if len(t.sub) == 0 {

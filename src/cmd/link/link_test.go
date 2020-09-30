@@ -595,7 +595,12 @@ func TestFuncAlign(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	src := filepath.Join(tmpdir, "falign.go")
+	src := filepath.Join(tmpdir, "go.mod")
+	err = ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "falign.go")
 	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
