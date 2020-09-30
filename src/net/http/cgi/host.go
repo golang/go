@@ -37,7 +37,7 @@ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
 var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		return []string{"DYLD_LIBRARY_PATH"}
 	case "linux", "freebsd", "openbsd":
 		return []string{"LD_LIBRARY_PATH"}

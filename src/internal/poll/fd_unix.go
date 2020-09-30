@@ -437,6 +437,17 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 	}
 }
 
+// Fchmod wraps syscall.Fchmod.
+func (fd *FD) Fchmod(mode uint32) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return ignoringEINTR(func() error {
+		return syscall.Fchmod(fd.Sysfd, mode)
+	})
+}
+
 // Fchdir wraps syscall.Fchdir.
 func (fd *FD) Fchdir() error {
 	if err := fd.incref(); err != nil {

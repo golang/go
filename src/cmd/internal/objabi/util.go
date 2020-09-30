@@ -139,7 +139,7 @@ func init() {
 }
 
 // Note: must agree with runtime.framepointer_enabled.
-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
+var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
 
 func addexp(s string) {
 	// Could do general integer parsing here, but the runtime copy doesn't yet.

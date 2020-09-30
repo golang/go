@@ -10,7 +10,11 @@ stdout '^pkg: bench'
 ! stdout 'pkg:.*pkg: '
 ! stderr 'pkg:.*pkg:'
 
--- bench/x_test.go --
+-- go.mod --
+module bench
+
+go 1.16
+-- x_test.go --
 package bench
 
 import "testing"

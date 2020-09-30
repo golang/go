@@ -12,6 +12,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1400,7 +1401,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 
 	// sanity check
 	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
-		panic("elfrelocsect: size mismatch")
+		panic(fmt.Sprintf("elfrelocsect: size mismatch %d != %d + %d", out.Offset(), sect.Reloff, sect.Rellen))
 	}
 }
 

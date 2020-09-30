@@ -1776,7 +1776,7 @@ func test14838(t *testing.T) {
 var sink C.int
 
 func test17065(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		t.Skip("broken on darwin; issue 17065")
 	}
 	for i := range C.ii {

@@ -3,6 +3,7 @@
 
 [!net] skip
 [!exec:git] skip
+env GO111MODULE=off
 
 # go-get-issue-9357.appspot.com is running
 # the code at github.com/rsc/go-get-issue-9357,

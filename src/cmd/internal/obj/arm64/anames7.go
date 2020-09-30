@@ -36,6 +36,7 @@ var cnames7 = []string{
 	"FCON",
 	"VCONADDR",
 	"AACON",
+	"AACON2",
 	"LACON",
 	"AECON",
 	"SBRA",

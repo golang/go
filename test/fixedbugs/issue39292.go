@@ -12,18 +12,18 @@ func (t) f() {
 }
 
 func x() {
-	x := t{}.f // ERROR "t literal.f escapes to heap"
+	x := t{}.f // ERROR "t{}.f escapes to heap"
 	x()
 }
 
 func y() {
 	var i int       // ERROR "moved to heap: i"
-	y := (&t{&i}).f // ERROR "\(&t literal\).f escapes to heap" "&t literal escapes to heap"
+	y := (&t{&i}).f // ERROR "\(&t{...}\).f escapes to heap" "&t{...} escapes to heap"
 	y()
 }
 
 func z() {
 	var i int    // ERROR "moved to heap: i"
-	z := t{&i}.f // ERROR "t literal.f escapes to heap"
+	z := t{&i}.f // ERROR "t{...}.f escapes to heap"
 	z()
 }

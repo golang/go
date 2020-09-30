@@ -29,7 +29,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
@@ -568,7 +567,7 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
-	modload.LoadTests = true
+	load.ModResolveTests = true
 
 	pkgArgs, testArgs = testFlags(args)
 

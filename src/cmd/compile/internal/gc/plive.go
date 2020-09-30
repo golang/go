@@ -861,7 +861,7 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 		// typedmemclr and typedmemmove are write barriers and
 		// deeply non-preemptible. They are unsafe points and
 		// hence should not have liveness maps.
-		if sym, _ := v.Aux.(*obj.LSym); sym == typedmemclr || sym == typedmemmove {
+		if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
 			return false
 		}
 		return true
@@ -1231,8 +1231,8 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 	s := "live at "
 	if v == nil {
 		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
-	} else if sym, ok := v.Aux.(*obj.LSym); ok {
-		fn := sym.Name
+	} else if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
+		fn := sym.Fn.Name
 		if pos := strings.Index(fn, "."); pos >= 0 {
 			fn = fn[pos+1:]
 		}

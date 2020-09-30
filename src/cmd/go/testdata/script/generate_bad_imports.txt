@@ -3,7 +3,11 @@
 go generate gencycle
 stdout 'hello world' # check go generate gencycle ran the generator
 
--- gencycle/gencycle.go --
+-- go.mod --
+module gencycle
+
+go 1.16
+-- gencycle.go --
 //go:generate echo hello world
 
 package gencycle

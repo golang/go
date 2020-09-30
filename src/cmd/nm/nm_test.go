@@ -283,7 +283,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 	if iscgo {
 		syms = append(syms, symType{"B", "mylib.TestCgodata", false, false})
 		syms = append(syms, symType{"T", "mylib.TestCgofunc", false, false})
-		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
 			syms = append(syms, symType{"D", "_cgodata", true, false})
 			syms = append(syms, symType{"T", "_cgofunc", true, false})
 		} else if runtime.GOOS == "aix" {

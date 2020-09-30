@@ -5,7 +5,7 @@
 [!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
 
 env GOBIN=$WORK/bin
-go install mtime sametime
+go install m/mtime m/sametime
 
 go tool -n cgo
 cp stdout cgopath.txt
@@ -21,6 +21,10 @@ exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopa
 cp stdout cgotime_after.txt
 exec $GOBIN/sametime cgotime_before.txt cgotime_after.txt
 
+-- go.mod --
+module m
+
+go 1.16
 -- mtime/mtime.go --
 package main
 

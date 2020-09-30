@@ -8,7 +8,7 @@
 
 # Install some commands to compare mtimes
 env GOBIN=$WORK/tmp/bin
-go install now mtime before
+go install m/now m/mtime m/before
 
 # Initial builds
 go test -c -test.bench=XXX errors
@@ -34,6 +34,10 @@ exec $GOBIN/mtime errors2.test
 cp stdout errors2_mod_time.txt
 exec $GOBIN/before start_time.txt errors2_mod_time.txt
 
+-- go.mod --
+module m
+
+go 1.16
 -- now/now.go --
 // Writes time.Now() to a file
 package main

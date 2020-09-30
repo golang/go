@@ -58,28 +58,12 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.As = AJALR
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
-	p.From.Sym = to.Sym
 	p.Reg = 0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_TMP
-	lowerJALR(p)
+	p.To.Sym = to.Sym
 
 	return p
-}
-
-// lowerJALR normalizes a JALR instruction.
-func lowerJALR(p *obj.Prog) {
-	if p.As != AJALR {
-		panic("lowerJALR: not a JALR")
-	}
-
-	// JALR gets parsed like JAL - the linkage pointer goes in From,
-	// and the target is in To. However, we need to assemble it as an
-	// I-type instruction, so place the linkage pointer in To, the
-	// target register in Reg, and the offset in From.
-	p.Reg = p.To.Reg
-	p.From, p.To = p.To, p.From
-	p.From.Type, p.From.Reg = obj.TYPE_CONST, obj.REG_NONE
 }
 
 // progedit is called individually for each *obj.Prog. It normalizes instruction
@@ -125,7 +109,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case obj.AJMP:
 		// Turn JMP into JAL ZERO or JALR ZERO.
-		// p.From is actually an _output_ for this instruction.
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_ZERO
 
@@ -136,7 +119,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			switch p.To.Name {
 			case obj.NAME_NONE:
 				p.As = AJALR
-				lowerJALR(p)
 			case obj.NAME_EXTERN:
 				// Handled in preprocess.
 			default:
@@ -154,13 +136,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AJALR
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REG_LR
-			lowerJALR(p)
 		default:
 			ctxt.Diag("unknown destination type %+v in CALL: %v", p.To.Type, p)
 		}
-
-	case AJALR:
-		lowerJALR(p)
 
 	case obj.AUNDEF:
 		p.As = AEBREAK
@@ -454,7 +432,7 @@ func containsCall(sym *obj.LSym) bool {
 		case obj.ACALL:
 			return true
 		case AJAL, AJALR:
-			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_LR {
+			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
 				return true
 			}
 		}
@@ -731,11 +709,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
 			} else {
 				p.As = AJALR
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = 0
-				p.Reg = REG_LR
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_ZERO
+				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+				p.Reg = 0
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 			}
 
 			// "Add back" the stack removed in the previous instruction.
@@ -917,9 +893,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					// it is reserved by SSA.
 					jmp := obj.Appendp(p, newprog)
 					jmp.As = AJALR
-					jmp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-					jmp.To = p.From
-					jmp.Reg = REG_TMP
+					jmp.From = p.From
+					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					// p.From is not generally valid, however will be
 					// fixed up in the next loop.
@@ -1801,8 +1776,8 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 
 	inss := []*instruction{ins}
 	switch ins.as {
-	case AJAL:
-		ins.rd, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+	case AJAL, AJALR:
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
 	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:

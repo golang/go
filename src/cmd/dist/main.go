@@ -108,6 +108,9 @@ func main() {
 			gohostarch = "arm64"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
+			if gohostos == "netbsd" && strings.Contains(run("", CheckExit, "uname", "-p"), "aarch64") {
+				gohostarch = "arm64"
+			}
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):

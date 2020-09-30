@@ -1,9 +1,8 @@
 env GO111MODULE=on
 
-# 'go list -mod=readonly' should not add requirements even if they can be
-# resolved locally.
+# 'go list' should not add requirements even if they can be resolved locally.
 cp go.mod go.mod.orig
-! go list -mod=readonly all
+! go list all
 cmp go.mod go.mod.orig
 
 # 'go list' should resolve imports using replacements.

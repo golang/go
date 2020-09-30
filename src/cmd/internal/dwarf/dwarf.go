@@ -378,7 +378,7 @@ func expandPseudoForm(form uint8) uint8 {
 		return form
 	}
 	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" {
+	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
 		expandedForm = DW_FORM_data4
 	}
 	return uint8(expandedForm)

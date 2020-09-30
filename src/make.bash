@@ -167,7 +167,10 @@ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
 fi
-GOROOT_BOOTSTRAP_VERSION=$($GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+# Get the exact bootstrap toolchain version to help with debugging.
+# We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+# the bootstrap doesn't support them.
+GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
 echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
 if $verbose; then
 	echo cmd/dist

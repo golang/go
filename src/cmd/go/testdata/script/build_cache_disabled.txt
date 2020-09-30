@@ -18,8 +18,6 @@ env GOCACHE=off
 go doc fmt
 stdout Printf
 
-go fmt .
-
 ! go tool compile -h
 stderr usage:
 
@@ -39,6 +37,12 @@ go mod graph
 stdout rsc.io/quote
 
 go mod verify
+
+
+# Commands that load but don't build packages should work.
+go fmt .
+
+go doc .
 
 -- main.go --
 package main

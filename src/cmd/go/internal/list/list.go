@@ -325,7 +325,7 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	modload.LoadTests = *listTest
+	load.ModResolveTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()

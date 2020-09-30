@@ -1030,7 +1030,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 		Fatalf("e.curfn isn't set")
 	}
 	if n != nil && n.Type != nil && n.Type.NotInHeap() {
-		yyerrorl(n.Pos, "%v is go:notinheap; stack allocation disallowed", n.Type)
+		yyerrorl(n.Pos, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type)
 	}
 
 	n = canonicalNode(n)
@@ -1053,7 +1053,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 
 		if mustHeapAlloc(n) {
 			why := "too large for stack"
-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
+			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || (n.Right != nil && !Isconst(n.Right, CTINT))) {
 				why = "non-constant size"
 			}
 			e.flow(e.heapHole().addr(n, why), loc)

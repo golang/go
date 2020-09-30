@@ -617,7 +617,7 @@ func Main(archInit func(*Arch)) {
 	var fcount int64
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
+		if n.Op == ODCLFUNC {
 			Curfn = n
 			decldepth = 1
 			saveerrors()
@@ -641,6 +641,8 @@ func Main(archInit func(*Arch)) {
 	if nsavederrors+nerrors != 0 {
 		errorexit()
 	}
+
+	fninit(xtop)
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
@@ -751,10 +753,6 @@ func Main(archInit func(*Arch)) {
 	}
 	timings.AddEvent(fcount, "funcs")
 
-	if nsavederrors+nerrors == 0 {
-		fninit(xtop)
-	}
-
 	compileFunctions()
 
 	if nowritebarrierrecCheck != nil {
@@ -809,6 +807,9 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
+	if len(funcStack) != 0 {
+		Fatalf("funcStack is non-empty: %v", len(funcStack))
+	}
 	if len(compilequeue) != 0 {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}

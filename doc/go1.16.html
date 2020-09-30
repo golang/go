@@ -43,6 +43,20 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<h4 id="modules">Modules</h4>
+
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code> now accepts arguments with
+  version suffixes (for example, <code>go</code> <code>install</code>
+  <code>example.com/cmd@v1.0.0</code>). This causes <code>go</code>
+  <code>install</code> to build and install packages in module-aware mode,
+  ignoring the <code>go.mod</code> file in the current directory or any parent
+  directory, if there is one. This is useful for installing executables without
+  affecting the dependencies of the main module.<br>
+  TODO: write and link to section in golang.org/ref/mod<br>
+  TODO: write and link to blog post
+</p>
+
 <p><!-- golang.org/issue/24031 -->
   <code>retract</code> directives may now be used in a <code>go.mod</code> file
   to indicate that certain published versions of the module should not be used
@@ -52,14 +66,33 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: write and link to tutorial or blog post
 </p>
 
+<p><!-- golang.org/issue/26603 -->
+  The <code>go</code> <code>mod</code> <code>vendor</code>
+  and <code>go</code> <code>mod</code> <code>tidy</code> subcommands now accept
+  the <code>-e</code> flag, which instructs them to proceed despite errors in
+  resolving missing packages.
+</p>
+
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
+
 <p><!-- golang.org/issue/29062 -->
-  When using <code>go test</code>, a test that
+  When using <code>go</code> <code>test</code>, a test that
   calls <code>os.Exit(0)</code> during execution of a test function
   will now be considered to fail.
   This will help catch cases in which a test calls code that calls
-  os.Exit(0) and thereby stops running all future tests.
+  <code>os.Exit(0)</code> and thereby stops running all future tests.
   If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
   that is still considered to be a passing test.
+</p>
+
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and will be removed in a future version. The <code>GOINSECURE</code>
+  environment variable should be used instead, since it provides control
+  over which modules may be retrieved using an insecure scheme. Unlike the
+  <code>-insecure</code> flag, <code>GOINSECURE</code> does not disable module
+  sum validation using the checksum database. The <code>GOPRIVATE</code> or
+  <code>GONOSUMDB</code> environment variables may be used instead.
 </p>
 
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
@@ -72,6 +105,16 @@ Do not send CLs removing the interior tags from such phrases.
   of</em> packages imported by the main module are no longer included.) This is
   the same set of packages retained
   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p> <!-- CL 252378 -->
+  The <a href="/cmd/cgo">cgo</a> tool will no longer try to translate
+  C struct bitfields into Go struct fields, even if their size can be
+  represented in Go. The order in which C bitfields appear in memory
+  is implementation dependent, so in some cases the cgo tool produced
+  results that were silently incorrect.
 </p>
 
 <p>
@@ -119,6 +162,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   TODO
+</p>
+
+<h3 id="ctypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+
+<p><!-- CL 256897 -->
+  I/O operations on closing or closed TLS connections can now be detected using
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the only way to reliably detect this case was to match the string returned
+  by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
+<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
+
+<p><!-- CL 235078 -->
+  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
+  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
+  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
+  contain strings with characters within the ASCII range.
 </p>
 
 <h3 id="net"><a href="/pkg/net/">net</a></h3>

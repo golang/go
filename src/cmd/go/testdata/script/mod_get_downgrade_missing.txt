@@ -1,0 +1,33 @@
+cp go.mod go.mod.orig
+
+# getting a specific version of a module along with a pattern
+# not yet present in that module should report the version mismatch
+# rather than a "matched no packages" warning.
+! go get example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
+stderr '^go get: conflicting versions for module example\.net/pkgadded: v1\.1\.0 and v1\.2\.0$'
+! stderr 'matched no packages'
+cmp go.mod.orig go.mod
+
+! go get example.net/pkgadded/...@v1.0.0
+stderr '^go get example\.net/pkgadded/\.\.\.@v1\.0\.0: module example\.net/pkgadded@v1\.0\.0 found, but does not contain packages matching example\.net/pkgadded/\.\.\.$'
+cmp go.mod.orig go.mod
+
+! go get example.net/pkgadded@v1.0.0 .
+stderr -count=1 '^go: found example.net/pkgadded/subpkg in example.net/pkgadded v1\.2\.0$'  # TODO: We shouldn't even try v1.2.0.
+stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: import missing'  # TODO: better error message
+cmp go.mod.orig go.mod
+
+go get example.net/pkgadded@v1.0.0
+! go list -deps -mod=readonly .
+stderr '^m.go:3:8: cannot find module providing package example\.net/pkgadded/subpkg: '
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+require example.net/pkgadded v1.2.0
+-- m.go --
+package m
+
+import _ "example.net/pkgadded/subpkg"

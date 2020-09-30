@@ -212,6 +212,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	})
 
+	// firstUnknownFlag helps us report an error when flags not known to 'go
+	// test' are used along with -i or -c.
+	firstUnknownFlag := ""
+
 	explicitArgs := make([]string, 0, len(args))
 	inPkgList := false
 	afterFlagWithoutValue := false
@@ -288,6 +292,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				break
 			}
 
+			if firstUnknownFlag == "" {
+				firstUnknownFlag = nd.RawArg
+			}
+
 			explicitArgs = append(explicitArgs, nd.RawArg)
 			args = remainingArgs
 			if !nd.HasValue {
@@ -311,6 +319,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 
 		args = remainingArgs
+	}
+	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
+		buildFlag := "-c"
+		if !testC {
+			buildFlag = "-i"
+		}
+		fmt.Fprintf(os.Stderr, "flag %s is not a 'go test' flag (unknown flags cannot be used with %s)\n", firstUnknownFlag, buildFlag)
+		exitWithUsage()
 	}
 
 	var injectedFlags []string

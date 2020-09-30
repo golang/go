@@ -20,7 +20,7 @@ func cmsgAlignOf(salen int) int {
 	case "aix":
 		// There is no alignment on AIX.
 		salign = 1
-	case "darwin", "illumos", "solaris":
+	case "darwin", "ios", "illumos", "solaris":
 		// NOTE: It seems like 64-bit Darwin, Illumos and Solaris
 		// kernels still require 32-bit aligned access to network
 		// subsystem.

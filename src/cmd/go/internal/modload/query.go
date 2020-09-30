@@ -212,7 +212,20 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 
 	default:
 		// Direct lookup of semantic version or commit identifier.
-		//
+
+		// If the query is a valid semantic version and that version is replaced,
+		// use the replacement module without searching the proxy.
+		canonicalQuery := module.CanonicalVersion(query)
+		if canonicalQuery != "" {
+			m := module.Version{Path: path, Version: query}
+			if r := Replacement(m); r.Path != "" {
+				if err := allowed(ctx, m); errors.Is(err, ErrDisallowed) {
+					return nil, err
+				}
+				return &modfetch.RevInfo{Version: query}, nil
+			}
+		}
+
 		// If the identifier is not a canonical semver tag — including if it's a
 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
 		// info.Version with a suitable pseudo-version.
@@ -222,9 +235,9 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			// The full query doesn't correspond to a tag. If it is a semantic version
 			// with a +metadata suffix, see if there is a tag without that suffix:
 			// semantic versioning defines them to be equivalent.
-			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
-				info, err = modfetch.Stat(proxy, path, vers)
-				if !errors.Is(err, os.ErrNotExist) {
+			if canonicalQuery != "" && query != canonicalQuery {
+				info, err = modfetch.Stat(proxy, path, canonicalQuery)
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
 					return info, err
 				}
 			}
@@ -416,20 +429,6 @@ type QueryResult struct {
 	Mod      module.Version
 	Rev      *modfetch.RevInfo
 	Packages []string
-}
-
-// QueryPackage looks up the module(s) containing path at a revision matching
-// query. The results are sorted by module path length in descending order.
-//
-// If the package is in the main module, QueryPackage considers only the main
-// module and only the version "latest", without checking for other possible
-// modules.
-func QueryPackage(ctx context.Context, path, query string, allowed AllowedFunc) ([]QueryResult, error) {
-	m := search.NewMatch(path)
-	if m.IsLocal() || !m.IsLiteral() {
-		return nil, fmt.Errorf("pattern %s is not an importable package", path)
-	}
-	return QueryPattern(ctx, path, query, allowed)
 }
 
 // QueryPattern looks up the module(s) containing at least one package matching

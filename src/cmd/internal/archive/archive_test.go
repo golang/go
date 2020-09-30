@@ -243,7 +243,7 @@ func TestParseCGOArchive(t *testing.T) {
 	c1 := "c1"
 	c2 := "c2"
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		c1 = "_" + c1
 		c2 = "_" + c2
 	case "windows":
@@ -275,7 +275,7 @@ func TestParseCGOArchive(t *testing.T) {
 
 		obj := io.NewSectionReader(f, e.Offset, e.Size)
 		switch runtime.GOOS {
-		case "darwin":
+		case "darwin", "ios":
 			mf, err := macho.NewFile(obj)
 			if err != nil {
 				t.Fatal(err)
