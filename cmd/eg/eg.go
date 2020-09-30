@@ -10,16 +10,17 @@ package main // import "golang.org/x/tools/cmd/eg"
 import (
 	"flag"
 	"fmt"
-	"go/build"
+	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
-	exec "golang.org/x/sys/execabs"
+	"go/types"
+	"io/ioutil"
 	"os"
 	"strings"
 
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
+	exec "golang.org/x/sys/execabs"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/refactor/eg"
 )
 
@@ -32,13 +33,9 @@ var (
 	verboseFlag    = flag.Bool("v", false, "show verbose matcher diagnostics")
 )
 
-func init() {
-	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
-}
-
 const usage = `eg: an example-based refactoring tool.
 
-Usage: eg -t template.go [-w] [-transitive] <args>...
+Usage: eg -t template.go [-w] [-transitive] <packages>
 
 -help            show detailed help message
 -t template.go	 specifies the template file (use -help to see explanation)
@@ -47,7 +44,7 @@ Usage: eg -t template.go [-w] [-transitive] <args>...
 -v               show verbose matcher diagnostics
 -beforeedit cmd  a command to exec before each file is modified.
                  "{}" represents the name of the file.
-` + loader.FromArgsUsage
+`
 
 func main() {
 	if err := doMain(); err != nil {
@@ -74,51 +71,65 @@ func doMain() error {
 		return fmt.Errorf("no -t template.go file specified")
 	}
 
-	conf := loader.Config{
-		Fset:       token.NewFileSet(),
-		ParserMode: parser.ParseComments,
-	}
-
-	// The first Created package is the template.
-	conf.CreateFromFilenames("template", *templateFlag)
-
-	if _, err := conf.FromArgs(args, true); err != nil {
+	template, err := ioutil.ReadFile(*templateFlag)
+	if err != nil {
 		return err
 	}
 
-	// Load, parse and type-check the whole program.
-	iprog, err := conf.Load()
+	cfg := &packages.Config{
+		Fset:  token.NewFileSet(),
+		Mode:  packages.NeedTypesInfo | packages.NeedName | packages.NeedTypes | packages.NeedSyntax | packages.NeedImports | packages.NeedDeps | packages.NeedCompiledGoFiles,
+		Tests: true,
+	}
+
+	pkgs, err := packages.Load(cfg, args...)
+	if err != nil {
+		return err
+	}
+
+	tFile, err := parser.ParseFile(cfg.Fset, *templateFlag, template, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	// Type-check the template.
+	tInfo := types.Info{
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Implicits:  make(map[ast.Node]types.Object),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Scopes:     make(map[ast.Node]*types.Scope),
+	}
+	conf := types.Config{
+		Importer: pkgsImporter(pkgs),
+	}
+	tPkg, err := conf.Check("egtemplate", cfg.Fset, []*ast.File{tFile}, &tInfo)
 	if err != nil {
 		return err
 	}
 
 	// Analyze the template.
-	template := iprog.Created[0]
-	xform, err := eg.NewTransformer(iprog.Fset, template.Pkg, template.Files[0], &template.Info, *verboseFlag)
+	xform, err := eg.NewTransformer(cfg.Fset, tPkg, tFile, &tInfo, *verboseFlag)
 	if err != nil {
 		return err
 	}
 
 	// Apply it to the input packages.
-	var pkgs []*loader.PackageInfo
+	var all []*packages.Package
 	if *transitiveFlag {
-		for _, info := range iprog.AllPackages {
-			pkgs = append(pkgs, info)
-		}
+		packages.Visit(pkgs, nil, func(p *packages.Package) { all = append(all, p) })
 	} else {
-		pkgs = iprog.InitialPackages()
+		all = pkgs
 	}
 	var hadErrors bool
 	for _, pkg := range pkgs {
-		if pkg == template {
-			continue
-		}
-		for _, file := range pkg.Files {
-			n := xform.Transform(&pkg.Info, pkg.Pkg, file)
+		for i, filename := range pkg.CompiledGoFiles {
+			file := pkg.Syntax[i]
+			n := xform.Transform(pkg.TypesInfo, pkg.Types, file)
 			if n == 0 {
 				continue
 			}
-			filename := iprog.Fset.File(file.Pos()).Name()
 			fmt.Fprintf(os.Stderr, "=== %s (%d matches)\n", filename, n)
 			if *writeFlag {
 				// Run the before-edit command (e.g. "chmod +w",  "checkout") if any.
@@ -138,17 +149,34 @@ func doMain() error {
 							args, err)
 					}
 				}
-				if err := eg.WriteAST(iprog.Fset, filename, file); err != nil {
+				if err := eg.WriteAST(cfg.Fset, filename, file); err != nil {
 					fmt.Fprintf(os.Stderr, "eg: %s\n", err)
 					hadErrors = true
 				}
 			} else {
-				format.Node(os.Stdout, iprog.Fset, file)
+				format.Node(os.Stdout, cfg.Fset, file)
 			}
 		}
 	}
 	if hadErrors {
 		os.Exit(1)
 	}
+
 	return nil
+}
+
+type pkgsImporter []*packages.Package
+
+func (p pkgsImporter) Import(path string) (tpkg *types.Package, err error) {
+	packages.Visit([]*packages.Package(p), func(pkg *packages.Package) bool {
+		if pkg.PkgPath == path {
+			tpkg = pkg.Types
+			return false
+		}
+		return true
+	}, nil)
+	if tpkg != nil {
+		return tpkg, nil
+	}
+	return nil, fmt.Errorf("package %q not found", path)
 }
