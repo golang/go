@@ -17,6 +17,7 @@ import (
 	"go/types"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	exec "golang.org/x/sys/execabs"
@@ -71,7 +72,11 @@ func doMain() error {
 		return fmt.Errorf("no -t template.go file specified")
 	}
 
-	template, err := ioutil.ReadFile(*templateFlag)
+	tAbs, err := filepath.Abs(*templateFlag)
+	if err != nil {
+		return err
+	}
+	template, err := ioutil.ReadFile(tAbs)
 	if err != nil {
 		return err
 	}
@@ -87,7 +92,7 @@ func doMain() error {
 		return err
 	}
 
-	tFile, err := parser.ParseFile(cfg.Fset, *templateFlag, template, parser.ParseComments)
+	tFile, err := parser.ParseFile(cfg.Fset, tAbs, template, parser.ParseComments)
 	if err != nil {
 		return err
 	}
@@ -125,6 +130,10 @@ func doMain() error {
 	var hadErrors bool
 	for _, pkg := range pkgs {
 		for i, filename := range pkg.CompiledGoFiles {
+			if filename == tAbs {
+				// Don't rewrite the template file.
+				continue
+			}
 			file := pkg.Syntax[i]
 			n := xform.Transform(pkg.TypesInfo, pkg.Types, file)
 			if n == 0 {
