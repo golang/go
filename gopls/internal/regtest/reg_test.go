@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -78,11 +79,11 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	if err := runner.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "closing test runner: %v\n", err)
-		// Regtest cleanup is broken in go1.12 and earlier, but this is OK
-		// for our CI.
+		// Regtest cleanup is broken in go1.12 and earlier, and sometimes flakes on
+		// Windows due to file locking, but this is OK for our CI.
 		//
-		// But fail on go1.13+.
-		if testenv.Go1Point() >= 13 {
+		// Fail on non-windows go1.13+.
+		if testenv.Go1Point() >= 13 && runtime.GOOS != "windows" {
 			os.Exit(1)
 		}
 	}
