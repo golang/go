@@ -3017,40 +3017,40 @@ func dropg() {
 // We pass now in and out to avoid extra calls of nanotime.
 //go:yeswritebarrierrec
 func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
-	// If there are no timers to adjust, and the first timer on
-	// the heap is not yet ready to run, then there is nothing to do.
-	if atomic.Load(&pp.adjustTimers) == 0 {
-		next := int64(atomic.Load64(&pp.timer0When))
-		if next == 0 {
-			return now, 0, false
-		}
-		if now == 0 {
-			now = nanotime()
-		}
-		if now < next {
-			// Next timer is not ready to run.
-			// But keep going if we would clear deleted timers.
-			// This corresponds to the condition below where
-			// we decide whether to call clearDeletedTimers.
-			if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
-				return now, next, false
-			}
+	// If it's not yet time for the first timer, or the first adjusted
+	// timer, then there is nothing to do.
+	next := int64(atomic.Load64(&pp.timer0When))
+	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+		next = nextAdj
+	}
+
+	if next == 0 {
+		// No timers to run or adjust.
+		return now, 0, false
+	}
+
+	if now == 0 {
+		now = nanotime()
+	}
+	if now < next {
+		// Next timer is not ready to run, but keep going
+		// if we would clear deleted timers.
+		// This corresponds to the condition below where
+		// we decide whether to call clearDeletedTimers.
+		if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
+			return now, next, false
 		}
 	}
 
 	lock(&pp.timersLock)
 
-	adjusttimers(pp)
-
-	rnow = now
 	if len(pp.timers) > 0 {
-		if rnow == 0 {
-			rnow = nanotime()
-		}
+		adjusttimers(pp, now)
 		for len(pp.timers) > 0 {
 			// Note that runtimer may temporarily unlock
 			// pp.timersLock.
-			if tw := runtimer(pp, rnow); tw != 0 {
+			if tw := runtimer(pp, now); tw != 0 {
 				if tw > 0 {
 					pollUntil = tw
 				}
@@ -3069,7 +3069,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 
 	unlock(&pp.timersLock)
 
-	return rnow, pollUntil, ran
+	return now, pollUntil, ran
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
