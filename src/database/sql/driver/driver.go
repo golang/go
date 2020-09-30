@@ -115,6 +115,9 @@ type DriverContext interface {
 // DriverContext's OpenConnector method, to allow drivers
 // access to context and to avoid repeated parsing of driver
 // configuration.
+//
+// A Connector may optionally implement io.Closer interface
+// to release the resources when sql.DB is closed.
 type Connector interface {
 	// Connect returns a connection to the database.
 	// Connect may return a cached connection (one previously

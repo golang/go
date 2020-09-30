@@ -4059,8 +4059,17 @@ func TestOpenConnector(t *testing.T) {
 	}
 	defer db.Close()
 
-	if _, is := db.connector.(*fakeConnector); !is {
+	c, ok := db.connector.(*fakeConnector)
+	if !ok {
 		t.Fatal("not using *fakeConnector")
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !c.closed {
+		t.Fatal("connector is not closed")
 	}
 }
 
