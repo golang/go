@@ -182,10 +182,9 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	// Get the diagnostics for this view if we have not done it before.
 	v := r.server.session.View(r.data.Config.Dir)
 	r.collectDiagnostics(v)
-	var got []*source.Diagnostic
-	for _, d := range r.diagnostics[uri] {
-		got = append(got, d)
-	}
+	d := r.diagnostics[uri]
+	got := make([]*source.Diagnostic, len(d))
+	copy(got, d)
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {

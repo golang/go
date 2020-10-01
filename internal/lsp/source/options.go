@@ -510,8 +510,8 @@ func (o *Options) Clone() *Options {
 	return result
 }
 
-func (options *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
-	options.StaticcheckAnalyzers[a.Name] = Analyzer{Analyzer: a, Enabled: true}
+func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
+	o.StaticcheckAnalyzers[a.Name] = Analyzer{Analyzer: a, Enabled: true}
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {
