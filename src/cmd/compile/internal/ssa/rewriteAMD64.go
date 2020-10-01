@@ -25454,7 +25454,7 @@ func rewriteValueAMD64_OpAMD64SHLLconst(v *Value) bool {
 		return true
 	}
 	// match: (SHLLconst [d] (MOVLconst [c]))
-	// result: (MOVLconst [int64(int32(c)) << uint64(d)])
+	// result: (MOVLconst [int64(int32(c) << uint64(d))])
 	for {
 		d := v.AuxInt
 		if v_0.Op != OpAMD64MOVLconst {
@@ -25462,7 +25462,7 @@ func rewriteValueAMD64_OpAMD64SHLLconst(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = int64(int32(c)) << uint64(d)
+		v.AuxInt = int64(int32(c) << uint64(d))
 		return true
 	}
 	return false
