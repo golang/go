@@ -196,7 +196,7 @@ const (
 	ClassParamOut                     // return value
 )
 
-const go116lateCallExpansion = true
+const go116lateCallExpansion = false
 
 // LateCallExpansionEnabledWithin returns true if late call expansion should be tested
 // within compilation of a function/method triggered by GOSSAHASH (defaults to "yes").
