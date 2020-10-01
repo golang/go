@@ -254,8 +254,9 @@ func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Op
 	if !options.ExperimentalWorkspaceModule {
 		path := filepath.Join(root.Filename(), "go.mod")
 		if info, _ := os.Stat(path); info != nil {
-			m := newModule(ctx, span.URIFromPath(path))
-			modules[m.rootURI] = m
+			if m := getViewModule(ctx, root, span.URIFromPath(path), options); m != nil {
+				modules[m.rootURI] = m
+			}
 		}
 		return modules, nil
 	}
@@ -277,8 +278,9 @@ func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Op
 		}
 		// We're only interested in go.mod files.
 		if filepath.Base(path) == "go.mod" {
-			m := newModule(ctx, span.URIFromPath(path))
-			modules[m.rootURI] = m
+			if m := getViewModule(ctx, root, span.URIFromPath(path), options); m != nil {
+				modules[m.rootURI] = m
+			}
 		}
 		return nil
 	})

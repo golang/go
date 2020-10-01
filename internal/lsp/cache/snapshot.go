@@ -1077,8 +1077,11 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			rootURI := span.URIFromPath(filepath.Dir(withoutURI.Filename()))
 			if currentMod {
 				if _, ok := result.modules[rootURI]; !ok {
-					result.modules[rootURI] = newModule(ctx, currentFH.URI())
-					shouldReinitializeView = true
+					if m := getViewModule(ctx, s.view.rootURI, currentFH.URI(), s.view.options); m != nil {
+						result.modules[m.rootURI] = m
+						shouldReinitializeView = true
+					}
+
 				}
 			} else if originalMod {
 				// Similarly, we need to retry the IWL if a go.mod in the workspace
@@ -1574,8 +1577,15 @@ func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, er
 	return file, nil
 }
 
-func newModule(ctx context.Context, modURI span.URI) *moduleRoot {
+func getViewModule(ctx context.Context, viewRootURI, modURI span.URI, options *source.Options) *moduleRoot {
 	rootURI := span.URIFromPath(filepath.Dir(modURI.Filename()))
+	// If we are not in multi-module mode, check that the affected module is
+	// in the workspace root.
+	if !options.ExperimentalWorkspaceModule {
+		if span.CompareURI(rootURI, viewRootURI) != 0 {
+			return nil
+		}
+	}
 	sumURI := span.URIFromPath(sumFilename(modURI))
 	if info, _ := os.Stat(sumURI.Filename()); info == nil {
 		sumURI = ""
