@@ -113,7 +113,10 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 		return nil, err
 	}
 
-	enums := loadEnums(pkg)
+	enums, err := loadEnums(pkg)
+	if err != nil {
+		return nil, err
+	}
 
 	var opts []*source.OptionJSON
 	optsStruct := optsType.Type().Underlying().(*types.Struct)
@@ -171,17 +174,46 @@ func loadOptions(category reflect.Value, pkg *packages.Package) ([]*source.Optio
 	return opts, nil
 }
 
-func loadEnums(pkg *packages.Package) map[types.Type][]string {
-	enums := map[types.Type][]string{}
+func loadEnums(pkg *packages.Package) (map[types.Type][]source.EnumValue, error) {
+	enums := map[types.Type][]source.EnumValue{}
 	for _, name := range pkg.Types.Scope().Names() {
 		obj := pkg.Types.Scope().Lookup(name)
 		cnst, ok := obj.(*types.Const)
 		if !ok {
 			continue
 		}
-		enums[obj.Type()] = append(enums[obj.Type()], cnst.Val().ExactString())
+		f, err := fileForPos(pkg, cnst.Pos())
+		if err != nil {
+			return nil, fmt.Errorf("finding file for %q: %v", cnst.Name(), err)
+		}
+		path, _ := astutil.PathEnclosingInterval(f, cnst.Pos(), cnst.Pos())
+		spec := path[1].(*ast.ValueSpec)
+		value := cnst.Val().ExactString()
+		doc := valueDoc(cnst.Name(), value, spec.Doc.Text())
+		v := source.EnumValue{
+			Value: value,
+			Doc:   doc,
+		}
+		enums[obj.Type()] = append(enums[obj.Type()], v)
 	}
-	return enums
+	return enums, nil
+}
+
+// valueDoc transforms a docstring documenting an constant identifier to a
+// docstring documenting its value.
+//
+// If doc is of the form "Foo is a bar", it returns '`"fooValue"` is a bar'. If
+// doc is non-standard ("this value is a bar"), it returns '`"fooValue"`: this
+// value is a bar'.
+func valueDoc(name, value, doc string) string {
+	if doc == "" {
+		return ""
+	}
+	if strings.HasPrefix(doc, name) {
+		// docstring in standard form. Replace the subject with value.
+		return fmt.Sprintf("`%s`%s", value, doc[len(name):])
+	}
+	return fmt.Sprintf("`%s`: %s", value, doc)
 }
 
 func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {

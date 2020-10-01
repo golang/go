@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -62,19 +63,27 @@ func rewriteFile(file string, api *source.APIJSON, write bool, rewrite func([]by
 	return true, nil
 }
 
+var parBreakRE = regexp.MustCompile("\n{2,}")
+
 func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 	result := doc
 	for category, opts := range api.Options {
 		section := bytes.NewBuffer(nil)
 		for _, opt := range opts {
-			var enumValues string
+			var enumValues strings.Builder
 			if len(opt.EnumValues) > 0 {
-				enumValues = "Must be one of:\n\n"
+				enumValues.WriteString("Must be one of:\n\n")
 				for _, val := range opt.EnumValues {
-					enumValues += fmt.Sprintf(" * `%v`\n", val)
+					if val.Doc != "" {
+						// Don't break the list item by starting a new paragraph.
+						unbroken := parBreakRE.ReplaceAllString(val.Doc, "\\\n")
+						fmt.Fprintf(&enumValues, " * %s\n", unbroken)
+					} else {
+						fmt.Fprintf(&enumValues, " * `%s`\n", val.Value)
+					}
 				}
 			}
-			fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues, opt.Default)
+			fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues.String(), opt.Default)
 		}
 		var err error
 		result, err = replaceSection(result, category, section.Bytes())

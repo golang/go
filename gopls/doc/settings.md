@@ -41,7 +41,11 @@ Must be one of:
  * `"FullDocumentation"`
  * `"NoDocumentation"`
  * `"SingleLine"`
- * `"Structured"`
+ * `"Structured"` is an experimental setting that returns a structured hover format.
+This format separates the signature from the documentation, so that the client
+can do more manipulation of these fields.\
+This should only be used by clients that support this behavior.
+
  * `"SynopsisDocumentation"`
 
 
@@ -185,14 +189,7 @@ Must be one of:
 
 Default: `"Fuzzy"`.
 ### **symbolStyle** *enum*
-symbolStyle controls how symbols are qualified in symbol responses. It
-accepts the following values:
- * "full": symbols are fully qualified, i.e. "path/to/pkg.Foo.Field"
- * "package": symbols are package qualified, i.e. "pkg.Foo.Field"
- * "dynamic": symbols are qualified using whichever qualifier results in
-    the highest scoring match for the given symbol query. Here a
-    "qualifier" is any "/" or "." delimited suffix of the fully qualified
-    symbol. i.e. "to/pkg.Foo.Field" or just "Foo.Field".
+symbolStyle controls how symbols are qualified in symbol responses.
 
 Example Usage:
 ```json5
@@ -204,9 +201,17 @@ Example Usage:
 ```
 Must be one of:
 
- * `"Dynamic"`
- * `"Full"`
- * `"Package"`
+ * `"Dynamic"` uses whichever qualifier results in the highest scoring
+match for the given symbol query. Here a "qualifier" is any "/" or "."
+delimited suffix of the fully qualified symbol. i.e. "to/pkg.Foo.Field" or
+just "Foo.Field".
+
+ * `"Full"` is fully qualified symbols, i.e.
+"path/to/pkg.Foo.Field".
+
+ * `"Package"` is package qualified symbols i.e.
+"pkg.Foo.Field".
+
 
 
 Default: `"Package"`.

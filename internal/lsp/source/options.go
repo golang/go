@@ -296,14 +296,7 @@ type ExperimentalOptions struct {
 	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
 	SymbolMatcher SymbolMatcher
 
-	// SymbolStyle controls how symbols are qualified in symbol responses. It
-	// accepts the following values:
-	//  * "full": symbols are fully qualified, i.e. "path/to/pkg.Foo.Field"
-	//  * "package": symbols are package qualified, i.e. "pkg.Foo.Field"
-	//  * "dynamic": symbols are qualified using whichever qualifier results in
-	//     the highest scoring match for the given symbol query. Here a
-	//     "qualifier" is any "/" or "." delimited suffix of the fully qualified
-	//     symbol. i.e. "to/pkg.Foo.Field" or just "Foo.Field".
+	// SymbolStyle controls how symbols are qualified in symbol responses.
 	//
 	// Example Usage:
 	// ```json5
@@ -414,9 +407,17 @@ const (
 type SymbolStyle string
 
 const (
+	// PackageQualifiedSymbols is package qualified symbols i.e.
+	// "pkg.Foo.Field".
 	PackageQualifiedSymbols SymbolStyle = "Package"
-	FullyQualifiedSymbols   SymbolStyle = "Full"
-	DynamicSymbols          SymbolStyle = "Dynamic"
+	// FullyQualifiedSymbols is fully qualified symbols, i.e.
+	// "path/to/pkg.Foo.Field".
+	FullyQualifiedSymbols SymbolStyle = "Full"
+	// DynamicSymbols uses whichever qualifier results in the highest scoring
+	// match for the given symbol query. Here a "qualifier" is any "/" or "."
+	// delimited suffix of the fully qualified symbol. i.e. "to/pkg.Foo.Field" or
+	// just "Foo.Field".
+	DynamicSymbols SymbolStyle = "Dynamic"
 )
 
 type HoverKind string
@@ -958,8 +959,13 @@ type OptionJSON struct {
 	Name       string
 	Type       string
 	Doc        string
-	EnumValues []string
+	EnumValues []EnumValue
 	Default    string
+}
+
+type EnumValue struct {
+	Value string
+	Doc   string
 }
 
 type CommandJSON struct {
