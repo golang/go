@@ -185,7 +185,11 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	// Pcdata
 	h.Offsets[goobj.BlkPcdata] = w.Offset()
 	for _, s := range ctxt.Text { // iteration order must match genFuncInfoSyms
-		if s.Func != nil {
+		// Because of the phase order, it's possible that we try to write an invalid
+		// object file, and the Pcln variables haven't been filled in. As such, we
+		// need to check that Pcsp exists, and assume the other pcln variables exist
+		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
+		if s.Func != nil && s.Func.Pcln.Pcsp != nil {
 			pc := &s.Func.Pcln
 			w.Bytes(pc.Pcsp.P)
 			w.Bytes(pc.Pcfile.P)
@@ -372,6 +376,19 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
 	h := sha1.New()
+	var tmp [14]byte
+
+	// Include the size of the symbol in the hash.
+	// This preserves the length of symbols, preventing the following two symbols
+	// from hashing the same:
+	//
+	//    [2]int{1,2} ≠ [10]int{1,2,0,0,0...}
+	//
+	// In this case, if the smaller symbol is alive, the larger is not kept unless
+	// needed.
+	binary.LittleEndian.PutUint64(tmp[:8], uint64(s.Size))
+	h.Write(tmp[:8])
+
 	// Don't dedup type symbols with others, as they are in a different
 	// section.
 	if strings.HasPrefix(s.Name, "type.") {
@@ -382,7 +399,6 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 	// The compiler trims trailing zeros _sometimes_. We just do
 	// it always.
 	h.Write(bytes.TrimRight(s.P, "\x00"))
-	var tmp [14]byte
 	for i := range s.R {
 		r := &s.R[i]
 		binary.LittleEndian.PutUint32(tmp[:4], uint32(r.Off))
@@ -473,6 +489,22 @@ func (w *writer) Aux(s *LSym) {
 		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			w.aux1(goobj.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
 		}
+		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
+			w.aux1(goobj.AuxPcsp, s.Func.Pcln.Pcsp)
+		}
+		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
+			w.aux1(goobj.AuxPcfile, s.Func.Pcln.Pcfile)
+		}
+		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
+			w.aux1(goobj.AuxPcline, s.Func.Pcln.Pcline)
+		}
+		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
+			w.aux1(goobj.AuxPcinline, s.Func.Pcln.Pcinline)
+		}
+		for _, pcSym := range s.Func.Pcln.Pcdata {
+			w.aux1(goobj.AuxPcdata, pcSym)
+		}
+
 	}
 }
 
@@ -554,6 +586,19 @@ func nAuxSym(s *LSym) int {
 		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			n++
 		}
+		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
+			n++
+		}
+		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
+			n++
+		}
+		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
+			n++
+		}
+		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
+			n++
+		}
+		n += len(s.Func.Pcln.Pcdata)
 	}
 	return n
 }
@@ -561,7 +606,17 @@ func nAuxSym(s *LSym) int {
 // generate symbols for FuncInfo.
 func genFuncInfoSyms(ctxt *Link) {
 	infosyms := make([]*LSym, 0, len(ctxt.Text))
-	var pcdataoff uint32
+	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
+	preparePcSym := func(s *LSym) *LSym {
+		if s == nil {
+			return s
+		}
+		s.PkgIdx = goobj.PkgIdxHashed
+		s.SymIdx = int32(len(hashedsyms) + len(ctxt.hasheddefs))
+		s.Set(AttrIndexed, true)
+		hashedsyms = append(hashedsyms, s)
+		return s
+	}
 	var b bytes.Buffer
 	symidx := int32(len(ctxt.defs))
 	for _, s := range ctxt.Text {
@@ -574,20 +629,14 @@ func genFuncInfoSyms(ctxt *Link) {
 			FuncID: objabi.FuncID(s.Func.FuncID),
 		}
 		pc := &s.Func.Pcln
-		o.Pcsp = pcdataoff
-		pcdataoff += uint32(len(pc.Pcsp.P))
-		o.Pcfile = pcdataoff
-		pcdataoff += uint32(len(pc.Pcfile.P))
-		o.Pcline = pcdataoff
-		pcdataoff += uint32(len(pc.Pcline.P))
-		o.Pcinline = pcdataoff
-		pcdataoff += uint32(len(pc.Pcinline.P))
-		o.Pcdata = make([]uint32, len(pc.Pcdata))
-		for i, pcd := range pc.Pcdata {
-			o.Pcdata[i] = pcdataoff
-			pcdataoff += uint32(len(pcd.P))
+		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
+		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
+		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
+		o.Pcinline = makeSymRef(preparePcSym(pc.Pcinline))
+		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
+		for i, pcSym := range pc.Pcdata {
+			o.Pcdata[i] = makeSymRef(preparePcSym(pcSym))
 		}
-		o.PcdataEnd = pcdataoff
 		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
 		for i, x := range pc.Funcdataoff {
 			o.Funcdataoff[i] = uint32(x)
@@ -637,9 +686,9 @@ func genFuncInfoSyms(ctxt *Link) {
 		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
+	ctxt.hasheddefs = append(ctxt.hasheddefs, hashedsyms...)
 }
 
-// debugDumpAux is a dumper for selected aux symbols.
 func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
 	// Most aux symbols (ex: funcdata) are not interesting--
 	// pick out just the DWARF ones for now.

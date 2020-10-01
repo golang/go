@@ -619,6 +619,18 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, pcln.funcnametab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
+	// The cutab slice
+	moduledata.AddAddr(ctxt.Arch, pcln.cutab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.cutab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.cutab)))
+	// The filetab slice
+	moduledata.AddAddr(ctxt.Arch, pcln.filetab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
+	// The pctab slice
+	moduledata.AddAddr(ctxt.Arch, pcln.pctab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
 	// The pclntab slice
 	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))
@@ -627,10 +639,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
 	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
-	// The filetab slice
-	moduledata.AddAddrPlus(ctxt.Arch, pcln.pclntab, int64(pcln.filetabOffset))
-	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
-	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
 	// findfunctab
 	moduledata.AddAddr(ctxt.Arch, pcln.findfunctab)
 	// minpc, maxpc
