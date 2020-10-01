@@ -116,8 +116,8 @@ type DriverContext interface {
 // access to context and to avoid repeated parsing of driver
 // configuration.
 //
-// A Connector may optionally implement io.Closer interface
-// to release the resources when sql.DB is closed.
+// If a Connector implements io.Closer interface, the sql package's
+// DB.Close will call the Close method and return the error (if any).
 type Connector interface {
 	// Connect returns a connection to the database.
 	// Connect may return a cached connection (one previously
