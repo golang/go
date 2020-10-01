@@ -118,6 +118,9 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			return err
 		}
 		modContent, err = modFH.Read()
+		if err != nil {
+			return err
+		}
 		var sumFH source.FileHandle
 		if mod.sumURI != "" {
 			sumFH, err = s.GetFile(ctx, mod.sumURI)
