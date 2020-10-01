@@ -182,7 +182,23 @@ Must be one of:
 
 Default: `"Fuzzy"`.
 ### **symbolStyle** *enum*
-symbolStyle specifies what style of symbols to return in symbol requests.
+symbolStyle controls how symbols are qualified in symbol responses. It
+accepts the following values:
+ * "full": symbols are fully qualified, i.e. "path/to/pkg.Foo.Field"
+ * "package": symbols are package qualified, i.e. "pkg.Foo.Field"
+ * "dynamic": symbols are qualified using whichever qualifier results in
+    the highest scoring match for the given symbol query. Here a
+    "qualifier" is any "/" or "." delimited suffix of the fully qualified
+    symbol. i.e. "to/pkg.Foo.Field" or just "Foo.Field".
+
+Example Usage:
+```json5
+"gopls": {
+...
+  "symbolStyle": "dynamic",
+...
+}
+```
 Must be one of:
 
  * `"Dynamic"`

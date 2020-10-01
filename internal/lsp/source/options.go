@@ -296,7 +296,23 @@ type ExperimentalOptions struct {
 	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
 	SymbolMatcher SymbolMatcher
 
-	// SymbolStyle specifies what style of symbols to return in symbol requests.
+	// SymbolStyle controls how symbols are qualified in symbol responses. It
+	// accepts the following values:
+	//  * "full": symbols are fully qualified, i.e. "path/to/pkg.Foo.Field"
+	//  * "package": symbols are package qualified, i.e. "pkg.Foo.Field"
+	//  * "dynamic": symbols are qualified using whichever qualifier results in
+	//     the highest scoring match for the given symbol query. Here a
+	//     "qualifier" is any "/" or "." delimited suffix of the fully qualified
+	//     symbol. i.e. "to/pkg.Foo.Field" or just "Foo.Field".
+	//
+	// Example Usage:
+	// ```json5
+	// "gopls": {
+	// ...
+	//   "symbolStyle": "dynamic",
+	// ...
+	// }
+	// ```
 	SymbolStyle SymbolStyle
 
 	// LinksInHover toggles the presence of links to documentation in hover.
