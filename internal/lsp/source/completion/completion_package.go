@@ -189,6 +189,8 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 		return errors.New("cursor is not in package name identifier")
 	}
 
+	c.completionContext.packageCompletion = true
+
 	prefix := name.Name[:cursor]
 	packageSuggestions, err := packageSuggestions(ctx, c.snapshot, fileURI, prefix)
 	if err != nil {
@@ -196,9 +198,7 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 	}
 
 	for _, pkg := range packageSuggestions {
-		if item, err := c.item(ctx, pkg); err == nil {
-			c.items = append(c.items, item)
-		}
+		c.deepState.enqueue(pkg)
 	}
 	return nil
 }
@@ -220,7 +220,7 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 
 	toCandidate := func(name string, score float64) candidate {
 		obj := types.NewPkgName(0, nil, name, types.NewPackage("", name))
-		return candidate{obj: obj, name: name, score: score}
+		return candidate{obj: obj, name: name, detail: name, score: score}
 	}
 
 	matcher := fuzzy.NewMatcher(prefix)

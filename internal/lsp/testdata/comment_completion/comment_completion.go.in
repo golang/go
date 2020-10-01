@@ -32,16 +32,16 @@ var C string //@item(variableC, "C", "string", "var") //@complete(" ", variableC
 // //@complete(" ", constant)
 const Constant = "example" //@item(constant, "Constant", "string", "const") //@complete(" ", constant)
 
-// //@complete(" ", structType, fieldA, fieldB)
+// //@complete(" ", structType, fieldB, fieldA)
 type StructType struct { //@item(structType, "StructType", "struct{...}", "struct") //@complete(" ", structType, fieldA, fieldB)
 	// //@complete(" ", fieldA, structType, fieldB)
 	A string //@item(fieldA, "A", "string", "field") //@complete(" ", fieldA, structType, fieldB)
 	b int    //@item(fieldB, "b", "int", "field") //@complete(" ", fieldB, structType, fieldA)
 }
 
-// //@complete(" ", method, paramX, resultY, structRecv, fieldA, fieldB)
+// //@complete(" ", method, structRecv, paramX, resultY, fieldB, fieldA)
 func (structType *StructType) Method(X int) (Y int) { //@item(structRecv, "structType", "*StructType", "var"),item(method, "Method", "func(X int) (Y int)", "method"),item(paramX, "X", "int", "var"),item(resultY, "Y", "int", "var")
-	// //@complete(" ", method, paramX, resultY, structRecv, fieldA, fieldB)
+	// //@complete(" ", method, structRecv, paramX, resultY, fieldB, fieldA)
 	return
 }
 

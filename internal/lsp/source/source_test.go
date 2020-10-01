@@ -301,7 +301,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	list, surrounding, err := completion.Completion(r.ctx, r.snapshot, fh, protocol.Position{
 		Line:      float64(src.Start().Line() - 1),
 		Character: float64(src.Start().Column() - 1),
-	}, "")
+	}, protocol.CompletionContext{})
 	if err != nil && !errors.As(err, &completion.ErrIsDefinition{}) {
 		t.Fatalf("failed for %v: %v", src, err)
 	}

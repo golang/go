@@ -116,10 +116,7 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	s, err := NewSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
-	if err != nil {
-		return nil, 0, err
-	}
+	s := NewSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
 	paramInfo := make([]protocol.ParameterInformation, 0, len(s.params))
 	for _, p := range s.params {
 		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})

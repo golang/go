@@ -130,8 +130,10 @@ outer:
 		}
 
 		// If obj is not accessible because it lives in another package and is
-		// not exported, don't treat it as a completion candidate.
-		if obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
+		// not exported, don't treat it as a completion candidate unless it's
+		// a package completion candidate.
+		if !c.completionContext.packageCompletion &&
+			obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
 			continue
 		}
 
@@ -262,19 +264,9 @@ func (c *completer) addCandidate(ctx context.Context, cand *candidate) {
 	}
 
 	cand.name = strings.Join(append(cand.names, cand.obj.Name()), ".")
-	matchScore := c.matcher.Score(cand.name)
-	if matchScore > 0 {
-		cand.score *= float64(matchScore)
-
-		// Avoid calling c.item() for deep candidates that wouldn't be in the top
-		// MaxDeepCompletions anyway.
-		if len(cand.path) == 0 || c.deepState.isHighScore(cand.score) {
-			if item, err := c.item(ctx, *cand); err == nil {
-				c.items = append(c.items, item)
-			}
-		}
+	if item, err := c.item(ctx, *cand); err == nil {
+		c.items = append(c.items, item)
 	}
-
 }
 
 // penalty reports a score penalty for cand in the range (0, 1).

@@ -160,7 +160,7 @@ func formatFieldList(ctx context.Context, snapshot Snapshot, list *ast.FieldList
 }
 
 // NewSignature returns formatted signature for a types.Signature struct.
-func NewSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, name string, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier) (*signature, error) {
+func NewSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, name string, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier) *signature {
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
@@ -198,7 +198,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, 
 		results:          results,
 		variadic:         sig.Variadic(),
 		needResultParens: needResultParens,
-	}, nil
+	}
 }
 
 // FormatVarType formats a *types.Var, accounting for type aliases.
