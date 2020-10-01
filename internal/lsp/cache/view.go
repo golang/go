@@ -142,9 +142,6 @@ type workspaceInformation struct {
 	// It includes the values of the environment variables above.
 	goEnv map[string]string
 
-	// The real go.mod and go.sum files that are attributed to a view.
-	modURI, sumURI span.URI
-
 	// rootURI is the rootURI directory of this view. If we are in GOPATH mode, this
 	// is just the folder. If we are in module mode, this is the module rootURI.
 	rootURI span.URI
@@ -876,14 +873,9 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	tool, _ := exec.LookPath("gopackagesdriver")
 	hasGopackagesDriver := gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
 
-	var modURI, sumURI span.URI
+	var modURI span.URI
 	if envVars.gomod != os.DevNull && envVars.gomod != "" {
 		modURI = span.URIFromPath(envVars.gomod)
-	}
-	// Set the sumURI, if the go.sum exists.
-	sumFilename := filepath.Join(filepath.Dir(envVars.gomod), "go.sum")
-	if stat, _ := os.Stat(sumFilename); stat != nil {
-		sumURI = span.URIFromPath(sumFilename)
 	}
 	root := folder
 	if options.ExpandWorkspaceToModule && modURI != "" {
@@ -896,8 +888,6 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		rootURI:              root,
 		environmentVariables: envVars,
 		goEnv:                env,
-		modURI:               modURI,
-		sumURI:               sumURI,
 	}, nil
 }
 
