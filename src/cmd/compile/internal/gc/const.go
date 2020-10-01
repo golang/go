@@ -1134,7 +1134,6 @@ func strlit(n *Node) string {
 	return n.Val().U.(string)
 }
 
-// TODO(gri) smallintconst is only used in one place - can we used indexconst?
 func smallintconst(n *Node) bool {
 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
 		switch simtype[n.Type.Etype] {
