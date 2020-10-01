@@ -14,7 +14,7 @@ import (
 )
 
 func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.runWorkspaceSymbols(t, "default", query, dirs)
+	r.runWorkspaceSymbols(t, "caseInsensitive", query, dirs)
 }
 
 func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
@@ -51,9 +51,11 @@ func (r *runner) runWorkspaceSymbols(t *testing.T, matcher, query string, dirs m
 }
 
 var workspaceSymbolsDir = map[string]string{
-	"default":       "",
-	"fuzzy":         "fuzzy",
-	"caseSensitive": "casesensitive",
+	// TODO: make caseInsensitive test cases consistent with
+	// other matcher.
+	"caseInsensitive": "",
+	"fuzzy":           "fuzzy",
+	"caseSensitive":   "casesensitive",
 }
 
 func workspaceSymbolsGolden(matcher, query string) string {
