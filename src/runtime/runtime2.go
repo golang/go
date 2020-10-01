@@ -810,13 +810,14 @@ type _func struct {
 	args        int32  // in/out args size
 	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
 
-	pcsp      int32
-	pcfile    int32
-	pcln      int32
-	npcdata   int32
-	cuIndex   uint16 // TODO(jfaller): 16 bits is never enough, make this larger.
-	funcID    funcID // set for certain special runtime functions
-	nfuncdata uint8  // must be last
+	pcsp      uint32
+	pcfile    uint32
+	pcln      uint32
+	npcdata   uint32
+	cuOffset  uint32  // runtime.cutab offset of this function's CU
+	funcID    funcID  // set for certain special runtime functions
+	_         [2]byte // pad
+	nfuncdata uint8   // must be last
 }
 
 // Pseudo-Func that is returned for PCs that occur in inlined code.

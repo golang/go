@@ -634,11 +634,12 @@ func (s *LSym) CanBeAnSSASym() {
 }
 
 type Pcln struct {
-	Pcsp        Pcdata
-	Pcfile      Pcdata
-	Pcline      Pcdata
-	Pcinline    Pcdata
-	Pcdata      []Pcdata
+	// Aux symbols for pcln
+	Pcsp        *LSym
+	Pcfile      *LSym
+	Pcline      *LSym
+	Pcinline    *LSym
+	Pcdata      []*LSym
 	Funcdata    []*LSym
 	Funcdataoff []int64
 	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
@@ -658,10 +659,6 @@ type Auto struct {
 	Aoffset int32
 	Name    AddrName
 	Gotype  *LSym
-}
-
-type Pcdata struct {
-	P []byte
 }
 
 // Link holds the context for writing object code from a compiler
