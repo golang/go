@@ -84,6 +84,12 @@ type EditorConfig struct {
 
 	// EnableStaticcheck enables staticcheck analyzers.
 	EnableStaticcheck bool
+
+	// WithoutExperimentalWorkspaceModule disables the experimental workspace
+	// module.
+	// TODO(rstambler): This mode is temporary and should be removed when
+	// golang.org/cl/258518 is merged.
+	WithoutExperimentalWorkspaceModule bool
 }
 
 // NewEditor Creates a new Editor.
@@ -193,9 +199,11 @@ func (e *Editor) configuration() map[string]interface{} {
 	if e.Config.EnableStaticcheck {
 		config["staticcheck"] = true
 	}
-	// Default to using the experimental workspace module mode.
-	config["experimentalWorkspaceModule"] = true
-
+	// Default to using the experimental workspace module mode, unless
+	// explicitly configured.
+	if !e.Config.WithoutExperimentalWorkspaceModule {
+		config["experimentalWorkspaceModule"] = true
+	}
 	return config
 }
 

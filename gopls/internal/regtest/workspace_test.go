@@ -119,6 +119,38 @@ func TestReferences(t *testing.T) {
 	}
 }
 
+// Tests that basic functionality works without ExperimentalWorkspaceModule.
+func TestNoWorkspaceModule(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main.go --
+package main
+
+import "mod.com/pkg/inner"
+
+func main() {
+	inner.Hi()
+}
+-- pkg/inner/inner.go --
+package inner
+
+func Hi() {}
+`
+	withOptions(
+		EditorConfig{
+			WithoutExperimentalWorkspaceModule: true,
+		},
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.Await(
+			NoDiagnostics("main.go"),
+		)
+	})
+}
+
 // Make sure that analysis diagnostics are cleared for the whole package when
 // the only opened file is closed. This test was inspired by the experience in
 // VS Code, where clicking on a reference result triggers a
