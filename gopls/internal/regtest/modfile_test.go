@@ -314,7 +314,7 @@ func main() {
 `
 	runner.Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("go.mod", "require"))
-		env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"tidy"})
+		env.RunGoCommand("mod", "tidy")
 		env.Await(
 			EmptyDiagnostics("go.mod"),
 		)
@@ -562,6 +562,48 @@ func main() {
 		env.OpenFile("go.mod")
 		env.Await(
 			env.DiagnosticAtRegexp("go.mod", "require example.com v1.2.3"),
+		)
+	})
+}
+
+// A copy of govim's config_set_env_goflags_mod_readonly test.
+func TestGovimModReadonly(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.13
+-- main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	println(blah.Name)
+}
+`
+	withOptions(
+		EditorConfig{
+			Env: map[string]string{
+				"GOFLAGS": "-mod=readonly",
+			},
+			WithoutExperimentalWorkspaceModule: true,
+		},
+		WithProxyFiles(proxy),
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		original := env.ReadWorkspaceFile("go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+		)
+		got := env.ReadWorkspaceFile("go.mod")
+		if got != original {
+			t.Fatalf("go.mod file modified:\n%s", tests.Diff(original, got))
+		}
+		env.RunGoCommand("get", "example.com/blah@v1.2.3")
+		env.RunGoCommand("mod", "tidy")
+		env.Await(
+			EmptyDiagnostics("main.go"),
 		)
 	})
 }

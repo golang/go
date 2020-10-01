@@ -239,6 +239,14 @@ func (e *Env) RunGenerate(dir string) {
 	e.CheckForFileChanges()
 }
 
+// RunGoCommand runs the given command in the sandbox's default working
+// directory.
+func (e *Env) RunGoCommand(verb string, args ...string) {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // CheckForFileChanges triggers a manual poll of the workspace for any file
 // changes since creation, or since last polling. It is a workaround for the
 // lack of true file watching support in the fake workspace.
