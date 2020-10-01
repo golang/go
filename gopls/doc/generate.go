@@ -63,7 +63,7 @@ func rewriteFile(file string, api *source.APIJSON, write bool, rewrite func([]by
 }
 
 func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
-	var result []byte
+	result := doc
 	for category, opts := range api.Options {
 		section := bytes.NewBuffer(nil)
 		for _, opt := range opts {
@@ -77,7 +77,7 @@ func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 			fmt.Fprintf(section, "### **%v** *%v*\n%v%v\n\nDefault: `%v`.\n", opt.Name, opt.Type, opt.Doc, enumValues, opt.Default)
 		}
 		var err error
-		result, err = replaceSection(doc, category, section.Bytes())
+		result, err = replaceSection(result, category, section.Bytes())
 		if err != nil {
 			return nil, err
 		}
