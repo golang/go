@@ -255,10 +255,6 @@ func tempModFile(modFh, sumFH source.FileHandle) (tmpURI span.URI, cleanup func(
 	return tmpURI, cleanup, nil
 }
 
-func (v *View) Session() source.Session {
-	return v.session
-}
-
 // Name returns the user visible name of this view.
 func (v *View) Name() string {
 	return v.name

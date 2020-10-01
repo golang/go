@@ -173,9 +173,6 @@ const (
 // This is the level at which we maintain configuration like working directory
 // and build tags.
 type View interface {
-	// Session returns the session that created this view.
-	Session() Session
-
 	// Name returns the name this view was constructed with.
 	Name() string
 
