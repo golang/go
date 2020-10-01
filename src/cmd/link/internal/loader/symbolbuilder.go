@@ -336,6 +336,15 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 	return r
 }
 
+func (sb *SymbolBuilder) SetBytesAt(off int64, b []byte) int64 {
+	datLen := int64(len(b))
+	if off+datLen > int64(len(sb.data)) {
+		panic("attempt to write past end of buffer")
+	}
+	copy(sb.data[off:off+datLen], b)
+	return off + datLen
+}
+
 func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
