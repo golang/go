@@ -2295,8 +2295,12 @@ top:
 			if _p_ == p2 {
 				continue
 			}
-			if gp := runqsteal(_p_, p2, stealRunNextG); gp != nil {
-				return gp, false
+
+			// Don't bother to attempt to steal if p2 is idle.
+			if !idlepMask.read(enum.position()) {
+				if gp := runqsteal(_p_, p2, stealRunNextG); gp != nil {
+					return gp, false
+				}
 			}
 
 			// Consider stealing timers from p2.
@@ -2307,8 +2311,13 @@ top:
 			// and is not marked for preemption. If p2 is running
 			// and not being preempted we assume it will handle its
 			// own timers.
+			//
 			// If we're still looking for work after checking all
 			// the P's, then go ahead and steal from an active P.
+			//
+			// TODO(prattmic): Maintain a global look-aside similar
+			// to idlepMask to avoid looking at p2 if it can't
+			// possibly have timers.
 			if i > 2 || (i > 1 && shouldStealTimers(p2)) {
 				tnow, w, ran := checkTimers(p2, now)
 				now = tnow
@@ -2379,6 +2388,9 @@ stop:
 	// safe-points. We don't need to snapshot the contents because
 	// everything up to cap(allp) is immutable.
 	allpSnapshot := allp
+	// Also snapshot idlepMask. Value changes are OK, but we can't allow
+	// len to change out from under us.
+	idlepMaskSnapshot := idlepMask
 
 	// return P and block
 	lock(&sched.lock)
@@ -2419,8 +2431,8 @@ stop:
 	}
 
 	// check all runqueues once again
-	for _, _p_ := range allpSnapshot {
-		if !runqempty(_p_) {
+	for id, _p_ := range allpSnapshot {
+		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(_p_) {
 			lock(&sched.lock)
 			_p_ = pidleget()
 			unlock(&sched.lock)
@@ -4398,6 +4410,8 @@ func procresize(nprocs int32) *p {
 	}
 	sched.procresizetime = now
 
+	maskWords := (nprocs+31) / 32
+
 	// Grow allp if necessary.
 	if nprocs > int32(len(allp)) {
 		// Synchronize with retake, which could be running
@@ -4411,6 +4425,15 @@ func procresize(nprocs int32) *p {
 			// never lose old allocated Ps.
 			copy(nallp, allp[:cap(allp)])
 			allp = nallp
+		}
+
+		if maskWords <= int32(cap(idlepMask)) {
+			idlepMask = idlepMask[:maskWords]
+		} else {
+			nidlepMask := make([]uint32, maskWords)
+			// No need to copy beyond len, old Ps are irrelevant.
+			copy(nidlepMask, idlepMask)
+			idlepMask = nidlepMask
 		}
 		unlock(&allpLock)
 	}
@@ -4470,6 +4493,7 @@ func procresize(nprocs int32) *p {
 	if int32(len(allp)) != nprocs {
 		lock(&allpLock)
 		allp = allp[:nprocs]
+		idlepMask = idlepMask[:maskWords]
 		unlock(&allpLock)
 	}
 
@@ -5153,8 +5177,46 @@ func globrunqget(_p_ *p, max int32) *g {
 	return gp
 }
 
-// Put p to on _Pidle list.
+// pIdleMask is a bitmap of of Ps in the _Pidle list, one bit per P.
+type pIdleMask []uint32
+
+// read returns true if P id is in the _Pidle list, and thus cannot have work.
+func (p pIdleMask) read(id uint32) bool {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	return (atomic.Load(&p[word]) & mask) != 0
+}
+
+// set sets P id as idle in mask.
+//
+// Must be called only for a P owned by the caller. In order to maintain
+// consistency, a P going idle must the idle mask simultaneously with updates
+// to the idle P list under the sched.lock, otherwise a racing pidleget may
+// clear the mask before pidleput sets the mask, corrupting the bitmap.
+//
+// N.B., procresize takes ownership of all Ps in stopTheWorldWithSema.
+func (p pIdleMask) set(id int32) {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	atomic.Or(&p[word], mask)
+}
+
+// clear sets P id as non-idle in mask.
+//
+// See comment on set.
+func (p pIdleMask) clear(id int32) {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	atomic.And(&p[word], ^mask)
+}
+
+// pidleput puts p to on the _Pidle list.
+//
+// This releases ownership of p. Once sched.lock is released it is no longer
+// safe to use p.
+//
 // sched.lock must be held.
+//
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleput(_p_ *p) {
@@ -5163,13 +5225,16 @@ func pidleput(_p_ *p) {
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
 	}
+	idlepMask.set(_p_.id)
 	_p_.link = sched.pidle
 	sched.pidle.set(_p_)
 	atomic.Xadd(&sched.npidle, 1) // TODO: fast atomic
 }
 
-// Try get a p from _Pidle list.
+// pidleget tries to get a p from the _Pidle list, acquiring ownership.
+//
 // sched.lock must be held.
+//
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleget() *p {
@@ -5177,6 +5242,7 @@ func pidleget() *p {
 
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
+		idlepMask.clear(_p_.id)
 		sched.pidle = _p_.link
 		atomic.Xadd(&sched.npidle, -1) // TODO: fast atomic
 	}

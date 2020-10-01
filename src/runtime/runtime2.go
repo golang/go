@@ -1035,13 +1035,21 @@ func (w waitReason) String() string {
 var (
 	allglen    uintptr
 	allm       *m
-	allp       []*p  // len(allp) == gomaxprocs; may change at safe points, otherwise immutable
-	allpLock   mutex // Protects P-less reads of allp and all writes
 	gomaxprocs int32
 	ncpu       int32
 	forcegc    forcegcstate
 	sched      schedt
 	newprocs   int32
+
+	// allpLock protects P-less reads and size changes of allp and
+	// idlepMask, and all writes to allp.
+	allpLock mutex
+	// len(allp) == gomaxprocs; may change at safe points, otherwise
+	// immutable.
+	allp []*p
+	// Bitmask of Ps in _Pidle list, one bit per P. Reads and writes must
+	// be atomic. Length may change at safe points.
+	idlepMask pIdleMask
 
 	// Information about what cpu features are available.
 	// Packages outside the runtime should not use these
