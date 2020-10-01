@@ -667,7 +667,9 @@ func TestBadTraceback(t *testing.T) {
 }
 
 func TestTimePprof(t *testing.T) {
-	fn := runTestProg(t, "testprog", "TimeProf")
+	// Pass GOTRACEBACK for issue #41120 to try to get more
+	// information on timeout.
+	fn := runTestProg(t, "testprog", "TimeProf", "GOTRACEBACK=crash")
 	fn = strings.TrimSpace(fn)
 	defer os.Remove(fn)
 
