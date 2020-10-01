@@ -169,36 +169,47 @@ func mayAffectMemory(n *Node) bool {
 	}
 }
 
-func mustHeapAlloc(n *Node) bool {
+// heapAllocReason returns the reason the given Node must be heap
+// allocated, or the empty string if it doesn't.
+func heapAllocReason(n *Node) string {
 	if n.Type == nil {
-		return false
+		return ""
 	}
 
 	// Parameters are always passed via the stack.
 	if n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) {
-		return false
+		return ""
 	}
 
 	if n.Type.Width > maxStackVarSize {
-		return true
+		return "too large for stack"
 	}
 
 	if (n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize {
-		return true
+		return "too large for stack"
 	}
 
 	if n.Op == OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
-		return true
+		return "too large for stack"
 	}
 	if n.Op == OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
-		return true
+		return "too large for stack"
 	}
 
-	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
-		return true
+	if n.Op == OMAKESLICE {
+		r := n.Right
+		if r == nil {
+			r = n.Left
+		}
+		if !smallintconst(r) {
+			return "non-constant size"
+		}
+		if t := n.Type; t.Elem().Width != 0 && r.Int64() >= maxImplicitStackVarSize/t.Elem().Width {
+			return "too large for stack"
+		}
 	}
 
-	return false
+	return ""
 }
 
 // addrescapes tags node n as having had its address taken

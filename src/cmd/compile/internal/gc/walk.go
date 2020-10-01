@@ -336,19 +336,6 @@ func walkstmt(n *Node) *Node {
 	return n
 }
 
-func isSmallMakeSlice(n *Node) bool {
-	if n.Op != OMAKESLICE {
-		return false
-	}
-	r := n.Right
-	if r == nil {
-		r = n.Left
-	}
-	t := n.Type
-
-	return smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
-}
-
 // walk the whole tree of the body of an
 // expression or simple statement.
 // the types expressions are calculated.
@@ -1339,8 +1326,8 @@ opswitch:
 			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 		}
 		if n.Esc == EscNone {
-			if !isSmallMakeSlice(n) {
-				Fatalf("non-small OMAKESLICE with EscNone: %v", n)
+			if why := heapAllocReason(n); why != "" {
+				Fatalf("%v has EscNone, but %v", n, why)
 			}
 			// var arr [r]T
 			// n = arr[:l]

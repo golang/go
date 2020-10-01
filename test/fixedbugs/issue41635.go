@@ -7,12 +7,11 @@
 package p
 
 func f() { // ERROR ""
-	b1 := make([]byte, 1<<17)      // ERROR "too large for stack" ""
-	b2 := make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
-
 	n, m := 100, 200
-	b1 = make([]byte, n)      // ERROR "non-constant size" ""
-	b2 = make([]byte, 100, m) // ERROR "non-constant size" ""
+	_ = make([]byte, 1<<17)      // ERROR "too large for stack" ""
+	_ = make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
+	_ = make([]byte, n, 1<<17)   // ERROR "too large for stack" ""
 
-	_, _ = b1, b2
+	_ = make([]byte, n)      // ERROR "non-constant size" ""
+	_ = make([]byte, 100, m) // ERROR "non-constant size" ""
 }
