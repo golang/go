@@ -36,12 +36,14 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
+	"cmd/link/internal/loader"
 	"flag"
 	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 )
 
 var (
@@ -324,9 +326,15 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Asmb")
 	asmb(ctxt)
 	// Generate large symbols.
+	var wg sync.WaitGroup
 	for s, f := range ctxt.generatorSyms {
-		f(ctxt, s)
+		wg.Add(1)
+		go func(f generatorFunc, s loader.Sym) {
+			defer wg.Done()
+			f(ctxt, s)
+		}(f, s)
 	}
+	wg.Wait()
 	bench.Start("Asmb2")
 	asmb2(ctxt)
 
