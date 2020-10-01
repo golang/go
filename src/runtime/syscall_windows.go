@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -22,10 +23,7 @@ func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
 	c.cleanstack = cleanstack
 }
 
-var (
-	cbs     callbacks
-	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
-)
+var cbs callbacks
 
 func callbackasm()
 
@@ -53,6 +51,8 @@ func callbackasmAddr(i int) uintptr {
 	return funcPC(callbackasm) + uintptr(i*entrySize)
 }
 
+const callbackMaxArgs = 64
+
 //go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
@@ -65,6 +65,9 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	uintptrSize := unsafe.Sizeof(uintptr(0))
 	if ft.out()[0].size != uintptrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
+	}
+	if len(ft.in()) > callbackMaxArgs {
+		panic("compileCallback: too many function arguments")
 	}
 	argsize := uintptr(0)
 	for _, t := range ft.in() {
@@ -104,6 +107,37 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	r := callbackasmAddr(n)
 	unlock(&cbs.lock)
 	return r
+}
+
+type callbackArgs struct {
+	index uintptr
+	args  *uintptr // Arguments in stdcall/cdecl convention, with registers spilled
+	// Below are out-args from callbackWrap
+	result uintptr
+	retPop uintptr // For 386 cdecl, how many bytes to pop on return
+}
+
+// callbackWrap is called by callbackasm to invoke a registered C callback.
+func callbackWrap(a *callbackArgs) {
+	c := cbs.ctxt[a.index]
+	a.retPop = c.restorestack
+
+	// Convert from stdcall to Go ABI. We assume the stack layout
+	// is the same, and we just need to make room for the result.
+	//
+	// TODO: This isn't a good assumption. For example, a function
+	// that takes two uint16 arguments will be laid out
+	// differently by the stdcall and Go ABIs. We should implement
+	// proper ABI conversion.
+	var frame [callbackMaxArgs + 1]uintptr
+	memmove(unsafe.Pointer(&frame), unsafe.Pointer(a.args), c.argsize)
+
+	// Even though this is copying back results, we can pass a nil
+	// type because those results must not require write barriers.
+	reflectcall(nil, c.gobody, noescape(unsafe.Pointer(&frame)), sys.PtrSize+uint32(c.argsize), uint32(c.argsize))
+
+	// Extract the result.
+	a.result = frame[c.argsize/sys.PtrSize]
 }
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800

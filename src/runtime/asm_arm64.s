@@ -958,25 +958,9 @@ nosave:
 	MOVD	R0, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$40-32
-	MOVD	$fn+0(FP), R0
-	MOVD	R0, 8(RSP)
-	MOVD	frame+8(FP), R0
-	MOVD	R0, 16(RSP)
-	MOVD	framesize+16(FP), R0
-	MOVD	R0, 24(RSP)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, 32(RSP)
-	MOVD	$runtime·cgocallback_gofunc(SB), R0
-	BL	(R0)
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// Load g from thread-local storage.
@@ -1001,7 +985,7 @@ needm:
 	MOVD	$runtime·needm(SB), R0
 	BL	(R0)
 
-	// Set m->sched.sp = SP, so that if a panic happens
+	// Set m->g0->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
 	// have a valid SP to run on the g0 stack.
 	// The next few lines (after the havem label)
@@ -1037,16 +1021,11 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, -8(SP) is unused (where SP refers to
-	// m->curg's SP while we're setting it up, before we've adjusted it).
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
@@ -1054,10 +1033,15 @@ havem:
 	MOVD	R5, -48(R4)
 	MOVD	(g_sched+gobuf_bp)(g), R5
 	MOVD	R5, -56(R4)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, -40(R4)
+	// Gather our arguments into registers.
+	MOVD	fn+0(FP), R1
+	MOVD	frame+8(FP), R2
+	MOVD	ctxt+16(FP), R3
 	MOVD	$-48(R4), R0 // maintain 16-byte SP alignment
-	MOVD	R0, RSP
+	MOVD	R0, RSP	// switch stack
+	MOVD	R1, 8(RSP)
+	MOVD	R2, 16(RSP)
+	MOVD	R3, 24(RSP)
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
