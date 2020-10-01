@@ -453,8 +453,9 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOV	ZERO, ZERO	// NOP
 
-// func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
+// See cgocall.go for more details.
+TEXT ·cgocallback(SB),NOSPLIT,$0-24
 	// TODO(jsing): Add support for cgo - issue #36641.
 	WORD $0		// crash
 

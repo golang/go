@@ -326,7 +326,7 @@ const (
 	funcID_gcBgMarkWorker
 	funcID_systemstack_switch
 	funcID_systemstack
-	funcID_cgocallback_gofunc
+	funcID_cgocallback
 	funcID_gogo
 	funcID_externalthreadhandler
 	funcID_debugCallV1

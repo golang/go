@@ -4243,7 +4243,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// First, it may be that the g switch has no PC update, because the SP
 	// either corresponds to a user g throughout (as in asmcgocall)
 	// or because it has been arranged to look like a user g frame
-	// (as in cgocallback_gofunc). In this case, since the entire
+	// (as in cgocallback). In this case, since the entire
 	// transition is a g+SP update, a partial transition updating just one of
 	// those will be detected by the stack bounds check.
 	//

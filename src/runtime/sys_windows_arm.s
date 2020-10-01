@@ -314,6 +314,9 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+	// TODO(austin): This needs to be converted to match changes
+	// in cgocallback, but I have no way to test. See CL 258938,
+	// and callbackasm1 on amd64 and 386.
 	MOVM.DB.W [R4-R11, R14], (R13)	// push {r4-r11, lr}
 	SUB	$36, R13		// space for locals
 

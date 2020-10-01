@@ -26,7 +26,7 @@ const (
 	FuncID_gcBgMarkWorker
 	FuncID_systemstack_switch
 	FuncID_systemstack
-	FuncID_cgocallback_gofunc
+	FuncID_cgocallback
 	FuncID_gogo
 	FuncID_externalthreadhandler
 	FuncID_debugCallV1
@@ -70,8 +70,8 @@ func GetFuncID(name string, isWrapper bool) FuncID {
 		return FuncID_systemstack_switch
 	case "runtime.systemstack":
 		return FuncID_systemstack
-	case "runtime.cgocallback_gofunc":
-		return FuncID_cgocallback_gofunc
+	case "runtime.cgocallback":
+		return FuncID_cgocallback
 	case "runtime.gogo":
 		return FuncID_gogo
 	case "runtime.externalthreadhandler":

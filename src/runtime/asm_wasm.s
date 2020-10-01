@@ -288,9 +288,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 TEXT ·asmcgocall(SB), NOSPLIT, $0-0
 	UNDEF
 
-TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
-	UNDEF
-
 #define DISPATCH(NAME, MAXSIZE) \
 	Get R0; \
 	I64Const $MAXSIZE; \
@@ -432,7 +429,7 @@ TEXT runtime·goexit(SB), NOSPLIT, $0-0
 	CALL runtime·goexit1(SB) // does not return
 	UNDEF
 
-TEXT runtime·cgocallback(SB), NOSPLIT, $32-32
+TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 	UNDEF
 
 // gcWriteBarrier performs a heap pointer write and informs the GC.
