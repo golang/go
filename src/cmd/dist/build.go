@@ -30,7 +30,6 @@ var (
 	gohostos         string
 	goos             string
 	goarm            string
-	go386            string
 	gomips           string
 	gomips64         string
 	goppc64          string
@@ -142,16 +141,6 @@ func xinit() {
 	}
 	goarm = b
 
-	b = os.Getenv("GO386")
-	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
-	}
-	go386 = b
-
 	b = os.Getenv("GOMIPS")
 	if b == "" {
 		b = "hardfloat"
@@ -223,7 +212,6 @@ func xinit() {
 	defaultldso = os.Getenv("GO_LDSO")
 
 	// For tools being invoked but also for os.ExpandEnv.
-	os.Setenv("GO386", go386)
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOARM", goarm)
 	os.Setenv("GOHOSTARCH", gohostarch)
@@ -1164,9 +1152,6 @@ func cmdenv() {
 	xprintf(format, "GOTOOLDIR", tooldir)
 	if goarch == "arm" {
 		xprintf(format, "GOARM", goarm)
-	}
-	if goarch == "386" {
-		xprintf(format, "GO386", go386)
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		xprintf(format, "GOMIPS", gomips)

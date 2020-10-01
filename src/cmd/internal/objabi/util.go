@@ -24,7 +24,6 @@ var (
 	GOROOT   = envOr("GOROOT", defaultGOROOT)
 	GOARCH   = envOr("GOARCH", defaultGOARCH)
 	GOOS     = envOr("GOOS", defaultGOOS)
-	GO386    = envOr("GO386", defaultGO386)
 	GOAMD64  = goamd64()
 	GOARM    = goarm()
 	GOMIPS   = gomips()
@@ -135,6 +134,14 @@ func init() {
 	// regabi is only supported on amd64.
 	if GOARCH != "amd64" {
 		Regabi_enabled = 0
+	}
+
+	if v := os.Getenv("GO386"); v != "" && v != "sse2" {
+		msg := fmt.Sprintf("unsupported setting GO386=%s", v)
+		if v == "387" {
+			msg += ". 387 support was dropped in Go 1.16. Consider using gccgo instead."
+		}
+		log.Fatal(msg)
 	}
 }
 

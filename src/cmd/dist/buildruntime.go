@@ -41,7 +41,6 @@ func mkzversion(dir, file string) {
 //	package objabi
 //
 //	const defaultGOROOT = <goroot>
-//	const defaultGO386 = <go386>
 //	const defaultGOARM = <goarm>
 //	const defaultGOMIPS = <gomips>
 //	const defaultGOMIPS64 = <gomips64>
@@ -70,7 +69,6 @@ func mkzbootstrap(file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "import \"runtime\"\n")
 	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)

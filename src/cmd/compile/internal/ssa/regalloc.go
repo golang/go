@@ -625,9 +625,6 @@ func (s *regAllocState) init(f *Func) {
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
-	if s.f.Config.use387 {
-		s.allocatable &^= 1 << 15 // X7 disallowed (one 387 register is used as scratch space during SSE->387 generation in ../x86/387.go)
-	}
 
 	// Linear scan register allocation can be influenced by the order in which blocks appear.
 	// Decouple the register allocation order from the generated block order.
@@ -1023,9 +1020,6 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				if phiRegs[i] != noRegister {
 					continue
-				}
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
 				}
 				m := s.compatRegs(v.Type) &^ phiUsed &^ s.used
 				if m != 0 {
@@ -1528,11 +1522,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.freeUseRecords = u
 		}
 
-		// Spill any values that can't live across basic block boundaries.
-		if s.f.Config.use387 {
-			s.freeRegs(s.f.Config.fpRegMask)
-		}
-
 		// If we are approaching a merge point and we are the primary
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
@@ -1562,9 +1551,6 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				v := s.orig[vid]
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
-				}
 				m := s.compatRegs(v.Type) &^ s.used
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid

@@ -1310,10 +1310,8 @@ func rewriteValue386_Op386ADDLmodify(v *Value) bool {
 func rewriteValue386_Op386ADDSD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (ADDSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (ADDSDload x [off] {sym} ptr mem)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1326,7 +1324,7 @@ func rewriteValue386_Op386ADDSD(v *Value) bool {
 			sym := auxToSym(l.Aux)
 			mem := l.Args[1]
 			ptr := l.Args[0]
-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 				continue
 			}
 			v.reset(Op386ADDSDload)
@@ -1395,10 +1393,8 @@ func rewriteValue386_Op386ADDSDload(v *Value) bool {
 func rewriteValue386_Op386ADDSS(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (ADDSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (ADDSSload x [off] {sym} ptr mem)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1411,7 +1407,7 @@ func rewriteValue386_Op386ADDSS(v *Value) bool {
 			sym := auxToSym(l.Aux)
 			mem := l.Args[1]
 			ptr := l.Args[0]
-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 				continue
 			}
 			v.reset(Op386ADDSSload)
@@ -2640,10 +2636,8 @@ func rewriteValue386_Op386CMPWload(v *Value) bool {
 func rewriteValue386_Op386DIVSD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (DIVSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (DIVSDload x [off] {sym} ptr mem)
 	for {
 		x := v_0
@@ -2655,7 +2649,7 @@ func rewriteValue386_Op386DIVSD(v *Value) bool {
 		sym := auxToSym(l.Aux)
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 			break
 		}
 		v.reset(Op386DIVSDload)
@@ -2722,10 +2716,8 @@ func rewriteValue386_Op386DIVSDload(v *Value) bool {
 func rewriteValue386_Op386DIVSS(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (DIVSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (DIVSSload x [off] {sym} ptr mem)
 	for {
 		x := v_0
@@ -2737,7 +2729,7 @@ func rewriteValue386_Op386DIVSS(v *Value) bool {
 		sym := auxToSym(l.Aux)
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 			break
 		}
 		v.reset(Op386DIVSSload)
@@ -6104,10 +6096,8 @@ func rewriteValue386_Op386MULLload(v *Value) bool {
 func rewriteValue386_Op386MULSD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (MULSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (MULSDload x [off] {sym} ptr mem)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -6120,7 +6110,7 @@ func rewriteValue386_Op386MULSD(v *Value) bool {
 			sym := auxToSym(l.Aux)
 			mem := l.Args[1]
 			ptr := l.Args[0]
-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 				continue
 			}
 			v.reset(Op386MULSDload)
@@ -6189,10 +6179,8 @@ func rewriteValue386_Op386MULSDload(v *Value) bool {
 func rewriteValue386_Op386MULSS(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (MULSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (MULSSload x [off] {sym} ptr mem)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -6205,7 +6193,7 @@ func rewriteValue386_Op386MULSS(v *Value) bool {
 			sym := auxToSym(l.Aux)
 			mem := l.Args[1]
 			ptr := l.Args[0]
-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 				continue
 			}
 			v.reset(Op386MULSSload)
@@ -8187,10 +8175,8 @@ func rewriteValue386_Op386SUBLmodify(v *Value) bool {
 func rewriteValue386_Op386SUBSD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (SUBSD x l:(MOVSDload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (SUBSDload x [off] {sym} ptr mem)
 	for {
 		x := v_0
@@ -8202,7 +8188,7 @@ func rewriteValue386_Op386SUBSD(v *Value) bool {
 		sym := auxToSym(l.Aux)
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 			break
 		}
 		v.reset(Op386SUBSDload)
@@ -8269,10 +8255,8 @@ func rewriteValue386_Op386SUBSDload(v *Value) bool {
 func rewriteValue386_Op386SUBSS(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	config := b.Func.Config
 	// match: (SUBSS x l:(MOVSSload [off] {sym} ptr mem))
-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
+	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (SUBSSload x [off] {sym} ptr mem)
 	for {
 		x := v_0
@@ -8284,7 +8268,7 @@ func rewriteValue386_Op386SUBSS(v *Value) bool {
 		sym := auxToSym(l.Aux)
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
+		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
 			break
 		}
 		v.reset(Op386SUBSSload)
@@ -10043,68 +10027,32 @@ func rewriteValue386_OpMove(v *Value) bool {
 func rewriteValue386_OpNeg32F(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Neg32F x)
-	// cond: !config.use387
 	// result: (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
 	for {
 		x := v_0
-		if !(!config.use387) {
-			break
-		}
 		v.reset(Op386PXOR)
 		v0 := b.NewValue0(v.Pos, Op386MOVSSconst, typ.Float32)
 		v0.AuxInt = float32ToAuxInt(float32(math.Copysign(0, -1)))
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (Neg32F x)
-	// cond: config.use387
-	// result: (FCHS x)
-	for {
-		x := v_0
-		if !(config.use387) {
-			break
-		}
-		v.reset(Op386FCHS)
-		v.AddArg(x)
-		return true
-	}
-	return false
 }
 func rewriteValue386_OpNeg64F(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Neg64F x)
-	// cond: !config.use387
 	// result: (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
 	for {
 		x := v_0
-		if !(!config.use387) {
-			break
-		}
 		v.reset(Op386PXOR)
 		v0 := b.NewValue0(v.Pos, Op386MOVSDconst, typ.Float64)
 		v0.AuxInt = float64ToAuxInt(math.Copysign(0, -1))
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (Neg64F x)
-	// cond: config.use387
-	// result: (FCHS x)
-	for {
-		x := v_0
-		if !(config.use387) {
-			break
-		}
-		v.reset(Op386FCHS)
-		v.AddArg(x)
-		return true
-	}
-	return false
 }
 func rewriteValue386_OpNeq16(v *Value) bool {
 	v_1 := v.Args[1]

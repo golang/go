@@ -353,12 +353,7 @@ func testErrors(t *testing.T, goarch, file string) {
 }
 
 func Test386EndToEnd(t *testing.T) {
-	defer func(old string) { objabi.GO386 = old }(objabi.GO386)
-	for _, go386 := range []string{"387", "sse2"} {
-		t.Logf("GO386=%v", go386)
-		objabi.GO386 = go386
-		testEndToEnd(t, "386", "386")
-	}
+	testEndToEnd(t, "386", "386")
 }
 
 func TestARMEndToEnd(t *testing.T) {

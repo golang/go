@@ -38,7 +38,6 @@ type Config struct {
 	useSSE         bool          // Use SSE for non-float operations
 	useAvg         bool          // Use optimizations that need Avg* operations
 	useHmul        bool          // Use optimizations that need Hmul* operations
-	use387         bool          // GO386=387
 	SoftFloat      bool          //
 	Race           bool          // race detector enabled
 	NeedsFpScratch bool          // No direct move between GP and FP register sets
@@ -385,11 +384,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	}
 
 	return c
-}
-
-func (c *Config) Set387(b bool) {
-	c.NeedsFpScratch = b
-	c.use387 = b
 }
 
 func (c *Config) Ctxt() *obj.Link { return c.ctxt }
