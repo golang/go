@@ -1489,7 +1489,7 @@ var (
 	// value[0] is the variant-changing environment variable, and values[1:]
 	// are the supported variants.
 	archVariants = map[string][]string{
-		"386":     {"GO386", "387", "sse2"},
+		"386":     {},
 		"amd64":   {},
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},
@@ -1511,12 +1511,12 @@ type wantedAsmOpcode struct {
 	found    bool           // true if the opcode check matched at least one in the output
 }
 
-// A build environment triplet separated by slashes (eg: linux/386/sse2).
+// A build environment triplet separated by slashes (eg: linux/arm/7).
 // The third field can be empty if the arch does not support variants (eg: "plan9/amd64/")
 type buildEnv string
 
 // Environ returns the environment it represents in cmd.Environ() "key=val" format
-// For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
+// For instance, "linux/arm/7".Environ() returns {"GOOS=linux", "GOARCH=arm", "GOARM=7"}
 func (b buildEnv) Environ() []string {
 	fields := strings.Split(string(b), "/")
 	if len(fields) != 3 {
@@ -1571,11 +1571,11 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
 
 			var arch, subarch, os string
 			switch {
-			case archspec[2] != "": // 3 components: "linux/386/sse2"
+			case archspec[2] != "": // 3 components: "linux/arm/7"
 				os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
-			case archspec[1] != "": // 2 components: "386/sse2"
+			case archspec[1] != "": // 2 components: "arm/7"
 				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
-			default: // 1 component: "386"
+			default: // 1 component: "arm"
 				os, arch, subarch = "linux", archspec[0], ""
 				if arch == "wasm" {
 					os = "js"

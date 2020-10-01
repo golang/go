@@ -1853,9 +1853,6 @@
 // 	GOARM
 // 		For GOARCH=arm, the ARM architecture for which to compile.
 // 		Valid values are 5, 6, 7.
-// 	GO386
-// 		For GOARCH=386, the floating point instruction set.
-// 		Valid values are 387, sse2.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.

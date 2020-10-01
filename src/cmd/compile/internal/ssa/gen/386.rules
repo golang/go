@@ -38,10 +38,8 @@
 (Xor(32|16|8) ...) => (XORL ...)
 
 (Neg(32|16|8) ...) => (NEGL ...)
-(Neg32F x) && !config.use387 => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
-(Neg64F x) && !config.use387 => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
-(Neg32F x) && config.use387 => (FCHS x)
-(Neg64F x) && config.use387 => (FCHS x)
+(Neg32F x) => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
+(Neg64F x) => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
 
 (Com(32|16|8) ...) => (NOTL ...)
 
@@ -670,8 +668,8 @@
 
 // Merge load/store to op
 ((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
-((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) => ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) => ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)

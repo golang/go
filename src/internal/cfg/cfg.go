@@ -32,7 +32,6 @@ const KnownEnv = `
 	FC
 	GCCGO
 	GO111MODULE
-	GO386
 	GOARCH
 	GOARM
 	GOBIN

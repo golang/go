@@ -125,7 +125,7 @@ func Mul_n120(n int) int {
 func MulMemSrc(a []uint32, b []float32) {
 	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
 	a[0] *= a[1]
-	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+	// 386:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
 	// amd64:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
 	b[0] *= b[1]
 }
@@ -167,7 +167,7 @@ func MergeMuls5(a, n int) int {
 // -------------- //
 
 func DivMemSrc(a []float64) {
-	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+	// 386:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
 	// amd64:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
 	a[0] /= a[1]
 }
@@ -211,7 +211,7 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
 
 func FloatDivs(a []float32) float32 {
 	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
-	// 386/sse2:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+	// 386:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
 	return a[1] / a[2]
 }
 

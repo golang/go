@@ -190,40 +190,25 @@ func (l *layout) restore() {
 func gen386() {
 	p("PUSHFL")
 
-	// Save general purpose registers.
+	// Assign stack offsets.
 	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
-		if reg == "SP" || strings.HasPrefix(reg, "X") {
+		if reg == "SP" {
 			continue
 		}
-		l.add("MOVL", reg, 4)
+		if strings.HasPrefix(reg, "X") {
+			l.add("MOVUPS", reg, 16)
+		} else {
+			l.add("MOVL", reg, 4)
+		}
 	}
 
-	// Save the 387 state.
-	l.addSpecial(
-		"FSAVE %d(SP)\nFLDCW runtime·controlWord64(SB)",
-		"FRSTOR %d(SP)",
-		108)
-
-	// Save SSE state only if supported.
-	lSSE := layout{stack: l.stack, sp: "SP"}
-	for i := 0; i < 8; i++ {
-		lSSE.add("MOVUPS", fmt.Sprintf("X%d", i), 16)
-	}
-
-	p("ADJSP $%d", lSSE.stack)
+	p("ADJSP $%d", l.stack)
 	p("NOP SP")
 	l.save()
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
-	lSSE.save()
-	label("nosse:")
 	p("CALL ·asyncPreempt2(SB)")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
-	lSSE.restore()
-	label("nosse2:")
 	l.restore()
-	p("ADJSP $%d", -lSSE.stack)
-
+	p("ADJSP $%d", -l.stack)
 	p("POPFL")
 	p("RET")
 }
