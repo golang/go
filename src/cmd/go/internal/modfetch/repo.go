@@ -188,27 +188,26 @@ type lookupCacheKey struct {
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(proxy, path string) (Repo, error) {
+func Lookup(proxy, path string) Repo {
 	if traceRepo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
 	type cached struct {
-		r   Repo
-		err error
+		r Repo
 	}
 	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
-		r, err := lookup(proxy, path)
-		if err == nil {
-			if traceRepo {
+		r := newCachingRepo(path, func() (Repo, error) {
+			r, err := lookup(proxy, path)
+			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
-			r = newCachingRepo(r)
-		}
-		return cached{r, err}
+			return r, err
+		})
+		return cached{r}
 	}).(cached)
 
-	return c.r, c.err
+	return c.r
 }
 
 // lookup returns the module with the given module path.
@@ -228,7 +227,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 
 	switch proxy {
 	case "off":
-		return nil, errProxyOff
+		return errRepo{path, errProxyOff}, nil
 	case "direct":
 		return lookupDirect(path)
 	case "noproxy":
@@ -406,6 +405,23 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
 	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
 	return l.r.Zip(dst, version)
 }
+
+// errRepo is a Repo that returns the same error for all operations.
+//
+// It is useful in conjunction with caching, since cache hits will not attempt
+// the prohibited operations.
+type errRepo struct {
+	modulePath string
+	err        error
+}
+
+func (r errRepo) ModulePath() string { return r.modulePath }
+
+func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
+func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
+func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
+func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
+func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
 
 // A notExistError is like os.ErrNotExist, but with a custom message
 type notExistError struct {

@@ -229,14 +229,15 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		// If the identifier is not a canonical semver tag — including if it's a
 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
 		// info.Version with a suitable pseudo-version.
-		info, err := modfetch.Stat(proxy, path, query)
+		repo := modfetch.Lookup(proxy, path)
+		info, err := repo.Stat(query)
 		if err != nil {
 			queryErr := err
 			// The full query doesn't correspond to a tag. If it is a semantic version
 			// with a +metadata suffix, see if there is a tag without that suffix:
 			// semantic versioning defines them to be equivalent.
 			if canonicalQuery != "" && query != canonicalQuery {
-				info, err = modfetch.Stat(proxy, path, canonicalQuery)
+				info, err = repo.Stat(canonicalQuery)
 				if err != nil && !errors.Is(err, os.ErrNotExist) {
 					return info, err
 				}
@@ -266,10 +267,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	// Load versions and execute query.
-	repo, err := modfetch.Lookup(proxy, path)
-	if err != nil {
-		return nil, err
-	}
+	repo := modfetch.Lookup(proxy, path)
 	versions, err := repo.Versions(prefix)
 	if err != nil {
 		return nil, err
