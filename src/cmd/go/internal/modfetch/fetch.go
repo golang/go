@@ -233,12 +233,28 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 		}
 	}()
 
+	var unrecoverableErr error
 	err = TryProxies(func(proxy string) error {
-		repo, err := Lookup(proxy, mod.Path)
-		if err != nil {
-			return err
+		if unrecoverableErr != nil {
+			return unrecoverableErr
 		}
-		return repo.Zip(f, mod.Version)
+		repo := Lookup(proxy, mod.Path)
+		err := repo.Zip(f, mod.Version)
+		if err != nil {
+			// Zip may have partially written to f before failing.
+			// (Perhaps the server crashed while sending the file?)
+			// Since we allow fallback on error in some cases, we need to fix up the
+			// file to be empty again for the next attempt.
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				unrecoverableErr = err
+				return err
+			}
+			if err := f.Truncate(0); err != nil {
+				unrecoverableErr = err
+				return err
+			}
+		}
+		return err
 	})
 	if err != nil {
 		return err

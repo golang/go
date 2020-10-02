@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -155,14 +156,28 @@ func SideLock() (unlock func(), err error) {
 type cachingRepo struct {
 	path  string
 	cache par.Cache // cache for all operations
-	r     Repo
+
+	once     sync.Once
+	initRepo func() (Repo, error)
+	r        Repo
 }
 
-func newCachingRepo(r Repo) *cachingRepo {
+func newCachingRepo(path string, initRepo func() (Repo, error)) *cachingRepo {
 	return &cachingRepo{
-		r:    r,
-		path: r.ModulePath(),
+		path:     path,
+		initRepo: initRepo,
 	}
+}
+
+func (r *cachingRepo) repo() Repo {
+	r.once.Do(func() {
+		var err error
+		r.r, err = r.initRepo()
+		if err != nil {
+			r.r = errRepo{r.path, err}
+		}
+	})
+	return r.r
 }
 
 func (r *cachingRepo) ModulePath() string {
@@ -175,7 +190,7 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
 		err  error
 	}
 	c := r.cache.Do("versions:"+prefix, func() interface{} {
-		list, err := r.r.Versions(prefix)
+		list, err := r.repo().Versions(prefix)
 		return cached{list, err}
 	}).(cached)
 
@@ -197,7 +212,7 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 			return cachedInfo{info, nil}
 		}
 
-		info, err = r.r.Stat(rev)
+		info, err = r.repo().Stat(rev)
 		if err == nil {
 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
 			// then save the information under the proper version, for future use.
@@ -224,7 +239,7 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
 	c := r.cache.Do("latest:", func() interface{} {
-		info, err := r.r.Latest()
+		info, err := r.repo().Latest()
 
 		// Save info for likely future Stat call.
 		if err == nil {
@@ -258,7 +273,7 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
 			return cached{text, nil}
 		}
 
-		text, err = r.r.GoMod(version)
+		text, err = r.repo().GoMod(version)
 		if err == nil {
 			if err := checkGoMod(r.path, version, text); err != nil {
 				return cached{text, err}
@@ -277,26 +292,11 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
 }
 
 func (r *cachingRepo) Zip(dst io.Writer, version string) error {
-	return r.r.Zip(dst, version)
+	return r.repo().Zip(dst, version)
 }
 
-// Stat is like Lookup(path).Stat(rev) but avoids the
-// repository path resolution in Lookup if the result is
-// already cached on local disk.
-func Stat(proxy, path, rev string) (*RevInfo, error) {
-	_, info, err := readDiskStat(path, rev)
-	if err == nil {
-		return info, nil
-	}
-	repo, err := Lookup(proxy, path)
-	if err != nil {
-		return nil, err
-	}
-	return repo.Stat(rev)
-}
-
-// InfoFile is like Stat but returns the name of the file containing
-// the cached information.
+// InfoFile is like Lookup(path).Stat(version) but returns the name of the file
+// containing the cached information.
 func InfoFile(path, version string) (string, error) {
 	if !semver.IsValid(version) {
 		return "", fmt.Errorf("invalid version %q", version)
@@ -307,10 +307,7 @@ func InfoFile(path, version string) (string, error) {
 	}
 
 	err := TryProxies(func(proxy string) error {
-		repo, err := Lookup(proxy, path)
-		if err == nil {
-			_, err = repo.Stat(version)
-		}
+		_, err := Lookup(proxy, path).Stat(version)
 		return err
 	})
 	if err != nil {
@@ -336,11 +333,7 @@ func GoMod(path, rev string) ([]byte, error) {
 			rev = info.Version
 		} else {
 			err := TryProxies(func(proxy string) error {
-				repo, err := Lookup(proxy, path)
-				if err != nil {
-					return err
-				}
-				info, err := repo.Stat(rev)
+				info, err := Lookup(proxy, path).Stat(rev)
 				if err == nil {
 					rev = info.Version
 				}
@@ -357,11 +350,8 @@ func GoMod(path, rev string) ([]byte, error) {
 		return data, nil
 	}
 
-	err = TryProxies(func(proxy string) error {
-		repo, err := Lookup(proxy, path)
-		if err == nil {
-			data, err = repo.GoMod(rev)
-		}
+	err = TryProxies(func(proxy string) (err error) {
+		data, err = Lookup(proxy, path).GoMod(rev)
 		return err
 	})
 	return data, err
