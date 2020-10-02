@@ -8,6 +8,8 @@ import (
 	"path"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/tests"
 )
 
 const internalDefinition = `
@@ -98,6 +100,32 @@ func TestUnexportedStdlib_Issue40809(t *testing.T) {
 		refs = env.References(name, pos)
 		if len(refs) < 5 {
 			t.Errorf("expected 5+ references to newPrinter, found: %#v", refs)
+		}
+	})
+}
+
+// Test the hover on an error's Error function.
+// This can't be done via the marker tests because Error is a builtin.
+func TestHoverOnError(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+-- main.go --
+package main
+
+func main() {
+	var err error
+	err.Error()
+}`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Error"))
+		if content == nil {
+			t.Fatalf("nil hover content for Error")
+		}
+		want := "```go\nfunc (error).Error() string\n```"
+		if content.Value != want {
+			t.Fatalf("hover failed:\n%s", tests.Diff(want, content.Value))
 		}
 	})
 }

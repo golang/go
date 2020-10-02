@@ -204,12 +204,53 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		}
 		result.Declaration.node = decl
 
-		// The builtin package isn't in the dependency graph, so the usual utilities
-		// won't work here.
+		// The builtin package isn't in the dependency graph, so the usual
+		// utilities won't work here.
 		rng := NewMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
-
 		return result, nil
+	}
+
+	// (error).Error is a special case of builtin. Lots of checks to confirm
+	// that this is the builtin Error.
+	if obj := result.Declaration.obj; obj.Parent() == nil && obj.Pkg() == nil && obj.Name() == "Error" {
+		if _, ok := obj.Type().(*types.Signature); ok {
+			builtin, err := snapshot.BuiltinPackage(ctx)
+			if err != nil {
+				return nil, err
+			}
+			// Look up "error" and then navigate to its only method.
+			// The Error method does not appear in the builtin package's scope.log.Pri
+			const errorName = "error"
+			builtinObj := builtin.Package.Scope.Lookup(errorName)
+			if builtinObj == nil {
+				return nil, fmt.Errorf("no builtin object for %s", errorName)
+			}
+			decl, ok := builtinObj.Decl.(ast.Node)
+			if !ok {
+				return nil, errors.Errorf("no declaration for %s", errorName)
+			}
+			spec, ok := decl.(*ast.TypeSpec)
+			if !ok {
+				return nil, fmt.Errorf("no type spec for %s", errorName)
+			}
+			iface, ok := spec.Type.(*ast.InterfaceType)
+			if !ok {
+				return nil, fmt.Errorf("%s is not an interface", errorName)
+			}
+			if iface.Methods.NumFields() != 1 {
+				return nil, fmt.Errorf("expected 1 method for %s, got %v", errorName, iface.Methods.NumFields())
+			}
+			method := iface.Methods.List[0]
+			if len(method.Names) != 1 {
+				return nil, fmt.Errorf("expected 1 name for %v, got %v", method, len(method.Names))
+			}
+			name := method.Names[0].Name
+			result.Declaration.node = method
+			rng := NewMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
+			result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
+			return result, nil
+		}
 	}
 
 	if wasEmbeddedField {
