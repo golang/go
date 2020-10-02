@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/tests"
 )
 
 func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
@@ -46,7 +47,7 @@ func (r *runner) runWorkspaceSymbols(t *testing.T, matcher, query string, dirs m
 	}))
 
 	if expect != got {
-		t.Errorf("workspace_symbol failed for %s expected:\n%s\ngot:\n%s", query, expect, got)
+		t.Errorf("workspace_symbol failed for %s:\n%s", query, tests.Diff(expect, got))
 	}
 }
 

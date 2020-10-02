@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+var _ = 1
+
 var x = 42 //@mark(symbolsx, "x"), symbol("x", "x", "Variable", "", "main.x")
 
 const y = 43 //@symbol("y", "y", "Constant", "", "main.y")
@@ -33,6 +35,8 @@ type Quux struct { //@symbol("Quux", "Quux", "Struct", "", "main.Quux")
 func (f Foo) Baz() string { //@symbol("(Foo).Baz", "Baz", "Method", "", "main.Foo.Baz")
 	return f.baz
 }
+
+func _() {}
 
 func (q *Quux) Do() {} //@mark(qDo, "Do"), symbol("(*Quux).Do", "Do", "Method", "", "main.Quux.Do")
 

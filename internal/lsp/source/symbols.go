@@ -32,6 +32,9 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	for _, decl := range pgf.File.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
+			if decl.Name.Name == "_" {
+				continue
+			}
 			if obj := info.ObjectOf(decl.Name); obj != nil {
 				fs, err := funcSymbol(snapshot, pkg, decl, obj, q)
 				if err != nil {
@@ -48,6 +51,9 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
+					if spec.Name.Name == "_" {
+						continue
+					}
 					if obj := info.ObjectOf(spec.Name); obj != nil {
 						ts, err := typeSymbol(snapshot, pkg, info, spec, obj, q)
 						if err != nil {
@@ -58,6 +64,9 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 					}
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
+						if name.Name == "_" {
+							continue
+						}
 						if obj := info.ObjectOf(name); obj != nil {
 							vs, err := varSymbol(snapshot, pkg, decl, name, obj, q)
 							if err != nil {
