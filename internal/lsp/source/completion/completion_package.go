@@ -229,7 +229,7 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 	// support multiple package suggestions since gopls is build system agnostic.
 	var packages []candidate
 	for _, pkg := range workspacePackages {
-		if pkg.Name() == "main" {
+		if pkg.Name() == "main" || pkg.Name() == "" {
 			continue
 		}
 		if _, ok := seenPkgs[pkg.Name()]; ok {
