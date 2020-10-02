@@ -596,7 +596,6 @@ func (r *importReader) typ1() *types.Type {
 
 		// Ensure we expand the interface in the frontend (#25055).
 		checkwidth(t)
-
 		return t
 	}
 }
@@ -711,6 +710,7 @@ func (r *importReader) symIdx(s *types.Sym) {
 }
 
 func (r *importReader) typeExt(t *types.Type) {
+	t.SetNotInHeap(r.bool())
 	i, pi := r.int64(), r.int64()
 	if i != -1 && pi != -1 {
 		typeSymIdx[t] = [2]int64{i, pi}
