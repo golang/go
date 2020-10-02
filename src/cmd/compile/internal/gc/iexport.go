@@ -1017,6 +1017,8 @@ func (w *exportWriter) symIdx(s *types.Sym) {
 }
 
 func (w *exportWriter) typeExt(t *types.Type) {
+	// Export whether this type is marked notinheap.
+	w.bool(t.NotInHeap())
 	// For type T, export the index of type descriptor symbols of T and *T.
 	if i, ok := typeSymIdx[t]; ok {
 		w.int64(i[0])
