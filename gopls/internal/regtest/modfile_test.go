@@ -607,3 +607,42 @@ func main() {
 		)
 	})
 }
+
+func TestMultiModuleModDiagnostics(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const mod = `
+-- a/go.mod --
+module mod.com
+
+go 1.14
+
+require (
+	example.com v1.2.3
+)
+-- a/main.go --
+package main
+
+func main() {}
+-- b/go.mod --
+module mod.com
+
+go 1.14
+-- b/main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	blah.SaySomething()
+}
+`
+	withOptions(
+		WithProxyFiles(workspaceProxy),
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.3"),
+			env.DiagnosticAtRegexp("b/go.mod", "module mod.com"),
+		)
+	})
+}
