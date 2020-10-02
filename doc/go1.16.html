@@ -213,6 +213,14 @@ Do not send CLs removing the interior tags from such phrases.
   with <code>"use of closed network connection"</code>.
 </p>
 
+<h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
+
+<p><!-- CL 259237, golang.org/issue/22075 -->
+  For interface types and values, <a href="/pkg/reflect/#Value.Method">Method</a>,
+  <a href="/pkg/reflect/#Value.MethodByName">MethodByName</a>, and
+  <a href="/pkg/reflect/#Value.NumMethod">NumMethod</a> now
+  operate on the interface's exported method set, rather than its full method set.
+</p>
 
 <h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
 

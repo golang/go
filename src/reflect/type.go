@@ -386,9 +386,13 @@ type imethod struct {
 // interfaceType represents an interface type.
 type interfaceType struct {
 	rtype
-	pkgPath name      // import path
-	methods []imethod // sorted by hash
+	pkgPath    name      // import path
+	expMethods []imethod // sorted by name, see runtime/type.go:interfacetype to see how it is encoded.
 }
+
+// methods returns t's full method set, both exported and non-exported.
+func (t *interfaceType) methods() []imethod { return t.expMethods[:cap(t.expMethods)] }
+func (t *interfaceType) isEmpty() bool      { return cap(t.expMethods) == 0 }
 
 // mapType represents a map type.
 type mapType struct {
@@ -1049,25 +1053,22 @@ func (d ChanDir) String() string {
 
 // Method returns the i'th method in the type's method set.
 func (t *interfaceType) Method(i int) (m Method) {
-	if i < 0 || i >= len(t.methods) {
-		return
+	if i < 0 || i >= len(t.expMethods) {
+		panic("reflect: Method index out of range")
 	}
-	p := &t.methods[i]
+	p := &t.expMethods[i]
 	pname := t.nameOff(p.name)
 	m.Name = pname.name()
 	if !pname.isExported() {
-		m.PkgPath = pname.pkgPath()
-		if m.PkgPath == "" {
-			m.PkgPath = t.pkgPath.name()
-		}
+		panic("reflect: unexported method: " + pname.name())
 	}
 	m.Type = toType(t.typeOff(p.typ))
 	m.Index = i
 	return
 }
 
-// NumMethod returns the number of interface methods in the type's method set.
-func (t *interfaceType) NumMethod() int { return len(t.methods) }
+// NumMethod returns the number of exported interface methods in the type's method set.
+func (t *interfaceType) NumMethod() int { return len(t.expMethods) }
 
 // MethodByName method with the given name in the type's method set.
 func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
@@ -1075,8 +1076,8 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 		return
 	}
 	var p *imethod
-	for i := range t.methods {
-		p = &t.methods[i]
+	for i := range t.expMethods {
+		p = &t.expMethods[i]
 		if t.nameOff(p.name).name() == name {
 			return t.Method(i), true
 		}
@@ -1485,9 +1486,10 @@ func implements(T, V *rtype) bool {
 		return false
 	}
 	t := (*interfaceType)(unsafe.Pointer(T))
-	if len(t.methods) == 0 {
+	if t.isEmpty() {
 		return true
 	}
+	tmethods := t.methods()
 
 	// The same algorithm applies in both cases, but the
 	// method tables for an interface type and a concrete type
@@ -1504,10 +1506,11 @@ func implements(T, V *rtype) bool {
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
-		for j := 0; j < len(v.methods); j++ {
-			tm := &t.methods[i]
+		vmethods := v.methods()
+		for j := 0; j < len(vmethods); j++ {
+			tm := &tmethods[i]
 			tmName := t.nameOff(tm.name)
-			vm := &v.methods[j]
+			vm := &vmethods[j]
 			vmName := V.nameOff(vm.name)
 			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
 				if !tmName.isExported() {
@@ -1523,7 +1526,7 @@ func implements(T, V *rtype) bool {
 						continue
 					}
 				}
-				if i++; i >= len(t.methods) {
+				if i++; i >= len(tmethods) {
 					return true
 				}
 			}
@@ -1538,7 +1541,7 @@ func implements(T, V *rtype) bool {
 	i := 0
 	vmethods := v.methods()
 	for j := 0; j < int(v.mcount); j++ {
-		tm := &t.methods[i]
+		tm := &tmethods[i]
 		tmName := t.nameOff(tm.name)
 		vm := vmethods[j]
 		vmName := V.nameOff(vm.name)
@@ -1556,7 +1559,7 @@ func implements(T, V *rtype) bool {
 					continue
 				}
 			}
-			if i++; i >= len(t.methods) {
+			if i++; i >= len(tmethods) {
 				return true
 			}
 		}
@@ -1658,7 +1661,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	case Interface:
 		t := (*interfaceType)(unsafe.Pointer(T))
 		v := (*interfaceType)(unsafe.Pointer(V))
-		if len(t.methods) == 0 && len(v.methods) == 0 {
+		if t.isEmpty() && v.isEmpty() {
 			return true
 		}
 		// Might have the same methods but still
@@ -2442,7 +2445,7 @@ func StructOf(fields []StructField) Type {
 			switch f.typ.Kind() {
 			case Interface:
 				ift := (*interfaceType)(unsafe.Pointer(ft))
-				for im, m := range ift.methods {
+				for im, m := range ift.methods() {
 					if ift.nameOff(m.name).pkgPath() != "" {
 						// TODO(sbinet).  Issue 15924.
 						panic("reflect: embedded interface with unexported method(s) not implemented")
@@ -3148,4 +3151,12 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
 			addTypeBits(bv, offset+f.offset(), f.typ)
 		}
 	}
+}
+
+func isEmptyIface(rt *rtype) bool {
+	if rt.Kind() != Interface {
+		return false
+	}
+	tt := (*interfaceType)(unsafe.Pointer(rt))
+	return len(tt.methods()) == 0
 }

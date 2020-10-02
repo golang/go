@@ -185,7 +185,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		return strhash(p, h)
 	case kindInterface:
 		i := (*interfacetype)(unsafe.Pointer(t))
-		if len(i.mhdr) == 0 {
+		if i.isEmpty() {
 			return nilinterhash(p, h)
 		}
 		return interhash(p, h)
