@@ -467,7 +467,6 @@ See the documentation of the testing package for more information.
 `,
 }
 
-// TODO(katiehockman): complete the testing here
 var (
 	testBench        string                            // -bench flag
 	testC            bool                              // -c flag
