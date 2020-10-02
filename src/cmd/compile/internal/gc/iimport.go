@@ -346,6 +346,7 @@ func (r *importReader) doDecl(n *Node) {
 		}
 		t.Methods().Set(ms)
 
+		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
@@ -708,6 +709,10 @@ func (r *importReader) symIdx(s *types.Sym) {
 			lsym.Set(obj.AttrIndexed, true)
 		}
 	}
+}
+
+func (r *importReader) typeExt(t *types.Type) {
+	t.SetNotInHeap(r.bool())
 }
 
 func (r *importReader) doInline(n *Node) {

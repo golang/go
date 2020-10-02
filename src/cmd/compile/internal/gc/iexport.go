@@ -492,6 +492,7 @@ func (p *iexporter) doDecl(n *Node) {
 			w.signature(m.Type)
 		}
 
+		w.typeExt(t)
 		for _, m := range ms.Slice() {
 			w.methExt(m)
 		}
@@ -1010,6 +1011,11 @@ func (w *exportWriter) symIdx(s *types.Sym) {
 			w.int64(int64(lsym.SymIdx))
 		}
 	}
+}
+
+func (w *exportWriter) typeExt(t *types.Type) {
+	// Export whether this type is marked notinheap.
+	w.bool(t.NotInHeap())
 }
 
 // Inline bodies.
