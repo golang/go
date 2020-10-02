@@ -45,7 +45,7 @@ const (
 	SeparateProcess
 	// NormalModes are the global default execution modes, when unmodified by
 	// test flags or by individual test options.
-	NormalModes = Singleton | Forwarded
+	NormalModes = Singleton
 )
 
 // A Runner runs tests in gopls execution environments, as specified by its
