@@ -204,12 +204,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	MULLW R3, R4                    // 7c8419d6
 	MULLW R3, R4, R5                // 7ca419d6
+	MULLW $10, R3                   // 1c63000a
+	MULLW $10000000, R3             // 641f009863ff96807c7f19d6
 	MULLWCC R3, R4, R5              // 7ca419d7
 	MULHW R3, R4, R5                // 7ca41896
 
 	MULHWU R3, R4, R5               // 7ca41816
 	MULLD R3, R4                    // 7c8419d2
 	MULLD R4, R4, R5                // 7ca421d2
+	MULLD $20, R4                   // 1c840014
+	MULLD $200000000, R4            // 641f0beb63ffc2007c9f21d2
 	MULLDCC R3, R4, R5              // 7ca419d3
 	MULHD R3, R4, R5                // 7ca41892
 	MULHDCC R3, R4, R5              // 7ca41893

@@ -7,6 +7,7 @@ package gc
 import "testing"
 
 var globl int64
+var globl32 int32
 
 func BenchmarkLoadAdd(b *testing.B) {
 	x := make([]int64, 1024)
@@ -39,6 +40,17 @@ func BenchmarkModify(b *testing.B) {
 		for j := range a {
 			a[j] += v
 		}
+	}
+}
+
+func BenchmarkMullImm(b *testing.B) {
+	x := make([]int32, 1024)
+	for i := 0; i < b.N; i++ {
+		var s int32
+		for i := range x {
+			s += x[i] * 100
+		}
+		globl32 = s
 	}
 }
 
