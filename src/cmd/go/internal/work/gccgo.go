@@ -11,11 +11,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/internal/pkgpath"
 )
 
 // The Gccgo toolchain.
@@ -174,7 +176,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 		ofiles = append(ofiles, ofile)
 		sfile = mkAbs(p.Dir, sfile)
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
-		if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
 		}
 		defs = tools.maybePIC(defs)
@@ -531,7 +533,7 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
 	cfile = mkAbs(p.Dir, cfile)
 	defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
 	defs = append(defs, b.gccArchArgs()...)
-	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+	if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
 	compiler := envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
@@ -568,14 +570,19 @@ func gccgoPkgpath(p *load.Package) string {
 	return p.ImportPath
 }
 
-func gccgoCleanPkgpath(p *load.Package) string {
-	clean := func(r rune) rune {
-		switch {
-		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
-			'0' <= r && r <= '9':
-			return r
+var gccgoToSymbolFuncOnce sync.Once
+var gccgoToSymbolFunc func(string) string
+
+func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) string {
+	gccgoToSymbolFuncOnce.Do(func() {
+		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), b.WorkDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
-		return '_'
-	}
-	return strings.Map(clean, gccgoPkgpath(p))
+		gccgoToSymbolFunc = fn
+	})
+
+	return gccgoToSymbolFunc(gccgoPkgpath(p))
 }
