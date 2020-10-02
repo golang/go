@@ -568,6 +568,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64MOVWstorezero(v)
 	case OpPPC64MTVSRD:
 		return rewriteValuePPC64_OpPPC64MTVSRD(v)
+	case OpPPC64MULLD:
+		return rewriteValuePPC64_OpPPC64MULLD(v)
+	case OpPPC64MULLW:
+		return rewriteValuePPC64_OpPPC64MULLW(v)
 	case OpPPC64NEG:
 		return rewriteValuePPC64_OpPPC64NEG(v)
 	case OpPPC64NOR:
@@ -11000,6 +11004,56 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
 		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MULLD(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MULLD x (MOVDconst [c]))
+	// cond: is16Bit(c)
+	// result: (MULLDconst [int32(c)] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpPPC64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(is16Bit(c)) {
+				continue
+			}
+			v.reset(OpPPC64MULLDconst)
+			v.AuxInt = int32ToAuxInt(int32(c))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MULLW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MULLW x (MOVDconst [c]))
+	// cond: is16Bit(c)
+	// result: (MULLWconst [int32(c)] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpPPC64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(is16Bit(c)) {
+				continue
+			}
+			v.reset(OpPPC64MULLWconst)
+			v.AuxInt = int32ToAuxInt(int32(c))
+			v.AddArg(x)
+			return true
+		}
+		break
 	}
 	return false
 }

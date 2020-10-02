@@ -1279,6 +1279,9 @@ func buildop(ctxt *obj.Link) {
 		case AREMD:
 			opset(AREMDU, r0)
 
+		case AMULLW:
+			opset(AMULLD, r0)
+
 		case ADIVW: /* op Rb[,Ra],Rd */
 			opset(AMULHW, r0)
 
@@ -1312,7 +1315,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AMULHDCC, r0)
 			opset(AMULHDU, r0)
 			opset(AMULHDUCC, r0)
-			opset(AMULLD, r0)
 			opset(AMULLDCC, r0)
 			opset(AMULLDVCC, r0)
 			opset(AMULLDV, r0)
@@ -1996,7 +1998,6 @@ func buildop(ctxt *obj.Link) {
 			AMOVB,  /* macro: move byte with sign extension */
 			AMOVBU, /* macro: move byte with sign extension & update */
 			AMOVFL,
-			AMULLW,
 			/* op $s[,r2],r3; op r1[,r2],r3; no cc/v */
 			ASUBC, /* op r1,$s,r3; op r1[,r2],r3 */
 			ASTSW,
@@ -4990,8 +4991,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 	case ADARN:
 		return OPVCC(31, 755, 0, 0) /* darn - v3.00 */
 
-	case AMULLW:
-		return OPVCC(7, 0, 0, 0)
+	case AMULLW, AMULLD:
+		return OPVCC(7, 0, 0, 0) /* mulli works with MULLW or MULLD */
 
 	case AOR:
 		return OPVCC(24, 0, 0, 0)

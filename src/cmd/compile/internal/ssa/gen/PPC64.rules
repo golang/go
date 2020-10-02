@@ -821,6 +821,8 @@
 
 (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
 
+(MULL(W|D) x (MOVDconst [c])) && is16Bit(c) => (MULL(W|D)const [int32(c)] x)
+
 // Subtract from (with carry, but ignored) constant.
 // Note, these clobber the carry bit.
 (SUB (MOVDconst [c]) x) && is32Bit(c) => (SUBFCconst [c] x)
