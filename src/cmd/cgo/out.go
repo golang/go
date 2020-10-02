@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/pkgpath"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -15,7 +16,6 @@ import (
 	"go/token"
 	"internal/xcoff"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1282,112 +1282,24 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// gccgoUsesNewMangling reports whether gccgo uses the new collision-free
-// packagepath mangling scheme (see determineGccgoManglingScheme for more
-// info).
-func gccgoUsesNewMangling() bool {
-	if !gccgoMangleCheckDone {
-		gccgoNewmanglingInEffect = determineGccgoManglingScheme()
-		gccgoMangleCheckDone = true
-	}
-	return gccgoNewmanglingInEffect
-}
-
-const mangleCheckCode = `
-package läufer
-func Run(x int) int {
-  return 1
-}
-`
-
-// determineGccgoManglingScheme performs a runtime test to see which
-// flavor of packagepath mangling gccgo is using. Older versions of
-// gccgo use a simple mangling scheme where there can be collisions
-// between packages whose paths are different but mangle to the same
-// string. More recent versions of gccgo use a new mangler that avoids
-// these collisions. Return value is whether gccgo uses the new mangling.
-func determineGccgoManglingScheme() bool {
-
-	// Emit a small Go file for gccgo to compile.
-	filepat := "*_gccgo_manglecheck.go"
-	var f *os.File
-	var err error
-	if f, err = ioutil.TempFile(*objDir, filepat); err != nil {
-		fatalf("%v", err)
-	}
-	gofilename := f.Name()
-	defer os.Remove(gofilename)
-
-	if err = ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0666); err != nil {
-		fatalf("%v", err)
-	}
-
-	// Compile with gccgo, capturing generated assembly.
-	gccgocmd := os.Getenv("GCCGO")
-	if gccgocmd == "" {
-		gpath, gerr := exec.LookPath("gccgo")
-		if gerr != nil {
-			fatalf("unable to locate gccgo: %v", gerr)
-		}
-		gccgocmd = gpath
-	}
-	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
-	buf, cerr := cmd.CombinedOutput()
-	if cerr != nil {
-		fatalf("%s", cerr)
-	}
-
-	// New mangling: expect go.l..u00e4ufer.Run
-	// Old mangling: expect go.l__ufer.Run
-	return regexp.MustCompile(`go\.l\.\.u00e4ufer\.Run`).Match(buf)
-}
-
-// gccgoPkgpathToSymbolNew converts a package path to a gccgo-style
-// package symbol.
-func gccgoPkgpathToSymbolNew(ppath string) string {
-	bsl := []byte{}
-	changed := false
-	for _, c := range []byte(ppath) {
-		switch {
-		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', c == '_':
-			bsl = append(bsl, c)
-		case c == '.':
-			bsl = append(bsl, ".x2e"...)
-		default:
-			changed = true
-			encbytes := []byte(fmt.Sprintf("..z%02x", c))
-			bsl = append(bsl, encbytes...)
-		}
-	}
-	if !changed {
-		return ppath
-	}
-	return string(bsl)
-}
-
-// gccgoPkgpathToSymbolOld converts a package path to a gccgo-style
-// package symbol using the older mangling scheme.
-func gccgoPkgpathToSymbolOld(ppath string) string {
-	clean := func(r rune) rune {
-		switch {
-		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
-			'0' <= r && r <= '9':
-			return r
-		}
-		return '_'
-	}
-	return strings.Map(clean, ppath)
-}
-
 // gccgoPkgpathToSymbol converts a package path to a mangled packagepath
 // symbol.
 func gccgoPkgpathToSymbol(ppath string) string {
-	if gccgoUsesNewMangling() {
-		return gccgoPkgpathToSymbolNew(ppath)
-	} else {
-		return gccgoPkgpathToSymbolOld(ppath)
+	if gccgoMangler == nil {
+		var err error
+		cmd := os.Getenv("GCCGO")
+		if cmd == "" {
+			cmd, err = exec.LookPath("gccgo")
+			if err != nil {
+				fatalf("unable to locate gccgo: %v", err)
+			}
+		}
+		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, *objDir)
+		if err != nil {
+			fatalf("%v", err)
+		}
 	}
+	return gccgoMangler(ppath)
 }
 
 // Return the package prefix when using gccgo.
