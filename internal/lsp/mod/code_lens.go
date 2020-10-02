@@ -60,7 +60,7 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 			Range: rng,
 			Command: protocol.Command{
 				Title:     fmt.Sprintf("Upgrade dependency to %s", latest),
-				Command:   source.CommandUpgradeDependency.Name,
+				Command:   source.CommandUpgradeDependency.ID(),
 				Arguments: upgradeDepArgs,
 			},
 		})
@@ -82,7 +82,7 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 			Range: moduleRng,
 			Command: protocol.Command{
 				Title:     "Upgrade all dependencies",
-				Command:   source.CommandUpgradeDependency.Name,
+				Command:   source.CommandUpgradeDependency.ID(),
 				Arguments: upgradeDepArgs,
 			},
 		})
@@ -117,7 +117,7 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		Range: rng,
 		Command: protocol.Command{
 			Title:     "Tidy module",
-			Command:   source.CommandTidy.Name,
+			Command:   source.CommandTidy.ID(),
 			Arguments: goModArgs,
 		},
 	}}, err
@@ -150,7 +150,7 @@ func vendorLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		Range: rng,
 		Command: protocol.Command{
 			Title:     title,
-			Command:   source.CommandVendor.Name,
+			Command:   source.CommandVendor.ID(),
 			Arguments: goModArgs,
 		},
 	}}, nil

@@ -275,13 +275,13 @@ func (e *Env) ExecuteCodeLensCommand(path string, cmd *source.Command) {
 	var lens protocol.CodeLens
 	var found bool
 	for _, l := range lenses {
-		if l.Command.Command == cmd.Name {
+		if l.Command.Command == cmd.ID() {
 			lens = l
 			found = true
 		}
 	}
 	if !found {
-		e.T.Fatalf("found no command with the title %s", cmd.Name)
+		e.T.Fatalf("found no command with the ID %s", cmd.ID())
 	}
 	if _, err := e.Editor.Server.ExecuteCommand(e.Ctx, &protocol.ExecuteCommandParams{
 		Command:   lens.Command.Command,

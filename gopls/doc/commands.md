@@ -9,7 +9,7 @@ Identifier: `generate`
 generate runs `go generate` for a given directory.
 
 
-### **fill_struct**
+### **Fill struct**
 Identifier: `fill_struct`
 
 fill_struct is a gopls command to fill a struct with default
@@ -34,7 +34,7 @@ Identifier: `tidy`
 tidy runs `go mod tidy` for a module.
 
 
-### **undeclared_name**
+### **Undeclared name**
 Identifier: `undeclared_name`
 
 undeclared_name adds a variable declaration for an undeclared

@@ -68,7 +68,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				Range: rng,
 				Command: protocol.Command{
 					Title:     "run test",
-					Command:   CommandTest.Name,
+					Command:   CommandTest.ID(),
 					Arguments: jsonArgs,
 				},
 			})
@@ -83,7 +83,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				Range: rng,
 				Command: protocol.Command{
 					Title:     "run benchmark",
-					Command:   CommandTest.Name,
+					Command:   CommandTest.ID(),
 					Arguments: jsonArgs,
 				},
 			})
@@ -102,7 +102,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		Range: rng,
 		Command: protocol.Command{
 			Title:     "run file benchmarks",
-			Command:   CommandTest.Name,
+			Command:   CommandTest.ID(),
 			Arguments: args,
 		},
 	})
@@ -176,7 +176,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate",
-						Command:   CommandGenerate.Name,
+						Command:   CommandGenerate.ID(),
 						Arguments: nonRecursiveArgs,
 					},
 				},
@@ -184,7 +184,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate ./...",
-						Command:   CommandGenerate.Name,
+						Command:   CommandGenerate.ID(),
 						Arguments: recursiveArgs,
 					},
 				},
@@ -222,7 +222,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "regenerate cgo definitions",
-				Command:   CommandRegenerateCgo.Name,
+				Command:   CommandRegenerateCgo.ID(),
 				Arguments: jsonArgs,
 			},
 		},
@@ -246,7 +246,7 @@ func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle
 		Range: rng,
 		Command: protocol.Command{
 			Title:     "Toggle gc annotation details",
-			Command:   CommandToggleDetails.Name,
+			Command:   CommandToggleDetails.ID(),
 			Arguments: jsonArgs,
 		},
 	}}, nil

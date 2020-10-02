@@ -782,7 +782,7 @@ func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 		return err
 	}
 	params := &protocol.ExecuteCommandParams{
-		Command:   source.CommandGenerate.Name,
+		Command:   source.CommandGenerate.ID(),
 		Arguments: jsonArgs,
 	}
 	if _, err := e.Server.ExecuteCommand(ctx, params); err != nil {

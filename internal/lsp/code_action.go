@@ -400,7 +400,7 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 		Kind:        kind,
 		Diagnostics: diagnostics,
 		Command: &protocol.Command{
-			Command:   analyzer.Command.Name,
+			Command:   analyzer.Command.ID(),
 			Title:     e.Message,
 			Arguments: jsonArgs,
 		},
@@ -431,7 +431,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 			Title: command.Title,
 			Kind:  protocol.RefactorExtract,
 			Command: &protocol.Command{
-				Command:   command.Name,
+				Command:   command.ID(),
 				Arguments: jsonArgs,
 			},
 		})

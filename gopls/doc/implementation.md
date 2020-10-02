@@ -46,4 +46,3 @@ Package | Description
 [internal/memoize]: https://github.com/golang/tools/tree/master/internal/memoize
 [internal/span]: https://github.com/golang/tools/tree/master/internal/span
 [x/tools]: https://github.com/golang/tools
-

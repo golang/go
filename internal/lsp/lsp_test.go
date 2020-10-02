@@ -518,7 +518,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, rng protocol.Range, cmd string) ([]protocol.TextDocumentEdit, error) {
 	var command *source.Command
 	for _, c := range source.Commands {
-		if c.Name == cmd {
+		if c.ID() == cmd {
 			command = c
 			break
 		}
@@ -527,7 +527,7 @@ func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.Ver
 		return nil, fmt.Errorf("no known command for %s", cmd)
 	}
 	if !command.Applies(ctx, snapshot, fh, rng) {
-		return nil, fmt.Errorf("cannot apply %v", command.Name)
+		return nil, fmt.Errorf("cannot apply %v", command.ID())
 	}
 	return command.SuggestedFix(ctx, snapshot, fh, rng)
 }

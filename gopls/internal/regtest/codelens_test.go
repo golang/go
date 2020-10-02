@@ -50,7 +50,9 @@ const (
 	for _, test := range tests {
 		t.Run(test.label, func(t *testing.T) {
 			withOptions(
-				EditorConfig{CodeLens: test.enabled},
+				EditorConfig{
+					CodeLens: test.enabled,
+				},
 			).run(t, workspace, func(t *testing.T, env *Env) {
 				env.OpenFile("lib.go")
 				lens := env.CodeLens("lib.go")
@@ -251,7 +253,10 @@ func main() {
 }
 `
 	withOptions(
-		EditorConfig{CodeLens: map[string]bool{"gc_details": true}},
+		EditorConfig{
+			CodeLens: map[string]bool{
+				"gc_details": true,
+			}},
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)

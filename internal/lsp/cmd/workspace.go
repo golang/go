@@ -82,7 +82,7 @@ func (c *generateWorkspaceMod) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 	defer conn.terminate(ctx)
-	params := &protocol.ExecuteCommandParams{Command: source.CommandGenerateGoplsMod.Name}
+	params := &protocol.ExecuteCommandParams{Command: source.CommandGenerateGoplsMod.ID()}
 	if _, err := conn.ExecuteCommand(ctx, params); err != nil {
 		return fmt.Errorf("executing server command: %v", err)
 	}
