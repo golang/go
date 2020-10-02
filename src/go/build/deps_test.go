@@ -467,7 +467,10 @@ var depsRules = `
 	FMT, flag, runtime/debug, runtime/trace
 	< testing;
 
-	internal/testlog, runtime/pprof, regexp
+	FMT, encoding/json
+	< internal/fuzz;
+
+	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
 	OS, flag, testing, internal/cfg
