@@ -58,6 +58,29 @@ func expandCalls(f *Func) {
 		return t.IsStruct() || t.IsArray() || regSize == 4 && t.Size() > 4 && t.IsInteger()
 	}
 
+	// removeTrivialWrapperTypes unwraps layers of
+	// struct { singleField SomeType } and [1]SomeType
+	// until a non-wrapper type is reached.  This is useful
+	// for working with assignments to/from interface data
+	// fields (either second operand to OpIMake or OpIData)
+	// where the wrapping or type conversion can be elided
+	// because of type conversions/assertions in source code
+	// that do not appear in SSA.
+	removeTrivialWrapperTypes := func(t *types.Type) *types.Type {
+		for {
+			if t.IsStruct() && t.NumFields() == 1 {
+				t = t.Field(0).Type
+				continue
+			}
+			if t.IsArray() && t.NumElem() == 1 {
+				t = t.Elem()
+				continue
+			}
+			break
+		}
+		return t
+	}
+
 	// Calls that need lowering have some number of inputs, including a memory input,
 	// and produce a tuple of (value1, value2, ..., mem) where valueK may or may not be SSA-able.
 
@@ -84,7 +107,7 @@ func expandCalls(f *Func) {
 				// rewrite v as a Copy of call -- the replacement call will produce a mem.
 				leaf.copyOf(call)
 			} else {
-				leafType := leaf.Type
+				leafType := removeTrivialWrapperTypes(leaf.Type)
 				pt := types.NewPtr(leafType)
 				if canSSAType(leafType) {
 					off := f.ConstOffPtrSP(pt, offset+aux.OffsetOfResult(which), sp)
@@ -92,6 +115,7 @@ func expandCalls(f *Func) {
 					if leaf.Block == call.Block {
 						leaf.reset(OpLoad)
 						leaf.SetArgs2(off, call)
+						leaf.Type = leafType
 					} else {
 						w := call.Block.NewValue2(leaf.Pos, OpLoad, leafType, off, call)
 						leaf.copyOf(w)
@@ -192,6 +216,13 @@ func expandCalls(f *Func) {
 
 		case types.TARRAY:
 			elt := t.Elem()
+			if src.Op == OpIData && t.NumElem() == 1 && t.Width == regSize && elt.Width == regSize {
+				t = removeTrivialWrapperTypes(t)
+				if t.Etype == types.TSTRUCT || t.Etype == types.TARRAY {
+					f.Fatalf("Did not expect to find IDATA-immediate with non-trivial struct/array in it")
+				}
+				break // handle the leaf type.
+			}
 			for i := int64(0); i < t.NumElem(); i++ {
 				sel := src.Block.NewValue1I(pos, OpArraySelect, elt, i, src)
 				mem = splitStore(dst, sel, mem, v, elt, offset+i*elt.Width, firstStorePos)
@@ -199,7 +230,7 @@ func expandCalls(f *Func) {
 			}
 			return mem
 		case types.TSTRUCT:
-			if src.Op == OpIData && t.NumFields() == 1 && t.Field(0).Type.Width == t.Width && t.Width == regSize   {
+			if src.Op == OpIData && t.NumFields() == 1 && t.Field(0).Type.Width == t.Width && t.Width == regSize {
 				// This peculiar test deals with accesses to immediate interface data.
 				// It works okay because everything is the same size.
 				// Example code that triggers this can be found in go/constant/value.go, function ToComplex
@@ -207,11 +238,9 @@ func expandCalls(f *Func) {
 				// v121 (+882) = StaticLECall <floatVal,mem> {AuxCall{"".itof([intVal,0])[floatVal,8]}} [16] v119 v1
 				// This corresponds to the generic rewrite rule "(StructSelect [0] (IData x)) => (IData x)"
 				// Guard against "struct{struct{*foo}}"
-				for t.Etype == types.TSTRUCT && t.NumFields() == 1 {
-					t = t.Field(0).Type
-				}
+				t = removeTrivialWrapperTypes(t)
 				if t.Etype == types.TSTRUCT || t.Etype == types.TARRAY {
-					f.Fatalf("Did not expect to find IDATA-immediate with non-trivial struct in it")
+					f.Fatalf("Did not expect to find IDATA-immediate with non-trivial struct/array in it")
 				}
 				break // handle the leaf type.
 			}
