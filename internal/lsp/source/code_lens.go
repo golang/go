@@ -37,64 +37,50 @@ var (
 func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	codeLens := make([]protocol.CodeLens, 0)
 
-	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
-		return nil, nil
-	}
-	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
+	fns, err := TestsAndBenchmarks(ctx, snapshot, fh)
 	if err != nil {
 		return nil, err
 	}
-
-	var benchFns []string
-	for _, d := range pgf.File.Decls {
-		fn, ok := d.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		if benchmarkRe.MatchString(fn.Name.Name) {
-			benchFns = append(benchFns, fn.Name.Name)
-		}
-		rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, d.Pos(), d.Pos()).Range()
+	for _, fn := range fns.Tests {
+		jsonArgs, err := MarshalArgs(fh.URI(), []string{fn.Name}, nil)
 		if err != nil {
 			return nil, err
 		}
+		codeLens = append(codeLens, protocol.CodeLens{
+			Range: protocol.Range{Start: fn.Rng.Start, End: fn.Rng.Start},
+			Command: protocol.Command{
+				Title:     "run test",
+				Command:   CommandTest.ID(),
+				Arguments: jsonArgs,
+			},
+		})
+	}
 
-		if matchTestFunc(fn, pkg, testRe, "T") {
-			jsonArgs, err := MarshalArgs(fh.URI(), []string{fn.Name.Name}, nil)
-			if err != nil {
-				return nil, err
-			}
-			codeLens = append(codeLens, protocol.CodeLens{
-				Range: rng,
-				Command: protocol.Command{
-					Title:     "run test",
-					Command:   CommandTest.ID(),
-					Arguments: jsonArgs,
-				},
-			})
+	for _, fn := range fns.Benchmarks {
+		jsonArgs, err := MarshalArgs(fh.URI(), nil, []string{fn.Name})
+		if err != nil {
+			return nil, err
 		}
+		codeLens = append(codeLens, protocol.CodeLens{
+			Range: protocol.Range{Start: fn.Rng.Start, End: fn.Rng.Start},
+			Command: protocol.Command{
+				Title:     "run benchmark",
+				Command:   CommandTest.ID(),
+				Arguments: jsonArgs,
+			},
+		})
+	}
 
-		if matchTestFunc(fn, pkg, benchmarkRe, "B") {
-			jsonArgs, err := MarshalArgs(fh.URI(), nil, []string{fn.Name.Name})
-			if err != nil {
-				return nil, err
-			}
-			codeLens = append(codeLens, protocol.CodeLens{
-				Range: rng,
-				Command: protocol.Command{
-					Title:     "run benchmark",
-					Command:   CommandTest.ID(),
-					Arguments: jsonArgs,
-				},
-			})
-		}
+	_, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
+	if err != nil {
+		return nil, err
 	}
 	// add a code lens to the top of the file which runs all benchmarks in the file
 	rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
 	if err != nil {
 		return nil, err
 	}
-	args, err := MarshalArgs(fh.URI(), []string{}, benchFns)
+	args, err := MarshalArgs(fh.URI(), []string{}, fns.Benchmarks)
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +93,50 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		},
 	})
 	return codeLens, nil
+}
+
+type testFn struct {
+	Name string
+	Rng  protocol.Range
+}
+
+type testFns struct {
+	Tests      []testFn
+	Benchmarks []testFn
+}
+
+func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (testFns, error) {
+	var out testFns
+
+	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
+		return out, nil
+	}
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
+	if err != nil {
+		return out, err
+	}
+
+	for _, d := range pgf.File.Decls {
+		fn, ok := d.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+
+		rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, d.Pos(), fn.End()).Range()
+		if err != nil {
+			return out, err
+		}
+
+		if matchTestFunc(fn, pkg, testRe, "T") {
+			out.Tests = append(out.Tests, testFn{fn.Name.Name, rng})
+		}
+
+		if matchTestFunc(fn, pkg, benchmarkRe, "B") {
+			out.Benchmarks = append(out.Benchmarks, testFn{fn.Name.Name, rng})
+		}
+	}
+
+	return out, nil
 }
 
 func matchTestFunc(fn *ast.FuncDecl, pkg Package, nameRe *regexp.Regexp, paramID string) bool {

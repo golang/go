@@ -34,14 +34,22 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	}
 
 	// The Only field of the context specifies which code actions the client wants.
-	// If Only is empty, assume that the client wants all of the possible code actions.
+	// If Only is empty, assume that the client wants all of the non-explicit code actions.
 	var wanted map[protocol.CodeActionKind]bool
+
+	// Explicit Code Actions are opt-in and shouldn't be returned to the client unless
+	// requested using Only.
+	// TODO: Add other CodeLenses such as GoGenerate, RegenerateCgo, etc..
+	explicit := map[protocol.CodeActionKind]bool{
+		protocol.GoTest: true,
+	}
+
 	if len(params.Context.Only) == 0 {
 		wanted = supportedCodeActions
 	} else {
 		wanted = make(map[protocol.CodeActionKind]bool)
 		for _, only := range params.Context.Only {
-			wanted[only] = supportedCodeActions[only]
+			wanted[only] = supportedCodeActions[only] || explicit[only]
 		}
 	}
 	if len(wanted) == 0 {
@@ -169,6 +177,15 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 			codeActions = append(codeActions, fixes...)
 		}
+
+		if wanted[protocol.GoTest] {
+			fixes, err := goTest(ctx, snapshot, uri, params.Range)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, fixes...)
+		}
+
 	default:
 		// Unsupported file kind for a code action.
 		return nil, nil
@@ -546,4 +563,47 @@ func goModTidy(ctx context.Context, snapshot source.Snapshot, fh source.Versione
 			}},
 		},
 	}, err
+}
+
+func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+	fh, err := snapshot.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	fns, err := source.TestsAndBenchmarks(ctx, snapshot, fh)
+	if err != nil {
+		return nil, err
+	}
+
+	var tests, benchmarks []string
+	for _, fn := range fns.Tests {
+		if !protocol.Intersect(fn.Rng, rng) {
+			continue
+		}
+		tests = append(tests, fn.Name)
+	}
+	for _, fn := range fns.Benchmarks {
+		if !protocol.Intersect(fn.Rng, rng) {
+			continue
+		}
+		benchmarks = append(benchmarks, fn.Name)
+	}
+
+	if len(tests) == 0 && len(benchmarks) == 0 {
+		return nil, nil
+	}
+
+	jsonArgs, err := source.MarshalArgs(uri, tests, benchmarks)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeAction{{
+		Title: source.CommandTest.Name,
+		Kind:  protocol.GoTest,
+		Command: &protocol.Command{
+			Title:     source.CommandTest.Title,
+			Command:   source.CommandTest.ID(),
+			Arguments: jsonArgs,
+		},
+	}}, nil
 }
