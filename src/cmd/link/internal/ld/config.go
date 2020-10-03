@@ -95,7 +95,13 @@ func (mode *BuildMode) Set(s string) error {
 			default:
 				return badmode()
 			}
-		case "darwin", "freebsd":
+		case "darwin":
+			switch objabi.GOARCH {
+			case "amd64", "arm64":
+			default:
+				return badmode()
+			}
+		case "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
 			default:

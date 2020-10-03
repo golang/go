@@ -371,7 +371,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rt := r.Type
 	siz := r.Size
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 {
+	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -415,6 +415,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
+	case objabi.R_ARM64_GOTPCREL:
+		siz = 4
+		// Two relocation entries: MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 MACHO_ARM64_RELOC_GOT_LOAD_PAGE21
+		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff + 4))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(v | (ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 << 28) | (2 << 25))
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21 << 28
 	}
 
 	switch siz {
@@ -457,7 +473,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 
 			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
-			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && xadd != 0 {
+			if target.IsDarwin() && xadd != 0 {
 				nExtReloc = 4 // need another two relocations for non-zero addend
 			}
 
