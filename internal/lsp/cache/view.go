@@ -356,7 +356,7 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 `,
 		s.view.folder.Filename(),
 		s.view.rootURI.Filename(),
-		goVersion.String(),
+		strings.TrimRight(goVersion.String(), "\n"),
 		s.ValidBuildConfiguration(),
 		buildFlags)
 	for k, v := range fullEnv {
