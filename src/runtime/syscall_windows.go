@@ -9,21 +9,25 @@ import (
 	"unsafe"
 )
 
-type callbacks struct {
-	lock mutex
-	ctxt [cb_max]*wincallbackcontext
-	n    int
+// cbs stores all registered Go callbacks.
+var cbs struct {
+	lock  mutex
+	ctxt  [cb_max]winCallback
+	index map[winCallbackKey]int
+	n     int
 }
 
-func (c *wincallbackcontext) isCleanstack() bool {
-	return c.cleanstack
+// winCallback records information about a registered Go callback.
+type winCallback struct {
+	fn      *funcval // Go function
+	argsize uintptr  // Callback arguments size (in bytes)
+	cdecl   bool     // C function uses cdecl calling convention
 }
 
-func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
-	c.cleanstack = cleanstack
+type winCallbackKey struct {
+	fn    *funcval
+	cdecl bool
 }
-
-var cbs callbacks
 
 func callbackasm()
 
@@ -53,8 +57,20 @@ func callbackasmAddr(i int) uintptr {
 
 const callbackMaxArgs = 64
 
+// compileCallback converts a Go function fn into a C function pointer
+// that can be passed to Windows APIs.
+//
+// On 386, if cdecl is true, the returned C function will use the
+// cdecl calling convention; otherwise, it will use stdcall. On amd64,
+// it always uses fastcall. On arm, it always uses the ARM convention.
+//
 //go:linkname compileCallback syscall.compileCallback
-func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+func compileCallback(fn eface, cdecl bool) (code uintptr) {
+	if GOARCH != "386" {
+		// cdecl is only meaningful on 386.
+		cdecl = false
+	}
+
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
@@ -77,36 +93,32 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		argsize += uintptrSize
 	}
 
+	key := winCallbackKey{(*funcval)(fn.data), cdecl}
+
 	lock(&cbs.lock) // We don't unlock this in a defer because this is used from the system stack.
 
-	n := cbs.n
-	for i := 0; i < n; i++ {
-		if cbs.ctxt[i].gobody == fn.data && cbs.ctxt[i].isCleanstack() == cleanstack {
-			r := callbackasmAddr(i)
-			unlock(&cbs.lock)
-			return r
-		}
+	// Check if this callback is already registered.
+	if n, ok := cbs.index[key]; ok {
+		unlock(&cbs.lock)
+		return callbackasmAddr(n)
 	}
-	if n >= cb_max {
+
+	// Register the callback.
+	if cbs.index == nil {
+		cbs.index = make(map[winCallbackKey]int)
+	}
+	n := cbs.n
+	if n >= len(cbs.ctxt) {
 		unlock(&cbs.lock)
 		throw("too many callback functions")
 	}
-
-	c := new(wincallbackcontext)
-	c.gobody = fn.data
-	c.argsize = argsize
-	c.setCleanstack(cleanstack)
-	if cleanstack && argsize != 0 {
-		c.restorestack = argsize
-	} else {
-		c.restorestack = 0
-	}
+	c := winCallback{key.fn, argsize, cdecl}
 	cbs.ctxt[n] = c
+	cbs.index[key] = n
 	cbs.n++
 
-	r := callbackasmAddr(n)
 	unlock(&cbs.lock)
-	return r
+	return callbackasmAddr(n)
 }
 
 type callbackArgs struct {
@@ -120,7 +132,15 @@ type callbackArgs struct {
 // callbackWrap is called by callbackasm to invoke a registered C callback.
 func callbackWrap(a *callbackArgs) {
 	c := cbs.ctxt[a.index]
-	a.retPop = c.restorestack
+	if GOARCH == "386" {
+		if c.cdecl {
+			// In cdecl, the callee is responsible for
+			// popping its arguments.
+			a.retPop = c.argsize
+		} else {
+			a.retPop = 0
+		}
+	}
 
 	// Convert from stdcall to Go ABI. We assume the stack layout
 	// is the same, and we just need to make room for the result.
@@ -134,7 +154,7 @@ func callbackWrap(a *callbackArgs) {
 
 	// Even though this is copying back results, we can pass a nil
 	// type because those results must not require write barriers.
-	reflectcall(nil, c.gobody, noescape(unsafe.Pointer(&frame)), sys.PtrSize+uint32(c.argsize), uint32(c.argsize))
+	reflectcall(nil, unsafe.Pointer(c.fn), noescape(unsafe.Pointer(&frame)), sys.PtrSize+uint32(c.argsize), uint32(c.argsize))
 
 	// Extract the result.
 	a.result = frame[c.argsize/sys.PtrSize]
