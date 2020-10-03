@@ -1206,6 +1206,16 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	return startTime
 }
 
+// usesLibcall indicates whether this runtime performs system calls
+// via libcall.
+func usesLibcall() bool {
+	switch GOOS {
+	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
+		return true
+	}
+	return false
+}
+
 // mStackIsSystemAllocated indicates whether this runtime starts on a
 // system-allocated stack.
 func mStackIsSystemAllocated() bool {
@@ -4481,7 +4491,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "ios" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
