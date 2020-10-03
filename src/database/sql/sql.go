@@ -844,9 +844,9 @@ func (db *DB) Close() error {
 	}
 	db.mu.Unlock()
 	for _, fn := range fns {
-		err1 := fn()
-		if err1 != nil {
-			err = err1
+		err = fn()
+		if err != nil {
+			break
 		}
 	}
 	db.stop()
