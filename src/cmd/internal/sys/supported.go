@@ -104,7 +104,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		switch platform {
 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
-			"darwin/amd64",
+			"darwin/amd64", "darwin/arm64",
 			"freebsd/amd64":
 			return true
 		}

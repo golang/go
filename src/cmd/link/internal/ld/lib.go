@@ -1254,7 +1254,9 @@ func (ctxt *Link) hostlink() {
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
-		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.DynlinkingGo() && objabi.GOOS != "ios" {
+			// -flat_namespace is deprecated on iOS.
+			// It is useful for supporting plugins. We don't support plugins on iOS.
 			argv = append(argv, "-Wl,-flat_namespace")
 		}
 		if !combineDwarf {

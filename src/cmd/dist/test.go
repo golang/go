@@ -1011,7 +1011,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "freebsd-amd64":
 			return true
