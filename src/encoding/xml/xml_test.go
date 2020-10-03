@@ -437,6 +437,9 @@ func TestTokenErrors(t *testing.T) {
 		expectedError string
 	}{
 		{`<body xmlns="ns1"></x>`, `XML syntax error on line 1: unexpected end element </x>`},
+		{`<?>`, `XML syntax error on line 1: expected target name after <?`},
+		{`<?wat>`, `XML syntax error on line 1: unexpected EOF`},
+
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
