@@ -301,6 +301,48 @@ func TestRawTokenAltEncoding(t *testing.T) {
 	testRawToken(t, d, testInputAltEncoding, rawTokensAltEncoding)
 }
 
+func TestRawTokenAltEncodingErrors(t *testing.T) {
+	tests := []struct {
+		charsetReader func(charset string, input io.Reader) (io.Reader, error)
+		expectedError string
+	}{
+		{
+			func(_ string, _ io.Reader) (io.Reader, error) {return nil, fmt.Errorf("terrible")},
+			`xml: opening charset "x-testing-uppercase": terrible`,
+		},
+	}
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(testInputAltEncoding))
+		d.CharsetReader = test.charsetReader
+
+		var err error
+		for _, err = d.Token(); err == nil; _, err = d.Token() {
+		}
+		if err.Error() != test.expectedError {
+			t.Fatalf(`err.Error() = "%s", want "%s"`, err.Error(), test.expectedError)
+		}
+	}
+}
+
+func TestRawTokenAltEncodingPanic(t *testing.T) {
+	defer func() {
+		expectedError := `CharsetReader returned a nil Reader for charset x-testing-uppercase`
+		r := recover()
+		if r == nil {
+			t.Errorf("code did not panic but should have")
+		} else if r != expectedError {
+			t.Fatalf(`panic = "%s", want "%s"`, r, expectedError)
+		}
+	}()
+
+	d := NewDecoder(strings.NewReader(testInputAltEncoding))
+	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {return nil, nil}
+
+	var err error
+	for _, err = d.Token(); err == nil; _, err = d.Token() {
+	}
+}
+
 func TestRawTokenAltEncodingNoConverter(t *testing.T) {
 	d := NewDecoder(strings.NewReader(testInputAltEncoding))
 	token, err := d.RawToken()
@@ -434,12 +476,16 @@ func TestToken(t *testing.T) {
 func TestTokenErrors(t *testing.T) {
 	tests := []struct {
 		input  string
+		syntaxError bool
 		expectedError string
 	}{
-		{`<body xmlns="ns1"></x>`, `XML syntax error on line 1: unexpected end element </x>`},
-		{`<?>`, `XML syntax error on line 1: expected target name after <?`},
-		{`<?wat>`, `XML syntax error on line 1: unexpected EOF`},
-
+		{`<body xmlns="ns1"></x>`, true,`XML syntax error on line 1: unexpected end element </x>`},
+		{`<?>`, true,`XML syntax error on line 1: expected target name after <?`},
+		{`<?wat>`, true,`XML syntax error on line 1: unexpected EOF`},
+		{`<?xml version="1.1" encoding="UTF-8"?>`, false,`xml: unsupported version "1.1"; only version 1.0 is supported`},
+		{`<?xml version="1" encoding="UTF-8"?>`, false,`xml: unsupported version "1"; only version 1.0 is supported`},
+		{`<?xml version="wat" encoding="UTF-8"?>`, false,`xml: unsupported version "wat"; only version 1.0 is supported`},
+		{`<?xml version="1.0" encoding="UTF-9000"?>`, false,`xml: encoding "UTF-9000" declared but Decoder.CharsetReader is nil`},
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
@@ -448,7 +494,7 @@ func TestTokenErrors(t *testing.T) {
 		var err error
 		for _, err = d.Token(); err == nil; _, err = d.Token() {
 		}
-		if _, ok := err.(*SyntaxError); !ok {
+		if _, ok := err.(*SyntaxError); test.syntaxError && !ok {
 			t.Fatalf(`xmlInput "%s": expected SyntaxError not received`, test.input)
 		}
 		if err.Error() != test.expectedError {
