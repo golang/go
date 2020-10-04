@@ -1023,7 +1023,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "windows-amd64", "windows-386", "windows-arm":
 			return true
