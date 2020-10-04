@@ -751,6 +751,32 @@ func TestUnmarshalUnknownType(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrors(t *testing.T) {
+	//xml := `<?xml version="1.0" encoding="utf-8"?>
+	//	<MyStruct Attr="attr1" Attr2="attr2">
+	//	<Data>hello <!-- comment -->world</Data>
+	//	<Data2>howdy <!-- comment -->world</Data2>
+	//	</MyStruct>
+	//`
+
+	tests := []struct {
+		input  []byte
+		expectedError string
+	}{
+		{[]byte(""), "EOF"},
+		//{[]byte(xml), `xxx`},
+		//{[]byte(`<?xml version="1.0" encoding="utf-8"?><Body>words</Body>`), `xxx`},
+	}
+
+	for _, test := range tests {
+		var dst MyStruct
+
+		if err := Unmarshal(test.input, &dst); err == nil || err.Error() != test.expectedError{
+			t.Errorf("have %v, want %v", err, test.expectedError)
+		}
+	}
+}
+
 type Pea struct {
 	Cotelydon string
 }
