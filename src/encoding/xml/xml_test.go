@@ -518,6 +518,8 @@ func TestTokenErrors(t *testing.T) {
 		{`"&#xF`, false,`XML syntax error on line 1: unexpected EOF`},
 		{`"&B`, false,`XML syntax error on line 1: unexpected EOF`},
 		{"<![CDATA[Some \xe6 here]]>", false,`XML syntax error on line 1: invalid UTF-8`},
+		{"<body \xe6>", false,"XML syntax error on line 1: invalid XML name: \xe6"},
+		{"<body w\xe6>", false,"XML syntax error on line 1: invalid XML name: w\xe6"},
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
