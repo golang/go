@@ -1329,9 +1329,6 @@ func (ctxt *Link) hostlink() {
 	case BuildModeCShared:
 		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
-			if ctxt.Arch.Family != sys.AMD64 {
-				argv = append(argv, "-Wl,-read_only_relocs,suppress")
-			}
 		} else {
 			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")
