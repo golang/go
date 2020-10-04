@@ -658,8 +658,6 @@ func (m *MyCharData) UnmarshalXML(d *Decoder, start StartElement) error {
 
 var _ Unmarshaler = (*MyCharData)(nil)
 
-
-
 func (m *MyCharData) UnmarshalXMLAttr(attr Attr) error {
 	panic("must not call")
 }
@@ -713,6 +711,27 @@ func (m *MyBodyError) UnmarshalXML(*Decoder, StartElement) error {
 func TestUnmarshalerError(t *testing.T) {
 	xml := `<?xml version="1.0" encoding="utf-8"?><Body>words</Body>`
 	var m MyBodyError
+	err := Unmarshal([]byte(xml), &m)
+
+	if err == nil {
+		t.Errorf("[success], want error %v", errText)
+	}
+	if err.Error() != errText {
+		t.Errorf("[error] %v, want %v", err, errText)
+	}
+}
+
+type MyBodyErrorText struct {
+	Body string
+}
+
+func (m MyBodyErrorText) UnmarshalText([]byte) error {
+	return errors.New(errText)
+}
+
+func TestUnmarshalerTextError(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="utf-8"?><Body>words</Body>`
+	var m MyBodyErrorText
 	err := Unmarshal([]byte(xml), &m)
 
 	if err == nil {
