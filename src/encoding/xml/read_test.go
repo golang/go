@@ -742,6 +742,15 @@ func TestUnmarshalerTextError(t *testing.T) {
 	}
 }
 
+func TestUnmarshalUnknownType(t *testing.T) {
+	expectedError := `unknown type func()`
+	var dst func()
+
+	if err := Unmarshal([]byte(pathTestString), &dst); err == nil || err.Error() != expectedError{
+		t.Errorf("have %v, want %v", err, expectedError)
+	}
+}
+
 type Pea struct {
 	Cotelydon string
 }
