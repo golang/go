@@ -219,7 +219,8 @@ func TestRawToken(t *testing.T) {
 	testRawToken(t, d, testInput, rawTokens)
 }
 
-// myIOReader does not implement io.ByteReader
+// myIOReader does not implement io.ByteReader forcing a code path
+// where we wrap the io.Reader in an bufio.NewReader
 type myIOReader struct {
 	input string
 }
@@ -506,7 +507,17 @@ func TestTokenErrors(t *testing.T) {
 		{`<!x<`, false,`XML syntax error on line 1: unexpected EOF`},
 		{`<!x<!--`, false,`XML syntax error on line 1: unexpected EOF`},
 		{`<a href=x`, false,`XML syntax error on line 1: unexpected EOF`},
-		//{`<a href=x`, false,`xxxxxxx`},
+		{`"&`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#x`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#0`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#1`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#xa`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#xA`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#xf`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&#xF`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`"&B`, false,`XML syntax error on line 1: unexpected EOF`},
+		{"<![CDATA[Some \xe6 here]]>", false,`XML syntax error on line 1: invalid UTF-8`},
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
