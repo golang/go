@@ -219,6 +219,21 @@ func TestRawToken(t *testing.T) {
 	testRawToken(t, d, testInput, rawTokens)
 }
 
+// myIOReader does not implement io.ByteReader
+type myIOReader struct {
+	input string
+}
+
+func (m myIOReader) Read(p []byte) (int, error) {
+	return strings.NewReader(m.input).Read(p)
+}
+
+func TestNewDecoder(t *testing.T) {
+	d := NewDecoder(myIOReader{testInput})
+	d.Entity = testEntity
+	testRawToken(t, d, testInput, rawTokens)
+}
+
 const nonStrictInput = `
 <tag>non&entity</tag>
 <tag>&unknown;entity</tag>
@@ -486,6 +501,12 @@ func TestTokenErrors(t *testing.T) {
 		{`<?xml version="1" encoding="UTF-8"?>`, false,`xml: unsupported version "1"; only version 1.0 is supported`},
 		{`<?xml version="wat" encoding="UTF-8"?>`, false,`xml: unsupported version "wat"; only version 1.0 is supported`},
 		{`<?xml version="1.0" encoding="UTF-9000"?>`, false,`xml: encoding "UTF-9000" declared but Decoder.CharsetReader is nil`},
+		{`<![XDATA`, false,`XML syntax error on line 1: invalid <![ sequence`},
+		{`<!-~`, false,`XML syntax error on line 1: invalid sequence <!- not part of <!--`},
+		{`<!x<`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`<!x<!--`, false,`XML syntax error on line 1: unexpected EOF`},
+		{`<a href=x`, false,`XML syntax error on line 1: unexpected EOF`},
+		//{`<a href=x`, false,`xxxxxxx`},
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
