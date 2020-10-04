@@ -952,18 +952,44 @@ func TestEscapeTextIOErrors(t *testing.T) {
 	}
 }
 
-func TestEscapeTextInvalidChar(t *testing.T) {
-	input := []byte("A \x00 terminated string.")
-	expected := "A \uFFFD terminated string."
+var escapeTextTests = []struct {
+	input  []byte
+	expected string
+}{
+	{[]byte("A \" terminated string."), "A &#34; terminated string."},
+	{[]byte(`A ' terminated string.`), "A &#39; terminated string."},
+	{[]byte("A & terminated string."), "A &amp; terminated string."},
+	{[]byte("A < terminated string."), "A &lt; terminated string."},
+	{[]byte("A > terminated string."), "A &gt; terminated string."},
+	{[]byte("A \t terminated string."), "A &#x9; terminated string."},
+	{[]byte("A \n terminated string."), "A &#xA; terminated string."},
+	{[]byte("A \r terminated string."), "A &#xD; terminated string."},
+	{[]byte("A \x00 terminated string."), "A \uFFFD terminated string."},
+}
 
-	buff := new(bytes.Buffer)
-	if err := EscapeText(buff, input); err != nil {
-		t.Fatalf("have %v, want nil", err)
+func TestEscapeText(t *testing.T) {
+	for _, test := range escapeTextTests {
+		buff := new(bytes.Buffer)
+		if err := EscapeText(buff, test.input); err != nil {
+			t.Fatalf("have %v, want nil", err)
+		}
+
+		text := buff.String()
+		if text != test.expected {
+			t.Errorf("have %v, want %v", text, test.expected)
+		}
 	}
-	text := buff.String()
+}
 
-	if text != expected {
-		t.Errorf("have %v, want %v", text, expected)
+func TestEscape(t *testing.T) {
+	for _, test := range escapeTextTests {
+		buff := new(bytes.Buffer)
+		Escape(buff, test.input)
+
+		text := buff.String()
+		if text != test.expected {
+			t.Errorf("have %v, want %v", text, test.expected)
+		}
 	}
 }
 
