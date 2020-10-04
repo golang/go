@@ -331,6 +331,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -416,6 +417,7 @@ TEXT callRet<>(SB), NOSPLIT, $40-0
 
 // These have 8 added to make the overall frame size a multiple of 16,
 // as required by the ABI. (There is another +8 for the saved LR.)
+CALLFN(·call16, 24 )
 CALLFN(·call32, 40 )
 CALLFN(·call64, 72 )
 CALLFN(·call128, 136 )

@@ -308,6 +308,7 @@ TEXT ·reflectcall(SB), NOSPLIT, $0-32
 
 	MOVW argsize+24(FP), R0
 
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -398,6 +399,7 @@ TEXT callRet<>(SB), NOSPLIT, $32-0
 	CALL runtime·reflectcallmove(SB)
 	RET
 
+CALLFN(·call16, 16)
 CALLFN(·call32, 32)
 CALLFN(·call64, 64)
 CALLFN(·call128, 128)
