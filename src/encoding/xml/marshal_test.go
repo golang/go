@@ -2454,6 +2454,28 @@ func TestProcInstEncodeToken(t *testing.T) {
 	}
 }
 
+func TestProcInstEncodeTokenBadNameString(t *testing.T) {
+	tests := []struct {
+		input  ProcInst
+	}{
+		{ProcInst{"\xe6", []byte("Instruction")}},
+		{ProcInst{".", []byte("Instruction")}},
+		{ProcInst{"a\xe6", []byte("Instruction")}},
+	}
+	expectedError := `xml: EncodeToken of ProcInst with invalid Target`
+
+	for _, test := range tests {
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+
+		if err := enc.EncodeToken(test.input); err == nil {
+			t.Fatalf(`expected not receive expected error for input %s`, test.input)
+		} else if err.Error() != expectedError {
+			t.Fatalf(`err.Error() = "%s", want "%s"`, err.Error(), expectedError)
+		}
+	}
+}
+
 func TestDecodeEncode(t *testing.T) {
 	var in, out bytes.Buffer
 	in.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
