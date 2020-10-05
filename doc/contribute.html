@@ -947,10 +947,18 @@ The Gerrit voting system involves an integer in the range -2 to +2:
 	</li>
 </ul>
 
+<p>
+At least two maintainers must approve of the change, and at least one
+of those maintainers must +2 the change.
+The second maintainer may cast a vote of Trust+1, meaning that the
+change looks basically OK, but that the maintainer hasn't done the
+detailed review required for a +2 vote.
+</p>
+
 <h3 id="submit">Submitting an approved change</h3>
 
 <p>
-After the code has been +2'ed, an approver will
+After the code has been +2'ed and Trust+1'ed, an approver will
 apply it to the master branch using the Gerrit user interface.
 This is called "submitting the change".
 </p>
