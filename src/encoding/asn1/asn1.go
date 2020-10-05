@@ -1086,9 +1086,10 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.
 //
-// If the type name of a slice element ends with "SET" then it's treated as if
-// the "set" tag was set on it. This can be used with nested slices where a
-// struct tag cannot be given.
+// If the name of a slice type ends with "SET" then it's treated as if
+// the "set" tag was set on it. This results in interpreting the type as a
+// SET OF x rather than a SEQUENCE OF x. This can be used with nested slices
+// where a struct tag cannot be given.
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
