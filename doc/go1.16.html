@@ -201,6 +201,13 @@ Do not send CLs removing the interior tags from such phrases.
   contain strings with characters within the ASCII range.
 </p>
 
+<p><!-- CL 259697 -->
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
+  verifies the generated certificate's signature using the signer's
+  public key. If the signature is invalid, an error is returned, instead
+  of a malformed certificate.
+</p>
+
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
 
 <p><!-- CL 250357 -->
