@@ -59,12 +59,12 @@ var lock *os.File
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("go_darwin_arm_exec: ")
+	log.SetPrefix("go_ios_exec: ")
 	if debug {
 		log.Println(strings.Join(os.Args, " "))
 	}
 	if len(os.Args) < 2 {
-		log.Fatal("usage: go_darwin_arm_exec a.out")
+		log.Fatal("usage: go_ios_exec a.out")
 	}
 
 	// For compatibility with the old builders, use a fallback bundle ID
@@ -79,7 +79,7 @@ func main() {
 
 func runMain() (int, error) {
 	var err error
-	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
+	tmpdir, err = ioutil.TempDir("", "go_ios_exec_")
 	if err != nil {
 		return 1, err
 	}
@@ -100,7 +100,7 @@ func runMain() (int, error) {
 	//
 	// The lock file is never deleted, to avoid concurrent locks on distinct
 	// files with the same path.
-	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec-"+deviceID+".lock")
+	lockName := filepath.Join(os.TempDir(), "go_ios_exec-"+deviceID+".lock")
 	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return 1, err
