@@ -399,6 +399,7 @@ type common struct {
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
+	inFuzzFn   bool           // Whether the test is executing a Fuzz function
 	finished   bool           // Test function has completed.
 	hasSub     int32          // Written atomically.
 	raceErrors int            // Number of races detected during test.
@@ -681,6 +682,9 @@ func (c *common) setRan() {
 
 // Fail marks the function as having failed but continues execution.
 func (c *common) Fail() {
+	if c.inFuzzFn {
+		panic("testing: f.Fail was called inside the f.Fuzz function")
+	}
 	if c.parent != nil {
 		c.parent.Fail()
 	}
@@ -710,6 +714,9 @@ func (c *common) Failed() bool {
 // created during the test. Calling FailNow does not stop
 // those other goroutines.
 func (c *common) FailNow() {
+	if c.inFuzzFn {
+		panic("testing: f.FailNow was called inside the f.Fuzz function")
+	}
 	c.Fail()
 
 	// Calling runtime.Goexit will exit the goroutine, which
@@ -787,36 +794,54 @@ func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(fo
 
 // Error is equivalent to Log followed by Fail.
 func (c *common) Error(args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Error was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
 // Errorf is equivalent to Logf followed by Fail.
 func (c *common) Errorf(format string, args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Errorf was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
 // Fatal is equivalent to Log followed by FailNow.
 func (c *common) Fatal(args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Fatal was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
 // Fatalf is equivalent to Logf followed by FailNow.
 func (c *common) Fatalf(format string, args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Fatalf was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
 
 // Skip is equivalent to Log followed by SkipNow.
 func (c *common) Skip(args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Skip was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintln(args...))
 	c.SkipNow()
 }
 
 // Skipf is equivalent to Logf followed by SkipNow.
 func (c *common) Skipf(format string, args ...interface{}) {
+	if c.inFuzzFn {
+		panic("testing: f.Skipf was called inside the f.Fuzz function")
+	}
 	c.log(fmt.Sprintf(format, args...))
 	c.SkipNow()
 }
@@ -830,6 +855,9 @@ func (c *common) Skipf(format string, args ...interface{}) {
 // other goroutines created during the test. Calling SkipNow does not stop
 // those other goroutines.
 func (c *common) SkipNow() {
+	if c.inFuzzFn {
+		panic("testing: f.SkipNow was called inside the f.Fuzz function")
+	}
 	c.skip()
 	c.finished = true
 	runtime.Goexit()
@@ -852,6 +880,9 @@ func (c *common) Skipped() bool {
 // When printing file and line information, that function will be skipped.
 // Helper may be called simultaneously from multiple goroutines.
 func (c *common) Helper() {
+	if c.inFuzzFn {
+		panic("testing: f.Helper was called inside the f.Fuzz function")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.helpers == nil {
@@ -864,6 +895,9 @@ func (c *common) Helper() {
 // subtests complete. Cleanup functions will be called in last added,
 // first called order.
 func (c *common) Cleanup(f func()) {
+	if c.inFuzzFn {
+		panic("testing: f.Cleanup was called inside the f.Fuzz function")
+	}
 	var pc [maxStackLen]uintptr
 	// Skip two extra frames to account for this function and runtime.Callers itself.
 	n := runtime.Callers(2, pc[:])
@@ -902,6 +936,9 @@ var tempDirReplacer struct {
 // Each subsequent call to t.TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
+	if c.inFuzzFn {
+		panic("testing: f.TempDir was called inside the f.Fuzz function")
+	}
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.
 	c.tempDirMu.Lock()

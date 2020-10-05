@@ -36,6 +36,27 @@ go test skipped_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
+# Test that f.Fatal within f.Fuzz panics
+! go test fatal_fuzz_fn_fuzz_test.go
+! stdout ^ok
+! stdout 'fatal here'
+stdout FAIL
+stdout illegal
+
+# Test that f.Error within f.Fuzz panics
+! go test error_fuzz_fn_fuzz_test.go
+! stdout ^ok
+! stdout 'error here'
+stdout FAIL
+stdout illegal
+
+# Test that f.Skip within f.Fuzz panics
+! go test skip_fuzz_fn_fuzz_test.go
+! stdout ^ok
+! stdout 'skip here'
+stdout FAIL
+stdout illegal
+
 # Test that multiple calls to f.Fuzz causes a non-zero exit status.
 ! go test multiple_fuzz_calls_fuzz_test.go
 ! stdout ^ok
@@ -102,6 +123,42 @@ import "testing"
 
 func Fuzz(f *testing.F) {
     f.Skip()
+}
+
+-- fatal_fuzz_fn_fuzz_test.go --
+package fatal_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        f.Fatal("fatal here")
+    })
+}
+
+-- error_fuzz_fn_fuzz_test.go --
+package error_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        f.Error("error here")
+    })
+}
+
+-- skip_fuzz_fn_fuzz_test.go --
+package skip_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        f.Skip("skip here")
+    })
 }
 
 -- multiple_fuzz_calls_fuzz_test.go --

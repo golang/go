@@ -87,11 +87,16 @@ func (f *F) Fuzz(ff interface{}) {
 			}
 			if err != nil {
 				t.Fail()
-				t.output = []byte(fmt.Sprintf("    panic: %s\n", err))
+				t.output = []byte(fmt.Sprintf("    %s", err))
 			}
 			f.setRan()
+			f.inFuzzFn = false
 			t.signal <- true // signal that the test has finished
 		}()
+		// TODO(katiehockman, jayconrod): consider replacing inFuzzFn with
+		// general purpose flag that checks whether specific methods can be
+		// called.
+		f.inFuzzFn = true
 		fn(t, b)
 		t.finished = true
 	}
