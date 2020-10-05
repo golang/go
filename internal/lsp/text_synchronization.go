@@ -284,9 +284,6 @@ func (s *Server) wasFirstChange(uri span.URI) bool {
 	s.changedFilesMu.Lock()
 	defer s.changedFilesMu.Unlock()
 
-	if s.changedFiles == nil {
-		s.changedFiles = make(map[span.URI]struct{})
-	}
 	_, ok := s.changedFiles[uri]
 	return !ok
 }

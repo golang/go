@@ -26,6 +26,7 @@ func NewServer(session source.Session, client protocol.Client) *Server {
 		delivered:            make(map[span.URI]sentDiagnostics),
 		gcOptimizatonDetails: make(map[span.URI]struct{}),
 		watchedDirectories:   make(map[span.URI]struct{}),
+		changedFiles:         make(map[span.URI]struct{}),
 		session:              session,
 		client:               client,
 		diagnosticsSema:      make(chan struct{}, concurrentAnalyses),
