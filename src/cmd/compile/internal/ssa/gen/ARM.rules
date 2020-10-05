@@ -1263,8 +1263,8 @@
 (SRLconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
 
 // comparison simplification
-(CMP x (RSBconst [0] y)) => (CMN x y)
-(CMN x (RSBconst [0] y)) => (CMP x y)
+((LT|LE|EQ|NE|GE|GT) (CMP x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMN x y)) // sense of carry bit not preserved
+((LT|LE|EQ|NE|GE|GT) (CMN x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMP x y)) // sense of carry bit not preserved
 (EQ (CMPconst [0] l:(SUB x y)) yes no) && l.Uses==1 => (EQ (CMP x y) yes no)
 (EQ (CMPconst [0] l:(MULS x y a)) yes no) && l.Uses==1 => (EQ (CMP a (MUL <x.Type> x y)) yes no)
 (EQ (CMPconst [0] l:(SUBconst [c] x)) yes no) && l.Uses==1 => (EQ (CMPconst [c] x) yes no)
