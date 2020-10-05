@@ -2512,9 +2512,9 @@ top:
 			// the timers for each P more than once with the same value of now
 			// is probably a waste of time.
 			//
-			// TODO(prattmic): Maintain a global look-aside similar to idlepMask
-			// to avoid looking at p2 if it can't possibly have timers.
-			if stealTimersOrRunNextG {
+			// timerpMask tells us whether the P may have timers at all. If it
+			// can't, no need to check at all.
+			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
 				tnow, w, ran := checkTimers(p2, now)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
@@ -4502,6 +4502,13 @@ func (pp *p) init(id int32) {
 		}
 	}
 	lockInit(&pp.timersLock, lockRankTimers)
+
+	// This P may get timers when it starts running. Set the mask here
+	// since the P may not go through pidleget (notably P 0 on startup).
+	timerpMask.set(id)
+	// Similarly, we may not go through pidleget before this P starts
+	// running if it is P 0 on startup.
+	idlepMask.clear(id)
 }
 
 // destroy releases all of the resources associated with pp and
@@ -4647,11 +4654,16 @@ func procresize(nprocs int32) *p {
 
 		if maskWords <= int32(cap(idlepMask)) {
 			idlepMask = idlepMask[:maskWords]
+			timerpMask = timerpMask[:maskWords]
 		} else {
 			nidlepMask := make([]uint32, maskWords)
 			// No need to copy beyond len, old Ps are irrelevant.
 			copy(nidlepMask, idlepMask)
 			idlepMask = nidlepMask
+
+			ntimerpMask := make([]uint32, maskWords)
+			copy(ntimerpMask, timerpMask)
+			timerpMask = ntimerpMask
 		}
 		unlock(&allpLock)
 	}
@@ -4712,6 +4724,7 @@ func procresize(nprocs int32) *p {
 		lock(&allpLock)
 		allp = allp[:nprocs]
 		idlepMask = idlepMask[:maskWords]
+		timerpMask = timerpMask[:maskWords]
 		unlock(&allpLock)
 	}
 
@@ -5408,37 +5421,68 @@ func globrunqget(_p_ *p, max int32) *g {
 	return gp
 }
 
-// pIdleMask is a bitmap of of Ps in the _Pidle list, one bit per P.
-type pIdleMask []uint32
+// pMask is an atomic bitstring with one bit per P.
+type pMask []uint32
 
-// read returns true if P id is in the _Pidle list, and thus cannot have work.
-func (p pIdleMask) read(id uint32) bool {
+// read returns true if P id's bit is set.
+func (p pMask) read(id uint32) bool {
 	word := id / 32
 	mask := uint32(1) << (id % 32)
 	return (atomic.Load(&p[word]) & mask) != 0
 }
 
-// set sets P id as idle in mask.
-//
-// Must be called only for a P owned by the caller. In order to maintain
-// consistency, a P going idle must the idle mask simultaneously with updates
-// to the idle P list under the sched.lock, otherwise a racing pidleget may
-// clear the mask before pidleput sets the mask, corrupting the bitmap.
-//
-// N.B., procresize takes ownership of all Ps in stopTheWorldWithSema.
-func (p pIdleMask) set(id int32) {
+// set sets P id's bit.
+func (p pMask) set(id int32) {
 	word := id / 32
 	mask := uint32(1) << (id % 32)
 	atomic.Or(&p[word], mask)
 }
 
-// clear sets P id as non-idle in mask.
-//
-// See comment on set.
-func (p pIdleMask) clear(id int32) {
+// clear clears P id's bit.
+func (p pMask) clear(id int32) {
 	word := id / 32
 	mask := uint32(1) << (id % 32)
 	atomic.And(&p[word], ^mask)
+}
+
+// updateTimerPMask clears pp's timer mask if it has no timers on its heap.
+//
+// Ideally, the timer mask would be kept immediately consistent on any timer
+// operations. Unfortunately, updating a shared global data structure in the
+// timer hot path adds too much overhead in applications frequently switching
+// between no timers and some timers.
+//
+// As a compromise, the timer mask is updated only on pidleget / pidleput. A
+// running P (returned by pidleget) may add a timer at any time, so its mask
+// must be set. An idle P (passed to pidleput) cannot add new timers while
+// idle, so if it has no timers at that time, its mask may be cleared.
+//
+// Thus, we get the following effects on timer-stealing in findrunnable:
+//
+// * Idle Ps with no timers when they go idle are never checked in findrunnable
+//   (for work- or timer-stealing; this is the ideal case).
+// * Running Ps must always be checked.
+// * Idle Ps whose timers are stolen must continue to be checked until they run
+//   again, even after timer expiration.
+//
+// When the P starts running again, the mask should be set, as a timer may be
+// added at any time.
+//
+// TODO(prattmic): Additional targeted updates may improve the above cases.
+// e.g., updating the mask when stealing a timer.
+func updateTimerPMask(pp *p) {
+	if atomic.Load(&pp.numTimers) > 0 {
+		return
+	}
+
+	// Looks like there are no timers, however another P may transiently
+	// decrement numTimers when handling a timerModified timer in
+	// checkTimers. We must take timersLock to serialize with these changes.
+	lock(&pp.timersLock)
+	if atomic.Load(&pp.numTimers) == 0 {
+		timerpMask.clear(pp.id)
+	}
+	unlock(&pp.timersLock)
 }
 
 // pidleput puts p to on the _Pidle list.
@@ -5456,6 +5500,7 @@ func pidleput(_p_ *p) {
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
 	}
+	updateTimerPMask(_p_) // clear if there are no timers.
 	idlepMask.set(_p_.id)
 	_p_.link = sched.pidle
 	sched.pidle.set(_p_)
@@ -5473,6 +5518,8 @@ func pidleget() *p {
 
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
+		// Timer may get added at any time now.
+		timerpMask.set(_p_.id)
 		idlepMask.clear(_p_.id)
 		sched.pidle = _p_.link
 		atomic.Xadd(&sched.npidle, -1) // TODO: fast atomic
