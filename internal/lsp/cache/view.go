@@ -1044,7 +1044,7 @@ func (v *View) needsModEqualsMod(ctx context.Context, modURI span.URI, modConten
 	if fi, err := os.Stat(filepath.Join(v.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return true, nil
 	}
-	vendorEnabled := modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
+	vendorEnabled := modFile.Go != nil && modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
 	return !vendorEnabled, nil
 }
 
@@ -1067,13 +1067,6 @@ func determineWorkspaceMode(options *source.Options, validBuildConfiguration boo
 	// The -modfile flag is available for Go versions >= 1.14.
 	if options.TempModfile && ws.goversion >= 14 {
 		mode |= tempModfile
-	}
-	// Don't default to multi-workspace mode if one of the modules contains a
-	// vendor directory. We still have to decide how to handle vendoring.
-	for _, mod := range modules {
-		if info, _ := os.Stat(filepath.Join(mod.rootURI.Filename(), "vendor")); info != nil {
-			return mode
-		}
 	}
 	// If the user is intentionally limiting their workspace scope, don't
 	// enable multi-module workspace mode.
