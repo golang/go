@@ -208,8 +208,8 @@ func IsDir(path string) (bool, error) {
 }
 
 // parentIsOverlayFile returns whether name or any of
-// its parents are directories in the overlay, and the first parent found,
-// including name itself, that's a directory in the overlay.
+// its parents are files in the overlay, and the first parent found,
+// including name itself, that's a file in the overlay.
 func parentIsOverlayFile(name string) (string, bool) {
 	if overlay != nil {
 		// Check if name can't possibly be a directory because
@@ -383,6 +383,80 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 
 	// No go files found in directory.
 	return false, firstErr
+}
+
+// walk recursively descends path, calling walkFn. Copied, with some
+// modifications from path/filepath.walk.
+func walk(path string, info os.FileInfo, walkFn filepath.WalkFunc) error {
+	if !info.IsDir() {
+		return walkFn(path, info, nil)
+	}
+
+	fis, readErr := ReadDir(path)
+	walkErr := walkFn(path, info, readErr)
+	// If readErr != nil, walk can't walk into this directory.
+	// walkErr != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of readErr and walkErr isn't nil, walk will return.
+	if readErr != nil || walkErr != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore readErr and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return walkErr
+	}
+
+	for _, fi := range fis {
+		filename := filepath.Join(path, fi.Name())
+		if walkErr = walk(filename, fi, walkFn); walkErr != nil {
+			if !fi.IsDir() || walkErr != filepath.SkipDir {
+				return walkErr
+			}
+		}
+	}
+	return nil
+}
+
+// Walk walks the file tree rooted at root, calling walkFn for each file or
+// directory in the tree, including root.
+func Walk(root string, walkFn filepath.WalkFunc) error {
+	info, err := lstat(root)
+	if err != nil {
+		err = walkFn(root, nil, err)
+	} else {
+		err = walk(root, info, walkFn)
+	}
+	if err == filepath.SkipDir {
+		return nil
+	}
+	return err
+}
+
+// lstat implements a version of os.Lstat that operates on the overlay filesystem.
+func lstat(path string) (os.FileInfo, error) {
+	cpath := canonicalize(path)
+
+	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
+	}
+
+	node, ok := overlay[cpath]
+	if !ok {
+		// The file or directory is not overlaid.
+		return os.Lstat(cpath)
+	}
+
+	switch {
+	case node.isDeleted():
+		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
+	case node.isDir():
+		return fakeDir(filepath.Base(cpath)), nil
+	default:
+		fi, err := os.Lstat(node.actualFilePath)
+		if err != nil {
+			return nil, err
+		}
+		return fakeFile{name: filepath.Base(cpath), real: fi}, nil
+	}
 }
 
 // fakeFile provides an os.FileInfo implementation for an overlaid file,

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/search"
 
@@ -53,7 +54,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
-		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				m.AddError(err)
 				return nil
