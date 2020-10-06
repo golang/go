@@ -430,16 +430,16 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
-	_, releases, _, err := s.DidModifyFiles(ctx, changes)
+	_, _, releases, _, err := s.DidModifyFiles(ctx, changes)
 	for _, release := range releases {
 		release()
 	}
 	return err
 }
 
-func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, []func(), []span.URI, error) {
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[span.URI]source.View, map[source.View]source.Snapshot, []func(), []span.URI, error) {
 	views := make(map[*View]map[span.URI]source.VersionedFileHandle)
-
+	bestViews := map[span.URI]source.View{}
 	// Keep track of deleted files so that we can clear their diagnostics.
 	// A file might be re-created after deletion, so only mark files that
 	// have truly been deleted.
@@ -447,7 +447,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	var forceReloadMetadata bool
 	for _, c := range changes {
@@ -455,17 +455,32 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			forceReloadMetadata = true
 		}
 
-		// Look through all of the session's views, invalidating the file for
-		// all of the views to which it is known.
+		// Build the list of affected views.
+		bestView, err := s.viewOf(c.URI)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		bestViews[c.URI] = bestView
+
+		var changedViews []*View
 		for _, view := range s.views {
 			// Don't propagate changes that are outside of the view's scope
 			// or knowledge.
 			if !view.relevantChange(c) {
 				continue
 			}
+			changedViews = append(changedViews, view)
+		}
+		// If no view matched the change, assign it to the best view.
+		if len(changedViews) == 0 {
+			changedViews = append(changedViews, bestView)
+		}
+
+		// Apply the changes to all affected views.
+		for _, view := range changedViews {
 			// Make sure that the file is added to the view.
 			if _, err := view.getFile(c.URI); err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]source.VersionedFileHandle)
@@ -480,7 +495,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			} else {
 				fsFile, err := s.cache.getFile(ctx, c.URI)
 				if err != nil {
-					return nil, nil, nil, err
+					return nil, nil, nil, nil, err
 				}
 				fh = &closedFile{fsFile}
 				views[view][c.URI] = fh
@@ -490,18 +505,19 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			}
 		}
 	}
-	var snapshots []source.Snapshot
+
+	snapshots := map[source.View]source.Snapshot{}
 	var releases []func()
 	for view, uris := range views {
 		snapshot, release := view.invalidateContent(ctx, uris, forceReloadMetadata)
-		snapshots = append(snapshots, snapshot)
+		snapshots[view] = snapshot
 		releases = append(releases, release)
 	}
 	var deletionsSlice []span.URI
 	for uri := range deletions {
 		deletionsSlice = append(deletionsSlice, uri)
 	}
-	return snapshots, releases, deletionsSlice, nil
+	return bestViews, snapshots, releases, deletionsSlice, nil
 }
 
 func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {

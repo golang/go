@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/testenv"
 )
 
 const workspaceProxy = `
@@ -455,5 +457,28 @@ replace b.com => %s/modb
 		if want := "modb/b/b.go"; !strings.HasSuffix(newLocation, want) {
 			t.Errorf("expected %s, got %v", want, newLocation)
 		}
+	})
+}
+
+func TestNonWorkspaceFileCreation(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
+
+	const files = `
+-- go.mod --
+module mod.com
+
+-- x.go --
+package x
+`
+
+	const code = `
+package foo
+import "fmt"
+var _ = fmt.Printf
+`
+	run(t, files, func(t *testing.T, env *Env) {
+		env.CreateBuffer("/tmp/foo.go", "")
+		env.EditBuffer("/tmp/foo.go", fake.NewEdit(0, 0, 0, 0, code))
+		env.GoToDefinition("/tmp/foo.go", env.RegexpSearch("/tmp/foo.go", `Printf`))
 	})
 }

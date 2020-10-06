@@ -269,7 +269,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 // with the previously registered set of directories. If the set of directories
 // has changed, we unregister and re-register for file watching notifications.
 // updatedSnapshots is the set of snapshots that have been updated.
-func (s *Server) updateWatchedDirectories(ctx context.Context, updatedSnapshots []source.Snapshot) error {
+func (s *Server) updateWatchedDirectories(ctx context.Context, updatedSnapshots map[source.View]source.Snapshot) error {
 	dirsToWatch := map[span.URI]struct{}{}
 	seenViews := map[source.View]struct{}{}
 
