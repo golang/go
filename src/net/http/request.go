@@ -778,7 +778,11 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	}
 	dot := strings.Index(vers, ".")
 	if dot < 0 {
-		return 0, 0, false
+		major, err := strconv.Atoi(vers[5:])
+		if err != nil || major < 0 || major > Big {
+			return 0, 0, false
+		}
+		return major, 0, true
 	}
 	major, err := strconv.Atoi(vers[5:dot])
 	if err != nil || major < 0 || major > Big {
