@@ -8,7 +8,10 @@
 package fuzz
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -24,9 +27,10 @@ import (
 // parallel is the number of worker processes to run in parallel. If parallel
 // is 0, CoordinateFuzzing will run GOMAXPROCS workers.
 //
-// seed is a list of seed values added by the fuzz target with testing.F.Add.
-// Seed values from testdata and GOFUZZCACHE should not be included in this
-// list; this function loads them separately.
+// seed is a list of seed values added by the fuzz target with testing.F.Add and
+// in testdata.
+// Seed values from GOFUZZCACHE should not be included in this list; this
+// function loads them separately.
 func CoordinateFuzzing(parallel int, seed [][]byte) error {
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
@@ -67,7 +71,6 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 		corpus.entries = append(corpus.entries, corpusEntry{b: []byte{0}})
 	}
 
-	// TODO(jayconrod,katiehockman): read corpus from testdata.
 	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
 
 	// Start workers.
@@ -140,4 +143,28 @@ type coordinator struct {
 	// inputC is sent values to fuzz by the coordinator. Any worker may receive
 	// values from this channel.
 	inputC chan corpusEntry
+}
+
+// ReadCorpus reads the corpus from the testdata directory in this target's
+// package.
+func ReadCorpus(name string) ([][]byte, error) {
+	testdataDir := filepath.Join("testdata/corpus", name)
+	files, err := ioutil.ReadDir(testdataDir)
+	if os.IsNotExist(err) {
+		return nil, nil // No corpus to read
+	} else if err != nil {
+		return nil, fmt.Errorf("testing: reading seed corpus from testdata: %v", err)
+	}
+	var corpus [][]byte
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		bytes, err := ioutil.ReadFile(filepath.Join(testdataDir, file.Name()))
+		if err != nil {
+			return nil, fmt.Errorf("testing: failed to read corpus file: %v", err)
+		}
+		corpus = append(corpus, bytes)
+	}
+	return corpus, nil
 }

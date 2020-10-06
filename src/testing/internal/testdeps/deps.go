@@ -135,3 +135,7 @@ func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte) error {
 func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
 	return fuzz.RunFuzzWorker(fn)
 }
+
+func (TestDeps) ReadCorpus(name string) ([][]byte, error) {
+	return fuzz.ReadCorpus(name)
+}

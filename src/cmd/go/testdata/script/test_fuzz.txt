@@ -1,5 +1,10 @@
+# Test that calling f.Error in a fuzz target causes a non-zero exit status.
+! go test -fuzz Fuzz error_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
 # Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
-! go test fail_fuzz_test.go
+! go test fatal_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
@@ -9,7 +14,7 @@ stdout ok
 ! stdout FAIL
 
 # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
-! go test -fuzz Fuzz fail_fuzz_test.go
+! go test -fuzz Fuzz fatal_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
@@ -96,12 +101,39 @@ stdout 'off by one error'
 ! stdout ^ok
 stdout FAIL
 
--- fail_fuzz_test.go --
-package fail_fuzz
+# Test fatal with testdata seed corpus
+! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'fatal here'
+
+# Test pass with testdata seed corpus
+go test -run FuzzPass corpustesting/fuzz_testdata_corpus_test.go
+stdout ok
+! stdout FAIL
+! stdout 'fatal here'
+
+# Test pass with file in other nested testdata directory
+go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
+stdout ok
+! stdout FAIL
+! stdout 'fatal here'
+
+-- error_fuzz_test.go --
+package error_fuzz
 
 import "testing"
 
-func FuzzFail(f *testing.F) {
+func Fuzz(f *testing.F) {
+    f.Error("error in target")
+}
+
+-- fatal_fuzz_test.go --
+package fatal_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
     f.Fatal("fatal in target")
 }
 
@@ -260,3 +292,36 @@ func FuzzNilPanic(f *testing.F) {
         }
     })
 }
+
+-- corpustesting/fuzz_testdata_corpus_test.go --
+package fuzz_testdata_corpus
+
+import "testing"
+
+func fuzzFn(f *testing.F) {
+    f.Helper()
+    f.Fuzz(func(t *testing.T, b []byte) {
+        if string(b) == "12345\n" {
+            t.Fatal("fatal here")
+        }
+    })
+}
+
+func FuzzFail(f *testing.F) {
+    fuzzFn(f)
+}
+
+func FuzzPass(f *testing.F) {
+    fuzzFn(f)
+}
+
+func FuzzInNestedDir(f *testing.F) {
+    fuzzFn(f)
+}
+
+-- corpustesting/testdata/corpus/FuzzFail/1 --
+12345
+-- corpustesting/testdata/corpus/FuzzPass/1 --
+00000
+-- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
+12345
