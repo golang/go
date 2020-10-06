@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/xerrors"
+	errors "golang.org/x/xerrors"
 )
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
@@ -35,16 +35,18 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 
 	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
 	// Don't return references for builtin types.
-	if xerrors.Is(err, errBuiltin) {
+	if errors.Is(err, errBuiltin) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	refs, err := references(ctx, s, qualifiedObjs, includeDeclaration)
+
+	refs, err := references(ctx, s, qualifiedObjs, includeDeclaration, true)
 	if err != nil {
 		return nil, err
 	}
+
 	toSort := refs
 	if includeDeclaration {
 		toSort = refs[1:]
@@ -60,32 +62,33 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 }
 
 // references is a helper function to avoid recomputing qualifiedObjsAtProtocolPos.
-func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration bool) ([]*ReferenceInfo, error) {
+func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo
 		seen       = make(map[token.Position]bool)
 	)
 
+	filename := snapshot.FileSet().Position(qos[0].obj.Pos()).Filename
+	pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
+	if err != nil {
+		return nil, err
+	}
+	declIdent, err := findIdentifier(ctx, snapshot, qos[0].pkg, pgf.File, qos[0].obj.Pos())
+	if err != nil {
+		return nil, err
+	}
 	// Make sure declaration is the first item in the response.
 	if includeDeclaration {
-		filename := snapshot.FileSet().Position(qos[0].obj.Pos()).Filename
-		pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
-		if err != nil {
-			return nil, err
-		}
-		ident, err := findIdentifier(ctx, snapshot, qos[0].pkg, pgf.File, qos[0].obj.Pos())
-		if err != nil {
-			return nil, err
-		}
 		references = append(references, &ReferenceInfo{
-			MappedRange:   ident.MappedRange,
+			MappedRange:   declIdent.MappedRange,
 			Name:          qos[0].obj.Name(),
-			ident:         ident.ident,
+			ident:         declIdent.ident,
 			obj:           qos[0].obj,
-			pkg:           ident.pkg,
+			pkg:           declIdent.pkg,
 			isDeclaration: true,
 		})
 	}
+
 	for _, qo := range qos {
 		var searchPkgs []Package
 
@@ -123,5 +126,44 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 			}
 		}
 	}
+
+	if includeInterfaceRefs {
+		declRange, err := declIdent.Range()
+		if err != nil {
+			return nil, err
+		}
+		fh, err := snapshot.GetFile(ctx, declIdent.URI())
+		if err != nil {
+			return nil, err
+		}
+		interfaceRefs, err := interfaceReferences(ctx, snapshot, fh, declRange.Start)
+		if err != nil {
+			return nil, err
+		}
+		references = append(references, interfaceRefs...)
+	}
+
 	return references, nil
+}
+
+// interfaceReferences returns the references to the interfaces implemeneted by
+// the type or method at the given position.
+func interfaceReferences(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]*ReferenceInfo, error) {
+	implementations, err := implementations(ctx, s, f, pp)
+	if err != nil {
+		if errors.Is(err, ErrNotAType) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var refs []*ReferenceInfo
+	for _, impl := range implementations {
+		implRefs, err := references(ctx, s, []qualifiedObject{impl}, false, false)
+		if err != nil {
+			return nil, err
+		}
+		refs = append(refs, implRefs...)
+	}
+	return refs, nil
 }
