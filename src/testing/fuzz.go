@@ -44,6 +44,14 @@ type corpusEntry struct {
 	b []byte
 }
 
+func bytesToCorpus(bytes [][]byte) []corpusEntry {
+	c := make([]corpusEntry, len(bytes))
+	for i, b := range bytes {
+		c[i].b = b
+	}
+	return c
+}
+
 // Add will add the arguments to the seed corpus for the fuzz target. This will
 // be a no-op if called after or within the Fuzz function. The args must match
 // those in the Fuzz function.
@@ -75,6 +83,14 @@ func (f *F) Fuzz(ff interface{}) {
 	if !ok {
 		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
 	}
+
+	// Load seed corpus
+	c, err := f.context.readCorpus(f.name)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.corpus = append(f.corpus, bytesToCorpus(c)...)
+	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
 
 	defer runtime.Goexit() // exit after this function
 
@@ -187,22 +203,22 @@ func (f *F) report() {
 }
 
 // run runs each fuzz target in its own goroutine with its own *F.
-func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
-	innerF := &F{
+func (f *F) run(ft InternalFuzzTarget) (ran, ok bool) {
+	f = &F{
 		common: common{
 			signal: make(chan bool),
-			name:   name,
+			name:   ft.Name,
 			chatty: f.chatty,
 			w:      f.w,
 		},
 		context: f.context,
 	}
-	if innerF.chatty != nil {
-		innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
+	if f.chatty != nil {
+		f.chatty.Updatef(ft.Name, "=== RUN   %s\n", ft.Name)
 	}
-	go innerF.runTarget(fn)
-	<-innerF.signal
-	return innerF.ran, !innerF.failed
+	go f.runTarget(ft.Fn)
+	<-f.signal
+	return f.ran, !f.failed
 }
 
 // runTarget runs the given target, handling panics and exits
@@ -254,17 +270,21 @@ type fuzzContext struct {
 	fuzzMatch         *matcher
 	coordinateFuzzing func(int, [][]byte) error
 	runFuzzWorker     func(func([]byte) error) error
+	readCorpus        func(string) ([][]byte, error)
 }
 
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
 // only run the f.Fuzz function for each seed corpus without using the fuzzing
 // engine to generate or mutate inputs.
-func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
 	ok = true
 	if len(fuzzTargets) == 0 || *isFuzzWorker {
 		return ran, ok
 	}
-	ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
+	ctx := &fuzzContext{
+		runMatch:   newMatcher(deps.MatchString, *match, "-test.run"),
+		readCorpus: deps.ReadCorpus,
+	}
 	var fts []InternalFuzzTarget
 	for _, ft := range fuzzTargets {
 		if _, matched, _ := ctx.runMatch.fullName(nil, ft.Name); matched {
@@ -278,7 +298,7 @@ func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
 		fuzzFunc: func(f *F) {
 			for _, ft := range fts {
 				// Run each fuzz target in it's own goroutine.
-				ftRan, ftOk := f.run(ft.Name, ft.Fn)
+				ftRan, ftOk := f.run(ft)
 				ran = ran || ftRan
 				ok = ok && ftOk
 			}
@@ -302,7 +322,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
 		return false, true
 	}
-	ctx := &fuzzContext{fuzzMatch: newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")}
+	ctx := &fuzzContext{
+		fuzzMatch:  newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz"),
+		readCorpus: deps.ReadCorpus,
+	}
 	if *isFuzzWorker {
 		ctx.runFuzzWorker = deps.RunFuzzWorker
 	} else {
