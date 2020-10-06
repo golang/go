@@ -7,6 +7,7 @@ package search
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"fmt"
 	"go/build"
 	"os"
@@ -127,7 +128,7 @@ func (m *Match) MatchPackages() {
 		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
-		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
 			}
@@ -263,8 +264,7 @@ func (m *Match) MatchDirs() {
 		}
 	}
 
-	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
-		// TODO(#39958): Handle walk for overlays.
+	err := fsys.Walk(dir, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
 		}
@@ -273,7 +273,7 @@ func (m *Match) MatchDirs() {
 		}
 		top := false
 		if path == dir {
-			// filepath.Walk starts at dir and recurses. For the recursive case,
+			// Walk starts at dir and recurses. For the recursive case,
 			// the path is the result of filepath.Join, which calls filepath.Clean.
 			// The initial case is not Cleaned, though, so we do this explicitly.
 			//
