@@ -81,7 +81,16 @@ func Search(n int, f func(int) bool) int {
 // The slice must be sorted in ascending order.
 //
 func SearchInts(a []int, x int) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	i, j := 0, len(a)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
 }
 
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
@@ -90,7 +99,16 @@ func SearchInts(a []int, x int) int {
 // The slice must be sorted in ascending order.
 //
 func SearchFloat64s(a []float64, x float64) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	i, j := 0, len(a)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
 }
 
 // SearchStrings searches for x in a sorted slice of strings and returns the index
@@ -99,7 +117,16 @@ func SearchFloat64s(a []float64, x float64) int {
 // The slice must be sorted in ascending order.
 //
 func SearchStrings(a []string, x string) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	i, j := 0, len(a)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
 }
 
 // Search returns the result of applying SearchInts to the receiver and x.
