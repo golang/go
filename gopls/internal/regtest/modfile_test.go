@@ -647,3 +647,34 @@ func main() {
 		)
 	})
 }
+
+func TestModTidyWithBuildTags(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main.go --
+// +build bob
+
+package main
+
+import "example.com/blah"
+
+func main() {
+	blah.SaySomething()
+}
+`
+	withOptions(
+		WithProxyFiles(workspaceProxy),
+		EditorConfig{
+			BuildFlags: []string{"-tags", "bob"},
+		},
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+		)
+	})
+}

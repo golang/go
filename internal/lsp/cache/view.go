@@ -338,7 +338,6 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 	}
 	goVersion, err := s.view.session.gocmdRunner.Run(ctx, gocommand.Invocation{
 		Verb:       "version",
-		BuildFlags: buildFlags,
 		Env:        env,
 		WorkingDir: s.view.rootURI.Filename(),
 	})

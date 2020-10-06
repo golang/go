@@ -58,7 +58,8 @@ func (b buffer) text() string {
 //
 // The zero value for EditorConfig should correspond to its defaults.
 type EditorConfig struct {
-	Env map[string]string
+	Env        map[string]string
+	BuildFlags []string
 
 	// CodeLens is a map defining whether codelens are enabled, keyed by the
 	// codeLens command. CodeLens which are not present in this map are left in
@@ -183,6 +184,10 @@ func (e *Editor) configuration() map[string]interface{} {
 		"env":                     e.overlayEnv(),
 		"expandWorkspaceToModule": !e.Config.LimitWorkspaceScope,
 		"completionBudget":        "10s",
+	}
+
+	if e.Config.BuildFlags != nil {
+		config["buildFlags"] = e.Config.BuildFlags
 	}
 
 	if e.Config.CodeLens != nil {
