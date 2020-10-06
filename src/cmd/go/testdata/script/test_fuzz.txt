@@ -41,21 +41,21 @@ stdout ok
 ! stdout ^ok
 ! stdout 'fatal here'
 stdout FAIL
-stdout illegal
+stdout 'f.Fuzz function'
 
 # Test that f.Error within f.Fuzz panics
 ! go test error_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'error here'
 stdout FAIL
-stdout illegal
+stdout 'f.Fuzz function'
 
 # Test that f.Skip within f.Fuzz panics
 ! go test skip_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'skip here'
 stdout FAIL
-stdout illegal
+stdout 'f.Fuzz function'
 
 # Test that multiple calls to f.Fuzz causes a non-zero exit status.
 ! go test multiple_fuzz_calls_fuzz_test.go
