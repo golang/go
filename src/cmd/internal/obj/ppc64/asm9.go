@@ -2159,7 +2159,7 @@ func AOP_DQ(op uint32, d uint32, a uint32, b uint32) uint32 {
 
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
-	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<9
 }
 
 /* X-form, 3-register operands + EH field */
