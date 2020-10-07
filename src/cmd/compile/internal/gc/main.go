@@ -968,9 +968,10 @@ func readSymABIs(file, myimportpath string) {
 			if len(parts) != 3 {
 				log.Fatalf(`%s:%d: invalid symabi: syntax is "%s sym abi"`, file, lineNum, parts[0])
 			}
-			sym, abi := parts[1], parts[2]
-			if abi != "ABI0" { // Only supported external ABI right now
-				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abi)
+			sym, abistr := parts[1], parts[2]
+			abi, valid := obj.ParseABI(abistr)
+			if !valid {
+				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abistr)
 			}
 
 			// If the symbol is already prefixed with
@@ -983,9 +984,9 @@ func readSymABIs(file, myimportpath string) {
 
 			// Record for later.
 			if parts[0] == "def" {
-				symabiDefs[sym] = obj.ABI0
+				symabiDefs[sym] = abi
 			} else {
-				symabiRefs[sym] = obj.ABI0
+				symabiRefs[sym] = abi
 			}
 		default:
 			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])

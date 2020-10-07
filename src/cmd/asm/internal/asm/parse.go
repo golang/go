@@ -25,25 +25,26 @@ import (
 )
 
 type Parser struct {
-	lex           lex.TokenReader
-	lineNum       int   // Line number in source file.
-	errorLine     int   // Line number of last error.
-	errorCount    int   // Number of errors.
-	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
-	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
-	input         []lex.Token
-	inputPos      int
-	pendingLabels []string // Labels to attach to next instruction.
-	labels        map[string]*obj.Prog
-	toPatch       []Patch
-	addr          []obj.Addr
-	arch          *arch.Arch
-	ctxt          *obj.Link
-	firstProg     *obj.Prog
-	lastProg      *obj.Prog
-	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
-	isJump        bool             // Instruction being assembled is a jump.
-	errorWriter   io.Writer
+	lex              lex.TokenReader
+	lineNum          int   // Line number in source file.
+	errorLine        int   // Line number of last error.
+	errorCount       int   // Number of errors.
+	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
+	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+	input            []lex.Token
+	inputPos         int
+	pendingLabels    []string // Labels to attach to next instruction.
+	labels           map[string]*obj.Prog
+	toPatch          []Patch
+	addr             []obj.Addr
+	arch             *arch.Arch
+	ctxt             *obj.Link
+	firstProg        *obj.Prog
+	lastProg         *obj.Prog
+	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
+	isJump           bool             // Instruction being assembled is a jump.
+	compilingRuntime bool
+	errorWriter      io.Writer
 }
 
 type Patch struct {
@@ -51,14 +52,15 @@ type Patch struct {
 	label string
 }
 
-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
 	return &Parser{
-		ctxt:        ctxt,
-		arch:        ar,
-		lex:         lexer,
-		labels:      make(map[string]*obj.Prog),
-		dataAddr:    make(map[string]int64),
-		errorWriter: os.Stderr,
+		ctxt:             ctxt,
+		arch:             ar,
+		lex:              lexer,
+		labels:           make(map[string]*obj.Prog),
+		dataAddr:         make(map[string]int64),
+		errorWriter:      os.Stderr,
+		compilingRuntime: compilingRuntime,
 	}
 }
 
@@ -310,8 +312,8 @@ func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
 		// Defines text symbol in operands[0].
 		if len(operands) > 0 {
 			p.start(operands[0])
-			if name, ok := p.funcAddress(); ok {
-				fmt.Fprintf(w, "def %s ABI0\n", name)
+			if name, abi, ok := p.funcAddress(); ok {
+				fmt.Fprintf(w, "def %s %s\n", name, abi)
 			}
 		}
 		return
@@ -329,8 +331,8 @@ func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
 	// Search for symbol references.
 	for _, op := range operands {
 		p.start(op)
-		if name, ok := p.funcAddress(); ok {
-			fmt.Fprintf(w, "ref %s ABI0\n", name)
+		if name, abi, ok := p.funcAddress(); ok {
+			fmt.Fprintf(w, "ref %s %s\n", name, abi)
 		}
 	}
 }
@@ -765,20 +767,19 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	case '*':
 		a.Type = obj.TYPE_INDIR
 	}
-	// Weirdness with statics: Might now have "<>".
-	isStatic := false
-	if p.peek() == '<' {
-		isStatic = true
-		p.next()
-		p.get('>')
-	}
+
+	// Parse optional <> (indicates a static symbol) or
+	// <ABIxxx> (selecting text symbol with specific ABI).
+	doIssueError := true
+	isStatic, abi := p.symRefAttrs(name, doIssueError)
+
 	if p.peek() == '+' || p.peek() == '-' {
 		a.Offset = int64(p.expr())
 	}
 	if isStatic {
 		a.Sym = p.ctxt.LookupStatic(name)
 	} else {
-		a.Sym = p.ctxt.Lookup(name)
+		a.Sym = p.ctxt.LookupABI(name, abi)
 	}
 	if p.peek() == scanner.EOF {
 		if prefix == 0 && p.isJump {
@@ -823,12 +824,60 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 	}
 }
 
+// symRefAttrs parses an optional function symbol attribute clause for
+// the function symbol 'name', logging an error for a malformed
+// attribute clause if 'issueError' is true. The return value is a
+// (boolean, ABI) pair indicating that the named symbol is either
+// static or a particular ABI specification.
+//
+// The expected form of the attribute clause is:
+//
+// empty,           yielding (false, obj.ABI0)
+// "<>",            yielding (true,  obj.ABI0)
+// "<ABI0>"         yielding (false, obj.ABI0)
+// "<ABIInternal>"  yielding (false, obj.ABIInternal)
+//
+// Anything else beginning with "<" logs an error if issueError is
+// true, otherwise returns (false, obj.ABI0).
+//
+func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
+	abi := obj.ABI0
+	isStatic := false
+	if p.peek() != '<' {
+		return isStatic, abi
+	}
+	p.next()
+	tok := p.peek()
+	if tok == '>' {
+		isStatic = true
+	} else if tok == scanner.Ident {
+		abistr := p.get(scanner.Ident).String()
+		if !p.compilingRuntime {
+			if issueError {
+				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
+			}
+		} else {
+			theabi, valid := obj.ParseABI(abistr)
+			if !valid {
+				if issueError {
+					p.errorf("malformed ABI selector %q in reference to %q",
+						abistr, name)
+				}
+			} else {
+				abi = theabi
+			}
+		}
+	}
+	p.get('>')
+	return isStatic, abi
+}
+
 // funcAddress parses an external function address. This is a
 // constrained form of the operand syntax that's always SB-based,
 // non-static, and has at most a simple integer offset:
 //
-//    [$|*]sym[+Int](SB)
-func (p *Parser) funcAddress() (string, bool) {
+//    [$|*]sym[<abi>][+Int](SB)
+func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	switch p.peek() {
 	case '$', '*':
 		// Skip prefix.
@@ -838,25 +887,32 @@ func (p *Parser) funcAddress() (string, bool) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
-		return "", false
+		return "", obj.ABI0, false
+	}
+	// Parse optional <> (indicates a static symbol) or
+	// <ABIxxx> (selecting text symbol with specific ABI).
+	noErrMsg := false
+	isStatic, abi := p.symRefAttrs(name, noErrMsg)
+	if isStatic {
+		return "", obj.ABI0, false // This function rejects static symbols.
 	}
 	tok = p.next()
 	if tok.ScanToken == '+' {
 		if p.next().ScanToken != scanner.Int {
-			return "", false
+			return "", obj.ABI0, false
 		}
 		tok = p.next()
 	}
 	if tok.ScanToken != '(' {
-		return "", false
+		return "", obj.ABI0, false
 	}
 	if reg := p.next(); reg.ScanToken != scanner.Ident || reg.String() != "SB" {
-		return "", false
+		return "", obj.ABI0, false
 	}
 	if p.next().ScanToken != ')' || p.peek() != scanner.EOF {
-		return "", false
+		return "", obj.ABI0, false
 	}
-	return name, true
+	return name, abi, true
 }
 
 // registerIndirect parses the general form of a register indirection.
