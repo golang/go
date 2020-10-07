@@ -53,6 +53,13 @@ func TestSetOption(t *testing.T) {
 			value: map[string]interface{}{"generate": true},
 			check: func(o Options) bool { return o.Codelens["generate"] },
 		},
+		{
+			name:  "allExperiments",
+			value: true,
+			check: func(o Options) bool {
+				return true // just confirm that we handle this setting
+			},
+		},
 	}
 
 	for _, test := range tests {

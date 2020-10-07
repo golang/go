@@ -698,6 +698,10 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "experimentalDiagnosticsDelay":
 		result.setDuration(&o.ExperimentalDiagnosticsDelay)
 
+	case "allExperiments":
+		// This setting should be handled before all of the other options are
+		// processed, so do nothing here.
+
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":
 		result.State = OptionDeprecated
