@@ -25,6 +25,7 @@ import (
 	. "cmd/compile/internal/types2"
 )
 
+var fset = token.NewFileSet()
 var stdLibImporter = defaultImporter()
 
 func TestStdlib(t *testing.T) {

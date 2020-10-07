@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"go/token"
 	"path/filepath"
 	"testing"
 	"time"
@@ -18,10 +17,8 @@ import (
 
 var benchmark = flag.Bool("b", false, "run benchmarks")
 
-var fset = token.NewFileSet()
-
 func TestSelf(t *testing.T) {
-	files, err := pkgFiles(fset, ".")
+	files, err := pkgFiles(".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,8 +52,7 @@ func TestBenchmark(t *testing.T) {
 }
 
 func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
-	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path)
+	files, err := pkgFiles(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +65,10 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	})
 
 	// determine line count
-	lines := 0
-	fset.Iterate(func(f *token.File) bool {
-		lines += f.LineCount()
-		return true
-	})
+	var lines uint
+	for _, f := range files {
+		lines += f.EOF.Line()
+	}
 
 	d := time.Duration(b.NsPerOp())
 	fmt.Printf(
@@ -82,7 +77,7 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	)
 }
 
-func pkgFiles(fset *token.FileSet, path string) ([]*syntax.File, error) {
+func pkgFiles(path string) ([]*syntax.File, error) {
 	filenames, err := pkgFilenames(path) // from stdlib_test.go
 	if err != nil {
 		return nil, err
