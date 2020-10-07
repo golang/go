@@ -181,6 +181,7 @@ main.x: relocation target main.zero not defined
 func TestIssue33979(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
+	testenv.MustInternalLink(t)
 
 	// Skip test on platforms that do not support cgo internal linking.
 	switch runtime.GOARCH {
