@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -28,12 +29,11 @@ type InternalFuzzTarget struct {
 // F is a type passed to fuzz targets for fuzz testing.
 type F struct {
 	common
-	context    *fuzzContext
-	corpus     []corpusEntry // corpus is the in-memory corpus
-	result     FuzzResult    // result is the result of running the fuzz target
-	fuzzFunc   func(f *F)    // fuzzFunc is the function which makes up the fuzz target
-	fuzz       bool          // fuzz indicates whether the fuzzing engine should run
-	fuzzCalled bool          // fuzzCalled indicates whether f.Fuzz has been called for this target
+	context  *fuzzContext
+	corpus   []corpusEntry // corpus is the in-memory corpus
+	result   FuzzResult    // result is the result of running the fuzz target
+	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
+	fuzz     bool          // fuzz indicates whether the fuzzing engine should run
 }
 
 // corpus corpusEntry
@@ -61,20 +61,19 @@ func (f *F) Add(args ...interface{}) {
 	}
 }
 
-// Fuzz runs the fuzz function, ff, for fuzz testing. It runs ff in a separate
-// goroutine. Only the first call to Fuzz will be executed, and any subsequent
-// calls will panic. If ff fails for a set of arguments, those arguments will be
-// added to the seed corpus.
+// Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
+// arguments, those arguments will be added to the seed corpus.
+//
+// This is a terminal function which will terminate the currently running fuzz
+// target by calling runtime.Goexit. To run any code after this function, use
+// Cleanup.
 func (f *F) Fuzz(ff interface{}) {
-	if f.fuzzCalled {
-		panic("testing: found more than one call to Fuzz, will skip")
-	}
-	f.fuzzCalled = true
-
 	fn, ok := ff.(func(*T, []byte))
 	if !ok {
 		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
 	}
+
+	defer runtime.Goexit() // exit after this function
 
 	var errStr string
 	run := func(t *T, b []byte) {
@@ -118,6 +117,7 @@ func (f *F) Fuzz(ff interface{}) {
 			errStr += string(t.output)
 		}
 	}
+	f.finished = true
 	if f.Failed() {
 		f.result = FuzzResult{Error: errors.New(errStr)}
 		return
@@ -169,12 +169,13 @@ func (f *F) runTarget(fn func(*F)) {
 		}
 		if err != nil {
 			f.Fail()
-			f.result = FuzzResult{Error: fmt.Errorf("%s", err)}
+			f.result = FuzzResult{Error: fmt.Errorf("    %s", err)}
 		}
 		f.report()
 		f.setRan()
 		f.signal <- true // signal that the test has finished
 	}()
+	defer f.runCleanup(normalPanic)
 	fn(f)
 	f.finished = true
 }

@@ -57,15 +57,21 @@ stdout 'f.Fuzz function'
 stdout FAIL
 stdout 'f.Fuzz function'
 
-# Test that multiple calls to f.Fuzz causes a non-zero exit status.
-! go test multiple_fuzz_calls_fuzz_test.go
-! stdout ^ok
-stdout FAIL
+# Test that a call to f.Fatal after the Fuzz func is never executed.
+go test fatal_after_fuzz_func_fuzz_test.go
+stdout ok
+! stdout FAIL
 
 # Test that missing *T in f.Fuzz causes a non-zero exit status.
 ! go test incomplete_fuzz_call_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
+
+# Test that a panic in the Cleanup func is executed.
+! go test cleanup_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'failed some precondition'
 
 # Test success with seed corpus in f.Fuzz
 go test -run FuzzPass fuzz_add_test.go
@@ -161,8 +167,8 @@ func Fuzz(f *testing.F) {
     })
 }
 
--- multiple_fuzz_calls_fuzz_test.go --
-package multiple_fuzz_calls_fuzz
+-- fatal_after_fuzz_func_fuzz_test.go --
+package fatal_after_fuzz_func_fuzz
 
 import "testing"
 
@@ -170,10 +176,7 @@ func Fuzz(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {
         // no-op
     })
-
-    f.Fuzz(func(t *testing.T, b []byte) {
-        // this second call should panic
-    })
+    f.Fatal("this shouldn't be called")
 }
 
 -- incomplete_fuzz_call_fuzz_test.go --
@@ -184,6 +187,20 @@ import "testing"
 func Fuzz(f *testing.F) {
     f.Fuzz(func(b []byte) {
         // this is missing *testing.T as the first param, so should panic
+    })
+}
+
+-- cleanup_fuzz_test.go --
+package cleanup_fuzz_test
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Cleanup(func() {
+        panic("failed some precondition")
+    })
+    f.Fuzz(func(t *testing.T, b []byte) {
+        // no-op
     })
 }
 
