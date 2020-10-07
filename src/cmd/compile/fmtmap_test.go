@@ -151,6 +151,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/syntax.ChanDir %d":          "",
 	"cmd/compile/internal/syntax.Decl %T":             "",
 	"cmd/compile/internal/syntax.Error %q":            "",
+	"cmd/compile/internal/syntax.Error %v":            "",
 	"cmd/compile/internal/syntax.Expr %#v":            "",
 	"cmd/compile/internal/syntax.Expr %T":             "",
 	"cmd/compile/internal/syntax.Expr %s":             "",

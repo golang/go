@@ -93,14 +93,3 @@ func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mod
 	defer f.Close()
 	return Parse(NewFileBase(filename), f, errh, pragh, mode)
 }
-
-// CommentsDo parses the given source and calls the provided handler for each
-// comment or error. If the text provided to handler starts with a '/' it is
-// the comment text; otherwise it is the error message.
-func CommentsDo(src io.Reader, handler func(line, col uint, text string)) {
-	var s scanner
-	s.init(src, handler, comments)
-	for s.tok != _EOF {
-		s.next()
-	}
-}
