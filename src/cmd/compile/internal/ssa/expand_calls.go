@@ -283,7 +283,7 @@ func expandCalls(f *Func) {
 				// TODO this will be more complicated with registers in the picture.
 				src := a.Args[0]
 				dst := f.ConstOffPtrSP(src.Type, aux.OffsetOfArg(auxI), sp)
-				if a.Uses == 1 {
+				if a.Uses == 1 && a.Block == v.Block {
 					a.reset(OpMove)
 					a.Pos = pos
 					a.Type = types.TypeMem
@@ -292,7 +292,7 @@ func expandCalls(f *Func) {
 					a.SetArgs3(dst, src, mem)
 					mem = a
 				} else {
-					mem = a.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, src, mem)
+					mem = v.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, src, mem)
 					mem.AuxInt = aux.SizeOfArg(auxI)
 				}
 			} else {
