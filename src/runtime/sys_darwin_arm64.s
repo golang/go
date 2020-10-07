@@ -707,3 +707,23 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
 	MOVD	R0, 72(R2)	// save err
 ok:
 	RET
+
+// syscallNoErr is like syscall6 but does not check for errors, and
+// only returns one value, for use with standard C ABI library functions.
+TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R0, (RSP)
+
+	MOVD	0(R0), R12	// fn
+	MOVD	16(R0), R1	// a2
+	MOVD	24(R0), R2	// a3
+	MOVD	32(R0), R3	// a4
+	MOVD	40(R0), R4	// a5
+	MOVD	48(R0), R5	// a6
+	MOVD	8(R0), R0	// a1
+	BL	(R12)
+
+	MOVD	(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 56(R2)	// save r1
+	RET
