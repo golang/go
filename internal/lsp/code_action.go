@@ -53,7 +53,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
 			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
-			if err == source.ErrTmpModfileUnsupported {
+			if source.IsNonFatalGoModError(err) {
 				return nil, nil
 			}
 			if err != nil {
@@ -63,7 +63,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		}
 		if wanted[protocol.SourceOrganizeImports] {
 			action, err := goModTidy(ctx, snapshot, fh)
-			if err == source.ErrTmpModfileUnsupported {
+			if source.IsNonFatalGoModError(err) {
 				return nil, nil
 			}
 			if err != nil {
@@ -135,7 +135,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				// If there are any diagnostics relating to the go.mod file,
 				// add their corresponding quick fixes.
 				modQuickFixes, err := moduleQuickFixes(ctx, snapshot, fh, diagnostics)
-				if err != nil {
+				if source.IsNonFatalGoModError(err) {
 					// Not a fatal error.
 					event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
 				}
@@ -470,9 +470,6 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 		}
 	}
 	tidied, err := snapshot.ModTidy(ctx, modFH)
-	if err == source.ErrTmpModfileUnsupported {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}

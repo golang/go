@@ -165,7 +165,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil, nil
 	}
 	if modErr != nil {
-		event.Error(ctx, "warning: diagnose go.mod", modErr, tag.Directory.Of(snapshot.View().Folder().Filename()))
+		event.Error(ctx, "warning: diagnose go.mod", modErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
 	}
 	for id, diags := range modReports {
 		if id.URI == "" {

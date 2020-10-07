@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestEditFile(t *testing.T) {
@@ -583,7 +584,7 @@ func main() {
 
 // Reproduces golang/go#40340.
 func TestSwitchFromGOPATHToModules(t *testing.T) {
-	t.Skip("golang/go#40340 is not yet resolved.")
+	testenv.NeedsGo1Point(t, 13)
 
 	const files = `
 -- foo/blah/blah.go --
@@ -599,7 +600,10 @@ func main() {
 	_ = blah.Name
 }
 `
-	withOptions(InGOPATH()).run(t, files, func(t *testing.T, env *Env) {
+	withOptions(
+		InGOPATH(),
+		WithModes(Experimental), // module is in a subdirectory
+	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/main.go")
 		env.Await(env.DiagnosticAtRegexp("foo/main.go", `"blah"`))
 		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}); err != nil {
@@ -608,15 +612,12 @@ func main() {
 		env.Await(
 			OnceMet(
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
-				env.DiagnosticAtRegexp("foo/main.go", `"blah`),
+				env.DiagnosticAtRegexp("foo/main.go", `"blah"`),
 			),
 		)
 		env.RegexpReplace("foo/main.go", `"blah"`, `"mod.com/blah"`)
 		env.Await(
-			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
-				NoDiagnostics("foo/main.go"),
-			),
+			EmptyDiagnostics("foo/main.go"),
 		)
 	})
 }

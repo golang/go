@@ -342,6 +342,11 @@ func (a FileAction) String() string {
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")
+var ErrNoModOnDisk = errors.New("go.mod file is not on disk")
+
+func IsNonFatalGoModError(err error) bool {
+	return err == ErrTmpModfileUnsupported || err == ErrNoModOnDisk
+}
 
 // ParseMode controls the content of the AST produced when parsing a source file.
 type ParseMode int

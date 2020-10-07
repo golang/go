@@ -15,8 +15,7 @@ import (
 )
 
 type importsState struct {
-	view *View
-	ctx  context.Context
+	ctx context.Context
 
 	mu                      sync.Mutex
 	processEnv              *imports.ProcessEnv
@@ -46,7 +45,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	// should be removed ASAP.
 	var match *moduleRoot
 	for _, m := range snapshot.modules {
-		if m.rootURI == s.view.rootURI {
+		if m.rootURI == snapshot.view.rootURI {
 			match = m
 		}
 	}
@@ -65,13 +64,13 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	}
 	// v.goEnv is immutable -- changes make a new view. Options can change.
 	// We can't compare build flags directly because we may add -modfile.
-	s.view.optionsMu.Lock()
-	localPrefix := s.view.options.Local
-	currentBuildFlags := s.view.options.BuildFlags
+	snapshot.view.optionsMu.Lock()
+	localPrefix := snapshot.view.options.Local
+	currentBuildFlags := snapshot.view.options.BuildFlags
 	changed := !reflect.DeepEqual(currentBuildFlags, s.cachedBuildFlags) ||
-		s.view.options.VerboseOutput != (s.processEnv.Logf != nil) ||
+		snapshot.view.options.VerboseOutput != (s.processEnv.Logf != nil) ||
 		modFileIdentifier != s.cachedModFileIdentifier
-	s.view.optionsMu.Unlock()
+	snapshot.view.optionsMu.Unlock()
 
 	// If anything relevant to imports has changed, clear caches and
 	// update the processEnv. Clearing caches blocks on any background
@@ -88,7 +87,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		}
 		s.cachedModFileIdentifier = modFileIdentifier
 		s.cachedBuildFlags = currentBuildFlags
-		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, modFH, sumFH)
+		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot, modFH, sumFH)
 		if err != nil {
 			return err
 		}
@@ -126,26 +125,26 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 
 // populateProcessEnv sets the dynamically configurable fields for the view's
 // process environment. Assumes that the caller is holding the s.view.importsMu.
-func (s *importsState) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileHandle) (cleanup func(), err error) {
+func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot, modFH, sumFH source.FileHandle) (cleanup func(), err error) {
 	cleanup = func() {}
 	pe := s.processEnv
 
-	s.view.optionsMu.Lock()
-	pe.BuildFlags = append([]string(nil), s.view.options.BuildFlags...)
-	if s.view.options.VerboseOutput {
+	snapshot.view.optionsMu.Lock()
+	pe.BuildFlags = append([]string(nil), snapshot.view.options.BuildFlags...)
+	if snapshot.view.options.VerboseOutput {
 		pe.Logf = func(format string, args ...interface{}) {
 			event.Log(ctx, fmt.Sprintf(format, args...))
 		}
 	} else {
 		pe.Logf = nil
 	}
-	s.view.optionsMu.Unlock()
+	snapshot.view.optionsMu.Unlock()
 
 	pe.Env = map[string]string{}
-	for k, v := range s.view.goEnv {
+	for k, v := range snapshot.view.goEnv {
 		pe.Env[k] = v
 	}
-	pe.Env["GO111MODULE"] = s.view.go111module
+	pe.Env["GO111MODULE"] = snapshot.view.go111module
 
 	var modURI span.URI
 	var modContent []byte
@@ -156,7 +155,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, modFH, sumFH sour
 			return nil, err
 		}
 	}
-	modmod, err := s.view.needsModEqualsMod(ctx, modURI, modContent)
+	modmod, err := snapshot.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
 		return cleanup, err
 	}
@@ -167,7 +166,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, modFH, sumFH sour
 	}
 
 	// Add -modfile to the build flags, if we are using it.
-	if s.view.workspaceMode&tempModfile != 0 && modFH != nil {
+	if snapshot.workspaceMode()&tempModfile != 0 && modFH != nil {
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {

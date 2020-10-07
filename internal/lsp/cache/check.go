@@ -144,7 +144,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	for _, depID := range depList {
 		depHandle, err := s.buildPackageHandle(ctx, depID, s.workspaceParseMode(depID))
 		if err != nil {
-			event.Error(ctx, "no dep handle", err, tag.Package.Of(string(depID)))
+			event.Error(ctx, fmt.Sprintf("%s: no dep handle for %s", id, depID), err, tag.Snapshot.Of(s.id))
 			if ctx.Err() != nil {
 				return nil, nil, ctx.Err()
 			}

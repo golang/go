@@ -96,7 +96,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	var modURI span.URI
 	var modContent []byte
 	switch {
-	case s.view.workspaceMode&usesWorkspaceModule != 0:
+	case s.workspaceMode()&usesWorkspaceModule != 0:
 		var (
 			tmpDir span.URI
 			err    error
@@ -111,7 +111,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		if err != nil {
 			return err
 		}
-	case s.view.workspaceMode&tempModfile != 0:
+	case s.workspaceMode()&tempModfile != 0:
 		// -modfile is unsupported when there are > 1 modules in the workspace.
 		if len(s.modules) != 1 {
 			panic(fmt.Sprintf("unsupported use of -modfile, expected 1 module, got %v", len(s.modules)))
@@ -147,7 +147,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	cfg := s.config(ctx, wdir)
 	cfg.BuildFlags = append(cfg.BuildFlags, buildFlags...)
 
-	modMod, err := s.view.needsModEqualsMod(ctx, modURI, modContent)
+	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 // packages.Loads that occur from within the workspace module.
 func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup func(), err error) {
 	cleanup = func() {}
-	if s.view.workspaceMode&usesWorkspaceModule == 0 {
+	if s.workspaceMode()&usesWorkspaceModule == 0 {
 		return "", cleanup, nil
 	}
 	wsModuleHandle, err := s.getWorkspaceModuleHandle(ctx)

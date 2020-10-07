@@ -174,11 +174,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		return nil, nil, func() {}, err
 	}
 
-	// Now that we have set all required fields,
-	// check if the view has a valid build configuration.
-	validBuildConfiguration := validBuildConfiguration(folder, ws, modules)
-	mode := determineWorkspaceMode(options, validBuildConfiguration, ws, modules)
-
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := event.Detach(xcontext.Detach(ctx))
@@ -198,12 +193,10 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		folder:               folder,
 		filesByURI:           make(map[span.URI]*fileBase),
 		filesByBase:          make(map[string][]*fileBase),
-		workspaceMode:        mode,
 		workspaceInformation: *ws,
 	}
 	v.importsState = &importsState{
-		view: v,
-		ctx:  backgroundCtx,
+		ctx: backgroundCtx,
 		processEnv: &imports.ProcessEnv{
 			GocmdRunner: s.gocmdRunner,
 			WorkingDir:  folder.Filename(),

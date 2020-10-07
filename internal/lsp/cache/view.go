@@ -99,10 +99,6 @@ type View struct {
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
 	workspaceInformation
-
-	// workspaceMode describes the way in which the view's workspace should be
-	// loaded.
-	workspaceMode workspaceMode
 }
 
 type workspaceInformation struct {
@@ -830,12 +826,12 @@ var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 // after we have a version of the workspace go.mod file on disk. Getting a
 // FileHandle from the cache for temporary files is problematic, since we
 // cannot delete it.
-func (v *View) needsModEqualsMod(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
-	if v.goversion < 16 || v.workspaceMode&moduleMode == 0 {
+func (s *snapshot) needsModEqualsMod(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
+	if s.view.goversion < 16 || s.workspaceMode()&moduleMode == 0 {
 		return false, nil
 	}
 
-	matches := modFlagRegexp.FindStringSubmatch(v.goEnv["GOFLAGS"])
+	matches := modFlagRegexp.FindStringSubmatch(s.view.goEnv["GOFLAGS"])
 	var modFlag string
 	if len(matches) != 0 {
 		modFlag = matches[1]
@@ -851,44 +847,9 @@ func (v *View) needsModEqualsMod(ctx context.Context, modURI span.URI, modConten
 	if err != nil {
 		return false, err
 	}
-	if fi, err := os.Stat(filepath.Join(v.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
+	if fi, err := os.Stat(filepath.Join(s.view.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return true, nil
 	}
 	vendorEnabled := modFile.Go != nil && modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
 	return !vendorEnabled, nil
-}
-
-// determineWorkspaceMode determines the workspace mode for the given view.
-func determineWorkspaceMode(options *source.Options, validBuildConfiguration bool, ws *workspaceInformation, modules map[span.URI]*moduleRoot) workspaceMode {
-	var mode workspaceMode
-
-	// If the view has an invalid configuration, don't build the workspace
-	// module.
-	if !validBuildConfiguration {
-		return mode
-	}
-	// If the view is not in a module and contains no modules, but still has a
-	// valid workspace configuration, do not create the workspace module.
-	// It could be using GOPATH or a different build system entirely.
-	if len(modules) == 0 && validBuildConfiguration {
-		return mode
-	}
-	mode |= moduleMode
-	// The -modfile flag is available for Go versions >= 1.14.
-	if options.TempModfile && ws.goversion >= 14 {
-		mode |= tempModfile
-	}
-	// If the user is intentionally limiting their workspace scope, don't
-	// enable multi-module workspace mode.
-	// TODO(rstambler): This should only change the calculation of the root,
-	// not the mode.
-	if !options.ExpandWorkspaceToModule {
-		return mode
-	}
-	// The workspace module has been disabled by the user.
-	if !options.ExperimentalWorkspaceModule {
-		return mode
-	}
-	mode |= usesWorkspaceModule
-	return mode
 }
