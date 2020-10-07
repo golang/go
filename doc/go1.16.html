@@ -38,6 +38,17 @@ Do not send CLs removing the interior tags from such phrases.
   <code>netbsd/arm64</code> port).
 </p>
 
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->
+  As <a href="go1.15#386">announced</a> in the Go 1.15 release notes,
+  Go 1.16 drops support for x87 mode compilation (<code>GO386=387</code>).
+  Support for non-SSE2 processors is now available using soft float
+  mode (<code>GO386=softfloat</code>).
+  Users running on non-SSE2 processors should replace <code>GO386=387</code>
+  with <code>GO386=softfloat</code>.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <p>
@@ -162,6 +173,8 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
+<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
+
 <h2 id="library">Core library</h2>
 
 <p>
@@ -275,3 +288,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- net/http -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 249677 -->
+      TODO: <a href="https://golang.org/cl/249677">https://golang.org/cl/249677</a>: provide Addr method for errors from SetPanicOnFault
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->
