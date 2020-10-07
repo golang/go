@@ -2747,6 +2747,8 @@ const (
 	OpConstSlice
 	OpInitMem
 	OpArg
+	OpArgIntReg
+	OpArgFloatReg
 	OpAddr
 	OpLocalAddr
 	OpSP
@@ -35254,6 +35256,20 @@ var opcodeTable = [...]opInfo{
 		generic:   true,
 	},
 	{
+		name:      "ArgIntReg",
+		auxType:   auxInt8,
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
+		name:      "ArgFloatReg",
+		auxType:   auxInt8,
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
 		name:      "Addr",
 		auxType:   auxSym,
 		argLen:    1,
@@ -36141,6 +36157,8 @@ var registers386 = [...]Register{
 	{15, x86.REG_X7, -1, "X7"},
 	{16, 0, -1, "SB"},
 }
+var paramIntReg386 = []int8(nil)
+var paramFloatReg386 = []int8(nil)
 var gpRegMask386 = regMask(239)
 var fpRegMask386 = regMask(65280)
 var specialRegMask386 = regMask(0)
@@ -36181,6 +36199,8 @@ var registersAMD64 = [...]Register{
 	{31, x86.REG_X15, -1, "X15"},
 	{32, 0, -1, "SB"},
 }
+var paramIntRegAMD64 = []int8{0, 3, 1, 7, 6, 8, 9, 10, 11}
+var paramFloatRegAMD64 = []int8{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30}
 var gpRegMaskAMD64 = regMask(49135)
 var fpRegMaskAMD64 = regMask(2147418112)
 var specialRegMaskAMD64 = regMask(2147483648)
@@ -36221,6 +36241,8 @@ var registersARM = [...]Register{
 	{31, arm.REG_F15, -1, "F15"},
 	{32, 0, -1, "SB"},
 }
+var paramIntRegARM = []int8(nil)
+var paramFloatRegARM = []int8(nil)
 var gpRegMaskARM = regMask(21503)
 var fpRegMaskARM = regMask(4294901760)
 var specialRegMaskARM = regMask(0)
@@ -36292,6 +36314,8 @@ var registersARM64 = [...]Register{
 	{62, arm64.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
+var paramIntRegARM64 = []int8(nil)
+var paramFloatRegARM64 = []int8(nil)
 var gpRegMaskARM64 = regMask(670826495)
 var fpRegMaskARM64 = regMask(9223372034707292160)
 var specialRegMaskARM64 = regMask(0)
@@ -36347,6 +36371,8 @@ var registersMIPS = [...]Register{
 	{46, mips.REG_LO, -1, "LO"},
 	{47, 0, -1, "SB"},
 }
+var paramIntRegMIPS = []int8(nil)
+var paramFloatRegMIPS = []int8(nil)
 var gpRegMaskMIPS = regMask(335544318)
 var fpRegMaskMIPS = regMask(35183835217920)
 var specialRegMaskMIPS = regMask(105553116266496)
@@ -36417,6 +36443,8 @@ var registersMIPS64 = [...]Register{
 	{61, mips.REG_LO, -1, "LO"},
 	{62, 0, -1, "SB"},
 }
+var paramIntRegMIPS64 = []int8(nil)
+var paramFloatRegMIPS64 = []int8(nil)
 var gpRegMaskMIPS64 = regMask(167772158)
 var fpRegMaskMIPS64 = regMask(1152921504338411520)
 var specialRegMaskMIPS64 = regMask(3458764513820540928)
@@ -36488,6 +36516,8 @@ var registersPPC64 = [...]Register{
 	{62, ppc64.REG_F30, -1, "F30"},
 	{63, ppc64.REG_F31, -1, "F31"},
 }
+var paramIntRegPPC64 = []int8(nil)
+var paramFloatRegPPC64 = []int8(nil)
 var gpRegMaskPPC64 = regMask(1073733624)
 var fpRegMaskPPC64 = regMask(576460743713488896)
 var specialRegMaskPPC64 = regMask(0)
@@ -36559,6 +36589,8 @@ var registersRISCV64 = [...]Register{
 	{62, riscv.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
+var paramIntRegRISCV64 = []int8(nil)
+var paramFloatRegRISCV64 = []int8(nil)
 var gpRegMaskRISCV64 = regMask(1006632948)
 var fpRegMaskRISCV64 = regMask(9223372034707292160)
 var specialRegMaskRISCV64 = regMask(0)
@@ -36599,6 +36631,8 @@ var registersS390X = [...]Register{
 	{31, s390x.REG_F15, -1, "F15"},
 	{32, 0, -1, "SB"},
 }
+var paramIntRegS390X = []int8(nil)
+var paramFloatRegS390X = []int8(nil)
 var gpRegMaskS390X = regMask(23551)
 var fpRegMaskS390X = regMask(4294901760)
 var specialRegMaskS390X = regMask(0)
@@ -36657,6 +36691,8 @@ var registersWasm = [...]Register{
 	{49, wasm.REGG, -1, "g"},
 	{50, 0, -1, "SB"},
 }
+var paramIntRegWasm = []int8(nil)
+var paramFloatRegWasm = []int8(nil)
 var gpRegMaskWasm = regMask(65535)
 var fpRegMaskWasm = regMask(281474976645120)
 var fp32RegMaskWasm = regMask(4294901760)
