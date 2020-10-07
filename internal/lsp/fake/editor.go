@@ -90,6 +90,10 @@ type EditorConfig struct {
 	// TODO(rstambler): This mode is temporary and should be removed when
 	// golang.org/cl/258518 is merged.
 	WithoutExperimentalWorkspaceModule bool
+
+	// AllExperiments sets the "allExperiments" configuration, which enables
+	// all of gopls's opt-in settings.
+	AllExperiments bool
 }
 
 // NewEditor Creates a new Editor.
@@ -203,6 +207,10 @@ func (e *Editor) configuration() map[string]interface{} {
 	// explicitly configured.
 	if !e.Config.WithoutExperimentalWorkspaceModule {
 		config["experimentalWorkspaceModule"] = true
+	}
+
+	if e.Config.AllExperiments {
+		config["allExperiments"] = true
 	}
 
 	// TODO(rFindley): uncomment this if/when diagnostics delay is on by

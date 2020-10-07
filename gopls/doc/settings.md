@@ -17,6 +17,9 @@ In VSCode, this would be a section in your `settings.json` file that might look 
 
 Below is the list of settings that are officially supported for `gopls`.
 
+To enable all experimental features, use **allExperiments: `true`**. You will
+still be able to independently override specific experimental features.
+
 <!-- BEGIN User: DO NOT MANUALLY EDIT THIS SECTION -->
 ### **buildFlags** *[]string*
 buildFlags is the set of flags passed on to the build system when invoked.

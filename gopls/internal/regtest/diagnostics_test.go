@@ -1358,3 +1358,27 @@ func _() {
 		)
 	})
 }
+
+func TestEnableAllExperiments(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+-- main.go --
+package main
+
+func main() {
+	if true {}
+}`
+	withOptions(
+		EditorConfig{
+			AllExperiments: true,
+		},
+	).run(t, mod, func(t *testing.T, env *Env) {
+		// Confirm that staticcheck is enabled.
+		env.OpenFile("main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "if"),
+		)
+	})
+}

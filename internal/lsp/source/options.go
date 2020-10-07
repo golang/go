@@ -452,6 +452,13 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 	switch opts := opts.(type) {
 	case nil:
 	case map[string]interface{}:
+		// If the user's settings contains "allExperiments", set that first,
+		// and then let them override individual settings independently.
+		for name, value := range opts {
+			if b, ok := value.(bool); name == "allExperiments" && ok && b {
+				options.enableAllExperiments()
+			}
+		}
 		for name, value := range opts {
 			results = append(results, options.set(name, value))
 		}
@@ -536,6 +543,18 @@ func (o *Options) Clone() *Options {
 
 func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 	o.StaticcheckAnalyzers[a.Name] = Analyzer{Analyzer: a, Enabled: true}
+}
+
+// enableAllExperiments turns on all of the experimental "off-by-default"
+// features offered by gopls.
+func (o *Options) enableAllExperiments() {
+	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
+	o.ExperimentalWorkspaceModule = true
+	o.Staticcheck = true
+	o.Gofumpt = true
+	o.SymbolStyle = DynamicSymbols
+	o.Codelens[CommandToggleDetails.Name] = true
+	o.Analyses[unusedparams.Analyzer.Name] = true
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {
