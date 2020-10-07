@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -929,16 +930,18 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:            "AMD64",
-		pkg:             "cmd/internal/obj/x86",
-		genfile:         "../../amd64/ssa.go",
-		ops:             AMD64ops,
-		blocks:          AMD64blocks,
-		regnames:        regNamesAMD64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		specialregmask:  x15,
-		framepointerreg: int8(num["BP"]),
-		linkreg:         -1, // not used
+		name:               "AMD64",
+		pkg:                "cmd/internal/obj/x86",
+		genfile:            "../../amd64/ssa.go",
+		ops:                AMD64ops,
+		blocks:             AMD64blocks,
+		regnames:           regNamesAMD64,
+		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
+		ParamFloatRegNames: "X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		specialregmask:     x15,
+		framepointerreg:    int8(num["BP"]),
+		linkreg:            -1, // not used
 	})
 }

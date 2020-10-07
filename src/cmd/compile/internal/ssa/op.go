@@ -79,6 +79,7 @@ type AuxCall struct {
 	Fn      *obj.LSym
 	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
 	results []Param
+	reg     *regInfo // regInfo for this call // TODO for now nil means ignore
 }
 
 // ResultForOffset returns the index of the result at a particular offset among the results
@@ -186,16 +187,19 @@ func (a *AuxCall) String() string {
 
 // StaticAuxCall returns an AuxCall for a static call.
 func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
+	// TODO Create regInfo for AuxCall
 	return &AuxCall{Fn: sym, args: args, results: results}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
 func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
+	// TODO Create regInfo for AuxCall
 	return &AuxCall{Fn: nil, args: args, results: results}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
 func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+	// TODO Create regInfo for AuxCall
 	return &AuxCall{Fn: nil, args: args, results: results}
 }
 

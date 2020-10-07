@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -331,6 +332,11 @@ var genericOps = []opData{
 	// Constant-like things
 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
 	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+
+	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
+	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
+	{name: "ArgIntReg", aux: "Int8", zeroWidth: true},   // argument to the function in an int reg.
+	{name: "ArgFloatReg", aux: "Int8", zeroWidth: true}, // argument to the function in a float reg.
 
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and
