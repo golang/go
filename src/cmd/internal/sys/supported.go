@@ -32,6 +32,7 @@ func MSanSupported(goos, goarch string) bool {
 }
 
 // MustLinkExternal reports whether goos/goarch requires external linking.
+// (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
 func MustLinkExternal(goos, goarch string) bool {
 	switch goos {
 	case "android":
