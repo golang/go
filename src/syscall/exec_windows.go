@@ -24,6 +24,9 @@ var ForkLock sync.RWMutex
 // - finally, s is wrapped with double quotes (arg -> "arg"),
 //   but only if there is space or tab inside s.
 func EscapeArg(s string) string {
+	if len(s) == 0 {
+		return `""`
+	}
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '"', '\\', ' ', '\t':
