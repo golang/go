@@ -88,7 +88,7 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 		path, version := match[1], match[2]
 		// Any module versions that come from the workspace module should not
 		// be shown to the user.
-		if version == source.WorkspaceModuleVersion {
+		if source.IsWorkspaceModuleVersion(version) {
 			continue
 		}
 		if err := module.Check(path, version); err != nil {

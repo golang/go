@@ -278,7 +278,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	// meaningless, and we don't want clients to access it.
 	if m.module != nil {
 		version := m.module.Version
-		if version == source.WorkspaceModuleVersion {
+		if source.IsWorkspaceModuleVersion(version) {
 			version = ""
 		}
 		pkg.version = &module.Version{

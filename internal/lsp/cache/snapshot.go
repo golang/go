@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
@@ -1545,7 +1546,14 @@ func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, er
 		}
 		path := parsed.File.Module.Mod.Path
 		paths[path] = mod
-		file.AddNewRequire(path, source.WorkspaceModuleVersion, false)
+		// If the module's path includes a major version, we expect it to have
+		// a matching major version.
+		_, majorVersion, _ := module.SplitPathVersion(path)
+		if majorVersion == "" {
+			majorVersion = "/v0"
+		}
+		majorVersion = strings.TrimLeft(majorVersion, "/.") // handle gopkg.in versions
+		file.AddNewRequire(path, source.WorkspaceModuleVersion(majorVersion), false)
 		if err := file.AddReplace(path, "", mod.rootURI.Filename(), ""); err != nil {
 			return nil, err
 		}

@@ -455,3 +455,59 @@ var _ = fmt.Printf
 		env.GoToDefinition("/tmp/foo.go", env.RegexpSearch("/tmp/foo.go", `Printf`))
 	})
 }
+
+func TestMultiModuleV2(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com/v2 v2.0.0
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/v2/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hi()
+}
+-- modb/go.mod --
+module b.com
+
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+-- modb/v2/go.mod --
+module b.com/v2
+
+-- modb/v2/b/b.go --
+package b
+
+func Hi() int {
+	var x int
+}
+-- modc/go.mod --
+module gopkg.in/yaml.v1 // test gopkg.in versions
+-- modc/main.go --
+package main
+
+func main() {
+	var x int
+}
+`
+	withOptions(
+		WithModes(Experimental),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
+			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
+			env.DiagnosticAtRegexp("modc/main.go", "x"),
+		)
+	})
+}

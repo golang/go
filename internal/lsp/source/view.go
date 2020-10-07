@@ -548,8 +548,17 @@ var (
 	PackagesLoadError     = errors.New("packages.Load error")
 )
 
-// WorkspaceModuleVersion is the nonexistent pseudoversion used in the
+// WorkspaceModuleVersion is the nonexistent pseudoversion suffix used in the
 // construction of the workspace module. It is exported so that we can make
 // sure not to show this version to end users in error messages, to avoid
 // confusion.
-const WorkspaceModuleVersion = "v0.0.0-goplsworkspace"
+// The major version is not included, as that depends on the module path.
+const workspaceModuleVersion = ".0.0-goplsworkspace"
+
+func IsWorkspaceModuleVersion(version string) bool {
+	return strings.HasSuffix(version, workspaceModuleVersion)
+}
+
+func WorkspaceModuleVersion(majorVersion string) string {
+	return majorVersion + workspaceModuleVersion
+}
