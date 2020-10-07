@@ -20,12 +20,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/source"
@@ -63,23 +61,7 @@ type View struct {
 	// folder is the folder with which this view was constructed.
 	folder span.URI
 
-	// importsMu guards imports-related state, particularly the ProcessEnv.
-	importsMu sync.Mutex
-
-	// processEnv is the process env for this view.
-	// Some of its fields can be changed dynamically by modifications to
-	// the view's options. These fields are repopulated for every use.
-	// Note: this contains cached module and filesystem state.
-	//
-	// TODO(suzmue): the state cached in the process env is specific to each view,
-	// however, there is state that can be shared between views that is not currently
-	// cached, like the module cache.
-	processEnv              *imports.ProcessEnv
-	cleanupProcessEnv       func()
-	cacheRefreshDuration    time.Duration
-	cacheRefreshTimer       *time.Timer
-	cachedModFileIdentifier string
-	cachedBuildFlags        []string
+	importsState *importsState
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -362,178 +344,7 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 }
 
 func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
-	s.view.importsMu.Lock()
-	defer s.view.importsMu.Unlock()
-
-	// Use temporary go.mod files, but always go to disk for the contents.
-	// Rebuilding the cache is expensive, and we don't want to do it for
-	// transient changes.
-	var modFH, sumFH source.FileHandle
-	var modFileIdentifier string
-	var err error
-	// TODO(heschik): Change the goimports logic to use a persistent workspace
-	// module for workspace module mode.
-	//
-	// Get the go.mod file that corresponds to this view's root URI. This is
-	// broken because it assumes that the view's root is a module, but this is
-	// not more broken than the previous state--it is a temporary hack that
-	// should be removed ASAP.
-	var match *moduleRoot
-	for _, m := range s.modules {
-		if m.rootURI == s.view.rootURI {
-			match = m
-		}
-	}
-	if match != nil {
-		modFH, err = s.GetFile(ctx, match.modURI)
-		if err != nil {
-			return err
-		}
-		modFileIdentifier = modFH.FileIdentity().Hash
-		if match.sumURI != "" {
-			sumFH, err = s.GetFile(ctx, match.sumURI)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// v.goEnv is immutable -- changes make a new view. Options can change.
-	// We can't compare build flags directly because we may add -modfile.
-	s.view.optionsMu.Lock()
-	localPrefix := s.view.options.Local
-	currentBuildFlags := s.view.options.BuildFlags
-	changed := !reflect.DeepEqual(currentBuildFlags, s.view.cachedBuildFlags) ||
-		s.view.options.VerboseOutput != (s.view.processEnv.Logf != nil) ||
-		modFileIdentifier != s.view.cachedModFileIdentifier
-	s.view.optionsMu.Unlock()
-
-	// If anything relevant to imports has changed, clear caches and
-	// update the processEnv. Clearing caches blocks on any background
-	// scans.
-	if changed {
-		// As a special case, skip cleanup the first time -- we haven't fully
-		// initialized the environment yet and calling GetResolver will do
-		// unnecessary work and potentially mess up the go.mod file.
-		if s.view.cleanupProcessEnv != nil {
-			if resolver, err := s.view.processEnv.GetResolver(); err == nil {
-				resolver.(*imports.ModuleResolver).ClearForNewMod()
-			}
-			s.view.cleanupProcessEnv()
-		}
-		s.view.cachedModFileIdentifier = modFileIdentifier
-		s.view.cachedBuildFlags = currentBuildFlags
-		s.view.cleanupProcessEnv, err = s.view.populateProcessEnv(ctx, modFH, sumFH)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Run the user function.
-	opts := &imports.Options{
-		// Defaults.
-		AllErrors:   true,
-		Comments:    true,
-		Fragment:    true,
-		FormatOnly:  false,
-		TabIndent:   true,
-		TabWidth:    8,
-		Env:         s.view.processEnv,
-		LocalPrefix: localPrefix,
-	}
-
-	if err := fn(opts); err != nil {
-		return err
-	}
-
-	if s.view.cacheRefreshTimer == nil {
-		// Don't refresh more than twice per minute.
-		delay := 30 * time.Second
-		// Don't spend more than a couple percent of the time refreshing.
-		if adaptive := 50 * s.view.cacheRefreshDuration; adaptive > delay {
-			delay = adaptive
-		}
-		s.view.cacheRefreshTimer = time.AfterFunc(delay, s.view.refreshProcessEnv)
-	}
-
-	return nil
-}
-
-func (v *View) refreshProcessEnv() {
-	start := time.Now()
-
-	v.importsMu.Lock()
-	env := v.processEnv
-	if resolver, err := v.processEnv.GetResolver(); err == nil {
-		resolver.ClearForNewScan()
-	}
-	v.importsMu.Unlock()
-
-	// We don't have a context handy to use for logging, so use the stdlib for now.
-	event.Log(v.baseCtx, "background imports cache refresh starting")
-	if err := imports.PrimeCache(context.Background(), env); err == nil {
-		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)))
-	} else {
-		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
-	}
-	v.importsMu.Lock()
-	v.cacheRefreshDuration = time.Since(start)
-	v.cacheRefreshTimer = nil
-	v.importsMu.Unlock()
-}
-
-// populateProcessEnv sets the dynamically configurable fields for the view's
-// process environment. Assumes that the caller is holding the s.view.importsMu.
-func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileHandle) (cleanup func(), err error) {
-	cleanup = func() {}
-	pe := v.processEnv
-
-	v.optionsMu.Lock()
-	pe.BuildFlags = append([]string(nil), v.options.BuildFlags...)
-	if v.options.VerboseOutput {
-		pe.Logf = func(format string, args ...interface{}) {
-			event.Log(ctx, fmt.Sprintf(format, args...))
-		}
-	} else {
-		pe.Logf = nil
-	}
-	v.optionsMu.Unlock()
-
-	pe.Env = map[string]string{}
-	for k, v := range v.goEnv {
-		pe.Env[k] = v
-	}
-	pe.Env["GO111MODULE"] = v.go111module
-
-	var modURI span.URI
-	var modContent []byte
-	if modFH != nil {
-		modURI = modFH.URI()
-		modContent, err = modFH.Read()
-		if err != nil {
-			return nil, err
-		}
-	}
-	modmod, err := v.needsModEqualsMod(ctx, modURI, modContent)
-	if err != nil {
-		return cleanup, err
-	}
-	if modmod {
-		// -mod isn't really a build flag, but we can get away with it given
-		// the set of commands that goimports wants to run.
-		pe.BuildFlags = append([]string{"-mod=mod"}, pe.BuildFlags...)
-	}
-
-	// Add -modfile to the build flags, if we are using it.
-	if v.workspaceMode&tempModfile != 0 && modFH != nil {
-		var tmpURI span.URI
-		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
-		if err != nil {
-			return nil, err
-		}
-		pe.BuildFlags = append(pe.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
-	}
-
-	return cleanup, nil
+	return s.view.importsState.runProcessEnvFunc(ctx, s, fn)
 }
 
 // envLocked returns the environment and build flags for the current view.
