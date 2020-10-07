@@ -98,7 +98,7 @@ var Other Thing
 \@Other
 -- Thing-definition --
 godef/a/d.go:5:6-11: defined here as ```go
-Thing struct {
+type Thing struct {
 	Member string //@Member
 }
 ```
@@ -119,12 +119,12 @@ Thing struct {
 			"offset": 67
 		}
 	},
-	"description": "```go\nThing struct {\n\tMember string //@Member\n}\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
+	"description": "```go\ntype Thing struct {\n\tMember string //@Member\n}\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
 }
 
 -- Thing-hover --
 ```go
-Thing struct {
+type Thing struct {
 	Member string //@Member
 }
 ```

@@ -82,7 +82,7 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 [`a` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a)
 -- AString-definition --
 godef/a/a.go:26:6-7: defined here as ```go
-A string //@mark(AString, "A")
+type A string //@mark(AString, "A")
 
 ```
 
@@ -102,12 +102,12 @@ A string //@mark(AString, "A")
 			"offset": 453
 		}
 	},
-	"description": "```go\nA string //@mark(AString, \"A\")\n\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)"
+	"description": "```go\ntype A string //@mark(AString, \"A\")\n\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)"
 }
 
 -- AString-hover --
 ```go
-A string //@mark(AString, "A")
+type A string //@mark(AString, "A")
 
 ```
 
@@ -144,7 +144,7 @@ func a.AStuff()
 [`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
 -- S1-definition --
 godef/b/b.go:25:6-8: defined here as ```go
-S1 struct {
+type S1 struct {
 	F1  int //@mark(S1F1, "F1")
 	S2      //@godef("S2", S2),mark(S1S2, "S2")
 	a.A     //@godef("A", AString)
@@ -167,12 +167,12 @@ S1 struct {
 			"offset": 523
 		}
 	},
-	"description": "```go\nS1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)"
+	"description": "```go\ntype S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)"
 }
 
 -- S1-hover --
 ```go
-S1 struct {
+type S1 struct {
 	F1  int //@mark(S1F1, "F1")
 	S2      //@godef("S2", S2),mark(S1S2, "S2")
 	a.A     //@godef("A", AString)
@@ -250,7 +250,7 @@ field S2 S2
 \@godef\(\"S2\", S2\),mark\(S1S2, \"S2\"\)
 -- S2-definition --
 godef/b/b.go:31:6-8: defined here as ```go
-S2 struct {
+type S2 struct {
 	F1   string //@mark(S2F1, "F1")
 	F2   int    //@mark(S2F2, "F2")
 	*a.A        //@godef("A", AString),godef("a",AImport)
@@ -273,12 +273,12 @@ S2 struct {
 			"offset": 655
 		}
 	},
-	"description": "```go\nS2 struct {\n\tF1   string //@mark(S2F1, \"F1\")\n\tF2   int    //@mark(S2F2, \"F2\")\n\t*a.A        //@godef(\"A\", AString),godef(\"a\",AImport)\n}\n```\n\n[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)"
+	"description": "```go\ntype S2 struct {\n\tF1   string //@mark(S2F1, \"F1\")\n\tF2   int    //@mark(S2F2, \"F2\")\n\t*a.A        //@godef(\"A\", AString),godef(\"a\",AImport)\n}\n```\n\n[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)"
 }
 
 -- S2-hover --
 ```go
-S2 struct {
+type S2 struct {
 	F1   string //@mark(S2F1, "F1")
 	F2   int    //@mark(S2F2, "F2")
 	*a.A        //@godef("A", AString),godef("a",AImport)

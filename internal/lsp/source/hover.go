@@ -46,6 +46,10 @@ type HoverInformation struct {
 
 	source  interface{}
 	comment *ast.CommentGroup
+
+	// isTypeName reports whether the identifier is a type name. In such cases,
+	// the hover has the prefix "type ".
+	isType bool
 }
 
 func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
@@ -95,6 +99,9 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 			return nil, err
 		}
 		h.Signature = b.String()
+		if h.isType {
+			h.Signature = "type " + h.Signature
+		}
 	case types.Object:
 		// If the variable is implicitly declared in a type switch, we need to
 		// manually generate its object string.
@@ -267,6 +274,7 @@ func HoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation,
 			if err != nil {
 				return nil, err
 			}
+			_, info.isType = obj.(*types.TypeName)
 		}
 	case *ast.TypeSpec:
 		if obj.Parent() == types.Universe {
