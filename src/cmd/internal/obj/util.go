@@ -210,13 +210,30 @@ func (ctxt *Link) CanReuseProgs() bool {
 	return ctxt.Debugasm == 0
 }
 
+// Dconv accepts an argument 'a' within a prog 'p' and returns a string
+// with a formatted version of the argument.
 func Dconv(p *Prog, a *Addr) string {
 	buf := new(bytes.Buffer)
-	WriteDconv(buf, p, a)
+	writeDconv(buf, p, a, false)
 	return buf.String()
 }
 
+// DconvDconvWithABIDetail accepts an argument 'a' within a prog 'p'
+// and returns a string with a formatted version of the argument, in
+// which text symbols are rendered with explicit ABI selectors.
+func DconvWithABIDetail(p *Prog, a *Addr) string {
+	buf := new(bytes.Buffer)
+	writeDconv(buf, p, a, true)
+	return buf.String()
+}
+
+// WriteDconv accepts an argument 'a' within a prog 'p'
+// and writes a formatted version of the arg to the writer.
 func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+	writeDconv(w, p, a, false)
+}
+
+func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 	switch a.Type {
 	default:
 		fmt.Fprintf(w, "type=%d", a.Type)
@@ -250,7 +267,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
 
 	case TYPE_BRANCH:
 		if a.Sym != nil {
-			fmt.Fprintf(w, "%s(SB)", a.Sym.Name)
+			fmt.Fprintf(w, "%s%s(SB)", a.Sym.Name, abiDecorate(a, abiDetail))
 		} else if a.Target() != nil {
 			fmt.Fprint(w, a.Target().Pc)
 		} else {
@@ -259,7 +276,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
 
 	case TYPE_INDIR:
 		io.WriteString(w, "*")
-		a.WriteNameTo(w)
+		a.writeNameTo(w, abiDetail)
 
 	case TYPE_MEM:
 		a.WriteNameTo(w)
@@ -299,7 +316,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
 
 	case TYPE_ADDR:
 		io.WriteString(w, "$")
-		a.WriteNameTo(w)
+		a.writeNameTo(w, abiDetail)
 
 	case TYPE_SHIFT:
 		v := int(a.Offset)
@@ -335,6 +352,11 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
 }
 
 func (a *Addr) WriteNameTo(w io.Writer) {
+	a.writeNameTo(w, false)
+}
+
+func (a *Addr) writeNameTo(w io.Writer, abiDetail bool) {
+
 	switch a.Name {
 	default:
 		fmt.Fprintf(w, "name=%d", a.Name)
@@ -356,7 +378,7 @@ func (a *Addr) WriteNameTo(w io.Writer) {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s%s%s(%s)", a.Sym.Name, abiDecorate(a, abiDetail), offConv(a.Offset), reg)
 		} else {
 			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
 		}
@@ -595,4 +617,11 @@ func Bool2int(b bool) int {
 		i = 0
 	}
 	return i
+}
+
+func abiDecorate(a *Addr, abiDetail bool) string {
+	if !abiDetail || a.Sym == nil {
+		return ""
+	}
+	return fmt.Sprintf("<%s>", a.Sym.ABI())
 }
