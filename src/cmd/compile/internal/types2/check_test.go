@@ -29,10 +29,9 @@ import (
 	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"go/scanner"
-	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -46,24 +45,6 @@ var (
 	listErrors  = flag.Bool("errlist", false, "list errors")
 	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
-
-var fset = token.NewFileSet()
-
-// Positioned errors are of the form filename:line:column: message .
-var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
-
-// splitError splits an error's error message into a position string
-// and the actual error message. If there's no position information,
-// pos is the empty string, and msg is the entire error message.
-//
-func splitError(err error) (pos, msg string) {
-	msg = err.Error()
-	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
-		pos = m[1]
-		msg = m[2]
-	}
-	return
-}
 
 func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
 	var files []*syntax.File
@@ -79,103 +60,14 @@ func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
 	return files, errlist
 }
 
-// ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
-// rx is a regular expression that matches the expected error message.
-// Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
-// for error messages that are located immediately after rather than
-// at a token's position.
-//
-var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
-
-// errMap collects the regular expressions of ERROR comments found
-// in files and returns them as a map of error positions to error messages.
-//
-func errMap(t *testing.T, testname string, files []*syntax.File) map[string][]string {
-	// map of position strings to lists of error message patterns
-	errmap := make(map[string][]string)
-
-	for _, file := range files {
-		filename := file.Pos().RelFilename() // TODO(gri) do we need Filename here?
-		src, err := ioutil.ReadFile(filename)
-		if err != nil {
-			t.Fatalf("%s: could not read %s", testname, filename)
-		}
-
-		var s scanner.Scanner
-		s.Init(fset.AddFile(filename, -1, len(src)), src, nil, scanner.ScanComments)
-		var prev token.Pos // position of last non-comment, non-semicolon token
-		var here token.Pos // position immediately after the token at position prev
-
-	scanFile:
-		for {
-			pos, tok, lit := s.Scan()
-			switch tok {
-			case token.EOF:
-				break scanFile
-			case token.COMMENT:
-				if lit[1] == '*' {
-					lit = lit[:len(lit)-2] // strip trailing */
-				}
-				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 3 {
-					pos := prev
-					if s[1] == "HERE" {
-						pos = here
-					}
-					p := fset.Position(pos).String()
-					errmap[p] = append(errmap[p], strings.TrimSpace(s[2]))
-				}
-			case token.SEMICOLON:
-				// ignore automatically inserted semicolon
-				if lit == "\n" {
-					continue scanFile
-				}
-				fallthrough
-			default:
-				prev = pos
-				var l int // token length
-				if tok.IsLiteral() {
-					l = len(lit)
-				} else {
-					l = len(tok.String())
-				}
-				here = prev + token.Pos(l)
-			}
-		}
-	}
-
-	return errmap
-}
-
-func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
-	for _, err := range errlist {
-		pos, gotMsg := splitError(err)
-		list := errmap[pos]
-		index := -1 // list index of matching message, if any
-		// we expect one of the messages in list to match the error at pos
-		for i, wantRx := range list {
-			rx, err := regexp.Compile(wantRx)
-			if err != nil {
-				t.Errorf("%s: %v", pos, err)
-				continue
-			}
-			if rx.MatchString(gotMsg) {
-				index = i
-				break
-			}
-		}
-		if index >= 0 {
-			// eliminate from list
-			if n := len(list) - 1; n > 0 {
-				// not the last entry - swap in last element and shorten list by 1
-				list[index] = list[n]
-				errmap[pos] = list[:n]
-			} else {
-				// last entry - remove list from map
-				delete(errmap, pos)
-			}
-		} else {
-			t.Errorf("%s: no error expected: %q", pos, gotMsg)
-		}
+func unpackError(err error) syntax.Error {
+	switch err := err.(type) {
+	case syntax.Error:
+		return err
+	case Error:
+		return syntax.Error{Pos: err.Pos, Msg: err.Msg}
+	default:
+		return syntax.Error{Msg: err.Error()}
 	}
 }
 
@@ -225,28 +117,84 @@ func checkFiles(t *testing.T, sources []string, trace bool) {
 		return
 	}
 
-	// match and eliminate errors;
-	// we are expecting the following errors
-	errmap := errMap(t, pkgName, files)
+	// collect expected errors
+	errmap := make(map[string]map[uint][]syntax.Error)
+	for _, filename := range sources {
+		f, err := os.Open(filename)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if m := syntax.ErrorMap(f); len(m) > 0 {
+			errmap[filename] = m
+		}
+		f.Close()
+	}
 
-	// print map entries (keep for debugging)
-	if false {
-		for key, entries := range errmap {
-			fmt.Printf("%s:\n", key)
-			for _, e := range entries {
-				fmt.Printf("\t%s\n", e)
+	// match against found errors
+	for _, err := range errlist {
+		got := unpackError(err)
+
+		// find list of errors for the respective error line
+		filename := got.Pos.Base().Filename()
+		filemap := errmap[filename]
+		var line uint
+		var list []syntax.Error
+		if filemap != nil {
+			line = got.Pos.Line()
+			list = filemap[line]
+		}
+		// list may be nil
+
+		// one of errors in list should match the current error
+		index := -1 // list index of matching message, if any
+		for i, want := range list {
+			rx, err := regexp.Compile(want.Msg)
+			if err != nil {
+				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+				continue
 			}
+			if rx.MatchString(got.Msg) {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			t.Errorf("%s: no error expected: %q", got.Pos, got.Msg)
+			continue
+		}
+
+		// TODO(gri) make exact an incoming parameter
+		const exact = true
+		want := list[index]
+		if exact && got.Pos.Col() != want.Pos.Col() {
+			t.Errorf("%s: got col = %d; want %d", got.Pos, got.Pos.Col(), want.Pos.Col())
+		}
+
+		// eliminate from list
+		if n := len(list) - 1; n > 0 {
+			// not the last entry - swap in last element and shorten list by 1
+			list[index] = list[n]
+			filemap[line] = list[:n]
+		} else {
+			// last entry - remove list from filemap
+			delete(filemap, line)
+		}
+
+		// if filemap is empty, eliminate from errmap
+		if len(filemap) == 0 {
+			delete(errmap, filename)
 		}
 	}
 
-	eliminate(t, errmap, errlist)
-
 	// there should be no expected errors left
 	if len(errmap) > 0 {
-		t.Errorf("--- %s: %d source positions with expected (but not reported) errors:", pkgName, len(errmap))
-		for pos, list := range errmap {
-			for _, rx := range list {
-				t.Errorf("%s: %q", pos, rx)
+		t.Errorf("--- %s: unreported errors:", pkgName)
+		for filename, filemap := range errmap {
+			for line, list := range filemap {
+				for _, err := range list {
+					t.Errorf("%s:%d:%d: %s", filename, line, err.Pos.Col(), err.Msg)
+				}
 			}
 		}
 	}

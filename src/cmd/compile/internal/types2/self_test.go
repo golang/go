@@ -18,6 +18,8 @@ import (
 
 var benchmark = flag.Bool("b", false, "run benchmarks")
 
+var fset = token.NewFileSet()
+
 func TestSelf(t *testing.T) {
 	files, err := pkgFiles(fset, ".")
 	if err != nil {
