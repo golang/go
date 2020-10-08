@@ -1695,7 +1695,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 // When the callback is done with the m, it calls dropm to
 // put the m back on the list.
 //go:nosplit
-func needm(x byte) {
+func needm() {
 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can also happen on Windows if a global ctor uses a
@@ -1740,8 +1740,8 @@ func needm(x byte) {
 	// which is more than enough for us.
 	setg(mp.g0)
 	_g_ := getg()
-	_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&x))) + 1024
-	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
+	_g_.stack.hi = getcallersp() + 1024
+	_g_.stack.lo = getcallersp() - 32*1024
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
 	// Initialize this thread to use the m.

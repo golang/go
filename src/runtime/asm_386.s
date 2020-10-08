@@ -704,7 +704,7 @@ nosave:
 
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback(SB),NOSPLIT,$16-12  // Frame size must match commented places below
+TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places below
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -722,13 +722,12 @@ TEXT ·cgocallback(SB),NOSPLIT,$16-12  // Frame size must match commented places
 	CMPL	BP, $0
 	JEQ	needm
 	MOVL	g_m(BP), BP
-	MOVL	BP, DX // saved copy of oldm
+	MOVL	BP, savedm-4(SP) // saved copy of oldm
 	JMP	havem
 needm:
-	MOVL	$0, 0(SP)
 	MOVL	$runtime·needm(SB), AX
 	CALL	AX
-	MOVL	0(SP), DX
+	MOVL	$0, savedm-4(SP) // dropm on return
 	get_tls(CX)
 	MOVL	g(CX), BP
 	MOVL	g_m(BP), BP
@@ -769,8 +768,6 @@ havem:
 	// Once we switch to the curg stack, the pushed PC will appear
 	// to be the return PC of cgocallback, so that the traceback
 	// will seamlessly trace back into the earlier calls.
-	//
-	// In the new goroutine, 12(SP) holds the saved oldm (DX) register.
 	MOVL	m_curg(BP), SI
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), DI // prepare stack as DI
@@ -780,20 +777,18 @@ havem:
 	MOVL	fn+0(FP), AX
 	MOVL	frame+4(FP), BX
 	MOVL	ctxt+8(FP), CX
-	LEAL	-(4+16)(DI), SP  // Must match declared frame size
-	MOVL	DX, 12(SP)
+	LEAL	-(4+12)(DI), SP  // Must match declared frame size
 	MOVL	AX, 0(SP)
 	MOVL	BX, 4(SP)
 	MOVL	CX, 8(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVL	12(SP), DX
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVL	g(CX), SI
-	MOVL	16(SP), BP  // Must match declared frame size
+	MOVL	12(SP), BP  // Must match declared frame size
 	MOVL	BP, (g_sched+gobuf_pc)(SI)
-	LEAL	(16+4)(SP), DI  // Must match declared frame size
+	LEAL	(12+4)(SP), DI  // Must match declared frame size
 	MOVL	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -809,6 +804,7 @@ havem:
 
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
+	MOVL	savedm-4(SP), DX
 	CMPL	DX, $0
 	JNE 3(PC)
 	MOVL	$runtime·dropm(SB), AX

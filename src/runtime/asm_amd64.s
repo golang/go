@@ -693,7 +693,7 @@ nosave:
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback(SB),NOSPLIT,$32-24
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -711,13 +711,12 @@ TEXT ·cgocallback(SB),NOSPLIT,$32-24
 	CMPQ	BX, $0
 	JEQ	needm
 	MOVQ	g_m(BX), BX
-	MOVQ	BX, R8 // holds oldm until end of function
+	MOVQ	BX, savedm-8(SP)	// saved copy of oldm
 	JMP	havem
 needm:
-	MOVQ	$0, 0(SP)
-	MOVQ	$runtime·needm(SB), AX
+	MOVQ    $runtime·needm(SB), AX
 	CALL	AX
-	MOVQ	0(SP), R8
+	MOVQ	$0, savedm-8(SP) // dropm on return
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
@@ -758,8 +757,6 @@ havem:
 	// Once we switch to the curg stack, the pushed PC will appear
 	// to be the return PC of cgocallback, so that the traceback
 	// will seamlessly trace back into the earlier calls.
-	//
-	// In the new goroutine, 24(SP) holds the saved R8.
 	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
@@ -776,12 +773,10 @@ havem:
 	SUBQ	AX, DI   // Allocate the same frame size on the g stack
 	MOVQ	DI, SP
 
-	MOVQ	R8, 24(SP)
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	DX, 16(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVQ	24(SP), R8
 
 	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
@@ -811,7 +806,8 @@ havem:
 
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
-	CMPQ	R8, $0
+	MOVQ	savedm-8(SP), BX
+	CMPQ	BX, $0
 	JNE 3(PC)
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX
