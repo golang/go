@@ -354,6 +354,15 @@ type ExperimentalOptions struct {
 	//
 	// This option must be set to a valid duration string, for example `"250ms"`.
 	ExperimentalDiagnosticsDelay time.Duration
+
+	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
+	// for package type information to increase cache hits. This setting removes
+	// the user's environment, build flags, and working directory from the cache
+	// key, which should be a safe change as all relevant inputs into the type
+	// checking pass are already hashed into the key. This is temporarily guarded
+	// by an experiment because caching behavior is subtle and difficult to
+	// comprehensively test.
+	ExperimentalPackageCacheKey bool
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may
@@ -550,6 +559,7 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
 	o.ExperimentalWorkspaceModule = true
+	o.ExperimentalPackageCacheKey = true
 	o.Staticcheck = true
 	o.Gofumpt = true
 	o.SymbolStyle = DynamicSymbols

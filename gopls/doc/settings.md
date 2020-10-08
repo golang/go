@@ -273,6 +273,17 @@ This option must be set to a valid duration string, for example `"250ms"`.
 
 
 Default: `0`.
+### **experimentalPackageCacheKey** *bool*
+experimentalPackageCacheKey controls whether to use a coarser cache key
+for package type information to increase cache hits. This setting removes
+the user's environment, build flags, and working directory from the cache
+key, which should be a safe change as all relevant inputs into the type
+checking pass are already hashed into the key. This is temporarily guarded
+by an experiment because caching behavior is subtle and difficult to
+comprehensively test.
+
+
+Default: `false`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Debugging
