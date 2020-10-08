@@ -217,6 +217,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		needCostly = true
 	} else {
 		needCostly = false
+	checkCostly:
 		for _, arg := range args {
 			switch argKey(arg) {
 			case "CGO_CFLAGS",
@@ -227,6 +228,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 				"PKG_CONFIG",
 				"GOGCCFLAGS":
 				needCostly = true
+				break checkCostly
 			}
 		}
 	}
