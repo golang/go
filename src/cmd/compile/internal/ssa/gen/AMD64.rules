@@ -1274,8 +1274,8 @@
 (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
 (CMPQconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
-(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= m && int16(m) < n => (FlagLT_ULT)
-(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= m && int8(m)  < n => (FlagLT_ULT)
+(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < n => (FlagLT_ULT)
+(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m)  && int8(m)  < n => (FlagLT_ULT)
 
 // TESTQ c c sets flags like CMPQ c 0.
 (TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c == 0 => (FlagEQ)

@@ -6886,7 +6886,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPBconst (ANDLconst _ [m]) [n])
-	// cond: 0 <= m && int8(m) < n
+	// cond: 0 <= int8(m) && int8(m) < n
 	// result: (FlagLT_ULT)
 	for {
 		n := auxIntToInt8(v.AuxInt)
@@ -6894,7 +6894,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 			break
 		}
 		m := auxIntToInt32(v_0.AuxInt)
-		if !(0 <= m && int8(m) < n) {
+		if !(0 <= int8(m) && int8(m) < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -8243,7 +8243,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPWconst (ANDLconst _ [m]) [n])
-	// cond: 0 <= m && int16(m) < n
+	// cond: 0 <= int16(m) && int16(m) < n
 	// result: (FlagLT_ULT)
 	for {
 		n := auxIntToInt16(v.AuxInt)
@@ -8251,7 +8251,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 			break
 		}
 		m := auxIntToInt32(v_0.AuxInt)
-		if !(0 <= m && int16(m) < n) {
+		if !(0 <= int16(m) && int16(m) < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
