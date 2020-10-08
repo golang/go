@@ -504,14 +504,14 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 	sigaltstack(nil, &st)
 	if st.ss_flags&_SS_DISABLE != 0 {
 		setg(nil)
-		needm(0)
+		needm()
 		noSignalStack(sig)
 		dropm()
 	}
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
 	if sp < stsp || sp >= stsp+st.ss_size {
 		setg(nil)
-		needm(0)
+		needm()
 		sigNotOnStack(sig)
 		dropm()
 	}
@@ -951,7 +951,7 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm(0)
+	needm()
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
