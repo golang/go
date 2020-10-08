@@ -169,3 +169,19 @@ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	LOCK
 	ANDB	BX, (AX)
 	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·Or(SB), NOSPLIT, $0-12
+	MOVQ	ptr+0(FP), AX
+	MOVL	val+8(FP), BX
+	LOCK
+	ORL	BX, (AX)
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·And(SB), NOSPLIT, $0-12
+	MOVQ	ptr+0(FP), AX
+	MOVL	val+8(FP), BX
+	LOCK
+	ANDL	BX, (AX)
+	RET
