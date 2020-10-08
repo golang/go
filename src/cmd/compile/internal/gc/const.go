@@ -1019,17 +1019,17 @@ func nodlit(v Val) *Node {
 func idealType(ct Ctype) *types.Type {
 	switch ct {
 	case CTSTR:
-		return types.Idealstring
+		return types.UntypedString
 	case CTBOOL:
-		return types.Idealbool
+		return types.UntypedBool
 	case CTINT:
-		return types.Idealint
+		return types.UntypedInt
 	case CTRUNE:
-		return types.Idealrune
+		return types.UntypedRune
 	case CTFLT:
-		return types.Idealfloat
+		return types.UntypedFloat
 	case CTCPLX:
-		return types.Idealcomplex
+		return types.UntypedComplex
 	case CTNIL:
 		return types.Types[TNIL]
 	}
@@ -1080,17 +1080,17 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 
 func ctype(t *types.Type) Ctype {
 	switch t {
-	case types.Idealbool:
+	case types.UntypedBool:
 		return CTBOOL
-	case types.Idealstring:
+	case types.UntypedString:
 		return CTSTR
-	case types.Idealint:
+	case types.UntypedInt:
 		return CTINT
-	case types.Idealrune:
+	case types.UntypedRune:
 		return CTRUNE
-	case types.Idealfloat:
+	case types.UntypedFloat:
 		return CTFLT
-	case types.Idealcomplex:
+	case types.UntypedComplex:
 		return CTCPLX
 	}
 	Fatalf("bad type %v", t)
@@ -1111,17 +1111,17 @@ func defaultType(t *types.Type) *types.Type {
 	}
 
 	switch t {
-	case types.Idealbool:
+	case types.UntypedBool:
 		return types.Types[TBOOL]
-	case types.Idealstring:
+	case types.UntypedString:
 		return types.Types[TSTRING]
-	case types.Idealint:
+	case types.UntypedInt:
 		return types.Types[TINT]
-	case types.Idealrune:
+	case types.UntypedRune:
 		return types.Runetype
-	case types.Idealfloat:
+	case types.UntypedFloat:
 		return types.Types[TFLOAT64]
-	case types.Idealcomplex:
+	case types.UntypedComplex:
 		return types.Types[TCOMPLEX128]
 	}
 

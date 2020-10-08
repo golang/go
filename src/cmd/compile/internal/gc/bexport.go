@@ -160,12 +160,12 @@ func predeclared() []*types.Type {
 			types.Errortype,
 
 			// untyped types
-			types.Idealbool,
-			types.Idealint,
-			types.Idealrune,
-			types.Idealfloat,
-			types.Idealcomplex,
-			types.Idealstring,
+			types.UntypedBool,
+			types.UntypedInt,
+			types.UntypedRune,
+			types.UntypedFloat,
+			types.UntypedComplex,
+			types.UntypedString,
 			types.Types[TNIL],
 
 			// package unsafe
