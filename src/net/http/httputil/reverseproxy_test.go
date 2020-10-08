@@ -1099,9 +1099,7 @@ func TestSelectFlushInterval(t *testing.T) {
 		{
 			name: "Content-Length: -1, overrides non-zero",
 			res: &http.Response{
-				Header: http.Header{
-					"Content-Length": {"-1"},
-				},
+				ContentLength: -1,
 			},
 			p:    &ReverseProxy{FlushInterval: 123},
 			want: -1,
@@ -1109,9 +1107,7 @@ func TestSelectFlushInterval(t *testing.T) {
 		{
 			name: "Content-Length: -1, overrides zero",
 			res: &http.Response{
-				Header: http.Header{
-					"Content-Length": {"-1"},
-				},
+				ContentLength: -1,
 			},
 			p:    &ReverseProxy{FlushInterval: 0},
 			want: -1,

@@ -59,7 +59,7 @@ type ReverseProxy struct {
 	// after each write to the client.
 	// The FlushInterval is ignored when ReverseProxy
 	// recognizes a response as a streaming response, or
-	// Content-Length is -1; for such responses, writes
+	// if its ContentLength is -1; for such responses, writes
 	// are flushed to the client immediately.
 	FlushInterval time.Duration
 
@@ -402,13 +402,8 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 
 	// For Server-Sent Events responses, flush immediately.
 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
-	if resCT == "text/event-stream" {
+	if resCT == "text/event-stream" || res.ContentLength == -1 {
 		return -1 // negative means immediately
-	}
-
-	resCL := res.Header.Get("Content-Length")
-	if resCL == "-1" {
-		return -1
 	}
 
 	return p.FlushInterval
