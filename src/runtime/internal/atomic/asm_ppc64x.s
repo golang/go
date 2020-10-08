@@ -222,8 +222,32 @@ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	MOVBZ	val+8(FP), R4
 	LWSYNC
 again:
-	LBAR	(R3),R6
-	AND	R4,R6
-	STBCCC	R6,(R3)
+	LBAR	(R3), R6
+	AND	R4, R6
+	STBCCC	R6, (R3)
+	BNE	again
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·Or(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LWSYNC
+again:
+	LWAR	(R3), R6
+	OR	R4, R6
+	STWCCC	R6, (R3)
+	BNE	again
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT runtime∕internal∕atomic·And(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LWSYNC
+again:
+	LWAR	(R3),R6
+	AND	R4, R6
+	STWCCC	R6, (R3)
 	BNE	again
 	RET

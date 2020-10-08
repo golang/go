@@ -243,3 +243,19 @@ TEXT ·Store8(SB), NOSPLIT, $0-5
 	MOVB	val+4(FP), AX
 	XCHGB	AX, 0(BX)
 	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-8
+	MOVL	ptr+0(FP), AX
+	MOVL	val+4(FP), BX
+	LOCK
+	ORL	BX, (AX)
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-8
+	MOVL	ptr+0(FP), AX
+	MOVL	val+4(FP), BX
+	LOCK
+	ANDL	BX, (AX)
+	RET

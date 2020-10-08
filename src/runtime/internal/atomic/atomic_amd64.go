@@ -77,6 +77,12 @@ func And8(ptr *uint8, val uint8)
 //go:noescape
 func Or8(ptr *uint8, val uint8)
 
+//go:noescape
+func And(ptr *uint32, val uint32)
+
+//go:noescape
+func Or(ptr *uint32, val uint32)
+
 // NOTE: Do not add atomicxor8 (XOR is not idempotent).
 
 //go:noescape
