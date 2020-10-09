@@ -175,7 +175,12 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
 	if len(pkgs) == 0 {
-		if err == nil {
+		if err != nil {
+			// Try to extract the error into a diagnostic.
+			if srcErrs := s.parseLoadError(ctx, err); srcErrs != nil {
+				return srcErrs
+			}
+		} else {
 			err = fmt.Errorf("no packages returned")
 		}
 		return errors.Errorf("%v: %w", err, source.PackagesLoadError)
@@ -213,6 +218,25 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	s.clearAndRebuildImportGraph()
 
 	return nil
+}
+
+func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) *source.ErrorList {
+	var srcErrs *source.ErrorList
+	for _, uri := range s.ModFiles() {
+		fh, err := s.GetFile(ctx, uri)
+		if err != nil {
+			continue
+		}
+		srcErr := extractGoCommandError(ctx, s, fh, loadErr)
+		if srcErr == nil {
+			continue
+		}
+		if srcErrs == nil {
+			srcErrs = &source.ErrorList{}
+		}
+		*srcErrs = append(*srcErrs, srcErr)
+	}
+	return srcErrs
 }
 
 // tempWorkspaceModule creates a temporary directory for use with
