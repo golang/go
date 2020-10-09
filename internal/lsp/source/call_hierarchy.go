@@ -32,6 +32,10 @@ func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle,
 		}
 		return nil, err
 	}
+	// The identifier can be nil if it is an import spec.
+	if identifier == nil {
+		return nil, nil
+	}
 
 	if _, ok := identifier.Declaration.obj.Type().Underlying().(*types.Signature); !ok {
 		return nil, nil
