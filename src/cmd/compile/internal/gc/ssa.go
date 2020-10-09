@@ -50,12 +50,10 @@ func initssaconfig() {
 	// Caching is disabled in the backend, so generating these here avoids allocations.
 	_ = types.NewPtr(types.Types[TINTER])                             // *interface{}
 	_ = types.NewPtr(types.NewPtr(types.Types[TSTRING]))              // **string
-	_ = types.NewPtr(types.NewPtr(types.UntypedString))               // **string
 	_ = types.NewPtr(types.NewSlice(types.Types[TINTER]))             // *[]interface{}
 	_ = types.NewPtr(types.NewPtr(types.Bytetype))                    // **byte
 	_ = types.NewPtr(types.NewSlice(types.Bytetype))                  // *[]byte
 	_ = types.NewPtr(types.NewSlice(types.Types[TSTRING]))            // *[]string
-	_ = types.NewPtr(types.NewSlice(types.UntypedString))             // *[]string
 	_ = types.NewPtr(types.NewPtr(types.NewPtr(types.Types[TUINT8]))) // ***uint8
 	_ = types.NewPtr(types.Types[TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
