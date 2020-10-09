@@ -23,7 +23,7 @@ import (
 func (s *Server) semanticTokensFull(ctx context.Context, p *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
 	now := time.Now()
 	ret, err := s.computeSemanticTokens(ctx, p.TextDocument, nil)
-	if err == nil {
+	if ret != nil && err == nil {
 		event.Log(ctx, fmt.Sprintf("Full(%v): %d items for %s in %s",
 			s.session.Options().SemanticTokens, len(ret.Data)/5, p.TextDocument.URI.SpanURI().Filename(), time.Since(now)))
 	} else {
@@ -39,7 +39,7 @@ func (s *Server) semanticTokensFullDelta(ctx context.Context, p *protocol.Semant
 func (s *Server) semanticTokensRange(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
 	now := time.Now()
 	ret, err := s.computeSemanticTokens(ctx, p.TextDocument, &p.Range)
-	if err == nil {
+	if ret != nil && err == nil {
 		event.Log(ctx, fmt.Sprintf("Range(%v): %d items for %s %s in %s",
 			s.session.Options().SemanticTokens, len(ret.Data)/5, p.TextDocument.URI.SpanURI().Filename(),
 			p.Range, time.Since(now)))
