@@ -572,6 +572,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicAdd32(v)
 	case OpAtomicAdd64:
 		return rewriteValueAMD64_OpAtomicAdd64(v)
+	case OpAtomicAnd32:
+		return rewriteValueAMD64_OpAtomicAnd32(v)
 	case OpAtomicAnd8:
 		return rewriteValueAMD64_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
@@ -590,6 +592,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicLoad8(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueAMD64_OpAtomicLoadPtr(v)
+	case OpAtomicOr32:
+		return rewriteValueAMD64_OpAtomicOr32(v)
 	case OpAtomicOr8:
 		return rewriteValueAMD64_OpAtomicOr8(v)
 	case OpAtomicStore32:
@@ -28476,6 +28480,21 @@ func rewriteValueAMD64_OpAtomicAdd64(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpAtomicAnd32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (AtomicAnd32 ptr val mem)
+	// result: (ANDLlock ptr val mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpAMD64ANDLlock)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+}
 func rewriteValueAMD64_OpAtomicAnd8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -28604,6 +28623,21 @@ func rewriteValueAMD64_OpAtomicLoadPtr(v *Value) bool {
 		mem := v_1
 		v.reset(OpAMD64MOVQatomicload)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+}
+func rewriteValueAMD64_OpAtomicOr32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (AtomicOr32 ptr val mem)
+	// result: (ORLlock ptr val mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpAMD64ORLlock)
+		v.AddArg3(ptr, val, mem)
 		return true
 	}
 }
