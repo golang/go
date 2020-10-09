@@ -79,9 +79,8 @@ type Repo interface {
 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
 
 	// RecentTag returns the most recent tag on rev or one of its predecessors
-	// with the given prefix and major version.
-	// An empty major string matches any major version.
-	RecentTag(rev, prefix, major string) (tag string, err error)
+	// with the given prefix. allowed may be used to filter out unwanted versions.
+	RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error)
 
 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
 	//
