@@ -11,7 +11,7 @@ import (
 
 const bitSize16 = 2
 
-func fileInfoFromStat(d *syscall.Dir) FileInfo {
+func fileInfoFromStat(d *syscall.Dir) *fileStat {
 	fs := &fileStat{
 		name:    d.Name,
 		size:    d.Length,

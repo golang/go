@@ -9,7 +9,6 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
-	"io"
 	"runtime"
 	"syscall"
 )
@@ -353,33 +352,6 @@ func Symlink(oldname, newname string) error {
 	return nil
 }
 
-func (f *File) readdir(n int) (fi []FileInfo, err error) {
-	dirname := f.name
-	if dirname == "" {
-		dirname = "."
-	}
-	names, err := f.Readdirnames(n)
-	fi = make([]FileInfo, 0, len(names))
-	for _, filename := range names {
-		fip, lerr := lstat(dirname + "/" + filename)
-		if IsNotExist(lerr) {
-			// File disappeared between readdir + stat.
-			// Just treat it as if it didn't exist.
-			continue
-		}
-		if lerr != nil {
-			return fi, lerr
-		}
-		fi = append(fi, fip)
-	}
-	if len(fi) == 0 && err == nil && n > 0 {
-		// Per File.Readdir, the slice must be non-empty or err
-		// must be non-nil if n > 0.
-		err = io.EOF
-	}
-	return fi, err
-}
-
 // Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {
@@ -406,4 +378,42 @@ func Readlink(name string) (string, error) {
 			return string(b[0:n]), nil
 		}
 	}
+}
+
+type unixDirent struct {
+	parent string
+	name   string
+	typ    FileMode
+	info   FileInfo
+}
+
+func (d *unixDirent) Name() string   { return d.name }
+func (d *unixDirent) IsDir() bool    { return d.typ.IsDir() }
+func (d *unixDirent) Type() FileMode { return d.typ }
+
+func (d *unixDirent) Info() (FileInfo, error) {
+	if d.info != nil {
+		return d.info, nil
+	}
+	return lstat(d.parent + "/" + d.name)
+}
+
+func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
+	ude := &unixDirent{
+		parent: parent,
+		name:   name,
+		typ:    typ,
+	}
+	if typ != ^FileMode(0) && !testingForceReadDirLstat {
+		return ude, nil
+	}
+
+	info, err := lstat(parent + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+
+	ude.typ = info.Mode().Type()
+	ude.info = info
+	return ude, nil
 }

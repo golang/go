@@ -100,9 +100,14 @@ func (m FileMode) IsRegular() bool {
 	return m&ModeType == 0
 }
 
-// Perm returns the Unix permission bits in m.
+// Perm returns the Unix permission bits in m (m & ModePerm).
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
+}
+
+// Type returns type bits in m (m & ModeType).
+func (m FileMode) Type() FileMode {
+	return m & ModeType
 }
 
 func (fs *fileStat) Name() string { return fs.name }
