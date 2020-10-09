@@ -45,6 +45,7 @@ const (
 //go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
+//go:cgo_import_dynamic runtime._Sleep Sleep%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
@@ -95,6 +96,7 @@ var (
 	_SetThreadPriority,
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
+	_Sleep,
 	_SuspendThread,
 	_SwitchToThread,
 	_TlsAlloc,
@@ -1029,6 +1031,7 @@ func ctrlhandler1(_type uint32) uint32 {
 	}
 
 	if sigsend(s) {
+		stdcall1(_Sleep, uintptr(_INFINITE))
 		return 1
 	}
 	exit(2) // SIGINT, SIGTERM, etc
