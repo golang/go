@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,9 +18,12 @@ import (
 	"time"
 )
 
-var fast = flag.Bool("fast", false, "parse package files in parallel")
-var src_ = flag.String("src", "parser.go", "source file to parse")
-var verify = flag.Bool("verify", false, "verify idempotent printing")
+var (
+	fast   = flag.Bool("fast", false, "parse package files in parallel")
+	verify = flag.Bool("verify", false, "verify idempotent printing")
+	src_   = flag.String("src", "parser.go", "source file to parse")
+	skip   = flag.String("skip", "", "files matching this regular expression are skipped by TestStdLib")
+)
 
 func TestParse(t *testing.T) {
 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
@@ -28,6 +32,15 @@ func TestParse(t *testing.T) {
 func TestStdLib(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
+	}
+
+	var skipRx *regexp.Regexp
+	if *skip != "" {
+		var err error
+		skipRx, err = regexp.Compile(*skip)
+		if err != nil {
+			t.Fatalf("invalid argument for -skip (%v)", err)
+		}
 	}
 
 	var m1 runtime.MemStats
@@ -46,6 +59,12 @@ func TestStdLib(t *testing.T) {
 			runtime.GOROOT(),
 		} {
 			walkDirs(t, dir, func(filename string) {
+				if skipRx != nil && skipRx.MatchString(filename) {
+					// Always report skipped files since regexp
+					// typos can lead to surprising results.
+					fmt.Printf("skipping %s\n", filename)
+					return
+				}
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}

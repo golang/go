@@ -189,7 +189,18 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 		case *ast.EmptyStmt:
 			// do not warn about unreachable empty statements
 		default:
-			d.pass.ReportRangef(stmt, "unreachable code")
+			d.pass.Report(analysis.Diagnostic{
+				Pos:     stmt.Pos(),
+				End:     stmt.End(),
+				Message: "unreachable code",
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: "Remove",
+					TextEdits: []analysis.TextEdit{{
+						Pos: stmt.Pos(),
+						End: stmt.End(),
+					}},
+				}},
+			})
 			d.reachable = true // silence error about next statement
 		}
 	}

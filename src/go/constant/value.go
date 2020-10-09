@@ -381,17 +381,8 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 		panic("MakeFromLiteral called with non-zero last argument")
 	}
 
-	// TODO(gri) Remove stripSep and, for token.INT, 0o-octal handling
-	//           below once strconv and math/big can handle separators
-	//           and 0o-octals.
-
 	switch tok {
 	case token.INT:
-		// TODO(gri) remove 0o-special case once strconv and math/big can handle 0o-octals
-		lit = stripSep(lit)
-		if len(lit) >= 2 && lit[0] == '0' && (lit[1] == 'o' || lit[1] == 'O') {
-			lit = "0" + lit[2:]
-		}
 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
 			return int64Val(x)
 		}
@@ -400,13 +391,11 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 		}
 
 	case token.FLOAT:
-		lit = stripSep(lit)
 		if x := makeFloatFromLiteral(lit); x != nil {
 			return x
 		}
 
 	case token.IMAG:
-		lit = stripSep(lit)
 		if n := len(lit); n > 0 && lit[n-1] == 'i' {
 			if im := makeFloatFromLiteral(lit[:n-1]); im != nil {
 				return makeComplex(int64Val(0), im)
@@ -430,26 +419,6 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 	}
 
 	return unknownVal{}
-}
-
-func stripSep(s string) string {
-	// avoid making a copy if there are no separators (common case)
-	i := 0
-	for i < len(s) && s[i] != '_' {
-		i++
-	}
-	if i == len(s) {
-		return s
-	}
-
-	// make a copy of s without separators
-	var buf []byte
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; c != '_' {
-			buf = append(buf, c)
-		}
-	}
-	return string(buf)
 }
 
 // ----------------------------------------------------------------------------

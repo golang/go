@@ -1,0 +1,49 @@
+# 'go get pkg' should not upgrade to a retracted version.
+cp go.mod.orig go.mod
+go mod edit -require example.com/retract/self/prev@v1.1.0
+go get -d example.com/retract/self/prev
+go list -m example.com/retract/self/prev
+stdout '^example.com/retract/self/prev v1.1.0$'
+
+# 'go get pkg' should not downgrade from a retracted version when no higher
+# version is available.
+cp go.mod.orig go.mod
+go mod edit -require example.com/retract/self/prev@v1.9.0
+go get -d example.com/retract/self/prev
+stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
+go list -m example.com/retract/self/prev
+stdout '^example.com/retract/self/prev v1.9.0$'
+
+# 'go get pkg@latest' should downgrade from a retracted version.
+cp go.mod.orig go.mod
+go mod edit -require example.com/retract/self/prev@v1.9.0
+go get -d example.com/retract/self/prev@latest
+go list -m example.com/retract/self/prev
+stdout '^example.com/retract/self/prev v1.1.0$'
+
+# 'go get pkg@version' should update to a specific version, even if that
+# version is retracted.
+cp go.mod.orig go.mod
+go get -d example.com/retract@v1.0.0-bad
+stderr '^go: warning: example.com/retract@v1.0.0-bad is retracted: bad$'
+go list -m example.com/retract
+stdout '^example.com/retract v1.0.0-bad$'
+
+# 'go get -u' should not downgrade from a retracted version when no higher
+# version is available.
+cp go.mod.orig go.mod
+go mod edit -require example.com/retract/self/prev@v1.9.0
+go get -d -u .
+stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
+go list -m example.com/retract/self/prev
+stdout '^example.com/retract/self/prev v1.9.0$'
+
+-- go.mod.orig --
+module example.com/use
+
+go 1.15
+
+-- use.go --
+package use
+
+import _ "example.com/retract/self/prev"

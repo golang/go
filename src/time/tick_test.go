@@ -21,8 +21,13 @@ func TestTicker(t *testing.T) {
 	delta := 20 * Millisecond
 
 	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-		count = 5
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+		// The following test will run ticker count/2 times then reset
+		// the ticker to double the duration for the rest of count/2.
+		// Since tick frequency is limited on Darwin ARM64, use even
+		// number to give the ticks more time to let the test pass.
+		// See CL 220638.
+		count = 6
 		delta = 100 * Millisecond
 	}
 
@@ -36,13 +41,17 @@ func TestTicker(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		ticker := NewTicker(delta)
 		t0 := Now()
-		for i := 0; i < count; i++ {
+		for i := 0; i < count/2; i++ {
+			<-ticker.C
+		}
+		ticker.Reset(delta * 2)
+		for i := count / 2; i < count; i++ {
 			<-ticker.C
 		}
 		ticker.Stop()
 		t1 := Now()
 		dt := t1.Sub(t0)
-		target := delta * Duration(count)
+		target := 3 * delta * Duration(count/2)
 		slop := target * 2 / 10
 		if dt < target-slop || dt > target+slop {
 			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
@@ -114,6 +123,27 @@ func BenchmarkTicker(b *testing.B) {
 		ticker := NewTicker(Nanosecond)
 		for i := 0; i < n; i++ {
 			<-ticker.C
+		}
+		ticker.Stop()
+	})
+}
+
+func BenchmarkTickerReset(b *testing.B) {
+	benchmark(b, func(n int) {
+		ticker := NewTicker(Nanosecond)
+		for i := 0; i < n; i++ {
+			ticker.Reset(Nanosecond * 2)
+		}
+		ticker.Stop()
+	})
+}
+
+func BenchmarkTickerResetNaive(b *testing.B) {
+	benchmark(b, func(n int) {
+		ticker := NewTicker(Nanosecond)
+		for i := 0; i < n; i++ {
+			ticker.Stop()
+			ticker = NewTicker(Nanosecond * 2)
 		}
 		ticker.Stop()
 	})

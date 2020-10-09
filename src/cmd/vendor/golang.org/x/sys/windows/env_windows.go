@@ -6,7 +6,10 @@
 
 package windows
 
-import "syscall"
+import (
+	"syscall"
+	"unsafe"
+)
 
 func Getenv(key string) (value string, found bool) {
 	return syscall.Getenv(key)
@@ -22,6 +25,28 @@ func Clearenv() {
 
 func Environ() []string {
 	return syscall.Environ()
+}
+
+// Returns a default environment associated with the token, rather than the current
+// process. If inheritExisting is true, then this environment also inherits the
+// environment of the current process.
+func (token Token) Environ(inheritExisting bool) (env []string, err error) {
+	var block *uint16
+	err = CreateEnvironmentBlock(&block, token, inheritExisting)
+	if err != nil {
+		return nil, err
+	}
+	defer DestroyEnvironmentBlock(block)
+	blockp := uintptr(unsafe.Pointer(block))
+	for {
+		entry := UTF16PtrToString((*uint16)(unsafe.Pointer(blockp)))
+		if len(entry) == 0 {
+			break
+		}
+		env = append(env, entry)
+		blockp += 2 * (uintptr(len(entry)) + 1)
+	}
+	return env, nil
 }
 
 func Unsetenv(key string) error {

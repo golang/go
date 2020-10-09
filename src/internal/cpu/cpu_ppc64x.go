@@ -9,8 +9,8 @@ package cpu
 const CacheLinePadSize = 128
 
 // ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
-// These are initialized by archauxv in runtime/os_linux_ppc64x.go.
-// These should not be changed after they are initialized.
+// These are initialized by archauxv and should not be changed after they are
+// initialized.
 // On aix/ppc64, these values are initialized early in the runtime in runtime/os_aix.go.
 var HWCap uint
 var HWCap2 uint

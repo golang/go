@@ -1,5 +1,5 @@
 // Inferno utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -39,23 +39,33 @@ import (
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchAMD64
 
+	fa := funcAlign
+	if objabi.GOAMD64 == "alignedjumps" {
+		fa = 32
+	}
+
 	theArch := ld.Arch{
-		Funcalign:  funcAlign,
+		Funcalign:  fa,
 		Maxalign:   maxAlign,
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		// 0xCC is INT $3 - breakpoint instruction
+		CodePad: []byte{0xCC},
+
+		Plan9Magic:  uint32(4*26*26 + 7),
+		Plan9_64Bit: true,
 
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb,
-		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
+		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		MachorelocSize:   8,
 		PEreloc1:         pereloc1,
 		TLSIEtoLE:        tlsIEtoLE,
 

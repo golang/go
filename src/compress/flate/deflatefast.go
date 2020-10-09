@@ -4,6 +4,8 @@
 
 package flate
 
+import "math"
+
 // This encoding algorithm, which prioritizes speed over output size, is
 // based on Snappy's LZ77-style encoder: github.com/golang/snappy
 
@@ -12,6 +14,13 @@ const (
 	tableSize  = 1 << tableBits // Size of the table.
 	tableMask  = tableSize - 1  // Mask for table indices. Redundant, but can eliminate bounds checks.
 	tableShift = 32 - tableBits // Right-shift to get the tableBits most significant bits of a uint32.
+
+	// Reset the buffer offset when reaching this.
+	// Offsets are stored between blocks as int32 values.
+	// Since the offset we are checking against is at the beginning
+	// of the buffer, we need to subtract the current and input
+	// buffer to not risk overflowing the int32.
+	bufferReset = math.MaxInt32 - maxStoreBlockSize*2
 )
 
 func load32(b []byte, i int32) uint32 {
@@ -59,8 +68,8 @@ func newDeflateFast() *deflateFast {
 // to dst and returns the result.
 func (e *deflateFast) encode(dst []token, src []byte) []token {
 	// Ensure that e.cur doesn't wrap.
-	if e.cur > 1<<30 {
-		e.resetAll()
+	if e.cur >= bufferReset {
+		e.shiftOffsets()
 	}
 
 	// This check isn't in the Snappy implementation, but there, the caller
@@ -264,22 +273,32 @@ func (e *deflateFast) reset() {
 	e.cur += maxMatchOffset
 
 	// Protect against e.cur wraparound.
-	if e.cur > 1<<30 {
-		e.resetAll()
+	if e.cur >= bufferReset {
+		e.shiftOffsets()
 	}
 }
 
-// resetAll resets the deflateFast struct and is only called in rare
-// situations to prevent integer overflow. It manually resets each field
-// to avoid causing large stack growth.
+// shiftOffsets will shift down all match offset.
+// This is only called in rare situations to prevent integer overflow.
 //
-// See https://golang.org/issue/18636.
-func (e *deflateFast) resetAll() {
-	// This is equivalent to:
-	//	*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
-	e.cur = maxStoreBlockSize
-	e.prev = e.prev[:0]
-	for i := range e.table {
-		e.table[i] = tableEntry{}
+// See https://golang.org/issue/18636 and https://github.com/golang/go/issues/34121.
+func (e *deflateFast) shiftOffsets() {
+	if len(e.prev) == 0 {
+		// We have no history; just clear the table.
+		for i := range e.table[:] {
+			e.table[i] = tableEntry{}
+		}
+		e.cur = maxMatchOffset
+		return
 	}
+
+	// Shift down everything in the table that isn't already too far away.
+	for i := range e.table[:] {
+		v := e.table[i].offset - e.cur + maxMatchOffset
+		if v < 0 {
+			v = 0
+		}
+		e.table[i].offset = v
+	}
+	e.cur = maxMatchOffset
 }

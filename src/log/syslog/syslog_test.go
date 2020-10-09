@@ -51,12 +51,7 @@ func testableNetwork(network string) bool {
 	switch network {
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "darwin":
-			switch runtime.GOARCH {
-			case "arm", "arm64":
-				return false
-			}
-		case "android":
+		case "ios", "android":
 			return false
 		}
 	}
@@ -356,7 +351,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	}
 
 	// count all the messages arriving
-	count := make(chan int)
+	count := make(chan int, 1)
 	go func() {
 		ct := 0
 		for range done {

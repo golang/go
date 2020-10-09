@@ -82,6 +82,13 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 					min = m
 				}
 			}
+		case OCALLPART:
+			fn := asNode(callpartMethod(n).Type.Nname())
+			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+				if m := v.visit(fn.Name.Defn); m < min {
+					min = m
+				}
+			}
 		case OCLOSURE:
 			if m := v.visit(n.Func.Closure); m < min {
 				min = m

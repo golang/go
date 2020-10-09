@@ -191,6 +191,9 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
+	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
+	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
 }
 
 func readgogc() int32 {
@@ -233,8 +236,6 @@ func setGCPercent(in int32) (out int32) {
 		gcSetTriggerRatio(memstats.triggerRatio)
 		unlock(&mheap_.lock)
 	})
-	// Pacing changed, so the scavenger should be awoken.
-	wakeScavenger()
 
 	// If we just disabled GC, wait for any concurrent GC mark to
 	// finish so we always return with no GC running.
@@ -769,32 +770,40 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 	}
 
-	// If we let triggerRatio go too low, then if the application
-	// is allocating very rapidly we might end up in a situation
-	// where we're allocating black during a nearly always-on GC.
-	// The result of this is a growing heap and ultimately an
-	// increase in RSS. By capping us at a point >0, we're essentially
-	// saying that we're OK using more CPU during the GC to prevent
-	// this growth in RSS.
-	//
-	// The current constant was chosen empirically: given a sufficiently
-	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
-	// to <0.05, this constant causes applications to retain the same peak
-	// RSS compared to not having this allocator.
-	const minTriggerRatio = 0.6
-
 	// Set the trigger ratio, capped to reasonable bounds.
-	if triggerRatio < minTriggerRatio {
-		// This can happen if the mutator is allocating very
-		// quickly or the GC is scanning very slowly.
-		triggerRatio = minTriggerRatio
-	} else if gcpercent >= 0 {
+	if gcpercent >= 0 {
+		scalingFactor := float64(gcpercent) / 100
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
-		maxTriggerRatio := 0.95 * float64(gcpercent) / 100
+		maxTriggerRatio := 0.95 * scalingFactor
 		if triggerRatio > maxTriggerRatio {
 			triggerRatio = maxTriggerRatio
 		}
+
+		// If we let triggerRatio go too low, then if the application
+		// is allocating very rapidly we might end up in a situation
+		// where we're allocating black during a nearly always-on GC.
+		// The result of this is a growing heap and ultimately an
+		// increase in RSS. By capping us at a point >0, we're essentially
+		// saying that we're OK using more CPU during the GC to prevent
+		// this growth in RSS.
+		//
+		// The current constant was chosen empirically: given a sufficiently
+		// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+		// to <0.05, this constant causes applications to retain the same peak
+		// RSS compared to not having this allocator.
+		minTriggerRatio := 0.6 * scalingFactor
+		if triggerRatio < minTriggerRatio {
+			triggerRatio = minTriggerRatio
+		}
+	} else if triggerRatio < 0 {
+		// gcpercent < 0, so just make sure we're not getting a negative
+		// triggerRatio. This case isn't expected to happen in practice,
+		// and doesn't really matter because if gcpercent < 0 then we won't
+		// ever consume triggerRatio further on in this function, but let's
+		// just be defensive here; the triggerRatio being negative is almost
+		// certainly undesirable.
+		triggerRatio = 0
 	}
 	memstats.triggerRatio = triggerRatio
 
@@ -1309,6 +1318,7 @@ func gcStart(trigger gcTrigger) {
 	systemstack(func() {
 		finishsweep_m()
 	})
+
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
@@ -1362,6 +1372,10 @@ func gcStart(trigger gcTrigger) {
 	// the world.
 	gcController.markStartTime = now
 
+	// In STW mode, we could block the instant systemstack
+	// returns, so make sure we're not preemptible.
+	mp = acquirem()
+
 	// Concurrent mark.
 	systemstack(func() {
 		now = startTheWorldWithSema(trace.enabled)
@@ -1374,10 +1388,10 @@ func gcStart(trigger gcTrigger) {
 	// this goroutine becomes runnable again, and we could
 	// self-deadlock otherwise.
 	semrelease(&worldsema)
+	releasem(mp)
 
-	// In STW mode, we could block the instant systemstack
-	// returns, so don't do anything important here. Make sure we
-	// block rather than returning to user code.
+	// Make sure we block instead of returning to user code
+	// in STW mode.
 	if mode != gcBackgroundMode {
 		Gosched()
 	}
@@ -1656,13 +1670,13 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			// mark using checkmark bits, to check that we
 			// didn't forget to mark anything during the
 			// concurrent mark process.
+			startCheckmarks()
 			gcResetMarkState()
-			initCheckmarks()
 			gcw := &getg().m.p.ptr().gcw
 			gcDrain(gcw, 0)
 			wbBufFlush1(getg().m.p.ptr())
 			gcw.dispose()
-			clearCheckmarks()
+			endCheckmarks()
 		}
 
 		// marking is complete so we can turn the write barrier off
@@ -1690,9 +1704,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
 
 	// Update GC trigger and pacing for the next cycle.
 	gcSetTriggerRatio(nextTriggerRatio)
-
-	// Pacing changed, so the scavenger should be awoken.
-	wakeScavenger()
 
 	// Update timing memstats
 	now := nanotime()
@@ -2126,6 +2137,9 @@ func gcMark(start_time int64) {
 
 // gcSweep must be called on the system stack because it acquires the heap
 // lock. See mheap for details.
+//
+// The world must be stopped.
+//
 //go:systemstack
 func gcSweep(mode gcMode) {
 	if gcphase != _GCoff {
@@ -2135,17 +2149,13 @@ func gcSweep(mode gcMode) {
 	lock(&mheap_.lock)
 	mheap_.sweepgen += 2
 	mheap_.sweepdone = 0
-	if mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
-		// We should have drained this list during the last
-		// sweep phase. We certainly need to start this phase
-		// with an empty swept list.
-		throw("non-empty swept list")
-	}
 	mheap_.pagesSwept = 0
 	mheap_.sweepArenas = mheap_.allArenas
 	mheap_.reclaimIndex = 0
 	mheap_.reclaimCredit = 0
 	unlock(&mheap_.lock)
+
+	sweep.centralIndex.clear()
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
 		// Special case synchronous sweep.

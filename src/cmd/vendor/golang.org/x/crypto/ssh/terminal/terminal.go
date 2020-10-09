@@ -7,6 +7,7 @@ package terminal
 import (
 	"bytes"
 	"io"
+	"runtime"
 	"strconv"
 	"sync"
 	"unicode/utf8"
@@ -112,6 +113,7 @@ func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
 }
 
 const (
+	keyCtrlC     = 3
 	keyCtrlD     = 4
 	keyCtrlU     = 21
 	keyEnter     = '\r'
@@ -150,8 +152,12 @@ func bytesToKey(b []byte, pasteActive bool) (rune, []byte) {
 		switch b[0] {
 		case 1: // ^A
 			return keyHome, b[1:]
+		case 2: // ^B
+			return keyLeft, b[1:]
 		case 5: // ^E
 			return keyEnd, b[1:]
+		case 6: // ^F
+			return keyRight, b[1:]
 		case 8: // ^H
 			return keyBackspace, b[1:]
 		case 11: // ^K
@@ -737,6 +743,9 @@ func (t *Terminal) readLine() (line string, err error) {
 						return "", io.EOF
 					}
 				}
+				if key == keyCtrlC {
+					return "", io.EOF
+				}
 				if key == keyPasteStart {
 					t.pasteActive = true
 					if len(t.line) == 0 {
@@ -939,6 +948,8 @@ func (s *stRingBuffer) NthPreviousEntry(n int) (value string, ok bool) {
 // readPasswordLine reads from reader until it finds \n or io.EOF.
 // The slice returned does not include the \n.
 // readPasswordLine also ignores any \r it finds.
+// Windows uses \r as end of line. So, on Windows, readPasswordLine
+// reads until it finds \r and ignores any \n it finds during processing.
 func readPasswordLine(reader io.Reader) ([]byte, error) {
 	var buf [1]byte
 	var ret []byte
@@ -947,10 +958,20 @@ func readPasswordLine(reader io.Reader) ([]byte, error) {
 		n, err := reader.Read(buf[:])
 		if n > 0 {
 			switch buf[0] {
+			case '\b':
+				if len(ret) > 0 {
+					ret = ret[:len(ret)-1]
+				}
 			case '\n':
-				return ret, nil
+				if runtime.GOOS != "windows" {
+					return ret, nil
+				}
+				// otherwise ignore \n
 			case '\r':
-				// remove \r from passwords on Windows
+				if runtime.GOOS == "windows" {
+					return ret, nil
+				}
+				// otherwise ignore \r
 			default:
 				ret = append(ret, buf[0])
 			}

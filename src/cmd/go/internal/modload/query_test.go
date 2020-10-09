@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"internal/testenv"
 	"io/ioutil"
 	"log"
@@ -15,8 +16,6 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/module"
 )
@@ -36,8 +35,7 @@ func testMain(m *testing.M) int {
 
 	os.Setenv("GOPATH", dir)
 	cfg.BuildContext.GOPATH = dir
-	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
-	codehost.WorkRoot = filepath.Join(dir, "codework")
+	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
 	return m.Run()
 }
 
@@ -182,20 +180,24 @@ func TestQuery(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
+	ctx := context.Background()
+
 	for _, tt := range queryTests {
 		allow := tt.allow
 		if allow == "" {
 			allow = "*"
 		}
-		allowed := func(m module.Version) bool {
-			ok, _ := path.Match(allow, m.Version)
-			return ok
+		allowed := func(ctx context.Context, m module.Version) error {
+			if ok, _ := path.Match(allow, m.Version); !ok {
+				return ErrDisallowed
+			}
+			return nil
 		}
 		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
 			t.Parallel()
 
-			info, err := Query(tt.path, tt.query, tt.current, allowed)
+			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
 					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)

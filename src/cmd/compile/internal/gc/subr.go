@@ -60,9 +60,15 @@ func adderrorname(n *Node) {
 }
 
 func adderr(pos src.XPos, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	// Only add the position if know the position.
+	// See issue golang.org/issue/11361.
+	if pos.IsKnown() {
+		msg = fmt.Sprintf("%v: %s", linestr(pos), msg)
+	}
 	errors = append(errors, Error{
 		pos: pos,
-		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
+		msg: msg + "\n",
 	})
 }
 
@@ -265,13 +271,6 @@ func autolabel(prefix string) *types.Sym {
 	return lookupN(prefix, int(n))
 }
 
-func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !types.IsExported(name) && pkg != localpkg {
-		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
-	}
-	return pkg.Lookup(name)
-}
-
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *types.Pkg, pack *Node) {
@@ -376,7 +375,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 // nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
 func nodSym(op Op, left *Node, sym *types.Sym) *Node {
-	n := nod(op, left, nil)
+	return nodlSym(lineno, op, left, sym)
+}
+
+// nodlSym makes a Node with position Pos, with Op op, and with the Left field set to left
+// and the Sym field set to sym. This is for ODOT and friends.
+func nodlSym(pos src.XPos, op Op, left *Node, sym *types.Sym) *Node {
+	n := nodl(pos, op, left, nil)
 	n.Sym = sym
 	return n
 }
@@ -541,8 +546,8 @@ func methtype(t *types.Type) *types.Type {
 
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
-// If not, return 0.
-func assignop(src *types.Type, dst *types.Type, why *string) Op {
+// If not, return OXXX.
+func assignop(src, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -551,7 +556,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 	if src == nil || dst == nil || src.Etype == TFORW || dst.Etype == TFORW || src.Orig == nil || dst.Orig == nil {
-		return 0
+		return OXXX
 	}
 
 	// 1. src type is identical to dst.
@@ -611,14 +616,14 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 			}
 		}
 
-		return 0
+		return OXXX
 	}
 
 	if isptrto(dst, TINTER) {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", dst)
 		}
-		return 0
+		return OXXX
 	}
 
 	if src.IsInterface() && dst.Etype != TBLANK {
@@ -627,7 +632,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
 			*why = ": need type assertion"
 		}
-		return 0
+		return OXXX
 	}
 
 	// 4. src is a bidirectional channel value, dst is a channel type,
@@ -659,13 +664,14 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 
-	return 0
+	return OXXX
 }
 
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
-// If not, return 0.
-func convertop(src *types.Type, dst *types.Type, why *string) Op {
+// If not, return OXXX.
+// srcConstant indicates whether the value of type src is a constant.
+func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -674,7 +680,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 	if src == nil || dst == nil {
-		return 0
+		return OXXX
 	}
 
 	// Conversions from regular to go:notinheap are not allowed
@@ -683,21 +689,21 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		}
-		return 0
+		return OXXX
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		}
-		return 0
+		return OXXX
 	}
 
 	// 1. src can be assigned to dst.
 	op := assignop(src, dst, why)
-	if op != 0 {
+	if op != OXXX {
 		return op
 	}
 
@@ -706,7 +712,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	// with the good message from assignop.
 	// Otherwise clear the error.
 	if src.IsInterface() || dst.IsInterface() {
-		return 0
+		return OXXX
 	}
 	if why != nil {
 		*why = ""
@@ -741,6 +747,13 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONV
 	}
 
+	// Special case for constant conversions: any numeric
+	// conversion is potentially okay. We'll validate further
+	// within evconst. See #38117.
+	if srcConstant && (src.IsInteger() || src.IsFloat() || src.IsComplex()) && (dst.IsInteger() || dst.IsFloat() || dst.IsComplex()) {
+		return OCONV
+	}
+
 	// 6. src is an integer or has type []byte or []rune
 	// and dst is a string type.
 	if src.IsInteger() && dst.IsString() {
@@ -768,12 +781,12 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
-	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
+	if (src.IsPtr() || src.IsUintptr()) && dst.IsUnsafePtr() {
 		return OCONVNOP
 	}
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
-	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+	if src.IsUnsafePtr() && (dst.IsPtr() || dst.IsUintptr()) {
 		return OCONVNOP
 	}
 
@@ -785,7 +798,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 
-	return 0
+	return OXXX
 }
 
 func assignconv(n *Node, t *types.Type, context string) *Node {
@@ -812,7 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == types.Idealbool && !t.IsBoolean() {
+	if n.Type == types.UntypedBool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
 			r := nod(OCONVNOP, n, nil)
 			r.Type = types.Types[TBOOL]
@@ -828,7 +841,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 
 	var why string
 	op := assignop(n.Type, t, &why)
-	if op == 0 {
+	if op == OXXX {
 		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
@@ -913,6 +926,25 @@ func (o Op) IsSlice3() bool {
 	}
 	Fatalf("IsSlice3 op %v", o)
 	return false
+}
+
+// backingArrayPtrLen extracts the pointer and length from a slice or string.
+// This constructs two nodes referring to n, so n must be a cheapexpr.
+func (n *Node) backingArrayPtrLen() (ptr, len *Node) {
+	var init Nodes
+	c := cheapexpr(n, &init)
+	if c != n || init.Len() != 0 {
+		Fatalf("backingArrayPtrLen not cheap: %v", n)
+	}
+	ptr = nod(OSPTR, n, nil)
+	if n.Type.IsString() {
+		ptr.Type = types.Types[TUINT8].PtrTo()
+	} else {
+		ptr.Type = n.Type.Elem().PtrTo()
+	}
+	len = nod(OLEN, n, nil)
+	len.Type = types.Types[TINT]
+	return ptr, len
 }
 
 // labeledControl returns the control flow Node (for, switch, select)
@@ -1515,7 +1547,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	tfn.List.Set(structargs(method.Type.Params(), true))
 	tfn.Rlist.Set(structargs(method.Type.Results(), false))
 
-	disableExport(newnam)
 	fn := dclfunc(newnam, tfn)
 	fn.Func.SetDupok(true)
 
@@ -1588,7 +1619,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	escapeFuncs([]*Node{fn}, false)
 
 	Curfn = nil
-	funccompile(fn)
+	xtop = append(xtop, fn)
 }
 
 func paramNnames(ft *types.Type) []*Node {
@@ -1603,8 +1634,7 @@ func hashmem(t *types.Type) *Node {
 	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
-	n.SetClass(PFUNC)
-	n.Sym.SetFunc(true)
+	setNodeNameFunc(n)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
@@ -1873,18 +1903,31 @@ func itabType(itab *Node) *Node {
 // ifaceData loads the data field from an interface.
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
-func ifaceData(n *Node, t *types.Type) *Node {
-	ptr := nodSym(OIDATA, n, nil)
+func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
+	if t.IsInterface() {
+		Fatalf("ifaceData interface: %v", t)
+	}
+	ptr := nodlSym(pos, OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
 		ptr.SetTypecheck(1)
 		return ptr
 	}
 	ptr.Type = types.NewPtr(t)
-	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
-	ind := nod(ODEREF, ptr, nil)
+	ind := nodl(pos, ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
+	ind.SetBounded(true)
 	return ind
+}
+
+// typePos returns the position associated with t.
+// This is where t was declared or where it appeared as a type expression.
+func typePos(t *types.Type) src.XPos {
+	n := asNode(t.Nod)
+	if n == nil || !n.Pos.IsKnown() {
+		Fatalf("bad type: %v", t)
+	}
+	return n.Pos
 }

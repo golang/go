@@ -748,6 +748,14 @@ label1:
 	COPY R2,R1
 	PASTECC R2,R1
 
+//	Modulo signed/unsigned double/word X-form
+//	<MNEMONIC> RA,RB,RT produces
+//	<mnemonic> RT,RA,RB
+	MODUD R3,R4,R5
+	MODUW R3,R4,R5
+	MODSD R3,R4,R5
+	MODSW R3,R4,R5
+
 //	VMX instructions
 
 //	Described as:
@@ -950,12 +958,19 @@ label1:
 	VCMPGTSDCC  V3, V2, V1
 	VCMPNEZB    V3, V2, V1
 	VCMPNEZBCC  V3, V2, V1
+	VCMPNEB     V3, V2, V1
+	VCMPNEBCC   V3, V2, V1
+	VCMPNEH     V3, V2, V1
+	VCMPNEHCC   V3, V2, V1
+	VCMPNEW     V3, V2, V1
+	VCMPNEWCC   V3, V2, V1
 
 //	Vector permute, VA-form
 //	<MNEMONIC> VRA,VRB,VRC,VRT produces
 //	<mnemonic> VRT,VRA,VRB,VRC
 	VPERM V3, V2, V1, V0
 	VPERMXOR V3, V2, V1, V0
+	VPERMR V3, V2, V1, V0
 
 //	Vector bit permute, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces
@@ -1019,6 +1034,10 @@ label1:
 	LXSIWAX	    (R1)(R2*1), VS0
 	LXSIWZX	    (R1)(R2*1), VS0
 
+// VSX load with length X-form (also left-justified)
+	LXVL        R3,R4, VS0
+	LXVLL       R3,R4, VS0
+	LXVX        R3,R4, VS0
 // VSX load, DQ-form
 // <MNEMONIC> DQ(RA), XS produces
 // <mnemonic> XS, DQ(RA)
@@ -1038,6 +1057,11 @@ label1:
 // <MNEMONIC> DQ(RA), XS produces
 // <mnemonic> XS, DQ(RA)
 	STXV        VS63, -32752(R1)
+
+// VSX store with length, X-form (also left-justified)
+	STXVL	    VS0, R3,R4
+	STXVLL      VS0, R3,R4
+	STXVX       VS0, R3,R4
 
 //	VSX move from VSR, XX1-form
 //	<MNEMONIC> XS,RA produces
@@ -1064,7 +1088,7 @@ label1:
 //	VSX AND, XX3-form
 //	<MNEMONIC> XA,XB,XT produces
 //	<mnemonic> XT,XA,XB
-	XXLANDQ	    VS0,VS1,VS32
+	XXLAND	    VS0,VS1,VS32
 	XXLANDC	    VS0,VS1,VS32
 	XXLEQV	    VS0,VS1,VS32
 	XXLNAND	    VS0,VS1,VS32
@@ -1076,6 +1100,7 @@ label1:
 	XXLNOR	    VS0,VS1,VS32
 	XXLORQ	    VS0,VS1,VS32
 	XXLXOR	    VS0,VS1,VS32
+	XXLOR       VS0,VS1,VS32
 
 //	VSX select, XX4-form
 //	<MNEMONIC> XA,XB,XC,XT produces
@@ -1092,6 +1117,12 @@ label1:
 //	<MNEMONIC> XB,UIM,XT produces
 //	<mnemonic> XT,XB,UIM
 	XXSPLTW	    VS0,$3,VS32
+	XXSPLTIB    $26,VS0
+
+//      VSX permute, XX3-form
+//      <MNEMONIC> XA,XB,XT produces
+//      <mnemonic> XT,XA,XB
+        XXPERM    VS0,VS1,VS32
 
 //	VSX permute, XX3-form
 //	<MNEMONIC> XA,XB,DM,XT produces
@@ -1102,6 +1133,14 @@ label1:
 //	<MNEMONIC> XA,XB,SHW,XT produces
 //	<mnemonic> XT,XA,XB,SHW
 	XXSLDWI	    VS0,VS1,$3,VS32
+
+//	VSX byte-reverse XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XXBRQ       VS0,VS1
+	XXBRD       VS0,VS1
+	XXBRW       VS0,VS1
+	XXBRH       VS0,VS1
 
 //	VSX scalar FP-FP conversion, XX2-form
 //	<MNEMONIC> XB,XT produces

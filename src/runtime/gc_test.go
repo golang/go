@@ -6,10 +6,13 @@ package runtime_test
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -187,6 +190,15 @@ func TestPeriodicGC(t *testing.T) {
 
 	if numGCs < want {
 		t.Fatalf("no periodic GC: got %v GCs, want >= 2", numGCs)
+	}
+}
+
+func TestGcZombieReporting(t *testing.T) {
+	// This test is somewhat sensitive to how the allocator works.
+	got := runTestProg(t, "testprog", "GCZombie")
+	want := "found pointer to free object"
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected %q in output, but got %q", want, got)
 	}
 }
 
@@ -506,6 +518,90 @@ func BenchmarkReadMemStats(b *testing.B) {
 	hugeSink = nil
 }
 
+func BenchmarkReadMemStatsLatency(b *testing.B) {
+	// We’ll apply load to the runtime with maxProcs-1 goroutines
+	// and use one more to actually benchmark. It doesn't make sense
+	// to try to run this test with only 1 P (that's what
+	// BenchmarkReadMemStats is for).
+	maxProcs := runtime.GOMAXPROCS(-1)
+	if maxProcs == 1 {
+		b.Skip("This benchmark can only be run with GOMAXPROCS > 1")
+	}
+
+	// Code to build a big tree with lots of pointers.
+	type node struct {
+		children [16]*node
+	}
+	var buildTree func(depth int) *node
+	buildTree = func(depth int) *node {
+		tree := new(node)
+		if depth != 0 {
+			for i := range tree.children {
+				tree.children[i] = buildTree(depth - 1)
+			}
+		}
+		return tree
+	}
+
+	// Keep the GC busy by continuously generating large trees.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < maxProcs-1; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var hold *node
+		loop:
+			for {
+				hold = buildTree(5)
+				select {
+				case <-done:
+					break loop
+				default:
+				}
+			}
+			runtime.KeepAlive(hold)
+		}()
+	}
+
+	// Spend this much time measuring latencies.
+	latencies := make([]time.Duration, 0, 1024)
+
+	// Run for timeToBench hitting ReadMemStats continuously
+	// and measuring the latency.
+	b.ResetTimer()
+	var ms runtime.MemStats
+	for i := 0; i < b.N; i++ {
+		// Sleep for a bit, otherwise we're just going to keep
+		// stopping the world and no one will get to do anything.
+		time.Sleep(100 * time.Millisecond)
+		start := time.Now()
+		runtime.ReadMemStats(&ms)
+		latencies = append(latencies, time.Now().Sub(start))
+	}
+	close(done)
+	// Make sure to stop the timer before we wait! The goroutines above
+	// are very heavy-weight and not easy to stop, so we could end up
+	// confusing the benchmarking framework for small b.N.
+	b.StopTimer()
+	wg.Wait()
+
+	// Disable the default */op metrics.
+	// ns/op doesn't mean anything because it's an average, but we
+	// have a sleep in our b.N loop above which skews this significantly.
+	b.ReportMetric(0, "ns/op")
+	b.ReportMetric(0, "B/op")
+	b.ReportMetric(0, "allocs/op")
+
+	// Sort latencies then report percentiles.
+	sort.Slice(latencies, func(i, j int) bool {
+		return latencies[i] < latencies[j]
+	})
+	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+}
+
 func TestUserForcedGC(t *testing.T) {
 	// Test that runtime.GC() triggers a GC even if GOGC=off.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
@@ -664,6 +760,28 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
 		b.StopTimer()
 	}
 	close(teardown)
+}
+
+func BenchmarkMSpanCountAlloc(b *testing.B) {
+	// Allocate one dummy mspan for the whole benchmark.
+	s := runtime.AllocMSpan()
+	defer runtime.FreeMSpan(s)
+
+	// n is the number of bytes to benchmark against.
+	// n must always be a multiple of 8, since gcBits is
+	// always rounded up 8 bytes.
+	for _, n := range []int{8, 16, 32, 64, 128} {
+		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
+			// Initialize a new byte slice with pseduo-random data.
+			bits := make([]byte, n)
+			rand.Read(bits)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				runtime.MSpanCountAlloc(s, bits)
+			}
+		})
+	}
 }
 
 func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {

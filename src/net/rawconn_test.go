@@ -130,7 +130,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 		if _, err = readRawConn(cc, b[:]); err == nil {
@@ -139,7 +139,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 
@@ -153,7 +153,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 
@@ -167,7 +167,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 	})

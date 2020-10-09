@@ -17,9 +17,14 @@ go run main.go
 stdout vendor
 
 # With -trimpath, everything before the package path should be trimmed.
-# Unlike with -mod=mod, we don't include versions as part of the module name.
-go run -trimpath main.go
-stdout example.com/stack/stack.go
+# As with -mod=mod, the version should appear as part of the module path.
+go run -mod=vendor -trimpath main.go
+stdout '^example.com/stack@v1.0.0/stack.go$'
+
+# With pristinely vendored source code, a trimmed binary built from vendored
+# code should have the same behavior as one build from the module cache.
+go run -mod=mod -trimpath main.go
+stdout '^example.com/stack@v1.0.0/stack.go$'
 
 -- go.mod --
 module example.com/main

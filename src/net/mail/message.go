@@ -274,6 +274,12 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 	var list []*Address
 	for {
 		p.skipSpace()
+
+		// allow skipping empty entries (RFC5322 obs-addr-list)
+		if p.consume(',') {
+			continue
+		}
+
 		addrs, err := p.parseAddress(true)
 		if err != nil {
 			return nil, err
@@ -286,8 +292,16 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		if p.empty() {
 			break
 		}
-		if !p.consume(',') {
+		if p.peek() != ',' {
 			return nil, errors.New("mail: expected comma")
+		}
+
+		// Skip empty entries for obs-addr-list.
+		for p.consume(',') {
+			p.skipSpace()
+		}
+		if p.empty() {
+			break
 		}
 	}
 	return list, nil

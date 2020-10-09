@@ -205,7 +205,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
 		ff := fileFunction{n.Info.File, n.Info.Name}
 		fns := fileNodes[ff]
 
-		asm := assemblyPerSourceLine(symbols, fns, ff.fileName, obj)
+		asm := assemblyPerSourceLine(symbols, fns, ff.fileName, obj, o.IntelSyntax)
 		start, end := sourceCoordinates(asm)
 
 		fnodes, path, err := getSourceFromFile(ff.fileName, reader, fns, start, end)
@@ -239,7 +239,7 @@ func sourceCoordinates(asm map[int][]assemblyInstruction) (start, end int) {
 // assemblyPerSourceLine disassembles the binary containing a symbol
 // and classifies the assembly instructions according to its
 // corresponding source line, annotating them with a set of samples.
-func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj plugin.ObjTool) map[int][]assemblyInstruction {
+func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj plugin.ObjTool, intelSyntax bool) map[int][]assemblyInstruction {
 	assembly := make(map[int][]assemblyInstruction)
 	// Identify symbol to use for this collection of samples.
 	o := findMatchingSymbol(objSyms, rs)
@@ -248,7 +248,7 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
 	}
 
 	// Extract assembly for matched symbol
-	insts, err := obj.Disasm(o.sym.File, o.sym.Start, o.sym.End)
+	insts, err := obj.Disasm(o.sym.File, o.sym.Start, o.sym.End, intelSyntax)
 	if err != nil {
 		return assembly
 	}

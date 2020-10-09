@@ -112,6 +112,13 @@ The default C and C++ compilers may be changed by the CC and CXX
 environment variables, respectively; those environment variables
 may include command line options.
 
+The cgo tool will always invoke the C compiler with the source file's
+directory in the include path; i.e. -I${SRCDIR} is always implied. This
+means that if a header file foo/bar.h exists both in the source
+directory and also in the system include directory (or some other place
+specified by a -I flag), then "#include <foo/bar.h>" will always find the
+local version in preference to any other version.
+
 The cgo tool is enabled by default for native builds on systems where
 it is expected to work. It is disabled by default when
 cross-compiling. You can control this by setting the CGO_ENABLED
@@ -413,7 +420,7 @@ type in Go are instead represented by a uintptr. Those include:
 	jobjectArray
 	jweak
 
-3. The EGLDisplay type from the EGL API.
+3. The EGLDisplay and EGLConfig types from the EGL API.
 
 These types are uintptr on the Go side because they would otherwise
 confuse the Go garbage collector; they are sometimes not really
@@ -429,10 +436,15 @@ from Go 1.9 and earlier, use the cftype or jni rewrites in the Go fix tool:
 
 It will replace nil with 0 in the appropriate places.
 
-The EGLDisplay case were introduced in Go 1.12. Use the egl rewrite
+The EGLDisplay case was introduced in Go 1.12. Use the egl rewrite
 to auto-update code from Go 1.11 and earlier:
 
 	go tool fix -r egl <pkg>
+
+The EGLConfig case was introduced in Go 1.15. Use the eglconf rewrite
+to auto-update code from Go 1.14 and earlier:
+
+	go tool fix -r eglconf <pkg>
 
 Using cgo directly
 
@@ -985,7 +997,7 @@ produces a file named a.out, even if cmd/link does so by invoking the host
 linker in external linking mode.
 
 By default, cmd/link will decide the linking mode as follows: if the only
-packages using cgo are those on a whitelist of standard library
+packages using cgo are those on a list of known standard library
 packages (net, os/user, runtime/cgo), cmd/link will use internal linking
 mode. Otherwise, there are non-standard cgo packages involved, and cmd/link
 will use external linking mode. The first rule means that a build of

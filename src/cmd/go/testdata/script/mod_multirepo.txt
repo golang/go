@@ -7,6 +7,7 @@ go list -deps -f {{.Dir}}
 # v2 import should use a downloaded module
 # both without an explicit go.mod entry ...
 cp tmp/use_v2.go x.go
+go get -d .
 go list -deps -f {{.Dir}}
 stdout 'pkg[\\/]mod[\\/]rsc.io[\\/]quote[\\/]v2@v2.0.1$'
 

@@ -441,10 +441,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.errorf(call.Pos(), "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
 			return
 		}
+		types := []Type{T}
 		var sizes []int64 // constant integer arguments, if any
 		for _, arg := range call.Args[1:] {
-			if s, ok := check.index(arg, -1); ok && s >= 0 {
-				sizes = append(sizes, s)
+			typ, size := check.index(arg, -1) // ok to continue with typ == Typ[Invalid]
+			types = append(types, typ)
+			if size >= 0 {
+				sizes = append(sizes, size)
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
@@ -454,8 +457,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.mode = value
 		x.typ = T
 		if check.Types != nil {
-			params := [...]Type{T, Typ[Int], Typ[Int]}
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, params[:1+len(sizes)]...))
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
 		}
 
 	case _New:
@@ -559,7 +561,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Name
-		obj, index, indirect := check.LookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := check.lookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
 			check.invalidArg(x.pos(), "%s has no single field %s", base, sel)

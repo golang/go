@@ -194,7 +194,7 @@ func TestMutexFairness(t *testing.T) {
 			}
 		}
 	}()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for i := 0; i < 10; i++ {
 			time.Sleep(100 * time.Microsecond)

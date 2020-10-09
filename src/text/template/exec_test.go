@@ -911,9 +911,9 @@ func TestJSEscaping(t *testing.T) {
 		{`Go "jump" \`, `Go \"jump\" \\`},
 		{`Yukihiro says "今日は世界"`, `Yukihiro says \"今日は世界\"`},
 		{"unprintable \uFDFF", `unprintable \uFDFF`},
-		{`<html>`, `\x3Chtml\x3E`},
-		{`no = in attributes`, `no \x3D in attributes`},
-		{`&#x27; does not become HTML entity`, `\x26#x27; does not become HTML entity`},
+		{`<html>`, `\u003Chtml\u003E`},
+		{`no = in attributes`, `no \u003D in attributes`},
+		{`&#x27; does not become HTML entity`, `\u0026#x27; does not become HTML entity`},
 	}
 	for _, tc := range testCases {
 		s := JSEscapeString(tc.in)

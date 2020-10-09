@@ -103,11 +103,6 @@ func findIndVar(f *Func) []indVar {
 			fallthrough
 		case OpLess64:
 			ind, max = c.Args[0], c.Args[1]
-		case OpGeq64:
-			flags |= indVarMaxInc
-			fallthrough
-		case OpGreater64:
-			ind, max = c.Args[1], c.Args[0]
 		default:
 			continue
 		}

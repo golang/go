@@ -725,6 +725,82 @@ uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
 	}
 }
 
+func TestFloatReturn(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+float cfuncFloat(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 1.5f;
+	}
+	return 0;
+}
+
+double cfuncDouble(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 2.5;
+	}
+	return 0;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestFloatReturn")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfuncFloat")
+
+	_, r, err := proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	fr := math.Float32frombits(uint32(r))
+	if fr != 1.5 {
+		t.Errorf("got %f want 1.5 (err=%v)", fr, err)
+	}
+
+	proc = dll.MustFindProc("cfuncDouble")
+
+	_, r, err = proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	dr := math.Float64frombits(uint64(r))
+	if dr != 2.5 {
+		t.Errorf("got %f want 2.5 (err=%v)", dr, err)
+	}
+}
+
 func TestTimeBeginPeriod(t *testing.T) {
 	const TIMERR_NOERROR = 0
 	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {

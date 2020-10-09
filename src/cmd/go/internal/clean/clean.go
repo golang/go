@@ -6,6 +6,7 @@
 package clean
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -105,7 +106,7 @@ func init() {
 	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
 }
 
-func runClean(cmd *base.Command, args []string) {
+func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	// golang.org/issue/29925: only load packages before cleaning if
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
@@ -116,7 +117,7 @@ func runClean(cmd *base.Command, args []string) {
 	}
 
 	if cleanPkg {
-		for _, pkg := range load.PackagesAndErrors(args) {
+		for _, pkg := range load.PackagesAndErrors(ctx, args) {
 			clean(pkg)
 		}
 	}
@@ -137,20 +138,27 @@ func runClean(cmd *base.Command, args []string) {
 				if cfg.BuildN || cfg.BuildX {
 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
 				}
-				for _, d := range subdirs {
-					// Only print the first error - there may be many.
-					// This also mimics what os.RemoveAll(dir) would do.
-					if err := os.RemoveAll(d); err != nil && !printedErrors {
-						printedErrors = true
-						base.Errorf("go clean -cache: %v", err)
+				if !cfg.BuildN {
+					for _, d := range subdirs {
+						// Only print the first error - there may be many.
+						// This also mimics what os.RemoveAll(dir) would do.
+						if err := os.RemoveAll(d); err != nil && !printedErrors {
+							printedErrors = true
+							base.Errorf("go clean -cache: %v", err)
+						}
 					}
 				}
 			}
 
 			logFile := filepath.Join(dir, "log.txt")
-			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
-				printedErrors = true
-				base.Errorf("go clean -cache: %v", err)
+			if cfg.BuildN || cfg.BuildX {
+				b.Showcmd("", "rm -f %s", logFile)
+			}
+			if !cfg.BuildN {
+				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+					printedErrors = true
+					base.Errorf("go clean -cache: %v", err)
+				}
 			}
 		}
 	}
@@ -186,14 +194,14 @@ func runClean(cmd *base.Command, args []string) {
 	}
 
 	if cleanModcache {
-		if modfetch.PkgMod == "" {
+		if cfg.GOMODCACHE == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
 		}
 		if !cfg.BuildN {
-			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
+			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
 				base.Errorf("go clean -modcache: %v", err)
 			}
 		}
@@ -232,7 +240,7 @@ func clean(p *load.Package) {
 	cleaned[p] = true
 
 	if p.Dir == "" {
-		base.Errorf("can't load package: %v", p.Error)
+		base.Errorf("%v", p.Error)
 		return
 	}
 	dirs, err := ioutil.ReadDir(p.Dir)

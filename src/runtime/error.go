@@ -77,6 +77,26 @@ func (e errorString) Error() string {
 	return "runtime error: " + string(e)
 }
 
+type errorAddressString struct {
+	msg  string  // error message
+	addr uintptr // memory address where the error occurred
+}
+
+func (e errorAddressString) RuntimeError() {}
+
+func (e errorAddressString) Error() string {
+	return "runtime error: " + e.msg
+}
+
+// Addr returns the memory address where a fault occurred.
+// The address provided is best-effort.
+// The veracity of the result may depend on the platform.
+// Errors providing this method will only be returned as
+// a result of using runtime/debug.SetPanicOnFault.
+func (e errorAddressString) Addr() uintptr {
+	return e.addr
+}
+
 // plainError represents a runtime error described a string without
 // the prefix "runtime error: " after invoking errorString.Error().
 // See Issue #14965.
@@ -185,11 +205,6 @@ type stringer interface {
 	String() string
 }
 
-func typestring(x interface{}) string {
-	e := efaceOf(&x)
-	return e._type.string()
-}
-
 // printany prints an argument passed to panic.
 // If panic is called with a value that has a String or Error method,
 // it has already been converted into a string by preprintpanics.
@@ -232,7 +247,51 @@ func printany(i interface{}) {
 	case string:
 		print(v)
 	default:
-		print("(", typestring(i), ") ", i)
+		printanycustomtype(i)
+	}
+}
+
+func printanycustomtype(i interface{}) {
+	eface := efaceOf(&i)
+	typestring := eface._type.string()
+
+	switch eface._type.kind {
+	case kindString:
+		print(typestring, `("`, *(*string)(eface.data), `")`)
+	case kindBool:
+		print(typestring, "(", *(*bool)(eface.data), ")")
+	case kindInt:
+		print(typestring, "(", *(*int)(eface.data), ")")
+	case kindInt8:
+		print(typestring, "(", *(*int8)(eface.data), ")")
+	case kindInt16:
+		print(typestring, "(", *(*int16)(eface.data), ")")
+	case kindInt32:
+		print(typestring, "(", *(*int32)(eface.data), ")")
+	case kindInt64:
+		print(typestring, "(", *(*int64)(eface.data), ")")
+	case kindUint:
+		print(typestring, "(", *(*uint)(eface.data), ")")
+	case kindUint8:
+		print(typestring, "(", *(*uint8)(eface.data), ")")
+	case kindUint16:
+		print(typestring, "(", *(*uint16)(eface.data), ")")
+	case kindUint32:
+		print(typestring, "(", *(*uint32)(eface.data), ")")
+	case kindUint64:
+		print(typestring, "(", *(*uint64)(eface.data), ")")
+	case kindUintptr:
+		print(typestring, "(", *(*uintptr)(eface.data), ")")
+	case kindFloat32:
+		print(typestring, "(", *(*float32)(eface.data), ")")
+	case kindFloat64:
+		print(typestring, "(", *(*float64)(eface.data), ")")
+	case kindComplex64:
+		print(typestring, *(*complex64)(eface.data))
+	case kindComplex128:
+		print(typestring, *(*complex128)(eface.data))
+	default:
+		print("(", typestring, ") ", eface.data)
 	}
 }
 

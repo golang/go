@@ -73,9 +73,11 @@ func dse(f *Func) {
 		}
 
 		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
-		// An "address" is an SSA Value which encodes both the address and size of
-		// the write. This code will not remove dead stores to the same address
-		// of different types.
+		// A "shadowed address" is a pointer and a size describing a memory region that
+		// is known to be written. We keep track of shadowed addresses in the shadowed
+		// map, mapping the ID of the address to the size of the shadowed region.
+		// Since we're walking backwards, writes to a shadowed region are useless,
+		// as they will be immediately overwritten.
 		shadowed.clear()
 		v := last
 
@@ -93,17 +95,13 @@ func dse(f *Func) {
 				sz = v.AuxInt
 			}
 			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
-				// Modify store into a copy
+				// Modify the store/zero into a copy of the memory state,
+				// effectively eliding the store operation.
 				if v.Op == OpStore {
 					// store addr value mem
 					v.SetArgs1(v.Args[2])
 				} else {
 					// zero addr mem
-					typesz := v.Args[0].Type.Elem().Size()
-					if sz != typesz {
-						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
-							sz, typesz, v.LongString())
-					}
 					v.SetArgs1(v.Args[1])
 				}
 				v.Aux = nil

@@ -41,6 +41,7 @@ const (
 	itemBool                         // boolean constant
 	itemChar                         // printable ASCII character; grab bag for comma etc.
 	itemCharConstant                 // character constant
+	itemComment                      // comment text
 	itemComplex                      // complex constant (1+2i); imaginary is just a number
 	itemAssign                       // equals ('=') introducing an assignment
 	itemDeclare                      // colon-equals (':=') introducing a declaration
@@ -112,6 +113,7 @@ type lexer struct {
 	leftDelim      string    // start of action
 	rightDelim     string    // end of action
 	trimRightDelim string    // end of action with trim marker
+	emitComment    bool      // emit itemComment tokens.
 	pos            Pos       // current position in the input
 	start          Pos       // start position of this item
 	width          Pos       // width of last rune read from input
@@ -203,7 +205,7 @@ func (l *lexer) drain() {
 }
 
 // lex creates a new scanner for the input string.
-func lex(name, input, left, right string) *lexer {
+func lex(name, input, left, right string, emitComment bool) *lexer {
 	if left == "" {
 		left = leftDelim
 	}
@@ -216,6 +218,7 @@ func lex(name, input, left, right string) *lexer {
 		leftDelim:      left,
 		rightDelim:     right,
 		trimRightDelim: rightTrimMarker + right,
+		emitComment:    emitComment,
 		items:          make(chan item),
 		line:           1,
 		startLine:      1,
@@ -323,6 +326,9 @@ func lexComment(l *lexer) stateFn {
 	if !delim {
 		return l.errorf("comment ends before closing delimiter")
 	}
+	if l.emitComment {
+		l.emit(itemComment)
+	}
 	if trimSpace {
 		l.pos += trimMarkerLen
 	}
@@ -411,7 +417,6 @@ func lexInsideAction(l *lexer) stateFn {
 		}
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
-		return lexInsideAction
 	default:
 		return l.errorf("unrecognized character in action: %#U", r)
 	}

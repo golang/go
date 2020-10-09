@@ -10,10 +10,12 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"strings"
@@ -95,7 +97,7 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func iimport(pkg *types.Pkg, in *bio.Reader) {
+func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
 	ir := &intReader{in, pkg}
 
 	version := ir.uint64()
@@ -188,6 +190,14 @@ func iimport(pkg *types.Pkg, in *bio.Reader) {
 			inlineImporter[s] = iimporterAndOffset{p, off}
 		}
 	}
+
+	// Fingerprint.
+	_, err = io.ReadFull(in, fingerprint[:])
+	if err != nil {
+		yyerror("import %s: error reading fingerprint", pkg.Path)
+		errorexit()
+	}
+	return fingerprint
 }
 
 type iimporter struct {
@@ -306,6 +316,7 @@ func (r *importReader) doDecl(n *Node) {
 		resumecheckwidth()
 
 		if underlying.IsInterface() {
+			r.typeExt(t)
 			break
 		}
 
@@ -336,6 +347,7 @@ func (r *importReader) doDecl(n *Node) {
 		}
 		t.Methods().Set(ms)
 
+		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
@@ -363,7 +375,7 @@ func (p *importReader) value() (typ *types.Type, v Val) {
 		v.U = p.string()
 	case CTINT:
 		x := new(Mpint)
-		x.Rune = typ == types.Idealrune
+		x.Rune = typ == types.UntypedRune
 		p.mpint(&x.Val, typ)
 		v.U = x
 	case CTFLT:
@@ -584,7 +596,6 @@ func (r *importReader) typ1() *types.Type {
 
 		// Ensure we expand the interface in the frontend (#25055).
 		checkwidth(t)
-
 		return t
 	}
 }
@@ -660,7 +671,7 @@ func (r *importReader) funcExt(n *Node) {
 	r.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			f.Note = r.string()
 		}
@@ -687,18 +698,28 @@ func (r *importReader) linkname(s *types.Sym) {
 }
 
 func (r *importReader) symIdx(s *types.Sym) {
-	if Ctxt.Flag_newobj {
-		lsym := s.Linksym()
-		idx := int32(r.int64())
-		if idx != -1 {
-			if s.Linkname != "" {
-				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
-			}
-			lsym.SymIdx = idx
-			lsym.Set(obj.AttrIndexed, true)
+	lsym := s.Linksym()
+	idx := int32(r.int64())
+	if idx != -1 {
+		if s.Linkname != "" {
+			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
+		lsym.SymIdx = idx
+		lsym.Set(obj.AttrIndexed, true)
 	}
 }
+
+func (r *importReader) typeExt(t *types.Type) {
+	t.SetNotInHeap(r.bool())
+	i, pi := r.int64(), r.int64()
+	if i != -1 && pi != -1 {
+		typeSymIdx[t] = [2]int64{i, pi}
+	}
+}
+
+// Map imported type T to the index of type descriptor symbols of T and *T,
+// so we can use index to reference the symbol.
+var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *Node) {
 	if len(n.Func.Inl.Body) != 0 {
@@ -789,9 +810,6 @@ func (r *importReader) node() *Node {
 	// expressions
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
-
-	// case ODDDARG:
-	//	unimplemented
 
 	case OLITERAL:
 		pos := r.pos()

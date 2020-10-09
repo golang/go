@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
 )
@@ -67,6 +68,135 @@ type regInfo struct {
 
 type auxType int8
 
+type Param struct {
+	Type   *types.Type
+	Offset int32 // TODO someday this will be a register
+}
+
+type AuxCall struct {
+	Fn      *obj.LSym
+	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
+	results []Param
+}
+
+// ResultForOffset returns the index of the result at a particular offset among the results
+// This does not include the mem result for the call opcode.
+func (a *AuxCall) ResultForOffset(offset int64) int64 {
+	which := int64(-1)
+	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
+		if a.OffsetOfResult(i) == offset {
+			which = i
+			break
+		}
+	}
+	return which
+}
+
+// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+func (a *AuxCall) OffsetOfResult(which int64) int64 {
+	return int64(a.results[which].Offset)
+}
+
+// OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
+func (a *AuxCall) OffsetOfArg(which int64) int64 {
+	return int64(a.args[which].Offset)
+}
+
+// TypeOfResult returns the type of result which (indexed 0, 1, etc).
+func (a *AuxCall) TypeOfResult(which int64) *types.Type {
+	return a.results[which].Type
+}
+
+// TypeOfArg returns the type of argument which (indexed 0, 1, etc).
+func (a *AuxCall) TypeOfArg(which int64) *types.Type {
+	return a.args[which].Type
+}
+
+// SizeOfResult returns the size of result which (indexed 0, 1, etc).
+func (a *AuxCall) SizeOfResult(which int64) int64 {
+	return a.TypeOfResult(which).Width
+}
+
+// SizeOfArg returns the size of argument which (indexed 0, 1, etc).
+func (a *AuxCall) SizeOfArg(which int64) int64 {
+	return a.TypeOfArg(which).Width
+}
+
+// NResults returns the number of results
+func (a *AuxCall) NResults() int64 {
+	return int64(len(a.results))
+}
+
+// LateExpansionResultType returns the result type (including trailing mem)
+// for a call that will be expanded later in the SSA phase.
+func (a *AuxCall) LateExpansionResultType() *types.Type {
+	var tys []*types.Type
+	for i := int64(0); i < a.NResults(); i++ {
+		tys = append(tys, a.TypeOfResult(i))
+	}
+	tys = append(tys, types.TypeMem)
+	return types.NewResults(tys)
+}
+
+// NArgs returns the number of arguments
+func (a *AuxCall) NArgs() int64 {
+	return int64(len(a.args))
+}
+
+// String returns
+// "AuxCall{<fn>(<args>)}"             if len(results) == 0;
+// "AuxCall{<fn>(<args>)<results[0]>}" if len(results) == 1;
+// "AuxCall{<fn>(<args>)(<results>)}"  otherwise.
+func (a *AuxCall) String() string {
+	var fn string
+	if a.Fn == nil {
+		fn = "AuxCall{nil" // could be interface/closure etc.
+	} else {
+		fn = fmt.Sprintf("AuxCall{%v", a.Fn)
+	}
+
+	if len(a.args) == 0 {
+		fn += "()"
+	} else {
+		s := "("
+		for _, arg := range a.args {
+			fn += fmt.Sprintf("%s[%v,%v]", s, arg.Type, arg.Offset)
+			s = ","
+		}
+		fn += ")"
+	}
+
+	if len(a.results) > 0 { // usual is zero or one; only some RT calls have more than one.
+		if len(a.results) == 1 {
+			fn += fmt.Sprintf("[%v,%v]", a.results[0].Type, a.results[0].Offset)
+		} else {
+			s := "("
+			for _, result := range a.results {
+				fn += fmt.Sprintf("%s[%v,%v]", s, result.Type, result.Offset)
+				s = ","
+			}
+			fn += ")"
+		}
+	}
+
+	return fn + "}"
+}
+
+// StaticAuxCall returns an AuxCall for a static call.
+func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
+	return &AuxCall{Fn: sym, args: args, results: results}
+}
+
+// InterfaceAuxCall returns an AuxCall for an interface call.
+func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
+	return &AuxCall{Fn: nil, args: args, results: results}
+}
+
+// ClosureAuxCall returns an AuxCall for a closure call.
+func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+	return &AuxCall{Fn: nil, args: args, results: results}
+}
+
 const (
 	auxNone         auxType = iota
 	auxBool                 // auxInt is 0/1 for false/true
@@ -77,14 +207,23 @@ const (
 	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+	auxFlagConstant         // auxInt is a flagConstant
 	auxString               // aux is a string
-	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+	auxSym                  // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                  // aux is a type
 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
 	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
-	auxArchSpecific         // aux type is specific to a particular backend (see the relevant op for the actual type)
+	auxCall                 // aux is a *ssa.AuxCall
+	auxCallOff              // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
+
+	// architecture specific aux types
+	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
+	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
+	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
+	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is a int8 immediate
+	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
@@ -101,6 +240,16 @@ const (
 	SymNone SymEffect = 0
 )
 
+// A Sym represents a symbolic offset from a base register.
+// Currently a Sym can be one of 3 things:
+//  - a *gc.Node, for an offset from SP (the stack pointer)
+//  - a *obj.LSym, for an offset from SB (the global pointer)
+//  - nil, for no offset
+type Sym interface {
+	String() string
+	CanBeAnSSASym()
+}
+
 // A ValAndOff is used by the several opcodes. It holds
 // both a value and a pointer offset.
 // A ValAndOff is intended to be encoded into an AuxInt field.
@@ -109,12 +258,14 @@ const (
 // The low 32 bits hold a pointer offset.
 type ValAndOff int64
 
-func (x ValAndOff) Val() int64 {
-	return int64(x) >> 32
-}
-func (x ValAndOff) Off() int64 {
-	return int64(int32(x))
-}
+func (x ValAndOff) Val() int64   { return int64(x) >> 32 }
+func (x ValAndOff) Val32() int32 { return int32(int64(x) >> 32) }
+func (x ValAndOff) Val16() int16 { return int16(int64(x) >> 32) }
+func (x ValAndOff) Val8() int8   { return int8(int64(x) >> 32) }
+
+func (x ValAndOff) Off() int64   { return int64(int32(x)) }
+func (x ValAndOff) Off32() int32 { return int32(x) }
+
 func (x ValAndOff) Int64() int64 {
 	return int64(x)
 }
@@ -153,21 +304,24 @@ func makeValAndOff(val, off int64) int64 {
 	}
 	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
 }
-
-// offOnly returns the offset half of ValAndOff vo.
-// It is intended for use in rewrite rules.
-func offOnly(vo int64) int64 {
-	return ValAndOff(vo).Off()
+func makeValAndOff32(val, off int32) ValAndOff {
+	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
 }
 
-// valOnly returns the value half of ValAndOff vo.
-// It is intended for use in rewrite rules.
-func valOnly(vo int64) int64 {
-	return ValAndOff(vo).Val()
+func makeValAndOff64(val, off int64) ValAndOff {
+	if !validValAndOff(val, off) {
+		panic("invalid makeValAndOff64")
+	}
+	return ValAndOff(val<<32 + int64(uint32(off)))
 }
 
 func (x ValAndOff) canAdd(off int64) bool {
 	newoff := x.Off() + off
+	return newoff == int64(int32(newoff))
+}
+
+func (x ValAndOff) canAdd32(off int32) bool {
+	newoff := x.Off() + int64(off)
 	return newoff == int64(int32(newoff))
 }
 
@@ -177,6 +331,24 @@ func (x ValAndOff) add(off int64) int64 {
 	}
 	return makeValAndOff(x.Val(), x.Off()+off)
 }
+
+func (x ValAndOff) addOffset32(off int32) ValAndOff {
+	if !x.canAdd32(off) {
+		panic("invalid ValAndOff.add")
+	}
+	return ValAndOff(makeValAndOff(x.Val(), x.Off()+int64(off)))
+}
+
+func (x ValAndOff) addOffset64(off int64) ValAndOff {
+	if !x.canAdd(off) {
+		panic("invalid ValAndOff.add")
+	}
+	return ValAndOff(makeValAndOff(x.Val(), x.Off()+off))
+}
+
+// int128 is a type that stores a 128-bit constant.
+// The only allowed constant right now is 0, so we can cheat quite a bit.
+type int128 int64
 
 type BoundsKind uint8
 
@@ -244,3 +416,9 @@ func boundsABI(b int64) int {
 		panic("bad BoundsKind")
 	}
 }
+
+// arm64BitFileld is the GO type of ARM64BitField auxInt.
+// if x is an ARM64BitField, then width=x&0xff, lsb=(x>>8)&0xff, and
+// width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
+// the meaning of width and lsb are instruction-dependent.
+type arm64BitField int16

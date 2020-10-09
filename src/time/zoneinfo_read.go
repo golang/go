@@ -15,6 +15,18 @@ import (
 	"syscall"
 )
 
+// registerLoadFromEmbeddedTZData is called by the time/tzdata package,
+// if it is imported.
+func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
+	loadFromEmbeddedTZData = f
+}
+
+// loadFromEmbeddedTZData is used to load a specific tzdata file
+// from tzdata information embedded in the binary itself.
+// This is set when the time/tzdata package is imported,
+// via registerLoadFromEmbeddedTzdata.
+var loadFromEmbeddedTZData func(zipname string) (string, error)
+
 // maxFileSize is the max permitted size of files read by readFile.
 // As reference, the zoneinfo.zip distributed by Go is ~350 KB,
 // so 10MB is overkill.
@@ -76,6 +88,13 @@ func (d *dataIO) byte() (n byte, ok bool) {
 		return 0, false
 	}
 	return p[0], true
+}
+
+// read returns the read of the data in the buffer.
+func (d *dataIO) rest() []byte {
+	r := d.p
+	d.p = nil
+	return r
 }
 
 // Make a string by stopping at the first NUL
@@ -213,6 +232,12 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		return nil, badData
 	}
 
+	var extend string
+	rest := d.rest()
+	if len(rest) > 2 && rest[0] == '\n' && rest[len(rest)-1] == '\n' {
+		extend = string(rest[1 : len(rest)-1])
+	}
+
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
@@ -289,7 +314,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	}
 
 	// Committed to succeed.
-	l := &Location{zone: zone, tx: tx, name: name}
+	l := &Location{zone: zone, tx: tx, name: name, extend: extend}
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
@@ -479,6 +504,17 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 		var zoneData, err = loadTzinfo(name, source)
 		if err == nil {
 			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+				return z, nil
+			}
+		}
+		if firstErr == nil && err != syscall.ENOENT {
+			firstErr = err
+		}
+	}
+	if loadFromEmbeddedTZData != nil {
+		zonedata, err := loadFromEmbeddedTZData(name)
+		if err == nil {
+			if z, err = LoadLocationFromTZData(name, []byte(zonedata)); err == nil {
 				return z, nil
 			}
 		}

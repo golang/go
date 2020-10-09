@@ -83,7 +83,6 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	// The STOSQ in duffzero seem fine, though.
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
@@ -194,7 +193,9 @@ func zeroPPC64x(w io.Writer) {
 }
 
 func copyPPC64x(w io.Writer) {
-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+	// duffcopy is not used on PPC64.
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "\tUNDEF")
 }
 
 func tagsMIPS64x(w io.Writer) {

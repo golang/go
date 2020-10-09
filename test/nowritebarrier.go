@@ -67,6 +67,7 @@ func d2() {
 	d3()
 }
 
+//go:noinline
 func d3() {
 	x.f = y // ERROR "write barrier prohibited by caller"
 	d4()

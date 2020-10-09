@@ -11,7 +11,7 @@ import (
 
 var sigtab = make(map[os.Signal]int)
 
-// In sig.s; jumps to runtime.
+// Defined by the runtime package.
 func signal_disable(uint32)
 func signal_enable(uint32)
 func signal_ignore(uint32)
@@ -19,8 +19,6 @@ func signal_ignored(uint32) bool
 func signal_recv() string
 
 func init() {
-	signal_enable(0) // first call - initialize
-
 	watchSignalLoop = loop
 }
 

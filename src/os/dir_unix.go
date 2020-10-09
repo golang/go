@@ -26,8 +26,6 @@ const (
 
 func (d *dirInfo) close() {}
 
-func (f *File) seekInvalidate() {}
-
 func (f *File) readdirnames(n int) (names []string, err error) {
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {
@@ -52,7 +50,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
 			runtime.KeepAlive(f)
 			if errno != nil {
-				return names, wrapSyscallError("readdirent", errno)
+				return names, &PathError{"readdirent", f.name, errno}
 			}
 			if d.nbuf <= 0 {
 				break // EOF

@@ -171,13 +171,16 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) {
+func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]driver.Inst, error) {
+	if intelSyntax {
+		return nil, fmt.Errorf("printing assembly in Intel syntax is not supported")
+	}
 	d, err := t.cachedDisasm(file)
 	if err != nil {
 		return nil, err
 	}
 	var asm []driver.Inst
-	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
+	d.Decode(start, end, nil, false, func(pc, size uint64, file string, line int, text string) {
 		asm = append(asm, driver.Inst{Addr: pc, File: file, Line: line, Text: text})
 	})
 	return asm, nil

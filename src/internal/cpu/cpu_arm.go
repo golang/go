@@ -7,9 +7,8 @@ package cpu
 const CacheLinePadSize = 32
 
 // arm doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
-// These are linknamed in runtime/os_(linux|freebsd)_arm.go and are
-// initialized by archauxv().
-// These should not be changed after they are initialized.
+// These are initialized by archauxv() and should not be changed after they are
+// initialized.
 var HWCap uint
 var HWCap2 uint
 

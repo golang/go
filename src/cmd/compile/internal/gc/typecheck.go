@@ -151,8 +151,8 @@ var _typekind = []string{
 }
 
 func typekind(t *types.Type) string {
-	if t.IsSlice() {
-		return "slice"
+	if t.IsUntyped() {
+		return fmt.Sprintf("%v", t)
 	}
 	et := t.Etype
 	if int(et) < len(_typekind) {
@@ -361,7 +361,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 
 		if n.Type == nil && n.Val().Ctype() == CTSTR {
-			n.Type = types.Idealstring
+			n.Type = types.UntypedString
 		}
 
 	case ONONAME:
@@ -471,10 +471,10 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("go:notinheap map key not allowed")
+			yyerror("incomplete (or unallocatable) map key not allowed")
 		}
 		if r.Type.NotInHeap() {
-			yyerror("go:notinheap map value not allowed")
+			yyerror("incomplete (or unallocatable) map value not allowed")
 		}
 
 		setTypeNode(n, types.NewMap(l.Type, r.Type))
@@ -491,7 +491,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("chan of go:notinheap type not allowed")
+			yyerror("chan of incomplete (or unallocatable) type not allowed")
 		}
 
 		setTypeNode(n, types.NewChan(l.Type, n.TChanDir()))
@@ -623,8 +623,27 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// no defaultlit for left
 			// the outer context gives the type
 			n.Type = l.Type
+			if (l.Type == types.UntypedFloat || l.Type == types.UntypedComplex) && r.Op == OLITERAL {
+				n.Type = types.UntypedInt
+			}
 
 			break
+		}
+
+		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
+		// can't be used with "&&" than to report that "x == x" (type untyped bool)
+		// can't be converted to int (see issue #41500).
+		if n.Op == OANDAND || n.Op == OOROR {
+			if !n.Left.Type.IsBoolean() {
+				yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(n.Left.Type))
+				n.Type = nil
+				return n
+			}
+			if !n.Right.Type.IsBoolean() {
+				yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(n.Right.Type))
+				n.Type = nil
+				return n
+			}
 		}
 
 		// ideal mixed with non-ideal
@@ -713,7 +732,10 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		if !okfor[op][et] {
+		if t.Etype == TIDEAL {
+			t = mixUntyped(l.Type, r.Type)
+		}
+		if dt := defaultType(t); !okfor[op][dt.Etype] {
 			yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(t))
 			n.Type = nil
 			return n
@@ -753,17 +775,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		t = l.Type
 		if iscmp[n.Op] {
-			// TIDEAL includes complex constant, but only OEQ and ONE are defined for complex,
-			// so check that the n.op is available for complex  here before doing evconst.
-			if !okfor[n.Op][TCOMPLEX128] && (Isconst(l, CTCPLX) || Isconst(r, CTCPLX)) {
-				yyerror("invalid operation: %v (operator %v not defined on untyped complex)", n, n.Op)
-				n.Type = nil
-				return n
-			}
 			evconst(n)
-			t = types.Idealbool
+			t = types.UntypedBool
 			if n.Op != OLITERAL {
 				l, r = defaultlit2(l, r, true)
 				n.Left = l
@@ -808,8 +822,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Type = nil
 			return n
 		}
-		if !okfor[n.Op][t.Etype] {
-			yyerror("invalid operation: %v %v", n.Op, t)
+		if !okfor[n.Op][defaultType(t).Etype] {
+			yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(t))
 			n.Type = nil
 			return n
 		}
@@ -1149,6 +1163,49 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.List.SetFirst(l)
 		n.List.SetSecond(c)
 
+	case OMAKESLICECOPY:
+		// Errors here are Fatalf instead of yyerror because only the compiler
+		// can construct an OMAKESLICECOPY node.
+		// Components used in OMAKESCLICECOPY that are supplied by parsed source code
+		// have already been typechecked in OMAKE and OCOPY earlier.
+		ok |= ctxExpr
+
+		t := n.Type
+
+		if t == nil {
+			Fatalf("no type specified for OMAKESLICECOPY")
+		}
+
+		if !t.IsSlice() {
+			Fatalf("invalid type %v for OMAKESLICECOPY", n.Type)
+		}
+
+		if n.Left == nil {
+			Fatalf("missing len argument for OMAKESLICECOPY")
+		}
+
+		if n.Right == nil {
+			Fatalf("missing slice argument to copy for OMAKESLICECOPY")
+		}
+
+		n.Left = typecheck(n.Left, ctxExpr)
+		n.Right = typecheck(n.Right, ctxExpr)
+
+		n.Left = defaultlit(n.Left, types.Types[TINT])
+
+		if !n.Left.Type.IsInteger() && n.Type.Etype != TIDEAL {
+			yyerror("non-integer len argument in OMAKESLICECOPY")
+		}
+
+		if Isconst(n.Left, CTINT) {
+			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+				Fatalf("len for OMAKESLICECOPY too large")
+			}
+			if n.Left.Int64() < 0 {
+				Fatalf("len for OMAKESLICECOPY must be non-negative")
+			}
+		}
+
 	case OSLICE, OSLICE3:
 		ok |= ctxExpr
 		n.Left = typecheck(n.Left, ctxExpr)
@@ -1401,7 +1458,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		// Determine result type.
 		switch t.Etype {
 		case TIDEAL:
-			n.Type = types.Idealfloat
+			n.Type = types.UntypedFloat
 		case TCOMPLEX64:
 			n.Type = types.Types[TFLOAT32]
 		case TCOMPLEX128:
@@ -1447,7 +1504,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 
 		case TIDEAL:
-			t = types.Idealcomplex
+			t = types.UntypedComplex
 
 		case TFLOAT32:
 			t = types.Types[TCOMPLEX64]
@@ -1634,8 +1691,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		var why string
-		n.Op = convertop(t, n.Type, &why)
-		if n.Op == 0 {
+		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
+		if n.Op == OXXX {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.SetDiag(true)
@@ -1713,7 +1770,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 				n.Type = nil
 				return n
 			}
-			if !checkmake(t, "len", l) || r != nil && !checkmake(t, "cap", r) {
+			if !checkmake(t, "len", &l) || r != nil && !checkmake(t, "cap", &r) {
 				n.Type = nil
 				return n
 			}
@@ -1737,7 +1794,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 					n.Type = nil
 					return n
 				}
-				if !checkmake(t, "size", l) {
+				if !checkmake(t, "size", &l) {
 					n.Type = nil
 					return n
 				}
@@ -1758,7 +1815,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 					n.Type = nil
 					return n
 				}
-				if !checkmake(t, "buffer", l) {
+				if !checkmake(t, "buffer", &l) {
 					n.Type = nil
 					return n
 				}
@@ -1805,7 +1862,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case OPRINT, OPRINTN:
 		ok |= ctxStmt
-		typecheckslice(n.List.Slice(), ctxExpr)
+		typecheckargs(n)
 		ls := n.List.Slice()
 		for i1, n1 := range ls {
 			// Special case for print: int constant is int64, not int.
@@ -2025,12 +2082,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxStmt
 		n.Left = typecheck(n.Left, ctxType)
 		checkwidth(n.Left.Type)
-		if n.Left.Type != nil && n.Left.Type.NotInHeap() && n.Left.Name.Param.Pragma&NotInHeap == 0 {
-			// The type contains go:notinheap types, so it
-			// must be marked as such (alternatively, we
-			// could silently propagate go:notinheap).
-			yyerror("type %v must be go:notinheap", n.Left.Type)
-		}
 	}
 
 	t := n.Type
@@ -2624,7 +2675,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 	return
 
 notenough:
-	if n == nil || !n.Diag() {
+	if n == nil || (!n.Diag() && n.Type != nil) {
 		details := errorDetails(nl, tstruct, isddd)
 		if call != nil {
 			// call is the expression being called, not the overall call.
@@ -2665,17 +2716,17 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 			return ""
 		}
 	}
-	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.retsigerr(isddd), tstruct)
+	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.sigerr(isddd), tstruct)
 }
 
 // sigrepr is a type's representation to the outside world,
 // in string representations of return signatures
 // e.g in error messages about wrong arguments to return.
-func sigrepr(t *types.Type) string {
+func sigrepr(t *types.Type, isddd bool) string {
 	switch t {
-	case types.Idealstring:
+	case types.UntypedString:
 		return "string"
-	case types.Idealbool:
+	case types.UntypedBool:
 		return "bool"
 	}
 
@@ -2686,26 +2737,29 @@ func sigrepr(t *types.Type) string {
 		return "number"
 	}
 
+	// Turn []T... argument to ...T for clearer error message.
+	if isddd {
+		if !t.IsSlice() {
+			Fatalf("bad type for ... argument: %v", t)
+		}
+		return "..." + t.Elem().String()
+	}
 	return t.String()
 }
 
-// retsigerr returns the signature of the types
-// at the respective return call site of a function.
-func (nl Nodes) retsigerr(isddd bool) string {
+// sigerr returns the signature of the types at the call or return.
+func (nl Nodes) sigerr(isddd bool) string {
 	if nl.Len() < 1 {
 		return "()"
 	}
 
 	var typeStrings []string
-	for _, n := range nl.Slice() {
-		typeStrings = append(typeStrings, sigrepr(n.Type))
+	for i, n := range nl.Slice() {
+		isdddArg := isddd && i == nl.Len()-1
+		typeStrings = append(typeStrings, sigrepr(n.Type, isdddArg))
 	}
 
-	ddd := ""
-	if isddd {
-		ddd = "..."
-	}
-	return fmt.Sprintf("(%s%s)", strings.Join(typeStrings, ", "), ddd)
+	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
 }
 
 // type check composite
@@ -2924,6 +2978,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						if visible(ci.Sym) {
 							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						} else if nonexported(l.Sym) && l.Sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+							yyerror("cannot refer to unexported field '%v' in struct literal of type %v", l.Sym, t)
 						} else {
 							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 						}
@@ -3027,6 +3083,11 @@ func visible(sym *types.Sym) bool {
 	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
 }
 
+// nonexported reports whether sym is an unexported field.
+func nonexported(sym *types.Sym) bool {
+	return sym != nil && !types.IsExported(sym.Name)
+}
+
 // lvalue etc
 func islvalue(n *Node) bool {
 	switch n.Op {
@@ -3085,9 +3146,14 @@ func checkassign(stmt *Node, n *Node) {
 		return
 	}
 
-	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
+	switch {
+	case n.Op == ODOT && n.Left.Op == OINDEXMAP:
 		yyerror("cannot assign to struct field %v in map", n)
-	} else {
+	case (n.Op == OINDEX && n.Left.Type.IsString()) || n.Op == OSLICESTR:
+		yyerror("cannot assign to %v (strings are immutable)", n)
+	case n.Op == OLITERAL && n.Sym != nil && n.isGoConst():
+		yyerror("cannot assign to %v (declared const)", n)
+	default:
 		yyerror("cannot assign to %v", n)
 	}
 	n.Type = nil
@@ -3663,7 +3729,8 @@ ret:
 	n.SetWalkdef(1)
 }
 
-func checkmake(t *types.Type, arg string, n *Node) bool {
+func checkmake(t *types.Type, arg string, np **Node) bool {
+	n := *np
 	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
 		yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
 		return false
@@ -3673,12 +3740,12 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
 	// to avoid redundant "constant NNN overflows int" errors.
 	switch consttype(n) {
 	case CTINT, CTRUNE, CTFLT, CTCPLX:
-		n.SetVal(toint(n.Val()))
-		if n.Val().U.(*Mpint).CmpInt64(0) < 0 {
+		v := toint(n.Val()).U.(*Mpint)
+		if v.CmpInt64(0) < 0 {
 			yyerror("negative %s argument in make(%v)", arg, t)
 			return false
 		}
-		if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+		if v.Cmp(maxintval[TINT]) > 0 {
 			yyerror("%s argument too large in make(%v)", arg, t)
 			return false
 		}
@@ -3690,6 +3757,7 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
 	// for instance, indexlit might be called here and incorporate some
 	// of the bounds checks done for make.
 	n = defaultlit(n, types.Types[TINT])
+	*np = n
 
 	return true
 }

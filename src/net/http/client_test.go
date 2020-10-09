@@ -1991,3 +1991,38 @@ func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
 		})
 	}
 }
+
+type nilBodyRoundTripper struct{}
+
+func (nilBodyRoundTripper) RoundTrip(req *Request) (*Response, error) {
+	return &Response{
+		StatusCode: StatusOK,
+		Status:     StatusText(StatusOK),
+		Body:       nil,
+		Request:    req,
+	}, nil
+}
+
+func TestClientPopulatesNilResponseBody(t *testing.T) {
+	c := &Client{Transport: nilBodyRoundTripper{}}
+
+	resp, err := c.Get("http://localhost/anything")
+	if err != nil {
+		t.Fatalf("Client.Get rejected Response with nil Body: %v", err)
+	}
+
+	if resp.Body == nil {
+		t.Fatalf("Client failed to provide a non-nil Body as documented")
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("error from Close on substitute Response.Body: %v", err)
+		}
+	}()
+
+	if b, err := ioutil.ReadAll(resp.Body); err != nil {
+		t.Errorf("read error from substitute Response.Body: %v", err)
+	} else if len(b) != 0 {
+		t.Errorf("substitute Response.Body was unexpectedly non-empty: %q", b)
+	}
+}

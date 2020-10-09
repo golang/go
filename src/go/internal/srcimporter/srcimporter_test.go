@@ -5,11 +5,13 @@
 package srcimporter
 
 import (
+	"flag"
 	"go/build"
 	"go/token"
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -17,6 +19,14 @@ import (
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 const maxTime = 2 * time.Second
 
@@ -231,4 +241,15 @@ func TestIssue23092(t *testing.T) {
 // TestIssue24392 tests imports against a path containing 'testdata'.
 func TestIssue24392(t *testing.T) {
 	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
+}
+
+func TestCgo(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+	_, err := importer.ImportFrom("./misc/cgo/test", runtime.GOROOT(), 0)
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
 }

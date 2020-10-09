@@ -1,6 +1,10 @@
 env GO111MODULE=on
 [short] skip
 
+# Populate go.sum.
+go mod tidy
+cp go.mod go.mod.orig
+
 go list -test all
 stdout rsc.io/quote
 stdout golang.org/x/text/language
@@ -17,7 +21,7 @@ cmp stdout why-text-module.txt
 go mod why rsc.io/testonly
 cmp stdout why-testonly.txt
 
-# why a module used only in tests?
+# why a module used only in a test of a dependency?
 go mod why -m rsc.io/testonly
 cmp stdout why-testonly.txt
 
@@ -40,6 +44,14 @@ cmp stdout why-both.txt
 # test multiple modules
 go mod why -m rsc.io/quote rsc.io/sampler
 cmp stdout why-both-module.txt
+
+# package in a module that isn't even in the module graph
+# (https://golang.org/issue/26977)
+go mod why rsc.io/fortune
+cmp stdout why-missing.txt
+
+# None of these command should have changed the go.mod file.
+cmp go.mod go.mod.orig
 
 -- go.mod --
 module mymodule
@@ -113,3 +125,6 @@ mymodule/y
 mymodule/y.test
 rsc.io/quote
 rsc.io/sampler
+-- why-missing.txt --
+# rsc.io/fortune
+(main module does not need package rsc.io/fortune)

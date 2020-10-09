@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/cpu"
+	"unsafe"
+)
 
 func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
 	// Machine dependent mcontext initialisation for LWP.
@@ -20,4 +23,11 @@ func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
 	return nanotime()
+}
+
+func archauxv(auxv []uintptr) {
+	// NetBSD does not supply AT_HWCAP, however we still need to initialise cpu.HWCaps.
+	// For now specify the bare minimum until we add some form of capabilities
+	// detection. See issue https://golang.org/issue/30824#issuecomment-494901591
+	cpu.HWCap = 1<<1 | 1<<0 // ASIMD, FP
 }

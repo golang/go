@@ -25,8 +25,6 @@ func loop() {
 }
 
 func init() {
-	signal_enable(0) // first call - initialize
-
 	watchSignalLoop = loop
 }
 

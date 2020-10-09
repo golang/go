@@ -353,12 +353,7 @@ func testErrors(t *testing.T, goarch, file string) {
 }
 
 func Test386EndToEnd(t *testing.T) {
-	defer func(old string) { objabi.GO386 = old }(objabi.GO386)
-	for _, go386 := range []string{"387", "sse2"} {
-		t.Logf("GO386=%v", go386)
-		objabi.GO386 = go386
-		testEndToEnd(t, "386", "386")
-	}
+	testEndToEnd(t, "386", "386")
 }
 
 func TestARMEndToEnd(t *testing.T) {
@@ -390,7 +385,12 @@ func TestARM64Errors(t *testing.T) {
 }
 
 func TestAMD64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64")
+	defer func(old string) { objabi.GOAMD64 = old }(objabi.GOAMD64)
+	for _, goamd64 := range []string{"normaljumps", "alignedjumps"} {
+		t.Logf("GOAMD64=%s", goamd64)
+		objabi.GOAMD64 = goamd64
+		testEndToEnd(t, "amd64", "amd64")
+	}
 }
 
 func Test386Encoder(t *testing.T) {

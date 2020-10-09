@@ -5,10 +5,13 @@
 // Package maphash provides hash functions on byte sequences.
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
-// sequences to a uniform distribution of integers.
+// sequences to a uniform distribution on unsigned 64-bit integers.
 //
 // The hash functions are collision-resistant but not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
+//
+// The hash value of a given byte sequence is consistent within a
+// single process, but will be different in different processes.
 package maphash
 
 import "unsafe"
@@ -66,7 +69,7 @@ type Hash struct {
 // which does call h.initSeed.)
 func (h *Hash) initSeed() {
 	if h.seed.s == 0 {
-		h.SetSeed(MakeSeed())
+		h.setSeed(MakeSeed())
 	}
 }
 
@@ -121,12 +124,17 @@ func (h *Hash) Seed() Seed {
 // Two Hash objects with different seeds will very likely behave differently.
 // Any bytes added to h before this call will be discarded.
 func (h *Hash) SetSeed(seed Seed) {
+	h.setSeed(seed)
+	h.n = 0
+}
+
+// setSeed sets seed without discarding accumulated data.
+func (h *Hash) setSeed(seed Seed) {
 	if seed.s == 0 {
 		panic("maphash: use of uninitialized Seed")
 	}
 	h.seed = seed
 	h.state = seed
-	h.n = 0
 }
 
 // Reset discards all bytes added to h.

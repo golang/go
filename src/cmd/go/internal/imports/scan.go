@@ -6,16 +6,17 @@ package imports
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/go/internal/fsys"
 )
 
 func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
-	infos, err := ioutil.ReadDir(dir)
+	infos, err := fsys.ReadDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,7 +50,7 @@ func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]stri
 	numFiles := 0
 Files:
 	for _, name := range files {
-		r, err := os.Open(name)
+		r, err := fsys.Open(name)
 		if err != nil {
 			return nil, nil, err
 		}

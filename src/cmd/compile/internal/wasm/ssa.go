@@ -122,7 +122,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
 		s.PrepareCall(v)
-		if v.Aux == gc.Deferreturn {
+		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == gc.Deferreturn {
 			// add a resume point before call to deferreturn so it can be called again via jmpdefer
 			s.Prog(wasm.ARESUMEPOINT)
 		}
@@ -130,7 +130,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			getValue64(s, v.Args[1])
 			setReg(s, wasm.REG_CTXT)
 		}
-		if sym, ok := v.Aux.(*obj.LSym); ok {
+		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn != nil {
+			sym := call.Fn
 			p := s.Prog(obj.ACALL)
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
 			p.Pos = v.Pos

@@ -10,12 +10,12 @@
 package p
 
 func _() {
-	if a := 10 { // ERROR "a := 10 used as value"
+	if a := 10 { // ERROR "cannot use a := 10 as value"
 	}
 
-	for b := 10 { // ERROR "b := 10 used as value"
+	for b := 10 { // ERROR "cannot use b := 10 as value"
 	}
 
-	switch c := 10 { // ERROR "c := 10 used as value"
+	switch c := 10 { // ERROR "cannot use c := 10 as value"
 	}
 }

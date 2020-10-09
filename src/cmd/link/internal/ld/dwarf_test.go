@@ -238,6 +238,10 @@ func TestSizes(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	// External linking may bring in C symbols with unknown size. Skip.
+	testenv.MustInternalLink(t)
+
 	t.Parallel()
 
 	// DWARF sizes should never be -1.
@@ -919,13 +923,14 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
-		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
 	}
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
@@ -944,6 +949,11 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 	if runtime.GOARCH == "ppc64" {
 		t.Skip("-linkmode=external not supported on ppc64")
 	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
+	}
+
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 
@@ -1013,6 +1023,9 @@ func main() {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
 
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		return // everything is PIE on ARM64, addresses are relocated
+	}
 	if rtAttr.(uint64)+types.Addr != addr {
 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
 	}
@@ -1198,6 +1211,15 @@ func main() {
 		}
 	}
 
+	// When external linking, we put all symbols in the symbol table (so the
+	// external linker can find them). Skip the symbol table check.
+	// TODO: maybe there is some way to tell the external linker not to put
+	// those symbols in the executable's symbol table? Prefix the symbol name
+	// with "." or "L" to pretend it is a label?
+	if !testenv.CanInternalLink() {
+		return
+	}
+
 	syms, err := f.Symbols()
 	if err != nil {
 		t.Fatalf("error reading symbols: %v", err)
@@ -1239,6 +1261,7 @@ func TestPackageNameAttr(t *testing.T) {
 	}
 
 	rdr := d.Reader()
+	runtimeUnitSeen := false
 	for {
 		e, err := rdr.Next()
 		if err != nil {
@@ -1254,11 +1277,25 @@ func TestPackageNameAttr(t *testing.T) {
 			continue
 		}
 
-		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		pn, ok := e.Val(dwarfAttrGoPackageName).(string)
 		if !ok {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			t.Errorf("found compile unit without package name: %s", name)
+
 		}
+		if pn == "" {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit with empty package name: %s", name)
+		} else {
+			if pn == "runtime" {
+				runtimeUnitSeen = true
+			}
+		}
+	}
+
+	// Something is wrong if there's no runtime compilation unit.
+	if !runtimeUnitSeen {
+		t.Errorf("no package name for runtime unit")
 	}
 }
 
@@ -1346,5 +1383,239 @@ func main() {
 			}
 		}
 		rdr.SkipChildren()
+	}
+}
+
+func TestIssue38192(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	// Build a test program that contains a translation unit whose
+	// text (from am assembly source) contains only a single instruction.
+	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("where am I? %v", err)
+	}
+	pdir := filepath.Join(wd, "testdata", "issue38192")
+	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+
+	// Open the resulting binary and examine the DWARF it contains.
+	// Look for the function of interest ("main.singleInstruction")
+	// and verify that the line table has an entry not just for the
+	// single instruction but also a dummy instruction following it,
+	// so as to test that whoever is emitting the DWARF doesn't
+	// emit an end-sequence op immediately after the last instruction
+	// in the translation unit.
+	//
+	// NB: another way to write this test would have been to run the
+	// resulting executable under GDB, set a breakpoint in
+	// "main.singleInstruction", then verify that GDB displays the
+	// correct line/file information.  Given the headache and flakiness
+	// associated with GDB-based tests these days, a direct read of
+	// the line table seems more desirable.
+	rows := []dwarf.LineEntry{}
+	dw, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error parsing DWARF: %v", err)
+	}
+	rdr := dw.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		// NB: there can be multiple compile units named "main".
+		name := e.Val(dwarf.AttrName).(string)
+		if name != "main" {
+			continue
+		}
+		lnrdr, err := dw.LineReader(e)
+		if err != nil {
+			t.Fatalf("error creating DWARF line reader: %v", err)
+		}
+		if lnrdr != nil {
+			var lne dwarf.LineEntry
+			for {
+				err := lnrdr.Next(&lne)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("error reading next DWARF line: %v", err)
+				}
+				if !strings.HasSuffix(lne.File.Name, "ld/testdata/issue38192/oneline.s") {
+					continue
+				}
+				rows = append(rows, lne)
+			}
+		}
+		rdr.SkipChildren()
+	}
+	f.Close()
+
+	// Make sure that:
+	// - main.singleInstruction appears in the line table
+	// - more than one PC value appears the line table for
+	//   that compilation unit.
+	// - at least one row has the correct line number (8)
+	pcs := make(map[uint64]bool)
+	line8seen := false
+	for _, r := range rows {
+		pcs[r.Address] = true
+		if r.Line == 8 {
+			line8seen = true
+		}
+	}
+	failed := false
+	if len(pcs) < 2 {
+		failed = true
+		t.Errorf("not enough line table rows for main.singleInstruction (got %d, wanted > 1", len(pcs))
+	}
+	if !line8seen {
+		failed = true
+		t.Errorf("line table does not contain correct line for main.singleInstruction")
+	}
+	if !failed {
+		return
+	}
+	for i, r := range rows {
+		t.Logf("row %d: A=%x F=%s L=%d\n", i, r.Address, r.File.Name, r.Line)
+	}
+}
+
+func TestIssue39757(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	// In this bug the DWARF line table contents for the last couple of
+	// instructions in a function were incorrect (bad file/line). This
+	// test verifies that all of the line table rows for a function
+	// of interest have the same file (no "autogenerated").
+	//
+	// Note: the function in this test was written with an eye towards
+	// ensuring that there are no inlined routines from other packages
+	// (which could introduce other source files into the DWARF); it's
+	// possible that at some point things could evolve in the
+	// compiler/runtime in ways that aren't happening now, so this
+	// might be something to check for if it does start failing.
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("where am I? %v", err)
+	}
+	pdir := filepath.Join(wd, "testdata", "issue39757")
+	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var addr uint64
+	for _, sym := range syms {
+		if sym.Name == "main.main" {
+			addr = sym.Addr
+			break
+		}
+	}
+	if addr == 0 {
+		t.Fatal("cannot find main.main in symbols")
+	}
+
+	// Open the resulting binary and examine the DWARF it contains.
+	// Look for the function of interest ("main.main")
+	// and verify that all line table entries show the same source
+	// file.
+	dw, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error parsing DWARF: %v", err)
+	}
+	rdr := dw.Reader()
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	// Locate the main.main DIE
+	mains := ex.Named("main.main")
+	if len(mains) == 0 {
+		t.Fatalf("unable to locate DIE for main.main")
+	}
+	if len(mains) != 1 {
+		t.Fatalf("more than one main.main DIE")
+	}
+	maindie := mains[0]
+
+	// Collect the start/end PC for main.main
+	lowpc := maindie.Val(dwarf.AttrLowpc).(uint64)
+	highpc := maindie.Val(dwarf.AttrHighpc).(uint64)
+
+	// Now read the line table for the 'main' compilation unit.
+	mainIdx := ex.idxFromOffset(maindie.Offset)
+	cuentry := ex.Parent(mainIdx)
+	if cuentry == nil {
+		t.Fatalf("main.main DIE appears orphaned")
+	}
+	lnrdr, lerr := dw.LineReader(cuentry)
+	if lerr != nil {
+		t.Fatalf("error creating DWARF line reader: %v", err)
+	}
+	if lnrdr == nil {
+		t.Fatalf("no line table for main.main compilation unit")
+	}
+	rows := []dwarf.LineEntry{}
+	mainrows := 0
+	var lne dwarf.LineEntry
+	for {
+		err := lnrdr.Next(&lne)
+		if err == io.EOF {
+			break
+		}
+		rows = append(rows, lne)
+		if err != nil {
+			t.Fatalf("error reading next DWARF line: %v", err)
+		}
+		if lne.Address < lowpc || lne.Address > highpc {
+			continue
+		}
+		if !strings.HasSuffix(lne.File.Name, "issue39757main.go") {
+			t.Errorf("found row with file=%s (not issue39757main.go)", lne.File.Name)
+		}
+		mainrows++
+	}
+	f.Close()
+
+	// Make sure we saw a few rows.
+	if mainrows < 3 {
+		t.Errorf("not enough line table rows for main.main (got %d, wanted > 3", mainrows)
+		for i, r := range rows {
+			t.Logf("row %d: A=%x F=%s L=%d\n", i, r.Address, r.File.Name, r.Line)
+		}
 	}
 }

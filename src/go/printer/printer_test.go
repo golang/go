@@ -33,6 +33,7 @@ type checkMode uint
 const (
 	export checkMode = 1 << iota
 	rawFormat
+	normNumber
 	idempotent
 )
 
@@ -56,6 +57,9 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 	cfg := Config{Tabwidth: tabwidth}
 	if mode&rawFormat != 0 {
 		cfg.Mode |= RawFormat
+	}
+	if mode&normNumber != 0 {
+		cfg.Mode |= normalizeNumbers
 	}
 
 	// print AST
@@ -165,7 +169,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// run the test
-	cc := make(chan int)
+	cc := make(chan int, 1)
 	go func() {
 		runcheck(t, source, golden, mode)
 		cc <- 0
@@ -200,6 +204,8 @@ var data = []entry{
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
 	{"complit.input", "complit.x", export},
+	{"go2numbers.input", "go2numbers.golden", idempotent},
+	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
 }
 
 func TestFiles(t *testing.T) {

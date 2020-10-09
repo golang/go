@@ -3,6 +3,8 @@ env GO111MODULE=off
 [!gc] skip 'using -gcflags and -ldflags'
 [short] skip
 
+env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+
 # -gcflags=-e applies to named packages, not dependencies
 go build -n -v -gcflags=-e z1 z2
 stderr 'compile.* -e.* -p z1'

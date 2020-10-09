@@ -1007,6 +1007,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					panic("bad name for Call")
 				}
 				r := obj.Addrel(s)
+				r.Siz = 1 // actually variable sized
 				r.Off = int32(w.Len())
 				r.Type = objabi.R_CALL
 				if p.Mark&WasmImport != 0 {
@@ -1033,6 +1034,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case AI32Const, AI64Const:
 			if p.From.Name == obj.NAME_EXTERN {
 				r := obj.Addrel(s)
+				r.Siz = 1 // actually variable sized
 				r.Off = int32(w.Len())
 				r.Type = objabi.R_ADDR
 				r.Sym = p.From.Sym

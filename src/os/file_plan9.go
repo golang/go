@@ -29,8 +29,13 @@ type file struct {
 }
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
+//
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -112,10 +117,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	} else {
 		fd, e = syscall.Open(name, flag)
 		if IsNotExist(e) && create {
-			var e1 error
-			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
-			if e1 == nil {
-				e = nil
+			fd, e = syscall.Create(name, flag, syscallMode(perm))
+			if e != nil {
+				return nil, &PathError{"create", name, e}
 			}
 		}
 	}
@@ -234,10 +238,10 @@ func (f *File) Sync() error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	return nil
 }
@@ -290,6 +294,11 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo = nil
+	}
 	return syscall.Seek(f.fd, offset, whence)
 }
 
@@ -553,4 +562,8 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 
 func newRawConn(file *File) (*rawConn, error) {
 	return nil, syscall.EPLAN9
+}
+
+func ignoringEINTR(fn func() error) error {
+	return fn()
 }

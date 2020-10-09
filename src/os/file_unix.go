@@ -39,7 +39,9 @@ func rename(oldname, newname string) error {
 			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 		}
 	}
-	err = syscall.Rename(oldname, newname)
+	err = ignoringEINTR(func() error {
+		return syscall.Rename(oldname, newname)
+	})
 	if err != nil {
 		return &LinkError{"rename", oldname, newname, err}
 	}
@@ -60,8 +62,13 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
+//
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -127,9 +134,11 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// used with kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
-			err := syscall.Fstat(fdi, &st)
+			err := ignoringEINTR(func() error {
+				return syscall.Fstat(fdi, &st)
+			})
 			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
@@ -146,7 +155,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
@@ -202,10 +211,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 			break
 		}
 
-		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
-		// open(2) to be restarted for regular files. This is easy to reproduce on
-		// fuse file systems (see https://golang.org/issue/11180).
-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+		// We have to check EINTR here, per issues 11180 and 39237.
+		if e == syscall.EINTR {
 			continue
 		}
 
@@ -224,17 +231,6 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	return newFile(uintptr(r), name, kindOpenFile), nil
-}
-
-// Close closes the File, rendering it unusable for I/O.
-// On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an error.
-// Close will return an error if it has already been called.
-func (f *File) Close() error {
-	if f == nil {
-		return ErrInvalid
-	}
-	return f.file.close()
 }
 
 func (file *file) close() error {
@@ -257,45 +253,17 @@ func (file *file) close() error {
 	return err
 }
 
-// read reads up to len(b) bytes from the File.
-// It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err error) {
-	n, err = f.pfd.Read(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pread reads len(b) bytes from the File starting at byte offset off.
-// It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to nil.
-func (f *File) pread(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pread(b, off)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// write writes len(b) bytes to the File.
-// It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err error) {
-	n, err = f.pfd.Write(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pwrite writes len(b) bytes to the File starting at byte offset off.
-// It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pwrite(b, off)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
 // seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	f.seekInvalidate()
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo.close()
+		f.dirinfo = nil
+	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
 	return ret, err
@@ -305,7 +273,10 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 // If the file is a symbolic link, it changes the size of the link's target.
 // If there is an error, it will be of type *PathError.
 func Truncate(name string, size int64) error {
-	if e := syscall.Truncate(name, size); e != nil {
+	e := ignoringEINTR(func() error {
+		return syscall.Truncate(name, size)
+	})
+	if e != nil {
 		return &PathError{"truncate", name, e}
 	}
 	return nil
@@ -318,11 +289,15 @@ func Remove(name string) error {
 	// whether name is a file or directory.
 	// Try both: it is cheaper on average than
 	// doing a Stat plus the right one.
-	e := syscall.Unlink(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Unlink(name)
+	})
 	if e == nil {
 		return nil
 	}
-	e1 := syscall.Rmdir(name)
+	e1 := ignoringEINTR(func() error {
+		return syscall.Rmdir(name)
+	})
 	if e1 == nil {
 		return nil
 	}
@@ -357,7 +332,9 @@ func tempDir() string {
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	e := syscall.Link(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Link(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"link", oldname, newname, e}
 	}
@@ -367,7 +344,9 @@ func Link(oldname, newname string) error {
 // Symlink creates newname as a symbolic link to oldname.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	e := syscall.Symlink(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Symlink(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
@@ -406,7 +385,16 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(name, b))
+		var (
+			n int
+			e error
+		)
+		for {
+			n, e = fixCount(syscall.Readlink(name, b))
+			if e != syscall.EINTR {
+				break
+			}
+		}
 		// buffer too small
 		if runtime.GOOS == "aix" && e == syscall.ERANGE {
 			continue

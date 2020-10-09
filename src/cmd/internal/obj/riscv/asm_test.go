@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -129,5 +130,22 @@ TEXT _stub(SB),$0-0
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
+	}
+}
+
+func TestBranch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	if runtime.GOARCH != "riscv64" {
+		t.Skip("Requires riscv64 to run")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	cmd := exec.Command(testenv.GoToolPath(t), "test")
+	cmd.Dir = "testdata/testbranch"
+	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
+		t.Errorf("Branch test failed: %v\n%s", err, out)
 	}
 }

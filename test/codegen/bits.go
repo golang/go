@@ -278,6 +278,11 @@ func bitOpOnMem(a []uint32) {
 	a[5] ^= 0x2000
 }
 
+func bitcheckMostNegative(b uint8) bool {
+	// amd64:"TESTB"
+	return b&0x80 == 0x80
+}
+
 // Check AND masking on arm64 (Issue #19857)
 
 func and_mask_1(a uint64) uint64 {
@@ -305,9 +310,18 @@ func op_bic(x, y uint32) uint32 {
 	return x &^ y
 }
 
-func op_eon(x, y uint32) uint32 {
+func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	a[0] = x ^ (y ^ 0xffffffff)
+
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	a[1] = ^(y ^ z)
+
 	// arm64:`EON\t`,-`XOR`
-	return x ^ ^y
+	a[2] = x ^ ^z
+
+	// arm64:`EON\t`,-`EOR`,-`MVN`
+	return n ^ (m ^ 0xffffffffffffffff)
 }
 
 func op_orn(x, y uint32) uint32 {

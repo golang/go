@@ -34,6 +34,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -93,11 +94,6 @@ var tests = [][]string{
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
 	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
-	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
-	{"testdata/issue23203a.src"},
-	{"testdata/issue23203b.src"},
-	{"testdata/issue28251.src"},
-	{"testdata/issue6977.src"},
 }
 
 var fset = token.NewFileSet()
@@ -259,7 +255,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 	// typecheck and collect typechecker errors
 	var conf Config
 	// special case for importC.src
-	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
+	if len(testfiles) == 1 && strings.HasSuffix(testfiles[0], "importC.src") {
 		conf.FakeImportC = true
 	}
 	conf.Importer = importer.Default()
@@ -314,5 +310,29 @@ func TestCheck(t *testing.T) {
 	// Otherwise, run all the tests.
 	for _, files := range tests {
 		checkFiles(t, files)
+	}
+}
+
+func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
+
+func testDir(t *testing.T, dir string) {
+	testenv.MustHaveGoBuild(t)
+
+	fis, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, fi := range fis {
+		testname := filepath.Base(fi.Name())
+		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
+		t.Run(testname, func(t *testing.T) {
+			filename := filepath.Join(dir, fi.Name())
+			if fi.IsDir() {
+				t.Errorf("skipped directory %q", filename)
+				return
+			}
+			checkFiles(t, []string{filename})
+		})
 	}
 }

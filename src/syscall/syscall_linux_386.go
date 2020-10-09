@@ -9,10 +9,7 @@ package syscall
 
 import "unsafe"
 
-const (
-	_SYS_dup       = SYS_DUP2
-	_SYS_setgroups = SYS_SETGROUPS32
-)
+const _SYS_setgroups = SYS_SETGROUPS32
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}

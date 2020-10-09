@@ -1,5 +1,5 @@
 // Inferno utils/5l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -50,9 +50,8 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb,  // in asm.go
-		Asmb2:            asmb2, // in asm.go
 		Elfreloc1:        elfreloc1,
+		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,

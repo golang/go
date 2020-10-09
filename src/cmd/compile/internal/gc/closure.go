@@ -107,8 +107,7 @@ func typecheckclosure(clo *Node, top int) {
 	}
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
-	disableExport(xfunc.Func.Nname.Sym)
-	declare(xfunc.Func.Nname, PFUNC)
+	setNodeNameFunc(xfunc.Func.Nname)
 	xfunc = typecheck(xfunc, ctxStmt)
 
 	// Type check the body now, but only if we're inside a function.
@@ -429,6 +428,7 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	// Create top-level function.
 	xfunc := makepartialcall(fn, fn.Type, sym)
 	fn.Func = xfunc.Func
+	fn.Func.SetWrapper(true)
 	fn.Right = newname(sym)
 	fn.Op = OCALLPART
 	fn.Type = xfunc.Type
@@ -462,7 +462,6 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	tfn.List.Set(structargs(t0.Params(), true))
 	tfn.Rlist.Set(structargs(t0.Results(), false))
 
-	disableExport(sym)
 	xfunc := dclfunc(sym, tfn)
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.SetNeedctxt(true)
@@ -525,7 +524,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
-	//	clos = &struct{F uintptr; R T}{M.T·f, x}
+	//	clos = &struct{F uintptr; R T}{T.M·f, x}
 	//
 	// Like walkclosure above.
 
@@ -565,4 +564,21 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	return walkexpr(clos, init)
+}
+
+// callpartMethod returns the *types.Field representing the method
+// referenced by method value n.
+func callpartMethod(n *Node) *types.Field {
+	if n.Op != OCALLPART {
+		Fatalf("expected OCALLPART, got %v", n)
+	}
+
+	// TODO(mdempsky): Optimize this. If necessary,
+	// makepartialcall could save m for us somewhere.
+	var m *types.Field
+	if lookdot0(n.Right.Sym, n.Left.Type, &m, false) != 1 {
+		Fatalf("failed to find field for OCALLPART")
+	}
+
+	return m
 }

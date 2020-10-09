@@ -1,5 +1,5 @@
 // Inferno utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -1838,6 +1838,12 @@ func fillnop(p []byte, n int) {
 	}
 }
 
+func noppad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
+	s.Grow(int64(c) + int64(pad))
+	fillnop(s.P[c:], int(pad))
+	return c + pad
+}
+
 func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	if ctxt.Arch.Family != sys.AMD64 || ctxt.Arch.PtrSize == 4 {
 		return l
@@ -1845,7 +1851,197 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	return q
 }
 
+// If the environment variable GOAMD64=alignedjumps the assembler will ensure that
+// no standalone or macro-fused jump will straddle or end on a 32 byte boundary
+// by inserting NOPs before the jumps
+func isJump(p *obj.Prog) bool {
+	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
+		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
+}
+
+// lookForJCC returns the first real instruction starting from p, if that instruction is a conditional
+// jump. Otherwise, nil is returned.
+func lookForJCC(p *obj.Prog) *obj.Prog {
+	// Skip any PCDATA, FUNCDATA or NOP instructions
+	var q *obj.Prog
+	for q = p.Link; q != nil && (q.As == obj.APCDATA || q.As == obj.AFUNCDATA || q.As == obj.ANOP); q = q.Link {
+	}
+
+	if q == nil || q.To.Target() == nil || p.As == obj.AJMP || p.As == obj.ACALL {
+		return nil
+	}
+
+	switch q.As {
+	case AJOS, AJOC, AJCS, AJCC, AJEQ, AJNE, AJLS, AJHI,
+		AJMI, AJPL, AJPS, AJPC, AJLT, AJGE, AJLE, AJGT:
+	default:
+		return nil
+	}
+
+	return q
+}
+
+// fusedJump determines whether p can be fused with a subsequent conditional jump instruction.
+// If it can, we return true followed by the total size of the fused jump. If it can't, we return false.
+// Macro fusion rules are derived from the Intel Optimization Manual (April 2019) section 3.4.2.2.
+func fusedJump(p *obj.Prog) (bool, uint8) {
+	var fusedSize uint8
+
+	// The first instruction in a macro fused pair may be preceeded by the LOCK prefix,
+	// or possibly an XACQUIRE/XRELEASE prefix followed by a LOCK prefix. If it is, we
+	// need to be careful to insert any padding before the locks rather than directly after them.
+
+	if p.As == AXRELEASE || p.As == AXACQUIRE {
+		fusedSize += p.Isize
+		for p = p.Link; p != nil && (p.As == obj.APCDATA || p.As == obj.AFUNCDATA); p = p.Link {
+		}
+		if p == nil {
+			return false, 0
+		}
+	}
+	if p.As == ALOCK {
+		fusedSize += p.Isize
+		for p = p.Link; p != nil && (p.As == obj.APCDATA || p.As == obj.AFUNCDATA); p = p.Link {
+		}
+		if p == nil {
+			return false, 0
+		}
+	}
+	cmp := p.As == ACMPB || p.As == ACMPL || p.As == ACMPQ || p.As == ACMPW
+
+	cmpAddSub := p.As == AADDB || p.As == AADDL || p.As == AADDW || p.As == AADDQ ||
+		p.As == ASUBB || p.As == ASUBL || p.As == ASUBW || p.As == ASUBQ || cmp
+
+	testAnd := p.As == ATESTB || p.As == ATESTL || p.As == ATESTQ || p.As == ATESTW ||
+		p.As == AANDB || p.As == AANDL || p.As == AANDQ || p.As == AANDW
+
+	incDec := p.As == AINCB || p.As == AINCL || p.As == AINCQ || p.As == AINCW ||
+		p.As == ADECB || p.As == ADECL || p.As == ADECQ || p.As == ADECW
+
+	if !cmpAddSub && !testAnd && !incDec {
+		return false, 0
+	}
+
+	if !incDec {
+		var argOne obj.AddrType
+		var argTwo obj.AddrType
+		if cmp {
+			argOne = p.From.Type
+			argTwo = p.To.Type
+		} else {
+			argOne = p.To.Type
+			argTwo = p.From.Type
+		}
+		if argOne == obj.TYPE_REG {
+			if argTwo != obj.TYPE_REG && argTwo != obj.TYPE_CONST && argTwo != obj.TYPE_MEM {
+				return false, 0
+			}
+		} else if argOne == obj.TYPE_MEM {
+			if argTwo != obj.TYPE_REG {
+				return false, 0
+			}
+		} else {
+			return false, 0
+		}
+	}
+
+	fusedSize += p.Isize
+	jmp := lookForJCC(p)
+	if jmp == nil {
+		return false, 0
+	}
+
+	fusedSize += jmp.Isize
+
+	if testAnd {
+		return true, fusedSize
+	}
+
+	if jmp.As == AJOC || jmp.As == AJOS || jmp.As == AJMI ||
+		jmp.As == AJPL || jmp.As == AJPS || jmp.As == AJPC {
+		return false, 0
+	}
+
+	if cmpAddSub {
+		return true, fusedSize
+	}
+
+	if jmp.As == AJCS || jmp.As == AJCC || jmp.As == AJHI || jmp.As == AJLS {
+		return false, 0
+	}
+
+	return true, fusedSize
+}
+
+type padJumpsCtx int32
+
+func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
+	// Disable jump padding on 32 bit builds by settting
+	// padJumps to 0.
+	if ctxt.Arch.Family == sys.I386 {
+		return padJumpsCtx(0)
+	}
+
+	// Disable jump padding for hand written assembly code.
+	if ctxt.IsAsm {
+		return padJumpsCtx(0)
+	}
+
+	if objabi.GOAMD64 != "alignedjumps" {
+		return padJumpsCtx(0)
+
+	}
+
+	return padJumpsCtx(32)
+}
+
+// padJump detects whether the instruction being assembled is a standalone or a macro-fused
+// jump that needs to be padded. If it is, NOPs are inserted to ensure that the jump does
+// not cross or end on a 32 byte boundary.
+func (pjc padJumpsCtx) padJump(ctxt *obj.Link, s *obj.LSym, p *obj.Prog, c int32) int32 {
+	if pjc == 0 {
+		return c
+	}
+
+	var toPad int32
+	fj, fjSize := fusedJump(p)
+	mask := int32(pjc - 1)
+	if fj {
+		if (c&mask)+int32(fjSize) >= int32(pjc) {
+			toPad = int32(pjc) - (c & mask)
+		}
+	} else if isJump(p) {
+		if (c&mask)+int32(p.Isize) >= int32(pjc) {
+			toPad = int32(pjc) - (c & mask)
+		}
+	}
+	if toPad <= 0 {
+		return c
+	}
+
+	return noppad(ctxt, s, c, toPad)
+}
+
+// reAssemble is called if an instruction's size changes during assembly. If
+// it does and the instruction is a standalone or a macro-fused jump we need to
+// reassemble.
+func (pjc padJumpsCtx) reAssemble(p *obj.Prog) bool {
+	if pjc == 0 {
+		return false
+	}
+
+	fj, _ := fusedJump(p)
+	return fj || isJump(p)
+}
+
+type nopPad struct {
+	p *obj.Prog // Instruction before the pad
+	n int32     // Size of the pad
+}
+
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+	pjc := makePjcCtx(ctxt)
+
 	if s.P != nil {
 		return
 	}
@@ -1855,8 +2051,8 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	for p := s.Func.Text; p != nil; p = p.Link {
-		if p.To.Type == obj.TYPE_BRANCH && p.Pcond == nil {
-			p.Pcond = p
+		if p.To.Type == obj.TYPE_BRANCH && p.To.Target() == nil {
+			p.To.SetTarget(p)
 		}
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
@@ -1875,13 +2071,24 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 			}
 		}
+		if ctxt.Retpoline && (p.As == obj.ACALL || p.As == obj.AJMP) && (p.To.Type == obj.TYPE_REG || p.To.Type == obj.TYPE_MEM) {
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("non-retpoline-compatible: %v", p)
+				continue
+			}
+			p.To.Type = obj.TYPE_BRANCH
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = ctxt.Lookup("runtime.retpoline" + obj.Rconv(int(p.To.Reg)))
+			p.To.Reg = 0
+			p.To.Offset = 0
+		}
 	}
 
 	var count int64 // rough count of number of instructions
 	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
 		p.Back = branchShort // use short branches first time through
-		if q := p.Pcond; q != nil && (q.Back&branchShort != 0) {
+		if q := p.To.Target(); q != nil && (q.Back&branchShort != 0) {
 			p.Back |= branchBackwards
 			q.Back |= branchLoopHead
 		}
@@ -1892,19 +2099,25 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	var n int
 	var c int32
 	errors := ctxt.Errors
+	var nops []nopPad // Padding for a particular assembly (reuse slice storage if multiple assemblies)
+	nrelocs0 := len(s.R)
 	for {
 		// This loop continues while there are reasons to re-assemble
 		// whole block, like the presence of long forward jumps.
 		reAssemble := false
-		for i := range s.R {
-			s.R[i] = obj.Reloc{}
+		for i := range s.R[nrelocs0:] {
+			s.R[nrelocs0+i] = obj.Reloc{}
 		}
-		s.R = s.R[:0]
+		s.R = s.R[:nrelocs0] // preserve marker relocations generated by the compiler
 		s.P = s.P[:0]
 		c = 0
+		var pPrev *obj.Prog
+		nops = nops[:0]
 		for p := s.Func.Text; p != nil; p = p.Link {
+			c0 := c
+			c = pjc.padJump(ctxt, s, p, c)
 
-			if (p.Back&branchLoopHead != 0) && c&(loopAlign-1) != 0 {
+			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
 				// pad with NOPs
 				v := -c & (loopAlign - 1)
 
@@ -1943,11 +2156,21 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			m := ab.Len()
 			if int(p.Isize) != m {
 				p.Isize = uint8(m)
+				if pjc.reAssemble(p) {
+					// We need to re-assemble here to check for jumps and fused jumps
+					// that span or end on 32 byte boundaries.
+					reAssemble = true
+				}
 			}
 
 			s.Grow(p.Pc + int64(m))
 			copy(s.P[p.Pc:], ab.Bytes())
+			// If there was padding, remember it.
+			if pPrev != nil && !ctxt.IsAsm && c > c0 {
+				nops = append(nops, nopPad{p: pPrev, n: c - c0})
+			}
 			c += int32(m)
+			pPrev = p
 		}
 
 		n++
@@ -1961,6 +2184,12 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		if ctxt.Errors > errors {
 			return
 		}
+	}
+	// splice padding nops into Progs
+	for _, n := range nops {
+		pp := n.p
+		np := &obj.Prog{Link: pp.Link, Ctxt: pp.Ctxt, As: obj.ANOP, Pos: pp.Pos.WithNotStmt(), Pc: pp.Pc + int64(pp.Isize), Isize: uint8(n.n)}
+		pp.Link = np
 	}
 
 	s.Size = int64(c)
@@ -1998,7 +2227,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			// the first instruction.)
 			return p.From.Index == REG_TLS
 		}
-		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
+		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS, nil)
 	}
 }
 
@@ -4605,12 +4834,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
 					// Maintain BP around call, since duffcopy/duffzero can't do it
 					// (the call jumps into the middle of the function).
 					// This makes it possible to see call sites for duffcopy/duffzero in
 					// BP-based profiling tools like Linux perf (which is the
-					// whole point of obj.Framepointer_enabled).
+					// whole point of maintaining frame pointers in Go).
 					// MOVQ BP, -16(SP)
 					// LEAQ -16(SP), BP
 					ab.Put(bpduff1)
@@ -4624,7 +4853,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				r.Siz = 4
 				ab.PutInt32(0)
 
-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
 					// Pop BP pushed above.
 					// MOVQ 0(BP), BP
 					ab.Put(bpduff2)
@@ -4658,7 +4887,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				// TODO: Check in input, preserve in brchain.
 
 				// Fill in backward jump now.
-				q = p.Pcond
+				q = p.To.Target()
 
 				if q == nil {
 					ctxt.Diag("jmp/branch/loop without target")

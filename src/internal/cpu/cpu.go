@@ -19,13 +19,11 @@ type CacheLinePad struct{ _ [CacheLinePadSize]byte }
 // so we use the constant per GOARCH CacheLinePadSize as an approximation.
 var CacheLineSize uintptr = CacheLinePadSize
 
-var X86 x86
-
-// The booleans in x86 contain the correspondingly named cpuid feature bit.
+// The booleans in X86 contain the correspondingly named cpuid feature bit.
 // HasAVX and HasAVX2 are only set if the OS does support XMM and YMM registers
 // in addition to the cpuid feature bit being set.
 // The struct is padded to avoid false sharing.
-type x86 struct {
+var X86 struct {
 	_            CacheLinePad
 	HasAES       bool
 	HasADX       bool
@@ -46,38 +44,18 @@ type x86 struct {
 	_            CacheLinePad
 }
 
-var PPC64 ppc64
-
-// For ppc64(le), it is safe to check only for ISA level starting on ISA v3.00,
-// since there are no optional categories. There are some exceptions that also
-// require kernel support to work (darn, scv), so there are feature bits for
-// those as well. The minimum processor requirement is POWER8 (ISA 2.07).
+// The booleans in ARM contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
-type ppc64 struct {
-	_        CacheLinePad
-	HasDARN  bool // Hardware random number generator (requires kernel enablement)
-	HasSCV   bool // Syscall vectored (requires kernel enablement)
-	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
-	_        CacheLinePad
-}
-
-var ARM arm
-
-// The booleans in arm contain the correspondingly named cpu feature bit.
-// The struct is padded to avoid false sharing.
-type arm struct {
+var ARM struct {
 	_        CacheLinePad
 	HasVFPv4 bool
 	HasIDIVA bool
 	_        CacheLinePad
 }
 
-var ARM64 arm64
-
-// The booleans in arm64 contain the correspondingly named cpu feature bit.
+// The booleans in ARM64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
-type arm64 struct {
+var ARM64 struct {
 	_           CacheLinePad
 	HasFP       bool
 	HasASIMD    bool
@@ -106,9 +84,27 @@ type arm64 struct {
 	_           CacheLinePad
 }
 
-var S390X s390x
+var MIPS64X struct {
+	_      CacheLinePad
+	HasMSA bool // MIPS SIMD architecture
+	_      CacheLinePad
+}
 
-type s390x struct {
+// For ppc64(le), it is safe to check only for ISA level starting on ISA v3.00,
+// since there are no optional categories. There are some exceptions that also
+// require kernel support to work (darn, scv), so there are feature bits for
+// those as well. The minimum processor requirement is POWER8 (ISA 2.07).
+// The struct is padded to avoid false sharing.
+var PPC64 struct {
+	_        CacheLinePad
+	HasDARN  bool // Hardware random number generator (requires kernel enablement)
+	HasSCV   bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8 bool // ISA v2.07 (POWER8)
+	IsPOWER9 bool // ISA v3.00 (POWER9)
+	_        CacheLinePad
+}
+
+var S390X struct {
 	_         CacheLinePad
 	HasZARCH  bool // z architecture mode is active [mandatory]
 	HasSTFLE  bool // store facility list extended [mandatory]

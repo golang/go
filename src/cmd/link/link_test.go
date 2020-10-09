@@ -1,3 +1,7 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -119,6 +123,8 @@ func TestIssue28429(t *testing.T) {
 func TestUnresolved(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "unresolved-")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -172,6 +178,96 @@ main.x: relocation target main.zero not defined
 	}
 }
 
+func TestIssue33979(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustInternalLink(t)
+
+	// Skip test on platforms that do not support cgo internal linking.
+	switch runtime.GOARCH {
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	if runtime.GOOS == "aix" {
+		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "unresolved-")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	write := func(name, content string) {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run := func(name string, args ...string) string {
+		cmd := exec.Command(name, args...)
+		cmd.Dir = tmpdir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("'go %s' failed: %v, output: %s", strings.Join(args, " "), err, out)
+		}
+		return string(out)
+	}
+	runGo := func(args ...string) string {
+		return run(testenv.GoToolPath(t), args...)
+	}
+
+	// Test object with undefined reference that was not generated
+	// by Go, resulting in an SXREF symbol being loaded during linking.
+	// Because of issue #33979, the SXREF symbol would be found during
+	// error reporting, resulting in confusing error messages.
+
+	write("main.go", `package main
+func main() {
+        x()
+}
+func x()
+`)
+	// The following assembly must work on all architectures.
+	write("x.s", `
+TEXT ·x(SB),0,$0
+        CALL foo(SB)
+        RET
+`)
+	write("x.c", `
+void undefined();
+
+void foo() {
+        undefined();
+}
+`)
+
+	cc := strings.TrimSpace(runGo("env", "CC"))
+	cflags := strings.Fields(runGo("env", "GOGCCFLAGS"))
+
+	// Compile, assemble and pack the Go and C code.
+	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
+	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
+	runGo("tool", "asm", "-o", "x2.o", "x.s")
+	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
+	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
+
+	// Now attempt to link using the internal linker.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "link", "-linkmode=internal", "x.a")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected link to fail, but it succeeded")
+	}
+	re := regexp.MustCompile(`(?m)^main\(.*text\): relocation target undefined not defined$`)
+	if !re.Match(out) {
+		t.Fatalf("got:\n%q\nwant:\n%s", out, re)
+	}
+}
+
 func TestBuildForTvOS(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
@@ -187,6 +283,8 @@ func TestBuildForTvOS(t *testing.T) {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
 	}
 
+	t.Parallel()
+
 	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
 	if err != nil {
 		t.Skip("failed to locate appletvos SDK, skipping")
@@ -200,7 +298,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"-fembed-bitcode",
 		"-framework", "CoreFoundation",
 	}
-	lib := filepath.Join("testdata", "lib.go")
+	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
 	if err != nil {
 		t.Fatal(err)
@@ -214,13 +312,14 @@ func TestBuildForTvOS(t *testing.T) {
 		"GOOS=darwin",
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
+		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
-	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
+	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
@@ -235,6 +334,8 @@ func main() { println(X) }
 
 func TestXFlag(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestXFlag")
 	if err != nil {
@@ -261,6 +362,8 @@ func main() { }
 
 func TestMacOSVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
 	if err != nil {
@@ -339,6 +442,8 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
 	}
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
 	if err != nil {
 		t.Fatal(err)
@@ -355,9 +460,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		if err != nil {
-			t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
-		}
+		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
 	}
 
 	// Run objdump on the resulting object.
@@ -398,6 +501,8 @@ TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
 func TestStrictDup(t *testing.T) {
 	// Check that -strictdups flag works.
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
 	if err != nil {
@@ -444,5 +549,274 @@ func TestStrictDup(t *testing.T) {
 	}
 	if !bytes.Contains(out, []byte("mismatched payload")) {
 		t.Errorf("unexpected output:\n%s", out)
+	}
+}
+
+const testFuncAlignSrc = `
+package main
+import (
+	"fmt"
+	"reflect"
+)
+func alignPc()
+
+func main() {
+	addr := reflect.ValueOf(alignPc).Pointer()
+	if (addr % 512) != 0 {
+		fmt.Printf("expected 512 bytes alignment, got %v\n", addr)
+	} else {
+		fmt.Printf("PASS")
+	}
+}
+`
+
+const testFuncAlignAsmSrc = `
+#include "textflag.h"
+
+TEXT	·alignPc(SB),NOSPLIT, $0-0
+	MOVD	$2, R0
+	PCALIGN	$512
+	MOVD	$3, R1
+	RET
+`
+
+// TestFuncAlign verifies that the address of a function can be aligned
+// with a specfic value on arm64.
+func TestFuncAlign(t *testing.T) {
+	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
+		t.Skip("skipping on non-linux/arm64 platform")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "go.mod")
+	err = ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "falign.go")
+	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "falign.s")
+	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Build and run with old object file format.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "falign")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("build failed: %v", err)
+	}
+	cmd = exec.Command(tmpdir + "/falign")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("failed to run with err %v, output: %s", err, out)
+	}
+	if string(out) != "PASS" {
+		t.Errorf("unexpected output: %s\n", out)
+	}
+}
+
+const testTrampSrc = `
+package main
+import "fmt"
+func main() {
+	fmt.Println("hello")
+
+	defer func(){
+		if e := recover(); e == nil {
+			panic("did not panic")
+		}
+	}()
+	f1()
+}
+
+// Test deferreturn trampolines. See issue #39049.
+func f1() { defer f2() }
+func f2() { panic("XXX") }
+`
+
+func TestTrampoline(t *testing.T) {
+	// Test that trampoline insertion works as expected.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}
+
+func TestIndexMismatch(t *testing.T) {
+	// Test that index mismatch will cause a link-time error (not run-time error).
+	// This shouldn't happen with "go build". We invoke the compiler and the linker
+	// manually, and try to "trick" the linker with an inconsistent object file.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
+	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
+	mSrc := filepath.Join("testdata", "testIndexMismatch", "main.go")
+	aObj := filepath.Join(tmpdir, "a.o")
+	mObj := filepath.Join(tmpdir, "main.o")
+	exe := filepath.Join(tmpdir, "main.exe")
+
+	// Build a program with main package importing package a.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	t.Log(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling main.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("linking failed: %v\n%s", err, out)
+	}
+
+	// Now, overwrite a.o with the object of b.go. This should
+	// result in an index mismatch.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("linking didn't fail")
+	}
+	if !bytes.Contains(out, []byte("fingerprint mismatch")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+}
+
+func TestPErsrc(t *testing.T) {
+	// Test that PE rsrc section is handled correctly (issue 39658).
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
+		t.Skipf("this is a windows/amd64-only test")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	pkgdir := filepath.Join("testdata", "testPErsrc")
+	exe := filepath.Join(tmpdir, "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = pkgdir
+	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building failed: %v, output:\n%s", err, out)
+	}
+
+	// Check that the binary contains the rsrc data
+	b, err := ioutil.ReadFile(exe)
+	if err != nil {
+		t.Fatalf("reading output failed: %v", err)
+	}
+	if !bytes.Contains(b, []byte("Hello Gophers!")) {
+		t.Fatalf("binary does not contain expected content")
+	}
+}
+
+func TestContentAddressableSymbols(t *testing.T) {
+	// Test that the linker handles content-addressable symbols correctly.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join("testdata", "testHashedSyms", "p.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
+	}
+}
+
+func TestReadOnly(t *testing.T) {
+	// Test that read-only data is indeed read-only.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	src := filepath.Join("testdata", "testRO", "x.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("running test program did not fail. output:\n%s", out)
 	}
 }

@@ -7,7 +7,8 @@ env GO111MODULE=off
 [!linux] skip  # test only works if c-archive implies -shared
 [short] skip
 
-go build -x -buildmode=c-archive -gcflags=all=-shared=false ./override.go
+env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+go build -x -n -buildmode=c-archive -gcflags=all=-shared=false ./override.go
 stderr '^.*/compile (.* )?-shared (.* )?-shared=false'
 
 -- override.go --

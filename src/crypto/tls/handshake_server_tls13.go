@@ -306,6 +306,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			return errors.New("tls: invalid PSK binder")
 		}
 
+		c.didResume = true
 		if err := c.processCertsFromClient(sessionState.certificate); err != nil {
 			return err
 		}
@@ -313,7 +314,6 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		hs.hello.selectedIdentityPresent = true
 		hs.hello.selectedIdentity = uint16(i)
 		hs.usingPSK = true
-		c.didResume = true
 		return nil
 	}
 
@@ -753,6 +753,14 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 	c := hs.c
 
 	if !hs.requestClientCert() {
+		// Make sure the connection is still being verified whether or not
+		// the server requested a client certificate.
+		if c.config.VerifyConnection != nil {
+			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -773,6 +781,13 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 
 	if err := c.processCertsFromClient(certMsg.certificate); err != nil {
 		return err
+	}
+
+	if c.config.VerifyConnection != nil {
+		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
+		}
 	}
 
 	if len(certMsg.certificate.Certificate) != 0 {

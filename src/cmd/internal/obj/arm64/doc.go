@@ -22,7 +22,8 @@ using different register names.
 
   Examples:
     MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
-    MOVB.W 16(R16), R10        <=>      ldr x10, [x16,#16]!
+    MOVB.W 16(R16), R10        <=>      ldrsb x10, [x16,#16]!
+    MOVBU.W 16(R16), R10       <=>      ldrb x10, [x16,#16]!
 
 3. Go uses a series of MOV instructions as load and store.
 
@@ -44,6 +45,56 @@ instructions and floating-point(scalar) instructions.
     VFMLA V29.S2, V20.S2, V14.S2      <=>      fmla v14.2s, v20.2s, v29.2s
     AESD V22.B16, V19.B16             <=>      aesd v19.16b, v22.16b
     SCVTFWS R3, F16                   <=>      scvtf s17, w6
+
+6. Align directive
+
+Go asm supports the PCALIGN directive, which indicates that the next instruction should be aligned
+to a specified boundary by padding with NOOP instruction. The alignment value supported on arm64
+must be a power of 2 and in the range of [8, 2048].
+
+  Examples:
+    PCALIGN $16
+    MOVD $2, R0          // This instruction is aligned with 16 bytes.
+    PCALIGN $1024
+    MOVD $3, R1          // This instruction is aligned with 1024 bytes.
+
+PCALIGN also changes the function alignment. If a function has one or more PCALIGN directives,
+its address will be aligned to the same or coarser boundary, which is the maximum of all the
+alignment values.
+
+In the following example, the function Add is aligned with 128 bytes.
+  Examples:
+    TEXT ·Add(SB),$40-16
+    MOVD $2, R0
+    PCALIGN $32
+    MOVD $4, R1
+    PCALIGN $128
+    MOVD $8, R2
+    RET
+
+On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALGIN to set the
+function alignment. The functions that need to be aligned are preferably using NOFRAME and NOSPLIT
+to avoid the impact of the prologues inserted by the assembler, so that the function address will
+have the same alignment as the first hand-written instruction.
+
+In the following example, PCALIGN at the entry of the function Add will align its address to 2048 bytes.
+
+  Examples:
+    TEXT ·Add(SB),NOSPLIT|NOFRAME,$0
+      PCALIGN $2048
+      MOVD $1, R0
+      MOVD $1, R1
+      RET
+
+7. Move large constants to vector registers.
+
+Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
+And for a 128-bit interger, it take two 64-bit operands, for the high and low parts separately.
+
+  Examples:
+    VMOVS $0x11223344, V0
+    VMOVD $0x1122334455667788, V1
+    VMOVQ $0x1122334455667788, $8877665544332211, V2   // V2=0x11223344556677888877665544332211
 
 Special Cases.
 

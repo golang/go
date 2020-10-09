@@ -20,6 +20,51 @@ func (h Hash) HashFunc() Hash {
 	return h
 }
 
+func (h Hash) String() string {
+	switch h {
+	case MD4:
+		return "MD4"
+	case MD5:
+		return "MD5"
+	case SHA1:
+		return "SHA-1"
+	case SHA224:
+		return "SHA-224"
+	case SHA256:
+		return "SHA-256"
+	case SHA384:
+		return "SHA-384"
+	case SHA512:
+		return "SHA-512"
+	case MD5SHA1:
+		return "MD5+SHA1"
+	case RIPEMD160:
+		return "RIPEMD-160"
+	case SHA3_224:
+		return "SHA3-224"
+	case SHA3_256:
+		return "SHA3-256"
+	case SHA3_384:
+		return "SHA3-384"
+	case SHA3_512:
+		return "SHA3-512"
+	case SHA512_224:
+		return "SHA-512/224"
+	case SHA512_256:
+		return "SHA-512/256"
+	case BLAKE2s_256:
+		return "BLAKE2s-256"
+	case BLAKE2b_256:
+		return "BLAKE2b-256"
+	case BLAKE2b_384:
+		return "BLAKE2b-384"
+	case BLAKE2b_512:
+		return "BLAKE2b-512"
+	default:
+		return "unknown hash value " + strconv.Itoa(int(h))
+	}
+}
+
 const (
 	MD4         Hash = 1 + iota // import golang.org/x/crypto/md4
 	MD5                         // import crypto/md5
@@ -119,7 +164,7 @@ type Signer interface {
 
 	// Sign signs digest with the private key, possibly using entropy from
 	// rand. For an RSA key, the resulting signature should be either a
-	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+	// PKCS #1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
 	// key, it should be a DER-serialised, ASN.1 signature structure.
 	//
 	// Hash implements the SignerOpts interface and, in most cases, one can

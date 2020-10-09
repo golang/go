@@ -30,11 +30,13 @@ import (
 // value is a filename on the native file system, not a URL, so it is separated
 // by filepath.Separator, which isn't necessarily '/'.
 //
-// Note that Dir will allow access to files and directories starting with a
-// period, which could expose sensitive directories like a .git directory or
-// sensitive files like .htpasswd. To exclude files with a leading period,
-// remove the files/directories from the server or create a custom FileSystem
-// implementation.
+// Note that Dir could expose sensitive files and directories. Dir will follow
+// symlinks pointing out of the directory tree, which can be especially dangerous
+// if serving from a directory in which users are able to create arbitrary symlinks.
+// Dir will also allow access to files and directories starting with a period,
+// which could expose sensitive directories like .git or sensitive files like
+// .htpasswd. To exclude files with a leading period, remove the files/directories
+// from the server or create a custom FileSystem implementation.
 //
 // An empty Dir is treated as ".".
 type Dir string
@@ -411,6 +413,7 @@ func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
 		}
 		if buf[0] == ',' {
 			buf = buf[1:]
+			continue
 		}
 		if buf[0] == '*' {
 			return condFalse
@@ -756,7 +759,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	var ranges []httpRange
 	noOverlap := false
 	for _, ra := range strings.Split(s[len(b):], ",") {
-		ra = strings.TrimSpace(ra)
+		ra = textproto.TrimString(ra)
 		if ra == "" {
 			continue
 		}
@@ -764,13 +767,19 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		if i < 0 {
 			return nil, errors.New("invalid range")
 		}
-		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
+		start, end := textproto.TrimString(ra[:i]), textproto.TrimString(ra[i+1:])
 		var r httpRange
 		if start == "" {
 			// If no start is specified, end specifies the
-			// range start relative to the end of the file.
+			// range start relative to the end of the file,
+			// and we are dealing with <suffix-length>
+			// which has to be a non-negative integer as per
+			// RFC 7233 Section 2.1 "Byte-Ranges".
+			if end == "" || end[0] == '-' {
+				return nil, errors.New("invalid range")
+			}
 			i, err := strconv.ParseInt(end, 10, 64)
-			if err != nil {
+			if i < 0 || err != nil {
 				return nil, errors.New("invalid range")
 			}
 			if i > size {

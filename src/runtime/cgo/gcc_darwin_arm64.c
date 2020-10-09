@@ -94,7 +94,7 @@ threadentry(void *v)
 }
 
 // init_working_dir sets the current working directory to the app root.
-// By default darwin/arm processes start in "/".
+// By default darwin/arm64 processes start in "/".
 static void
 init_working_dir()
 {
@@ -131,7 +131,7 @@ init_working_dir()
 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
 	}
 
-	// The test harness in go_darwin_arm_exec passes the relative working directory
+	// The test harness in go_ios_exec passes the relative working directory
 	// in the GoExecWrapperWorkingDirectory property of the app bundle.
 	CFStringRef wd_ref = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("GoExecWrapperWorkingDirectory"));
 	if (wd_ref != NULL) {

@@ -49,6 +49,11 @@ type SockaddrDatalink struct {
 	raw    RawSockaddrDatalink
 }
 
+// Some external packages rely on SYS___SYSCTL being defined to implement their
+// own sysctl wrappers. Provide it here, even though direct syscalls are no
+// longer supported on darwin.
+const SYS___SYSCTL = 202
+
 // Translate "kern.hostname" to []_C_int{0,1,2,3}.
 func nametomib(name string) (mib []_C_int, err error) {
 	const siz = unsafe.Sizeof(mib[0])
@@ -77,7 +82,18 @@ func nametomib(name string) (mib []_C_int, err error) {
 	return buf[0 : n/siz], nil
 }
 
-//sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+func direntIno(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+}
+
+func direntReclen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+}
+
+func direntNamlen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+}
+
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
@@ -143,23 +159,6 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 }
 
 //sys getattrlist(path *byte, list unsafe.Pointer, buf unsafe.Pointer, size uintptr, options int) (err error)
-
-func SysctlClockinfo(name string) (*Clockinfo, error) {
-	mib, err := sysctlmib(name)
-	if err != nil {
-		return nil, err
-	}
-
-	n := uintptr(SizeofClockinfo)
-	var ci Clockinfo
-	if err := sysctl(mib, (*byte)(unsafe.Pointer(&ci)), &n, nil, 0); err != nil {
-		return nil, err
-	}
-	if n != SizeofClockinfo {
-		return nil, EIO
-	}
-	return &ci, nil
-}
 
 //sysnb pipe() (r int, w int, err error)
 
@@ -322,48 +321,15 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) error {
  * Wrapped
  */
 
+//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+
 //sys	kill(pid int, signum int, posix int) (err error)
 
 func Kill(pid int, signum syscall.Signal) (err error) { return kill(pid, int(signum), 1) }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
 
-// ioctl itself should not be exposed directly, but additional get/set
-// functions for specific types are permissible.
-
-// IoctlSetInt performs an ioctl operation which sets an integer value
-// on fd, using the specified request number.
-func IoctlSetInt(fd int, req uint, value int) error {
-	return ioctl(fd, req, uintptr(value))
-}
-
-func ioctlSetWinsize(fd int, req uint, value *Winsize) error {
-	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
-}
-
-func ioctlSetTermios(fd int, req uint, value *Termios) error {
-	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
-}
-
-// IoctlGetInt performs an ioctl operation which gets an integer value
-// from fd, using the specified request number.
-func IoctlGetInt(fd int, req uint) (int, error) {
-	var value int
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	return value, err
-}
-
-func IoctlGetWinsize(fd int, req uint) (*Winsize, error) {
-	var value Winsize
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	return &value, err
-}
-
-func IoctlGetTermios(fd int, req uint) (*Termios, error) {
-	var value Termios
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	return &value, err
-}
+//sys   sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
 
 func Uname(uname *Utsname) error {
 	mib := []_C_int{CTL_KERN, KERN_OSTYPE}
@@ -435,6 +401,8 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Chroot(path string) (err error)
 //sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
+//sys	Clonefile(src string, dst string, flags int) (err error)
+//sys	Clonefileat(srcDirfd int, src string, dstDirfd int, dst string, flags int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
 //sys	Exchangedata(path1 string, path2 string, options int) (err error)
@@ -446,6 +414,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (err error)
+//sys	Fclonefileat(srcDirfd int, dstDirfd int, dst string, flags int) (err error)
 //sys	Flock(fd int, how int) (err error)
 //sys	Fpathconf(fd int, name int) (val int, err error)
 //sys	Fsync(fd int) (err error)
@@ -462,6 +431,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sysnb	Getrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Getsid(pid int) (sid int, err error)
+//sysnb	Gettimeofday(tp *Timeval) (err error)
 //sysnb	Getuid() (uid int)
 //sysnb	Issetugid() (tainted bool)
 //sys	Kqueue() (fd int, err error)
@@ -486,7 +456,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Revoke(path string) (err error)
 //sys	Rmdir(path string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
-//sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
+//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)

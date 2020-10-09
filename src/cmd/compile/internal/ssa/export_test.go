@@ -90,7 +90,7 @@ func (d *DummyAuto) IsAutoTmp() bool {
 	return true
 }
 
-func (DummyFrontend) StringData(s string) interface{} {
+func (DummyFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
@@ -145,6 +145,10 @@ func (d DummyFrontend) Log() bool                            { return true }
 func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
+
+func (d DummyFrontend) MyImportPath() string {
+	return "my/import/path"
+}
 
 var dummyTypes Types
 

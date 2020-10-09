@@ -410,9 +410,10 @@ const (
 	C_FCON     // floating-point constant
 	C_VCONADDR // 64-bit memory address
 
-	C_AACON // ADDCON offset in auto constant $a(FP)
-	C_LACON // 32-bit offset in auto constant $a(FP)
-	C_AECON // ADDCON offset in extern constant $e(SB)
+	C_AACON  // ADDCON offset in auto constant $a(FP)
+	C_AACON2 // 24-bit offset in auto constant $a(FP)
+	C_LACON  // 32-bit offset in auto constant $a(FP)
+	C_AECON  // ADDCON offset in extern constant $e(SB)
 
 	// TODO(aram): only one branch class should be enough
 	C_SBRA // for TYPE_BRANCH
@@ -874,6 +875,9 @@ const (
 	AFLDPS
 	AFMOVD
 	AFMOVS
+	AVMOVQ
+	AVMOVD
+	AVMOVS
 	AFMULD
 	AFMULS
 	AFNEGD
@@ -946,9 +950,14 @@ const (
 	ASHA256H2
 	ASHA256SU0
 	ASHA256SU1
+	ASHA512H
+	ASHA512H2
+	ASHA512SU0
+	ASHA512SU1
 	AVADD
 	AVADDP
 	AVAND
+	AVBIF
 	AVCMEQ
 	AVCNT
 	AVEOR
@@ -962,6 +971,7 @@ const (
 	AVLD3R
 	AVLD4R
 	AVORR
+	AVREV16
 	AVREV32
 	AVREV64
 	AVST1
@@ -980,11 +990,20 @@ const (
 	AVEXT
 	AVRBIT
 	AVUSHR
+	AVUSHLL
+	AVUSHLL2
+	AVUXTL
+	AVUXTL2
+	AVUZP1
+	AVUZP2
 	AVSHL
 	AVSRI
+	AVBSL
+	AVBIT
 	AVTBL
 	AVZIP1
 	AVZIP2
+	AVCMTST
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL

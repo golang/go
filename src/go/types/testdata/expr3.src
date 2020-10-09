@@ -155,10 +155,10 @@ func (*T) m() {}
 func method_expressions() {
 	_ = T.a /* ERROR "no field or method" */
 	_ = T.x /* ERROR "has no method" */
-	_ = T.m /* ERROR "not in method set" */
+	_ = T.m /* ERROR "cannot call pointer method m on T" */
 	_ = (*T).m
 
-	var f func(*T) = T.m /* ERROR "not in method set" */
+	var f func(*T) = T.m /* ERROR "cannot call pointer method m on T" */
 	var g func(*T) = (*T).m
 	_, _ = f, g
 

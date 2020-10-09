@@ -383,6 +383,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·reflectcall(SB), NOSPLIT, $-8-32
 	MOVWZ argsize+24(FP), R3
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -461,6 +462,7 @@ TEXT callRet<>(SB), NOSPLIT, $32-0
 	BL	runtime·reflectcallmove(SB)
 	RET
 
+CALLFN(·call16, 16)
 CALLFN(·call32, 32)
 CALLFN(·call64, 64)
 CALLFN(·call128, 128)

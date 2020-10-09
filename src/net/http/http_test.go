@@ -91,7 +91,7 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
 	}
 	wantSym := map[string]bool{
 		// Verify these exist: (sanity checking this test)
-		"net/http.(*Client).Get":          true,
+		"net/http.(*Client).do":           true,
 		"net/http.(*Transport).RoundTrip": true,
 
 		// Verify these don't exist:

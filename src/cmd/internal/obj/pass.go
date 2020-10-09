@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -36,8 +36,8 @@ package obj
 // In the case of an infinite loop, brloop returns nil.
 func brloop(p *Prog) *Prog {
 	c := 0
-	for q := p; q != nil; q = q.Pcond {
-		if q.As != AJMP || q.Pcond == nil {
+	for q := p; q != nil; q = q.To.Target() {
+		if q.As != AJMP || q.To.Target() == nil {
 			return q
 		}
 		c++
@@ -132,8 +132,6 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			continue
 		}
 		if p.To.Val != nil {
-			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
-			p.Pcond = p.To.Val.(*Prog)
 			continue
 		}
 
@@ -158,8 +156,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			p.To.Type = TYPE_NONE
 		}
 
-		p.To.Val = q
-		p.Pcond = q
+		p.To.SetTarget(q)
 	}
 
 	if !ctxt.Flag_optimize {
@@ -168,12 +165,12 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 
 	// Collapse series of jumps to jumps.
 	for p := sym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond == nil {
+		if p.To.Target() == nil {
 			continue
 		}
-		p.Pcond = brloop(p.Pcond)
-		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
-			p.To.Offset = p.Pcond.Pc
+		p.To.SetTarget(brloop(p.To.Target()))
+		if p.To.Target() != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.To.Target().Pc
 		}
 	}
 }

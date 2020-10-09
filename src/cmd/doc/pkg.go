@@ -214,8 +214,6 @@ func (pkg *Package) Printf(format string, args ...interface{}) {
 }
 
 func (pkg *Package) flush() {
-	// Print the package clause in case it wasn't written already.
-	pkg.buf.packageClause()
 	_, err := pkg.writer.Write(pkg.buf.Bytes())
 	if err != nil {
 		log.Fatal(err)
@@ -451,8 +449,7 @@ func joinStrings(ss []string) string {
 
 // allDoc prints all the docs for the package.
 func (pkg *Package) allDoc() {
-	defer pkg.flush()
-
+	pkg.Printf("") // Trigger the package clause; we know the package exists.
 	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
 	pkg.newlines(1)
 
@@ -511,8 +508,7 @@ func (pkg *Package) allDoc() {
 
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *Package) packageDoc() {
-	defer pkg.flush()
-
+	pkg.Printf("") // Trigger the package clause; we know the package exists.
 	if !short {
 		doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
 		pkg.newlines(1)
@@ -705,7 +701,6 @@ func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec
 // If symbol matches a type, output includes its methods factories and associated constants.
 // If there is no top-level symbol, symbolDoc looks for methods that match.
 func (pkg *Package) symbolDoc(symbol string) bool {
-	defer pkg.flush()
 	found := false
 	// Functions.
 	for _, fun := range pkg.findFuncs(symbol) {
@@ -925,7 +920,6 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 // If symbol is empty, it prints all methods for any concrete type
 // that match the name. It reports whether it found any methods.
 func (pkg *Package) printMethodDoc(symbol, method string) bool {
-	defer pkg.flush()
 	types := pkg.findTypes(symbol)
 	if types == nil {
 		if symbol == "" {
@@ -991,7 +985,6 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 	if symbol == "" || fieldName == "" {
 		return false
 	}
-	defer pkg.flush()
 	types := pkg.findTypes(symbol)
 	if types == nil {
 		pkg.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
@@ -1047,13 +1040,11 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 
 // methodDoc prints the docs for matches of symbol.method.
 func (pkg *Package) methodDoc(symbol, method string) bool {
-	defer pkg.flush()
 	return pkg.printMethodDoc(symbol, method)
 }
 
 // fieldDoc prints the docs for matches of symbol.field.
 func (pkg *Package) fieldDoc(symbol, field string) bool {
-	defer pkg.flush()
 	return pkg.printFieldDoc(symbol, field)
 }
 

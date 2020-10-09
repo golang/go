@@ -7,6 +7,7 @@ package dwarf_test
 import (
 	. "debug/dwarf"
 	"encoding/binary"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -207,5 +208,46 @@ func Test64Bit(t *testing.T) {
 		if r.ByteOrder() != test.byteOrder {
 			t.Errorf("%s: got byte order %s, want %s", test.name, r.ByteOrder(), test.byteOrder)
 		}
+	}
+}
+
+func TestUnitIteration(t *testing.T) {
+	// Iterate over all ELF test files we have and ensure that
+	// we get the same set of compilation units skipping (method 0)
+	// and not skipping (method 1) CU children.
+	files, err := filepath.Glob(filepath.Join("testdata", "*.elf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		t.Run(file, func(t *testing.T) {
+			d := elfData(t, file)
+			var units [2][]interface{}
+			for method := range units {
+				for r := d.Reader(); ; {
+					ent, err := r.Next()
+					if err != nil {
+						t.Fatal(err)
+					}
+					if ent == nil {
+						break
+					}
+					if ent.Tag == TagCompileUnit {
+						units[method] = append(units[method], ent.Val(AttrName))
+					}
+					if method == 0 {
+						if ent.Tag != TagCompileUnit {
+							t.Fatalf("found unexpected tag %v on top level", ent.Tag)
+						}
+						r.SkipChildren()
+					}
+				}
+			}
+			t.Logf("skipping CUs:     %v", units[0])
+			t.Logf("not-skipping CUs: %v", units[1])
+			if !reflect.DeepEqual(units[0], units[1]) {
+				t.Fatal("set of CUs differ")
+			}
+		})
 	}
 }

@@ -6,6 +6,7 @@ package modcmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,14 +19,13 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
 
 var cmdVendor = &base.Command{
-	UsageLine: "go mod vendor [-v]",
+	UsageLine: "go mod vendor [-e] [-v]",
 	Short:     "make vendored copy of dependencies",
 	Long: `
 Vendor resets the main module's vendor directory to include all packages
@@ -34,20 +34,35 @@ It does not include test code for vendored packages.
 
 The -v flag causes vendor to print the names of vendored
 modules and packages to standard error.
+
+The -e flag causes vendor to attempt to proceed despite errors
+encountered while loading packages.
 	`,
 	Run: runVendor,
 }
 
+var vendorE bool // if true, report errors but proceed anyway
+
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	work.AddModCommonFlags(cmdVendor)
+	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
+	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
-func runVendor(cmd *base.Command, args []string) {
+func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go mod vendor: vendor takes no arguments")
 	}
-	pkgs := modload.LoadVendor()
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
+
+	loadOpts := modload.PackageOpts{
+		Tags:                  imports.AnyTags(),
+		ResolveMissingImports: true,
+		UseVendorAll:          true,
+		AllowErrors:           vendorE,
+	}
+	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
@@ -76,7 +91,7 @@ func runVendor(cmd *base.Command, args []string) {
 	}
 
 	var buf bytes.Buffer
-	for _, m := range modload.BuildList()[1:] {
+	for _, m := range modload.LoadedModules()[1:] {
 		if pkgs := modpkgs[m]; len(pkgs) > 0 || isExplicit[m] {
 			line := moduleLine(m, modload.Replacement(m))
 			buf.WriteString(line)
@@ -123,6 +138,11 @@ func runVendor(cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
 		return
 	}
+
+	if err := os.MkdirAll(vdir, 0777); err != nil {
+		base.Fatalf("go mod vendor: %v", err)
+	}
+
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}

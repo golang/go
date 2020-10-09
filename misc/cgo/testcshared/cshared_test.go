@@ -98,7 +98,7 @@ func testMain(m *testing.M) int {
 	}
 
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
@@ -107,8 +107,8 @@ func testMain(m *testing.M) int {
 	}
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {
-	case "darwin":
-		if GOARCH == "arm" || GOARCH == "arm64" {
+	case "darwin", "ios":
+		if GOARCH == "arm64" {
 			libgodir += "_shared"
 		}
 	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
@@ -407,7 +407,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	adbPush(t, libname)
 
 	linkFlags := "-Wl,--no-as-needed"
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		linkFlags = ""
 	}
 
@@ -636,7 +636,7 @@ func copyFile(t *testing.T, dst, src string) {
 
 func TestGo2C2Go(t *testing.T) {
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		// Darwin shared libraries don't support the multiple
 		// copies of the runtime package implied by this test.
 		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")

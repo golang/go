@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/pkgpath"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -15,13 +16,13 @@ import (
 	"go/token"
 	"internal/xcoff"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -97,11 +98,19 @@ func (p *Package) writeDefs() {
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
+		if name == "_Ctype_void" {
+			// We provide an appropriate declaration for
+			// _Ctype_void below (#39877).
+			continue
+		}
 		typedefNames = append(typedefNames, name)
 	}
 	sort.Strings(typedefNames)
 	for _, name := range typedefNames {
 		def := typedef[name]
+		if def.NotInHeap {
+			fmt.Fprintf(fgo2, "//go:notinheap\n")
+		}
 		fmt.Fprintf(fgo2, "type %s ", name)
 		// We don't have source info for these types, so write them out without source info.
 		// Otherwise types would look like:
@@ -117,7 +126,9 @@ func (p *Package) writeDefs() {
 		// Moreover, empty file name makes compile emit no source debug info at all.
 		var buf bytes.Buffer
 		noSourceConf.Fprint(&buf, fset, def.Go)
-		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
+		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
+			strings.HasPrefix(name, "_Ctype_enum_") ||
+			strings.HasPrefix(name, "_Ctype_union_") {
 			// This typedef is of the form `typedef a b` and should be an alias.
 			fmt.Fprintf(fgo2, "= ")
 		}
@@ -235,6 +246,7 @@ func (p *Package) writeDefs() {
 		if err != nil {
 			fatalf("%s", err)
 		}
+		defer fgcch.Close()
 		_, err = io.Copy(fexp, fgcch)
 		if err != nil {
 			fatalf("%s", err)
@@ -802,6 +814,28 @@ func (p *Package) packedAttribute() string {
 	return s + "))"
 }
 
+// exportParamName returns the value of param as it should be
+// displayed in a c header file. If param contains any non-ASCII
+// characters, this function will return the character p followed by
+// the value of position; otherwise, this function will return the
+// value of param.
+func exportParamName(param string, position int) string {
+	if param == "" {
+		return fmt.Sprintf("p%d", position)
+	}
+
+	pname := param
+
+	for i := 0; i < len(param); i++ {
+		if param[i] > unicode.MaxASCII {
+			pname = fmt.Sprintf("p%d", position)
+			break
+		}
+	}
+
+	return pname
+}
+
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
@@ -915,42 +949,45 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				if i > 0 || fn.Recv != nil {
 					s += ", "
 				}
-				s += fmt.Sprintf("%s p%d", p.cgoType(atype).C, i)
+				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, exportParamName(aname, i))
 			})
 		s += ")"
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+			if !strings.HasSuffix(exp.Doc, "\n") {
+				fmt.Fprint(fgcch, "\n")
+			}
 		}
-		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+		fmt.Fprintf(fgcch, "extern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t__SIZE_TYPE__ _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
-		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
+		fmt.Fprintf(fgcc, "\t%s %v _cgo_a;\n", ctype, p.packedAttribute())
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
 		}
 		if fn.Recv != nil {
-			fmt.Fprintf(fgcc, "\ta.recv = recv;\n")
+			fmt.Fprintf(fgcc, "\t_cgo_a.recv = recv;\n")
 		}
 		forFieldList(fntype.Params,
 			func(i int, aname string, atype ast.Expr) {
-				fmt.Fprintf(fgcc, "\ta.p%d = p%d;\n", i, i)
+				fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, exportParamName(aname, i))
 			})
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
-		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
+		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &_cgo_a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
 		fmt.Fprintf(fgcc, "\t_cgo_release_context(_cgo_ctxt);\n")
 		if gccResult != "void" {
 			if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
-				fmt.Fprintf(fgcc, "\treturn a.r0;\n")
+				fmt.Fprintf(fgcc, "\treturn _cgo_a.r0;\n")
 			} else {
 				forFieldList(fntype.Results,
 					func(i int, aname string, atype ast.Expr) {
-						fmt.Fprintf(fgcc, "\tr.r%d = a.r%d;\n", i, i)
+						fmt.Fprintf(fgcc, "\tr.r%d = _cgo_a.r%d;\n", i, i)
 					})
 				fmt.Fprintf(fgcc, "\treturn r;\n")
 			}
@@ -1245,112 +1282,24 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// gccgoUsesNewMangling reports whether gccgo uses the new collision-free
-// packagepath mangling scheme (see determineGccgoManglingScheme for more
-// info).
-func gccgoUsesNewMangling() bool {
-	if !gccgoMangleCheckDone {
-		gccgoNewmanglingInEffect = determineGccgoManglingScheme()
-		gccgoMangleCheckDone = true
-	}
-	return gccgoNewmanglingInEffect
-}
-
-const mangleCheckCode = `
-package läufer
-func Run(x int) int {
-  return 1
-}
-`
-
-// determineGccgoManglingScheme performs a runtime test to see which
-// flavor of packagepath mangling gccgo is using. Older versions of
-// gccgo use a simple mangling scheme where there can be collisions
-// between packages whose paths are different but mangle to the same
-// string. More recent versions of gccgo use a new mangler that avoids
-// these collisions. Return value is whether gccgo uses the new mangling.
-func determineGccgoManglingScheme() bool {
-
-	// Emit a small Go file for gccgo to compile.
-	filepat := "*_gccgo_manglecheck.go"
-	var f *os.File
-	var err error
-	if f, err = ioutil.TempFile(*objDir, filepat); err != nil {
-		fatalf("%v", err)
-	}
-	gofilename := f.Name()
-	defer os.Remove(gofilename)
-
-	if err = ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0666); err != nil {
-		fatalf("%v", err)
-	}
-
-	// Compile with gccgo, capturing generated assembly.
-	gccgocmd := os.Getenv("GCCGO")
-	if gccgocmd == "" {
-		gpath, gerr := exec.LookPath("gccgo")
-		if gerr != nil {
-			fatalf("unable to locate gccgo: %v", gerr)
-		}
-		gccgocmd = gpath
-	}
-	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
-	buf, cerr := cmd.CombinedOutput()
-	if cerr != nil {
-		fatalf("%s", cerr)
-	}
-
-	// New mangling: expect go.l..u00e4ufer.Run
-	// Old mangling: expect go.l__ufer.Run
-	return regexp.MustCompile(`go\.l\.\.u00e4ufer\.Run`).Match(buf)
-}
-
-// gccgoPkgpathToSymbolNew converts a package path to a gccgo-style
-// package symbol.
-func gccgoPkgpathToSymbolNew(ppath string) string {
-	bsl := []byte{}
-	changed := false
-	for _, c := range []byte(ppath) {
-		switch {
-		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', c == '_':
-			bsl = append(bsl, c)
-		case c == '.':
-			bsl = append(bsl, ".x2e"...)
-		default:
-			changed = true
-			encbytes := []byte(fmt.Sprintf("..z%02x", c))
-			bsl = append(bsl, encbytes...)
-		}
-	}
-	if !changed {
-		return ppath
-	}
-	return string(bsl)
-}
-
-// gccgoPkgpathToSymbolOld converts a package path to a gccgo-style
-// package symbol using the older mangling scheme.
-func gccgoPkgpathToSymbolOld(ppath string) string {
-	clean := func(r rune) rune {
-		switch {
-		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
-			'0' <= r && r <= '9':
-			return r
-		}
-		return '_'
-	}
-	return strings.Map(clean, ppath)
-}
-
 // gccgoPkgpathToSymbol converts a package path to a mangled packagepath
 // symbol.
 func gccgoPkgpathToSymbol(ppath string) string {
-	if gccgoUsesNewMangling() {
-		return gccgoPkgpathToSymbolNew(ppath)
-	} else {
-		return gccgoPkgpathToSymbolOld(ppath)
+	if gccgoMangler == nil {
+		var err error
+		cmd := os.Getenv("GCCGO")
+		if cmd == "" {
+			cmd, err = exec.LookPath("gccgo")
+			if err != nil {
+				fatalf("unable to locate gccgo: %v", err)
+			}
+		}
+		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, *objDir)
+		if err != nil {
+			fatalf("%v", err)
+		}
 	}
+	return gccgoMangler(ppath)
 }
 
 // Return the package prefix when using gccgo.

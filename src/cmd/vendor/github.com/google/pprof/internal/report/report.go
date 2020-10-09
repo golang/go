@@ -79,6 +79,8 @@ type Options struct {
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
 	TrimPath   string         // Paths to trim from source file paths.
+
+	IntelSyntax bool // Whether or not to print assembly in Intel syntax.
 }
 
 // Generate generates a report as directed by the Report.
@@ -102,7 +104,7 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	case Tags:
 		return printTags(w, rpt)
 	case Proto:
-		return rpt.prof.Write(w)
+		return printProto(w, rpt)
 	case TopProto:
 		return printTopProto(w, rpt)
 	case Dis:
@@ -291,6 +293,23 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
+// printProto writes the incoming proto via thw writer w.
+// If the divide_by option has been specified, samples are scaled appropriately.
+func printProto(w io.Writer, rpt *Report) error {
+	p, o := rpt.prof, rpt.options
+
+	// Apply the sample ratio to all samples before saving the profile.
+	if r := o.Ratio; r > 0 && r != 1 {
+		for _, sample := range p.Sample {
+			for i, v := range sample.Value {
+				sample.Value[i] = int64(float64(v) * r)
+			}
+		}
+	}
+	return p.Write(w)
+}
+
+// printTopProto writes a list of the hottest routines in a profile as a profile.proto.
 func printTopProto(w io.Writer, rpt *Report) error {
 	p := rpt.prof
 	o := rpt.options
@@ -421,7 +440,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		flatSum, cumSum := sns.Sum()
 
 		// Get the function assembly.
-		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End)
+		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End, o.IntelSyntax)
 		if err != nil {
 			return err
 		}
@@ -817,10 +836,19 @@ func printTraces(w io.Writer, rpt *Report) error {
 
 	_, locations := graph.CreateNodes(prof, &graph.Options{})
 	for _, sample := range prof.Sample {
-		var stack graph.Nodes
+		type stk struct {
+			*graph.NodeInfo
+			inline bool
+		}
+		var stack []stk
 		for _, loc := range sample.Location {
-			id := loc.ID
-			stack = append(stack, locations[id]...)
+			nodes := locations[loc.ID]
+			for i, n := range nodes {
+				// The inline flag may be inaccurate if 'show' or 'hide' filter is
+				// used. See https://github.com/google/pprof/issues/511.
+				inline := i != len(nodes)-1
+				stack = append(stack, stk{&n.Info, inline})
+			}
 		}
 
 		if len(stack) == 0 {
@@ -858,10 +886,15 @@ func printTraces(w io.Writer, rpt *Report) error {
 		if d != 0 {
 			v = v / d
 		}
-		fmt.Fprintf(w, "%10s   %s\n",
-			rpt.formatValue(v), stack[0].Info.PrintableName())
-		for _, s := range stack[1:] {
-			fmt.Fprintf(w, "%10s   %s\n", "", s.Info.PrintableName())
+		for i, s := range stack {
+			var vs, inline string
+			if i == 0 {
+				vs = rpt.formatValue(v)
+			}
+			if s.inline {
+				inline = " (inline)"
+			}
+			fmt.Fprintf(w, "%10s   %s%s\n", vs, s.PrintableName(), inline)
 		}
 	}
 	fmt.Fprintln(w, separator)
@@ -1170,6 +1203,13 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 				nodeCount, origCount))
 		}
 	}
+
+	// Help new users understand the graph.
+	// A new line is intentionally added here to better show this message.
+	if fullHeaders {
+		label = append(label, "\\lSee https://git.io/JfYMW for how to read the graph")
+	}
+
 	return label
 }
 

@@ -109,7 +109,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		if myimportpath != "" {
+			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		}
 	}
 }
 
@@ -125,6 +127,8 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
+	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+	s.Func.FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -136,28 +140,11 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
-	// Set up DWARF entries for s.
-	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
-	info.Type = objabi.SDWARFINFO
-	info.Set(AttrDuplicateOK, s.DuplicateOK())
-	if loc != nil {
-		loc.Type = objabi.SDWARFLOC
-		loc.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, loc)
-	}
-	ranges.Type = objabi.SDWARFRANGE
-	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, info, ranges)
-	lines.Type = objabi.SDWARFLINES
-	lines.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, lines)
+	// Set up DWARF entries for s
+	ctxt.dwarfSym(s)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
-	if s.SeenGlobl() {
-		fmt.Printf("duplicate %v\n", s)
-	}
-	s.Set(AttrSeenGlobl, true)
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
@@ -180,6 +167,9 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 		}
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
+	}
+	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
+		s.Set(AttrStatic, true)
 	}
 }
 
@@ -228,13 +218,13 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.From.Type = TYPE_CONST
 	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
 	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
+	pcdata.To.Offset = objabi.PCDATA_RegMapUnsafe
 
 	return pcdata
 }
 
 // EndUnsafePoint generates PCDATA Progs after p to mark the end of an
-// unsafe point, restoring the stack map index to oldval.
+// unsafe point, restoring the register map index to oldval.
 // The unsafe point ends right after p.
 // It returns the last Prog generated.
 func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog {
@@ -245,23 +235,33 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
-	// TODO: register map?
-
 	return pcdata
 }
 
-// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible instruction
-// sequences, based on isUnsafePoint predicate. p0 is the start of the
-// instruction stream.
-func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint func(*Prog) bool) {
+// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible and restartable
+// instruction sequences, based on isUnsafePoint and isRestartable predicate.
+// p0 is the start of the instruction stream.
+// isUnsafePoint(p) returns true if p is not safe for async preemption.
+// isRestartable(p) returns true if we can restart at the start of p (this Prog)
+// upon async preemption. (Currently multi-Prog restartable sequence is not
+// supported.)
+// isRestartable can be nil. In this case it is treated as always returning false.
+// If isUnsafePoint(p) and isRestartable(p) are both true, it is treated as
+// an unsafe point.
+func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, isRestartable func(*Prog) bool) {
+	if isRestartable == nil {
+		// Default implementation: nothing is restartable.
+		isRestartable = func(*Prog) bool { return false }
+	}
 	prev := p0
-	oldval := int64(-1) // entry pcdata
+	prevPcdata := int64(-1) // entry PC data value
+	prevRestart := int64(0)
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
 		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
-			oldval = p.To.Offset
+			prevPcdata = p.To.Offset
 			continue
 		}
-		if oldval == -2 {
+		if prevPcdata == objabi.PCDATA_RegMapUnsafe {
 			continue // already unsafe
 		}
 		if isUnsafePoint(p) {
@@ -275,7 +275,39 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
 			if p.Link == nil {
 				break // Reached the end, don't bother marking the end
 			}
-			p = ctxt.EndUnsafePoint(p, newprog, oldval)
+			p = ctxt.EndUnsafePoint(p, newprog, prevPcdata)
+			p.Pc = p.Link.Pc
+			continue
+		}
+		if isRestartable(p) {
+			val := int64(objabi.PCDATA_Restart1)
+			if val == prevRestart {
+				val = objabi.PCDATA_Restart2
+			}
+			prevRestart = val
+			q := Appendp(prev, newprog)
+			q.As = APCDATA
+			q.From.Type = TYPE_CONST
+			q.From.Offset = objabi.PCDATA_RegMapIndex
+			q.To.Type = TYPE_CONST
+			q.To.Offset = val
+			q.Pc = p.Pc
+			q.Link = p
+
+			if p.Link == nil {
+				break // Reached the end, don't bother marking the end
+			}
+			if isRestartable(p.Link) {
+				// Next Prog is also restartable. No need to mark the end
+				// of this sequence. We'll just go ahead mark the next one.
+				continue
+			}
+			p = Appendp(p, newprog)
+			p.As = APCDATA
+			p.From.Type = TYPE_CONST
+			p.From.Offset = objabi.PCDATA_RegMapIndex
+			p.To.Type = TYPE_CONST
+			p.To.Offset = prevPcdata
 			p.Pc = p.Link.Pc
 		}
 	}

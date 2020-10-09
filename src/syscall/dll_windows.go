@@ -21,6 +21,7 @@ type DLLError struct {
 func (e *DLLError) Error() string { return e.Msg }
 
 // Implemented in ../runtime/syscall_windows.go.
+
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
@@ -162,7 +163,15 @@ func (p *Proc) Addr() uintptr {
 // The returned error is always non-nil, constructed from the result of GetLastError.
 // Callers must inspect the primary return value to decide whether an error occurred
 // (according to the semantics of the specific function being called) before consulting
-// the error. The error will be guaranteed to contain syscall.Errno.
+// the error. The error always has type syscall.Errno.
+//
+// On amd64, Call can pass and return floating-point values. To pass
+// an argument x with C type "float", use
+// uintptr(math.Float32bits(x)). To pass an argument with C type
+// "double", use uintptr(math.Float64bits(x)). Floating-point return
+// values are returned in r2. The return value for C type "float" is
+// math.Float32frombits(uint32(r2)). For C type "double", it is
+// math.Float64frombits(uint64(r2)).
 func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 	switch len(a) {
 	case 0:

@@ -216,7 +216,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 
 	if req.RequestURI != "" {
 		req.closeBody()
-		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests.")
+		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests")
 	}
 
 	// forkReq forks req into a shallow clone of ireq the first
@@ -265,6 +265,25 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		}
 		return nil, didTimeout, err
 	}
+	if resp == nil {
+		return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a nil *Response with a nil error", rt)
+	}
+	if resp.Body == nil {
+		// The documentation on the Body field says “The http Client and Transport
+		// guarantee that Body is always non-nil, even on responses without a body
+		// or responses with a zero-length body.” Unfortunately, we didn't document
+		// that same constraint for arbitrary RoundTripper implementations, and
+		// RoundTripper implementations in the wild (mostly in tests) assume that
+		// they can use a nil Body to mean an empty one (similar to Request.Body).
+		// (See https://golang.org/issue/38095.)
+		//
+		// If the ContentLength allows the Body to be empty, fill in an empty one
+		// here to ensure that it is non-nil.
+		if resp.ContentLength > 0 && req.Method != "HEAD" {
+			return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with content length %d but a nil Body", rt, resp.ContentLength)
+		}
+		resp.Body = ioutil.NopCloser(strings.NewReader(""))
+	}
 	if !deadline.IsZero() {
 		resp.Body = &cancelTimerBody{
 			stop:          stopTimer,
@@ -288,14 +307,21 @@ func timeBeforeContextDeadline(t time.Time, ctx context.Context) bool {
 
 // knownRoundTripperImpl reports whether rt is a RoundTripper that's
 // maintained by the Go team and known to implement the latest
-// optional semantics (notably contexts).
-func knownRoundTripperImpl(rt RoundTripper) bool {
-	switch rt.(type) {
-	case *Transport, *http2Transport:
+// optional semantics (notably contexts). The Request is used
+// to check whether this particular request is using an alternate protocol,
+// in which case we need to check the RoundTripper for that protocol.
+func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
+	switch t := rt.(type) {
+	case *Transport:
+		if altRT := t.alternateRoundTripper(req); altRT != nil {
+			return knownRoundTripperImpl(altRT, req)
+		}
+		return true
+	case *http2Transport, http2noDialH2RoundTripper:
 		return true
 	}
 	// There's a very minor chance of a false positive with this.
-	// Insted of detecting our golang.org/x/net/http2.Transport,
+	// Instead of detecting our golang.org/x/net/http2.Transport,
 	// it might detect a Transport type in a different http2
 	// package. But I know of none, and the only problem would be
 	// some temporarily leaked goroutines if the transport didn't
@@ -319,7 +345,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	if deadline.IsZero() {
 		return nop, alwaysFalse
 	}
-	knownTransport := knownRoundTripperImpl(rt)
+	knownTransport := knownRoundTripperImpl(rt, req)
 	oldCtx := req.Context()
 
 	if req.Cancel == nil && knownTransport {

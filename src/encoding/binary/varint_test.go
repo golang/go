@@ -121,21 +121,27 @@ func TestBufferTooSmall(t *testing.T) {
 	}
 }
 
-func testOverflow(t *testing.T, buf []byte, n0 int, err0 error) {
+func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 	x, n := Uvarint(buf)
 	if x != 0 || n != n0 {
 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, %d", buf, x, n, n0)
 	}
 
-	x, err := ReadUvarint(bytes.NewReader(buf))
-	if x != 0 || err != err0 {
-		t.Errorf("ReadUvarint(%v): got x = %d, err = %s; want 0, %s", buf, x, err, err0)
+	r := bytes.NewReader(buf)
+	len := r.Len()
+	x, err := ReadUvarint(r)
+	if x != x0 || err != err0 {
+		t.Errorf("ReadUvarint(%v): got x = %d, err = %s; want %d, %s", buf, x, err, x0, err0)
+	}
+	if read := len - r.Len(); read > MaxVarintLen64 {
+		t.Errorf("ReadUvarint(%v): read more than MaxVarintLen64 bytes, got %d", buf, read)
 	}
 }
 
 func TestOverflow(t *testing.T) {
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, -10, overflow)
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, -13, overflow)
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, overflow)
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -13, overflow)
+	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, 0, overflow) // 11 bytes, should overflow
 }
 
 func TestNonCanonicalZero(t *testing.T) {

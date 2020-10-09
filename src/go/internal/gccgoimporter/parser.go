@@ -326,7 +326,7 @@ func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ ty
 	if p.tok == '$' {
 		p.next()
 		if p.tok != scanner.Ident {
-			p.errorf("expected identifer after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
+			p.errorf("expected identifier after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
 		}
 	}
 

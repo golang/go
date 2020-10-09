@@ -9,7 +9,6 @@ package net
 import (
 	"bufio"
 	"context"
-	"internal/poll"
 	"internal/testenv"
 	"io"
 	"os"
@@ -161,7 +160,7 @@ func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
 	// but other platforms should be instantaneous.
 	if runtime.GOOS == "windows" {
 		expected = 1500 * time.Millisecond
-	} else if runtime.GOOS == "darwin" {
+	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		expected = 150 * time.Millisecond
 	} else {
 		expected = 95 * time.Millisecond
@@ -441,6 +440,14 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
+	var readDeadline time.Time
+	if td, ok := t.Deadline(); ok {
+		const arbitraryCleanupMargin = 1 * time.Second
+		readDeadline = td.Add(-arbitraryCleanupMargin)
+	} else {
+		readDeadline = time.Now().Add(5 * time.Second)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	handler := func(dss *dualStackServer, ln Listener) {
@@ -450,7 +457,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 		// The client should close itself, without sending data.
-		c.SetReadDeadline(time.Now().Add(1 * time.Second))
+		c.SetReadDeadline(readDeadline)
 		var b [1]byte
 		if _, err := c.Read(b[:]); err != io.EOF {
 			t.Errorf("got %v; want %v", err, io.EOF)
@@ -532,8 +539,8 @@ func TestDialerPartialDeadline(t *testing.T) {
 		{now, noDeadline, 1, noDeadline, nil},
 		// Step the clock forward and cross the deadline.
 		{now.Add(-1 * time.Millisecond), now, 1, now, nil},
-		{now.Add(0 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
-		{now.Add(1 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
+		{now.Add(0 * time.Millisecond), now, 1, noDeadline, errTimeout},
+		{now.Add(1 * time.Millisecond), now, 1, noDeadline, errTimeout},
 	}
 	for i, tt := range testCases {
 		deadline, err := partialDeadline(tt.now, tt.deadline, tt.addrs)
@@ -983,7 +990,7 @@ func TestDialerControl(t *testing.T) {
 // except that it won't skip testing on non-mobile builders.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
-	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
 	if testenv.Builder() == "" || mobile {
 		testenv.MustHaveExternalNetwork(t)
 	}

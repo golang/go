@@ -44,7 +44,7 @@ func parseFiles(filenames []string) uint {
 
 			f, err := os.Open(filename)
 			if err != nil {
-				p.error(syntax.Error{Pos: syntax.MakePos(base, 0, 0), Msg: err.Error()})
+				p.error(syntax.Error{Msg: err.Error()})
 				return
 			}
 			defer f.Close()
@@ -241,6 +241,10 @@ func (p *noder) node() {
 	p.setlineno(p.file.PkgName)
 	mkpackage(p.file.PkgName.Value)
 
+	if pragma, ok := p.file.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
+	}
+
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
 	for _, n := range p.linknames {
@@ -313,6 +317,10 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return // avoid follow-on errors if there was a syntax error
 	}
 
+	if pragma, ok := imp.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
+	}
+
 	val := p.basicLit(imp.Path)
 	ipkg := importfile(&val)
 
@@ -363,6 +371,10 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 		exprs = p.exprList(decl.Values)
 	}
 
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
+	}
+
 	p.setlineno(decl)
 	return variter(names, typ, exprs)
 }
@@ -382,6 +394,10 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 		*cs = constState{
 			group: decl.Group,
 		}
+	}
+
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
 	}
 
 	names := p.declNames(decl.NameList)
@@ -438,11 +454,13 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 
 	param := n.Name.Param
 	param.Ntype = typ
-	param.Pragma = decl.Pragma
 	param.Alias = decl.Alias
-	if param.Alias && param.Pragma != 0 {
-		yyerror("cannot specify directive with type alias")
-		param.Pragma = 0
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		if !decl.Alias {
+			param.Pragma = pragma.Flag & TypePragmas
+			pragma.Flag &^= TypePragmas
+		}
+		p.checkUnused(pragma)
 	}
 
 	nod := p.nod(decl, ODCLTYPE, n, nil)
@@ -493,10 +511,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t
 
-	pragma := fun.Pragma
-	f.Func.Pragma = fun.Pragma
-	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
-		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+	if pragma, ok := fun.Pragma.(*Pragma); ok {
+		f.Func.Pragma = pragma.Flag & FuncPragmas
+		if pragma.Flag&Systemstack != 0 && pragma.Flag&Nosplit != 0 {
+			yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+		}
+		pragma.Flag &^= FuncPragmas
+		p.checkUnused(pragma)
 	}
 
 	if fun.Recv == nil {
@@ -632,7 +653,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		obj := p.expr(expr.X)
 		if obj.Op == OPACK {
 			obj.Name.SetUsed(true)
-			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
+			return importName(obj.Name.Pkg.Lookup(expr.Sel.Value))
 		}
 		n := nodSym(OXDOT, obj, p.name(expr.Sel))
 		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
@@ -646,7 +667,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		}
 		n := p.nod(expr, op, p.expr(expr.X), nil)
 		var index [3]*Node
-		for i, x := range expr.Index {
+		for i, x := range &expr.Index {
 			if x != nil {
 				index[i] = p.expr(x)
 			}
@@ -836,7 +857,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 		p.setlineno(method)
 		var n *Node
 		if method.Name == nil {
-			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
+			n = p.nodSym(method, ODCLFIELD, importName(p.packname(method.Type)), nil)
 		} else {
 			mname := p.name(method.Name)
 			sig := p.typeExpr(method.Type)
@@ -875,7 +896,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 			def.Name.SetUsed(true)
 			pkg = def.Name.Pkg
 		}
-		return restrictlookup(expr.Sel.Value, pkg)
+		return pkg.Lookup(expr.Sel.Value)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
@@ -890,7 +911,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
+	n := p.nodSym(typ, ODCLFIELD, importName(sym), lookup(sym.Name))
 	n.SetEmbedded(true)
 
 	if isStar {
@@ -1479,13 +1500,58 @@ var allowedStdPragmas = map[string]bool{
 	"go:generate":           true,
 }
 
+// *Pragma is the value stored in a syntax.Pragma during parsing.
+type Pragma struct {
+	Flag PragmaFlag  // collected bits
+	Pos  []PragmaPos // position of each individual flag
+}
+
+type PragmaPos struct {
+	Flag PragmaFlag
+	Pos  syntax.Pos
+}
+
+func (p *noder) checkUnused(pragma *Pragma) {
+	for _, pos := range pragma.Pos {
+		if pos.Flag&pragma.Flag != 0 {
+			p.yyerrorpos(pos.Pos, "misplaced compiler directive")
+		}
+	}
+}
+
+func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+	for _, pos := range pragma.Pos {
+		if pos.Flag&pragma.Flag != 0 {
+			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
+		}
+	}
+}
+
 // pragma is called concurrently if files are parsed concurrently.
-func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
-	switch {
-	case strings.HasPrefix(text, "line "):
+func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.Pragma) syntax.Pragma {
+	pragma, _ := old.(*Pragma)
+	if pragma == nil {
+		pragma = new(Pragma)
+	}
+
+	if text == "" {
+		// unused pragma; only called with old != nil.
+		p.checkUnusedDuringParse(pragma)
+		return nil
+	}
+
+	if strings.HasPrefix(text, "line ") {
 		// line directives are handled by syntax package
 		panic("unreachable")
+	}
 
+	if !blankLine {
+		// directive must be on line by itself
+		p.error(syntax.Error{Pos: pos, Msg: "misplaced compiler directive"})
+		return pragma
+	}
+
+	switch {
 	case strings.HasPrefix(text, "go:linkname "):
 		f := strings.Fields(text)
 		if !(2 <= len(f) && len(f) <= 3) {
@@ -1513,7 +1579,8 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
 			}
 			p.pragcgo(pos, text)
-			return pragmaValue("go:cgo_import_dynamic")
+			pragma.Flag |= pragmaFlag("go:cgo_import_dynamic")
+			break
 		}
 		fallthrough
 	case strings.HasPrefix(text, "go:cgo_"):
@@ -1530,18 +1597,19 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
-		prag := pragmaValue(verb)
+		flag := pragmaFlag(verb)
 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
-		if !compiling_runtime && prag&runtimePragmas != 0 {
+		if !compiling_runtime && flag&runtimePragmas != 0 {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
 		}
-		if prag == 0 && !allowedStdPragmas[verb] && compiling_std {
+		if flag == 0 && !allowedStdPragmas[verb] && compiling_std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
-		return prag
+		pragma.Flag |= flag
+		pragma.Pos = append(pragma.Pos, PragmaPos{flag, pos})
 	}
 
-	return 0
+	return pragma
 }
 
 // isCgoGeneratedFile reports whether pos is in a file
@@ -1572,11 +1640,4 @@ func mkname(sym *types.Sym) *Node {
 		n.Name.Pack.Name.SetUsed(true)
 	}
 	return n
-}
-
-func unparen(x *Node) *Node {
-	for x.Op == OPAREN {
-		x = x.Left
-	}
-	return x
 }

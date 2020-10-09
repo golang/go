@@ -77,6 +77,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	SHA1H	V5, V4                          // a408285e
 	SHA1M	V8.S4, V7, V6                   // e620085e
 	SHA1P	V11.S4, V10, V9                 // 49110b5e
+	SHA512H	V2.D2, V1, V0                   // 208062ce
+	SHA512H2	V4.D2, V3, V2           // 628464ce
+	SHA512SU0	V9.D2, V8.D2            // 2881c0ce
+	SHA512SU1	V7.D2, V6.D2, V5.D2     // c58867ce
 	VADDV	V0.S4, V0                       // 00b8b14e
 	VMOVI	$82, V0.B16                     // 40e6024f
 	VUADDLV	V6.B16, V6                      // c638306e
@@ -141,6 +145,37 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VZIP2	V10.D2, V13.D2, V3.D2           // a379ca4e
 	VZIP1	V17.S2, V4.S2, V26.S2           // 9a38910e
 	VZIP2	V25.S2, V14.S2, V25.S2          // d979990e
+	VUXTL	V30.B8, V30.H8                  // dea7082f
+	VUXTL	V30.H4, V29.S4                  // dda7102f
+	VUXTL	V29.S2, V2.D2                   // a2a7202f
+	VUXTL2	V30.H8, V30.S4                  // dea7106f
+	VUXTL2	V29.S4, V2.D2                   // a2a7206f
+	VUXTL2	V30.B16, V2.H8                  // c2a7086f
+	VBIT	V21.B16, V25.B16, V4.B16        // 241fb56e
+	VBSL	V23.B16, V3.B16, V7.B16         // 671c776e
+	VCMTST	V2.B8, V29.B8, V2.B8            // a28f220e
+	VCMTST	V2.D2, V23.D2, V3.D2            // e38ee24e
+	VSUB	V2.B8, V30.B8, V30.B8           // de87222e
+	VUZP1	V0.B8, V30.B8, V1.B8            // c11b000e
+	VUZP1	V1.B16, V29.B16, V2.B16         // a21b014e
+	VUZP1	V2.H4, V28.H4, V3.H4            // 831b420e
+	VUZP1	V3.H8, V27.H8, V4.H8            // 641b434e
+	VUZP1	V28.S2, V2.S2, V5.S2            // 45189c0e
+	VUZP1	V29.S4, V1.S4, V6.S4            // 26189d4e
+	VUZP1	V30.D2, V0.D2, V7.D2            // 0718de4e
+	VUZP2	V0.D2, V30.D2, V1.D2            // c15bc04e
+	VUZP2	V30.D2, V0.D2, V29.D2           // 1d58de4e
+	VUSHLL	$0, V30.B8, V30.H8              // dea7082f
+	VUSHLL	$0, V30.H4, V29.S4              // dda7102f
+	VUSHLL	$0, V29.S2, V2.D2               // a2a7202f
+	VUSHLL2	$0, V30.B16, V2.H8              // c2a7086f
+	VUSHLL2	$0, V30.H8, V30.S4              // dea7106f
+	VUSHLL2	$0, V29.S4, V2.D2               // a2a7206f
+	VUSHLL	$7, V30.B8, V30.H8              // dea70f2f
+	VUSHLL	$15, V30.H4, V29.S4             // dda71f2f
+	VUSHLL2	$31, V30.S4, V2.D2              // c2a73f6f
+	VBIF	V0.B8, V30.B8, V1.B8            // c11fe02e
+	VBIF	V30.B16, V0.B16, V2.B16         // 021cfe6e
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
@@ -181,6 +216,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	$(0.1796875), F2                // 02f0681e
 	FMOVS	$(0.96875), F3                  // 03f02d1e
 	FMOVD	$(28.0), F4                     // 0490671e
+
+// move a large constant to a Vd.
+	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
+	VMOVD	$0x8040201008040201, V20                              // VMOVD	$-9205322385119247871, V20
+	VMOVQ	$0x7040201008040201, $0x8040201008040201, V10         // VMOVQ	$8088500183983456769, $-9205322385119247871, V10
+	VMOVQ	$0x8040201008040202, $0x7040201008040201, V20         // VMOVQ	$-9205322385119247870, $8088500183983456769, V20
 
 	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
 	FMOVS	(R2)(R6<<2), F4                               // 447866bc
@@ -274,6 +315,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADDW	$0x60060, R2                        // ADDW	$393312, R2                     // 4280011142804111
 	CMPW	$0x60060, R2                        // CMPW	$393312, R2                     // 1b0c8052db00a0725f001b6b
 
+	// TODO: this could have better encoding
+	ANDW	$-1, R10 // 1b0080124a011b0a
+
 	AND	$8, R0, RSP // 1f007d92
 	ORR	$8, R0, RSP // 1f007db2
 	EOR	$8, R0, RSP // 1f007dd2
@@ -298,8 +342,19 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
 	MOVD	$0, R1                        // 010080d2
 	MOVD	$-1, R1                       // 01008092
-	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
-	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                  // a1aa8a92
+	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
+	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
+
+	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // fb074091610b0091
+	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // fb0740917f231c91
+	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // fb08409161070091
+	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // fbfc7f9161ff3f91
+
+	MOVD	$-0x1(R7), R1                 // MOVD	$-1(R7), R1                 // e10400d1
+	MOVD	$-0x30(R7), R1                // MOVD	$-48(R7), R1                // e1c000d1
+	MOVD	$-0x708(R7), R1               // MOVD	$-1800(R7), R1              // e1201cd1
+	MOVD	$-0x2000(RSP), R1             // MOVD	$-8192(RSP), R1             // e10b40d1
+	MOVD	$-0x10000(RSP), RSP           // MOVD	$-65536(RSP), RSP           // ff4340d1
 
 //
 // CLS
@@ -352,18 +407,22 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VLD4	(R15), [V10.H4, V11.H4, V12.H4, V13.H4]         // ea05400c
 	VLD4.P	32(R24), [V31.B8, V0.B8, V1.B8, V2.B8]          // 1f03df0c
 	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // VLD4.P	(R13)(R9*1), [V14.S2,V15.S2,V16.S2,V17.S2] // ae09c90c
-	VLD1R	(R0), [V0.B16]					// 00c0404d
-	VLD1R.P	16(R0), [V0.B16]				// 00c0df4d
-	VLD1R.P	(R15)(R1), [V15.H4]				// VLD1R.P	(R15)(R1*1), [V15.H4] // efc5c10d
-	VLD2R	(R15), [V15.H4, V16.H4]				// efc5600d
-	VLD2R.P	32(R0), [V0.D2, V1.D2]				// 00ccff4d
-	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]			// VLD2R.P	(R0)(R5*1), [V31.D1, V0.D1] // 1fcce50d
-	VLD3R	(RSP), [V31.S2, V0.S2, V1.S2]			// ffeb400d
-	VLD3R.P	24(R15), [V15.H4, V16.H4, V17.H4]		// efe5df0d
-	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]		// VLD3R.P	(R15)(R6*1), [V15.H8, V16.H8, V17.H8] // efe5c64d
-	VLD4R	(R0), [V0.B8, V1.B8, V2.B8, V3.B8]		// 00e0600d
-	VLD4R.P	64(RSP), [V31.S4, V0.S4, V1.S4, V2.S4]		// ffebff4d
-	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]	// VLD4R.P	(R15)(R9*1), [V15.H4, V16.H4, V17.H4, V18.H4] // efe5e90d
+	VLD1R	(R1), [V9.B8]                                   // 29c0400d
+	VLD1R.P	(R1), [V9.B8]                                   // 29c0df0d
+	VLD1R.P	1(R1), [V2.B8]                                  // 22c0df0d
+	VLD1R.P	2(R1), [V2.H4]                                  // 22c4df0d
+	VLD1R	(R0), [V0.B16]                                  // 00c0404d
+	VLD1R.P	(R0), [V0.B16]                                  // 00c0df4d
+	VLD1R.P	(R15)(R1), [V15.H4]                             // VLD1R.P	(R15)(R1*1), [V15.H4] // efc5c10d
+	VLD2R	(R15), [V15.H4, V16.H4]                         // efc5600d
+	VLD2R.P	16(R0), [V0.D2, V1.D2]                          // 00ccff4d
+	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]                       // VLD2R.P	(R0)(R5*1), [V31.D1, V0.D1] // 1fcce50d
+	VLD3R	(RSP), [V31.S2, V0.S2, V1.S2]                   // ffeb400d
+	VLD3R.P	6(R15), [V15.H4, V16.H4, V17.H4]                // efe5df0d
+	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]             // VLD3R.P	(R15)(R6*1), [V15.H8, V16.H8, V17.H8] // efe5c64d
+	VLD4R	(R0), [V0.B8, V1.B8, V2.B8, V3.B8]              // 00e0600d
+	VLD4R.P	16(RSP), [V31.S4, V0.S4, V1.S4, V2.S4]          // ffebff4d
+	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]     // VLD4R.P	(R15)(R9*1), [V15.H4, V16.H4, V17.H4, V18.H4] // efe5e90d
 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c

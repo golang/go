@@ -7,6 +7,8 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 // An Analyzer describes an analysis function and its options.
@@ -68,6 +70,17 @@ type Analyzer struct {
 }
 
 func (a *Analyzer) String() string { return a.Name }
+
+func init() {
+	// Set the analysisinternal functions to be able to pass type errors
+	// to the Pass type without modifying the go/analysis API.
+	analysisinternal.SetTypeErrors = func(p interface{}, errors []types.Error) {
+		p.(*Pass).typeErrors = errors
+	}
+	analysisinternal.GetTypeErrors = func(p interface{}) []types.Error {
+		return p.(*Pass).typeErrors
+	}
+}
 
 // A Pass provides information to the Run function that
 // applies a specific analyzer to a single Go package.
@@ -137,6 +150,9 @@ type Pass struct {
 	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
+
+	// typeErrors contains types.Errors that are associated with the pkg.
+	typeErrors []types.Error
 
 	/* Further fields may be added in future. */
 	// For example, suggested or applied refactorings.

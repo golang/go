@@ -6,6 +6,7 @@
 package envcmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -20,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -62,9 +64,6 @@ var (
 )
 
 func MkEnv() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
-
 	envFile, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
@@ -77,6 +76,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
+		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE},
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
 		{Name: "GOOS", Value: cfg.Goos},
@@ -185,7 +185,7 @@ func argKey(arg string) string {
 	return arg[:i]
 }
 
-func runEnv(cmd *base.Command, args []string) {
+func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envU {
 		base.Fatalf("go env: cannot use -json with -u")
 	}
@@ -198,11 +198,24 @@ func runEnv(cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
-	// Only if we're listing all environment variables ("go env")
-	// or the variables being requested are in the extra list.
-	needCostly := true
-	if len(args) > 0 {
+	needCostly := false
+	if *envU || *envW {
+		// We're overwriting or removing default settings,
+		// so it doesn't really matter what the existing settings are.
+		//
+		// Moreover, we haven't validated the new settings yet, so it is
+		// important that we NOT perform any actions based on them,
+		// such as initializing the builder to compute other variables.
+	} else if len(args) == 0 {
+		// We're listing all environment variables ("go env"),
+		// including the expensive ones.
+		needCostly = true
+	} else {
 		needCostly = false
 		for _, arg := range args {
 			switch argKey(arg) {
@@ -262,6 +275,13 @@ func runEnv(cmd *base.Command, args []string) {
 			}
 			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
 				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
+		gotmp, okGOTMP := add["GOTMPDIR"]
+		if okGOTMP {
+			if !filepath.IsAbs(gotmp) && gotmp != "" {
+				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
 			}
 		}
 
@@ -498,7 +518,10 @@ func lineToKey(line string) string {
 }
 
 // sortKeyValues sorts a sequence of lines by key.
-// It differs from sort.Strings in that GO386= sorts after GO=.
+// It differs from sort.Strings in that keys which are GOx where x is an ASCII
+// character smaller than = sort after GO=.
+// (There are no such keys currently. It used to matter for GO386 which was
+// removed in Go 1.16.)
 func sortKeyValues(lines []string) {
 	sort.Slice(lines, func(i, j int) bool {
 		return lineToKey(lines[i]) < lineToKey(lines[j])

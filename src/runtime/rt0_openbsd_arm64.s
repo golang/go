@@ -4,6 +4,12 @@
 
 #include "textflag.h"
 
+// See comment in runtime/sys_openbsd_arm64.s re this construction.
+#define	INVOKE_SYSCALL	\
+	SVC;		\
+	NOOP;		\
+	NOOP
+
 TEXT _rt0_arm64_openbsd(SB),NOSPLIT|NOFRAME,$0
 	MOVD	0(RSP), R0	// argc
 	ADD	$8, RSP, R1	// argv
@@ -44,8 +50,7 @@ TEXT _rt0_arm64_openbsd_lib(SB),NOSPLIT,$184
 
 	// Create a new thread to do the runtime initialization and return.
 	MOVD	_cgo_sys_thread_create(SB), R4
-	CMP	$0, R4
-	BEQ	nocgo
+	CBZ	R4, nocgo
 	MOVD	$_rt0_arm64_openbsd_lib_go(SB), R0
 	MOVD	$0, R1
 	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
@@ -101,5 +106,5 @@ TEXT main(SB),NOSPLIT|NOFRAME,$0
 exit:
 	MOVD	$0, R0
 	MOVD	$1, R8		// sys_exit
-	SVC
+	INVOKE_SYSCALL
 	B	exit

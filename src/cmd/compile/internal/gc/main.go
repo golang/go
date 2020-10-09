@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -36,7 +37,9 @@ import (
 var imported_unsafe bool
 
 var (
-	buildid string
+	buildid      string
+	spectre      string
+	spectreIndex bool
 )
 
 var (
@@ -250,6 +253,7 @@ func Main(archInit func(*Arch)) {
 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
+	flag.StringVar(&spectre, "spectre", spectre, "enable spectre mitigations in `list` (all, index, ret)")
 	if enableTrace {
 		flag.BoolVar(&trace, "t", false, "trace type-checking")
 	}
@@ -277,15 +281,42 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
-	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", false, "use new object file format")
 	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
 
 	objabi.Flagparse(usage)
 
+	Ctxt.Pkgpath = myimportpath
+
+	for _, f := range strings.Split(spectre, ",") {
+		f = strings.TrimSpace(f)
+		switch f {
+		default:
+			log.Fatalf("unknown setting -spectre=%s", f)
+		case "":
+			// nothing
+		case "all":
+			spectreIndex = true
+			Ctxt.Retpoline = true
+		case "index":
+			spectreIndex = true
+		case "ret":
+			Ctxt.Retpoline = true
+		}
+	}
+
+	if spectreIndex {
+		switch objabi.GOARCH {
+		case "amd64":
+			// ok
+		default:
+			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
+		}
+	}
+
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "newobj")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024
@@ -350,9 +381,8 @@ func Main(archInit func(*Arch)) {
 	if flag_race && flag_msan {
 		log.Fatal("cannot use both -race and -msan")
 	}
-	if (flag_race || flag_msan) && objabi.GOOS != "windows" {
-		// -race and -msan imply -d=checkptr for now (except on windows).
-		// TODO(mdempsky): Re-evaluate before Go 1.14. See #34964.
+	if flag_race || flag_msan {
+		// -race and -msan imply -d=checkptr for now.
 		Debug_checkptr = 1
 	}
 	if ispkgin(omit_pkgs) {
@@ -486,6 +516,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
+	ssaDir = os.Getenv("GOSSADIR")
 	if ssaDump != "" {
 		if strings.HasSuffix(ssaDump, "+") {
 			ssaDump = ssaDump[:len(ssaDump)-1]
@@ -587,7 +618,7 @@ func Main(archInit func(*Arch)) {
 	var fcount int64
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
+		if n.Op == ODCLFUNC {
 			Curfn = n
 			decldepth = 1
 			saveerrors()
@@ -611,6 +642,8 @@ func Main(archInit func(*Arch)) {
 	if nsavederrors+nerrors != 0 {
 		errorexit()
 	}
+
+	fninit(xtop)
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
@@ -650,8 +683,12 @@ func Main(archInit func(*Arch)) {
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+			numfns := numNonClosures(list)
 			for _, n := range list {
-				if !recursive {
+				if !recursive || numfns > 1 {
+					// We allow inlining if there is no
+					// recursion, or the recursion cycle is
+					// across more than one function.
 					caninl(n)
 				} else {
 					if Debug['m'] > 1 {
@@ -717,10 +754,6 @@ func Main(archInit func(*Arch)) {
 	}
 	timings.AddEvent(fcount, "funcs")
 
-	if nsavederrors+nerrors == 0 {
-		fninit(xtop)
-	}
-
 	compileFunctions()
 
 	if nowritebarrierrecCheck != nil {
@@ -757,7 +790,7 @@ func Main(archInit func(*Arch)) {
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpdata()
-	Ctxt.NumberSyms(false)
+	Ctxt.NumberSyms()
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
@@ -775,6 +808,9 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
+	if len(funcStack) != 0 {
+		Fatalf("funcStack is non-empty: %v", len(funcStack))
+	}
 	if len(compilequeue) != 0 {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
@@ -793,6 +829,17 @@ func Main(archInit func(*Arch)) {
 			log.Fatalf("cannot write benchmark data: %v", err)
 		}
 	}
+}
+
+// numNonClosures returns the number of functions in list which are not closures.
+func numNonClosures(list []*Node) int {
+	count := 0
+	for _, n := range list {
+		if n.Func.Closure == nil {
+			count++
+		}
+	}
+	return count
 }
 
 func writebench(filename string) error {
@@ -1071,7 +1118,7 @@ func loadsys() {
 	typecheckok = true
 
 	typs := runtimeTypes()
-	for _, d := range runtimeDecls {
+	for _, d := range &runtimeDecls {
 		sym := Runtimepkg.Lookup(d.name)
 		typ := typs[d.typ]
 		switch d.tag {
@@ -1211,15 +1258,6 @@ func importfile(f *Val) *types.Pkg {
 		}
 	}
 
-	// assume files move (get installed) so don't record the full path
-	if packageFile != nil {
-		// If using a packageFile map, assume path_ can be recorded directly.
-		Ctxt.AddImport(path_)
-	} else {
-		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):])
-	}
-
 	// In the importfile, if we find:
 	// $$\n  (textual format): not supported anymore
 	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
@@ -1244,6 +1282,7 @@ func importfile(f *Val) *types.Pkg {
 		c, _ = imp.ReadByte()
 	}
 
+	var fingerprint goobj.FingerprintType
 	switch c {
 	case '\n':
 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
@@ -1267,11 +1306,20 @@ func importfile(f *Val) *types.Pkg {
 			yyerror("import %s: unexpected package format byte: %v", file, c)
 			errorexit()
 		}
-		iimport(importpkg, imp)
+		fingerprint = iimport(importpkg, imp)
 
 	default:
 		yyerror("no import in %q", path_)
 		errorexit()
+	}
+
+	// assume files move (get installed) so don't record the full path
+	if packageFile != nil {
+		// If using a packageFile map, assume path_ can be recorded directly.
+		Ctxt.AddImport(path_, fingerprint)
+	} else {
+		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
+		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
 	}
 
 	if importpkg.Height >= myheight {
@@ -1374,7 +1422,7 @@ var concurrentFlagOK = [256]bool{
 }
 
 func concurrentBackendAllowed() bool {
-	for i, x := range Debug {
+	for i, x := range &Debug {
 		if x != 0 && !concurrentFlagOK[i] {
 			return false
 		}
@@ -1444,7 +1492,7 @@ func recordFlags(flags ...string) {
 		return
 	}
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
@@ -1456,7 +1504,7 @@ func recordFlags(flags ...string) {
 // compiled, so that the linker can save it in the compile unit's DIE.
 func recordPackageName() {
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)

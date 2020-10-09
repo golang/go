@@ -181,6 +181,7 @@ func init() {
 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
 		fp11        = regInfo{inputs: fponly, outputs: fponly}
+		fp1flags    = regInfo{inputs: []regMask{fp}}
 		fp11clobber = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
 
@@ -204,23 +205,23 @@ func init() {
 
 	var S390Xops = []opData{
 		// fp ops
-		{name: "FADDS", argLength: 2, reg: fp21clobber, asm: "FADDS", commutative: true, resultInArg0: true, clobberFlags: true}, // fp32 arg0 + arg1
-		{name: "FADD", argLength: 2, reg: fp21clobber, asm: "FADD", commutative: true, resultInArg0: true, clobberFlags: true},   // fp64 arg0 + arg1
-		{name: "FSUBS", argLength: 2, reg: fp21clobber, asm: "FSUBS", resultInArg0: true, clobberFlags: true},                    // fp32 arg0 - arg1
-		{name: "FSUB", argLength: 2, reg: fp21clobber, asm: "FSUB", resultInArg0: true, clobberFlags: true},                      // fp64 arg0 - arg1
-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                            // fp32 arg0 * arg1
-		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                              // fp64 arg0 * arg1
-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                               // fp32 arg0 / arg1
-		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                 // fp64 arg0 / arg1
-		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                        // fp32 -arg0
-		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                          // fp64 -arg0
-		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", resultInArg0: true},                                             // fp32 arg1 * arg2 + arg0
-		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD", resultInArg0: true},                                               // fp64 arg1 * arg2 + arg0
-		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                             // fp32 arg1 * arg2 - arg0
-		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                               // fp64 arg1 * arg2 - arg0
-		{name: "LPDFR", argLength: 1, reg: fp11, asm: "LPDFR"},                                                                   // fp64/fp32 set sign bit
-		{name: "LNDFR", argLength: 1, reg: fp11, asm: "LNDFR"},                                                                   // fp64/fp32 clear sign bit
-		{name: "CPSDR", argLength: 2, reg: fp21, asm: "CPSDR"},                                                                   // fp64/fp32 copy arg1 sign bit to arg0
+		{name: "FADDS", argLength: 2, reg: fp21clobber, typ: "(Float32,Flags)", asm: "FADDS", commutative: true, resultInArg0: true}, // fp32 arg0 + arg1
+		{name: "FADD", argLength: 2, reg: fp21clobber, typ: "(Float64,Flags)", asm: "FADD", commutative: true, resultInArg0: true},   // fp64 arg0 + arg1
+		{name: "FSUBS", argLength: 2, reg: fp21clobber, typ: "(Float32,Flags)", asm: "FSUBS", resultInArg0: true},                    // fp32 arg0 - arg1
+		{name: "FSUB", argLength: 2, reg: fp21clobber, typ: "(Float64,Flags)", asm: "FSUB", resultInArg0: true},                      // fp64 arg0 - arg1
+		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                                // fp32 arg0 * arg1
+		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                                  // fp64 arg0 * arg1
+		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                                   // fp32 arg0 / arg1
+		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                     // fp64 arg0 / arg1
+		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                            // fp32 -arg0
+		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                              // fp64 -arg0
+		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", resultInArg0: true},                                                 // fp32 arg1 * arg2 + arg0
+		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD", resultInArg0: true},                                                   // fp64 arg1 * arg2 + arg0
+		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                                 // fp32 arg1 * arg2 - arg0
+		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                                   // fp64 arg1 * arg2 - arg0
+		{name: "LPDFR", argLength: 1, reg: fp11, asm: "LPDFR"},                                                                       // fp64/fp32 set sign bit
+		{name: "LNDFR", argLength: 1, reg: fp11, asm: "LNDFR"},                                                                       // fp64/fp32 clear sign bit
+		{name: "CPSDR", argLength: 2, reg: fp21, asm: "CPSDR"},                                                                       // fp64/fp32 copy arg1 sign bit to arg0
 
 		// Round to integer, float64 only.
 		//
@@ -324,8 +325,10 @@ func init() {
 		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
 		{name: "CMPWUconst", argLength: 1, reg: gp1flags, asm: "CMPWU", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
 
-		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32
-		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"}, // arg0 compare to arg1, f64
+		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"},  // arg0 compare to arg1, f32
+		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"},  // arg0 compare to arg1, f64
+		{name: "LTDBR", argLength: 1, reg: fp1flags, asm: "LTDBR", typ: "Flags"}, // arg0 compare to 0, f64
+		{name: "LTEBR", argLength: 1, reg: fp1flags, asm: "LTEBR", typ: "Flags"}, // arg0 compare to 0, f32
 
 		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                   // arg0 << arg1, shift amount is mod 64
 		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 32
@@ -367,7 +370,7 @@ func init() {
 		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
 		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
 		//
-		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
+		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "S390XRotateParams", clobberFlags: true}, // rotate then xor selected bits
 
 		// unary ops
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
@@ -380,7 +383,7 @@ func init() {
 
 		// Conditional register-register moves.
 		// The aux for these values is an s390x.CCMask value representing the condition code mask.
-		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "ArchSpecific"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
+		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "S390XCCMask"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
 
 		{name: "MOVBreg", argLength: 1, reg: gp11sp, asm: "MOVB", typ: "Int64"},    // sign extend arg0 from int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11sp, asm: "MOVBZ", typ: "UInt64"}, // zero extend arg0 from int8 to int64
@@ -391,18 +394,28 @@ func init() {
 
 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
-		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"},     // move int64 to float64 (no conversion)
-		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"},     // move float64 to int64 (no conversion)
-		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA"}, // convert float64 to int32
-		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA"}, // convert float64 to int64
-		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA"}, // convert float32 to int32
-		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA"}, // convert float32 to int64
-		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA"}, // convert int32 to float32
-		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
-		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
-		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
-		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
-		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
+		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"}, // move int64 to float64 (no conversion)
+		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"}, // move float64 to int64 (no conversion)
+
+		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA", clobberFlags: true}, // convert float64 to int32
+		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA", clobberFlags: true}, // convert float64 to int64
+		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA", clobberFlags: true}, // convert float32 to int32
+		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA", clobberFlags: true}, // convert float32 to int64
+		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA", clobberFlags: true}, // convert int32 to float32
+		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA", clobberFlags: true}, // convert int32 to float64
+		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA", clobberFlags: true}, // convert int64 to float32
+		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA", clobberFlags: true}, // convert int64 to float64
+		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR", clobberFlags: true}, // convert float32 to uint32
+		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR", clobberFlags: true}, // convert float64 to uint32
+		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR", clobberFlags: true}, // convert float32 to uint64
+		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR", clobberFlags: true}, // convert float64 to uint64
+		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR", clobberFlags: true}, // convert uint32 to float32
+		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR", clobberFlags: true}, // convert uint32 to float64
+		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR", clobberFlags: true}, // convert uint64 to float32
+		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR", clobberFlags: true}, // convert uint64 to float64
+
+		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
+		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
 
 		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
@@ -462,9 +475,9 @@ func init() {
 
 		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -497,9 +510,9 @@ func init() {
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 
 		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
 		{name: "FlagEQ"}, // CC=0 (equal)
@@ -618,6 +631,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STMG3",
@@ -628,6 +642,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STMG4",
@@ -645,6 +660,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM2",
@@ -655,6 +671,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM3",
@@ -665,6 +682,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STM4",
@@ -682,6 +700,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 
 		// large move
@@ -754,25 +773,25 @@ func init() {
 	// Note: that compare-and-branch instructions must not have bit 3 (0b0001) set.
 	var S390Xblocks = []blockData{
 		// branch on condition
-		{name: "BRC", controls: 1}, // condition code value (flags) is Controls[0]
+		{name: "BRC", controls: 1, aux: "S390XCCMask"}, // condition code value (flags) is Controls[0]
 
 		// compare-and-branch (register-register)
 		//  - integrates comparison of Controls[0] with Controls[1]
 		//  - both control values must be in general purpose registers
-		{name: "CRJ", controls: 2},   // signed 32-bit integer comparison
-		{name: "CGRJ", controls: 2},  // signed 64-bit integer comparison
-		{name: "CLRJ", controls: 2},  // unsigned 32-bit integer comparison
-		{name: "CLGRJ", controls: 2}, // unsigned 64-bit integer comparison
+		{name: "CRJ", controls: 2, aux: "S390XCCMask"},   // signed 32-bit integer comparison
+		{name: "CGRJ", controls: 2, aux: "S390XCCMask"},  // signed 64-bit integer comparison
+		{name: "CLRJ", controls: 2, aux: "S390XCCMask"},  // unsigned 32-bit integer comparison
+		{name: "CLGRJ", controls: 2, aux: "S390XCCMask"}, // unsigned 64-bit integer comparison
 
 		// compare-and-branch (register-immediate)
 		//  - integrates comparison of Controls[0] with AuxInt
 		//  - control value must be in a general purpose register
 		//  - the AuxInt value is sign-extended for signed comparisons
 		//    and zero-extended for unsigned comparisons
-		{name: "CIJ", controls: 1, auxint: "Int8"},    // signed 32-bit integer comparison
-		{name: "CGIJ", controls: 1, auxint: "Int8"},   // signed 64-bit integer comparison
-		{name: "CLIJ", controls: 1, auxint: "UInt8"},  // unsigned 32-bit integer comparison
-		{name: "CLGIJ", controls: 1, auxint: "UInt8"}, // unsigned 64-bit integer comparison
+		{name: "CIJ", controls: 1, aux: "S390XCCMaskInt8"},    // signed 32-bit integer comparison
+		{name: "CGIJ", controls: 1, aux: "S390XCCMaskInt8"},   // signed 64-bit integer comparison
+		{name: "CLIJ", controls: 1, aux: "S390XCCMaskUint8"},  // unsigned 32-bit integer comparison
+		{name: "CLGIJ", controls: 1, aux: "S390XCCMaskUint8"}, // unsigned 64-bit integer comparison
 	}
 
 	archs = append(archs, arch{

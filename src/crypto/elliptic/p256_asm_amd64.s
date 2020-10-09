@@ -1336,7 +1336,7 @@ TEXT p256SubInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256MulInternal(SB),NOSPLIT,$0
+TEXT p256MulInternal(SB),NOSPLIT,$8
 	MOVQ acc4, mul0
 	MULQ t0
 	MOVQ mul0, acc0
@@ -1519,7 +1519,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256SqrInternal(SB),NOSPLIT,$0
+TEXT p256SqrInternal(SB),NOSPLIT,$8
 
 	MOVQ acc4, mul0
 	MULQ acc5
@@ -2345,4 +2345,3 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 
 	RET
 /* ---------------------------------------*/
-

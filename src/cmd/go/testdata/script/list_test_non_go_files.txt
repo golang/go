@@ -5,7 +5,7 @@ go list -e -test -json -- c.c x.go
 stdout '"Err": "named files must be .go files: c.c"'
 
 ! go list -test -json -- c.c x.go
-stderr 'can''t load package: named files must be .go files: c.c'
+stderr '^named files must be \.go files: c\.c$'
 
 -- x.go --
 package main

@@ -10,7 +10,6 @@
 package foo
 
 import (
-	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -50,7 +49,7 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
-var somethingWrong error = errors.New("something went wrong")
+var somethingWrong error
 
 // local closures can be inlined
 func l(x, y int) (int, int, error) {
@@ -179,4 +178,22 @@ func small4(t T) { // not inlineable - has 2 calls.
 func (T) meth2(int, int) { // not inlineable - has 2 calls.
 	runtime.GC()
 	runtime.GC()
+}
+
+// Issue #29737 - make sure we can do inlining for a chain of recursive functions
+func ee() { // ERROR "can inline ee"
+	ff(100) // ERROR "inlining call to ff" "inlining call to gg" "inlining call to hh"
+}
+
+func ff(x int) { // ERROR "can inline ff"
+	if x < 0 {
+		return
+	}
+	gg(x - 1)
+}
+func gg(x int) { // ERROR "can inline gg"
+	hh(x - 1)
+}
+func hh(x int) { // ERROR "can inline hh"
+	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
 }

@@ -9,19 +9,25 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/modload"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 func BuildInit() {
-	load.ModInit()
+	modload.Init()
 	instrumentInit()
 	buildModeInit()
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	// Make sure -pkgdir is absolute, because we run commands
 	// in different directories.
@@ -33,6 +39,20 @@ func BuildInit() {
 			base.Exit()
 		}
 		cfg.BuildPkgdir = p
+	}
+
+	// For each experiment that has been enabled in the toolchain, define a
+	// build tag with the same name but prefixed by "goexperiment." which can be
+	// used for compiling alternative files for the experiment. This allows
+	// changes for the experiment, like extra struct fields in the runtime,
+	// without affecting the base non-experiment code at all. [2:] strips the
+	// leading "X:" from objabi.Expstring().
+	exp := objabi.Expstring()[2:]
+	if exp != "none" {
+		experiments := strings.Split(exp, ",")
+		for _, expt := range experiments {
+			cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
+		}
 	}
 }
 
@@ -69,7 +89,12 @@ func instrumentInit() {
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
-		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
+		} else {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		}
+
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -100,9 +125,9 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch cfg.Goos {
-			case "darwin":
+			case "darwin", "ios":
 				switch cfg.Goarch {
-				case "arm", "arm64":
+				case "arm64":
 					codegenArg = "-shared"
 				}
 
@@ -134,9 +159,11 @@ func buildModeInit() {
 		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
-		case "darwin":
+		case "windows":
+			ldBuildmode = "pie"
+		case "darwin", "ios":
 			switch cfg.Goarch {
-			case "arm", "arm64":
+			case "arm64":
 				codegenArg = "-shared"
 			}
 			fallthrough
@@ -161,8 +188,12 @@ func buildModeInit() {
 		}
 		if gccgo {
 			codegenArg = "-fPIE"
-		} else if cfg.Goos != "aix" {
-			codegenArg = "-shared"
+		} else {
+			switch cfg.Goos {
+			case "aix", "windows":
+			default:
+				codegenArg = "-shared"
+			}
 		}
 		ldBuildmode = "pie"
 	case "shared":
@@ -225,36 +256,20 @@ func buildModeInit() {
 
 	switch cfg.BuildMod {
 	case "":
-		// ok
+		// Behavior will be determined automatically, as if no flag were passed.
 	case "readonly", "vendor", "mod":
-		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+		if !cfg.ModulesEnabled && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
 	if !cfg.ModulesEnabled {
-		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+		if cfg.ModCacheRW && !base.InGOFLAGS("-modcacherw") {
 			base.Fatalf("build flag -modcacherw only valid when using modules")
 		}
-		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+		if cfg.ModFile != "" && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -modfile only valid when using modules")
 		}
 	}
-}
-
-func inGOFLAGS(flag string) bool {
-	for _, goflag := range base.GOFLAGS() {
-		name := goflag
-		if strings.HasPrefix(name, "--") {
-			name = name[1:]
-		}
-		if i := strings.Index(name, "="); i >= 0 {
-			name = name[:i]
-		}
-		if name == flag {
-			return true
-		}
-	}
-	return false
 }

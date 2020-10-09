@@ -225,12 +225,13 @@ func TestPageAllocAlloc(t *testing.T) {
 	type hit struct {
 		npages, base, scav uintptr
 	}
-	tests := map[string]struct {
+	type test struct {
 		scav   map[ChunkIdx][]BitRange
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
 		hits   []hit
-	}{
+	}
+	tests := map[string]test{
 		"AllFree1": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -371,7 +372,6 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx: {{0, 195}},
 			},
 		},
-		// TODO(mknyszek): Add tests close to the chunk size.
 		"ExhaustPallocChunkPages-3": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -570,6 +570,105 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 7: {{0, 6}},
 			},
 		},
+	}
+	if PageAlloc64Bit != 0 {
+		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+
+		// This test attempts to trigger a bug wherein we look at unmapped summary
+		// memory that isn't just in the case where we exhaust the heap.
+		//
+		// It achieves this by placing a chunk such that its summary will be
+		// at the very end of a physical page. It then also places another chunk
+		// much further up in the address space, such that any allocations into the
+		// first chunk do not exhaust the heap and the second chunk's summary is not in the
+		// page immediately adjacent to the first chunk's summary's page.
+		// Allocating into this first chunk to exhaustion and then into the second
+		// chunk may then trigger a check in the allocator which erroneously looks at
+		// unmapped summary memory and crashes.
+
+		// Figure out how many chunks are in a physical page, then align BaseChunkIdx
+		// to a physical page in the chunk summary array. Here we only assume that
+		// each summary array is aligned to some physical page.
+		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
+		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
+		tests["DiscontiguousMappedSumBoundary"] = test{
+			before: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			hits: []hit{
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+sumsPerPhysPage-1, 0), 0},
+				{1, PageBase(baseChunkIdx+sumsPerPhysPage-1, PallocChunkPages-1), 0},
+				{1, PageBase(baseChunkIdx+chunkIdxBigJump, 0), 0},
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+chunkIdxBigJump, 1), 0},
+				{1, 0, 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
+				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
+			},
+		}
+
+		// Test to check for issue #40191. Essentially, the candidate searchAddr
+		// discovered by find may not point to mapped memory, so we need to handle
+		// that explicitly.
+		//
+		// chunkIdxSmallOffset is an offset intended to be used within chunkIdxBigJump.
+		// It is far enough within chunkIdxBigJump that the summaries at the beginning
+		// of an address range the size of chunkIdxBigJump will not be mapped in.
+		const chunkIdxSmallOffset = 0x503
+		tests["DiscontiguousBadSearchAddr"] = test{
+			before: map[ChunkIdx][]BitRange{
+				// The mechanism for the bug involves three chunks, A, B, and C, which are
+				// far apart in the address space. In particular, B is chunkIdxBigJump +
+				// chunkIdxSmalloffset chunks away from B, and C is 2*chunkIdxBigJump chunks
+				// away from A. A has 1 page free, B has several (NOT at the end of B), and
+				// C is totally free.
+				// Note that B's free memory must not be at the end of B because the fast
+				// path in the page allocator will check if the searchAddr even gives us
+				// enough space to place the allocation in a chunk before accessing the
+				// summary.
+				BaseChunkIdx + chunkIdxBigJump*0: {{0, PallocChunkPages - 1}},
+				BaseChunkIdx + chunkIdxBigJump*1 + chunkIdxSmallOffset: {
+					{0, PallocChunkPages - 10},
+					{PallocChunkPages - 1, 1},
+				},
+				BaseChunkIdx + chunkIdxBigJump*2: {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx + chunkIdxBigJump*0:                       {},
+				BaseChunkIdx + chunkIdxBigJump*1 + chunkIdxSmallOffset: {},
+				BaseChunkIdx + chunkIdxBigJump*2:                       {},
+			},
+			hits: []hit{
+				// We first allocate into A to set the page allocator's searchAddr to the
+				// end of that chunk. That is the only purpose A serves.
+				{1, PageBase(BaseChunkIdx, PallocChunkPages-1), 0},
+				// Then, we make a big allocation that doesn't fit into B, and so must be
+				// fulfilled by C.
+				//
+				// On the way to fulfilling the allocation into C, we estimate searchAddr
+				// using the summary structure, but that will give us a searchAddr of
+				// B's base address minus chunkIdxSmallOffset chunks. These chunks will
+				// not be mapped.
+				{100, PageBase(baseChunkIdx+chunkIdxBigJump*2, 0), 0},
+				// Now we try to make a smaller allocation that can be fulfilled by B.
+				// In an older implementation of the page allocator, this will segfault,
+				// because this last allocation will first try to access the summary
+				// for B's base address minus chunkIdxSmallOffset chunks in the fast path,
+				// and this will not be mapped.
+				{9, PageBase(baseChunkIdx+chunkIdxBigJump*1+chunkIdxSmallOffset, PallocChunkPages-10), 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx + chunkIdxBigJump*0:                       {{0, PallocChunkPages}},
+				BaseChunkIdx + chunkIdxBigJump*1 + chunkIdxSmallOffset: {{0, PallocChunkPages}},
+				BaseChunkIdx + chunkIdxBigJump*2:                       {{0, 100}},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

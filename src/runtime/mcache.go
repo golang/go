@@ -131,7 +131,7 @@ func (c *mcache) refill(spc spanClass) {
 		if s.sweepgen != mheap_.sweepgen+3 {
 			throw("bad sweepgen in refill")
 		}
-		atomic.Store(&s.sweepgen, mheap_.sweepgen)
+		mheap_.central[spc].mcentral.uncacheSpan(s)
 	}
 
 	// Get a new cached span from the central lists.

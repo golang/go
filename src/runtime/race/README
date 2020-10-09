@@ -1,13 +1,13 @@
 runtime/race package contains the data race detector runtime library.
 It is based on ThreadSanitizer race detector, that is currently a part of
-the LLVM project (http://llvm.org/git/compiler-rt.git).
+the LLVM project (https://github.com/llvm/llvm-project/tree/master/compiler-rt).
 
 To update the .syso files use golang.org/x/build/cmd/racebuild.
 
-race_darwin_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_freebsd_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_linux_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_linux_ppc64le.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_netbsd_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_windows_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
-race_linux_arm64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+race_darwin_amd64.syso built with LLVM 3496d6e4bea9cb99cb382939b7e79a50a3b863a5 and Go 553e003414d3aa90cc39830ee22f08453d9f3408.
+race_freebsd_amd64.syso built with LLVM 3496d6e4bea9cb99cb382939b7e79a50a3b863a5 and Go 553e003414d3aa90cc39830ee22f08453d9f3408.
+race_linux_amd64.syso built with LLVM 6c75db8b4bc59eace18143ce086419d37da24746 and Go 7388956b76ce15a11346cebefcf6193db044caaf.
+race_linux_ppc64le.syso built with LLVM 6c75db8b4bc59eace18143ce086419d37da24746 and Go 7388956b76ce15a11346cebefcf6193db044caaf.
+race_netbsd_amd64.syso built with LLVM 3496d6e4bea9cb99cb382939b7e79a50a3b863a5 and Go 553e003414d3aa90cc39830ee22f08453d9f3408.
+race_windows_amd64.syso built with LLVM 3496d6e4bea9cb99cb382939b7e79a50a3b863a5 and Go 553e003414d3aa90cc39830ee22f08453d9f3408.
+race_linux_arm64.syso built with LLVM 6c75db8b4bc59eace18143ce086419d37da24746 and Go 7388956b76ce15a11346cebefcf6193db044caaf.

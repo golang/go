@@ -8,9 +8,12 @@ import (
 	"bytes"
 	. "flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +38,7 @@ func TestEverything(t *testing.T) {
 	String("test_string", "0", "string value")
 	Float64("test_float64", 0, "float64 value")
 	Duration("test_duration", 0, "time.Duration value")
+	Func("test_func", "func value", func(string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -49,6 +53,8 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_duration" && f.Value.String() == desired+"s":
 				ok = true
+			case f.Name == "test_func" && f.Value.String() == "":
+				ok = true
 			}
 			if !ok {
 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
@@ -56,7 +62,7 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	VisitAll(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("VisitAll misses some flags")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -79,9 +85,10 @@ func TestEverything(t *testing.T) {
 	Set("test_string", "1")
 	Set("test_float64", "1")
 	Set("test_duration", "1s")
+	Set("test_func", "1")
 	desired = "1"
 	Visit(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("Visit fails after set")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -251,6 +258,48 @@ func TestUserDefined(t *testing.T) {
 	expect := "[1 2 3]"
 	if v.String() != expect {
 		t.Errorf("expected value %q got %q", expect, v.String())
+	}
+}
+
+func TestUserDefinedFunc(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var ss []string
+	flags.Func("v", "usage", func(s string) error {
+		ss = append(ss, s)
+		return nil
+	})
+	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
+		t.Error(err)
+	}
+	if len(ss) != 3 {
+		t.Fatal("expected 3 args; got ", len(ss))
+	}
+	expect := "[1 2 3]"
+	if got := fmt.Sprint(ss); got != expect {
+		t.Errorf("expected value %q got %q", expect, got)
+	}
+	// test usage
+	var buf strings.Builder
+	flags.SetOutput(&buf)
+	flags.Parse([]string{"-h"})
+	if usage := buf.String(); !strings.Contains(usage, "usage") {
+		t.Errorf("usage string not included: %q", usage)
+	}
+	// test Func error
+	flags = *NewFlagSet("test", ContinueOnError)
+	flags.Func("v", "usage", func(s string) error {
+		return fmt.Errorf("test error")
+	})
+	// flag not set, so no error
+	if err := flags.Parse(nil); err != nil {
+		t.Error(err)
+	}
+	// flag set, expect error
+	if err := flags.Parse([]string{"-v", "1"}); err == nil {
+		t.Error("expected error; got none")
+	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
+		t.Errorf(`error should contain "test error"; got %q`, errMsg)
 	}
 }
 
@@ -541,6 +590,69 @@ func TestRangeError(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "value out of range") {
 			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+		}
+	}
+}
+
+func TestExitCode(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	magic := 123
+	if os.Getenv("GO_CHILD_FLAG") != "" {
+		fs := NewFlagSet("test", ExitOnError)
+		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
+			var b bool
+			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
+		}
+		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
+		os.Exit(magic)
+	}
+
+	tests := []struct {
+		flag       string
+		flagHandle string
+		expectExit int
+	}{
+		{
+			flag:       "-h",
+			expectExit: 0,
+		},
+		{
+			flag:       "-help",
+			expectExit: 0,
+		},
+		{
+			flag:       "-undefined",
+			expectExit: 2,
+		},
+		{
+			flag:       "-h",
+			flagHandle: "h",
+			expectExit: magic,
+		},
+		{
+			flag:       "-help",
+			flagHandle: "help",
+			expectExit: magic,
+		},
+	}
+
+	for _, test := range tests {
+		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
+		cmd.Env = append(
+			os.Environ(),
+			"GO_CHILD_FLAG="+test.flag,
+			"GO_CHILD_FLAG_HANDLE="+test.flagHandle,
+		)
+		cmd.Run()
+		got := cmd.ProcessState.ExitCode()
+		// ExitCode is either 0 or 1 on Plan 9.
+		if runtime.GOOS == "plan9" && test.expectExit != 0 {
+			test.expectExit = 1
+		}
+		if got != test.expectExit {
+			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
+				test, got, test.expectExit)
 		}
 	}
 }

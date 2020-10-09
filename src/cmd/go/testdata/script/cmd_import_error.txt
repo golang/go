@@ -5,7 +5,7 @@ env GO111MODULE=on
 # a clear error in module mode.
 
 ! go list cmd/unknown
-stderr '^can''t load package: package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+stderr '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
 
 go list -f '{{range .DepsErrors}}{{.Err}}{{end}}' x.go
 stdout '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'

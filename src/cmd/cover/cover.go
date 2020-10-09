@@ -293,6 +293,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(f, n.Assign)
 			return nil
 		}
+	case *ast.FuncDecl:
+		// Don't annotate functions with blank names - they cannot be executed.
+		if n.Name.Name == "_" {
+			return nil
+		}
 	}
 	return f
 }

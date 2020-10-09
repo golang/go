@@ -8,4 +8,8 @@ package cpu
 
 const cacheLineSize = 32
 
-func doinit() {}
+func initOptions() {
+	options = []option{
+		{Name: "msa", Feature: &MIPS64X.HasMSA},
+	}
+}

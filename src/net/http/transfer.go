@@ -7,7 +7,6 @@ package http
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -259,7 +258,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
 		return false
 	}
 	// Many servers expect a Content-Length for these methods
-	if t.Method == "POST" || t.Method == "PUT" {
+	if t.Method == "POST" || t.Method == "PUT" || t.Method == "PATCH" {
 		return true
 	}
 	if t.ContentLength == 0 && isIdentity(t.TransferEncoding) {
@@ -311,7 +310,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 			k = CanonicalHeaderKey(k)
 			switch k {
 			case "Transfer-Encoding", "Trailer", "Content-Length":
-				return &badStringError{"invalid Trailer key", k}
+				return badStringError("invalid Trailer key", k)
 			}
 			keys = append(keys, k)
 		}
@@ -336,7 +335,7 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 	var ncopy int64
 
 	// Write body. We "unwrap" the body first if it was wrapped in a
-	// nopCloser. This is to ensure that we can take advantage of
+	// nopCloser or readTrackingBody. This is to ensure that we can take advantage of
 	// OS-level optimizations in the event that the body is an
 	// *os.File.
 	if t.Body != nil {
@@ -414,7 +413,10 @@ func (t *transferWriter) unwrapBody() io.Reader {
 	if reflect.TypeOf(t.Body) == nopCloserType {
 		return reflect.ValueOf(t.Body).Field(0).Interface().(io.Reader)
 	}
-
+	if r, ok := t.Body.(*readTrackingBody); ok {
+		r.didRead = true
+		return r.ReadCloser
+	}
 	return t.Body
 }
 
@@ -426,11 +428,11 @@ type transferReader struct {
 	ProtoMajor    int
 	ProtoMinor    int
 	// Output
-	Body             io.ReadCloser
-	ContentLength    int64
-	TransferEncoding []string
-	Close            bool
-	Trailer          Header
+	Body          io.ReadCloser
+	ContentLength int64
+	Chunked       bool
+	Close         bool
+	Trailer       Header
 }
 
 func (t *transferReader) protoAtLeast(m, n int) bool {
@@ -465,34 +467,6 @@ func suppressedHeaders(status int) []string {
 		return suppressedHeadersNoBody
 	}
 	return nil
-}
-
-// proxyingReadCloser is a composite type that accepts and proxies
-// io.Read and io.Close calls to its respective Reader and Closer.
-//
-// It is composed of:
-// a) a top-level reader e.g. the result of decompression
-// b) a symbolic Closer e.g. the result of decompression, the
-//    original body and the connection itself.
-type proxyingReadCloser struct {
-	io.Reader
-	io.Closer
-}
-
-// multiCloser implements io.Closer and allows a bunch of io.Closer values
-// to all be closed once.
-// Example usage is with proxyingReadCloser if we are decompressing a response
-// body on the fly and would like to close both *gzip.Reader and underlying body.
-type multiCloser []io.Closer
-
-func (mc multiCloser) Close() error {
-	var err error
-	for _, c := range mc {
-		if err1 := c.Close(); err1 != nil && err == nil {
-			err = err1
-		}
-	}
-	return err
 }
 
 // msg is *Request or *Response.
@@ -530,13 +504,12 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		t.ProtoMajor, t.ProtoMinor = 1, 1
 	}
 
-	// Transfer encoding, content length
-	err = t.fixTransferEncoding()
-	if err != nil {
+	// Transfer-Encoding: chunked, and overriding Content-Length.
+	if err := t.parseTransferEncoding(); err != nil {
 		return err
 	}
 
-	realLength, err := fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
+	realLength, err := fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.Chunked)
 	if err != nil {
 		return err
 	}
@@ -551,7 +524,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	}
 
 	// Trailer
-	t.Trailer, err = fixTrailer(t.Header, t.TransferEncoding)
+	t.Trailer, err = fixTrailer(t.Header, t.Chunked)
 	if err != nil {
 		return err
 	}
@@ -561,9 +534,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// See RFC 7230, section 3.3.
 	switch msg.(type) {
 	case *Response:
-		if realLength == -1 &&
-			!chunked(t.TransferEncoding) &&
-			bodyAllowedForStatus(t.StatusCode) {
+		if realLength == -1 && !t.Chunked && bodyAllowedForStatus(t.StatusCode) {
 			// Unbounded body.
 			t.Close = true
 		}
@@ -572,7 +543,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// Prepare body reader. ContentLength < 0 means chunked encoding
 	// or close connection when finished, since multipart is not supported yet
 	switch {
-	case chunked(t.TransferEncoding) || implicitlyChunked(t.TransferEncoding):
+	case t.Chunked:
 		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
 			t.Body = NoBody
 		} else {
@@ -593,33 +564,22 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		}
 	}
 
-	// Finally if "gzip" was one of the requested transfer-encodings,
-	// we'll unzip the concatenated body/payload of the request.
-	// TODO: As we support more transfer-encodings, extract
-	// this code and apply the un-codings in reverse.
-	if t.Body != NoBody && gzipped(t.TransferEncoding) {
-		zr, err := gzip.NewReader(t.Body)
-		if err != nil {
-			return fmt.Errorf("http: failed to gunzip body: %v", err)
-		}
-		t.Body = &proxyingReadCloser{
-			Reader: zr,
-			Closer: multiCloser{zr, t.Body},
-		}
-	}
-
 	// Unify output
 	switch rr := msg.(type) {
 	case *Request:
 		rr.Body = t.Body
 		rr.ContentLength = t.ContentLength
-		rr.TransferEncoding = t.TransferEncoding
+		if t.Chunked {
+			rr.TransferEncoding = []string{"chunked"}
+		}
 		rr.Close = t.Close
 		rr.Trailer = t.Trailer
 	case *Response:
 		rr.Body = t.Body
 		rr.ContentLength = t.ContentLength
-		rr.TransferEncoding = t.TransferEncoding
+		if t.Chunked {
+			rr.TransferEncoding = []string{"chunked"}
+		}
 		rr.Close = t.Close
 		rr.Trailer = t.Trailer
 	}
@@ -627,41 +587,8 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	return nil
 }
 
-// Checks whether chunked is the last part of the encodings stack
-func chunked(te []string) bool { return len(te) > 0 && te[len(te)-1] == "chunked" }
-
-// implicitlyChunked is a helper to check for implicity of chunked, because
-// RFC 7230 Section 3.3.1 says that the sender MUST apply chunked as the final
-// payload body to ensure that the message is framed for both the request
-// and the body. Since "identity" is incompatible with any other transformational
-// encoding cannot co-exist, the presence of "identity" will cause implicitlyChunked
-// to return false.
-func implicitlyChunked(te []string) bool {
-	if len(te) == 0 { // No transfer-encodings passed in, so not implicitly chunked.
-		return false
-	}
-	for _, tei := range te {
-		if tei == "identity" {
-			return false
-		}
-	}
-	return true
-}
-
-func isGzipTransferEncoding(tei string) bool {
-	// RFC 7230 4.2.3 requests that "x-gzip" SHOULD be considered the same as "gzip".
-	return tei == "gzip" || tei == "x-gzip"
-}
-
-// Checks where either of "gzip" or "x-gzip" are contained in transfer encodings.
-func gzipped(te []string) bool {
-	for _, tei := range te {
-		if isGzipTransferEncoding(tei) {
-			return true
-		}
-	}
-	return false
-}
+// Checks whether chunked is part of the encodings stack
+func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
@@ -682,8 +609,8 @@ func isUnsupportedTEError(err error) bool {
 	return ok
 }
 
-// fixTransferEncoding sanitizes t.TransferEncoding, if needed.
-func (t *transferReader) fixTransferEncoding() error {
+// parseTransferEncoding sets t.Chunked based on the Transfer-Encoding header.
+func (t *transferReader) parseTransferEncoding() error {
 	raw, present := t.Header["Transfer-Encoding"]
 	if !present {
 		return nil
@@ -695,78 +622,38 @@ func (t *transferReader) fixTransferEncoding() error {
 		return nil
 	}
 
-	encodings := strings.Split(raw[0], ",")
-	te := make([]string, 0, len(encodings))
-
-	// When adding new encodings, please maintain the invariant:
-	//   if chunked encoding is present, it must always
-	//   come last and it must be applied only once.
-	// See RFC 7230 Section 3.3.1 Transfer-Encoding.
-	for i, encoding := range encodings {
-		encoding = strings.ToLower(strings.TrimSpace(encoding))
-
-		if encoding == "identity" {
-			// "identity" should not be mixed with other transfer-encodings/compressions
-			// because it means "no compression, no transformation".
-			if len(encodings) != 1 {
-				return &badStringError{`"identity" when present must be the only transfer encoding`, strings.Join(encodings, ",")}
-			}
-			// "identity" is not recorded.
-			break
-		}
-
-		switch {
-		case encoding == "chunked":
-			// "chunked" MUST ALWAYS be the last
-			// encoding as per the  loop invariant.
-			// That is:
-			//     Invalid: [chunked, gzip]
-			//     Valid:   [gzip, chunked]
-			if i+1 != len(encodings) {
-				return &badStringError{"chunked must be applied only once, as the last encoding", strings.Join(encodings, ",")}
-			}
-			// Supported otherwise.
-
-		case isGzipTransferEncoding(encoding):
-			// Supported
-
-		default:
-			return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", encoding)}
-		}
-
-		te = te[0 : len(te)+1]
-		te[len(te)-1] = encoding
+	// Like nginx, we only support a single Transfer-Encoding header field, and
+	// only if set to "chunked". This is one of the most security sensitive
+	// surfaces in HTTP/1.1 due to the risk of request smuggling, so we keep it
+	// strict and simple.
+	if len(raw) != 1 {
+		return &unsupportedTEError{fmt.Sprintf("too many transfer encodings: %q", raw)}
+	}
+	if strings.ToLower(textproto.TrimString(raw[0])) != "chunked" {
+		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}
 	}
 
-	if len(te) > 0 {
-		// RFC 7230 3.3.2 says "A sender MUST NOT send a
-		// Content-Length header field in any message that
-		// contains a Transfer-Encoding header field."
-		//
-		// but also:
-		// "If a message is received with both a
-		// Transfer-Encoding and a Content-Length header
-		// field, the Transfer-Encoding overrides the
-		// Content-Length. Such a message might indicate an
-		// attempt to perform request smuggling (Section 9.5)
-		// or response splitting (Section 9.4) and ought to be
-		// handled as an error. A sender MUST remove the
-		// received Content-Length field prior to forwarding
-		// such a message downstream."
-		//
-		// Reportedly, these appear in the wild.
-		delete(t.Header, "Content-Length")
-		t.TransferEncoding = te
-		return nil
-	}
+	// RFC 7230 3.3.2 says "A sender MUST NOT send a Content-Length header field
+	// in any message that contains a Transfer-Encoding header field."
+	//
+	// but also: "If a message is received with both a Transfer-Encoding and a
+	// Content-Length header field, the Transfer-Encoding overrides the
+	// Content-Length. Such a message might indicate an attempt to perform
+	// request smuggling (Section 9.5) or response splitting (Section 9.4) and
+	// ought to be handled as an error. A sender MUST remove the received
+	// Content-Length field prior to forwarding such a message downstream."
+	//
+	// Reportedly, these appear in the wild.
+	delete(t.Header, "Content-Length")
 
+	t.Chunked = true
 	return nil
 }
 
 // Determine the expected body length, using RFC 7230 Section 3.3. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
-func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
+func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (int64, error) {
 	isRequest := !isResponse
 	contentLens := header["Content-Length"]
 
@@ -776,9 +663,9 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		// Content-Length headers if they differ in value.
 		// If there are dups of the value, remove the dups.
 		// See Issue 16490.
-		first := strings.TrimSpace(contentLens[0])
+		first := textproto.TrimString(contentLens[0])
 		for _, ct := range contentLens[1:] {
-			if first != strings.TrimSpace(ct) {
+			if first != textproto.TrimString(ct) {
 				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
 			}
 		}
@@ -810,14 +697,14 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	}
 
 	// Logic based on Transfer-Encoding
-	if chunked(te) {
+	if chunked {
 		return -1, nil
 	}
 
 	// Logic based on Content-Length
 	var cl string
 	if len(contentLens) == 1 {
-		cl = strings.TrimSpace(contentLens[0])
+		cl = textproto.TrimString(contentLens[0])
 	}
 	if cl != "" {
 		n, err := parseContentLength(cl)
@@ -865,12 +752,12 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 }
 
 // Parse the trailer header
-func fixTrailer(header Header, te []string) (Header, error) {
+func fixTrailer(header Header, chunked bool) (Header, error) {
 	vv, ok := header["Trailer"]
 	if !ok {
 		return nil, nil
 	}
-	if !chunked(te) {
+	if !chunked {
 		// Trailer and no chunking:
 		// this is an invalid use case for trailer header.
 		// Nevertheless, no error will be returned and we
@@ -890,7 +777,7 @@ func fixTrailer(header Header, te []string) (Header, error) {
 			switch key {
 			case "Transfer-Encoding", "Trailer", "Content-Length":
 				if err == nil {
-					err = &badStringError{"bad trailer key", key}
+					err = badStringError("bad trailer key", key)
 					return
 				}
 			}
@@ -1148,15 +1035,15 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
 // parseContentLength trims whitespace from s and returns -1 if no value
 // is set, or the value if it's >= 0.
 func parseContentLength(cl string) (int64, error) {
-	cl = strings.TrimSpace(cl)
+	cl = textproto.TrimString(cl)
 	if cl == "" {
 		return -1, nil
 	}
-	n, err := strconv.ParseInt(cl, 10, 64)
-	if err != nil || n < 0 {
-		return 0, &badStringError{"bad Content-Length", cl}
+	n, err := strconv.ParseUint(cl, 10, 63)
+	if err != nil {
+		return 0, badStringError("bad Content-Length", cl)
 	}
-	return n, nil
+	return int64(n), nil
 
 }
 
@@ -1190,6 +1077,9 @@ func isKnownInMemoryReader(r io.Reader) bool {
 	}
 	if reflect.TypeOf(r) == nopCloserType {
 		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
+	}
+	if r, ok := r.(*readTrackingBody); ok {
+		return isKnownInMemoryReader(r.ReadCloser)
 	}
 	return false
 }

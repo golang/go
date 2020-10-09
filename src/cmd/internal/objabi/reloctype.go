@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -89,6 +89,17 @@ const (
 	// should be linked into the final binary, even if there are no other
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
+	// R_USEIFACE marks a type is converted to an interface in the function this
+	// relocation is applied to. The target is a type descriptor.
+	// This is a marker relocation (0-sized), for the linker's reachabililty
+	// analysis.
+	R_USEIFACE
+	// R_USEIFACEMETHOD marks an interface method that is used in the function
+	// this relocation is applied to. The target is an interface type descriptor.
+	// The addend is the offset of the method in the type descriptor.
+	// This is a marker relocation (0-sized), for the linker's reachabililty
+	// analysis.
+	R_USEIFACEMETHOD
 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a

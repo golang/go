@@ -35,6 +35,20 @@ func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
 }
 
+func isGroupMember(gid int) bool {
+	groups, err := Getgroups()
+	if err != nil {
+		return false
+	}
+
+	for _, g := range groups {
+		if g == gid {
+			return true
+		}
+	}
+	return false
+}
+
 //sys	faccessat(dirfd int, path string, mode uint32) (err error)
 
 func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
@@ -92,7 +106,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 			gid = Getgid()
 		}
 
-		if uint32(gid) == st.Gid {
+		if uint32(gid) == st.Gid || isGroupMember(gid) {
 			fmode = (st.Mode >> 3) & 7
 		} else {
 			fmode = st.Mode & 7

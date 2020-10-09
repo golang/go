@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package web defines minimal helper routines for accessing HTTP/HTTPS
-// resources without requiring external dependenicies on the net package.
+// resources without requiring external dependencies on the net package.
 //
 // If the cmd_go_bootstrap build tag is present, web avoids the use of the net
 // package and returns errors for all network operations.
@@ -89,7 +89,7 @@ func GetBytes(u *url.URL) ([]byte, error) {
 	}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %v", Redacted(u), err)
+		return nil, fmt.Errorf("reading %s: %v", u.Redacted(), err)
 	}
 	return b, nil
 }
@@ -181,21 +181,6 @@ func (r *Response) formatErrorDetail() string {
 // under any applicable scheme. (A non-2xx response does not cause an error.)
 func Get(security SecurityMode, u *url.URL) (*Response, error) {
 	return get(security, u)
-}
-
-// Redacted returns a redacted string form of the URL,
-// suitable for printing in error messages.
-// The string form replaces any non-empty password
-// in the original URL with "[redacted]".
-func Redacted(u *url.URL) string {
-	if u.User != nil {
-		if _, ok := u.User.Password(); ok {
-			redacted := *u
-			redacted.User = url.UserPassword(u.User.Username(), "[redacted]")
-			u = &redacted
-		}
-	}
-	return u.String()
 }
 
 // OpenBrowser attempts to open the requested URL in a web browser.

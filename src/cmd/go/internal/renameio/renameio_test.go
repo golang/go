@@ -9,11 +9,13 @@ package renameio
 import (
 	"encoding/binary"
 	"errors"
+	"internal/testenv"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -24,6 +26,10 @@ import (
 )
 
 func TestConcurrentReadsAndWrites(t *testing.T) {
+	if runtime.GOOS == "darwin" && strings.HasSuffix(testenv.Builder(), "-10_14") {
+		testenv.SkipFlaky(t, 33041)
+	}
+
 	dir, err := ioutil.TempDir("", "renameio")
 	if err != nil {
 		t.Fatal(err)

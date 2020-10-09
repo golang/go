@@ -11,7 +11,7 @@ func dummy() {}
 
 // Signed 64-bit compare-and-branch.
 func si64(x, y chan int64) {
-	// s390x:"CGRJ\t[$]4, R[0-9]+, R[0-9]+, "
+	// s390x:"CGRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
 	for <-x < <-y {
 		dummy()
 	}
@@ -47,7 +47,7 @@ func si64x8() {
 
 // Unsigned 64-bit compare-and-branch.
 func ui64(x, y chan uint64) {
-	// s390x:"CLGRJ\t[$]2, R[0-9]+, R[0-9]+, "
+	// s390x:"CLGRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
 	for <-x > <-y {
 		dummy()
 	}
@@ -83,7 +83,7 @@ func ui64x8() {
 
 // Signed 32-bit compare-and-branch.
 func si32(x, y chan int32) {
-	// s390x:"CRJ\t[$]4, R[0-9]+, R[0-9]+, "
+	// s390x:"CRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
 	for <-x < <-y {
 		dummy()
 	}
@@ -119,7 +119,7 @@ func si32x8() {
 
 // Unsigned 32-bit compare-and-branch.
 func ui32(x, y chan uint32) {
-	// s390x:"CLRJ\t[$]2, R[0-9]+, R[0-9]+, "
+	// s390x:"CLRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
 	for <-x > <-y {
 		dummy()
 	}
@@ -151,4 +151,56 @@ func ui32x8() {
 	for i := uint32(1024); i > 0; i-- {
 		dummy()
 	}
+}
+
+// Signed 64-bit comparison with unsigned 8-bit immediate.
+func si64xu8(x chan int64) {
+        // s390x:"CLGIJ\t[$]8, R[0-9]+, [$]128, "
+        for <-x == 128 {
+                dummy()
+        }
+
+        // s390x:"CLGIJ\t[$]6, R[0-9]+, [$]255, "
+        for <-x != 255 {
+                dummy()
+        }
+}
+
+// Signed 32-bit comparison with unsigned 8-bit immediate.
+func si32xu8(x chan int32) {
+        // s390x:"CLIJ\t[$]8, R[0-9]+, [$]255, "
+        for <-x == 255 {
+                dummy()
+        }
+
+        // s390x:"CLIJ\t[$]6, R[0-9]+, [$]128, "
+        for <-x != 128 {
+                dummy()
+        }
+}
+
+// Unsigned 64-bit comparison with signed 8-bit immediate.
+func ui64xu8(x chan uint64) {
+        // s390x:"CGIJ\t[$]8, R[0-9]+, [$]-1, "
+        for <-x == ^uint64(0) {
+                dummy()
+        }
+
+        // s390x:"CGIJ\t[$]6, R[0-9]+, [$]-128, "
+        for <-x != ^uint64(127) {
+                dummy()
+        }
+}
+
+// Unsigned 32-bit comparison with signed 8-bit immediate.
+func ui32xu8(x chan uint32) {
+        // s390x:"CIJ\t[$]8, R[0-9]+, [$]-128, "
+        for <-x == ^uint32(127) {
+                dummy()
+        }
+
+        // s390x:"CIJ\t[$]6, R[0-9]+, [$]-1, "
+        for <-x != ^uint32(0) {
+                dummy()
+        }
 }

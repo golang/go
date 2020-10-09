@@ -1,5 +1,5 @@
 // Inferno utils/5l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -327,6 +327,9 @@ var optab = []Optab{
 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_LCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_FREG, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
@@ -379,6 +382,11 @@ func checkSuffix(c *ctxt5, p *obj.Prog, o *Optab) {
 }
 
 func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on arm")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	var p *obj.Prog
 	var op *obj.Prog
 
@@ -636,7 +644,7 @@ func (c *ctxt5) flushpool(p *obj.Prog, skip int, force int) bool {
 			q := c.newprog()
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
-			q.Pcond = p.Link
+			q.To.SetTarget(p.Link)
 			q.Link = c.blitrl
 			q.Pos = p.Pos
 			c.blitrl = q
@@ -697,7 +705,7 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 	if t.Rel == nil {
 		for q := c.blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
 			if q.Rel == nil && q.To == t.To {
-				p.Pcond = q
+				p.Pool = q
 				return
 			}
 		}
@@ -716,8 +724,8 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 	c.elitrl = q
 	c.pool.size += 4
 
-	// Store the link to the pool entry in Pcond.
-	p.Pcond = q
+	// Store the link to the pool entry in Pool.
+	p.Pool = q
 }
 
 func (c *ctxt5) regoff(a *obj.Addr) int32 {
@@ -1576,8 +1584,8 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 
-		if p.Pcond != nil {
-			v = int32((p.Pcond.Pc - c.pc) - 8)
+		if p.To.Target() != nil {
+			v = int32((p.To.Target().Pc - c.pc) - 8)
 		}
 		o1 |= (uint32(v) >> 2) & 0xffffff
 
@@ -3015,7 +3023,7 @@ func (c *ctxt5) omvr(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 	var o1 uint32
-	if p.Pcond == nil {
+	if p.Pool == nil {
 		c.aclass(a)
 		v := immrot(^uint32(c.instoffset))
 		if v == 0 {
@@ -3027,7 +3035,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 		o1 |= uint32(v)
 		o1 |= (uint32(dr) & 15) << 12
 	} else {
-		v := int32(p.Pcond.Pc - p.Pc - 8)
+		v := int32(p.Pool.Pc - p.Pc - 8)
 		o1 = c.olr(v, REGPC, dr, int(p.Scond)&C_SCOND)
 	}
 

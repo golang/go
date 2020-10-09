@@ -19,7 +19,7 @@ import (
 )
 
 // ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
-var ignoreCN = strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=1")
+var ignoreCN = !strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=0")
 
 type InvalidReason int
 
@@ -48,9 +48,9 @@ const (
 	// contains name constraints, and the Common Name can be interpreted as
 	// a hostname.
 	//
-	// You can avoid this error by setting the experimental GODEBUG environment
-	// variable to "x509ignoreCN=1", disabling Common Name matching entirely.
-	// This behavior might become the default in the future.
+	// This error is only returned when legacy Common Name matching is enabled
+	// by setting the GODEBUG environment variable to "x509ignoreCN=1". This
+	// setting might be removed in the future.
 	NameConstraintsWithoutSANs
 	// UnconstrainedName results when a CA certificate contains permitted
 	// name constraints, but leaf certificate contains a name of an
@@ -109,10 +109,16 @@ type HostnameError struct {
 func (h HostnameError) Error() string {
 	c := h.Certificate
 
-	if !c.hasSANExtension() && !validHostname(c.Subject.CommonName) &&
-		matchHostnames(toLowerCaseASCII(c.Subject.CommonName), toLowerCaseASCII(h.Host)) {
-		// This would have validated, if it weren't for the validHostname check on Common Name.
-		return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+		if !ignoreCN && !validHostnamePattern(c.Subject.CommonName) {
+			// This would have validated, if it weren't for the validHostname check on Common Name.
+			return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+		}
+		if ignoreCN && validHostnamePattern(c.Subject.CommonName) {
+			// This would have validated if x509ignoreCN=0 were set.
+			return "x509: certificate relies on legacy Common Name field, " +
+				"use SANs or temporarily enable Common Name matching with GODEBUG=x509ignoreCN=0"
+		}
 	}
 
 	var valid string
@@ -185,26 +191,34 @@ func (se SystemRootsError) Error() string {
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 
-// VerifyOptions contains parameters for Certificate.Verify. It's a structure
-// because other PKIX verification APIs have ended up needing many options.
+// VerifyOptions contains parameters for Certificate.Verify.
 type VerifyOptions struct {
-	DNSName       string
+	// DNSName, if set, is checked against the leaf certificate with
+	// Certificate.VerifyHostname or the platform verifier.
+	DNSName string
+
+	// Intermediates is an optional pool of certificates that are not trust
+	// anchors, but can be used to form a chain from the leaf certificate to a
+	// root certificate.
 	Intermediates *CertPool
-	Roots         *CertPool // if nil, the system roots are used
-	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
-	// certificate is accepted if it contains any of the listed values. An empty
-	// list means ExtKeyUsageServerAuth. To accept any key usage, include
-	// ExtKeyUsageAny.
-	//
-	// Certificate chains are required to nest these extended key usage values.
-	// (This matches the Windows CryptoAPI behavior, but not the spec.)
+	// Roots is the set of trusted root certificates the leaf certificate needs
+	// to chain up to. If nil, the system roots or the platform verifier are used.
+	Roots *CertPool
+
+	// CurrentTime is used to check the validity of all certificates in the
+	// chain. If zero, the current time is used.
+	CurrentTime time.Time
+
+	// KeyUsages specifies which Extended Key Usage values are acceptable. A
+	// chain is accepted if it allows any of the listed values. An empty list
+	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
+
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
-	// validating.
+	// validating. It does not apply to the platform verifier.
 	MaxConstraintComparisions int
 }
 
@@ -717,8 +731,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
 //
-// If opts.Roots is nil and system roots are unavailable the returned error
-// will be of type SystemRootsError.
+// If opts.Roots is nil, the platform verifier might be used, and
+// verification details might differ from what is described below. If system
+// roots are unavailable the returned error will be of type SystemRootsError.
 //
 // Name constraints in the intermediates will be applied to all names claimed
 // in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
@@ -726,9 +741,16 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // the name being validated. Note that DirectoryName constraints are not
 // supported.
 //
-// Extended Key Usage values are enforced down a chain, so an intermediate or
-// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
-// list.
+// Name constraint validation follows the rules from RFC 5280, with the
+// addition that DNS name constraints may use the leading period format
+// defined for emails and URIs. When a constraint has a leading period
+// it indicates that at least one additional label must be prepended to
+// the constrained name to be considered valid.
+//
+// Extended Key Usage values are enforced nested down a chain, so an intermediate
+// or root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list. (While this is not specified, it is common practice in order to limit
+// the types of certificates a CA can issue.)
 //
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
@@ -884,12 +906,16 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 	return
 }
 
+func validHostnamePattern(host string) bool { return validHostname(host, true) }
+func validHostnameInput(host string) bool   { return validHostname(host, false) }
+
 // validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
-func validHostname(host string) bool {
-	host = strings.TrimSuffix(host, ".")
-
+func validHostname(host string, isPattern bool) bool {
+	if !isPattern {
+		host = strings.TrimSuffix(host, ".")
+	}
 	if len(host) == 0 {
 		return false
 	}
@@ -899,7 +925,7 @@ func validHostname(host string) bool {
 			// Empty label.
 			return false
 		}
-		if i == 0 && part == "*" {
+		if isPattern && i == 0 && part == "*" {
 			// Only allow full left-most wildcards, as those are the only ones
 			// we match, and matching literal '*' characters is probably never
 			// the expected behavior.
@@ -918,8 +944,8 @@ func validHostname(host string) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' || c == ':' {
-				// Not valid characters in hostnames, but commonly
+			if c == '_' {
+				// Not a valid character in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}
@@ -932,19 +958,26 @@ func validHostname(host string) bool {
 
 // commonNameAsHostname reports whether the Common Name field should be
 // considered the hostname that the certificate is valid for. This is a legacy
-// behavior, disabled if the Subject Alt Name extension is present.
+// behavior, disabled by default or if the Subject Alt Name extension is present.
 //
 // It applies the strict validHostname check to the Common Name field, so that
 // certificates without SANs can still be validated against CAs with name
 // constraints if there is no risk the CN would be matched as a hostname.
 // See NameConstraintsWithoutSANs and issue 24151.
 func (c *Certificate) commonNameAsHostname() bool {
-	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+	return !ignoreCN && !c.hasSANExtension() && validHostnamePattern(c.Subject.CommonName)
+}
+
+func matchExactly(hostA, hostB string) bool {
+	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
+		return false
+	}
+	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
 }
 
 func matchHostnames(pattern, host string) bool {
-	host = strings.TrimSuffix(host, ".")
-	pattern = strings.TrimSuffix(pattern, ".")
+	pattern = toLowerCaseASCII(pattern)
+	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
 	if len(pattern) == 0 || len(host) == 0 {
 		return false
@@ -1003,6 +1036,16 @@ func toLowerCaseASCII(in string) string {
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
+//
+// IP addresses can be optionally enclosed in square brackets and are checked
+// against the IPAddresses field. Other names are checked case insensitively
+// against the DNSNames field. If the names are valid hostnames, the certificate
+// fields can have a wildcard as the left-most label.
+//
+// The legacy Common Name field is ignored unless it's a valid hostname, the
+// certificate doesn't have any Subject Alternative Names, and the GODEBUG
+// environment variable is set to "x509ignoreCN=0". Support for Common Name is
+// deprecated will be entirely removed in the future.
 func (c *Certificate) VerifyHostname(h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
@@ -1020,15 +1063,26 @@ func (c *Certificate) VerifyHostname(h string) error {
 		return HostnameError{c, candidateIP}
 	}
 
-	lowered := toLowerCaseASCII(h)
-
+	names := c.DNSNames
 	if c.commonNameAsHostname() {
-		if matchHostnames(toLowerCaseASCII(c.Subject.CommonName), lowered) {
-			return nil
-		}
-	} else {
-		for _, match := range c.DNSNames {
-			if matchHostnames(toLowerCaseASCII(match), lowered) {
+		names = []string{c.Subject.CommonName}
+	}
+
+	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+	validCandidateName := validHostnameInput(candidateName)
+
+	for _, match := range names {
+		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+		// browsers (more or less) do, but in practice Go is used in a wider
+		// array of contexts and can't even assume DNS resolution. Instead,
+		// always allow perfect matches, and only apply wildcard and trailing
+		// dot processing to valid hostnames.
+		if validCandidateName && validHostnamePattern(match) {
+			if matchHostnames(match, candidateName) {
+				return nil
+			}
+		} else {
+			if matchExactly(match, candidateName) {
 				return nil
 			}
 		}

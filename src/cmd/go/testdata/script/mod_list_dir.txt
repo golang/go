@@ -2,6 +2,9 @@
 
 # go list with path to directory should work
 
+# populate go.sum
+go get -d
+
 env GO111MODULE=off
 go list -f '{{.ImportPath}}' $GOROOT/src/math
 stdout ^math$
@@ -11,11 +14,7 @@ go list -f '{{.ImportPath}}' $GOROOT/src/math
 stdout ^math$
 go list -f '{{.ImportPath}}' .
 stdout ^x$
-! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr '^can.t load package: package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
 
-go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stdout '^package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
 go mod download rsc.io/quote@v1.5.2
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 stdout '^rsc.io/quote$'
@@ -33,3 +32,5 @@ require rsc.io/quote v1.5.2
 
 -- x.go --
 package x
+
+import _ "rsc.io/quote"

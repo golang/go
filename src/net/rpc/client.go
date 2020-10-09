@@ -31,7 +31,7 @@ type Call struct {
 	Args          interface{} // The argument to the function (*struct).
 	Reply         interface{} // The reply from the function (*struct).
 	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	Done          chan *Call  // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.
@@ -245,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
 // DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
-	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err

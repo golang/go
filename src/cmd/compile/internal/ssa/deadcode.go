@@ -242,8 +242,9 @@ func deadcode(f *Func) {
 			f.NamedValues[name] = values[:j]
 		}
 	}
-	for k := len(f.Names) - 1; k >= i; k-- {
-		f.Names[k] = LocalSlot{}
+	clearNames := f.Names[i:]
+	for j := range clearNames {
+		clearNames[j] = LocalSlot{}
 	}
 	f.Names = f.Names[:i]
 
@@ -295,12 +296,7 @@ func deadcode(f *Func) {
 				f.freeValue(v)
 			}
 		}
-		// aid GC
-		tail := b.Values[i:]
-		for j := range tail {
-			tail[j] = nil
-		}
-		b.Values = b.Values[:i]
+		b.truncateValues(i)
 	}
 
 	// Remove dead blocks from WBLoads list.
@@ -311,8 +307,9 @@ func deadcode(f *Func) {
 			i++
 		}
 	}
-	for j := i; j < len(f.WBLoads); j++ {
-		f.WBLoads[j] = nil
+	clearWBLoads := f.WBLoads[i:]
+	for j := range clearWBLoads {
+		clearWBLoads[j] = nil
 	}
 	f.WBLoads = f.WBLoads[:i]
 

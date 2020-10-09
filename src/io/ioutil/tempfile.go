@@ -5,6 +5,7 @@
 package ioutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -52,7 +53,10 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
 		dir = os.TempDir()
 	}
 
-	prefix, suffix := prefixAndSuffix(pattern)
+	prefix, suffix, err := prefixAndSuffix(pattern)
+	if err != nil {
+		return
+	}
 
 	nconflict := 0
 	for i := 0; i < 10000; i++ {
@@ -71,9 +75,15 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
 	return
 }
 
+var errPatternHasSeparator = errors.New("pattern contains path separator")
+
 // prefixAndSuffix splits pattern by the last wildcard "*", if applicable,
 // returning prefix as the part before "*" and suffix as the part after "*".
-func prefixAndSuffix(pattern string) (prefix, suffix string) {
+func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
+	if strings.ContainsRune(pattern, os.PathSeparator) {
+		err = errPatternHasSeparator
+		return
+	}
 	if pos := strings.LastIndex(pattern, "*"); pos != -1 {
 		prefix, suffix = pattern[:pos], pattern[pos+1:]
 	} else {
@@ -96,7 +106,10 @@ func TempDir(dir, pattern string) (name string, err error) {
 		dir = os.TempDir()
 	}
 
-	prefix, suffix := prefixAndSuffix(pattern)
+	prefix, suffix, err := prefixAndSuffix(pattern)
+	if err != nil {
+		return
+	}
 
 	nconflict := 0
 	for i := 0; i < 10000; i++ {

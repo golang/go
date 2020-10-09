@@ -27,6 +27,23 @@ const (
 	// maxPhysHugePageSize sets an upper-bound on the maximum huge page size
 	// that the runtime supports.
 	maxPhysHugePageSize = pallocChunkBytes
+
+	// pagesPerReclaimerChunk indicates how many pages to scan from the
+	// pageInUse bitmap at a time. Used by the page reclaimer.
+	//
+	// Higher values reduce contention on scanning indexes (such as
+	// h.reclaimIndex), but increase the minimum latency of the
+	// operation.
+	//
+	// The time required to scan this many pages can vary a lot depending
+	// on how many spans are actually freed. Experimentally, it can
+	// scan for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
+	// free spans at ~32 MB/ms. Using 512 pages bounds this at
+	// roughly 100µs.
+	//
+	// Must be a multiple of the pageInUse bitmap element size and
+	// must also evenly divide pagesPerArena.
+	pagesPerReclaimerChunk = 512
 )
 
 // Main malloc heap.
@@ -59,18 +76,7 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	// sweepSpans contains two mspan stacks: one of swept in-use
-	// spans, and one of unswept in-use spans. These two trade
-	// roles on each GC cycle. Since the sweepgen increases by 2
-	// on each cycle, this means the swept spans are in
-	// sweepSpans[sweepgen/2%2] and the unswept spans are in
-	// sweepSpans[1-sweepgen/2%2]. Sweeping pops spans from the
-	// unswept stack and pushes spans that are still in-use on the
-	// swept stack. Likewise, allocating an in-use span pushes it
-	// on the swept stack.
-	sweepSpans [2]gcSweepBuf
-
-	// _ uint32 // align uint64 fields on 32-bit for atomics
+	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -180,6 +186,12 @@ type mheap struct {
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
+	// markArenas is a snapshot of allArenas taken at the beginning
+	// of the mark cycle. Because allArenas is append-only, neither
+	// this slice nor its contents will change during the mark, so
+	// it can be read safely.
+	markArenas []arenaIdx
+
 	// curArena is the arena that the heap is currently growing
 	// into. This should always be physPageSize-aligned.
 	curArena struct {
@@ -255,6 +267,20 @@ type heapArena struct {
 	// faster scanning, but we don't have 64-bit atomic bit
 	// operations.
 	pageMarks [pagesPerArena / 8]uint8
+
+	// pageSpecials is a bitmap that indicates which spans have
+	// specials (finalizers or other). Like pageInUse, only the bit
+	// corresponding to the first page in each span is used.
+	//
+	// Writes are done atomically whenever a special is added to
+	// a span and whenever the last special is removed from a span.
+	// Reads are done atomically to find spans containing specials
+	// during marking.
+	pageSpecials [pagesPerArena / 8]uint8
+
+	// checkmarks stores the debug.gccheckmark state. It is only
+	// used if debug.gccheckmark > 0.
+	checkmarks *checkmarksMap
 
 	// zeroedBase marks the first byte of the first page in this
 	// arena which hasn't been used yet and is therefore already
@@ -532,13 +558,13 @@ func (sc spanClass) noscan() bool {
 //
 //go:nosplit
 func arenaIndex(p uintptr) arenaIdx {
-	return arenaIdx((p + arenaBaseOffset) / heapArenaBytes)
+	return arenaIdx((p - arenaBaseOffset) / heapArenaBytes)
 }
 
 // arenaBase returns the low address of the region covered by heap
 // arena i.
 func arenaBase(i arenaIdx) uintptr {
-	return uintptr(i)*heapArenaBytes - arenaBaseOffset
+	return uintptr(i)*heapArenaBytes + arenaBaseOffset
 }
 
 type arenaIdx uint
@@ -670,6 +696,9 @@ func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8) 
 
 // Initialize the heap.
 func (h *mheap) init() {
+	lockInit(&h.lock, lockRankMheap)
+	lockInit(&h.speciallock, lockRankMheapSpecial)
+
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
@@ -701,23 +730,10 @@ func (h *mheap) init() {
 //
 // h must NOT be locked.
 func (h *mheap) reclaim(npage uintptr) {
-	// This scans pagesPerChunk at a time. Higher values reduce
-	// contention on h.reclaimPos, but increase the minimum
-	// latency of performing a reclaim.
-	//
-	// Must be a multiple of the pageInUse bitmap element size.
-	//
-	// The time required by this can vary a lot depending on how
-	// many spans are actually freed. Experimentally, it can scan
-	// for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
-	// free spans at ~32 MB/ms. Using 512 pages bounds this at
-	// roughly 100µs.
-	//
 	// TODO(austin): Half of the time spent freeing spans is in
 	// locking/unlocking the heap (even with low contention). We
 	// could make the slow path here several times faster by
 	// batching heap frees.
-	const pagesPerChunk = 512
 
 	// Bail early if there's no more reclaim work.
 	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
@@ -750,7 +766,7 @@ func (h *mheap) reclaim(npage uintptr) {
 		}
 
 		// Claim a chunk of work.
-		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerChunk) - pagesPerChunk)
+		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
 		if idx/pagesPerArena >= uintptr(len(arenas)) {
 			// Page reclaiming is done.
 			atomic.Store64(&h.reclaimIndex, 1<<63)
@@ -764,7 +780,7 @@ func (h *mheap) reclaim(npage uintptr) {
 		}
 
 		// Scan this chunk.
-		nfound := h.reclaimChunk(arenas, idx, pagesPerChunk)
+		nfound := h.reclaimChunk(arenas, idx, pagesPerReclaimerChunk)
 		if nfound <= npage {
 			npage -= nfound
 		} else {
@@ -1141,10 +1157,21 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		// which may only be done with the heap locked.
 
 		// Transfer stats from mcache to global.
-		memstats.heap_scan += uint64(gp.m.mcache.local_scan)
-		gp.m.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(gp.m.mcache.local_tinyallocs)
-		gp.m.mcache.local_tinyallocs = 0
+		var c *mcache
+		if gp.m.p != 0 {
+			c = gp.m.p.ptr().mcache
+		} else {
+			// This case occurs while bootstrapping.
+			// See the similar code in mallocgc.
+			c = mcache0
+			if c == nil {
+				throw("mheap.allocSpan called with no P")
+			}
+		}
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 
 		// Do some additional accounting if it's a large allocation.
 		if spanclass.sizeclass() == 0 {
@@ -1236,20 +1263,13 @@ HaveSpan:
 	// Publish the span in various locations.
 
 	// This is safe to call without the lock held because the slots
-	// related to this span will only every be read or modified by
-	// this thread until pointers into the span are published or
-	// pageInUse is updated.
+	// related to this span will only ever be read or modified by
+	// this thread until pointers into the span are published (and
+	// we execute a publication barrier at the end of this function
+	// before that happens) or pageInUse is updated.
 	h.setSpans(s.base(), npages, s)
 
 	if !manual {
-		// Add to swept in-use list.
-		//
-		// This publishes the span to root marking.
-		//
-		// h.sweepgen is guaranteed to only change during STW,
-		// and preemption is disabled in the page allocator.
-		h.sweepSpans[h.sweepgen/2%2].push(s)
-
 		// Mark in-use span in arena page bitmap.
 		//
 		// This publishes the span to the page sweeper, so
@@ -1266,6 +1286,11 @@ HaveSpan:
 			traceHeapAlloc()
 		}
 	}
+
+	// Make sure the newly allocated span will be observed
+	// by the GC before pointers into the span are published.
+	publicationBarrier()
+
 	return s
 }
 
@@ -1278,8 +1303,11 @@ func (h *mheap) grow(npage uintptr) bool {
 	ask := alignUp(npage, pallocChunkPages) * pageSize
 
 	totalGrowth := uintptr(0)
-	nBase := alignUp(h.curArena.base+ask, physPageSize)
-	if nBase > h.curArena.end {
+	// This may overflow because ask could be very large
+	// and is otherwise unrelated to h.curArena.base.
+	end := h.curArena.base + ask
+	nBase := alignUp(end, physPageSize)
+	if nBase > h.curArena.end || /* overflow */ end < h.curArena.base {
 		// Not enough room in the current arena. Allocate more
 		// arena space. This may not be contiguous with the
 		// current arena, so we have to request the full ask.
@@ -1315,7 +1343,10 @@ func (h *mheap) grow(npage uintptr) bool {
 		mSysStatInc(&memstats.heap_released, asize)
 		mSysStatInc(&memstats.heap_idle, asize)
 
-		// Recalculate nBase
+		// Recalculate nBase.
+		// We know this won't overflow, because sysAlloc returned
+		// a valid region starting at h.curArena.base which is at
+		// least ask bytes in size.
 		nBase = alignUp(h.curArena.base+ask, physPageSize)
 	}
 
@@ -1334,7 +1365,7 @@ func (h *mheap) grow(npage uintptr) bool {
 		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
 			todo = overage
 		}
-		h.pages.scavenge(todo, true)
+		h.pages.scavenge(todo, false)
 	}
 	return true
 }
@@ -1342,12 +1373,12 @@ func (h *mheap) grow(npage uintptr) bool {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		mp := getg().m
+		c := getg().m.p.ptr().mcache
 		lock(&h.lock)
-		memstats.heap_scan += uint64(mp.mcache.local_scan)
-		mp.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
-		mp.mcache.local_tinyallocs = 0
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
@@ -1418,9 +1449,9 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 	h.freeMSpanLocked(s)
 }
 
-// scavengeAll visits each node in the free treap and scavenges the
-// treapNode's span. It then removes the scavenged span from
-// unscav and adds it into scav before continuing.
+// scavengeAll acquires the heap lock (blocking any additional
+// manipulation of the page allocator) and iterates over the whole
+// heap, scavenging every free page available.
 func (h *mheap) scavengeAll() {
 	// Disallow malloc or panic while holding the heap lock. We do
 	// this here because this is a non-mallocgc entry-point to
@@ -1428,14 +1459,16 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
-	// Reset the scavenger address so we have access to the whole heap.
-	h.pages.resetScavengeAddr()
-	released := h.pages.scavenge(^uintptr(0), true)
+	// Start a new scavenge generation so we have a chance to walk
+	// over the whole heap.
+	h.pages.scavengeStartGen()
+	released := h.pages.scavenge(^uintptr(0), false)
+	gen := h.pages.scav.gen
 	unlock(&h.lock)
 	gp.m.mallocing--
 
 	if debug.scavtrace > 0 {
-		printScavTrace(released, true)
+		printScavTrace(gen, released, true)
 	}
 }
 
@@ -1463,6 +1496,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.allocBits = nil
 	span.gcmarkBits = nil
 	span.state.set(mSpanDead)
+	lockInit(&span.speciallock, lockRankMspanSpecial)
 }
 
 func (span *mspan) inList() bool {
@@ -1576,6 +1610,22 @@ type special struct {
 	kind   byte     // kind of special
 }
 
+// spanHasSpecials marks a span as having specials in the arena bitmap.
+func spanHasSpecials(s *mspan) {
+	arenaPage := (s.base() / pageSize) % pagesPerArena
+	ai := arenaIndex(s.base())
+	ha := mheap_.arenas[ai.l1()][ai.l2()]
+	atomic.Or8(&ha.pageSpecials[arenaPage/8], uint8(1)<<(arenaPage%8))
+}
+
+// spanHasNoSpecials marks a span as having no specials in the arena bitmap.
+func spanHasNoSpecials(s *mspan) {
+	arenaPage := (s.base() / pageSize) % pagesPerArena
+	ai := arenaIndex(s.base())
+	ha := mheap_.arenas[ai.l1()][ai.l2()]
+	atomic.And8(&ha.pageSpecials[arenaPage/8], ^(uint8(1) << (arenaPage % 8)))
+}
+
 // Adds the special record s to the list of special records for
 // the object p. All fields of s should be filled in except for
 // offset & next, which this routine will fill in.
@@ -1621,6 +1671,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	s.offset = uint16(offset)
 	s.next = *t
 	*t = s
+	spanHasSpecials(span)
 	unlock(&span.speciallock)
 	releasem(mp)
 
@@ -1644,6 +1695,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 
 	offset := uintptr(p) - span.base()
 
+	var result *special
 	lock(&span.speciallock)
 	t := &span.specials
 	for {
@@ -1655,15 +1707,17 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 		// "interior" specials (p must be exactly equal to s->offset).
 		if offset == uintptr(s.offset) && kind == s.kind {
 			*t = s.next
-			unlock(&span.speciallock)
-			releasem(mp)
-			return s
+			result = s
+			break
 		}
 		t = &s.next
 	}
+	if span.specials == nil {
+		spanHasNoSpecials(span)
+	}
 	unlock(&span.speciallock)
 	releasem(mp)
-	return nil
+	return result
 }
 
 // The described object has a finalizer set for it.

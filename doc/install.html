@@ -17,7 +17,7 @@
 <p>
 <a href="/dl/" target="_blank">Official binary
 distributions</a> are available for the FreeBSD (release 10-STABLE and above),
-Linux, macOS (10.10 and above), and Windows operating systems and
+Linux, macOS (10.11 and above), and Windows operating systems and
 the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
 architectures.
 </p>
@@ -49,7 +49,7 @@ If your OS or architecture is not on the list, you may be able to
 <tr><td colspan="3"><hr></td></tr>
 <tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
 <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
-<tr><td>macOS 10.10 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+<tr><td>macOS 10.11 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
 <tr valign='top'><td>Windows 7, Server 2008R2 or later</td> <td>amd64, 386</td> <td>use MinGW (<code>386</code>) or MinGW-W64 (<code>amd64</code>) gcc<sup>&#8224;</sup>.<br>No need for cygwin or msys.</td></tr>
 </table>
 
@@ -192,20 +192,11 @@ Settings" option inside the "System" control panel.
 <h2 id="testing">Test your installation</h2>
 
 <p>
-Check that Go is installed correctly by setting up a workspace
-and building a simple program, as follows.
+Check that Go is installed correctly by building a simple program, as follows.
 </p>
 
 <p>
-Create your <a href="code.html#Workspaces">workspace</a> directory,
-<code class="testUnix">$HOME/go</code><code class="testWindows">%USERPROFILE%\go</code>.
-(If you'd like to use a different directory,
-you will need to <a href="https://golang.org/wiki/SettingGOPATH">set the <code>GOPATH</code> environment variable</a>.)
-</p>
-
-<p>
-Next, make the directory <code class="testUnix">src/hello</code><code class="testWindows">src\hello</code> inside your workspace,
-and in that directory create a file named <code>hello.go</code> that looks like:
+Create a file named <code>hello.go</code> that looks like:
 </p>
 
 <pre>
@@ -223,19 +214,17 @@ Then build it with the <code>go</code> tool:
 </p>
 
 <pre class="testUnix">
-$ <b>cd $HOME/go/src/hello</b>
-$ <b>go build</b>
+$ <b>go build hello.go</b>
 </pre>
 
 <pre class="testWindows">
-C:\&gt; <b>cd %USERPROFILE%\go\src\hello</b>
-C:\Users\Gopher\go\src\hello&gt; <b>go build</b>
+C:\Users\Gopher\go\src\hello&gt; <b>go build hello.go</b>
 </pre>
 
 <p>
 The command above will build an executable named
 <code class="testUnix">hello</code><code class="testWindows">hello.exe</code>
-in the directory alongside your source code.
+in the current directory alongside your source code.
 Execute it to see the greeting:
 </p>
 
@@ -251,12 +240,6 @@ hello, world
 
 <p>
 If you see the "hello, world" message then your Go installation is working.
-</p>
-
-<p>
-You can run <code>go</code> <code>install</code> to install the binary into
-your workspace's <code>bin</code> directory
-or <code>go</code> <code>clean</code> <code>-i</code> to remove it.
 </p>
 
 <p>

@@ -583,6 +583,39 @@ label4:
 	NEGV	R1, R2 // 0001102f
 	RET
 
+// MSA VMOVI
+	VMOVB	$511, W0   // 7b0ff807
+	VMOVH	$24, W23   // 7b20c5c7
+	VMOVW	$-24, W15  // 7b5f43c7
+	VMOVD	$-511, W31 // 7b700fc7
+
+	VMOVB	(R0), W8       // 78000220
+	VMOVB	511(R3), W0    // 79ff1820
+	VMOVB	-512(R12), W21 // 7a006560
+	VMOVH	(R24), W12     // 7800c321
+	VMOVH	110(R19), W8   // 78379a21
+	VMOVH	-70(R12), W3   // 7bdd60e1
+	VMOVW	(R3), W31      // 78001fe2
+	VMOVW	64(R20), W16   // 7810a422
+	VMOVW	-104(R17), W24 // 7be68e22
+	VMOVD	(R3), W2       // 780018a3
+	VMOVD	128(R23), W19  // 7810bce3
+	VMOVD	-256(R31), W0  // 7be0f823
+
+	VMOVB	W8, (R0)       // 78000224
+	VMOVB	W0, 511(R3)    // 79ff1824
+	VMOVB	W21, -512(R12) // 7a006564
+	VMOVH	W12, (R24)     // 7800c325
+	VMOVH	W8, 110(R19)   // 78379a25
+	VMOVH	W3, -70(R12)   // 7bdd60e5
+	VMOVW	W31, (R3)      // 78001fe6
+	VMOVW	W16, 64(R20)   // 7810a426
+	VMOVW	W24, -104(R17) // 7be68e26
+	VMOVD	W2, (R3)       // 780018a7
+	VMOVD	W19, 128(R23)  // 7810bce7
+	VMOVD	W0, -256(R31)  // 7be0f827
+	RET
+
 // END
 //
 //	LEND	comma // asm doesn't support the trailing comma.

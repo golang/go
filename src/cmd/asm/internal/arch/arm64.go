@@ -82,6 +82,17 @@ func IsARM64STLXR(op obj.As) bool {
 	return false
 }
 
+// IsARM64TBL reports whether the op (as defined by an arm64.A*
+// constant) is one of the TBL-like instructions and one of its
+// inputs does not fit into prog.Reg, so require special handling.
+func IsARM64TBL(op obj.As) bool {
+	switch op {
+	case arm64.AVTBL, arm64.AVMOVQ:
+		return true
+	}
+	return false
+}
+
 // ARM64Suffix handles the special suffix for the ARM64.
 // It returns a boolean to indicate success; failure means
 // cond was unrecognized.
@@ -123,13 +134,6 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 		}
 	}
 	return 0, false
-}
-
-// IsARM64TBL reports whether the op (as defined by an arm64.A*
-// constant) is one of the table lookup instructions that require special
-// handling.
-func IsARM64TBL(op obj.As) bool {
-	return op == arm64.AVTBL
 }
 
 // ARM64RegisterExtension parses an ARM64 register with extension or arrangement.

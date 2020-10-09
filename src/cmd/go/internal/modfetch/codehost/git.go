@@ -27,11 +27,6 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// GitRepo returns the code repository at the given Git remote reference.
-func GitRepo(remote string) (Repo, error) {
-	return newGitRepoCached(remote, false)
-}
-
 // LocalGitRepo is like Repo but accepts both Git remote references
 // and paths to repositories on the local file system.
 func LocalGitRepo(remote string) (Repo, error) {

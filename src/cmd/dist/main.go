@@ -108,6 +108,9 @@ func main() {
 			gohostarch = "arm64"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
+			if gohostos == "netbsd" && strings.Contains(run("", CheckExit, "uname", "-p"), "aarch64") {
+				gohostarch = "arm64"
+			}
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):
@@ -122,9 +125,11 @@ func main() {
 			if elfIsLittleEndian(os.Args[0]) {
 				gohostarch = "mipsle"
 			}
+		case strings.Contains(out, "riscv64"):
+			gohostarch = "riscv64"
 		case strings.Contains(out, "s390x"):
 			gohostarch = "s390x"
-		case gohostos == "darwin":
+		case gohostos == "darwin", gohostos == "ios":
 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
 				gohostarch = "arm64"
 			}

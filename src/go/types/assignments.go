@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 )
@@ -22,7 +23,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	switch x.mode {
 	case invalid:
 		return // error reported before
-	case constant_, variable, mapindex, value, commaok:
+	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
 		unreachable()
@@ -33,8 +34,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
 		// bool, rune, int, float64, complex128 or string respectively, depending
-		// on whether the value is a boolean, rune, integer, floating-point, complex,
-		// or string constant."
+		// on whether the value is a boolean, rune, integer, floating-point,
+		// complex, or string constant."
 		if T == nil || IsInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
 				check.errorf(x.pos(), "use of untyped nil in %s", context)
@@ -43,8 +44,16 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			}
 			target = Default(x.typ)
 		}
-		check.convertUntyped(x, target)
-		if x.mode == invalid {
+		if err := check.canConvertUntyped(x, target); err != nil {
+			var internalErr Error
+			var msg string
+			if errors.As(err, &internalErr) {
+				msg = internalErr.Msg
+			} else {
+				msg = err.Error()
+			}
+			check.errorf(x.pos(), "cannot use %s as %s value in %s: %v", x, target, context, msg)
+			x.mode = invalid
 			return
 		}
 	}

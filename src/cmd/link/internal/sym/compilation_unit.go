@@ -6,18 +6,30 @@ package sym
 
 import "cmd/internal/dwarf"
 
-// CompilationUnit is an abstraction used by DWARF to represent a chunk of
-// debug-related data. We create a CompilationUnit per Object file in a
-// library (so, one for all the Go code, one for each assembly file, etc.).
+// LoaderSym holds a loader.Sym value. We can't refer to this
+// type from the sym package since loader imports sym.
+type LoaderSym int
+
+// A CompilationUnit represents a set of source files that are compiled
+// together. Since all Go sources in a Go package are compiled together,
+// there's one CompilationUnit per package that represents all Go sources in
+// that package, plus one for each assembly file.
+//
+// Equivalently, there's one CompilationUnit per object file in each Library
+// loaded by the linker.
+//
+// These are used for both DWARF and pclntab generation.
 type CompilationUnit struct {
-	Pkg            string        // The package name, eg ("fmt", or "runtime")
-	Lib            *Library      // Our library
-	Consts         *Symbol       // Package constants DIEs
-	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
-	DWInfo         *dwarf.DWDie  // CU root DIE
-	FuncDIEs       []*Symbol     // Function DIE subtrees
-	AbsFnDIEs      []*Symbol     // Abstract function DIE subtrees
-	RangeSyms      []*Symbol     // Symbols for debug_range
-	Textp          []*Symbol     // Text symbols in this CU
-	DWARFFileTable []string      // The file table used to generate the .debug_lines
+	Pkg       string        // The package name, eg ("fmt", or "runtime")
+	Lib       *Library      // Our library
+	PclnIndex int           // Index of this CU in pclntab
+	PCs       []dwarf.Range // PC ranges, relative to Textp[0]
+	DWInfo    *dwarf.DWDie  // CU root DIE
+	FileTable []string      // The file table used in this compilation unit.
+
+	Consts    LoaderSym   // Package constants DIEs
+	FuncDIEs  []LoaderSym // Function DIE subtrees
+	AbsFnDIEs []LoaderSym // Abstract function DIE subtrees
+	RangeSyms []LoaderSym // Symbols for debug_range
+	Textp     []LoaderSym // Text symbols in this CU
 }

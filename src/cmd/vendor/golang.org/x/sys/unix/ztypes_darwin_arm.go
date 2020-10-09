@@ -60,24 +60,24 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev           int32
-	Mode          uint16
-	Nlink         uint16
-	Ino           uint64
-	Uid           uint32
-	Gid           uint32
-	Rdev          int32
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Birthtimespec Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       int32
-	Flags         uint32
-	Gen           uint32
-	Lspare        int32
-	Qspare        [2]int64
+	Dev     int32
+	Mode    uint16
+	Nlink   uint16
+	Ino     uint64
+	Uid     uint32
+	Gid     uint32
+	Rdev    int32
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint32
+	Lspare  int32
+	Qspare  [2]int64
 }
 
 type Statfs_t struct {

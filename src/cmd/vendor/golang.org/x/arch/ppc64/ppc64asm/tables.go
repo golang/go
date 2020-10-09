@@ -186,6 +186,10 @@ const (
 	DIVDEUCC
 	DIVDEUO
 	DIVDEUOCC
+	MODSD
+	MODUD
+	MODSW
+	MODUW
 	CMPWI
 	CMPDI
 	CMPW
@@ -466,6 +470,7 @@ const (
 	VSPLTISH
 	VSPLTISW
 	VPERM
+	VPERMR
 	VSEL
 	VSL
 	VSLDOI
@@ -524,6 +529,7 @@ const (
 	VMSUMSHS
 	VMSUMUHM
 	VMSUMUHS
+	VMSUMUDM
 	VSUMSWS
 	VSUM2SWS
 	VSUM4SBS
@@ -559,6 +565,18 @@ const (
 	VCMPEQUWCC
 	VCMPEQUD
 	VCMPEQUDCC
+	VCMPNEB
+	VCMPNEBCC
+	VCMPNEZB
+	VCMPNEZBCC
+	VCMPNEH
+	VCMPNEHCC
+	VCMPNEZH
+	VCMPNEZHCC
+	VCMPNEW
+	VCMPNEWCC
+	VCMPNEZW
+	VCMPNEZWCC
 	VCMPGTSB
 	VCMPGTSBCC
 	VCMPGTSD
@@ -647,6 +665,7 @@ const (
 	VPOPCNTH
 	VPOPCNTW
 	VBPERMQ
+	VBPERMD
 	BCDADDCC
 	BCDSUBCC
 	MTVSCR
@@ -708,11 +727,19 @@ const (
 	LXVD2X
 	LXVDSX
 	LXVW4X
+	LXV
+	LXVL
+	LXVLL
+	LXVX
 	STXSDX
 	STXSIWX
 	STXSSPX
 	STXVD2X
 	STXVW4X
+	STXV
+	STXVL
+	STXVLL
+	STXVX
 	XSABSDP
 	XSADDDP
 	XSADDSP
@@ -852,6 +879,7 @@ const (
 	XXMRGHW
 	XXMRGLW
 	XXPERMDI
+	XXPERM
 	XXSEL
 	XXSLDWI
 	XXSPLTW
@@ -1528,6 +1556,10 @@ var opstr = [...]string{
 	DIVDEUCC:      "divdeu.",
 	DIVDEUO:       "divdeuo",
 	DIVDEUOCC:     "divdeuo.",
+	MODSD:         "modsd",
+	MODUD:         "modud",
+	MODSW:         "modsw",
+	MODUW:         "moduw",
 	CMPWI:         "cmpwi",
 	CMPDI:         "cmpdi",
 	CMPW:          "cmpw",
@@ -1808,6 +1840,7 @@ var opstr = [...]string{
 	VSPLTISH:      "vspltish",
 	VSPLTISW:      "vspltisw",
 	VPERM:         "vperm",
+	VPERMR:        "vpermr",
 	VSEL:          "vsel",
 	VSL:           "vsl",
 	VSLDOI:        "vsldoi",
@@ -1866,6 +1899,7 @@ var opstr = [...]string{
 	VMSUMSHS:      "vmsumshs",
 	VMSUMUHM:      "vmsumuhm",
 	VMSUMUHS:      "vmsumuhs",
+	VMSUMUDM:      "vmsumudm",
 	VSUMSWS:       "vsumsws",
 	VSUM2SWS:      "vsum2sws",
 	VSUM4SBS:      "vsum4sbs",
@@ -1901,6 +1935,18 @@ var opstr = [...]string{
 	VCMPEQUWCC:    "vcmpequw.",
 	VCMPEQUD:      "vcmpequd",
 	VCMPEQUDCC:    "vcmpequd.",
+	VCMPNEB:       "vcmpneb",
+	VCMPNEBCC:     "vcmpneb.",
+	VCMPNEZB:      "vcmpnezb",
+	VCMPNEZBCC:    "vcmpnezb.",
+	VCMPNEH:       "vcmpneh",
+	VCMPNEHCC:     "vcmpneh.",
+	VCMPNEZH:      "vcmpnezh",
+	VCMPNEZHCC:    "vcmpnezh.",
+	VCMPNEW:       "vcmpnew",
+	VCMPNEWCC:     "vcmpnew.",
+	VCMPNEZW:      "vcmpnezw",
+	VCMPNEZWCC:    "vcmpnezw.",
 	VCMPGTSB:      "vcmpgtsb",
 	VCMPGTSBCC:    "vcmpgtsb.",
 	VCMPGTSD:      "vcmpgtsd",
@@ -1989,6 +2035,7 @@ var opstr = [...]string{
 	VPOPCNTH:      "vpopcnth",
 	VPOPCNTW:      "vpopcntw",
 	VBPERMQ:       "vbpermq",
+	VBPERMD:       "vbpermd",
 	BCDADDCC:      "bcdadd.",
 	BCDSUBCC:      "bcdsub.",
 	MTVSCR:        "mtvscr",
@@ -2050,11 +2097,19 @@ var opstr = [...]string{
 	LXVD2X:        "lxvd2x",
 	LXVDSX:        "lxvdsx",
 	LXVW4X:        "lxvw4x",
+	LXV:           "lxv",
+	LXVL:          "lxvl",
+	LXVLL:         "lxvll",
+	LXVX:          "lxvx",
 	STXSDX:        "stxsdx",
 	STXSIWX:       "stxsiwx",
 	STXSSPX:       "stxsspx",
 	STXVD2X:       "stxvd2x",
 	STXVW4X:       "stxvw4x",
+	STXV:          "stxv",
+	STXVL:         "stxvl",
+	STXVLL:        "stxvll",
+	STXVX:         "stxvx",
 	XSABSDP:       "xsabsdp",
 	XSADDDP:       "xsadddp",
 	XSADDSP:       "xsaddsp",
@@ -2194,6 +2249,7 @@ var opstr = [...]string{
 	XXMRGHW:       "xxmrghw",
 	XXMRGLW:       "xxmrglw",
 	XXPERMDI:      "xxpermdi",
+	XXPERM:        "xxperm",
 	XXSEL:         "xxsel",
 	XXSLDWI:       "xxsldwi",
 	XXSPLTW:       "xxspltw",
@@ -2745,6 +2801,7 @@ var (
 	ap_ImmUnsigned_21_22       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{21, 2}}}
 	ap_ImmUnsigned_11_12       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{11, 2}}}
 	ap_ImmUnsigned_11_11       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{11, 1}}}
+	ap_VecSReg_28_28_6_10      = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{28, 1}, {6, 5}}}
 	ap_VecSReg_30_30_16_20     = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{30, 1}, {16, 5}}}
 	ap_VecSReg_29_29_11_15     = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{29, 1}, {11, 5}}}
 	ap_ImmUnsigned_22_23       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{22, 2}}}
@@ -3124,6 +3181,14 @@ var instFormats = [...]instFormat{
 	{DIVDEUO, 0xfc0007ff, 0x7c000712, 0x0, // Divide Doubleword Extended Unsigned XO-form (divdeuo RT,RA,RB)
 		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{DIVDEUOCC, 0xfc0007ff, 0x7c000713, 0x0, // Divide Doubleword Extended Unsigned XO-form (divdeuo. RT,RA,RB)
+		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{MODSD, 0xfc0007fe, 0x7c000612, 0x1, // Modulo Signed Doubleword X-form (modsd RT,RA,RB)
+		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{MODUD, 0xfc0007fe, 0x7c000212, 0x1, // Modulo Unsigned Doubleword X-form (modud RT,RA,RB)
+		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{MODSW, 0xfc0007fe, 0x7c000616, 0x1, // Modulo Signed Word X-form (modsw RT,RA,RB)
+		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{MODUW, 0xfc0007fe, 0x7c000216, 0x1, // Modulo Unsigned Word X-form (moduw RT,RA,RB)
 		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{CMPWI, 0xfc200000, 0x2c000000, 0x400000, // Compare Immediate D-form (cmpwi BF,RA,SI)
 		[5]*argField{ap_CondRegField_6_8, ap_Reg_11_15, ap_ImmSigned_16_31}},
@@ -3685,6 +3750,8 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecReg_6_10, ap_ImmSigned_11_15}},
 	{VPERM, 0xfc00003f, 0x1000002b, 0x0, // Vector Permute VA-form (vperm VRT,VRA,VRB,VRC)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+	{VPERMR, 0xfc00003f, 0x1000003b, 0x0, // Vector Permute Right-indexed VA-form (vpermr VRT,VRA,VRB,VRC)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
 	{VSEL, 0xfc00003f, 0x1000002a, 0x0, // Vector Select VA-form (vsel VRT,VRA,VRB,VRC)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
 	{VSL, 0xfc0007ff, 0x100001c4, 0x0, // Vector Shift Left VX-form (vsl VRT,VRA,VRB)
@@ -3801,6 +3868,8 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
 	{VMSUMUHS, 0xfc00003f, 0x10000027, 0x0, // Vector Multiply-Sum Unsigned Halfword Saturate VA-form (vmsumuhs VRT,VRA,VRB,VRC)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+	{VMSUMUDM, 0xfc00003f, 0x10000023, 0x0, // Vector Multiply-Sum Unsigned Doubleword Modulo VA-form (vmsumudm VRT,VRA,VRB,VRC)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
 	{VSUMSWS, 0xfc0007ff, 0x10000788, 0x0, // Vector Sum across Signed Word Saturate VX-form (vsumsws VRT,VRA,VRB)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
 	{VSUM2SWS, 0xfc0007ff, 0x10000688, 0x0, // Vector Sum across Half Signed Word Saturate VX-form (vsum2sws VRT,VRA,VRB)
@@ -3870,6 +3939,30 @@ var instFormats = [...]instFormat{
 	{VCMPEQUD, 0xfc0007ff, 0x100000c7, 0x0, // Vector Compare Equal To Unsigned Doubleword VX-form (vcmpequd VRT,VRA,VRB)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
 	{VCMPEQUDCC, 0xfc0007ff, 0x100004c7, 0x0, // Vector Compare Equal To Unsigned Doubleword VX-form (vcmpequd. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEB, 0xfc0007ff, 0x10000007, 0x0, // Vector Compare Not Equal Byte VX-form (vcmpneb VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEBCC, 0xfc0007ff, 0x10000407, 0x0, // Vector Compare Not Equal Byte VX-form (vcmpneb. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZB, 0xfc0007ff, 0x10000107, 0x0, // Vector Compare Not Equal or Zero Byte VX-form (vcmpnezb VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZBCC, 0xfc0007ff, 0x10000507, 0x0, // Vector Compare Not Equal or Zero Byte VX-form (vcmpnezb. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEH, 0xfc0007ff, 0x10000047, 0x0, // Vector Compare Not Equal Halfword VX-form (vcmpneh VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEHCC, 0xfc0007ff, 0x10000447, 0x0, // Vector Compare Not Equal Halfword VX-form (vcmpneh. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZH, 0xfc0007ff, 0x10000147, 0x0, // Vector Compare Not Equal or Zero Halfword VX-form (vcmpnezh VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZHCC, 0xfc0007ff, 0x10000547, 0x0, // Vector Compare Not Equal or Zero Halfword VX-form (vcmpnezh. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEW, 0xfc0007ff, 0x10000087, 0x0, // Vector Compare Not Equal Word VX-form (vcmpnew VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEWCC, 0xfc0007ff, 0x10000487, 0x0, // Vector Compare Not Equal Word VX-form (vcmpnew. VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZW, 0xfc0007ff, 0x10000187, 0x0, // Vector Compare Not Equal or Zero Word VX-form (vcmpnezw VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VCMPNEZWCC, 0xfc0007ff, 0x10000587, 0x0, // Vector Compare Not Equal or Zero Word VX-form (vcmpnezw. VRT,VRA,VRB)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
 	{VCMPGTSB, 0xfc0007ff, 0x10000306, 0x0, // Vector Compare Greater Than Signed Byte VC-form (vcmpgtsb VRT,VRA,VRB)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
@@ -4047,6 +4140,8 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_16_20}},
 	{VBPERMQ, 0xfc0007ff, 0x1000054c, 0x0, // Vector Bit Permute Quadword VX-form (vbpermq VRT,VRA,VRB)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+	{VBPERMD, 0xfc0007ff, 0x100005cc, 0x0, // Vector Bit Permute Doubleword VX-form (vbpermd VRT,VRA,VRB)
+		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
 	{BCDADDCC, 0xfc0005ff, 0x10000401, 0x0, // Decimal Add Modulo VX-form (bcdadd. VRT,VRA,VRB,PS)
 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_ImmUnsigned_22_22}},
 	{BCDSUBCC, 0xfc0005ff, 0x10000441, 0x0, // Decimal Subtract Modulo VX-form (bcdsub. VRT,VRA,VRB,PS)
@@ -4169,6 +4264,14 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{LXVW4X, 0xfc0007fe, 0x7c000618, 0x0, // Load VSX Vector Word*4 Indexed XX1-form (lxvw4x XT,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{LXV, 0xfc000007, 0xf4000001, 0x0, // Load VSX Vector DQ-form (lxv XT,DQ(RA))
+		[5]*argField{ap_VecSReg_28_28_6_10, ap_Offset_16_27_shift4, ap_Reg_11_15}},
+	{LXVL, 0xfc0007fe, 0x7c00021a, 0x0, // Load VSX Vector with Length X-form (lxvl XT,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{LXVLL, 0xfc0007fe, 0x7c00025a, 0x0, // Load VSX Vector Left-justified with Length X-form (lxvll XT,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{LXVX, 0xfc0007fe, 0x7c000218, 0x0, // Load VSX Vector Indexed X-form (lxvx XT,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXSDX, 0xfc0007fe, 0x7c000598, 0x0, // Store VSX Scalar Doubleword Indexed XX1-form (stxsdx XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXSIWX, 0xfc0007fe, 0x7c000118, 0x0, // Store VSX Scalar as Integer Word Indexed XX1-form (stxsiwx XS,RA,RB)
@@ -4178,6 +4281,14 @@ var instFormats = [...]instFormat{
 	{STXVD2X, 0xfc0007fe, 0x7c000798, 0x0, // Store VSX Vector Doubleword*2 Indexed XX1-form (stxvd2x XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXVW4X, 0xfc0007fe, 0x7c000718, 0x0, // Store VSX Vector Word*4 Indexed XX1-form (stxvw4x XS,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{STXV, 0xfc000007, 0xf4000005, 0x0, // Store VSX Vector DQ-form (stxv XS,DQ(RA))
+		[5]*argField{ap_VecSReg_28_28_6_10, ap_Offset_16_27_shift4, ap_Reg_11_15}},
+	{STXVL, 0xfc0007fe, 0x7c00031a, 0x0, // Store VSX Vector with Length X-form (stxvl XS,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{STXVLL, 0xfc0007fe, 0x7c00035a, 0x0, // Store VSX Vector Left-justified with Length X-form (stxvll XS,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{STXVX, 0xfc0007fe, 0x7c000318, 0x0, // Store VSX Vector Indexed X-form (stxvx XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{XSABSDP, 0xfc0007fc, 0xf0000564, 0x1f0000, // VSX Scalar Absolute Value Double-Precision XX2-form (xsabsdp XT,XB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
@@ -4457,6 +4568,8 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
 	{XXPERMDI, 0xfc0004f8, 0xf0000050, 0x0, // VSX Permute Doubleword Immediate XX3-form (xxpermdi XT,XA,XB,DM)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20, ap_ImmUnsigned_22_23}},
+	{XXPERM, 0xfc0007f8, 0xf00000d0, 0x0, // VSX Permute XX3-form (xxperm XT,XA,XB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
 	{XXSEL, 0xfc000030, 0xf0000030, 0x0, // VSX Select XX4-form (xxsel XT,XA,XB,XC)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20, ap_VecSReg_28_28_21_25}},
 	{XXSLDWI, 0xfc0004f8, 0xf0000010, 0x0, // VSX Shift Left Double by Word Immediate XX3-form (xxsldwi XT,XA,XB,SHW)

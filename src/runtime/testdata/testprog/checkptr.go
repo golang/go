@@ -7,22 +7,37 @@ package main
 import "unsafe"
 
 func init() {
-	register("CheckPtrAlignment", CheckPtrAlignment)
+	register("CheckPtrAlignmentNoPtr", CheckPtrAlignmentNoPtr)
+	register("CheckPtrAlignmentPtr", CheckPtrAlignmentPtr)
 	register("CheckPtrArithmetic", CheckPtrArithmetic)
+	register("CheckPtrArithmetic2", CheckPtrArithmetic2)
 	register("CheckPtrSize", CheckPtrSize)
 	register("CheckPtrSmall", CheckPtrSmall)
 }
 
-func CheckPtrAlignment() {
+func CheckPtrAlignmentNoPtr() {
 	var x [2]int64
 	p := unsafe.Pointer(&x[0])
 	sink2 = (*int64)(unsafe.Pointer(uintptr(p) + 1))
+}
+
+func CheckPtrAlignmentPtr() {
+	var x [2]int64
+	p := unsafe.Pointer(&x[0])
+	sink2 = (**int64)(unsafe.Pointer(uintptr(p) + 1))
 }
 
 func CheckPtrArithmetic() {
 	var x int
 	i := uintptr(unsafe.Pointer(&x))
 	sink2 = (*int)(unsafe.Pointer(i))
+}
+
+func CheckPtrArithmetic2() {
+	var x [2]int64
+	p := unsafe.Pointer(&x[1])
+	var one uintptr = 1
+	sink2 = unsafe.Pointer(uintptr(p) & ^one)
 }
 
 func CheckPtrSize() {

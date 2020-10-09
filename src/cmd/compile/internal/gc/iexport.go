@@ -35,6 +35,8 @@
 //         }
 //     }
 //
+//     Fingerprint [8]byte
+//
 // uvarint means a uint64 written out using uvarint encoding.
 //
 // []T means a uvarint followed by that many T objects. In other
@@ -203,8 +205,9 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/src"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -293,9 +296,16 @@ func iexport(out *bufio.Writer) {
 	hdr.uint64(dataLen)
 
 	// Flush output.
-	io.Copy(out, &hdr)
-	io.Copy(out, &p.strings)
-	io.Copy(out, &p.data0)
+	h := md5.New()
+	wr := io.MultiWriter(out, h)
+	io.Copy(wr, &hdr)
+	io.Copy(wr, &p.strings)
+	io.Copy(wr, &p.data0)
+
+	// Add fingerprint (used by linker object file).
+	// Attach this to the end, so tools (e.g. gcimporter) don't care.
+	copy(Ctxt.Fingerprint[:], h.Sum(nil)[:])
+	out.Write(Ctxt.Fingerprint[:])
 }
 
 // writeIndex writes out an object index. mainIndex indicates whether
@@ -474,6 +484,7 @@ func (p *iexporter) doDecl(n *Node) {
 
 		t := n.Type
 		if t.IsInterface() {
+			w.typeExt(t)
 			break
 		}
 
@@ -486,6 +497,7 @@ func (p *iexporter) doDecl(n *Node) {
 			w.signature(m.Type)
 		}
 
+		w.typeExt(t)
 		for _, m := range ms.Slice() {
 			w.methExt(m)
 		}
@@ -739,11 +751,11 @@ func (w *exportWriter) param(f *types.Field) {
 
 func constTypeOf(typ *types.Type) Ctype {
 	switch typ {
-	case types.Idealint, types.Idealrune:
+	case types.UntypedInt, types.UntypedRune:
 		return CTINT
-	case types.Idealfloat:
+	case types.UntypedFloat:
 		return CTFLT
-	case types.Idealcomplex:
+	case types.UntypedComplex:
 		return CTCPLX
 	}
 
@@ -768,8 +780,8 @@ func constTypeOf(typ *types.Type) Ctype {
 }
 
 func (w *exportWriter) value(typ *types.Type, v Val) {
-	if typ.IsUntyped() {
-		typ = untype(v.Ctype())
+	if vt := idealType(v.Ctype()); typ.IsUntyped() && typ != vt {
+		Fatalf("exporter: untyped type mismatch, have: %v, want: %v", typ, vt)
 	}
 	w.typ(typ)
 
@@ -954,7 +966,7 @@ func (w *exportWriter) funcExt(n *Node) {
 	w.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			w.string(f.Note)
 		}
@@ -991,19 +1003,30 @@ func (w *exportWriter) linkname(s *types.Sym) {
 }
 
 func (w *exportWriter) symIdx(s *types.Sym) {
-	if Ctxt.Flag_newobj {
-		lsym := s.Linksym()
-		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
-			// Don't export index for non-package symbols, linkname'd symbols,
-			// and symbols without an index. They can only be referenced by
-			// name.
-			w.int64(-1)
-		} else {
-			// For a defined symbol, export its index.
-			// For re-exporting an imported symbol, pass its index through.
-			w.int64(int64(lsym.SymIdx))
-		}
+	lsym := s.Linksym()
+	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
+		// Don't export index for non-package symbols, linkname'd symbols,
+		// and symbols without an index. They can only be referenced by
+		// name.
+		w.int64(-1)
+	} else {
+		// For a defined symbol, export its index.
+		// For re-exporting an imported symbol, pass its index through.
+		w.int64(int64(lsym.SymIdx))
 	}
+}
+
+func (w *exportWriter) typeExt(t *types.Type) {
+	// Export whether this type is marked notinheap.
+	w.bool(t.NotInHeap())
+	// For type T, export the index of type descriptor symbols of T and *T.
+	if i, ok := typeSymIdx[t]; ok {
+		w.int64(i[0])
+		w.int64(i[1])
+		return
+	}
+	w.symIdx(typesym(t))
+	w.symIdx(typesym(t.PtrTo()))
 }
 
 // Inline bodies.

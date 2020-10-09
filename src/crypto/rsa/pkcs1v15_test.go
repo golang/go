@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"io"
@@ -295,4 +296,21 @@ var rsaPrivateKey = &PrivateKey{
 		fromBase10("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
 		fromBase10("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
 	},
+}
+
+func TestShortPKCS1v15Signature(t *testing.T) {
+	pub := &PublicKey{
+		E: 65537,
+		N: fromBase10("8272693557323587081220342447407965471608219912416565371060697606400726784709760494166080686904546560026343451112103559482851304715739629410219358933351333"),
+	}
+	sig, err := hex.DecodeString("193a310d0dcf64094c6e3a00c8219b80ded70535473acff72c08e1222974bb24a93a535b1dc4c59fc0e65775df7ba2007dd20e9193f4c4025a18a7070aee93")
+	if err != nil {
+		t.Fatalf("failed to decode signature: %s", err)
+	}
+
+	h := sha256.Sum256([]byte("hello"))
+	err = VerifyPKCS1v15(pub, crypto.SHA256, h[:], sig)
+	if err == nil {
+		t.Fatal("VerifyPKCS1v15 accepted a truncated signature")
+	}
 }

@@ -565,28 +565,28 @@ func (e *ValueError) Error() string {
 	return "syscall/js: call of " + e.Method + " on " + e.Type.String()
 }
 
-// CopyBytesToGo copies bytes from the Uint8Array src to dst.
+// CopyBytesToGo copies bytes from src to dst.
+// It panics if src is not an Uint8Array or Uint8ClampedArray.
 // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
-// CopyBytesToGo panics if src is not an Uint8Array.
 func CopyBytesToGo(dst []byte, src Value) int {
 	n, ok := copyBytesToGo(dst, src.ref)
 	runtime.KeepAlive(src)
 	if !ok {
-		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array")
+		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array or Uint8ClampedArray")
 	}
 	return n
 }
 
 func copyBytesToGo(dst []byte, src ref) (int, bool)
 
-// CopyBytesToJS copies bytes from src to the Uint8Array dst.
+// CopyBytesToJS copies bytes from src to dst.
+// It panics if dst is not an Uint8Array or Uint8ClampedArray.
 // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
-// CopyBytesToJS panics if dst is not an Uint8Array.
 func CopyBytesToJS(dst Value, src []byte) int {
 	n, ok := copyBytesToJS(dst.ref, src)
 	runtime.KeepAlive(dst)
 	if !ok {
-		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array")
+		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array or Uint8ClampedArray")
 	}
 	return n
 }

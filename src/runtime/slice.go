@@ -31,6 +31,55 @@ func panicmakeslicecap() {
 	panic(errorString("makeslice: cap out of range"))
 }
 
+// makeslicecopy allocates a slice of "tolen" elements of type "et",
+// then copies "fromlen" elements of type "et" into that new allocation from "from".
+func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer {
+	var tomem, copymem uintptr
+	if uintptr(tolen) > uintptr(fromlen) {
+		var overflow bool
+		tomem, overflow = math.MulUintptr(et.size, uintptr(tolen))
+		if overflow || tomem > maxAlloc || tolen < 0 {
+			panicmakeslicelen()
+		}
+		copymem = et.size * uintptr(fromlen)
+	} else {
+		// fromlen is a known good length providing and equal or greater than tolen,
+		// thereby making tolen a good slice length too as from and to slices have the
+		// same element width.
+		tomem = et.size * uintptr(tolen)
+		copymem = tomem
+	}
+
+	var to unsafe.Pointer
+	if et.ptrdata == 0 {
+		to = mallocgc(tomem, nil, false)
+		if copymem < tomem {
+			memclrNoHeapPointers(add(to, copymem), tomem-copymem)
+		}
+	} else {
+		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+		to = mallocgc(tomem, et, true)
+		if copymem > 0 && writeBarrier.enabled {
+			// Only shade the pointers in old.array since we know the destination slice to
+			// only contains nil pointers because it has been cleared during alloc.
+			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem)
+		}
+	}
+
+	if raceenabled {
+		callerpc := getcallerpc()
+		pc := funcPC(makeslicecopy)
+		racereadrangepc(from, copymem, callerpc, pc)
+	}
+	if msanenabled {
+		msanread(from, copymem)
+	}
+
+	memmove(to, from, copymem)
+
+	return to
+}
+
 func makeslice(et *_type, len, cap int) unsafe.Pointer {
 	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
 	if overflow || mem > maxAlloc || len < 0 || len > cap {
@@ -97,7 +146,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if old.len < 1024 {
+		if old.cap < 1024 {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
@@ -182,7 +231,7 @@ func growslice(et *_type, old slice, cap int) slice {
 		if lenmem > 0 && writeBarrier.enabled {
 			// Only shade the pointers in old.array since we know the destination slice p
 			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
+			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem-et.size+et.ptrdata)
 		}
 	}
 	memmove(p, old.array, lenmem)
@@ -194,60 +243,38 @@ func isPowerOfTwo(x uintptr) bool {
 	return x&(x-1) == 0
 }
 
-func slicecopy(to, fm slice, width uintptr) int {
-	if fm.len == 0 || to.len == 0 {
+// slicecopy is used to copy from a string or slice of pointerless elements into a slice.
+func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen int, width uintptr) int {
+	if fromLen == 0 || toLen == 0 {
 		return 0
 	}
 
-	n := fm.len
-	if to.len < n {
-		n = to.len
+	n := fromLen
+	if toLen < n {
+		n = toLen
 	}
 
 	if width == 0 {
 		return n
 	}
 
+	size := uintptr(n) * width
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
-		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+		racereadrangepc(fromPtr, size, callerpc, pc)
+		racewriterangepc(toPtr, size, callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(to.array, uintptr(n*int(width)))
-		msanread(fm.array, uintptr(n*int(width)))
+		msanread(fromPtr, size)
+		msanwrite(toPtr, size)
 	}
 
-	size := uintptr(n) * width
 	if size == 1 { // common case worth about 2x to do here
 		// TODO: is this still worth it with new memmove impl?
-		*(*byte)(to.array) = *(*byte)(fm.array) // known to be a byte pointer
+		*(*byte)(toPtr) = *(*byte)(fromPtr) // known to be a byte pointer
 	} else {
-		memmove(to.array, fm.array, size)
+		memmove(toPtr, fromPtr, size)
 	}
-	return n
-}
-
-func slicestringcopy(to []byte, fm string) int {
-	if len(fm) == 0 || len(to) == 0 {
-		return 0
-	}
-
-	n := len(fm)
-	if len(to) < n {
-		n = len(to)
-	}
-
-	if raceenabled {
-		callerpc := getcallerpc()
-		pc := funcPC(slicestringcopy)
-		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
-	}
-	if msanenabled {
-		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
-	}
-
-	memmove(unsafe.Pointer(&to[0]), stringStructOf(&fm).str, uintptr(n))
 	return n
 }

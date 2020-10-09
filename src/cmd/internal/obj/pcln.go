@@ -5,6 +5,8 @@
 package obj
 
 import (
+	"cmd/internal/goobj"
+	"cmd/internal/objabi"
 	"encoding/binary"
 	"log"
 )
@@ -13,16 +15,19 @@ import (
 // returned by valfunc parameterized by arg. The invocation of valfunc to update the
 // current value is, for each p,
 //
-//	val = valfunc(func, val, p, 0, arg);
-//	record val as value at p->pc;
-//	val = valfunc(func, val, p, 1, arg);
+//	sym = valfunc(func, p, 0, arg);
+//	record sym.P as value at p->pc;
+//	sym = valfunc(func, p, 1, arg);
 //
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
-func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
+func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) *LSym {
 	dbg := desc == ctxt.Debugpcln
-
-	dst.P = dst.P[:0]
+	dst := []byte{}
+	sym := &LSym{
+		Type:      objabi.SRODATA,
+		Attribute: AttrContentAddressable,
+	}
 
 	if dbg {
 		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
@@ -31,7 +36,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 	val := int32(-1)
 	oldval := val
 	if func_.Func.Text == nil {
-		return
+		// Return the emtpy symbol we've built so far.
+		return sym
 	}
 
 	pc := func_.Func.Text.Pc
@@ -87,13 +93,13 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if started {
 			pcdelta := (p.Pc - pc) / int64(ctxt.Arch.MinLC)
 			n := binary.PutUvarint(buf, uint64(pcdelta))
-			dst.P = append(dst.P, buf[:n]...)
+			dst = append(dst, buf[:n]...)
 			pc = p.Pc
 		}
 
 		delta := val - oldval
 		n := binary.PutVarint(buf, int64(delta))
-		dst.P = append(dst.P, buf[:n]...)
+		dst = append(dst, buf[:n]...)
 		oldval = val
 		started = true
 		val = valfunc(ctxt, func_, val, p, 1, arg)
@@ -108,18 +114,22 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 			ctxt.Diag("negative pc offset: %v", v)
 		}
 		n := binary.PutUvarint(buf, uint64(v))
-		dst.P = append(dst.P, buf[:n]...)
+		dst = append(dst, buf[:n]...)
 		// add terminating varint-encoded 0, which is just 0
-		dst.P = append(dst.P, 0)
+		dst = append(dst, 0)
 	}
 
 	if dbg {
-		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
-		for _, p := range dst.P {
+		ctxt.Logf("wrote %d bytes to %p\n", len(dst), dst)
+		for _, p := range dst {
 			ctxt.Logf(" %02x", p)
 		}
 		ctxt.Logf("\n")
 	}
+
+	sym.Size = int64(len(dst))
+	sym.P = dst
+	return sym
 }
 
 // pctofileline computes either the file number (arg == 0)
@@ -130,28 +140,13 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := linkgetlineFromPos(ctxt, p.Pos)
+	f, l := getFileIndexAndLine(ctxt, p.Pos)
 	if arg == nil {
 		return l
 	}
 	pcln := arg.(*Pcln)
-
-	if f == pcln.Lastfile {
-		return int32(pcln.Lastindex)
-	}
-
-	for i, file := range pcln.File {
-		if file == f {
-			pcln.Lastfile = f
-			pcln.Lastindex = i
-			return int32(i)
-		}
-	}
-	i := len(pcln.File)
-	pcln.File = append(pcln.File, f)
-	pcln.Lastfile = f
-	pcln.Lastindex = i
-	return int32(i)
+	pcln.UsedFiles[goobj.CUFileIndex(f)] = struct{}{}
+	return int32(f)
 }
 
 // pcinlineState holds the state used to create a function's inlining
@@ -263,6 +258,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 
 func linkpcln(ctxt *Link, cursym *LSym) {
 	pcln := &cursym.Func.Pcln
+	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
 
 	npcdata := 0
 	nfuncdata := 0
@@ -281,18 +277,32 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 		}
 	}
 
-	pcln.Pcdata = make([]Pcdata, npcdata)
-	pcln.Pcdata = pcln.Pcdata[:npcdata]
+	pcln.Pcdata = make([]*LSym, npcdata)
 	pcln.Funcdata = make([]*LSym, nfuncdata)
 	pcln.Funcdataoff = make([]int64, nfuncdata)
 	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
 
-	funcpctab(ctxt, &pcln.Pcsp, cursym, "pctospadj", pctospadj, nil)
-	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
-	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
+	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
+	pcln.Pcline = funcpctab(ctxt, cursym, "pctoline", pctofileline, nil)
+
+	// Check that all the Progs used as inline markers are still reachable.
+	// See issue #40473.
+	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
+	for _, inlMark := range cursym.Func.InlMarks {
+		inlMarkProgs[inlMark.p] = struct{}{}
+	}
+	for p := cursym.Func.Text; p != nil; p = p.Link {
+		if _, ok := inlMarkProgs[p]; ok {
+			delete(inlMarkProgs, p)
+		}
+	}
+	if len(inlMarkProgs) > 0 {
+		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
+	}
 
 	pcinlineState := new(pcinlineState)
-	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
 	for _, inlMark := range cursym.Func.InlMarks {
 		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
 	}
@@ -322,9 +332,14 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// pcdata.
 	for i := 0; i < npcdata; i++ {
 		if (havepc[i/32]>>uint(i%32))&1 == 0 {
-			continue
+			// use an empty symbol.
+			pcln.Pcdata[i] = &LSym{
+				Type:      objabi.SRODATA,
+				Attribute: AttrContentAddressable,
+			}
+		} else {
+			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
 		}
-		funcpctab(ctxt, &pcln.Pcdata[i], cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
 	}
 
 	// funcdata

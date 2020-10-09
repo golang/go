@@ -1,6 +1,7 @@
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package runtime_test
 
 import (
@@ -511,5 +512,24 @@ func BenchmarkMapInterfacePtr(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		BoolSink = m[key]
+	}
+}
+
+var (
+	hintLessThan8    = 7
+	hintGreaterThan8 = 32
+)
+
+func BenchmarkNewEmptyMapHintLessThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintLessThan8)
+	}
+}
+
+func BenchmarkNewEmptyMapHintGreaterThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintGreaterThan8)
 	}
 }

@@ -7,6 +7,7 @@ package version
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -51,8 +52,20 @@ var (
 	versionV = CmdVersion.Flag.Bool("v", false, "")
 )
 
-func runVersion(cmd *base.Command, args []string) {
+func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
+		// If any of this command's flags were passed explicitly, error
+		// out, because they only make sense with arguments.
+		//
+		// Don't error if the flags came from GOFLAGS, since that can be
+		// a reasonable use case. For example, imagine GOFLAGS=-v to
+		// turn "verbose mode" on for all Go commands, which should not
+		// break "go version".
+		if (!base.InGOFLAGS("-m") && *versionM) || (!base.InGOFLAGS("-v") && *versionV) {
+			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+			base.SetExitStatus(2)
+			return
+		}
 		fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		return
 	}
@@ -61,6 +74,7 @@ func runVersion(cmd *base.Command, args []string) {
 		info, err := os.Stat(arg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
+			base.SetExitStatus(1)
 			continue
 		}
 		if info.IsDir() {
@@ -131,7 +145,7 @@ func scanFile(file string, info os.FileInfo, mustPrint bool) {
 
 	fmt.Printf("%s: %s\n", file, vers)
 	if *versionM && mod != "" {
-		fmt.Printf("\t%s\n", strings.Replace(mod[:len(mod)-1], "\n", "\n\t", -1))
+		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
 }
 

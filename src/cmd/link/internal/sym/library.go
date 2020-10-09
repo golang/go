@@ -4,20 +4,22 @@
 
 package sym
 
+import "cmd/internal/goobj"
+
 type Library struct {
-	Objref        string
-	Srcref        string
-	File          string
-	Pkg           string
-	Shlib         string
-	Hash          string
-	ImportStrings []string
-	Imports       []*Library
-	Textp         []*Symbol // text symbols defined in this library
-	DupTextSyms   []*Symbol // dupok text symbols defined in this library
-	Main          bool
-	Safe          bool
-	Units         []*CompilationUnit
+	Objref      string
+	Srcref      string
+	File        string
+	Pkg         string
+	Shlib       string
+	Fingerprint goobj.FingerprintType
+	Autolib     []goobj.ImportedPkg
+	Imports     []*Library
+	Main        bool
+	Units       []*CompilationUnit
+
+	Textp       []LoaderSym // text syms defined in this library
+	DupTextSyms []LoaderSym // dupok text syms defined in this library
 }
 
 func (l Library) String() string {

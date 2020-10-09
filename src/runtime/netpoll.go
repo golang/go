@@ -33,18 +33,27 @@ import (
 // func netpollIsPollDescriptor(fd uintptr) bool
 //     Reports whether fd is a file descriptor used by the poller.
 
+// Error codes returned by runtime_pollReset and runtime_pollWait.
+// These must match the values in internal/poll/fd_poll_runtime.go.
+const (
+	pollNoError        = 0 // no error
+	pollErrClosing     = 1 // descriptor is closed
+	pollErrTimeout     = 2 // I/O timeout
+	pollErrNotPollable = 3 // general error polling descriptor
+)
+
 // pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
 // goroutines respectively. The semaphore can be in the following states:
 // pdReady - io readiness notification is pending;
 //           a goroutine consumes the notification by changing the state to nil.
 // pdWait - a goroutine prepares to park on the semaphore, but not yet parked;
 //          the goroutine commits to park by changing the state to G pointer,
-//          or, alternatively, concurrent io notification changes the state to READY,
+//          or, alternatively, concurrent io notification changes the state to pdReady,
 //          or, alternatively, concurrent timeout/close changes the state to nil.
 // G pointer - the goroutine is blocked on the semaphore;
-//             io notification or timeout/close changes the state to READY or nil respectively
+//             io notification or timeout/close changes the state to pdReady or nil respectively
 //             and unparks the goroutine.
-// nil - nothing of the above.
+// nil - none of the above.
 const (
 	pdReady uintptr = 1
 	pdWait  uintptr = 2
@@ -107,6 +116,7 @@ func poll_runtime_pollServerInit() {
 
 func netpollGenericInit() {
 	if atomic.Load(&netpollInited) == 0 {
+		lockInit(&netpollInitLock, lockRankNetpollInit)
 		lock(&netpollInitLock)
 		if netpollInited == 0 {
 			netpollinit()
@@ -176,40 +186,47 @@ func (c *pollCache) free(pd *pollDesc) {
 	unlock(&c.lock)
 }
 
+// poll_runtime_pollReset, which is internal/poll.runtime_pollReset,
+// prepares a descriptor for polling in mode, which is 'r' or 'w'.
+// This returns an error code; the codes are defined above.
 //go:linkname poll_runtime_pollReset internal/poll.runtime_pollReset
 func poll_runtime_pollReset(pd *pollDesc, mode int) int {
-	err := netpollcheckerr(pd, int32(mode))
-	if err != 0 {
-		return err
+	errcode := netpollcheckerr(pd, int32(mode))
+	if errcode != pollNoError {
+		return errcode
 	}
 	if mode == 'r' {
 		pd.rg = 0
 	} else if mode == 'w' {
 		pd.wg = 0
 	}
-	return 0
+	return pollNoError
 }
 
+// poll_runtime_pollWait, which is internal/poll.runtime_pollWait,
+// waits for a descriptor to be ready for reading or writing,
+// according to mode, which is 'r' or 'w'.
+// This returns an error code; the codes are defined above.
 //go:linkname poll_runtime_pollWait internal/poll.runtime_pollWait
 func poll_runtime_pollWait(pd *pollDesc, mode int) int {
-	err := netpollcheckerr(pd, int32(mode))
-	if err != 0 {
-		return err
+	errcode := netpollcheckerr(pd, int32(mode))
+	if errcode != pollNoError {
+		return errcode
 	}
 	// As for now only Solaris, illumos, and AIX use level-triggered IO.
 	if GOOS == "solaris" || GOOS == "illumos" || GOOS == "aix" {
 		netpollarm(pd, mode)
 	}
 	for !netpollblock(pd, int32(mode), false) {
-		err = netpollcheckerr(pd, int32(mode))
-		if err != 0 {
-			return err
+		errcode = netpollcheckerr(pd, int32(mode))
+		if errcode != pollNoError {
+			return errcode
 		}
 		// Can happen if timeout has fired and unblocked us,
 		// but before we had a chance to run, timeout has been reset.
 		// Pretend it has not happened and retry.
 	}
-	return 0
+	return pollNoError
 }
 
 //go:linkname poll_runtime_pollWaitCanceled internal/poll.runtime_pollWaitCanceled
@@ -359,18 +376,18 @@ func netpollready(toRun *gList, pd *pollDesc, mode int32) {
 
 func netpollcheckerr(pd *pollDesc, mode int32) int {
 	if pd.closing {
-		return 1 // ErrFileClosing or ErrNetClosing
+		return pollErrClosing
 	}
 	if (mode == 'r' && pd.rd < 0) || (mode == 'w' && pd.wd < 0) {
-		return 2 // ErrTimeout
+		return pollErrTimeout
 	}
 	// Report an event scanning error only on a read event.
 	// An error on a write event will be captured in a subsequent
 	// write call that is able to report a more specific error.
 	if mode == 'r' && pd.everr {
-		return 3 // ErrNotPollable
+		return pollErrNotPollable
 	}
-	return 0
+	return pollNoError
 }
 
 func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
@@ -397,7 +414,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 		gpp = &pd.wg
 	}
 
-	// set the gpp semaphore to WAIT
+	// set the gpp semaphore to pdWait
 	for {
 		old := *gpp
 		if old == pdReady {
@@ -412,13 +429,13 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 		}
 	}
 
-	// need to recheck error states after setting gpp to WAIT
+	// need to recheck error states after setting gpp to pdWait
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == 0 {
 		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceEvGoBlockNet, 5)
 	}
-	// be careful to not lose concurrent READY notification
+	// be careful to not lose concurrent pdReady notification
 	old := atomic.Xchguintptr(gpp, 0)
 	if old > pdWait {
 		throw("runtime: corrupted polldesc")
@@ -438,7 +455,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 			return nil
 		}
 		if old == 0 && !ioready {
-			// Only set READY for ioready. runtime_pollWait
+			// Only set pdReady for ioready. runtime_pollWait
 			// will check for timeout/cancel before waiting.
 			return nil
 		}
@@ -447,7 +464,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 			new = pdReady
 		}
 		if atomic.Casuintptr(gpp, old, new) {
-			if old == pdReady || old == pdWait {
+			if old == pdWait {
 				old = 0
 			}
 			return (*g)(unsafe.Pointer(old))
@@ -526,6 +543,7 @@ func (c *pollCache) alloc() *pollDesc {
 	}
 	pd := c.first
 	c.first = pd.link
+	lockInit(&pd.lock, lockRankPollDesc)
 	unlock(&c.lock)
 	return pd
 }

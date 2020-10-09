@@ -21,15 +21,6 @@ import (
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
 
-// RangePrefix is the prefix for all the symbols containing DWARF location lists.
-const LocPrefix = "go.loc."
-
-// RangePrefix is the prefix for all the symbols containing DWARF range lists.
-const RangePrefix = "go.range."
-
-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
-const DebugLinesPrefix = "go.debuglines."
-
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
 const ConstInfoPrefix = "go.constinfo."
@@ -48,7 +39,7 @@ var logDwarf bool
 
 // Sym represents a symbol.
 type Sym interface {
-	Len() int64
+	Length(dwarfContext interface{}) int64
 }
 
 // A Var represents a local variable or a function parameter.
@@ -387,7 +378,7 @@ func expandPseudoForm(form uint8) uint8 {
 		return form
 	}
 	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" {
+	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
 		expandedForm = DW_FORM_data4
 	}
 	return uint8(expandedForm)
@@ -395,9 +386,9 @@ func expandPseudoForm(form uint8) uint8 {
 
 // Abbrevs() returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
-func Abbrevs() [DW_NABRV]dwAbbrev {
+func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
-		return abbrevs
+		return abbrevs[:]
 	}
 	for i := 1; i < DW_NABRV; i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
@@ -405,7 +396,7 @@ func Abbrevs() [DW_NABRV]dwAbbrev {
 		}
 	}
 	abbrevsFinalized = true
-	return abbrevs
+	return abbrevs[:]
 }
 
 // abbrevs is a raw table of abbrev entries; it needs to be post-processed
@@ -1279,7 +1270,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, callee)
 
 	if abbrev == DW_ABRV_INLINED_SUBROUTINE_RANGES {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Length(ctxt), s.Ranges)
 		s.PutRanges(ctxt, ic.Ranges)
 	} else {
 		st := ic.Ranges[0].Start
@@ -1440,7 +1431,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, s.StartPC)
 		} else {
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES)
-			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
+			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Length(ctxt), s.Ranges)
 
 			s.PutRanges(ctxt, scope.Ranges)
 		}
@@ -1585,7 +1576,7 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 	}
 
 	if abbrevUsesLoclist(abbrev) {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Loc.Len(), s.Loc)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Loc.Length(ctxt), s.Loc)
 		v.PutLocationList(s.Loc, s.StartPC)
 	} else {
 		loc := encbuf[:0]

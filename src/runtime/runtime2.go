@@ -158,7 +158,10 @@ const (
 // as fast as spin locks (just a few user-level instructions),
 // but on the contention path they sleep in the kernel.
 // A zeroed Mutex is unlocked (no need to initialize each lock).
+// Initialization is helpful for static lock ranking, but not required.
 type mutex struct {
+	// Empty struct if lock ranking is disabled, otherwise includes the lock rank
+	lockRankStruct
 	// Futex-based impl treats it as uint32 key,
 	// while sema-based impl as M* waitm.
 	// Used to be a union, but unions break precise GC.
@@ -326,7 +329,7 @@ type gobuf struct {
 	ctxt unsafe.Pointer
 	ret  sys.Uintreg
 	lr   uintptr
-	bp   uintptr // for GOEXPERIMENT=framepointer
+	bp   uintptr // for framepointer-enabled architectures
 }
 
 // sudog represents a g in a wait list, such as for sending/receiving
@@ -346,12 +349,9 @@ type sudog struct {
 
 	g *g
 
-	// isSelect indicates g is participating in a select, so
-	// g.selectDone must be CAS'd to win the wake-up race.
-	isSelect bool
-	next     *sudog
-	prev     *sudog
-	elem     unsafe.Pointer // data element (may point to stack)
+	next *sudog
+	prev *sudog
+	elem unsafe.Pointer // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -361,10 +361,21 @@ type sudog struct {
 	acquiretime int64
 	releasetime int64
 	ticket      uint32
-	parent      *sudog // semaRoot binary tree
-	waitlink    *sudog // g.waiting list or semaRoot
-	waittail    *sudog // semaRoot
-	c           *hchan // channel
+
+	// isSelect indicates g is participating in a select, so
+	// g.selectDone must be CAS'd to win the wake-up race.
+	isSelect bool
+
+	// success indicates whether communication over channel c
+	// succeeded. It is true if the goroutine was awoken because a
+	// value was delivered over channel c, and false if awoken
+	// because c was closed.
+	success bool
+
+	parent   *sudog // semaRoot binary tree
+	waitlink *sudog // g.waiting list or semaRoot
+	waittail *sudog // semaRoot
+	c        *hchan // channel
 }
 
 type libcall struct {
@@ -390,6 +401,12 @@ type wincallbackcontext struct {
 type stack struct {
 	lo uintptr
 	hi uintptr
+}
+
+// heldLockInfo gives info on a held lock and the rank of that lock
+type heldLockInfo struct {
+	lockAddr uintptr
+	rank     lockRank
 }
 
 type g struct {
@@ -436,6 +453,10 @@ type g struct {
 	// copying needs to acquire channel locks to protect these
 	// areas of the stack.
 	activeStackChans bool
+	// parkingOnChan indicates that the goroutine is about to
+	// park on a chansend or chanrecv. Used to signal an unsafe point
+	// for stack shrinking. It's a boolean value, but is updated atomically.
+	parkingOnChan uint8
 
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
@@ -510,7 +531,6 @@ type m struct {
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
-	mcache        *mcache
 	lockedg       guintptr
 	createstack   [32]uintptr // stack that created this thread.
 	lockedExt     uint32      // tracking for external LockOSThread
@@ -540,9 +560,17 @@ type m struct {
 	// requested, but fails. Accessed atomically.
 	preemptGen uint32
 
+	// Whether this is a pending preemption signal on this M.
+	// Accessed atomically.
+	signalPending uint32
+
 	dlogPerM
 
 	mOS
+
+	// Up to 10 locks held by this m, maintained by the lock ranking code.
+	locksHeldLen int
+	locksHeld    [10]heldLockInfo
 }
 
 type p struct {
@@ -649,13 +677,17 @@ type p struct {
 	// Must hold timersLock to access.
 	timers []*timer
 
+	// Number of timers in P's heap.
+	// Modified using atomic instructions.
+	numTimers uint32
+
 	// Number of timerModifiedEarlier timers on P's heap.
 	// This should only be modified while holding timersLock,
 	// or while the timer status is in a transient state
 	// such as timerModifying.
 	adjustTimers uint32
 
-	// Number of timerDeleted times in P's heap.
+	// Number of timerDeleted timers in P's heap.
 	// Modified using atomic instructions.
 	deletedTimers uint32
 
@@ -746,6 +778,12 @@ type schedt struct {
 
 	procresizetime int64 // nanotime() of last change to gomaxprocs
 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
+
+	// sysmonlock protects sysmon's actions on the runtime.
+	//
+	// Acquire and hold this mutex to block sysmon from interacting
+	// with the rest of the runtime.
+	sysmonlock mutex
 }
 
 // Values for the flags field of a sigTabT.
@@ -772,12 +810,13 @@ type _func struct {
 	args        int32  // in/out args size
 	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
 
-	pcsp      int32
-	pcfile    int32
-	pcln      int32
-	npcdata   int32
+	pcsp      uint32
+	pcfile    uint32
+	pcln      uint32
+	npcdata   uint32
+	cuOffset  uint32  // runtime.cutab offset of this function's CU
 	funcID    funcID  // set for certain special runtime functions
-	_         [2]int8 // unused
+	_         [2]byte // pad
 	nfuncdata uint8   // must be last
 }
 
@@ -816,10 +855,6 @@ type forcegcstate struct {
 	g    *g
 	idle uint32
 }
-
-// startup_random_data holds random bytes initialized at startup. These come from
-// the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.go or os_linux_386.go).
-var startupRandomData []byte
 
 // extendRandom extends the random numbers in r[:n] to the whole slice r.
 // Treats n<0 as n==0.
@@ -879,15 +914,12 @@ type _defer struct {
 
 // A _panic holds information about an active panic.
 //
-// This is marked go:notinheap because _panic values must only ever
-// live on the stack.
+// A _panic value must only ever live on the stack.
 //
 // The argp and link fields are stack pointers, but don't need special
 // handling during stack growth: because they are pointer-typed and
 // _panic values only live on the stack, regular stack pointer
 // adjustment takes care of them.
-//
-//go:notinheap
 type _panic struct {
 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	arg       interface{}    // argument to panic
@@ -951,7 +983,7 @@ const (
 	waitReasonChanReceive                             // "chan receive"
 	waitReasonChanSend                                // "chan send"
 	waitReasonFinalizerWait                           // "finalizer wait"
-	waitReasonForceGGIdle                             // "force gc (idle)"
+	waitReasonForceGCIdle                             // "force gc (idle)"
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
@@ -960,6 +992,7 @@ const (
 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
 	waitReasonPreempted                               // "preempted"
+	waitReasonDebugCall                               // "debug call"
 )
 
 var waitReasonStrings = [...]string{
@@ -980,7 +1013,7 @@ var waitReasonStrings = [...]string{
 	waitReasonChanReceive:           "chan receive",
 	waitReasonChanSend:              "chan send",
 	waitReasonFinalizerWait:         "finalizer wait",
-	waitReasonForceGGIdle:           "force gc (idle)",
+	waitReasonForceGCIdle:           "force gc (idle)",
 	waitReasonSemacquire:            "semacquire",
 	waitReasonSleep:                 "sleep",
 	waitReasonSyncCondWait:          "sync.Cond.Wait",
@@ -989,6 +1022,7 @@ var waitReasonStrings = [...]string{
 	waitReasonWaitForGCCycle:        "wait for GC cycle",
 	waitReasonGCWorkerIdle:          "GC worker (idle)",
 	waitReasonPreempted:             "preempted",
+	waitReasonDebugCall:             "debug call",
 }
 
 func (w waitReason) String() string {
@@ -1017,8 +1051,7 @@ var (
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
 
-	goarm                uint8 // set by cmd/link on arm systems
-	framepointer_enabled bool  // set by cmd/link
+	goarm uint8 // set by cmd/link on arm systems
 )
 
 // Set by the linker so the runtime can determine the buildmode.
@@ -1026,3 +1059,6 @@ var (
 	islibrary bool // -buildmode=c-shared
 	isarchive bool // -buildmode=c-archive
 )
+
+// Must agree with cmd/internal/objabi.Framepointer_enabled.
+const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")

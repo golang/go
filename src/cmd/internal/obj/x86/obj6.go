@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -582,7 +582,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var bpsize int
-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
+	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
 		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below
@@ -765,7 +765,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		// Set jne branch target.
-		jne.Pcond = p
+		jne.To.SetTarget(p)
 
 		// CMPQ panic_argp(BX), DI
 		p = obj.Appendp(p, newprog)
@@ -783,7 +783,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// MOVQ SP, panic_argp(BX)
 		p = obj.Appendp(p, newprog)
@@ -801,7 +801,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = obj.AJMP
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// Reset p for following code.
 		p = end
@@ -1144,12 +1144,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.Pcond = cursym.Func.Text.Link
+	jmp.To.SetTarget(cursym.Func.Text.Link)
 	jmp.Spadj = +framesize
 
-	jls.Pcond = call
+	jls.To.SetTarget(call)
 	if q1 != nil {
-		q1.Pcond = call
+		q1.To.SetTarget(call)
 	}
 
 	return end

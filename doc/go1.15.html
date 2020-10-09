@@ -1,0 +1,1051 @@
+<!--{
+        "Title": "Go 1.15 Release Notes",
+        "Path":  "/doc/go1.15"
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  main ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">Introduction to Go 1.15</h2>
+
+<p>
+  The latest Go release, version 1.15, arrives six months after <a href="go1.14">Go 1.14</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+  Go 1.15 includes <a href="#linker">substantial improvements to the linker</a>,
+  improves <a href="#runtime">allocation for small objects at high core counts</a>, and
+  deprecates <a href="#commonname">X.509 CommonName</a>.
+  <code>GOPROXY</code> now supports skipping proxies that return errors and
+  a new <a href="#time/tzdata">embedded tzdata package</a> has been added.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<h3 id="darwin">Darwin</h3>
+
+<p>
+  As <a href="go1.14#darwin">announced</a> in the Go 1.14 release
+  notes, Go 1.15 requires macOS 10.12 Sierra or later; support for
+  previous versions has been discontinued.
+</p>
+
+<p> <!-- golang.org/issue/37610, golang.org/issue/37611, CL 227582, and CL 227198  -->
+  As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
+  notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
+  iPadOS, watchOS, and tvOS (the <code>darwin/386</code>
+  and <code>darwin/arm</code> ports). Go continues to support the
+  64-bit <code>darwin/amd64</code> and <code>darwin/arm64</code> ports.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p> <!-- CL 214397 and CL 230217 -->
+  Go now generates Windows ASLR executables when <code>-buildmode=pie</code>
+  cmd/link flag is provided. Go command uses <code>-buildmode=pie</code>
+  by default on Windows.
+</p>
+
+<p><!-- CL 227003 -->
+  The <code>-race</code> and <code>-msan</code> flags now always
+  enable <code>-d=checkptr</code>, which checks uses
+  of <code>unsafe.Pointer</code>. This was previously the case on all
+  OSes except Windows.
+</p>
+
+<p><!-- CL 211139 -->
+  Go-built DLLs no longer cause the process to exit when it receives a
+  signal (such as Ctrl-C at a terminal).
+</p>
+
+<h3 id="android">Android</h3>
+
+<p> <!-- CL 235017, golang.org/issue/38838 -->
+  When linking binaries for Android, Go 1.15 explicitly selects
+  the <code>lld</code> linker available in recent versions of the NDK.
+  The <code>lld</code> linker avoids crashes on some devices, and is
+  planned to become the default NDK linker in a future NDK version.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- CL 234381 -->
+  Go 1.15 adds support for OpenBSD 6.7 on <code>GOARCH=arm</code>
+  and <code>GOARCH=arm64</code>. Previous versions of Go already
+  supported OpenBSD 6.7 on <code>GOARCH=386</code>
+  and <code>GOARCH=amd64</code>.
+</p>
+
+<h3 id="riscv">RISC-V</h3>
+
+<p> <!-- CL 226400, CL 226206, and others -->
+  There has been progress in improving the stability and performance
+  of the 64-bit RISC-V port on Linux (<code>GOOS=linux</code>,
+  <code>GOARCH=riscv64</code>). It also now supports asynchronous
+  preemption.
+</p>
+
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255 -->
+  Go 1.15 is the last release to support x87-only floating-point
+  hardware (<code>GO386=387</code>). Future releases will require at
+  least SSE2 support on 386, raising Go's
+  minimum <code>GOARCH=386</code> requirement to the Intel Pentium 4
+  (released in 2000) or AMD Opteron/Athlon 64 (released in 2003).
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="go-command">Go command</h3>
+
+<p><!-- golang.org/issue/37367 -->
+  The <code>GOPROXY</code> environment variable now supports skipping proxies
+  that return errors. Proxy URLs may now be separated with either commas
+  (<code>,</code>) or pipe characters (<code>|</code>). If a proxy URL is
+  followed by a comma, the <code>go</code> command will only try the next proxy
+  in the list after a 404 or 410 HTTP response. If a proxy URL is followed by a
+  pipe character, the <code>go</code> command will try the next proxy in the
+  list after any error. Note that the default value of <code>GOPROXY</code>
+  remains <code>https://proxy.golang.org,direct</code>, which does not fall
+  back to <code>direct</code> in case of errors.
+</p>
+
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
+
+<p><!-- https://golang.org/issue/36134 -->
+  Changing the <code>-timeout</code> flag now invalidates cached test results. A
+  cached result for a test run with a long timeout will no longer count as
+  passing when <code>go</code> <code>test</code> is re-invoked with a short one.
+</p>
+
+<h4 id="go-flag-parsing">Flag parsing</h4>
+
+<p><!-- https://golang.org/cl/211358 -->
+  Various flag parsing issues in <code>go</code> <code>test</code> and
+  <code>go</code> <code>vet</code> have been fixed. Notably, flags specified
+  in <code>GOFLAGS</code> are handled more consistently, and
+  the <code>-outputdir</code> flag now interprets relative paths relative to the
+  working directory of the <code>go</code> command (rather than the working
+  directory of each individual test).
+</p>
+
+<h4 id="module-cache">Module cache</h4>
+
+<p><!-- https://golang.org/cl/219538 -->
+  The location of the module cache may now be set with
+  the <code>GOMODCACHE</code> environment variable. The default value of
+  <code>GOMODCACHE</code> is <code>GOPATH[0]/pkg/mod</code>, the location of the
+  module cache before this change.
+</p>
+
+<p><!-- https://golang.org/cl/221157 -->
+  A workaround is now available for Windows "Access is denied" errors in
+  <code>go</code> commands that access the module cache, caused by external
+  programs concurrently scanning the file system (see
+  <a href="https://golang.org/issue/36568">issue #36568</a>). The workaround is
+  not enabled by default because it is not safe to use when Go versions lower
+  than 1.14.2 and 1.13.10 are running concurrently with the same module cache.
+  It can be enabled by explicitly setting the environment variable
+  <code>GODEBUG=modcacheunzipinplace=1</code>.
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<h4 id="vet-string-int">New warning for string(x)</h4>
+
+<p><!-- CL 212919, 232660 -->
+  The vet tool now warns about conversions of the
+  form <code>string(x)</code> where <code>x</code> has an integer type
+  other than <code>rune</code> or <code>byte</code>.
+  Experience with Go has shown that many conversions of this form
+  erroneously assume that <code>string(x)</code> evaluates to the
+  string representation of the integer <code>x</code>.
+  It actually evaluates to a string containing the UTF-8 encoding of
+  the value of <code>x</code>.
+  For example, <code>string(9786)</code> does not evaluate to the
+  string <code>"9786"</code>; it evaluates to the
+  string <code>"\xe2\x98\xba"</code>, or <code>"☺"</code>.
+</p>
+
+<p>
+  Code that is using <code>string(x)</code> correctly can be rewritten
+  to <code>string(rune(x))</code>.
+  Or, in some cases, calling <code>utf8.EncodeRune(buf, x)</code> with
+  a suitable byte slice <code>buf</code> may be the right solution.
+  Other code should most likely use <code>strconv.Itoa</code>
+  or <code>fmt.Sprint</code>.
+</p>
+
+<p>
+  This new vet check is enabled by default when
+  using <code>go</code> <code>test</code>.
+</p>
+
+<p>
+  We are considering prohibiting the conversion in a future release of Go.
+  That is, the language would change to only
+  permit <code>string(x)</code> for integer <code>x</code> when the
+  type of <code>x</code> is <code>rune</code> or <code>byte</code>.
+  Such a language change would not be backward compatible.
+  We are using this vet check as a first trial step toward changing
+  the language.
+</p>
+
+<h4 id="vet-impossible-interface">New warning for impossible interface conversions</h4>
+
+<p><!-- CL 218779, 232660 -->
+  The vet tool now warns about type assertions from one interface type
+  to another interface type when the type assertion will always fail.
+  This will happen if both interface types implement a method with the
+  same name but with a different type signature.
+</p>
+
+<p>
+  There is no reason to write a type assertion that always fails, so
+  any code that triggers this vet check should be rewritten.
+</p>
+
+<p>
+  This new vet check is enabled by default when
+  using <code>go</code> <code>test</code>.
+</p>
+
+<p>
+  We are considering prohibiting impossible interface type assertions
+  in a future release of Go.
+  Such a language change would not be backward compatible.
+  We are using this vet check as a first trial step toward changing
+  the language.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 221779 -->
+  If <code>panic</code> is invoked with a value whose type is derived from any
+  of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
+  <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
+  <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
+  then the value will be printed, instead of just its address.
+  Previously, this was only true for values of exactly these types.
+</p>
+
+<p><!-- CL 228900 -->
+  On a Unix system, if the <code>kill</code> command
+  or <code>kill</code> system call is used to send
+  a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+  or <code>SIGFPE</code> signal to a Go program, and if the signal
+  is not being handled via
+  <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+  the Go program will now reliably crash with a stack trace.
+  In earlier releases the behavior was unpredictable.
+</p>
+
+<p><!-- CL 221182, CL 229998 -->
+  Allocation of small objects now performs much better at high core
+  counts, and has lower worst-case latency.
+</p>
+
+<p><!-- CL 216401 -->
+  Converting a small integer value into an interface value no longer
+  causes allocation.
+</p>
+
+<p><!-- CL 216818 -->
+  Non-blocking receives on closed channels now perform as well as
+  non-blocking receives on open channels.
+</p>
+
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- CL 229578 -->
+  Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a> allow converting an <code>unsafe.Pointer</code>
+  into <code>uintptr</code> when calling certain
+  functions. Previously, in some cases, the compiler allowed multiple
+  chained conversions (for example, <code>syscall.Syscall(…,</code>
+  <code>uintptr(uintptr(ptr)),</code> <code>…)</code>). The compiler
+  now requires exactly one conversion. Code that used multiple
+  conversions should be updated to satisfy the safety rules.
+</p>
+
+<p><!-- CL 230544, CL 231397 -->
+  Go 1.15 reduces typical binary sizes by around 5% compared to Go
+  1.14 by eliminating certain types of GC metadata and more
+  aggressively eliminating unused type metadata.
+</p>
+
+<p><!-- CL 219357, CL 231600 -->
+  The toolchain now mitigates
+  <a href="https://www.intel.com/content/www/us/en/support/articles/000055650/processors.html">Intel
+  CPU erratum SKX102</a> on <code>GOARCH=amd64</code> by aligning
+  functions to 32 byte boundaries and padding jump instructions. While
+  this padding increases binary sizes, this is more than made up for
+  by the binary size improvements mentioned above.
+</p>
+
+<p><!-- CL 222661 -->
+  Go 1.15 adds a <code>-spectre</code> flag to both the
+  compiler and the assembler, to allow enabling Spectre mitigations.
+  These should almost never be needed and are provided mainly as a
+  “defense in depth” mechanism.
+  See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
+</p>
+
+<p><!-- CL 228578 -->
+  The compiler now rejects <code>//go:</code> compiler directives that
+  have no meaning for the declaration they are applied to with a
+  "misplaced compiler directive" error. Such misapplied directives
+  were broken before, but were silently ignored by the compiler.
+</p>
+
+<p><!-- CL 206658, CL 205066 -->
+  The compiler's <code>-json</code> optimization logging now reports
+  large (>= 128 byte) copies and includes explanations of escape
+  analysis decisions.
+</p>
+
+<h2 id="linker">Linker</h2>
+
+<p>
+  This release includes substantial improvements to the Go linker,
+  which reduce linker resource usage (both time and memory) and
+  improve code robustness/maintainability.
+</p>
+
+<p>
+  For a representative set of large Go programs, linking is 20% faster
+  and requires 30% less memory on average, for <code>ELF</code>-based
+  OSes (Linux, FreeBSD, NetBSD, OpenBSD, Dragonfly, and Solaris)
+  running on <code>amd64</code> architectures, with more modest
+  improvements for other architecture/OS combinations.
+</p>
+
+<p>
+  The key contributors to better linker performance are a newly
+  redesigned object file format, and a revamping of internal
+  phases to increase concurrency (for example, applying relocations to
+  symbols in parallel). Object files in Go 1.15 are slightly larger
+  than their 1.14 equivalents.
+</p>
+
+<p>
+  These changes are part of a multi-release project
+  to <a href="https://golang.org/s/better-linker">modernize the Go
+  linker</a>, meaning that there will be additional linker
+  improvements expected in future releases.
+</p>
+
+<p><!-- CL 207877 -->
+  The linker now defaults to internal linking mode
+  for <code>-buildmode=pie</code> on
+  <code>linux/amd64</code> and <code>linux/arm64</code>, so these
+  configurations no longer require a C linker. External linking
+  mode (which was the default in Go 1.14 for
+  <code>-buildmode=pie</code>) can still be requested with
+  <code>-ldflags=-linkmode=external</code> flag.
+</p>
+
+<h2 id="objdump">Objdump</h2>
+
+<p><!-- CL 225459 -->
+  The <a href="/cmd/objdump/">objdump</a> tool now supports
+  disassembling in GNU assembler syntax with the <code>-gnu</code>
+  flag.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="time/tzdata">New embedded tzdata package</h3>
+
+<p> <!-- CL 224588 -->
+  Go 1.15 includes a new package,
+  <a href="/pkg/time/tzdata/"><code>time/tzdata</code></a>,
+  that permits embedding the timezone database into a program.
+  Importing this package (as <code>import _ "time/tzdata"</code>)
+  permits the program to find timezone information even if the
+  timezone database is not available on the local system.
+  You can also embed the timezone database by building
+  with <code>-tags timetzdata</code>.
+  Either approach increases the size of the program by about 800 KB.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 235817 -->
+  Go 1.15 will translate the C type <code>EGLConfig</code> to the
+  Go type <code>uintptr</code>. This change is similar to how Go
+  1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
+  Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
+  documentation</a> for more information.
+</p>
+
+<h3 id="commonname">X.509 CommonName deprecation</h3>
+
+<p><!-- CL 231379 -->
+  The deprecated, legacy behavior of treating the <code>CommonName</code>
+  field on X.509 certificates as a host name when no Subject Alternative Names
+  are present is now disabled by default. It can be temporarily re-enabled by
+  adding the value <code>x509ignoreCN=0</code> to the <code>GODEBUG</code>
+  environment variable.
+</p>
+
+<p>
+  Note that if the <code>CommonName</code> is an invalid host name, it's always
+  ignored, regardless of <code>GODEBUG</code> settings. Invalid names include
+  those with any characters other than letters, digits, hyphens and underscores,
+  and those with empty labels or trailing dots.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 225357, CL 225557 -->
+      When a <a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> is
+      used with an invalid
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that
+      incorrectly returns a negative number from <code>Read</code>,
+      the <code>Scanner</code> will no longer panic, but will instead
+      return the new error
+      <a href="/pkg/bufio/#ErrBadReadCount"><code>ErrBadReadCount</code></a>.
+    </p>
+  </dd>
+</dl><!-- bufio -->
+
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- CL 223777 -->
+      Creating a derived <code>Context</code> using a nil parent is now explicitly
+      disallowed. Any attempt to do so with the
+      <a href="/pkg/context/#WithValue"><code>WithValue</code></a>,
+      <a href="/pkg/context/#WithDeadline"><code>WithDeadline</code></a>, or
+      <a href="/pkg/context/#WithCancel"><code>WithCancel</code></a> functions
+      will cause a panic.
+    </p>
+  </dd>
+</dl><!-- context -->
+
+<dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+  <dd>
+    <p><!-- CL 231417, CL 225460 -->
+      The <code>PrivateKey</code> and <code>PublicKey</code> types in the
+      <a href="/pkg/crypto/rsa/"><code>crypto/rsa</code></a>,
+      <a href="/pkg/crypto/ecdsa/"><code>crypto/ecdsa</code></a>, and
+      <a href="/pkg/crypto/ed25519/"><code>crypto/ed25519</code></a> packages
+      now have an <code>Equal</code> method to compare keys for equivalence
+      or to make type-safe interfaces for public keys. The method signature
+      is compatible with
+      <a href="https://pkg.go.dev/github.com/google/go-cmp/cmp#Equal"><code>go-cmp</code>'s
+      definition of equality</a>.
+    </p>
+
+    <p><!-- CL 224937 -->
+      <a href="/pkg/crypto/#Hash"><code>Hash</code></a> now implements
+      <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
+  </dd>
+</dl><!-- crypto -->
+
+<dl id="crypto/ecdsa"><dt><a href="/pkg/crypto/ecdsa/">crypto/ecdsa</a></dt>
+  <dd>
+    <p><!-- CL 217940 -->
+      The new <a href="/pkg/crypto/ecdsa/#SignASN1"><code>SignASN1</code></a>
+      and <a href="/pkg/crypto/ecdsa/#VerifyASN1"><code>VerifyASN1</code></a>
+      functions allow generating and verifying ECDSA signatures in the standard
+      ASN.1 DER encoding.
+    </p>
+  </dd>
+</dl><!-- crypto/ecdsa -->
+
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 202819 -->
+      The new <a href="/pkg/crypto/elliptic/#MarshalCompressed"><code>MarshalCompressed</code></a>
+      and <a href="/pkg/crypto/elliptic/#UnmarshalCompressed"><code>UnmarshalCompressed</code></a>
+      functions allow encoding and decoding NIST elliptic curve points in compressed format.
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 226203 -->
+      <a href="/pkg/crypto/rsa/#VerifyPKCS1v15"><code>VerifyPKCS1v15</code></a>
+      now rejects invalid short signatures with missing leading zeroes, according to RFC 8017.
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 214977 -->
+      The new
+      <a href="/pkg/crypto/tls/#Dialer"><code>Dialer</code></a>
+      type and its
+      <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
+      method permit using a context to both connect and handshake with a TLS server.
+    </p>
+
+    <p><!-- CL 229122 -->
+      The new
+      <a href="/pkg/crypto/tls/#Config.VerifyConnection"><code>VerifyConnection</code></a>
+      callback on the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type
+      allows custom verification logic for every connection. It has access to the
+      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      which includes peer certificates, SCTs, and stapled OCSP responses.
+    </p>
+
+    <p><!-- CL 230679 -->
+      Auto-generated session ticket keys are now automatically rotated every 24 hours,
+      with a lifetime of 7 days, to limit their impact on forward secrecy.
+    </p>
+
+    <p><!-- CL 231317 -->
+      Session ticket lifetimes in TLS 1.2 and earlier, where the session keys
+      are reused for resumed connections, are now limited to 7 days, also to
+      limit their impact on forward secrecy.
+    </p>
+
+    <p><!-- CL 231038 -->
+      The client-side downgrade protection checks specified in RFC 8446 are now
+      enforced. This has the potential to cause connection errors for clients
+      encountering middleboxes that behave like unauthorized downgrade attacks.
+    </p>
+
+    <p><!-- CL 208226 -->
+      <a href="/pkg/crypto/tls/#SignatureScheme"><code>SignatureScheme</code></a>,
+      <a href="/pkg/crypto/tls/#CurveID"><code>CurveID</code></a>, and
+      <a href="/pkg/crypto/tls/#ClientAuthType"><code>ClientAuthType</code></a>
+      now implement <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
+
+    <p><!-- CL 236737 -->
+      The <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      fields <code>OCSPResponse</code> and <code>SignedCertificateTimestamps</code>
+      are now repopulated on client-side resumed connections.
+    </p>
+
+    <p><!-- CL 227840 -->
+      <a href="/pkg/crypto/tls/#Conn"><code>tls.Conn</code></a>
+      now returns an opaque error on permanently broken connections, wrapping
+      the temporary
+      <a href="/pkg/net/http/#Error"><code>net.Error</code></a>. To access the
+      original <code>net.Error</code>, use
+      <a href="/pkg/errors/#As"><code>errors.As</code></a> (or
+      <a href="/pkg/errors/#Unwrap"><code>errors.Unwrap</code></a>) instead of a
+      type assertion.
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 231378, CL 231380, CL 231381 -->
+      If either the name on the certificate or the name being verified (with
+      <a href="/pkg/crypto/x509/#VerifyOptions.DNSName"><code>VerifyOptions.DNSName</code></a>
+      or <a href="/pkg/crypto/x509/#Certificate.VerifyHostname"><code>VerifyHostname</code></a>)
+      are invalid, they will now be compared case-insensitively without further
+      processing (without honoring wildcards or stripping trailing dots).
+      Invalid names include those with any characters other than letters,
+      digits, hyphens and underscores, those with empty labels, and names on
+      certificates with trailing dots.
+    </p>
+
+    <p><!-- CL 217298 -->
+      The new <a href="/pkg/crypto/x509/#CreateRevocationList"><code>CreateRevocationList</code></a>
+      function and <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a> type
+      allow creating RFC 5280-compliant X.509 v2 Certificate Revocation Lists.
+    </p>
+
+    <p><!-- CL 227098 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now automatically generates the <code>SubjectKeyId</code> if the template
+      is a CA and doesn't explicitly specify one.
+    </p>
+
+    <p><!-- CL 228777 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now returns an error if the template specifies <code>MaxPathLen</code> but is not a CA.
+    </p>
+
+    <p><!-- CL 205237 -->
+      On Unix systems other than macOS, the <code>SSL_CERT_DIR</code>
+      environment variable can now be a colon-separated list.
+    </p>
+
+    <p><!-- CL 227037 -->
+      On macOS, binaries are now always linked against
+      <code>Security.framework</code> to extract the system trust roots,
+      regardless of whether cgo is available. The resulting behavior should be
+      more consistent with the OS verifier.
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix/">crypto/x509/pkix</a></dt>
+  <dd>
+    <p><!-- CL 229864, CL 240543 -->
+      <a href="/pkg/crypto/x509/pkix/#Name.String"><code>Name.String</code></a>
+      now prints non-standard attributes from
+      <a href="/pkg/crypto/x509/pkix/#Name.Names"><code>Names</code></a> if
+      <a href="/pkg/crypto/x509/pkix/#Name.ExtraNames"><code>ExtraNames</code></a> is nil.
+    </p>
+  </dd>
+</dl><!-- crypto/x509/pkix -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145758 -->
+      The new <a href="/pkg/database/sql/#DB.SetConnMaxIdleTime"><code>DB.SetConnMaxIdleTime</code></a>
+      method allows removing a connection from the connection pool after
+      it has been idle for a period of time, without regard to the total
+      lifespan of the connection.  The <a href="/pkg/database/sql/#DBStats.MaxIdleTimeClosed"><code>DBStats.MaxIdleTimeClosed</code></a>
+      field shows the total number of connections closed due to
+      <code>DB.SetConnMaxIdleTime</code>.
+    </p>
+
+    <p><!-- CL 214317 -->
+      The new <a href="/pkg/database/sql/#Row.Err"><code>Row.Err</code></a> getter
+      allows checking for query errors without calling
+      <code>Row.Scan</code>.
+    </p>
+  </dd>
+</dl><!-- database/sql -->
+
+<dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
+  <dd>
+    <p><!-- CL 174122 -->
+      The new <a href="/pkg/database/sql/driver/#Validator"><code>Validator</code></a>
+      interface may be implemented by <code>Conn</code> to allow drivers
+      to signal if a connection is valid or if it should be discarded.
+    </p>
+  </dd>
+</dl><!-- database/sql/driver -->
+
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 222637 -->
+      The package now defines the
+      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
+      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
+      PE file format.
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 226984 -->
+      <a href="/pkg/encoding/asn1/#Marshal"><code>Marshal</code></a> now sorts the components
+      of SET OF according to X.690 DER.
+    </p>
+
+    <p><!-- CL 227320 -->
+      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> now rejects tags and
+      Object Identifiers which are not minimally encoded according to X.690 DER.
+    </p>
+  </dd>
+</dl><!-- encoding/asn1 -->
+
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 199837 -->
+      The package now has an internal limit to the maximum depth of
+      nesting when decoding. This reduces the possibility that a
+      deeply nested input could use large quantities of stack memory,
+      or even cause a "goroutine stack exceeds limit" panic.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 221427 -->
+      When the <code>flag</code> package sees <code>-h</code> or <code>-help</code>,
+      and those flags are not defined, it now prints a usage message.
+      If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
+      <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
+      <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
+      exit with a status of 2. In this release, the exit status for <code>-h</code>
+      or <code>-help</code> has been changed to 0. In particular, this applies to
+      the default handling of command line flags.
+    </p>
+  </dd>
+</dl>
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 215001 -->
+      The printing verbs <code>%#g</code> and <code>%#G</code> now preserve
+      trailing zeros for floating-point values.
+    </p>
+  </dd>
+</dl><!-- fmt -->
+
+<dl id="go/format"><dt><a href="/pkg/go/format/">go/format</a></dt>
+  <dd>
+    <p><!-- golang.org/issue/37476, CL 231461, CL 240683 -->
+      The <a href="/pkg/go/format/#Source"><code>Source</code></a> and
+      <a href="/pkg/go/format/#Node"><code>Node</code></a> functions
+      now canonicalize number literal prefixes and exponents as part
+      of formatting Go source code. This matches the behavior of the
+      <a href="/pkg/cmd/gofmt/"><code>gofmt</code></a> command as it
+      was implemented <a href="/doc/go1.13#gofmt">since Go 1.13</a>.
+    </p>
+  </dd>
+</dl><!-- go/format -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      The package now uses Unicode escapes (<code>\uNNNN</code>) in all
+      JavaScript and JSON contexts. This fixes escaping errors in
+      <code>application/ld+json</code> and <code>application/json</code>
+      contexts.
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 212597 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> and
+      <a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      now reject patterns that contain path separators.
+      That is, calls such as <code>ioutil.TempFile("/tmp",</code> <code>"../base*")</code> will no longer succeed.
+      This prevents unintended directory traversal.
+    </p>
+  </dd>
+</dl><!-- io/ioutil -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 230397 -->
+      The new <a href="/pkg/math/big/#Int.FillBytes"><code>Int.FillBytes</code></a>
+      method allows serializing to fixed-size pre-allocated byte slices.
+    </p>
+  </dd>
+</dl><!-- math/big -->
+
+<dl id="math/cmplx"><dt><a href="/pkg/math/cmplx/">math/cmplx</a></dt>
+  <dd>
+    <p><!-- CL 220689 -->
+      The functions in this package were updated to conform to the C99 standard
+      (Annex G IEC 60559-compatible complex arithmetic) with respect to handling
+      of special arguments such as infinity, NaN and signed zero.
+    </p>
+  </dd>
+</dl><!-- math/cmplx-->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 228645 -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
+      <code>Conn.SetReadDeadline</code>,
+      or <code>Conn.SetWriteDeadline</code> methods, it will now
+      return an error that is or wraps
+      <a href="/pkg/os/#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+
+    <p><!-- CL 228641 -->
+      The new <a href="/pkg/net/#Resolver.LookupIP"><code>Resolver.LookupIP</code></a>
+      method supports IP lookups that are both network-specific and accept a context.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 231418, CL 231419 -->
+      Parsing is now stricter as a hardening measure against request smuggling attacks:
+      non-ASCII white space is no longer trimmed like SP and HTAB, and support for the
+      "<code>identity</code>" <code>Transfer-Encoding</code> was dropped.
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 230937 -->
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now supports not modifying the <code>X-Forwarded-For</code>
+      header when the incoming <code>Request.Header</code> map entry
+      for that field is <code>nil</code>.
+    </p>
+
+    <p><!-- CL 224897 -->
+      When a Switching Protocol (like WebSocket) request handled by
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      is canceled, the backend connection is now correctly closed.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+  <dd>
+    <p><!-- CL 147598, CL 229537 -->
+      All profile endpoints now support a "<code>seconds</code>" parameter. When present,
+      the endpoint profiles for the specified number of seconds and reports the difference.
+      The meaning of the "<code>seconds</code>" parameter in the <code>cpu</code> profile and
+      the trace endpoints is unchanged.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 227645 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
+      <code>RawFragment</code> and method <a href="/pkg/net/url/#URL.EscapedFragment"><code>EscapedFragment</code></a>
+      provide detail about and control over the exact encoding of a particular fragment.
+      These are analogous to
+      <code>RawPath</code> and <a href="/pkg/net/url/#URL.EscapedPath"><code>EscapedPath</code></a>.
+    </p>
+    <p><!-- CL 207082 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
+      method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
+      returns the URL in string form with any password replaced with <code>xxxxx</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/os/#File.SetDeadline"><code>File.SetDeadline</code></a>,
+      <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
+      or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
+      methods, it will now return an error that is or wraps
+      <a href="/pkg/os/#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+
+    <p><!-- CL 232862 -->
+      Packages <code>os</code> and <code>net</code> now automatically
+      retry system calls that fail with <code>EINTR</code>. Previously
+      this led to spurious failures, which became more common in Go
+      1.14 with the addition of asynchronous preemption. Now this is
+      handled transparently.
+    </p>
+
+    <p><!-- CL 229101 -->
+      The <a href="/pkg/os/#File"><code>os.File</code></a> type now
+      supports a <a href="/pkg/os/#File.ReadFrom"><code>ReadFrom</code></a>
+      method. This permits the use of the <code>copy_file_range</code>
+      system call on some systems when using
+      <a href="/pkg/io/#Copy"><code>io.Copy</code></a> to copy data
+      from one <code>os.File</code> to another. A consequence is that
+      <a href="/pkg/io/#CopyBuffer"><code>io.CopyBuffer</code></a>
+      will not always use the provided buffer when copying to a
+      <code>os.File</code>. If a program wants to force the use of
+      the provided buffer, it can be done by writing
+      <code>io.CopyBuffer(struct{ io.Writer }{dst}, src, buf)</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+  <dd>
+    <p><!-- CL 182959 -->
+      DWARF generation is now supported (and enabled by default) for <code>-buildmode=plugin</code> on macOS.
+    </p>
+  </dd>
+  <dd>
+    <p><!-- CL 191617 -->
+      Building with <code>-buildmode=plugin</code> is now supported on <code>freebsd/amd64</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 228902 -->
+      Package <code>reflect</code> now disallows accessing methods of all
+      non-exported fields, whereas previously it allowed accessing
+      those of non-exported, embedded fields. Code that relies on the
+      previous behavior should be updated to instead access the
+      corresponding promoted method of the enclosing variable.
+    </p>
+  </dd>
+</dl>
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 187919 -->
+      The new <a href="/pkg/regexp/#Regexp.SubexpIndex"><code>Regexp.SubexpIndex</code></a>
+      method returns the index of the first subexpression with the given name
+      within the regular expression.
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
+<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 216557 -->
+      Several functions, including
+      <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
+      and
+      <a href="/pkg/runtime/#GoroutineProfile"><code>GoroutineProfile</code></a>,
+      no longer block if a garbage collection is in progress.
+    </p>
+  </dd>
+</dl>
+
+<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 189318 -->
+      The goroutine profile now includes the profile labels associated with each
+      goroutine at the time of profiling. This feature is not yet implemented for
+      the profile reported with <code>debug=2</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 216617 -->
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> and <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> are added for working with complex numbers.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> converts a complex number into a string of the form (a+bi), where a and b are the real and imaginary parts.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> converts a string into a complex number of a specified precision. <code>ParseComplex</code> accepts complex numbers in the format <code>N+Ni</code>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 205899, golang.org/issue/33762 -->
+      The new method
+      <a href="/pkg/sync/#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
+      atomically deletes a key and returns the previous value if present.
+    </p>
+    <p><!-- CL 205899 -->
+      The method
+      <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
+      is more efficient.
+    </p>
+  </dd>
+</dl><!-- sync -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 231638 -->
+      On Unix systems, functions that use
+      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
+      will now reject attempts to set both the <code>Setctty</code>
+      and <code>Foreground</code> fields, as they both use
+      the <code>Ctty</code> field but do so in incompatible ways.
+      We expect that few existing programs set both fields.
+    </p>
+    <p>
+      Setting the <code>Setctty</code> field now requires that the
+      <code>Ctty</code> field be set to a file descriptor number in the
+      child process, as determined by the <code>ProcAttr.Files</code> field.
+      Using a child descriptor always worked, but there were certain
+      cases where using a parent file descriptor also happened to work.
+      Some programs that set <code>Setctty</code> will need to change
+      the value of <code>Ctty</code> to use a child descriptor number.
+    </p>
+
+    <p><!-- CL 220578 -->
+      It is <a href="/pkg/syscall/#Proc.Call">now possible</a> to call
+      system calls that return floating point values
+      on <code>windows/amd64</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- golang.org/issue/28135 -->
+      The <code>testing.T</code> type now has a
+      <a href="/pkg/testing/#T.Deadline"><code>Deadline</code></a> method
+      that reports the time at which the test binary will have exceeded its
+      timeout.
+    </p>
+
+    <p><!-- golang.org/issue/34129 -->
+      A <code>TestMain</code> function is no longer required to call
+      <code>os.Exit</code>. If a <code>TestMain</code> function returns,
+      the test binary will call <code>os.Exit</code> with the value returned
+      by <code>m.Run</code>.
+    </p>
+
+    <p><!-- CL 226877, golang.org/issue/35998 -->
+       The new methods
+       <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
+       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a>
+       return temporary directories that are automatically cleaned up
+       at the end of the test.
+    </p>
+
+    <p><!-- CL 229085 -->
+      <code>go</code> <code>test</code> <code>-v</code> now groups output by
+      test name, rather than printing the test name on each line.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      <a href="/pkg/text/template/#JSEscape"><code>JSEscape</code></a> now
+      consistently uses Unicode escapes (<code>\u00XX</code>), which are
+      compatible with JSON.
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 220424, CL 217362, golang.org/issue/33184 -->
+       The new method
+       <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
+       supports changing the duration of a ticker.
+    </p>
+
+    <p><!-- CL 227878 -->
+      When returning an error, <a href="/pkg/time/#ParseDuration"><code>ParseDuration</code></a> now quotes the original value.
+    </p>
+  </dd>
+</dl><!-- time -->

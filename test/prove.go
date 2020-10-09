@@ -81,7 +81,7 @@ func f4a(a, b, c int) int {
 		if a == b { // ERROR "Disproved Eq64$"
 			return 47
 		}
-		if a > b { // ERROR "Disproved Greater64$"
+		if a > b { // ERROR "Disproved Less64$"
 			return 50
 		}
 		if a < b { // ERROR "Proved Less64$"
@@ -141,7 +141,7 @@ func f4d(a, b, c int) int {
 
 func f4e(a, b, c int) int {
 	if a < b {
-		if b > a { // ERROR "Proved Greater64$"
+		if b > a { // ERROR "Proved Less64$"
 			return 101
 		}
 		return 103
@@ -157,7 +157,7 @@ func f4f(a, b, c int) int {
 			}
 			return 114
 		}
-		if b >= a { // ERROR "Proved Geq64$"
+		if b >= a { // ERROR "Proved Leq64$"
 			if b == a { // ERROR "Proved Eq64$"
 				return 118
 			}
@@ -194,7 +194,7 @@ func f6b(a uint8) int {
 }
 
 func f6x(a uint8) int {
-	if a > a { // ERROR "Disproved Greater8U$"
+	if a > a { // ERROR "Disproved Less8U$"
 		return 143
 	}
 	return 151
@@ -208,7 +208,7 @@ func f6d(a uint8) int {
 }
 
 func f6e(a uint8) int {
-	if a >= a { // ERROR "Proved Geq8U$"
+	if a >= a { // ERROR "Proved Leq8U$"
 		return 149
 	}
 	return 151
@@ -299,12 +299,12 @@ func f13a(a, b, c int, x bool) int {
 			}
 		}
 		if x {
-			if a >= 12 { // ERROR "Proved Geq64$"
+			if a >= 12 { // ERROR "Proved Leq64$"
 				return 4
 			}
 		}
 		if x {
-			if a > 12 { // ERROR "Proved Greater64$"
+			if a > 12 { // ERROR "Proved Less64$"
 				return 5
 			}
 		}
@@ -331,12 +331,12 @@ func f13b(a int, x bool) int {
 			}
 		}
 		if x {
-			if a >= -9 { // ERROR "Proved Geq64$"
+			if a >= -9 { // ERROR "Proved Leq64$"
 				return 10
 			}
 		}
 		if x {
-			if a > -9 { // ERROR "Disproved Greater64$"
+			if a > -9 { // ERROR "Disproved Less64$"
 				return 11
 			}
 		}
@@ -363,12 +363,12 @@ func f13c(a int, x bool) int {
 			}
 		}
 		if x {
-			if a >= 90 { // ERROR "Disproved Geq64$"
+			if a >= 90 { // ERROR "Disproved Leq64$"
 				return 16
 			}
 		}
 		if x {
-			if a > 90 { // ERROR "Disproved Greater64$"
+			if a > 90 { // ERROR "Disproved Less64$"
 				return 17
 			}
 		}
@@ -388,7 +388,7 @@ func f13d(a int) int {
 
 func f13e(a int) int {
 	if a > 9 {
-		if a > 5 { // ERROR "Proved Greater64$"
+		if a > 5 { // ERROR "Proved Less64$"
 			return 1
 		}
 	}
@@ -432,7 +432,7 @@ func f13i(a uint) int {
 	if a == 0 {
 		return 1
 	}
-	if a > 0 { // ERROR "Proved Greater64U$"
+	if a > 0 { // ERROR "Proved Less64U$"
 		return 2
 	}
 	return 3
@@ -477,13 +477,13 @@ func f18(b []int, x int, y uint) {
 	_ = b[x]
 	_ = b[y]
 
-	if x > len(b) { // ERROR "Disproved Greater64$"
+	if x > len(b) { // ERROR "Disproved Less64$"
 		return
 	}
-	if y > uint(len(b)) { // ERROR "Disproved Greater64U$"
+	if y > uint(len(b)) { // ERROR "Disproved Less64U$"
 		return
 	}
-	if int(y) > len(b) { // ERROR "Disproved Greater64$"
+	if int(y) > len(b) { // ERROR "Disproved Less64$"
 		return
 	}
 }
@@ -497,7 +497,7 @@ func f19() (e int64, err error) {
 	}
 	last := len(stack) - 1
 	e = stack[last]
-	// Buggy compiler prints "Disproved Geq64" for the next line.
+	// Buggy compiler prints "Disproved Leq64" for the next line.
 	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
 	return e, nil
 }
@@ -514,12 +514,12 @@ func sm1(b []int, x int) {
 func lim1(x, y, z int) {
 	// Test relations between signed and unsigned limits.
 	if x > 5 {
-		if uint(x) > 5 { // ERROR "Proved Greater64U$"
+		if uint(x) > 5 { // ERROR "Proved Less64U$"
 			return
 		}
 	}
 	if y >= 0 && y < 4 {
-		if uint(y) > 4 { // ERROR "Disproved Greater64U$"
+		if uint(y) > 4 { // ERROR "Disproved Less64U$"
 			return
 		}
 		if uint(y) < 5 { // ERROR "Proved Less64U$"
@@ -544,13 +544,13 @@ func fence1(b []int, x, y int) {
 	}
 	if len(b) < cap(b) {
 		// This eliminates the growslice path.
-		b = append(b, 1) // ERROR "Disproved Greater64U$"
+		b = append(b, 1) // ERROR "Disproved Less64U$"
 	}
 }
 
 func fence2(x, y int) {
 	if x-1 < y {
-		if x > y { // ERROR "Disproved Greater64$"
+		if x > y { // ERROR "Disproved Less64$"
 			return
 		}
 	}
@@ -593,18 +593,18 @@ func fence4(x, y int64) {
 func trans1(x, y int64) {
 	if x > 5 {
 		if y > x {
-			if y > 2 { // ERROR "Proved Greater64$"
+			if y > 2 { // ERROR "Proved Less64$"
 				return
 			}
 		} else if y == x {
-			if y > 5 { // ERROR "Proved Greater64$"
+			if y > 5 { // ERROR "Proved Less64$"
 				return
 			}
 		}
 	}
 	if x >= 10 {
 		if y > x {
-			if y > 10 { // ERROR "Proved Greater64$"
+			if y > 10 { // ERROR "Proved Less64$"
 				return
 			}
 		}
@@ -670,7 +670,8 @@ func oforuntil(b []int) {
 	i := 0
 	if len(b) > i {
 	top:
-		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
+		// println(b[i]) // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
 		i++
 		if i < len(b) {
 			goto top
@@ -711,7 +712,7 @@ func range1(b []int) {
 		if i < len(b) { // ERROR "Proved Less64$"
 			println("x")
 		}
-		if i >= 0 { // ERROR "Proved Geq64$"
+		if i >= 0 { // ERROR "Proved Leq64$"
 			println("x")
 		}
 	}
@@ -720,11 +721,12 @@ func range1(b []int) {
 // range2 elements are larger, so they use the general form of a range loop.
 func range2(b [][32]int) {
 	for i, v := range b {
-		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
+		b[i][0] = v[0] + 1 // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
 		if i < len(b) {    // ERROR "Proved Less64$"
 			println("x")
 		}
-		if i >= 0 { // ERROR "Proved Geq64$"
+		if i >= 0 { // ERROR "Proved Leq64$"
 			println("x")
 		}
 	}
@@ -954,6 +956,70 @@ func negIndex2(n int) {
 	}
 	useSlice(a)
 	useSlice(c)
+}
+
+// Check that prove is zeroing these right shifts of positive ints by bit-width - 1.
+// e.g (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) && ft.isNonNegative(n) -> 0
+func sh64(n int64) int64 {
+	if n < 0 {
+		return n
+	}
+	return n >> 63 // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func sh32(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n >> 31 // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
+func sh32x64(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n >> uint64(31) // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
+func sh16(n int16) int16 {
+	if n < 0 {
+		return n
+	}
+	return n >> 15 // ERROR "Proved Rsh16x64 shifts to zero"
+}
+
+func sh64noopt(n int64) int64 {
+	return n >> 63 // not optimized; n could be negative
+}
+
+// These cases are division of a positive signed integer by a power of 2.
+// The opt pass doesnt have sufficient information to see that n is positive.
+// So, instead, opt rewrites the division with a less-than-optimal replacement.
+// Prove, which can see that n is nonnegative, cannot see the division because
+// opt, an earlier pass, has already replaced it.
+// The fix for this issue allows prove to zero a right shift that was added as
+// part of the less-than-optimal reqwrite. That change by prove then allows
+// lateopt to clean up all the unneccesary parts of the original division
+// replacement. See issue #36159.
+func divShiftClean(n int) int {
+	if n < 0 {
+		return n
+	}
+	return n / int(8) // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func divShiftClean64(n int64) int64 {
+	if n < 0 {
+		return n
+	}
+	return n / int64(16) // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func divShiftClean32(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
 }
 
 //go:noinline

@@ -163,8 +163,8 @@ func (t *PosTable) FileIndex(filename string) int {
 	return -1
 }
 
-// DebugLinesFiles returns the file table for the debug_lines DWARF section.
-func (t *PosTable) DebugLinesFileTable() []string {
+// FileTable returns a slice of all files used to build this package.
+func (t *PosTable) FileTable() []string {
 	// Create a LUT of the global package level file indices. This table is what
 	// is written in the debug_lines header, the file[N] will be referenced as
 	// N+1 in the debug_lines table.

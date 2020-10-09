@@ -61,7 +61,8 @@ del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 
 :: Set GOROOT for build.
 cd ..
-set GOROOT=%CD%
+set GOROOT_TEMP=%CD%
+set GOROOT=
 cd src
 set vflag=
 if x%1==x-v set vflag=-v
@@ -70,8 +71,25 @@ if x%3==x-v set vflag=-v
 if x%4==x-v set vflag=-v
 
 if not exist ..\bin\tool mkdir ..\bin\tool
+
+:: Calculating GOROOT_BOOTSTRAP
+if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
+for /f "tokens=*" %%g in ('where go 2^>nul') do (
+	if "x%GOROOT_BOOTSTRAP%"=="x" (
+		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
+			if /I not "%%i"=="%GOROOT_TEMP%" (
+				set GOROOT_BOOTSTRAP=%%i
+			)
+		)
+	)
+)
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+
+:bootstrapset
 if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+set GOROOT=%GOROOT_TEMP%
+set GOROOT_TEMP=
+
 echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
 if x%vflag==x-v echo cmd/dist
 setlocal

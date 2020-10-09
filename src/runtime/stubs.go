@@ -83,7 +83,17 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 }
 
 // memmove copies n bytes from "from" to "to".
-// in memmove_*.s
+//
+// memmove ensures that any pointer in "from" is written to "to" with
+// an indivisible write, so that racy reads cannot observe a
+// half-written pointer. This is necessary to prevent the garbage
+// collector from observing invalid pointers, and differs from memmove
+// in unmanaged languages. However, memmove is only required to do
+// this if "from" and "to" may contain pointers, which can only be the
+// case if "from", "to", and "n" are all be word-aligned.
+//
+// Implementations are in memmove_*.s.
+//
 //go:noescape
 func memmove(to, from unsafe.Pointer, n uintptr)
 
@@ -120,7 +130,7 @@ func fastrandn(n uint32) uint32 {
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
 
-// in asm_*.s
+// in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -261,6 +271,7 @@ func return0()
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
+func call16(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
@@ -298,6 +309,13 @@ func alignUp(n, a uintptr) uintptr {
 // alignDown rounds n down to a multiple of a. a must be a power of 2.
 func alignDown(n, a uintptr) uintptr {
 	return n &^ (a - 1)
+}
+
+// divRoundUp returns ceil(n / a).
+func divRoundUp(n, a uintptr) uintptr {
+	// a is generally a power of two. This will get inlined and
+	// the compiler will optimize the division.
+	return (n + a - 1) / a
 }
 
 // checkASM reports whether assembly runtime checks have passed.

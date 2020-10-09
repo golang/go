@@ -4,10 +4,9 @@
 
 package goversion
 
-// Version is the current Go 1.x version. During development cycles on
-// the master branch it changes to be the version of the next Go 1.x
-// release.
+// Version is the Go 1.x version which is currently
+// in development and will eventually get released.
 //
-// When incrementing this, also add to the list at src/go/build/doc.go
-// (search for "onward").
-const Version = 14
+// It should be updated at the start of each development cycle to be
+// the version of the next Go 1.x release. See golang.org/issue/40705.
+const Version = 16

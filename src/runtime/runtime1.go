@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/bytealg"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -347,13 +348,13 @@ func parsedebugvars() {
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
-		i := index(p, ",")
+		i := bytealg.IndexByteString(p, ',')
 		if i < 0 {
 			field, p = p, ""
 		} else {
 			field, p = p[:i], p[i+1:]
 		}
-		i = index(field, "=")
+		i = bytealg.IndexByteString(field, '=')
 		if i < 0 {
 			continue
 		}
@@ -457,11 +458,6 @@ func releasem(mp *m) {
 		// restore the preemption request in case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
 	}
-}
-
-//go:nosplit
-func gomcache() *mcache {
-	return getg().m.mcache
 }
 
 //go:linkname reflect_typelinks reflect.typelinks

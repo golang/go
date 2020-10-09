@@ -104,6 +104,189 @@ func SliceExtensionInt64(s []int, l64 int64) []int {
 	return append(s, make([]int, l64)...)
 }
 
+// ------------------ //
+//      Make+Copy     //
+// ------------------ //
+
+// Issue #26252 - avoid memclr for make+copy
+
+func SliceMakeCopyLen(s []int) []int {
+	// amd64:`.*runtime\.mallocgc`
+	// amd64:`.*runtime\.memmove`
+	// amd64:-`.*runtime\.makeslice`
+	a := make([]int, len(s))
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyLenPtr(s []*int) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy
+	a := make([]*int, len(s))
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyConst(s []int) []int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.memmove`
+	a := make([]int, 4)
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyConstPtr(s []*int) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy
+	a := make([]*int, 4)
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoOptNoDeref(s []*int) []*int {
+	a := new([]*int)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	*a = make([]*int, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(*a, s)
+	return *a
+}
+
+func SliceMakeCopyNoOptNoVar(s []*int) []*int {
+	a := make([][]*int, 1)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a[0] = make([]*int, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(a[0], s)
+	return a[0]
+}
+
+func SliceMakeCopyNoOptBlank(s []*int) []*int {
+	var a []*int
+	// amd64:-`.*runtime\.makeslicecopy`
+	_ = make([]*int, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoOptNoMake(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.objectnew`
+	a := *new([]*int)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoOptNoHeapAlloc(s []*int) int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	a := make([]*int, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(a, s)
+	return cap(a)
+}
+
+func SliceMakeCopyNoOptNoCap(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 0, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoOptNoCopy(s []*int) []*int {
+	copy := func(x, y []*int) {}
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 4)
+	// amd64:-`.*runtime\.makeslicecopy`
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoOptWrongOrder(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 4)
+	// amd64:`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	copy(s, a)
+	return a
+}
+
+func SliceMakeCopyNoOptWrongAssign(s []*int) []*int {
+	var a []*int
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	s = make([]*int, 4)
+	// amd64:`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	copy(a, s)
+	return s
+}
+
+func SliceMakeCopyNoOptCopyLength(s []*int) (int, []*int) {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 4)
+	// amd64:`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	n := copy(a, s)
+	return n, a
+}
+
+func SliceMakeCopyNoOptSelfCopy(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 4)
+	// amd64:`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	copy(a, a)
+	return a
+}
+
+func SliceMakeCopyNoOptTargetReference(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]*int, 4)
+	// amd64:`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	copy(a, s[:len(a)])
+	return a
+}
+
+func SliceMakeCopyNoOptCap(s []int) []int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	a := make([]int, len(s), 9)
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.memmove`
+	copy(a, s)
+	return a
+}
+
+func SliceMakeCopyNoMemmoveDifferentLen(s []int) []int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.memmove`
+	a := make([]int, len(s)-1)
+	// amd64:-`.*runtime\.memmove`
+	copy(a, s)
+	return a
+}
+
 // ---------------------- //
 //   Nil check of &s[0]   //
 // ---------------------- //
@@ -163,4 +346,25 @@ func InitNotSmallSliceLiteral() []int {
 		42,
 		42,
 	}
+}
+
+// --------------------------------------- //
+//   Test PPC64 SUBFCconst folding rules   //
+//   triggered by slice operations.        //
+// --------------------------------------- //
+
+func SliceWithConstCompare(a []int, b int) []int {
+	var c []int = []int{1, 2, 3, 4, 5}
+	if b+len(a) < len(c) {
+		// ppc64le:-"NEG"
+		// ppc64:-"NEG"
+		return c[b:]
+	}
+	return a
+}
+
+func SliceWithSubtractBound(a []int, b int) []int {
+	// ppc64le:"SUBC",-"NEG"
+	// ppc64:"SUBC",-"NEG"
+	return a[(3 - b):]
 }

@@ -90,11 +90,10 @@ func (l *List) lazyInit() {
 
 // insert inserts e after at, increments l.len, and returns e.
 func (l *List) insert(e, at *Element) *Element {
-	n := at.next
-	at.next = e
 	e.prev = at
-	e.next = n
-	n.prev = e
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 	e.list = l
 	l.len++
 	return e
@@ -124,11 +123,10 @@ func (l *List) move(e, at *Element) *Element {
 	e.prev.next = e.next
 	e.next.prev = e.prev
 
-	n := at.next
-	at.next = e
 	e.prev = at
-	e.next = n
-	n.prev = e
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 
 	return e
 }
@@ -221,7 +219,7 @@ func (l *List) MoveAfter(e, mark *Element) {
 	l.move(e, mark)
 }
 
-// PushBackList inserts a copy of an other list at the back of list l.
+// PushBackList inserts a copy of another list at the back of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushBackList(other *List) {
 	l.lazyInit()
@@ -230,7 +228,7 @@ func (l *List) PushBackList(other *List) {
 	}
 }
 
-// PushFrontList inserts a copy of an other list at the front of list l.
+// PushFrontList inserts a copy of another list at the front of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushFrontList(other *List) {
 	l.lazyInit()

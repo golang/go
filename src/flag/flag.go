@@ -9,9 +9,9 @@
 
 	Define flags using flag.String(), Bool(), Int(), etc.
 
-	This declares an integer flag, -flagname, stored in the pointer ip, with type *int.
+	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
 		import "flag"
-		var ip = flag.Int("flagname", 1234, "help message for flagname")
+		var nFlag = flag.Int("n", 1234, "help message for flag n")
 	If you like, you can bind the flag to a variable using the Var() functions.
 		var flagvar int
 		func init() {
@@ -278,6 +278,12 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+type funcValue func(string) error
+
+func (f funcValue) Set(s string) error { return f(s) }
+
+func (f funcValue) String() string { return "" }
+
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 //
@@ -296,7 +302,7 @@ type Value interface {
 // Getter is an interface that allows the contents of a Value to be retrieved.
 // It wraps the Value interface, rather than being part of it, because it
 // appeared after Go 1 and its compatibility rules. All Value types provided
-// by this package satisfy the Getter interface.
+// by this package satisfy the Getter interface, except the type used by Func.
 type Getter interface {
 	Value
 	Get() interface{}
@@ -308,7 +314,7 @@ type ErrorHandling int
 // These constants cause FlagSet.Parse to behave as described if the parse fails.
 const (
 	ContinueOnError ErrorHandling = iota // Return a descriptive error.
-	ExitOnError                          // Call os.Exit(2).
+	ExitOnError                          // Call os.Exit(2) or for -h/-help Exit(0).
 	PanicOnError                         // Call panic with a descriptive error.
 )
 
@@ -331,7 +337,7 @@ type FlagSet struct {
 	formal        map[string]*Flag
 	args          []string // arguments after flags
 	errorHandling ErrorHandling
-	output        io.Writer // nil means stderr; use out() accessor
+	output        io.Writer // nil means stderr; use Output() accessor
 }
 
 // A Flag represents the state of a flag.
@@ -830,6 +836,20 @@ func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
 }
 
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func (f *FlagSet) Func(name, usage string, fn func(string) error) {
+	f.Var(funcValue(fn), name, usage)
+}
+
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func Func(name, usage string, fn func(string) error) {
+	CommandLine.Func(name, usage, fn)
+}
+
 // Var defines a flag with the specified name and usage string. The type and
 // value of the flag are represented by the first argument, of type Value, which
 // typically holds a user-defined implementation of Value. For instance, the
@@ -979,6 +999,9 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
+			if err == ErrHelp {
+				os.Exit(0)
+			}
 			os.Exit(2)
 		case PanicOnError:
 			panic(err)

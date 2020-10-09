@@ -24,8 +24,9 @@ import (
 // It implements the net.Conn interface.
 type Conn struct {
 	// constant
-	conn     net.Conn
-	isClient bool
+	conn        net.Conn
+	isClient    bool
+	handshakeFn func() error // (*Conn).clientHandshake or serverHandshake
 
 	// handshakeStatus is 1 if the connection is currently transferring
 	// application data (i.e. is not currently processing a handshake).
@@ -60,6 +61,11 @@ type Conn struct {
 	// resumptionSecret is the resumption_master_secret for handling
 	// NewSessionTicket messages. nil if config.SessionTicketsDisabled.
 	resumptionSecret []byte
+
+	// ticketKeys is the set of active session ticket keys for this
+	// connection. The first one is used to encrypt new tickets and
+	// all are tried to decrypt tickets.
+	ticketKeys []ticketKey
 
 	// clientFinishedIsFirst is true if the client sent the first Finished
 	// message during the most recent handshake. This is recorded because
@@ -162,9 +168,22 @@ type halfConn struct {
 	trafficSecret []byte // current TLS 1.3 traffic secret
 }
 
+type permanentError struct {
+	err net.Error
+}
+
+func (e *permanentError) Error() string   { return e.err.Error() }
+func (e *permanentError) Unwrap() error   { return e.err }
+func (e *permanentError) Timeout() bool   { return e.err.Timeout() }
+func (e *permanentError) Temporary() bool { return false }
+
 func (hc *halfConn) setErrorLocked(err error) error {
-	hc.err = err
-	return err
+	if e, ok := err.(net.Error); ok {
+		hc.err = &permanentError{err: e}
+	} else {
+		hc.err = err
+	}
+	return hc.err
 }
 
 // prepareCipherSpec sets the encryption and MAC states
@@ -1051,7 +1070,6 @@ func (c *Conn) readHandshake() (interface{}, error) {
 }
 
 var (
-	errClosed   = errors.New("tls: use of closed connection")
 	errShutdown = errors.New("tls: protocol is shutdown")
 )
 
@@ -1061,7 +1079,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	for {
 		x := atomic.LoadInt32(&c.activeCall)
 		if x&1 != 0 {
-			return 0, errClosed
+			return 0, net.ErrClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
 			break
@@ -1266,7 +1284,7 @@ func (c *Conn) Close() error {
 	for {
 		x = atomic.LoadInt32(&c.activeCall)
 		if x&1 != 0 {
-			return errClosed
+			return net.ErrClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x|1) {
 			break
@@ -1320,8 +1338,12 @@ func (c *Conn) closeNotify() error {
 
 // Handshake runs the client or server handshake
 // protocol if it has not yet been run.
-// Most uses of this package need not call Handshake
-// explicitly: the first Read or Write will call it automatically.
+//
+// Most uses of this package need not call Handshake explicitly: the
+// first Read or Write will call it automatically.
+//
+// For control over canceling or setting a timeout on a handshake, use
+// the Dialer's DialContext method.
 func (c *Conn) Handshake() error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
@@ -1336,11 +1358,7 @@ func (c *Conn) Handshake() error {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	if c.isClient {
-		c.handshakeErr = c.clientHandshake()
-	} else {
-		c.handshakeErr = c.serverHandshake()
-	}
+	c.handshakeErr = c.handshakeFn()
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {
@@ -1360,35 +1378,34 @@ func (c *Conn) Handshake() error {
 func (c *Conn) ConnectionState() ConnectionState {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
+	return c.connectionStateLocked()
+}
 
+func (c *Conn) connectionStateLocked() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.handshakeComplete()
+	state.Version = c.vers
+	state.NegotiatedProtocol = c.clientProtocol
+	state.DidResume = c.didResume
+	state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
 	state.ServerName = c.serverName
-
-	if state.HandshakeComplete {
-		state.Version = c.vers
-		state.NegotiatedProtocol = c.clientProtocol
-		state.DidResume = c.didResume
-		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
-		state.CipherSuite = c.cipherSuite
-		state.PeerCertificates = c.peerCertificates
-		state.VerifiedChains = c.verifiedChains
-		state.SignedCertificateTimestamps = c.scts
-		state.OCSPResponse = c.ocspResponse
-		if !c.didResume && c.vers != VersionTLS13 {
-			if c.clientFinishedIsFirst {
-				state.TLSUnique = c.clientFinished[:]
-			} else {
-				state.TLSUnique = c.serverFinished[:]
-			}
-		}
-		if c.config.Renegotiation != RenegotiateNever {
-			state.ekm = noExportedKeyingMaterial
+	state.CipherSuite = c.cipherSuite
+	state.PeerCertificates = c.peerCertificates
+	state.VerifiedChains = c.verifiedChains
+	state.SignedCertificateTimestamps = c.scts
+	state.OCSPResponse = c.ocspResponse
+	if !c.didResume && c.vers != VersionTLS13 {
+		if c.clientFinishedIsFirst {
+			state.TLSUnique = c.clientFinished[:]
 		} else {
-			state.ekm = c.ekm
+			state.TLSUnique = c.serverFinished[:]
 		}
 	}
-
+	if c.config.Renegotiation != RenegotiateNever {
+		state.ekm = noExportedKeyingMaterial
+	} else {
+		state.ekm = c.ekm
+	}
 	return state
 }
 

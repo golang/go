@@ -59,6 +59,7 @@ func reader(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.RLock()
 		n := atomic.AddInt32(activity, 1)
 		if n < 1 || n >= 10000 {
+			rwm.RUnlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {
@@ -74,6 +75,7 @@ func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.Lock()
 		n := atomic.AddInt32(activity, 10000)
 		if n != 10000 {
+			rwm.Unlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {

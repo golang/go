@@ -6,6 +6,9 @@ package pprof
 
 import (
 	"context"
+	"fmt"
+	"sort"
+	"strings"
 )
 
 type label struct {
@@ -34,6 +37,23 @@ func labelValue(ctx context.Context) labelMap {
 // that admits incremental immutable modification more efficiently.
 type labelMap map[string]string
 
+// String statisfies Stringer and returns key, value pairs in a consistent
+// order.
+func (l *labelMap) String() string {
+	if l == nil {
+		return ""
+	}
+	keyVals := make([]string, 0, len(*l))
+
+	for k, v := range *l {
+		keyVals = append(keyVals, fmt.Sprintf("%q:%q", k, v))
+	}
+
+	sort.Strings(keyVals)
+
+	return "{" + strings.Join(keyVals, ", ") + "}"
+}
+
 // WithLabels returns a new context.Context with the given labels added.
 // A label overwrites a prior label with the same key.
 func WithLabels(ctx context.Context, labels LabelSet) context.Context {
@@ -54,7 +74,8 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
 // Labels takes an even number of strings representing key-value pairs
 // and makes a LabelSet containing them.
 // A label overwrites a prior label with the same key.
-// Currently only CPU profile utilizes labels information.
+// Currently only the CPU and goroutine profiles utilize any labels
+// information.
 // See https://golang.org/issue/23458 for details.
 func Labels(args ...string) LabelSet {
 	if len(args)%2 != 0 {

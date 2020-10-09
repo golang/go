@@ -356,15 +356,16 @@ func escape(s string, mode encoding) string {
 // URL's String method uses the EscapedPath method to obtain the path. See the
 // EscapedPath method for more details.
 type URL struct {
-	Scheme     string
-	Opaque     string    // encoded opaque data
-	User       *Userinfo // username and password information
-	Host       string    // host or host:port
-	Path       string    // path (relative paths may omit leading slash)
-	RawPath    string    // encoded path hint (see EscapedPath method)
-	ForceQuery bool      // append a query ('?') even if RawQuery is empty
-	RawQuery   string    // encoded query values, without '?'
-	Fragment   string    // fragment for references, without '#'
+	Scheme      string
+	Opaque      string    // encoded opaque data
+	User        *Userinfo // username and password information
+	Host        string    // host or host:port
+	Path        string    // path (relative paths may omit leading slash)
+	RawPath     string    // encoded path hint (see EscapedPath method)
+	ForceQuery  bool      // append a query ('?') even if RawQuery is empty
+	RawQuery    string    // encoded query values, without '?'
+	Fragment    string    // fragment for references, without '#'
+	RawFragment string    // encoded fragment hint (see EscapedFragment method)
 }
 
 // User returns a Userinfo containing the provided username
@@ -481,7 +482,7 @@ func Parse(rawurl string) (*URL, error) {
 	if frag == "" {
 		return url, nil
 	}
-	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+	if err = url.setFragment(frag); err != nil {
 		return nil, &Error{"parse", rawurl, err}
 	}
 	return url, nil
@@ -697,7 +698,7 @@ func (u *URL) setPath(p string) error {
 // In general, code should call EscapedPath instead of
 // reading u.RawPath directly.
 func (u *URL) EscapedPath() string {
-	if u.RawPath != "" && validEncodedPath(u.RawPath) {
+	if u.RawPath != "" && validEncoded(u.RawPath, encodePath) {
 		p, err := unescape(u.RawPath, encodePath)
 		if err == nil && p == u.Path {
 			return u.RawPath
@@ -709,9 +710,10 @@ func (u *URL) EscapedPath() string {
 	return escape(u.Path, encodePath)
 }
 
-// validEncodedPath reports whether s is a valid encoded path.
-// It must not contain any bytes that require escaping during path encoding.
-func validEncodedPath(s string) bool {
+// validEncoded reports whether s is a valid encoded path or fragment,
+// according to mode.
+// It must not contain any bytes that require escaping during encoding.
+func validEncoded(s string, mode encoding) bool {
 	for i := 0; i < len(s); i++ {
 		// RFC 3986, Appendix A.
 		// pchar = unreserved / pct-encoded / sub-delims / ":" / "@".
@@ -726,12 +728,46 @@ func validEncodedPath(s string) bool {
 		case '%':
 			// ok - percent encoded, will decode
 		default:
-			if shouldEscape(s[i], encodePath) {
+			if shouldEscape(s[i], mode) {
 				return false
 			}
 		}
 	}
 	return true
+}
+
+// setFragment is like setPath but for Fragment/RawFragment.
+func (u *URL) setFragment(f string) error {
+	frag, err := unescape(f, encodeFragment)
+	if err != nil {
+		return err
+	}
+	u.Fragment = frag
+	if escf := escape(frag, encodeFragment); f == escf {
+		// Default encoding is fine.
+		u.RawFragment = ""
+	} else {
+		u.RawFragment = f
+	}
+	return nil
+}
+
+// EscapedFragment returns the escaped form of u.Fragment.
+// In general there are multiple possible escaped forms of any fragment.
+// EscapedFragment returns u.RawFragment when it is a valid escaping of u.Fragment.
+// Otherwise EscapedFragment ignores u.RawFragment and computes an escaped
+// form on its own.
+// The String method uses EscapedFragment to construct its result.
+// In general, code should call EscapedFragment instead of
+// reading u.RawFragment directly.
+func (u *URL) EscapedFragment() string {
+	if u.RawFragment != "" && validEncoded(u.RawFragment, encodeFragment) {
+		f, err := unescape(u.RawFragment, encodeFragment)
+		if err == nil && f == u.Fragment {
+			return u.RawFragment
+		}
+	}
+	return escape(u.Fragment, encodeFragment)
 }
 
 // validOptionalPort reports whether port is either an empty string
@@ -816,9 +852,23 @@ func (u *URL) String() string {
 	}
 	if u.Fragment != "" {
 		buf.WriteByte('#')
-		buf.WriteString(escape(u.Fragment, encodeFragment))
+		buf.WriteString(u.EscapedFragment())
 	}
 	return buf.String()
+}
+
+// Redacted is like String but replaces any password with "xxxxx".
+// Only the password in u.URL is redacted.
+func (u *URL) Redacted() string {
+	if u == nil {
+		return ""
+	}
+
+	ru := *u
+	if _, has := ru.User.Password(); has {
+		ru.User = UserPassword(ru.User.Username(), "xxxxx")
+	}
+	return ru.String()
 }
 
 // Values maps a string key to a list of values.
@@ -1016,6 +1066,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 		url.RawQuery = u.RawQuery
 		if ref.Fragment == "" {
 			url.Fragment = u.Fragment
+			url.RawFragment = u.RawFragment
 		}
 	}
 	// The "abs_path" or "rel_path" cases.

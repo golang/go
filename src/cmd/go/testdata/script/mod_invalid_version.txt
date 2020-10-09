@@ -4,6 +4,7 @@
 env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
+env GOFLAGS=-mod=mod
 
 # Regression test for golang.org/issue/27173: if the user (or go.mod file)
 # requests a pseudo-version that does not match both the module path and commit
@@ -18,7 +19,7 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
+stderr 'go: example.com@v0.0.0 \(replaced by \./\..\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
 cd ..
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
@@ -46,7 +47,7 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v2.1.1-0.20170915032832-14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
 cd ..
 ! go list -m golang.org/x/text
 stderr $WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
@@ -76,17 +77,17 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 
 # A 'replace' directive in the main module can replace an invalid timestamp
 # with a valid one.
 go mod edit -replace golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c=golang.org/x/text@14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 cd ..
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v0.1.1-0.20190915032832-14c0d48ead0c => golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'

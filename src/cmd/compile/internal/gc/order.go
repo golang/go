@@ -206,8 +206,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
-		vstat := staticname(n.Type)
-		vstat.Name.SetReadonly(true)
+		vstat := readonlystaticname(n.Type)
 		var s InitSchedule
 		s.staticassign(vstat, n)
 		if s.out != nil {
@@ -289,20 +288,13 @@ func (o *Order) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
-// to *out for each temporary above the mark on the temporary stack.
+// cleanTempNoPop emits VARKILL instructions to *out
+// for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
 func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 	var out []*Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		if n.Name.Keepalive() {
-			n.Name.SetKeepalive(false)
-			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
-			live := nod(OVARLIVE, n, nil)
-			live = typecheck(live, ctxStmt)
-			out = append(out, live)
-		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, ctxStmt)
 		out = append(out, kill)
@@ -319,9 +311,80 @@ func (o *Order) cleanTemp(top ordermarker) {
 
 // stmtList orders each of the statements in the list.
 func (o *Order) stmtList(l Nodes) {
-	for _, n := range l.Slice() {
-		o.stmt(n)
+	s := l.Slice()
+	for i := range s {
+		orderMakeSliceCopy(s[i:])
+		o.stmt(s[i])
 	}
+}
+
+// orderMakeSliceCopy matches the pattern:
+//  m = OMAKESLICE([]T, x); OCOPY(m, s)
+// and rewrites it to:
+//  m = OMAKESLICECOPY([]T, x, s); nil
+func orderMakeSliceCopy(s []*Node) {
+	const go115makeslicecopy = true
+	if !go115makeslicecopy {
+		return
+	}
+
+	if Debug['N'] != 0 || instrumenting {
+		return
+	}
+
+	if len(s) < 2 {
+		return
+	}
+
+	asn := s[0]
+	copyn := s[1]
+
+	if asn == nil || asn.Op != OAS {
+		return
+	}
+	if asn.Left.Op != ONAME {
+		return
+	}
+	if asn.Left.isBlank() {
+		return
+	}
+	maken := asn.Right
+	if maken == nil || maken.Op != OMAKESLICE {
+		return
+	}
+	if maken.Esc == EscNone {
+		return
+	}
+	if maken.Left == nil || maken.Right != nil {
+		return
+	}
+	if copyn.Op != OCOPY {
+		return
+	}
+	if copyn.Left.Op != ONAME {
+		return
+	}
+	if asn.Left.Sym != copyn.Left.Sym {
+		return
+	}
+	if copyn.Right.Op != ONAME {
+		return
+	}
+
+	if copyn.Left.Sym == copyn.Right.Sym {
+		return
+	}
+
+	maken.Op = OMAKESLICECOPY
+	maken.Right = copyn.Right
+	// Set bounded when m = OMAKESLICE([]T, len(s)); OCOPY(m, s)
+	maken.SetBounded(maken.Left.Op == OLEN && samesafeexpr(maken.Left.Left, copyn.Right))
+
+	maken = typecheck(maken, ctxExpr)
+
+	s[1] = nil // remove separate copy call
+
+	return
 }
 
 // edge inserts coverage instrumentation for libfuzzer.
@@ -407,41 +470,44 @@ func (o *Order) call(n *Node) {
 		// Caller should have already called o.init(n).
 		Fatalf("%v with unexpected ninit", n.Op)
 	}
-	n.Left = o.expr(n.Left, nil)
-	n.Right = o.expr(n.Right, nil) // ODDDARG temp
-	o.exprList(n.List)
 
-	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
+	// Builtin functions.
+	if n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER {
+		n.Left = o.expr(n.Left, nil)
+		n.Right = o.expr(n.Right, nil)
+		o.exprList(n.List)
 		return
 	}
-	keepAlive := func(i int) {
+
+	fixVariadicCall(n)
+	n.Left = o.expr(n.Left, nil)
+	o.exprList(n.List)
+
+	if n.Op == OCALLINTER {
+		return
+	}
+	keepAlive := func(arg *Node) {
 		// If the argument is really a pointer being converted to uintptr,
 		// arrange for the pointer to be kept alive until the call returns,
 		// by copying it into a temp and marking that temp
 		// still alive when we pop the temp stack.
-		xp := n.List.Addr(i)
-		for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
-			xp = &(*xp).Left
-		}
-		x := *xp
-		if x.Type.IsUnsafePtr() {
-			x = o.copyExpr(x, x.Type, false)
-			x.Name.SetKeepalive(true)
-			*xp = x
+		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
+			x := o.copyExpr(arg.Left, arg.Left.Type, false)
+			arg.Left = x
+			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
+			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
 		}
 	}
 
-	for i, t := range n.Left.Type.Params().FieldSlice() {
-		// Check for "unsafe-uintptr" tag provided by escape analysis.
-		if t.IsDDD() && !n.IsDDD() {
-			if t.Note == uintptrEscapesTag {
-				for ; i < n.List.Len(); i++ {
-					keepAlive(i)
+	// Check for "unsafe-uintptr" tag provided by escape analysis.
+	for i, param := range n.Left.Type.Params().FieldSlice() {
+		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
+			if arg := n.List.Index(i); arg.Op == OSLICELIT {
+				for _, elt := range arg.List.Slice() {
+					keepAlive(elt)
 				}
-			}
-		} else {
-			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
-				keepAlive(i)
+			} else {
+				keepAlive(arg)
 			}
 		}
 	}
@@ -855,7 +921,7 @@ func (o *Order) stmt(n *Node) {
 						n2.Ninit.Append(tmp2)
 					}
 
-					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
+					r.Left = o.newTemp(r.Right.Left.Type.Elem(), r.Right.Left.Type.Elem().HasPointers())
 					tmp2 := nod(OAS, tmp1, r.Left)
 					tmp2 = typecheck(tmp2, ctxStmt)
 					n2.Ninit.Append(tmp2)
@@ -1148,6 +1214,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		OMAKECHAN,
 		OMAKEMAP,
 		OMAKESLICE,
+		OMAKESLICECOPY,
 		ONEW,
 		OREAL,
 		ORECOVER,
@@ -1212,15 +1279,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
 				t = partialCallType(n)
 			}
 			prealloc[n] = o.newTemp(t, false)
-		}
-
-	case ODDDARG:
-		if n.Transient() {
-			// The ddd argument does not live beyond the call it is created for.
-			// Allocate a temporary that will be cleaned up when this statement
-			// completes. We could be more aggressive and try to arrange for it
-			// to be cleaned up when the call completes.
-			prealloc[n] = o.newTemp(n.Type.Elem(), false)
 		}
 
 	case ODOTTYPE, ODOTTYPE2:
@@ -1342,7 +1400,7 @@ func (o *Order) as2(n *Node) {
 	left := []*Node{}
 	for ni, l := range n.List.Slice() {
 		if !l.isBlank() {
-			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+			tmp := o.newTemp(l.Type, l.Type.HasPointers())
 			n.List.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
@@ -1364,7 +1422,7 @@ func (o *Order) okAs2(n *Node) {
 	var tmp1, tmp2 *Node
 	if !n.List.First().isBlank() {
 		typ := n.Right.Type
-		tmp1 = o.newTemp(typ, types.Haspointers(typ))
+		tmp1 = o.newTemp(typ, typ.HasPointers())
 	}
 
 	if !n.List.Second().isBlank() {

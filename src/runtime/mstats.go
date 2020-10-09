@@ -78,6 +78,10 @@ type mstats struct {
 		nfree   uint64
 	}
 
+	// Add an uint32 for even number of size classes to align below fields
+	// to 64 bits for atomic operations on 32 bit platforms.
+	_ [1 - _NumSizeClasses%2]uint32
+
 	// Statistics below here are not exported to MemStats directly.
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
@@ -513,6 +517,12 @@ func readGCStats_m(pauses *[]uint64) {
 
 //go:nowritebarrier
 func updatememstats() {
+	// Flush mcaches to mcentral before doing anything else.
+	//
+	// Flushing to the mcentral may in general cause stats to
+	// change as mcentral data structures are manipulated.
+	systemstack(flushallmcaches)
+
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
@@ -523,7 +533,7 @@ func updatememstats() {
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
-	// Current number of alive object in the heap and amount of alive heap memory
+	// Current number of alive objects in the heap and amount of alive heap memory
 	// are calculated by scanning all spans.
 	// Total number of mallocs is calculated as number of frees plus number of alive objects.
 	// Similarly, total amount of allocated memory is calculated as amount of freed memory
@@ -536,9 +546,6 @@ func updatememstats() {
 		memstats.by_size[i].nmalloc = 0
 		memstats.by_size[i].nfree = 0
 	}
-
-	// Flush mcache's to mcentral.
-	systemstack(flushallmcaches)
 
 	// Aggregate local stats.
 	cachestats()

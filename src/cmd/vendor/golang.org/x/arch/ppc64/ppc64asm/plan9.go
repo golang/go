@@ -55,10 +55,24 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	// laid out the instruction
 	switch inst.Op {
 	default: // dst, sA, sB, ...
-		if len(args) == 0 {
+		switch len(args) {
+		case 0:
 			return op
-		} else if len(args) == 1 {
+		case 1:
 			return fmt.Sprintf("%s %s", op, args[0])
+		case 2:
+			if inst.Op == COPY || inst.Op == PASTECC || inst.Op == FCMPO || inst.Op == FCMPU {
+				return op + " " + args[0] + "," + args[1]
+			}
+			return op + " " + args[1] + "," + args[0]
+		case 3:
+			if reverseOperandOrder(inst.Op) {
+				return op + " " + args[2] + "," + args[1] + "," + args[0]
+			}
+		case 4:
+			if reverseMiddleOps(inst.Op) {
+				return op + " " + args[1] + "," + args[3] + "," + args[2] + "," + args[0]
+			}
 		}
 		args = append(args, args[0])
 		return op + " " + strings.Join(args[1:], ",")
@@ -77,7 +91,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		STH, STHU,
 		STW, STWU,
 		STD, STDU,
-		STQ:
+		STQ, STFD, STFDU, STFS, STFSU:
 		return op + " " + strings.Join(args, ",")
 
 	case CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
@@ -92,28 +106,41 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		return "ADDIS $0," + args[1] + "," + args[0]
 	// store instructions with index registers
 	case STBX, STBUX, STHX, STHUX, STWX, STWUX, STDX, STDUX,
-		STHBRX, STWBRX, STDBRX, STSWX, STFSX, STFSUX, STFDX, STFDUX, STFIWX, STFDPX:
+		STHBRX, STWBRX, STDBRX, STSWX, STFIWX:
 		return "MOV" + op[2:len(op)-1] + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
 	case STDCXCC, STWCXCC, STHCXCC, STBCXCC:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
-	case STXVD2X, STXVW4X:
+	case STXVX, STXVD2X, STXVW4X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
 
-	// load instructions with index registers
-	case LBZX, LBZUX, LHZX, LHZUX, LWZX, LWZUX, LDX, LDUX,
-		LHBRX, LWBRX, LDBRX, LSWX, LFSX, LFSUX, LFDX, LFDUX, LFIWAX, LFIWZX:
-		return "MOV" + op[1:len(op)-1] + " (" + args[2] + ")(" + args[1] + ")," + args[0]
+	case STXV:
+		return op + " " + args[0] + "," + args[1]
 
-	case LDARX, LWARX, LHARX, LBARX:
+	case STXVL, STXVLL:
+		return op + " " + args[0] + "," + args[1] + "," + args[2]
+
+	case LWAX, LWAUX, LWZX, LHZX, LBZX, LDX, LHAX, LHAUX, LDARX, LWARX, LHARX, LBARX, LFDX, LFDUX, LFSX, LFSUX, LDBRX, LWBRX, LHBRX, LDUX, LWZUX, LHZUX, LBZUX:
+		if args[1] == "0" {
+			return op + " (" + args[2] + ")," + args[0]
+		}
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
-	case LXVD2X, LXVW4X:
+	case LXVX, LXVD2X, LXVW4X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
 
-	case DCBT, DCBTST, DCBZ, DCBST:
-		return op + " (" + args[1] + ")"
+	case LXV:
+		return op + " " + args[1] + "," + args[0]
+
+	case LXVL, LXVLL:
+		return op + " " + args[1] + "," + args[2] + "," + args[0]
+
+	case DCBT, DCBTST, DCBZ, DCBST, DCBI, ICBI:
+		if args[0] == "0" || args[0] == "R0" {
+			return op + " (" + args[1] + ")"
+		}
+		return op + " (" + args[1] + ")(" + args[0] + ")"
 
 	// branch instructions needs additional handling
 	case BCLR:
@@ -173,12 +200,15 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 		if inst.Op == ISEL {
 			return fmt.Sprintf("$%d", (arg - Cond0LT))
 		}
-		if arg == CR0 && strings.HasPrefix(inst.Op.String(), "cmp") {
+		if arg == CR0 && (strings.HasPrefix(inst.Op.String(), "cmp") || strings.HasPrefix(inst.Op.String(), "fcmp")) {
 			return "" // don't show cr0 for cmp instructions
 		} else if arg >= CR0 {
 			return fmt.Sprintf("CR%d", int(arg-CR0))
 		}
 		bit := [4]string{"LT", "GT", "EQ", "SO"}[(arg-Cond0LT)%4]
+		if strings.HasPrefix(inst.Op.String(), "cr") {
+			return fmt.Sprintf("CR%d%s", int(arg-Cond0LT)/4, bit)
+		}
 		if arg <= Cond0SO {
 			return bit
 		}
@@ -212,6 +242,37 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 	return fmt.Sprintf("???(%v)", arg)
 }
 
+func reverseMiddleOps(op Op) bool {
+	switch op {
+	case FMADD, FMADDCC, FMADDS, FMADDSCC, FMSUB, FMSUBCC, FMSUBS, FMSUBSCC, FNMADD, FNMADDCC, FNMADDS, FNMADDSCC, FNMSUB, FNMSUBCC, FNMSUBS, FNMSUBSCC, FSEL, FSELCC:
+		return true
+	}
+	return false
+}
+
+func reverseOperandOrder(op Op) bool {
+	switch op {
+	// Special case for SUBF, SUBFC: not reversed
+	case ADD, ADDC, ADDE, ADDCC, ADDCCC:
+		return true
+	case MULLW, MULLWCC, MULHW, MULHWCC, MULLD, MULLDCC, MULHD, MULHDCC, MULLWO, MULLWOCC, MULHWU, MULHWUCC, MULLDO, MULLDOCC:
+		return true
+	case DIVD, DIVDCC, DIVDU, DIVDUCC, DIVDE, DIVDECC, DIVDEU, DIVDEUCC, DIVDO, DIVDOCC, DIVDUO, DIVDUOCC:
+		return true
+	case MODUD, MODSD, MODUW, MODSW:
+		return true
+	case FADD, FADDS, FSUB, FSUBS, FMUL, FMULS, FDIV, FDIVS, FMADD, FMADDS, FMSUB, FMSUBS, FNMADD, FNMADDS, FNMSUB, FNMSUBS, FMULSCC:
+		return true
+	case FADDCC, FADDSCC, FSUBCC, FMULCC, FDIVCC, FDIVSCC:
+		return true
+	case OR, ORC, AND, ANDC, XOR, NAND, EQV, NOR, ANDCC, ORCC, XORCC, EQVCC, NORCC, NANDCC:
+		return true
+	case SLW, SLWCC, SLD, SLDCC, SRW, SRAW, SRWCC, SRAWCC, SRD, SRDCC, SRAD, SRADCC:
+		return true
+	}
+	return false
+}
+
 // revCondMap maps a conditional register bit to its inverse, if possible.
 var revCondMap = map[string]string{
 	"LT": "GE", "GT": "LE", "EQ": "NE",
@@ -219,15 +280,65 @@ var revCondMap = map[string]string{
 
 // plan9OpMap maps an Op to its Plan 9 mnemonics, if different than its GNU mnemonics.
 var plan9OpMap = map[Op]string{
-	LWARX: "LWAR",
-	LDARX: "LDAR",
-	LHARX: "LHAR",
-	LBARX: "LBAR",
-	ADDI:  "ADD",
-	SRADI: "SRAD",
-	SUBF:  "SUB",
-	LI:    "MOVD",
-	LBZ:   "MOVBZ", STB: "MOVB",
+	LWARX:     "LWAR",
+	LDARX:     "LDAR",
+	LHARX:     "LHAR",
+	LBARX:     "LBAR",
+	LWAX:      "MOVW",
+	LHAX:      "MOVH",
+	LWAUX:     "MOVWU",
+	LHAU:      "MOVHU",
+	LHAUX:     "MOVHU",
+	LDX:       "MOVD",
+	LDUX:      "MOVDU",
+	LWZX:      "MOVWZ",
+	LWZUX:     "MOVWZU",
+	LHZX:      "MOVHZ",
+	LHZUX:     "MOVHZU",
+	LBZX:      "MOVBZ",
+	LBZUX:     "MOVBZU",
+	LDBRX:     "MOVDBR",
+	LWBRX:     "MOVWBR",
+	LHBRX:     "MOVHBR",
+	MCRF:      "MOVFL",
+	XORI:      "XOR",
+	ORI:       "OR",
+	ANDICC:    "ANDCC",
+	ANDC:      "ANDN",
+	ADDEO:     "ADDEV",
+	ADDEOCC:   "ADDEVCC",
+	ADDO:      "ADDV",
+	ADDOCC:    "ADDVCC",
+	ADDMEO:    "ADDMEV",
+	ADDMEOCC:  "ADDMEVCC",
+	ADDCO:     "ADDCV",
+	ADDCOCC:   "ADDCVCC",
+	ADDZEO:    "ADDZEV",
+	ADDZEOCC:  "ADDZEVCC",
+	SUBFME:    "SUBME",
+	SUBFMECC:  "SUBMECC",
+	SUBFZE:    "SUBZE",
+	SUBFZECC:  "SUBZECC",
+	SUBFZEO:   "SUBZEV",
+	SUBFZEOCC: "SUBZEVCC",
+	SUBFC:     "SUBC",
+	ORC:       "ORN",
+	MULLWO:    "MULLWV",
+	MULLWOCC:  "MULLWVCC",
+	MULLDO:    "MULLDV",
+	MULLDOCC:  "MULLDVCC",
+	DIVDO:     "DIVDV",
+	DIVDOCC:   "DIVDVCC",
+	DIVDUO:    "DIVDUV",
+	DIVDUOCC:  "DIVDUVCC",
+	ADDI:      "ADD",
+	SRADI:     "SRAD",
+	SUBF:      "SUB",
+	STBCXCC:   "STBCCC",
+	STWCXCC:   "STWCCC",
+	STDCXCC:   "STDCCC",
+	LI:        "MOVD",
+	LBZ:       "MOVBZ", STB: "MOVB",
 	LBZU: "MOVBZU", STBU: "MOVBU",
 	LHZ: "MOVHZ", LHA: "MOVH", STH: "MOVH",
 	LHZU: "MOVHZU", STHU: "MOVHU",
@@ -235,6 +346,14 @@ var plan9OpMap = map[Op]string{
 	LWZU: "MOVWZU", STWU: "MOVWU",
 	LD: "MOVD", STD: "MOVD",
 	LDU: "MOVDU", STDU: "MOVDU",
+	LFD: "FMOVD", STFD: "FMOVD",
+	LFS: "FMOVS", STFS: "FMOVS",
+	LFDX: "FMOVD", STFDX: "FMOVD",
+	LFDU: "FMOVDU", STFDU: "FMOVDU",
+	LFDUX: "FMOVDU", STFDUX: "FMOVDU",
+	LFSX: "FMOVS", STFSX: "FMOVS",
+	LFSU: "FMOVSU", STFSU: "FMOVSU",
+	LFSUX: "FMOVSU", STFSUX: "FMOVSU",
 	CMPD: "CMP", CMPDI: "CMP",
 	CMPW: "CMPW", CMPWI: "CMPW",
 	CMPLD: "CMPU", CMPLDI: "CMPU",

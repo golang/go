@@ -18,12 +18,12 @@ func bufferNotEscape() string {
 	// can be stack-allocated.
 	var b bytes.Buffer
 	b.WriteString("123")
-	b.Write([]byte{'4'}) // ERROR "\[\]byte literal does not escape$"
+	b.Write([]byte{'4'}) // ERROR "\[\]byte{...} does not escape$"
 	return b.String()    // ERROR "inlining call to bytes.\(\*Buffer\).String$" "string\(bytes.b.buf\[bytes.b.off:\]\) escapes to heap$"
 }
 
 func bufferNoEscape2(xs []string) int { // ERROR "xs does not escape$"
-	b := bytes.NewBuffer(make([]byte, 0, 64)) // ERROR "&bytes.Buffer literal does not escape$" "make\(\[\]byte, 0, 64\) does not escape$" "inlining call to bytes.NewBuffer$"
+	b := bytes.NewBuffer(make([]byte, 0, 64)) // ERROR "&bytes.Buffer{...} does not escape$" "make\(\[\]byte, 0, 64\) does not escape$" "inlining call to bytes.NewBuffer$"
 	for _, x := range xs {
 		b.WriteString(x)
 	}
@@ -31,7 +31,7 @@ func bufferNoEscape2(xs []string) int { // ERROR "xs does not escape$"
 }
 
 func bufferNoEscape3(xs []string) string { // ERROR "xs does not escape$"
-	b := bytes.NewBuffer(make([]byte, 0, 64)) // ERROR "&bytes.Buffer literal does not escape$" "make\(\[\]byte, 0, 64\) does not escape$" "inlining call to bytes.NewBuffer$"
+	b := bytes.NewBuffer(make([]byte, 0, 64)) // ERROR "&bytes.Buffer{...} does not escape$" "make\(\[\]byte, 0, 64\) does not escape$" "inlining call to bytes.NewBuffer$"
 	for _, x := range xs {
 		b.WriteString(x)
 		b.WriteByte(',')
@@ -41,13 +41,13 @@ func bufferNoEscape3(xs []string) string { // ERROR "xs does not escape$"
 
 func bufferNoEscape4() []byte {
 	var b bytes.Buffer
-	b.Grow(64)       // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
+	b.Grow(64) // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
 	useBuffer(&b)
 	return b.Bytes() // ERROR "inlining call to bytes.\(\*Buffer\).Bytes$"
 }
 
 func bufferNoEscape5() { // ERROR "can inline bufferNoEscape5$"
-	b := bytes.NewBuffer(make([]byte, 0, 128)) // ERROR "&bytes.Buffer literal does not escape$" "make\(\[\]byte, 0, 128\) does not escape$" "inlining call to bytes.NewBuffer$"
+	b := bytes.NewBuffer(make([]byte, 0, 128)) // ERROR "&bytes.Buffer{...} does not escape$" "make\(\[\]byte, 0, 128\) does not escape$" "inlining call to bytes.NewBuffer$"
 	useBuffer(b)
 }
 

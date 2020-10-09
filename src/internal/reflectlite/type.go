@@ -7,6 +7,7 @@
 package reflectlite
 
 import (
+	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -233,9 +234,12 @@ type imethod struct {
 // interfaceType represents an interface type.
 type interfaceType struct {
 	rtype
-	pkgPath name      // import path
-	methods []imethod // sorted by hash
+	pkgPath    name      // import path
+	expMethods []imethod // sorted by name, see runtime/type.go:interfacetype to see how it is encoded.
 }
+
+func (t *interfaceType) methods() []imethod { return t.expMethods[:cap(t.expMethods)] }
+func (t *interfaceType) isEmpty() bool      { return cap(t.expMethods) == 0 }
 
 // mapType represents a map type.
 type mapType struct {
@@ -338,7 +342,7 @@ func (n name) name() (s string) {
 	}
 	b := (*[4]byte)(unsafe.Pointer(n.bytes))
 
-	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
 	hdr.Data = unsafe.Pointer(&b[3])
 	hdr.Len = int(b[1])<<8 | int(b[2])
 	return s
@@ -350,7 +354,7 @@ func (n name) tag() (s string) {
 		return ""
 	}
 	nl := n.nameLen()
-	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
 	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
 	hdr.Len = tl
 	return s
@@ -382,6 +386,44 @@ const (
 	kindGCProg      = 1 << 6 // Type.gc points to GC program
 	kindMask        = (1 << 5) - 1
 )
+
+// String returns the name of k.
+func (k Kind) String() string {
+	if int(k) < len(kindNames) {
+		return kindNames[k]
+	}
+	return kindNames[0]
+}
+
+var kindNames = []string{
+	Invalid:       "invalid",
+	Bool:          "bool",
+	Int:           "int",
+	Int8:          "int8",
+	Int16:         "int16",
+	Int32:         "int32",
+	Int64:         "int64",
+	Uint:          "uint",
+	Uint8:         "uint8",
+	Uint16:        "uint16",
+	Uint32:        "uint32",
+	Uint64:        "uint64",
+	Uintptr:       "uintptr",
+	Float32:       "float32",
+	Float64:       "float64",
+	Complex64:     "complex64",
+	Complex128:    "complex128",
+	Array:         "array",
+	Chan:          "chan",
+	Func:          "func",
+	Interface:     "interface",
+	Map:           "map",
+	Ptr:           "ptr",
+	Slice:         "slice",
+	String:        "string",
+	Struct:        "struct",
+	UnsafePointer: "unsafe.Pointer",
+}
 
 func (t *uncommonType) methods() []method {
 	if t.mcount == 0 {
@@ -656,7 +698,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 }
 
 // NumMethod returns the number of interface methods in the type's method set.
-func (t *interfaceType) NumMethod() int { return len(t.methods) }
+func (t *interfaceType) NumMethod() int { return len(t.expMethods) }
 
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
@@ -693,9 +735,10 @@ func implements(T, V *rtype) bool {
 		return false
 	}
 	t := (*interfaceType)(unsafe.Pointer(T))
-	if len(t.methods) == 0 {
+	if t.isEmpty() {
 		return true
 	}
+	tmethods := t.methods()
 
 	// The same algorithm applies in both cases, but the
 	// method tables for an interface type and a concrete type
@@ -712,10 +755,11 @@ func implements(T, V *rtype) bool {
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
-		for j := 0; j < len(v.methods); j++ {
-			tm := &t.methods[i]
+		vmethods := v.methods()
+		for j := 0; j < len(vmethods); j++ {
+			tm := &tmethods[i]
 			tmName := t.nameOff(tm.name)
-			vm := &v.methods[j]
+			vm := &vmethods[j]
 			vmName := V.nameOff(vm.name)
 			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
 				if !tmName.isExported() {
@@ -731,7 +775,7 @@ func implements(T, V *rtype) bool {
 						continue
 					}
 				}
-				if i++; i >= len(t.methods) {
+				if i++; i >= len(tmethods) {
 					return true
 				}
 			}
@@ -746,7 +790,7 @@ func implements(T, V *rtype) bool {
 	i := 0
 	vmethods := v.methods()
 	for j := 0; j < int(v.mcount); j++ {
-		tm := &t.methods[i]
+		tm := &tmethods[i]
 		tmName := t.nameOff(tm.name)
 		vm := vmethods[j]
 		vmName := V.nameOff(vm.name)
@@ -764,7 +808,7 @@ func implements(T, V *rtype) bool {
 					continue
 				}
 			}
-			if i++; i >= len(t.methods) {
+			if i++; i >= len(tmethods) {
 				return true
 			}
 		}
@@ -858,7 +902,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	case Interface:
 		t := (*interfaceType)(unsafe.Pointer(T))
 		v := (*interfaceType)(unsafe.Pointer(V))
-		if len(t.methods) == 0 && len(v.methods) == 0 {
+		if t.isEmpty() && v.isEmpty() {
 			return true
 		}
 		// Might have the same methods but still
@@ -922,4 +966,12 @@ func toType(t *rtype) Type {
 // ifaceIndir reports whether t is stored indirectly in an interface value.
 func ifaceIndir(t *rtype) bool {
 	return t.kind&kindDirectIface == 0
+}
+
+func isEmptyIface(t *rtype) bool {
+	if t.Kind() != Interface {
+		return false
+	}
+	tt := (*interfaceType)(unsafe.Pointer(t))
+	return tt.isEmpty()
 }

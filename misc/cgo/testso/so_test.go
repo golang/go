@@ -20,16 +20,14 @@ import (
 func requireTestSOSupported(t *testing.T) {
 	t.Helper()
 	switch runtime.GOARCH {
-	case "arm", "arm64":
-		if runtime.GOOS == "darwin" {
+	case "arm64":
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 			t.Skip("No exec facility on iOS.")
 		}
 	case "ppc64":
 		if runtime.GOOS == "linux" {
-			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+			t.Skip("External linking not implemented on linux/ppc64 (issue #8912).")
 		}
-	case "mips64le", "mips64":
-		t.Skip("External linking not implemented on mips64.")
 	}
 	if runtime.GOOS == "android" {
 		t.Skip("No exec facility on Android.")
@@ -76,7 +74,7 @@ func TestSO(t *testing.T) {
 	ext := "so"
 	args := append(gogccflags, "-shared")
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		ext = "dylib"
 		args = append(args, "-undefined", "suppress", "-flat_namespace")
 	case "windows":
@@ -121,7 +119,7 @@ func TestSO(t *testing.T) {
 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
 	if runtime.GOOS != "windows" {
 		s := "LD_LIBRARY_PATH"
-		if runtime.GOOS == "darwin" {
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 			s = "DYLD_LIBRARY_PATH"
 		}
 		cmd.Env = append(os.Environ(), s+"=.")

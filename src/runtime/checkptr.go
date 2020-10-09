@@ -8,20 +8,22 @@ import "unsafe"
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Check that (*[n]elem)(p) is appropriately aligned.
+	// Note that we allow unaligned pointers if the types they point to contain
+	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
-		throw("checkptr: unsafe pointer conversion")
+	if elem.ptrdata != 0 && uintptr(p)&(uintptr(elem.align)-1) != 0 {
+		throw("checkptr: misaligned pointer conversion")
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
 	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
-		throw("checkptr: unsafe pointer conversion")
+		throw("checkptr: converted pointer straddles multiple allocations")
 	}
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
-		throw("checkptr: unsafe pointer arithmetic")
+		throw("checkptr: pointer arithmetic computed bad pointer value")
 	}
 
 	// Check that if the computed pointer p points into a heap
@@ -38,7 +40,7 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 		}
 	}
 
-	throw("checkptr: unsafe pointer arithmetic")
+	throw("checkptr: pointer arithmetic result points to invalid allocation")
 }
 
 // checkptrBase returns the base address for the allocation containing

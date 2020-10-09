@@ -447,9 +447,24 @@ func (z *Int) SetBytes(buf []byte) *Int {
 }
 
 // Bytes returns the absolute value of x as a big-endian byte slice.
+//
+// To use a fixed length slice, or a preallocated one, use FillBytes.
 func (x *Int) Bytes() []byte {
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
+}
+
+// FillBytes sets buf to the absolute value of x, storing it as a zero-extended
+// big-endian byte slice, and returns buf.
+//
+// If the absolute value of x doesn't fit in buf, FillBytes will panic.
+func (x *Int) FillBytes(buf []byte) []byte {
+	// Clear whole buffer. (This gets optimized into a memclr.)
+	for i := range buf {
+		buf[i] = 0
+	}
+	x.abs.bytes(buf)
+	return buf
 }
 
 // BitLen returns the length of the absolute value of x in bits.
@@ -465,8 +480,8 @@ func (x *Int) TrailingZeroBits() uint {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
-// and x and n are not relatively prime, z is unchanged and nil is returned.
+// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m != 0, y < 0,
+// and x and m are not relatively prime, z is unchanged and nil is returned.
 //
 // Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
@@ -504,9 +519,14 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 // GCD sets z to the greatest common divisor of a and b and returns z.
 // If x or y are not nil, GCD sets their value such that z = a*x + b*y.
-// Regardless of the signs of a and b, z is always >= 0.
+//
+// a and b may be positive, zero or negative. (Before Go 1.14 both had
+// to be > 0.) Regardless of the signs of a and b, z is always >= 0.
+//
 // If a == b == 0, GCD sets z = x = y = 0.
+//
 // If a == 0 and b != 0, GCD sets z = |b|, x = 0, y = sign(b) * 1.
+//
 // If a != 0 and b == 0, GCD sets z = |a|, x = sign(a) * 1, y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if len(a.abs) == 0 || len(b.abs) == 0 {

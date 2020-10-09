@@ -28,7 +28,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// If codepoint < 0 the absolute value is too large (or unknown) for
 			// conversion. This is the same as converting any other out-of-range
 			// value - let string(codepoint) do the work.
-			x.val = constant.MakeString(string(codepoint))
+			x.val = constant.MakeString(string(rune(codepoint)))
 			ok = true
 		}
 	case x.convertibleTo(check, T):

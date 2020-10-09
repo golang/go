@@ -61,13 +61,6 @@ type FlagSet interface {
 	Float64(name string, def float64, usage string) *float64
 	String(name string, def string, usage string) *string
 
-	// BoolVar, IntVar, Float64Var, and StringVar define new flags referencing
-	// a given pointer, like the functions of the same name in package flag.
-	BoolVar(pointer *bool, name string, def bool, usage string)
-	IntVar(pointer *int, name string, def int, usage string)
-	Float64Var(pointer *float64, name string, def float64, usage string)
-	StringVar(pointer *string, name string, def string, usage string)
-
 	// StringList is similar to String but allows multiple values for a
 	// single flag
 	StringList(name string, def string, usage string) *[]*string
@@ -121,7 +114,7 @@ type ObjTool interface {
 
 	// Disasm disassembles the named object file, starting at
 	// the start address and stopping at (before) the end address.
-	Disasm(file string, start, end uint64) ([]Inst, error)
+	Disasm(file string, start, end uint64, intelSyntax bool) ([]Inst, error)
 }
 
 // An Inst is a single instruction in an assembly listing.

@@ -98,16 +98,23 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		req.Body.Close()
-		buf := uint8Array.New(len(body))
-		js.CopyBytesToJS(buf, body)
-		opt.Set("body", buf)
+		if len(body) != 0 {
+			buf := uint8Array.New(len(body))
+			js.CopyBytesToJS(buf, body)
+			opt.Set("body", buf)
+		}
 	}
-	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
+
+	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)
 	var (
-		respCh = make(chan *Response, 1)
-		errCh  = make(chan error, 1)
+		respCh           = make(chan *Response, 1)
+		errCh            = make(chan error, 1)
+		success, failure js.Func
 	)
-	success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	success = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		success.Release()
+		failure.Release()
+
 		result := args[0]
 		header := Header{}
 		// https://developer.mozilla.org/en-US/docs/Web/API/Headers/entries
@@ -141,35 +148,29 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		code := result.Get("status").Int()
-		select {
-		case respCh <- &Response{
+		respCh <- &Response{
 			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
 			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
 			Body:          body,
 			Request:       req,
-		}:
-		case <-req.Context().Done():
 		}
 
 		return nil
 	})
-	defer success.Release()
-	failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
-		select {
-		case errCh <- err:
-		case <-req.Context().Done():
-		}
+	failure = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		success.Release()
+		failure.Release()
+		errCh <- fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
 		return nil
 	})
-	defer failure.Release()
-	respPromise.Call("then", success, failure)
+
+	fetchPromise.Call("then", success, failure)
 	select {
 	case <-req.Context().Done():
 		if !ac.IsUndefined() {
-			// Abort the Fetch request
+			// Abort the Fetch request.
 			ac.Call("abort")
 		}
 		return nil, req.Context().Err()

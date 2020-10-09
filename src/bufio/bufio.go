@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -419,20 +420,16 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 	return
 }
 
-// ReadBytes reads until the first occurrence of delim in the input,
-// returning a slice containing the data up to and including the delimiter.
-// If ReadBytes encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often io.EOF).
-// ReadBytes returns err != nil if and only if the returned data does not end in
-// delim.
-// For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
-	// Use ReadSlice to look for array,
-	// accumulating full buffers.
+// collectFragments reads until the first occurrence of delim in the input. It
+// returns (slice of full buffers, remaining bytes before delim, total number
+// of bytes in the combined first two elements, error).
+// The complete result is equal to
+// `bytes.Join(append(fullBuffers, finalFragment), nil)`, which has a
+// length of `totalLen`. The result is structured in this way to allow callers
+// to minimize allocations and copies.
+func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragment []byte, totalLen int, err error) {
 	var frag []byte
-	var full [][]byte
-	var err error
-	n := 0
+	// Use ReadSlice to look for delim, accumulating full buffers.
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -447,12 +444,23 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 		// Make a copy of the buffer.
 		buf := make([]byte, len(frag))
 		copy(buf, frag)
-		full = append(full, buf)
-		n += len(buf)
+		fullBuffers = append(fullBuffers, buf)
+		totalLen += len(buf)
 	}
 
-	n += len(frag)
+	totalLen += len(frag)
+	return fullBuffers, frag, totalLen, err
+}
 
+// ReadBytes reads until the first occurrence of delim in the input,
+// returning a slice containing the data up to and including the delimiter.
+// If ReadBytes encounters an error before finding a delimiter,
+// it returns the data read before the error and the error itself (often io.EOF).
+// ReadBytes returns err != nil if and only if the returned data does not end in
+// delim.
+// For simple uses, a Scanner may be more convenient.
+func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
+	full, frag, n, err := b.collectFragments(delim)
 	// Allocate new buffer to hold the full pieces and the fragment.
 	buf := make([]byte, n)
 	n = 0
@@ -472,8 +480,16 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 // delim.
 // For simple uses, a Scanner may be more convenient.
 func (b *Reader) ReadString(delim byte) (string, error) {
-	bytes, err := b.ReadBytes(delim)
-	return string(bytes), err
+	full, frag, n, err := b.collectFragments(delim)
+	// Allocate new buffer to hold the full pieces and the fragment.
+	var buf strings.Builder
+	buf.Grow(n)
+	// Copy full pieces and fragment in.
+	for _, fb := range full {
+		buf.Write(fb)
+	}
+	buf.Write(frag)
+	return buf.String(), err
 }
 
 // WriteTo implements io.WriterTo.

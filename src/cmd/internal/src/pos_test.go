@@ -147,7 +147,7 @@ func TestLico(t *testing.T) {
 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
 	} {
 		x := test.x
-		if got := format("", x.Line(), x.Col(), true); got != test.string {
+		if got := formatstr("", x.Line(), x.Col(), true); got != test.string {
 			t.Errorf("%s: got %q", test.string, got)
 		}
 	}
@@ -179,7 +179,7 @@ func TestIsStmt(t *testing.T) {
 		{makeLico(lineMax+1, colMax+1).withNotStmt(), fmt.Sprintf(":%d", lineMax) + not, lineMax, 0},
 	} {
 		x := test.x
-		if got := format("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d", x.IsStmt()); got != test.string {
+		if got := formatstr("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d", x.IsStmt()); got != test.string {
 			t.Errorf("%s: got %q", test.string, got)
 		}
 	}
@@ -219,7 +219,7 @@ func TestLogue(t *testing.T) {
 		{makeLico(lineMax, 1).withXlogue(PosEpilogueBegin), fmt.Sprintf(":%d:1", lineMax) + defs + epi, lineMax, 1},
 	} {
 		x := test.x
-		if got := format("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d:%d", x.IsStmt(), x.Xlogue()); got != test.string {
+		if got := formatstr("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d:%d", x.IsStmt(), x.Xlogue()); got != test.string {
 			t.Errorf("%d: %s: got %q", i, test.string, got)
 		}
 	}

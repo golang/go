@@ -52,9 +52,9 @@ var sysdir = func() *sysDir {
 				"libpowermanager.so",
 			},
 		}
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			wd, err := syscall.Getwd()
 			if err != nil {
 				wd = err.Error()
@@ -144,9 +144,9 @@ func localTmp() string {
 	switch runtime.GOOS {
 	case "android", "windows":
 		return TempDir()
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			return TempDir()
 		}
 	}
@@ -481,9 +481,9 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		dir = "/system/bin"
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			wd, err := Getwd()
 			if err != nil {
 				t.Fatal(err)
@@ -687,6 +687,10 @@ func TestReaddirOfFile(t *testing.T) {
 	names, err := reg.Readdirnames(-1)
 	if err == nil {
 		t.Error("Readdirnames succeeded; want non-nil error")
+	}
+	var pe *PathError
+	if !errors.As(err, &pe) || pe.Path != f.Name() {
+		t.Errorf("Readdirnames returned %q; want a PathError with path %q", err, f.Name())
 	}
 	if len(names) > 0 {
 		t.Errorf("unexpected dir names in regular file: %q", names)
@@ -1095,29 +1099,34 @@ func checkMode(t *testing.T, path string, mode FileMode) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
 	}
-	if dir.Mode()&0777 != mode {
+	if dir.Mode()&ModePerm != mode {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
 	}
 }
 
 func TestChmod(t *testing.T) {
-	// Chmod is not supported under windows.
-	if runtime.GOOS == "windows" {
-		return
-	}
 	f := newFile("TestChmod", t)
 	defer Remove(f.Name())
 	defer f.Close()
+	// Creation mode is read write
 
-	if err := Chmod(f.Name(), 0456); err != nil {
-		t.Fatalf("chmod %s 0456: %s", f.Name(), err)
+	fm := FileMode(0456)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0444) // read-only file
 	}
-	checkMode(t, f.Name(), 0456)
+	if err := Chmod(f.Name(), fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 
-	if err := f.Chmod(0123); err != nil {
-		t.Fatalf("chmod %s 0123: %s", f.Name(), err)
+	fm = FileMode(0123)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0666) // read-write file
 	}
-	checkMode(t, f.Name(), 0123)
+	if err := f.Chmod(fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 }
 
 func checkSize(t *testing.T, f *File, size int64) {
@@ -1242,6 +1251,41 @@ func testChtimes(t *testing.T, name string) {
 	}
 }
 
+func TestFileChdir(t *testing.T) {
+	// TODO(brainman): file.Chdir() is not implemented on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	defer Chdir(wd)
+
+	fd, err := Open(".")
+	if err != nil {
+		t.Fatalf("Open .: %s", err)
+	}
+	defer fd.Close()
+
+	if err := Chdir("/"); err != nil {
+		t.Fatalf("Chdir /: %s", err)
+	}
+
+	if err := fd.Chdir(); err != nil {
+		t.Fatalf("fd.Chdir: %s", err)
+	}
+
+	wdNew, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	if wdNew != wd {
+		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+	}
+}
+
 func TestChdirAndGetwd(t *testing.T) {
 	// TODO(brainman): file.Chdir() is not implemented on windows.
 	if runtime.GOOS == "windows" {
@@ -1260,9 +1304,9 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			dirs = nil
 			for _, d := range []string{"d1", "d2"} {
 				dir, err := ioutil.TempDir("", d)
@@ -1325,8 +1369,9 @@ func TestChdirAndGetwd(t *testing.T) {
 // Test that Chdir+Getwd is program-wide.
 func TestProgWideChdir(t *testing.T) {
 	const N = 10
+	const ErrPwd = "Error!"
 	c := make(chan bool)
-	cpwd := make(chan string)
+	cpwd := make(chan string, N)
 	for i := 0; i < N; i++ {
 		go func(i int) {
 			// Lock half the goroutines in their own operating system
@@ -1339,10 +1384,15 @@ func TestProgWideChdir(t *testing.T) {
 				// See issue 9428.
 				runtime.LockOSThread()
 			}
-			<-c
+			hasErr, closed := <-c
+			if !closed && hasErr {
+				cpwd <- ErrPwd
+				return
+			}
 			pwd, err := Getwd()
 			if err != nil {
 				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				cpwd <- ErrPwd
 				return
 			}
 			cpwd <- pwd
@@ -1350,10 +1400,12 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
+		c <- true
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
@@ -1363,17 +1415,22 @@ func TestProgWideChdir(t *testing.T) {
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
+		c <- true
 		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
 		pwd := <-cpwd
+		if pwd == ErrPwd {
+			t.FailNow()
+		}
 		if pwd != d {
 			t.Errorf("Getwd returned %q; want %q", pwd, d)
 		}
@@ -1785,7 +1842,7 @@ func TestAppend(t *testing.T) {
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	// Create new temporary directory and arrange to clean it up.
-	path, err := ioutil.TempDir("", "/_TestStatDirWithSlash_")
+	path, err := ioutil.TempDir("", "_TestStatDirWithSlash_")
 	if err != nil {
 		t.Fatalf("TempDir: %s", err)
 	}
@@ -2446,5 +2503,79 @@ func TestDirSeek(t *testing.T) {
 		if n1 != n2 {
 			t.Fatalf("different name i=%d n1=%s n2=%s\n", i, n1, n2)
 		}
+	}
+}
+
+func TestReaddirSmallSeek(t *testing.T) {
+	// See issue 37161. Read only one entry from a directory,
+	// seek to the beginning, and read again. We should not see
+	// duplicate entries.
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	df, err := Open(filepath.Join(wd, "testdata", "issue37161"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names1, err := df.Readdirnames(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = df.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	names2, err := df.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names2) != 3 {
+		t.Fatalf("first names: %v, second names: %v", names1, names2)
+	}
+}
+
+// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
+// We also check that the error has a Timeout method that returns true.
+func isDeadlineExceeded(err error) bool {
+	if !IsTimeout(err) {
+		return false
+	}
+	if !errors.Is(err, ErrDeadlineExceeded) {
+		return false
+	}
+	return true
+}
+
+// Test that opening a file does not change its permissions.  Issue 38225.
+func TestOpenFileKeepsPermissions(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	name := filepath.Join(dir, "x")
+	f, err := Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Error(err)
+	}
+	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := f.Stat(); err != nil {
+		t.Error(err)
+	} else if fi.Mode()&0222 == 0 {
+		t.Errorf("f.Stat.Mode after OpenFile is %v, should be writable", fi.Mode())
+	}
+	if err := f.Close(); err != nil {
+		t.Error(err)
+	}
+	if fi, err := Stat(name); err != nil {
+		t.Error(err)
+	} else if fi.Mode()&0222 == 0 {
+		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
 	}
 }

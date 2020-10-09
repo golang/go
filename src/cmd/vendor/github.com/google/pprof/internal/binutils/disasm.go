@@ -25,10 +25,11 @@ import (
 )
 
 var (
-	nmOutputRE            = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
-	objdumpAsmOutputRE    = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
-	objdumpOutputFileLine = regexp.MustCompile(`^(.*):([0-9]+)`)
-	objdumpOutputFunction = regexp.MustCompile(`^(\S.*)\(\):`)
+	nmOutputRE                = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
+	objdumpAsmOutputRE        = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
+	objdumpOutputFileLine     = regexp.MustCompile(`^;?\s?(.*):([0-9]+)`)
+	objdumpOutputFunction     = regexp.MustCompile(`^;?\s?(\S.*)\(\):`)
+	objdumpOutputFunctionLLVM = regexp.MustCompile(`^([[:xdigit:]]+)?\s?(.*):`)
 )
 
 func findSymbols(syms []byte, file string, r *regexp.Regexp, address uint64) ([]*plugin.Sym, error) {
@@ -143,6 +144,11 @@ func disassemble(asm []byte) ([]plugin.Inst, error) {
 		if fields := objdumpOutputFunction.FindStringSubmatch(input); len(fields) == 2 {
 			function = fields[1]
 			continue
+		} else {
+			if fields := objdumpOutputFunctionLLVM.FindStringSubmatch(input); len(fields) == 3 {
+				function = fields[2]
+				continue
+			}
 		}
 		// Reset on unrecognized lines.
 		function, file, line = "", "", 0

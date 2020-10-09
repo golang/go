@@ -8,10 +8,6 @@ pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
 pkg os (linux-arm), const O_SYNC = 1052672
 pkg os (linux-arm-cgo), const O_SYNC = 1052672
-pkg syscall (darwin-386), const ImplementsGetwd = false
-pkg syscall (darwin-386), func Fchflags(string, int) error
-pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
-pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
 pkg syscall (darwin-amd64), const ImplementsGetwd = false
 pkg syscall (darwin-amd64), func Fchflags(string, int) error
 pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
@@ -460,3 +456,4 @@ pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntonname [88]int8
 pkg text/scanner, const GoTokens = 1012
 pkg unicode, const Version = "10.0.0"
 pkg unicode, const Version = "11.0.0"
+pkg unicode, const Version = "12.0.0"

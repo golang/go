@@ -12,4 +12,6 @@ package cpu
 
 const cacheLineSize = 0
 
-func doinit() {}
+func initOptions() {}
+
+func archInit() {}

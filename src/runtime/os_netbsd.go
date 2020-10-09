@@ -95,18 +95,28 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 
 // From NetBSD's <sys/sysctl.h>
 const (
-	_CTL_HW      = 6
-	_HW_NCPU     = 3
-	_HW_PAGESIZE = 7
+	_CTL_HW        = 6
+	_HW_NCPU       = 3
+	_HW_PAGESIZE   = 7
+	_HW_NCPUONLINE = 16
 )
 
-func getncpu() int32 {
-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
-	out := uint32(0)
+func sysctlInt(mib []uint32) (int32, bool) {
+	var out int32
 	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
+	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret < 0 {
+		return 0, false
+	}
+	return out, true
+}
+
+func getncpu() int32 {
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPUONLINE}); ok {
+		return int32(n)
+	}
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
+		return int32(n)
 	}
 	return 1
 }
@@ -349,6 +359,7 @@ func sysargs(argc int32, argv **byte) {
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
 	sysauxv(auxv[:])
+	archauxv(auxv[:])
 }
 
 const (

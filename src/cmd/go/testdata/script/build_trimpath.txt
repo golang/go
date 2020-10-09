@@ -1,5 +1,9 @@
 [short] skip
 
+# If GOROOT_FINAL is set, 'go build -trimpath' bakes that into the resulting
+# binary instead of GOROOT. Explicitly unset it here.
+env GOROOT_FINAL=
+
 # Set up two identical directories that can be used as GOPATH.
 env GO111MODULE=on
 mkdir $WORK/a/src/paths $WORK/b/src/paths

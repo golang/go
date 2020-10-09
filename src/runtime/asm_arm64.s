@@ -27,8 +27,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 
 	// if there is a _cgo_init, call it using the gcc ABI.
 	MOVD	_cgo_init(SB), R12
-	CMP	$0, R12
-	BEQ	nocgo
+	CBZ	R12, nocgo
 
 	MRS_TPIDR_R0			// load TLS base pointer
 	MOVD	R0, R3			// arg 3: TLS base pointer
@@ -114,8 +113,7 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	ZR, gobuf_ret(R3)
 	// Assert ctxt is zero. See func save.
 	MOVD	gobuf_ctxt(R3), R0
-	CMP	$0, R0
-	BEQ	2(PC)
+	CBZ	R0, 2(PC)
 	CALL	runtime·badctxt(SB)
 	RET
 
@@ -333,6 +331,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -416,40 +415,38 @@ TEXT callRet<>(SB), NOSPLIT, $40-0
 	BL	runtime·reflectcallmove(SB)
 	RET
 
-// These have 8 added to make the overall frame size a multiple of 16,
-// as required by the ABI. (There is another +8 for the saved LR.)
-CALLFN(·call32, 40 )
-CALLFN(·call64, 72 )
-CALLFN(·call128, 136 )
-CALLFN(·call256, 264 )
-CALLFN(·call512, 520 )
-CALLFN(·call1024, 1032 )
-CALLFN(·call2048, 2056 )
-CALLFN(·call4096, 4104 )
-CALLFN(·call8192, 8200 )
-CALLFN(·call16384, 16392 )
-CALLFN(·call32768, 32776 )
-CALLFN(·call65536, 65544 )
-CALLFN(·call131072, 131080 )
-CALLFN(·call262144, 262152 )
-CALLFN(·call524288, 524296 )
-CALLFN(·call1048576, 1048584 )
-CALLFN(·call2097152, 2097160 )
-CALLFN(·call4194304, 4194312 )
-CALLFN(·call8388608, 8388616 )
-CALLFN(·call16777216, 16777224 )
-CALLFN(·call33554432, 33554440 )
-CALLFN(·call67108864, 67108872 )
-CALLFN(·call134217728, 134217736 )
-CALLFN(·call268435456, 268435464 )
-CALLFN(·call536870912, 536870920 )
-CALLFN(·call1073741824, 1073741832 )
+CALLFN(·call16, 16)
+CALLFN(·call32, 32)
+CALLFN(·call64, 64)
+CALLFN(·call128, 128)
+CALLFN(·call256, 256)
+CALLFN(·call512, 512)
+CALLFN(·call1024, 1024)
+CALLFN(·call2048, 2048)
+CALLFN(·call4096, 4096)
+CALLFN(·call8192, 8192)
+CALLFN(·call16384, 16384)
+CALLFN(·call32768, 32768)
+CALLFN(·call65536, 65536)
+CALLFN(·call131072, 131072)
+CALLFN(·call262144, 262144)
+CALLFN(·call524288, 524288)
+CALLFN(·call1048576, 1048576)
+CALLFN(·call2097152, 2097152)
+CALLFN(·call4194304, 4194304)
+CALLFN(·call8388608, 8388608)
+CALLFN(·call16777216, 16777216)
+CALLFN(·call33554432, 33554432)
+CALLFN(·call67108864, 67108864)
+CALLFN(·call134217728, 134217728)
+CALLFN(·call268435456, 268435456)
+CALLFN(·call536870912, 536870912)
+CALLFN(·call1073741824, 1073741824)
 
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R0
-	CMP	$0, R0
-	BEQ	noaes
+	CBZ	R0, noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -474,8 +471,7 @@ noaes:
 // func memhash64(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R0
-	CMP	$0, R0
-	BEQ	noaes
+	CBZ	R0, noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -500,8 +496,7 @@ noaes:
 // func memhash(p unsafe.Pointer, h, size uintptr) uintptr
 TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
 	MOVB	runtime·useAeshash(SB), R0
-	CMP	$0, R0
-	BEQ	noaes
+	CBZ	R0, noaes
 	MOVD	p+0(FP), R0
 	MOVD	s+16(FP), R1
 	MOVD	h+8(FP), R3
@@ -513,8 +508,7 @@ noaes:
 // func strhash(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R0
-	CMP	$0, R0
-	BEQ	noaes
+	CBZ	R0, noaes
 	MOVD	p+0(FP), R10 // string pointer
 	LDP	(R10), (R0, R1) //string data/ length
 	MOVD	h+8(FP), R3
@@ -548,8 +542,7 @@ TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	B	aes129plus
 
 aes0to15:
-	CMP	$0, R1
-	BEQ	aes0
+	CBZ	R1, aes0
 	VEOR	V2.B16, V2.B16, V2.B16
 	TBZ	$3, R1, less_than_8
 	VLD1.P	8(R0), V2.D[0]
@@ -879,8 +872,7 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R0
-	CMP	$0, R0
-	BEQ	2(PC)
+	CBZ	R0, 2(PC)
 	CALL	runtime·badctxt(SB)
 	RET
 
@@ -893,8 +885,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	arg+8(FP), R0
 
 	MOVD	RSP, R2		// save original stack pointer
-	CMP	$0, g
-	BEQ	nosave
+	CBZ	g, nosave
 	MOVD	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
@@ -990,8 +981,7 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
 
 	// Load g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R3
-	CMP	$0, R3
-	BEQ	nocgo
+	CBZ	R3, nocgo
 	BL	runtime·load_g(SB)
 nocgo:
 
@@ -1000,8 +990,7 @@ nocgo:
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
 	// the linker analysis by using an indirect call.
-	CMP	$0, g
-	BEQ	needm
+	CBZ	g, needm
 
 	MOVD	g_m(g), R8
 	MOVD	R8, savedm-8(SP)
@@ -1092,8 +1081,7 @@ havem:
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVD	savedm-8(SP), R6
-	CMP	$0, R6
-	BNE	droppedm
+	CBNZ	R6, droppedm
 	MOVD	$runtime·dropm(SB), R0
 	BL	(R0)
 droppedm:
