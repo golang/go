@@ -530,8 +530,10 @@
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)
 
 // Atomic memory updates.
-(AtomicAnd8 ptr val mem) => (ANDBlock ptr val mem)
-(AtomicOr8 ptr val mem) => (ORBlock ptr val mem)
+(AtomicAnd8  ptr val mem) => (ANDBlock ptr val mem)
+(AtomicAnd32 ptr val mem) => (ANDLlock ptr val mem)
+(AtomicOr8   ptr val mem) => (ORBlock  ptr val mem)
+(AtomicOr32  ptr val mem) => (ORLlock  ptr val mem)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
