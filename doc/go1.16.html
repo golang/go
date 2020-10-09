@@ -316,3 +316,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/debug -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
+      the <a
+      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
+      algorithm</a>, improving performance by up to a factor of 2. This can
+      also speed up decoding textual formats like <a
+      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
