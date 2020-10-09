@@ -607,6 +607,10 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	if err != nil {
 		return err
 	}
+
+	var mu sync.Mutex // to guard asynchronous access to dupCheck
+	dupCheck := map[string]struct{}{}
+
 	// Start off with the standard library.
 	for importPath, exports := range stdlib {
 		p := &pkg{
@@ -615,13 +619,11 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			packageName:     path.Base(importPath),
 			relevance:       MaxRelevance,
 		}
+		dupCheck[importPath] = struct{}{}
 		if notSelf(p) && wrappedCallback.dirFound(p) && wrappedCallback.packageNameLoaded(p) {
 			wrappedCallback.exportsLoaded(p, exports)
 		}
 	}
-
-	var mu sync.Mutex
-	dupCheck := map[string]struct{}{}
 
 	scanFilter := &scanCallback{
 		rootFound: func(root gopathwalk.Root) bool {
