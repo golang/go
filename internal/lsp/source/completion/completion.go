@@ -809,7 +809,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 			name = pkgToConsider
 		}
 
-		score := float64(pkg.Relevance)
+		score := pkg.Relevance
 		if len(pkgDirList)-1 == depth {
 			score *= highScore
 		} else {
@@ -1102,7 +1102,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		paths = append(paths, path)
 	}
 
-	var relevances map[string]int
+	var relevances map[string]float64
 	if len(paths) != 0 {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			var err error
@@ -1174,8 +1174,8 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 
 // unimportedScore returns a score for an unimported package that is generally
 // lower than other candidates.
-func unimportedScore(relevance int) float64 {
-	return (stdScore + .1*float64(relevance)) / 2
+func unimportedScore(relevance float64) float64 {
+	return (stdScore + .1*relevance) / 2
 }
 
 func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo) []candidate {
@@ -1398,7 +1398,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		paths = append(paths, path)
 	}
 
-	var relevances map[string]int
+	var relevances map[string]float64
 	if len(paths) != 0 {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			var err error

@@ -2564,7 +2564,7 @@ func TestX() {
 // with correct priorities.
 func TestGetCandidates(t *testing.T) {
 	type res struct {
-		relevance  int
+		relevance  float64
 		name, path string
 	}
 	want := []res{
@@ -2620,7 +2620,7 @@ func TestGetCandidates(t *testing.T) {
 
 func TestGetImportPaths(t *testing.T) {
 	type res struct {
-		relevance  int
+		relevance  float64
 		name, path string
 	}
 	want := []res{
@@ -2670,7 +2670,7 @@ func TestGetImportPaths(t *testing.T) {
 
 func TestGetPackageCompletions(t *testing.T) {
 	type res struct {
-		relevance          int
+		relevance          float64
 		name, path, symbol string
 	}
 	want := []res{

@@ -487,7 +487,7 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 	return nil
 }
 
-func (r *ModuleResolver) scoreImportPath(ctx context.Context, path string) int {
+func (r *ModuleResolver) scoreImportPath(ctx context.Context, path string) float64 {
 	if _, ok := stdlib[path]; ok {
 		return MaxRelevance
 	}
@@ -495,17 +495,31 @@ func (r *ModuleResolver) scoreImportPath(ctx context.Context, path string) int {
 	return modRelevance(mod)
 }
 
-func modRelevance(mod *gocommand.ModuleJSON) int {
+func modRelevance(mod *gocommand.ModuleJSON) float64 {
+	var relevance float64
 	switch {
 	case mod == nil: // out of scope
 		return MaxRelevance - 4
 	case mod.Indirect:
-		return MaxRelevance - 3
+		relevance = MaxRelevance - 3
 	case !mod.Main:
-		return MaxRelevance - 2
+		relevance = MaxRelevance - 2
 	default:
-		return MaxRelevance - 1 // main module ties with stdlib
+		relevance = MaxRelevance - 1 // main module ties with stdlib
 	}
+
+	_, versionString, ok := module.SplitPathVersion(mod.Path)
+	if ok {
+		index := strings.Index(versionString, "v")
+		if index == -1 {
+			return relevance
+		}
+		if versionNumber, err := strconv.ParseFloat(versionString[index+1:], 64); err == nil {
+			relevance += versionNumber / 1000
+		}
+	}
+
+	return relevance
 }
 
 // canonicalize gets the result of canonicalizing the packages using the results
