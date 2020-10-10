@@ -71,7 +71,18 @@ func unpackError(err error) syntax.Error {
 	}
 }
 
-func checkFiles(t *testing.T, sources []string, trace bool) {
+func delta(x, y uint) uint {
+	switch {
+	case x < y:
+		return y - x
+	case x > y:
+		return x - y
+	default:
+		return 0
+	}
+}
+
+func checkFiles(t *testing.T, sources []string, colDelta uint, trace bool) {
 	// parse files and collect parser errors
 	files, errlist := parseFiles(t, sources)
 
@@ -164,10 +175,9 @@ func checkFiles(t *testing.T, sources []string, trace bool) {
 			continue
 		}
 
-		// TODO(gri) make exact an incoming parameter
-		const exact = true
+		// column position must be within expected colDelta
 		want := list[index]
-		if exact && got.Pos.Col() != want.Pos.Col() {
+		if delta(got.Pos.Col(), want.Pos.Col()) > colDelta {
 			t.Errorf("%s: got col = %d; want %d", got.Pos, got.Pos.Col(), want.Pos.Col())
 		}
 
@@ -207,18 +217,18 @@ func TestCheck(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	checkFiles(t, strings.Split(*testFiles, " "), testing.Verbose())
+	checkFiles(t, strings.Split(*testFiles, " "), 0, testing.Verbose())
 }
 
 func TestTestdata(t *testing.T) {
 	t.Skip("positions need to be fixed first")
 	DefPredeclaredTestFuncs()
-	testDir(t, "testdata")
+	testDir(t, 0, "testdata")
 }
-func TestExamples(t *testing.T)  { testDir(t, "examples") }
-func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+func TestExamples(t *testing.T)  { testDir(t, 0, "examples") }
+func TestFixedbugs(t *testing.T) { testDir(t, 0, "fixedbugs") }
 
-func testDir(t *testing.T, dir string) {
+func testDir(t *testing.T, colDelta uint, dir string) {
 	testenv.MustHaveGoBuild(t)
 
 	fis, err := ioutil.ReadDir(dir)
@@ -248,7 +258,7 @@ func testDir(t *testing.T, dir string) {
 					fmt.Printf("\t%s\n", files[i])
 				}
 			}
-			checkFiles(t, files, false)
+			checkFiles(t, files, colDelta, false)
 			continue
 		}
 
@@ -256,6 +266,6 @@ func testDir(t *testing.T, dir string) {
 		if testing.Verbose() {
 			fmt.Printf("%3d %s\n", count, path)
 		}
-		checkFiles(t, []string{path}, false)
+		checkFiles(t, []string{path}, colDelta, false)
 	}
 }
