@@ -93,6 +93,11 @@ func convert(r io.Reader, file string, writeBack bool) error {
 		return fmt.Errorf("%v: already markdown", file)
 	}
 
+	// Convert all comments before parsing the document.
+	// The '//' comment is treated as normal text and so
+	// is passed through the translation unaltered.
+	data = bytes.Replace(data, []byte("\n#"), []byte("\n//"), -1)
+
 	doc, err := present.Parse(bytes.NewReader(data), file, 0)
 	if err != nil {
 		return err
