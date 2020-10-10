@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
@@ -78,6 +80,70 @@ func sendCtrlBreak(pid int) error {
 		return fmt.Errorf("GenerateConsoleCtrlEvent: %v\n", err)
 	}
 	return nil
+}
+
+func TestCtrlHandler(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveExecPath(t, "gcc")
+	testprog.Lock()
+	defer testprog.Unlock()
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// build go program
+	exe := filepath.Join(dir, "test.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinsignal/main.go")
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go exe: %v\n%s", err, out)
+	}
+
+	// udp socket for synchronization
+	conn, err := net.ListenPacket("udp", "[::1]:0")
+	if err != nil {
+		t.Fatalf("ListenPacket failed: %v", err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	// run test program
+	cmd = exec.Command("cmd.exe", "/c", "start", exe, conn.LocalAddr().String())
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+
+	// read pid
+	var data [512]byte
+	n, _, err := conn.ReadFrom(data[:])
+	if err != nil {
+		t.Fatalf("ReadFrom failed: %v", err)
+	}
+
+	// gracefully kill pid
+	err = exec.Command("taskkill.exe", "/pid", string(data[:n])).Run()
+	if err != nil {
+		t.Fatalf("failed to kill: %v", err)
+	}
+
+	// check received signal
+	n, _, err = conn.ReadFrom(data[:])
+	if err != nil {
+		t.Fatalf("ReadFrom failed: %v", err)
+	}
+	expected := syscall.SIGTERM.String()
+	if n != len(expected) && string(data[:len(expected)]) != expected {
+		t.Fatalf("Expected '%s' got: %s", expected, data[:n])
+	}
+
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Program exited with error: %v", err)
+	}
 }
 
 // TestLibraryCtrlHandler tests that Go DLL allows calling program to handle console control events.
