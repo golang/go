@@ -828,6 +828,27 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	}
 }
 
+// Ensure that Request.Clone creates a deep copy of TransferEncoding.
+// See issue 41907.
+func TestRequestCloneTransferEncoding(t *testing.T) {
+	body := strings.NewReader("body")
+	req, _ := NewRequest("POST", "https://example.org/", body)
+	req.TransferEncoding = []string{
+		"encoding1",
+	}
+
+	clonedReq := req.Clone(context.Background())
+	// modify original after deep copy
+	req.TransferEncoding[0] = "encoding2"
+
+	if req.TransferEncoding[0] != "encoding2" {
+		t.Error("expected req.TransferEncoding to be changed")
+	}
+	if clonedReq.TransferEncoding[0] != "encoding1" {
+		t.Error("expected clonedReq.TransferEncoding to be unchanged")
+	}
+}
+
 func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
 	testNoPanicWithBasicAuth(t, h1Mode)
 }
