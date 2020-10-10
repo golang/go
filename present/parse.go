@@ -525,6 +525,7 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 					// Command breaks text block.
 					// Section heading breaks text block in markdown.
 					if text[0] == '.' || isSpeakerNote(text) {
+						lines.back()
 						break
 					}
 					if strings.HasPrefix(text, `\.`) { // Backslash escapes initial period.

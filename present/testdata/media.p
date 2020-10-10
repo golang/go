@@ -2,6 +2,7 @@ Media
 
 *
 
+The Gopher
 .image gopher.jpg _ 100
 .caption A gopher.
 
@@ -14,6 +15,7 @@ Media
 ---
 <h1>Media</h1>
 <section>
+<p>The Gopher</p>
 <img src="gopher.jpg" width="100" alt="">
 <figcaption>A gopher.</figcaption>
 <iframe src="https://golang.org/"></iframe>
