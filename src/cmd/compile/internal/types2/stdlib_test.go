@@ -8,11 +8,10 @@
 package types2_test
 
 import (
+	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/build"
-	"go/scanner"
-	"go/token"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -25,7 +24,6 @@ import (
 	. "cmd/compile/internal/types2"
 )
 
-var fset = token.NewFileSet()
 var stdLibImporter = defaultImporter()
 
 func TestStdlib(t *testing.T) {
@@ -45,42 +43,50 @@ func TestStdlib(t *testing.T) {
 // firstComment returns the contents of the first non-empty comment in
 // the given file, "skip", or the empty string. No matter the present
 // comments, if any of them contains a build tag, the result is always
-// "skip". Only comments before the "package" token and within the first
-// 4K of the file are considered.
-func firstComment(filename string) string {
+// "skip". Only comments within the first 4K of the file are considered.
+// TODO(gri) should only read until we see "package" token.
+func firstComment(filename string) (first string) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return ""
 	}
 	defer f.Close()
 
-	var src [4 << 10]byte // read at most 4KB
-	n, _ := f.Read(src[:])
+	// read at most 4KB
+	var buf [4 << 10]byte
+	n, _ := f.Read(buf[:])
+	src := bytes.NewBuffer(buf[:n])
 
-	var first string
-	var s scanner.Scanner
-	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil /* ignore errors */, scanner.ScanComments)
-	for {
-		_, tok, lit := s.Scan()
-		switch tok {
-		case token.COMMENT:
-			// remove trailing */ of multi-line comment
-			if lit[1] == '*' {
-				lit = lit[:len(lit)-2]
+	// TODO(gri) we need a better way to terminate CommentsDo
+	defer func() {
+		if p := recover(); p != nil {
+			if s, ok := p.(string); ok {
+				first = s
 			}
-			contents := strings.TrimSpace(lit[2:])
-			if strings.HasPrefix(contents, "+build ") {
-				return "skip"
-			}
-			if first == "" {
-				first = contents // contents may be "" but that's ok
-			}
-			// continue as we may still see build tags
-
-		case token.PACKAGE, token.EOF:
-			return first
 		}
-	}
+	}()
+
+	syntax.CommentsDo(src, func(_, _ uint, text string) {
+		if text[0] != '/' {
+			return // not a comment
+		}
+
+		// extract comment text
+		if text[1] == '*' {
+			text = text[:len(text)-2]
+		}
+		text = strings.TrimSpace(text[2:])
+
+		if strings.HasPrefix(text, "+build ") {
+			panic("skip")
+		}
+		if first == "" {
+			first = text // text may be "" but that's ok
+		}
+		// continue as we may still see build tags
+	})
+
+	return
 }
 
 func testTestDir(t *testing.T, path string, ignore ...string) {
@@ -124,6 +130,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 
 		// parse and type-check file
+		if testing.Verbose() {
+			fmt.Println("\t", filename)
+		}
 		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err == nil {
 			conf := Config{Importer: stdLibImporter}
@@ -198,16 +207,9 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	// parse package files
 	var files []*syntax.File
 	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, nil, nil, 0)
+		errh := func(err error) { t.Error(err) }
+		file, err := syntax.ParseFile(filename, errh, nil, 0)
 		if err != nil {
-			// the parser error may be a list of individual errors; report them all
-			if list, ok := err.(scanner.ErrorList); ok {
-				for _, err := range list {
-					t.Error(err)
-				}
-				return
-			}
-			t.Error(err)
 			return
 		}
 
