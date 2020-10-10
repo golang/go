@@ -47,7 +47,7 @@ func (d *declInfo) addDep(obj Object) {
 // have a matching number of names and initialization values.
 // If inherited is set, the initialization values are from
 // another (constant) declaration.
-func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax.Expr, inherited bool) {
+func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax.Expr, constDecl, inherited bool) {
 	l := len(names)
 	r := len(inits)
 
@@ -59,7 +59,7 @@ func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax
 		} else {
 			check.errorf(n, "extra init expr %s", n)
 		}
-	case l > r && r != 1: // if r == 1 it may be a multi-valued function and we can't say anything yet
+	case l > r && (constDecl || r != 1): // if r == 1 it may be a multi-valued function and we can't say anything yet
 		n := names[r]
 		check.errorf(n, "missing init expr for %s", n.Value)
 	}
@@ -342,11 +342,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// Constants must always have init values.
-				if values != nil {
-					check.arity(s.Pos(), s.NameList, values, inherited)
-				} else {
-					check.errorf(s, "missing init expr")
-				}
+				check.arity(s.Pos(), s.NameList, values, true, inherited)
 
 			case *syntax.VarDecl:
 				lhs := make([]*Var, len(s.NameList))
@@ -382,9 +378,8 @@ func (check *Checker) collectObjects() {
 				}
 
 				// If we have no type, we must have values.
-				// If we have no type and no values we got an error by the parser.
-				if s.Type == nil {
-					check.arity(s.Pos(), s.NameList, values, false)
+				if s.Type == nil || values != nil {
+					check.arity(s.Pos(), s.NameList, values, false, false)
 				}
 
 			case *syntax.TypeDecl:

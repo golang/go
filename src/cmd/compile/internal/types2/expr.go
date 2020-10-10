@@ -880,7 +880,7 @@ func (check *Checker) shift(x, y *operand, e *syntax.Operation, op syntax.Operat
 }
 
 var binaryOpPredicates = opPredicates{
-	syntax.Add: func(typ Type) bool { return isNumeric(typ) || isString(typ) },
+	syntax.Add: isNumericOrString,
 	syntax.Sub: isNumeric,
 	syntax.Mul: isNumeric,
 	syntax.Div: isNumeric,
@@ -1592,7 +1592,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 		// spec: "Only the first index may be omitted; it defaults to 0."
 		if e.Full && (e.Index[1] == nil || e.Index[2] == nil) {
-			check.error(e, "2nd and 3rd index required in 3-index slice")
+			check.invalidASTf(e, "2nd and 3rd index required in 3-index slice")
 			goto Error
 		}
 

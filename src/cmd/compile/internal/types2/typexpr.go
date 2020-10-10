@@ -707,7 +707,7 @@ func (check *Checker) typeList(list []syntax.Expr) []Type {
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the the first type in list.
+// variable list. If type0 != nil, it is used instead of the first type in list.
 func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 syntax.Expr, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
@@ -719,22 +719,22 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 	var prev syntax.Expr
 	for i, field := range list {
 		ftype := field.Type
-		if i == 0 && type0 != nil {
-			ftype = type0
-		}
-		if t, _ := ftype.(*syntax.DotsType); t != nil {
-			ftype = t.Elem
-			if variadicOk && i == len(list)-1 {
-				variadic = true
-			} else {
-				check.softErrorf(t, "can only use ... with final parameter in list")
-				// ignore ... and continue
-			}
-		}
 		// type-check type of grouped fields only once
 		if ftype != prev {
-			typ = check.varType(ftype)
 			prev = ftype
+			if i == 0 && type0 != nil {
+				ftype = type0
+			}
+			if t, _ := ftype.(*syntax.DotsType); t != nil {
+				ftype = t.Elem
+				if variadicOk && i == len(list)-1 {
+					variadic = true
+				} else {
+					check.softErrorf(t, "can only use ... with final parameter in list")
+					// ignore ... and continue
+				}
+			}
+			typ = check.varType(ftype)
 		}
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
@@ -785,6 +785,7 @@ func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) boo
 }
 
 func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
+	var tname *syntax.Name // most recent "type" name
 	var types []syntax.Expr
 	for _, f := range iface.MethodList {
 		if f.Name != nil {
@@ -797,7 +798,14 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			}
 
 			if name == "type" {
+				// Always collect all type list entries, even from
+				// different type lists, under the assumption that
+				// the author intended to include all types.
 				types = append(types, f.Type)
+				if tname != nil && tname != f.Name {
+					check.errorf(f.Name, "cannot have multiple type lists in an interface")
+				}
+				tname = f.Name
 				continue
 			}
 

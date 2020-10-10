@@ -889,11 +889,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 			// Constants must always have init values.
-			if values != nil {
-				check.arity(s.Pos(), s.NameList, values, inherited)
-			} else {
-				check.errorf(s, "missing init expr")
-			}
+			check.arity(s.Pos(), s.NameList, values, true, inherited)
 
 			// process function literals in init expressions before scope changes
 			check.processDelayed(top)
@@ -950,9 +946,8 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 			// If we have no type, we must have values.
-			// If we have no type and no values we got an error by the parser.
-			if s.Type == nil {
-				check.arity(s.Pos(), s.NameList, values, false)
+			if s.Type == nil || values != nil {
+				check.arity(s.Pos(), s.NameList, values, false, false)
 			}
 
 			// process function literals in init expressions before scope changes

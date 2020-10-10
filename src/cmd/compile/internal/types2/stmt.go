@@ -45,7 +45,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 
 	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
-		check.error(body, "missing return")
+		check.error(body.Rbrace, "missing return")
 	}
 
 	// TODO(gri) Should we make it an error to declare generic functions
@@ -380,6 +380,20 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
 				return
 			}
+
+			// provide better error messages for x++ and x--
+			if rhs[0] == syntax.ImplicitOne {
+				var x operand
+				check.expr(&x, lhs[0])
+				if x.mode == invalid {
+					return
+				}
+				if !isNumeric(x.typ) {
+					check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+					return
+				}
+			}
+
 			var x operand
 			check.binary(&x, nil, lhs[0], rhs[0], s.Op)
 			if x.mode == invalid {
@@ -560,7 +574,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// spec: "The init statement may be a short variable
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*syntax.AssignStmt); s != nil && s.Op == syntax.Def {
-			check.softErrorf(s, "cannot declare in post statement")
+			// The parser already reported an error.
 			// Don't call useLHS here because we want to use the lhs in
 			// this erroneous statement so that we don't get errors about
 			// these lhs variables being declared but not used.
@@ -656,9 +670,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	switch t := x.typ.Under().(type) {
 	case *Interface:
 		xtyp = t
-	case *TypeParam:
-		xtyp = t.Bound()
-		strict = true
+	// Disabled for now. See comment in the implementation of type assertions (expr.go).
+	// case *TypeParam:
+	// 	xtyp = t.Bound()
+	// 	strict = true
 	default:
 		check.errorf(&x, "%s is not an interface or generic type", &x)
 		return

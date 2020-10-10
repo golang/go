@@ -770,15 +770,15 @@ Error:
 func (check *Checker) use(arg ...syntax.Expr) {
 	var x operand
 	for _, e := range arg {
-		if e, _ := e.(*syntax.ListExpr); e != nil {
-			check.use(e.ElemList...)
-		} else {
-			// The nil check below is necessary since certain AST fields
-			// may legally be nil (e.g., the ast.SliceExpr.High field).
-			if e != nil {
-				check.rawExpr(&x, e, nil)
-			}
+		// Certain AST fields may legally be nil (e.g., the ast.SliceExpr.High field).
+		if e == nil {
+			continue
 		}
+		if l, _ := e.(*syntax.ListExpr); l != nil {
+			check.use(l.ElemList...)
+			continue
+		}
+		check.rawExpr(&x, e, nil)
 	}
 }
 

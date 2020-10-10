@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// If types.Config.AcceptMethodTypeParams is set,
+// If types2.Config.AcceptMethodTypeParams is set,
 // the type checker accepts methods that have their
 // own type parameter list.
 
@@ -12,6 +12,9 @@ type S struct{}
 
 func (S) m[T any](v T)
 
+// TODO(gri) Once we collect interface method type parameters
+//           in the parser, we can enable these tests again.
+/*
 type I interface {
    m[T any](v T)
 }
@@ -46,3 +49,4 @@ var _ I = Jc(nil)
 
 var _ Ic = S{}
 var _ Ic = J(nil)
+*/
