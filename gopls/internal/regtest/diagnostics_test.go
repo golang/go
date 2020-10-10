@@ -1382,3 +1382,48 @@ func main() {
 		)
 	})
 }
+
+func TestSwig(t *testing.T) {
+	t.Skipf("skipped until golang/go#37098 is resolved")
+
+	const mod = `
+-- go.mod --
+module mod.com
+-- pkg/simple/export_swig.go --
+package simple
+
+func ExportSimple(x, y int) int {
+	return Gcd(x, y)
+}
+-- pkg/simple/simple.swigcxx --
+%module simple
+
+%inline %{
+extern int gcd(int x, int y)
+{
+  int g;
+  g = y;
+  while (x > 0) {
+    g = x;
+    x = y % x;
+    y = g;
+  }
+  return g;
+}
+%}
+-- main.go --
+package a
+
+func main() {
+	var x int
+}
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				NoDiagnosticWithMessage("illegal character U+0023 '#'"),
+			),
+		)
+	})
+}

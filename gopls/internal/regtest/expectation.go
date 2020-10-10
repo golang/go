@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 )
 
 // An Expectation asserts that the state of the editor at a point in time
@@ -489,5 +490,31 @@ func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
 		isMet:       isMet,
 		description: fmt.Sprintf("no diagnostic at {line:%d, column:%d}", line, col),
 		path:        name,
+	}
+}
+
+// NoDiagnosticWithMessage asserts that there is no diagnostic entry with the
+// given message.
+//
+// This should only be used in combination with OnceMet for a given condition,
+// otherwise it may always succeed.
+func NoDiagnosticWithMessage(msg string) DiagnosticExpectation {
+	var uri span.URI
+	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
+		for _, d := range diags.Diagnostics {
+			if d.Message == msg {
+				return true
+			}
+		}
+		return false
+	}
+	var path string
+	if uri != "" {
+		path = uri.Filename()
+	}
+	return DiagnosticExpectation{
+		isMet:       isMet,
+		description: fmt.Sprintf("no diagnostic with message %s", msg),
+		path:        path,
 	}
 }
