@@ -191,14 +191,11 @@ func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup
 	if s.workspaceMode()&usesWorkspaceModule == 0 {
 		return "", cleanup, nil
 	}
-	wsModuleHandle, err := s.getWorkspaceModuleHandle(ctx)
+	file, err := s.workspace.modFile(ctx, s)
 	if err != nil {
 		return "", nil, err
 	}
-	file, err := wsModuleHandle.build(ctx, s)
-	if err != nil {
-		return "", nil, err
-	}
+
 	content, err := file.Format()
 	if err != nil {
 		return "", cleanup, err

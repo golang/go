@@ -33,34 +33,31 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	// Use temporary go.mod files, but always go to disk for the contents.
 	// Rebuilding the cache is expensive, and we don't want to do it for
 	// transient changes.
-	var modFH, sumFH source.FileHandle
+	var modFH source.FileHandle
+	var gosum []byte
 	var modFileIdentifier string
 	var err error
-	// TODO(heschik): Change the goimports logic to use a persistent workspace
+	// TODO(rfindley): Change the goimports logic to use a persistent workspace
 	// module for workspace module mode.
 	//
 	// Get the go.mod file that corresponds to this view's root URI. This is
 	// broken because it assumes that the view's root is a module, but this is
 	// not more broken than the previous state--it is a temporary hack that
 	// should be removed ASAP.
-	var match *moduleRoot
-	for _, m := range snapshot.modules {
-		if m.rootURI == snapshot.view.rootURI {
-			match = m
+	var matchURI span.URI
+	for modURI := range snapshot.workspace.activeModFiles() {
+		if dirURI(modURI) == snapshot.view.rootURI {
+			matchURI = modURI
 		}
 	}
-	if match != nil {
-		modFH, err = snapshot.GetFile(ctx, match.modURI)
+	// TODO(rFindley): should it be an error if matchURI is empty?
+	if matchURI != "" {
+		modFH, err = snapshot.GetFile(ctx, matchURI)
 		if err != nil {
 			return err
 		}
 		modFileIdentifier = modFH.FileIdentity().Hash
-		if match.sumURI != "" {
-			sumFH, err = snapshot.GetFile(ctx, match.sumURI)
-			if err != nil {
-				return err
-			}
-		}
+		gosum = snapshot.goSum(ctx, matchURI)
 	}
 	// v.goEnv is immutable -- changes make a new view. Options can change.
 	// We can't compare build flags directly because we may add -modfile.
@@ -87,7 +84,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		}
 		s.cachedModFileIdentifier = modFileIdentifier
 		s.cachedBuildFlags = currentBuildFlags
-		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot, modFH, sumFH)
+		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot, modFH, gosum)
 		if err != nil {
 			return err
 		}
@@ -125,7 +122,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 
 // populateProcessEnv sets the dynamically configurable fields for the view's
 // process environment. Assumes that the caller is holding the s.view.importsMu.
-func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot, modFH, sumFH source.FileHandle) (cleanup func(), err error) {
+func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot, modFH source.FileHandle, gosum []byte) (cleanup func(), err error) {
 	cleanup = func() {}
 	pe := s.processEnv
 
@@ -166,7 +163,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 	// Add -modfile to the build flags, if we are using it.
 	if snapshot.workspaceMode()&tempModfile != 0 && modFH != nil {
 		var tmpURI span.URI
-		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
+		tmpURI, cleanup, err = tempModFile(modFH, gosum)
 		if err != nil {
 			return nil, err
 		}

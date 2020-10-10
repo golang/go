@@ -79,14 +79,10 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 		return fh, nil
 	}
 
-	select {
-	case ioLimit <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	fh, err := readFile(ctx, uri, fi.ModTime())
+	if err != nil {
+		return nil, err
 	}
-	defer func() { <-ioLimit }()
-
-	fh = readFile(ctx, uri, fi.ModTime())
 	c.fileMu.Lock()
 	c.fileContent[uri] = fh
 	c.fileMu.Unlock()
@@ -96,7 +92,14 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 // ioLimit limits the number of parallel file reads per process.
 var ioLimit = make(chan struct{}, 128)
 
-func readFile(ctx context.Context, uri span.URI, modTime time.Time) *fileHandle {
+func readFile(ctx context.Context, uri span.URI, modTime time.Time) (*fileHandle, error) {
+	select {
+	case ioLimit <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-ioLimit }()
+
 	ctx, done := event.Start(ctx, "cache.readFile", tag.File.Of(uri.Filename()))
 	_ = ctx
 	defer done()
@@ -106,14 +109,14 @@ func readFile(ctx context.Context, uri span.URI, modTime time.Time) *fileHandle 
 		return &fileHandle{
 			modTime: modTime,
 			err:     err,
-		}
+		}, nil
 	}
 	return &fileHandle{
 		modTime: modTime,
 		uri:     uri,
 		bytes:   data,
 		hash:    hashContents(data),
-	}
+	}, nil
 }
 
 func (c *Cache) NewSession(ctx context.Context) *Session {

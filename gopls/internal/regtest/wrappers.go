@@ -92,6 +92,13 @@ func (e *Env) EditBuffer(name string, edits ...fake.Edit) {
 	}
 }
 
+func (e *Env) SetBufferContent(name string, content string) {
+	e.T.Helper()
+	if err := e.Editor.SetBufferContent(e.Ctx, name, content); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // RegexpRange returns the range of the first match for re in the buffer
 // specified by name, calling t.Fatal on any error. It first searches for the
 // position in open buffers, then in workspace files.

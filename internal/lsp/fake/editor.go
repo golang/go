@@ -522,6 +522,13 @@ func (e *Editor) EditBuffer(ctx context.Context, path string, edits []Edit) erro
 	return e.editBufferLocked(ctx, path, edits)
 }
 
+func (e *Editor) SetBufferContent(ctx context.Context, path, content string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	lines := strings.Split(content, "\n")
+	return e.setBufferContentLocked(ctx, path, lines, nil)
+}
+
 // BufferText returns the content of the buffer with the given name.
 func (e *Editor) BufferText(name string) string {
 	e.mu.Lock()
@@ -542,24 +549,28 @@ func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit
 	if !ok {
 		return fmt.Errorf("unknown buffer %q", path)
 	}
-	var (
-		content = make([]string, len(buf.content))
-		err     error
-		evts    []protocol.TextDocumentContentChangeEvent
-	)
+	content := make([]string, len(buf.content))
 	copy(content, buf.content)
-	content, err = editContent(content, edits)
+	content, err := editContent(content, edits)
 	if err != nil {
 		return err
 	}
+	return e.setBufferContentLocked(ctx, path, content, edits)
+}
 
+func (e *Editor) setBufferContentLocked(ctx context.Context, path string, content []string, fromEdits []Edit) error {
+	buf, ok := e.buffers[path]
+	if !ok {
+		return fmt.Errorf("unknown buffer %q", path)
+	}
 	buf.content = content
 	buf.version++
 	e.buffers[path] = buf
 	// A simple heuristic: if there is only one edit, send it incrementally.
 	// Otherwise, send the entire content.
-	if len(edits) == 1 {
-		evts = append(evts, edits[0].toProtocolChangeEvent())
+	var evts []protocol.TextDocumentContentChangeEvent
+	if len(fromEdits) == 1 {
+		evts = append(evts, fromEdits[0].toProtocolChangeEvent())
 	} else {
 		evts = append(evts, protocol.TextDocumentContentChangeEvent{
 			Text: buf.text(),

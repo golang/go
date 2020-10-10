@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -250,7 +251,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		}
 		snapshot, release := v.Snapshot(ctx)
 		defer release()
-		modFile, err := snapshot.BuildWorkspaceModFile(ctx)
+		modFile, err := cache.BuildGoplsMod(ctx, v.Folder(), snapshot)
 		if err != nil {
 			return errors.Errorf("getting workspace mod file: %w", err)
 		}

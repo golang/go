@@ -151,11 +151,6 @@ type builtinPackageData struct {
 	err    error
 }
 
-type moduleRoot struct {
-	rootURI        span.URI
-	modURI, sumURI span.URI
-}
-
 // fileBase holds the common functionality for all files.
 // It is intended to be embedded in the file implementations
 type fileBase struct {
@@ -183,7 +178,7 @@ func (v *View) ID() string { return v.id }
 // tempModFile creates a temporary go.mod file based on the contents of the
 // given go.mod file. It is the caller's responsibility to clean up the files
 // when they are done using them.
-func tempModFile(modFh, sumFH source.FileHandle) (tmpURI span.URI, cleanup func(), err error) {
+func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanup func(), err error) {
 	filenameHash := hashContents([]byte(modFh.URI().Filename()))
 	tmpMod, err := ioutil.TempFile("", fmt.Sprintf("go.%s.*.mod", filenameHash))
 	if err != nil {
@@ -217,12 +212,8 @@ func tempModFile(modFh, sumFH source.FileHandle) (tmpURI span.URI, cleanup func(
 	}()
 
 	// Create an analogous go.sum, if one exists.
-	if sumFH != nil {
-		sumContents, err := sumFH.Read()
-		if err != nil {
-			return "", cleanup, err
-		}
-		if err := ioutil.WriteFile(tmpSumName, sumContents, 0655); err != nil {
+	if gosum != nil {
+		if err := ioutil.WriteFile(tmpSumName, gosum, 0655); err != nil {
 			return "", cleanup, err
 		}
 	}
@@ -452,14 +443,14 @@ func (v *View) BackgroundContext() context.Context {
 func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
-	if len(s.modules) == 0 {
+	if len(s.workspace.activeModFiles()) == 0 {
 		for _, entry := range filepath.SplitList(s.view.gopath) {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
 		prefixes = append(prefixes, s.view.gomodcache)
-		for _, m := range s.modules {
-			prefixes = append(prefixes, m.rootURI.Filename())
+		for m := range s.workspace.activeModFiles() {
+			prefixes = append(prefixes, dirURI(m).Filename())
 		}
 	}
 	for _, prefix := range prefixes {
@@ -527,25 +518,23 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 				Message:  err.Error(),
 			})
 		}
-		if len(s.modules) > 0 {
-			for _, mod := range s.modules {
-				fh, err := s.GetFile(ctx, mod.modURI)
-				if err != nil {
-					addError(mod.modURI, err)
-					continue
-				}
-				parsed, err := s.ParseMod(ctx, fh)
-				if err != nil {
-					addError(mod.modURI, err)
-					continue
-				}
-				if parsed.File == nil || parsed.File.Module == nil {
-					addError(mod.modURI, fmt.Errorf("no module path for %s", mod.modURI))
-					continue
-				}
-				path := parsed.File.Module.Mod.Path
-				scopes = append(scopes, moduleLoadScope(path))
+		for modURI := range s.workspace.activeModFiles() {
+			fh, err := s.GetFile(ctx, modURI)
+			if err != nil {
+				addError(modURI, err)
+				continue
 			}
+			parsed, err := s.ParseMod(ctx, fh)
+			if err != nil {
+				addError(modURI, err)
+				continue
+			}
+			if parsed.File == nil || parsed.File.Module == nil {
+				addError(modURI, fmt.Errorf("no module path for %s", modURI))
+				continue
+			}
+			path := parsed.File.Module.Mod.Path
+			scopes = append(scopes, moduleLoadScope(path))
 		}
 		if len(scopes) == 0 {
 			scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
@@ -568,7 +557,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) (source.Snapshot, func()) {
+func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (source.Snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
@@ -584,8 +573,9 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 	defer v.snapshotMu.Unlock()
 
 	oldSnapshot := v.snapshot
+
 	var reinitialize reinitializeView
-	v.snapshot, reinitialize = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
+	v.snapshot, reinitialize = oldSnapshot.clone(ctx, changes, forceReloadMetadata)
 	go oldSnapshot.generation.Destroy()
 
 	if reinitialize == maybeReinit || reinitialize == definitelyReinit {
@@ -686,7 +676,7 @@ func defaultCheckPathCase(path string) error {
 	return nil
 }
 
-func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modules map[span.URI]*moduleRoot) bool {
+func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modFiles map[span.URI]struct{}) bool {
 	// Since we only really understand the `go` command, if the user has a
 	// different GOPACKAGESDRIVER, assume that their configuration is valid.
 	if ws.hasGopackagesDriver {
@@ -694,7 +684,7 @@ func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modules 
 	}
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
-	if len(modules) > 0 {
+	if len(modFiles) > 0 {
 		return true
 	}
 	// The user may have a multiple directories in their GOPATH.
