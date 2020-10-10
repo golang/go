@@ -220,11 +220,7 @@ func TestCheck(t *testing.T) {
 	checkFiles(t, strings.Split(*testFiles, " "), 0, testing.Verbose())
 }
 
-func TestTestdata(t *testing.T) {
-	t.Skip("positions need to be fixed first")
-	DefPredeclaredTestFuncs()
-	testDir(t, 0, "testdata")
-}
+func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
 func TestExamples(t *testing.T)  { testDir(t, 0, "examples") }
 func TestFixedbugs(t *testing.T) { testDir(t, 0, "fixedbugs") }
 
