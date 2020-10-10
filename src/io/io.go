@@ -413,8 +413,10 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw < 0 || nr < nw {
-				err = ErrBadWriteCount
-				break
+				nw = 0
+				if ew == nil {
+					ew = ErrBadWriteCount
+				}
 			}
 			written += int64(nw)
 			if ew != nil {
