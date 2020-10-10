@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // pclntab holds the state needed for pclntab generation.
@@ -113,23 +112,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 	return state, compUnits, funcs
 }
 
-// onlycsymbol looks at a symbol's name to report whether this is a
-// symbol that is referenced by C code
-func onlycsymbol(sname string) bool {
-	switch sname {
-	case "_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2":
-		return true
-	}
-	if strings.HasPrefix(sname, "_cgoexp_") {
-		return true
-	}
-	return false
-}
-
 func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
-	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(ctxt.loader.SymName(s)) {
-		return false
-	}
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
 	return !container.Has(s)
