@@ -82,6 +82,8 @@ func sendCtrlBreak(pid int) error {
 	return nil
 }
 
+// TestCtrlHandler tests that Go can gracefully handle closing the console window.
+// See https://golang.org/issues/41884.
 func TestCtrlHandler(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")

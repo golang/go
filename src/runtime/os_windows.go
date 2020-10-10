@@ -1010,7 +1010,11 @@ func ctrlhandler1(_type uint32) uint32 {
 	}
 
 	if sigsend(s) {
-		stdcall1(_Sleep, uintptr(_INFINITE))
+		if s == _SIGTERM {
+			// Windows terminates the process after this handler returns.
+			// Block indefinitely to give signal handlers a chance to clean up.
+			stdcall1(_Sleep, uintptr(_INFINITE))
+		}
 		return 1
 	}
 	return 0
