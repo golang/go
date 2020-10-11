@@ -777,6 +777,50 @@ func TestUnmarshalErrors(t *testing.T) {
 	}
 }
 
+func TestSkip(t *testing.T) {
+	xml := "<a>bbb</a><Person><name>nnn</name><uri>uuu</uri>wefwef</Person>"
+
+	var dst Person
+	d := NewDecoder(strings.NewReader(xml))
+
+	// consume a start element
+	if _, err := d.Token(); err != nil {
+		t.Fatalf("expected d.Token() to succeed but got: :%v", err)
+	}
+
+	// consume the rest until the matching end element
+	if err := d.Skip(); err != nil {
+		t.Fatalf("expected d.Skip() to succeed but got: :%v", err)
+	}
+
+	if err := d.Decode(&dst); err != nil {
+		t.Fatalf("expected d.Decode() to succeed but got: :%v", err)
+	}
+}
+
+func TestSkipErrors(t *testing.T) {
+	tests := []struct {
+		input  string
+		expectedError string
+	}{
+		{"<a>", `XML syntax error on line 1: unexpected EOF`},
+		{"<a>bbbb<c>", `XML syntax error on line 1: unexpected EOF`},
+	}
+
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(test.input))
+
+		// consume a start element
+		if _, err := d.Token(); err != nil {
+			t.Fatalf("expected d.Token() to succeed but got: :%v", err)
+		}
+
+		if err := d.Skip(); err == nil || err.Error() != test.expectedError{
+			t.Errorf("have %v, want %v", err, test.expectedError)
+		}
+	}
+}
+
 type Pea struct {
 	Cotelydon string
 }
