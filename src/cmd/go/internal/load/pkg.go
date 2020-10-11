@@ -33,6 +33,7 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/sys"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -1968,7 +1969,7 @@ func externalLinkingForced(p *Package) bool {
 	// external linking mode, as of course does
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
-	pieCgo := cfg.BuildBuildmode == "pie"
+	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
