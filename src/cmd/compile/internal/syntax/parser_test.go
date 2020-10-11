@@ -29,7 +29,24 @@ func TestParse(t *testing.T) {
 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 }
 
-func TestStdLib(t *testing.T) {
+func TestParseGo2(t *testing.T) {
+	dir := filepath.Join(testdata, "go2")
+	list, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fi := range list {
+		name := fi.Name()
+		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
+			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics)
+		}
+	}
+}
+
+func TestStdLib(t *testing.T)        { testStdLib(t, 0) }
+func TestStdLibGeneric(t *testing.T) { testStdLib(t, AllowGenerics) }
+
+func testStdLib(t *testing.T, mode Mode) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
@@ -68,7 +85,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ParseFile(filename, nil, nil, 0)
+				ast, err := ParseFile(filename, nil, nil, mode)
 				if err != nil {
 					t.Error(err)
 					return
