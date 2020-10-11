@@ -3,6 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // +build !windows,!static
+// +build !darwin !internal_pie
+
+// Excluded in darwin internal linking PIE mode, as dynamic export is not
+// supported.
 
 package cgotest
 

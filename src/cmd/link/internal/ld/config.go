@@ -222,6 +222,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64", "linux/arm64", "android/arm64":
 		case "windows/386", "windows/amd64", "windows/arm":
+		case "darwin/amd64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
