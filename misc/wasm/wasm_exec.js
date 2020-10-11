@@ -102,13 +102,16 @@
 		}
 	}
 
-	if (!global.crypto) {
+	if (!global.crypto && global.require) {
 		const nodeCrypto = require("crypto");
 		global.crypto = {
 			getRandomValues(b) {
 				nodeCrypto.randomFillSync(b);
 			},
 		};
+	}
+	if (!global.crypto) {
+		throw new Error("global.crypto is not available, polyfill required (getRandomValues only)");
 	}
 
 	if (!global.performance) {
@@ -120,12 +123,18 @@
 		};
 	}
 
-	if (!global.TextEncoder) {
+	if (!global.TextEncoder && global.require) {
 		global.TextEncoder = require("util").TextEncoder;
 	}
+	if (!global.TextEncoder) {
+		throw new Error("global.TextEncoder is not available, polyfill required");
+	}
 
-	if (!global.TextDecoder) {
+	if (!global.TextDecoder && global.require) {
 		global.TextDecoder = require("util").TextDecoder;
+	}
+	if (!global.TextDecoder) {
+		throw new Error("global.TextDecoder is not available, polyfill required");
 	}
 
 	// End of polyfills for common API.
