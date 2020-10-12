@@ -150,8 +150,8 @@
 	concrete value that it holds, and printing continues with the next rule.
 
 	2. If an operand implements the Formatter interface, it will
-	be invoked. In this case the meaning of verbs and flags is entirely
-	up to that implementation.
+	be invoked. In this case the interpretation of verbs and flags is
+	controlled by that implementation.
 
 	3. If the %v verb is used with the # flag (%#v) and the operand
 	implements the GoStringer interface, that will be invoked.
