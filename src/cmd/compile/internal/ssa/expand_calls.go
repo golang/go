@@ -39,7 +39,9 @@ func expandCalls(f *Func) {
 		hiOffset = 4
 	}
 
-	pairTypes := func(et types.EType) (tHi, tLo *types.Type) {
+	// intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
+	// that has no 64-bit integer registers.
+	intPairTypes := func(et types.EType) (tHi, tLo *types.Type) {
 		tHi = tUint32
 		if et == types.TINT64 {
 			tHi = tInt32
@@ -147,8 +149,8 @@ func expandCalls(f *Func) {
 		}
 	}
 
-	// storeArg converts stores of SSA-able aggregates into a series of stores of smaller types into
-	// individual parameter slots.
+	// storeArg converts stores of SSA-able aggregate arguments (passed to a call) into a series of stores of
+	// smaller types into individual parameter slots.
 	// TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
 	var storeArg func(pos src.XPos, b *Block, a *Value, t *types.Type, offset int64, mem *Value) *Value
 	storeArg = func(pos src.XPos, b *Block, a *Value, t *types.Type, offset int64, mem *Value) *Value {
@@ -165,7 +167,7 @@ func expandCalls(f *Func) {
 			return storeArg(pos, b, a.Args[0], t.Elem(), offset, mem)
 
 		case OpInt64Make:
-			tHi, tLo := pairTypes(t.Etype)
+			tHi, tLo := intPairTypes(t.Etype)
 			mem = storeArg(pos, b, a.Args[0], tHi, offset+hiOffset, mem)
 			return storeArg(pos, b, a.Args[1], tLo, offset+lowOffset, mem)
 		}
@@ -207,7 +209,7 @@ func expandCalls(f *Func) {
 			if t.Width == regSize {
 				break
 			}
-			tHi, tLo := pairTypes(t.Etype)
+			tHi, tLo := intPairTypes(t.Etype)
 			sel := src.Block.NewValue1(pos, OpInt64Hi, tHi, src)
 			mem = splitStore(dst, sel, mem, v, tHi, offset+hiOffset, firstStorePos)
 			firstStorePos = firstStorePos.WithNotStmt()
@@ -261,6 +263,9 @@ func expandCalls(f *Func) {
 		return x
 	}
 
+	// rewriteArgs removes all the Args from a call and converts the call args into appropriate
+	// stores (or later, register movement).  Extra args for interface and closure calls are ignored,
+	// but removed.
 	rewriteArgs := func(v *Value, firstArg int) *Value {
 		// Thread the stores on the memory arg
 		aux := v.Aux.(*AuxCall)
@@ -283,7 +288,7 @@ func expandCalls(f *Func) {
 				// TODO this will be more complicated with registers in the picture.
 				src := a.Args[0]
 				dst := f.ConstOffPtrSP(src.Type, aux.OffsetOfArg(auxI), sp)
-				if a.Uses == 1 {
+				if a.Uses == 1 && a.Block == v.Block {
 					a.reset(OpMove)
 					a.Pos = pos
 					a.Type = types.TypeMem
@@ -292,7 +297,7 @@ func expandCalls(f *Func) {
 					a.SetArgs3(dst, src, mem)
 					mem = a
 				} else {
-					mem = a.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, src, mem)
+					mem = v.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, src, mem)
 					mem.AuxInt = aux.SizeOfArg(auxI)
 				}
 			} else {

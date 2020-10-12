@@ -7,11 +7,11 @@ package syscall
 import "unsafe"
 
 func setTimespec(sec, nsec int64) Timespec {
-	return Timespec{Sec: int64(sec), Nsec: int64(nsec)}
+	return Timespec{Sec: sec, Nsec: nsec}
 }
 
 func setTimeval(sec, usec int64) Timeval {
-	return Timeval{Sec: int64(sec), Usec: int32(usec)}
+	return Timeval{Sec: sec, Usec: int32(usec)}
 }
 
 //sys	Fstat(fd int, stat *Stat_t) (err error)
@@ -20,14 +20,8 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Lstat(path string, stat *Stat_t) (err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, stat *Statfs_t) (err error)
-//sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
-
-// Marked nosplit because it is called from forkAndExecInChild where
-// stack growth is forbidden.
-//go:nosplit
-func ptrace(request int, pid int, addr uintptr, data uintptr) error {
-	return ENOTSUP
-}
+//sys	fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+//sys	ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint64(fd)

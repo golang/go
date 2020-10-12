@@ -361,7 +361,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 
 		if n.Type == nil && n.Val().Ctype() == CTSTR {
-			n.Type = types.Idealstring
+			n.Type = types.UntypedString
 		}
 
 	case ONONAME:
@@ -623,8 +623,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// no defaultlit for left
 			// the outer context gives the type
 			n.Type = l.Type
-			if (l.Type == types.Idealfloat || l.Type == types.Idealcomplex) && r.Op == OLITERAL {
-				n.Type = types.Idealint
+			if (l.Type == types.UntypedFloat || l.Type == types.UntypedComplex) && r.Op == OLITERAL {
+				n.Type = types.UntypedInt
 			}
 
 			break
@@ -777,7 +777,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if iscmp[n.Op] {
 			evconst(n)
-			t = types.Idealbool
+			t = types.UntypedBool
 			if n.Op != OLITERAL {
 				l, r = defaultlit2(l, r, true)
 				n.Left = l
@@ -1458,7 +1458,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		// Determine result type.
 		switch t.Etype {
 		case TIDEAL:
-			n.Type = types.Idealfloat
+			n.Type = types.UntypedFloat
 		case TCOMPLEX64:
 			n.Type = types.Types[TFLOAT32]
 		case TCOMPLEX128:
@@ -1504,7 +1504,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 
 		case TIDEAL:
-			t = types.Idealcomplex
+			t = types.UntypedComplex
 
 		case TFLOAT32:
 			t = types.Types[TCOMPLEX64]
@@ -2724,9 +2724,9 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 // e.g in error messages about wrong arguments to return.
 func sigrepr(t *types.Type, isddd bool) string {
 	switch t {
-	case types.Idealstring:
+	case types.UntypedString:
 		return "string"
-	case types.Idealbool:
+	case types.UntypedBool:
 		return "bool"
 	}
 

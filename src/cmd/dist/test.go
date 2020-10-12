@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
+	return goos == "ios"
 }
 
 func (t *tester) out(v string) {
@@ -992,7 +992,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
-			"darwin-amd64",
+			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
@@ -1011,7 +1011,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "freebsd-amd64":
 			return true
@@ -1023,7 +1023,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "windows-amd64", "windows-386", "windows-arm":
 			return true

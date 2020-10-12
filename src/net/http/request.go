@@ -382,7 +382,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	if s := r.TransferEncoding; s != nil {
 		s2 := make([]string, len(s))
 		copy(s2, s)
-		r2.TransferEncoding = s
+		r2.TransferEncoding = s2
 	}
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)

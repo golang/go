@@ -1275,8 +1275,9 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 		ot = dgopkgpath(lsym, ot, tpkg)
 
+		xcount := sort.Search(n, func(i int) bool { return !types.IsExported(m[i].name.Name) })
 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
-		ot = duintptr(lsym, ot, uint64(n))
+		ot = duintptr(lsym, ot, uint64(xcount))
 		ot = duintptr(lsym, ot, uint64(n))
 		dataAdd := imethodSize() * n
 		ot = dextratype(lsym, ot, t, dataAdd)

@@ -207,7 +207,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 			return nil
 		}()
 		if err != nil {
-			fmt.Printf("warning: no cgo types: %s\n", err)
+			fmt.Fprintf(os.Stderr, "go fix: warning: no cgo types: %s\n", err)
 		}
 	}
 

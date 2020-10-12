@@ -173,6 +173,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		if runtime.GOOS == "windows" {
 			return true
 		}
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+			return true // On darwin/arm64 everything is PIE
+		}
 		return false
 	}
 

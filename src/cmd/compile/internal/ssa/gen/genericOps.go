@@ -541,10 +541,10 @@ var genericOps = []opData{
 	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=tuple, auxint=field index.  Returns the auxint'th member.
 	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=tuple, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
 
-	// Atomic operations used for semantically inlining runtime/internal/atomic.
-	// Atomic loads return a new memory so that the loads are properly ordered
-	// with respect to other loads and stores.
-	// TODO: use for sync/atomic at some point.
+	// Atomic operations used for semantically inlining sync/atomic and
+	// runtime/internal/atomic. Atomic loads return a new memory so that
+	// the loads are properly ordered with respect to other loads and
+	// stores.
 	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.

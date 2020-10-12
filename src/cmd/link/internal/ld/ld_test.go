@@ -18,8 +18,13 @@ import (
 )
 
 func TestUndefinedRelocErrors(t *testing.T) {
-	t.Parallel()
 	testenv.MustHaveGoBuild(t)
+
+	// When external linking, symbols may be defined externally, so we allow
+	// undefined symbols and let external linker resolve. Skip the test.
+	testenv.MustInternalLink(t)
+
+	t.Parallel()
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatal(err)
