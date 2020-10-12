@@ -672,7 +672,7 @@ func (f *Func) Idom() []*Block {
 	return f.cachedIdom
 }
 
-// sdom returns a sparse tree representing the dominator relationships
+// Sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
 func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
