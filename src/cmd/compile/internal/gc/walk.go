@@ -1001,7 +1001,7 @@ opswitch:
 				// The SSA backend will handle those.
 				switch et {
 				case TINT64:
-					c := n.Right.Int64()
+					c := n.Right.Int64Val()
 					if c < 0 {
 						c = -c
 					}
@@ -1009,7 +1009,7 @@ opswitch:
 						break opswitch
 					}
 				case TUINT64:
-					c := uint64(n.Right.Int64())
+					c := uint64(n.Right.Int64Val())
 					if c != 0 && c&(c-1) == 0 {
 						break opswitch
 					}
@@ -1056,7 +1056,7 @@ opswitch:
 				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.SetBounded(bounded(r, int64(len(strlit(n.Left)))))
+			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
 			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
@@ -1491,7 +1491,7 @@ opswitch:
 	case OSTR2BYTES:
 		s := n.Left
 		if Isconst(s, CTSTR) {
-			sc := strlit(s)
+			sc := s.StringVal()
 
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
@@ -1919,7 +1919,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	for i := 0; i < len(s); {
 		var strs []string
 		for i < len(s) && Isconst(s[i], CTSTR) {
-			strs = append(strs, strlit(s[i]))
+			strs = append(strs, s[i].StringVal())
 			i++
 		}
 		if len(strs) > 0 {
@@ -1988,7 +1988,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TSTRING:
 			cs := ""
 			if Isconst(n, CTSTR) {
-				cs = strlit(n)
+				cs = n.StringVal()
 			}
 			switch cs {
 			case " ":
@@ -2645,7 +2645,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		sz := int64(0)
 		for _, n1 := range n.List.Slice() {
 			if n1.Op == OLITERAL {
-				sz += int64(len(strlit(n1)))
+				sz += int64(len(n1.StringVal()))
 			}
 		}
 
@@ -3439,7 +3439,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
 	// Ugly hack to avoid "constant -1 overflows uintptr" errors, etc.
-	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64() < 0 {
+	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64Val() < 0 {
 		n = copyexpr(n, n.Type, init)
 	}
 
@@ -3509,7 +3509,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 			// Length-only checks are ok, though.
 			maxRewriteLen = 0
 		}
-		if s := strlit(cs); len(s) <= maxRewriteLen {
+		if s := cs.StringVal(); len(s) <= maxRewriteLen {
 			if len(s) > 0 {
 				ncs = safeexpr(ncs, init)
 			}
@@ -3604,7 +3604,7 @@ func bounded(n *Node, max int64) bool {
 	bits := int32(8 * n.Type.Width)
 
 	if smallintconst(n) {
-		v := n.Int64()
+		v := n.Int64Val()
 		return 0 <= v && v < max
 	}
 
@@ -3612,9 +3612,9 @@ func bounded(n *Node, max int64) bool {
 	case OAND:
 		v := int64(-1)
 		if smallintconst(n.Left) {
-			v = n.Left.Int64()
+			v = n.Left.Int64Val()
 		} else if smallintconst(n.Right) {
-			v = n.Right.Int64()
+			v = n.Right.Int64Val()
 		}
 
 		if 0 <= v && v < max {
@@ -3623,7 +3623,7 @@ func bounded(n *Node, max int64) bool {
 
 	case OMOD:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			if 0 <= v && v <= max {
 				return true
 			}
@@ -3631,7 +3631,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ODIV:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			for bits > 0 && v >= 2 {
 				bits--
 				v >>= 1
@@ -3640,7 +3640,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ORSH:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			if v > int64(bits) {
 				return true
 			}

@@ -272,7 +272,7 @@ func dumpGlobalConst(n *Node) {
 	default:
 		return
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64Val())
 }
 
 func dumpglobls() {
