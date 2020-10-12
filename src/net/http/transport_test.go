@@ -1701,7 +1701,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 			res, err := c.Get(ts.URL)
 			didReqCh <- true
 			if err != nil {
-				t.Errorf("client fetch error: %v", err)
+				t.Logf("client fetch error: %v", err)
 				failed <- true
 				return
 			}
@@ -1715,17 +1715,15 @@ func TestTransportPersistConnLeak(t *testing.T) {
 		case <-gotReqCh:
 			// ok
 		case <-failed:
-			close(unblockCh)
-			return
+			// Not great but not what we are testing:
+			// sometimes an overloaded system will fail to make all the connections.
 		}
 	}
 
 	nhigh := runtime.NumGoroutine()
 
 	// Tell all handlers to unblock and reply.
-	for i := 0; i < numReq; i++ {
-		unblockCh <- true
-	}
+	close(unblockCh)
 
 	// Wait for all HTTP clients to be done.
 	for i := 0; i < numReq; i++ {
