@@ -8,8 +8,8 @@
 # Consult https://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2020a
-DATA=2020a
+CODE=2020b
+DATA=2020b
 
 set -e
 rm -rf work
@@ -21,7 +21,7 @@ curl -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.g
 tar xzf tzcode$CODE.tar.gz
 tar xzf tzdata$DATA.tar.gz
 
-make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only
+make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo ZFLAGS="-b fat" posix_only
 
 cd zoneinfo
 rm -f ../../zoneinfo.zip
