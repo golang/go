@@ -13,6 +13,16 @@ import (
 	"testing"
 )
 
+// First test, so that it can be the one to initialize castagnoliTable.
+func TestCastagnoliRace(t *testing.T) {
+	// The MakeTable(Castagnoli) lazily initializes castagnoliTable,
+	// which races with the switch on tab during Write to check
+	// whether tab == castagnoliTable.
+	ieee := NewIEEE()
+	go MakeTable(Castagnoli)
+	ieee.Write([]byte("hello"))
+}
+
 type test struct {
 	ieee, castagnoli    uint32
 	in                  string
