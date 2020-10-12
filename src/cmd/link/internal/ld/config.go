@@ -35,6 +35,10 @@ func (mode *BuildMode) Set(s string) error {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
+		if objabi.GOOS == "darwin" && objabi.GOARCH == "arm64" {
+			*mode = BuildModePIE // On darwin/arm64 everything is PIE.
+			break
+		}
 		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
@@ -187,7 +191,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
+	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) && !(objabi.GOOS == "darwin" && objabi.GOARCH == "arm64") { // XXX allow internal linking for darwin/arm64 but not change the default
 		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
 	}
 
@@ -203,6 +207,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	}
 	if iscgo && objabi.GOOS == "android" {
 		return true, objabi.GOOS + " does not support internal cgo"
+	}
+	if iscgo && objabi.GOOS == "darwin" && objabi.GOARCH == "arm64" {
+		return true, objabi.GOOS + "/" + objabi.GOARCH + " does not support internal cgo"
 	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
@@ -222,7 +229,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64", "linux/arm64", "android/arm64":
 		case "windows/386", "windows/amd64", "windows/arm":
-		case "darwin/amd64":
+		case "darwin/amd64", "darwin/arm64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
@@ -263,6 +270,8 @@ func determineLinkMode(ctxt *Link) {
 		default:
 			if extNeeded || (iscgo && externalobj) {
 				ctxt.LinkMode = LinkExternal
+			} else if ctxt.IsDarwin() && ctxt.IsARM64() {
+				ctxt.LinkMode = LinkExternal // default to external linking for now
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}

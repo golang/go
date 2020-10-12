@@ -1948,6 +1948,10 @@ func LinkerDeps(p *Package) []string {
 // externalLinkingForced reports whether external linking is being
 // forced even for programs that do not use cgo.
 func externalLinkingForced(p *Package) bool {
+	if !cfg.BuildContext.CgoEnabled {
+		return false
+	}
+
 	// Some targets must use external linking even inside GOROOT.
 	switch cfg.BuildContext.GOOS {
 	case "android":
@@ -1960,9 +1964,6 @@ func externalLinkingForced(p *Package) bool {
 		}
 	}
 
-	if !cfg.BuildContext.CgoEnabled {
-		return false
-	}
 	// Currently build modes c-shared, pie (on systems that do not
 	// support PIE with internal linking mode (currently all
 	// systems: issue #18968)), plugin, and -linkshared force
