@@ -216,6 +216,7 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
 	objabi.Flagcount("E", "debug symbol export", &Debug['E'])
+	objabi.Flagcount("G", "accept generic code", &Debug['G'])
 	objabi.Flagfn1("I", "add `directory` to import search path", addidir)
 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
 	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
@@ -571,9 +572,16 @@ func Main(archInit func(*Arch)) {
 	loadsys()
 
 	timings.Start("fe", "parse")
-	lines := parseFiles(flag.Args())
+	lines := parseFiles(flag.Args(), Debug['G'] != 0)
 	timings.Stop()
 	timings.AddEvent(int64(lines), "lines")
+	if Debug['G'] != 0 {
+		// can only parse generic code for now
+		if nerrors+nsavederrors != 0 {
+			errorexit()
+		}
+		return
+	}
 
 	finishUniverse()
 
