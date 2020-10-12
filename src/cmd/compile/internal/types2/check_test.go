@@ -51,7 +51,7 @@ func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
 	var errlist []error
 	errh := func(err error) { errlist = append(errlist, err) }
 	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, errh, nil, 0)
+		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}

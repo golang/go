@@ -594,7 +594,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 			p.xnest++
 			x := p.expr()
 			p.xnest--
-			if name0, ok := x.(*Name); ok && p.tok != _Rbrack {
+			if name0, ok := x.(*Name); p.mode&AllowGenerics != 0 && ok && p.tok != _Rbrack {
 				// generic type
 				d.TParamList = p.paramList(name0, _Rbrack)
 				pos := p.pos()
@@ -614,7 +614,6 @@ func (p *parser) typeDecl(group *Group) Decl {
 		d.Type = p.typeOrNil()
 		p.want(_Rparen)
 	default:
-		// no type parameters
 		d.Alias = p.gotAssign()
 		d.Type = p.typeOrNil()
 	}
@@ -686,7 +685,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	f.Name = p.name()
-	if p.got(_Lbrack) {
+	if p.mode&AllowGenerics != 0 && p.got(_Lbrack) {
 		if p.tok == _Rbrack {
 			p.syntaxError("empty type parameter list")
 			p.next()
@@ -1034,7 +1033,9 @@ loop:
 					x = t
 					p.xnest--
 					break
-				} else if p.got(_Comma) {
+				}
+
+				if p.mode&AllowGenerics != 0 && p.got(_Comma) {
 					// x[i, ... (instantiated type)
 					// TODO(gri) factor this with typeInstance?
 					t := new(CallExpr)
@@ -1406,27 +1407,6 @@ func (p *parser) interfaceType() *InterfaceType {
 		case _Name:
 			typ.MethodList = append(typ.MethodList, p.methodDecl())
 
-		case _Type:
-			// TODO(gri) factor this better
-			type_ := new(Name)
-			type_.pos = p.pos()
-			type_.Value = "type" // cannot have a method named "type"
-			p.next()
-			if p.tok != _Semi && p.tok != _Rbrace {
-				f := new(Field)
-				f.pos = p.pos()
-				f.Name = type_
-				f.Type = p.type_()
-				typ.MethodList = append(typ.MethodList, f)
-				for p.got(_Comma) {
-					f := new(Field)
-					f.pos = p.pos()
-					f.Name = type_
-					f.Type = p.type_()
-					typ.MethodList = append(typ.MethodList, f)
-				}
-			}
-
 		case _Lparen:
 			p.syntaxError("cannot parenthesize embedded type")
 			f := new(Field)
@@ -1436,9 +1416,39 @@ func (p *parser) interfaceType() *InterfaceType {
 			p.want(_Rparen)
 			typ.MethodList = append(typ.MethodList, f)
 
+		case _Type:
+			if p.mode&AllowGenerics != 0 {
+				// TODO(gri) factor this better
+				type_ := new(Name)
+				type_.pos = p.pos()
+				type_.Value = "type" // cannot have a method named "type"
+				p.next()
+				if p.tok != _Semi && p.tok != _Rbrace {
+					f := new(Field)
+					f.pos = p.pos()
+					f.Name = type_
+					f.Type = p.type_()
+					typ.MethodList = append(typ.MethodList, f)
+					for p.got(_Comma) {
+						f := new(Field)
+						f.pos = p.pos()
+						f.Name = type_
+						f.Type = p.type_()
+						typ.MethodList = append(typ.MethodList, f)
+					}
+				}
+				break
+			}
+			fallthrough
+
 		default:
-			p.syntaxError("expecting method, interface name, or type list")
-			p.advance(_Semi, _Rbrace)
+			if p.mode&AllowGenerics != 0 {
+				p.syntaxError("expecting method, interface name, or type list")
+				p.advance(_Semi, _Rbrace, _Type)
+			} else {
+				p.syntaxError("expecting method or interface name")
+				p.advance(_Semi, _Rbrace)
+			}
 		}
 		return false
 	})
@@ -1512,7 +1522,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 
 		// Careful dance: We don't know if we have an embedded instantiated
 		// type T[P1, P2, ...] or a field T of array/slice type [P]E or []E.
-		if len(names) == 1 && p.tok == _Lbrack {
+		if p.mode&AllowGenerics != 0 && len(names) == 1 && p.tok == _Lbrack {
 			typ = p.arrayOrTArgs()
 			if typ, ok := typ.(*CallExpr); ok {
 				// embedded type T[P1, P2, ...]
@@ -1649,50 +1659,55 @@ func (p *parser) methodDecl() *Field {
 		f.Type = p.funcType()
 
 	case _Lbrack:
-		// Careful dance: We don't know if we have a generic method m[T C](x T)
-		// or an embedded instantiated type T[P1, P2] (we accept generic methods
-		// for generality and robustness of parsing).
-		pos := p.pos()
-		p.next()
-
-		// empty type parameter or argument lists are not permitted
-		if p.tok == _Rbrack {
-			// name[]
+		if p.mode&AllowGenerics != 0 {
+			// Careful dance: We don't know if we have a generic method m[T C](x T)
+			// or an embedded instantiated type T[P1, P2] (we accept generic methods
+			// for generality and robustness of parsing).
 			pos := p.pos()
 			p.next()
-			if p.tok == _Lparen {
-				// name[](
-				p.errorAt(pos, "empty type parameter list")
+
+			// empty type parameter or argument lists are not permitted
+			if p.tok == _Rbrack {
+				// name[]
+				pos := p.pos()
+				p.next()
+				if p.tok == _Lparen {
+					// name[](
+					p.errorAt(pos, "empty type parameter list")
+					f.Name = name
+					f.Type = p.funcType()
+				} else {
+					p.errorAt(pos, "empty type argument list")
+					f.Type = name
+				}
+				break
+			}
+
+			// A type argument list looks like a parameter list with only
+			// types. Parse a parameter list and decide afterwards.
+			list := p.paramList(nil, _Rbrack)
+			if len(list) > 0 && list[0].Name != nil {
+				// generic method
+				// TODO(gri) Record list as type parameter list with f.Type
+				//           if we want to type-check the generic method.
 				f.Name = name
 				f.Type = p.funcType()
-			} else {
-				p.errorAt(pos, "empty type argument list")
-				f.Type = name
+				break
 			}
+
+			// embedded instantiated type
+			call := new(CallExpr)
+			call.pos = pos
+			call.Fun = name
+			call.Brackets = true
+			call.ArgList = make([]Expr, len(list))
+			for i := range list {
+				call.ArgList[i] = list[i].Type
+			}
+			f.Type = call
 			break
 		}
-
-		// A type argument list looks like a parameter list with only
-		// types. Parse a parameter list and decide afterwards.
-		list := p.paramList(nil, _Rbrack)
-		if len(list) > 0 && list[0].Name != nil {
-			// generic method
-			// TODO(gri) record list as type parameter list with f.Type
-			f.Name = name
-			f.Type = p.funcType()
-			break
-		}
-
-		// embedded instantiated type
-		call := new(CallExpr)
-		call.pos = pos
-		call.Fun = name
-		call.Brackets = true
-		call.ArgList = make([]Expr, len(list))
-		for i := range list {
-			call.ArgList[i] = list[i].Type
-		}
-		f.Type = call
+		fallthrough
 
 	default:
 		// embedded type
@@ -1716,7 +1731,7 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 			name = p.name()
 		}
 
-		if p.tok == _Lbrack {
+		if p.mode&AllowGenerics != 0 && p.tok == _Lbrack {
 			f.Type = p.arrayOrTArgs()
 			if typ, ok := f.Type.(*CallExpr); ok {
 				typ.Fun = name
@@ -2502,7 +2517,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
 		x = s
 	}
 
-	if p.tok == _Lbrack {
+	if p.mode&AllowGenerics != 0 && p.tok == _Lbrack {
 		x = p.typeInstance(x)
 	}
 

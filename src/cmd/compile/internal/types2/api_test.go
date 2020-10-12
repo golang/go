@@ -23,7 +23,7 @@ func unimplemented() {
 
 func parseSrc(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
