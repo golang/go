@@ -902,8 +902,13 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 			return unicode.IsOneOf([]*unicode.RangeTable{unicode.L, unicode.M, unicode.N, unicode.P, unicode.S}, r) &&
 				!strings.ContainsRune("!\"#$%&'()*,:;<=>?[\\]^`{|}\uFFFD", r)
 		}
+		// golang/go#36770: Handle case where cmd/go prints module download messages before the error.
+		msg := stderr.String()
+		for strings.HasPrefix(msg, "go: downloading") {
+			msg = msg[strings.IndexRune(msg, '\n')+1:]
+		}
 		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# ") {
-			msg := stderr.String()[len("# "):]
+			msg := msg[len("# "):]
 			if strings.HasPrefix(strings.TrimLeftFunc(msg, isPkgPathRune), "\n") {
 				return stdout, nil
 			}
