@@ -445,7 +445,7 @@ func (p *parser) fileOrNil() *File {
 	// p.tok == _EOF
 
 	p.clearPragma()
-	f.Lines = p.line
+	f.EOF = p.pos()
 
 	return f
 }
