@@ -751,11 +751,9 @@ func asmbMacho(ctxt *Link) {
 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
-			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 68+2)
-			ml.data[0] = 6                           /* thread type */
-			ml.data[1] = 68                          /* word count */
-			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
-			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
+			ml := newMachoLoad(ctxt.Arch, LC_MAIN, 4)
+			ml.data[0] = uint32(uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR)))
+			ml.data[1] = uint32((uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR))) >> 32)
 		}
 	}
 

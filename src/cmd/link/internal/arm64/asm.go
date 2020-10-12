@@ -219,6 +219,15 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// External linker will do this relocation.
 			return true
 		}
+		if target.IsDarwin() { // XXX why we don't need this for ELF?
+			// Internal linking.
+			// Build a PLT entry and change the relocation target to that entry.
+			addpltsym(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.PLT)
+			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+			return true
+		}
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
@@ -307,6 +316,18 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
 			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
+			return true
+		}
+
+		if target.IsDarwin() {
+			// Mach-O relocations are a royal pain to lay out.
+			// They use a compact stateful bytecode representation.
+			// Here we record what are needed and encode them later.
+			ld.MachoAddRebase(s, int64(r.Off()))
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -812,6 +833,34 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
+	} else if target.IsDarwin() {
+		ld.AddGotSym(target, ldr, syms, s, 0)
+
+		sDynid := ldr.SymDynid(s)
+		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
+		lep.AddUint32(target.Arch, uint32(sDynid))
+
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		ldr.SetPlt(s, int32(plt.Size()))
+
+		// adrp x16, GOT
+		plt.AddUint32(target.Arch, 0x90000010)
+		r, _ := plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// ldr x17, [x16, <offset>]
+		plt.AddUint32(target.Arch, 0xf9400211)
+		r, _ = plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// br x17
+		plt.AddUint32(target.Arch, 0xd61f0220)
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}

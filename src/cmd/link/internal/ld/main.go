@@ -169,7 +169,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {
-		ctxt.BuildMode = BuildModeExe
+		ctxt.BuildMode.Set("exe")
 	}
 
 	if ctxt.BuildMode != BuildModeShared && flag.NArg() != 1 {
