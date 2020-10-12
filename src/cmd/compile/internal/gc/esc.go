@@ -204,7 +204,7 @@ func heapAllocReason(n *Node) string {
 		if !smallintconst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type; t.Elem().Width != 0 && r.Int64() >= maxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type; t.Elem().Width != 0 && r.Int64Val() >= maxImplicitStackVarSize/t.Elem().Width {
 			return "too large for stack"
 		}
 	}

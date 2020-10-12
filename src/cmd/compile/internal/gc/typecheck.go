@@ -1046,13 +1046,13 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 			if !n.Bounded() && Isconst(n.Right, CTINT) {
-				x := n.Right.Int64()
+				x := n.Right.Int64Val()
 				if x < 0 {
 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if t.IsArray() && x >= t.NumElem() {
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(strlit(n.Left))) {
-					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(strlit(n.Left)))
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.StringVal())) {
+					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.StringVal()))
 				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
@@ -1148,11 +1148,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 		l = defaultlit(l, types.Types[TINT])
 		c = defaultlit(c, types.Types[TINT])
 
-		if Isconst(l, CTINT) && l.Int64() < 0 {
+		if Isconst(l, CTINT) && l.Int64Val() < 0 {
 			Fatalf("len for OSLICEHEADER must be non-negative")
 		}
 
-		if Isconst(c, CTINT) && c.Int64() < 0 {
+		if Isconst(c, CTINT) && c.Int64Val() < 0 {
 			Fatalf("cap for OSLICEHEADER must be non-negative")
 		}
 
@@ -1201,7 +1201,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 				Fatalf("len for OMAKESLICECOPY too large")
 			}
-			if n.Left.Int64() < 0 {
+			if n.Left.Int64Val() < 0 {
 				Fatalf("len for OMAKESLICECOPY must be non-negative")
 			}
 		}
@@ -2187,14 +2187,14 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 	}
 
 	if r.Op == OLITERAL {
-		if r.Int64() < 0 {
+		if r.Int64Val() < 0 {
 			yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
+		} else if tp != nil && tp.NumElem() >= 0 && r.Int64Val() > tp.NumElem() {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(strlit(l))) {
-			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(strlit(l)))
+		} else if Isconst(l, CTSTR) && r.Int64Val() > int64(len(l.StringVal())) {
+			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.StringVal()))
 			return false
 		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 			yyerror("invalid slice index %v (index too large)", r)
@@ -3450,9 +3450,8 @@ func stringtoruneslit(n *Node) *Node {
 	}
 
 	var l []*Node
-	s := strlit(n.Left)
 	i := 0
-	for _, r := range s {
+	for _, r := range n.Left.StringVal() {
 		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
 		i++
 	}
@@ -3904,7 +3903,7 @@ func deadcodefn(fn *Node) {
 				return
 			}
 		case OFOR:
-			if !Isconst(n.Left, CTBOOL) || n.Left.Bool() {
+			if !Isconst(n.Left, CTBOOL) || n.Left.BoolVal() {
 				return
 			}
 		default:
@@ -3934,7 +3933,7 @@ func deadcodeslice(nn Nodes) {
 			n.Left = deadcodeexpr(n.Left)
 			if Isconst(n.Left, CTBOOL) {
 				var body Nodes
-				if n.Left.Bool() {
+				if n.Left.BoolVal() {
 					n.Rlist = Nodes{}
 					body = n.Nbody
 				} else {
@@ -3977,7 +3976,7 @@ func deadcodeexpr(n *Node) *Node {
 		n.Left = deadcodeexpr(n.Left)
 		n.Right = deadcodeexpr(n.Right)
 		if Isconst(n.Left, CTBOOL) {
-			if n.Left.Bool() {
+			if n.Left.BoolVal() {
 				return n.Right // true && x => x
 			} else {
 				return n.Left // false && x => false
@@ -3987,7 +3986,7 @@ func deadcodeexpr(n *Node) *Node {
 		n.Left = deadcodeexpr(n.Left)
 		n.Right = deadcodeexpr(n.Right)
 		if Isconst(n.Left, CTBOOL) {
-			if n.Left.Bool() {
+			if n.Left.BoolVal() {
 				return n.Left // true || x => true
 			} else {
 				return n.Right // false || x => x
