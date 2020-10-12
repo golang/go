@@ -203,10 +203,19 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
-	// Only if we're listing all environment variables ("go env")
-	// or the variables being requested are in the extra list.
-	needCostly := true
-	if len(args) > 0 {
+	needCostly := false
+	if *envU || *envW {
+		// We're overwriting or removing default settings,
+		// so it doesn't really matter what the existing settings are.
+		//
+		// Moreover, we haven't validated the new settings yet, so it is
+		// important that we NOT perform any actions based on them,
+		// such as initializing the builder to compute other variables.
+	} else if len(args) == 0 {
+		// We're listing all environment variables ("go env"),
+		// including the expensive ones.
+		needCostly = true
+	} else {
 		needCostly = false
 		for _, arg := range args {
 			switch argKey(arg) {
@@ -266,6 +275,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
 				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
+		gotmp, okGOTMP := add["GOTMPDIR"]
+		if okGOTMP {
+			if !filepath.IsAbs(gotmp) && gotmp != "" {
+				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
 			}
 		}
 

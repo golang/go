@@ -31,16 +31,17 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 }
 
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
-	if len(inter.mhdr) == 0 {
+	if inter.isEmpty() {
 		throw("internal error - misuse of itab")
 	}
+	imethods := inter.methods()
 
 	// easy case
 	if typ.tflag&tflagUncommon == 0 {
 		if canfail {
 			return nil
 		}
-		name := inter.typ.nameOff(inter.mhdr[0].name)
+		name := inter.typ.nameOff(imethods[0].name)
 		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
 	}
 
@@ -63,7 +64,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// Entry doesn't exist yet. Make a new entry & add it.
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(imethods)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
@@ -197,7 +198,8 @@ func (m *itab) init() string {
 	// and interface names are unique,
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
-	ni := len(inter.mhdr)
+	imethods := inter.methods()
+	ni := len(imethods)
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
@@ -205,7 +207,7 @@ func (m *itab) init() string {
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
-		i := &inter.mhdr[k]
+		i := &imethods[k]
 		itype := inter.typ.typeOff(i.ityp)
 		name := inter.typ.nameOff(i.name)
 		iname := name.name()

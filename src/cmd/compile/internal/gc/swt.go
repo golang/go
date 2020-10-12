@@ -440,7 +440,7 @@ func (c *exprClause) test(exprname *Node) *Node {
 
 	// Optimize "switch true { ...}" and "switch false { ... }".
 	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
-		if exprname.Val().U.(bool) {
+		if exprname.Bool() {
 			return c.lo
 		} else {
 			return nodl(c.pos, ONOT, c.lo, nil)

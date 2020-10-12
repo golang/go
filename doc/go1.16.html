@@ -38,6 +38,17 @@ Do not send CLs removing the interior tags from such phrases.
   <code>netbsd/arm64</code> port).
 </p>
 
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->
+  As <a href="go1.15#386">announced</a> in the Go 1.15 release notes,
+  Go 1.16 drops support for x87 mode compilation (<code>GO386=387</code>).
+  Support for non-SSE2 processors is now available using soft float
+  mode (<code>GO386=softfloat</code>).
+  Users running on non-SSE2 processors should replace <code>GO386=387</code>
+  with <code>GO386=softfloat</code>.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <p>
@@ -162,6 +173,8 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
+<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
+
 <h2 id="library">Core library</h2>
 
 <p>
@@ -200,6 +213,14 @@ Do not send CLs removing the interior tags from such phrases.
   with <code>"use of closed network connection"</code>.
 </p>
 
+<h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
+
+<p><!-- CL 259237, golang.org/issue/22075 -->
+  For interface types and values, <a href="/pkg/reflect/#Value.Method">Method</a>,
+  <a href="/pkg/reflect/#Value.MethodByName">MethodByName</a>, and
+  <a href="/pkg/reflect/#Value.NumMethod">NumMethod</a> now
+  operate on the interface's exported method set, rather than its full method set.
+</p>
 
 <h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
 
@@ -273,5 +294,18 @@ Do not send CLs removing the interior tags from such phrases.
      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
     </p>
+
+    <p><!-- CL 256498, golang.org/issue/36990 -->
+    Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
+    spec (no attribute is set) instead of generating a SameSite key without a value.
+    </p>
   </dd>
 </dl><!-- net/http -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 249677 -->
+      TODO: <a href="https://golang.org/cl/249677">https://golang.org/cl/249677</a>: provide Addr method for errors from SetPanicOnFault
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->

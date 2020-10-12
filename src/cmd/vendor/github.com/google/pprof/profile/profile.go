@@ -398,10 +398,12 @@ func (p *Profile) CheckValid() error {
 			}
 		}
 		for _, ln := range l.Line {
-			if f := ln.Function; f != nil {
-				if f.ID == 0 || functions[f.ID] != f {
-					return fmt.Errorf("inconsistent function %p: %d", f, f.ID)
-				}
+			f := ln.Function
+			if f == nil {
+				return fmt.Errorf("location id: %d has a line with nil function", l.ID)
+			}
+			if f.ID == 0 || functions[f.ID] != f {
+				return fmt.Errorf("inconsistent function %p: %d", f, f.ID)
 			}
 		}
 	}

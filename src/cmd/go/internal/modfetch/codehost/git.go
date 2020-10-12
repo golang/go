@@ -644,7 +644,7 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
 	return missing, nil
 }
 
-func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
+func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
 	info, err := r.Stat(rev)
 	if err != nil {
 		return "", err
@@ -680,7 +680,10 @@ func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
 			// NOTE: Do not replace the call to semver.Compare with semver.Max.
 			// We want to return the actual tag, not a canonicalized version of it,
 			// and semver.Max currently canonicalizes (see golang.org/issue/32700).
-			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) && semver.Compare(semtag, highest) > 0 {
+			if c := semver.Canonical(semtag); c == "" || !strings.HasPrefix(semtag, c) || !allowed(semtag) {
+				continue
+			}
+			if semver.Compare(semtag, highest) > 0 {
 				highest = semtag
 			}
 		}

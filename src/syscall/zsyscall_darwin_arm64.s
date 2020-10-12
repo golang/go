@@ -249,3 +249,5 @@ TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_statfs(SB)
 TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstatat(SB)
+TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_ptrace(SB)

@@ -76,36 +76,38 @@ const (
 )
 
 const (
-	MACHO_CPU_AMD64               = 1<<24 | 7
-	MACHO_CPU_386                 = 7
-	MACHO_SUBCPU_X86              = 3
-	MACHO_CPU_ARM                 = 12
-	MACHO_SUBCPU_ARM              = 0
-	MACHO_SUBCPU_ARMV7            = 9
-	MACHO_CPU_ARM64               = 1<<24 | 12
-	MACHO_SUBCPU_ARM64_ALL        = 0
-	MACHO32SYMSIZE                = 12
-	MACHO64SYMSIZE                = 16
-	MACHO_X86_64_RELOC_UNSIGNED   = 0
-	MACHO_X86_64_RELOC_SIGNED     = 1
-	MACHO_X86_64_RELOC_BRANCH     = 2
-	MACHO_X86_64_RELOC_GOT_LOAD   = 3
-	MACHO_X86_64_RELOC_GOT        = 4
-	MACHO_X86_64_RELOC_SUBTRACTOR = 5
-	MACHO_X86_64_RELOC_SIGNED_1   = 6
-	MACHO_X86_64_RELOC_SIGNED_2   = 7
-	MACHO_X86_64_RELOC_SIGNED_4   = 8
-	MACHO_ARM_RELOC_VANILLA       = 0
-	MACHO_ARM_RELOC_PAIR          = 1
-	MACHO_ARM_RELOC_SECTDIFF      = 2
-	MACHO_ARM_RELOC_BR24          = 5
-	MACHO_ARM64_RELOC_UNSIGNED    = 0
-	MACHO_ARM64_RELOC_BRANCH26    = 2
-	MACHO_ARM64_RELOC_PAGE21      = 3
-	MACHO_ARM64_RELOC_PAGEOFF12   = 4
-	MACHO_ARM64_RELOC_ADDEND      = 10
-	MACHO_GENERIC_RELOC_VANILLA   = 0
-	MACHO_FAKE_GOTPCREL           = 100
+	MACHO_CPU_AMD64                      = 1<<24 | 7
+	MACHO_CPU_386                        = 7
+	MACHO_SUBCPU_X86                     = 3
+	MACHO_CPU_ARM                        = 12
+	MACHO_SUBCPU_ARM                     = 0
+	MACHO_SUBCPU_ARMV7                   = 9
+	MACHO_CPU_ARM64                      = 1<<24 | 12
+	MACHO_SUBCPU_ARM64_ALL               = 0
+	MACHO32SYMSIZE                       = 12
+	MACHO64SYMSIZE                       = 16
+	MACHO_X86_64_RELOC_UNSIGNED          = 0
+	MACHO_X86_64_RELOC_SIGNED            = 1
+	MACHO_X86_64_RELOC_BRANCH            = 2
+	MACHO_X86_64_RELOC_GOT_LOAD          = 3
+	MACHO_X86_64_RELOC_GOT               = 4
+	MACHO_X86_64_RELOC_SUBTRACTOR        = 5
+	MACHO_X86_64_RELOC_SIGNED_1          = 6
+	MACHO_X86_64_RELOC_SIGNED_2          = 7
+	MACHO_X86_64_RELOC_SIGNED_4          = 8
+	MACHO_ARM_RELOC_VANILLA              = 0
+	MACHO_ARM_RELOC_PAIR                 = 1
+	MACHO_ARM_RELOC_SECTDIFF             = 2
+	MACHO_ARM_RELOC_BR24                 = 5
+	MACHO_ARM64_RELOC_UNSIGNED           = 0
+	MACHO_ARM64_RELOC_BRANCH26           = 2
+	MACHO_ARM64_RELOC_PAGE21             = 3
+	MACHO_ARM64_RELOC_PAGEOFF12          = 4
+	MACHO_ARM64_RELOC_GOT_LOAD_PAGE21    = 5
+	MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6
+	MACHO_ARM64_RELOC_ADDEND             = 10
+	MACHO_GENERIC_RELOC_VANILLA          = 0
+	MACHO_FAKE_GOTPCREL                  = 100
 )
 
 const (
@@ -472,6 +474,18 @@ func (ctxt *Link) domacho() {
 		sb.SetType(sym.SMACHO)
 		sb.SetReachable(true)
 		sb.AddUint8(0)
+	}
+
+	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
+	// are in pclntab and end up pointing at the host binary, breaking unwinding.
+	// See Issue #18190.
+	if ctxt.BuildMode == BuildModePlugin {
+		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
+			s := ctxt.loader.Lookup(name, 0)
+			if s != 0 {
+				ctxt.loader.SetAttrCgoExportDynamic(s, false)
+			}
+		}
 	}
 }
 
@@ -897,19 +911,12 @@ func machosymtab(ctxt *Link) {
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
 
 		export := machoShouldExport(ctxt, ldr, s)
-		isGoSymbol := strings.Contains(ldr.SymExtname(s), ".")
 
-		// In normal buildmodes, only add _ to C symbols, as
-		// Go symbols have dot in the name.
-		//
-		// Do not export C symbols in plugins, as runtime C
-		// symbols like crosscall2 are in pclntab and end up
-		// pointing at the host binary, breaking unwinding.
-		// See Issue #18190.
-		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(ldr.SymName(s)))
-		if cexport || export || isGoSymbol {
-			symstr.AddUint8('_')
-		}
+		// Prefix symbol names with "_" to match the system toolchain.
+		// (We used to only prefix C symbols, which is all required for the build.
+		// But some tools don't recognize Go symbols as symbols, so we prefix them
+		// as well.)
+		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
 		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
@@ -920,10 +927,13 @@ func machosymtab(ctxt *Link) {
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc
 			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
 		} else {
-			if ldr.AttrCgoExport(s) || export {
-				symtab.AddUint8(0x0f)
+			if export || ldr.AttrCgoExportDynamic(s) {
+				symtab.AddUint8(0x0f) // N_SECT | N_EXT
+			} else if ldr.AttrCgoExportStatic(s) {
+				// Only export statically, not dynamically. (N_PEXT is like hidden visibility)
+				symtab.AddUint8(0x1f) // N_SECT | N_EXT | N_PEXT
 			} else {
-				symtab.AddUint8(0x0e)
+				symtab.AddUint8(0x0e) // N_SECT
 			}
 			o := s
 			if outer := ldr.OuterSym(o); outer != 0 {

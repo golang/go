@@ -198,7 +198,7 @@ const (
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
 	//
-	// On darwin/arm64, although 64-bit pointers are presumably
+	// On ios/arm64, although 64-bit pointers are presumably
 	// available, pointers are truncated to 33 bits. Furthermore,
 	// only the top 4 GiB of the address space are actually available
 	// to the application, but we allow the whole 33 bits anyway for
@@ -207,7 +207,7 @@ const (
 	// arenaBaseOffset to offset into the top 4 GiB.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosIos*sys.GoarchArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -514,14 +514,14 @@ func mallocinit() {
 		// However, on arm64, we ignore all this advice above and slam the
 		// allocation at 0x40 << 32 because when using 4k pages with 3-level
 		// translation buffers, the user address space is limited to 39 bits
-		// On darwin/arm64, the address space is even smaller.
+		// On ios/arm64, the address space is even smaller.
 		//
 		// On AIX, mmaps starts at 0x0A00000000000000 for 64-bit.
 		// processes.
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
-			case GOARCH == "arm64" && (GOOS == "darwin" || GOOS == "ios"):
+			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)

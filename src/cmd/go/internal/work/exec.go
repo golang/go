@@ -922,12 +922,13 @@ func (b *Builder) loadCachedSrcFiles(a *Action) error {
 
 // vetConfig is the configuration passed to vet describing a single package.
 type vetConfig struct {
-	ID         string   // package ID (example: "fmt [fmt.test]")
-	Compiler   string   // compiler name (gc, gccgo)
-	Dir        string   // directory containing package
-	ImportPath string   // canonical import path ("package path")
-	GoFiles    []string // absolute paths to package source files
-	NonGoFiles []string // absolute paths to package non-Go files
+	ID           string   // package ID (example: "fmt [fmt.test]")
+	Compiler     string   // compiler name (gc, gccgo)
+	Dir          string   // directory containing package
+	ImportPath   string   // canonical import path ("package path")
+	GoFiles      []string // absolute paths to package source files
+	NonGoFiles   []string // absolute paths to package non-Go files
+	IgnoredFiles []string // absolute paths to ignored source files
 
 	ImportMap   map[string]string // map import path in source code to package path
 	PackageFile map[string]string // map package path to .a file with export data
@@ -951,20 +952,23 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		}
 	}
 
+	ignored := str.StringList(a.Package.IgnoredGoFiles, a.Package.IgnoredOtherFiles)
+
 	// Pass list of absolute paths to vet,
 	// so that vet's error messages will use absolute paths,
 	// so that we can reformat them relative to the directory
 	// in which the go command is invoked.
 	vcfg := &vetConfig{
-		ID:          a.Package.ImportPath,
-		Compiler:    cfg.BuildToolchainName,
-		Dir:         a.Package.Dir,
-		GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
-		NonGoFiles:  mkAbsFiles(a.Package.Dir, nongofiles),
-		ImportPath:  a.Package.ImportPath,
-		ImportMap:   make(map[string]string),
-		PackageFile: make(map[string]string),
-		Standard:    make(map[string]bool),
+		ID:           a.Package.ImportPath,
+		Compiler:     cfg.BuildToolchainName,
+		Dir:          a.Package.Dir,
+		GoFiles:      mkAbsFiles(a.Package.Dir, gofiles),
+		NonGoFiles:   mkAbsFiles(a.Package.Dir, nongofiles),
+		IgnoredFiles: mkAbsFiles(a.Package.Dir, ignored),
+		ImportPath:   a.Package.ImportPath,
+		ImportMap:    make(map[string]string),
+		PackageFile:  make(map[string]string),
+		Standard:     make(map[string]bool),
 	}
 	a.vetCfg = vcfg
 	for i, raw := range a.Package.Internal.RawImports {
@@ -1052,17 +1056,28 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// This is OK as long as the packages that are farther down the
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
-	// later vet runs.)
+	// later vet runs, nor does unreachable.)
 	if a.Package.Goroot && !VetExplicit && VetTool == "" {
+		// Turn off -unsafeptr checks.
+		// There's too much unsafe.Pointer code
+		// that vet doesn't like in low-level packages
+		// like runtime, sync, and reflect.
 		// Note that $GOROOT/src/buildall.bash
 		// does the same for the misc-compile trybots
 		// and should be updated if these flags are
 		// changed here.
-		//
-		// There's too much unsafe.Pointer code
-		// that vet doesn't like in low-level packages
-		// like runtime, sync, and reflect.
 		vetFlags = []string{"-unsafeptr=false"}
+
+		// Also turn off -unreachable checks during go test.
+		// During testing it is very common to make changes
+		// like hard-coded forced returns or panics that make
+		// code unreachable. It's unreasonable to insist on files
+		// not having any unreachable code during "go test".
+		// (buildall.bash still runs with -unreachable enabled
+		// for the overall whole-tree scan.)
+		if cfg.CmdName == "test" {
+			vetFlags = append(vetFlags, "-unreachable=false")
+		}
 	}
 
 	// Note: We could decide that vet should compute export data for

@@ -751,11 +751,11 @@ func (w *exportWriter) param(f *types.Field) {
 
 func constTypeOf(typ *types.Type) Ctype {
 	switch typ {
-	case types.Idealint, types.Idealrune:
+	case types.UntypedInt, types.UntypedRune:
 		return CTINT
-	case types.Idealfloat:
+	case types.UntypedFloat:
 		return CTFLT
-	case types.Idealcomplex:
+	case types.UntypedComplex:
 		return CTCPLX
 	}
 
@@ -780,8 +780,8 @@ func constTypeOf(typ *types.Type) Ctype {
 }
 
 func (w *exportWriter) value(typ *types.Type, v Val) {
-	if typ.IsUntyped() {
-		typ = untype(v.Ctype())
+	if vt := idealType(v.Ctype()); typ.IsUntyped() && typ != vt {
+		Fatalf("exporter: untyped type mismatch, have: %v, want: %v", typ, vt)
 	}
 	w.typ(typ)
 

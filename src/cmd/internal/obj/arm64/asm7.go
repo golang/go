@@ -843,6 +843,8 @@ var optab = []Optab{
 	{ASHA256H, C_ARNG, C_VREG, C_NONE, C_VREG, 1, 4, 0, 0, 0},
 	{AVREV32, C_ARNG, C_NONE, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
 	{AVPMULL, C_ARNG, C_ARNG, C_NONE, C_ARNG, 93, 4, 0, 0, 0},
+	{AVEOR3, C_ARNG, C_ARNG, C_ARNG, C_ARNG, 103, 4, 0, 0, 0},
+	{AVXAR, C_VCON, C_ARNG, C_ARNG, C_ARNG, 104, 4, 0, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
 	{obj.APCDATA, C_VCON, C_NONE, C_NONE, C_VCON, 0, 0, 0, 0, 0},
@@ -2769,6 +2771,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADD:
 			oprangeset(AVSUB, t)
+			oprangeset(AVRAX1, t)
 
 		case AAESD:
 			oprangeset(AAESE, t)
@@ -2827,6 +2830,9 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVLD4, t)
 			oprangeset(AVLD4R, t)
 
+		case AVEOR3:
+			oprangeset(AVBCAX, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
@@ -2839,7 +2845,8 @@ func buildop(ctxt *obj.Link) {
 			AVDUP,
 			AVMOVI,
 			APRFM,
-			AVEXT:
+			AVEXT,
+			AVXAR:
 			break
 
 		case obj.ANOP,
@@ -3120,12 +3127,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 6: /* b ,O(R); bl ,O(R) */
 		o1 = c.opbrr(p, p.As)
-
 		o1 |= uint32(p.To.Reg&31) << 5
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 0
-		rel.Type = objabi.R_CALLIND
+		if p.As == obj.ACALL {
+			rel := obj.Addrel(c.cursym)
+			rel.Off = int32(c.pc)
+			rel.Siz = 0
+			rel.Type = objabi.R_CALLIND
+		}
 
 	case 7: /* beq s */
 		o1 = c.opbra(p, p.As)
@@ -4204,7 +4212,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = 0
 		rel.Type = objabi.R_ARM64_GOTPCREL
 
-	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls/vbit/vbsl/vcmtst/vsub/vbif/vuzip1/vuzip2 Vm.<T>, Vn.<T>, Vd.<T> */
+	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls/vbit/vbsl/vcmtst/vsub/vbif/vuzip1/vuzip2/vrax1 Vm.<T>, Vn.<T>, Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
 		af3 := int((p.Reg >> 5) & 15)
 		at := int((p.To.Reg >> 5) & 15)
@@ -4268,6 +4276,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			} else {
 				size = 0
 			}
+		case AVRAX1:
+			if af != ARNG_2D {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+			size = 0
+			Q = 0
 		}
 
 		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -5185,6 +5199,51 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("shift amount out of range: %v\n", p)
 		}
 		o1 |= uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
+	case 103: /* VEOR3/VBCAX Va.B16, Vm.B16, Vn.B16, Vd.B16 */
+		ta := (p.From.Reg >> 5) & 15
+		tm := (p.Reg >> 5) & 15
+		td := (p.To.Reg >> 5) & 15
+		tn := ((p.GetFrom3().Reg) >> 5) & 15
+
+		if ta != tm || ta != tn || ta != td || ta != ARNG_16B {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+			break
+		}
+
+		o1 = c.oprrr(p, p.As)
+		ra := int(p.From.Reg)
+		rm := int(p.Reg)
+		rn := int(p.GetFrom3().Reg)
+		rd := int(p.To.Reg)
+		o1 |= uint32(rm&31)<<16 | uint32(ra&31)<<10 | uint32(rn&31)<<5 | uint32(rd)&31
+
+	case 104: /* vxar $imm4, Vm.<T>, Vn.<T>, Vd.<T> */
+		af := ((p.GetFrom3().Reg) >> 5) & 15
+		at := (p.To.Reg >> 5) & 15
+		a := (p.Reg >> 5) & 15
+		index := int(p.From.Offset)
+
+		if af != a || af != at {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+			break
+		}
+
+		if af != ARNG_2D {
+			c.ctxt.Diag("invalid arrangement, should be D2: %v", p)
+			break
+		}
+
+		if index < 0 || index > 63 {
+			c.ctxt.Diag("illegal offset: %v", p)
+		}
+
+		o1 = c.opirr(p, p.As)
+		rf := (p.GetFrom3().Reg) & 31
+		rt := (p.To.Reg) & 31
+		r := (p.Reg) & 31
+
+		o1 |= (uint32(r&31) << 16) | (uint32(index&63) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
+
 	}
 	out[0] = o1
 	out[1] = o2
@@ -5760,6 +5819,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 	case AVAND:
 		return 7<<25 | 1<<21 | 7<<10
 
+	case AVBCAX:
+		return 0xCE<<24 | 1<<21
+
 	case AVCMEQ:
 		return 1<<29 | 0x71<<21 | 0x23<<10
 
@@ -5775,11 +5837,17 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 	case AVEOR:
 		return 1<<29 | 0x71<<21 | 7<<10
 
+	case AVEOR3:
+		return 0xCE << 24
+
 	case AVORR:
 		return 7<<25 | 5<<21 | 7<<10
 
 	case AVREV16:
 		return 3<<26 | 2<<24 | 1<<21 | 3<<11
+
+	case AVRAX1:
+		return 0xCE<<24 | 3<<21 | 1<<15 | 3<<10
 
 	case AVREV32:
 		return 11<<26 | 2<<24 | 1<<21 | 1<<11
@@ -6038,6 +6106,8 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVUSHLL2, AVUXTL2:
 		return 3<<29 | 15<<24 | 0x29<<10
+	case AVXAR:
+		return 0xCE<<24 | 1<<23
 	}
 
 	c.ctxt.Diag("%v: bad irr %v", p, a)

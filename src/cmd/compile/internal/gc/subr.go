@@ -825,7 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == types.Idealbool && !t.IsBoolean() {
+	if n.Type == types.UntypedBool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
 			r := nod(OCONVNOP, n, nil)
 			r.Type = types.Types[TBOOL]

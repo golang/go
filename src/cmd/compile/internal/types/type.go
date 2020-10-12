@@ -105,14 +105,14 @@ var (
 	Errortype *Type
 
 	// Types to represent untyped string and boolean constants.
-	Idealstring *Type
-	Idealbool   *Type
+	UntypedString *Type
+	UntypedBool   *Type
 
 	// Types to represent untyped numeric constants.
-	Idealint     = New(TIDEAL)
-	Idealrune    = New(TIDEAL)
-	Idealfloat   = New(TIDEAL)
-	Idealcomplex = New(TIDEAL)
+	UntypedInt     = New(TIDEAL)
+	UntypedRune    = New(TIDEAL)
+	UntypedFloat   = New(TIDEAL)
+	UntypedComplex = New(TIDEAL)
 )
 
 // A Type represents a Go type.
@@ -1436,7 +1436,7 @@ func (t *Type) IsUntyped() bool {
 	if t == nil {
 		return false
 	}
-	if t == Idealstring || t == Idealbool {
+	if t == UntypedString || t == UntypedBool {
 		return true
 	}
 	switch t.Etype {

@@ -1,5 +1,10 @@
-// +build !nacl,!js
 // run
+
+// +build !nacl,!js
+// +build !darwin !arm64
+
+// Skip on darwin/arm64 as it requires external linking, which brings in
+// cgo, causing deadlock detection not working.
 
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

@@ -189,26 +189,34 @@ func (l *layout) restore() {
 
 func gen386() {
 	p("PUSHFL")
-
-	// Assign stack offsets.
+	// Save general purpose registers.
 	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
-		if reg == "SP" {
+		if reg == "SP" || strings.HasPrefix(reg, "X") {
 			continue
 		}
-		if strings.HasPrefix(reg, "X") {
-			l.add("MOVUPS", reg, 16)
-		} else {
-			l.add("MOVL", reg, 4)
-		}
+		l.add("MOVL", reg, 4)
 	}
 
-	p("ADJSP $%d", l.stack)
+	// Save SSE state only if supported.
+	lSSE := layout{stack: l.stack, sp: "SP"}
+	for i := 0; i < 8; i++ {
+		lSSE.add("MOVUPS", fmt.Sprintf("X%d", i), 16)
+	}
+
+	p("ADJSP $%d", lSSE.stack)
 	p("NOP SP")
 	l.save()
+	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
+	lSSE.save()
+	label("nosse:")
 	p("CALL ·asyncPreempt2(SB)")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
+	lSSE.restore()
+	label("nosse2:")
 	l.restore()
-	p("ADJSP $%d", -l.stack)
+	p("ADJSP $%d", -lSSE.stack)
+
 	p("POPFL")
 	p("RET")
 }
@@ -340,12 +348,9 @@ func genARM64() {
 	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
 	p("SUB $8, RSP, R29")  // set up new frame pointer
 	p("#endif")
-	// On darwin, save the LR again after decrementing SP. We run the
-	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
+	// On iOS, save the LR again after decrementing SP. We run the
+	// signal handler on the G stack (as it doesn't support sigaltstack),
 	// so any writes below SP may be clobbered.
-	p("#ifdef GOOS_darwin")
-	p("MOVD R30, (RSP)")
-	p("#endif")
 	p("#ifdef GOOS_ios")
 	p("MOVD R30, (RSP)")
 	p("#endif")
