@@ -516,7 +516,7 @@ type QueryResult struct {
 // If any matching package is in the main module, QueryPattern considers only
 // the main module and only the version "latest", without checking for other
 // possible modules.
-func QueryPattern(ctx context.Context, pattern, query string, allowed AllowedFunc) ([]QueryResult, error) {
+func QueryPattern(ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
 	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
 	defer span.Done()
 
@@ -591,9 +591,9 @@ func QueryPattern(ctx context.Context, pattern, query string, allowed AllowedFun
 			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
 			defer span.Done()
 
-			current := findCurrentVersion(path)
+			pathCurrent := current(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(ctx, proxy, path, query, current, allowed)
+			r.Rev, err = queryProxy(ctx, proxy, path, query, pathCurrent, allowed)
 			if err != nil {
 				return r, err
 			}
@@ -647,15 +647,6 @@ func modulePrefixesExcludingTarget(path string) []string {
 	}
 
 	return prefixes
-}
-
-func findCurrentVersion(path string) string {
-	for _, m := range buildList {
-		if m.Path == path {
-			return m.Version
-		}
-	}
-	return ""
 }
 
 type prefixResult struct {
