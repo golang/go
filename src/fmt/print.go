@@ -47,11 +47,11 @@ type State interface {
 	Flag(c int) bool
 }
 
-// Formatter is the interface implemented by values with a custom formatter.
-// The implementation of Format may call Sprint(f) or Fprint(f) etc.
-// to generate its output.
+// Formatter is implemented by any value that has a Format method.
+// The implementation controls how State and rune are interpreted,
+// and may call Sprint(f) or Fprint(f) etc. to generate its output.
 type Formatter interface {
-	Format(f State, c rune)
+	Format(f State, verb rune)
 }
 
 // Stringer is implemented by any value that has a String method,
