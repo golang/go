@@ -40,14 +40,15 @@ var (
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
-	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
+	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 
 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
+	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
 	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
 	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
 	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
@@ -71,25 +72,12 @@ var (
 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
 	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
 	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
-	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
 )
 
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
 	if r0 != 0 {
 		errcode = syscall.Errno(r0)
-	}
-	return
-}
-
-func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
-	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
 	}
 	return
 }
@@ -122,6 +110,18 @@ func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32,
 	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
 	n = uint32(r0)
 	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
+	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
