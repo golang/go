@@ -832,12 +832,10 @@ func collectmachosyms(ctxt *Link) {
 					switch objabi.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
-					case "386":
-						ldr.SetSymExtname(s, n+"$INODE64$UNIX2003")
 					}
 				case "readdir_r", "getfsstat":
 					switch objabi.GOARCH {
-					case "amd64", "386":
+					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}
 				}
