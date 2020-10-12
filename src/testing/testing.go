@@ -744,10 +744,13 @@ func (c *common) log(s string) {
 func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// convert saved PCs from helpers into function names
-	helperNames := map[string]struct{}{}
-	for pc := range c.helpers {
-		helperNames[pcToName(pc)] = struct{}{}
+	var helperNames map[string]struct{}
+	if len(c.helpers) > 0 {
+		// convert saved PCs from helpers into function names that we exclude in decorate()
+		helperNames = make(map[string]struct{})
+		for pc := range c.helpers {
+			helperNames[pcToName(pc)] = struct{}{}
+		}
 	}
 	if c.done {
 		// This test has already finished. Try and log this message
