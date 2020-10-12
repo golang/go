@@ -24,7 +24,7 @@ import (
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to xtop.
 // Returns the total count of parsed lines.
-func parseFiles(filenames []string) uint {
+func parseFiles(filenames []string, allowGenerics bool) uint {
 	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -49,7 +49,11 @@ func parseFiles(filenames []string) uint {
 			}
 			defer f.Close()
 
-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+			mode := syntax.CheckBranches
+			if allowGenerics {
+				mode |= syntax.AllowGenerics
+			}
+			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, mode) // errors are tracked via p.error
 		}(filename)
 	}
 
@@ -59,7 +63,10 @@ func parseFiles(filenames []string) uint {
 			p.yyerrorpos(e.Pos, "%s", e.Msg)
 		}
 
-		p.node()
+		// noder cannot handle generic code yet
+		if !allowGenerics {
+			p.node()
+		}
 		lines += p.file.EOF.Line()
 		p.file = nil // release memory
 
