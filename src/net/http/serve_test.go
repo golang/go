@@ -4275,8 +4275,14 @@ func testServerEmptyBodyRace(t *testing.T, h2 bool) {
 			defer wg.Done()
 			res, err := cst.c.Get(cst.ts.URL)
 			if err != nil {
-				t.Error(err)
-				return
+				// Try to deflake spurious "connection reset by peer" under load.
+				// See golang.org/issue/22540.
+				time.Sleep(10 * time.Millisecond)
+				res, err = cst.c.Get(cst.ts.URL)
+				if err != nil {
+					t.Error(err)
+					return
+				}
 			}
 			defer res.Body.Close()
 			_, err = io.Copy(ioutil.Discard, res.Body)
