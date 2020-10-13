@@ -181,6 +181,14 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<h3 id="crypto/hmac"><a href="/pkg/crypto/hmac">crypto/hmac</a></h3>
+
+<p><!-- CL 261960 -->
+  <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
+  the hash generation function fail to return new values. Previously, the
+  behavior was undefined and invalid outputs were sometimes generated.
+</p>
+
 <h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
 
 <p><!-- CL 256897 -->
