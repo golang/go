@@ -156,7 +156,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(ctx, mod)
+			needSum := true
+			root, isLocal, err = fetch(ctx, mod, needSum)
 			if err != nil {
 				m.AddError(err)
 				continue
