@@ -11,6 +11,12 @@ package sort
 // A type, typically a collection, that satisfies sort.Interface can be
 // sorted by the routines in this package. The methods require that the
 // elements of the collection be enumerated by an integer index.
+//
+// The sort routines require that the Less method implements a strict weak
+// ordering; see https://en.wikipedia.org/wiki/Weak_ordering.
+// The < operations on ints and strings are examples of such an ordering,
+// whereas the < operation on floating-point numbers is not, due to the
+// behavior of not-a-number (NaN) values.
 type Interface interface {
 	// Len is the number of elements in the collection.
 	Len() int
@@ -275,8 +281,9 @@ func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // Sort is a convenience method.
 func (p IntSlice) Sort() { Sort(p) }
 
-// Float64Slice attaches the methods of Interface to []float64, sorting in increasing order
-// (not-a-number values are treated as less than other values).
+// Float64Slice attaches the methods of Interface to []float64, sorting in increasing order.
+// In order to satisfy the ordering requirements of the Less method, not-a-number (NaN)
+// values are treated as less than other values.
 type Float64Slice []float64
 
 func (p Float64Slice) Len() int           { return len(p) }
