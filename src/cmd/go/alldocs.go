@@ -801,21 +801,22 @@
 //         DepOnly       bool     // package is only a dependency, not explicitly listed
 //
 //         // Source files
-//         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-//         CgoFiles        []string // .go source files that import "C"
-//         CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
-//         IgnoredGoFiles  []string // .go source files ignored due to build constraints
-//         CFiles          []string // .c source files
-//         CXXFiles        []string // .cc, .cxx and .cpp source files
-//         MFiles          []string // .m source files
-//         HFiles          []string // .h, .hh, .hpp and .hxx source files
-//         FFiles          []string // .f, .F, .for and .f90 Fortran source files
-//         SFiles          []string // .s source files
-//         SwigFiles       []string // .swig files
-//         SwigCXXFiles    []string // .swigcxx files
-//         SysoFiles       []string // .syso object files to add to archive
-//         TestGoFiles     []string // _test.go files in package
-//         XTestGoFiles    []string // _test.go files outside package
+//         GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+//         CgoFiles        []string   // .go source files that import "C"
+//         CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+//         IgnoredGoFiles  []string   // .go source files ignored due to build constraints
+//         IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+//         CFiles          []string   // .c source files
+//         CXXFiles        []string   // .cc, .cxx and .cpp source files
+//         MFiles          []string   // .m source files
+//         HFiles          []string   // .h, .hh, .hpp and .hxx source files
+//         FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+//         SFiles          []string   // .s source files
+//         SwigFiles       []string   // .swig files
+//         SwigCXXFiles    []string   // .swigcxx files
+//         SysoFiles       []string   // .syso object files to add to archive
+//         TestGoFiles     []string   // _test.go files in package
+//         XTestGoFiles    []string   // _test.go files outside package
 //
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
