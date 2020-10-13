@@ -622,6 +622,46 @@ func main() {
 	})
 }
 
+// Reproduces golang/go#40487.
+func TestSwitchFromModulesToGOPATH(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
+
+	const files = `
+-- foo/go.mod --
+module mod.com
+
+go 1.14
+-- foo/blah/blah.go --
+package blah
+
+const Name = ""
+-- foo/main.go --
+package main
+
+import "mod.com/blah"
+
+func main() {
+	_ = blah.Name
+}
+`
+	withOptions(
+		InGOPATH(),
+	).run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo/main.go")
+		env.RemoveWorkspaceFile("foo/go.mod")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DiagnosticAtRegexp("foo/main.go", `"mod.com/blah"`),
+			),
+		)
+		env.RegexpReplace("foo/main.go", `"mod.com/blah"`, `"foo/blah"`)
+		env.Await(
+			EmptyDiagnostics("foo/main.go"),
+		)
+	})
+}
+
 func TestNewSymbolInTestVariant(t *testing.T) {
 	const files = `
 -- go.mod --
