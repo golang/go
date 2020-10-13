@@ -250,9 +250,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	}
 
 	loaded = loadFromRoots(loaderParams{
-		tags:           opts.Tags,
-		loadTests:      opts.LoadTests,
-		resolveMissing: opts.ResolveMissingImports,
+		PackageOpts: opts,
 
 		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
 		allPatternIsRoot:   allPatternIsRoot,
@@ -505,8 +503,10 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 	}
 
 	loaded = loadFromRoots(loaderParams{
-		tags:               tags,
-		resolveMissing:     true,
+		PackageOpts: PackageOpts{
+			Tags:                  tags,
+			ResolveMissingImports: true,
+		},
 		allClosesOverTests: index.allPatternClosesOverTests(),
 		listRoots: func() (roots []string) {
 			roots = append(roots, imports...)
@@ -659,10 +659,10 @@ type loader struct {
 	direct map[string]bool // imported directly by main module
 }
 
+// loaderParams configure the packages loaded by, and the properties reported
+// by, a loader instance.
 type loaderParams struct {
-	tags           map[string]bool // tags for scanDir
-	loadTests      bool
-	resolveMissing bool
+	PackageOpts
 
 	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
 	allPatternIsRoot   bool // Is the "all" pattern an additional root?
@@ -821,7 +821,7 @@ func loadFromRoots(params loaderParams) *loader {
 
 		ld.buildStacks()
 
-		if !ld.resolveMissing || (!HasModRoot() && !allowMissingModuleImports) {
+		if !ld.ResolveMissingImports || (!HasModRoot() && !allowMissingModuleImports) {
 			// We've loaded as much as we can without resolving missing imports.
 			break
 		}
@@ -864,7 +864,7 @@ func loadFromRoots(params loaderParams) *loader {
 	// contributes “direct” imports — so we can't safely mark existing
 	// dependencies as indirect-only.
 	// Conservatively mark those dependencies as direct.
-	if modFile != nil && (!ld.allPatternIsRoot || !reflect.DeepEqual(ld.tags, imports.AnyTags())) {
+	if modFile != nil && (!ld.allPatternIsRoot || !reflect.DeepEqual(ld.Tags, imports.AnyTags())) {
 		for _, r := range modFile.Require {
 			if !r.Indirect {
 				ld.direct[r.Mod.Path] = true
@@ -995,7 +995,7 @@ func (ld *loader) applyPkgFlags(pkg *loadPkg, flags loadPkgFlags) {
 			// also in "all" (as above).
 			wantTest = true
 
-		case ld.loadTests && new.has(pkgIsRoot):
+		case ld.LoadTests && new.has(pkgIsRoot):
 			// LoadTest explicitly requests tests of “the root packages”.
 			wantTest = true
 		}
@@ -1058,7 +1058,7 @@ func (ld *loader) load(pkg *loadPkg) {
 		ld.applyPkgFlags(pkg, pkgInAll)
 	}
 
-	imports, testImports, err := scanDir(pkg.dir, ld.tags)
+	imports, testImports, err := scanDir(pkg.dir, ld.Tags)
 	if err != nil {
 		pkg.err = err
 		return
