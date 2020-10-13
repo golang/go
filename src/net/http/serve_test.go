@@ -4622,7 +4622,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		host  string
 		want  int
 	}{
-		{"HTTP/0.9", "", 400},
+		{"HTTP/0.9", "", 505},
 
 		{"HTTP/1.1", "", 400},
 		{"HTTP/1.1", "Host: \r\n", 200},
@@ -4654,9 +4654,9 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		{"CONNECT golang.org:443 HTTP/1.1", "", 200},
 
 		// But not other HTTP/2 stuff:
-		{"PRI / HTTP/2.0", "", 400},
-		{"GET / HTTP/2.0", "", 400},
-		{"GET / HTTP/3.0", "", 400},
+		{"PRI / HTTP/2.0", "", 505},
+		{"GET / HTTP/2.0", "", 505},
+		{"GET / HTTP/3.0", "", 505},
 	}
 	for _, tt := range tests {
 		conn := &testConn{closec: make(chan bool, 1)}
