@@ -674,8 +674,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// The conversion allocates, so only do it if the concrete type is huge.
 			converted := false
 			if r.Type.Etype != TBLANK {
-				aop = assignop(l.Type, r.Type, nil)
-				if aop != 0 {
+				aop, _ = assignop(l.Type, r.Type)
+				if aop != OXXX {
 					if r.Type.IsInterface() && !l.Type.IsInterface() && !IsComparable(l.Type) {
 						yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type))
 						n.Type = nil
@@ -696,8 +696,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 			if !converted && l.Type.Etype != TBLANK {
-				aop = assignop(r.Type, l.Type, nil)
-				if aop != 0 {
+				aop, _ = assignop(r.Type, l.Type)
+				if aop != OXXX {
 					if l.Type.IsInterface() && !r.Type.IsInterface() && !IsComparable(r.Type) {
 						yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type))
 						n.Type = nil
@@ -1691,7 +1691,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		var why string
-		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
+		n.Op, why = convertop(n.Left.Op == OLITERAL, t, n.Type)
 		if n.Op == OXXX {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
@@ -3267,9 +3267,7 @@ func typecheckas(n *Node) {
 }
 
 func checkassignto(src *types.Type, dst *Node) {
-	var why string
-
-	if assignop(src, dst.Type, &why) == 0 {
+	if op, why := assignop(src, dst.Type); op == OXXX {
 		yyerror("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}
