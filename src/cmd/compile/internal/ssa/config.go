@@ -199,9 +199,9 @@ const (
 const go116lateCallExpansion = true
 
 // LateCallExpansionEnabledWithin returns true if late call expansion should be tested
-// within compilation of a function/method triggered by GOSSAHASH (defaults to "yes").
+// within compilation of a function/method.
 func LateCallExpansionEnabledWithin(f *Func) bool {
-	return go116lateCallExpansion && f.DebugTest // Currently set up for GOSSAHASH bug searches
+	return go116lateCallExpansion
 }
 
 // NewConfig returns a new configuration object for the given architecture.
