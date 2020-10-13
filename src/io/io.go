@@ -152,6 +152,14 @@ type ReadSeeker interface {
 	Seeker
 }
 
+// ReadSeekCloser is the interface that groups the basic Read, Seek and Close
+// methods.
+type ReadSeekCloser interface {
+	Reader
+	Seeker
+	Closer
+}
+
 // WriteSeeker is the interface that groups the basic Write and Seek methods.
 type WriteSeeker interface {
 	Writer
