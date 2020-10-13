@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -654,6 +655,8 @@ func TestWalk_Error(t *testing.T) {
 }
 
 func TestWalk_Symlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	initOverlay(t, `{
 	"Replace": {"overlay_symlink": "symlink"}
 }
