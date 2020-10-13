@@ -1064,7 +1064,7 @@ func traceGoStart() {
 	_g_ := getg().m.curg
 	_p_ := _g_.m.p
 	_g_.traceseq++
-	if _g_ == _p_.ptr().gcBgMarkWorker.ptr() {
+	if _p_.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
 		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[_p_.ptr().gcMarkWorkerMode])
 	} else if _g_.tracelastp == _p_ {
 		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))

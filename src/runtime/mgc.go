@@ -290,10 +290,14 @@ func setGCPhase(x uint32) {
 type gcMarkWorkerMode int
 
 const (
+	// gcMarkWorkerNotWorker indicates that the next scheduled G is not
+	// starting work and the mode should be ignored.
+	gcMarkWorkerNotWorker gcMarkWorkerMode = iota
+
 	// gcMarkWorkerDedicatedMode indicates that the P of a mark
 	// worker is dedicated to running that mark worker. The mark
 	// worker should run without preemption.
-	gcMarkWorkerDedicatedMode gcMarkWorkerMode = iota
+	gcMarkWorkerDedicatedMode
 
 	// gcMarkWorkerFractionalMode indicates that a P is currently
 	// running the "fractional" mark worker. The fractional worker
@@ -313,6 +317,7 @@ const (
 // gcMarkWorkerModeStrings are the strings labels of gcMarkWorkerModes
 // to use in execution traces.
 var gcMarkWorkerModeStrings = [...]string{
+	"Not worker",
 	"GC (dedicated)",
 	"GC (fractional)",
 	"GC (idle)",
@@ -708,17 +713,11 @@ func (c *gcControllerState) enlistWorker() {
 	}
 }
 
-// findRunnableGCWorker returns the background mark worker for _p_ if it
+// findRunnableGCWorker returns a background mark worker for _p_ if it
 // should be run. This must only be called when gcBlackenEnabled != 0.
 func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
-	}
-	if _p_.gcBgMarkWorker == 0 {
-		// The mark worker associated with this P is blocked
-		// performing a mark transition. We can't run it
-		// because it may be on some other run or wait queue.
-		return nil
 	}
 
 	if !gcMarkWorkAvailable(_p_) {
@@ -729,15 +728,35 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		return nil
 	}
 
+	// Grab a worker before we commit to running below.
+	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+	if node == nil {
+		// There is at least one worker per P, so normally there are
+		// enough workers to run on all Ps, if necessary. However, once
+		// a worker enters gcMarkDone it may park without rejoining the
+		// pool, thus freeing a P with no corresponding worker.
+		// gcMarkDone never depends on another worker doing work, so it
+		// is safe to simply do nothing here.
+		//
+		// If gcMarkDone bails out without completing the mark phase,
+		// it will always do so with queued global work. Thus, that P
+		// will be immediately eligible to re-run the worker G it was
+		// just using, ensuring work can complete.
+		return nil
+	}
+
 	decIfPositive := func(ptr *int64) bool {
-		if *ptr > 0 {
-			if atomic.Xaddint64(ptr, -1) >= 0 {
+		for {
+			v := atomic.Loadint64(ptr)
+			if v <= 0 {
+				return false
+			}
+
+			// TODO: having atomic.Casint64 would be more pleasant.
+			if atomic.Cas64((*uint64)(unsafe.Pointer(ptr)), uint64(v), uint64(v-1)) {
 				return true
 			}
-			// We lost a race
-			atomic.Xaddint64(ptr, +1)
 		}
-		return false
 	}
 
 	if decIfPositive(&c.dedicatedMarkWorkersNeeded) {
@@ -746,6 +765,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		_p_.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
 	} else if c.fractionalUtilizationGoal == 0 {
 		// No need for fractional workers.
+		gcBgMarkWorkerPool.push(&node.node)
 		return nil
 	} else {
 		// Is this P behind on the fractional utilization
@@ -755,14 +775,15 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		delta := nanotime() - gcController.markStartTime
 		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
+			gcBgMarkWorkerPool.push(&node.node)
 			return nil
 		}
 		// Run a fractional worker.
 		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
 	}
 
-	// Run the background mark worker
-	gp := _p_.gcBgMarkWorker.ptr()
+	// Run the background mark worker.
+	gp := node.gp.ptr()
 	casgstatus(gp, _Gwaiting, _Grunnable)
 	if trace.enabled {
 		traceGoUnpark(gp, 0)
@@ -1796,19 +1817,21 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	}
 }
 
-// gcBgMarkStartWorkers prepares background mark worker goroutines.
-// These goroutines will not run until the mark phase, but they must
-// be started while the work is not stopped and from a regular G
-// stack. The caller must hold worldsema.
+// gcBgMarkStartWorkers prepares background mark worker goroutines. These
+// goroutines will not run until the mark phase, but they must be started while
+// the work is not stopped and from a regular G stack. The caller must hold
+// worldsema.
 func gcBgMarkStartWorkers() {
-	// Background marking is performed by per-P G's. Ensure that
-	// each P has a background GC G.
-	for _, p := range allp {
-		if p.gcBgMarkWorker == 0 {
-			go gcBgMarkWorker(p)
-			notetsleepg(&work.bgMarkReady, -1)
-			noteclear(&work.bgMarkReady)
-		}
+	// Background marking is performed by per-P G's. Ensure that each P has
+	// a background GC G.
+	//
+	// Worker Gs don't exit if gomaxprocs is reduced. If it is raised
+	// again, we can reuse the old workers; no need to create new workers.
+	for gcBgMarkWorkerCount < gomaxprocs {
+		go gcBgMarkWorker()
+		notetsleepg(&work.bgMarkReady, -1)
+		noteclear(&work.bgMarkReady)
+		gcBgMarkWorkerCount++
 	}
 }
 
@@ -1828,82 +1851,81 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 }
 
-func gcBgMarkWorker(_p_ *p) {
+// gcBgMarkWorker is an entry in the gcBgMarkWorkerPool. It points to a single
+// gcBgMarkWorker goroutine.
+type gcBgMarkWorkerNode struct {
+	// Unused workers are managed in a lock-free stack. This field must be first.
+	node lfnode
+
+	// The g of this worker.
+	gp guintptr
+
+	// Release this m on park. This is used to communicate with the unlock
+	// function, which cannot access the G's stack. It is unused outside of
+	// gcBgMarkWorker().
+	m muintptr
+}
+
+func gcBgMarkWorker() {
 	gp := getg()
 
-	type parkInfo struct {
-		m      muintptr // Release this m on park.
-		attach puintptr // If non-nil, attach to this p on park.
-	}
-	// We pass park to a gopark unlock function, so it can't be on
+	// We pass node to a gopark unlock function, so it can't be on
 	// the stack (see gopark). Prevent deadlock from recursively
 	// starting GC by disabling preemption.
 	gp.m.preemptoff = "GC worker init"
-	park := new(parkInfo)
+	node := new(gcBgMarkWorkerNode)
 	gp.m.preemptoff = ""
 
-	park.m.set(acquirem())
-	park.attach.set(_p_)
-	// Inform gcBgMarkStartWorkers that this worker is ready.
-	// After this point, the background mark worker is scheduled
-	// cooperatively by gcController.findRunnable. Hence, it must
-	// never be preempted, as this would put it into _Grunnable
-	// and put it on a run queue. Instead, when the preempt flag
-	// is set, this puts itself into _Gwaiting to be woken up by
-	// gcController.findRunnable at the appropriate time.
+	node.gp.set(gp)
+	node.m.set(acquirem())
+	// Inform gcBgMarkStartWorkers that this worker is ready. After this
+	// point, the background mark worker is scheduled cooperatively by
+	// gcController.findRunnableGCWorker. Hence, it must never be
+	// preempted, as this would put it into _Grunnable and put it on a run
+	// queue. Instead, when the preempt flag is set, this puts itself into
+	// _Gwaiting to be woken up by gcController.findRunnableGCWorker at the
+	// appropriate time.
 	notewakeup(&work.bgMarkReady)
 
 	for {
-		// Go to sleep until woken by gcController.findRunnable.
-		// We can't releasem yet since even the call to gopark
-		// may be preempted.
-		gopark(func(g *g, parkp unsafe.Pointer) bool {
-			park := (*parkInfo)(parkp)
+		// Go to sleep until woken by
+		// gcController.findRunnableGCWorker.  We can't releasem yet
+		// since even the call to gopark may be preempted.
+		gopark(func(g *g, nodep unsafe.Pointer) bool {
+			node := (*gcBgMarkWorkerNode)(nodep)
 
 			// The worker G is no longer running, so it's
 			// now safe to allow preemption.
-			releasem(park.m.ptr())
+			releasem(node.m.ptr())
 
-			// If the worker isn't attached to its P,
-			// attach now. During initialization and after
-			// a phase change, the worker may have been
-			// running on a different P. As soon as we
-			// attach, the owner P may schedule the
-			// worker, so this must be done after the G is
-			// stopped.
-			if park.attach != 0 {
-				p := park.attach.ptr()
-				park.attach.set(nil)
-				// cas the worker because we may be
-				// racing with a new worker starting
-				// on this P.
-				if !p.gcBgMarkWorker.cas(0, guintptr(unsafe.Pointer(g))) {
-					// The P got a new worker.
-					// Exit this worker.
-					return false
-				}
-			}
+			// Release this G to the pool.
+			gcBgMarkWorkerPool.push(&node.node)
+			// Note that at this point, the G may immediately be
+			// rescheduled and may be running.
+
 			return true
-		}, unsafe.Pointer(park), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
+		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
 
-		// Loop until the P dies and disassociates this
-		// worker (the P may later be reused, in which case
-		// it will get a new worker) or we failed to associate.
-		if _p_.gcBgMarkWorker.ptr() != gp {
-			break
-		}
+		// Preemption must not occur here, or another G might see
+		// p.gcMarkWorkerMode.
 
 		// Disable preemption so we can use the gcw. If the
 		// scheduler wants to preempt us, we'll stop draining,
 		// dispose the gcw, and then preempt.
-		park.m.set(acquirem())
+		node.m.set(acquirem())
+		pp := gp.m.p.ptr()  // P can't change with preemption disabled.
 
 		if gcBlackenEnabled == 0 {
+			println("worker mode", pp.gcMarkWorkerMode)
 			throw("gcBgMarkWorker: blackening not enabled")
 		}
 
+		if pp.gcMarkWorkerMode == gcMarkWorkerNotWorker {
+			throw("gcBgMarkWorker: mode not set")
+		}
+
 		startTime := nanotime()
-		_p_.gcMarkWorkerStartTime = startTime
+		pp.gcMarkWorkerStartTime = startTime
 
 		decnwait := atomic.Xadd(&work.nwait, -1)
 		if decnwait == work.nproc {
@@ -1920,11 +1942,11 @@ func gcBgMarkWorker(_p_ *p) {
 			// disabled for mark workers, so it is safe to
 			// read from the G stack.
 			casgstatus(gp, _Grunning, _Gwaiting)
-			switch _p_.gcMarkWorkerMode {
+			switch pp.gcMarkWorkerMode {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 			case gcMarkWorkerDedicatedMode:
-				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrain(&pp.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
 				if gp.preempt {
 					// We were preempted. This is
 					// a useful signal to kick
@@ -1933,7 +1955,7 @@ func gcBgMarkWorker(_p_ *p) {
 					// somewhere else.
 					lock(&sched.lock)
 					for {
-						gp, _ := runqget(_p_)
+						gp, _ := runqget(pp)
 						if gp == nil {
 							break
 						}
@@ -1943,24 +1965,24 @@ func gcBgMarkWorker(_p_ *p) {
 				}
 				// Go back to draining, this time
 				// without preemption.
-				gcDrain(&_p_.gcw, gcDrainFlushBgCredit)
+				gcDrain(&pp.gcw, gcDrainFlushBgCredit)
 			case gcMarkWorkerFractionalMode:
-				gcDrain(&_p_.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrain(&pp.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 			case gcMarkWorkerIdleMode:
-				gcDrain(&_p_.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrain(&pp.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 			}
 			casgstatus(gp, _Gwaiting, _Grunning)
 		})
 
 		// Account for time.
 		duration := nanotime() - startTime
-		switch _p_.gcMarkWorkerMode {
+		switch pp.gcMarkWorkerMode {
 		case gcMarkWorkerDedicatedMode:
 			atomic.Xaddint64(&gcController.dedicatedMarkTime, duration)
 			atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
 		case gcMarkWorkerFractionalMode:
 			atomic.Xaddint64(&gcController.fractionalMarkTime, duration)
-			atomic.Xaddint64(&_p_.gcFractionalMarkTime, duration)
+			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
 		case gcMarkWorkerIdleMode:
 			atomic.Xaddint64(&gcController.idleMarkTime, duration)
 		}
@@ -1969,31 +1991,31 @@ func gcBgMarkWorker(_p_ *p) {
 		// of work?
 		incnwait := atomic.Xadd(&work.nwait, +1)
 		if incnwait > work.nproc {
-			println("runtime: p.gcMarkWorkerMode=", _p_.gcMarkWorkerMode,
+			println("runtime: p.gcMarkWorkerMode=", pp.gcMarkWorkerMode,
 				"work.nwait=", incnwait, "work.nproc=", work.nproc)
 			throw("work.nwait > work.nproc")
 		}
 
+		// We'll releasem after this point and thus this P may run
+		// something else. We must clear the worker mode to avoid
+		// attributing the mode to a different (non-worker) G in
+		// traceGoStart.
+		pp.gcMarkWorkerMode = gcMarkWorkerNotWorker
+
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// Make this G preemptible and disassociate it
-			// as the worker for this P so
-			// findRunnableGCWorker doesn't try to
-			// schedule it.
-			_p_.gcBgMarkWorker.set(nil)
-			releasem(park.m.ptr())
+			// Make this G preemptible since we are done with per-P
+			// work.
+			releasem(node.m.ptr())
 
 			gcMarkDone()
 
-			// Disable preemption and prepare to reattach
-			// to the P.
+			// Disable preemption and prepare to park.
 			//
-			// We may be running on a different P at this
-			// point, so we can't reattach until this G is
-			// parked.
-			park.m.set(acquirem())
-			park.attach.set(_p_)
+			// Note that we may be running on a different P at this
+			// point, so we can't use pp.
+			node.m.set(acquirem())
 		}
 	}
 }

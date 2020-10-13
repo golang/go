@@ -2554,14 +2554,17 @@ stop:
 	// We have nothing to do. If we're in the GC mark phase, can
 	// safely scan and blacken objects, and have work to do, run
 	// idle-time marking rather than give up the P.
-	if gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
-		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-		gp := _p_.gcBgMarkWorker.ptr()
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
-			traceGoUnpark(gp, 0)
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
+		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+		if node != nil {
+			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+			gp := node.gp.ptr()
+			casgstatus(gp, _Gwaiting, _Grunnable)
+			if trace.enabled {
+				traceGoUnpark(gp, 0)
+			}
+			return gp, false
 		}
-		return gp, false
 	}
 
 	delta := int64(-1)
@@ -2681,12 +2684,33 @@ stop:
 	}
 
 	// Check for idle-priority GC work again.
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(nil) {
+	//
+	// N.B. Since we have no P, gcBlackenEnabled may change at any time; we
+	// must check again after acquiring a P.
+	if atomic.Load(&gcBlackenEnabled) != 0 && gcMarkWorkAvailable(nil) {
+		// Work is available; we can start an idle GC worker only if
+		// there is an available P and available worker G.
+		//
+		// We can attempt to acquire these in either order. Workers are
+		// almost always available (see comment in findRunnableGCWorker
+		// for the one case there may be none). Since we're slightly
+		// less likely to find a P, check for that first.
 		lock(&sched.lock)
+		var node *gcBgMarkWorkerNode
 		_p_ = pidleget()
-		if _p_ != nil && _p_.gcBgMarkWorker == 0 {
-			pidleput(_p_)
-			_p_ = nil
+		if _p_ != nil {
+			// Now that we own a P, gcBlackenEnabled can't change
+			// (as it requires STW).
+			if gcBlackenEnabled != 0 {
+				node = (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+				if node == nil {
+					pidleput(_p_)
+					_p_ = nil
+				}
+			} else {
+				pidleput(_p_)
+				_p_ = nil
+			}
 		}
 		unlock(&sched.lock)
 		if _p_ != nil {
@@ -2695,8 +2719,15 @@ stop:
 				_g_.m.spinning = true
 				atomic.Xadd(&sched.nmspinning, 1)
 			}
-			// Go back to idle GC check.
-			goto stop
+
+			// Run the idle worker.
+			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+			gp := node.gp.ptr()
+			casgstatus(gp, _Gwaiting, _Grunnable)
+			if trace.enabled {
+				traceGoUnpark(gp, 0)
+			}
+			return gp, false
 		}
 	}
 
@@ -4546,18 +4577,6 @@ func (pp *p) destroy() {
 		atomic.Store64(&pp.timer0When, 0)
 		unlock(&pp.timersLock)
 		unlock(&plocal.timersLock)
-	}
-	// If there's a background worker, make it runnable and put
-	// it on the global queue so it can clean itself up.
-	if gp := pp.gcBgMarkWorker.ptr(); gp != nil {
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
-			traceGoUnpark(gp, 0)
-		}
-		globrunqput(gp)
-		// This assignment doesn't race because the
-		// world is stopped.
-		pp.gcBgMarkWorker.set(nil)
 	}
 	// Flush p's write barrier buffer.
 	if gcphase != _GCoff {
