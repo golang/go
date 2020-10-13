@@ -1829,8 +1829,12 @@ func gcBgMarkStartWorkers() {
 	// again, we can reuse the old workers; no need to create new workers.
 	for gcBgMarkWorkerCount < gomaxprocs {
 		go gcBgMarkWorker()
+
 		notetsleepg(&work.bgMarkReady, -1)
 		noteclear(&work.bgMarkReady)
+		// The worker is now guaranteed to be added to the pool before
+		// its P's next findRunnableGCWorker.
+
 		gcBgMarkWorkerCount++
 	}
 }
@@ -1877,32 +1881,55 @@ func gcBgMarkWorker() {
 	gp.m.preemptoff = ""
 
 	node.gp.set(gp)
+
 	node.m.set(acquirem())
-	// Inform gcBgMarkStartWorkers that this worker is ready. After this
-	// point, the background mark worker is scheduled cooperatively by
-	// gcController.findRunnableGCWorker. Hence, it must never be
-	// preempted, as this would put it into _Grunnable and put it on a run
-	// queue. Instead, when the preempt flag is set, this puts itself into
-	// _Gwaiting to be woken up by gcController.findRunnableGCWorker at the
-	// appropriate time.
 	notewakeup(&work.bgMarkReady)
+	// After this point, the background mark worker is generally scheduled
+	// cooperatively by gcController.findRunnableGCWorker. While performing
+	// work on the P, preemption is disabled because we are working on
+	// P-local work buffers. When the preempt flag is set, this puts itself
+	// into _Gwaiting to be woken up by gcController.findRunnableGCWorker
+	// at the appropriate time.
+	//
+	// When preemption is enabled (e.g., while in gcMarkDone), this worker
+	// may be preempted and schedule as a _Grunnable G from a runq. That is
+	// fine; it will eventually gopark again for further scheduling via
+	// findRunnableGCWorker.
+	//
+	// Since we disable preemption before notifying bgMarkReady, we
+	// guarantee that this G will be in the worker pool for the next
+	// findRunnableGCWorker. This isn't strictly necessary, but it reduces
+	// latency between _GCmark starting and the workers starting.
 
 	for {
 		// Go to sleep until woken by
-		// gcController.findRunnableGCWorker.  We can't releasem yet
-		// since even the call to gopark may be preempted.
+		// gcController.findRunnableGCWorker.
 		gopark(func(g *g, nodep unsafe.Pointer) bool {
 			node := (*gcBgMarkWorkerNode)(nodep)
 
-			// The worker G is no longer running, so it's
-			// now safe to allow preemption.
-			releasem(node.m.ptr())
+			if mp := node.m.ptr(); mp != nil {
+				// The worker G is no longer running; release
+				// the M.
+				//
+				// N.B. it is _safe_ to release the M as soon
+				// as we are no longer performing P-local mark
+				// work.
+				//
+				// However, since we cooperatively stop work
+				// when gp.preempt is set, if we releasem in
+				// the loop then the following call to gopark
+				// would immediately preempt the G. This is
+				// also safe, but inefficient: the G must
+				// schedule again only to enter gopark and park
+				// again. Thus, we defer the release until
+				// after parking the G.
+				releasem(mp)
+			}
 
 			// Release this G to the pool.
 			gcBgMarkWorkerPool.push(&node.node)
 			// Note that at this point, the G may immediately be
 			// rescheduled and may be running.
-
 			return true
 		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
 
@@ -1913,7 +1940,7 @@ func gcBgMarkWorker() {
 		// scheduler wants to preempt us, we'll stop draining,
 		// dispose the gcw, and then preempt.
 		node.m.set(acquirem())
-		pp := gp.m.p.ptr()  // P can't change with preemption disabled.
+		pp := gp.m.p.ptr() // P can't change with preemption disabled.
 
 		if gcBlackenEnabled == 0 {
 			println("worker mode", pp.gcMarkWorkerMode)
@@ -2005,17 +2032,13 @@ func gcBgMarkWorker() {
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// Make this G preemptible since we are done with per-P
-			// work.
+			// We don't need the P-local buffers here, allow
+			// preemption becuse we may schedule like a regular
+			// goroutine in gcMarkDone (block on locks, etc).
 			releasem(node.m.ptr())
+			node.m.set(nil)
 
 			gcMarkDone()
-
-			// Disable preemption and prepare to park.
-			//
-			// Note that we may be running on a different P at this
-			// point, so we can't use pp.
-			node.m.set(acquirem())
 		}
 	}
 }
