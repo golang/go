@@ -71,7 +71,7 @@ func WriteExpr(buf *bytes.Buffer, x syntax.Expr) {
 	case *syntax.IndexExpr:
 		WriteExpr(buf, x.X)
 		buf.WriteByte('[')
-		WriteExpr(buf, x.Index)
+		WriteExpr(buf, x.Index) // x.Index may be a *ListExpr
 		buf.WriteByte(']')
 
 	case *syntax.SliceExpr:
@@ -100,16 +100,15 @@ func WriteExpr(buf *bytes.Buffer, x syntax.Expr) {
 
 	case *syntax.CallExpr:
 		WriteExpr(buf, x.Fun)
-		var l, r byte = '(', ')'
-		if x.Brackets {
-			l, r = '[', ']'
-		}
-		buf.WriteByte(l)
+		buf.WriteByte('(')
 		writeExprList(buf, x.ArgList)
 		if x.HasDots {
 			buf.WriteString("...")
 		}
-		buf.WriteByte(r)
+		buf.WriteByte(')')
+
+	case *syntax.ListExpr:
+		writeExprList(buf, x.ElemList)
 
 	case *syntax.Operation:
 		// TODO(gri) This would be simpler if x.X == nil meant unary expression.

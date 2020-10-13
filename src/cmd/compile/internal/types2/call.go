@@ -12,18 +12,21 @@ import (
 	"unicode"
 )
 
-// If call == nil, the "call" was an index expression, and orig is of type *ast.IndexExpr.
-func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) exprKind {
-	assert(orig != nil)
+// TODO(gri) Since we now strictly separate between calls and index/instantiation expressions
+//           we don't need to use "fake" calls for instantiation expressions. Clean up!
+func (check *Checker) call(x *operand, call *syntax.CallExpr, index *syntax.IndexExpr) exprKind {
+	var orig syntax.Expr
 	if call != nil {
-		assert(call == orig)
+		assert(index == nil)
+		orig = call
 		check.exprOrType(x, call.Fun)
 	} else {
 		// We must have an index expression.
 		// x has already been set up (evaluation of orig.X).
 		// Set up fake call so we can use its fields below.
-		expr := orig.(*syntax.IndexExpr)
-		call = &syntax.CallExpr{Fun: expr.X, ArgList: []syntax.Expr{expr.Index}, Brackets: true}
+		assert(index != nil)
+		orig = index
+		call = &syntax.CallExpr{Fun: index.X, ArgList: unpackExpr(index.Index)}
 	}
 
 	switch x.mode {
@@ -94,7 +97,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) 
 
 		// evaluate arguments
 		args, ok := check.exprOrTypeList(call.ArgList)
-		if ok && call.Brackets && len(args) > 0 && args[0].mode != typexpr {
+		if ok && index != nil && len(args) > 0 && args[0].mode != typexpr {
 			check.errorf(args[0], "%s is not a type", args[0])
 			ok = false
 		}
@@ -183,7 +186,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) 
 		}
 
 		// If we reach here, orig must have been a regular call, not an index expression.
-		assert(!call.Brackets)
+		assert(index == nil)
 
 		sig = check.arguments(call, sig, args)
 

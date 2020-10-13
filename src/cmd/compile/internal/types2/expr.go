@@ -1676,7 +1676,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		goto Error
 
 	case *syntax.CallExpr:
-		return check.call(x, e, e)
+		return check.call(x, e, nil)
 
 	// case *syntax.UnaryExpr:
 	// 	check.expr(x, e.X)

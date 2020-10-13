@@ -215,7 +215,16 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 				return &new
 			}
 		}
+	case *syntax.IndexExpr:
+		Index := isubst(n.Index, smap)
+		if Index != n.Index {
+			new := *n
+			new.Index = Index
+			return &new
+		}
 	case *syntax.CallExpr:
+		// TODO(gri) Remove once we don't create fake calls for instantiation expressions.
+		//           See comment for Checker.call (call.go).
 		var args []syntax.Expr
 		for i, arg := range n.ArgList {
 			Arg := isubst(arg, smap)
@@ -230,6 +239,23 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 		if args != nil {
 			new := *n
 			new.ArgList = args
+			return &new
+		}
+	case *syntax.ListExpr:
+		var elems []syntax.Expr
+		for i, elem := range n.ElemList {
+			Elem := isubst(elem, smap)
+			if Elem != elem {
+				if elems == nil {
+					elems = make([]syntax.Expr, len(n.ElemList))
+					copy(elems, n.ElemList)
+				}
+				elems[i] = Elem
+			}
+		}
+		if elems != nil {
+			new := *n
+			new.ElemList = elems
 			return &new
 		}
 	case *syntax.ParenExpr:
@@ -477,9 +503,11 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		}
 
 	case *syntax.IndexExpr:
-		return check.instantiatedType(e.X, []syntax.Expr{e.Index}, def)
+		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
 	case *syntax.CallExpr:
+		// TODO(gri) Remove once we don't create fake calls for instantiation expressions.
+		//           See comment for Checker.call (call.go).
 		return check.instantiatedType(e.Fun, e.ArgList, def)
 
 	case *syntax.ParenExpr:
@@ -1145,7 +1173,11 @@ func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
 		}
 	case *syntax.SelectorExpr:
 		return e.Sel
+	case *syntax.IndexExpr:
+		return embeddedFieldIdent(e.X)
 	case *syntax.CallExpr:
+		// TODO(gri) Remove once we don't create fake calls for instantiation expressions.
+		//           See comment for Checker.call (call.go).
 		return embeddedFieldIdent(e.Fun)
 	case *syntax.ParenExpr:
 		return embeddedFieldIdent(e.X)
