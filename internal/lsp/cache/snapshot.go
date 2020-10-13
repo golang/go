@@ -946,6 +946,11 @@ func (s *snapshot) orphanedFileScopes() []interface{} {
 		if !contains(s.view.session.viewsOf(uri), s.view) {
 			continue
 		}
+		// If the file is not open and is in a vendor directory, don't treat it
+		// like a workspace package.
+		if _, ok := fh.(*overlay); !ok && inVendor(uri) {
+			continue
+		}
 		// Don't reload metadata for files we've already deemed unloadable.
 		if _, ok := s.unloadableFiles[uri]; ok {
 			continue
@@ -968,6 +973,20 @@ func contains(views []*View, view *View) bool {
 		}
 	}
 	return false
+}
+
+func inVendor(uri span.URI) bool {
+	toSlash := filepath.ToSlash(uri.Filename())
+	if !strings.Contains(toSlash, "/vendor/") {
+		return false
+	}
+	// Only packages in _subdirectories_ of /vendor/ are considered vendored
+	// (/vendor/a/foo.go is vendored, /vendor/foo.go is not).
+	split := strings.Split(toSlash, "/vendor/")
+	if len(split) < 2 {
+		return false
+	}
+	return strings.Contains(split[1], "/")
 }
 
 func generationName(v *View, snapshotID uint64) string {
@@ -1069,6 +1088,12 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 	}
 
 	for uri, change := range changes {
+		// Maybe reinitialize the view if we see a change in the vendor
+		// directory.
+		if inVendor(uri) {
+			reinitialize = maybeReinit
+		}
+
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[uri]
 

@@ -94,3 +94,27 @@ module de
 		}
 	}
 }
+
+func TestInVendor(t *testing.T) {
+	for _, tt := range []struct {
+		path     string
+		inVendor bool
+	}{
+		{
+			path:     "foo/vendor/x.go",
+			inVendor: false,
+		},
+		{
+			path:     "foo/vendor/x/x.go",
+			inVendor: true,
+		},
+		{
+			path:     "foo/x.go",
+			inVendor: false,
+		},
+	} {
+		if got := inVendor(span.URIFromPath(tt.path)); got != tt.inVendor {
+			t.Errorf("expected %s inVendor %v, got %v", tt.path, tt.inVendor, got)
+		}
+	}
+}

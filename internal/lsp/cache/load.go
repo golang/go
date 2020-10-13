@@ -92,8 +92,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
-	cleanup := func() {}
-
 	_, inv, cleanup, err := s.goCommandInvocation(ctx, source.ForTypeChecking, &gocommand.Invocation{
 		WorkingDir: s.view.rootURI.Filename(),
 	})
@@ -111,11 +109,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		return ctx.Err()
 	}
 	if err != nil {
-		// Match on common error messages. This is really hacky, but I'm not sure
-		// of any better way. This can be removed when golang/go#39164 is resolved.
-		if strings.Contains(err.Error(), "inconsistent vendoring") {
-			return source.InconsistentVendoring
-		}
 		event.Error(ctx, "go/packages.Load", err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	} else {
 		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))

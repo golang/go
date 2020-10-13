@@ -576,8 +576,7 @@ func (e *Error) Error() string {
 }
 
 var (
-	InconsistentVendoring = errors.New("inconsistent vendoring")
-	PackagesLoadError     = errors.New("packages.Load error")
+	PackagesLoadError = errors.New("packages.Load error")
 )
 
 // WorkspaceModuleVersion is the nonexistent pseudoversion suffix used in the

@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -486,12 +487,12 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 			return nil, err
 		}
 	}
-	tidied, err := snapshot.ModTidy(ctx, modFH)
+	errors, err := mod.ErrorsForMod(ctx, snapshot, modFH)
 	if err != nil {
 		return nil, err
 	}
 	var quickFixes []protocol.CodeAction
-	for _, e := range tidied.Errors {
+	for _, e := range errors {
 		var diag *protocol.Diagnostic
 		for _, d := range diagnostics {
 			if sameDiagnostic(d, e) {
@@ -523,6 +524,13 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 					},
 					Edits: edits,
 				})
+			}
+			if fix.Command != nil {
+				action.Command = &protocol.Command{
+					Command:   fix.Command.Command,
+					Title:     fix.Command.Title,
+					Arguments: fix.Command.Arguments,
+				}
 			}
 			quickFixes = append(quickFixes, action)
 		}

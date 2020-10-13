@@ -55,8 +55,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	}
 	if unsaved {
 		switch params.Command {
-		case source.CommandTest.ID(), source.CommandGenerate.ID(), source.CommandToggleDetails.ID(),
-			source.CommandAddDependency.ID(), source.CommandUpgradeDependency.ID(), source.CommandRemoveDependency.ID():
+		case source.CommandTest.ID(),
+			source.CommandGenerate.ID(),
+			source.CommandToggleDetails.ID(),
+			source.CommandAddDependency.ID(),
+			source.CommandUpgradeDependency.ID(),
+			source.CommandRemoveDependency.ID(),
+			source.CommandVendor.ID():
 			// TODO(PJW): for Toggle, not an error if it is being disabled
 			err := errors.New("all files must be saved first")
 			s.showCommandError(ctx, command.Title, err)

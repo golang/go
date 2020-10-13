@@ -26,30 +26,39 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 			return nil, err
 		}
 		reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
-		tidied, err := snapshot.ModTidy(ctx, fh)
-		if err == source.ErrTmpModfileUnsupported {
-			return nil, nil
-		}
+		errors, err := ErrorsForMod(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
-		for _, e := range tidied.Errors {
-			diag := &source.Diagnostic{
+		for _, e := range errors {
+			d := &source.Diagnostic{
 				Message: e.Message,
 				Range:   e.Range,
 				Source:  e.Category,
 			}
 			if e.Category == "syntax" {
-				diag.Severity = protocol.SeverityError
+				d.Severity = protocol.SeverityError
 			} else {
-				diag.Severity = protocol.SeverityWarning
+				d.Severity = protocol.SeverityWarning
 			}
 			fh, err := snapshot.GetVersionedFile(ctx, e.URI)
 			if err != nil {
 				return nil, err
 			}
-			reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], diag)
+			reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], d)
 		}
 	}
 	return reports, nil
+}
+
+func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]source.Error, error) {
+	tidied, err := snapshot.ModTidy(ctx, fh)
+
+	if source.IsNonFatalGoModError(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return tidied.Errors, nil
 }

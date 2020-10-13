@@ -344,7 +344,7 @@ func errorsToDiagnostic(ctx context.Context, snapshot source.Snapshot, errors []
 		if err != nil {
 			return err
 		}
-		reports.add(fh.VersionedFileIdentity(), false, diagnostic)
+		reports.add(fh.VersionedFileIdentity(), true, diagnostic)
 	}
 	return nil
 }
@@ -469,55 +469,5 @@ func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot
 		hasGo = true
 		return errors.New("done")
 	})
-	if !hasGo {
-		return true
-	}
-
-	// All other workarounds are for errors associated with modules.
-	if len(snapshot.ModFiles()) == 0 {
-		return false
-	}
-
-	switch loadErr {
-	case source.InconsistentVendoring:
-		item, err := s.client.ShowMessageRequest(ctx, &protocol.ShowMessageRequestParams{
-			Type: protocol.Error,
-			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
-See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
-			Actions: []protocol.MessageActionItem{
-				{Title: "go mod vendor"},
-			},
-		})
-		// If the user closes the pop-up, don't show them further errors.
-		if item == nil {
-			return true
-		}
-		if err != nil {
-			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
-			return true
-		}
-		// Right now, we don't have a good way of mapping the error message
-		// to a specific module, so this will re-run `go mod vendor` in every
-		// known module with a vendor directory.
-		// TODO(rstambler): Only re-run `go mod vendor` in the relevant module.
-		for _, uri := range snapshot.ModFiles() {
-			// Check that there is a vendor directory in the module before
-			// running `go mod vendor`.
-			if info, _ := os.Stat(filepath.Join(filepath.Dir(uri.Filename()), "vendor")); info == nil {
-				continue
-			}
-			if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(uri), "mod", []string{"vendor"}...); err != nil {
-				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-					Type:    protocol.Error,
-					Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
-				}); err != nil {
-					if err != nil {
-						event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
-					}
-				}
-			}
-		}
-		return true
-	}
-	return false
+	return !hasGo
 }
