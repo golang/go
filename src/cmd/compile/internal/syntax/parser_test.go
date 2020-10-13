@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"internal/testenv"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -31,8 +30,6 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseGo2(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
-
 	dir := filepath.Join(testdata, "go2")
 	list, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -46,7 +43,10 @@ func TestParseGo2(t *testing.T) {
 	}
 }
 
-func TestStdLib(t *testing.T) {
+func TestStdLib(t *testing.T)        { testStdLib(t, 0) }
+func TestStdLibGeneric(t *testing.T) { testStdLib(t, AllowGenerics) }
+
+func testStdLib(t *testing.T, mode Mode) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
@@ -85,7 +85,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ParseFile(filename, nil, nil, 0)
+				ast, err := ParseFile(filename, nil, nil, mode)
 				if err != nil {
 					t.Error(err)
 					return

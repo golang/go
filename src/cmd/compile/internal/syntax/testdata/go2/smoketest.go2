@@ -72,9 +72,9 @@ type _ struct{
 type _ interface{
 	m()
 
-	// generic methods
+	// generic methods - disabled for now
 	// m[] /* ERROR empty type parameter list */ ()
-	m[P any](P)
+	// m[ /* ERROR cannot have type parameters */ P any](P)
 
 	// instantiated types
 	// T[] /* ERROR empty type argument list */ 

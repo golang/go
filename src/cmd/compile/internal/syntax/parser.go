@@ -460,7 +460,7 @@ func isEmptyFuncDecl(dcl Decl) bool {
 
 // list parses a possibly empty, sep-separated list, optionally
 // followed sep, and closed by close. sep must be one of _Comma
-// or _Semi, and close must be one of _Rparen or _Rbrace.
+// or _Semi, and close must be one of _Rparen, _Rbrace, or _Rbrack.
 // For each list element, f is called. After f returns true, no
 // more list elements are accepted. list returns the position
 // of the closing token.
@@ -580,8 +580,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Pragma = p.takePragma()
 
 	d.Name = p.name()
-	switch p.tok {
-	case _Lbrack:
+	if p.tok == _Lbrack {
 		// array/slice or generic type
 		pos := p.pos()
 		p.next()
@@ -603,17 +602,16 @@ func (p *parser) typeDecl(group *Group) Decl {
 				}
 				d.Type = p.typeOrNil()
 			} else {
+				// x is the array length expression
+				if debug && x == nil {
+					panic("internal error: nil expression")
+				}
 				d.Type = p.arrayType(pos, x)
 			}
 		default:
 			d.Type = p.arrayType(pos, nil)
 		}
-	case _Lparen:
-		// (T)
-		p.next()
-		d.Type = p.typeOrNil()
-		p.want(_Rparen)
-	default:
+	} else {
 		d.Alias = p.gotAssign()
 		d.Type = p.typeOrNil()
 	}
@@ -1013,7 +1011,7 @@ loop:
 			p.next()
 
 			if p.tok == _Rbrack {
-				// invalid empty index, slice or index expression; accept but complain
+				// invalid empty instance, slice or index expression; accept but complain
 				p.syntaxError("expecting operand")
 				p.next()
 				break
@@ -1035,18 +1033,15 @@ loop:
 					break
 				}
 
-				if p.mode&AllowGenerics != 0 && p.got(_Comma) {
+				if p.mode&AllowGenerics != 0 && p.tok == _Comma {
 					// x[i, ... (instantiated type)
-					// TODO(gri) factor this with typeInstance?
+					// TODO(gri) Suggestion by mdempsky@: Use IndexExpr + ExprList for this case.
+					//           Then we can get rid of CallExpr.Brackets.
 					t := new(CallExpr)
 					t.pos = pos
 					t.Fun = x
-					t.ArgList = append(t.ArgList, i)
+					t.ArgList, _ = p.argList(i, _Rbrack)
 					t.Brackets = true
-					p.list(_Comma, _Rbrack, func() bool {
-						t.ArgList = append(t.ArgList, p.expr())
-						return false
-					})
 					x = t
 					p.xnest--
 					break
@@ -1089,7 +1084,7 @@ loop:
 			t.pos = pos
 			p.next()
 			t.Fun = x
-			t.ArgList, t.HasDots = p.argList(_Rparen)
+			t.ArgList, t.HasDots = p.argList(nil, _Rparen)
 			x = t
 
 		case _Lbrace:
@@ -1310,7 +1305,7 @@ func (p *parser) typeInstance(typ Expr) Expr {
 	call := new(CallExpr)
 	call.pos = pos
 	call.Fun = typ
-	call.ArgList, _ = p.argList(_Rbrack)
+	call.ArgList, _ = p.argList(nil, _Rbrack)
 	call.Brackets = true
 	return call
 }
@@ -1329,7 +1324,7 @@ func (p *parser) funcType() *FuncType {
 	return typ
 }
 
-// "[" has already been consumed and pos is its position.
+// "[" has already been consumed, and pos is its position.
 // If len != nil it is the already consumed array length.
 func (p *parser) arrayType(pos Pos, len Expr) Expr {
 	if trace {
@@ -1349,7 +1344,7 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
 	return t
 }
 
-// "[" and "]" have already been consumed and pos is the position of "[".
+// "[" and "]" have already been consumed, and pos is the position of "[".
 func (p *parser) sliceType(pos Pos) Expr {
 	t := new(SliceType)
 	t.pos = pos
@@ -1436,6 +1431,8 @@ func (p *parser) interfaceType() *InterfaceType {
 						f.Type = p.type_()
 						typ.MethodList = append(typ.MethodList, f)
 					}
+				} else {
+					p.syntaxError("expecting type")
 				}
 				break
 			}
@@ -1550,7 +1547,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.syntaxError("cannot parenthesize embedded type")
 			p.next()
 			typ = p.qualifiedName(nil)
-			p.want(_Rparen)
+			p.got(_Rparen) // no need to complain if missing
 		} else {
 			// *T
 			typ = p.qualifiedName(nil)
@@ -1571,7 +1568,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			// (T)
 			typ = p.qualifiedName(nil)
 		}
-		p.want(_Rparen)
+		p.got(_Rparen) // no need to complain if missing
 		tag := p.oliteral()
 		p.addField(styp, pos, nil, typ, tag)
 
@@ -1593,7 +1590,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	}
 
 	// x [P]E or x[P]
-	args, _ := p.argList(_Rbrack)
+	args, _ := p.argList(nil, _Rbrack)
 	if len(args) == 1 {
 		if elem := p.typeOrNil(); elem != nil {
 			// x [P]E
@@ -1608,6 +1605,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	// x[P], x[P1, P2], ...
 	t := new(CallExpr)
 	t.pos = pos
+	// t.Fun will be filled in by caller
 	t.ArgList = args
 	t.Brackets = true
 	return t
@@ -1688,10 +1686,12 @@ func (p *parser) methodDecl() *Field {
 			list := p.paramList(nil, _Rbrack)
 			if len(list) > 0 && list[0].Name != nil {
 				// generic method
-				// TODO(gri) Record list as type parameter list with f.Type
-				//           if we want to type-check the generic method.
 				f.Name = name
 				f.Type = p.funcType()
+				// TODO(gri) Record list as type parameter list with f.Type
+				//           if we want to type-check the generic method.
+				//           For now, report an error so this is not a silent event.
+				p.errorAt(pos, "interface method cannot have type parameters")
 				break
 			}
 
@@ -2428,14 +2428,18 @@ func (p *parser) stmtList() (l []Stmt) {
 }
 
 // Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
-func (p *parser) argList(close token) (list []Expr, hasDots bool) {
+func (p *parser) argList(arg Expr, close token) (list []Expr, hasDots bool) {
 	if trace {
 		defer p.trace("argList")()
 	}
 
 	p.xnest++
 	p.list(_Comma, close, func() bool {
-		list = append(list, p.expr())
+		if arg == nil {
+			arg = p.expr()
+		}
+		list = append(list, arg)
+		arg = nil
 		if close == _Rparen {
 			hasDots = p.got(_DotDotDot)
 		}
