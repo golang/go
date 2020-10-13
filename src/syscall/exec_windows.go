@@ -235,12 +235,13 @@ type ProcAttr struct {
 }
 
 type SysProcAttr struct {
-	HideWindow        bool
-	CmdLine           string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
-	CreationFlags     uint32
-	Token             Token               // if set, runs new process in the security context represented by the token
-	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
-	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
+	HideWindow         bool
+	CmdLine            string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
+	CreationFlags      uint32
+	Token              Token               // if set, runs new process in the security context represented by the token
+	ProcessAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
+	ThreadAttributes   *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
+	DontInheritHandles bool
 }
 
 var zeroProcAttr ProcAttr
@@ -341,9 +342,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.DontInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.DontInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
 	}
 	if err != nil {
 		return 0, 0, err
