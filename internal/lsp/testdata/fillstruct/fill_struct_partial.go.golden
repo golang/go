@@ -1,0 +1,52 @@
+-- suggestedfix_fill_struct_partial_17_2 --
+package fillstruct
+
+type StructPartialA struct {
+	PrefilledInt int
+	UnfilledInt  int
+	StructPartialB
+}
+
+type StructPartialB struct {
+	PrefilledInt int
+	UnfilledInt  int
+}
+
+func fill() {
+	a := StructPartialA{
+		PrefilledInt:   5,
+		UnfilledInt:    0,
+		StructPartialB: StructPartialB{},
+	} //@suggestedfix("}", "refactor.rewrite")
+	b := StructPartialB{
+		/* this comment should disappear */
+		PrefilledInt: 7, // This comment should be blown away.
+		/* As should
+		this one */
+	} //@suggestedfix("}", "refactor.rewrite")
+}
+
+-- suggestedfix_fill_struct_partial_23_2 --
+package fillstruct
+
+type StructPartialA struct {
+	PrefilledInt int
+	UnfilledInt  int
+	StructPartialB
+}
+
+type StructPartialB struct {
+	PrefilledInt int
+	UnfilledInt  int
+}
+
+func fill() {
+	a := StructPartialA{
+		PrefilledInt: 5,
+	} //@suggestedfix("}", "refactor.rewrite")
+	b := StructPartialB{
+		PrefilledInt: 7,
+		UnfilledInt:  0,
+	} //@suggestedfix("}", "refactor.rewrite")
+}
+

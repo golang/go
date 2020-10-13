@@ -134,7 +134,7 @@ type Tests interface {
 	Format(*testing.T, span.Span)
 	Import(*testing.T, span.Span)
 	SemanticTokens(*testing.T, span.Span)
-	SuggestedFix(*testing.T, span.Span, []string)
+	SuggestedFix(*testing.T, span.Span, []string, int)
 	FunctionExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
 	Implementation(*testing.T, span.Span, []span.Span)
@@ -633,7 +633,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			}
 			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
-				tests.SuggestedFix(t, spn, actionKinds)
+				tests.SuggestedFix(t, spn, actionKinds, 1)
 			})
 		}
 	})

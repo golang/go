@@ -49,11 +49,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		expr := n.(*ast.CompositeLit)
 
-		// TODO: Handle partially-filled structs as well.
-		if len(expr.Elts) != 0 {
-			return
-		}
-
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= expr.Pos() && expr.Pos() <= f.End() {
@@ -90,10 +85,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if fieldCount == 0 || fieldCount == len(expr.Elts) {
 			return
 		}
+
 		var fillable bool
 		for i := 0; i < fieldCount; i++ {
 			field := obj.Field(i)
-
 			// Ignore fields that are not accessible in the current package.
 			if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
 				continue
@@ -137,6 +132,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 			break
 		}
 	}
+
 	if info == nil {
 		return nil, fmt.Errorf("nil types.Info")
 	}
@@ -160,6 +156,17 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		return nil, fmt.Errorf("unexpected type %v (%T), expected *types.Struct", typ, typ)
 	}
 	fieldCount := obj.NumFields()
+
+	// Check which types have already been filled in. (we only want to fill in
+	// the unfilled types, or else we'll blat user-supplied details)
+	prefilledTypes := map[string]ast.Expr{}
+	for _, e := range expr.Elts {
+		if kv, ok := e.(*ast.KeyValueExpr); ok {
+			if key, ok := kv.Key.(*ast.Ident); ok {
+				prefilledTypes[key.Name] = kv.Value
+			}
+		}
+	}
 
 	// Use a new fileset to build up a token.File for the new composite
 	// literal. We need one line for foo{, one line for }, and one line for
@@ -186,21 +193,6 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		if fieldTyp == nil {
 			continue
 		}
-		idents, ok := matches[fieldTyp]
-		if !ok {
-			return nil, fmt.Errorf("invalid struct field type: %v", fieldTyp)
-		}
-
-		// Find the identifer whose name is most similar to the name of the field's key.
-		// If we do not find any identifer that matches the pattern, generate a new value.
-		// NOTE: We currently match on the name of the field key rather than the field type.
-		value := analysisinternal.FindBestMatch(obj.Field(i).Name(), idents)
-		if value == nil {
-			value = populateValue(fset, file, pkg, fieldTyp)
-		}
-		if value == nil {
-			return nil, nil
-		}
 
 		tok.AddLine(line - 1) // add 1 byte per line
 		if line > tok.LineCount() {
@@ -214,7 +206,27 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 				Name:    obj.Field(i).Name(),
 			},
 			Colon: pos,
-			Value: value,
+		}
+		if expr, ok := prefilledTypes[obj.Field(i).Name()]; ok {
+			kv.Value = expr
+		} else {
+			idents, ok := matches[fieldTyp]
+			if !ok {
+				return nil, fmt.Errorf("invalid struct field type: %v", fieldTyp)
+			}
+
+			// Find the identifer whose name is most similar to the name of the field's key.
+			// If we do not find any identifer that matches the pattern, generate a new value.
+			// NOTE: We currently match on the name of the field key rather than the field type.
+			value := analysisinternal.FindBestMatch(obj.Field(i).Name(), idents)
+			if value == nil {
+				value = populateValue(fset, file, pkg, fieldTyp)
+			}
+			if value == nil {
+				return nil, nil
+			}
+
+			kv.Value = value
 		}
 		elts = append(elts, kv)
 		line++
@@ -251,31 +263,51 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 	index := bytes.Index(firstLine, trimmed)
 	whitespace := firstLine[:index]
 
-	var newExpr bytes.Buffer
-	if err := format.Node(&newExpr, fakeFset, cl); err != nil {
-		return nil, fmt.Errorf("failed to format %s: %v", cl.Type, err)
+	// First pass through the formatter: turn the expr into a string.
+	var formatBuf bytes.Buffer
+	if err := format.Node(&formatBuf, fakeFset, cl); err != nil {
+		return nil, fmt.Errorf("failed to run first format on:\n%s\ngot err: %v", cl.Type, err)
 	}
-	split = bytes.Split(newExpr.Bytes(), []byte("\n"))
+	sug := indent(formatBuf.Bytes(), whitespace)
+
+	if len(prefilledTypes) > 0 {
+		// Attempt a second pass through the formatter to line up columns.
+		sourced, err := format.Source(sug)
+		if err == nil {
+			sug = indent(sourced, whitespace)
+		}
+	}
+
+	return &analysis.SuggestedFix{
+		TextEdits: []analysis.TextEdit{
+			{
+				Pos:     expr.Pos(),
+				End:     expr.End(),
+				NewText: sug,
+			},
+		},
+	}, nil
+}
+
+// indent works line by line through str, indenting (prefixing) each line with
+// ind.
+func indent(str, ind []byte) []byte {
+	split := bytes.Split(str, []byte("\n"))
 	newText := bytes.NewBuffer(nil)
 	for i, s := range split {
+		if len(s) == 0 {
+			continue
+		}
 		// Don't add the extra indentation to the first line.
 		if i != 0 {
-			newText.Write(whitespace)
+			newText.Write(ind)
 		}
 		newText.Write(s)
 		if i < len(split)-1 {
 			newText.WriteByte('\n')
 		}
 	}
-	return &analysis.SuggestedFix{
-		TextEdits: []analysis.TextEdit{
-			{
-				Pos:     expr.Pos(),
-				End:     expr.End(),
-				NewText: newText.Bytes(),
-			},
-		},
-	}, nil
+	return newText.Bytes()
 }
 
 // populateValue constructs an expression to fill the value of a struct field.

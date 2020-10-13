@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string, expectedActions int) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	args := []string{"fix", "-a", fmt.Sprintf("%s", spn)}

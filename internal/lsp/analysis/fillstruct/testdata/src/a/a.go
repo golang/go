@@ -27,7 +27,7 @@ type twoArgStruct struct {
 
 var _ = twoArgStruct{} // want ""
 
-var _ = twoArgStruct{
+var _ = twoArgStruct{ // want ""
 	bar: "bar",
 }
 

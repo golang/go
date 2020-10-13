@@ -923,8 +923,9 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 }
 
 // These are pure LSP features, no source level functionality to be tested.
-func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link)         {}
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)  {}
+func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {}
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string, expectedActions int) {
+}
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {}
 func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens)   {}
 

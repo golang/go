@@ -458,7 +458,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string, expectedActions int) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)
 	if err != nil {
@@ -509,10 +509,13 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if err != nil {
 		t.Fatalf("CodeAction %s failed: %v", spn, err)
 	}
-	if len(actions) != 1 {
+	if len(actions) != expectedActions {
 		// Hack: We assume that we only get one code action per range.
-		// TODO(rstambler): Support multiple code actions per test.
-		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
+		var cmds []string
+		for _, a := range actions {
+			cmds = append(cmds, fmt.Sprintf("%s (%s)", a.Command.Command, a.Title))
+		}
+		t.Fatalf("unexpected number of code actions, want %d, got %d: %v", expectedActions, len(actions), cmds)
 	}
 	action := actions[0]
 	var match bool
@@ -529,7 +532,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if cmd := action.Command; cmd != nil {
 		edits, err := commandToEdits(r.ctx, snapshot, fh, rng, action.Command.Command)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
 		}
 		res, err = applyTextDocumentEdits(r, edits)
 		if err != nil {
@@ -565,7 +568,11 @@ func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.Ver
 	if !command.Applies(ctx, snapshot, fh, rng) {
 		return nil, fmt.Errorf("cannot apply %v", command.ID())
 	}
-	return command.SuggestedFix(ctx, snapshot, fh, rng)
+	edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
+	if err != nil {
+		return nil, fmt.Errorf("error calling command.SuggestedFix: %v", err)
+	}
+	return edits, nil
 }
 
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
