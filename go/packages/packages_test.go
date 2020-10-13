@@ -185,19 +185,20 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 
 	// Check node information: kind, name, srcs.
 	for _, test := range []struct {
-		id       string
-		wantName string
-		wantKind string
-		wantSrcs string
+		id          string
+		wantName    string
+		wantKind    string
+		wantSrcs    string
+		wantIgnored string
 	}{
-		{"golang.org/fake/a", "a", "package", "a.go"},
-		{"golang.org/fake/b", "b", "package", "b.go"},
-		{"golang.org/fake/c", "c", "package", "c.go"}, // c2.go is ignored
-		{"golang.org/fake/e", "main", "command", "e.go e2.go"},
-		{"container/list", "list", "package", "list.go"},
-		{"golang.org/fake/subdir/d", "d", "package", "d.go"},
-		{"golang.org/fake/subdir/d.test", "main", "command", "0.go"},
-		{"unsafe", "unsafe", "package", ""},
+		{"golang.org/fake/a", "a", "package", "a.go", ""},
+		{"golang.org/fake/b", "b", "package", "b.go", ""},
+		{"golang.org/fake/c", "c", "package", "c.go", "c2.go"}, // c2.go is ignored
+		{"golang.org/fake/e", "main", "command", "e.go e2.go", ""},
+		{"container/list", "list", "package", "list.go", ""},
+		{"golang.org/fake/subdir/d", "d", "package", "d.go", ""},
+		{"golang.org/fake/subdir/d.test", "main", "command", "0.go", ""},
+		{"unsafe", "unsafe", "package", "", ""},
 	} {
 		p, ok := all[test.id]
 		if !ok {
@@ -221,6 +222,9 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 
 		if srcs := strings.Join(srcs(p), " "); srcs != test.wantSrcs {
 			t.Errorf("%s.Srcs = [%s], want [%s]", test.id, srcs, test.wantSrcs)
+		}
+		if ignored := strings.Join(cleanPaths(p.IgnoredFiles), " "); ignored != test.wantIgnored {
+			t.Errorf("%s.Srcs = [%s], want [%s]", test.id, ignored, test.wantIgnored)
 		}
 	}
 
@@ -1092,6 +1096,9 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 			for _, filename := range pkg.OtherFiles {
 				checkFile(filename)
 			}
+			for _, filename := range pkg.IgnoredFiles {
+				checkFile(filename)
+			}
 		}
 	}
 }
@@ -1248,6 +1255,7 @@ func testJSON(t *testing.T, exporter packagestest.Exporter) {
 		pkg.GoFiles = cleanPaths(pkg.GoFiles)
 		pkg.CompiledGoFiles = cleanPaths(pkg.CompiledGoFiles)
 		pkg.OtherFiles = cleanPaths(pkg.OtherFiles)
+		pkg.IgnoredFiles = cleanPaths(pkg.IgnoredFiles)
 		if err := enc.Encode(pkg); err != nil {
 			t.Fatal(err)
 		}
@@ -2629,7 +2637,7 @@ func errorMessages(errors []packages.Error) []string {
 }
 
 func srcs(p *packages.Package) []string {
-	return cleanPaths(append(p.GoFiles, p.OtherFiles...))
+	return cleanPaths(append(p.GoFiles[:len(p.GoFiles):len(p.GoFiles)], p.OtherFiles...))
 }
 
 // cleanPaths attempts to reduce path names to stable forms

@@ -355,7 +355,7 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 		}
 	}
 
-	// Extract 'want' comments from Go files.
+	// Extract 'want' comments from parsed Go files.
 	for _, f := range pass.Files {
 		for _, cgroup := range f.Comments {
 			for _, c := range cgroup.List {
@@ -398,6 +398,16 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 		linenum := 0
 		for _, line := range strings.Split(string(data), "\n") {
 			linenum++
+
+			// Hack: treat a comment of the form "//...// want..."
+			// or "/*...// want... */
+			// as if it starts at 'want'.
+			// This allows us to add comments on comments,
+			// as required when testing the buildtag analyzer.
+			if i := strings.Index(line, "// want"); i >= 0 {
+				line = line[i:]
+			}
+
 			if i := strings.Index(line, "//"); i >= 0 {
 				line = line[i+len("//"):]
 				processComment(filename, linenum, line)

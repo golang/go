@@ -289,6 +289,11 @@ type Package struct {
 	// including assembly, C, C++, Fortran, Objective-C, SWIG, and so on.
 	OtherFiles []string
 
+	// IgnoredFiles lists source files that are not part of the package
+	// using the current build configuration but that might be part of
+	// the package using other build configurations.
+	IgnoredFiles []string
+
 	// ExportFile is the absolute path to a file containing type
 	// information for the package as provided by the build system.
 	ExportFile string
@@ -404,6 +409,7 @@ type flatPackage struct {
 	GoFiles         []string          `json:",omitempty"`
 	CompiledGoFiles []string          `json:",omitempty"`
 	OtherFiles      []string          `json:",omitempty"`
+	IgnoredFiles    []string          `json:",omitempty"`
 	ExportFile      string            `json:",omitempty"`
 	Imports         map[string]string `json:",omitempty"`
 }
@@ -426,6 +432,7 @@ func (p *Package) MarshalJSON() ([]byte, error) {
 		GoFiles:         p.GoFiles,
 		CompiledGoFiles: p.CompiledGoFiles,
 		OtherFiles:      p.OtherFiles,
+		IgnoredFiles:    p.IgnoredFiles,
 		ExportFile:      p.ExportFile,
 	}
 	if len(p.Imports) > 0 {
@@ -712,7 +719,8 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		result[i] = lpkg.Package
 	}
 	for i := range ld.pkgs {
-		// Clear all unrequested fields, for extra de-Hyrum-ization.
+		// Clear all unrequested fields,
+		// to catch programs that use more than they request.
 		if ld.requestedMode&NeedName == 0 {
 			ld.pkgs[i].Name = ""
 			ld.pkgs[i].PkgPath = ""
@@ -720,6 +728,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		if ld.requestedMode&NeedFiles == 0 {
 			ld.pkgs[i].GoFiles = nil
 			ld.pkgs[i].OtherFiles = nil
+			ld.pkgs[i].IgnoredFiles = nil
 		}
 		if ld.requestedMode&NeedCompiledGoFiles == 0 {
 			ld.pkgs[i].CompiledGoFiles = nil

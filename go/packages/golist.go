@@ -381,32 +381,34 @@ func (state *golistState) adhocPackage(pattern, query string) (*driverResponse, 
 // Fields must match go list;
 // see $GOROOT/src/cmd/go/internal/load/pkg.go.
 type jsonPackage struct {
-	ImportPath      string
-	Dir             string
-	Name            string
-	Export          string
-	GoFiles         []string
-	CompiledGoFiles []string
-	CFiles          []string
-	CgoFiles        []string
-	CXXFiles        []string
-	MFiles          []string
-	HFiles          []string
-	FFiles          []string
-	SFiles          []string
-	SwigFiles       []string
-	SwigCXXFiles    []string
-	SysoFiles       []string
-	Imports         []string
-	ImportMap       map[string]string
-	Deps            []string
-	Module          *Module
-	TestGoFiles     []string
-	TestImports     []string
-	XTestGoFiles    []string
-	XTestImports    []string
-	ForTest         string // q in a "p [q.test]" package, else ""
-	DepOnly         bool
+	ImportPath        string
+	Dir               string
+	Name              string
+	Export            string
+	GoFiles           []string
+	CompiledGoFiles   []string
+	IgnoredGoFiles    []string
+	IgnoredOtherFiles []string
+	CFiles            []string
+	CgoFiles          []string
+	CXXFiles          []string
+	MFiles            []string
+	HFiles            []string
+	FFiles            []string
+	SFiles            []string
+	SwigFiles         []string
+	SwigCXXFiles      []string
+	SysoFiles         []string
+	Imports           []string
+	ImportMap         map[string]string
+	Deps              []string
+	Module            *Module
+	TestGoFiles       []string
+	TestImports       []string
+	XTestGoFiles      []string
+	XTestImports      []string
+	ForTest           string // q in a "p [q.test]" package, else ""
+	DepOnly           bool
 
 	Error *jsonPackageError
 }
@@ -558,6 +560,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
+			IgnoredFiles:    absJoin(p.Dir, p.IgnoredGoFiles, p.IgnoredOtherFiles),
 			forTest:         p.ForTest,
 			Module:          p.Module,
 		}

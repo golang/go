@@ -639,6 +639,7 @@ func (act *action) execOnce() {
 		Fset:              act.pkg.Fset,
 		Files:             act.pkg.Syntax,
 		OtherFiles:        act.pkg.OtherFiles,
+		IgnoredFiles:      act.pkg.IgnoredFiles,
 		Pkg:               act.pkg.Types,
 		TypesInfo:         act.pkg.TypesInfo,
 		TypesSizes:        act.pkg.TypesSizes,
