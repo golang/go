@@ -78,7 +78,9 @@ func SetBuildList(list []module.Version) {
 // the build list set in SetBuildList.
 func ReloadBuildList() []module.Version {
 	loaded = loadFromRoots(loaderParams{
-		tags:               imports.Tags(),
+		PackageOpts: PackageOpts{
+			Tags: imports.Tags(),
+		},
 		listRoots:          func() []string { return nil },
 		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
 	})
