@@ -1427,3 +1427,28 @@ func main() {
 		)
 	})
 }
+
+// When foo_test.go is opened, gopls will object to the borked package name.
+// This test asserts that when the package name is fixed, gopls will soon after
+// have no more complaints about it.
+// https://github.com/golang/go/issues/41061
+func TestRenamePackage(t *testing.T) {
+	t.Skip("Waiting for the fix that makes this pass: https://github.com/golang/go/issues/41061")
+
+	const contents = `
+-- go.mod --
+module mod.com
+-- foo.go --
+package foo
+-- foo_test.go --
+package foo_`
+
+	runner.Run(t, contents, func(t *testing.T, env *Env) {
+		env.OpenFile("foo_test.go")
+		env.RegexpReplace("foo_test.go", "foo_", "foo_test")
+		env.SaveBuffer("foo_test.go")
+		env.Await(
+			EmptyDiagnostics("foo_test.go"),
+		)
+	})
+}
