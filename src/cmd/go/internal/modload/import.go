@@ -124,6 +124,31 @@ func (e *AmbiguousImportError) Error() string {
 	return buf.String()
 }
 
+// ImportMissingSumError is reported in readonly mode when we need to check
+// if a module in the build list contains a package, but we don't have a sum
+// for its .zip file.
+type ImportMissingSumError struct {
+	importPath   string
+	found, inAll bool
+}
+
+func (e *ImportMissingSumError) Error() string {
+	var message string
+	if e.found {
+		message = fmt.Sprintf("missing go.sum entry needed to verify package %s is provided by exactly one module", e.importPath)
+	} else {
+		message = fmt.Sprintf("missing go.sum entry for module providing package %s", e.importPath)
+	}
+	if e.inAll {
+		return message + "; try 'go mod tidy' to add it"
+	}
+	return message
+}
+
+func (e *ImportMissingSumError) ImportPath() string {
+	return e.importPath
+}
+
 type invalidImportError struct {
 	importPath string
 	err        error
@@ -208,13 +233,23 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 	// Check each module on the build list.
 	var dirs []string
 	var mods []module.Version
+	haveSumErr := false
 	for _, m := range buildList {
 		if !maybeInModule(path, m.Path) {
 			// Avoid possibly downloading irrelevant modules.
 			continue
 		}
-		root, isLocal, err := fetch(ctx, m)
+		needSum := true
+		root, isLocal, err := fetch(ctx, m, needSum)
 		if err != nil {
+			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+				// We are missing a sum needed to fetch a module in the build list.
+				// We can't verify that the package is unique, and we may not find
+				// the package at all. Keep checking other modules to decide which
+				// error to report.
+				haveSumErr = true
+				continue
+			}
 			// Report fetch error.
 			// Note that we don't know for sure this module is necessary,
 			// but it certainly _could_ provide the package, and even if we
@@ -230,11 +265,14 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 			dirs = append(dirs, dir)
 		}
 	}
+	if len(mods) > 1 {
+		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+	}
+	if haveSumErr {
+		return module.Version{}, "", &ImportMissingSumError{importPath: path, found: len(mods) > 0}
+	}
 	if len(mods) == 1 {
 		return mods[0], dirs[0], nil
-	}
-	if len(mods) > 0 {
-		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
 
 	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
@@ -306,7 +344,8 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 			return len(mods[i].Path) > len(mods[j].Path)
 		})
 		for _, m := range mods {
-			root, isLocal, err := fetch(ctx, m)
+			needSum := true
+			root, isLocal, err := fetch(ctx, m, needSum)
 			if err != nil {
 				// Report fetch error as above.
 				return module.Version{}, err
@@ -473,9 +512,14 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 // fetch downloads the given module (or its replacement)
 // and returns its location.
 //
+// needSum indicates whether the module may be downloaded in readonly mode
+// without a go.sum entry. It should only be false for modules fetched
+// speculatively (for example, for incompatible version filtering). The sum
+// will still be verified normally.
+//
 // The isLocal return value reports whether the replacement,
 // if any, is local to the filesystem.
-func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, isLocal bool, err error) {
 	if mod == Target {
 		return ModRoot(), true, nil
 	}
@@ -505,6 +549,18 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 		mod = r
 	}
 
+	if cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+		return "", false, module.VersionError(mod, &sumMissingError{})
+	}
+
 	dir, err = modfetch.Download(ctx, mod)
 	return dir, false, err
+}
+
+type sumMissingError struct {
+	suggestion string
+}
+
+func (e *sumMissingError) Error() string {
+	return "missing go.sum entry" + e.suggestion
 }

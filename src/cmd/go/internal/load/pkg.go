@@ -254,8 +254,8 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	// package's source files themselves (scanner errors).
 	//
 	// TODO(matloob): Perhaps make each of those the errors in the first group
-	// (including modload.ImportMissingError, and the corresponding
-	// "cannot find package %q in any of" GOPATH-mode error
+	// (including modload.ImportMissingError, ImportMissingSumError, and the
+	// corresponding "cannot find package %q in any of" GOPATH-mode error
 	// produced in build.(*Context).Import; modload.AmbiguousImportError,
 	// and modload.PackageNotInModuleError; and the malformed module path errors
 	// produced in golang.org/x/mod/module.CheckMod) implement an interface
@@ -430,6 +430,7 @@ type ImportPathError interface {
 var (
 	_ ImportPathError = (*importError)(nil)
 	_ ImportPathError = (*modload.ImportMissingError)(nil)
+	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
 )
 
 type importError struct {
