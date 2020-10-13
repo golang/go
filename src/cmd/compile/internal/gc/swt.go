@@ -189,16 +189,19 @@ func typecheckExprSwitch(n *Node) {
 				continue
 			}
 
-			switch {
-			case nilonly != "" && !n1.isNil():
+			if nilonly != "" && !n1.isNil() {
 				yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-			case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
+			} else if t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type) {
 				yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
-			case assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
-				if n.Left != nil {
-					yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
-				} else {
-					yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+			} else {
+				op1, _ := assignop(n1.Type, t)
+				op2, _ := assignop(t, n1.Type)
+				if op1 == OXXX && op2 == OXXX {
+					if n.Left != nil {
+						yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+					} else {
+						yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+					}
 				}
 			}
 
