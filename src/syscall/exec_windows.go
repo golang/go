@@ -241,7 +241,7 @@ type SysProcAttr struct {
 	Token              Token               // if set, runs new process in the security context represented by the token
 	ProcessAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
 	ThreadAttributes   *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
-	DontInheritHandles bool
+	DontInheritHandles bool                // if set, each inheritable handle in the calling process is not inherited by the new process
 }
 
 var zeroProcAttr ProcAttr
