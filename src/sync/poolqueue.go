@@ -80,7 +80,7 @@ func (d *poolDequeue) pack(head, tail uint32) uint64 {
 func (d *poolDequeue) pushHead(val interface{}) bool {
 	ptrs := atomic.LoadUint64(&d.headTail)
 	head, tail := d.unpack(ptrs)
-	if tail+uint32(len(d.vals)) == head {
+	if (tail+uint32(len(d.vals)))&(1<<dequeueBits-1) == head{
 		// Queue is full.
 		return false
 	}
