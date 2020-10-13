@@ -58,6 +58,7 @@ type RankCompletions map[span.Span][]Completion
 type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
+type SemanticTokens []span.Span
 type SuggestedFixes map[span.Span][]string
 type FunctionExtractions map[span.Span]span.Span
 type Definitions map[span.Span]Definition
@@ -90,6 +91,7 @@ type Data struct {
 	FoldingRanges                 FoldingRanges
 	Formats                       Formats
 	Imports                       Imports
+	SemanticTokens                SemanticTokens
 	SuggestedFixes                SuggestedFixes
 	FunctionExtractions           FunctionExtractions
 	Definitions                   Definitions
@@ -133,6 +135,7 @@ type Tests interface {
 	FoldingRanges(*testing.T, span.Span)
 	Format(*testing.T, span.Span)
 	Import(*testing.T, span.Span)
+	SemanticTokens(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span, []string)
 	FunctionExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
@@ -241,6 +244,7 @@ func DefaultOptions(o *source.Options) {
 	o.CompletionBudget = time.Minute
 	o.HierarchicalDocumentSymbolSupport = true
 	o.ExperimentalWorkspaceModule = true
+	o.SemanticTokens = true
 }
 
 func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*testing.T, *Data)) {
@@ -431,6 +435,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"fold":            datum.collectFoldingRanges,
 		"format":          datum.collectFormats,
 		"import":          datum.collectImports,
+		"semantic":        datum.collectSemanticTokens,
 		"godef":           datum.collectDefinitions,
 		"implementations": datum.collectImplementations,
 		"typdef":          datum.collectTypeDefinitions,
@@ -638,6 +643,16 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(uriName(spn.URI()), func(t *testing.T) {
 				t.Helper()
 				tests.Import(t, spn)
+			})
+		}
+	})
+
+	t.Run("SemanticTokens", func(t *testing.T) {
+		t.Helper()
+		for _, spn := range data.SemanticTokens {
+			t.Run(uriName(spn.URI()), func(t *testing.T) {
+				t.Helper()
+				tests.SemanticTokens(t, spn)
 			})
 		}
 	})
@@ -860,6 +875,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "FoldingRangesCount = %v\n", len(data.FoldingRanges))
 	fmt.Fprintf(buf, "FormatCount = %v\n", len(data.Formats))
 	fmt.Fprintf(buf, "ImportCount = %v\n", len(data.Imports))
+	fmt.Fprintf(buf, "SemanticTokenCount = %v\n", len(data.SemanticTokens))
 	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
 	fmt.Fprintf(buf, "FunctionExtractionCount = %v\n", len(data.FunctionExtractions))
 	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
@@ -954,6 +970,9 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 	}
 	if file == nil {
 		data.t.Fatalf("could not find golden contents %v: %v", fragment, tag)
+	}
+	if len(file.Data) == 0 {
+		return file.Data
 	}
 	return file.Data[:len(file.Data)-1] // drop the trailing \n
 }
@@ -1075,6 +1094,10 @@ func (data *Data) collectFormats(spn span.Span) {
 
 func (data *Data) collectImports(spn span.Span) {
 	data.Imports = append(data.Imports, spn)
+}
+
+func (data *Data) collectSemanticTokens(spn span.Span) {
+	data.SemanticTokens = append(data.SemanticTokens, spn)
 }
 
 func (data *Data) collectSuggestedFixes(spn span.Span, actionKind string) {

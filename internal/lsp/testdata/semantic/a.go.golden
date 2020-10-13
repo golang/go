@@ -1,0 +1,80 @@
+-- semantic --
+/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens
+
+/*⇒6,keyword,[]*/import (
+	_ "encoding/utf8"/*⇐4,namespace,[]*/
+	/*⇒3,namespace,[]*/utf "encoding/utf8"
+	"fmt"/*⇐3,namespace,[]*/ //@ semantic("fmt")
+	. "fmt"
+	"unicode/utf8"/*⇐4,namespace,[]*/
+)
+
+/*⇒3,keyword,[]*/var (
+	/*⇒1,variable,[definition]*/a           = /*⇒3,namespace,[]*/fmt./*⇒5,function,[]*/Print
+	/*⇒1,variable,[definition]*/b  []/*⇒6,type,[]*/string = []/*⇒6,type,[]*/string{/*⇒5,string,[]*/"foo"}
+	/*⇒2,variable,[definition]*/c1 /*⇒4,keyword,[]*/chan /*⇒3,type,[]*/int
+	/*⇒2,variable,[definition]*/c2 <-/*⇒4,keyword,[]*/chan /*⇒3,type,[]*/int
+	/*⇒2,variable,[definition]*/c3 = /*⇒4,function,[defaultLibrary]*/make([]/*⇒4,keyword,[]*/chan<- /*⇒3,type,[]*/int)
+	/*⇒1,variable,[definition]*/b  = /*⇒1,type,[]*/A{/*⇒1,variable,[]*/X: /*⇒2,number,[]*/23}
+	/*⇒1,variable,[definition]*/m  /*⇒3,keyword,[]*/map[/*⇒4,type,[]*/bool][/*⇒1,number,[]*/3]/*⇒1,operator,[]*/*/*⇒7,type,[]*/float64
+)
+
+/*⇒5,keyword,[]*/const (
+	/*⇒2,variable,[definition readonly]*/xx /*⇒1,type,[]*/F = /*⇒4,keyword,[]*/iota
+	/*⇒2,variable,[definition readonly]*/yy   = /*⇒2,variable,[readonly]*/xx /*⇒1,operator,[]*/+ /*⇒1,number,[]*/3
+	/*⇒2,variable,[definition readonly]*/zz   = /*⇒2,string,[]*/""
+	/*⇒2,variable,[definition readonly]*/ww   = /*⇒6,string,[]*/"not " /*⇒1,operator,[]*/+ /*⇒2,string,[readonly]*/zz
+)
+
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/A /*⇒6,keyword,[]*/struct {
+	/*⇒1,type,[definition]*/X /*⇒3,type,[]*/int /*⇒6,comment,[]*/`foof`
+}
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/B /*⇒9,keyword,[]*/interface {
+	/*⇒1,type,[]*/A
+	/*⇒3,member,[definition]*/sad(/*⇒3,type,[]*/int) /*⇒4,type,[]*/bool
+}
+
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/F /*⇒3,type,[]*/int
+
+/*⇒4,keyword,[]*/func (/*⇒1,variable,[]*/a /*⇒1,operator,[]*/*/*⇒1,type,[]*/A) /*⇒1,member,[definition]*/f() /*⇒4,type,[]*/bool {
+	/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/z /*⇒6,type,[]*/string
+	/*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒5,string,[]*/"foo"
+	/*⇒1,variable,[]*/a(/*⇒1,variable,[definition]*/x)
+	/*⇒1,variable,[definition]*/y /*⇒2,operator,[]*/:= /*⇒5,string,[]*/"bar" /*⇒1,operator,[]*/+ /*⇒1,variable,[]*/x
+	/*⇒6,keyword,[]*/switch /*⇒1,variable,[]*/z {
+	/*⇒4,keyword,[]*/case /*⇒4,string,[]*/"xx":
+	/*⇒7,keyword,[]*/default:
+	}
+	/*⇒6,keyword,[]*/select {
+	/*⇒4,keyword,[]*/case /*⇒1,variable,[definition]*/z /*⇒2,operator,[]*/:= /*⇒2,operator,[]*/<-/*⇒2,variable,[]*/c3[/*⇒1,number,[]*/0]:
+	/*⇒7,keyword,[]*/default:
+	}
+	/*⇒3,keyword,[]*/for /*⇒1,variable,[definition]*/k, /*⇒1,variable,[definition]*/v := /*⇒5,keyword,[]*/range /*⇒1,variable,[]*/m {
+		/*⇒6,keyword,[]*/return (/*⇒1,operator,[]*/!/*⇒1,variable,[]*/k) /*⇒2,operator,[]*/&& /*⇒1,variable,[]*/v[/*⇒1,number,[]*/0] /*⇒2,operator,[]*/== /*⇒3,keyword,[readonly]*/nil
+	}
+	/*⇒2,variable,[]*/c2 /*⇒2,operator,[]*/<- /*⇒1,type,[]*/A./*⇒1,variable,[definition]*/X
+	/*⇒1,variable,[definition]*/w /*⇒2,operator,[]*/:= /*⇒1,variable,[]*/b[/*⇒1,number,[]*/4:]
+	/*⇒1,variable,[definition]*/j /*⇒2,operator,[]*/:= /*⇒3,function,[defaultLibrary]*/len(/*⇒1,variable,[]*/x)
+	/*⇒1,variable,[]*/j/*⇒2,operator,[]*/--
+	/*⇒6,keyword,[]*/return /*⇒4,keyword,[]*/true
+}
+
+/*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/g(/*⇒2,parameter,[definition]*/vv /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
+	/*⇒2,variable,[definition]*/ff /*⇒2,operator,[]*/:= /*⇒4,keyword,[]*/func() {}
+	/*⇒5,keyword,[]*/defer /*⇒2,variable,[]*/ff()
+	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,variable,[definition]*/RuneCount(/*⇒2,string,[]*/"")
+	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,variable,[]*/vv.(/*⇒6,variable,[definition]*/string))
+	/*⇒2,keyword,[]*/if /*⇒4,keyword,[]*/true {
+	} /*⇒4,keyword,[]*/else {
+	}
+/*⇒5,parameter,[definition]*/Never:
+	/*⇒3,keyword,[]*/for /*⇒1,variable,[definition]*/i /*⇒2,operator,[]*/:= /*⇒1,number,[]*/0; /*⇒1,variable,[]*/i /*⇒1,operator,[]*/< /*⇒2,number,[]*/10; {
+		/*⇒5,keyword,[]*/break Never
+	}
+	_, /*⇒2,variable,[definition]*/ok /*⇒2,operator,[]*/:= /*⇒2,variable,[]*/vv[/*⇒1,number,[]*/0].(/*⇒1,type,[]*/A)
+	/*⇒2,keyword,[]*/if /*⇒1,operator,[]*/!/*⇒2,variable,[]*/ok {
+		/*⇒6,keyword,[]*/switch /*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒2,variable,[]*/vv[/*⇒1,number,[]*/0].(/*⇒4,keyword,[]*/type) {
+		}
+	}
+}
+

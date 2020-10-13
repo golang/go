@@ -189,6 +189,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&prepareRename{app: app},
 		&references{app: app},
 		&rename{app: app},
+		&semtok{app: app},
 		&signature{app: app},
 		&suggestedFix{app: app},
 		&symbols{app: app},
@@ -280,6 +281,12 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},
 	}
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = opts.HierarchicalDocumentSymbolSupport
+	params.Capabilities.TextDocument.SemanticTokens = &protocol.SemanticTokensClientCapabilities{}
+	params.Capabilities.TextDocument.SemanticTokens.Formats = []string{"relative"}
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Range = true
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Delta = true
+	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = lsp.SemanticTypes()
+	params.Capabilities.TextDocument.SemanticTokens.TokenModifiers = lsp.SemanticModifiers()
 	params.InitializationOptions = map[string]interface{}{
 		"symbolMatcher": matcherString[opts.SymbolMatcher],
 	}
@@ -493,6 +500,19 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 		file.err = errors.Errorf("%v: %v", uri, err)
 	}
 	return file
+}
+
+func (c *connection) semanticTokens(ctx context.Context, file span.URI) (*protocol.SemanticTokens, error) {
+	p := &protocol.SemanticTokensParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: protocol.URIFromSpanURI(file),
+		},
+	}
+	resp, err := c.Server.SemanticTokensFull(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error {

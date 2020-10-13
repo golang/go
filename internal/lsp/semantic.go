@@ -12,11 +12,11 @@ import (
 	"go/token"
 	"go/types"
 	"log"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
@@ -69,6 +69,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		return nil, pgf.ParseErr
 	}
 	e := &encoded{
+		ctx:  ctx,
 		pgf:  pgf,
 		rng:  rng,
 		ti:   info,
@@ -127,24 +128,29 @@ var lastPosition token.Position
 
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
 	if start == 0 {
-		// Temporary, pending comprehensive tests
-		log.Printf("SAW token.NoPos")
-		for i := 0; i < 6; i++ {
-			_, f, l, ok := runtime.Caller(i)
-			if !ok {
-				break
-			}
-			log.Printf("%d: %s:%d", i, f, l)
-		}
+		e.unexpected("token at token.NoPos")
 	}
 	if start >= e.end || start+token.Pos(leng) <= e.start {
 		return
 	}
 	// want a line and column from start (in LSP coordinates)
+	// [//line directives should be ignored]
 	rng := source.NewMappedRange(e.fset, e.pgf.Mapper, start, start+token.Pos(leng))
 	lspRange, err := rng.Range()
 	if err != nil {
-		log.Printf("failed to convert to range %v", err)
+		// possibly a //line directive. TODO(pjw): fix this somehow
+		// "column mapper is for file...instead of..."
+		// "line is beyond end of file..."
+		// see line 116 of internal/span/token.go which uses Position not PositionFor
+		event.Error(e.ctx, "failed to convert to range", err)
+		return
+	}
+	if lspRange.End.Line != lspRange.Start.Line {
+		// abrupt end of file, without \n. TODO(pjw): fix?
+		pos := e.fset.PositionFor(start, false)
+		msg := fmt.Sprintf("token at %s:%d.%d overflows", pos.Filename, pos.Line, pos.Column)
+		event.Log(e.ctx, msg)
+		return
 	}
 	// token is all on one line
 	length := lspRange.End.Character - lspRange.Start.Character
@@ -168,6 +174,7 @@ type encoded struct {
 	// the generated data
 	items []semItem
 
+	ctx  context.Context
 	pgf  *source.ParsedGoFile
 	rng  *protocol.Range
 	ti   *types.Info
@@ -301,8 +308,12 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.ParenExpr:
 	case *ast.RangeStmt:
 		e.token(x.For, len("for"), tokKeyword, nil)
-		// x.TokPos == token.NoPos should mean a syntax error
-		pos := e.findKeyword("range", x.TokPos, x.X.Pos())
+		// x.TokPos == token.NoPos is legal (for range foo {})
+		offset := x.TokPos
+		if offset == token.NoPos {
+			offset = x.For
+		}
+		pos := e.findKeyword("range", offset, x.X.Pos())
 		e.token(pos, len("range"), tokKeyword, nil)
 	case *ast.ReturnStmt:
 		e.token(x.Return, len("return"), tokKeyword, nil)
@@ -338,7 +349,7 @@ func (e *encoded) inspector(n ast.Node) bool {
 		pop()
 		return false
 	default: // just to be super safe.
-		panic(fmt.Sprintf("failed to implement %T", x))
+		e.unexpected(fmt.Sprintf("failed to implement %T", x))
 	}
 	return true
 }
@@ -374,35 +385,32 @@ func (e *encoded) ident(x *ast.Ident) {
 			case bi&types.IsBoolean != 0:
 				e.token(x.Pos(), len(x.Name), tokKeyword, nil)
 			case bi == 0:
-				// nothing to say
+				e.token(x.Pos(), len(x.String()), tokVariable, mods)
 			default:
-				// replace with panic after extensive testing
-				log.Printf("unexpected %x at %s", bi, e.pgf.Tok.PositionFor(x.Pos(), false))
+				msg := fmt.Sprintf("unexpected %x at %s", bi, e.pgf.Tok.PositionFor(x.Pos(), false))
+				e.unexpected(msg)
 			}
 			break
 		}
 		if ttx, ok := tt.(*types.Named); ok {
 			if x.String() == "iota" {
-				log.Printf("ttx:%T", ttx)
+				e.unexpected(fmt.Sprintf("iota:%T", ttx))
 			}
 			if _, ok := ttx.Underlying().(*types.Basic); ok {
-				e.token(x.Pos(), len("nil"), tokVariable, mods)
+				e.token(x.Pos(), len(x.String()), tokVariable, mods)
 				break
 			}
-			// can this happen?
-			log.Printf("unexpectd %q/%T", x.String(), tt)
-			e.token(x.Pos(), len(x.String()), tokVariable, nil)
-			break
+			e.unexpected(fmt.Sprintf("%q/%T", x.String(), tt))
 		}
 		// can this happen? Don't think so
-		log.Printf("%s %T %#v", x.String(), tt, tt)
+		e.unexpected(fmt.Sprintf("%s %T %#v", x.String(), tt, tt))
 	case *types.Func:
 		e.token(x.Pos(), len(x.Name), tokFunction, nil)
 	case *types.Label:
 		// nothing to map it to
 	case *types.Nil:
 		// nil is a predeclared identifier
-		e.token(x.Pos(), 3, tokKeyword, []string{"readonly"})
+		e.token(x.Pos(), len("nil"), tokKeyword, []string{"readonly"})
 	case *types.PkgName:
 		e.token(x.Pos(), len(x.Name), tokNamespace, nil)
 	case *types.TypeName:
@@ -412,12 +420,13 @@ func (e *encoded) ident(x *ast.Ident) {
 	default:
 		// replace with panic after extensive testing
 		if use == nil {
-			log.Printf("HOW did we get here? %#v/%#v %#v %#v", x, x.Obj, e.ti.Defs[x], e.ti.Uses[x])
+			msg := fmt.Sprintf("%#v/%#v %#v %#v", x, x.Obj, e.ti.Defs[x], e.ti.Uses[x])
+			e.unexpected(msg)
 		}
 		if use.Type() != nil {
-			log.Printf("%s %T/%T,%#v", x.String(), use, use.Type(), use)
+			e.unexpected(fmt.Sprintf("%s %T/%T,%#v", x.String(), use, use.Type(), use))
 		} else {
-			log.Printf("%s %T", x.String(), use)
+			e.unexpected(fmt.Sprintf("%s %T", x.String(), use))
 		}
 	}
 }
@@ -458,7 +467,8 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 		}
 	}
 	// panic after extensive testing
-	log.Printf("failed to find the decl for %s", e.pgf.Tok.PositionFor(x.Pos(), false))
+	msg := fmt.Sprintf("failed to find the decl for %s", e.pgf.Tok.PositionFor(x.Pos(), false))
+	e.unexpected(msg)
 	return "", []string{""}
 }
 
@@ -472,6 +482,7 @@ func (e *encoded) findKeyword(keyword string, start, end token.Pos) token.Pos {
 		return start + token.Pos(idx)
 	}
 	// can't happen
+	e.unexpected(fmt.Sprintf("not found:%s %v", keyword, e.fset.PositionFor(start, false)))
 	return token.NoPos
 }
 
@@ -547,6 +558,13 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 	e.token(start, len(nm), tokNamespace, nil)
 }
 
+// panic on unexpected state
+func (e *encoded) unexpected(msg string) {
+	log.Print(msg)
+	log.Print(e.strStack())
+	panic(msg)
+}
+
 // SemMemo supports semantic token translations between numbers and strings
 type SemMemo struct {
 	tokTypes, tokMods []string
@@ -594,3 +612,24 @@ func rememberToks(toks []string, mods []string) ([]string, []string) {
 	// But then change the list in cmd.go too
 	return SemanticMemo.tokTypes, SemanticMemo.tokMods
 }
+
+// SemanticTypes to use in case there is no client, as in the command line, or tests
+func SemanticTypes() []string {
+	return semanticTypes[:]
+}
+
+// SemanticModifiers to use in case there is no client.
+func SemanticModifiers() []string {
+	return semanticModifiers[:]
+}
+
+var (
+	semanticTypes = [...]string{
+		"namespace", "type", "class", "enum", "interface",
+		"struct", "typeParameter", "parameter", "variable", "property", "enumMember",
+		"event", "function", "member", "macro", "keyword", "modifier", "comment",
+		"string", "number", "regexp", "operator"}
+	semanticModifiers = [...]string{
+		"declaration", "definition", "readonly", "static",
+		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary"}
+)

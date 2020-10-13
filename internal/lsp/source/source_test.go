@@ -500,6 +500,10 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	}
 }
 
+func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
+	t.Skip("nothing to test in source")
+}
+
 func (r *runner) Import(t *testing.T, spn span.Span) {
 	fh, err := r.snapshot.GetFile(r.ctx, spn.URI())
 	if err != nil {

@@ -1,0 +1,12 @@
+-- semantic --
+/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens //@ semantic("")
+
+/*⇒4,keyword,[]*/func /*⇒6,function,[definition]*/weirⰀd() {
+	/*⇒5,keyword,[]*/const (
+		/*⇒4,variable,[definition readonly]*/snil  = /*⇒3,keyword,[readonly]*/nil
+		/*⇒3,variable,[definition readonly]*/nil   = /*⇒4,keyword,[]*/true
+		/*⇒4,variable,[definition readonly]*/true  = /*⇒5,keyword,[]*/false
+		/*⇒5,variable,[definition readonly]*/false = /*⇒4,variable,[readonly]*/snil
+	)
+}
+
