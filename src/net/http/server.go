@@ -992,7 +992,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	}
 
 	if !http1ServerSupportsRequest(req) {
-		return nil, badRequestError("unsupported protocol version")
+		return nil, statusError{StatusHTTPVersionNotSupported, "unsupported protocol version"}
 	}
 
 	c.lastMethod = req.Method
@@ -1773,9 +1773,16 @@ func (c *conn) getState() (state ConnState, unixSec int64) {
 // badRequestError is a literal string (used by in the server in HTML,
 // unescaped) to tell the user why their request was bad. It should
 // be plain text without user info or other embedded errors.
-type badRequestError string
+func badRequestError(e string) error { return statusError{StatusBadRequest, e} }
 
-func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
+// statusError is an error used to respond to a request with an HTTP status.
+// The text should be plain text without user info or other embedded errors.
+type statusError struct {
+	code int
+	text string
+}
+
+func (e statusError) Error() string { return StatusText(e.code) + ": " + e.text }
 
 // ErrAbortHandler is a sentinel panic value to abort a handler.
 // While any panic from ServeHTTP aborts the response to the client,
@@ -1898,11 +1905,11 @@ func (c *conn) serve(ctx context.Context) {
 				return // don't reply
 
 			default:
-				publicErr := "400 Bad Request"
-				if v, ok := err.(badRequestError); ok {
-					publicErr = publicErr + ": " + string(v)
+				if v, ok := err.(statusError); ok {
+					fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s: %s%s%d %s: %s", v.code, StatusText(v.code), v.text, errorHeaders, v.code, StatusText(v.code), v.text)
+					return
 				}
-
+				publicErr := "400 Bad Request"
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				return
 			}
