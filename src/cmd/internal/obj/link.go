@@ -395,7 +395,6 @@ type LSym struct {
 	Type objabi.SymKind
 	Attribute
 
-	RefIdx int // Index of this symbol in the symbol reference list.
 	Size   int64
 	Gotype *LSym
 	P      []byte
@@ -405,7 +404,7 @@ type LSym struct {
 
 	Pkg    string
 	PkgIdx int32
-	SymIdx int32 // TODO: replace RefIdx
+	SymIdx int32
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
