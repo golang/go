@@ -656,11 +656,15 @@ type p struct {
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
 	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
-	gcBgMarkWorker       guintptr // (atomic)
-	gcMarkWorkerMode     gcMarkWorkerMode
 
-	// gcMarkWorkerStartTime is the nanotime() at which this mark
-	// worker started.
+	// gcMarkWorkerMode is the mode for the next mark worker to run in.
+	// That is, this is used to communicate with the worker goroutine
+	// selected for immediate execution by
+	// gcController.findRunnableGCWorker. When scheduling other goroutines,
+	// this field must be set to gcMarkWorkerNotWorker.
+	gcMarkWorkerMode gcMarkWorkerMode
+	// gcMarkWorkerStartTime is the nanotime() at which the most recent
+	// mark worker started.
 	gcMarkWorkerStartTime int64
 
 	// gcw is this P's GC work buffer cache. The work buffer is
@@ -1072,6 +1076,13 @@ var (
 	// Bitmask of Ps that may have a timer, one bit per P. Reads and writes
 	// must be atomic. Length may change at safe points.
 	timerpMask pMask
+
+	// Pool of GC parked background workers. Entries are type
+	// *gcBgMarkWorkerNode.
+	gcBgMarkWorkerPool lfstack
+
+	// Total number of gcBgMarkWorker goroutines. Protected by worldsema.
+	gcBgMarkWorkerCount int32
 
 	// Information about what cpu features are available.
 	// Packages outside the runtime should not use these
