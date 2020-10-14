@@ -41,7 +41,9 @@
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would render runtime.getcallerpc ineffective.
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	(SP), RARG2
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
@@ -65,7 +67,9 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would render runtime.getcallerpc ineffective.
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	(SP), RARG2
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
@@ -114,7 +118,9 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would render runtime.getcallerpc ineffective.
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	MOVQ	addr+0(FP), RARG1
 	MOVQ	size+8(FP), RARG2
 	MOVQ	(SP), RARG3
