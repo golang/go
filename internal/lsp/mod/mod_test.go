@@ -31,7 +31,7 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	options.TempModfile = true
-	options.Env = []string{"GOPACKAGESDRIVER=off", "GOROOT="}
+	options.Env = map[string]string{"GOPACKAGESDRIVER": "off", "GOROOT": ""}
 
 	// Make sure to copy the test directory to a temporary directory so we do not
 	// modify the test code or add go.sum files when we run the tests.

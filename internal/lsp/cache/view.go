@@ -248,20 +248,7 @@ func (v *View) Options() *source.Options {
 
 func minorOptionsChange(a, b *source.Options) bool {
 	// Check if any of the settings that modify our understanding of files have been changed
-	mapEnv := func(env []string) map[string]string {
-		m := make(map[string]string, len(env))
-		for _, x := range env {
-			split := strings.SplitN(x, "=", 2)
-			if len(split) != 2 {
-				continue
-			}
-			m[split[0]] = split[1]
-		}
-		return m
-	}
-	aEnv := mapEnv(a.Env)
-	bEnv := mapEnv(b.Env)
-	if !reflect.DeepEqual(aEnv, bEnv) {
+	if !reflect.DeepEqual(a.Env, b.Env) {
 		return false
 	}
 	aBuildFlags := make([]string, len(a.BuildFlags))
@@ -346,7 +333,7 @@ func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Optio
 // envLocked returns the environment and build flags for the current view.
 // It assumes that the caller is holding the view's optionsMu.
 func (v *View) envLocked() ([]string, []string) {
-	env := append(os.Environ(), v.options.Env...)
+	env := append(os.Environ(), v.options.EnvSlice()...)
 	buildFlags := append([]string{}, v.options.BuildFlags...)
 	return env, buildFlags
 }
@@ -640,20 +627,14 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		return nil, errors.Errorf("invalid workspace configuration: %w", err)
 	}
 	var err error
-	goversion, err := s.goVersion(ctx, folder.Filename(), options.Env)
+	goversion, err := s.goVersion(ctx, folder.Filename(), options.EnvSlice())
 	if err != nil {
 		return nil, err
 	}
 
 	go111module := os.Getenv("GO111MODULE")
-	for _, kv := range options.Env {
-		split := strings.SplitN(kv, "=", 2)
-		if len(split) != 2 {
-			continue
-		}
-		if split[0] == "GO111MODULE" {
-			go111module = split[1]
-		}
+	if v, ok := options.Env["GO111MODULE"]; ok {
+		go111module = v
 	}
 	// If using 1.16, change the default back to auto. The primary effect of
 	// GO111MODULE=on is to break GOPATH, which we aren't too interested in.
@@ -662,7 +643,7 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	}
 
 	// Make sure to get the `go env` before continuing with initialization.
-	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), append(options.Env, "GO111MODULE="+go111module))
+	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), append(options.EnvSlice(), "GO111MODULE="+go111module))
 	if err != nil {
 		return nil, err
 	}

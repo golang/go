@@ -50,7 +50,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 	session := cache.NewSession(ctx)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
-	options.Env = datum.Config.Env
+	options.SetEnvSlice(datum.Config.Env)
 	view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
 	release()
 	if err != nil {

@@ -48,7 +48,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	session.SetOptions(options)
-	options.Env = datum.Config.Env
+	options.SetEnvSlice(datum.Config.Env)
 	view, snapshot, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
 	if err != nil {
 		t.Fatal(err)

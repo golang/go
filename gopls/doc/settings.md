@@ -28,11 +28,11 @@ The most common use is to set `-tags`.
 
 
 Default: `[]`.
-### **env** *[]string*
+### **env** *map[string]string*
 env adds environment variables to external commands run by `gopls`, most notably `go list`.
 
 
-Default: `[]`.
+Default: `{}`.
 ### **hoverKind** *enum*
 hoverKind controls the information that appears in the hover text.
 SingleLine and Structured are intended for use only by authors of editor plugins.

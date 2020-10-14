@@ -180,7 +180,7 @@ type UserOptions struct {
 	BuildFlags []string
 
 	// Env adds environment variables to external commands run by `gopls`, most notably `go list`.
-	Env []string
+	Env map[string]string
 
 	// HoverKind controls the information that appears in the hover text.
 	// SingleLine and Structured are intended for use only by authors of editor plugins.
@@ -204,6 +204,27 @@ type UserOptions struct {
 
 	// Gofumpt indicates if we should run gofumpt formatting.
 	Gofumpt bool
+}
+
+// EnvSlice returns Env as a slice of k=v strings.
+func (u *UserOptions) EnvSlice() []string {
+	var result []string
+	for k, v := range u.Env {
+		result = append(result, fmt.Sprintf("%v=%v", k, v))
+	}
+	return result
+}
+
+// SetEnvSlice sets Env from a slice of k=v strings.
+func (u *UserOptions) SetEnvSlice(env []string) {
+	u.Env = map[string]string{}
+	for _, kv := range env {
+		split := strings.SplitN(kv, "=", 2)
+		if len(split) != 2 {
+			continue
+		}
+		u.Env[split[0]] = split[1]
+	}
 }
 
 // Hooks contains configuration that is provided to the Gopls command by the
@@ -542,7 +563,7 @@ func (o *Options) Clone() *Options {
 		copy(dst, src)
 		return dst
 	}
-	result.Env = copySlice(o.Env)
+	result.SetEnvSlice(o.EnvSlice())
 	result.BuildFlags = copySlice(o.BuildFlags)
 
 	copyAnalyzerMap := func(src map[string]Analyzer) map[string]Analyzer {
@@ -586,7 +607,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			break
 		}
 		for k, v := range menv {
-			o.Env = append(o.Env, fmt.Sprintf("%s=%s", k, v))
+			o.Env[k] = fmt.Sprint(v)
 		}
 
 	case "buildFlags":
