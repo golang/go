@@ -458,15 +458,15 @@ func isEmptyFuncDecl(dcl Decl) bool {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// list parses a possibly empty, sep-separated list, optionally
-// followed sep, and closed by close. sep must be one of _Comma
+// list parses a possibly empty, sep-separated list of elements, optionally
+// followed by sep, and closed by close (or EOF). sep must be one of _Comma
 // or _Semi, and close must be one of _Rparen, _Rbrace, or _Rbrack.
-// For each list element, f is called. After f returns true, no
-// more list elements are accepted. list returns the position
-// of the closing token.
 //
-// list = { f sep } ")" |
-//        { f sep } "}" . // "," or ";" is optional before ")", "}" or "]"
+// For each list element, f is called. Specifically, unless we're at close
+// (or EOF), f is called at least once. After f returns true, no more list
+// elements are accepted. list returns the position of the closing token.
+//
+// list = [ f { sep f } [sep] ] close .
 //
 func (p *parser) list(sep, close token, f func() bool) Pos {
 	if debug && (sep != _Comma && sep != _Semi || close != _Rparen && close != _Rbrace && close != _Rbrack) {
@@ -1017,43 +1017,44 @@ loop:
 				break
 			}
 
-			p.xnest++
-
 			var i Expr
 			if p.tok != _Colon {
-				i = p.expr()
-				if p.got(_Rbrack) {
-					// x[i]
-					t := new(IndexExpr)
-					t.pos = pos
-					t.X = x
-					t.Index = i
-					x = t
+				if p.mode&AllowGenerics == 0 {
+					p.xnest++
+					i = p.expr()
 					p.xnest--
-					break
-				}
-
-				if p.mode&AllowGenerics != 0 && p.tok == _Comma {
-					// x[i, ... (instantiated type)
-					// TODO(gri) Suggestion by mdempsky@: Use IndexExpr + ExprList for this case.
-					//           Then we can get rid of CallExpr.Brackets.
-					t := new(CallExpr)
-					t.pos = pos
-					t.Fun = x
-					t.ArgList, _ = p.argList(i, _Rbrack)
-					t.Brackets = true
-					x = t
-					p.xnest--
-					break
+					if p.got(_Rbrack) {
+						// x[i]
+						t := new(IndexExpr)
+						t.pos = pos
+						t.X = x
+						t.Index = i
+						x = t
+						break
+					}
+				} else {
+					var comma bool
+					i, comma = p.typeList()
+					if comma || p.tok == _Rbrack {
+						p.want(_Rbrack)
+						// x[i,] or x[i, j, ...]
+						t := new(IndexExpr)
+						t.pos = pos
+						t.X = x
+						t.Index = i
+						x = t
+						break
+					}
 				}
 			}
 
 			// x[i:...
+			p.want(_Colon)
+			p.xnest++
 			t := new(SliceExpr)
 			t.pos = pos
 			t.X = x
 			t.Index[0] = i
-			p.want(_Colon)
 			if p.tok != _Colon && p.tok != _Rbrack {
 				// x[i:j...
 				t.Index[1] = p.expr()
@@ -1074,17 +1075,16 @@ loop:
 					t.Index[2] = p.badExpr()
 				}
 			}
-			p.want(_Rbrack)
-
-			x = t
 			p.xnest--
+			p.want(_Rbrack)
+			x = t
 
 		case _Lparen:
 			t := new(CallExpr)
 			t.pos = pos
 			p.next()
 			t.Fun = x
-			t.ArgList, t.HasDots = p.argList(nil, _Rparen)
+			t.ArgList, t.HasDots = p.argList()
 			x = t
 
 		case _Lbrace:
@@ -1093,14 +1093,9 @@ loop:
 			t := unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
 			complit_ok := false
-			switch t := t.(type) {
+			switch t.(type) {
 			case *Name, *SelectorExpr:
 				if p.xnest >= 0 {
-					// x is possibly a composite literal type
-					complit_ok = true
-				}
-			case *CallExpr:
-				if t.Brackets && p.xnest >= 0 {
 					// x is possibly a composite literal type
 					complit_ok = true
 				}
@@ -1302,12 +1297,12 @@ func (p *parser) typeInstance(typ Expr) Expr {
 		return typ
 	}
 
-	call := new(CallExpr)
-	call.pos = pos
-	call.Fun = typ
-	call.ArgList, _ = p.argList(nil, _Rbrack)
-	call.Brackets = true
-	return call
+	x := new(IndexExpr)
+	x.pos = pos
+	x.X = typ
+	x.Index, _ = p.typeList()
+	p.want(_Rbrack)
+	return x
 }
 
 func (p *parser) funcType() *FuncType {
@@ -1521,9 +1516,9 @@ func (p *parser) fieldDecl(styp *StructType) {
 		// type T[P1, P2, ...] or a field T of array/slice type [P]E or []E.
 		if p.mode&AllowGenerics != 0 && len(names) == 1 && p.tok == _Lbrack {
 			typ = p.arrayOrTArgs()
-			if typ, ok := typ.(*CallExpr); ok {
+			if typ, ok := typ.(*IndexExpr); ok {
 				// embedded type T[P1, P2, ...]
-				typ.Fun = name // name == names[0]
+				typ.X = name // name == names[0]
 				tag := p.oliteral()
 				p.addField(styp, pos, nil, typ, tag)
 				break
@@ -1589,25 +1584,25 @@ func (p *parser) arrayOrTArgs() Expr {
 		return p.sliceType(pos)
 	}
 
-	// x [P]E or x[P]
-	args, _ := p.argList(nil, _Rbrack)
-	if len(args) == 1 {
+	// x [n]E or x[n,], x[n1, n2], ...
+	n, comma := p.typeList()
+	p.want(_Rbrack)
+	if !comma {
 		if elem := p.typeOrNil(); elem != nil {
-			// x [P]E
+			// x [n]E
 			t := new(ArrayType)
 			t.pos = pos
-			t.Len = args[0]
+			t.Len = n
 			t.Elem = elem
 			return t
 		}
 	}
 
-	// x[P], x[P1, P2], ...
-	t := new(CallExpr)
+	// x[n,], x[n1, n2], ...
+	t := new(IndexExpr)
 	t.pos = pos
-	// t.Fun will be filled in by caller
-	t.ArgList = args
-	t.Brackets = true
+	// t.X will be filled in by caller
+	t.Index = n
 	return t
 }
 
@@ -1664,7 +1659,8 @@ func (p *parser) methodDecl() *Field {
 			pos := p.pos()
 			p.next()
 
-			// empty type parameter or argument lists are not permitted
+			// Empty type parameter or argument lists are not permitted.
+			// Treat as if [] were absent.
 			if p.tok == _Rbrack {
 				// name[]
 				pos := p.pos()
@@ -1684,7 +1680,21 @@ func (p *parser) methodDecl() *Field {
 			// A type argument list looks like a parameter list with only
 			// types. Parse a parameter list and decide afterwards.
 			list := p.paramList(nil, _Rbrack)
-			if len(list) > 0 && list[0].Name != nil {
+			if len(list) == 0 {
+				// The type parameter list is not [] but we got nothing
+				// due to other errors (reported by paramList). Treat
+				// as if [] were absent.
+				if p.tok == _Lparen {
+					f.Name = name
+					f.Type = p.funcType()
+				} else {
+					f.Type = name
+				}
+				break
+			}
+
+			// len(list) > 0
+			if list[0].Name != nil {
 				// generic method
 				f.Name = name
 				f.Type = p.funcType()
@@ -1696,15 +1706,22 @@ func (p *parser) methodDecl() *Field {
 			}
 
 			// embedded instantiated type
-			call := new(CallExpr)
-			call.pos = pos
-			call.Fun = name
-			call.Brackets = true
-			call.ArgList = make([]Expr, len(list))
-			for i := range list {
-				call.ArgList[i] = list[i].Type
+			t := new(IndexExpr)
+			t.pos = pos
+			t.X = name
+			if len(list) == 1 {
+				t.Index = list[0].Type
+			} else {
+				// len(list) > 1
+				l := new(ListExpr)
+				l.pos = list[0].Pos()
+				l.ElemList = make([]Expr, len(list))
+				for i := range list {
+					l.ElemList[i] = list[i].Type
+				}
+				t.Index = l
 			}
-			f.Type = call
+			f.Type = t
 			break
 		}
 		fallthrough
@@ -1733,8 +1750,8 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 
 		if p.mode&AllowGenerics != 0 && p.tok == _Lbrack {
 			f.Type = p.arrayOrTArgs()
-			if typ, ok := f.Type.(*CallExpr); ok {
-				typ.Fun = name
+			if typ, ok := f.Type.(*IndexExpr); ok {
+				typ.X = name
 			} else {
 				f.Name = name
 			}
@@ -2427,22 +2444,20 @@ func (p *parser) stmtList() (l []Stmt) {
 	return
 }
 
-// Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
-func (p *parser) argList(arg Expr, close token) (list []Expr, hasDots bool) {
+// argList parses a possibly empty, comma-separated list of arguments,
+// optionally followed by a comma (if not empty), and closed by ")".
+// The last argument may be followed by "...".
+//
+// argList = [ arg { "," arg } [ "..." ] [ "," ] ] ")" .
+func (p *parser) argList() (list []Expr, hasDots bool) {
 	if trace {
 		defer p.trace("argList")()
 	}
 
 	p.xnest++
-	p.list(_Comma, close, func() bool {
-		if arg == nil {
-			arg = p.expr()
-		}
-		list = append(list, arg)
-		arg = nil
-		if close == _Rparen {
-			hasDots = p.got(_DotDotDot)
-		}
+	p.list(_Comma, _Rparen, func() bool {
+		list = append(list, p.expr())
+		hasDots = p.got(_DotDotDot)
 		return hasDots
 	})
 	p.xnest--
@@ -2546,6 +2561,41 @@ func (p *parser) exprList() Expr {
 		x = t
 	}
 	return x
+}
+
+// typeList parses a non-empty, comma-separated list of expressions,
+// optionally followed by a comma. The first list element may be any
+// expression, all other list elements must be type expressions.
+// If there is more than one argument, the result is a *ListExpr.
+// The comma result indicates whether there was a (separating or
+// trailing) comma.
+//
+// typeList = arg { "," arg } [ "," ] .
+func (p *parser) typeList() (x Expr, comma bool) {
+	if trace {
+		defer p.trace("typeList")()
+	}
+
+	p.xnest++
+	x = p.expr()
+	if p.got(_Comma) {
+		comma = true
+		if t := p.typeOrNil(); t != nil {
+			list := []Expr{x, t}
+			for p.got(_Comma) {
+				if t = p.typeOrNil(); t == nil {
+					break
+				}
+				list = append(list, t)
+			}
+			l := new(ListExpr)
+			l.pos = x.Pos() // == list[0].Pos()
+			l.ElemList = list
+			x = l
+		}
+	}
+	p.xnest--
+	return
 }
 
 // unparen removes all parentheses around an expression.

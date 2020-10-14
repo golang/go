@@ -26,7 +26,7 @@ var (
 )
 
 func TestParse(t *testing.T) {
-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
 }
 
 func TestParseGo2(t *testing.T) {

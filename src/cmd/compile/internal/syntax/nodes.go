@@ -184,6 +184,7 @@ type (
 	}
 
 	// X[Index]
+	// X[T1, T2, ...] (with Ti = Index.(*ListExpr).ElemList[i])
 	IndexExpr struct {
 		X     Expr
 		Index Expr
@@ -225,10 +226,9 @@ type (
 
 	// Fun(ArgList[0], ArgList[1], ...)
 	CallExpr struct {
-		Fun      Expr
-		ArgList  []Expr // nil means no arguments
-		HasDots  bool   // last argument is followed by ...
-		Brackets bool   // []'s instead of ()'s
+		Fun     Expr
+		ArgList []Expr // nil means no arguments
+		HasDots bool   // last argument is followed by ...
 		expr
 	}
 
