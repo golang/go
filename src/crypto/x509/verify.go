@@ -187,6 +187,8 @@ func (se SystemRootsError) Error() string {
 	return msg
 }
 
+func (se SystemRootsError) Unwrap() error { return se.Err }
+
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
