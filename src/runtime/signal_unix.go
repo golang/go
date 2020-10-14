@@ -360,6 +360,13 @@ func preemptM(mp *m) {
 		// required).
 		return
 	}
+
+	// On Darwin, don't try to preempt threads during exec.
+	// Issue #41702.
+	if GOOS == "darwin" {
+		execLock.rlock()
+	}
+
 	if atomic.Cas(&mp.signalPending, 0, 1) {
 		// If multiple threads are preempting the same M, it may send many
 		// signals to the same M such that it hardly make progress, causing
@@ -367,6 +374,10 @@ func preemptM(mp *m) {
 		// issue #37741.
 		// Only send a signal if there isn't already one pending.
 		signalM(mp, sigPreempt)
+	}
+
+	if GOOS == "darwin" {
+		execLock.runlock()
 	}
 }
 
