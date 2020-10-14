@@ -10,11 +10,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include <CoreFoundation/CFBundle.h>
-#include <CoreFoundation/CFString.h>
-
 #include "libcgo.h"
 #include "libcgo_unix.h"
+
+#include <TargetConditionals.h>
+
+#if TARGET_OS_IPHONE
+#include <CoreFoundation/CFBundle.h>
+#include <CoreFoundation/CFString.h>
+#endif
 
 #define magic (0xc476c475c47957UL)
 
@@ -87,14 +91,18 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
+#if TARGET_OS_IPHONE
 	darwin_arm_init_thread_exception_port();
+#endif
 
 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
 
+#if TARGET_OS_IPHONE
+
 // init_working_dir sets the current working directory to the app root.
-// By default darwin/arm64 processes start in "/".
+// By default ios/arm64 processes start in "/".
 static void
 init_working_dir()
 {
@@ -145,6 +153,8 @@ init_working_dir()
 	}
 }
 
+#endif // TARGET_OS_IPHONE
+
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
@@ -161,8 +171,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	// yes, tlsbase from mrs might not be correctly aligned.
 	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
 
+#if TARGET_OS_IPHONE
 	darwin_arm_init_mach_exception_handler();
 	darwin_arm_init_thread_exception_port();
-
 	init_working_dir();
+#endif
 }
