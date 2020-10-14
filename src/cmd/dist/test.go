@@ -1081,7 +1081,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
 
-	if t.internalLink() {
+	// Skip internal linking cases on arm64 to support GCC-9.4 and above,
+	// only for linux, conservatively.
+	// See issue #39466.
+	skipInternalLink := goarch == "arm64" && goos == "linux"
+
+	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=internal")
 	}
@@ -1157,7 +1162,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
-				if t.internalLink() && t.internalLinkPIE() {
+				if t.internalLink() && t.internalLinkPIE() && !skipInternalLink {
 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
