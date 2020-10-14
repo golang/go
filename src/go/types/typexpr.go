@@ -204,7 +204,7 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 		X := isubst(n.X, smap)
 		if X != n.X {
 			new := *n
-			n.X = X
+			new.X = X
 			return &new
 		}
 	case *ast.CallExpr:
@@ -225,10 +225,7 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			return &new
 		}
 	case *ast.ParenExpr:
-		X := isubst(n.X, smap)
-		if X != n.X {
-			return X // no need to recreate the parentheses
-		}
+		return isubst(n.X, smap) // no need to keep parentheses
 	default:
 		// Other receiver type expressions are invalid.
 		// It's fine to ignore those here as they will

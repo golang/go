@@ -203,7 +203,7 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 	// 	X := isubst(n.X, smap)
 	// 	if X != n.X {
 	// 		new := *n
-	// 		n.X = X
+	// 		new.X = X
 	// 		return &new
 	// 	}
 	case *syntax.Operation:
@@ -211,7 +211,7 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 			X := isubst(n.X, smap)
 			if X != n.X {
 				new := *n
-				n.X = X
+				new.X = X
 				return &new
 			}
 		}
@@ -233,10 +233,7 @@ func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 			return &new
 		}
 	case *syntax.ParenExpr:
-		X := isubst(n.X, smap)
-		if X != n.X {
-			return X // no need to recreate the parentheses
-		}
+		return isubst(n.X, smap) // no need to keep parentheses
 	default:
 		// Other receiver type expressions are invalid.
 		// It's fine to ignore those here as they will
