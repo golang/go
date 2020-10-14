@@ -256,13 +256,6 @@ type fuzzContext struct {
 	runFuzzWorker     func(func([]byte) error) error
 }
 
-// RunFuzzTargets is an internal function but exported because it is cross-package;
-// it is part of the implementation of the "go test" command.
-func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ok bool) {
-	_, ok = runFuzzTargets(matchString, fuzzTargets)
-	return ok
-}
-
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
 // only run the f.Fuzz function for each seed corpus without using the fuzzing
 // engine to generate or mutate inputs.
