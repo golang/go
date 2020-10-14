@@ -603,7 +603,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "env":
 		menv, ok := value.(map[string]interface{})
 		if !ok {
-			result.errorf("invalid config gopls.env type %T", value)
+			result.errorf("invalid type %T, expect map", value)
 			break
 		}
 		for k, v := range menv {
@@ -613,7 +613,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "buildFlags":
 		iflags, ok := value.([]interface{})
 		if !ok {
-			result.errorf("invalid config gopls.buildFlags type %T", value)
+			result.errorf("invalid type %T, expect list", value)
 			break
 		}
 		flags := make([]string, 0, len(iflags))
@@ -794,13 +794,14 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 }
 
 func (r *OptionResult) errorf(msg string, values ...interface{}) {
-	r.Error = errors.Errorf(msg, values...)
+	prefix := fmt.Sprintf("parsing setting %q: ", r.Name)
+	r.Error = errors.Errorf(prefix+msg, values...)
 }
 
 func (r *OptionResult) asBool() (bool, bool) {
 	b, ok := r.Value.(bool)
 	if !ok {
-		r.errorf("Invalid type %T for bool option %q", r.Value, r.Name)
+		r.errorf("invalid type %T, expect bool", r.Value)
 		return false, false
 	}
 	return b, true
@@ -826,7 +827,7 @@ func (r *OptionResult) setDuration(d *time.Duration) {
 func (r *OptionResult) setBoolMap(bm *map[string]bool) {
 	all, ok := r.Value.(map[string]interface{})
 	if !ok {
-		r.errorf("Invalid type %T for map[string]interface{} option %q", r.Value, r.Name)
+		r.errorf("invalid type %T for map[string]bool option", r.Value)
 		return
 	}
 	m := make(map[string]bool)
@@ -834,7 +835,7 @@ func (r *OptionResult) setBoolMap(bm *map[string]bool) {
 		if enabled, ok := enabled.(bool); ok {
 			m[a] = enabled
 		} else {
-			r.errorf("Invalid type %d for map key %q in option %q", a, r.Name)
+			r.errorf("invalid type %T for map key %q", enabled, a)
 			return
 		}
 	}
@@ -844,7 +845,7 @@ func (r *OptionResult) setBoolMap(bm *map[string]bool) {
 func (r *OptionResult) asString() (string, bool) {
 	b, ok := r.Value.(string)
 	if !ok {
-		r.errorf("Invalid type %T for string option %q", r.Value, r.Name)
+		r.errorf("invalid type %T, expect string", r.Value)
 		return "", false
 	}
 	return b, true
@@ -861,7 +862,7 @@ func (r *OptionResult) asOneOf(options ...string) (string, bool) {
 			return opt, true
 		}
 	}
-	r.errorf("Invalid option %q for enum %q", r.Value, r.Name)
+	r.errorf("invalid option %q for enum", r.Value)
 	return "", false
 }
 
