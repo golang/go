@@ -2005,3 +2005,11 @@ func TestSystemRootsError(t *testing.T) {
 		t.Errorf("error was not SystemRootsError: %v", err)
 	}
 }
+
+func TestSystemRootsErrorUnwrap(t *testing.T) {
+	var err1 = errors.New("err1")
+	err := SystemRootsError{Err: err1}
+	if !errors.Is(err, err1) {
+		t.Error("errors.Is failed, wanted success")
+	}
+}
