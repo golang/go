@@ -2214,6 +2214,8 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	// when -trimpath is enabled.
 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		if cfg.BuildTrimpath {
+			// TODO(#39958): handle overlays
+
 			// Keep in sync with Action.trimpath.
 			// The trimmed paths are a little different, but we need to trim in the
 			// same situations.
