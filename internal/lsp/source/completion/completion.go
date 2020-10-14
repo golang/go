@@ -527,7 +527,13 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	if c.opts.budget == 0 {
 		ctx, cancel = context.WithCancel(ctx)
 	} else {
-		ctx, cancel = context.WithDeadline(ctx, c.startTime.Add(c.opts.budget))
+		// timeoutDuration is the completion budget remaining. If less than
+		// 10ms, set to 10ms
+		timeoutDuration := time.Until(c.startTime.Add(c.opts.budget))
+		if timeoutDuration < 10*time.Millisecond {
+			timeoutDuration = 10 * time.Millisecond
+		}
+		ctx, cancel = context.WithTimeout(ctx, timeoutDuration)
 	}
 	defer cancel()
 
