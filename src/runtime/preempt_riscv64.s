@@ -3,7 +3,8 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOV X1, -472(X2)
 	ADD $-472, X2
 	MOV X3, 8(X2)

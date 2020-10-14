@@ -72,9 +72,9 @@ func initssaconfig() {
 	deferproc = sysfunc("deferproc")
 	deferprocStack = sysfunc("deferprocStack")
 	Deferreturn = sysfunc("deferreturn")
-	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
-	Duffzero = sysvar("duffzero")             // asm func with special ABI
-	gcWriteBarrier = sysvar("gcWriteBarrier") // asm func with special ABI
+	Duffcopy = sysfunc("duffcopy")
+	Duffzero = sysfunc("duffzero")
+	gcWriteBarrier = sysfunc("gcWriteBarrier")
 	goschedguarded = sysfunc("goschedguarded")
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
@@ -105,51 +105,51 @@ func initssaconfig() {
 	// asm funcs with special ABI
 	if thearch.LinkArch.Name == "amd64" {
 		GCWriteBarrierReg = map[int16]*obj.LSym{
-			x86.REG_AX: sysvar("gcWriteBarrier"),
-			x86.REG_CX: sysvar("gcWriteBarrierCX"),
-			x86.REG_DX: sysvar("gcWriteBarrierDX"),
-			x86.REG_BX: sysvar("gcWriteBarrierBX"),
-			x86.REG_BP: sysvar("gcWriteBarrierBP"),
-			x86.REG_SI: sysvar("gcWriteBarrierSI"),
-			x86.REG_R8: sysvar("gcWriteBarrierR8"),
-			x86.REG_R9: sysvar("gcWriteBarrierR9"),
+			x86.REG_AX: sysfunc("gcWriteBarrier"),
+			x86.REG_CX: sysfunc("gcWriteBarrierCX"),
+			x86.REG_DX: sysfunc("gcWriteBarrierDX"),
+			x86.REG_BX: sysfunc("gcWriteBarrierBX"),
+			x86.REG_BP: sysfunc("gcWriteBarrierBP"),
+			x86.REG_SI: sysfunc("gcWriteBarrierSI"),
+			x86.REG_R8: sysfunc("gcWriteBarrierR8"),
+			x86.REG_R9: sysfunc("gcWriteBarrierR9"),
 		}
 	}
 
 	if thearch.LinkArch.Family == sys.Wasm {
-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("goPanicSliceAlen")
-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("goPanicSliceAlenU")
-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("goPanicSliceAcap")
-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("goPanicSliceAcapU")
-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("goPanicSliceB")
-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("goPanicSliceBU")
-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("goPanicSlice3Alen")
-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("goPanicSlice3AlenU")
-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("goPanicSlice3Acap")
-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("goPanicSlice3AcapU")
-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("goPanicSlice3B")
-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("goPanicSlice3BU")
-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("goPanicSlice3C")
-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("goPanicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("goPanicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("goPanicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("goPanicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("goPanicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("goPanicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("goPanicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("goPanicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("goPanicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("goPanicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("goPanicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("goPanicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("goPanicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("goPanicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("goPanicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("goPanicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("goPanicSlice3CU")
 	} else {
-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("panicIndex")
-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("panicIndexU")
-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicSliceAlen")
-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicSliceAlenU")
-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicSliceAcap")
-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicSliceAcapU")
-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("panicSliceB")
-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("panicSliceBU")
-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicSlice3Alen")
-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicSlice3AlenU")
-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicSlice3Acap")
-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicSlice3AcapU")
-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("panicSlice3B")
-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicSlice3BU")
-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("panicSlice3C")
-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("panicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("panicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("panicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("panicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("panicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("panicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("panicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("panicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("panicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("panicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("panicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("panicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("panicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("panicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("panicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("panicSlice3CU")
 	}
 	if thearch.LinkArch.PtrSize == 4 {
 		ExtendCheckFunc[ssa.BoundsIndex] = sysvar("panicExtendIndex")
