@@ -261,13 +261,6 @@ for multi-module workspaces.
 
 
 Default: `false`.
-### **literalCompletions** *bool*
-literalCompletions controls whether literal candidates such as
-"&someStruct{}" are offered. Tests disable this flag to simplify
-their expected values.
-
-
-Default: `true`.
 ### **experimentalDiagnosticsDelay** *time.Duration*
 experimentalDiagnosticsDelay controls the amount of time that gopls waits
 after the most recent file modification before computing deep diagnostics.
@@ -277,7 +270,7 @@ on recently modified packages.
 This option must be set to a valid duration string, for example `"250ms"`.
 
 
-Default: `0`.
+Default: `"0s"`.
 ### **experimentalPackageCacheKey** *bool*
 experimentalPackageCacheKey controls whether to use a coarser cache key
 for package type information to increase cache hits. This setting removes
@@ -309,7 +302,7 @@ dynamically reduce the search scope to ensure we return timely
 results. Zero means unlimited.
 
 
-Default: `100000000`.
+Default: `"100ms"`.
 <!-- END Debugging: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Code Lenses
