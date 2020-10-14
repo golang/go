@@ -47,3 +47,7 @@ func noframe1(x int32)
 func noframe2(x int32)
 
 func fvariadic(int, ...int)
+
+func pickStableABI(x int)
+func pickInternalABI(x int)
+func pickFutureABI(x int)

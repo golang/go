@@ -330,3 +330,18 @@ TEXT ·f29318(SB), NOSPLIT, $32
 	MOVQ	x_0_1+8(FP), AX
 	MOVQ	x_1_1+24(FP), CX
 	RET
+
+// ABI selector
+TEXT ·pickStableABI<ABI0>(SB), NOSPLIT, $32
+	MOVQ	x+0(FP), AX
+	RET
+
+// ABI selector
+TEXT ·pickInternalABI<ABIInternal>(SB), NOSPLIT, $32
+	MOVQ	x+0(FP), AX
+	RET
+
+// ABI selector
+TEXT ·pickFutureABI<ABISomethingNotyetInvented>(SB), NOSPLIT, $32
+	MOVQ	x+0(FP), AX
+	RET
