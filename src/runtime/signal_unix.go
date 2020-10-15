@@ -334,6 +334,10 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	// Acknowledge the preemption.
 	atomic.Xadd(&gp.m.preemptGen, 1)
 	atomic.Store(&gp.m.signalPending, 0)
+
+	if GOOS == "darwin" {
+		atomic.Xadd(&pendingPreemptSignals, -1)
+	}
 }
 
 const preemptMSupported = pushCallSupported
@@ -368,6 +372,10 @@ func preemptM(mp *m) {
 	}
 
 	if atomic.Cas(&mp.signalPending, 0, 1) {
+		if GOOS == "darwin" {
+			atomic.Xadd(&pendingPreemptSignals, 1)
+		}
+
 		// If multiple threads are preempting the same M, it may send many
 		// signals to the same M such that it hardly make progress, causing
 		// live-lock problem. Apparently this could happen on darwin. See
@@ -439,6 +447,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			// no non-Go signal handler for sigPreempt.
 			// The default behavior for sigPreempt is to ignore
 			// the signal, so badsignal will be a no-op anyway.
+			if GOOS == "darwin" {
+				atomic.Xadd(&pendingPreemptSignals, -1)
+			}
 			return
 		}
 		c.fixsigcode(sig)
