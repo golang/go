@@ -451,3 +451,42 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 
 	return dir, res.haveGoFiles, res.err
 }
+
+// fetch downloads the given module (or its replacement)
+// and returns its location.
+//
+// The isLocal return value reports whether the replacement,
+// if any, is local to the filesystem.
+func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+	if mod == Target {
+		return ModRoot(), true, nil
+	}
+	if r := Replacement(mod); r.Path != "" {
+		if r.Version == "" {
+			dir = r.Path
+			if !filepath.IsAbs(dir) {
+				dir = filepath.Join(ModRoot(), dir)
+			}
+			// Ensure that the replacement directory actually exists:
+			// dirInModule does not report errors for missing modules,
+			// so if we don't report the error now, later failures will be
+			// very mysterious.
+			if _, err := os.Stat(dir); err != nil {
+				if os.IsNotExist(err) {
+					// Semantically the module version itself “exists” — we just don't
+					// have its source code. Remove the equivalence to os.ErrNotExist,
+					// and make the message more concise while we're at it.
+					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
+				} else {
+					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
+				}
+				return dir, true, module.VersionError(mod, err)
+			}
+			return dir, true, nil
+		}
+		mod = r
+	}
+
+	dir, err = modfetch.Download(ctx, mod)
+	return dir, false, err
+}
