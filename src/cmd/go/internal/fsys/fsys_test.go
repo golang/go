@@ -506,7 +506,7 @@ func TestWalk(t *testing.T) {
 `,
 			".",
 			[]file{
-				{".", "root", 0, fs.ModeDir | 0700, true},
+				{".", ".", 0, fs.ModeDir | 0700, true},
 				{"file.txt", "file.txt", 0, 0600, false},
 			},
 		},
@@ -522,7 +522,7 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, fs.ModeDir | 0500, true},
+				{".", ".", 0, fs.ModeDir | 0500, true},
 				{"file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
 			},
@@ -538,7 +538,7 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, fs.ModeDir | 0500, true},
+				{".", ".", 0, fs.ModeDir | 0500, true},
 				{"file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
 			},
@@ -554,7 +554,7 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, fs.ModeDir | 0500, true},
+				{".", ".", 0, fs.ModeDir | 0500, true},
 				{"dir", "dir", 0, fs.ModeDir | 0500, true},
 				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
@@ -816,5 +816,152 @@ contents`,
 				t.Errorf("lstat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
 			}
 		})
+	}
+}
+
+func TestStat(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	type file struct {
+		name  string
+		size  int64
+		mode  os.FileMode // mode & (os.ModeDir|0x700): only check 'user' permissions
+		isDir bool
+	}
+
+	testCases := []struct {
+		name    string
+		overlay string
+		path    string
+
+		want    file
+		wantErr bool
+	}{
+		{
+			"regular_file",
+			`{}
+-- file.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"new_file_in_overlay",
+			`{"Replace": {"file.txt": "dummy.txt"}}
+-- dummy.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"file_replaced_in_overlay",
+			`{"Replace": {"file.txt": "dummy.txt"}}
+-- file.txt --
+-- dummy.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"file_cant_exist",
+			`{"Replace": {"deleted": "dummy.txt"}}
+-- deleted/file.txt --
+-- dummy.txt --
+`,
+			"deleted/file.txt",
+			file{},
+			true,
+		},
+		{
+			"deleted",
+			`{"Replace": {"deleted": ""}}
+-- deleted --
+`,
+			"deleted",
+			file{},
+			true,
+		},
+		{
+			"dir_on_disk",
+			`{}
+-- dir/foo.txt --
+`,
+			"dir",
+			file{"dir", 0, 0700 | os.ModeDir, true},
+			false,
+		},
+		{
+			"dir_in_overlay",
+			`{"Replace": {"dir/file.txt": "dummy.txt"}}
+-- dummy.txt --
+`,
+			"dir",
+			file{"dir", 0, 0500 | os.ModeDir, true},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initOverlay(t, tc.overlay)
+			got, err := Stat(tc.path)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("Stat(%q): got no error, want error", tc.path)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Stat(%q): got error %v, want no error", tc.path, err)
+			}
+			if got.Name() != tc.want.name {
+				t.Errorf("Stat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
+			}
+			if got.Mode()&(os.ModeDir|0700) != tc.want.mode {
+				t.Errorf("Stat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
+			}
+			if got.IsDir() != tc.want.isDir {
+				t.Errorf("Stat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
+			}
+			if tc.want.isDir {
+				return // don't check size for directories
+			}
+			if got.Size() != tc.want.size {
+				t.Errorf("Stat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
+			}
+		})
+	}
+}
+
+func TestStat_Symlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	initOverlay(t, `{
+	"Replace": {"file.go": "symlink"}
+}
+-- to.go --
+0123456789
+`)
+
+	// Create symlink
+	if err := os.Symlink("to.go", "symlink"); err != nil {
+		t.Error(err)
+	}
+
+	f := "file.go"
+	fi, err := Stat(f)
+	if err != nil {
+		t.Errorf("Stat(%q): got error %q, want nil error", f, err)
+	}
+
+	if !fi.Mode().IsRegular() {
+		t.Errorf("Stat(%q).Mode(): got %v, want regular mode", f, fi.Mode())
+	}
+
+	if fi.Size() != 11 {
+		t.Errorf("Stat(%q).Size(): got %v, want 11", f, fi.Size())
 	}
 }
