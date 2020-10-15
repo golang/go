@@ -37,10 +37,15 @@ var stringTests = []string{
 	// channels
 	"package p; type _ chan chan int",
 	"package p; type _ chan (<-chan int)",
-	"package p; type _ chan<- chan int",
-	"package p; type _ chan<- <-chan int",
+	"package p; type _ chan chan<- int",
+
 	"package p; type _ <-chan chan int",
 	"package p; type _ <-chan <-chan int",
+	"package p; type _ <-chan chan<- int",
+
+	"package p; type _ chan<- chan int",
+	"package p; type _ chan<- <-chan int",
+	"package p; type _ chan<- chan<- int",
 
 	// TODO(gri) expand
 }
