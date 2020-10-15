@@ -93,6 +93,12 @@ func generate() ([]byte, error) {
 		return nil, err
 	}
 	api.Lenses = loadLenses(api.Commands)
+	// Command names need to be prefixed with "gopls_".
+	// TODO: figure out a better way.
+	for _, c := range api.Commands {
+		c.Command = "gopls_" + c.Command
+	}
+
 	marshaled, err := json.Marshal(api)
 	if err != nil {
 		return nil, err
