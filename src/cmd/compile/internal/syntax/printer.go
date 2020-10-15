@@ -484,7 +484,15 @@ func (p *printer) printRawNode(n Node) {
 		if n.Dir == SendOnly {
 			p.print(_Arrow)
 		}
-		p.print(blank, n.Elem)
+		p.print(blank)
+		if e, _ := n.Elem.(*ChanType); n.Dir == 0 && e != nil && e.Dir == RecvOnly {
+			// don't print chan (<-chan T) as chan <-chan T
+			p.print(_Lparen)
+			p.print(n.Elem)
+			p.print(_Rparen)
+		} else {
+			p.print(n.Elem)
+		}
 
 	// statements
 	case *DeclStmt:
