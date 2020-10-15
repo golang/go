@@ -1333,7 +1333,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			n.Orig.exprfmt(s, prec, mode)
 			return
 		}
-		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.UntypedBool && n.Type != types.UntypedString {
+		if n.Type != nil && !n.Type.IsUntyped() {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
