@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -911,7 +912,10 @@ func WriteGoMod() {
 		// The go.mod file has the same semantic content that it had before
 		// (but not necessarily the same exact bytes).
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
-		modfetch.WriteGoSum(keepSums(true))
+		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+		if cfg.CmdName != "mod init" {
+			modfetch.WriteGoSum(keepSums(true))
+		}
 		return
 	}
 
@@ -924,7 +928,10 @@ func WriteGoMod() {
 		index = indexModFile(new, modFile, false)
 
 		// Update go.sum after releasing the side lock and refreshing the index.
-		modfetch.WriteGoSum(keepSums(true))
+		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+		if cfg.CmdName != "mod init" {
+			modfetch.WriteGoSum(keepSums(true))
+		}
 	}()
 
 	// Make a best-effort attempt to acquire the side lock, only to exclude
@@ -969,41 +976,55 @@ func WriteGoMod() {
 // If addDirect is true, the set also includes sums for modules directly
 // required by go.mod, as represented by the index, with replacements applied.
 func keepSums(addDirect bool) map[module.Version]bool {
-	// Walk the module graph and keep sums needed by MVS.
+	// Re-derive the build list using the current list of direct requirements.
+	// Keep the sum for the go.mod of each visited module version (or its
+	// replacement).
 	modkey := func(m module.Version) module.Version {
 		return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
 	}
 	keep := make(map[module.Version]bool)
-	replaced := make(map[module.Version]bool)
-	reqs := Reqs()
-	var walk func(module.Version)
-	walk = func(m module.Version) {
-		// If we build using a replacement module, keep the sum for the replacement,
-		// since that's the code we'll actually use during a build.
-		r := Replacement(m)
-		if r.Path == "" {
-			keep[modkey(m)] = true
-		} else {
-			replaced[m] = true
-			keep[modkey(r)] = true
-		}
-		list, _ := reqs.Required(m)
-		for _, r := range list {
-			if !keep[modkey(r)] && !replaced[r] {
-				walk(r)
+	var mu sync.Mutex
+	reqs := &keepSumReqs{
+		Reqs: Reqs(),
+		visit: func(m module.Version) {
+			// If we build using a replacement module, keep the sum for the replacement,
+			// since that's the code we'll actually use during a build.
+			mu.Lock()
+			r := Replacement(m)
+			if r.Path == "" {
+				keep[modkey(m)] = true
+			} else {
+				keep[modkey(r)] = true
+			}
+			mu.Unlock()
+		},
+	}
+	buildList, err := mvs.BuildList(Target, reqs)
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error reloading build list: %v", err))
+	}
+
+	// Add entries for modules in the build list with paths that are prefixes of
+	// paths of loaded packages. We need to retain sums for modules needed to
+	// report ambiguous import errors. We use our re-derived build list,
+	// since the global build list may have been tidied.
+	if loaded != nil {
+		actualMods := make(map[string]module.Version)
+		for _, m := range buildList[1:] {
+			if r := Replacement(m); r.Path != "" {
+				actualMods[m.Path] = r
+			} else {
+				actualMods[m.Path] = m
 			}
 		}
-	}
-	walk(Target)
-
-	// Add entries for modules from which packages were loaded.
-	if loaded != nil {
 		for _, pkg := range loaded.pkgs {
-			m := pkg.mod
-			if r := Replacement(m); r.Path != "" {
-				keep[r] = true
-			} else {
-				keep[m] = true
+			if pkg.testOf != nil || pkg.inStd {
+				continue
+			}
+			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+				if m, ok := actualMods[prefix]; ok {
+					keep[m] = true
+				}
 			}
 		}
 	}
@@ -1023,6 +1044,18 @@ func keepSums(addDirect bool) map[module.Version]bool {
 	}
 
 	return keep
+}
+
+// keepSumReqs embeds another Reqs implementation. The Required method
+// calls visit for each version in the module graph.
+type keepSumReqs struct {
+	mvs.Reqs
+	visit func(module.Version)
+}
+
+func (r *keepSumReqs) Required(m module.Version) ([]module.Version, error) {
+	r.visit(m)
+	return r.Reqs.Required(m)
 }
 
 func TrimGoSum() {
