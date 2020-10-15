@@ -71,13 +71,13 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
-
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
 	}
 
+	const pcrel = 1
 	switch r.Type() {
 	default:
 		if r.Type() >= objabi.ElfRelocOffset {
@@ -200,6 +200,75 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ARM64_LDST128)
+		return true
+
+	// Handle relocations found in Mach-O object files.
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_UNSIGNED*2:
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_CALLARM64)
+		if targType == sym.SDYNIMPORT {
+			addpltsym(target, ldr, syms, targ)
+			su.SetRelocSym(rIdx, syms.PLT)
+			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		}
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_PAGE21*2 + pcrel,
+		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_PAGEOFF12*2:
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_PCREL)
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21*2 + pcrel,
+		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12*2:
+		if targType != sym.SDYNIMPORT {
+			// have symbol
+			// turn MOVD sym@GOT (adrp+ldr) into MOVD $sym (adrp+add)
+			data := ldr.Data(s)
+			off := r.Off()
+			if int(off+3) >= len(data) {
+				ldr.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			o := target.Arch.ByteOrder.Uint32(data[off:])
+			su := ldr.MakeSymbolUpdater(s)
+			switch {
+			case (o>>24)&0x9f == 0x90: // adrp
+				// keep instruction unchanged, change relocation type below
+			case o>>24 == 0xf9: // ldr
+				// rewrite to add
+				o = (0x91 << 24) | (o & (1<<22 - 1))
+				su.MakeWritable()
+				su.SetUint32(target.Arch, int64(off), o)
+			default:
+				ldr.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su.SetRelocType(rIdx, objabi.R_ARM64_PCREL)
+			return true
+		}
+		ld.AddGotSym(target, ldr, syms, targ, 0)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_GOT)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
 		return true
 	}
 
@@ -671,14 +740,28 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			o0 := (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
 			return val | int64(o0), noExtReloc, isOk
-		} else if (val>>24)&0x91 == 0x91 {
-			// R_AARCH64_ADD_ABS_LO12_NC
+		} else if (val>>24)&0x9f == 0x91 {
+			// ELF R_AARCH64_ADD_ABS_LO12_NC or Mach-O ARM64_RELOC_PAGEOFF12
 			// patch instruction: add
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			o1 := uint32(t&0xfff) << 10
 			return val | int64(o1), noExtReloc, isOk
+		} else if (val>>24)&0x3b == 0x39 {
+			// Mach-O ARM64_RELOC_PAGEOFF12
+			// patch ldr/str(b/h/w/d/q) (integer or vector) instructions, which have different scaling factors.
+			// Mach-O uses same relocation type for them.
+			shift := uint32(val) >> 30
+			if shift == 0 && (val>>20)&0x048 == 0x048 { // 128-bit vector load
+				shift = 4
+			}
+			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
+			if t&(1<<shift-1) != 0 {
+				ldr.Errorf(s, "invalid address: %x for relocation type: ARM64_RELOC_PAGEOFF12", t)
+			}
+			o1 := (uint32(t&0xfff) >> shift) << 10
+			return val | int64(o1), noExtReloc, isOk
 		} else {
-			ldr.Errorf(s, "unsupported instruction for %x R_PCRELARM64", val)
+			ldr.Errorf(s, "unsupported instruction for %x R_ARM64_PCREL", val)
 		}
 
 	case objabi.R_ARM64_LDST8:

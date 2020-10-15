@@ -946,9 +946,6 @@ func (t *tester) internalLink() bool {
 	if goos == "ios" {
 		return false
 	}
-	if goos == "darwin" && goarch == "arm64" {
-		return false
-	}
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
@@ -964,7 +961,7 @@ func (t *tester) internalLink() bool {
 
 func (t *tester) internalLinkPIE() bool {
 	switch goos + "-" + goarch {
-	case "darwin-amd64",
+	case "darwin-amd64", "darwin-arm64",
 		"linux-amd64", "linux-arm64",
 		"android-arm64",
 		"windows-amd64", "windows-386", "windows-arm":
@@ -1088,7 +1085,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	pair := gohostos + "-" + goarch
 	switch pair {
-	case "darwin-amd64",
+	case "darwin-amd64", "darwin-arm64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.

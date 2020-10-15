@@ -2622,11 +2622,15 @@ func (l *Loader) Dump() {
 	fmt.Println("Nsyms:", len(l.objSyms))
 	fmt.Println("syms")
 	for i := Sym(1); i < Sym(len(l.objSyms)); i++ {
-		pi := interface{}("")
+		pi := ""
 		if l.IsExternal(i) {
 			pi = fmt.Sprintf("<ext %d>", l.extIndex(i))
 		}
-		fmt.Println(i, l.SymName(i), l.SymType(i), pi)
+		sect := ""
+		if l.SymSect(i) != nil {
+			sect = l.SymSect(i).Name
+		}
+		fmt.Printf("%v %v %v %v %x %v\n", i, l.SymName(i), l.SymType(i), pi, l.SymValue(i), sect)
 	}
 	fmt.Println("symsByName")
 	for name, i := range l.symsByName[0] {
