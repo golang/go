@@ -1239,19 +1239,18 @@ func typeFields(t reflect.Type) structFields {
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
 				sf := f.typ.Field(i)
-				isUnexported := sf.PkgPath != ""
 				if sf.Anonymous {
 					t := sf.Type
 					if t.Kind() == reflect.Ptr {
 						t = t.Elem()
 					}
-					if isUnexported && t.Kind() != reflect.Struct {
+					if !sf.IsExported() && t.Kind() != reflect.Struct {
 						// Ignore embedded fields of unexported non-struct types.
 						continue
 					}
 					// Do not ignore embedded fields of unexported struct types
 					// since they may have exported fields.
-				} else if isUnexported {
+				} else if !sf.IsExported() {
 					// Ignore unexported non-embedded fields.
 					continue
 				}

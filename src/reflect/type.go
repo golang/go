@@ -568,17 +568,23 @@ func newName(n, tag string, exported bool) name {
 // Method represents a single method.
 type Method struct {
 	// Name is the method name.
+	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// method name. It is empty for upper case (exported) method names.
 	// The combination of PkgPath and Name uniquely identifies a method
 	// in a method set.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-	Name    string
 	PkgPath string
 
 	Type  Type  // method type
 	Func  Value // func with receiver as first argument
 	Index int   // index for Type.Method
+}
+
+// IsExported reports whether the method is exported.
+func (m Method) IsExported() bool {
+	return m.PkgPath == ""
 }
 
 const (
@@ -1090,6 +1096,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 type StructField struct {
 	// Name is the field name.
 	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// field name. It is empty for upper case (exported) field names.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
@@ -1100,6 +1107,11 @@ type StructField struct {
 	Offset    uintptr   // offset within struct, in bytes
 	Index     []int     // index sequence for Type.FieldByIndex
 	Anonymous bool      // is an embedded field
+}
+
+// IsExported reports whether the field is exported.
+func (f StructField) IsExported() bool {
+	return f.PkgPath == ""
 }
 
 // A StructTag is the tag string in a struct field.
@@ -2771,8 +2783,7 @@ func runtimeStructField(field StructField) (structField, string) {
 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
 
-	exported := field.PkgPath == ""
-	if exported {
+	if field.IsExported() {
 		// Best-effort check for misuse.
 		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
 		c := field.Name[0]
@@ -2788,7 +2799,7 @@ func runtimeStructField(field StructField) (structField, string) {
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	f := structField{
-		name:        newName(field.Name, string(field.Tag), exported),
+		name:        newName(field.Name, string(field.Tag), field.IsExported()),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}

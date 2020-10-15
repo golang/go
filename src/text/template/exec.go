@@ -615,7 +615,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath != "" { // field is unexported
+			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
 			// If it's a function, we must call it.
