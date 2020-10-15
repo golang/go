@@ -208,9 +208,6 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	if iscgo && objabi.GOOS == "android" {
 		return true, objabi.GOOS + " does not support internal cgo"
 	}
-	if iscgo && objabi.GOOS == "darwin" && objabi.GOARCH == "arm64" {
-		return true, objabi.GOOS + "/" + objabi.GOARCH + " does not support internal cgo"
-	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
