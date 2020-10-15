@@ -1,9 +1,11 @@
 [short] skip
 
 # Test building in overlays.
-# TODO(matloob): add a test case where the destination file in the replace map
+# TODO(#39958): add a test case where the destination file in the replace map
 #   isn't a go file. Either completely exclude that case in fs.IsDirWithGoFiles
 #   if the compiler doesn't allow it, or test that it works all the way.
+# TODO(#39958): add a test that both gc and gccgo assembly files can include .h
+#   files.
 
 # The main package (m) is contained in an overlay. It imports m/dir2 which has one
 # file in an overlay and one file outside the overlay, which in turn imports m/dir,
@@ -29,6 +31,18 @@ exec ./print_trimpath_two_files$GOEXE
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
 
+go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
+exec ./main_cgo_replace$GOEXE
+stdout '^hello cgo$'
+
+go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
+exec ./main_cgo_quote$GOEXE
+stdout '^hello cgo$'
+
+go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+exec ./main_cgo_angle$GOEXE
+stdout '^hello cgo$'
+
 # Run same tests but with gccgo.
 env GO111MODULE=off
 [!exec:gccgo] stop
@@ -45,6 +59,19 @@ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
 go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -trimpath ./printpath
 exec ./print_trimpath_gccgo$GOEXE
 stdout ^\.[/\\]printpath[/\\]main.go
+
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_replace_gccgo$GOEXE ./cgo_hello_replace
+exec ./main_cgo_replace_gccgo$GOEXE
+stdout '^hello cgo$'
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_quote_gccgo$GOEXE ./cgo_hello_quote
+exec ./main_cgo_quote_gccgo$GOEXE
+stdout '^hello cgo$'
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./cgo_hello_angle
+exec ./main_cgo_angle_gccgo$GOEXE
+stdout '^hello cgo$'
 
 -- m/go.mod --
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
@@ -71,9 +98,32 @@ the actual code is in the overlay
 		"dir/g.go": "overlay/dir_g.go",
 		"dir2/i.go": "overlay/dir2_i.go",
 		"printpath/main.go": "overlay/printpath.go",
-		"printpath/other.go": "overlay2/printpath2.go"
+		"printpath/other.go": "overlay2/printpath2.go",
+		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
+		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
+		"cgo_hello_quote/cgo_header.h": "overlay/cgo_head.h",
+		"cgo_hello_angle/cgo_hello.go": "overlay/cgo_hello_angle.go",
+		"cgo_hello_angle/cgo_header.h": "overlay/cgo_head.h"
 	}
 }
+-- m/cgo_hello_replace/cgo_hello_replace.go --
+package main
+
+// #include "cgo_header.h"
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/cgo_hello_replace/cgo_header.h --
+ // Test that this header is replaced with one that has the proper declaration.
+void say_goodbye();
+
+-- m/cgo_hello_replace/goodbye.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); }
+
 -- m/overlay/f.go --
 package main
 
@@ -128,3 +178,32 @@ import "m/dir"
 func printMessage() {
 	dir.PrintMessage()
 }
+-- m/overlay/cgo_hello_quote.go --
+package main
+
+// #include "cgo_header.h"
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/overlay/cgo_hello_angle.go --
+package main
+
+// #include <cgo_header.h>
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/overlay/cgo_head.h --
+void say_hello();
+-- m/cgo_hello_quote/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); }
+-- m/cgo_hello_angle/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); }
+
