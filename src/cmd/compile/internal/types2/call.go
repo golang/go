@@ -422,8 +422,6 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	}
 
 	// check arguments
-	// TODO(gri) Possible optimization (may be tricky): We could avoid
-	//           checking arguments from which we inferred type arguments.
 	for i, a := range args {
 		check.assignment(a, sig_params.vars[i].typ, "argument")
 	}

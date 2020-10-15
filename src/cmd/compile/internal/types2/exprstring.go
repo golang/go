@@ -242,36 +242,6 @@ func writeSigExpr(buf *bytes.Buffer, sig *syntax.FuncType) {
 	buf.WriteByte(')')
 }
 
-func writeFieldList_(buf *bytes.Buffer, list []*syntax.Field, sep string, iface bool) {
-	for i, f := range list {
-		if i > 0 {
-			buf.WriteString(sep)
-		}
-
-		// field name, if any
-		if f.Name == nil {
-			WriteExpr(buf, f.Type)
-			continue
-		}
-
-		buf.WriteString(f.Name.Value)
-
-		// types of interface methods consist of signatures only
-		if sig, _ := f.Type.(*syntax.FuncType); sig != nil && iface {
-			writeSigExpr(buf, sig)
-			continue
-		}
-
-		// field type
-		if i+1 == len(list) || list[i+1].Type != f.Type {
-			buf.WriteByte(' ')
-			WriteExpr(buf, f.Type)
-		}
-
-		// ignore tag
-	}
-}
-
 func writeFieldList(buf *bytes.Buffer, list []*syntax.Field, sep string, iface bool) {
 	for i := 0; i < len(list); {
 		f := list[i]
