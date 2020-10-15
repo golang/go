@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "funcdata.h"
 
 // bool Cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -44,7 +45,6 @@ TEXT ·Loadint64(SB), NOSPLIT, $0-12
 TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 	JMP	·Xadd64(SB)
 
-
 // bool ·Cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
 //	if(*val == *old){
@@ -54,10 +54,11 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 //		return 0;
 //	}
 TEXT ·Cas64(SB), NOSPLIT, $0-21
+	NO_LOCAL_POINTERS
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
 	JZ	2(PC)
-	MOVL	0, BP // crash with nil ptr deref
+	CALL	·panicUnaligned(SB)
 	MOVL	old_lo+4(FP), AX
 	MOVL	old_hi+8(FP), DX
 	MOVL	new_lo+12(FP), BX
@@ -98,11 +99,12 @@ TEXT ·Xadd(SB), NOSPLIT, $0-12
 	RET
 
 TEXT ·Xadd64(SB), NOSPLIT, $0-20
+	NO_LOCAL_POINTERS
 	// no XADDQ so use CMPXCHG8B loop
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
 	JZ	2(PC)
-	MOVL	0, AX // crash when unaligned
+	CALL	·panicUnaligned(SB)
 	// DI:SI = delta
 	MOVL	delta_lo+4(FP), SI
 	MOVL	delta_hi+8(FP), DI
@@ -144,11 +146,12 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-12
 	JMP	·Xchg(SB)
 
 TEXT ·Xchg64(SB),NOSPLIT,$0-20
+	NO_LOCAL_POINTERS
 	// no XCHGQ so use CMPXCHG8B loop
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
 	JZ	2(PC)
-	MOVL	0, AX // crash when unaligned
+	CALL	·panicUnaligned(SB)
 	// CX:BX = new
 	MOVL	new_lo+4(FP), BX
 	MOVL	new_hi+8(FP), CX
@@ -188,10 +191,11 @@ TEXT ·StoreRel(SB), NOSPLIT, $0-8
 
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT ·Load64(SB), NOSPLIT, $0-12
+	NO_LOCAL_POINTERS
 	MOVL	ptr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
-	MOVL	0, AX // crash with nil ptr deref
+	CALL	·panicUnaligned(SB)
 	MOVQ	(AX), M0
 	MOVQ	M0, ret+4(FP)
 	EMMS
@@ -199,10 +203,11 @@ TEXT ·Load64(SB), NOSPLIT, $0-12
 
 // void ·Store64(uint64 volatile* addr, uint64 v);
 TEXT ·Store64(SB), NOSPLIT, $0-12
+	NO_LOCAL_POINTERS
 	MOVL	ptr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
-	MOVL	0, AX // crash with nil ptr deref
+	CALL	·panicUnaligned(SB)
 	// MOVQ and EMMS were introduced on the Pentium MMX.
 	MOVQ	val+4(FP), M0
 	MOVQ	M0, (AX)
