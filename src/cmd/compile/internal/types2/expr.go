@@ -1522,6 +1522,17 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
+		index := e.Index
+		if l, _ := index.(*syntax.ListExpr); l != nil {
+			if n := len(l.ElemList); n <= 1 {
+				check.invalidASTf(e, "invalid use of ListExpr for index expression %s with %d indices", e, n)
+				goto Error
+			}
+			// len(l.ElemList) > 1
+			check.invalidOpf(l.ElemList[1], "more than one index")
+			index = l.ElemList[0] // continue with first index
+		}
+
 		// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
 		// the element type may be accessed before it's set. Make sure we have
 		// a valid type.
@@ -1529,7 +1540,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			x.typ = Typ[Invalid]
 		}
 
-		check.index(e.Index, length)
+		check.index(index, length)
 		// ok to continue
 
 	case *syntax.SliceExpr:

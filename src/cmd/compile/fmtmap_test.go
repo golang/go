@@ -45,6 +45,7 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/syntax.CallExpr %s":        "",
 	"*cmd/compile/internal/syntax.CallExpr %v":        "",
 	"*cmd/compile/internal/syntax.FuncLit %s":         "",
+	"*cmd/compile/internal/syntax.IndexExpr %s":       "",
 	"*cmd/compile/internal/types.Field %p":            "",
 	"*cmd/compile/internal/types.Field %v":            "",
 	"*cmd/compile/internal/types.Sym %0S":             "",
