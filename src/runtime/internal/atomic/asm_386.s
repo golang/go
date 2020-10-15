@@ -11,7 +11,7 @@
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-13
+TEXT ·Cas(SB), NOSPLIT, $0-13
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX
 	MOVL	new+8(FP), CX
@@ -20,32 +20,32 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-13
 	SETEQ	ret+12(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-13
-	JMP	runtime∕internal∕atomic·Cas(SB)
+TEXT ·Casuintptr(SB), NOSPLIT, $0-13
+	JMP	·Cas(SB)
 
-TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-13
-	JMP	runtime∕internal∕atomic·Cas(SB)
+TEXT ·CasRel(SB), NOSPLIT, $0-13
+	JMP	·Cas(SB)
 
-TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-8
-	JMP	runtime∕internal∕atomic·Load(SB)
+TEXT ·Loaduintptr(SB), NOSPLIT, $0-8
+	JMP	·Load(SB)
 
-TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $0-8
-	JMP	runtime∕internal∕atomic·Load(SB)
+TEXT ·Loaduint(SB), NOSPLIT, $0-8
+	JMP	·Load(SB)
 
-TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-8
-	JMP	runtime∕internal∕atomic·Store(SB)
+TEXT ·Storeuintptr(SB), NOSPLIT, $0-8
+	JMP	·Store(SB)
 
-TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-12
-	JMP runtime∕internal∕atomic·Xadd(SB)
+TEXT ·Xadduintptr(SB), NOSPLIT, $0-12
+	JMP	·Xadd(SB)
 
-TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-12
-	JMP runtime∕internal∕atomic·Load64(SB)
+TEXT ·Loadint64(SB), NOSPLIT, $0-12
+	JMP	·Load64(SB)
 
-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-20
-	JMP runtime∕internal∕atomic·Xadd64(SB)
+TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+	JMP	·Xadd64(SB)
 
 
-// bool runtime∕internal∕atomic·Cas64(uint64 *val, uint64 old, uint64 new)
+// bool ·Cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
 //	if(*val == *old){
 //		*val = new;
@@ -53,7 +53,7 @@ TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-20
 //	} else {
 //		return 0;
 //	}
-TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-21
+TEXT ·Cas64(SB), NOSPLIT, $0-21
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
 	JZ	2(PC)
@@ -74,7 +74,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-21
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-13
+TEXT ·Casp1(SB), NOSPLIT, $0-13
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX
 	MOVL	new+8(FP), CX
@@ -87,7 +87,7 @@ TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-13
 // Atomically:
 //	*val += delta;
 //	return *val;
-TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-12
+TEXT ·Xadd(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	delta+4(FP), AX
 	MOVL	AX, CX
@@ -97,7 +97,7 @@ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-20
+TEXT ·Xadd64(SB), NOSPLIT, $0-20
 	// no XADDQ so use CMPXCHG8B loop
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
@@ -133,17 +133,17 @@ addloop:
 	MOVL	CX, ret_hi+16(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
+TEXT ·Xchg(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BX)
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
-	JMP	runtime∕internal∕atomic·Xchg(SB)
+TEXT ·Xchguintptr(SB), NOSPLIT, $0-12
+	JMP	·Xchg(SB)
 
-TEXT  runtime∕internal∕atomic·Xchg64(SB),NOSPLIT,$0-20
+TEXT ·Xchg64(SB),NOSPLIT,$0-20
 	// no XCHGQ so use CMPXCHG8B loop
 	MOVL	ptr+0(FP), BP
 	TESTL	$7, BP
@@ -171,23 +171,23 @@ swaploop:
 	MOVL	DX, ret_hi+16(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
+TEXT ·StorepNoWB(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
 
-TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-8
+TEXT ·Store(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
 
-TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-8
-	JMP	runtime∕internal∕atomic·Store(SB)
+TEXT ·StoreRel(SB), NOSPLIT, $0-8
+	JMP	·Store(SB)
 
 // uint64 atomicload64(uint64 volatile* addr);
-TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
+TEXT ·Load64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
@@ -197,8 +197,8 @@ TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
 	EMMS
 	RET
 
-// void runtime∕internal∕atomic·Store64(uint64 volatile* addr, uint64 v);
-TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
+// void ·Store64(uint64 volatile* addr, uint64 v);
+TEXT ·Store64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
@@ -214,23 +214,23 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
 	XADDL	AX, (SP)
 	RET
 
-// void	runtime∕internal∕atomic·Or8(byte volatile*, byte);
-TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-5
+// void	·Or8(byte volatile*, byte);
+TEXT ·Or8(SB), NOSPLIT, $0-5
 	MOVL	ptr+0(FP), AX
 	MOVB	val+4(FP), BX
 	LOCK
 	ORB	BX, (AX)
 	RET
 
-// void	runtime∕internal∕atomic·And8(byte volatile*, byte);
-TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-5
+// void	·And8(byte volatile*, byte);
+TEXT ·And8(SB), NOSPLIT, $0-5
 	MOVL	ptr+0(FP), AX
 	MOVB	val+4(FP), BX
 	LOCK
 	ANDB	BX, (AX)
 	RET
 
-TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-5
+TEXT ·Store8(SB), NOSPLIT, $0-5
 	MOVL	ptr+0(FP), BX
 	MOVB	val+4(FP), AX
 	XCHGB	AX, 0(BX)
