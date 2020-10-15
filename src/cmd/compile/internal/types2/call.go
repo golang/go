@@ -12,6 +12,95 @@ import (
 	"unicode"
 )
 
+// funcInst type-checks a function instantiaton inst and returns the result in x.
+// The operand x must be the evaluation of inst.X and its type must be a signature.
+func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
+	if ok && len(args) > 0 && args[0].mode != typexpr {
+		check.errorf(args[0], "%s is not a type", args[0])
+		ok = false
+	}
+	if !ok {
+		x.mode = invalid
+		x.expr = inst
+		return
+	}
+
+	// check number of type arguments
+	n := len(args)
+	sig := x.typ.(*Signature)
+	if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
+		check.errorf(args[n-1], "got %d type arguments but want %d", n, len(sig.tparams))
+		x.mode = invalid
+		x.expr = inst
+		return
+	}
+
+	// collect types
+	targs := make([]Type, n)
+	poslist := make([]syntax.Pos, n)
+	for i, a := range args {
+		if a.mode != typexpr {
+			// error was reported earlier
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		targs[i] = a.typ
+		poslist[i] = a.Pos()
+	}
+
+	// if we don't have enough type arguments, use constraint type inference
+	var inferred bool
+	if n < len(sig.tparams) {
+		var failed int
+		targs, failed = check.inferB(sig.tparams, targs)
+		if targs == nil {
+			// error was already reported
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		if failed >= 0 {
+			// at least one type argument couldn't be inferred
+			assert(targs[failed] == nil)
+			tpar := sig.tparams[failed]
+			check.errorf(inst, "cannot infer %s (%s) (%s)", tpar.name, tpar.pos, targs)
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		// all type arguments were inferred sucessfully
+		if debug {
+			for _, targ := range targs {
+				assert(targ != nil)
+			}
+		}
+		//check.dump("### inferred targs = %s", targs)
+		n = len(targs)
+		inferred = true
+	}
+	assert(n == len(sig.tparams))
+
+	// instantiate function signature
+	for i, typ := range targs {
+		// some positions may be missing if types are inferred
+		var pos syntax.Pos
+		if i < len(poslist) {
+			pos = poslist[i]
+		}
+		check.ordinaryType(pos, typ)
+	}
+	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+	assert(res.tparams == nil) // signature is not generic anymore
+	if inferred {
+		check.recordInferred(inst, targs, res)
+	}
+	x.typ = res
+	x.mode = value
+	x.expr = inst
+}
+
 // TODO(gri) Since we now strictly separate between calls and index/instantiation expressions
 //           we don't need to use "fake" calls for instantiation expressions. Clean up!
 func (check *Checker) call(x *operand, call *syntax.CallExpr, index *syntax.IndexExpr) exprKind {

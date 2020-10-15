@@ -1420,8 +1420,12 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		if sig := x.typ.Signature(); sig != nil {
-			return check.call(x, nil, e)
+		if x.mode == value {
+			if sig := x.typ.Signature(); sig != nil && len(sig.tparams) > 0 {
+				// function instantiation
+				check.funcInst(x, e)
+				return expression
+			}
 		}
 
 		valid := false
