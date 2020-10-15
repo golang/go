@@ -34,7 +34,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	}
 	var match bool
 	for _, name := range s.session.Options().SupportedCommands {
-		if command.Name == name {
+		if command.ID() == name {
 			match = true
 			break
 		}

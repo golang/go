@@ -283,7 +283,7 @@ func (e *Env) ExecuteCodeLensCommand(path string, cmd *source.Command) {
 	if !found {
 		e.T.Fatalf("found no command with the ID %s", cmd.ID())
 	}
-	if _, err := e.Editor.Server.ExecuteCommand(e.Ctx, &protocol.ExecuteCommandParams{
+	if _, err := e.Editor.ExecuteCommand(e.Ctx, &protocol.ExecuteCommandParams{
 		Command:   lens.Command.Command,
 		Arguments: lens.Command.Arguments,
 	}); err != nil {

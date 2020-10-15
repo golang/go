@@ -121,7 +121,7 @@ func main() {
 		if found.Command.Command == "" {
 			t.Fatalf("did not find lens %q, got %v", want, lenses)
 		}
-		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
+		if _, err := env.Editor.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
 			Command:   found.Command.Command,
 			Arguments: found.Command.Arguments,
 		}); err != nil {

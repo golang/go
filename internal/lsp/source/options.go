@@ -68,7 +68,7 @@ func DefaultOptions() *Options {
 	optionsOnce.Do(func() {
 		var commands []string
 		for _, c := range Commands {
-			commands = append(commands, c.Name)
+			commands = append(commands, c.ID())
 		}
 		defaultOptions = &Options{
 			ClientOptions: ClientOptions{
