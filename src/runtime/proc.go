@@ -2302,8 +2302,8 @@ func stoplockedm() {
 	mPark()
 	status := readgstatus(_g_.m.lockedg.ptr())
 	if status&^_Gscan != _Grunnable {
-		print("runtime:stoplockedm: g is not Grunnable or Gscanrunnable\n")
-		dumpgstatus(_g_)
+		print("runtime:stoplockedm: lockedg (atomicstatus=", status, ") is not Grunnable or Gscanrunnable\n")
+		dumpgstatus(_g_.m.lockedg.ptr())
 		throw("stoplockedm: not runnable")
 	}
 	acquirep(_g_.m.nextp.ptr())
