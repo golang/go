@@ -117,7 +117,7 @@ func TestResolveIdents(t *testing.T) {
 	// parse package files
 	var files []*syntax.File
 	for i, src := range sources {
-		f, err := parseSrc(fmt.Sprintf("sources[%d]", i), src /*, parser.DeclarationErrors */)
+		f, err := parseSrc(fmt.Sprintf("sources[%d]", i), src)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,33 +141,26 @@ func TestResolveIdents(t *testing.T) {
 		}
 	}
 
-	// TODO(gri) implement code below (syntax tree inspection)
-	if true {
-		return
-	}
-
 	// check that qualified identifiers are resolved
 	for _, f := range files {
-		unimplemented()
-		_ = f
-		// ast.Inspect(f, func(n syntax.Node) bool {
-		// 	if s, ok := n.(*syntax.SelectorExpr); ok {
-		// 		if x, ok := s.X.(*syntax.Name); ok {
-		// 			obj := uses[x]
-		// 			if obj == nil {
-		// 				t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
-		// 				return false
-		// 			}
-		// 			if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
-		// 				t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
-		// 				return false
-		// 			}
-		// 			return false
-		// 		}
-		// 		return false
-		// 	}
-		// 	return true
-		// })
+		Walk(f, func(n syntax.Node) bool {
+			if s, ok := n.(*syntax.SelectorExpr); ok {
+				if x, ok := s.X.(*syntax.Name); ok {
+					obj := uses[x]
+					if obj == nil {
+						t.Errorf("%s: unresolved qualified identifier %s", x.Pos(), x.Value)
+						return true
+					}
+					if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
+						t.Errorf("%s: unresolved selector %s", s.Sel.Pos(), s.Sel.Value)
+						return true
+					}
+					return true
+				}
+				return true
+			}
+			return false
+		})
 	}
 
 	for id, obj := range uses {
@@ -176,31 +169,35 @@ func TestResolveIdents(t *testing.T) {
 		}
 	}
 
-	// check that each identifier in the source is found in uses or defs or both
+	// Check that each identifier in the source is found in uses or defs or both.
+	// We need the foundUses/Defs maps (rather then just deleting the found objects
+	// from the uses and defs maps) because Walk traverses shared nodes multiple
+	// times (e.g. types in field lists such as "a, b, c int").
+	foundUses := make(map[*syntax.Name]bool)
+	foundDefs := make(map[*syntax.Name]bool)
 	var both []string
 	for _, f := range files {
-		unimplemented()
-		_ = f
-		// ast.Inspect(f, func(n syntax.Node) bool {
-		// 	if x, ok := n.(*syntax.Name); ok {
-		// 		var objects int
-		// 		if _, found := uses[x]; found {
-		// 			objects |= 1
-		// 			delete(uses, x)
-		// 		}
-		// 		if _, found := defs[x]; found {
-		// 			objects |= 2
-		// 			delete(defs, x)
-		// 		}
-		// 		if objects == 0 {
-		// 			t.Errorf("%s: unresolved identifier %s", x.Pos(), x.Value)
-		// 		} else if objects == 3 {
-		// 			both = append(both, x.Value)
-		// 		}
-		// 		return false
-		// 	}
-		// 	return true
-		// })
+		Walk(f, func(n syntax.Node) bool {
+			if x, ok := n.(*syntax.Name); ok {
+				var objects int
+				if _, found := uses[x]; found {
+					objects |= 1
+					foundUses[x] = true
+				}
+				if _, found := defs[x]; found {
+					objects |= 2
+					foundDefs[x] = true
+				}
+				switch objects {
+				case 0:
+					t.Errorf("%s: unresolved identifier %s", x.Pos(), x.Value)
+				case 3:
+					both = append(both, x.Value)
+				}
+				return true
+			}
+			return false
+		})
 	}
 
 	// check the expected set of idents that are simultaneously uses and defs
@@ -211,10 +208,14 @@ func TestResolveIdents(t *testing.T) {
 
 	// any left-over identifiers didn't exist in the source
 	for x := range uses {
-		t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
+		if !foundUses[x] {
+			t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
+		}
 	}
 	for x := range defs {
-		t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
+		if !foundDefs[x] {
+			t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
+		}
 	}
 
 	// TODO(gri) add tests to check ImplicitObj callbacks

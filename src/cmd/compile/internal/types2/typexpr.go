@@ -1083,8 +1083,14 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 		add(ident, true, pos)
 	}
 
+	var prev syntax.Expr
 	for i, f := range e.FieldList {
-		typ = check.varType(f.Type)
+		// Fields declared syntactically with the same type (e.g.: a, b, c T)
+		// share the same type expression. Only check type if it's a new type.
+		if i == 0 || f.Type != prev {
+			typ = check.varType(f.Type)
+			prev = f.Type
+		}
 		if i < len(e.TagList) {
 			tag = check.tag(e.TagList[i])
 		}
