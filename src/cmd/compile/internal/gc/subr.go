@@ -1040,25 +1040,24 @@ func calcHasCall(n *Node) bool {
 	return false
 }
 
-func badtype(op Op, tl *types.Type, tr *types.Type) {
-	fmt_ := ""
+func badtype(op Op, tl, tr *types.Type) {
+	var s string
 	if tl != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", tl)
+		s += fmt.Sprintf("\n\t%v", tl)
 	}
 	if tr != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", tr)
+		s += fmt.Sprintf("\n\t%v", tr)
 	}
 
 	// common mistake: *struct and *interface.
 	if tl != nil && tr != nil && tl.IsPtr() && tr.IsPtr() {
 		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
-			fmt_ += "\n\t(*struct vs *interface)"
+			s += "\n\t(*struct vs *interface)"
 		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
-			fmt_ += "\n\t(*interface vs *struct)"
+			s += "\n\t(*interface vs *struct)"
 		}
 	}
 
-	s := fmt_
 	yyerror("illegal types for operand: %v%s", op, s)
 }
 
