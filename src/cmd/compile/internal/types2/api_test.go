@@ -282,8 +282,8 @@ func TestTypesInfo(t *testing.T) {
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 
 		// parameterized functions
-		{`package p0; func f[T any](T); var _ = f(int)`, `f`, `func[T₁ any](T₁)`},
-		{`package p1; func f[T any](T); var _ = f(int)`, `f(int)`, `func(int)`},
+		{`package p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ any](T₁)`},
+		{`package p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
 		{`package p2; func f[T any](T); var _ = f(42)`, `f`, `func[T₁ any](T₁)`},
 		{`package p2; func f[T any](T); var _ = f(42)`, `f(42)`, `()`},
 

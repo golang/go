@@ -502,8 +502,7 @@ L: // unpack receiver type
 	}
 
 	// unpack type parameters, if any
-	switch ptyp := rtyp.(type) {
-	case *syntax.IndexExpr:
+	if ptyp, _ := rtyp.(*syntax.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
 			for _, arg := range unpackExpr(ptyp.Index) {
@@ -524,29 +523,6 @@ L: // unpack receiver type
 				tparams = append(tparams, par)
 			}
 
-		}
-	case *syntax.CallExpr:
-		// TODO(gri) Remove once we don't create fake calls for instantiation expressions.
-		//           See comment for Checker.call (call.go).
-		rtyp = ptyp.Fun
-		if unpackParams {
-			for _, arg := range ptyp.ArgList {
-				var par *syntax.Name
-				switch arg := arg.(type) {
-				case *syntax.Name:
-					par = arg
-				case *syntax.BadExpr:
-					// ignore - error already reported by parser
-				case nil:
-					check.invalidASTf(ptyp, "parameterized receiver contains nil parameters")
-				default:
-					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
-				}
-				if par == nil {
-					par = newName(arg.Pos(), "_")
-				}
-				tparams = append(tparams, par)
-			}
 		}
 	}
 

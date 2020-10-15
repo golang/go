@@ -1407,17 +1407,13 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 
 		if x.mode == typexpr {
-			if isGeneric(x.typ) {
-				// type instantiation
-				x.mode = invalid
-				x.typ = check.varType(e)
-				if x.typ != Typ[Invalid] {
-					x.mode = typexpr
-				}
-				return expression
+			// type instantiation
+			x.mode = invalid
+			x.typ = check.varType(e)
+			if x.typ != Typ[Invalid] {
+				x.mode = typexpr
 			}
-			check.errorf(x, "%s is not a generic type", x.typ)
-			goto Error
+			return expression
 		}
 
 		if x.mode == value {
@@ -1428,6 +1424,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			}
 		}
 
+		// ordinary index expression
 		valid := false
 		length := int64(-1) // valid if >= 0
 		switch typ := optype(x.typ.Under()).(type) {
@@ -1680,7 +1677,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		goto Error
 
 	case *syntax.CallExpr:
-		return check.call(x, e, nil)
+		return check.call(x, e)
 
 	// case *syntax.UnaryExpr:
 	// 	check.expr(x, e.X)
