@@ -30,12 +30,28 @@ func TestPrint(t *testing.T) {
 	}
 }
 
+var stringTests = []string{
+	"package p",
+	"package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )",
+
+	// channels
+	"package p; type _ chan chan int",
+	"package p; type _ chan (<-chan int)",
+	"package p; type _ chan chan<- int",
+
+	"package p; type _ <-chan chan int",
+	"package p; type _ <-chan <-chan int",
+	"package p; type _ <-chan chan<- int",
+
+	"package p; type _ chan<- chan int",
+	"package p; type _ chan<- <-chan int",
+	"package p; type _ chan<- chan<- int",
+
+	// TODO(gri) expand
+}
+
 func TestPrintString(t *testing.T) {
-	for _, want := range []string{
-		"package p",
-		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
-		// TODO(gri) expand
-	} {
+	for _, want := range stringTests {
 		ast, err := Parse(nil, strings.NewReader(want), nil, nil, 0)
 		if err != nil {
 			t.Error(err)
