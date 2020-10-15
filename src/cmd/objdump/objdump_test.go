@@ -333,3 +333,41 @@ func TestDisasmGoobj(t *testing.T) {
 		t.Logf("full disassembly:\n%s", text)
 	}
 }
+
+func TestGoobjFileNumber(t *testing.T) {
+	// Test that file table in Go object file is parsed correctly.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestGoobjFileNumber")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	obj := filepath.Join(tmpdir, "p.a")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", obj)
+	cmd.Dir = filepath.Join("testdata/testfilenum")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	cmd = exec.Command(exe, obj)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("objdump failed: %v\n%s", err, out)
+	}
+
+	text := string(out)
+	for _, s := range []string{"a.go", "b.go", "c.go"} {
+		if !strings.Contains(text, s) {
+			t.Errorf("output missing '%s'", s)
+		}
+	}
+
+	if t.Failed() {
+		t.Logf("output:\n%s", text)
+	}
+}
