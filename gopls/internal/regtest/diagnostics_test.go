@@ -1367,19 +1367,19 @@ module mod.com
 -- main.go --
 package main
 
-func main() {
-	if true {}
-}`
+import "bytes"
+
+func b(c bytes.Buffer) {
+	_ = 1
+}
+`
 	withOptions(
 		EditorConfig{
 			AllExperiments: true,
 		},
 	).run(t, mod, func(t *testing.T, env *Env) {
-		// Confirm that staticcheck is enabled.
-		env.OpenFile("main.go")
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", "if"),
-		)
+		// Confirm that the setting doesn't cause any warnings.
+		env.Await(NoShowMessage())
 	})
 }
 

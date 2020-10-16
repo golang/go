@@ -590,8 +590,6 @@ func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
 	o.ExperimentalWorkspaceModule = true
 	o.ExperimentalPackageCacheKey = true
-	o.Staticcheck = true
-	o.Gofumpt = true
 	o.SymbolStyle = DynamicSymbols
 	o.Codelens[CommandToggleDetails.Name] = true
 	o.Analyses[unusedparams.Analyzer.Name] = true
