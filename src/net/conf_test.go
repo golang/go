@@ -180,6 +180,15 @@ func TestConfHostLookupOrder(t *testing.T) {
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
 		},
 		{
+			name: "linux_empty_nsswitch.conf",
+			c: &conf{
+				goos:   "linux",
+				nss:    nssStr(""),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+		},
+		{
 			name: "files_mdns_dns",
 			c: &conf{
 				nss:    nssStr("hosts: files mdns dns"),
