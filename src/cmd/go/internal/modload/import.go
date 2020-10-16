@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
@@ -42,6 +41,10 @@ type ImportMissingError struct {
 	// modules.
 	isStd bool
 
+	// replaced the highest replaced version of the module where the replacement
+	// contains the package. replaced is only set if the replacement is unused.
+	replaced module.Version
+
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
 	newMissingVersion string
@@ -57,6 +60,14 @@ func (e *ImportMissingError) Error() string {
 		}
 		if cfg.BuildMod == "mod" {
 			return "cannot find module providing package " + e.Path
+		}
+
+		if e.replaced.Path != "" {
+			suggestArg := e.replaced.Path
+			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
+				suggestArg = e.replaced.String()
+			}
+			return fmt.Sprintf("module %s provides package %s and is replaced but not required; try 'go get -d %s' to add it", e.replaced.Path, e.Path, suggestArg)
 		}
 
 		suggestion := ""
@@ -284,37 +295,6 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 // Unlike QueryPattern, queryImport prefers to add a replaced version of a
 // module *before* checking the proxies for a version to add.
 func queryImport(ctx context.Context, path string) (module.Version, error) {
-	pathIsStd := search.IsStandardImportPath(path)
-
-	if cfg.BuildMod == "readonly" {
-		if pathIsStd {
-			// If the package would be in the standard library and none of the
-			// available replacement modules could concievably provide it, report it
-			// as a missing standard-library package instead of complaining that
-			// module lookups are disabled.
-			maybeReplaced := false
-			if index != nil {
-				for p := range index.highestReplaced {
-					if maybeInModule(path, p) {
-						maybeReplaced = true
-						break
-					}
-				}
-			}
-			if !maybeReplaced {
-				return module.Version{}, &ImportMissingError{Path: path, isStd: true}
-			}
-		}
-
-		var queryErr error
-		if cfg.BuildModExplicit {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
-		} else if cfg.BuildModReason != "" {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
-		}
-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
-	}
-
 	// To avoid spurious remote fetches, try the latest replacement for each
 	// module (golang.org/issue/26241).
 	if index != nil {
@@ -330,9 +310,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 				// used from within some other module, the user will be able to upgrade
 				// the requirement to any real version they choose.
 				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
-					mv = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+					mv = modfetch.ZeroPseudoVersion(pathMajor[1:])
 				} else {
-					mv = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+					mv = modfetch.ZeroPseudoVersion("v0")
 				}
 			}
 			mods = append(mods, module.Version{Path: mp, Version: mv})
@@ -347,18 +327,23 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 			needSum := true
 			root, isLocal, err := fetch(ctx, m, needSum)
 			if err != nil {
-				// Report fetch error as above.
+				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+					return module.Version{}, &ImportMissingSumError{importPath: path}
+				}
 				return module.Version{}, err
 			}
 			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
 				return m, err
 			} else if ok {
+				if cfg.BuildMod == "readonly" {
+					return module.Version{}, &ImportMissingError{Path: path, replaced: m}
+				}
 				return m, nil
 			}
 		}
 		if len(mods) > 0 && module.CheckPath(path) != nil {
 			// The package path is not valid to fetch remotely,
-			// so it can only exist if in a replaced module,
+			// so it can only exist in a replaced module,
 			// and we know from the above loop that it is not.
 			return module.Version{}, &PackageNotInModuleError{
 				Mod:         mods[0],
@@ -369,7 +354,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 	}
 
-	if pathIsStd {
+	if search.IsStandardImportPath(path) {
 		// This package isn't in the standard library, isn't in any module already
 		// in the build list, and isn't in any other module that the user has
 		// shimmed in via a "replace" directive.
@@ -378,6 +363,19 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		//
 		// Instead of trying QueryPattern, report an ImportMissingError immediately.
 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+	}
+
+	if cfg.BuildMod == "readonly" {
+		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
+		// the module. If readonly mode was enabled explicitly, include that in
+		// the error message.
+		var queryErr error
+		if cfg.BuildModExplicit {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		} else if cfg.BuildModReason != "" {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		}
+		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
 	}
 
 	// Look up module containing the package, for addition to the build list.
