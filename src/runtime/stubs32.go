@@ -11,4 +11,4 @@ import "unsafe"
 // Declarations for runtime services implemented in C or assembly that
 // are only present on 32 bit systems.
 
-func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
+func call16(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
