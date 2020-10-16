@@ -223,6 +223,40 @@ func ksRotate(in uint32) (out []uint32) {
 	return
 }
 
+// new permuted function to replace: permuteBlock(pc2Input, permutedChoice2[:])
+func permutedBlockChoice2(in uint64) (out uint64) {
+	out |= (in & (1 << 42)) << 5
+	out |= (in & (1 << 39)) << 7
+	out |= in & (0b100000000000000000000000000001 << 16)
+	out |= (in & (0b10001 << 28)) << 12
+	out |= (in & (0b100101 << 50)) >> 12
+	out |= (in & (0b10000000000000000000000001 << 26)) >> 9
+	out |= (in & (0b1000000000001 << 29)) >> 2
+	out |= (in & (0b101 << 33)) << 2
+	out |= (in & (0b10000000010000000000001000000001 << 14)) >> 10
+	out |= (in & (0b10000000000000000000000000000001 << 6)) >> 3
+	out |= (in & (0b10001 << 40)) >> 11
+	out |= (in & (1 << 52)) >> 20
+	out |= (in & (0b100000000001 << 19)) << 1
+	out |= (in & (0b10000000000000000000000100001 << 20)) >> 18
+	out |= (in & (1 << 49)) >> 21
+	out |= (in & (1 << 54)) >> 30
+	out |= (in & 0b1000000000000001) << 8
+	out |= (in & (1 << 4)) << 18
+	out |= (in & (1 << 25)) >> 4
+	out |= (in & (0b10001 << 5)) << 10
+	out |= (in & (1 << 1)) << 17
+	out |= (in & (0b100010001 << 3)) << 3
+	out |= (in & (1 << 8)) << 4
+	out |= (in & (1 << 12)) >> 1
+	out |= (in & (1 << 17)) >> 8
+	out |= (in & (1 << 22)) >> 15
+	out |= (in & (1 << 10)) >> 5
+	out |= (in & (1 << 27)) >> 26
+	out |= (in & (1 << 24)) >> 24
+	return
+}
+
 // creates 16 56-bit subkeys from the original key
 func (c *desCipher) generateSubkeys(keyBytes []byte) {
 	feistelBoxOnce.Do(initFeistelBox)
@@ -240,7 +274,8 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
 		// combine halves to form 56-bit input to PC2
 		pc2Input := uint64(leftRotations[i])<<28 | uint64(rightRotations[i])
 		// apply PC2 permutation to 7 byte input
-		c.subkeys[i] = unpack(permuteBlock(pc2Input, permutedChoice2[:]))
+		// c.subkeys[i] = unpack(permuteBlock(pc2Input, permutedChoice2[:]))
+		c.subkeys[i] = unpack(permutedBlockChoice2(pc2Input))
 	}
 }
 
