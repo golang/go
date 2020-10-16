@@ -37,10 +37,13 @@ type Command struct {
 	suggestedFixFn SuggestedFixFunc
 }
 
-// ID adds the "gopls_" prefix to the command name, in order to avoid
+// CommandPrefix is the prefix of all command names gopls uses externally.
+const CommandPrefix = "gopls."
+
+// ID adds the CommandPrefix to the command name, in order to avoid
 // collisions with other language servers.
 func (c Command) ID() string {
-	return "gopls_" + c.Name
+	return CommandPrefix + c.Name
 }
 
 type AppliesFunc func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool
