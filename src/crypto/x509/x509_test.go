@@ -2153,6 +2153,47 @@ func TestRDNSequenceString(t *testing.T) {
 	}
 }
 
+func TestRDNSequenceStyledString(t *testing.T) {
+
+	style := map[string]string{
+		"2.5.4.4":  "SURNAME",
+		"2.5.4.42": "GIVENNAME",
+		"2.5.4.65": "Pseudonym",
+	}
+
+	var (
+		oidSurname   = []int{2, 5, 4, 4}
+		oidGivenName = []int{2, 5, 4, 42}
+		oidPseudonym = []int{2, 5, 4, 65}
+	)
+
+	tests := []struct {
+		seq  pkix.RDNSequence
+		want string
+	}{
+		{
+			seq: pkix.RDNSequence{
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidPseudonym, Value: "Gopher"},
+				},
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidSurname, Value: "Go"},
+				},
+				pkix.RelativeDistinguishedNameSET{
+					pkix.AttributeTypeAndValue{Type: oidGivenName, Value: "Go"},
+				},
+			},
+			want: "GIVENNAME=Go,SURNAME=Go,Pseudonym=Gopher",
+		},
+	}
+
+	for i, test := range tests {
+		if got := test.seq.StyledString(style); got != test.want {
+			t.Errorf("#%d: StyledString() = \n%s\n, want \n%s", i, got, test.want)
+		}
+	}
+}
+
 const criticalNameConstraintWithUnknownTypePEM = `
 -----BEGIN CERTIFICATE-----
 MIIC/TCCAeWgAwIBAgICEjQwDQYJKoZIhvcNAQELBQAwKDEmMCQGA1UEAxMdRW1w

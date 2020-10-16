@@ -23,21 +23,36 @@ type AlgorithmIdentifier struct {
 
 type RDNSequence []RelativeDistinguishedNameSET
 
-var attributeTypeNames = map[string]string{
-	"2.5.4.6":  "C",
-	"2.5.4.10": "O",
-	"2.5.4.11": "OU",
-	"2.5.4.3":  "CN",
-	"2.5.4.5":  "SERIALNUMBER",
-	"2.5.4.7":  "L",
-	"2.5.4.8":  "ST",
-	"2.5.4.9":  "STREET",
-	"2.5.4.17": "POSTALCODE",
+var defaultStyle = map[string]string{
+	// RFC 2253
+	"2.5.4.3":                    "CN",
+	"2.5.4.6":                    "C",
+	"2.5.4.7":                    "L",
+	"2.5.4.8":                    "ST",
+	"2.5.4.9":                    "STREET",
+	"2.5.4.10":                   "O",
+	"2.5.4.11":                   "OU",
+	"0.9.2342.19200300.100.1.25": "DC",
+	"0.9.2342.19200300.100.1.1":  "UID",
+	// other common
+	"2.5.4.5":              "SERIALNUMBER",
+	"2.5.4.12":             "T",
+	"2.5.4.17":             "POSTALCODE",
+	"2.5.4.46":             "DN",
+	"1.2.840.113549.1.9.1": "E",
 }
 
 // String returns a string representation of the sequence r,
-// roughly following the RFC 2253 Distinguished Names syntax.
+// roughly following the RFC 2253 Distinguished Names syntax
+// and using default style for attribute names
 func (r RDNSequence) String() string {
+	return r.StyledString(defaultStyle)
+}
+
+// StyledString returns a string representation of the sequence r,
+// roughly following the RFC 2253 Distinguished Names syntax
+// and using specified style attribute names
+func (r RDNSequence) StyledString(style map[string]string) string {
 	s := ""
 	for i := 0; i < len(r); i++ {
 		rdn := r[len(r)-1-i]
@@ -50,7 +65,7 @@ func (r RDNSequence) String() string {
 			}
 
 			oidString := tv.Type.String()
-			typeName, ok := attributeTypeNames[oidString]
+			typeName, ok := style[oidString]
 			if !ok {
 				derBytes, err := asn1.Marshal(tv.Value)
 				if err == nil {
