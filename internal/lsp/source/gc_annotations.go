@@ -165,7 +165,7 @@ func zeroIndexedRange(rng protocol.Range) protocol.Range {
 
 func findJSONFiles(dir string) ([]string, error) {
 	ans := []string{}
-	f := func(path string, fi os.FileInfo, err error) error {
+	f := func(path string, fi os.FileInfo, _ error) error {
 		if fi.IsDir() {
 			return nil
 		}

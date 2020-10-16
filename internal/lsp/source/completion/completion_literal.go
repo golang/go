@@ -211,7 +211,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
 			// For example, we want to name "http.Request" "r", not "hr".
-			name = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, func(p *types.Package) string {
+			name = source.FormatVarType(ctx, c.snapshot, c.pkg, p, func(p *types.Package) string {
 				return ""
 			})
 			name = abbreviateTypeName(name)
@@ -265,7 +265,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf)
+			typeStr := source.FormatVarType(ctx, c.snapshot, c.pkg, p, c.qf)
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
@@ -293,7 +293,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		if name := r.Name(); name != "" {
 			snip.WriteText(name + " ")
 		}
-		snip.WriteText(source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf))
+		snip.WriteText(source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf))
 	}
 	if resultsNeedParens {
 		snip.WriteText(")")

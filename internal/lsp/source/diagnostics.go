@@ -62,7 +62,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalys
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[VersionedFileIdentity][]*Diagnostic)
 	for _, pgf := range pkg.CompiledGoFiles() {
-		clearReports(ctx, snapshot, reports, pgf.URI)
+		clearReports(snapshot, reports, pgf.URI)
 	}
 	// Prepare any additional reports for the errors in this package.
 	for _, e := range pkg.GetErrors() {
@@ -78,7 +78,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalys
 				}
 			}
 		}
-		clearReports(ctx, snapshot, reports, e.URI)
+		clearReports(snapshot, reports, e.URI)
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	hadDiagnostics, hadTypeErrors, err := diagnostics(ctx, snapshot, reports, pkg, len(pkg.MissingDependencies()) > 0)
@@ -195,7 +195,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[VersionedFi
 		} else if len(set.typeErrors) > 0 {
 			hasTypeErrors = true
 		}
-		if err := addReports(ctx, snapshot, reports, uri, diags...); err != nil {
+		if err := addReports(snapshot, reports, uri, diags...); err != nil {
 			return false, false, err
 		}
 	}
@@ -221,7 +221,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[VersionedFileI
 		// meant to provide diagnostics, but rather only suggested fixes.
 		// Skip these types of errors in diagnostics; we will use their
 		// suggested fixes when providing code actions.
-		if isConvenienceAnalyzer(snapshot.View().Options(), e.Category) {
+		if isConvenienceAnalyzer(e.Category) {
 			continue
 		}
 		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
@@ -231,7 +231,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[VersionedFileI
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		if err := addReports(ctx, snapshot, reports, e.URI, &Diagnostic{
+		if err := addReports(snapshot, reports, e.URI, &Diagnostic{
 			Range:    e.Range,
 			Message:  e.Message,
 			Source:   e.Category,
@@ -245,7 +245,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[VersionedFileI
 	return nil
 }
 
-func clearReports(ctx context.Context, snapshot Snapshot, reports map[VersionedFileIdentity][]*Diagnostic, uri span.URI) {
+func clearReports(snapshot Snapshot, reports map[VersionedFileIdentity][]*Diagnostic, uri span.URI) {
 	fh := snapshot.FindFile(uri)
 	if fh == nil {
 		return
@@ -253,7 +253,7 @@ func clearReports(ctx context.Context, snapshot Snapshot, reports map[VersionedF
 	reports[fh.VersionedFileIdentity()] = []*Diagnostic{}
 }
 
-func addReports(ctx context.Context, snapshot Snapshot, reports map[VersionedFileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
+func addReports(snapshot Snapshot, reports map[VersionedFileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
 	fh := snapshot.FindFile(uri)
 	if fh == nil {
 		return nil
@@ -312,7 +312,7 @@ func hasUndeclaredErrors(pkg Package) bool {
 	return false
 }
 
-func isConvenienceAnalyzer(o *Options, category string) bool {
+func isConvenienceAnalyzer(category string) bool {
 	for _, a := range DefaultOptions().ConvenienceAnalyzers {
 		if category == a.Analyzer.Name {
 			return true

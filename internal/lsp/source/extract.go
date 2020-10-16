@@ -21,7 +21,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	expr, path, ok, err := canExtractVariable(rng, file)
 	if !ok {
 		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
@@ -794,7 +794,7 @@ type fnExtractParams struct {
 
 // canExtractFunction reports whether the code in the given range can be
 // extracted to a function.
-func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, info *types.Info) (*fnExtractParams, bool, error) {
+func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Info) (*fnExtractParams, bool, error) {
 	if rng.Start == rng.End {
 		return nil, false, fmt.Errorf("start and end are equal")
 	}

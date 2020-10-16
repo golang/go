@@ -56,7 +56,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
-		s := source.NewSignature(ctx, c.snapshot, c.pkg, c.file, "", sig, nil, c.qf)
+		s := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf)
 		snip = c.functionCallSnippet(label, s.Params())
 		detail = "func" + s.Format()
 	}
@@ -70,7 +70,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf)
+			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -207,7 +207,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		return item, nil
 	}
 
-	hover, err := source.HoverInfo(pkg, obj, decl)
+	hover, err := source.HoverInfo(ctx, pkg, obj, decl)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil

@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/doc"
 	"go/format"
-	"go/token"
 	"go/types"
 	"strings"
 
@@ -87,7 +86,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	defer done()
 
 	fset := i.Snapshot.FileSet()
-	h, err := hover(ctx, fset, i.pkg, i.Declaration)
+	h, err := HoverInfo(ctx, i.pkg, i.Declaration.obj, i.Declaration.node)
 	if err != nil {
 		return nil, err
 	}
@@ -229,16 +228,9 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 	return str
 }
 
-func hover(ctx context.Context, fset *token.FileSet, pkg Package, d Declaration) (*HoverInformation, error) {
-	_, done := event.Start(ctx, "source.hover")
-	defer done()
-
-	return HoverInfo(pkg, d.obj, d.node)
-}
-
 // HoverInfo returns a HoverInformation struct for an ast node and its type
 // object.
-func HoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
+func HoverInfo(ctx context.Context, pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
 	var info *HoverInformation
 
 	switch node := node.(type) {

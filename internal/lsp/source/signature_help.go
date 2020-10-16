@@ -107,7 +107,7 @@ FindCall:
 			node: node,
 		}
 		decl.MappedRange = append(decl.MappedRange, rng)
-		d, err := hover(ctx, snapshot.FileSet(), pkg, decl)
+		d, err := HoverInfo(ctx, pkg, decl.obj, decl.node)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -116,7 +116,7 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	s := NewSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
+	s := NewSignature(ctx, snapshot, pkg, sig, comment, qf)
 	paramInfo := make([]protocol.ParameterInformation, 0, len(s.params))
 	for _, p := range s.params {
 		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})
