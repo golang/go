@@ -198,6 +198,9 @@
          (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
        mem)
 
+(AtomicAnd32 ...) => (LAN ...)
+(AtomicOr32  ...) => (LAO ...)
+
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to(16|32|64) ...) => (MOVBreg ...)

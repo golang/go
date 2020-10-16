@@ -547,8 +547,10 @@ func init() {
 		// Atomic bitwise operations.
 		// Note: 'floor' operations round the pointer down to the nearest word boundary
 		// which reflects how they are used in the runtime.
-		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+		{name: "LAN", argLength: 3, reg: gpstore, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 &= arg1. arg2 = mem.
 		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
+		{name: "LAO", argLength: 3, reg: gpstore, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 |= arg1. arg2 = mem.
+		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
