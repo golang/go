@@ -262,6 +262,8 @@ func TestDisasmExtld(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "aix":
+		t.Skipf("skipping on AIX, see issue 40972")
 	}
 	t.Parallel()
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
