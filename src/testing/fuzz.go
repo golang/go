@@ -338,29 +338,28 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 		},
 		context: ctx,
 	}
-	var (
-		ft    InternalFuzzTarget
-		found int
-	)
-	for _, ft = range fuzzTargets {
+	var target *InternalFuzzTarget
+	for i := range fuzzTargets {
+		ft := &fuzzTargets[i]
 		testName, matched, _ := ctx.fuzzMatch.fullName(&f.common, ft.Name)
-		if matched {
-			found++
-			if found > 1 {
-				fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
-				return false, true
-			}
-			f.name = testName
+		if !matched {
+			continue
 		}
+		if target != nil {
+			fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
+			return false, true
+		}
+		target = ft
+		f.name = testName
 	}
-	if found == 0 {
+	if target == nil {
 		return false, true
 	}
 	if Verbose() {
 		f.chatty = newChattyPrinter(f.w)
 		f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
 	}
-	go f.runTarget(ft.Fn)
+	go f.runTarget(target.Fn)
 	<-f.signal
 	return f.ran, !f.failed
 }
