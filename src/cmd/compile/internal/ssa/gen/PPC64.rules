@@ -980,8 +980,10 @@
 (AtomicCompareAndSwap(32|64) ptr old new_ mem) => (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
 (AtomicCompareAndSwapRel32   ptr old new_ mem) => (LoweredAtomicCas32 [0] ptr old new_ mem)
 
-(AtomicAnd8 ...) => (LoweredAtomicAnd8 ...)
-(AtomicOr8  ...) => (LoweredAtomicOr8  ...)
+(AtomicAnd8  ...) => (LoweredAtomicAnd8  ...)
+(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+(AtomicOr8   ...) => (LoweredAtomicOr8   ...)
+(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
 
 (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
 

@@ -602,25 +602,22 @@ func init() {
 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 
 		// atomic add32, 64
-		// SYNC
+		// LWSYNC
 		// LDAR         (Rarg0), Rout
 		// ADD		Rarg1, Rout
 		// STDCCC       Rout, (Rarg0)
 		// BNE          -3(PC)
-		// ISYNC
 		// return new sum
-
 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic exchange32, 64
-		// SYNC
+		// LWSYNC
 		// LDAR         (Rarg0), Rout
 		// STDCCC       Rarg1, (Rarg0)
 		// BNE          -2(PC)
 		// ISYNC
 		// return old val
-
 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
@@ -643,15 +640,16 @@ func init() {
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
-		// atomic 8 and/or.
+		// atomic 8/32 and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
-		// LBAR		(Rarg0), Rtmp
+		// LBAR/LWAT	(Rarg0), Rtmp
 		// AND/OR	Rarg1, Rtmp
-		// STBCCC	Rtmp, (Rarg0), Rtmp
+		// STBCCC/STWCCC Rtmp, (Rarg0), Rtmp
 		// BNE		Rtmp, -3(PC)
-
 		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and its arguments R20 and R21,
