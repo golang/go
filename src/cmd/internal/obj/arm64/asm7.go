@@ -205,12 +205,8 @@ func SYSHINT(x uint32) uint32 {
 	return SYSOP(0, 0, 3, 2, 0, x, 0x1F)
 }
 
-func LDSTR12U(sz uint32, v uint32, opc uint32) uint32 {
-	return sz<<30 | 7<<27 | v<<26 | 1<<24 | opc<<22
-}
-
-func LDSTR9S(sz uint32, v uint32, opc uint32) uint32 {
-	return sz<<30 | 7<<27 | v<<26 | 0<<24 | opc<<22
+func LDSTR(sz uint32, v uint32, opc uint32) uint32 {
+	return sz<<30 | 7<<27 | v<<26 | opc<<22
 }
 
 func LD2STR(o uint32) uint32 {
@@ -3392,10 +3388,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
-			o1 = c.olsr9s(p, int32(c.opstr9(p, p.As)), v, r, int(p.From.Reg))
+			o1 = c.olsr9s(p, int32(c.opstr(p, p.As)), v, r, int(p.From.Reg))
 		} else {
 			v = int32(c.offsetshift(p, int64(v), int(o.a4)))
-			o1 = c.olsr12u(p, int32(c.opstr12(p, p.As)), v, r, int(p.From.Reg))
+			o1 = c.olsr12u(p, int32(c.opstr(p, p.As)), v, r, int(p.From.Reg))
 		}
 
 	case 21: /* movT O(R),R -> ldrT */
@@ -3407,11 +3403,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
-			o1 = c.olsr9s(p, int32(c.opldr9(p, p.As)), v, r, int(p.To.Reg))
+			o1 = c.olsr9s(p, int32(c.opldr(p, p.As)), v, r, int(p.To.Reg))
 		} else {
 			v = int32(c.offsetshift(p, int64(v), int(o.a1)))
 			//print("offset=%lld v=%ld a1=%d\n", instoffset, v, o->a1);
-			o1 = c.olsr12u(p, int32(c.opldr12(p, p.As)), v, r, int(p.To.Reg))
+			o1 = c.olsr12u(p, int32(c.opldr(p, p.As)), v, r, int(p.To.Reg))
 		}
 
 	case 22: /* movT (R)O!,R; movT O(R)!, R -> ldrT */
@@ -3424,7 +3420,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v < -256 || v > 255 {
 			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
 		}
-		o1 = c.opldrpp(p, p.As)
+		o1 = c.opldr(p, p.As)
 		if o.scond == C_XPOST {
 			o1 |= 1 << 10
 		} else {
@@ -3442,7 +3438,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v < -256 || v > 255 {
 			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
 		}
-		o1 = LD2STR(c.opldrpp(p, p.As))
+		o1 = c.opstr(p, p.As)
 		if o.scond == C_XPOST {
 			o1 |= 1 << 10
 		} else {
@@ -3594,7 +3590,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
-		o2 = c.olsr12u(p, int32(c.opstr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.From.Reg))
+		o2 = c.olsr12u(p, int32(c.opstr(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.From.Reg))
 		break
 
 	storeusepool:
@@ -3638,7 +3634,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
-		o2 = c.olsr12u(p, int32(c.opldr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.To.Reg))
+		o2 = c.olsr12u(p, int32(c.opldr(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.To.Reg))
 		break
 
 	loadusepool:
@@ -4127,7 +4123,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
 		rel.Type = objabi.R_ADDRARM64
-		o3 = c.olsr12u(p, int32(c.opstr12(p, p.As)), 0, REGTMP, int(p.From.Reg))
+		o3 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
 
 	case 65: /* movT addr,R -> adrp + add + movT (REGTMP), R */
 		o1 = ADR(1, 0, REGTMP)
@@ -4138,7 +4134,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = objabi.R_ADDRARM64
-		o3 = c.olsr12u(p, int32(c.opldr12(p, p.As)), 0, REGTMP, int(p.To.Reg))
+		o3 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
 
 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
 		v := int32(c.regoff(&p.From))
@@ -4191,7 +4187,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 70: /* IE model movd $tlsvar, reg -> adrp REGTMP, 0; ldr reg, [REGTMP, #0] + relocs */
 		o1 = ADR(1, 0, REGTMP)
-		o2 = c.olsr12u(p, int32(c.opldr12(p, AMOVD)), 0, REGTMP, int(p.To.Reg))
+		o2 = c.olsr12u(p, int32(c.opldr(p, AMOVD)), 0, REGTMP, int(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
@@ -4204,7 +4200,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 71: /* movd sym@GOT, reg -> adrp REGTMP, #0; ldr reg, [REGTMP, #0] + relocs */
 		o1 = ADR(1, 0, REGTMP)
-		o2 = c.olsr12u(p, int32(c.opldr12(p, AMOVD)), 0, REGTMP, int(p.To.Reg))
+		o2 = c.olsr12u(p, int32(c.opldr(p, AMOVD)), 0, REGTMP, int(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
@@ -4765,7 +4761,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 
-		o1 = c.opldrpp(p, p.As)
+		o1 = c.opirr(p, p.As)
 		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
 
 	case 92: /* vmov Vn.<T>[index], Vd.<T>[index] */
@@ -6106,8 +6102,12 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVUSHLL2, AVUXTL2:
 		return 3<<29 | 15<<24 | 0x29<<10
+
 	case AVXAR:
 		return 0xCE<<24 | 1<<23
+
+	case APRFM:
+		return 0xf9<<24 | 2<<22
 	}
 
 	c.ctxt.Diag("%v: bad irr %v", p, a)
@@ -6502,7 +6502,7 @@ func (c *ctxt7) opstore(p *obj.Prog, a obj.As) uint32 {
 }
 
 /*
- * load/store register (unsigned immediate) C3.3.13
+ * load/store register (scaled 12-bit unsigned immediate) C3.3.13
  *	these produce 64-bit values (when there's an option)
  */
 func (c *ctxt7) olsr12u(p *obj.Prog, o int32, v int32, b int, r int) uint32 {
@@ -6512,49 +6512,12 @@ func (c *ctxt7) olsr12u(p *obj.Prog, o int32, v int32, b int, r int) uint32 {
 	o |= (v & 0xFFF) << 10
 	o |= int32(b&31) << 5
 	o |= int32(r & 31)
+	o |= 1 << 24
 	return uint32(o)
 }
 
-func (c *ctxt7) opldr12(p *obj.Prog, a obj.As) uint32 {
-	switch a {
-	case AMOVD:
-		return LDSTR12U(3, 0, 1) /* imm12<<10 | Rn<<5 | Rt */
-
-	case AMOVW:
-		return LDSTR12U(2, 0, 2)
-
-	case AMOVWU:
-		return LDSTR12U(2, 0, 1)
-
-	case AMOVH:
-		return LDSTR12U(1, 0, 2)
-
-	case AMOVHU:
-		return LDSTR12U(1, 0, 1)
-
-	case AMOVB:
-		return LDSTR12U(0, 0, 2)
-
-	case AMOVBU:
-		return LDSTR12U(0, 0, 1)
-
-	case AFMOVS:
-		return LDSTR12U(2, 1, 1)
-
-	case AFMOVD:
-		return LDSTR12U(3, 1, 1)
-	}
-
-	c.ctxt.Diag("bad opldr12 %v\n%v", a, p)
-	return 0
-}
-
-func (c *ctxt7) opstr12(p *obj.Prog, a obj.As) uint32 {
-	return LD2STR(c.opldr12(p, a))
-}
-
 /*
- * load/store register (unscaled immediate) C3.3.12
+ * load/store register (unscaled 9-bit signed immediate) C3.3.12
  */
 func (c *ctxt7) olsr9s(p *obj.Prog, o int32, v int32, b int, r int) uint32 {
 	if v < -256 || v > 255 {
@@ -6566,76 +6529,48 @@ func (c *ctxt7) olsr9s(p *obj.Prog, o int32, v int32, b int, r int) uint32 {
 	return uint32(o)
 }
 
-func (c *ctxt7) opldr9(p *obj.Prog, a obj.As) uint32 {
-	switch a {
-	case AMOVD:
-		return LDSTR9S(3, 0, 1) /* simm9<<12 | Rn<<5 | Rt */
-
-	case AMOVW:
-		return LDSTR9S(2, 0, 2)
-
-	case AMOVWU:
-		return LDSTR9S(2, 0, 1)
-
-	case AMOVH:
-		return LDSTR9S(1, 0, 2)
-
-	case AMOVHU:
-		return LDSTR9S(1, 0, 1)
-
-	case AMOVB:
-		return LDSTR9S(0, 0, 2)
-
-	case AMOVBU:
-		return LDSTR9S(0, 0, 1)
-
-	case AFMOVS:
-		return LDSTR9S(2, 1, 1)
-
-	case AFMOVD:
-		return LDSTR9S(3, 1, 1)
-	}
-
-	c.ctxt.Diag("bad opldr9 %v\n%v", a, p)
-	return 0
+// store(immediate)
+// scaled 12-bit unsigned immediate offset.
+// unscaled 9-bit signed immediate offset.
+// pre/post-indexed store.
+// and the 12-bit and 9-bit are distinguished in olsr12u and oslr9s.
+func (c *ctxt7) opstr(p *obj.Prog, a obj.As) uint32 {
+	return LD2STR(c.opldr(p, a))
 }
 
-func (c *ctxt7) opstr9(p *obj.Prog, a obj.As) uint32 {
-	return LD2STR(c.opldr9(p, a))
-}
-
-func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
+// load(immediate)
+// scaled 12-bit unsigned immediate offset.
+// unscaled 9-bit signed immediate offset.
+// pre/post-indexed load.
+// and the 12-bit and 9-bit are distinguished in olsr12u and oslr9s.
+func (c *ctxt7) opldr(p *obj.Prog, a obj.As) uint32 {
 	switch a {
 	case AMOVD:
-		return 3<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22 /* simm9<<12 | Rn<<5 | Rt */
+		return LDSTR(3, 0, 1) /* simm9<<12 | Rn<<5 | Rt */
 
 	case AMOVW:
-		return 2<<30 | 7<<27 | 0<<26 | 0<<24 | 2<<22
+		return LDSTR(2, 0, 2)
 
 	case AMOVWU:
-		return 2<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
+		return LDSTR(2, 0, 1)
 
 	case AMOVH:
-		return 1<<30 | 7<<27 | 0<<26 | 0<<24 | 2<<22
+		return LDSTR(1, 0, 2)
 
 	case AMOVHU:
-		return 1<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
+		return LDSTR(1, 0, 1)
 
 	case AMOVB:
-		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 2<<22
+		return LDSTR(0, 0, 2)
 
 	case AMOVBU:
-		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
+		return LDSTR(0, 0, 1)
 
 	case AFMOVS:
-		return 2<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
+		return LDSTR(2, 1, 1)
 
 	case AFMOVD:
-		return 3<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
-
-	case APRFM:
-		return 0xf9<<24 | 2<<22
-
+		return LDSTR(3, 1, 1)
 	}
 
 	c.ctxt.Diag("bad opldr %v\n%v", a, p)
