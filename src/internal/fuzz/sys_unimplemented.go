@@ -1,0 +1,31 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// TODO(jayconrod): support more platforms.
+// +build !darwin,!linux,!windows
+
+package fuzz
+
+import (
+	"os"
+	"os/exec"
+)
+
+type sharedMemSys struct{}
+
+func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
+	panic("not implemented")
+}
+
+func (m *sharedMem) Close() error {
+	panic("not implemented")
+}
+
+func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+	panic("not implemented")
+}
+
+func getWorkerComm() (comm workerComm, err error) {
+	panic("not implemented")
+}

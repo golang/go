@@ -40,6 +40,22 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 	// interrupts.
 	duration := 5 * time.Second
 
+	var corpus corpus
+	var maxSeedLen int
+	if len(seed) == 0 {
+		corpus.entries = []corpusEntry{{b: []byte{}}}
+		maxSeedLen = 0
+	} else {
+		corpus.entries = make([]corpusEntry, len(seed))
+		for i, v := range seed {
+			corpus.entries[i].b = v
+			if len(v) > maxSeedLen {
+				maxSeedLen = len(v)
+			}
+		}
+	}
+	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
+
 	// TODO(jayconrod): do we want to support fuzzing different binaries?
 	dir := "" // same as self
 	binPath := os.Args[0]
@@ -51,38 +67,41 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 		inputC: make(chan corpusEntry),
 	}
 
-	newWorker := func() *worker {
+	newWorker := func() (*worker, error) {
+		mem, err := sharedMemTempFile(maxSeedLen)
+		if err != nil {
+			return nil, err
+		}
 		return &worker{
 			dir:         dir,
 			binPath:     binPath,
 			args:        args,
 			env:         env,
 			coordinator: c,
-		}
+			mem:         mem,
+		}, nil
 	}
-
-	corpus := corpus{entries: make([]corpusEntry, len(seed))}
-	for i, v := range seed {
-		corpus.entries[i].b = v
-	}
-	if len(corpus.entries) == 0 {
-		// TODO(jayconrod,katiehockman): pick a good starting corpus when one is
-		// missing or very small.
-		corpus.entries = append(corpus.entries, corpusEntry{b: []byte{0}})
-	}
-
-	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
 
 	// Start workers.
 	workers := make([]*worker, parallel)
-	runErrs := make([]error, parallel)
+	for i := range workers {
+		var err error
+		workers[i], err = newWorker()
+		if err != nil {
+			return err
+		}
+	}
+
+	workerErrs := make([]error, len(workers))
 	var wg sync.WaitGroup
-	wg.Add(parallel)
-	for i := 0; i < parallel; i++ {
+	wg.Add(len(workers))
+	for i := range workers {
 		go func(i int) {
 			defer wg.Done()
-			workers[i] = newWorker()
-			runErrs[i] = workers[i].runFuzzing()
+			workerErrs[i] = workers[i].runFuzzing()
+			if cleanErr := workers[i].cleanup(); workerErrs[i] == nil {
+				workerErrs[i] = cleanErr
+			}
 		}(i)
 	}
 
@@ -102,7 +121,7 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 		case <-c.doneC:
 			// Wait for workers to stop and return.
 			wg.Wait()
-			for _, err := range runErrs {
+			for _, err := range workerErrs {
 				if err != nil {
 					return err
 				}

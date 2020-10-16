@@ -26,7 +26,10 @@ const (
 	workerTimeoutDuration = 1 * time.Second
 )
 
-// worker manages a worker process running a test binary.
+// worker manages a worker process running a test binary. The worker object
+// exists only in the coordinator (the process started by 'go test -fuzz').
+// workerClient is used by the coordinator to send RPCs to the worker process,
+// which handles them with workerServer.
 type worker struct {
 	dir     string   // working directory, same as package directory
 	binPath string   // path to test executable
@@ -35,10 +38,22 @@ type worker struct {
 
 	coordinator *coordinator
 
+	mem *sharedMem // shared memory with worker; persists across processes.
+
 	cmd     *exec.Cmd     // current worker process
 	client  *workerClient // used to communicate with worker process
 	waitErr error         // last error returned by wait, set before termC is closed.
 	termC   chan struct{} // closed by wait when worker process terminates
+}
+
+// cleanup releases persistent resources associated with the worker.
+func (w *worker) cleanup() error {
+	if w.mem == nil {
+		return nil
+	}
+	err := w.mem.Close()
+	w.mem = nil
+	return err
 }
 
 // runFuzzing runs the test binary to perform fuzzing.
@@ -69,28 +84,27 @@ func (w *worker) runFuzzing() error {
 		case <-w.termC:
 			// Worker process terminated unexpectedly.
 			// TODO(jayconrod,katiehockman): handle crasher.
-
-			// Restart the process.
-			if err := w.start(); err != nil {
-				close(w.coordinator.doneC)
-				return err
+			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+			err := w.stop()
+			if err == nil {
+				err = fmt.Errorf("worker exited unexpectedly")
 			}
+			close(w.coordinator.doneC)
+			return err
 
 		case input := <-inputC:
 			// Received input from coordinator.
 			inputC = nil // block new inputs until we finish with this one.
 			go func() {
-				args := fuzzArgs{
-					Value:    input.b,
-					Duration: workerFuzzDuration,
-				}
-				_, err := w.client.fuzz(args)
+				args := fuzzArgs{Duration: workerFuzzDuration}
+				_, err := w.client.fuzz(input.b, args)
 				if err != nil {
 					// TODO(jayconrod): if we get an error here, something failed between
 					// main and the call to testing.F.Fuzz. The error here won't
 					// be useful. Collect stderr, clean it up, and return that.
 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
 					// TODO(jayconrod): time out if the test process hangs.
+					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
 				}
 
 				fuzzC <- struct{}{}
@@ -154,7 +168,7 @@ func (w *worker) start() (err error) {
 		return err
 	}
 	defer fuzzOutW.Close()
-	setWorkerComm(cmd, fuzzInR, fuzzOutW)
+	setWorkerComm(cmd, workerComm{fuzzIn: fuzzInR, fuzzOut: fuzzOutW, mem: w.mem})
 
 	// Start the worker process.
 	if err := cmd.Start(); err != nil {
@@ -168,7 +182,7 @@ func (w *worker) start() (err error) {
 	// called later by stop.
 	w.cmd = cmd
 	w.termC = make(chan struct{})
-	w.client = newWorkerClient(fuzzInW, fuzzOutR)
+	w.client = newWorkerClient(workerComm{fuzzIn: fuzzInW, fuzzOut: fuzzOutR, mem: w.mem})
 
 	go func() {
 		w.waitErr = w.cmd.Wait()
@@ -266,12 +280,12 @@ func (w *worker) stop() error {
 // RunFuzzWorker returns an error if it could not communicate with the
 // coordinator process.
 func RunFuzzWorker(fn func([]byte) error) error {
-	fuzzIn, fuzzOut, err := getWorkerComm()
+	comm, err := getWorkerComm()
 	if err != nil {
 		return err
 	}
-	srv := &workerServer{fn: fn}
-	return srv.serve(fuzzIn, fuzzOut)
+	srv := &workerServer{workerComm: comm, fn: fn}
+	return srv.serve()
 }
 
 // call is serialized and sent from the coordinator on fuzz_in. It acts as
@@ -282,7 +296,6 @@ type call struct {
 }
 
 type fuzzArgs struct {
-	Value    []byte
 	Duration time.Duration
 }
 
@@ -291,8 +304,16 @@ type fuzzResponse struct {
 	Err     string
 }
 
+// workerComm holds objects needed for the worker client and server
+// to communicate.
+type workerComm struct {
+	fuzzIn, fuzzOut *os.File
+	mem             *sharedMem
+}
+
 // workerServer is a minimalist RPC server, run in fuzz worker processes.
 type workerServer struct {
+	workerComm
 	fn func([]byte) error
 }
 
@@ -300,9 +321,9 @@ type workerServer struct {
 //
 // serve returns errors communicating over the pipes. It does not return
 // errors from methods; those are passed through response values.
-func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) error {
-	enc := json.NewEncoder(fuzzOut)
-	dec := json.NewDecoder(fuzzIn)
+func (ws *workerServer) serve() error {
+	enc := json.NewEncoder(ws.fuzzOut)
+	dec := json.NewDecoder(ws.fuzzIn)
 	for {
 		var c call
 		if err := dec.Decode(&c); err == io.EOF {
@@ -314,7 +335,8 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
 		var resp interface{}
 		switch {
 		case c.Fuzz != nil:
-			resp = ws.fuzz(*c.Fuzz)
+			value := ws.mem.value()
+			resp = ws.fuzz(value, *c.Fuzz)
 		default:
 			return errors.New("no arguments provided for any call")
 		}
@@ -328,14 +350,14 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
 // fuzz runs the test function on random variations of a given input value for
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
-func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
+func (ws *workerServer) fuzz(value []byte, args fuzzArgs) fuzzResponse {
 	t := time.NewTimer(args.Duration)
 	for {
 		select {
 		case <-t.C:
 			return fuzzResponse{}
 		default:
-			b := mutate(args.Value)
+			b := mutate(value)
 			if err := ws.fn(b); err != nil {
 				return fuzzResponse{Crasher: b, Err: err.Error()}
 			}
@@ -346,18 +368,16 @@ func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
 
 // workerClient is a minimalist RPC client, run in the fuzz coordinator.
 type workerClient struct {
-	fuzzIn  io.WriteCloser
-	fuzzOut io.ReadCloser
-	enc     *json.Encoder
-	dec     *json.Decoder
+	workerComm
+	enc *json.Encoder
+	dec *json.Decoder
 }
 
-func newWorkerClient(fuzzIn io.WriteCloser, fuzzOut io.ReadCloser) *workerClient {
+func newWorkerClient(comm workerComm) *workerClient {
 	return &workerClient{
-		fuzzIn:  fuzzIn,
-		fuzzOut: fuzzOut,
-		enc:     json.NewEncoder(fuzzIn),
-		dec:     json.NewDecoder(fuzzOut),
+		workerComm: comm,
+		enc:        json.NewEncoder(comm.fuzzIn),
+		dec:        json.NewDecoder(comm.fuzzOut),
 	}
 }
 
@@ -382,7 +402,8 @@ func (wc *workerClient) Close() error {
 }
 
 // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
-func (wc *workerClient) fuzz(args fuzzArgs) (fuzzResponse, error) {
+func (wc *workerClient) fuzz(value []byte, args fuzzArgs) (fuzzResponse, error) {
+	wc.mem.setValue(value)
 	c := call{Fuzz: &args}
 	if err := wc.enc.Encode(c); err != nil {
 		return fuzzResponse{}, err
