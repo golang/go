@@ -492,13 +492,20 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 	case map[string]interface{}:
 		// If the user's settings contains "allExperiments", set that first,
 		// and then let them override individual settings independently.
+		var enableExperiments bool
 		for name, value := range opts {
 			if b, ok := value.(bool); name == "allExperiments" && ok && b {
+				enableExperiments = true
 				options.enableAllExperiments()
 			}
 		}
 		for name, value := range opts {
 			results = append(results, options.set(name, value))
+		}
+		// Finally, enable any experimental features that are specified in
+		// maps, which allows users to individually toggle them on or off.
+		if enableExperiments {
+			options.enableAllExperimentMaps()
 		}
 	default:
 		results = append(results, OptionResult{
@@ -586,13 +593,22 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 
 // enableAllExperiments turns on all of the experimental "off-by-default"
 // features offered by gopls.
+// Any experimental features specified in maps should be enabled in
+// enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
 	o.ExperimentalWorkspaceModule = true
 	o.ExperimentalPackageCacheKey = true
 	o.SymbolStyle = DynamicSymbols
-	o.Codelens[CommandToggleDetails.Name] = true
-	o.Analyses[unusedparams.Analyzer.Name] = true
+}
+
+func (o *Options) enableAllExperimentMaps() {
+	if _, ok := o.Codelens[CommandToggleDetails.Name]; !ok {
+		o.Codelens[CommandToggleDetails.Name] = true
+	}
+	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
+		o.Analyses[unusedparams.Analyzer.Name] = true
+	}
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {
