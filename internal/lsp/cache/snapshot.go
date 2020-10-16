@@ -1072,11 +1072,13 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 	for withoutURI, currentFH := range withoutURIs {
 		directIDs := map[packageID]struct{}{}
 
+		filePackages := guessPackagesForURI(withoutURI, s.ids)
 		// Collect all of the package IDs that correspond to the given file.
 		// TODO: if the file has moved into a new package, we should invalidate that too.
-		for _, id := range s.ids[withoutURI] {
+		for _, id := range filePackages {
 			directIDs[id] = struct{}{}
 		}
+
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[withoutURI]
 
@@ -1156,25 +1158,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			} else if originalSum {
 				if mod, ok := result.modules[rootURI]; ok {
 					mod.sumURI = ""
-				}
-			}
-		}
-
-		// If this is a file we don't yet know about,
-		// then we do not yet know what packages it should belong to.
-		// Make a rough estimate of what metadata to invalidate by finding the package IDs
-		// of all of the files in the same directory as this one.
-		// TODO(rstambler): Speed this up by mapping directories to filenames.
-		if len(directIDs) == 0 {
-			if dirStat, err := os.Stat(filepath.Dir(withoutURI.Filename())); err == nil {
-				for uri := range s.files {
-					if fdirStat, err := os.Stat(filepath.Dir(uri.Filename())); err == nil {
-						if os.SameFile(dirStat, fdirStat) {
-							for _, id := range s.ids[uri] {
-								directIDs[id] = struct{}{}
-							}
-						}
-					}
 				}
 			}
 		}
@@ -1314,6 +1297,56 @@ copyIDs:
 		result.workspacePackages = map[packageID]packagePath{}
 	}
 	return result, reinitialize
+}
+
+// guessPackagesForURI returns all packages related to uri. If we haven't seen this
+// URI before, we guess based on files in the same directory. This is of course
+// incorrect in build systems where packages are not organized by directory.
+func guessPackagesForURI(uri span.URI, known map[span.URI][]packageID) []packageID {
+	packages := known[uri]
+	if len(packages) > 0 {
+		// We've seen this file before.
+		return packages
+	}
+	// This is a file we don't yet know about. Guess relevant packages by
+	// considering files in the same directory.
+
+	// Cache of FileInfo to avoid unnecessary stats for multiple files in the
+	// same directory.
+	stats := make(map[string]struct {
+		os.FileInfo
+		error
+	})
+	getInfo := func(dir string) (os.FileInfo, error) {
+		if res, ok := stats[dir]; ok {
+			return res.FileInfo, res.error
+		}
+		fi, err := os.Stat(dir)
+		stats[dir] = struct {
+			os.FileInfo
+			error
+		}{fi, err}
+		return fi, err
+	}
+	dir := filepath.Dir(uri.Filename())
+	fi, err := getInfo(dir)
+	if err != nil {
+		return nil
+	}
+
+	// Aggregate all possibly relevant package IDs.
+	var found []packageID
+	for knownURI, ids := range known {
+		knownDir := filepath.Dir(knownURI.Filename())
+		knownFI, err := getInfo(knownDir)
+		if err != nil {
+			continue
+		}
+		if os.SameFile(fi, knownFI) {
+			found = append(found, ids...)
+		}
+	}
+	return found
 }
 
 type reinitializeView int
