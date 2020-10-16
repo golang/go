@@ -160,7 +160,7 @@ Cases:
 				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
 					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
 				}
-				body, err := ioutil.ReadAll(part)
+				body, err := io.ReadAll(part)
 				if err != nil {
 					t.Errorf("range=%q, reading part index %d body: %v", rt.r, ri, err)
 					continue Cases
@@ -312,7 +312,7 @@ func TestFileServerEscapesNames(t *testing.T) {
 		if err != nil {
 			t.Fatalf("test %q: Get: %v", test.name, err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatalf("test %q: read Body: %v", test.name, err)
 		}
@@ -360,7 +360,7 @@ func TestFileServerSortsNames(t *testing.T) {
 	}
 	defer res.Body.Close()
 
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("read Body: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Get %s: %v", suffix, err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatalf("ReadAll %s: %v", suffix, err)
 		}
@@ -617,7 +617,7 @@ func TestServeIndexHtmlFS(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal("reading Body:", err)
 		}
@@ -745,7 +745,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1082,7 +1082,7 @@ func TestServeContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			io.Copy(ioutil.Discard, res.Body)
+			io.Copy(io.Discard, res.Body)
 			res.Body.Close()
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("test %q using %q: got status = %d; want %d", testName, method, res.StatusCode, tt.wantStatus)
@@ -1196,7 +1196,7 @@ func TestLinuxSendfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http client error: %v", err)
 	}
-	_, err = io.Copy(ioutil.Discard, res.Body)
+	_, err = io.Copy(io.Discard, res.Body)
 	if err != nil {
 		t.Fatalf("client body read error: %v", err)
 	}
@@ -1218,7 +1218,7 @@ func getBody(t *testing.T, testName string, req Request, client *Client) (*Respo
 	if err != nil {
 		t.Fatalf("%s: for URL %q, send error: %v", testName, req.URL.String(), err)
 	}
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		t.Fatalf("%s: for URL %q, reading body: %v", testName, req.URL.String(), err)
 	}
@@ -1401,7 +1401,7 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
 			if g, w := res.StatusCode, tt.wantCode; g != w {
 				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
 			}
-			slurp, err := ioutil.ReadAll(res.Body)
+			slurp, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			if err != nil {
 				t.Fatal(err)

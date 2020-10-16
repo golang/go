@@ -8,6 +8,7 @@ package clean
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -172,7 +173,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
 			if err == nil {
 				now := time.Now().UnixNano()
-				buf, _ := ioutil.ReadAll(f)
+				buf, _ := io.ReadAll(f)
 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
 				if now > prev {
 					if err = f.Truncate(0); err == nil {

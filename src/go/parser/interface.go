@@ -35,7 +35,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 				return s.Bytes(), nil
 			}
 		case io.Reader:
-			return ioutil.ReadAll(s)
+			return io.ReadAll(s)
 		}
 		return nil, errors.New("invalid source")
 	}

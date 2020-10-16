@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -141,7 +140,7 @@ func ExampleTeeReader() {
 	r = io.TeeReader(r, os.Stdout)
 
 	// Everything read from r will be copied to stdout.
-	ioutil.ReadAll(r)
+	io.ReadAll(r)
 
 	// Output:
 	// some io.Reader stream to be read
@@ -245,7 +244,7 @@ func ExamplePipe() {
 func ExampleReadAll() {
 	r := strings.NewReader("Go is a general-purpose language designed with systems programming in mind.")
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -573,7 +573,7 @@ var Discard Writer = discard{}
 type discard struct{}
 
 // discard implements ReaderFrom as an optimization so Copy to
-// ioutil.Discard can avoid doing unnecessary work.
+// io.Discard can avoid doing unnecessary work.
 var _ ReaderFrom = discard{}
 
 func (discard) Write(p []byte) (int, error) {

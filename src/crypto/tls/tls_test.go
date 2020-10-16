@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
@@ -594,7 +593,7 @@ func TestConnCloseWrite(t *testing.T) {
 		}
 		defer srv.Close()
 
-		data, err := ioutil.ReadAll(srv)
+		data, err := io.ReadAll(srv)
 		if err != nil {
 			return err
 		}
@@ -635,7 +634,7 @@ func TestConnCloseWrite(t *testing.T) {
 			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
 		}
 
-		data, err := ioutil.ReadAll(conn)
+		data, err := io.ReadAll(conn)
 		if err != nil {
 			return err
 		}
@@ -698,7 +697,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		}
 		defer srv.Close()
 
-		_, err = ioutil.ReadAll(srv)
+		_, err = io.ReadAll(srv)
 		if err == nil {
 			return errors.New("unexpected lack of error from server")
 		}

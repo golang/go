@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"runtime"
 )
@@ -104,7 +103,7 @@ func Read(name string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 // Write opens the named file (creating it with the given permissions if needed),
@@ -136,7 +135,7 @@ func Transform(name string, t func([]byte) ([]byte, error)) (err error) {
 	}
 	defer f.Close()
 
-	old, err := ioutil.ReadAll(f)
+	old, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}

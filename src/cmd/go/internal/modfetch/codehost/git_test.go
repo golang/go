@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"log"
@@ -433,7 +434,7 @@ func TestReadZip(t *testing.T) {
 			if tt.err != "" {
 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
 			}
-			zipdata, err := ioutil.ReadAll(rc)
+			zipdata, err := io.ReadAll(rc)
 			if err != nil {
 				t.Fatal(err)
 			}

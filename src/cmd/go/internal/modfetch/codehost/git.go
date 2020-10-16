@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -832,7 +831,7 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 		return nil, err
 	}
 
-	return ioutil.NopCloser(bytes.NewReader(archive)), nil
+	return io.NopCloser(bytes.NewReader(archive)), nil
 }
 
 // ensureGitAttributes makes sure export-subst and export-ignore features are
@@ -863,7 +862,7 @@ func ensureGitAttributes(repoDir string) (err error) {
 		}
 	}()
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
