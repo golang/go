@@ -115,6 +115,7 @@ func TestIntendedInlining(t *testing.T) {
 			"byLiteral.Len",
 			"byLiteral.Less",
 			"byLiteral.Swap",
+			"(*dictDecoder).tryWriteCopy",
 		},
 		"encoding/base64": {
 			"assemble32",
