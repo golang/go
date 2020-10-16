@@ -2374,8 +2374,10 @@ const (
 	OpS390XLAAG
 	OpS390XAddTupleFirst32
 	OpS390XAddTupleFirst64
-	OpS390XLAOfloor
+	OpS390XLAN
 	OpS390XLANfloor
+	OpS390XLAO
+	OpS390XLAOfloor
 	OpS390XLoweredAtomicCas32
 	OpS390XLoweredAtomicCas64
 	OpS390XLoweredAtomicExchange32
@@ -31905,11 +31907,24 @@ var opcodeTable = [...]opInfo{
 		reg:    regInfo{},
 	},
 	{
-		name:           "LAOfloor",
+		name:           "LAN",
 		argLen:         3,
 		clobberFlags:   true,
 		hasSideEffects: true,
-		asm:            s390x.ALAO,
+		asm:            s390x.ALAN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "LANfloor",
+		argLen:         3,
+		clobberFlags:   true,
+		hasSideEffects: true,
+		asm:            s390x.ALAN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
@@ -31919,11 +31934,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LANfloor",
+		name:           "LAO",
 		argLen:         3,
 		clobberFlags:   true,
 		hasSideEffects: true,
-		asm:            s390x.ALAN,
+		asm:            s390x.ALAO,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "LAOfloor",
+		argLen:         3,
+		clobberFlags:   true,
+		hasSideEffects: true,
+		asm:            s390x.ALAO,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1

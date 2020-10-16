@@ -49,6 +49,9 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicAdd32(v)
 	case OpAtomicAdd64:
 		return rewriteValueS390X_OpAtomicAdd64(v)
+	case OpAtomicAnd32:
+		v.Op = OpS390XLAN
+		return true
 	case OpAtomicAnd8:
 		return rewriteValueS390X_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
@@ -69,6 +72,9 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicLoadAcq32(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueS390X_OpAtomicLoadPtr(v)
+	case OpAtomicOr32:
+		v.Op = OpS390XLAO
+		return true
 	case OpAtomicOr8:
 		return rewriteValueS390X_OpAtomicOr8(v)
 	case OpAtomicStore32:

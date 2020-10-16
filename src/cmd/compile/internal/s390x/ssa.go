@@ -761,6 +761,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
+	case ssa.OpS390XLAN, ssa.OpS390XLAO:
+		// LA(N|O) Ry, TMP, 0(Rx)
+		op := s.Prog(v.Op.Asm())
+		op.From.Type = obj.TYPE_REG
+		op.From.Reg = v.Args[1].Reg()
+		op.Reg = s390x.REGTMP
+		op.To.Type = obj.TYPE_MEM
+		op.To.Reg = v.Args[0].Reg()
 	case ssa.OpS390XLANfloor, ssa.OpS390XLAOfloor:
 		r := v.Args[0].Reg() // clobbered, assumed R1 in comments
 
