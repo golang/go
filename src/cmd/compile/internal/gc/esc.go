@@ -377,7 +377,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 			return unsafeUintptrTag
 		}
 
-		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+		if !f.Type.HasPointers() { // don't bother tagging for scalars
 			return ""
 		}
 
@@ -415,7 +415,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		}
 	}
 
-	if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+	if !f.Type.HasPointers() { // don't bother tagging for scalars
 		return ""
 	}
 

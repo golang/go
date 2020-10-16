@@ -31,7 +31,7 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
 	}
-	if !t.HasHeapPointer() {
+	if !t.HasPointers() {
 		return false
 	}
 	if IsStackAddr(v.Args[0]) {

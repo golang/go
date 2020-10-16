@@ -1454,7 +1454,7 @@
 (XORQ x x) -> (MOVQconst [0])
 (XORL x x) -> (MOVLconst [0])
 
-(SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c)) << uint64(d)])
+(SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c) << uint64(d))])
 (SHLQconst [d] (MOVQconst [c])) -> (MOVQconst [c << uint64(d)])
 (SHLQconst [d] (MOVLconst [c])) -> (MOVQconst [int64(int32(c)) << uint64(d)])
 
