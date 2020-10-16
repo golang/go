@@ -21,6 +21,8 @@ import (
 	"internal/cpu"
 	"io"
 	"net"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1454,21 +1456,21 @@ func defaultCipherSuitesTLS13() []uint16 {
 	return varDefaultCipherSuitesTLS13
 }
 
+var (
+	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	// Keep in sync with crypto/aes/cipher_s390x.go.
+	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+
+	hasAESGCMHardwareSupport = runtime.GOARCH == "amd64" && hasGCMAsmAMD64 ||
+		runtime.GOARCH == "arm64" && hasGCMAsmARM64 ||
+		runtime.GOARCH == "s390x" && hasGCMAsmS390X
+)
+
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
-	// Check the cpu flags for each platform that has optimized GCM implementations.
-	// Worst case, these variables will just all be false.
-	var (
-		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
-		hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
-		// Keep in sync with crypto/aes/cipher_s390x.go.
-		hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
-
-		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
-	)
-
-	if hasGCMAsm {
+	if hasAESGCMHardwareSupport {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
@@ -1530,4 +1532,52 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 		}
 	}
 	return false
+}
+
+var aesgcmCiphers = map[uint16]bool{
+	// 1.2
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:   true,
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:   true,
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: true,
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: true,
+	// 1.3
+	TLS_AES_128_GCM_SHA256: true,
+	TLS_AES_256_GCM_SHA384: true,
+}
+
+var nonAESGCMAEADCiphers = map[uint16]bool{
+	// 1.2
+	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305:   true,
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305: true,
+	// 1.3
+	TLS_CHACHA20_POLY1305_SHA256: true,
+}
+
+// aesgcmPreferred returns whether the first valid cipher in the preference list
+// is an AES-GCM cipher, implying the peer has hardware support for it.
+func aesgcmPreferred(ciphers []uint16) bool {
+	for _, cID := range ciphers {
+		c := cipherSuiteByID(cID)
+		if c == nil {
+			c13 := cipherSuiteTLS13ByID(cID)
+			if c13 == nil {
+				continue
+			}
+			return aesgcmCiphers[cID]
+		}
+		return aesgcmCiphers[cID]
+	}
+	return false
+}
+
+// deprioritizeAES reorders cipher preference lists by rearranging
+// adjacent AEAD ciphers such that AES-GCM based ciphers are moved
+// after other AEAD ciphers. It returns a fresh slice.
+func deprioritizeAES(ciphers []uint16) []uint16 {
+	reordered := make([]uint16, len(ciphers))
+	copy(reordered, ciphers)
+	sort.SliceStable(reordered, func(i, j int) bool {
+		return nonAESGCMAEADCiphers[reordered[i]] && aesgcmCiphers[reordered[j]]
+	})
+	return reordered
 }
