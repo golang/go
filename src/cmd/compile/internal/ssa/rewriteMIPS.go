@@ -44,6 +44,9 @@ func rewriteValueMIPS(v *Value) bool {
 	case OpAtomicAdd32:
 		v.Op = OpMIPSLoweredAtomicAdd
 		return true
+	case OpAtomicAnd32:
+		v.Op = OpMIPSLoweredAtomicAnd
+		return true
 	case OpAtomicAnd8:
 		return rewriteValueMIPS_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
@@ -60,6 +63,9 @@ func rewriteValueMIPS(v *Value) bool {
 		return true
 	case OpAtomicLoadPtr:
 		v.Op = OpMIPSLoweredAtomicLoad32
+		return true
+	case OpAtomicOr32:
+		v.Op = OpMIPSLoweredAtomicOr
 		return true
 	case OpAtomicOr8:
 		return rewriteValueMIPS_OpAtomicOr8(v)
