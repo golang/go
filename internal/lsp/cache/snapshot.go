@@ -1065,19 +1065,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 
 	var modulesChanged, shouldReinitializeView bool
 
-	// transitiveIDs keeps track of transitive reverse dependencies.
-	// If an ID is present in the map, invalidate its types.
-	// If an ID's value is true, invalidate its metadata too.
-	transitiveIDs := make(map[packageID]bool)
+	// directIDs keeps track of package IDs that have directly changed.
+	// It maps id->invalidateMetadata.
+	directIDs := map[packageID]bool{}
 	for withoutURI, currentFH := range withoutURIs {
-		directIDs := map[packageID]struct{}{}
-
-		filePackages := guessPackagesForURI(withoutURI, s.ids)
-		// Collect all of the package IDs that correspond to the given file.
-		// TODO: if the file has moved into a new package, we should invalidate that too.
-		for _, id := range filePackages {
-			directIDs[id] = struct{}{}
-		}
 
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[withoutURI]
@@ -1085,6 +1076,13 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		// Check if the file's package name or imports have changed,
 		// and if so, invalidate this file's packages' metadata.
 		invalidateMetadata := forceReloadMetadata || s.shouldInvalidateMetadata(ctx, result, originalFH, currentFH)
+
+		// Mark all of the package IDs containing the given file.
+		// TODO: if the file has moved into a new package, we should invalidate that too.
+		filePackages := guessPackagesForURI(withoutURI, s.ids)
+		for _, id := range filePackages {
+			directIDs[id] = directIDs[id] || invalidateMetadata
+		}
 
 		// Invalidate the previous modTidyHandle if any of the files have been
 		// saved or if any of the metadata has been invalidated.
@@ -1116,7 +1114,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			// the metadata for every known package in the snapshot.
 			if invalidateMetadata {
 				for k := range s.metadata {
-					directIDs[k] = struct{}{}
+					directIDs[k] = true
 				}
 				// If a go.mod file in the workspace has changed, we need to
 				// rebuild the workspace module.
@@ -1162,27 +1160,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 			}
 		}
 
-		// Invalidate reverse dependencies too.
-		// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
-		var addRevDeps func(packageID)
-		addRevDeps = func(id packageID) {
-			current, seen := transitiveIDs[id]
-			newInvalidateMetadata := current || invalidateMetadata
-
-			// If we've already seen this ID, and the value of invalidate
-			// metadata has not changed, we can return early.
-			if seen && current == newInvalidateMetadata {
-				return
-			}
-			transitiveIDs[id] = newInvalidateMetadata
-			for _, rid := range s.getImportedByLocked(id) {
-				addRevDeps(rid)
-			}
-		}
-		for id := range directIDs {
-			addRevDeps(id)
-		}
-
 		// Handle the invalidated file; it may have new contents or not exist.
 		if !currentExists {
 			delete(result.files, withoutURI)
@@ -1191,6 +1168,31 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		}
 		// Make sure to remove the changed file from the unloadable set.
 		delete(result.unloadableFiles, withoutURI)
+	}
+
+	// Invalidate reverse dependencies too.
+	// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
+	// transitiveIDs keeps track of transitive reverse dependencies.
+	// If an ID is present in the map, invalidate its types.
+	// If an ID's value is true, invalidate its metadata too.
+	transitiveIDs := make(map[packageID]bool)
+	var addRevDeps func(packageID, bool)
+	addRevDeps = func(id packageID, invalidateMetadata bool) {
+		current, seen := transitiveIDs[id]
+		newInvalidateMetadata := current || invalidateMetadata
+
+		// If we've already seen this ID, and the value of invalidate
+		// metadata has not changed, we can return early.
+		if seen && current == newInvalidateMetadata {
+			return
+		}
+		transitiveIDs[id] = newInvalidateMetadata
+		for _, rid := range s.getImportedByLocked(id) {
+			addRevDeps(rid, invalidateMetadata)
+		}
+	}
+	for id, invalidateMetadata := range directIDs {
+		addRevDeps(id, invalidateMetadata)
 	}
 
 	// When modules change, we need to recompute their workspace directories,
