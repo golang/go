@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"strings"
 	"unicode"
@@ -87,7 +86,7 @@ func GetBytes(u *url.URL) ([]byte, error) {
 	if err := resp.Err(); err != nil {
 		return nil, err
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %v", u.Redacted(), err)
 	}
@@ -130,7 +129,7 @@ func (r *Response) formatErrorDetail() string {
 	}
 
 	// Ensure that r.errorDetail has been populated.
-	_, _ = io.Copy(ioutil.Discard, r.Body)
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	s := r.errorDetail.buf.String()
 	if !utf8.ValidString(s) {

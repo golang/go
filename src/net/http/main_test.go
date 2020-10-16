@@ -6,7 +6,7 @@ package http_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var quietLog = log.New(ioutil.Discard, "", 0)
+var quietLog = log.New(io.Discard, "", 0)
 
 func TestMain(m *testing.M) {
 	v := m.Run()

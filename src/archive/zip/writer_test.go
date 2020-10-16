@@ -301,7 +301,7 @@ func TestWriterFlush(t *testing.T) {
 }
 
 func TestWriterDir(t *testing.T) {
-	w := NewWriter(ioutil.Discard)
+	w := NewWriter(io.Discard)
 	dw, err := w.Create("dir/")
 	if err != nil {
 		t.Fatal(err)
@@ -380,7 +380,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if err != nil {
 		t.Fatal("opening:", err)
 	}
-	b, err := ioutil.ReadAll(rc)
+	b, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal("reading:", err)
 	}

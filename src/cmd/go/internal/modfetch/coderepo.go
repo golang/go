@@ -1052,7 +1052,7 @@ type dataFile struct {
 func (f dataFile) Path() string                { return f.name }
 func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
 func (f dataFile) Open() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+	return io.NopCloser(bytes.NewReader(f.data)), nil
 }
 
 type dataFileInfo struct {

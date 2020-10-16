@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/quotedprintable"
 	"net/textproto"
@@ -278,7 +277,7 @@ func matchAfterPrefix(buf, prefix []byte, readErr error) int {
 }
 
 func (p *Part) Close() error {
-	io.Copy(ioutil.Discard, p)
+	io.Copy(io.Discard, p)
 	return nil
 }
 

@@ -7,7 +7,6 @@ package ascii85
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -118,7 +117,7 @@ func TestDecode(t *testing.T) {
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
 		decoder := NewDecoder(strings.NewReader(p.encoded))
-		dbuf, err := ioutil.ReadAll(decoder)
+		dbuf, err := io.ReadAll(decoder)
 		if err != nil {
 			t.Fatal("Read failed", err)
 		}
@@ -187,7 +186,7 @@ func TestBig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Encoder.Close() = %v want nil", err)
 	}
-	decoded, err := ioutil.ReadAll(NewDecoder(encoded))
+	decoded, err := io.ReadAll(NewDecoder(encoded))
 	if err != nil {
 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
 	}
@@ -205,7 +204,7 @@ func TestBig(t *testing.T) {
 
 func TestDecoderInternalWhitespace(t *testing.T) {
 	s := strings.Repeat(" ", 2048) + "z"
-	decoded, err := ioutil.ReadAll(NewDecoder(strings.NewReader(s)))
+	decoded, err := io.ReadAll(NewDecoder(strings.NewReader(s)))
 	if err != nil {
 		t.Errorf("Decode gave error %v", err)
 	}

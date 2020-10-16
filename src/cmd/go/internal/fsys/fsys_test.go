@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -418,7 +419,7 @@ this can exist because the parent directory is deleted
 			t.Errorf("Open(%q): got error %v, want nil", tc.path, err)
 			continue
 		}
-		contents, err := ioutil.ReadAll(f)
+		contents, err := io.ReadAll(f)
 		if err != nil {
 			t.Errorf("unexpected error reading contents of file: %v", err)
 		}

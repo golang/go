@@ -97,7 +97,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		perm = fi.Mode().Perm()
 	}
 
-	src, err := ioutil.ReadAll(in)
+	src, err := io.ReadAll(in)
 	if err != nil {
 		return err
 	}

@@ -81,7 +81,7 @@ func main() {
 			continue
 		}
 
-		der, err := ioutil.ReadAll(tr)
+		der, err := io.ReadAll(tr)
 		if err != nil {
 			log.Fatal(err)
 		}

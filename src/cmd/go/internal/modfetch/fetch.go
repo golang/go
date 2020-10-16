@@ -461,7 +461,7 @@ func checkMod(mod module.Version) {
 // goModSum returns the checksum for the go.mod contents.
 func goModSum(data []byte) (string, error) {
 	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 }
 

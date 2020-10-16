@@ -32,7 +32,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -242,5 +241,5 @@ func testExec(wg *sync.WaitGroup) {
 
 // Block blocks until stdin is closed.
 func Block() {
-	io.Copy(ioutil.Discard, os.Stdin)
+	io.Copy(io.Discard, os.Stdin)
 }

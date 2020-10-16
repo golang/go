@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -128,7 +129,7 @@ func processFile(filename string, useStdin bool) error {
 		defer f.Close()
 	}
 
-	src, err := ioutil.ReadAll(f)
+	src, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}

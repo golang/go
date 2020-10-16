@@ -17,6 +17,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"go/format"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -71,7 +72,7 @@ func readWindowsZones() ([]*zone, error) {
 	}
 	defer r.Body.Close()
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}

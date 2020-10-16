@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -46,7 +45,7 @@ func ExampleGet() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	robots, err := ioutil.ReadAll(res.Body)
+	robots, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
