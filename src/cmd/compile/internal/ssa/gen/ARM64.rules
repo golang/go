@@ -548,8 +548,10 @@
 (AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64) ...)
 
 // Currently the updated value is not used, but we need a register to temporarily hold it.
-(AtomicAnd8 ptr val mem) => (Select1 (LoweredAtomicAnd8 ptr val mem))
-(AtomicOr8  ptr val mem) => (Select1 (LoweredAtomicOr8  ptr val mem))
+(AtomicAnd8  ptr val mem) => (Select1 (LoweredAtomicAnd8  ptr val mem))
+(AtomicAnd32 ptr val mem) => (Select1 (LoweredAtomicAnd32 ptr val mem))
+(AtomicOr8   ptr val mem) => (Select1 (LoweredAtomicOr8   ptr val mem))
+(AtomicOr32  ptr val mem) => (Select1 (LoweredAtomicOr32  ptr val mem))
 
 (AtomicAdd(32|64)Variant ...) => (LoweredAtomicAdd(32|64)Variant ...)
 
