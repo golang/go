@@ -27,11 +27,11 @@ const (
 // but failed to return an explicit error.
 var ErrShortWrite = errors.New("short write")
 
+// errInvalidWrite means that a write returned an impossible count.
+var errInvalidWrite = errors.New("invalid write result")
+
 // ErrShortBuffer means that a read required a longer buffer than was provided.
 var ErrShortBuffer = errors.New("short buffer")
-
-// ErrBadWriteCount means that a write returned an impossible count.
-var ErrBadWriteCount = errors.New("Write returned impossible count")
 
 // EOF is the error returned by Read when no more input is available.
 // (Read must return EOF itself, not an error wrapping EOF,
@@ -425,7 +425,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
-					ew = ErrBadWriteCount
+					ew = errInvalidWrite
 				}
 			}
 			written += int64(nw)
