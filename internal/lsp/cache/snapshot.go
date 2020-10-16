@@ -829,14 +829,6 @@ func (s *snapshot) IsOpen(uri span.URI) bool {
 	return open
 }
 
-func (s *snapshot) IsSaved(uri span.URI) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	ovl, open := s.files[uri].(*overlay)
-	return !open || ovl.saved
-}
-
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	// Do not return results until the snapshot's view has been initialized.
 	s.AwaitInitialized(ctx)

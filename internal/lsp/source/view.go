@@ -54,9 +54,6 @@ type Snapshot interface {
 	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
 
-	// IsSaved returns whether the contents are saved on disk or not.
-	IsSaved(uri span.URI) bool
-
 	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
 	// workspace.
 	IgnoredFile(uri span.URI) bool
