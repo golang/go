@@ -383,6 +383,9 @@
 				(ANDconst <typ.UInt32> [3]
 					(XORconst <typ.UInt32> [3] ptr)))))) mem)
 
+(AtomicAnd32 ...) => (LoweredAtomicAnd ...)
+(AtomicOr32  ...) => (LoweredAtomicOr  ...)
+
 
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)
