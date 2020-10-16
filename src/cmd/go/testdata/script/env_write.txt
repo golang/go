@@ -24,6 +24,10 @@ stdout GOARCH=
 stdout GOOS=
 stdout GOROOT=
 
+# go env ignores invalid flag in GOFLAGS environment variable
+env GOFLAGS='=true'
+go env
+
 # checking errors
 ! go env -w
 stderr 'go env -w: no KEY=VALUE arguments given'
