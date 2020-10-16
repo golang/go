@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -329,7 +330,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		if s.workspaceMode()&tempModfile == 0 || containsVendor(fh.URI()) {
 			// Use -mod=readonly if the module contains a vendor directory
 			// (see golang/go#38711).
-			args = append([]string{"-mod", "readonly"}, args...)
+			packagesinternal.SetModFlag(cfg, "readonly")
 		}
 		stdout, err := snapshot.runGoCommandWithConfig(ctx, cfg, "list", args)
 		if err != nil {

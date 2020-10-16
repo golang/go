@@ -59,6 +59,8 @@ func (r *ModuleResolver) init() error {
 	}
 	inv := gocommand.Invocation{
 		BuildFlags: r.env.BuildFlags,
+		ModFlag:    r.env.ModFlag,
+		ModFile:    r.env.ModFile,
 		Env:        r.env.env(),
 		Logf:       r.env.Logf,
 		WorkingDir: r.env.WorkingDir,

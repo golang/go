@@ -804,6 +804,8 @@ type ProcessEnv struct {
 	GocmdRunner *gocommand.Runner
 
 	BuildFlags []string
+	ModFlag    string
+	ModFile    string
 
 	// Env overrides the OS environment, and can be used to specify
 	// GOPROXY, GO111MODULE, etc. PATH cannot be set here, because

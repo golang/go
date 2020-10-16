@@ -255,13 +255,14 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, wd, verb string, args 
 func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
 	cleanup = func() {} // fallback
 	modURI := s.GoModForFile(ctx, span.URIFromPath(cfg.Dir))
-	var buildFlags []string
-	// `go mod`, `go env`, and `go version` don't take build flags.
-	switch verb {
-	case "mod", "env", "version":
-	default:
-		buildFlags = append(cfg.BuildFlags, buildFlags...)
+
+	inv = &gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		Env:        cfg.Env,
+		WorkingDir: cfg.Dir,
 	}
+
 	if allowTempModfile && s.workspaceMode()&tempModfile != 0 {
 		if modURI == "" {
 			return "", nil, nil, cleanup, fmt.Errorf("no go.mod file found in %s", cfg.Dir)
@@ -277,40 +278,30 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config
 		if err != nil {
 			return "", nil, nil, cleanup, err
 		}
-		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+		inv.ModFile = tmpURI.Filename()
 	}
-	// TODO(rstambler): Remove this when golang/go#41826 is resolved.
-	// Don't add -mod=mod for `go mod` or `go get`.
-	switch verb {
-	case "mod", "get":
-	default:
-		var modContent []byte
-		if modURI != "" {
-			modFH, err := s.GetFile(ctx, modURI)
-			if err != nil {
-				return "", nil, nil, cleanup, err
-			}
-			modContent, err = modFH.Read()
-			if err != nil {
-				return "", nil, nil, nil, err
-			}
-		}
-		modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
+
+	var modContent []byte
+	if modURI != "" {
+		modFH, err := s.GetFile(ctx, modURI)
 		if err != nil {
 			return "", nil, nil, cleanup, err
 		}
-		if modMod {
-			buildFlags = append([]string{"-mod=mod"}, buildFlags...)
+		modContent, err = modFH.Read()
+		if err != nil {
+			return "", nil, nil, nil, err
 		}
 	}
+	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
+	if err != nil {
+		return "", nil, nil, cleanup, err
+	}
+	if modMod {
+		inv.ModFlag = "mod"
+	}
+
 	runner = packagesinternal.GetGoCmdRunner(cfg)
-	return tmpURI, runner, &gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		Env:        cfg.Env,
-		BuildFlags: buildFlags,
-		WorkingDir: cfg.Dir,
-	}, cleanup, nil
+	return tmpURI, runner, inv, cleanup, nil
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {

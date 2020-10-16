@@ -92,7 +92,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	cleanup := func() {}
 	wdir := s.view.rootURI.Filename()
 
-	var buildFlags []string
+	var modFile string
 	var modURI span.URI
 	var modContent []byte
 	switch {
@@ -141,18 +141,17 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+		modFile = tmpURI.Filename()
 	}
 
 	cfg := s.config(ctx, wdir)
-	cfg.BuildFlags = append(cfg.BuildFlags, buildFlags...)
-
+	packagesinternal.SetModFile(cfg, modFile)
 	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
 		return err
 	}
 	if modMod {
-		cfg.BuildFlags = append([]string{"-mod=mod"}, cfg.BuildFlags...)
+		packagesinternal.SetModFlag(cfg, "mod")
 	}
 
 	pkgs, err := packages.Load(cfg, query...)

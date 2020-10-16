@@ -144,6 +144,12 @@ type Config struct {
 	// the build system's query tool.
 	BuildFlags []string
 
+	// modFile will be used for -modfile in go command invocations.
+	modFile string
+
+	// modFlag will be used for -modfile in go command invocations.
+	modFlag string
+
 	// Fset provides source position information for syntax trees and types.
 	// If Fset is nil, Load will use a new fileset, but preserve Fset's value.
 	Fset *token.FileSet
@@ -365,6 +371,12 @@ func init() {
 	}
 	packagesinternal.SetGoCmdRunner = func(config interface{}, runner *gocommand.Runner) {
 		config.(*Config).gocmdRunner = runner
+	}
+	packagesinternal.SetModFile = func(config interface{}, value string) {
+		config.(*Config).modFile = value
+	}
+	packagesinternal.SetModFlag = func(config interface{}, value string) {
+		config.(*Config).modFlag = value
 	}
 	packagesinternal.TypecheckCgo = int(typecheckCgo)
 }

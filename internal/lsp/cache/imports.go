@@ -160,9 +160,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 		return cleanup, err
 	}
 	if modmod {
-		// -mod isn't really a build flag, but we can get away with it given
-		// the set of commands that goimports wants to run.
-		pe.BuildFlags = append([]string{"-mod=mod"}, pe.BuildFlags...)
+		pe.ModFlag = "mod"
 	}
 
 	// Add -modfile to the build flags, if we are using it.
@@ -172,7 +170,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 		if err != nil {
 			return nil, err
 		}
-		pe.BuildFlags = append(pe.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+		pe.ModFile = tmpURI.Filename()
 	}
 
 	return cleanup, nil

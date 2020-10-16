@@ -139,6 +139,12 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 
 	response := newDeduper()
 
+	state := &golistState{
+		cfg:        cfg,
+		ctx:        ctx,
+		vendorDirs: map[string]bool{},
+	}
+
 	// Fill in response.Sizes asynchronously if necessary.
 	var sizeserr error
 	var sizeswg sync.WaitGroup
@@ -146,17 +152,11 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 		sizeswg.Add(1)
 		go func() {
 			var sizes types.Sizes
-			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, cfg.BuildFlags, cfg.Env, cfg.gocmdRunner, cfg.Dir)
+			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, state.cfgInvocation(), cfg.gocmdRunner)
 			// types.SizesFor always returns nil or a *types.StdSizes.
 			response.dr.Sizes, _ = sizes.(*types.StdSizes)
 			sizeswg.Done()
 		}()
-	}
-
-	state := &golistState{
-		cfg:        cfg,
-		ctx:        ctx,
-		vendorDirs: map[string]bool{},
 	}
 
 	// Determine files requested in contains patterns
@@ -839,18 +839,26 @@ func golistargs(cfg *Config, words []string) []string {
 	return fullargs
 }
 
-// invokeGo returns the stdout of a go command invocation.
-func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
+// cfgInvocation returns an Invocation that reflects cfg's settings.
+func (state *golistState) cfgInvocation() gocommand.Invocation {
 	cfg := state.cfg
-
-	inv := gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
+	return gocommand.Invocation{
 		BuildFlags: cfg.BuildFlags,
+		ModFile:    cfg.modFile,
+		ModFlag:    cfg.modFlag,
 		Env:        cfg.Env,
 		Logf:       cfg.Logf,
 		WorkingDir: cfg.Dir,
 	}
+}
+
+// invokeGo returns the stdout of a go command invocation.
+func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
+	cfg := state.cfg
+
+	inv := state.cfgInvocation()
+	inv.Verb = verb
+	inv.Args = args
 	gocmdRunner := cfg.gocmdRunner
 	if gocmdRunner == nil {
 		gocmdRunner = &gocommand.Runner{}
