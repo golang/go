@@ -87,7 +87,7 @@ stderr '^go get example: package example is not in GOROOT \(.*\)$'
 go mod edit -replace example@v0.1.0=./example
 
 ! go list example
-stderr '^no required module provides package example; try ''go get -d example'' to add it$'
+stderr '^module example provides package example and is replaced but not required; try ''go get -d example@v0.1.0'' to add it$'
 
 go get -d example
 go list -m example
