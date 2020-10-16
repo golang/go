@@ -67,13 +67,6 @@ func (e *Env) OpenFile(name string) {
 	}
 }
 
-func (e *Env) OpenFileWithContent(name, content string) {
-	e.T.Helper()
-	if err := e.Editor.OpenFileWithContent(e.Ctx, name, content); err != nil {
-		e.T.Fatal(err)
-	}
-}
-
 // CreateBuffer creates a buffer in the editor, calling t.Fatal on any error.
 func (e *Env) CreateBuffer(name string, content string) {
 	e.T.Helper()

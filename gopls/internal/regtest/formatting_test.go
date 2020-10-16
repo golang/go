@@ -173,7 +173,7 @@ func Hi() {
 }
 `
 		crlf := strings.ReplaceAll(want, "\n", "\r\n")
-		env.OpenFileWithContent("main.go", crlf)
+		env.CreateBuffer("main.go", crlf)
 		env.SaveBuffer("main.go")
 		got := env.Editor.BufferText("main.go")
 		if want != got {

@@ -1004,7 +1004,7 @@ go 1.12
 		env.WriteWorkspaceFile(name, "")
 		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
 
-		env.OpenFileWithContent(name, "\n")
+		env.CreateBuffer(name, "\n")
 		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 
 		env.EditBuffer(name, fake.NewEdit(1, 0, 1, 0, content))
@@ -1142,7 +1142,7 @@ package main
 func main() {}
 `
 	runner.Run(t, basic, func(t *testing.T, env *Env) {
-		env.Editor.OpenFileWithContent(env.Ctx, "foo.go", `package main`)
+		env.Editor.CreateBuffer(env.Ctx, "foo.go", `package main`)
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
 		)
