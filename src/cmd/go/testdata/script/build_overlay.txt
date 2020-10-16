@@ -51,7 +51,7 @@ go 1.16
 package dir2
 
 func PrintMessage() {
-    printMessage()
+	printMessage()
 }
 -- m/dir/foo.txt --
 The build action code currently expects the package directory
@@ -61,12 +61,12 @@ TODO(matloob): Remove this requirement.
 the actual code is in the overlay
 -- m/overlay.json --
 {
-    "Replace": {
-        "f.go": "overlay/f.go",
-        "dir/g.go": "overlay/dir_g.go",
-        "dir2/i.go": "overlay/dir2_i.go",
-        "printpath/main.go": "overlay/printpath.go"
-    }
+	"Replace": {
+		"f.go": "overlay/f.go",
+		"dir/g.go": "overlay/dir_g.go",
+		"dir2/i.go": "overlay/dir2_i.go",
+		"printpath/main.go": "overlay/printpath.go"
+	}
 }
 -- m/overlay/f.go --
 package main
@@ -74,7 +74,7 @@ package main
 import "m/dir2"
 
 func main() {
-    dir2.PrintMessage()
+	dir2.PrintMessage()
 }
 -- m/overlay/dir_g.go --
 package dir
@@ -82,19 +82,24 @@ package dir
 import "fmt"
 
 func PrintMessage() {
-    fmt.Println("hello")
+	fmt.Println("hello")
 }
 -- m/overlay/printpath.go --
 package main
 
 import (
-    "fmt"
-    "runtime"
+	"fmt"
+	"path/filepath"
+	"runtime"
 )
 
 func main() {
-    _, file, _, _ := runtime.Caller(0)
-    fmt.Println(file)
+	_, file, _, _ := runtime.Caller(0)
+
+	// Since https://golang.org/cl/214286, the runtime's debug paths are
+	// slash-separated regardless of platform, so normalize them to system file
+	// paths.
+	fmt.Println(filepath.FromSlash(file))
 }
 -- m/overlay/dir2_i.go --
 package dir2
@@ -102,5 +107,5 @@ package dir2
 import "m/dir"
 
 func printMessage() {
-    dir.PrintMessage()
+	dir.PrintMessage()
 }
