@@ -92,7 +92,11 @@ func SetFromGOFLAGS(flags *flag.FlagSet) {
 	}
 	for _, goflag := range goflags {
 		name, value, hasValue := goflag, "", false
-		if i := strings.Index(goflag, "="); i >= 0 {
+		// Ignore invalid flags like '=' or '=value'.
+		// If it is not reported in InitGOFlags it means we don't want to report it.
+		if i := strings.Index(goflag, "="); i == 0 {
+			continue
+		} else if i > 0 {
 			name, value, hasValue = goflag[:i], goflag[i+1:], true
 		}
 		if strings.HasPrefix(name, "--") {
