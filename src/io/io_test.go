@@ -441,7 +441,7 @@ func (w largeWriter) Write(p []byte) (int, error) {
 }
 
 func TestCopyLargeWriter(t *testing.T) {
-	want := ErrBadWriteCount
+	want := ErrInvalidWrite
 	rb := new(Buffer)
 	wb := largeWriter{}
 	rb.WriteString("hello, world.")
