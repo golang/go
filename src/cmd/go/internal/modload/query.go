@@ -891,12 +891,12 @@ func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
 // Versions returns the versions from rr.repo augmented with any matching
 // replacement versions.
 func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
-	versions, err := rr.repo.Versions(prefix)
+	repoVersions, err := rr.repo.Versions(prefix)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
 
-	added := false
+	versions := repoVersions
 	if index != nil && len(index.replace) > 0 {
 		path := rr.ModulePath()
 		for m, _ := range index.replace {
@@ -906,7 +906,7 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 		}
 	}
 
-	if !added {
+	if len(versions) == len(repoVersions) { // No replacement versions added.
 		return versions, nil
 	}
 
