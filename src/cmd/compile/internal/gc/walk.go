@@ -3881,6 +3881,16 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	}
 
 	isBuiltinCall := n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER
+
+	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
+	if !isBuiltinCall && n.IsDDD() {
+		last := n.List.Len() - 1
+		if va := n.List.Index(last); va.Op == OSLICELIT {
+			n.List.Set(append(n.List.Slice()[:last], va.List.Slice()...))
+			n.SetIsDDD(false)
+		}
+	}
+
 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
 	origArgs := make([]*Node, n.List.Len())
 	t := nod(OTFUNC, nil, nil)
