@@ -700,6 +700,7 @@ func TestUnmarshaler(t *testing.T) {
 }
 
 var errText = "UnmarshalXML failed"
+
 type MyBodyError struct {
 	Body string
 }
@@ -746,18 +747,18 @@ func TestUnmarshalUnknownType(t *testing.T) {
 	expectedError := `unknown type func()`
 	var dst func()
 
-	if err := Unmarshal([]byte(pathTestString), &dst); err == nil || err.Error() != expectedError{
+	if err := Unmarshal([]byte(pathTestString), &dst); err == nil || err.Error() != expectedError {
 		t.Errorf("have %v, want %v", err, expectedError)
 	}
 }
 
 type XMLNameWithNamespace struct {
-	XMLName Name   `xml:"ns Test3"`
+	XMLName Name `xml:"ns Test3"`
 }
 
 func TestUnmarshalErrors(t *testing.T) {
 	tests := []struct {
-		input  []byte
+		input         []byte
 		expectedError string
 	}{
 		{[]byte(""), "EOF"},
@@ -768,7 +769,7 @@ func TestUnmarshalErrors(t *testing.T) {
 	for _, test := range tests {
 		var dst XMLNameWithNamespace
 
-		if err := Unmarshal(test.input, &dst); err == nil || err.Error() != test.expectedError{
+		if err := Unmarshal(test.input, &dst); err == nil || err.Error() != test.expectedError {
 			t.Errorf("have %v, want %v", err, test.expectedError)
 		}
 	}
@@ -797,7 +798,7 @@ func TestSkip(t *testing.T) {
 
 func TestSkipErrors(t *testing.T) {
 	tests := []struct {
-		input  string
+		input         string
 		expectedError string
 	}{
 		{"<a>", `XML syntax error on line 1: unexpected EOF`},
@@ -812,7 +813,7 @@ func TestSkipErrors(t *testing.T) {
 			t.Fatalf("expected d.Token() to succeed but got: :%v", err)
 		}
 
-		if err := d.Skip(); err == nil || err.Error() != test.expectedError{
+		if err := d.Skip(); err == nil || err.Error() != test.expectedError {
 			t.Errorf("have %v, want %v", err, test.expectedError)
 		}
 	}

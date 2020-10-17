@@ -818,9 +818,9 @@ var marshalTests = []struct {
 		MarshalOnly: true,
 	},
 	{
-		Value:     &ServiceErrorNameConflict{Port: &Port{Number: "80"}},
-		ExpectXML: `<service><host><port>80</port></host></service>`,
-		MarshalError: `conflicts with name`,
+		Value:          &ServiceErrorNameConflict{Port: &Port{Number: "80"}},
+		ExpectXML:      `<service><host><port>80</port></host></service>`,
+		MarshalError:   `conflicts with name`,
 		UnmarshalError: `conflicts with name`,
 	},
 	{
@@ -988,9 +988,9 @@ var marshalTests = []struct {
 		UnmarshalOnly: true,
 	},
 	{
-		Value:     &NameInFieldError{Name{Space: "ns", Local: "foo"}},
-		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
-		MarshalError: "xml: namespace without name in field",
+		Value:          &NameInFieldError{Name{Space: "ns", Local: "foo"}},
+		ExpectXML:      `<NameInField><foo xmlns="ns"></foo></NameInField>`,
+		MarshalError:   "xml: namespace without name in field",
 		UnmarshalError: "xml: namespace without name in field",
 	},
 
@@ -1282,13 +1282,13 @@ var marshalTests = []struct {
 		Value:     &MyMarshalerTest{},
 	},
 	{
-		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
-		Value:     &MyMarshalerTestErrorMissingName{},
+		ExpectXML:    `<MyMarshalerTest>hello world</MyMarshalerTest>`,
+		Value:        &MyMarshalerTestErrorMissingName{},
 		MarshalError: "xml: EncodeElement of StartElement with missing name",
 	},
 	{
-		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
-		Value:     &MyMarshalerTestErrorNotClosed{},
+		ExpectXML:    `<MyMarshalerTest>hello world</MyMarshalerTest>`,
+		Value:        &MyMarshalerTestErrorNotClosed{},
 		MarshalError: "MarshalXML wrote invalid XML",
 	},
 	{
@@ -1748,15 +1748,15 @@ type BadAttr struct {
 }
 
 type BadTag struct {
-	Comment string   `xml:",comment,omitempty"`
+	Comment string `xml:",comment,omitempty"`
 }
 
 type BadTagMultipleModes struct {
-	Comment string   `xml:",attr,comment"`
+	Comment string `xml:",attr,comment"`
 }
 
 type BadTagTrailingTag struct {
-	Comment string   `xml:"comment>"`
+	Comment string `xml:"comment>"`
 }
 
 type BadEmbed struct {
@@ -2456,7 +2456,7 @@ func TestProcInstEncodeToken(t *testing.T) {
 
 func TestProcInstEncodeTokenBadNameString(t *testing.T) {
 	tests := []struct {
-		input  ProcInst
+		input ProcInst
 	}{
 		{ProcInst{"\xe6", []byte("Instruction")}},
 		{ProcInst{".", []byte("Instruction")}},
