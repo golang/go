@@ -27,7 +27,7 @@ type Interface interface {
 	//
 	// Note that floating-point comparison (the < operator on float32 or float64 values)
 	// is not a transitive ordering when not-a-number (NaN) values are involved.
-	// See Float64Slice.Less a correctly implementation for floating-point values.
+	// See Float64Slice.Less for a correct implementation for floating-point values.
 	Less(i, j int) bool
 
 	// Swap swaps the elements with indexes i and j.
