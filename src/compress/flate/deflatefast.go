@@ -297,7 +297,10 @@ func (e *deflateFast) shiftOffsets() {
 	for i := range e.table[:] {
 		v := e.table[i].offset - e.cur + maxMatchOffset + 1
 		if v < 0 {
-			// Indicate that this table entry is invalid.
+			// We want to reset e.cur to maxMatchOffset + 1, so we need to shift
+			// all table entries down by (e.cur - (maxMatchOffset + 1)).
+			// Because we ignore matches > maxMatchOffset, we can cap
+			// any negative offsets at 0.
 			v = 0
 		}
 		e.table[i].offset = v
