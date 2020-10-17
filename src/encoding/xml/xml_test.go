@@ -323,7 +323,7 @@ func TestRawTokenAltEncodingErrors(t *testing.T) {
 		expectedError string
 	}{
 		{
-			func(_ string, _ io.Reader) (io.Reader, error) {return nil, fmt.Errorf("terrible")},
+			func(_ string, _ io.Reader) (io.Reader, error) { return nil, fmt.Errorf("terrible") },
 			`xml: opening charset "x-testing-uppercase": terrible`,
 		},
 	}
@@ -352,7 +352,7 @@ func TestRawTokenAltEncodingPanic(t *testing.T) {
 	}()
 
 	d := NewDecoder(strings.NewReader(testInputAltEncoding))
-	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {return nil, nil}
+	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) { return nil, nil }
 
 	var err error
 	for _, err = d.Token(); err == nil; _, err = d.Token() {
@@ -491,35 +491,35 @@ func TestToken(t *testing.T) {
 
 func TestTokenErrors(t *testing.T) {
 	tests := []struct {
-		input  string
-		syntaxError bool
+		input         string
+		syntaxError   bool
 		expectedError string
 	}{
-		{`<body xmlns="ns1"></x>`, true,`XML syntax error on line 1: unexpected end element </x>`},
-		{`<?>`, true,`XML syntax error on line 1: expected target name after <?`},
-		{`<?wat>`, true,`XML syntax error on line 1: unexpected EOF`},
-		{`<?xml version="1.1" encoding="UTF-8"?>`, false,`xml: unsupported version "1.1"; only version 1.0 is supported`},
-		{`<?xml version="1" encoding="UTF-8"?>`, false,`xml: unsupported version "1"; only version 1.0 is supported`},
-		{`<?xml version="wat" encoding="UTF-8"?>`, false,`xml: unsupported version "wat"; only version 1.0 is supported`},
-		{`<?xml version="1.0" encoding="UTF-9000"?>`, false,`xml: encoding "UTF-9000" declared but Decoder.CharsetReader is nil`},
-		{`<![XDATA`, false,`XML syntax error on line 1: invalid <![ sequence`},
-		{`<!-~`, false,`XML syntax error on line 1: invalid sequence <!- not part of <!--`},
-		{`<!x<`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`<!x<!--`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`<a href=x`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#x`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#0`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#1`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#xa`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#xA`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#xf`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&#xF`, false,`XML syntax error on line 1: unexpected EOF`},
-		{`"&B`, false,`XML syntax error on line 1: unexpected EOF`},
-		{"<![CDATA[Some \xe6 here]]>", false,`XML syntax error on line 1: invalid UTF-8`},
-		{"<body \xe6>", false,"XML syntax error on line 1: invalid XML name: \xe6"},
-		{"<body w\xe6>", false,"XML syntax error on line 1: invalid XML name: w\xe6"},
+		{`<body xmlns="ns1"></x>`, true, `XML syntax error on line 1: unexpected end element </x>`},
+		{`<?>`, true, `XML syntax error on line 1: expected target name after <?`},
+		{`<?wat>`, true, `XML syntax error on line 1: unexpected EOF`},
+		{`<?xml version="1.1" encoding="UTF-8"?>`, false, `xml: unsupported version "1.1"; only version 1.0 is supported`},
+		{`<?xml version="1" encoding="UTF-8"?>`, false, `xml: unsupported version "1"; only version 1.0 is supported`},
+		{`<?xml version="wat" encoding="UTF-8"?>`, false, `xml: unsupported version "wat"; only version 1.0 is supported`},
+		{`<?xml version="1.0" encoding="UTF-9000"?>`, false, `xml: encoding "UTF-9000" declared but Decoder.CharsetReader is nil`},
+		{`<![XDATA`, false, `XML syntax error on line 1: invalid <![ sequence`},
+		{`<!-~`, false, `XML syntax error on line 1: invalid sequence <!- not part of <!--`},
+		{`<!x<`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`<!x<!--`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`<a href=x`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#x`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#0`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#1`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#xa`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#xA`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#xf`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&#xF`, false, `XML syntax error on line 1: unexpected EOF`},
+		{`"&B`, false, `XML syntax error on line 1: unexpected EOF`},
+		{"<![CDATA[Some \xe6 here]]>", false, `XML syntax error on line 1: invalid UTF-8`},
+		{"<body \xe6>", false, "XML syntax error on line 1: invalid XML name: \xe6"},
+		{"<body w\xe6>", false, "XML syntax error on line 1: invalid XML name: w\xe6"},
 	}
 	for _, test := range tests {
 		d := NewDecoder(strings.NewReader(test.input))
@@ -698,11 +698,11 @@ const testInputAutoClose = `
 
 var cookedTokensAutoClose = []Token{
 	CharData("\n"),
-	StartElement{Name:Name{Space:"", Local:"lol"}, Attr:[]Attr{}},
-	EndElement{Name:Name{Space:"", Local:"lol"}},
+	StartElement{Name: Name{Space: "", Local: "lol"}, Attr: []Attr{}},
+	EndElement{Name: Name{Space: "", Local: "lol"}},
 	CharData("\n"),
-	StartElement{Name:Name{Space:"", Local:"lol"}, Attr:[]Attr{}},
-	EndElement{Name:Name{Space:"", Local:"lol"}},
+	StartElement{Name: Name{Space: "", Local: "lol"}, Attr: []Attr{}},
+	EndElement{Name: Name{Space: "", Local: "lol"}},
 	CharData("\n"),
 }
 
@@ -953,7 +953,7 @@ func TestEscapeTextIOErrors(t *testing.T) {
 }
 
 var escapeTextTests = []struct {
-	input  []byte
+	input    []byte
 	expected string
 }{
 	{[]byte("A \" terminated string."), "A &#34; terminated string."},
