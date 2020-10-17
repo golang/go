@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -893,6 +894,62 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestBestSpeedShiftOffsets(t *testing.T) {
+	// Test if shiftoffsets properly preserves matches and resets out-of-range matches
+	// seen in https://github.com/golang/go/issues/4142
+	enc := newDeflateFast()
+
+	// testData may not generate internal matches.
+	testData := make([]byte, 32)
+	rng := rand.New(rand.NewSource(0))
+	for i := range testData {
+		testData[i] = byte(rng.Uint32())
+	}
+
+	// Encode the testdata with clean state.
+	// Second part should pick up matches from the first block.
+	wantFirstTokens := len(enc.encode(nil, testData))
+	wantSecondTokens := len(enc.encode(nil, testData))
+
+	if wantFirstTokens <= wantSecondTokens {
+		t.Fatalf("test needs matches between inputs to be generated")
+	}
+	// Forward the current indicator to before wraparound.
+	enc.cur = bufferReset - int32(len(testData))
+
+	// Part 1 before wrap, should match clean state.
+	got := len(enc.encode(nil, testData))
+	if wantFirstTokens != got {
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
+	}
+
+	// Verify we are about to wrap.
+	if enc.cur != bufferReset {
+		t.Errorf("got %d, want e.cur to be at bufferReset (%d)", enc.cur, bufferReset)
+	}
+
+	// Part 2 should match clean state as well even if wrapped.
+	got = len(enc.encode(nil, testData))
+	if wantSecondTokens != got {
+		t.Errorf("got %d, want %d token", got, wantSecondTokens)
+	}
+
+	// Verify that we wrapped.
+	if enc.cur >= bufferReset {
+		t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, enc.cur)
+	}
+
+	// Forward the current buffer, leaving the matches at the bottom.
+	enc.cur = bufferReset
+	enc.shiftOffsets()
+
+	// Ensure that no matches were picked up.
+	got = len(enc.encode(nil, testData))
+	if wantFirstTokens != got {
+		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
 	}
 }
 
