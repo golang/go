@@ -1,0 +1,47 @@
+# Build something to create the executable, including several cases
+
+# ----------------------------------------------------------------
+# go module enabled
+
+env GO111MODULE=on
+
+# case1: test file-named executable 'main'
+! exists main
+go build main.go
+exists -exec main
+go clean
+! exists main
+
+# case2: test module-named executable 'a.b.c'
+! exists a.b.c
+go build
+exists -exec a.b.c
+go clean
+! exists a.b.c
+
+# -----------------------------------------------------------------
+# go module disabled
+
+env GO111MODULE=off
+
+# case3: directory-named executable 'src'
+
+! exists src
+go build
+exists -exec src
+go clean
+! exists src
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello!")
+}
+
+-- go.mod --
+module example.com/a.b.c/v2
+
+go 1.12
