@@ -108,6 +108,7 @@ func (e *LinkError) Unwrap() error {
 
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and any error encountered.
+// Subsequent calls to Read reads from the File with an offset, eventually reaching the end of the File.
 // At end of file, Read returns 0, io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
 	if err := f.checkValid("read"); err != nil {
