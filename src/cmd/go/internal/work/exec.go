@@ -2001,6 +2001,13 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 	defer cleanup()
 	cmd.Dir = dir
 	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+
+	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
+	// It doesn't really matter if -toolexec isn't being used.
+	if a != nil && a.Package != nil {
+		cmd.Env = append(cmd.Env, "TOOLEXEC_IMPORTPATH="+a.Package.ImportPath)
+	}
+
 	cmd.Env = append(cmd.Env, env...)
 	start := time.Now()
 	err := cmd.Run()

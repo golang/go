@@ -122,6 +122,15 @@ Do not send CLs removing the interior tags from such phrases.
   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
 </p>
 
+<h4 id="toolexec">The <code>-toolexec</code> build flag</h4>
+
+<p><!-- golang.org/cl/263357 -->
+  When the <code>-toolexec</code> build flag is specified to use a program when
+  invoking toolchain programs like compile or asm, the environment variable
+  <code>TOOLEXEC_IMPORTPATH</code> is now set to the import path of the package
+  being built.
+</p>
+
 <h3 id="cgo">Cgo</h3>
 
 <p> <!-- CL 252378 -->
