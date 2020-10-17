@@ -317,9 +317,13 @@ func (f cbFunc) cSrc(w io.Writer, cdecl bool) {
 	cArgs := make([]string, t.NumIn())
 	for i := range cTypes {
 		// We included stdint.h, so this works for all sized
-		// integer types.
+		// integer types, and uint8Pair_t.
 		cTypes[i] = t.In(i).Name() + "_t"
-		cArgs[i] = fmt.Sprintf("%d", i+1)
+		if t.In(i).Name() == "uint8Pair" {
+			cArgs[i] = fmt.Sprintf("(uint8Pair_t){%d,1}", i)
+		} else {
+			cArgs[i] = fmt.Sprintf("%d", i+1)
+		}
 	}
 	fmt.Fprintf(w, `
 typedef uintptr_t %s (*%s)(%s);
@@ -340,6 +344,8 @@ func (f cbFunc) testOne(t *testing.T, dll *syscall.DLL, cdecl bool, cb uintptr) 
 		t.Errorf("wanted result %d; got %d", want, r1)
 	}
 }
+
+type uint8Pair struct{ x, y uint8 }
 
 var cbFuncs = []cbFunc{
 	{func(i1, i2 uintptr) uintptr {
@@ -366,6 +372,23 @@ var cbFuncs = []cbFunc{
 	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
 		return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9
 	}},
+
+	// Non-uintptr parameters.
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint8) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint16) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 int8) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1 int8, i2 int16, i3 int32, i4, i5 uintptr) uintptr {
+		return uintptr(i1) + uintptr(i2) + uintptr(i3) + i4 + i5
+	}},
+	{func(i1, i2, i3, i4, i5 uint8Pair) uintptr {
+		return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
+	}},
 }
 
 type cbDLL struct {
@@ -380,7 +403,10 @@ func (d *cbDLL) makeSrc(t *testing.T, path string) {
 	}
 	defer f.Close()
 
-	fmt.Fprintf(f, "#include <stdint.h>\n\n")
+	fmt.Fprint(f, `
+#include <stdint.h>
+typedef struct { uint8_t x, y; } uint8Pair_t;
+`)
 	for _, cbf := range cbFuncs {
 		cbf.cSrc(f, false)
 		cbf.cSrc(f, true)
