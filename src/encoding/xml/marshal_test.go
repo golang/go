@@ -347,8 +347,7 @@ type MyMarshalerTestErrorNotClosed struct {
 
 func (m *MyMarshalerTestErrorNotClosed) MarshalXML(e *Encoder, start StartElement) error {
 	e.EncodeToken(start)
-	e.EncodeToken(CharData([]byte("hello world")))
-	//e.EncodeToken(EndElement{start.Name})
+	e.EncodeToken(CharData("hello world"))
 	return nil
 }
 
@@ -1706,11 +1705,6 @@ func TestMarshal(t *testing.T) {
 		if test.UnmarshalOnly {
 			continue
 		}
-		//if idx == 32 {
-		//	fmt.Printf("\nidx: %v\ntest: %v\n", idx, test)
-		//} else{
-		//	continue
-		//}
 
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
 			data, err := Marshal(test.Value)
