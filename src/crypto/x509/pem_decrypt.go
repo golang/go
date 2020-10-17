@@ -96,6 +96,9 @@ func (c rfc1423Algo) deriveKey(password, salt []byte) []byte {
 }
 
 // IsEncryptedPEMBlock returns if the PEM block is password encrypted.
+// Note: PEM encryption in this package is referring specifically to
+// https://tools.ietf.org/html/rfc1423 . This function is not meant to
+// detect newer standards like PKCS #8 https://tools.ietf.org/html/rfc5208#section-6
 func IsEncryptedPEMBlock(b *pem.Block) bool {
 	_, ok := b.Headers["DEK-Info"]
 	return ok
@@ -112,6 +115,9 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 // in the encrypted-PEM format, it's not always possible to detect an incorrect
 // password. In these cases no error will be returned but the decrypted DER
 // bytes will be random noise.
+// Note: PEM encryption in this package is referring specifically to
+// https://tools.ietf.org/html/rfc1423 . This function is not meant to
+// decrpyt newer standards like PKCS #8 https://tools.ietf.org/html/rfc5208#section-6
 func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	dek, ok := b.Headers["DEK-Info"]
 	if !ok {
@@ -180,6 +186,8 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 // EncryptPEMBlock returns a PEM block of the specified type holding the
 // given DER-encoded data encrypted with the specified algorithm and
 // password.
+// Note: PEM encryption in this package is referring specifically to
+// https://tools.ietf.org/html/rfc1423
 func EncryptPEMBlock(rand io.Reader, blockType string, data, password []byte, alg PEMCipher) (*pem.Block, error) {
 	ciph := cipherByKey(alg)
 	if ciph == nil {
