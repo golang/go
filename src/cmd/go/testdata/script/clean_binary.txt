@@ -1,11 +1,10 @@
 # Build something to create the executable, including several cases
 
-# ----------------------------------------------------------------
-# go module enabled
-
-env GO111MODULE=on
+# --------------------- clean executables -------------------------
 
 # case1: test file-named executable 'main'
+env GO111MODULE=on
+
 ! exists main
 go build main.go
 exists -exec main
@@ -19,18 +18,41 @@ exists -exec a.b.c
 go clean
 ! exists a.b.c
 
-# -----------------------------------------------------------------
-# go module disabled
-
-env GO111MODULE=off
-
 # case3: directory-named executable 'src'
+env GO111MODULE=off
 
 ! exists src
 go build
 exists -exec src
 go clean
 ! exists src
+
+# --------------------- clean test files -------------------------
+
+# case1: test file-named test file
+env GO111MODULE=on
+
+! exists main.test
+go test -c main_test.go
+exists -exec main.test
+go clean
+! exists main.test
+
+# case2: test module-named test file
+! exists a.b.c.test
+go test -c
+exists -exec a.b.c.test
+go clean
+! exists a.b.c.test
+
+# case3: test directory-based test file
+env GO111MODULE=off
+
+! exists src.test
+go test -c
+exists -exec src.test
+go clean
+! exists src.test
 
 -- main.go --
 package main
@@ -39,6 +61,14 @@ import "fmt"
 
 func main() {
 	fmt.Println("hello!")
+}
+
+-- main_test.go --
+package main
+
+import "testing"
+
+func TestSomething(t *testing.T) {
 }
 
 -- go.mod --
