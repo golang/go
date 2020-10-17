@@ -195,14 +195,18 @@ func TestDWARFiOS(t *testing.T) {
 	}
 	// Check to see if the ios tools are installed. It's possible to have the command line tools
 	// installed without the iOS sdk.
-	if output, err := exec.Command("xcodebuild -showsdks").CombinedOutput(); err != nil {
+	if output, err := exec.Command("xcodebuild", "-showsdks").CombinedOutput(); err != nil {
 		t.Skipf("error running xcodebuild, required for iOS cross build: %v", err)
 	} else if !strings.Contains(string(output), "iOS SDK") {
 		t.Skipf("iOS SDK not detected.")
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
 	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
-	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+	t.Run("exe", func(t *testing.T) {
+		testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
+	})
 	// However, c-archive iOS objects have embedded DWARF.
-	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+	t.Run("c-archive", func(t *testing.T) {
+		testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
+	})
 }
