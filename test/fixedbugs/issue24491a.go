@@ -34,9 +34,6 @@ func test(s string, p, q uintptr, rest ...uintptr) int {
 		panic(s + ": q failed")
 	}
 	for _, r := range rest {
-		// TODO(mdempsky): Remove.
-		break
-
 		if *(*string)(unsafe.Pointer(r)) != "ok" {
 			panic(s + ": r[i] failed")
 		}
