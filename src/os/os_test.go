@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"internal/race"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -2578,22 +2577,5 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 		t.Error(err)
 	} else if fi.Mode()&0222 == 0 {
 		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
-	}
-}
-
-// Issue 41474.
-func TestStdoutWriteDoesNotHeapAllocate(t *testing.T) {
-	if runtime.GOOS == "js" || runtime.GOOS == "windows" {
-		t.Skip("Still heap allocates on js/wasm and windows, but it used to too")
-	}
-	if race.Enabled {
-		t.Skip("Heap allocates in race mode")
-	}
-
-	n := testing.AllocsPerRun(10, func() {
-		Stdout.Write([]byte{'h', 'e', 'l', 'l', 'o', '\n'})
-	})
-	if n != 0 {
-		t.Errorf("AllocsPerRun = %v, want 0", n)
 	}
 }
