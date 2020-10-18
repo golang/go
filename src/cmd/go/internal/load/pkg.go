@@ -1978,16 +1978,20 @@ func externalLinkingForced(p *Package) bool {
 	// external linking mode, as of course does
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
+	// If there are multiple -linkmode options, the last one wins.
 	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
-		for i, a := range ldflags {
-			if a == "-linkmode=external" {
+		for i := len(ldflags) - 1; i >= 0; i-- {
+			a := ldflags[i]
+			if a == "-linkmode=external" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
 				linkmodeExternal = true
-			}
-			if a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
-				linkmodeExternal = true
+				break
+			} else if a == "-linkmode=internal" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "internal" {
+				break
 			}
 		}
 	}
