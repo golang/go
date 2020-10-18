@@ -1,58 +1,61 @@
 # Build something to create the executable, including several cases
 
+[windows] env EXT='.exe'
+[!windows] env EXT=''
+
 # --------------------- clean executables -------------------------
 
 # case1: test file-named executable 'main'
 env GO111MODULE=on
 
-! exists main
+! exists main$EXT
 go build main.go
-exists -exec main
+exists -exec main$EXT
 go clean
-! exists main
+! exists main$EXT
 
 # case2: test module-named executable 'a.b.c'
-! exists a.b.c
+! exists a.b.c$EXT
 go build
-exists -exec a.b.c
+exists -exec a.b.c$EXT
 go clean
-! exists a.b.c
+! exists a.b.c$EXT
 
 # case3: directory-named executable 'src'
 env GO111MODULE=off
 
-! exists src
+! exists src$EXT
 go build
-exists -exec src
+exists -exec src$EXT
 go clean
-! exists src
+! exists src$EXT
 
 # --------------------- clean test files -------------------------
 
 # case1: test file-named test file
 env GO111MODULE=on
 
-! exists main.test
+! exists main.test$EXT
 go test -c main_test.go
-exists -exec main.test
+exists -exec main.test$EXT
 go clean
-! exists main.test
+! exists main.test$EXT
 
 # case2: test module-named test file
-! exists a.b.c.test
+! exists a.b.c.test$EXT
 go test -c
-exists -exec a.b.c.test
+exists -exec a.b.c.test$EXT
 go clean
-! exists a.b.c.test
+! exists a.b.c.test$EXT
 
 # case3: test directory-based test file
 env GO111MODULE=off
 
-! exists src.test
+! exists src.test$EXT
 go test -c
-exists -exec src.test
+exists -exec src.test$EXT
 go clean
-! exists src.test
+! exists src.test$EXT
 
 -- main.go --
 package main
