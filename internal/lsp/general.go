@@ -161,6 +161,11 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.state = serverInitialized
 	s.stateMu.Unlock()
 
+	for _, not := range s.notifications {
+		s.client.ShowMessage(ctx, not)
+	}
+	s.notifications = nil
+
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
 
@@ -421,22 +426,34 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 	return nil
 }
 
+func (s *Server) eventuallyShowMessage(ctx context.Context, msg *protocol.ShowMessageParams) error {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.state == serverInitialized {
+		return s.client.ShowMessage(ctx, msg)
+	}
+	s.notifications = append(s.notifications, msg)
+	return nil
+}
+
 func (s *Server) handleOptionResults(ctx context.Context, results source.OptionResults) error {
 	for _, result := range results {
 		if result.Error != nil {
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			msg := &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: result.Error.Error(),
-			}); err != nil {
+			}
+			if err := s.eventuallyShowMessage(ctx, msg); err != nil {
 				return err
 			}
 		}
 		switch result.State {
 		case source.OptionUnexpected:
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			msg := &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf("unexpected gopls setting %q", result.Name),
-			}); err != nil {
+			}
+			if err := s.eventuallyShowMessage(ctx, msg); err != nil {
 				return err
 			}
 		case source.OptionDeprecated:
@@ -444,7 +461,7 @@ func (s *Server) handleOptionResults(ctx context.Context, results source.OptionR
 			if result.Replacement != "" {
 				msg = fmt.Sprintf("%s, use %q instead", msg, result.Replacement)
 			}
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			if err := s.eventuallyShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Warning,
 				Message: msg,
 			}); err != nil {

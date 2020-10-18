@@ -67,6 +67,9 @@ type Server struct {
 
 	session source.Session
 
+	// notifications generated before serverInitialized
+	notifications []*protocol.ShowMessageParams
+
 	// changedFiles tracks files for which there has been a textDocument/didChange.
 	changedFilesMu sync.Mutex
 	changedFiles   map[span.URI]struct{}
