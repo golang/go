@@ -546,6 +546,10 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 					addError(mod.modURI, err)
 					continue
 				}
+				if parsed.File == nil || parsed.File.Module == nil {
+					addError(mod.modURI, fmt.Errorf("no module path for %s", mod.modURI))
+					continue
+				}
 				path := parsed.File.Module.Mod.Path
 				scopes = append(scopes, moduleLoadScope(path))
 			}
