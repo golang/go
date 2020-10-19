@@ -39,7 +39,7 @@ func (s *InitSchedule) append(n *Node) {
 // staticInit adds an initialization statement n to the schedule.
 func (s *InitSchedule) staticInit(n *Node) {
 	if !s.tryStaticInit(n) {
-		if Debug['%'] != 0 {
+		if Debug.P != 0 {
 			Dump("nonstatic", n)
 		}
 		s.append(n)

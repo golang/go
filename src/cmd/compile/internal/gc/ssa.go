@@ -59,7 +59,7 @@ func initssaconfig() {
 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
 	_ = types.NewPtr(types.Errortype)                                 // *error
 	types.NewPtrCacheEnabled = false
-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug['N'] == 0)
+	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug.N == 0)
 	ssaConfig.SoftFloat = thearch.SoftFloat
 	ssaConfig.Race = flag_race
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
@@ -357,7 +357,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.fwdVars = map[*Node]*ssa.Value{}
 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
 
-	s.hasOpenDefers = Debug['N'] == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
+	s.hasOpenDefers = Debug.N == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
 	switch {
 	case s.hasOpenDefers && (Ctxt.Flag_shared || Ctxt.Flag_dynlink) && thearch.LinkArch.Name == "386":
 		// Don't support open-coded defers for 386 ONLY when using shared
@@ -741,7 +741,7 @@ func (s *state) pushLine(line src.XPos) {
 		// the frontend may emit node with line number missing,
 		// use the parent line number in this case.
 		line = s.peekPos()
-		if Debug['K'] != 0 {
+		if Debug.K != 0 {
 			Warn("buildssa: unknown position (line 0)")
 		}
 	} else {
@@ -1214,7 +1214,7 @@ func (s *state) stmt(n *Node) {
 				// Check whether we're writing the result of an append back to the same slice.
 				// If so, we handle it specially to avoid write barriers on the fast
 				// (non-growth) path.
-				if !samesafeexpr(n.Left, rhs.List.First()) || Debug['N'] != 0 {
+				if !samesafeexpr(n.Left, rhs.List.First()) || Debug.N != 0 {
 					break
 				}
 				// If the slice can be SSA'd, it'll be on the stack,
@@ -4849,7 +4849,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 // canSSA reports whether n is SSA-able.
 // n must be an ONAME (or an ODOT sequence with an ONAME base).
 func (s *state) canSSA(n *Node) bool {
-	if Debug['N'] != 0 {
+	if Debug.N != 0 {
 		return false
 	}
 	for n.Op == ODOT || (n.Op == OINDEX && n.Left.Type.IsArray()) {
@@ -4960,7 +4960,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
 	idx = s.extendIndex(idx, len, kind, bounded)
 
-	if bounded || Debug['B'] != 0 {
+	if bounded || Debug.B != 0 {
 		// If bounded or bounds checking is flag-disabled, then no check necessary,
 		// just return the extended index.
 		//
@@ -6310,7 +6310,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
-		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
+		if i < len(f.Blocks)-1 && Debug.N == 0 {
 			// If -N, leave next==nil so every block with successors
 			// ends in a JMP (except call blocks - plive doesn't like
 			// select{send,recv} followed by a JMP call).  Helps keep
@@ -6618,7 +6618,7 @@ func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		} else {
 			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TUINT], idx)
 		}
-		if bounded || Debug['B'] != 0 {
+		if bounded || Debug.B != 0 {
 			return lo
 		}
 		bNext := s.f.NewBlock(ssa.BlockPlain)

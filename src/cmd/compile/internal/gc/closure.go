@@ -198,7 +198,7 @@ func capturevars(xfunc *Node) {
 			outer = nod(OADDR, outer, nil)
 		}
 
-		if Debug['m'] > 1 {
+		if Debug.m > 1 {
 			var name *types.Sym
 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
 				name = v.Name.Curfn.Func.Nname.Sym

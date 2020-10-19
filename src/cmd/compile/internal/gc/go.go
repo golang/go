@@ -116,7 +116,15 @@ var decldepth int32
 
 var nolocalimports bool
 
-var Debug [256]int
+// gc debug flags
+type DebugFlags struct {
+	P, B, C, E,
+	K, L, N, S,
+	W, e, h, j,
+	l, m, r, w int
+}
+
+var Debug DebugFlags
 
 var debugstr string
 

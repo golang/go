@@ -247,7 +247,7 @@ func (n *Node) Val() Val {
 // SetVal sets the Val for the node, which must not have been used with SetOpt.
 func (n *Node) SetVal(v Val) {
 	if n.HasOpt() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Opt", n)
 		Fatalf("have Opt")
 	}
@@ -270,7 +270,7 @@ func (n *Node) SetOpt(x interface{}) {
 		return
 	}
 	if n.HasVal() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Val", n)
 		Fatalf("have Val")
 	}

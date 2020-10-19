@@ -466,7 +466,7 @@ func walkrange(n *Node) *Node {
 //
 // where == for keys of map m is reflexive.
 func isMapClear(n *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -533,7 +533,7 @@ func mapClear(m *Node) *Node {
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
 func arrayClear(n, v1, v2, a *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
