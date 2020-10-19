@@ -7,7 +7,11 @@ package build
 import (
 	"bufio"
 	"errors"
+	"fmt"
+	"go/ast"
+	"go/parser"
 	"io"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -147,15 +151,11 @@ func (r *importReader) readIdent() {
 
 // readString reads a quoted string literal from the input.
 // If an identifier is not present, readString records a syntax error.
-func (r *importReader) readString(save *[]string) {
+func (r *importReader) readString() {
 	switch r.nextByte(true) {
 	case '`':
-		start := len(r.buf) - 1
 		for r.err == nil {
 			if r.nextByte(false) == '`' {
-				if save != nil {
-					*save = append(*save, string(r.buf[start:]))
-				}
 				break
 			}
 			if r.eof {
@@ -163,13 +163,9 @@ func (r *importReader) readString(save *[]string) {
 			}
 		}
 	case '"':
-		start := len(r.buf) - 1
 		for r.err == nil {
 			c := r.nextByte(false)
 			if c == '"' {
-				if save != nil {
-					*save = append(*save, string(r.buf[start:]))
-				}
 				break
 			}
 			if r.eof || c == '\n' {
@@ -186,17 +182,17 @@ func (r *importReader) readString(save *[]string) {
 
 // readImport reads an import clause - optional identifier followed by quoted string -
 // from the input.
-func (r *importReader) readImport(imports *[]string) {
+func (r *importReader) readImport() {
 	c := r.peekByte(true)
 	if c == '.' {
 		r.peek = 0
 	} else if isIdent(c) {
 		r.readIdent()
 	}
-	r.readString(imports)
+	r.readString()
 }
 
-// readComments is like ioutil.ReadAll, except that it only reads the leading
+// readComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
 func readComments(f io.Reader) ([]byte, error) {
 	r := &importReader{b: bufio.NewReader(f)}
@@ -208,9 +204,14 @@ func readComments(f io.Reader) ([]byte, error) {
 	return r.buf, r.err
 }
 
-// readImports is like ioutil.ReadAll, except that it expects a Go file as input
-// and stops reading the input once the imports have completed.
-func readImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
+// readGoInfo expects a Go file as input and reads the file up to and including the import section.
+// It records what it learned in *info.
+// If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
+// and info.imports.
+//
+// It only returns an error if there are problems reading the file,
+// not for syntax errors in the file itself.
+func readGoInfo(f io.Reader, info *fileInfo) error {
 	r := &importReader{b: bufio.NewReader(f)}
 
 	r.readKeyword("package")
@@ -220,28 +221,68 @@ func readImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte
 		if r.peekByte(true) == '(' {
 			r.nextByte(false)
 			for r.peekByte(true) != ')' && r.err == nil {
-				r.readImport(imports)
+				r.readImport()
 			}
 			r.nextByte(false)
 		} else {
-			r.readImport(imports)
+			r.readImport()
 		}
 	}
+
+	info.header = r.buf
 
 	// If we stopped successfully before EOF, we read a byte that told us we were done.
 	// Return all but that last byte, which would cause a syntax error if we let it through.
 	if r.err == nil && !r.eof {
-		return r.buf[:len(r.buf)-1], nil
+		info.header = r.buf[:len(r.buf)-1]
 	}
 
 	// If we stopped for a syntax error, consume the whole file so that
 	// we are sure we don't change the errors that go/parser returns.
-	if r.err == errSyntax && !reportSyntaxError {
+	if r.err == errSyntax {
 		r.err = nil
 		for r.err == nil && !r.eof {
 			r.readByte()
 		}
+		info.header = r.buf
+	}
+	if r.err != nil {
+		return r.err
 	}
 
-	return r.buf, r.err
+	if info.fset == nil {
+		return nil
+	}
+
+	// Parse file header & record imports.
+	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments)
+	if info.parseErr != nil {
+		return nil
+	}
+
+	for _, decl := range info.parsed.Decls {
+		d, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, dspec := range d.Specs {
+			spec, ok := dspec.(*ast.ImportSpec)
+			if !ok {
+				continue
+			}
+			quoted := spec.Path.Value
+			path, err := strconv.Unquote(quoted)
+			if err != nil {
+				return fmt.Errorf("parser returned invalid quoted string: <%s>", quoted)
+			}
+
+			doc := spec.Doc
+			if doc == nil && len(d.Specs) == 1 {
+				doc = d.Doc
+			}
+			info.imports = append(info.imports, fileImport{path, spec.Pos(), doc})
+		}
+	}
+
+	return nil
 }
