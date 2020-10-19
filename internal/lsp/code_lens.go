@@ -7,6 +7,7 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/mod"
@@ -44,5 +45,12 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 		}
 		result = append(result, added...)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		a, b := result[i], result[j]
+		if protocol.CompareRange(a.Range, b.Range) == 0 {
+			return a.Command.Command < b.Command.Command
+		}
+		return protocol.CompareRange(a.Range, b.Range) < 0
+	})
 	return result, nil
 }
