@@ -79,6 +79,8 @@ func (f *F) Add(args ...interface{}) {
 // target by calling runtime.Goexit. To run any code after this function, use
 // Cleanup.
 func (f *F) Fuzz(ff interface{}) {
+	defer runtime.Goexit() // exit after this function
+
 	fn, ok := ff.(func(*T, []byte))
 	if !ok {
 		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
@@ -91,8 +93,6 @@ func (f *F) Fuzz(ff interface{}) {
 	}
 	f.corpus = append(f.corpus, bytesToCorpus(c)...)
 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
-
-	defer runtime.Goexit() // exit after this function
 
 	var errStr string
 	run := func(t *T, b []byte) {
@@ -363,20 +363,4 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	go f.runTarget(ft.Fn)
 	<-f.signal
 	return f.ran, !f.failed
-}
-
-// Fuzz runs a single fuzz target. It is useful for creating
-// custom fuzz targets that do not use the "go test" command.
-//
-// If fn depends on testing flags, then Init must be used to register
-// those flags before calling Fuzz and before calling flag.Parse.
-func Fuzz(fn func(f *F)) FuzzResult {
-	f := &F{
-		common: common{
-			w: discard{},
-		},
-		fuzzFunc: fn,
-	}
-	// TODO(katiehockman): run the test
-	return f.result
 }
