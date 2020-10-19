@@ -261,6 +261,10 @@ func (w *writer) StringTable() {
 	}
 }
 
+// cutoff is the maximum data section size permitted by the linker
+// (see issue #9862).
+const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
+
 func (w *writer) Sym(s *LSym) {
 	abi := uint16(s.ABI())
 	if s.Static() {
@@ -324,6 +328,9 @@ func (w *writer) Sym(s *LSym) {
 			}
 			// don't bother setting align to 1.
 		}
+	}
+	if s.Size > cutoff {
+		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
 	}
 	var o goobj.Sym
 	o.SetName(name, w.Writer)
