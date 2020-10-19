@@ -432,17 +432,26 @@ type Package struct {
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
 
-	// Dependency information
-	Imports   []string                    // import paths from GoFiles, CgoFiles
-	ImportPos map[string][]token.Position // line information for Imports
-
 	// Test information
-	TestGoFiles    []string                    // _test.go files in package
+	TestGoFiles  []string // _test.go files in package
+	XTestGoFiles []string // _test.go files outside package
+
+	// Dependency information
+	Imports        []string                    // import paths from GoFiles, CgoFiles
+	ImportPos      map[string][]token.Position // line information for Imports
 	TestImports    []string                    // import paths from TestGoFiles
 	TestImportPos  map[string][]token.Position // line information for TestImports
-	XTestGoFiles   []string                    // _test.go files outside package
 	XTestImports   []string                    // import paths from XTestGoFiles
 	XTestImportPos map[string][]token.Position // line information for XTestImports
+
+	// //go:embed patterns found in Go source files
+	// For example, if a source file says
+	//	//go:embed a* b.c
+	// then the list will contain those two strings as separate entries.
+	// (See package embed for more details about //go:embed.)
+	EmbedPatterns      []string // patterns from GoFiles, CgoFiles
+	TestEmbedPatterns  []string // patterns from TestGoFiles
+	XTestEmbedPatterns []string // patterns from XTestGoFiles
 }
 
 // IsCommand reports whether the package is considered a
@@ -785,6 +794,7 @@ Found:
 	var badGoError error
 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile, firstCommentFile string
+	var embeds, testEmbeds, xTestEmbeds []string
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
 	xTestImported := make(map[string][]token.Position)
@@ -910,7 +920,7 @@ Found:
 			}
 		}
 
-		var fileList *[]string
+		var fileList, embedList *[]string
 		var importMap map[string][]token.Position
 		switch {
 		case isCgo:
@@ -918,6 +928,7 @@ Found:
 			if ctxt.CgoEnabled {
 				fileList = &p.CgoFiles
 				importMap = imported
+				embedList = &embeds
 			} else {
 				// Ignore imports from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
@@ -925,12 +936,15 @@ Found:
 		case isXTest:
 			fileList = &p.XTestGoFiles
 			importMap = xTestImported
+			embedList = &xTestEmbeds
 		case isTest:
 			fileList = &p.TestGoFiles
 			importMap = testImported
+			embedList = &testEmbeds
 		default:
 			fileList = &p.GoFiles
 			importMap = imported
+			embedList = &embeds
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -938,12 +952,19 @@ Found:
 				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
 			}
 		}
+		if embedList != nil {
+			*embedList = append(*embedList, info.embeds...)
+		}
 	}
 
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
 	sort.Strings(p.AllTags)
+
+	p.EmbedPatterns = uniq(embeds)
+	p.TestEmbedPatterns = uniq(testEmbeds)
+	p.XTestEmbedPatterns = uniq(xTestEmbeds)
 
 	p.Imports, p.ImportPos = cleanImports(imported)
 	p.TestImports, p.TestImportPos = cleanImports(testImported)
@@ -991,6 +1012,22 @@ func fileListForExt(p *Package, ext string) *[]string {
 		return &p.SysoFiles
 	}
 	return nil
+}
+
+func uniq(list []string) []string {
+	if list == nil {
+		return nil
+	}
+	out := make([]string, len(list))
+	copy(out, list)
+	sort.Strings(out)
+	uniq := out[:0]
+	for _, x := range out {
+		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
+			uniq = append(uniq, x)
+		}
+	}
+	return uniq
 }
 
 var errNoModules = errors.New("not using modules")
@@ -1298,6 +1335,8 @@ type fileInfo struct {
 	parsed   *ast.File
 	parseErr error
 	imports  []fileImport
+	embeds   []string
+	embedErr error
 }
 
 type fileImport struct {
