@@ -7,7 +7,7 @@
 // saves a copy of the body. Then inlcalls walks each function body to
 // expand calls to inlinable functions.
 //
-// The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
+// The Debug.l flag controls the aggressiveness. Note that main() swaps level 0 and 1,
 // making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
 // are not supported.
 //      0: disabled
@@ -21,7 +21,7 @@
 // The -d typcheckinl flag enables early typechecking of all imported bodies,
 // which is useful to flush out bugs.
 //
-// The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
+// The Debug.m flag enables diagnostic output.  a single -m is useful for verifying
 // which calls get inlined or not, more is for debugging, and may go away at any point.
 
 package gc
@@ -85,7 +85,7 @@ func typecheckinl(fn *Node) {
 		return // typecheckinl on local function
 	}
 
-	if Debug['m'] > 2 || Debug_export != 0 {
+	if Debug.m > 2 || Debug_export != 0 {
 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
 	}
 
@@ -116,10 +116,10 @@ func caninl(fn *Node) {
 	}
 
 	var reason string // reason, if any, that the function was not inlined
-	if Debug['m'] > 1 || logopt.Enabled() {
+	if Debug.m > 1 || logopt.Enabled() {
 		defer func() {
 			if reason != "" {
-				if Debug['m'] > 1 {
+				if Debug.m > 1 {
 					fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
 				}
 				if logopt.Enabled() {
@@ -187,7 +187,7 @@ func caninl(fn *Node) {
 	defer n.Func.SetInlinabilityChecked(true)
 
 	cc := int32(inlineExtraCallCost)
-	if Debug['l'] == 4 {
+	if Debug.l == 4 {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
@@ -224,9 +224,9 @@ func caninl(fn *Node) {
 	// this is so export can find the body of a method
 	fn.Type.FuncType().Nname = asTypesNode(n)
 
-	if Debug['m'] > 1 {
+	if Debug.m > 1 {
 		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", fn.Line(), n, inlineMaxBudget-visitor.budget, fn.Type, asNodes(n.Func.Inl.Body))
-	} else if Debug['m'] != 0 {
+	} else if Debug.m != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
 	if logopt.Enabled() {
@@ -425,7 +425,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	v.budget--
 
 	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && Debug['m'] < 2 && !logopt.Enabled() {
+	if v.budget < 0 && Debug.m < 2 && !logopt.Enabled() {
 		return true
 	}
 
@@ -670,7 +670,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 
 	switch n.Op {
 	case OCALLFUNC:
-		if Debug['m'] > 3 {
+		if Debug.m > 3 {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if isIntrinsicCall(n) {
@@ -681,7 +681,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		}
 
 	case OCALLMETH:
-		if Debug['m'] > 3 {
+		if Debug.m > 3 {
 			fmt.Printf("%v:call to meth %L\n", n.Line(), n.Left.Right)
 		}
 
@@ -911,7 +911,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	if inlMap[fn] {
-		if Debug['m'] > 1 {
+		if Debug.m > 1 {
 			fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", n.Line(), fn, Curfn.funcname())
 		}
 		return n
@@ -925,12 +925,12 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	// We have a function node, and it has an inlineable body.
-	if Debug['m'] > 1 {
+	if Debug.m > 1 {
 		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, asNodes(fn.Func.Inl.Body))
-	} else if Debug['m'] != 0 {
+	} else if Debug.m != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
-	if Debug['m'] > 2 {
+	if Debug.m > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
 	}
 
@@ -1174,7 +1174,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		}
 	}
 
-	if Debug['m'] > 2 {
+	if Debug.m > 2 {
 		fmt.Printf("%v: After inlining %+v\n\n", call.Line(), call)
 	}
 
@@ -1185,7 +1185,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 // PAUTO's in the calling functions, and link them off of the
 // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
 func inlvar(var_ *Node) *Node {
-	if Debug['m'] > 3 {
+	if Debug.m > 3 {
 		fmt.Printf("inlvar %+v\n", var_)
 	}
 
@@ -1264,13 +1264,13 @@ func (subst *inlsubst) node(n *Node) *Node {
 	switch n.Op {
 	case ONAME:
 		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
-			if Debug['m'] > 2 {
+			if Debug.m > 2 {
 				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
 			}
 			return inlvar
 		}
 
-		if Debug['m'] > 2 {
+		if Debug.m > 2 {
 			fmt.Printf("not substituting name %+v\n", n)
 		}
 		return n

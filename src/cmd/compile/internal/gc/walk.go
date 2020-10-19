@@ -21,7 +21,7 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 func walk(fn *Node) {
 	Curfn = fn
 
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
@@ -63,14 +63,14 @@ func walk(fn *Node) {
 		return
 	}
 	walkstmtlist(Curfn.Nbody.Slice())
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	zeroResults()
 	heapmoves()
-	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
+	if Debug.W != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
@@ -436,7 +436,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 
 	lno := setlineno(n)
 
-	if Debug['w'] > 1 {
+	if Debug.w > 1 {
 		Dump("before walk expr", n)
 	}
 
@@ -1049,7 +1049,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			n.SetBounded(bounded(r, t.NumElem()))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1057,7 +1057,7 @@ opswitch:
 			}
 		} else if Isconst(n.Left, CTSTR) {
 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1599,7 +1599,7 @@ opswitch:
 
 	updateHasCall(n)
 
-	if Debug['w'] != 0 && n != nil {
+	if Debug.w != 0 && n != nil {
 		Dump("after walk expr", n)
 	}
 
@@ -2819,7 +2819,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 // isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -3976,7 +3976,7 @@ func canMergeLoads() bool {
 // isRuneCount reports whether n is of the form len([]rune(string)).
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
-	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+	return Debug.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
 }
 
 func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {

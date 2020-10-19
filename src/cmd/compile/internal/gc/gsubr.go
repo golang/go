@@ -153,7 +153,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Debug['K'] != 0 {
+	if !pp.pos.IsKnown() && Debug.K != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
