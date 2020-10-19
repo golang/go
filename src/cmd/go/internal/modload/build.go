@@ -13,7 +13,6 @@ import (
 	"internal/goroot"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -312,9 +311,6 @@ func mustFindModule(target, path string) module.Version {
 		return Target
 	}
 
-	if printStackInDie {
-		debug.PrintStack()
-	}
 	base.Fatalf("build %v: cannot find module for path %v", target, path)
 	panic("unreachable")
 }
