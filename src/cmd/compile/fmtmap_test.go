@@ -123,6 +123,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ssa.register %d":            "",
 	"cmd/compile/internal/ssa.relation %s":            "",
 	"cmd/compile/internal/syntax.Error %q":            "",
+	"cmd/compile/internal/syntax.Error %v":            "",
 	"cmd/compile/internal/syntax.Expr %#v":            "",
 	"cmd/compile/internal/syntax.LitKind %d":          "",
 	"cmd/compile/internal/syntax.Node %T":             "",
