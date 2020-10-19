@@ -518,7 +518,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
-		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && !ldr.IsExternal(s) {
+		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) {
 			ldr.SetAttrNotInSymbolTable(s, true)
 		}
 		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {
