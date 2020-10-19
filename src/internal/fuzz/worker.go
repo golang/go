@@ -81,8 +81,8 @@ func (w *worker) runFuzzing() error {
 			inputC = nil // block new inputs until we finish with this one.
 			go func() {
 				args := fuzzArgs{
-					Value:       input.b,
-					DurationSec: workerFuzzDuration.Seconds(),
+					Value:    input.b,
+					Duration: workerFuzzDuration,
 				}
 				_, err := w.client.fuzz(args)
 				if err != nil {
@@ -282,11 +282,14 @@ type call struct {
 }
 
 type fuzzArgs struct {
-	Value       []byte
-	DurationSec float64
+	Value    []byte
+	Duration time.Duration
 }
 
-type fuzzResponse struct{}
+type fuzzResponse struct {
+	Crasher []byte
+	Err     string
+}
 
 // workerServer is a minimalist RPC server, run in fuzz worker processes.
 type workerServer struct {
@@ -326,8 +329,19 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
 func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
-	// TODO(jayconrod, katiehockman): implement
-	return fuzzResponse{}
+	t := time.NewTimer(args.Duration)
+	for {
+		select {
+		case <-t.C:
+			return fuzzResponse{}
+		default:
+			b := mutate(args.Value)
+			if err := ws.fn(b); err != nil {
+				return fuzzResponse{Crasher: b, Err: err.Error()}
+			}
+			// TODO(jayconrod,katiehockman): return early if coverage is expanded
+		}
+	}
 }
 
 // workerClient is a minimalist RPC client, run in the fuzz coordinator.
