@@ -433,6 +433,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 			need &^= needBuild
 			if b.NeedExport {
 				p.Export = a.built
+				p.BuildID = a.buildID
 			}
 			if need&needCompiledGoFiles != 0 {
 				if err := b.loadCachedSrcFiles(a); err == nil {

@@ -713,6 +713,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 					return err
 				}
 				a.Package.Export = c.OutputFile(outputID)
+				a.Package.BuildID = a.buildID
 			}
 		}
 	}

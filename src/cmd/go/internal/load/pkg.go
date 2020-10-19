@@ -60,6 +60,7 @@ type PackagePublic struct {
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+	BuildID       string                `json:",omitempty"` // build ID of the export data (set by go list -export)
 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
 	Match         []string              `json:",omitempty"` // command-line patterns matching this package
 	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
