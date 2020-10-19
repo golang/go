@@ -38,7 +38,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		check.errorf(x.pos(), _InvalidConversion, "cannot convert %s to %s", x, T)
 		x.mode = invalid
 		return
 	}
@@ -81,7 +81,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // exported API call, i.e., when all methods have been type-checked.
 func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// "x is assignable to T"
-	if x.assignableTo(check, T, nil) {
+	if ok, _ := x.assignableTo(check, T, nil); ok {
 		return true
 	}
 
