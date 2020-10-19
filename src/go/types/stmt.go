@@ -46,7 +46,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 
 	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
-		check.error(body.Rbrace, "missing return")
+		check.error(body.Rbrace, _MissingReturn, "missing return")
 	}
 
 	// spec: "Implementation restriction: A compiler may make it illegal to
@@ -65,7 +65,7 @@ func (check *Checker) usage(scope *Scope) {
 		return unused[i].pos < unused[j].pos
 	})
 	for _, v := range unused {
-		check.softErrorf(v.pos, "%s declared but not used", v.name)
+		check.softErrorf(v.pos, _UnusedVar, "%s declared but not used", v.name)
 	}
 
 	for _, scope := range scope.children {
@@ -139,7 +139,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
 		}
 		if d != nil {
 			if first != nil {
-				check.errorf(d.Pos(), "multiple defaults (first at %s)", check.fset.Position(first.Pos()))
+				check.errorf(d.Pos(), _DuplicateDefault, "multiple defaults (first at %s)", check.fset.Position(first.Pos()))
 			} else {
 				first = d
 			}
@@ -168,17 +168,23 @@ func assignOp(op token.Token) token.Token {
 func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
+	var code errorCode
 	switch check.rawExpr(&x, call, nil) {
 	case conversion:
 		msg = "requires function call, not conversion"
+		code = _InvalidDefer
+		if keyword == "go" {
+			code = _InvalidGo
+		}
 	case expression:
 		msg = "discards result of"
+		code = _UnusedResults
 	case statement:
 		return
 	default:
 		unreachable()
 	}
-	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
+	check.errorf(x.pos(), code, "%s %s %s", keyword, msg, &x)
 }
 
 // goVal returns the Go value for val, or nil.
@@ -250,8 +256,8 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if check.identical(v.typ, vt.typ) {
-					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
-					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					check.errorf(v.pos(), _DuplicateCase, "duplicate case %s in expression switch", &v)
+					check.error(vt.pos, _DuplicateCase, "\tprevious case") // secondary error, \t indented
 					continue L
 				}
 			}
@@ -276,8 +282,8 @@ L:
 				if T != nil {
 					Ts = T.String()
 				}
-				check.errorf(e.Pos(), "duplicate case %s in type switch", Ts)
-				check.error(pos, "\tprevious case") // secondary error, \t indented
+				check.errorf(e.Pos(), _DuplicateCase, "duplicate case %s in type switch", Ts)
+				check.error(pos, _DuplicateCase, "\tprevious case") // secondary error, \t indented
 				continue L
 			}
 		}
@@ -324,18 +330,22 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var x operand
 		kind := check.rawExpr(&x, s.X, nil)
 		var msg string
+		var code errorCode
 		switch x.mode {
 		default:
 			if kind == statement {
 				return
 			}
 			msg = "is not used"
+			code = _UnusedExpr
 		case builtin:
 			msg = "must be called"
+			code = _UncalledBuiltin
 		case typexpr:
 			msg = "is not an expression"
+			code = _NotAnExpr
 		}
-		check.errorf(x.pos(), "%s %s", &x, msg)
+		check.errorf(x.pos(), code, "%s %s", &x, msg)
 
 	case *ast.SendStmt:
 		var ch, x operand
@@ -347,12 +357,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		tch, ok := ch.typ.Underlying().(*Chan)
 		if !ok {
-			check.invalidOp(s.Arrow, "cannot send to non-chan type %s", ch.typ)
+			check.invalidOp(s.Arrow, _InvalidSend, "cannot send to non-chan type %s", ch.typ)
 			return
 		}
 
 		if tch.dir == RecvOnly {
-			check.invalidOp(s.Arrow, "cannot send to receive-only type %s", tch)
+			check.invalidOp(s.Arrow, _InvalidSend, "cannot send to receive-only type %s", tch)
 			return
 		}
 
@@ -376,7 +386,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 		if !isNumeric(x.typ) {
-			check.invalidOp(s.X.Pos(), "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
+			check.invalidOp(s.X.Pos(), _NonNumericIncDec, "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
 			return
 		}
 
@@ -404,7 +414,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		default:
 			// assignment operations
 			if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
-				check.errorf(s.TokPos, "assignment operation %s requires single-valued expressions", s.Tok)
+				check.errorf(s.TokPos, _MultiValAssignOp, "assignment operation %s requires single-valued expressions", s.Tok)
 				return
 			}
 			op := assignOp(s.Tok)
@@ -437,8 +447,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				// with the same name as a result parameter is in scope at the place of the return."
 				for _, obj := range res.vars {
 					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
-						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
+						check.errorf(s.Pos(), _OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
+						check.errorf(alt.Pos(), _OutOfScopeResult, "\tinner declaration of %s", obj)
 						// ok to continue
 					}
 				}
@@ -447,7 +457,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.initVars(res.vars, s.Results, s.Return)
 			}
 		} else if len(s.Results) > 0 {
-			check.error(s.Results[0].Pos(), "no result values expected")
+			check.error(s.Results[0].Pos(), _WrongResultCount, "no result values expected")
 			check.use(s.Results...)
 		}
 
@@ -459,19 +469,20 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		switch s.Tok {
 		case token.BREAK:
 			if ctxt&breakOk == 0 {
-				check.error(s.Pos(), "break not in for, switch, or select statement")
+				check.error(s.Pos(), _MisplacedBreak, "break not in for, switch, or select statement")
 			}
 		case token.CONTINUE:
 			if ctxt&continueOk == 0 {
-				check.error(s.Pos(), "continue not in for statement")
+				check.error(s.Pos(), _MisplacedContinue, "continue not in for statement")
 			}
 		case token.FALLTHROUGH:
 			if ctxt&fallthroughOk == 0 {
 				msg := "fallthrough statement out of place"
+				code := _MisplacedFallthrough
 				if ctxt&finalSwitchCase != 0 {
 					msg = "cannot fallthrough final case in switch"
 				}
-				check.error(s.Pos(), msg)
+				check.error(s.Pos(), code, msg)
 			}
 		default:
 			check.invalidAST(s.Pos(), "branch statement: %s", s.Tok)
@@ -491,7 +502,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var x operand
 		check.expr(&x, s.Cond)
 		if x.mode != invalid && !isBoolean(x.typ) {
-			check.error(s.Cond.Pos(), "non-boolean condition in if statement")
+			check.error(s.Cond.Pos(), _InvalidCond, "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Body)
 		// The parser produces a correct AST but if it was modified
@@ -502,7 +513,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *ast.IfStmt, *ast.BlockStmt:
 			check.stmt(inner, s.Else)
 		default:
-			check.error(s.Else.Pos(), "invalid else branch in if statement")
+			check.invalidAST(s.Else.Pos(), "invalid else branch in if statement")
 		}
 
 	case *ast.SwitchStmt:
@@ -581,7 +592,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			if lhs.Name == "_" {
 				// _ := x.(type) is an invalid short variable declaration
-				check.softErrorf(lhs.Pos(), "no new variable on left side of :=")
+				check.softErrorf(lhs.Pos(), _NoNewVar, "no new variable on left side of :=")
 				lhs = nil // avoid declared but not used error below
 			} else {
 				check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
@@ -607,7 +618,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 		xtyp, _ := x.typ.Underlying().(*Interface)
 		if xtyp == nil {
-			check.errorf(x.pos(), "%s is not an interface", &x)
+			check.errorf(x.pos(), _InvalidTypeSwitch, "%s is not an interface", &x)
 			return
 		}
 
@@ -660,7 +671,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				v.used = true // avoid usage error when checking entire function
 			}
 			if !used {
-				check.softErrorf(lhs.Pos(), "%s declared but not used", lhs.Name)
+				check.softErrorf(lhs.Pos(), _UnusedVar, "%s declared but not used", lhs.Name)
 			}
 		}
 
@@ -697,7 +708,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 
 			if !valid {
-				check.error(clause.Comm.Pos(), "select case must be send or receive (possibly with assignment)")
+				check.error(clause.Comm.Pos(), _InvalidSelectCase, "select case must be send or receive (possibly with assignment)")
 				continue
 			}
 
@@ -719,14 +730,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			var x operand
 			check.expr(&x, s.Cond)
 			if x.mode != invalid && !isBoolean(x.typ) {
-				check.error(s.Cond.Pos(), "non-boolean condition in for statement")
+				check.error(s.Cond.Pos(), _InvalidCond, "non-boolean condition in for statement")
 			}
 		}
 		check.simpleStmt(s.Post)
 		// spec: "The init statement may be a short variable
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*ast.AssignStmt); s != nil && s.Tok == token.DEFINE {
-			check.softErrorf(s.Pos(), "cannot declare in post statement")
+			check.softErrorf(s.Pos(), _InvalidPostDecl, "cannot declare in post statement")
 			// Don't call useLHS here because we want to use the lhs in
 			// this erroneous statement so that we don't get errors about
 			// these lhs variables being declared but not used.
@@ -770,18 +781,18 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				key = typ.elem
 				val = Typ[Invalid]
 				if typ.dir == SendOnly {
-					check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
+					check.errorf(x.pos(), _InvalidChanRange, "cannot range over send-only channel %s", &x)
 					// ok to continue
 				}
 				if s.Value != nil {
-					check.errorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
+					check.errorf(s.Value.Pos(), _InvalidIterVar, "iteration over %s permits only one iteration variable", &x)
 					// ok to continue
 				}
 			}
 		}
 
 		if key == nil {
-			check.errorf(x.pos(), "cannot range over %s", &x)
+			check.errorf(x.pos(), _InvalidRangeExpr, "cannot range over %s", &x)
 			// ok to continue
 		}
 
@@ -814,7 +825,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 						vars = append(vars, obj)
 					}
 				} else {
-					check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+					check.invalidAST(lhs.Pos(), "cannot declare %s", lhs)
 					obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 				}
 
@@ -841,7 +852,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
 				}
 			} else {
-				check.error(s.TokPos, "no new variables on left side of :=")
+				check.error(s.TokPos, _NoNewVar, "no new variables on left side of :=")
 			}
 		} else {
 			// ordinary assignment
@@ -861,6 +872,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.stmt(inner, s.Body)
 
 	default:
-		check.error(s.Pos(), "invalid statement")
+		check.invalidAST(s.Pos(), "invalid statement")
 	}
 }

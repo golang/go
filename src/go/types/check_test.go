@@ -279,6 +279,17 @@ func checkFiles(t *testing.T, testfiles []string) {
 		return
 	}
 
+	for _, err := range errlist {
+		err, ok := err.(Error)
+		if !ok {
+			continue
+		}
+		code := readCode(err)
+		if code == 0 {
+			t.Errorf("missing error code: %v", err)
+		}
+	}
+
 	// match and eliminate errors;
 	// we are expecting the following errors
 	errmap := errMap(t, pkgName, files)
