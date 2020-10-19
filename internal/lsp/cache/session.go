@@ -27,7 +27,8 @@ type Session struct {
 	cache *Cache
 	id    string
 
-	options *source.Options
+	optionsMu sync.Mutex
+	options   *source.Options
 
 	viewMu  sync.Mutex
 	views   []*View
@@ -118,10 +119,14 @@ func (s *Session) ID() string     { return s.id }
 func (s *Session) String() string { return s.id }
 
 func (s *Session) Options() *source.Options {
+	s.optionsMu.Lock()
+	defer s.optionsMu.Unlock()
 	return s.options
 }
 
 func (s *Session) SetOptions(options *source.Options) {
+	s.optionsMu.Lock()
+	defer s.optionsMu.Unlock()
 	s.options = options
 }
 

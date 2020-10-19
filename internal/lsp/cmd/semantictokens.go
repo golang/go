@@ -114,8 +114,7 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 	tok := fset.File(f.Pos())
 	if tok == nil {
 		// can't happen; just parsed this file
-		log.Printf("tok is nil!")
-		return fmt.Errorf("can't find %s in fset!", args[0])
+		return fmt.Errorf("can't find %s in fset", args[0])
 	}
 	tc := span.NewContentConverter(args[0], buf)
 	colmap = &protocol.ColumnMapper{

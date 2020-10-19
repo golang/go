@@ -595,7 +595,7 @@ func (m *SemMemo) Mods(n int) []string {
 }
 
 // save what the client sent
-func rememberToks(toks []string, mods []string) ([]string, []string) {
+func rememberToks(toks []string, mods []string) {
 	SemanticMemo = &SemMemo{
 		tokTypes: toks,
 		tokMods:  mods,
@@ -610,7 +610,6 @@ func rememberToks(toks []string, mods []string) ([]string, []string) {
 	}
 	// we could have pruned or rearranged them.
 	// But then change the list in cmd.go too
-	return SemanticMemo.tokTypes, SemanticMemo.tokMods
 }
 
 // SemanticTypes to use in case there is no client, as in the command line, or tests

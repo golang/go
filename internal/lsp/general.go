@@ -82,10 +82,14 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		}
 	}
 
+	if st := params.Capabilities.TextDocument.SemanticTokens; st != nil {
+		rememberToks(st.TokenTypes, st.TokenModifiers)
+	}
+
 	goplsVer := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, goplsVer, true, debug.PlainText)
 
-	ans := &protocol.InitializeResult{
+	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CallHierarchyProvider: true,
 			CodeActionProvider:    codeActionProvider,
@@ -131,25 +135,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 			Name:    "gopls",
 			Version: goplsVer.String(),
 		},
-	}
-
-	st := params.Capabilities.TextDocument.SemanticTokens
-	if st != nil {
-		tokTypes, tokModifiers := rememberToks(st.TokenTypes, st.TokenModifiers)
-		// check that st.TokenFormat is "relative"
-		v := &protocol.SemanticTokensOptions{
-			Legend: protocol.SemanticTokensLegend{
-				// TODO(pjw): trim these to what we use (and an unused one
-				// at position 0 of TokTypes, to catch typos)
-				TokenTypes:     tokTypes,
-				TokenModifiers: tokModifiers,
-			},
-			Range: true,
-			Full:  true,
-		}
-		ans.Capabilities.SemanticTokensProvider = v
-	}
-	return ans, nil
+	}, nil
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {
@@ -175,17 +161,22 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.pendingFolders = nil
 
 	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
-		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: []protocol.Registration{
-				{
-					ID:     "workspace/didChangeConfiguration",
-					Method: "workspace/didChangeConfiguration",
-				},
-				{
-					ID:     "workspace/didChangeWorkspaceFolders",
-					Method: "workspace/didChangeWorkspaceFolders",
-				},
+		registrations := []protocol.Registration{
+			{
+				ID:     "workspace/didChangeConfiguration",
+				Method: "workspace/didChangeConfiguration",
 			},
+			{
+				ID:     "workspace/didChangeWorkspaceFolders",
+				Method: "workspace/didChangeWorkspaceFolders",
+			},
+		}
+		if options.SemanticTokens {
+			registrations = append(registrations, semanticTokenRegistrations()...)
+
+		}
+		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+			Registrations: registrations,
 		}); err != nil {
 			return err
 		}

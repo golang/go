@@ -41,8 +41,16 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	return snapshot, release, err
 }
 
-func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}) error {
-	// go through all the views getting the config
+func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChangeConfigurationParams) error {
+	// Apply any changes to the session-level settings.
+	options := s.session.Options().Clone()
+	semanticTokensRegistered := options.SemanticTokens
+	if err := s.fetchConfig(ctx, "", "", options); err != nil {
+		return err
+	}
+	s.session.SetOptions(options)
+
+	// Go through each view, getting and updating its configuration.
 	for _, view := range s.session.Views() {
 		options := s.session.Options().Clone()
 		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), options); err != nil {
@@ -58,5 +66,50 @@ func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}
 			s.diagnoseDetached(snapshot)
 		}()
 	}
+
+	// Update any session-specific registrations or unregistrations.
+	if !semanticTokensRegistered && options.SemanticTokens {
+		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+			Registrations: semanticTokenRegistrations(),
+		}); err != nil {
+			return err
+		}
+	} else if semanticTokensRegistered && !options.SemanticTokens {
+		var unregistrations []protocol.Unregistration
+		for _, r := range semanticTokenRegistrations() {
+			unregistrations = append(unregistrations, protocol.Unregistration{
+				ID:     r.ID,
+				Method: r.Method,
+			})
+		}
+		if err := s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
+			Unregisterations: unregistrations,
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func semanticTokenRegistrations() []protocol.Registration {
+	var registrations []protocol.Registration
+	for _, method := range []string{
+		"textDocument/semanticTokens/full",
+		"textDocument/semanticTokens/full/delta",
+		"textDocument/semanticTokens/range",
+	} {
+		registrations = append(registrations, protocol.Registration{
+			ID:     method,
+			Method: method,
+			RegisterOptions: &protocol.SemanticTokensOptions{
+				Legend: protocol.SemanticTokensLegend{
+					// TODO(pjw): trim these to what we use (and an unused one
+					// at position 0 of TokTypes, to catch typos)
+					TokenTypes:     SemanticMemo.tokTypes,
+					TokenModifiers: SemanticMemo.tokMods,
+				},
+			},
+		})
+	}
+	return registrations
 }
