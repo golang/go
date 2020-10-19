@@ -635,8 +635,14 @@ func Utimes(path string, tv []Timeval) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(tv[0].Nanoseconds())
-	w := NsecToFiletime(tv[1].Nanoseconds())
+	a := Filetime{}
+	w := Filetime{}
+	if tv[0].Nanoseconds() != 0 {
+		a = NsecToFiletime(tv[0].Nanoseconds())
+	}
+	if tv[0].Nanoseconds() != 0 {
+		w = NsecToFiletime(tv[1].Nanoseconds())
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
 
@@ -655,8 +661,14 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(TimespecToNsec(ts[0]))
-	w := NsecToFiletime(TimespecToNsec(ts[1]))
+	a := Filetime{}
+	w := Filetime{}
+	if TimespecToNsec(ts[0]) != 0 {
+		a = NsecToFiletime(TimespecToNsec(ts[0]))
+	}
+	if TimespecToNsec(ts[1]) != 0 {
+		w = NsecToFiletime(TimespecToNsec(ts[1]))
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
 

@@ -14,6 +14,8 @@ import (
 	"syscall"
 )
 
+const _UTIME_OMIT = unix.UTIME_OMIT
+
 // fixLongPath is a noop on non-Windows platforms.
 func fixLongPath(path string) string {
 	return path

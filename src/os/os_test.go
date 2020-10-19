@@ -1386,6 +1386,128 @@ func TestChtimes(t *testing.T) {
 	testChtimes(t, f.Name())
 }
 
+func TestChtimesWithZeroTimes(t *testing.T) {
+	file := newFile("chtimes-with-zero", t)
+	_, err := file.Write([]byte("hello, world\n"))
+	if err != nil {
+		t.Fatalf("Write: %s", err)
+	}
+	fName := file.Name()
+	defer Remove(file.Name())
+	err = file.Close()
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	fs, err := Stat(fName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startAtime := Atime(fs)
+	startMtime := fs.ModTime()
+	switch runtime.GOOS {
+	case "js":
+		startAtime = startAtime.Truncate(time.Second)
+		startMtime = startMtime.Truncate(time.Second)
+	}
+	at0 := startAtime
+	mt0 := startMtime
+	t0 := startMtime.Truncate(time.Second).Add(1 * time.Hour)
+
+	tests := []struct {
+		aTime     time.Time
+		mTime     time.Time
+		wantATime time.Time
+		wantMTime time.Time
+	}{
+		{
+			aTime:     time.Time{},
+			mTime:     time.Time{},
+			wantATime: startAtime,
+			wantMTime: startMtime,
+		},
+		{
+			aTime:     t0.Add(200 * time.Second),
+			mTime:     time.Time{},
+			wantATime: t0.Add(200 * time.Second),
+			wantMTime: startMtime,
+		},
+		{
+			aTime:     time.Time{},
+			mTime:     t0.Add(100 * time.Second),
+			wantATime: t0.Add(200 * time.Second),
+			wantMTime: t0.Add(100 * time.Second),
+		},
+		{
+			aTime:     t0.Add(300 * time.Second),
+			mTime:     t0.Add(100 * time.Second),
+			wantATime: t0.Add(300 * time.Second),
+			wantMTime: t0.Add(100 * time.Second),
+		},
+	}
+
+	for _, tt := range tests {
+		// Now change the times accordingly.
+		if err := Chtimes(fName, tt.aTime, tt.mTime); err != nil {
+			t.Error(err)
+		}
+
+		// Finally verify the expectations.
+		fs, err = Stat(fName)
+		if err != nil {
+			t.Error(err)
+		}
+		at0 = Atime(fs)
+		mt0 = fs.ModTime()
+
+		if got, want := at0, tt.wantATime; !got.Equal(want) {
+			errormsg := fmt.Sprintf("AccessTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
+			switch runtime.GOOS {
+			case "plan9":
+				// Mtime is the time of the last change of
+				// content.  Similarly, atime is set whenever
+				// the contents are accessed; also, it is set
+				// whenever mtime is set.
+			case "windows":
+				t.Error(errormsg)
+			default: // unix's
+				if got, want := at0, tt.wantATime; !got.Equal(want) {
+					mounts, err := ReadFile("/bin/mounts")
+					if err != nil {
+						mounts, err = ReadFile("/etc/mtab")
+					}
+					if strings.Contains(string(mounts), "noatime") {
+						t.Log(errormsg)
+						t.Log("A filesystem is mounted with noatime; ignoring.")
+					} else {
+						switch runtime.GOOS {
+						case "netbsd", "dragonfly":
+							// On a 64-bit implementation, birth time is generally supported and cannot be changed.
+							// When supported, atime update is restricted and depends on the file system and on the
+							// OS configuration.
+							if strings.Contains(runtime.GOARCH, "64") {
+								t.Log(errormsg)
+								t.Log("Filesystem might not support atime changes; ignoring.")
+							}
+						default:
+							t.Error(errormsg)
+						}
+					}
+				}
+			}
+		}
+		if got, want := mt0, tt.wantMTime; !got.Equal(want) {
+			errormsg := fmt.Sprintf("ModTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
+			switch runtime.GOOS {
+			case "dragonfly":
+				t.Log(errormsg)
+				t.Log("Mtime is always updated; ignoring.")
+			default:
+				t.Error(errormsg)
+			}
+		}
+	}
+}
+
 // Use TempDir (via newDir) to make sure we're on a local file system,
 // so that timings are not distorted by latency and caching.
 // On NFS, timings can be off due to caching of meta-data on

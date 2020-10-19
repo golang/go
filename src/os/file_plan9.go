@@ -447,6 +447,7 @@ func chmod(name string, mode FileMode) error {
 
 // Chtimes changes the access and modification times of the named
 // file, similar to the Unix utime() or utimes() functions.
+// A zero time.Time value will leave the corresponding file time unchanged.
 //
 // The underlying filesystem may truncate or round the values to a
 // less precise time unit.
@@ -457,6 +458,12 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	d.Null()
 	d.Atime = uint32(atime.Unix())
 	d.Mtime = uint32(mtime.Unix())
+	if atime.IsZero() {
+		d.Atime = 0xFFFFFFFF
+	}
+	if mtime.IsZero() {
+		d.Mtime = 0xFFFFFFFF
+	}
 
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])

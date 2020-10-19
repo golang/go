@@ -663,17 +663,33 @@ func Lchown(path string, uid, gid int) error {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	// UTIME_OMIT value must match internal/syscall/unix/at_wasip1.go
+	const UTIME_OMIT = -0x2
 	if path == "" {
 		return EINVAL
 	}
 	dirFd, pathPtr, pathLen := preparePath(path)
+	atime := TimespecToNsec(ts[0])
+	mtime := TimespecToNsec(ts[1])
+	if ts[0].Nsec == UTIME_OMIT || ts[1].Nsec == UTIME_OMIT {
+		var st Stat_t
+		if err := Stat(path, &st); err != nil {
+			return err
+		}
+		if ts[0].Nsec == UTIME_OMIT {
+			atime = int64(st.Atime)
+		}
+		if ts[1].Nsec == UTIME_OMIT {
+			mtime = int64(st.Mtime)
+		}
+	}
 	errno := path_filestat_set_times(
 		dirFd,
 		LOOKUP_SYMLINK_FOLLOW,
 		pathPtr,
 		pathLen,
-		timestamp(TimespecToNsec(ts[0])),
-		timestamp(TimespecToNsec(ts[1])),
+		timestamp(atime),
+		timestamp(mtime),
 		FILESTAT_SET_ATIM|FILESTAT_SET_MTIM,
 	)
 	return errnoErr(errno)
