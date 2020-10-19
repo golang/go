@@ -132,6 +132,20 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 	return sb, nil
 }
 
+// Tempdir creates a new temp directory with the given txtar-encoded files. It
+// is the responsibility of the caller to call os.RemoveAll on the returned
+// file path when it is no longer needed.
+func Tempdir(txt string) (string, error) {
+	dir, err := ioutil.TempDir("", "gopls-tempdir-")
+	if err != nil {
+		return "", err
+	}
+	if err := writeTxtar(txt, RelativeTo(dir)); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 func unpackTxt(txt string) map[string][]byte {
 	dataMap := make(map[string][]byte)
 	archive := txtar.Parse([]byte(txt))
@@ -197,9 +211,9 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 	// Close to clean up any partial state from the constructor, which calls
 	// RunGoCommand).
 	if dir != "" {
-		inv.WorkingDir = sb.Workdir.filePath(dir)
+		inv.WorkingDir = sb.Workdir.AbsPath(dir)
 	} else if sb.Workdir != nil {
-		inv.WorkingDir = sb.Workdir.workdir
+		inv.WorkingDir = string(sb.Workdir.RelativeTo)
 	}
 	gocmdRunner := &gocommand.Runner{}
 	_, _, _, err := gocmdRunner.RunRaw(ctx, inv)

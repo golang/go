@@ -221,7 +221,7 @@ func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool, e
 	if !withoutWorkspaceFolders {
 		rootURI := e.sandbox.Workdir.RootURI()
 		if editorRootPath != "" {
-			rootURI = toURI(e.sandbox.Workdir.filePath(editorRootPath))
+			rootURI = toURI(e.sandbox.Workdir.AbsPath(editorRootPath))
 		}
 		params.WorkspaceFolders = []protocol.WorkspaceFolder{{
 			URI:  string(rootURI),
@@ -775,7 +775,7 @@ func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 	if e.Server == nil {
 		return nil
 	}
-	absDir := e.sandbox.Workdir.filePath(dir)
+	absDir := e.sandbox.Workdir.AbsPath(dir)
 	jsonArgs, err := source.MarshalArgs(span.URIFromPath(absDir), false)
 	if err != nil {
 		return err
