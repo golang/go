@@ -21,7 +21,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 
 	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{}
 	for _, uri := range snapshot.ModFiles() {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.GetVersionedFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +44,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 			} else {
 				diag.Severity = protocol.SeverityWarning
 			}
-			fh, err := snapshot.GetFile(ctx, e.URI)
+			fh, err := snapshot.GetVersionedFile(ctx, e.URI)
 			if err != nil {
 				return nil, err
 			}

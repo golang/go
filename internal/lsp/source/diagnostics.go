@@ -128,7 +128,7 @@ func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) map[string]Analyzer {
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (VersionedFileIdentity, []*Diagnostic, error) {
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetVersionedFile(ctx, uri)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}

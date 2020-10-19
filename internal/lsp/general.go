@@ -470,7 +470,7 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 		return nil, nil, false, func() {}, err
 	}
 	snapshot, release := view.Snapshot(ctx)
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetVersionedFile(ctx, uri)
 	if err != nil {
 		release()
 		return nil, nil, false, func() {}, err

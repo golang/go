@@ -24,7 +24,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 
 	var docChanges []protocol.TextDocumentEdit
 	for uri, e := range edits {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.GetVersionedFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}

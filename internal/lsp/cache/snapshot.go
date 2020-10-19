@@ -791,12 +791,12 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	return s.files[f.URI()]
 }
 
-// GetFile returns a File for the given URI. If the file is unknown it is added
-// to the managed set.
+// GetVersionedFile returns a File for the given URI. If the file is unknown it
+// is added to the managed set.
 //
 // GetFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
-func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
+func (s *snapshot) GetVersionedFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
 	f, err := s.view.getFile(uri)
 	if err != nil {
 		return nil, err
@@ -805,6 +805,11 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.VersionedF
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.getFileLocked(ctx, f)
+}
+
+// GetFile implements the fileSource interface by wrapping GetVersionedFile.
+func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+	return s.GetVersionedFile(ctx, uri)
 }
 
 func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.VersionedFileHandle, error) {

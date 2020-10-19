@@ -467,7 +467,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	snapshot, release := view.Snapshot(r.ctx)
 	defer release()
 
-	fh, err := snapshot.GetFile(r.ctx, uri)
+	fh, err := snapshot.GetVersionedFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -577,7 +577,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	snapshot, release := view.Snapshot(r.ctx)
 	defer release()
 
-	fh, err := snapshot.GetFile(r.ctx, uri)
+	fh, err := snapshot.GetVersionedFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
 	}

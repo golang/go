@@ -337,7 +337,7 @@ func errorsToDiagnostic(ctx context.Context, snapshot source.Snapshot, errors []
 			Severity: protocol.SeverityError,
 			Source:   e.Category,
 		}
-		fh, err := snapshot.GetFile(ctx, e.URI)
+		fh, err := snapshot.GetVersionedFile(ctx, e.URI)
 		if err != nil {
 			return err
 		}

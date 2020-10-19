@@ -282,7 +282,7 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Pac
 				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetFile(ctx, uri)
+				fh, err := snapshot.GetVersionedFile(ctx, uri)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -481,7 +481,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 			return nil, nil
 		}
 		var err error
-		modFH, err = snapshot.GetFile(ctx, modURI)
+		modFH, err = snapshot.GetVersionedFile(ctx, modURI)
 		if err != nil {
 			return nil, err
 		}
