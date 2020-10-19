@@ -1237,6 +1237,18 @@ func TestGoListExport(t *testing.T) {
 	if _, err := os.Stat(file); err != nil {
 		t.Fatalf("cannot find .Export result %s: %v", file, err)
 	}
+
+	tg.run("list", "-export", "-f", "{{.BuildID}}", "strings")
+	buildID := strings.TrimSpace(tg.stdout.String())
+	if buildID == "" {
+		t.Fatalf(".BuildID with -export was empty")
+	}
+
+	tg.run("tool", "buildid", file)
+	toolBuildID := strings.TrimSpace(tg.stdout.String())
+	if buildID != toolBuildID {
+		t.Fatalf(".BuildID with -export %q disagrees with 'go tool buildid' %q", buildID, toolBuildID)
+	}
 }
 
 // Issue 4096. Validate the output of unsuccessful go install foo/quxx.

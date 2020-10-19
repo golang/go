@@ -796,6 +796,7 @@
 //         BinaryOnly    bool     // binary-only package (no longer supported)
 //         ForTest       string   // package is only for use in named test
 //         Export        string   // file containing export data (when using -export)
+//         BuildID       string   // build ID of the export data (when using -export)
 //         Module        *Module  // info about package's containing module, if any (can be nil)
 //         Match         []string // command-line patterns matching this package
 //         DepOnly       bool     // package is only a dependency, not explicitly listed
