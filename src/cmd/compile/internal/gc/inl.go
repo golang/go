@@ -374,8 +374,10 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.reason = "call to recover"
 		return true
 
+	case OCALLPART:
+		// OCALLPART is inlineable, but no extra cost to the budget
+
 	case OCLOSURE,
-		OCALLPART,
 		ORANGE,
 		OSELECT,
 		OTYPESW,
@@ -454,7 +456,7 @@ func inlcopy(n *Node) *Node {
 	}
 
 	m := n.copy()
-	if m.Func != nil {
+	if n.Op != OCALLPART && m.Func != nil {
 		Fatalf("unexpected Func: %v", m)
 	}
 	m.Left = inlcopy(n.Left)

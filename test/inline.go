@@ -229,3 +229,20 @@ Loop:
 		}
 	}
 }
+
+// Issue #18493 - make sure we can do inlining of functions with a method value
+type T1 struct{}
+
+func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
+	return val + 5
+}
+
+func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
+	return t1.meth // ERROR "t1.meth escapes to heap"
+}
+
+func ii() { // ERROR "can inline ii"
+	var t1 T1
+	f := getMeth(t1) // ERROR "inlining call to getMeth" "t1.meth does not escape"
+	_ = f(3)
+}

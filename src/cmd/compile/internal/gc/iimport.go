@@ -866,7 +866,7 @@ func (r *importReader) node() *Node {
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
-	//	unimplemented
+	//	unreachable - mapped to case OXDOT below by exporter
 
 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 	// 	unreachable - mapped to case OXDOT below by exporter

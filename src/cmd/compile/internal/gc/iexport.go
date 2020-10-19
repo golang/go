@@ -1266,8 +1266,13 @@ func (w *exportWriter) expr(n *Node) {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	// case OCALLPART:
-	//	unimplemented - handled by default case
+	case OCALLPART:
+		// An OCALLPART is an OXDOT before type checking.
+		w.op(OXDOT)
+		w.pos(n.Pos)
+		w.expr(n.Left)
+		// Right node should be ONAME
+		w.selector(n.Right.Sym)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		w.op(OXDOT)
