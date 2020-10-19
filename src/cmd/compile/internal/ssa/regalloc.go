@@ -1582,6 +1582,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				v := s.orig[vid]
 				m := s.compatRegs(v.Type) &^ s.used
+				// Used desired register if available.
+			outerloop:
+				for _, e := range desired.entries {
+					if e.ID != v.ID {
+						continue
+					}
+					for _, r := range e.regs {
+						if r != noRegister && m>>r&1 != 0 {
+							m = regMask(1) << r
+							break outerloop
+						}
+					}
+				}
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
 				}
@@ -1643,7 +1656,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// we'll rematerialize during the merge.
 				continue
 			}
-			//fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			}
 			spill := s.makeSpill(s.orig[e.ID], b)
 			s.spillLive[b.ID] = append(s.spillLive[b.ID], spill.ID)
 		}
@@ -2514,7 +2529,7 @@ func (s *regAllocState) computeLive() {
 		for _, b := range f.Blocks {
 			fmt.Printf("  %s:", b)
 			for _, x := range s.live[b.ID] {
-				fmt.Printf(" v%d", x.ID)
+				fmt.Printf(" v%d(%d)", x.ID, x.dist)
 				for _, e := range s.desired[b.ID].entries {
 					if e.ID != x.ID {
 						continue
