@@ -1438,11 +1438,6 @@ func (p *noder) mkname(name *syntax.Name) *Node {
 	return mkname(p.name(name))
 }
 
-func (p *noder) newname(name *syntax.Name) *Node {
-	// TODO(mdempsky): Set line number?
-	return newname(p.name(name))
-}
-
 func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
