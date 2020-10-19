@@ -13,12 +13,12 @@ import (
 const quote = "`"
 
 type readTest struct {
-	// Test input contains ℙ where readImports should stop.
+	// Test input contains ℙ where readGoInfo should stop.
 	in  string
 	err string
 }
 
-var readImportsTests = []readTest{
+var readGoInfoTests = []readTest{
 	{
 		`package p`,
 		"",
@@ -37,15 +37,15 @@ var readImportsTests = []readTest{
 	},
 	{
 		`package p
-		
+
 		// comment
-		
+
 		import "x"
 		import _ "x"
 		import a "x"
-		
+
 		/* comment */
-		
+
 		import (
 			"x" /* comment */
 			_ "x"
@@ -59,7 +59,7 @@ var readImportsTests = []readTest{
 		import ()
 		import()import()import()
 		import();import();import()
-		
+
 		ℙvar x = 1
 		`,
 		"",
@@ -85,7 +85,7 @@ var readCommentsTests = []readTest{
 		/* bar */
 
 		/* quux */ // baz
-		
+
 		/*/ zot */
 
 		// asdf
@@ -127,8 +127,12 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 	}
 }
 
-func TestReadImports(t *testing.T) {
-	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
+func TestReadGoInfo(t *testing.T) {
+	testRead(t, readGoInfoTests, func(r io.Reader) ([]byte, error) {
+		var info fileInfo
+		err := readGoInfo(r, &info)
+		return info.header, err
+	})
 }
 
 func TestReadComments(t *testing.T) {
@@ -202,11 +206,6 @@ var readFailuresTests = []readTest{
 	},
 }
 
-func TestReadFailures(t *testing.T) {
-	// Errors should be reported (true arg to readImports).
-	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
-}
-
 func TestReadFailuresIgnored(t *testing.T) {
 	// Syntax errors should not be reported (false arg to readImports).
 	// Instead, entire file should be the output and no error.
@@ -219,5 +218,9 @@ func TestReadFailuresIgnored(t *testing.T) {
 			tt.err = ""
 		}
 	}
-	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false, nil) })
+	testRead(t, tests, func(r io.Reader) ([]byte, error) {
+		var info fileInfo
+		err := readGoInfo(r, &info)
+		return info.header, err
+	})
 }

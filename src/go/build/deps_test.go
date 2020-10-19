@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -606,24 +605,22 @@ func findImports(pkg string) ([]string, error) {
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		f, err := os.Open(filepath.Join(dir, name))
+		var info fileInfo
+		info.name = filepath.Join(dir, name)
+		f, err := os.Open(info.name)
 		if err != nil {
 			return nil, err
 		}
-		var imp []string
-		data, err := readImports(f, false, &imp)
+		err = readGoInfo(f, &info)
 		f.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %v: %v", name, err)
 		}
-		if bytes.Contains(data, buildIgnore) {
+		if bytes.Contains(info.header, buildIgnore) {
 			continue
 		}
-		for _, quoted := range imp {
-			path, err := strconv.Unquote(quoted)
-			if err != nil {
-				continue
-			}
+		for _, imp := range info.imports {
+			path := imp.path
 			if !haveImport[path] {
 				haveImport[path] = true
 				imports = append(imports, path)
