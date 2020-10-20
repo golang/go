@@ -1,4 +1,4 @@
-// Copyright 2016 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -23,22 +23,24 @@ func CommentsDo(src io.Reader, handler func(line, col uint, text string)) {
 	}
 }
 
-// ERROR comments must start with text `ERROR "msg" or `ERROR msg`.
+// ERROR comments must start with text `ERROR "msg"` or `ERROR msg`.
 // Space around "msg" or msg is ignored.
 var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
 
 // ErrorMap collects all comments with comment text of the form
-// `ERROR "msg" or `ERROR msg` from the given src and returns them
+// `ERROR "msg"` or `ERROR msg` from the given src and returns them
 // as []Error lists in a map indexed by line number. The position
-// for each Error is the position of the token immediately preceeding
+// for each Error is the position of the token immediately preceding
 // the comment, the Error message is the message msg extracted from
 // the comment, with all errors that are on the same line collected
-// in a slice. If there are no ERROR comments, the result is nil.
+// in a slice. If there is no preceding token (the `ERROR` comment
+// appears in the beginning of the file), then the recorded position
+// is unknown (line, col = 0, 0). If there are no ERROR comments, the
+// result is nil.
 func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
-	// position of previous and current token
+	// position of previous token
 	var base *PosBase
-	var prev, curr struct{ line, col uint }
-	curr.line, curr.col = 1, 1
+	var prev struct{ line, col uint }
 
 	var s scanner
 	s.init(src, func(_, _ uint, text string) {
@@ -59,12 +61,11 @@ func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
 	}, comments)
 
 	for s.tok != _EOF {
-		prev = curr
 		s.next()
 		if s.tok == _Semi && s.lit != "semicolon" {
 			continue // ignore automatically inserted semicolons
 		}
-		curr.line, curr.col = s.line, s.col
+		prev.line, prev.col = s.line, s.col
 	}
 
 	return

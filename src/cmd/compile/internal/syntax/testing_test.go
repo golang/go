@@ -11,17 +11,17 @@ import (
 )
 
 func TestErrorMap(t *testing.T) {
-	src := strings.NewReader(
-		`/* ERROR 1:1 */ /* ERROR "1:1" */ // ERROR 1:1
-// ERROR "1:1"
+	const src = `/* ERROR 0:0 */ /* ERROR "0:0" */ // ERROR 0:0
+// ERROR "0:0"
 x /* ERROR 3:1 */                // ignore automatically inserted semicolon here
 /* ERROR 3:1 */                  // position of x on previous line
    x /* ERROR 5:4 */ ;           // do not ignore this semicolon
 /* ERROR 5:22 */                 // position of ; on previous line
 	package /* ERROR 7:2 */  // indented with tab
         import  /* ERROR 8:9 */  // indented with blanks
-`)
-	m := ErrorMap(src)
+`
+	m := ErrorMap(strings.NewReader(src))
+	got := 0 // number of errors found
 	for line, errlist := range m {
 		for _, err := range errlist {
 			if err.Pos.Line() != line {
@@ -35,5 +35,11 @@ x /* ERROR 3:1 */                // ignore automatically inserted semicolon here
 				continue
 			}
 		}
+		got += len(errlist)
+	}
+
+	want := strings.Count(src, "ERROR")
+	if got != want {
+		t.Errorf("ErrorMap got %d errors; want %d", got, want)
 	}
 }
