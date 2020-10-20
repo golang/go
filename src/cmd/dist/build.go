@@ -833,7 +833,7 @@ func runInstall(pkg string, ch chan struct{}) {
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 	if IsRuntimePackagePath(pkg) {
-		asmArgs = append(asmArgs, "-compilingRuntime")
+		asmArgs = append(asmArgs, "-compiling-runtime")
 		if os.Getenv("GOEXPERIMENT") == "regabi" {
 			// In order to make it easier to port runtime assembly
 			// to the register ABI, we introduce a macro

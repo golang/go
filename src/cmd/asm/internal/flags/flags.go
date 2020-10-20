@@ -24,7 +24,7 @@ var (
 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
 	Importpath       = flag.String("p", "", "set expected package import to path")
 	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
-	CompilingRuntime = flag.Bool("compilingRuntime", false, "source to be compiled is part of the Go runtime")
+	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
 )
 
 var (
