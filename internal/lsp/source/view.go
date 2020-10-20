@@ -579,7 +579,11 @@ type Error struct {
 	Kind     ErrorKind
 	Message  string
 	Category string // only used by analysis errors so far
-	Related  []RelatedInformation
+
+	Related []RelatedInformation
+
+	Code     string
+	CodeHref string
 
 	// SuggestedFixes is used to generate quick fixes for a CodeAction request.
 	// It isn't part of the Diagnostic type.

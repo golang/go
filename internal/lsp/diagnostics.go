@@ -445,6 +445,8 @@ func (s *Server) storeErrorDiagnostics(ctx context.Context, snapshot source.Snap
 			Related:  e.Related,
 			Severity: protocol.SeverityError,
 			Source:   e.Category,
+			Code:     e.Code,
+			CodeHref: e.CodeHref,
 		}
 		s.storeDiagnostics(snapshot, e.URI, dsource, []*source.Diagnostic{diagnostic})
 	}
@@ -534,7 +536,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 				Message: rel.Message,
 			})
 		}
-		reports = append(reports, protocol.Diagnostic{
+		pdiag := protocol.Diagnostic{
 			// diag.Message might start with \n or \t
 			Message:            strings.TrimSpace(diag.Message),
 			Range:              diag.Range,
@@ -542,7 +544,14 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			Source:             diag.Source,
 			Tags:               diag.Tags,
 			RelatedInformation: related,
-		})
+		}
+		if diag.Code != "" {
+			pdiag.Code = diag.Code
+		}
+		if diag.CodeHref != "" {
+			pdiag.CodeDescription = &protocol.CodeDescription{Href: diag.CodeHref}
+		}
+		reports = append(reports, pdiag)
 	}
 	return reports
 }

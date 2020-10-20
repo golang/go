@@ -18,6 +18,8 @@ type Diagnostic struct {
 	Range    protocol.Range
 	Message  string
 	Source   string
+	Code     string
+	CodeHref string
 	Severity protocol.DiagnosticSeverity
 	Tags     []protocol.DiagnosticTag
 

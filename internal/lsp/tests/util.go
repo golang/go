@@ -129,16 +129,32 @@ func DiffDiagnostics(uri span.URI, want, got []*source.Diagnostic) string {
 		if w.Source != g.Source {
 			return summarizeDiagnostics(i, uri, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
 		}
-		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
-		}
-		if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the diagnostic returns a zero-length range.
-			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
-				return summarizeDiagnostics(i, uri, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
-			}
+		if !rangeOverlaps(g.Range, w.Range) {
+			return summarizeDiagnostics(i, uri, want, got, "range %v does not overlap %v", g.Range, w.Range)
 		}
 	}
 	return ""
+}
+
+// rangeOverlaps reports whether r1 and r2 overlap.
+func rangeOverlaps(r1, r2 protocol.Range) bool {
+	if inRange(r2.Start, r1) || inRange(r1.Start, r2) {
+		return true
+	}
+	return false
+}
+
+// inRange reports whether p is contained within [r.Start, r.End), or if p ==
+// r.Start == r.End (special handling for the case where the range is a single
+// point).
+func inRange(p protocol.Position, r protocol.Range) bool {
+	if protocol.IsPoint(r) {
+		return protocol.ComparePosition(r.Start, p) == 0
+	}
+	if protocol.ComparePosition(r.Start, p) <= 0 && protocol.ComparePosition(p, r.End) < 0 {
+		return true
+	}
+	return false
 }
 
 func summarizeDiagnostics(i int, uri span.URI, want, got []*source.Diagnostic, reason string, args ...interface{}) string {

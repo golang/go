@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typesinternal"
 	errors "golang.org/x/xerrors"
 )
 
@@ -31,6 +32,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		spn           span.Span
 		err           error
 		msg, category string
+		code          typesinternal.ErrorCode
 		kind          source.ErrorKind
 		fixes         []source.SuggestedFix
 		related       []source.RelatedInformation
@@ -90,7 +92,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		if !e.Pos.IsValid() {
 			return nil, fmt.Errorf("invalid position for type error %v", e)
 		}
-		spn, err = typeErrorRange(snapshot, fset, pkg, e.Pos)
+		code, spn, err = typeErrorData(fset, pkg, e)
 		if err != nil {
 			return nil, err
 		}
@@ -101,14 +103,14 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		if !perr.Pos.IsValid() {
 			return nil, fmt.Errorf("invalid position for type error %v", e)
 		}
-		spn, err = typeErrorRange(snapshot, fset, pkg, perr.Pos)
+		code, spn, err = typeErrorData(fset, pkg, e.primary)
 		if err != nil {
 			return nil, err
 		}
 		for _, s := range e.secondaries {
 			var x source.RelatedInformation
 			x.Message = s.Msg
-			xspn, err := typeErrorRange(snapshot, fset, pkg, s.Pos)
+			_, xspn, err := typeErrorData(fset, pkg, s)
 			if err != nil {
 				return nil, fmt.Errorf("invalid position for type error %v", s)
 			}
@@ -143,7 +145,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 	if err != nil {
 		return nil, err
 	}
-	return &source.Error{
+	se := &source.Error{
 		URI:            spn.URI(),
 		Range:          rng,
 		Message:        msg,
@@ -151,7 +153,17 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		Category:       category,
 		SuggestedFixes: fixes,
 		Related:        related,
-	}, nil
+	}
+	if code != 0 {
+		se.Code = code.String()
+		se.CodeHref = typesCodeHref(snapshot, code)
+	}
+	return se, nil
+}
+
+func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
+	target := snapshot.View().Options().LinkTarget
+	return fmt.Sprintf("%s/golang.org/x/tools/internal/typesinternal#%s", target, code.String())
 }
 
 func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
@@ -213,18 +225,29 @@ func toSourceErrorKind(kind packages.ErrorKind) source.ErrorKind {
 	}
 }
 
-func typeErrorRange(snapshot *snapshot, fset *token.FileSet, pkg *pkg, pos token.Pos) (span.Span, error) {
-	posn := fset.Position(pos)
+func typeErrorData(fset *token.FileSet, pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Span, error) {
+	ecode, start, end, ok := typesinternal.ReadGo116ErrorData(terr)
+	if !ok {
+		start, end = terr.Pos, terr.Pos
+		ecode = 0
+	}
+	posn := fset.Position(start)
 	pgf, err := pkg.File(span.URIFromPath(posn.Filename))
 	if err != nil {
-		return span.Span{}, err
+		return 0, span.Span{}, err
 	}
-	return span.Range{
-		FileSet:   fset,
-		Start:     pos,
-		End:       analysisinternal.TypeErrorEndPos(fset, pgf.Src, pos),
-		Converter: pgf.Mapper.Converter,
-	}.Span()
+	if !end.IsValid() || end == start {
+		end = analysisinternal.TypeErrorEndPos(fset, pgf.Src, start)
+	}
+	spn, err := parsedGoSpan(pgf, start, end)
+	if err != nil {
+		return 0, span.Span{}, err
+	}
+	return ecode, spn, nil
+}
+
+func parsedGoSpan(pgf *source.ParsedGoFile, start, end token.Pos) (span.Span, error) {
+	return span.FileSpan(pgf.Tok, pgf.Mapper.Converter, start, end)
 }
 
 func scannerErrorRange(snapshot *snapshot, pkg *pkg, posn token.Position) (span.Span, error) {

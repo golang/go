@@ -18,6 +18,6 @@ type bob struct { //@item(bob, "bob", "struct{...}", "struct")
 func _() {
 	var q int
 	_ = &bob{
-		f: q, //@diag("f", "compiler", "unknown field f in struct literal", "error")
+		f: q, //@diag("f: q", "compiler", "unknown field f in struct literal", "error")
 	}
 }
