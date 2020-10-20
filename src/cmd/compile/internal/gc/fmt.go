@@ -792,6 +792,13 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		return
 	}
 
+	if mode == FDbg {
+		b.WriteString(t.Etype.String())
+		b.WriteByte('-')
+		tconv2(b, t, flag, FErr, visited)
+		return
+	}
+
 	// At this point, we might call tconv2 recursively. Add the current type to the visited list so we don't
 	// try to print it recursively.
 	// We record the offset in the result buffer where the type's text starts. This offset serves as a reference
@@ -805,12 +812,6 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	visited[t] = b.Len()
 	defer delete(visited, t)
 
-	if mode == FDbg {
-		b.WriteString(t.Etype.String())
-		b.WriteByte('-')
-		tconv2(b, t, flag, FErr, visited)
-		return
-	}
 	switch t.Etype {
 	case TPTR:
 		b.WriteByte('*')
