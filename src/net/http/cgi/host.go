@@ -45,7 +45,7 @@ var osDefaultInheritEnv = func() []string {
 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
 	case "irix":
 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
-	case "solaris":
+	case "illumos", "solaris":
 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
 	case "windows":
 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
