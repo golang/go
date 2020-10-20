@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
@@ -184,37 +185,62 @@ func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) *source.Er
 	return srcErrs
 }
 
-// tempWorkspaceModule creates a temporary directory for use with
-// packages.Loads that occur from within the workspace module.
-func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup func(), err error) {
-	cleanup = func() {}
-	if s.workspaceMode()&usesWorkspaceModule == 0 {
-		return "", cleanup, nil
+type workspaceDirKey string
+
+type workspaceDirData struct {
+	dir string
+	err error
+}
+
+// getWorkspaceDir gets the URI for the workspace directory associated with
+// this snapshot. The workspace directory is a temp directory containing the
+// go.mod file computed from all active modules.
+func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
+	s.mu.Lock()
+	h := s.workspaceDirHandle
+	s.mu.Unlock()
+	if h != nil {
+		return getWorkspaceDir(ctx, h, s.generation)
 	}
 	file, err := s.workspace.modFile(ctx, s)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
-
 	content, err := file.Format()
 	if err != nil {
-		return "", cleanup, err
+		return "", err
 	}
-	// Create a temporary working directory for the go command that contains
-	// the workspace module file.
-	name, err := ioutil.TempDir("", "gopls-mod")
+	key := workspaceDirKey(hashContents(content))
+	s.mu.Lock()
+	s.workspaceDirHandle = s.generation.Bind(key, func(context.Context, memoize.Arg) interface{} {
+		tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
+		if err != nil {
+			return &workspaceDirData{err: err}
+		}
+		filename := filepath.Join(tmpdir, "go.mod")
+		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
+			os.RemoveAll(tmpdir)
+			return &workspaceDirData{err: err}
+		}
+		return &workspaceDirData{dir: tmpdir}
+	}, func(v interface{}) {
+		d := v.(*workspaceDirData)
+		if d.dir != "" {
+			if err := os.RemoveAll(d.dir); err != nil {
+				event.Error(context.Background(), "cleaning workspace dir", err)
+			}
+		}
+	})
+	s.mu.Unlock()
+	return getWorkspaceDir(ctx, s.workspaceDirHandle, s.generation)
+}
+
+func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generation) (span.URI, error) {
+	v, err := h.Get(ctx, g, nil)
 	if err != nil {
-		return "", cleanup, err
+		return "", err
 	}
-	cleanup = func() {
-		os.RemoveAll(name)
-	}
-	filename := filepath.Join(name, "go.mod")
-	if err := ioutil.WriteFile(filename, content, 0644); err != nil {
-		cleanup()
-		return "", cleanup, err
-	}
-	return span.URIFromPath(filepath.Dir(filename)), cleanup, nil
+	return span.URIFromPath(v.(*workspaceDirData).dir), nil
 }
 
 // setMetadata extracts metadata from pkg and records it in s. It

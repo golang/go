@@ -92,7 +92,8 @@ type snapshot struct {
 	modUpgradeHandles map[span.URI]*modUpgradeHandle
 	modWhyHandles     map[span.URI]*modWhyHandle
 
-	workspace *workspace
+	workspace          *workspace
+	workspaceDirHandle *memoize.Handle
 }
 
 type packageKey struct {
@@ -252,7 +253,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 			} else {
 				var tmpDir span.URI
 				var err error
-				tmpDir, cleanup, err = s.tempWorkspaceModule(ctx)
+				tmpDir, err = s.getWorkspaceDir(ctx)
 				if err != nil {
 					return "", nil, cleanup, err
 				}
@@ -999,6 +1000,11 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle),
 		workspace:         newWorkspace,
+	}
+
+	if !workspaceChanged && s.workspaceDirHandle != nil {
+		result.workspaceDirHandle = s.workspaceDirHandle
+		newGen.Inherit(s.workspaceDirHandle)
 	}
 
 	if s.builtin != nil {
