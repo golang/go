@@ -1966,7 +1966,9 @@ func externalLinkingForced(p *Package) bool {
 		if cfg.BuildContext.GOARCH != "arm64" {
 			return true
 		}
-	case "darwin", "ios":
+	case "ios":
+		return true
+	case "darwin":
 		if cfg.BuildContext.GOARCH == "arm64" {
 			return true
 		}
