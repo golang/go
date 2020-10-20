@@ -126,7 +126,7 @@ type workspaceInformation struct {
 }
 
 type environmentVariables struct {
-	gocache, gopath, goprivate, gomodcache, gomod string
+	gocache, gopath, goprivate, gomodcache string
 }
 
 type workspaceMode int
@@ -651,13 +651,15 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	tool, _ := exec.LookPath("gopackagesdriver")
 	hasGopackagesDriver := gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
 
-	var modURI span.URI
-	if envVars.gomod != os.DevNull && envVars.gomod != "" {
-		modURI = span.URIFromPath(envVars.gomod)
-	}
 	root := folder
-	if options.ExpandWorkspaceToModule && modURI != "" {
-		root = span.URIFromPath(filepath.Dir(modURI.Filename()))
+	if options.ExpandWorkspaceToModule {
+		wsRoot, err := findWorkspaceRoot(ctx, root, s)
+		if err != nil {
+			return nil, err
+		}
+		if wsRoot != "" {
+			root = wsRoot
+		}
 	}
 	return &workspaceInformation{
 		hasGopackagesDriver:  hasGopackagesDriver,
@@ -667,6 +669,39 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		environmentVariables: envVars,
 		goEnv:                env,
 	}, nil
+}
+
+func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource) (span.URI, error) {
+	for _, basename := range []string{"gopls.mod", "go.mod"} {
+		dir, err := findRootPattern(ctx, folder, basename, fs)
+		if err != nil {
+			return "", errors.Errorf("finding %s: %w", basename, err)
+		}
+		if dir != "" {
+			return dir, nil
+		}
+	}
+	return "", nil
+}
+
+func findRootPattern(ctx context.Context, folder span.URI, basename string, fs source.FileSource) (span.URI, error) {
+	dir := folder.Filename()
+	for dir != "" {
+		target := filepath.Join(dir, basename)
+		exists, err := fileExists(ctx, span.URIFromPath(target), fs)
+		if err != nil {
+			return "", err
+		}
+		if exists {
+			return span.URIFromPath(dir), nil
+		}
+		next, _ := filepath.Split(dir)
+		if next == dir {
+			break
+		}
+		dir = next
+	}
+	return "", nil
 }
 
 // OS-specific path case check, for case-insensitive filesystems.
@@ -710,7 +745,6 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, configEnv []strin
 		"GOPATH":     &envVars.gopath,
 		"GOPRIVATE":  &envVars.goprivate,
 		"GOMODCACHE": &envVars.gomodcache,
-		"GOMOD":      &envVars.gomod,
 	}
 	// We can save ~200 ms by requesting only the variables we care about.
 	args := append([]string{"-json"}, imports.RequiredGoEnvVars...)
