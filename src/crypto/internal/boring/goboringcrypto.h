@@ -118,7 +118,7 @@ size_t _goboringcrypto_EVP_AEAD_key_length(const GO_EVP_AEAD*);
 size_t _goboringcrypto_EVP_AEAD_nonce_length(const GO_EVP_AEAD*);
 size_t _goboringcrypto_EVP_AEAD_max_overhead(const GO_EVP_AEAD*);
 size_t _goboringcrypto_EVP_AEAD_max_tag_len(const GO_EVP_AEAD*);
-typedef struct GO_EVP_AEAD_CTX { char data[24]; } GO_EVP_AEAD_CTX;
+typedef struct GO_EVP_AEAD_CTX { char data[600]; } GO_EVP_AEAD_CTX;
 void _goboringcrypto_EVP_AEAD_CTX_zero(GO_EVP_AEAD_CTX*);
 int _goboringcrypto_EVP_AEAD_CTX_init(GO_EVP_AEAD_CTX*, const GO_EVP_AEAD*, const uint8_t*, size_t, size_t, GO_ENGINE*);
 void _goboringcrypto_EVP_AEAD_CTX_cleanup(GO_EVP_AEAD_CTX*);
@@ -188,7 +188,7 @@ void _goboringcrypto_RSA_free(GO_RSA*);
 void _goboringcrypto_RSA_get0_key(const GO_RSA*, const GO_BIGNUM **n, const GO_BIGNUM **e, const GO_BIGNUM **d);
 void _goboringcrypto_RSA_get0_factors(const GO_RSA*, const GO_BIGNUM **p, const GO_BIGNUM **q);
 void _goboringcrypto_RSA_get0_crt_params(const GO_RSA*, const GO_BIGNUM **dmp1, const GO_BIGNUM **dmp2, const GO_BIGNUM **iqmp);
-int _goboringcrypto_RSA_generate_key_ex(GO_RSA*, int, GO_BIGNUM*, GO_BN_GENCB*);
+int _goboringcrypto_RSA_generate_key_ex(GO_RSA*, int, const GO_BIGNUM*, GO_BN_GENCB*);
 int _goboringcrypto_RSA_generate_key_fips(GO_RSA*, int, GO_BN_GENCB*);
 enum {
 	GO_RSA_PKCS1_PADDING = 1,

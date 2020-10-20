@@ -2,13 +2,13 @@
 
 We have been working inside Google on a fork of Go that uses
 BoringCrypto (the core of [BoringSSL][]) for various crypto
-primitives, in furtherance of some [work related to FIPS 140-2][3318].
+primitives, in furtherance of some [work related to FIPS 140-2][sp].
 We have heard that some external users of Go would be interested in
 this code as well, so this branch holds the patches to make Go use
 BoringCrypto.
 
 [BoringSSL]: https://boringssl.googlesource.com/boringssl/
-[3318]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf
+[sp]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
 
 Unlike typical dev branches, we do not intend any eventual merge of
 this code into the master branch. Instead we intend to maintain in
