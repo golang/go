@@ -137,6 +137,7 @@ func TestNewClientServerTest(t *testing.T) {
 	for _, v := range [2]bool{false, true} {
 		cst := newClientServerTest(t, v, h)
 		if _, err := cst.c.Head(cst.ts.URL); err != nil {
+			cst.close()
 			t.Fatal(err)
 		}
 		cst.close()
