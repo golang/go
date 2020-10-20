@@ -597,7 +597,6 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 // enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
-	o.ExperimentalWorkspaceModule = true
 	o.ExperimentalPackageCacheKey = true
 	o.SymbolStyle = DynamicSymbols
 }
