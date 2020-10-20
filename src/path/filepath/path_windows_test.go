@@ -412,6 +412,9 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+
+		// test UNC paths
+		{".", `\\localhost\c$`, `\\localhost\c$`},
 	}
 
 	tmp, err := ioutil.TempDir("", "testToNorm")
