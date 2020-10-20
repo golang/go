@@ -2156,8 +2156,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	}
 
 	// Check the signature to ensure the crypto.Signer behaved correctly.
-	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public()); err != nil {
-		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+	// We skip this check if the signature algorithm is MD5WithRSA as we
+	// only support this algorithm for signing, and not verification.
+	if sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm); sigAlg != MD5WithRSA {
+		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
+			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+		}
 	}
 
 	return signedCert, nil

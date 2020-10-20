@@ -2896,3 +2896,19 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
 	}
 }
+
+func TestCreateCertificateMD5(t *testing.T) {
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: MD5WithRSA,
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
+	}
+}
