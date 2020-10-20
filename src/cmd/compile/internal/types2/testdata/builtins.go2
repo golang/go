@@ -1,0 +1,53 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file tests built-in calls on generic types.
+
+package builtins
+
+type Bmc interface {
+	type map[rune]string, chan int
+}
+
+type Bms interface {
+	type map[string]int, []int
+}
+
+type Bcs interface {
+	type chan bool, []float64
+}
+
+type Bss interface {
+	type []int, []string
+}
+
+func _[T any] () {
+	_ = make(T /* ERROR invalid argument */ )
+	_ = make(T /* ERROR invalid argument */ , 10)
+	_ = make(T /* ERROR invalid argument */ , 10, 20)
+}
+
+func _[T Bmc] () {
+	_ = make(T)
+	_ = make(T, 10)
+	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
+}
+
+func _[T Bms] () {
+	_ = make /* ERROR expects 2 arguments */ (T)
+	_ = make(T, 10)
+	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+}
+
+func _[T Bcs] () {
+	_ = make /* ERROR expects 2 arguments */ (T)
+	_ = make(T, 10)
+	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+}
+
+func _[T Bss] () {
+	_ = make /* ERROR expects 2 or 3 arguments */ (T)
+	_ = make(T, 10)
+	_ = make(T, 10, 20)
+}
