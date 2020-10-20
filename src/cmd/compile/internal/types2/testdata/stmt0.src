@@ -86,7 +86,7 @@ func assignments1() {
 
 	g := func(int, bool){}
 	var m map[int]int
-	g(m[0]) /* ERROR "too few arguments" */
+	g(m[0]) /* ERROR "not enough arguments" */
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
@@ -229,7 +229,7 @@ func selects() {
 }
 
 func gos() {
-	go 1 /* ERROR HERE "function must be invoked" */
+	go 1 /* ERROR must be function call */ /* ERROR cannot call non-function */
 	go int /* ERROR "go requires function call, not conversion" */ (0)
 	go gos()
 	var c chan int
@@ -238,7 +238,7 @@ func gos() {
 }
 
 func defers() {
-	defer 1 /* ERROR HERE "function must be invoked" */
+	defer 1 /* ERROR must be function call */ /* ERROR cannot call non-function */
 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
 	defer defers()
 	var c chan int
@@ -886,7 +886,7 @@ func rangeloops1() {
 		ee = e
 		_ = ee
 	}
-	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
+	for _ = range sc /* ERROR "send-only channel" */ {}
 	for _ = range rc {}
 
 	// constant strings

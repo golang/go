@@ -221,8 +221,7 @@ func TestCheck(t *testing.T) {
 	checkFiles(t, strings.Split(*testFiles, " "), 0, testing.Verbose())
 }
 
-// TODO(gri) Enable once we have added the testdata tests.
-// func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
+func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
 func TestExamples(t *testing.T)  { testDir(t, 0, "examples") }
 func TestFixedbugs(t *testing.T) { testDir(t, 0, "fixedbugs") }
 

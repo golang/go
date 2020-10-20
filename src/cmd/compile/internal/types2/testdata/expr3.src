@@ -7,8 +7,9 @@ package expr3
 import "time"
 
 func indexes() {
+	var x int
 	_ = 1 /* ERROR "cannot index" */ [0]
-	_ = indexes /* ERROR "cannot index" */ [0]
+	_ = x /* ERROR "cannot index" */ [0]
 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
 
 	var a [10]int
@@ -19,9 +20,9 @@ func indexes() {
 	_ = a[- /* ERROR "negative" */ 1]
 	_ = a[- /* ERROR "negative" */ 1 :]
 	_ = a[: - /* ERROR "negative" */ 1]
-	_ = a[: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
-	_ = a[0: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
-	_ = a[0: /* ERROR "2nd index required" */ :10]
+	_ = a[: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
+	_ = a[0: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
+	_ = a[0: /* ERROR "middle index required" */ :10]
 	_ = a[:10:10]
 
 	var a0 int
@@ -86,7 +87,7 @@ func indexes() {
 	_ = s[: 1 /* ERROR "overflows" */ <<100]
 	_ = s[1 /* ERROR "overflows" */ <<100 :]
 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
-	_ = s[: /* ERROR "2nd index required" */ :  /* ERROR "3rd index required" */ ]
+	_ = s[: /* ERROR "middle index required" */ :  /* ERROR "final index required" */ ]
 	_ = s[:10:10]
 	_ = s[10:0:10] /* ERROR "invalid slice indices" */
 	_ = s[0:10:0] /* ERROR "invalid slice indices" */
@@ -143,6 +144,10 @@ func indexes() {
 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
 	_, _ = ss, ms
+
+	// With type parameters, index expressions may have multiple indices.
+	_ = a[i, j /* ERROR "more than one index" */ ]
+	_ = a[i, j /* ERROR "more than one index" */ , j]
 }
 
 type T struct {
@@ -491,26 +496,26 @@ func _calls() {
 	f1(0)
 	f1(x)
 	f1(10.0)
-	f1() /* ERROR "too few arguments" */
+	f1() /* ERROR "not enough arguments" */
 	f1(x, y /* ERROR "too many arguments" */ )
 	f1(s /* ERROR "cannot use .* in argument" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
+	f1(g2 /* ERROR "too many arguments" */ ())
 
-	f2() /* ERROR "too few arguments" */
-	f2(3.14) /* ERROR "too few arguments" */
+	f2() /* ERROR "not enough arguments" */
+	f2(3.14) /* ERROR "not enough arguments" */
 	f2(3.14, "foo")
 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2(g1 /* ERROR "cannot use .* in argument" */ ()) /* ERROR "too few arguments" */
+	f2(g1()) /* ERROR "not enough arguments" */
 	f2(g2())
 
-	fs() /* ERROR "too few arguments" */
+	fs() /* ERROR "not enough arguments" */
 	fs(g0 /* ERROR "used as value" */ ())
 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
-	fs(g2 /* ERROR "cannot use .* in argument" */ /* ERROR "too many arguments" */ ())
+	fs(g2 /* ERROR "too many arguments" */ ())
 	fs(gs())
 
 	fv()
@@ -518,7 +523,7 @@ func _calls() {
 	fv(s /* ERROR "cannot use .* in argument" */ )
 	fv(s...)
 	fv(x /* ERROR "cannot use" */ ...)
-	fv(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	fv(1, s /* ERROR "too many arguments" */ ... )
 	fv(gs /* ERROR "cannot use .* in argument" */ ())
 	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -527,7 +532,7 @@ func _calls() {
 	t.fm(1, 2.0, x)
 	t.fm(s /* ERROR "cannot use .* in argument" */ )
 	t.fm(g1())
-	t.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	t.fm(1, s /* ERROR "too many arguments" */ ... )
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -535,7 +540,7 @@ func _calls() {
 	T.fm(t, 1, 2.0, x)
 	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
 	T.fm(t, g1())
-	T.fm(t, 1, s... /* ERROR "can only use ... with matching parameter" */ )
+	T.fm(t, 1, s /* ERROR "too many arguments" */ ... )
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -544,7 +549,7 @@ func _calls() {
 	i.fm(1, 2.0, x)
 	i.fm(s /* ERROR "cannot use .* in argument" */ )
 	i.fm(g1())
-	i.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
+	i.fm(1, s /* ERROR "too many arguments" */ ... )
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
