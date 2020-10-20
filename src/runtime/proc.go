@@ -154,10 +154,19 @@ func main() {
 		throw("runtime.main not on m0")
 	}
 
-	doInit(&runtime_inittask) // must be before defer
-	if nanotime() == 0 {
+	// Record when the world started.
+	// Must be before doInit for tracing init.
+	runtimeInitTime = nanotime()
+	if runtimeInitTime == 0 {
 		throw("nanotime returning zero")
 	}
+
+	if debug.inittrace != 0 {
+		inittrace.id = getg().goid
+		inittrace.active = true
+	}
+
+	doInit(&runtime_inittask) // Must be before defer.
 
 	// Defer unlock so that runtime.Goexit during init does the unlock too.
 	needUnlock := true
@@ -166,9 +175,6 @@ func main() {
 			unlockOSThread()
 		}
 	}()
-
-	// Record when the world started.
-	runtimeInitTime = nanotime()
 
 	gcenable()
 
@@ -195,6 +201,10 @@ func main() {
 	}
 
 	doInit(&main_inittask)
+
+	// Disable init tracing after main init done to avoid overhead
+	// of collecting statistics in malloc and newproc
+	inittrace.active = false
 
 	close(main_init_done)
 
@@ -1300,6 +1310,14 @@ found:
 	sched.nmfreed++
 	checkdead()
 	unlock(&sched.lock)
+
+	if GOOS == "darwin" {
+		// Make sure pendingPreemptSignals is correct when an M exits.
+		// For #41702.
+		if atomic.Load(&m.signalPending) != 0 {
+			atomic.Xadd(&pendingPreemptSignals, -1)
+		}
+	}
 
 	if osStack {
 		// Return from mstart and let the system thread
@@ -3500,11 +3518,24 @@ func syscall_runtime_AfterForkInChild() {
 	inForkedChild = false
 }
 
+// pendingPreemptSignals is the number of preemption signals
+// that have been sent but not received. This is only used on Darwin.
+// For #41702.
+var pendingPreemptSignals uint32
+
 // Called from syscall package before Exec.
 //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
 func syscall_runtime_BeforeExec() {
 	// Prevent thread creation during exec.
 	execLock.lock()
+
+	// On Darwin, wait for all pending preemption signals to
+	// be received. See issue #41702.
+	if GOOS == "darwin" {
+		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
+			osyield()
+		}
+	}
 }
 
 // Called from syscall package after Exec.
@@ -5665,6 +5696,17 @@ type initTask struct {
 	// followed by nfns pcs, one per init function to run
 }
 
+// inittrace stores statistics for init functions which are
+// updated by malloc and newproc when active is true.
+var inittrace tracestat
+
+type tracestat struct {
+	active bool   // init tracing activation status
+	id     int64  // init go routine id
+	allocs uint64 // heap allocations
+	bytes  uint64 // heap allocated bytes
+}
+
 func doInit(t *initTask) {
 	switch t.state {
 	case 2: // fully initialized
@@ -5673,16 +5715,52 @@ func doInit(t *initTask) {
 		throw("recursive call during initialization - linker skew")
 	default: // not initialized yet
 		t.state = 1 // initialization in progress
+
 		for i := uintptr(0); i < t.ndeps; i++ {
 			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
 			t2 := *(**initTask)(p)
 			doInit(t2)
 		}
+
+		if t.nfns == 0 {
+			t.state = 2 // initialization done
+			return
+		}
+
+		var (
+			start  int64
+			before tracestat
+		)
+
+		if inittrace.active {
+			start = nanotime()
+			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			before = inittrace
+		}
+
+		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
 		for i := uintptr(0); i < t.nfns; i++ {
-			p := add(unsafe.Pointer(t), (3+t.ndeps+i)*sys.PtrSize)
+			p := add(firstFunc, i*sys.PtrSize)
 			f := *(*func())(unsafe.Pointer(&p))
 			f()
 		}
+
+		if inittrace.active {
+			end := nanotime()
+			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			after := inittrace
+
+			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
+
+			var sbuf [24]byte
+			print("init ", pkg, " @")
+			print(string(fmtNSAsMS(sbuf[:], uint64(start-runtimeInitTime))), " ms, ")
+			print(string(fmtNSAsMS(sbuf[:], uint64(end-start))), " ms clock, ")
+			print(string(itoa(sbuf[:], after.bytes-before.bytes)), " bytes, ")
+			print(string(itoa(sbuf[:], after.allocs-before.allocs)), " allocs")
+			print("\n")
+		}
+
 		t.state = 2 // initialization done
 	}
 }

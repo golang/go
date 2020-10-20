@@ -653,12 +653,16 @@ func BenchmarkAtof64Big(b *testing.B) {
 }
 
 func BenchmarkAtof64RandomBits(b *testing.B) {
+	initAtof()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseFloat(benchmarksRandomBits[i%1024], 64)
 	}
 }
 
 func BenchmarkAtof64RandomFloats(b *testing.B) {
+	initAtof()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
 	}

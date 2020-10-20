@@ -909,27 +909,34 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
-	if debug.sbrk != 0 {
-		align := uintptr(16)
-		if typ != nil {
-			// TODO(austin): This should be just
-			//   align = uintptr(typ.align)
-			// but that's only 4 on 32-bit platforms,
-			// even if there's a uint64 field in typ (see #599).
-			// This causes 64-bit atomic accesses to panic.
-			// Hence, we use stricter alignment that matches
-			// the normal allocator better.
-			if size&7 == 0 {
-				align = 8
-			} else if size&3 == 0 {
-				align = 4
-			} else if size&1 == 0 {
-				align = 2
-			} else {
-				align = 1
+	if debug.malloc {
+		if debug.sbrk != 0 {
+			align := uintptr(16)
+			if typ != nil {
+				// TODO(austin): This should be just
+				//   align = uintptr(typ.align)
+				// but that's only 4 on 32-bit platforms,
+				// even if there's a uint64 field in typ (see #599).
+				// This causes 64-bit atomic accesses to panic.
+				// Hence, we use stricter alignment that matches
+				// the normal allocator better.
+				if size&7 == 0 {
+					align = 8
+				} else if size&3 == 0 {
+					align = 4
+				} else if size&1 == 0 {
+					align = 2
+				} else {
+					align = 1
+				}
 			}
+			return persistentalloc(size, align, &memstats.other_sys)
 		}
-		return persistentalloc(size, align, &memstats.other_sys)
+
+		if inittrace.active && inittrace.id == getg().goid {
+			// Init functions are executed sequentially in a single Go routine.
+			inittrace.allocs += 1
+		}
 	}
 
 	// assistG is the G to charge for this allocation, or nil if
@@ -1136,8 +1143,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 0
 	releasem(mp)
 
-	if debug.allocfreetrace != 0 {
-		tracealloc(x, size, typ)
+	if debug.malloc {
+		if debug.allocfreetrace != 0 {
+			tracealloc(x, size, typ)
+		}
+
+		if inittrace.active && inittrace.id == getg().goid {
+			// Init functions are executed sequentially in a single Go routine.
+			inittrace.bytes += uint64(size)
+		}
 	}
 
 	if rate := MemProfileRate; rate > 0 {

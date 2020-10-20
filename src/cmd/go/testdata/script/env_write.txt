@@ -123,6 +123,30 @@ go env -w GOTMPDIR=
 go env GOTMPDIR
 stdout ^$
 
+# go env -w rejects relative CC values
+[!windows] go env -w CC=/usr/bin/clang
+go env -w CC=clang
+[!windows] ! go env -w CC=./clang
+[!windows] ! go env -w CC=bin/clang
+[!windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+
+[windows] go env -w CC=$WORK\bin\clang
+[windows] ! go env -w CC=.\clang
+[windows] ! go env -w CC=bin\clang
+[windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+
+# go env -w rejects relative CXX values
+[!windows] go env -w CC=/usr/bin/cpp
+go env -w CXX=cpp
+[!windows] ! go env -w CXX=./cpp
+[!windows] ! go env -w CXX=bin/cpp
+[!windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
+
+[windows] go env -w CXX=$WORK\bin\cpp
+[windows] ! go env -w CXX=.\cpp
+[windows] ! go env -w CXX=bin\cpp
+[windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
+
 # go env -w/-u checks validity of GOOS/ARCH combinations
 env GOOS=
 env GOARCH=

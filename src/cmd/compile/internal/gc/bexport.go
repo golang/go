@@ -81,11 +81,6 @@ func (p *exporter) markType(t *types.Type) {
 	}
 }
 
-// deltaNewFile is a magic line delta offset indicating a new file.
-// We use -64 because it is rare; see issue 20080 and CL 41619.
-// -64 is the smallest int that fits in a single byte as a varint.
-const deltaNewFile = -64
-
 // ----------------------------------------------------------------------------
 // Export format
 

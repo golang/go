@@ -145,7 +145,7 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	// If we're querying "upgrade" or "patch", Query will compare the current
 	// version against the chosen version and will return the current version
 	// if it is newer.
-	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, modload.CheckAllowed)
+	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, checkAllowedOrCurrent(m.Version))
 	if err != nil {
 		// Report error but return m, to let version selection continue.
 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)

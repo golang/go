@@ -81,7 +81,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		found := false
-		for p := s.Func.Text; p != nil; p = p.Link {
+		for p := s.Func().Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
 				found = true
 				break
@@ -89,7 +89,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		}
 
 		if !found {
-			p := Appendp(s.Func.Text, newprog)
+			p := Appendp(s.Func().Text, newprog)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
 			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
@@ -120,15 +120,15 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 		// func _() { }
 		return
 	}
-	if s.Func != nil {
+	if s.Func() != nil {
 		ctxt.Diag("InitTextSym double init for %s", s.Name)
 	}
-	s.Func = new(FuncInfo)
+	s.NewFuncInfo()
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
-	s.Func.FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -185,7 +185,7 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 // Similar to EmitEntryLiveness, but just emit stack map.
 func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
-	pcdata.Pos = s.Func.Text.Pos
+	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
 	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
@@ -198,7 +198,7 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 // Similar to EmitEntryLiveness, but just emit register map.
 func (ctxt *Link) EmitEntryRegMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
-	pcdata.Pos = s.Func.Text.Pos
+	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
 	pcdata.From.Offset = objabi.PCDATA_RegMapIndex

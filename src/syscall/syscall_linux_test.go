@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -353,7 +354,7 @@ func TestSyscallNoError(t *testing.T) {
 		t.Fatalf("failed to chown test binary %q, %v", tmpBinary, err)
 	}
 
-	err = os.Chmod(tmpBinary, 0755|os.ModeSetuid)
+	err = os.Chmod(tmpBinary, 0755|fs.ModeSetuid)
 	if err != nil {
 		t.Fatalf("failed to set setuid bit on test binary %q, %v", tmpBinary, err)
 	}

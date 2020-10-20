@@ -7,6 +7,7 @@ package errors_test
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"reflect"
 	"testing"
@@ -61,7 +62,7 @@ type poser struct {
 	f   func(error) bool
 }
 
-var poserPathErr = &os.PathError{Op: "poser"}
+var poserPathErr = &fs.PathError{Op: "poser"}
 
 func (p *poser) Error() string     { return p.msg }
 func (p *poser) Is(err error) bool { return p.f(err) }
@@ -71,7 +72,7 @@ func (p *poser) As(err interface{}) bool {
 		*x = p
 	case *errorT:
 		*x = errorT{"poser"}
-	case **os.PathError:
+	case **fs.PathError:
 		*x = poserPathErr
 	default:
 		return false
@@ -81,7 +82,7 @@ func (p *poser) As(err interface{}) bool {
 
 func TestAs(t *testing.T) {
 	var errT errorT
-	var errP *os.PathError
+	var errP *fs.PathError
 	var timeout interface{ Timeout() bool }
 	var p *poser
 	_, errF := os.Open("non-existing")
@@ -240,7 +241,7 @@ func (errorUncomparable) Is(target error) bool {
 
 func ExampleIs() {
 	if _, err := os.Open("non-existing"); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			fmt.Println("file does not exist")
 		} else {
 			fmt.Println(err)
@@ -253,7 +254,7 @@ func ExampleIs() {
 
 func ExampleAs() {
 	if _, err := os.Open("non-existing"); err != nil {
-		var pathError *os.PathError
+		var pathError *fs.PathError
 		if errors.As(err, &pathError) {
 			fmt.Println("Failed at path:", pathError.Path)
 		} else {

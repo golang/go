@@ -8,6 +8,7 @@ package ioutil
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"os"
 	"sort"
 	"sync"
@@ -76,7 +77,7 @@ func ReadFile(filename string) ([]byte, error) {
 // WriteFile writes data to a file named by filename.
 // If the file does not exist, WriteFile creates it with permissions perm
 // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
-func WriteFile(filename string, data []byte, perm os.FileMode) error {
+func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err
@@ -90,7 +91,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 
 // ReadDir reads the directory named by dirname and returns
 // a list of directory entries sorted by filename.
-func ReadDir(dirname string) ([]os.FileInfo, error) {
+func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -291,8 +292,8 @@ x
 		_, gotErr := ReadDir(dir)
 		if gotErr == nil {
 			t.Errorf("ReadDir(%q): got no error, want error", dir)
-		} else if _, ok := gotErr.(*os.PathError); !ok {
-			t.Errorf("ReadDir(%q): got error with string %q and type %T, want os.PathError", dir, gotErr.Error(), gotErr)
+		} else if _, ok := gotErr.(*fs.PathError); !ok {
+			t.Errorf("ReadDir(%q): got error with string %q and type %T, want fs.PathError", dir, gotErr.Error(), gotErr)
 		}
 	}
 }
@@ -489,7 +490,7 @@ func TestWalk(t *testing.T) {
 		path  string
 		name  string
 		size  int64
-		mode  os.FileMode
+		mode  fs.FileMode
 		isDir bool
 	}
 	testCases := []struct {
@@ -504,7 +505,7 @@ func TestWalk(t *testing.T) {
 `,
 			".",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0700, true},
+				{".", "root", 0, fs.ModeDir | 0700, true},
 				{"file.txt", "file.txt", 0, 0600, false},
 			},
 		},
@@ -520,7 +521,7 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
+				{".", "root", 0, fs.ModeDir | 0500, true},
 				{"file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
 			},
@@ -536,7 +537,7 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
+				{".", "root", 0, fs.ModeDir | 0500, true},
 				{"file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
 			},
@@ -552,8 +553,8 @@ contents of other file
 `,
 			".",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
-				{"dir", "dir", 0, os.ModeDir | 0500, true},
+				{".", "root", 0, fs.ModeDir | 0500, true},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
 				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
 				{"other.txt", "other.txt", 23, 0600, false},
 			},
@@ -565,7 +566,7 @@ contents of other file
 			initOverlay(t, tc.overlay)
 
 			var got []file
-			Walk(tc.root, func(path string, info os.FileInfo, err error) error {
+			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
 				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
 				return nil
 			})
@@ -580,8 +581,8 @@ contents of other file
 				if got[i].name != tc.wantFiles[i].name {
 					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
 				}
-				if got[i].mode&(os.ModeDir|0700) != tc.wantFiles[i].mode {
-					t.Errorf("mode&(os.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(os.ModeDir|0700), tc.wantFiles[i].mode)
+				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
+					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
 				}
 				if got[i].isDir != tc.wantFiles[i].isDir {
 					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
@@ -610,7 +611,7 @@ func TestWalk_SkipDir(t *testing.T) {
 `)
 
 	var seen []string
-	Walk(".", func(path string, info os.FileInfo, err error) error {
+	Walk(".", func(path string, info fs.FileInfo, err error) error {
 		seen = append(seen, path)
 		if path == "skipthisdir" || path == filepath.Join("dontskip", "skip") {
 			return filepath.SkipDir
@@ -635,7 +636,7 @@ func TestWalk_Error(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
-	err := Walk("foo", func(path string, info os.FileInfo, err error) error {
+	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
 		if alreadyCalled {
 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
 		}
@@ -683,7 +684,7 @@ func TestWalk_Symlink(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
 
-			err := Walk(tc.dir, func(path string, info os.FileInfo, err error) error {
+			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
 				got = append(got, path)
 				if err != nil {
 					t.Errorf("walkfn: got non nil err argument: %v, want nil err argument", err)
@@ -706,7 +707,7 @@ func TestLstat(t *testing.T) {
 	type file struct {
 		name  string
 		size  int64
-		mode  os.FileMode // mode & (os.ModeDir|0x700): only check 'user' permissions
+		mode  fs.FileMode // mode & (fs.ModeDir|0x700): only check 'user' permissions
 		isDir bool
 	}
 
@@ -771,7 +772,7 @@ contents`,
 -- dir/foo.txt --
 `,
 			"dir",
-			file{"dir", 0, 0700 | os.ModeDir, true},
+			file{"dir", 0, 0700 | fs.ModeDir, true},
 			false,
 		},
 		{
@@ -780,7 +781,7 @@ contents`,
 -- dummy.txt --
 `,
 			"dir",
-			file{"dir", 0, 0500 | os.ModeDir, true},
+			file{"dir", 0, 0500 | fs.ModeDir, true},
 			false,
 		},
 	}
@@ -801,8 +802,8 @@ contents`,
 			if got.Name() != tc.want.name {
 				t.Errorf("lstat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
 			}
-			if got.Mode()&(os.ModeDir|0700) != tc.want.mode {
-				t.Errorf("lstat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
+			if got.Mode()&(fs.ModeDir|0700) != tc.want.mode {
+				t.Errorf("lstat(%q).Mode()&(fs.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(fs.ModeDir|0700), tc.want.mode)
 			}
 			if got.IsDir() != tc.want.isDir {
 				t.Errorf("lstat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)

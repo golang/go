@@ -624,9 +624,12 @@ func atof64(s string) (f float64, n int, err error) {
 	}
 
 	if optimize {
-		// Try pure floating-point arithmetic conversion.
+		// Try pure floating-point arithmetic conversion, and if that fails,
+		// the Eisel-Lemire algorithm.
 		if !trunc {
 			if f, ok := atof64exact(mantissa, exp, neg); ok {
+				return f, n, nil
+			} else if f, ok = eiselLemire(mantissa, exp, neg); ok {
 				return f, n, nil
 			}
 		}

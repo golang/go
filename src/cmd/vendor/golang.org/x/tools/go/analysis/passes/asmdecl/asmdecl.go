@@ -137,6 +137,7 @@ var (
 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
 	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
+	abiSuff      = re(`^(.+)<ABI.+>$`)
 )
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -199,6 +200,13 @@ Files:
 				}
 			}
 			retLine = nil
+		}
+		trimABI := func(fnName string) string {
+			m := abiSuff.FindStringSubmatch(fnName)
+			if m != nil {
+				return m[1]
+			}
+			return fnName
 		}
 		for lineno, line := range lines {
 			lineno++
@@ -268,6 +276,8 @@ Files:
 						continue
 					}
 				}
+				// Trim off optional ABI selector.
+				fnName := trimABI(fnName)
 				flag := m[3]
 				fn = knownFunc[fnName][arch]
 				if fn != nil {

@@ -7,6 +7,7 @@ package os
 import (
 	"internal/oserror"
 	"internal/poll"
+	"io/fs"
 )
 
 // Portable analogs of some common system call errors.
@@ -16,20 +17,17 @@ import (
 var (
 	// ErrInvalid indicates an invalid argument.
 	// Methods on File will return this error when the receiver is nil.
-	ErrInvalid = errInvalid() // "invalid argument"
+	ErrInvalid = fs.ErrInvalid // "invalid argument"
 
-	ErrPermission       = errPermission()       // "permission denied"
-	ErrExist            = errExist()            // "file already exists"
-	ErrNotExist         = errNotExist()         // "file does not exist"
-	ErrClosed           = errClosed()           // "file already closed"
+	ErrPermission = fs.ErrPermission // "permission denied"
+	ErrExist      = fs.ErrExist      // "file already exists"
+	ErrNotExist   = fs.ErrNotExist   // "file does not exist"
+	ErrClosed     = fs.ErrClosed     // "file already closed"
+
 	ErrNoDeadline       = errNoDeadline()       // "file type does not support deadline"
 	ErrDeadlineExceeded = errDeadlineExceeded() // "i/o timeout"
 )
 
-func errInvalid() error    { return oserror.ErrInvalid }
-func errPermission() error { return oserror.ErrPermission }
-func errExist() error      { return oserror.ErrExist }
-func errNotExist() error   { return oserror.ErrNotExist }
 func errClosed() error     { return oserror.ErrClosed }
 func errNoDeadline() error { return poll.ErrNoDeadline }
 
@@ -47,21 +45,7 @@ type timeout interface {
 }
 
 // PathError records an error and the operation and file path that caused it.
-type PathError struct {
-	Op   string
-	Path string
-	Err  error
-}
-
-func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
-
-func (e *PathError) Unwrap() error { return e.Err }
-
-// Timeout reports whether this error represents a timeout.
-func (e *PathError) Timeout() bool {
-	t, ok := e.Err.(timeout)
-	return ok && t.Timeout()
-}
+type PathError = fs.PathError
 
 // SyscallError records an error from a specific system call.
 type SyscallError struct {

@@ -457,6 +457,38 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	40(SP), SP
 	RET
 
+// Runs on OS stack. duration (in 100ns units) is in BX.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+	MOVQ	SP, AX
+	ANDQ	$~15, SP	// alignment as per Windows requirement
+	MOVQ	AX, 64(SP)
+
+	get_tls(CX)
+	MOVQ	g(CX), CX
+	MOVQ	g_m(CX), CX
+	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
+	MOVQ	CX, 48(SP)				// save hTimer for later
+	// Want negative 100ns units.
+	NEGQ	BX
+	LEAQ	56(SP), DX				// lpDueTime
+	MOVQ	BX, (DX)
+	MOVQ	$0, R8					// lPeriod
+	MOVQ	$0, R9					// pfnCompletionRoutine
+	MOVQ	$0, AX
+	MOVQ	AX, 32(SP)				// lpArgToCompletionRoutine
+	MOVQ	AX, 40(SP)				// fResume
+	MOVQ	runtime·_SetWaitableTimer(SB), AX
+	CALL	AX
+
+	MOVQ	48(SP), CX				// handle
+	MOVQ	$0, DX					// alertable
+	MOVQ	$0, R8					// ptime
+	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
+	CALL	AX
+
+	MOVQ	64(SP), SP
+	RET
+
 // Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	SP, AX

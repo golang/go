@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -1040,7 +1041,7 @@ type zipFile struct {
 }
 
 func (f zipFile) Path() string                 { return f.name }
-func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Lstat() (fs.FileInfo, error)  { return f.f.FileInfo(), nil }
 func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
 
 type dataFile struct {
@@ -1049,7 +1050,7 @@ type dataFile struct {
 }
 
 func (f dataFile) Path() string                { return f.name }
-func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
+func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
 func (f dataFile) Open() (io.ReadCloser, error) {
 	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
 }
@@ -1060,7 +1061,7 @@ type dataFileInfo struct {
 
 func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
 func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
-func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) Mode() fs.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
 func (fi dataFileInfo) Sys() interface{}   { return nil }

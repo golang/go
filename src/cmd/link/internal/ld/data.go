@@ -951,6 +951,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 		}
 		P := out.WriteSym(ldr, s)
 		st.relocsym(s, P)
+		if f, ok := ctxt.generatorSyms[s]; ok {
+			f(ctxt, s)
+		}
 		addr += int64(len(P))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {

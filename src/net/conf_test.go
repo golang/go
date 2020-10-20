@@ -7,7 +7,7 @@
 package net
 
 import (
-	"os"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -26,7 +26,7 @@ var defaultResolvConf = &dnsConfig{
 	ndots:    1,
 	timeout:  5,
 	attempts: 2,
-	err:      os.ErrNotExist,
+	err:      fs.ErrNotExist,
 }
 
 func TestConfHostLookupOrder(t *testing.T) {
@@ -106,7 +106,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "solaris_no_nsswitch",
 			c: &conf{
 				goos:   "solaris",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
@@ -176,7 +176,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
 				goos:   "linux",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},

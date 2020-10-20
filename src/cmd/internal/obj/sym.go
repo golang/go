@@ -358,7 +358,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 }
 
 func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
-	pc := &fsym.Func.Pcln
+	fninfo := fsym.Func()
+	pc := &fninfo.Pcln
 	if flag&traverseAux == 0 {
 		// NB: should it become necessary to walk aux sym reloc references
 		// without walking the aux syms themselves, this can be changed.
@@ -389,7 +390,8 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, filesym)
 		}
 	}
-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
+
+	dwsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym}
 	for _, dws := range dwsyms {
 		if dws == nil || dws.Size == 0 {
 			continue

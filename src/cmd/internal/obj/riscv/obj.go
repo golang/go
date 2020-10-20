@@ -427,7 +427,7 @@ func InvertBranch(as obj.As) obj.As {
 // instruction. Must be called after progedit.
 func containsCall(sym *obj.LSym) bool {
 	// CALLs are CALL or JAL(R) with link register LR.
-	for p := sym.Func.Text; p != nil; p = p.Link {
+	for p := sym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ACALL:
 			return true
@@ -499,12 +499,12 @@ func stackOffset(a *obj.Addr, stacksize int64) {
 // concrete, real RISC-V instructions or directive pseudo-ops like TEXT,
 // PCDATA, and FUNCDATA.
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
+	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
 	}
 
 	// Generate the prologue.
-	text := cursym.Func.Text
+	text := cursym.Func().Text
 	if text.As != obj.ATEXT {
 		ctxt.Diag("preprocess: found symbol that does not start with TEXT directive")
 		return
@@ -538,12 +538,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		stacksize += ctxt.FixedFrameSize()
 	}
 
-	cursym.Func.Args = text.To.Val.(int32)
-	cursym.Func.Locals = int32(stacksize)
+	cursym.Func().Args = text.To.Val.(int32)
+	cursym.Func().Locals = int32(stacksize)
 
 	prologue := text
 
-	if !cursym.Func.Text.From.Sym.NoSplit() {
+	if !cursym.Func().Text.From.Sym.NoSplit() {
 		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
 	}
 
@@ -567,7 +567,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
 	}
 
-	if cursym.Func.Text.From.Sym.Wrapper() {
+	if cursym.Func().Text.From.Sym.Wrapper() {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
 		//   MOV g_panic(g), X11
@@ -647,13 +647,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// Update stack-based offsets.
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		stackOffset(&p.From, stacksize)
 		stackOffset(&p.To, stacksize)
 	}
 
 	// Additional instruction rewriting.
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.AGETCALLERPC:
 			if cursym.Leaf() {
@@ -733,7 +733,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// Rewrite MOV pseudo-instructions. This cannot be done in
 	// progedit, as SP offsets need to be applied before we split
 	// up some of the Addrs.
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			rewriteMOV(ctxt, newprog, p)
@@ -741,7 +741,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// Split immediates larger than 12-bits.
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		// <opi> $imm, REG, TO
 		case AADDI, AANDI, AORI, AXORI:
@@ -858,9 +858,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
 	for {
 		rescan := false
-		setPCs(cursym.Func.Text, 0)
+		setPCs(cursym.Func().Text, 0)
 
-		for p := cursym.Func.Text; p != nil; p = p.Link {
+		for p := cursym.Func().Text; p != nil; p = p.Link {
 			switch p.As {
 			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
 				if p.To.Type != obj.TYPE_BRANCH {
@@ -917,7 +917,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// Now that there are no long branches, resolve branch and jump targets.
 	// At this point, instruction rewriting which changes the number of
 	// instructions will break everything--don't do it!
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
 			switch p.To.Type {
@@ -940,7 +940,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// Validate all instructions - this provides nice error messages.
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		for _, ins := range instructionsForProg(p) {
 			ins.validate(ctxt)
 		}
@@ -1068,7 +1068,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.To.Type = obj.TYPE_BRANCH
 	if cursym.CFunc() {
 		p.To.Sym = ctxt.Lookup("runtime.morestackc")
-	} else if !cursym.Func.Text.From.Sym.NeedCtxt() {
+	} else if !cursym.Func().Text.From.Sym.NeedCtxt() {
 		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
 		p.To.Sym = ctxt.Lookup("runtime.morestack")
@@ -1083,7 +1083,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.As = AJAL
 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-	p.To.SetTarget(cursym.Func.Text.Link)
+	p.To.SetTarget(cursym.Func().Text.Link)
 
 	// placeholder for to_done's jump target
 	p = obj.Appendp(p, newprog)
@@ -1926,7 +1926,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var symcode []uint32
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJALR:
 			if p.To.Sym != nil {
@@ -1981,7 +1981,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
 	}
 
-	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint, nil)
+	obj.MarkUnsafePoints(ctxt, cursym.Func().Text, newprog, isUnsafePoint, nil)
 }
 
 func isUnsafePoint(p *obj.Prog) bool {

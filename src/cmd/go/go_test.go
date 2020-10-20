@@ -15,6 +15,7 @@ import (
 	"internal/race"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -813,7 +814,7 @@ func (tg *testgoData) cleanup() {
 func removeAll(dir string) error {
 	// module cache has 0444 directories;
 	// make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		// chmod not only directories, but also things that we couldn't even stat
 		// due to permission errors: they may also be unreadable directories.
 		if err != nil || info.IsDir() {
@@ -860,7 +861,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		srcdir := filepath.Join(testGOROOT, copydir)
 		tg.tempDir(filepath.Join("goroot", copydir))
 		err := filepath.Walk(srcdir,
-			func(path string, info os.FileInfo, err error) error {
+			func(path string, info fs.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -1235,6 +1236,18 @@ func TestGoListExport(t *testing.T) {
 	}
 	if _, err := os.Stat(file); err != nil {
 		t.Fatalf("cannot find .Export result %s: %v", file, err)
+	}
+
+	tg.run("list", "-export", "-f", "{{.BuildID}}", "strings")
+	buildID := strings.TrimSpace(tg.stdout.String())
+	if buildID == "" {
+		t.Fatalf(".BuildID with -export was empty")
+	}
+
+	tg.run("tool", "buildid", file)
+	toolBuildID := strings.TrimSpace(tg.stdout.String())
+	if buildID != toolBuildID {
+		t.Fatalf(".BuildID with -export %q disagrees with 'go tool buildid' %q", buildID, toolBuildID)
 	}
 }
 
@@ -2018,7 +2031,7 @@ func main() {
 	tg.run("build", "-o", exe, "p")
 }
 
-func copyFile(src, dst string, perm os.FileMode) error {
+func copyFile(src, dst string, perm fs.FileMode) error {
 	sf, err := os.Open(src)
 	if err != nil {
 		return err

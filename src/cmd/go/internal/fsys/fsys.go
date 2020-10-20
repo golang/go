@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -240,7 +241,7 @@ var errNotDir = errors.New("not a directory")
 // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
 // Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
 // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
-func readDir(dir string) ([]os.FileInfo, error) {
+func readDir(dir string) ([]fs.FileInfo, error) {
 	fis, err := ioutil.ReadDir(dir)
 	if err == nil {
 		return fis, nil
@@ -249,25 +250,25 @@ func readDir(dir string) ([]os.FileInfo, error) {
 	if os.IsNotExist(err) {
 		return nil, err
 	} else if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
 	} else {
 		return nil, err
 	}
 }
 
-// ReadDir provides a slice of os.FileInfo entries corresponding
+// ReadDir provides a slice of fs.FileInfo entries corresponding
 // to the overlaid files in the directory.
-func ReadDir(dir string) ([]os.FileInfo, error) {
+func ReadDir(dir string) ([]fs.FileInfo, error) {
 	dir = canonicalize(dir)
 	if _, ok := parentIsOverlayFile(dir); ok {
-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
 	}
 
 	dirNode := overlay[dir]
 	if dirNode == nil {
 		return readDir(dir)
 	} else if dirNode.isDeleted() {
-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: os.ErrNotExist}
+		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
 	}
 	diskfis, err := readDir(dir)
 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
@@ -275,7 +276,7 @@ func ReadDir(dir string) ([]os.FileInfo, error) {
 	}
 
 	// Stat files in overlay to make composite list of fileinfos
-	files := make(map[string]os.FileInfo)
+	files := make(map[string]fs.FileInfo)
 	for _, f := range diskfis {
 		files[f.Name()] = f
 	}
@@ -327,14 +328,14 @@ func Open(path string) (*os.File, error) {
 	cpath := canonicalize(path)
 	if node, ok := overlay[cpath]; ok {
 		if node.isDir() {
-			return nil, &os.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
+			return nil, &fs.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
 		}
 		return os.Open(node.actualFilePath)
 	} else if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
 		// The file is deleted explicitly in the Replace map,
 		// or implicitly because one of its parent directories was
 		// replaced by a file.
-		return nil, &os.PathError{
+		return nil, &fs.PathError{
 			Op:   "Open",
 			Path: path,
 			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent)}
@@ -387,7 +388,7 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 
 // walk recursively descends path, calling walkFn. Copied, with some
 // modifications from path/filepath.walk.
-func walk(path string, info os.FileInfo, walkFn filepath.WalkFunc) error {
+func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
 	if !info.IsDir() {
 		return walkFn(path, info, nil)
 	}
@@ -432,11 +433,11 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 }
 
 // lstat implements a version of os.Lstat that operates on the overlay filesystem.
-func lstat(path string) (os.FileInfo, error) {
+func lstat(path string) (fs.FileInfo, error) {
 	cpath := canonicalize(path)
 
 	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
-		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
+		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
 	}
 
 	node, ok := overlay[cpath]
@@ -447,7 +448,7 @@ func lstat(path string) (os.FileInfo, error) {
 
 	switch {
 	case node.isDeleted():
-		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
+		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
 	case node.isDir():
 		return fakeDir(filepath.Base(cpath)), nil
 	default:
@@ -459,22 +460,22 @@ func lstat(path string) (os.FileInfo, error) {
 	}
 }
 
-// fakeFile provides an os.FileInfo implementation for an overlaid file,
+// fakeFile provides an fs.FileInfo implementation for an overlaid file,
 // so that the file has the name of the overlaid file, but takes all
 // other characteristics of the replacement file.
 type fakeFile struct {
 	name string
-	real os.FileInfo
+	real fs.FileInfo
 }
 
 func (f fakeFile) Name() string       { return f.name }
 func (f fakeFile) Size() int64        { return f.real.Size() }
-func (f fakeFile) Mode() os.FileMode  { return f.real.Mode() }
+func (f fakeFile) Mode() fs.FileMode  { return f.real.Mode() }
 func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
 func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
 func (f fakeFile) Sys() interface{}   { return f.real.Sys() }
 
-// missingFile provides an os.FileInfo for an overlaid file where the
+// missingFile provides an fs.FileInfo for an overlaid file where the
 // destination file in the overlay doesn't exist. It returns zero values
 // for the fileInfo methods other than Name, set to the file's name, and Mode
 // set to ModeIrregular.
@@ -482,19 +483,19 @@ type missingFile string
 
 func (f missingFile) Name() string       { return string(f) }
 func (f missingFile) Size() int64        { return 0 }
-func (f missingFile) Mode() os.FileMode  { return os.ModeIrregular }
+func (f missingFile) Mode() fs.FileMode  { return fs.ModeIrregular }
 func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
 func (f missingFile) IsDir() bool        { return false }
 func (f missingFile) Sys() interface{}   { return nil }
 
-// fakeDir provides an os.FileInfo implementation for directories that are
+// fakeDir provides an fs.FileInfo implementation for directories that are
 // implicitly created by overlaid files. Each directory in the
 // path of an overlaid file is considered to exist in the overlay filesystem.
 type fakeDir string
 
 func (f fakeDir) Name() string       { return string(f) }
 func (f fakeDir) Size() int64        { return 0 }
-func (f fakeDir) Mode() os.FileMode  { return os.ModeDir | 0500 }
+func (f fakeDir) Mode() fs.FileMode  { return fs.ModeDir | 0500 }
 func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
 func (f fakeDir) IsDir() bool        { return true }
 func (f fakeDir) Sys() interface{}   { return nil }

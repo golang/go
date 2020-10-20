@@ -429,3 +429,31 @@ func TestSectionReader_Size(t *testing.T) {
 		}
 	}
 }
+
+// largeWriter returns an invalid count that is larger than the number
+// of bytes provided (issue 39978).
+type largeWriter struct {
+	err error
+}
+
+func (w largeWriter) Write(p []byte) (int, error) {
+	return len(p) + 1, w.err
+}
+
+func TestCopyLargeWriter(t *testing.T) {
+	want := ErrInvalidWrite
+	rb := new(Buffer)
+	wb := largeWriter{}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
+	}
+
+	want = errors.New("largeWriterError")
+	rb = new(Buffer)
+	wb = largeWriter{err: want}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
+	}
+}

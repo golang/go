@@ -434,6 +434,8 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	fn.Type = xfunc.Type
 }
 
+// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+// for partial calls.
 func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	rcvrtype := fn.Left.Type
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
@@ -500,6 +502,10 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	funcbody()
 
 	xfunc = typecheck(xfunc, ctxStmt)
+	// Need to typecheck the body of the just-generated wrapper.
+	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+	Curfn = xfunc
+	typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
 	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn

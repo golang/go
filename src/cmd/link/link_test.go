@@ -309,7 +309,7 @@ func TestBuildForTvOS(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
 	cmd.Env = append(os.Environ(),
 		"CGO_ENABLED=1",
-		"GOOS=darwin",
+		"GOOS=ios",
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459

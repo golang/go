@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	osexec "os/exec"
@@ -46,7 +47,7 @@ func TestEPIPE(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success of Write to broken pipe")
 		}
-		if pe, ok := err.(*os.PathError); ok {
+		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
 		if se, ok := err.(*os.SyscallError); ok {
@@ -202,10 +203,10 @@ func testClosedPipeRace(t *testing.T, read bool) {
 	}
 	if err == nil {
 		t.Error("I/O on closed pipe unexpectedly succeeded")
-	} else if pe, ok := err.(*os.PathError); !ok {
-		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected os.PathError", pe)
-	} else if pe.Err != os.ErrClosed {
-		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
+	} else if pe, ok := err.(*fs.PathError); !ok {
+		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected fs.PathError", pe)
+	} else if pe.Err != fs.ErrClosed {
+		t.Errorf("got error %q but expected %q", pe.Err, fs.ErrClosed)
 	} else {
 		t.Logf("I/O returned expected error %q", err)
 	}
@@ -233,7 +234,7 @@ func TestReadNonblockingFd(t *testing.T) {
 		defer syscall.SetNonblock(fd, false)
 		_, err := os.Stdin.Read(make([]byte, 1))
 		if err != nil {
-			if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.EAGAIN {
+			if perr, ok := err.(*fs.PathError); !ok || perr.Err != syscall.EAGAIN {
 				t.Fatalf("read on nonblocking stdin got %q, should have gotten EAGAIN", err)
 			}
 		}
@@ -308,10 +309,10 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
 		if err == nil {
 			t.Error("I/O on closed pipe unexpectedly succeeded")
 		}
-		if pe, ok := err.(*os.PathError); ok {
+		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
-		if err != io.EOF && err != os.ErrClosed {
+		if err != io.EOF && err != fs.ErrClosed {
 			t.Errorf("got %v, expected EOF or closed", err)
 		}
 	}(c2)

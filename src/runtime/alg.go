@@ -15,25 +15,6 @@ const (
 	c1 = uintptr((8-sys.PtrSize)/4*3267000013 + (sys.PtrSize-4)/4*23344194077549503)
 )
 
-// type algorithms - known to compiler
-const (
-	alg_NOEQ = iota
-	alg_MEM0
-	alg_MEM8
-	alg_MEM16
-	alg_MEM32
-	alg_MEM64
-	alg_MEM128
-	alg_STRING
-	alg_INTER
-	alg_NILINTER
-	alg_FLOAT32
-	alg_FLOAT64
-	alg_CPLX64
-	alg_CPLX128
-	alg_max
-)
-
 func memhash0(p unsafe.Pointer, h uintptr) uintptr {
 	return h
 }

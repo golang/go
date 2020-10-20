@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build !windows,!static
+// +build !darwin !internal_pie,!arm64
 
 #include <stdint.h>
 #include <dlfcn.h>

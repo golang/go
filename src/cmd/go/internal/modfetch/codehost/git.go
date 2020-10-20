@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -34,13 +35,13 @@ func LocalGitRepo(remote string) (Repo, error) {
 }
 
 // A notExistError wraps another error to retain its original text
-// but makes it opaquely equivalent to os.ErrNotExist.
+// but makes it opaquely equivalent to fs.ErrNotExist.
 type notExistError struct {
 	err error
 }
 
 func (e notExistError) Error() string   { return e.err.Error() }
-func (notExistError) Is(err error) bool { return err == os.ErrNotExist }
+func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
 
 const gitWorkDirType = "git3"
 
@@ -188,7 +189,7 @@ func (r *gitRepo) loadRefs() {
 		// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
 		// ourselves and see what code it serves.
 		if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-			if _, err := web.GetBytes(u); errors.Is(err, os.ErrNotExist) {
+			if _, err := web.GetBytes(u); errors.Is(err, fs.ErrNotExist) {
 				gitErr = notExistError{gitErr}
 			}
 		}
@@ -505,7 +506,7 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	}
 	out, err := Run(r.dir, "git", "cat-file", "blob", info.Name+":"+file)
 	if err != nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return out, nil
 }
@@ -629,9 +630,9 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
 		case "tag", "commit":
 			switch fileType {
 			default:
-				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
+				f.Err = &fs.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
 			case "missing":
-				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: os.ErrNotExist}
+				f.Err = &fs.PathError{Path: tag + ":" + file, Op: "read", Err: fs.ErrNotExist}
 			case "blob":
 				f.Data = fileData
 			}
@@ -826,7 +827,7 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
-			return nil, os.ErrNotExist
+			return nil, fs.ErrNotExist
 		}
 		return nil, err
 	}

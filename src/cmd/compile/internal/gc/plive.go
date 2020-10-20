@@ -1552,26 +1552,27 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 
 	// Emit the live pointer map data structures
 	ls := e.curfn.Func.lsym
-	ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
+	fninfo := ls.Func()
+	fninfo.GCArgs, fninfo.GCLocals, fninfo.GCRegs = lv.emit()
 
 	p := pp.Prog(obj.AFUNCDATA)
 	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = ls.Func.GCArgs
+	p.To.Sym = fninfo.GCArgs
 
 	p = pp.Prog(obj.AFUNCDATA)
 	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = ls.Func.GCLocals
+	p.To.Sym = fninfo.GCLocals
 
 	if !go115ReduceLiveness {
 		p = pp.Prog(obj.AFUNCDATA)
 		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ls.Func.GCRegs
+		p.To.Sym = fninfo.GCRegs
 	}
 
 	return lv.livenessMap

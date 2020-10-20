@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -99,6 +100,7 @@ var depsRules = `
 	RUNTIME
 	< io;
 
+	syscall !< io;
 	reflect !< sort;
 
 	RUNTIME, unicode/utf8
@@ -120,6 +122,9 @@ var depsRules = `
 	< time
 	< context
 	< TIME;
+
+	TIME, io, path, sort
+	< io/fs;
 
 	# MATH is RUNTIME plus the basic math packages.
 	RUNTIME
@@ -150,7 +155,7 @@ var depsRules = `
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.
 	# OS does not include reflection.
-	TIME, io, sort
+	io/fs
 	< internal/testlog
 	< internal/poll
 	< os
@@ -160,7 +165,9 @@ var depsRules = `
 
 	os/signal, STR
 	< path/filepath
-	< io/ioutil, os/exec
+	< io/ioutil, os/exec;
+
+	io/ioutil, os/exec, os/signal
 	< OS;
 
 	reflect !< OS;
@@ -463,7 +470,8 @@ var depsRules = `
 
 	# Test-only
 	log
-	< testing/iotest;
+	< testing/iotest
+	< testing/fstest;
 
 	FMT, flag, math/rand
 	< testing/quick;
@@ -496,7 +504,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi os.FileInfo, err error) error {
+	walkFn := func(path string, fi fs.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() || path == src {
 			return nil
 		}

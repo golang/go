@@ -612,11 +612,13 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	ctxt.GOPATH = gopath
 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
-	want := "cannot find module providing package"
+	want := "working directory is not part of a module"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
 		t.Fatalf("error when importing package when no go.mod is present: got %q; want %q", errStr, want)
+	} else {
+		t.Logf(`ctxt.Import("example.com/p", _, FindOnly): %v`, err)
 	}
 }
 
@@ -677,9 +679,16 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected success")
 	}
+
 	// Don't count the package path with a URL like https://...?go-get=1.
 	// See golang.org/issue/35986.
 	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
+
+	// Also don't count instances in suggested "go get" or similar commands
+	// (see https://golang.org/issue/41576). The suggested command typically
+	// follows a semicolon.
+	errStr = strings.SplitN(errStr, ";", 2)[0]
+
 	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}

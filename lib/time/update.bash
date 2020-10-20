@@ -21,7 +21,7 @@ curl -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.g
 tar xzf tzcode$CODE.tar.gz
 tar xzf tzdata$DATA.tar.gz
 
-make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo ZFLAGS="-b fat" posix_only
+make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only
 
 cd zoneinfo
 rm -f ../../zoneinfo.zip
