@@ -1557,6 +1557,7 @@ var cgoEnabled = map[string]bool{
 	"android/arm":     true,
 	"android/arm64":   true,
 	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,

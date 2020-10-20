@@ -168,7 +168,10 @@ func buildModeInit() {
 			ldBuildmode = "pie"
 		case "windows":
 			ldBuildmode = "pie"
-		case "darwin", "ios":
+		case "ios":
+			codegenArg = "-shared"
+			ldBuildmode = "pie"
+		case "darwin":
 			switch cfg.Goarch {
 			case "arm64":
 				codegenArg = "-shared"
