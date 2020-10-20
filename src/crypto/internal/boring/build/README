@@ -1,6 +1,0 @@
-This is not a Go package. The directory must not contain Go sources,
-to prevent it from being considered a Go package.
-
-This directory holds the script for building ../goboringcrypto_*.syso.
-Run build.sh on an Ubuntu system.
-See the comment at the top of build.sh for details.
