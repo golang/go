@@ -293,7 +293,7 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 		}
 	}
 	if objabi.IsRuntimePackagePath(pkgpath) {
-		args = append(args, "-compilingRuntime")
+		args = append(args, "-compiling-runtime")
 		if objabi.Regabi_enabled != 0 {
 			// In order to make it easier to port runtime assembly
 			// to the register ABI, we introduce a macro
