@@ -49,7 +49,7 @@ func _() { var init int; _ = init }
 
 // invalid array types
 type (
-	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
+	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
 	// The error message below could be better. At the moment
 	// we believe an integer that is too large is not an integer.
 	// But at least we get an error.
@@ -185,10 +185,10 @@ func f2(x *f2 /* ERROR "not a type" */ ) {}
 func f3() (x f3 /* ERROR "not a type" */ ) { return }
 func f4() (x *f4 /* ERROR "not a type" */ ) { return }
 
-func (S0) m1 /* ERROR illegal cycle */ (x S0 /* ERROR value .* is not a type */ .m1) {}
-func (S0) m2 /* ERROR illegal cycle */ (x *S0 /* ERROR value .* is not a type */ .m2) {}
-func (S0) m3 /* ERROR illegal cycle */ () (x S0 /* ERROR value .* is not a type */ .m3) { return }
-func (S0) m4 /* ERROR illegal cycle */ () (x *S0 /* ERROR value .* is not a type */ .m4) { return }
+func (S0) m1(x S0 /* ERROR value .* is not a type */ .m1) {}
+func (S0) m2(x *S0 /* ERROR value .* is not a type */ .m2) {}
+func (S0) m3() (x S0 /* ERROR value .* is not a type */ .m3) { return }
+func (S0) m4() (x *S0 /* ERROR value .* is not a type */ .m4) { return }
 
 // interfaces may not have any blank methods
 type BlankI interface {
