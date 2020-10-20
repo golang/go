@@ -99,7 +99,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 		wg.Wait()
 
 		return data
-	})
+	}, nil)
 	ph.handle = h
 
 	// Cache the handle in the snapshot. If a package handle has already

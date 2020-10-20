@@ -88,7 +88,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 			}
 		}
 		return data
-	})
+	}, nil)
 
 	pmh := &parseModHandle{handle: h}
 	s.mu.Lock()
@@ -252,7 +252,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 			why[req.Mod.Path] = whyList[i]
 		}
 		return &modWhyData{why: why}
-	})
+	}, nil)
 
 	mwh := &modWhyHandle{handle: h}
 	s.mu.Lock()
@@ -360,7 +360,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		return &modUpgradeData{
 			upgrades: upgrades,
 		}
-	})
+	}, nil)
 	muh := &modUpgradeHandle{handle: h}
 	s.mu.Lock()
 	s.modUpgradeHandles[fh.URI()] = muh

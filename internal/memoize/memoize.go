@@ -82,6 +82,9 @@ func (g *Generation) Destroy() {
 			if len(e.generations) == 0 {
 				delete(g.store.handles, k)
 				e.state = stateDestroyed
+				if e.cleanup != nil && e.value != nil {
+					e.cleanup(e.value)
+				}
 			}
 		}
 		e.mu.Unlock()
@@ -150,16 +153,22 @@ type Handle struct {
 	function Function
 	// value is set in completed state.
 	value interface{}
+	// cleanup, if non-nil, is used to perform any necessary clean-up on values
+	// produced by function.
+	cleanup func(interface{})
 }
 
 // Bind returns a handle for the given key and function.
 //
-// Each call to bind will return the same handle if it is already bound.
-// Bind will always return a valid handle, creating one if needed.
-// Each key can only have one handle at any given time.
-// The value will be held at least until the associated generation is destroyed.
-// Bind does not cause the value to be generated.
-func (g *Generation) Bind(key interface{}, function Function) *Handle {
+// Each call to bind will return the same handle if it is already bound. Bind
+// will always return a valid handle, creating one if needed. Each key can
+// only have one handle at any given time. The value will be held at least
+// until the associated generation is destroyed. Bind does not cause the value
+// to be generated.
+//
+// If cleanup is non-nil, it will be called on any non-nil values produced by
+// function when they are no longer referenced.
+func (g *Generation) Bind(key interface{}, function Function, cleanup func(interface{})) *Handle {
 	// panic early if the function is nil
 	// it would panic later anyway, but in a way that was much harder to debug
 	if function == nil {
@@ -176,6 +185,7 @@ func (g *Generation) Bind(key interface{}, function Function) *Handle {
 			key:         key,
 			function:    function,
 			generations: map[*Generation]struct{}{g: {}},
+			cleanup:     cleanup,
 		}
 		g.store.handles[key] = h
 		return h
@@ -220,17 +230,19 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 	}
 }
 
-func (g *Generation) Inherit(h *Handle) {
-	if atomic.LoadUint32(&g.destroyed) != 0 {
-		panic("inherit on destroyed generation " + g.name)
-	}
+func (g *Generation) Inherit(hs ...*Handle) {
+	for _, h := range hs {
+		if atomic.LoadUint32(&g.destroyed) != 0 {
+			panic("inherit on destroyed generation " + g.name)
+		}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.state == stateDestroyed {
-		panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if h.state == stateDestroyed {
+			panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
+		}
+		h.generations[g] = struct{}{}
 	}
-	h.generations[g] = struct{}{}
 }
 
 // Cached returns the value associated with a handle.
@@ -309,6 +321,11 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 		}
 		v := function(childCtx, arg)
 		if childCtx.Err() != nil {
+			// It's possible that v was computed despite the context cancellation. In
+			// this case we should ensure that it is cleaned up.
+			if h.cleanup != nil && v != nil {
+				h.cleanup(v)
+			}
 			return
 		}
 
@@ -319,8 +336,13 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 		// checked childCtx above. Even so, that should be harmless, since each
 		// run should produce the same results.
 		if h.state != stateRunning {
+			// v will never be used, so ensure that it is cleaned up.
+			if h.cleanup != nil && v != nil {
+				h.cleanup(v)
+			}
 			return
 		}
+		// At this point v will be cleaned up whenever h is destroyed.
 		h.value = v
 		h.function = nil
 		h.state = stateCompleted

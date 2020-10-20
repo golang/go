@@ -150,7 +150,7 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 				TidiedContent: tempContents,
 			},
 		}
-	})
+	}, nil)
 
 	mth := &modTidyHandle{handle: h}
 	s.mu.Lock()

@@ -1399,7 +1399,7 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 				Package:    pkg,
 			},
 		}
-	})
+	}, nil)
 	s.builtin = &builtinPackageHandle{handle: h}
 	return nil
 }
