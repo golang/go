@@ -45,7 +45,7 @@
 // copy of an assembler or compiler and check that they produce identical
 // object files. If not, toolstash reports the mismatch and exits with a failure status.
 // As part of reporting the mismatch, toolstash reinvokes the command with
-// the -S flag and identifies the first divergence in the assembly output.
+// the -S=2 flag and identifies the first divergence in the assembly output.
 // If the command is a Go compiler, toolstash also determines whether the
 // difference is triggered by optimization passes.
 // On failure, toolstash leaves additional information in files named
@@ -275,7 +275,7 @@ func compareTool() {
 		return
 	}
 
-	extra := "-S"
+	extra := "-S=2"
 	switch {
 	default:
 		log.Fatalf("unknown tool %s", tool)
