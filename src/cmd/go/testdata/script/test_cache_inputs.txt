@@ -137,7 +137,7 @@ exit 0
 package testcache
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 )
