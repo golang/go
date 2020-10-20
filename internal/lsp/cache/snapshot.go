@@ -388,6 +388,13 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
+	fh, err := s.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	if fh.Kind() != source.Go {
+		return nil, fmt.Errorf("no packages for non-Go file %s", uri)
+	}
 	ids := s.getIDsForURI(uri)
 	reload := len(ids) == 0
 	for _, id := range ids {

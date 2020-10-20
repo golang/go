@@ -60,9 +60,10 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			uri := span.URI(scope)
 			// Don't try to load a file that doesn't exist.
 			fh := s.FindFile(uri)
-			if fh != nil {
-				query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
+			if fh == nil || fh.Kind() != source.Go {
+				continue
 			}
+			query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
 		case moduleLoadScope:
 			query = append(query, fmt.Sprintf("%s/...", scope))
 		case viewLoadScope:
