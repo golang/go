@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -929,7 +930,7 @@ func returnBigZipBytes() (r io.ReaderAt, size int64) {
 		if err != nil {
 			panic(err)
 		}
-		b, err = ioutil.ReadAll(f)
+		b, err = io.ReadAll(f)
 		if err != nil {
 			panic(err)
 		}
@@ -986,7 +987,7 @@ func TestIssue10957(t *testing.T) {
 			continue
 		}
 		if f.UncompressedSize64 < 1e6 {
-			n, err := io.Copy(ioutil.Discard, r)
+			n, err := io.Copy(io.Discard, r)
 			if i == 3 && err != io.ErrUnexpectedEOF {
 				t.Errorf("File[3] error = %v; want io.ErrUnexpectedEOF", err)
 			}
@@ -1028,7 +1029,7 @@ func TestIssue11146(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ioutil.ReadAll(r)
+	_, err = io.ReadAll(r)
 	if err != io.ErrUnexpectedEOF {
 		t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
 	}
@@ -1069,5 +1070,15 @@ func TestIssue12449(t *testing.T) {
 	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
 	if err != nil {
 		t.Errorf("Error reading the archive: %v", err)
+	}
+}
+
+func TestFS(t *testing.T) {
+	z, err := OpenReader("testdata/unix.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fstest.TestFS(z, "hello", "dir/bar", "dir/empty", "readonly"); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/textproto"
@@ -1368,7 +1367,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 
 		if discard {
-			_, err := io.CopyN(ioutil.Discard, w.reqBody, maxPostHandlerReadBytes+1)
+			_, err := io.CopyN(io.Discard, w.reqBody, maxPostHandlerReadBytes+1)
 			switch err {
 			case nil:
 				// There must be even more data left over.
@@ -3407,7 +3406,7 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		// (or an attack) and we abort and close the connection,
 		// courtesy of MaxBytesReader's EOF behavior.
 		mb := MaxBytesReader(w, r.Body, 4<<10)
-		io.Copy(ioutil.Discard, mb)
+		io.Copy(io.Discard, mb)
 	}
 }
 

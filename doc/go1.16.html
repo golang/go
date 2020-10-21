@@ -228,6 +228,12 @@ Do not send CLs removing the interior tags from such phrases.
   with <code>"use of closed network connection"</code>.
 </p>
 
+<p><!-- CL 255898 -->
+  In previous Go releases the default TCP listener backlog size on Linux systems,
+  set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
+  On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
+</p>
+
 <h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
 
 <p><!-- CL 259237, golang.org/issue/22075 -->

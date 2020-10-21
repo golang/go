@@ -41,6 +41,18 @@ func LoadAcq(ptr *uint32) uint32 {
 	return *ptr
 }
 
+//go:nosplit
+//go:noinline
+func LoadAcq64(ptr *uint64) uint64 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func LoadAcquintptr(ptr *uintptr) uintptr {
+	return *ptr
+}
+
 //go:noescape
 func Store(ptr *uint32, val uint32)
 
@@ -56,6 +68,18 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 //go:nosplit
 //go:noinline
 func StoreRel(ptr *uint32, val uint32) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
+func StoreRel64(ptr *uint64, val uint64) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
+func StoreReluintptr(ptr *uintptr, val uintptr) {
 	*ptr = val
 }
 

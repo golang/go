@@ -471,13 +471,13 @@ func proxyGoSum(path, vers string) ([]byte, error) {
 	}
 	h1, err := dirhash.Hash1(names, func(name string) (io.ReadCloser, error) {
 		data := files[name]
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	h1mod, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(gomod)), nil
+		return io.NopCloser(bytes.NewReader(gomod)), nil
 	})
 	if err != nil {
 		return nil, err

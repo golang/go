@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"path"
 	pathpkg "path"
@@ -305,7 +304,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 		return nil, err
 	}
 	defer body.Close()
-	return ioutil.ReadAll(body)
+	return io.ReadAll(body)
 }
 
 func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {

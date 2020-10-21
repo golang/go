@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/race"
+	"internal/sysinfo"
 	"io"
 	"math"
 	"os"
@@ -261,6 +262,9 @@ func (b *B) run() {
 		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
 		if b.importPath != "" {
 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+		}
+		if cpu := sysinfo.CPU.Name(); cpu != "" {
+			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
 	if b.context != nil {
@@ -647,6 +651,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			fmt.Printf("goarch: %s\n", runtime.GOARCH)
 			if b.importPath != "" {
 				fmt.Printf("pkg: %s\n", b.importPath)
+			}
+			if cpu := sysinfo.CPU.Name(); cpu != "" {
+				fmt.Printf("cpu: %s\n", cpu)
 			}
 		})
 

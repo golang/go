@@ -519,12 +519,12 @@ flush:
 	MOV	T1, 16(X2)	// Also second argument to wbBufFlush
 
 	// TODO: Optimise
-	// R3 is g.
-	// R4 already saved (T0)
-	// R5 already saved (T1)
-	// R9 already saved (A0)
-	// R10 already saved (A1)
-	// R30 is tmp register.
+	// X5 already saved (T0)
+	// X6 already saved (T1)
+	// X10 already saved (A0)
+	// X11 already saved (A1)
+	// X27 is g.
+	// X31 is tmp register.
 	MOV	X0, 24(X2)
 	MOV	X1, 32(X2)
 	MOV	X2, 40(X2)

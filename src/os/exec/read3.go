@@ -15,7 +15,7 @@ package main
 import (
 	"fmt"
 	"internal/poll"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -24,7 +24,7 @@ import (
 
 func main() {
 	fd3 := os.NewFile(3, "fd3")
-	bs, err := ioutil.ReadAll(fd3)
+	bs, err := io.ReadAll(fd3)
 	if err != nil {
 		fmt.Printf("ReadAll from fd 3: %v\n", err)
 		os.Exit(1)

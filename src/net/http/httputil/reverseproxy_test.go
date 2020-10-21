@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -84,7 +83,7 @@ func TestReverseProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 	frontendClient := frontend.Client()
@@ -124,7 +123,7 @@ func TestReverseProxy(t *testing.T) {
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
 	}
-	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	bodyBytes, _ := io.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -218,7 +217,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 	defer res.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(res.Body)
+	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("reading body: %v", err)
 	}
@@ -271,7 +270,7 @@ func TestXForwardedFor(t *testing.T) {
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	bodyBytes, _ := io.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -373,7 +372,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 	defer res.Body.Close()
-	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
+	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
 	}
 }
@@ -441,7 +440,7 @@ func TestReverseProxyCancellation(t *testing.T) {
 
 	defer backend.Close()
 
-	backend.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	backend.Config.ErrorLog = log.New(io.Discard, "", 0)
 
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
@@ -452,7 +451,7 @@ func TestReverseProxyCancellation(t *testing.T) {
 
 	// Discards errors of the form:
 	// http: proxy error: read tcp 127.0.0.1:44643: use of closed network connection
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0)
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0)
 
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
@@ -504,7 +503,7 @@ func TestNilBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,7 +532,7 @@ func TestUserAgentHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 	frontendClient := frontend.Client()
@@ -606,7 +605,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatalf("reading body: %v", err)
@@ -627,7 +626,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	const backendStatus = 200
 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slurp, err := ioutil.ReadAll(r.Body)
+		slurp, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("Backend body read = %v", err)
 		}
@@ -656,7 +655,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	bodyBytes, _ := io.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -672,7 +671,7 @@ func (fn RoundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) 
 func TestReverseProxy_NilBody(t *testing.T) {
 	backendURL, _ := url.Parse("http://fake.tld/")
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Body != nil {
 			t.Error("Body != nil; want a nil Body")
@@ -695,8 +694,8 @@ func TestReverseProxy_NilBody(t *testing.T) {
 // Issue 33142: always allocate the request headers
 func TestReverseProxy_AllocatedHeader(t *testing.T) {
 	proxyHandler := new(ReverseProxy)
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
-	proxyHandler.Director = func(*http.Request) {}         // noop
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+	proxyHandler.Director = func(*http.Request) {}     // noop
 	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Header == nil {
 			t.Error("Header == nil; want a non-nil Header")
@@ -722,7 +721,7 @@ func TestReverseProxyModifyResponse(t *testing.T) {
 
 	rpURL, _ := url.Parse(backendServer.URL)
 	rproxy := NewSingleHostReverseProxy(rpURL)
-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	rproxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.Header.Get("X-Hit-Mod") != "true" {
 			return fmt.Errorf("tried to by-pass proxy")
@@ -821,7 +820,7 @@ func TestReverseProxyErrorHandler(t *testing.T) {
 			if rproxy.Transport == nil {
 				rproxy.Transport = failingRoundTripper{}
 			}
-			rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+			rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 			if tt.errorHandler != nil {
 				rproxy.ErrorHandler = tt.errorHandler
 			}
@@ -896,7 +895,7 @@ func (t *staticTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func BenchmarkServeHTTP(b *testing.B) {
 	res := &http.Response{
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader("")),
 	}
 	proxy := &ReverseProxy{
 		Director:  func(*http.Request) {},
@@ -953,7 +952,7 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 // Issue 18327: verify we always do a deep copy of the Request.Header map
 // before any mutations.
 func TestClonesRequestHeaders(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	defer log.SetOutput(os.Stderr)
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
@@ -1031,7 +1030,7 @@ func (cc *checkCloser) Read(b []byte) (int, error) {
 
 // Issue 23643: panic on body copy error
 func TestReverseProxy_PanicBodyError(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	defer log.SetOutput(os.Stderr)
 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		out := "this call was relayed by the reverse proxy"
@@ -1148,7 +1147,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
 
 	backURL, _ := url.Parse(backendServer.URL)
 	rproxy := NewSingleHostReverseProxy(backURL)
-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	rproxy.ModifyResponse = func(res *http.Response) error {
 		res.Header.Add("X-Modified", "true")
 		return nil
@@ -1265,7 +1264,7 @@ func TestReverseProxyWebSocketCancelation(t *testing.T) {
 
 	backendURL, _ := url.Parse(cst.URL)
 	rproxy := NewSingleHostReverseProxy(backendURL)
-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	rproxy.ModifyResponse = func(res *http.Response) error {
 		res.Header.Add("X-Modified", "true")
 		return nil
@@ -1352,7 +1351,7 @@ func TestUnannouncedTrailer(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 	frontendClient := frontend.Client()
@@ -1362,7 +1361,7 @@ func TestUnannouncedTrailer(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 
-	ioutil.ReadAll(res.Body)
+	io.ReadAll(res.Body)
 
 	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)

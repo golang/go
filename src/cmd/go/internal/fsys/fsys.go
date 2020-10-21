@@ -434,29 +434,39 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 
 // lstat implements a version of os.Lstat that operates on the overlay filesystem.
 func lstat(path string) (fs.FileInfo, error) {
+	return overlayStat(path, os.Lstat, "lstat")
+}
+
+// Stat implements a version of os.Stat that operates on the overlay filesystem.
+func Stat(path string) (fs.FileInfo, error) {
+	return overlayStat(path, os.Stat, "stat")
+}
+
+// overlayStat implements lstat or Stat (depending on whether os.Lstat or os.Stat is passed in).
+func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName string) (fs.FileInfo, error) {
 	cpath := canonicalize(path)
 
 	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
-		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
 	}
 
 	node, ok := overlay[cpath]
 	if !ok {
 		// The file or directory is not overlaid.
-		return os.Lstat(cpath)
+		return osStat(path)
 	}
 
 	switch {
 	case node.isDeleted():
 		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
 	case node.isDir():
-		return fakeDir(filepath.Base(cpath)), nil
+		return fakeDir(filepath.Base(path)), nil
 	default:
-		fi, err := os.Lstat(node.actualFilePath)
+		fi, err := osStat(node.actualFilePath)
 		if err != nil {
 			return nil, err
 		}
-		return fakeFile{name: filepath.Base(cpath), real: fi}, nil
+		return fakeFile{name: filepath.Base(path), real: fi}, nil
 	}
 }
 

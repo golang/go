@@ -24,6 +24,11 @@ go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
 exec ./print_trimpath$GOEXE
 stdout ^m[/\\]printpath[/\\]main.go
 
+go build -overlay overlay.json -o print_trimpath_two_files$GOEXE printpath/main.go printpath/other.go
+exec ./print_trimpath_two_files$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
+
 # Run same tests but with gccgo.
 env GO111MODULE=off
 [!exec:gccgo] stop
@@ -65,7 +70,8 @@ the actual code is in the overlay
 		"f.go": "overlay/f.go",
 		"dir/g.go": "overlay/dir_g.go",
 		"dir2/i.go": "overlay/dir2_i.go",
-		"printpath/main.go": "overlay/printpath.go"
+		"printpath/main.go": "overlay/printpath.go",
+		"printpath/other.go": "overlay2/printpath2.go"
 	}
 }
 -- m/overlay/f.go --
@@ -99,6 +105,19 @@ func main() {
 	// Since https://golang.org/cl/214286, the runtime's debug paths are
 	// slash-separated regardless of platform, so normalize them to system file
 	// paths.
+	fmt.Println(filepath.FromSlash(file))
+}
+-- m/overlay2/printpath2.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
+
+func init() {
+	_, file, _, _ := runtime.Caller(0)
 	fmt.Println(filepath.FromSlash(file))
 }
 -- m/overlay/dir2_i.go --

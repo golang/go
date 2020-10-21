@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 // OneByteReader returns a Reader that implements
@@ -142,7 +141,7 @@ func TestReader(r io.Reader, content []byte) error {
 		}
 	}
 
-	data, err := ioutil.ReadAll(&smallByteReader{r: r})
+	data, err := io.ReadAll(&smallByteReader{r: r})
 	if err != nil {
 		return err
 	}
@@ -181,7 +180,7 @@ func TestReader(r io.Reader, content []byte) error {
 		}
 
 		// Reading forward should return the last part of the file.
-		data, err := ioutil.ReadAll(&smallByteReader{r: r})
+		data, err := io.ReadAll(&smallByteReader{r: r})
 		if err != nil {
 			return fmt.Errorf("ReadAll from offset %d: %v", middle, err)
 		}
@@ -198,7 +197,7 @@ func TestReader(r io.Reader, content []byte) error {
 		}
 
 		// Reading forward should return the last part of the file (again).
-		data, err = ioutil.ReadAll(&smallByteReader{r: r})
+		data, err = io.ReadAll(&smallByteReader{r: r})
 		if err != nil {
 			return fmt.Errorf("ReadAll from offset %d: %v", middle, err)
 		}
@@ -210,7 +209,7 @@ func TestReader(r io.Reader, content []byte) error {
 		if off, err := r.Seek(int64(middle/2), 0); off != int64(middle/2) || err != nil {
 			return fmt.Errorf("Seek(%d, 0) from EOF = %d, %v, want %d, nil", middle/2, off, err, middle/2)
 		}
-		data, err = ioutil.ReadAll(r)
+		data, err = io.ReadAll(r)
 		if err != nil {
 			return fmt.Errorf("ReadAll from offset %d: %v", middle/2, err)
 		}

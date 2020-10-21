@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -545,7 +544,7 @@ func TestGetters(t *testing.T) {
 func TestParseError(t *testing.T) {
 	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		fs.SetOutput(ioutil.Discard)
+		fs.SetOutput(io.Discard)
 		_ = fs.Bool("bool", false, "")
 		_ = fs.Int("int", 0, "")
 		_ = fs.Int64("int64", 0, "")
@@ -576,7 +575,7 @@ func TestRangeError(t *testing.T) {
 	}
 	for _, arg := range bad {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		fs.SetOutput(ioutil.Discard)
+		fs.SetOutput(io.Discard)
 		_ = fs.Int("int", 0, "")
 		_ = fs.Int64("int64", 0, "")
 		_ = fs.Uint("uint", 0, "")

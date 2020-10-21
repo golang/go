@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net"
@@ -870,7 +869,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 	}
 	rc, ok := body.(io.ReadCloser)
 	if !ok && body != nil {
-		rc = ioutil.NopCloser(body)
+		rc = io.NopCloser(body)
 	}
 	// The host's colon:port should be normalized. See Issue 14836.
 	u.Host = removeEmptyPort(u.Host)
@@ -892,21 +891,21 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 			buf := v.Bytes()
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := bytes.NewReader(buf)
-				return ioutil.NopCloser(r), nil
+				return io.NopCloser(r), nil
 			}
 		case *bytes.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := snapshot
-				return ioutil.NopCloser(&r), nil
+				return io.NopCloser(&r), nil
 			}
 		case *strings.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := snapshot
-				return ioutil.NopCloser(&r), nil
+				return io.NopCloser(&r), nil
 			}
 		default:
 			// This is where we'd set it to -1 (at least
@@ -1205,7 +1204,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 			maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
 			reader = io.LimitReader(r.Body, maxFormSize+1)
 		}
-		b, e := ioutil.ReadAll(reader)
+		b, e := io.ReadAll(reader)
 		if e != nil {
 			if err == nil {
 				err = e

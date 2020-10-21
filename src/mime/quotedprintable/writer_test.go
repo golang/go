@@ -6,7 +6,7 @@ package quotedprintable
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 )
@@ -128,7 +128,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	r := NewReader(buf)
-	gotBytes, err := ioutil.ReadAll(r)
+	gotBytes, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatalf("Error while reading from Reader: %v", err)
 	}
@@ -151,7 +151,7 @@ var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données
 
 func BenchmarkWriter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		w := NewWriter(ioutil.Discard)
+		w := NewWriter(io.Discard)
 		w.Write(testMsg)
 		w.Close()
 	}
