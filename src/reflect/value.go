@@ -636,11 +636,10 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 	i := methodIndex
 	if v.typ.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
-		ttmethods := tt.methods()
-		if uint(i) >= uint(len(ttmethods)) {
+		if uint(i) >= uint(len(tt.methods)) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := &ttmethods[i]
+		m := &tt.methods[i]
 		if !tt.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
@@ -814,7 +813,7 @@ func (v Value) Elem() Value {
 	switch k {
 	case Interface:
 		var eface interface{}
-		if isEmptyIface(v.typ) {
+		if v.typ.NumMethod() == 0 {
 			eface = *(*interface{})(v.ptr)
 		} else {
 			eface = (interface{})(*(*interface {
@@ -1035,7 +1034,7 @@ func valueInterface(v Value, safe bool) interface{} {
 		// Special case: return the element inside the interface.
 		// Empty interface has one layout, all interfaces with
 		// methods have a second layout.
-		if isEmptyIface(v.typ) {
+		if v.NumMethod() == 0 {
 			return *(*interface{})(v.ptr)
 		}
 		return *(*interface {
@@ -1919,11 +1918,10 @@ func (v Value) Type() Type {
 	if v.typ.Kind() == Interface {
 		// Method on interface.
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
-		ttmethods := tt.methods()
-		if uint(i) >= uint(len(ttmethods)) {
+		if uint(i) >= uint(len(tt.methods)) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := &ttmethods[i]
+		m := &tt.methods[i]
 		return v.typ.typeOff(m.typ)
 	}
 	// Method on concrete type.
@@ -2441,7 +2439,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 			return Value{dst, nil, flag(Interface)}
 		}
 		x := valueInterface(v, false)
-		if isEmptyIface(dst) {
+		if dst.NumMethod() == 0 {
 			*(*interface{})(target) = x
 		} else {
 			ifaceE2I(dst, x, target)
@@ -2730,11 +2728,10 @@ func cvtDirect(v Value, typ Type) Value {
 func cvtT2I(v Value, typ Type) Value {
 	target := unsafe_New(typ.common())
 	x := valueInterface(v, false)
-	rt := typ.(*rtype)
-	if isEmptyIface(rt) {
+	if typ.NumMethod() == 0 {
 		*(*interface{})(target) = x
 	} else {
-		ifaceE2I(rt, x, target)
+		ifaceE2I(typ.(*rtype), x, target)
 	}
 	return Value{typ.common(), target, v.flag.ro() | flagIndir | flag(Interface)}
 }
