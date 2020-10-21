@@ -1,0 +1,11 @@
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+-- go.mod --
+module m.test
+
+go 1.16
+-- .ignore.go --
+package p
+import _ "golang.org/x/mod/modfile"
