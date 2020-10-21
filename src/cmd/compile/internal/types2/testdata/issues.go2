@@ -26,7 +26,7 @@ func _() {
 
 // If we have a receiver of pointer type (below: *T) we must ignore
 // the pointer in the implementation of the method lookup because
-// the type bound of T is an interface an pointer to interface types
+// the type bound of T is an interface and pointer to interface types
 // have no methods and then the lookup would fail.
 type C[T any] interface {
     m()
@@ -42,12 +42,6 @@ func _[T interface{ m() }](x *T) {
 	x.m()
 }
 
-// In a generic function body all method calls will be pointer method calls.
-// If necessary, the function body will insert temporary variables, not seen
-// by the user, in order to get an addressable variable to use to call the method.
-// Thus, assume an argument type for a generic function to be the type of addressable
-// values in the generic function when checking if the argument type satisfies the
-// generic function's type bound.
 func f2[_ interface{ m1(); m2() }]()
 
 type T struct{}
