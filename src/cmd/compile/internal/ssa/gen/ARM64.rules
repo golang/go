@@ -1824,6 +1824,7 @@
 // sbfiz
 // (x << lc) >> rc
 (SRAconst [rc] (SLLconst [lc] x)) && lc > rc => (SBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+// int64(x << lc)
 (MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
 (MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
 (MOVBreg (SLLconst [lc] x)) && lc < 8 => (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
@@ -1835,6 +1836,7 @@
 // sbfx
 // (x << lc) >> rc
 (SRAconst [rc] (SLLconst [lc] x)) && lc <= rc => (SBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+// int64(x) >> rc
 (SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [armBFAuxInt(rc, 32-rc)] x)
 (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
 (SRAconst [rc] (MOVBreg x)) && rc < 8 => (SBFX [armBFAuxInt(rc, 8-rc)] x)
@@ -1851,42 +1853,43 @@
 	=> (SBFX [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
 
 // ubfiz
+// (x << lc) >> rc
+(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+// uint64(x) << lc
+(SLLconst [lc] (MOVWUreg x))  => (UBFIZ [armBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHUreg x))  => (UBFIZ [armBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBUreg x))  => (UBFIZ [armBFAuxInt(lc, min(8, 64-lc))] x)
+// uint64(x << lc)
+(MOVWUreg (SLLconst [lc] x)) && lc < 32 => (UBFIZ [armBFAuxInt(lc, 32-lc)] x)
+(MOVHUreg (SLLconst [lc] x)) && lc < 16 => (UBFIZ [armBFAuxInt(lc, 16-lc)] x)
+(MOVBUreg (SLLconst [lc] x)) && lc < 8 => (UBFIZ [armBFAuxInt(lc, 8-lc)] x)
+
+// merge ANDconst into ubfiz
 // (x & ac) << sc
 (SLLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, 0)
 	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(SLLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, 0) => (UBFIZ [armBFAuxInt(sc, 32)] x)
-(SLLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, 0) => (UBFIZ [armBFAuxInt(sc, 16)] x)
-(SLLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, 0) => (UBFIZ [armBFAuxInt(sc, 8)] x)
 // (x << sc) & ac
 (ANDconst [ac] (SLLconst [sc] x)) && isARM64BFMask(sc, ac, sc)
 	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
-(MOVWUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
-(MOVHUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
-(MOVBUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
-// (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
 
 // ubfx
+// (x << lc) >> rc
+(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+// uint64(x) >> rc
+(SRLconst [rc] (MOVWUreg x)) && rc < 32 => (UBFX [armBFAuxInt(rc, 32-rc)] x)
+(SRLconst [rc] (MOVHUreg x)) && rc < 16 => (UBFX [armBFAuxInt(rc, 16-rc)] x)
+(SRLconst [rc] (MOVBUreg x)) && rc < 8 => (UBFX [armBFAuxInt(rc, 8-rc)] x)
+// uint64(x >> rc)
+(MOVWUreg (SRLconst [rc] x)) && rc < 32 => (UBFX [armBFAuxInt(rc, 32)] x)
+(MOVHUreg (SRLconst [rc] x)) && rc < 16 => (UBFX [armBFAuxInt(rc, 16)] x)
+(MOVBUreg (SRLconst [rc] x)) && rc < 8 => (UBFX [armBFAuxInt(rc, 8)] x)
+// merge ANDconst into ubfx
 // (x >> sc) & ac
 (ANDconst [ac] (SRLconst [sc] x)) && isARM64BFMask(sc, ac, 0)
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(MOVWUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, 0) => (UBFX [armBFAuxInt(sc, 32)] x)
-(MOVHUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, 0) => (UBFX [armBFAuxInt(sc, 16)] x)
-(MOVBUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, 0) => (UBFX [armBFAuxInt(sc, 8)] x)
 // (x & ac) >> sc
 (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
-(SRLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
-(SRLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
-(SRLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
-// (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
 
 // merge ubfx and zerso-extension into ubfx
 (MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)

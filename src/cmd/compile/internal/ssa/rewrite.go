@@ -1572,7 +1572,7 @@ func armBFAuxInt(lsb, width int64) arm64BitField {
 	if lsb < 0 || lsb > 63 {
 		panic("ARM(64) bit field lsb constant out of range")
 	}
-	if width < 1 || width > 64 {
+	if width < 1 || lsb+width > 64 {
 		panic("ARM(64) bit field width constant out of range")
 	}
 	return arm64BitField(width | lsb<<8)
