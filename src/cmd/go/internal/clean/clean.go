@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -268,20 +267,52 @@ func clean(p *load.Package) {
 		keep(p.XTestGoFiles)
 	}
 
+	_, elem := filepath.Split(p.Dir)
 	var allRemove []string
 
-	// Remove executable only if this is package main.
+	// Remove dir-named executable only if this is package main.
 	if p.Name == "main" {
-		allRemove = append(allRemove, collectExecutables(p)...)
+		allRemove = append(allRemove,
+			elem,
+			elem+".exe",
+			p.DefaultExecName(),
+			p.DefaultExecName()+".exe",
+		)
 	}
 
 	// Remove package test executables.
-	allRemove = append(allRemove, collectTestFiles(p)...)
+	allRemove = append(allRemove,
+		elem+".test",
+		elem+".test.exe",
+		p.DefaultExecName()+".test",
+		p.DefaultExecName()+".test.exe",
+	)
 
-	// Remove potential executables or test files.
-	allRemove = append(allRemove, collectPotentialFiles(packageFile, dirs)...)
+	// Remove a potential executable, test executable for each .go file in the directory that
+	// is not part of the directory's package.
+	for _, dir := range dirs {
+		name := dir.Name()
+		if packageFile[name] {
+			continue
+		}
 
-	allRemove = uniq(allRemove)
+		if dir.IsDir() {
+			continue
+		}
+
+		if strings.HasSuffix(name, "_test.go") {
+			base := name[:len(name)-len("_test.go")]
+			allRemove = append(allRemove, base+".test", base+".test.exe")
+		}
+
+		if strings.HasSuffix(name, ".go") {
+			// TODO(adg,rsc): check that this .go file is actually
+			// in "package main", and therefore capable of building
+			// to an executable file.
+			base := name[:len(name)-len(".go")]
+			allRemove = append(allRemove, base, base+".exe")
+		}
+	}
 
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
@@ -356,142 +387,4 @@ func removeFile(f string) {
 		}
 	}
 	base.Errorf("go clean: %v", err)
-}
-
-// collectExecutables collect executable filenames to be cleaned
-//
-// go build, there're several cases:
-// - GO111MODULE=on go build, module-named executable
-// - GO111MODULE=off go build, directory-named executable
-// - GO111MODULE=on/off go build <filename>, file-named executable
-func collectExecutables(p *load.Package) []string {
-	if p.Name != "main" {
-		return nil
-	}
-
-	executables := []string{}
-
-	// directory-named
-	_, elem := filepath.Split(p.Dir)
-	executables = append(executables,
-		elem,
-		elem+".exe",
-	)
-
-	flagValue := p.Internal.CmdlineFiles
-	defer func() {
-		p.Internal.CmdlineFiles = flagValue
-	}()
-
-	// module-named
-	p.Internal.CmdlineFiles = false
-	dftExecName := p.DefaultExecName()
-	if dftExecName != elem {
-		executables = append(executables,
-			dftExecName,
-			dftExecName+".exe",
-		)
-	}
-
-	// file-named
-	p.Internal.CmdlineFiles = true
-	dftExecName = p.DefaultExecName()
-	if dftExecName != elem {
-		executables = append(executables,
-			dftExecName,
-			dftExecName+".exe",
-		)
-	}
-
-	return executables
-}
-
-// collectTestFiles collect test filenames to be cleaned
-//
-// go test, there're several cases:
-// - GO111MODULE=on go test -c, module-named test file
-// - GO111MODULE=off go test -c, directory-named test file
-// - GO111MODULE=on/off go test -c <*_test.go>, file-named test file
-func collectTestFiles(p *load.Package) []string {
-
-	fileNames := []string{}
-
-	// directory-named
-	_, elem := filepath.Split(p.Dir)
-	fileNames = append(fileNames,
-		elem+".test",
-		elem+".test.exe",
-	)
-
-	flagValue := p.Internal.CmdlineFiles
-	defer func() {
-		p.Internal.CmdlineFiles = flagValue
-	}()
-
-	// module-named
-	p.Internal.CmdlineFiles = false
-	dftExecName := p.DefaultExecName()
-	if len(dftExecName) != 0 && dftExecName != elem {
-		fileNames = append(fileNames,
-			dftExecName+".test",
-			dftExecName+".test.exe",
-		)
-	}
-
-	// file-named
-	p.Internal.CmdlineFiles = true
-	dftExecName = p.DefaultExecName()
-	if len(dftExecName) != 0 && dftExecName != elem {
-		fileNames = append(fileNames,
-			dftExecName+".test",
-			dftExecName+".test.exe",
-		)
-	}
-
-	return fileNames
-}
-
-// collectPotentialFiles collect potential executable files and test files
-func collectPotentialFiles(packageFile map[string]bool, files []os.FileInfo) []string {
-
-	var fileNames []string
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		name := file.Name()
-
-		if strings.HasSuffix(name, "_test.go") {
-			base := name[:len(name)-len("_test.go")]
-			fileNames = append(fileNames, base+".test", base+".test.exe")
-			continue
-		}
-
-		if strings.HasSuffix(name, ".go") {
-			// TODO(adg,rsc): check that this .go file is actually
-			// in "package main", and therefore capable of building
-			// to an executable file.
-			base := name[:len(name)-len(".go")]
-			fileNames = append(fileNames, base, base+".exe")
-		}
-	}
-
-	return fileNames
-}
-
-func uniq(elements []string) []string {
-	m := map[string]struct{}{}
-	for _, e := range elements {
-		m[e] = struct{}{}
-	}
-
-	all := make([]string, 0, len(m))
-	for k, _ := range m {
-		all = append(all, k)
-	}
-	sort.Strings(all)
-
-	return all
 }
