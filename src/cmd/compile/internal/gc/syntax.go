@@ -460,7 +460,7 @@ type Param struct {
 	//     x1 := xN.Defn
 	//     x1.Innermost = xN.Outer
 	//
-	// We leave xN.Innermost set so that we can still get to the original
+	// We leave x1.Innermost set so that we can still get to the original
 	// variable quickly. Not shown here, but once we're
 	// done parsing a function and no longer need xN.Outer for the
 	// lexical x reference links as described above, funcLit
