@@ -206,8 +206,9 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		return nil, nil
 	}
 	var (
-		showMsg *protocol.ShowMessageParams
-		wg      sync.WaitGroup
+		showMsgMu sync.Mutex
+		showMsg   *protocol.ShowMessageParams
+		wg        sync.WaitGroup
 	)
 	for _, pkg := range wsPkgs {
 		wg.Add(1)
@@ -236,10 +237,12 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.
 			if warn && !snapshot.ValidBuildConfiguration() {
+				showMsgMu.Lock()
 				showMsg = &protocol.ShowMessageParams{
 					Type:    protocol.Warning,
 					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor to a directory in your module. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
 				}
+				showMsgMu.Unlock()
 			}
 			if err != nil {
 				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
