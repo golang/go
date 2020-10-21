@@ -348,7 +348,7 @@ func newname(s *types.Sym) *Node {
 	return n
 }
 
-// newname returns a new ONAME Node associated with symbol s at position pos.
+// newnamel returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting n.Name.Curfn.
 func newnamel(pos src.XPos, s *types.Sym) *Node {
 	if s == nil {
