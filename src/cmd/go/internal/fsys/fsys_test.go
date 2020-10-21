@@ -487,6 +487,11 @@ contents don't matter for this test
 }
 
 func TestWalk(t *testing.T) {
+	// The root of the walk must be a name with an actual basename, not just ".".
+	// Walk uses Lstat to obtain the name of the root, and Lstat on platforms
+	// other than Plan 9 reports the name "." instead of the actual base name of
+	// the directory. (See https://golang.org/issue/42115.)
+
 	type file struct {
 		path  string
 		name  string
@@ -502,62 +507,62 @@ func TestWalk(t *testing.T) {
 	}{
 		{"no overlay", `
 {}
--- file.txt --
+-- dir/file.txt --
 `,
-			".",
+			"dir",
 			[]file{
-				{".", ".", 0, fs.ModeDir | 0700, true},
-				{"file.txt", "file.txt", 0, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0700, true},
+				{"dir/file.txt", "file.txt", 0, 0600, false},
 			},
 		},
 		{"overlay with different file", `
 {
 	"Replace": {
-		"file.txt": "other.txt"
+		"dir/file.txt": "dir/other.txt"
 	}
 }
--- file.txt --
--- other.txt --
+-- dir/file.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", ".", 0, fs.ModeDir | 0500, true},
-				{"file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+				{"dir/file.txt", "file.txt", 23, 0600, false},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
 			},
 		},
 		{"overlay with new file", `
 {
 	"Replace": {
-		"file.txt": "other.txt"
+		"dir/file.txt": "dir/other.txt"
 	}
 }
--- other.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", ".", 0, fs.ModeDir | 0500, true},
-				{"file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+				{"dir/file.txt", "file.txt", 23, 0600, false},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
 			},
 		},
 		{"overlay with new directory", `
 {
 	"Replace": {
-		"dir/file.txt": "other.txt"
+		"dir/subdir/file.txt": "dir/other.txt"
 	}
 }
--- other.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", ".", 0, fs.ModeDir | 0500, true},
 				{"dir", "dir", 0, fs.ModeDir | 0500, true},
-				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
+				{"dir/subdir", "subdir", 0, fs.ModeDir | 0500, true},
+				{"dir/subdir/file.txt", "file.txt", 23, 0600, false},
 			},
 		},
 	}
@@ -576,8 +581,9 @@ contents of other file
 				t.Errorf("Walk: saw %#v in walk; want %#v", got, tc.wantFiles)
 			}
 			for i := 0; i < len(got) && i < len(tc.wantFiles); i++ {
-				if got[i].path != tc.wantFiles[i].path {
-					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, tc.wantFiles[i].path)
+				wantPath := filepath.FromSlash(tc.wantFiles[i].path)
+				if got[i].path != wantPath {
+					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, wantPath)
 				}
 				if got[i].name != tc.wantFiles[i].name {
 					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
@@ -603,24 +609,24 @@ func TestWalk_SkipDir(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
-		"skipthisdir/file.go": "dummy.txt",
-		"dontskip/file.go": "dummy.txt",
-		"dontskip/skip/file.go": "dummy.txt"
+		"dir/skip/file.go": "dummy.txt",
+		"dir/dontskip/file.go": "dummy.txt",
+		"dir/dontskip/skip/file.go": "dummy.txt"
 	}
 }
 -- dummy.txt --
 `)
 
 	var seen []string
-	Walk(".", func(path string, info fs.FileInfo, err error) error {
-		seen = append(seen, path)
-		if path == "skipthisdir" || path == filepath.Join("dontskip", "skip") {
+	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+		seen = append(seen, filepath.ToSlash(path))
+		if info.Name() == "skip" {
 			return filepath.SkipDir
 		}
 		return nil
 	})
 
-	wantSeen := []string{".", "dontskip", filepath.Join("dontskip", "file.go"), filepath.Join("dontskip", "skip"), "dummy.txt", "skipthisdir"}
+	wantSeen := []string{"dir", "dir/dontskip", "dir/dontskip/file.go", "dir/dontskip/skip", "dir/skip"}
 
 	if len(seen) != len(wantSeen) {
 		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
@@ -675,8 +681,8 @@ func TestWalk_Symlink(t *testing.T) {
 		wantFiles []string
 	}{
 		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
-		// ensure Walk doesn't wolk into the directory pointed to by the symlink
-		// (because it's supposed to use Lstat instead of Stat.
+		// ensure Walk doesn't walk into the directory pointed to by the symlink
+		// (because it's supposed to use Lstat instead of Stat).
 		{"symlink_to_dir", "symlink", []string{"symlink"}},
 		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink"}},
 	}
