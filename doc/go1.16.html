@@ -182,7 +182,10 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
-<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
+<p> <!-- CL 255259 -->
+  On Windows, <code>go build -buildmode=c-shared</code> now generates Windows
+  ASLR DLLs by default. ASLR can be disabled with <code>--ldflags=-aslr=false</code>.
+</p>
 
 <h2 id="library">Core library</h2>
 
