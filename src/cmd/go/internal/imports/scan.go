@@ -34,7 +34,7 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
 			}
 		}
 
-		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
 			files = append(files, filepath.Join(dir, name))
 		}
 	}
