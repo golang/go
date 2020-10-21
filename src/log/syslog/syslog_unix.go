@@ -15,7 +15,7 @@ import (
 // local machine using a Unix domain socket.
 
 func unixSyslog() (conn serverConn, err error) {
-	logTypes := []string{"unixgram", "unix"}
+	logTypes := []string{networkUnixgram, networkUnix}
 	logPaths := []string{"/dev/log", "/var/run/syslog", "/var/run/log"}
 	for _, network := range logTypes {
 		for _, path := range logPaths {

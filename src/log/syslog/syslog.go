@@ -23,6 +23,11 @@ import (
 // the default facility is LOG_KERN.
 type Priority int
 
+const (
+	networkUnixgram = "unixgram"
+	networkUnix     = "unix"
+)
+
 const severityMask = 0x07
 const facilityMask = 0xf8
 
@@ -152,7 +157,7 @@ func (w *Writer) connect() (err error) {
 		w.conn = nil
 	}
 
-	if w.network == "" {
+	if w.network == "" || w.network == networkUnixgram || w.network == networkUnix {
 		w.conn, err = unixSyslog()
 		if w.hostname == "" {
 			w.hostname = "localhost"
