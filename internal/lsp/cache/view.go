@@ -631,7 +631,11 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		return nil, errors.Errorf("invalid workspace configuration: %w", err)
 	}
 	var err error
-	goversion, err := s.goVersion(ctx, folder.Filename(), options.EnvSlice())
+	inv := gocommand.Invocation{
+		WorkingDir: folder.Filename(),
+		Env:        options.EnvSlice(),
+	}
+	goversion, err := gocommand.GoVersion(ctx, inv, s.gocmdRunner)
 	if err != nil {
 		return nil, err
 	}

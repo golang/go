@@ -91,7 +91,7 @@ type golistState struct {
 
 	goVersionOnce  sync.Once
 	goVersionError error
-	goVersion      string // third field of 'go version'
+	goVersion      int // The X in Go 1.X.
 
 	// vendorDirs caches the (non)existence of vendor directories.
 	vendorDirs map[string]bool
@@ -731,7 +731,7 @@ func (state *golistState) shouldAddFilenameFromError(p *jsonPackage) bool {
 
 	// On Go 1.14 and earlier, only add filenames from errors if the import stack is empty.
 	// The import stack behaves differently for these versions than newer Go versions.
-	if strings.HasPrefix(goV, "go1.13") || strings.HasPrefix(goV, "go1.14") {
+	if goV < 15 {
 		return len(p.Error.ImportStack) == 0
 	}
 
@@ -742,31 +742,9 @@ func (state *golistState) shouldAddFilenameFromError(p *jsonPackage) bool {
 	return len(p.Error.ImportStack) == 0 || p.Error.ImportStack[len(p.Error.ImportStack)-1] == p.ImportPath
 }
 
-func (state *golistState) getGoVersion() (string, error) {
+func (state *golistState) getGoVersion() (int, error) {
 	state.goVersionOnce.Do(func() {
-		var b *bytes.Buffer
-		// Invoke go version. Don't use invokeGo because it will supply build flags, and
-		// go version doesn't expect build flags.
-		inv := gocommand.Invocation{
-			Verb: "version",
-			Env:  state.cfg.Env,
-			Logf: state.cfg.Logf,
-		}
-		gocmdRunner := state.cfg.gocmdRunner
-		if gocmdRunner == nil {
-			gocmdRunner = &gocommand.Runner{}
-		}
-		b, _, _, state.goVersionError = gocmdRunner.RunRaw(state.cfg.Context, inv)
-		if state.goVersionError != nil {
-			return
-		}
-
-		sp := strings.Split(b.String(), " ")
-		if len(sp) < 3 {
-			state.goVersionError = fmt.Errorf("go version output: expected 'go version <version>', got '%s'", b.String())
-			return
-		}
-		state.goVersion = sp[2]
+		state.goVersion, state.goVersionError = gocommand.GoVersion(state.ctx, state.cfgInvocation(), state.cfg.gocmdRunner)
 	})
 	return state.goVersion, state.goVersionError
 }
