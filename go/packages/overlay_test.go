@@ -87,6 +87,9 @@ func testOverlayChangesBothPackageNames(t *testing.T, exporter packagestest.Expo
 		{"fake [fake.test]", "foox", 2},
 		{"fake.test", "main", 1},
 	}
+	if len(initial) != 3 {
+		t.Fatalf("expected 3 packages, got %v", len(initial))
+	}
 	for i := 0; i < 3; i++ {
 		if ok := checkPkg(t, initial[i], want[i].id, want[i].name, want[i].count); !ok {
 			t.Errorf("%d: got {%s %s %d}, expected %v", i, initial[i].ID,
@@ -102,7 +105,8 @@ func TestOverlayChangesTestPackageName(t *testing.T) {
 	packagestest.TestAll(t, testOverlayChangesTestPackageName)
 }
 func testOverlayChangesTestPackageName(t *testing.T, exporter packagestest.Exporter) {
-	log.SetFlags(log.Lshortfile)
+	testenv.NeedsGo1Point(t, 16)
+
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "fake",
 		Files: map[string]interface{}{
@@ -127,9 +131,12 @@ func testOverlayChangesTestPackageName(t *testing.T, exporter packagestest.Expor
 		id, name string
 		count    int
 	}{
-		{"fake", "foo", 0},
+		{"fake", "foox", 0},
 		{"fake [fake.test]", "foox", 1},
 		{"fake.test", "main", 1},
+	}
+	if len(initial) != 3 {
+		t.Fatalf("expected 3 packages, got %v", len(initial))
 	}
 	for i := 0; i < 3; i++ {
 		if ok := checkPkg(t, initial[i], want[i].id, want[i].name, want[i].count); !ok {
@@ -329,6 +336,9 @@ func testOverlayDeps(t *testing.T, exporter packagestest.Exporter) {
 
 	// Find package golang.org/fake/c
 	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ID < pkgs[j].ID })
+	if len(pkgs) != 2 {
+		t.Fatalf("expected 2 packages, got %v", len(pkgs))
+	}
 	pkgc := pkgs[0]
 	if pkgc.ID != "golang.org/fake/c" {
 		t.Errorf("expected first package in sorted list to be \"golang.org/fake/c\", got %v", pkgc.ID)
@@ -804,6 +814,9 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 				if err != nil {
 					t.Fatal(err)
 				}
+				if len(initial) != 1 {
+					t.Fatalf("expected 1 packages, got %v", len(initial))
+				}
 				pkg := initial[0]
 				if pkg.ID != tt.wantID {
 					t.Fatalf("expected package ID %q, got %q", tt.wantID, pkg.ID)
@@ -986,7 +999,7 @@ func Hi() {
 				}
 			}
 			if match == nil {
-				t.Fatalf(`expected package path "golang.org/fake/a", got %q`, match.PkgPath)
+				t.Fatalf(`expected package path "golang.org/fake/a", got none`)
 			}
 			if match.PkgPath != "golang.org/fake/a" {
 				t.Fatalf(`expected package path "golang.org/fake/a", got %q`, match.PkgPath)
@@ -1071,6 +1084,9 @@ replace (
 	initial, err := packages.Load(config, "b.com/...")
 	if err != nil {
 		t.Error(err)
+	}
+	if len(initial) != 1 {
+		t.Fatalf(`expected 1 package, got %v`, len(initial))
 	}
 	pkg := initial[0]
 	if pkg.PkgPath != "b.com/inner" {

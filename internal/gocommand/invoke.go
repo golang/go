@@ -132,6 +132,7 @@ type Invocation struct {
 	BuildFlags []string
 	ModFlag    string
 	ModFile    string
+	Overlay    string
 	Env        []string
 	WorkingDir string
 	Logf       func(format string, args ...interface{})
@@ -171,6 +172,11 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 			goArgs = append(goArgs, "-mod="+i.ModFlag)
 		}
 	}
+	appendOverlayFlag := func() {
+		if i.Overlay != "" {
+			goArgs = append(goArgs, "-overlay="+i.Overlay)
+		}
+	}
 
 	switch i.Verb {
 	case "env", "version":
@@ -189,6 +195,7 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 		goArgs = append(goArgs, i.BuildFlags...)
 		appendModFile()
 		appendModFlag()
+		appendOverlayFlag()
 		goArgs = append(goArgs, i.Args...)
 	}
 	cmd := exec.Command("go", goArgs...)

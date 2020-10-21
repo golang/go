@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/types"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -208,56 +209,58 @@ extractQueries:
 		}
 	}
 
-	modifiedPkgs, needPkgs, err := state.processGolistOverlay(response)
-	if err != nil {
-		return nil, err
-	}
+	// Only use go/packages' overlay processing if we're using a Go version
+	// below 1.16. Otherwise, go list handles it.
+	if goVersion, err := state.getGoVersion(); err == nil && goVersion < 16 {
+		modifiedPkgs, needPkgs, err := state.processGolistOverlay(response)
+		if err != nil {
+			return nil, err
+		}
 
-	var containsCandidates []string
-	if len(containFiles) > 0 {
-		containsCandidates = append(containsCandidates, modifiedPkgs...)
-		containsCandidates = append(containsCandidates, needPkgs...)
-	}
-	if err := state.addNeededOverlayPackages(response, needPkgs); err != nil {
-		return nil, err
-	}
-	// Check candidate packages for containFiles.
-	if len(containFiles) > 0 {
-		for _, id := range containsCandidates {
-			pkg, ok := response.seenPackages[id]
-			if !ok {
-				response.addPackage(&Package{
-					ID: id,
-					Errors: []Error{
-						{
+		var containsCandidates []string
+		if len(containFiles) > 0 {
+			containsCandidates = append(containsCandidates, modifiedPkgs...)
+			containsCandidates = append(containsCandidates, needPkgs...)
+		}
+		if err := state.addNeededOverlayPackages(response, needPkgs); err != nil {
+			return nil, err
+		}
+		// Check candidate packages for containFiles.
+		if len(containFiles) > 0 {
+			for _, id := range containsCandidates {
+				pkg, ok := response.seenPackages[id]
+				if !ok {
+					response.addPackage(&Package{
+						ID: id,
+						Errors: []Error{{
 							Kind: ListError,
 							Msg:  fmt.Sprintf("package %s expected but not seen", id),
-						},
-					},
-				})
-				continue
-			}
-			for _, f := range containFiles {
-				for _, g := range pkg.GoFiles {
-					if sameFile(f, g) {
-						response.addRoot(id)
+						}},
+					})
+					continue
+				}
+				for _, f := range containFiles {
+					for _, g := range pkg.GoFiles {
+						if sameFile(f, g) {
+							response.addRoot(id)
+						}
 					}
 				}
 			}
 		}
-	}
-	// Add root for any package that matches a pattern. This applies only to
-	// packages that are modified by overlays, since they are not added as
-	// roots automatically.
-	for _, pattern := range restPatterns {
-		match := matchPattern(pattern)
-		for _, pkgID := range modifiedPkgs {
-			pkg, ok := response.seenPackages[pkgID]
-			if !ok {
-				continue
-			}
-			if match(pkg.PkgPath) {
-				response.addRoot(pkg.ID)
+		// Add root for any package that matches a pattern. This applies only to
+		// packages that are modified by overlays, since they are not added as
+		// roots automatically.
+		for _, pattern := range restPatterns {
+			match := matchPattern(pattern)
+			for _, pkgID := range modifiedPkgs {
+				pkg, ok := response.seenPackages[pkgID]
+				if !ok {
+					continue
+				}
+				if match(pkg.PkgPath) {
+					response.addRoot(pkg.ID)
+				}
 			}
 		}
 	}
@@ -835,6 +838,26 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 	cfg := state.cfg
 
 	inv := state.cfgInvocation()
+
+	// For Go versions 1.16 and above, `go list` accepts overlays directly via
+	// the -overlay flag. Set it, if it's available.
+	//
+	// The check for "list" is not necessarily required, but we should avoid
+	// getting the go version if possible.
+	if verb == "list" {
+		goVersion, err := state.getGoVersion()
+		if err != nil {
+			return nil, err
+		}
+		if goVersion >= 16 {
+			filename, cleanup, err := state.writeOverlays()
+			if err != nil {
+				return nil, err
+			}
+			defer cleanup()
+			inv.Overlay = filename
+		}
+	}
 	inv.Verb = verb
 	inv.Args = args
 	gocmdRunner := cfg.gocmdRunner
@@ -974,6 +997,67 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		}
 	}
 	return stdout, nil
+}
+
+// OverlayJSON is the format overlay files are expected to be in.
+// The Replace map maps from overlaid paths to replacement paths:
+// the Go command will forward all reads trying to open
+// each overlaid path to its replacement path, or consider the overlaid
+// path not to exist if the replacement path is empty.
+//
+// From golang/go#39958.
+type OverlayJSON struct {
+	Replace map[string]string `json:"replace,omitempty"`
+}
+
+// writeOverlays writes out files for go list's -overlay flag, as described
+// above.
+func (state *golistState) writeOverlays() (filename string, cleanup func(), err error) {
+	// Do nothing if there are no overlays in the config.
+	if len(state.cfg.Overlay) == 0 {
+		return "", func() {}, nil
+	}
+	dir, err := ioutil.TempDir("", "gopackages-*")
+	if err != nil {
+		return "", nil, err
+	}
+	// The caller must clean up this directory, unless this function returns an
+	// error.
+	cleanup = func() {
+		os.RemoveAll(dir)
+	}
+	defer func() {
+		if err != nil {
+			cleanup()
+		}
+	}()
+	overlays := map[string]string{}
+	for k, v := range state.cfg.Overlay {
+		// Create a unique filename for the overlaid files, to avoid
+		// creating nested directories.
+		noSeparator := strings.Join(strings.Split(filepath.ToSlash(k), "/"), "")
+		f, err := ioutil.TempFile(dir, fmt.Sprintf("*-%s", noSeparator))
+		if err != nil {
+			return "", func() {}, err
+		}
+		if _, err := f.Write(v); err != nil {
+			return "", func() {}, err
+		}
+		if err := f.Close(); err != nil {
+			return "", func() {}, err
+		}
+		overlays[k] = f.Name()
+	}
+	b, err := json.Marshal(OverlayJSON{Replace: overlays})
+	if err != nil {
+		return "", func() {}, err
+	}
+	// Write out the overlay file that contains the filepath mappings.
+	filename = filepath.Join(dir, "overlay.json")
+	if err := ioutil.WriteFile(filename, b, 0665); err != nil {
+		return "", func() {}, err
+	}
+	return filename, cleanup, nil
 }
 
 func containsGoFile(s []string) bool {
