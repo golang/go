@@ -210,7 +210,7 @@ func runfinq() {
 					// set up with empty interface
 					(*eface)(frame)._type = &f.ot.typ
 					(*eface)(frame).data = f.arg
-					if !ityp.isEmpty() {
+					if len(ityp.mhdr) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
 						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
@@ -394,7 +394,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		}
 	case fint.kind&kindMask == kindInterface:
 		ityp := (*interfacetype)(unsafe.Pointer(fint))
-		if ityp.isEmpty() {
+		if len(ityp.mhdr) == 0 {
 			// ok - satisfies empty interface
 			goto okarg
 		}
