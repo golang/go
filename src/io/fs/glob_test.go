@@ -7,6 +7,7 @@ package fs_test
 import (
 	. "io/fs"
 	"os"
+	"path"
 	"testing"
 )
 
@@ -44,9 +45,12 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob(os.DirFS("."), "[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		_, err := Glob(os.DirFS("."), pattern)
+		if err != path.ErrBadPattern {
+			t.Errorf("Glob(fs, %#q) returned err=%v, want path.ErrBadPattern", pattern, err)
+		}
 	}
 }
 
