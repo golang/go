@@ -90,6 +90,7 @@ func (f flag) ro() flag {
 
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+// if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != ptrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -1452,7 +1453,16 @@ func (v Value) Pointer() uintptr {
 	// TODO: deprecate
 	k := v.kind()
 	switch k {
-	case Chan, Map, Ptr, UnsafePointer:
+	case Ptr:
+		if v.typ.ptrdata == 0 {
+			// Handle pointers to go:notinheap types directly,
+			// so we never materialize such pointers as an
+			// unsafe.Pointer. (Such pointers are always indirect.)
+			// See issue 42076.
+			return *(*uintptr)(v.ptr)
+		}
+		fallthrough
+	case Chan, Map, UnsafePointer:
 		return uintptr(v.pointer())
 	case Func:
 		if v.flag&flagMethod != 0 {

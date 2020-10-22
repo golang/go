@@ -2502,7 +2502,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
-			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
+			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
 				n.Left = nod(ODEREF, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)

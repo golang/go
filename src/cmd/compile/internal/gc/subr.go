@@ -1876,8 +1876,10 @@ func isdirectiface(t *types.Type) bool {
 	}
 
 	switch t.Etype {
-	case TPTR,
-		TCHAN,
+	case TPTR:
+		// Pointers to notinheap types must be stored indirectly. See issue 42076.
+		return !t.Elem().NotInHeap()
+	case TCHAN,
 		TMAP,
 		TFUNC,
 		TUNSAFEPTR:
