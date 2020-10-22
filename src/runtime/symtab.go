@@ -268,14 +268,12 @@ func (f *Func) funcInfo() funcInfo {
 //
 // See funcdata.h and ../cmd/internal/objabi/funcdata.go.
 const (
-	_PCDATA_RegMapIndex   = 0 // if !go115ReduceLiveness
-	_PCDATA_UnsafePoint   = 0 // if go115ReduceLiveness
+	_PCDATA_UnsafePoint   = 0
 	_PCDATA_StackMapIndex = 1
 	_PCDATA_InlTreeIndex  = 2
 
 	_FUNCDATA_ArgsPointerMaps    = 0
 	_FUNCDATA_LocalsPointerMaps  = 1
-	_FUNCDATA_RegPointerMaps     = 2 // if !go115ReduceLiveness
 	_FUNCDATA_StackObjects       = 3
 	_FUNCDATA_InlTree            = 4
 	_FUNCDATA_OpenCodedDeferInfo = 5
@@ -284,9 +282,6 @@ const (
 )
 
 const (
-	// Only if !go115ReduceLiveness.
-	_PCDATA_RegMapUnsafe = _PCDATA_UnsafePointUnsafe // Unsafe for async preemption
-
 	// PCDATA_UnsafePoint values.
 	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
 	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
