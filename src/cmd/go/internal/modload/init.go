@@ -50,9 +50,6 @@ var (
 
 	gopath string
 
-	CmdModInit   bool   // running 'go mod init'
-	CmdModModule string // module argument for 'go mod init'
-
 	// RootMode determines whether a module root is needed.
 	RootMode Root
 
@@ -163,9 +160,9 @@ func Init() {
 		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
 	}
 
-	if CmdModInit {
-		// Running 'go mod init': go.mod will be created in current directory.
-		modRoot = base.Cwd
+	if modRoot != "" {
+		// modRoot set before Init was called ("go mod init" does this).
+		// No need to search for go.mod.
 	} else if RootMode == NoRoot {
 		if cfg.ModFile != "" && !base.InGOFLAGS("-modfile") {
 			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
@@ -202,8 +199,7 @@ func Init() {
 		base.Fatalf("go: -modfile=%s: file does not have .mod extension", cfg.ModFile)
 	}
 
-	// We're in module mode. Install the hooks to make it work.
-
+	// We're in module mode. Set any global variables that need to be set.
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) == 0 || list[0] == "" {
 		base.Fatalf("missing $GOPATH")
@@ -270,10 +266,6 @@ func WillBeEnabled() bool {
 		return false
 	}
 
-	if CmdModInit {
-		// Running 'go mod init': go.mod will be created in current directory.
-		return true
-	}
 	if modRoot := findModuleRoot(base.Cwd); modRoot == "" {
 		// GO111MODULE is 'auto', and we can't find a module root.
 		// Stay in GOPATH mode.
@@ -347,16 +339,16 @@ func die() {
 	base.Fatalf("go: cannot find main module; see 'go help modules'")
 }
 
-// InitMod sets Target and, if there is a main module, parses the initial build
-// list from its go.mod file. If InitMod is called by 'go mod init', InitMod
-// will populate go.mod in memory, possibly importing dependencies from a
-// legacy configuration file. For other commands, InitMod may make other
-// adjustments in memory, like adding a go directive. WriteGoMod should be
-// called later to write changes out to disk.
+// LoadModFile sets Target and, if there is a main module, parses the initial
+// build list from its go.mod file.
 //
-// As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
+// LoadModFile may make changes in memory, like adding a go directive and
+// ensuring requirements are consistent. WriteGoMod should be called later to
+// write changes out to disk or report errors in readonly mode.
+//
+// As a side-effect, LoadModFile sets a default for cfg.BuildMod if it does not
 // already have an explicit value.
-func InitMod(ctx context.Context) {
+func LoadModFile(ctx context.Context) {
 	if len(buildList) > 0 {
 		return
 	}
@@ -366,13 +358,6 @@ func InitMod(ctx context.Context) {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
 		buildList = []module.Version{Target}
-		return
-	}
-
-	if CmdModInit {
-		// Running go mod init: do legacy module conversion
-		legacyModInit()
-		modFileToBuildList()
 		return
 	}
 
@@ -406,6 +391,50 @@ func InitMod(ctx context.Context) {
 		readVendorList()
 		checkVendorConsistency()
 	}
+}
+
+// CreateModFile initializes a new module by creating a go.mod file.
+//
+// If modPath is empty, CreateModFile will attempt to infer the path from the
+// directory location within GOPATH.
+//
+// If a vendoring configuration file is present, CreateModFile will attempt to
+// translate it to go.mod directives. The resulting build list may not be
+// exactly the same as in the legacy configuration (for example, we can't get
+// packages at multiple versions from the same module).
+func CreateModFile(ctx context.Context, modPath string) {
+	modRoot = base.Cwd
+	Init()
+	modFilePath := ModFilePath()
+	if _, err := os.Stat(modFilePath); err == nil {
+		base.Fatalf("go: %s already exists", modFilePath)
+	}
+
+	if modPath == "" {
+		var err error
+		modPath, err = findModulePath(modRoot)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	} else if err := checkModulePathLax(modPath); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+	modFile = new(modfile.File)
+	modFile.AddModuleStmt(modPath)
+	addGoStmt() // Add the go directive before converted module requirements.
+
+	convertedFrom, err := convertLegacyConfig(modPath)
+	if convertedFrom != "" {
+		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
+	}
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
+	modFileToBuildList()
+	WriteGoMod()
 }
 
 // checkModulePathLax checks that the path meets some minimum requirements
@@ -574,34 +603,23 @@ func setDefaultBuildMod() {
 	cfg.BuildMod = "readonly"
 }
 
-func legacyModInit() {
-	if modFile == nil {
-		path, err := findModulePath(modRoot)
-		if err != nil {
-			base.Fatalf("go: %v", err)
-		}
-		fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", path)
-		modFile = new(modfile.File)
-		modFile.AddModuleStmt(path)
-		addGoStmt() // Add the go directive before converted module requirements.
-	}
-
+// convertLegacyConfig imports module requirements from a legacy vendoring
+// configuration file, if one is present.
+func convertLegacyConfig(modPath string) (from string, err error) {
 	for _, name := range altConfigs {
 		cfg := filepath.Join(modRoot, name)
 		data, err := ioutil.ReadFile(cfg)
 		if err == nil {
 			convert := modconv.Converters[name]
 			if convert == nil {
-				return
+				return "", nil
 			}
-			fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(cfg))
 			cfg = filepath.ToSlash(cfg)
-			if err := modconv.ConvertLegacyConfig(modFile, cfg, data); err != nil {
-				base.Fatalf("go: %v", err)
-			}
-			return
+			err := modconv.ConvertLegacyConfig(modFile, cfg, data)
+			return name, err
 		}
 	}
+	return "", nil
 }
 
 // addGoStmt adds a go directive to the go.mod file if it does not already include one.
@@ -681,14 +699,6 @@ func findAltConfig(dir string) (root, name string) {
 }
 
 func findModulePath(dir string) (string, error) {
-	if CmdModModule != "" {
-		// Running go mod init x/y/z; return x/y/z.
-		if err := module.CheckImportPath(CmdModModule); err != nil {
-			return "", err
-		}
-		return CmdModModule, nil
-	}
-
 	// TODO(bcmills): once we have located a plausible module path, we should
 	// query version control (if available) to verify that it matches the major
 	// version of the most recent tag.

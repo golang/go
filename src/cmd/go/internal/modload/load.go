@@ -169,7 +169,7 @@ type PackageOpts struct {
 // LoadPackages identifies the set of packages matching the given patterns and
 // loads the packages in the import graph rooted at that set.
 func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (matches []*search.Match, loadedPackages []string) {
-	InitMod(ctx)
+	LoadModFile(ctx)
 	if opts.Tags == nil {
 		opts.Tags = imports.Tags()
 	}
@@ -494,7 +494,7 @@ func pathInModuleCache(dir string) string {
 // ImportFromFiles adds modules to the build list as needed
 // to satisfy the imports in the named Go source files.
 func ImportFromFiles(ctx context.Context, gofiles []string) {
-	InitMod(ctx)
+	LoadModFile(ctx)
 
 	tags := imports.Tags()
 	imports, testImports, err := imports.ScanFiles(gofiles, tags)

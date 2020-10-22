@@ -37,7 +37,7 @@ var buildList []module.Version
 //
 // The caller must not modify the returned list.
 func LoadAllModules(ctx context.Context) []module.Version {
-	InitMod(ctx)
+	LoadModFile(ctx)
 	ReloadBuildList()
 	WriteGoMod()
 	return buildList
