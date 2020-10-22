@@ -396,12 +396,6 @@ func InitMod(ctx context.Context) {
 		base.Fatalf("go: no module declaration in go.mod.\n\tRun 'go mod edit -module=example.com/mod' to specify the module path.")
 	}
 
-	if len(f.Syntax.Stmt) == 1 && f.Module != nil {
-		// Entire file is just a module statement.
-		// Populate require if possible.
-		legacyModInit()
-	}
-
 	if err := checkModulePathLax(f.Module.Mod.Path); err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -604,10 +598,6 @@ func legacyModInit() {
 			cfg = filepath.ToSlash(cfg)
 			if err := modconv.ConvertLegacyConfig(modFile, cfg, data); err != nil {
 				base.Fatalf("go: %v", err)
-			}
-			if len(modFile.Syntax.Stmt) == 1 {
-				// Add comment to avoid re-converting every time it runs.
-				modFile.AddComment("// go: no requirements found in " + name)
 			}
 			return
 		}
