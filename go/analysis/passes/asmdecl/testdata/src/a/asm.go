@@ -51,3 +51,5 @@ func fvariadic(int, ...int)
 func pickStableABI(x int)
 func pickInternalABI(x int)
 func pickFutureABI(x int)
+
+func retjmp() int
