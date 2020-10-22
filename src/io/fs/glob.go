@@ -36,6 +36,10 @@ func Glob(fsys FS, pattern string) (matches []string, err error) {
 		return fsys.Glob(pattern)
 	}
 
+	// Check pattern is well-formed.
+	if _, err := path.Match(pattern, ""); err != nil {
+		return nil, err
+	}
 	if !hasMeta(pattern) {
 		if _, err = Stat(fsys, pattern); err != nil {
 			return nil, nil
