@@ -5222,7 +5222,10 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.store(t, left, right)
 	case t.IsPtrShaped():
-		// no scalar fields.
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			s.store(t, left, right) // see issue 42032
+		}
+		// otherwise, no scalar fields.
 	case t.IsString():
 		if skip&skipLen != 0 {
 			return
@@ -5266,6 +5269,9 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			break // see issue 42032
+		}
 		s.store(t, left, right)
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
