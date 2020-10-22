@@ -401,7 +401,7 @@ func main() {
 	defer f.Close()
 	section := f.Section(".edata")
 	if section == nil {
-		t.Error(".edata section is not present")
+		t.Fatalf(".edata section is not present")
 	}
 
 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
@@ -418,7 +418,8 @@ func main() {
 		t.Fatalf("binary.Read failed: %v", err)
 	}
 
-	expectedNumber := uint32(2)
+	// Only the two exported functions and _cgo_dummy_export should be exported
+	expectedNumber := uint32(3)
 
 	if exportAllSymbols {
 		if e.NumberOfFunctions <= expectedNumber {
@@ -429,10 +430,10 @@ func main() {
 		}
 	} else {
 		if e.NumberOfFunctions != expectedNumber {
-			t.Fatalf("too many exported functions: %v", e.NumberOfFunctions)
+			t.Fatalf("got %d exported functions; want %d", e.NumberOfFunctions, expectedNumber)
 		}
 		if e.NumberOfNames != expectedNumber {
-			t.Fatalf("too many exported names: %v", e.NumberOfNames)
+			t.Fatalf("got %d exported names; want %d", e.NumberOfNames, expectedNumber)
 		}
 	}
 }
