@@ -112,6 +112,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
@@ -361,7 +362,7 @@ func resolveLocalPackage(dir string) (string, error) {
 		// If the named directory does not exist or contains no Go files,
 		// the package does not exist.
 		// Other errors may affect package loading, but not resolution.
-		if _, err := os.Stat(absDir); err != nil {
+		if _, err := fsys.Stat(absDir); err != nil {
 			if os.IsNotExist(err) {
 				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
 				// messages will be easier for users to search for.
