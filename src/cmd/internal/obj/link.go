@@ -460,7 +460,6 @@ type FuncInfo struct {
 
 	GCArgs             *LSym
 	GCLocals           *LSym
-	GCRegs             *LSym // Only if !go115ReduceLiveness
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
 

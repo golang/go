@@ -6265,7 +6265,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
 		// preemptible, unless this function is "all unsafe".
-		s.pp.nextLive = LivenessIndex{-1, -1, allUnsafe(f)}
+		s.pp.nextLive = LivenessIndex{-1, allUnsafe(f)}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)

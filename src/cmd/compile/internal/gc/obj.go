@@ -312,7 +312,7 @@ func addGCLocals() {
 		if fn == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{fn.GCArgs, fn.GCLocals, fn.GCRegs} {
+		for _, gcsym := range []*obj.LSym{fn.GCArgs, fn.GCLocals} {
 			if gcsym != nil && !gcsym.OnList() {
 				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
