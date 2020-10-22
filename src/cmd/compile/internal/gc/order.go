@@ -323,11 +323,6 @@ func (o *Order) stmtList(l Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []*Node) {
-	const go115makeslicecopy = true
-	if !go115makeslicecopy {
-		return
-	}
-
 	if Debug.N != 0 || instrumenting {
 		return
 	}
