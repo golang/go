@@ -406,10 +406,6 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 	} else {
 		close(c.done)
 	}
-	for child := range c.children {
-		// NOTE: acquiring the child's lock while holding parent's lock.
-		child.cancel(false, err)
-	}
 	c.children = nil
 	c.mu.Unlock()
 
