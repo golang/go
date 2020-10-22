@@ -396,3 +396,31 @@ func addmoduledata()
 // Injected by the signal handler for panicking signals. On many platforms it just
 // jumps to sigpanic.
 func sigpanic0()
+
+// intArgRegs is used by the various register assignment
+// algorithm implementations in the runtime. These include:.
+// - Finalizers (mfinal.go)
+// - Windows callbacks (syscall_windows.go)
+//
+// Both are stripped-down versions of the algorithm since they
+// only have to deal with a subset of cases (finalizers only
+// take a pointer or interface argument, Go Windows callbacks
+// don't support floating point).
+//
+// It should be modified with care and are generally only
+// modified when testing this package.
+//
+// It should never be set higher than its internal/abi
+// constant counterparts, because the system relies on a
+// structure that is at least large enough to hold the
+// registers the system supports.
+//
+// Currently it's set to zero because using the actual
+// constant will break every part of the toolchain that
+// uses finalizers or Windows callbacks to call functions
+// The value that is currently commented out there should be
+// the actual value once we're ready to use the register ABI
+// everywhere.
+//
+// Protected by finlock.
+var intArgRegs = 0 // abi.IntArgRegs
