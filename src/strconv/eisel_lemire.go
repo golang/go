@@ -22,14 +22,17 @@ import (
 	"math/bits"
 )
 
-func eiselLemire(man uint64, exp10 int, neg bool) (ret float64, ok bool) {
+func eiselLemire(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// The terse comments in this function body refer to sections of the
 	// https://nigeltao.github.io/blog/2020/eisel-lemire.html blog post.
 
 	// Exp10 Range.
 	const exp10Min, exp10Max = -307, +288
 	if man == 0 {
-		return 0, true
+		if neg {
+			f = math.Float64frombits(0x80000000_00000000) // Negative zero.
+		}
+		return f, true
 	}
 	if exp10 < exp10Min || exp10Max < exp10 {
 		return 0, false
