@@ -49,7 +49,6 @@ func TestScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
