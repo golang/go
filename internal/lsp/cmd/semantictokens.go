@@ -74,9 +74,8 @@ Example: show the semantic tokens for this file:
 }
 
 // Run performs the semtok on the files specified by args and prints the
-// results to stdout. PJW: fix this description
+// results to stdout in the format described above.
 func (c *semtok) Run(ctx context.Context, args ...string) error {
-	log.SetFlags(log.Lshortfile)
 	if len(args) != 1 {
 		return fmt.Errorf("expected one file name, got %d", len(args))
 	}
@@ -122,15 +121,12 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 		Content:   buf,
 		Converter: tc,
 	}
-	memo = lsp.SemanticMemo
 	err = decorate(file.uri.Filename(), resp.Data)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
-var memo *lsp.SemMemo
 
 type mark struct {
 	line, offset int // 1-based, from RangeSpan
@@ -218,8 +214,8 @@ func newMarks(d []float64) []mark {
 			line:   spn.Start().Line(),
 			offset: spn.Start().Column(),
 			len:    spn.End().Column() - spn.Start().Column(),
-			typ:    memo.Type(int(d[5*i+3])),
-			mods:   memo.Mods(int(d[5*i+4])),
+			typ:    lsp.SemType(int(d[5*i+3])),
+			mods:   lsp.SemMods(int(d[5*i+4])),
 		}
 		ans = append(ans, m)
 	}

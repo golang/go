@@ -82,10 +82,6 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		}
 	}
 
-	if st := params.Capabilities.TextDocument.SemanticTokens; st != nil {
-		rememberToks(st.TokenTypes, st.TokenModifiers)
-	}
-
 	goplsVer := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, goplsVer, true, debug.PlainText)
 
@@ -136,6 +132,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 			Version: goplsVer.String(),
 		},
 	}, nil
+
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {

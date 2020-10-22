@@ -69,11 +69,13 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		return nil, pgf.ParseErr
 	}
 	e := &encoded{
-		ctx:  ctx,
-		pgf:  pgf,
-		rng:  rng,
-		ti:   info,
-		fset: snapshot.FileSet(),
+		ctx:      ctx,
+		pgf:      pgf,
+		rng:      rng,
+		ti:       info,
+		fset:     snapshot.FileSet(),
+		tokTypes: s.session.Options().SemanticTypes,
+		tokMods:  s.session.Options().SemanticMods,
 	}
 	if err := e.init(); err != nil {
 		return nil, err
@@ -174,11 +176,12 @@ type encoded struct {
 	// the generated data
 	items []semItem
 
-	ctx  context.Context
-	pgf  *source.ParsedGoFile
-	rng  *protocol.Range
-	ti   *types.Info
-	fset *token.FileSet
+	ctx               context.Context
+	tokTypes, tokMods []string
+	pgf               *source.ParsedGoFile
+	rng               *protocol.Range
+	ti                *types.Info
+	fset              *token.FileSet
 	// allowed starting and ending token.Pos, set by init
 	// used to avoid looking at declarations not in range
 	start, end token.Pos
@@ -509,6 +512,7 @@ func (e *encoded) Data() ([]float64, error) {
 		}
 		return e.items[i].start < e.items[j].start
 	})
+	typeMap, modMap := e.maps()
 	// each semantic token needs five values
 	// (see Integer Encoding for Tokens in the LSP spec)
 	x := make([]float64, 5*len(e.items))
@@ -524,10 +528,10 @@ func (e *encoded) Data() ([]float64, error) {
 			x[j+1] = e.items[i].start - e.items[i-1].start
 		}
 		x[j+2] = e.items[i].len
-		x[j+3] = float64(SemanticMemo.TypeMap[e.items[i].typeStr])
+		x[j+3] = float64(typeMap[e.items[i].typeStr])
 		mask := 0
 		for _, s := range e.items[i].mods {
-			mask |= SemanticMemo.ModMap[s]
+			mask |= modMap[s]
 		}
 		x[j+4] = float64(mask)
 	}
@@ -565,51 +569,38 @@ func (e *encoded) unexpected(msg string) {
 	panic(msg)
 }
 
-// SemMemo supports semantic token translations between numbers and strings
-type SemMemo struct {
-	tokTypes, tokMods []string
-	// these exported fields are used in the 'gopls semtok' command
-	TypeMap map[tokenType]int
-	ModMap  map[string]int
-}
-
-var SemanticMemo *SemMemo
-
-// Type returns a string equivalent of the type, for gopls semtok
-func (m *SemMemo) Type(n int) string {
-	if n >= 0 && n < len(m.tokTypes) {
-		return m.tokTypes[n]
+// SemType returns a string equivalent of the type, for gopls semtok
+func SemType(n int) string {
+	tokTypes := SemanticTypes()
+	tokMods := SemanticModifiers()
+	if n >= 0 && n < len(tokTypes) {
+		return tokTypes[n]
 	}
-	return fmt.Sprintf("?%d[%d,%d]?", n, len(m.tokTypes), len(m.tokMods))
+	return fmt.Sprintf("?%d[%d,%d]?", n, len(tokTypes), len(tokMods))
 }
 
-// Mods returns the []string equivalent of the mods, for gopls semtok.
-func (m *SemMemo) Mods(n int) []string {
+// SemMods returns the []string equivalent of the mods, for gopls semtok.
+func SemMods(n int) []string {
+	tokMods := SemanticModifiers()
 	mods := []string{}
-	for i := 0; i < len(m.tokMods); i++ {
+	for i := 0; i < len(tokMods); i++ {
 		if (n & (1 << uint(i))) != 0 {
-			mods = append(mods, m.tokMods[i])
+			mods = append(mods, tokMods[i])
 		}
 	}
 	return mods
 }
 
-// save what the client sent
-func rememberToks(toks []string, mods []string) {
-	SemanticMemo = &SemMemo{
-		tokTypes: toks,
-		tokMods:  mods,
-		TypeMap:  make(map[tokenType]int),
-		ModMap:   make(map[string]int),
+func (e *encoded) maps() (map[tokenType]int, map[string]int) {
+	tmap := make(map[tokenType]int)
+	mmap := make(map[string]int)
+	for i, t := range e.tokTypes {
+		tmap[tokenType(t)] = i
 	}
-	for i, t := range toks {
-		SemanticMemo.TypeMap[tokenType(t)] = i
+	for i, m := range e.tokMods {
+		mmap[m] = 1 << uint(i) // go 1.12 compatibility
 	}
-	for i, m := range mods {
-		SemanticMemo.ModMap[m] = 1 << uint(i)
-	}
-	// we could have pruned or rearranged them.
-	// But then change the list in cmd.go too
+	return tmap, mmap
 }
 
 // SemanticTypes to use in case there is no client, as in the command line, or tests

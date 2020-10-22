@@ -105,8 +105,8 @@ func semanticTokenRegistrations() []protocol.Registration {
 				Legend: protocol.SemanticTokensLegend{
 					// TODO(pjw): trim these to what we use (and an unused one
 					// at position 0 of TokTypes, to catch typos)
-					TokenTypes:     SemanticMemo.tokTypes,
-					TokenModifiers: SemanticMemo.tokMods,
+					TokenTypes:     SemanticTypes(),
+					TokenModifiers: SemanticModifiers(),
 				},
 			},
 		})

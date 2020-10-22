@@ -391,8 +391,6 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 }
 
 func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
-	// no client, so use default
-	rememberToks(SemanticTypes(), SemanticModifiers())
 	uri := spn.URI()
 	filename := uri.Filename()
 	// this is called solely for coverage in semantic.go
