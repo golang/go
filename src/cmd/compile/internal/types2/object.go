@@ -10,7 +10,8 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"go/token"
+	"unicode"
+	"unicode/utf8"
 )
 
 // An Object describes a named language entity such as a package,
@@ -60,10 +61,15 @@ type Object interface {
 	setScopePos(pos syntax.Pos)
 }
 
+func isExported(name string) bool {
+	ch, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(ch)
+}
+
 // Id returns name if it is exported, otherwise it
 // returns the name qualified with the package path.
 func Id(pkg *Package, name string) string {
-	if token.IsExported(name) {
+	if isExported(name) {
 		return name
 	}
 	// unexported names need the package path for differentiation
@@ -143,7 +149,7 @@ func (obj *object) Type() Type { return obj.typ }
 // Exported reports whether the object is exported (starts with a capital letter).
 // It doesn't take into account whether the object is in a local (function) scope
 // or not.
-func (obj *object) Exported() bool { return token.IsExported(obj.name) }
+func (obj *object) Exported() bool { return isExported(obj.name) }
 
 // Id is a wrapper for Id(obj.Pkg(), obj.Name()).
 func (obj *object) Id() string { return Id(obj.pkg, obj.name) }

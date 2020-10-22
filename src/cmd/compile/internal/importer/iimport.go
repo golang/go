@@ -58,6 +58,8 @@ const (
 	interfaceType
 )
 
+const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+
 // iImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
@@ -87,10 +89,10 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	sLen := int64(r.uint64())
 	dLen := int64(r.uint64())
 
-	whence, _ := r.Seek(0, io.SeekCurrent)
+	whence, _ := r.Seek(0, io_SeekCurrent)
 	stringData := data[whence : whence+sLen]
 	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io.SeekCurrent)
+	r.Seek(sLen+dLen, io_SeekCurrent)
 
 	p := iimporter{
 		ipath:   path,
@@ -162,7 +164,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
 
-	consumed, _ := r.Seek(0, io.SeekCurrent)
+	consumed, _ := r.Seek(0, io_SeekCurrent)
 	return int(consumed), localpkg, nil
 }
 
@@ -193,7 +195,10 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
 	}
 
 	r := &importReader{p: p, currPkg: pkg}
-	r.declReader.Reset(p.declData[off:])
+	// Reader.Reset is not available in Go 1.4.
+	// Use bytes.NewReader for now.
+	// r.declReader.Reset(p.declData[off:])
+	r.declReader = *bytes.NewReader(p.declData[off:])
 
 	r.obj(name)
 }
@@ -232,7 +237,10 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	}
 
 	r := &importReader{p: p}
-	r.declReader.Reset(p.declData[off-predeclReserved:])
+	// Reader.Reset is not available in Go 1.4.
+	// Use bytes.NewReader for now.
+	// r.declReader.Reset(p.declData[off-predeclReserved:])
+	r.declReader = *bytes.NewReader(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
 	if base == nil || !isInterface(t) {

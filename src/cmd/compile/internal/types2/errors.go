@@ -8,6 +8,7 @@
 package types2
 
 import (
+	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"strconv"
@@ -145,7 +146,8 @@ func posFor(at poser) syntax.Pos {
 
 // stripAnnotations removes internal (type) annotations from s.
 func stripAnnotations(s string) string {
-	var b strings.Builder
+	// Would like to use strings.Builder but it's not available in Go 1.4.
+	var b bytes.Buffer
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
