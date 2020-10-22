@@ -581,6 +581,8 @@ func atof32(s string) (f float32, n int, err error) {
 		if !trunc {
 			if f, ok := atof32exact(mantissa, exp, neg); ok {
 				return f, n, nil
+			} else if f, ok = eiselLemire32(mantissa, exp, neg); ok {
+				return f, n, nil
 			}
 		}
 		// Try another fast path.
@@ -629,7 +631,7 @@ func atof64(s string) (f float64, n int, err error) {
 		if !trunc {
 			if f, ok := atof64exact(mantissa, exp, neg); ok {
 				return f, n, nil
-			} else if f, ok = eiselLemire(mantissa, exp, neg); ok {
+			} else if f, ok = eiselLemire64(mantissa, exp, neg); ok {
 				return f, n, nil
 			}
 		}
