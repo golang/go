@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"internal/abi"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
@@ -352,6 +353,8 @@ func (v Value) CallSlice(in []Value) []Value {
 
 var callGC bool // for testing; see TestCallMethodJump
 
+const debugReflectCall = false
+
 func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
 	t := (*funcType)(unsafe.Pointer(v.typ))
@@ -430,50 +433,112 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	nout := t.NumOut()
 
-	// Compute frame type.
-	frametype, _, retOffset, _, framePool := funcLayout(t, rcvrtype)
+	// Register argument space.
+	var regArgs abi.RegArgs
 
-	// Allocate a chunk of memory for frame.
-	var args unsafe.Pointer
-	if nout == 0 {
-		args = framePool.Get().(unsafe.Pointer)
-	} else {
-		// Can't use pool if the function has return values.
-		// We will leak pointer to args in ret, so its lifetime is not scoped.
-		args = unsafe_New(frametype)
+	// Compute frame type.
+	frametype, framePool, abi := funcLayout(t, rcvrtype)
+
+	// Allocate a chunk of memory for frame if needed.
+	var stackArgs unsafe.Pointer
+	if frametype.size != 0 {
+		if nout == 0 {
+			stackArgs = framePool.Get().(unsafe.Pointer)
+		} else {
+			// Can't use pool if the function has return values.
+			// We will leak pointer to args in ret, so its lifetime is not scoped.
+			stackArgs = unsafe_New(frametype)
+		}
 	}
-	off := uintptr(0)
+	frameSize := frametype.size
+
+	if debugReflectCall {
+		println("reflect.call", t.String())
+		abi.dump()
+	}
 
 	// Copy inputs into args.
+
+	// Handle receiver.
+	inStart := 0
 	if rcvrtype != nil {
-		storeRcvr(rcvr, args)
-		off = ptrSize
+		// Guaranteed to only be one word in size,
+		// so it will only take up exactly 1 abiStep (either
+		// in a register or on the stack).
+		switch st := abi.call.steps[0]; st.kind {
+		case abiStepStack:
+			storeRcvr(rcvr, stackArgs)
+		case abiStepIntReg, abiStepPointer:
+			// Even pointers can go into the uintptr slot because
+			// they'll be kept alive by the Values referenced by
+			// this frame. Reflection forces these to be heap-allocated,
+			// so we don't need to worry about stack copying.
+			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Ints[st.ireg]))
+		case abiStepFloatReg:
+			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Floats[st.freg]))
+		default:
+			panic("unknown ABI parameter kind")
+		}
+		inStart = 1
 	}
+
+	// Handle arguments.
 	for i, v := range in {
 		v.mustBeExported()
 		targ := t.In(i).(*rtype)
-		a := uintptr(targ.align)
-		off = (off + a - 1) &^ (a - 1)
-		n := targ.size
-		if n == 0 {
-			// Not safe to compute args+off pointing at 0 bytes,
-			// because that might point beyond the end of the frame,
-			// but we still need to call assignTo to check assignability.
-			v.assignTo("reflect.Value.Call", targ, nil)
-			continue
+		// TODO(mknyszek): Figure out if it's possible to get some
+		// scratch space for this assignment check. Previously, it
+		// was possible to use space in the argument frame.
+		v = v.assignTo("reflect.Value.Call", targ, nil)
+	stepsLoop:
+		for _, st := range abi.call.stepsForValue(i + inStart) {
+			switch st.kind {
+			case abiStepStack:
+				// Copy values to the "stack."
+				addr := add(stackArgs, st.stkOff, "precomputed stack arg offset")
+				if v.flag&flagIndir != 0 {
+					typedmemmove(targ, addr, v.ptr)
+				} else {
+					*(*unsafe.Pointer)(addr) = v.ptr
+				}
+				// There's only one step for a stack-allocated value.
+				break stepsLoop
+			case abiStepIntReg, abiStepPointer:
+				// Copy values to "integer registers."
+				if v.flag&flagIndir != 0 {
+					offset := add(v.ptr, st.offset, "precomputed value offset")
+					memmove(unsafe.Pointer(&regArgs.Ints[st.ireg]), offset, st.size)
+				} else {
+					if st.kind == abiStepPointer {
+						// Duplicate this pointer in the pointer area of the
+						// register space. Otherwise, there's the potential for
+						// this to be the last reference to v.ptr.
+						regArgs.Ptrs[st.ireg] = v.ptr
+					}
+					regArgs.Ints[st.ireg] = uintptr(v.ptr)
+				}
+			case abiStepFloatReg:
+				// Copy values to "float registers."
+				if v.flag&flagIndir == 0 {
+					panic("attempted to copy pointer to FP register")
+				}
+				offset := add(v.ptr, st.offset, "precomputed value offset")
+				memmove(unsafe.Pointer(&regArgs.Floats[st.freg]), offset, st.size)
+			default:
+				panic("unknown ABI part kind")
+			}
 		}
-		addr := add(args, off, "n > 0")
-		v = v.assignTo("reflect.Value.Call", targ, addr)
-		if v.flag&flagIndir != 0 {
-			typedmemmove(targ, addr, v.ptr)
-		} else {
-			*(*unsafe.Pointer)(addr) = v.ptr
-		}
-		off += n
 	}
+	// TODO(mknyszek): Remove this when we no longer have
+	// caller reserved spill space.
+	frameSize = align(frameSize, ptrSize)
+	frameSize += abi.spill
+
+	// Mark pointers in registers for the return path.
+	regArgs.ReturnIsPtr = abi.outRegPtrs
 
 	// Call.
-	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
+	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abi.retOffset), uint32(frameSize), &regArgs)
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
@@ -482,34 +547,82 @@ func (v Value) call(op string, in []Value) []Value {
 
 	var ret []Value
 	if nout == 0 {
-		typedmemclr(frametype, args)
-		framePool.Put(args)
+		if stackArgs != nil {
+			typedmemclr(frametype, stackArgs)
+			framePool.Put(stackArgs)
+		}
 	} else {
-		// Zero the now unused input area of args,
-		// because the Values returned by this function contain pointers to the args object,
-		// and will thus keep the args object alive indefinitely.
-		typedmemclrpartial(frametype, args, 0, retOffset)
+		if stackArgs != nil {
+			// Zero the now unused input area of args,
+			// because the Values returned by this function contain pointers to the args object,
+			// and will thus keep the args object alive indefinitely.
+			typedmemclrpartial(frametype, stackArgs, 0, abi.retOffset)
+		}
 
 		// Wrap Values around return values in args.
 		ret = make([]Value, nout)
-		off = retOffset
 		for i := 0; i < nout; i++ {
 			tv := t.Out(i)
-			a := uintptr(tv.Align())
-			off = (off + a - 1) &^ (a - 1)
-			if tv.Size() != 0 {
+			if tv.Size() == 0 {
+				// For zero-sized return value, args+off may point to the next object.
+				// In this case, return the zero value instead.
+				ret[i] = Zero(tv)
+				continue
+			}
+			steps := abi.ret.stepsForValue(i)
+			if st := steps[0]; st.kind == abiStepStack {
+				// This value is on the stack. If part of a value is stack
+				// allocated, the entire value is according to the ABI. So
+				// just make an indirection into the allocated frame.
 				fl := flagIndir | flag(tv.Kind())
-				ret[i] = Value{tv.common(), add(args, off, "tv.Size() != 0"), fl}
+				ret[i] = Value{tv.common(), add(stackArgs, st.stkOff, "tv.Size() != 0"), fl}
 				// Note: this does introduce false sharing between results -
 				// if any result is live, they are all live.
 				// (And the space for the args is live as well, but as we've
 				// cleared that space it isn't as big a deal.)
-			} else {
-				// For zero-sized return value, args+off may point to the next object.
-				// In this case, return the zero value instead.
-				ret[i] = Zero(tv)
+				continue
 			}
-			off += tv.Size()
+
+			// Handle pointers passed in registers.
+			if !ifaceIndir(tv.common()) {
+				// Pointer-valued data gets put directly
+				// into v.ptr.
+				if steps[0].kind != abiStepPointer {
+					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
+					panic("mismatch between ABI description and types")
+				}
+				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(t.Kind())}
+				continue
+			}
+
+			// All that's left is values passed in registers that we need to
+			// create space for and copy values back into.
+			//
+			// TODO(mknyszek): We make a new allocation for each register-allocated
+			// value, but previously we could always point into the heap-allocated
+			// stack frame. This is a regression that could be fixed by adding
+			// additional space to the allocated stack frame and storing the
+			// register-allocated return values into the allocated stack frame and
+			// referring there in the resulting Value.
+			s := unsafe_New(tv.common())
+			for _, st := range steps {
+				switch st.kind {
+				case abiStepIntReg:
+					offset := add(s, st.offset, "precomputed value offset")
+					memmove(offset, unsafe.Pointer(&regArgs.Ints[st.ireg]), st.size)
+				case abiStepPointer:
+					s := add(s, st.offset, "precomputed value offset")
+					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
+				case abiStepFloatReg:
+					offset := add(s, st.offset, "precomputed value offset")
+					memmove(offset, unsafe.Pointer(&regArgs.Floats[st.freg]), st.size)
+				case abiStepStack:
+					panic("register-based return value has stack component")
+				default:
+					panic("unknown ABI part kind")
+				}
+			}
+			ret[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
 		}
 	}
 
@@ -709,7 +822,8 @@ func align(x, n uintptr) uintptr {
 func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	rcvr := ctxt.rcvr
 	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
-	frametype, argSize, retOffset, _, framePool := funcLayout(t, rcvrtype)
+	frametype, framePool, abid := funcLayout(t, rcvrtype)
+	argSize, retOffset := abid.stackCallArgsSize, abid.retOffset
 
 	// Make a new frame that is one word bigger so we can store the receiver.
 	// This space is used for both arguments and return values.
@@ -727,10 +841,19 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 		typedmemmovepartial(frametype, add(scratch, argOffset, "argSize > argOffset"), frame, argOffset, argSize-argOffset)
 	}
 
+	frameSize := frametype.size
+	// TODO(mknyszek): Remove this when we no longer have
+	// caller reserved spill space.
+	frameSize = align(frameSize, ptrSize)
+	frameSize += abid.spill
+
 	// Call.
 	// Call copies the arguments from scratch to the stack, calls fn,
 	// and then copies the results back into scratch.
-	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset))
+	//
+	// TODO(mknyszek): Have this actually support the register-based ABI.
+	var regs abi.RegArgs
+	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset), uint32(frameSize), &regs)
 
 	// Copy return values.
 	// Ignore any changes to args and just copy return values.
@@ -2802,14 +2925,32 @@ func mapiternext(it unsafe.Pointer)
 //go:noescape
 func maplen(m unsafe.Pointer) int
 
-// call calls fn with a copy of the n argument bytes pointed at by arg.
-// After fn returns, reflectcall copies n-retoffset result bytes
-// back into arg+retoffset before returning. If copying result bytes back,
-// the caller must pass the argument frame type as argtype, so that
-// call can execute appropriate write barriers during the copy.
+// call calls fn with "stackArgsSize" bytes of stack arguments laid out
+// at stackArgs and register arguments laid out in regArgs. frameSize is
+// the total amount of stack space that will be reserved by call, so this
+// should include enough space to spill register arguments to the stack in
+// case of preemption.
 //
+// After fn returns, call copies stackArgsSize-stackRetOffset result bytes
+// back into stackArgs+stackRetOffset before returning, for any return
+// values passed on the stack. Register-based return values will be found
+// in the same regArgs structure.
+//
+// regArgs must also be prepared with an appropriate ReturnIsPtr bitmap
+// indicating which registers will contain pointer-valued return values. The
+// purpose of this bitmap is to keep pointers visible to the GC between
+// returning from reflectcall and actually using them.
+//
+// If copying result bytes back from the stack, the caller must pass the
+// argument frame type as stackArgsType, so that call can execute appropriate
+// write barriers during the copy.
+//
+// Arguments passed through to call do not escape. The type is used only in a
+// very limited callee of call, the stackArgs are copied, and regArgs is only
+// used in the call frame.
+//go:noescape
 //go:linkname call runtime.reflectcall
-func call(argtype *rtype, fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
 

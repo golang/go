@@ -264,7 +264,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	JMP	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -277,8 +277,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	JMP	(R4)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
-	MOVWU argsize+24(FP), R1
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-48
+	MOVWU	frameSize+32(FP), R1
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -310,11 +310,11 @@ TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	JMP	(R4)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVV	arg+16(FP), R1;			\
-	MOVWU	argsize+24(FP), R2;			\
+	MOVV	stackArgs+16(FP), R1;			\
+	MOVWU	stackArgsSize+24(FP), R2;			\
 	MOVV	R29, R3;				\
 	ADDV	$8, R3;			\
 	ADDV	R3, R2;				\
@@ -330,10 +330,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	JAL	(R4);				\
 	/* copy return values back */		\
-	MOVV	argtype+0(FP), R5;		\
-	MOVV	arg+16(FP), R1;			\
-	MOVWU	n+24(FP), R2;			\
-	MOVWU	retoffset+28(FP), R4;		\
+	MOVV	stackArgsType+0(FP), R5;		\
+	MOVV	stackArgs+16(FP), R1;			\
+	MOVWU	stackArgsSize+24(FP), R2;			\
+	MOVWU	stackRetOffset+28(FP), R4;		\
 	ADDV	$8, R29, R3;				\
 	ADDV	R4, R3; 			\
 	ADDV	R4, R1;				\
@@ -345,11 +345,12 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $32-0
+TEXT callRet<>(SB), NOSPLIT, $40-0
 	MOVV	R5, 8(R29)
 	MOVV	R1, 16(R29)
 	MOVV	R3, 24(R29)
 	MOVV	R2, 32(R29)
+	MOVV	$0, 40(R29)
 	JAL	runtime·reflectcallmove(SB)
 	RET
 

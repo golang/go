@@ -23,15 +23,17 @@ const PtrSize = ptrSize
 
 func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
 	var ft *rtype
-	var s *bitVector
+	var abi abiDesc
 	if rcvr != nil {
-		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
+		ft, _, abi = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
 	} else {
-		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
+		ft, _, abi = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
+	argSize = abi.stackCallArgsSize
+	retOffset = abi.retOffset
 	frametype = ft
-	for i := uint32(0); i < s.n; i++ {
-		stack = append(stack, s.data[i/8]>>(i%8)&1)
+	for i := uint32(0); i < abi.stackPtrs.n; i++ {
+		stack = append(stack, abi.stackPtrs.data[i/8]>>(i%8)&1)
 	}
 	if ft.kind&kindGCProg != 0 {
 		panic("can't handle gc programs")

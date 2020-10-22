@@ -71,10 +71,14 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< container/list, container/ring,
-	  internal/abi, internal/cfg, internal/cpu,
+	  internal/cfg, internal/cpu,
 	  internal/goversion, internal/nettrace,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
+
+	# These packages depend only on unsafe.
+	unsafe
+	< internal/abi;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi, internal/cpu, unsafe
