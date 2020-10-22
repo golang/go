@@ -15,14 +15,14 @@ package strconv
 // https://github.com/google/wuffs/blob/ba3818cb6b473a2ed0b38ecfc07dbbd3a97e8ae7/internal/cgen/base/floatconv-submodule-code.c#L990
 //
 // Additional testing (on over several million test strings) is done by
-// https://github.com/nigeltao/parse-number-f64-test-data/blob/d085ef805be7f0e8f61066619364b2f529ea75f2/script/test-go-strconv.go
+// https://github.com/nigeltao/parse-number-fxx-test-data/blob/5280dcfccf6d0b02a65ae282dad0b6d9de50e039/script/test-go-strconv.go
 
 import (
 	"math"
 	"math/bits"
 )
 
-func eiselLemire(man uint64, exp10 int, neg bool) (f float64, ok bool) {
+func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// The terse comments in this function body refer to sections of the
 	// https://nigeltao.github.io/blog/2020/eisel-lemire.html blog post.
 
@@ -40,7 +40,8 @@ func eiselLemire(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
 	man <<= clz
-	retExp2 := uint64(217706*exp10>>16+1087) - uint64(clz)
+	const float64ExponentBias = 1023
+	retExp2 := uint64(217706*exp10>>16+64+float64ExponentBias) - uint64(clz)
 
 	// Multiplication.
 	xHi, xLo := bits.Mul64(man, detailedPowersOfTen[exp10-detailedPowersOfTenMinExp10][1])
@@ -78,8 +79,8 @@ func eiselLemire(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// retExp2 is a uint64. Zero or underflow means that we're in subnormal
 	// float64 space. 0x7FF or above means that we're in Inf/NaN float64 space.
 	//
-	// The if condition is equivalent to (but has fewer branches than):
-	//   if retExp2 <= 0 || retExp2 >= 0x7FF {
+	// The if block is equivalent to (but has fewer branches than):
+	//   if retExp2 <= 0 || retExp2 >= 0x7FF { etc }
 	if retExp2-1 >= 0x7FF-1 {
 		return 0, false
 	}
@@ -88,6 +89,81 @@ func eiselLemire(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 		retBits |= 0x80000000_00000000
 	}
 	return math.Float64frombits(retBits), true
+}
+
+func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
+	// The terse comments in this function body refer to sections of the
+	// https://nigeltao.github.io/blog/2020/eisel-lemire.html blog post.
+	//
+	// That blog post discusses the float64 flavor (11 exponent bits with a
+	// -1023 bias, 52 mantissa bits) of the algorithm, but the same approach
+	// applies to the float32 flavor (8 exponent bits with a -127 bias, 23
+	// mantissa bits). The computation here happens with 64-bit values (e.g.
+	// man, xHi, retMantissa) before finally converting to a 32-bit float.
+
+	// Exp10 Range.
+	if man == 0 {
+		if neg {
+			f = math.Float32frombits(0x80000000) // Negative zero.
+		}
+		return f, true
+	}
+	if exp10 < detailedPowersOfTenMinExp10 || detailedPowersOfTenMaxExp10 < exp10 {
+		return 0, false
+	}
+
+	// Normalization.
+	clz := bits.LeadingZeros64(man)
+	man <<= clz
+	const float32ExponentBias = 127
+	retExp2 := uint64(217706*exp10>>16+64+float32ExponentBias) - uint64(clz)
+
+	// Multiplication.
+	xHi, xLo := bits.Mul64(man, detailedPowersOfTen[exp10-detailedPowersOfTenMinExp10][1])
+
+	// Wider Approximation.
+	if xHi&0x3F_FFFFFFFF == 0x3F_FFFFFFFF && xLo+man < man {
+		yHi, yLo := bits.Mul64(man, detailedPowersOfTen[exp10-detailedPowersOfTenMinExp10][0])
+		mergedHi, mergedLo := xHi, xLo+yHi
+		if mergedLo < xLo {
+			mergedHi++
+		}
+		if mergedHi&0x3F_FFFFFFFF == 0x3F_FFFFFFFF && mergedLo+1 == 0 && yLo+man < man {
+			return 0, false
+		}
+		xHi, xLo = mergedHi, mergedLo
+	}
+
+	// Shifting to 54 Bits (and for float32, it's shifting to 25 bits).
+	msb := xHi >> 63
+	retMantissa := xHi >> (msb + 38)
+	retExp2 -= 1 ^ msb
+
+	// Half-way Ambiguity.
+	if xLo == 0 && xHi&0x3F_FFFFFFFF == 0 && retMantissa&3 == 1 {
+		return 0, false
+	}
+
+	// From 54 to 53 Bits (and for float32, it's from 25 to 24 bits).
+	retMantissa += retMantissa & 1
+	retMantissa >>= 1
+	if retMantissa>>24 > 0 {
+		retMantissa >>= 1
+		retExp2 += 1
+	}
+	// retExp2 is a uint64. Zero or underflow means that we're in subnormal
+	// float32 space. 0xFF or above means that we're in Inf/NaN float32 space.
+	//
+	// The if block is equivalent to (but has fewer branches than):
+	//   if retExp2 <= 0 || retExp2 >= 0xFF { etc }
+	if retExp2-1 >= 0xFF-1 {
+		return 0, false
+	}
+	retBits := retExp2<<23 | retMantissa&0x007FFFFF
+	if neg {
+		retBits |= 0x80000000
+	}
+	return math.Float32frombits(uint32(retBits)), true
 }
 
 // detailedPowersOfTen{Min,Max}Exp10 is the power of 10 represented by the
