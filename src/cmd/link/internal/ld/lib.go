@@ -1320,9 +1320,6 @@ func (ctxt *Link) hostlink() {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
 			argv = addASLRargs(argv)
-			// Work around binutils limitation that strips relocation table for dynamicbase.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			argv = append(argv, "-Wl,--export-all-symbols")
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
