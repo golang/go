@@ -8,7 +8,7 @@
 
 package types2
 
-import "strings"
+import "bytes"
 
 // infer returns the list of actual type arguments for the given list of type parameters tparams
 // by inferring them from the actual arguments args for the parameters params. If type inference
@@ -134,7 +134,8 @@ func typeNamesString(list []*TypeName) string {
 	}
 
 	// general case (n > 2)
-	var b strings.Builder
+	// Would like to use strings.Builder but it's not available in Go 1.4.
+	var b bytes.Buffer
 	for i, tname := range list[:n-1] {
 		if i > 0 {
 			b.WriteString(", ")

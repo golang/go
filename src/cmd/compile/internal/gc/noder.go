@@ -6,6 +6,7 @@ package gc
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,8 +14,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/types2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -24,7 +27,7 @@ import (
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to xtop.
 // Returns the total count of parsed lines.
-func parseFiles(filenames []string, allowGenerics bool) uint {
+func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -57,16 +60,52 @@ func parseFiles(filenames []string, allowGenerics bool) uint {
 		}(filename)
 	}
 
-	var lines uint
+	if allowGenerics {
+		nodersmap := make(map[string]*noder)
+		var files []*syntax.File
+		for _, p := range noders {
+			for e := range p.err {
+				p.yyerrorpos(e.Pos, "%s", e.Msg)
+			}
+
+			nodersmap[p.file.Pos().RelFilename()] = p
+			files = append(files, p.file)
+			lines += p.file.EOF.Line()
+
+			if nsyntaxerrors != 0 {
+				errorexit()
+			}
+		}
+
+		conf := types2.Config{
+			InferFromConstraints: true,
+			Error: func(err error) {
+				terr := err.(types2.Error)
+				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+					// types2 reports error clarifications via separate
+					// error messages which are indented with a tab.
+					// Ignore them to satisfy tools and tests that expect
+					// only one error in such cases.
+					// TODO(gri) Need to adjust error reporting in types2.
+					return
+				}
+				p := nodersmap[terr.Pos.RelFilename()]
+				yyerrorl(p.makeXPos(terr.Pos), "%s", terr.Msg)
+			},
+			Importer: &gcimports{
+				packages: make(map[string]*types2.Package),
+			},
+		}
+		conf.Check(Ctxt.Pkgpath, files, nil)
+		return
+	}
+
 	for _, p := range noders {
 		for e := range p.err {
 			p.yyerrorpos(e.Pos, "%s", e.Msg)
 		}
 
-		// noder cannot handle generic code yet
-		if !allowGenerics {
-			p.node()
-		}
+		p.node()
 		lines += p.file.EOF.Line()
 		p.file = nil // release memory
 
@@ -78,8 +117,24 @@ func parseFiles(filenames []string, allowGenerics bool) uint {
 	}
 
 	localpkg.Height = myheight
+	return
+}
 
-	return lines
+// Temporary import helper to get type2-based type-checking going.
+type gcimports struct {
+	packages map[string]*types2.Package
+	lookup   func(path string) (io.ReadCloser, error)
+}
+
+func (m *gcimports) Import(path string) (*types2.Package, error) {
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
+}
+
+func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+	if mode != 0 {
+		panic("mode must be 0")
+	}
+	return importer.Import(m.packages, path, srcDir, m.lookup)
 }
 
 // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
