@@ -265,7 +265,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	JMP	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 
@@ -276,8 +276,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	MOVW	$NAME(SB), R4;	\
 	JMP	(R4)
 
-TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	argsize+12(FP), R1
+TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	frameSize+20(FP), R1
 
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -310,11 +310,11 @@ TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	JMP	(R4)
 
 #define CALLFN(NAME,MAXSIZE)	\
-TEXT NAME(SB),WRAPPER,$MAXSIZE-20;	\
+TEXT NAME(SB),WRAPPER,$MAXSIZE-28;	\
 	NO_LOCAL_POINTERS;	\
 	/* copy arguments to stack */		\
-	MOVW	arg+8(FP), R1;	\
-	MOVW	argsize+12(FP), R2;	\
+	MOVW	stackArgs+8(FP), R1;	\
+	MOVW	stackArgsSize+12(FP), R2;	\
 	MOVW	R29, R3;	\
 	ADDU	$4, R3;	\
 	ADDU	R3, R2;	\
@@ -330,10 +330,10 @@ TEXT NAME(SB),WRAPPER,$MAXSIZE-20;	\
 	PCDATA	$PCDATA_StackMapIndex, $0;	\
 	JAL	(R4);	\
 	/* copy return values back */		\
-	MOVW	argtype+0(FP), R5;	\
-	MOVW	arg+8(FP), R1;	\
-	MOVW	n+12(FP), R2;	\
-	MOVW	retoffset+16(FP), R4;	\
+	MOVW	stackArgsType+0(FP), R5;	\
+	MOVW	stackArgs+8(FP), R1;	\
+	MOVW	stackArgsSize+12(FP), R2;	\
+	MOVW	stackRetOffset+16(FP), R4;	\
 	ADDU	$4, R29, R3;	\
 	ADDU	R4, R3;	\
 	ADDU	R4, R1;	\
@@ -345,11 +345,12 @@ TEXT NAME(SB),WRAPPER,$MAXSIZE-20;	\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $16-0
+TEXT callRet<>(SB), NOSPLIT, $20-0
 	MOVW	R5, 4(R29)
 	MOVW	R1, 8(R29)
 	MOVW	R3, 12(R29)
 	MOVW	R2, 16(R29)
+	MOVW    $0, 20(R29)
 	JAL	runtime·reflectcallmove(SB)
 	RET
 

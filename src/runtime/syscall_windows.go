@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -242,7 +243,11 @@ func callbackWrap(a *callbackArgs) {
 
 	// Even though this is copying back results, we can pass a nil
 	// type because those results must not require write barriers.
-	reflectcall(nil, unsafe.Pointer(c.fn), noescape(goArgs), uint32(c.retOffset)+sys.PtrSize, uint32(c.retOffset))
+	//
+	// Pass a dummy RegArgs for now.
+	// TODO(mknyszek): Pass arguments in registers.
+	var regs abi.RegArgs
+	reflectcall(nil, unsafe.Pointer(c.fn), noescape(goArgs), uint32(c.retOffset)+sys.PtrSize, uint32(c.retOffset), uint32(c.retOffset)+sys.PtrSize, &regs)
 
 	// Extract the result.
 	a.result = *(*uintptr)(unsafe.Pointer(&frame[c.retOffset]))

@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -219,7 +220,11 @@ func runfinq() {
 					throw("bad kind in runfinq")
 				}
 				fingRunning = true
-				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+				// Pass a dummy RegArgs for now.
+				//
+				// TODO(mknyszek): Pass arguments in registers.
+				var regs abi.RegArgs
+				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
 				fingRunning = false
 
 				// Drop finalizer queue heap references
