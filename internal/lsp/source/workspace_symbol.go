@@ -25,13 +25,13 @@ import (
 // sent in response to a client.
 const maxSymbols = 100
 
-// WorkspaceSymbols matches symbols across views using the given query,
-// according to the SymbolMatcher matcher.
+// WorkspaceSymbols matches symbols across all views using the given query,
+// according to the match semantics parameterized by matcherType and style.
 //
 // The workspace symbol method is defined in the spec as follows:
 //
-//  > The workspace symbol request is sent from the client to the server to
-//  > list project-wide symbols matching the query string.
+//   The workspace symbol request is sent from the client to the server to
+//   list project-wide symbols matching the query string.
 //
 // It is unclear what "project-wide" means here, but given the parameters of
 // workspace/symbol do not include any workspace identifier, then it has to be
