@@ -390,7 +390,11 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// go/types offers no easy way to get from a field (or interface
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
-	pkg, path, _ := pathEnclosingInterval(r.fset, r.packages[from.Pkg()], from.Pos(), from.Pos())
+	fromPkg, ok := r.packages[from.Pkg()]
+	if !ok {
+		return
+	}
+	pkg, path, _ := pathEnclosingInterval(r.fset, fromPkg, from.Pos(), from.Pos())
 	if pkg == nil || path == nil {
 		return
 	}
