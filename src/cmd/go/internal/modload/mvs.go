@@ -7,9 +7,6 @@ package modload
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"cmd/go/internal/modfetch"
@@ -77,11 +74,7 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
-		repo, err := modfetch.Lookup(proxy, path)
-		if err != nil {
-			return err
-		}
-		allVersions, err := repo.Versions("")
+		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
 		if err != nil {
 			return err
 		}
@@ -128,43 +121,4 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
 		return module.Version{Path: m.Path, Version: list[i]}, nil
 	}
 	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-// fetch downloads the given module (or its replacement)
-// and returns its location.
-//
-// The isLocal return value reports whether the replacement,
-// if any, is local to the filesystem.
-func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
-	if mod == Target {
-		return ModRoot(), true, nil
-	}
-	if r := Replacement(mod); r.Path != "" {
-		if r.Version == "" {
-			dir = r.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			// Ensure that the replacement directory actually exists:
-			// dirInModule does not report errors for missing modules,
-			// so if we don't report the error now, later failures will be
-			// very mysterious.
-			if _, err := os.Stat(dir); err != nil {
-				if os.IsNotExist(err) {
-					// Semantically the module version itself “exists” — we just don't
-					// have its source code. Remove the equivalence to os.ErrNotExist,
-					// and make the message more concise while we're at it.
-					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
-				} else {
-					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
-				}
-				return dir, true, module.VersionError(mod, err)
-			}
-			return dir, true, nil
-		}
-		mod = r
-	}
-
-	dir, err = modfetch.Download(ctx, mod)
-	return dir, false, err
 }

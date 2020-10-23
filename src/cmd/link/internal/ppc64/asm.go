@@ -994,6 +994,7 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		ldr.SetPlt(s, int32(plt.Size()))
 
 		plt.Grow(plt.Size() + 8)
+		plt.SetSize(plt.Size() + 8)
 
 		rela.AddAddrPlus(ctxt.Arch, plt.Sym(), int64(ldr.SymPlt(s)))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))

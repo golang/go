@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
@@ -159,7 +160,7 @@ Cases:
 				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
 					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
 				}
-				body, err := ioutil.ReadAll(part)
+				body, err := io.ReadAll(part)
 				if err != nil {
 					t.Errorf("range=%q, reading part index %d body: %v", rt.r, ri, err)
 					continue Cases
@@ -311,7 +312,7 @@ func TestFileServerEscapesNames(t *testing.T) {
 		if err != nil {
 			t.Fatalf("test %q: Get: %v", test.name, err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatalf("test %q: read Body: %v", test.name, err)
 		}
@@ -359,7 +360,7 @@ func TestFileServerSortsNames(t *testing.T) {
 	}
 	defer res.Body.Close()
 
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("read Body: %v", err)
 	}
@@ -393,7 +394,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Get %s: %v", suffix, err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatalf("ReadAll %s: %v", suffix, err)
 		}
@@ -570,6 +571,43 @@ func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 
 func TestServeIndexHtml(t *testing.T) {
 	defer afterTest(t)
+
+	for i := 0; i < 2; i++ {
+		var h Handler
+		var name string
+		switch i {
+		case 0:
+			h = FileServer(Dir("."))
+			name = "Dir"
+		case 1:
+			h = FileServer(FS(os.DirFS(".")))
+			name = "DirFS"
+		}
+		t.Run(name, func(t *testing.T) {
+			const want = "index.html says hello\n"
+			ts := httptest.NewServer(h)
+			defer ts.Close()
+
+			for _, path := range []string{"/testdata/", "/testdata/index.html"} {
+				res, err := Get(ts.URL + path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				b, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					t.Fatal("reading Body:", err)
+				}
+				if s := string(b); s != want {
+					t.Errorf("for path %q got %q, want %q", path, s, want)
+				}
+				res.Body.Close()
+			}
+		})
+	}
+}
+
+func TestServeIndexHtmlFS(t *testing.T) {
+	defer afterTest(t)
 	const want = "index.html says hello\n"
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
@@ -579,7 +617,7 @@ func TestServeIndexHtml(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal("reading Body:", err)
 		}
@@ -629,9 +667,9 @@ func (f *fakeFileInfo) Sys() interface{}   { return nil }
 func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
 func (f *fakeFileInfo) IsDir() bool        { return f.dir }
 func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }
-func (f *fakeFileInfo) Mode() os.FileMode {
+func (f *fakeFileInfo) Mode() fs.FileMode {
 	if f.dir {
-		return 0755 | os.ModeDir
+		return 0755 | fs.ModeDir
 	}
 	return 0644
 }
@@ -644,12 +682,12 @@ type fakeFile struct {
 }
 
 func (f *fakeFile) Close() error               { return nil }
-func (f *fakeFile) Stat() (os.FileInfo, error) { return f.fi, nil }
-func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
+func (f *fakeFile) Stat() (fs.FileInfo, error) { return f.fi, nil }
+func (f *fakeFile) Readdir(count int) ([]fs.FileInfo, error) {
 	if !f.fi.dir {
-		return nil, os.ErrInvalid
+		return nil, fs.ErrInvalid
 	}
-	var fis []os.FileInfo
+	var fis []fs.FileInfo
 
 	limit := f.entpos + count
 	if count <= 0 || limit > len(f.fi.ents) {
@@ -668,11 +706,11 @@ func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
 
 type fakeFS map[string]*fakeFileInfo
 
-func (fs fakeFS) Open(name string) (File, error) {
+func (fsys fakeFS) Open(name string) (File, error) {
 	name = path.Clean(name)
-	f, ok := fs[name]
+	f, ok := fsys[name]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	if f.err != nil {
 		return nil, f.err
@@ -707,7 +745,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -747,7 +785,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	res.Body.Close()
 }
 
-func mustStat(t *testing.T, fileName string) os.FileInfo {
+func mustStat(t *testing.T, fileName string) fs.FileInfo {
 	fi, err := os.Stat(fileName)
 	if err != nil {
 		t.Fatal(err)
@@ -1044,7 +1082,7 @@ func TestServeContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			io.Copy(ioutil.Discard, res.Body)
+			io.Copy(io.Discard, res.Body)
 			res.Body.Close()
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("test %q using %q: got status = %d; want %d", testName, method, res.StatusCode, tt.wantStatus)
@@ -1081,7 +1119,7 @@ func (issue12991FS) Open(string) (File, error) { return issue12991File{}, nil }
 
 type issue12991File struct{ File }
 
-func (issue12991File) Stat() (os.FileInfo, error) { return nil, os.ErrPermission }
+func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
 func (issue12991File) Close() error               { return nil }
 
 func TestServeContentErrorMessages(t *testing.T) {
@@ -1091,7 +1129,7 @@ func TestServeContentErrorMessages(t *testing.T) {
 			err: errors.New("random error"),
 		},
 		"/403": &fakeFileInfo{
-			err: &os.PathError{Err: os.ErrPermission},
+			err: &fs.PathError{Err: fs.ErrPermission},
 		},
 	}
 	ts := httptest.NewServer(FileServer(fs))
@@ -1158,7 +1196,7 @@ func TestLinuxSendfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http client error: %v", err)
 	}
-	_, err = io.Copy(ioutil.Discard, res.Body)
+	_, err = io.Copy(io.Discard, res.Body)
 	if err != nil {
 		t.Fatalf("client body read error: %v", err)
 	}
@@ -1180,7 +1218,7 @@ func getBody(t *testing.T, testName string, req Request, client *Client) (*Respo
 	if err != nil {
 		t.Fatalf("%s: for URL %q, send error: %v", testName, req.URL.String(), err)
 	}
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		t.Fatalf("%s: for URL %q, reading body: %v", testName, req.URL.String(), err)
 	}
@@ -1289,7 +1327,7 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
 		// Just return back something that's a directory.
 		return Dir(".").Open(".")
 	}
-	return nil, os.ErrNotExist
+	return nil, fs.ErrNotExist
 }
 
 type panicOnSeek struct{ io.ReadSeeker }
@@ -1363,7 +1401,7 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
 			if g, w := res.StatusCode, tt.wantCode; g != w {
 				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
 			}
-			slurp, err := ioutil.ReadAll(res.Body)
+			slurp, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			if err != nil {
 				t.Fatal(err)

@@ -9,11 +9,14 @@ package syscall_test
 import (
 	"internal/testenv"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -240,4 +243,47 @@ func TestInvalidExec(t *testing.T) {
 			t.Error("expected error with invalid Ctty value")
 		}
 	})
+}
+
+// TestExec is for issue #41702.
+func TestExec(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
+	o, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("%s\n%v", o, err)
+	}
+}
+
+// TestExecHelper is used by TestExec. It does nothing by itself.
+// In testing on macOS 10.14, this used to fail with
+// "signal: illegal instruction" more than half the time.
+func TestExecHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "2" {
+		return
+	}
+
+	// We don't have to worry about restoring these values.
+	// We are in a child process that only runs this test,
+	// and we are going to call syscall.Exec anyhow.
+	runtime.GOMAXPROCS(50)
+	os.Setenv("GO_WANT_HELPER_PROCESS", "3")
+
+	stop := time.Now().Add(time.Second)
+	for i := 0; i < 100; i++ {
+		go func(i int) {
+			r := rand.New(rand.NewSource(int64(i)))
+			for time.Now().Before(stop) {
+				r.Uint64()
+			}
+		}(i)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	argv := []string{os.Args[0], "-test.run=TestExecHelper"}
+	syscall.Exec(os.Args[0], argv, os.Environ())
+
+	t.Error("syscall.Exec returned")
 }

@@ -39,7 +39,7 @@ func (s *InitSchedule) append(n *Node) {
 // staticInit adds an initialization statement n to the schedule.
 func (s *InitSchedule) staticInit(n *Node) {
 	if !s.tryStaticInit(n) {
-		if Debug['%'] != 0 {
+		if Debug.P != 0 {
 			Dump("nonstatic", n)
 		}
 		s.append(n)
@@ -128,7 +128,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	case OSLICELIT:
 		// copy slice
 		a := s.inittemps[r]
-		slicesym(l, a, r.Right.Int64())
+		slicesym(l, a, r.Right.Int64Val())
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
@@ -205,7 +205,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 
 	case OSTR2BYTES:
 		if l.Class() == PEXTERN && r.Left.Op == OLITERAL {
-			sval := strlit(r.Left)
+			sval := r.Left.StringVal()
 			slicebytes(l, sval)
 			return true
 		}
@@ -213,7 +213,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 	case OSLICELIT:
 		s.initplan(r)
 		// Init slice.
-		bound := r.Right.Int64()
+		bound := r.Right.Int64Val()
 		ta := types.NewArray(r.Type.Elem(), bound)
 		ta.SetNoalg(true)
 		a := staticname(ta)
@@ -413,7 +413,7 @@ func getdyn(n *Node, top bool) initGenType {
 		if !top {
 			return initDynamic
 		}
-		if n.Right.Int64()/4 > int64(n.List.Len()) {
+		if n.Right.Int64Val()/4 > int64(n.List.Len()) {
 			// <25% of entries have explicit values.
 			// Very rough estimation, it takes 4 bytes of instructions
 			// to initialize 1 byte of result. So don't use a static
@@ -589,12 +589,12 @@ func isSmallSliceLit(n *Node) bool {
 
 	r := n.Right
 
-	return smallintconst(r) && (n.Type.Elem().Width == 0 || r.Int64() <= smallArrayBytes/n.Type.Elem().Width)
+	return smallintconst(r) && (n.Type.Elem().Width == 0 || r.Int64Val() <= smallArrayBytes/n.Type.Elem().Width)
 }
 
 func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	// make an array type corresponding the number of elements we have
-	t := types.NewArray(n.Type.Elem(), n.Right.Int64())
+	t := types.NewArray(n.Type.Elem(), n.Right.Int64Val())
 	dowidth(t)
 
 	if ctxt == inNonInitFunction {
@@ -993,7 +993,7 @@ func oaslit(n *Node, init *Nodes) bool {
 
 func getlit(lit *Node) int {
 	if smallintconst(lit) {
-		return int(lit.Int64())
+		return int(lit.Int64Val())
 	}
 	return -1
 }

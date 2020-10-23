@@ -81,6 +81,9 @@ func Store(addr *uint32, v uint32)
 //go:noescape
 func StoreRel(addr *uint32, v uint32)
 
+//go:noescape
+func StoreReluintptr(addr *uintptr, v uintptr)
+
 //go:nosplit
 func goCas64(addr *uint64, old, new uint64) bool {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
@@ -193,6 +196,9 @@ func Load8(addr *uint8) uint8
 
 //go:noescape
 func LoadAcq(addr *uint32) uint32
+
+//go:noescape
+func LoadAcquintptr(ptr *uintptr) uintptr
 
 //go:noescape
 func Cas64(addr *uint64, old, new uint64) bool

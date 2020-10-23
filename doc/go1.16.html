@@ -122,6 +122,15 @@ Do not send CLs removing the interior tags from such phrases.
   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
 </p>
 
+<h4 id="toolexec">The <code>-toolexec</code> build flag</h4>
+
+<p><!-- golang.org/cl/263357 -->
+  When the <code>-toolexec</code> build flag is specified to use a program when
+  invoking toolchain programs like compile or asm, the environment variable
+  <code>TOOLEXEC_IMPORTPATH</code> is now set to the import path of the package
+  being built.
+</p>
+
 <h3 id="cgo">Cgo</h3>
 
 <p> <!-- CL 252378 -->
@@ -181,6 +190,14 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<h3 id="crypto/hmac"><a href="/pkg/crypto/hmac">crypto/hmac</a></h3>
+
+<p><!-- CL 261960 -->
+  <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
+  the hash generation function fail to return new values. Previously, the
+  behavior was undefined and invalid outputs were sometimes generated.
+</p>
+
 <h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
 
 <p><!-- CL 256897 -->
@@ -201,6 +218,21 @@ Do not send CLs removing the interior tags from such phrases.
   contain strings with characters within the ASCII range.
 </p>
 
+<p><!-- CL 259697 -->
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
+  verifies the generated certificate's signature using the signer's
+  public key. If the signature is invalid, an error is returned, instead
+  of a malformed certificate.
+</p>
+
+<h3 id="encoding/json"><a href="/pkg/encoding/json">encoding/json</a></h3>
+
+<p><!-- CL 263619 -->
+  The error message for
+  <a href="/pkg/encoding/json/#SyntaxError">SyntaxError</a>
+  now begins with "json: ", matching the other errors in the package.
+</p>
+
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
 
 <p><!-- CL 250357 -->
@@ -211,6 +243,12 @@ Do not send CLs removing the interior tags from such phrases.
   In earlier releases the only way to reliably detect this case was to
   match the string returned by the <code>Error</code> method
   with <code>"use of closed network connection"</code>.
+</p>
+
+<p><!-- CL 255898 -->
+  In previous Go releases the default TCP listener backlog size on Linux systems,
+  set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
+  On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
 </p>
 
 <h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
@@ -273,6 +311,20 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- CL 264024 -->
+      The encoder has always taken care to avoid using namespace prefixes
+      beginning with <code>xml</code>, which are reserved by the XML
+      specification.
+      Now, following the specification more closely, that check is
+      case-insensitive, so that prefixes beginning
+      with <code>XML</code>, <code>XmL</code>, and so on are also
+      avoided.
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
+
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- CL 233637 -->
@@ -309,3 +361,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/debug -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
+      the <a
+      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
+      algorithm</a>, improving performance by up to a factor of 2. This can
+      also speed up decoding textual formats like <a
+      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->

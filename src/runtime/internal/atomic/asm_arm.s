@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "funcdata.h"
 
 // bool armcas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -12,13 +13,13 @@
 //	}else
 //		return 0;
 //
-// To implement runtime∕internal∕atomic·cas in sys_$GOOS_arm.s
+// To implement ·cas in sys_$GOOS_arm.s
 // using the native instructions, use:
 //
-//	TEXT runtime∕internal∕atomic·cas(SB),NOSPLIT,$0
-//		B	runtime∕internal∕atomic·armcas(SB)
+//	TEXT ·cas(SB),NOSPLIT,$0
+//		B	·armcas(SB)
 //
-TEXT runtime∕internal∕atomic·armcas(SB),NOSPLIT,$0-13
+TEXT ·armcas(SB),NOSPLIT,$0-13
 	MOVW	ptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
@@ -50,44 +51,50 @@ casfail:
 
 // stubs
 
-TEXT runtime∕internal∕atomic·Loadp(SB),NOSPLIT|NOFRAME,$0-8
-	B runtime∕internal∕atomic·Load(SB)
+TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-8
+	B	·Load(SB)
 
-TEXT runtime∕internal∕atomic·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
-	B runtime∕internal∕atomic·Load(SB)
+TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
+	B	·Load(SB)
 
-TEXT runtime∕internal∕atomic·Casuintptr(SB),NOSPLIT,$0-13
-	B	runtime∕internal∕atomic·Cas(SB)
+TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-8
+	B 	·Load(SB)
 
-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0-13
-	B	runtime∕internal∕atomic·Cas(SB)
+TEXT ·Casuintptr(SB),NOSPLIT,$0-13
+	B	·Cas(SB)
 
-TEXT runtime∕internal∕atomic·CasRel(SB),NOSPLIT,$0-13
-	B	runtime∕internal∕atomic·Cas(SB)
+TEXT ·Casp1(SB),NOSPLIT,$0-13
+	B	·Cas(SB)
 
-TEXT runtime∕internal∕atomic·Loaduintptr(SB),NOSPLIT,$0-8
-	B	runtime∕internal∕atomic·Load(SB)
+TEXT ·CasRel(SB),NOSPLIT,$0-13
+	B	·Cas(SB)
 
-TEXT runtime∕internal∕atomic·Loaduint(SB),NOSPLIT,$0-8
-	B	runtime∕internal∕atomic·Load(SB)
+TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
+	B	·Load(SB)
 
-TEXT runtime∕internal∕atomic·Storeuintptr(SB),NOSPLIT,$0-8
-	B	runtime∕internal∕atomic·Store(SB)
+TEXT ·Loaduint(SB),NOSPLIT,$0-8
+	B	·Load(SB)
 
-TEXT runtime∕internal∕atomic·StorepNoWB(SB),NOSPLIT,$0-8
-	B	runtime∕internal∕atomic·Store(SB)
+TEXT ·Storeuintptr(SB),NOSPLIT,$0-8
+	B	·Store(SB)
 
-TEXT runtime∕internal∕atomic·StoreRel(SB),NOSPLIT,$0-8
-	B	runtime∕internal∕atomic·Store(SB)
+TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+	B	·Store(SB)
 
-TEXT runtime∕internal∕atomic·Xadduintptr(SB),NOSPLIT,$0-12
-	B	runtime∕internal∕atomic·Xadd(SB)
+TEXT ·StoreRel(SB),NOSPLIT,$0-8
+	B	·Store(SB)
 
-TEXT runtime∕internal∕atomic·Loadint64(SB),NOSPLIT,$0-12
-	B	runtime∕internal∕atomic·Load64(SB)
+TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
+	B	·Store(SB)
 
-TEXT runtime∕internal∕atomic·Xaddint64(SB),NOSPLIT,$0-20
-	B	runtime∕internal∕atomic·Xadd64(SB)
+TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
+	B	·Xadd(SB)
+
+TEXT ·Loadint64(SB),NOSPLIT,$0-12
+	B	·Load64(SB)
+
+TEXT ·Xaddint64(SB),NOSPLIT,$0-20
+	B	·Xadd64(SB)
 
 // 64-bit atomics
 // The native ARM implementations use LDREXD/STREXD, which are
@@ -95,12 +102,8 @@ TEXT runtime∕internal∕atomic·Xaddint64(SB),NOSPLIT,$0-20
 // On older ARM, we use Go implementations which simulate 64-bit
 // atomics with locks.
 
-TEXT	armCas64<>(SB),NOSPLIT,$0-21
-	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	2(PC)
-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
+TEXT armCas64<>(SB),NOSPLIT,$0-21
+	// addr is already in R1
 	MOVW	old_lo+4(FP), R2
 	MOVW	old_hi+8(FP), R3
 	MOVW	new_lo+12(FP), R4
@@ -128,12 +131,8 @@ cas64fail:
 	MOVBU	R0, swapped+20(FP)
 	RET
 
-TEXT	armXadd64<>(SB),NOSPLIT,$0-20
-	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	2(PC)
-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
+TEXT armXadd64<>(SB),NOSPLIT,$0-20
+	// addr is already in R1
 	MOVW	delta_lo+4(FP), R2
 	MOVW	delta_hi+8(FP), R3
 
@@ -154,12 +153,8 @@ add64loop:
 	MOVW	R5, new_hi+16(FP)
 	RET
 
-TEXT	armXchg64<>(SB),NOSPLIT,$0-20
-	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	2(PC)
-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
+TEXT armXchg64<>(SB),NOSPLIT,$0-20
+	// addr is already in R1
 	MOVW	new_lo+4(FP), R2
 	MOVW	new_hi+8(FP), R3
 
@@ -178,12 +173,8 @@ swap64loop:
 	MOVW	R5, old_hi+16(FP)
 	RET
 
-TEXT	armLoad64<>(SB),NOSPLIT,$0-12
-	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	2(PC)
-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
+TEXT armLoad64<>(SB),NOSPLIT,$0-12
+	// addr is already in R1
 
 	LDREXD	(R1), R2	// loads R2 and R3
 	DMB	MB_ISH
@@ -192,12 +183,8 @@ TEXT	armLoad64<>(SB),NOSPLIT,$0-12
 	MOVW	R3, val_hi+8(FP)
 	RET
 
-TEXT	armStore64<>(SB),NOSPLIT,$0-12
-	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	2(PC)
-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
+TEXT armStore64<>(SB),NOSPLIT,$0-12
+	// addr is already in R1
 	MOVW	val_lo+4(FP), R2
 	MOVW	val_hi+8(FP), R3
 
@@ -213,35 +200,83 @@ store64loop:
 	DMB	MB_ISH
 	RET
 
-TEXT	·Cas64(SB),NOSPLIT,$0-21
+// The following functions all panic if their address argument isn't
+// 8-byte aligned. Since we're calling back into Go code to do this,
+// we have to cooperate with stack unwinding. In the normal case, the
+// functions tail-call into the appropriate implementation, which
+// means they must not open a frame. Hence, when they go down the
+// panic path, at that point they push the LR to create a real frame
+// (they don't need to pop it because panic won't return).
+
+TEXT ·Cas64(SB),NOSPLIT,$-4-21
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	3(PC)
+	MOVW.W	R14, -4(R13) // prepare a real frame
+	BL	·panicUnaligned(SB)
+
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	armCas64<>(SB)
 	JMP	·goCas64(SB)
 
-TEXT	·Xadd64(SB),NOSPLIT,$0-20
+TEXT ·Xadd64(SB),NOSPLIT,$-4-20
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	3(PC)
+	MOVW.W	R14, -4(R13) // prepare a real frame
+	BL	·panicUnaligned(SB)
+
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	armXadd64<>(SB)
 	JMP	·goXadd64(SB)
 
-TEXT	·Xchg64(SB),NOSPLIT,$0-20
+TEXT ·Xchg64(SB),NOSPLIT,$-4-20
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	3(PC)
+	MOVW.W	R14, -4(R13) // prepare a real frame
+	BL	·panicUnaligned(SB)
+
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	armXchg64<>(SB)
 	JMP	·goXchg64(SB)
 
-TEXT	·Load64(SB),NOSPLIT,$0-12
+TEXT ·Load64(SB),NOSPLIT,$-4-12
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	3(PC)
+	MOVW.W	R14, -4(R13) // prepare a real frame
+	BL	·panicUnaligned(SB)
+
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)
 	JMP	armLoad64<>(SB)
 	JMP	·goLoad64(SB)
 
-TEXT	·Store64(SB),NOSPLIT,$0-12
+TEXT ·Store64(SB),NOSPLIT,$-4-12
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	3(PC)
+	MOVW.W	R14, -4(R13) // prepare a real frame
+	BL	·panicUnaligned(SB)
+
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
 	BLT	2(PC)

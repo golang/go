@@ -99,7 +99,7 @@ func HashStrRev(sep string) (uint32, uint32) {
 }
 
 // IndexRabinKarpBytes uses the Rabin-Karp search algorithm to return the index of the
-// first occurence of substr in s, or -1 if not present.
+// first occurrence of substr in s, or -1 if not present.
 func IndexRabinKarpBytes(s, sep []byte) int {
 	// Rabin-Karp search
 	hashsep, pow := HashStrBytes(sep)
@@ -124,7 +124,7 @@ func IndexRabinKarpBytes(s, sep []byte) int {
 }
 
 // IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
-// first occurence of substr in s, or -1 if not present.
+// first occurrence of substr in s, or -1 if not present.
 func IndexRabinKarp(s, substr string) int {
 	// Rabin-Karp search
 	hashss, pow := HashStr(substr)

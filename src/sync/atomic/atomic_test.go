@@ -1397,8 +1397,15 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 
 func shouldPanic(t *testing.T, name string, f func()) {
 	defer func() {
-		if recover() == nil {
+		// Check that all GC maps are sane.
+		runtime.GC()
+
+		err := recover()
+		want := "unaligned 64-bit atomic operation"
+		if err == nil {
 			t.Errorf("%s did not panic", name)
+		} else if s, _ := err.(string); s != want {
+			t.Errorf("%s: wanted panic %q, got %q", name, want, err)
 		}
 	}()
 	f()

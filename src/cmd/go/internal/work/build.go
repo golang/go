@@ -741,7 +741,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}
-	qrs, err := modload.QueryPattern(ctx, patterns[0], version, allowed)
+	qrs, err := modload.QueryPattern(ctx, patterns[0], version, modload.Selected, allowed)
 	if err != nil {
 		base.Fatalf("go install %s: %v", args[0], err)
 	}

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -327,11 +328,11 @@ var goodbyeFile = &FakeFile{
 	mode:     0644,
 }
 
-// FakeFile implements FileLike and also os.FileInfo.
+// FakeFile implements FileLike and also fs.FileInfo.
 type FakeFile struct {
 	name     string
 	contents string
-	mode     os.FileMode
+	mode     fs.FileMode
 	offset   int
 }
 
@@ -348,7 +349,7 @@ func (f *FakeFile) Name() string {
 	return f.name
 }
 
-func (f *FakeFile) Stat() (os.FileInfo, error) {
+func (f *FakeFile) Stat() (fs.FileInfo, error) {
 	return f, nil
 }
 
@@ -365,13 +366,13 @@ func (f *FakeFile) Close() error {
 	return nil
 }
 
-// os.FileInfo methods.
+// fs.FileInfo methods.
 
 func (f *FakeFile) Size() int64 {
 	return int64(len(f.contents))
 }
 
-func (f *FakeFile) Mode() os.FileMode {
+func (f *FakeFile) Mode() fs.FileMode {
 	return f.mode
 }
 

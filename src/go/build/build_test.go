@@ -6,7 +6,6 @@ package build
 
 import (
 	"flag"
-	"fmt"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -140,30 +139,36 @@ func TestLocalDirectory(t *testing.T) {
 }
 
 var shouldBuildTests = []struct {
+	name        string
 	content     string
 	tags        map[string]bool
 	binaryOnly  bool
 	shouldBuild bool
+	err         error
 }{
 	{
+		name: "Yes",
 		content: "// +build yes\n\n" +
 			"package main\n",
 		tags:        map[string]bool{"yes": true},
 		shouldBuild: true,
 	},
 	{
+		name: "Or",
 		content: "// +build no yes\n\n" +
 			"package main\n",
 		tags:        map[string]bool{"yes": true, "no": true},
 		shouldBuild: true,
 	},
 	{
-		content: "// +build no,yes no\n\n" +
+		name: "And",
+		content: "// +build no,yes\n\n" +
 			"package main\n",
 		tags:        map[string]bool{"yes": true, "no": true},
 		shouldBuild: false,
 	},
 	{
+		name: "Cgo",
 		content: "// +build cgo\n\n" +
 			"// Copyright The Go Authors.\n\n" +
 			"// This package implements parsing of tags like\n" +
@@ -173,6 +178,7 @@ var shouldBuildTests = []struct {
 		shouldBuild: false,
 	},
 	{
+		name: "AfterPackage",
 		content: "// Copyright The Go Authors.\n\n" +
 			"package build\n\n" +
 			"// shouldBuild checks tags given by lines of the form\n" +
@@ -182,33 +188,126 @@ var shouldBuildTests = []struct {
 		shouldBuild: true,
 	},
 	{
-		// too close to package line
+		name: "TooClose",
 		content: "// +build yes\n" +
 			"package main\n",
 		tags:        map[string]bool{},
 		shouldBuild: true,
 	},
 	{
-		// too close to package line
+		name: "TooCloseNo",
 		content: "// +build no\n" +
 			"package main\n",
 		tags:        map[string]bool{},
 		shouldBuild: true,
 	},
+	{
+		name: "BinaryOnly",
+		content: "//go:binary-only-package\n" +
+			"// +build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		binaryOnly:  true,
+		shouldBuild: true,
+	},
+	{
+		name: "ValidGoBuild",
+		content: "// +build yes\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
+		name: "MissingBuild",
+		content: "//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "MissingBuild2",
+		content: "/* */\n" +
+			"// +build yes\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "MissingBuild2",
+		content: "/*\n" +
+			"// +build yes\n\n" +
+			"*/\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment1",
+		content: "/*\n" +
+			"//go:build no\n" +
+			"*/\n\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "Comment2",
+		content: "/*\n" +
+			"text\n" +
+			"*/\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment3",
+		content: "/*/*/ /* hi *//* \n" +
+			"text\n" +
+			"*/\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment4",
+		content: "/**///go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "Comment5",
+		content: "/**/\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
 }
 
 func TestShouldBuild(t *testing.T) {
-	for i, tt := range shouldBuildTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+	for _, tt := range shouldBuildTests {
+		t.Run(tt.name, func(t *testing.T) {
 			ctx := &Context{BuildTags: []string{"yes"}}
 			tags := map[string]bool{}
-			shouldBuild, binaryOnly := ctx.shouldBuild([]byte(tt.content), tags)
-			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) {
+			shouldBuild, binaryOnly, err := ctx.shouldBuild([]byte(tt.content), tags)
+			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) || err != tt.err {
 				t.Errorf("mismatch:\n"+
-					"have shouldBuild=%v, binaryOnly=%v, tags=%v\n"+
-					"want shouldBuild=%v, binaryOnly=%v, tags=%v",
-					shouldBuild, binaryOnly, tags,
-					tt.shouldBuild, tt.binaryOnly, tt.tags)
+					"have shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v\n"+
+					"want shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v",
+					shouldBuild, binaryOnly, tags, err,
+					tt.shouldBuild, tt.binaryOnly, tt.tags, tt.err)
 			}
 		})
 	}
@@ -513,11 +612,13 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	ctxt.GOPATH = gopath
 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
-	want := "cannot find module providing package"
+	want := "working directory is not part of a module"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
 		t.Fatalf("error when importing package when no go.mod is present: got %q; want %q", errStr, want)
+	} else {
+		t.Logf(`ctxt.Import("example.com/p", _, FindOnly): %v`, err)
 	}
 }
 
@@ -578,9 +679,16 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected success")
 	}
+
 	// Don't count the package path with a URL like https://...?go-get=1.
 	// See golang.org/issue/35986.
 	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
+
+	// Also don't count instances in suggested "go get" or similar commands
+	// (see https://golang.org/issue/41576). The suggested command typically
+	// follows a semicolon.
+	errStr = strings.SplitN(errStr, ";", 2)[0]
+
 	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}

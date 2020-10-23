@@ -50,7 +50,7 @@ func ClosureCallArgs4() {
 }
 
 func ClosureCallArgs5() {
-	x := 0                     // ERROR "moved to heap: x"
+	x := 0 // ERROR "moved to heap: x"
 	// TODO(mdempsky): We get "leaking param: p" here because the new escape analysis pass
 	// can tell that p flows directly to sink, but it's a little weird. Re-evaluate.
 	sink = func(p *int) *int { // ERROR "leaking param: p" "func literal does not escape"
@@ -132,7 +132,7 @@ func ClosureCallArgs14() {
 }
 
 func ClosureCallArgs15() {
-	x := 0                      // ERROR "moved to heap: x"
+	x := 0 // ERROR "moved to heap: x"
 	p := &x
 	sink = func(p **int) *int { // ERROR "leaking param content: p" "func literal does not escape"
 		return *p
@@ -164,3 +164,16 @@ func ClosureLeak2a(a ...string) string { // ERROR "leaking param content: a"
 func ClosureLeak2b(f func() string) string { // ERROR "f does not escape"
 	return f()
 }
+
+func ClosureIndirect() {
+	f := func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	f(new(int))          // ERROR "new\(int\) does not escape"
+
+	g := f
+	g(new(int)) // ERROR "new\(int\) does not escape"
+
+	h := nopFunc
+	h(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func nopFunc(p *int) {} // ERROR "p does not escape"

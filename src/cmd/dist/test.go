@@ -921,7 +921,7 @@ func (t *tester) extLink() bool {
 		"darwin-amd64", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-riscv64", "linux-s390x",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
@@ -946,9 +946,6 @@ func (t *tester) internalLink() bool {
 	if goos == "ios" {
 		return false
 	}
-	if goos == "darwin" && goarch == "arm64" {
-		return false
-	}
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
@@ -964,10 +961,10 @@ func (t *tester) internalLink() bool {
 
 func (t *tester) internalLinkPIE() bool {
 	switch goos + "-" + goarch {
-	case "linux-amd64", "linux-arm64",
-		"android-arm64":
-		return true
-	case "windows-amd64", "windows-386", "windows-arm":
+	case "darwin-amd64", "darwin-arm64",
+		"linux-amd64", "linux-arm64",
+		"android-arm64",
+		"windows-amd64", "windows-386", "windows-arm":
 		return true
 	}
 	return false
@@ -1088,7 +1085,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	pair := gohostos + "-" + goarch
 	switch pair {
-	case "darwin-amd64",
+	case "darwin-amd64", "darwin-arm64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
@@ -1099,6 +1096,13 @@ func (t *tester) cgoTest(dt *distTest) error {
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
 
 		cmd = t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+
+		if t.supportedBuildmode("pie") {
+			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+			if t.internalLink() && t.internalLinkPIE() {
+				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
+			}
+		}
 
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
@@ -1151,7 +1155,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
 				if t.internalLink() && t.internalLinkPIE() {
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal")
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie")

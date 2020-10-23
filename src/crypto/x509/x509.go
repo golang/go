@@ -2145,12 +2145,26 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
-	return asn1.Marshal(certificate{
+	signedCert, err := asn1.Marshal(certificate{
 		nil,
 		c,
 		signatureAlgorithm,
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the signature to ensure the crypto.Signer behaved correctly.
+	// We skip this check if the signature algorithm is MD5WithRSA as we
+	// only support this algorithm for signing, and not verification.
+	if sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm); sigAlg != MD5WithRSA {
+		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
+			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+		}
+	}
+
+	return signedCert, nil
 }
 
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded

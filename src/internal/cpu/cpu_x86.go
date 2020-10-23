@@ -38,6 +38,8 @@ const (
 	cpuid_ADX  = 1 << 19
 )
 
+var maxExtendedFunctionInformation uint32
+
 func doinit() {
 	options = []option{
 		{Name: "adx", Feature: &X86.HasADX},
@@ -64,6 +66,8 @@ func doinit() {
 	if maxID < 1 {
 		return
 	}
+
+	maxExtendedFunctionInformation, _, _, _ = cpuid(0x80000000, 0)
 
 	_, _, ecx1, edx1 := cpuid(1, 0)
 	X86.HasSSE2 = isSet(edx1, cpuid_SSE2)
@@ -102,4 +106,49 @@ func doinit() {
 
 func isSet(hwc uint32, value uint32) bool {
 	return hwc&value != 0
+}
+
+// Name returns the CPU name given by the vendor.
+// If the CPU name can not be determined an
+// empty string is returned.
+func Name() string {
+	if maxExtendedFunctionInformation < 0x80000004 {
+		return ""
+	}
+
+	data := make([]byte, 0, 3*4*4)
+
+	var eax, ebx, ecx, edx uint32
+	eax, ebx, ecx, edx = cpuid(0x80000002, 0)
+	data = appendBytes(data, eax, ebx, ecx, edx)
+	eax, ebx, ecx, edx = cpuid(0x80000003, 0)
+	data = appendBytes(data, eax, ebx, ecx, edx)
+	eax, ebx, ecx, edx = cpuid(0x80000004, 0)
+	data = appendBytes(data, eax, ebx, ecx, edx)
+
+	// Trim leading spaces.
+	for len(data) > 0 && data[0] == ' ' {
+		data = data[1:]
+	}
+
+	// Trim tail after and including the first null byte.
+	for i, c := range data {
+		if c == '\x00' {
+			data = data[:i]
+			break
+		}
+	}
+
+	return string(data)
+}
+
+func appendBytes(b []byte, args ...uint32) []byte {
+	for _, arg := range args {
+		b = append(b,
+			byte((arg >> 0)),
+			byte((arg >> 8)),
+			byte((arg >> 16)),
+			byte((arg >> 24)))
+	}
+	return b
 }

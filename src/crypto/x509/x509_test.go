@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -2818,5 +2819,96 @@ func TestIA5SANEnforcement(t *testing.T) {
 		} else if err.Error() != tc.expectedError {
 			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
 		}
+	}
+}
+
+func BenchmarkCreateCertificate(b *testing.B) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	tests := []struct {
+		name string
+		gen  func() crypto.Signer
+	}{
+		{
+			name: "RSA 2048",
+			gen: func() crypto.Signer {
+				k, err := rsa.GenerateKey(rand.Reader, 2048)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+		{
+			name: "ECDSA P256",
+			gen: func() crypto.Signer {
+				k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		k := tc.gen()
+		b.ResetTimer()
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+				if err != nil {
+					b.Fatalf("failed to create certificate: %s", err)
+				}
+			}
+		})
+	}
+}
+
+type brokenSigner struct {
+	pub crypto.PublicKey
+}
+
+func (bs *brokenSigner) Public() crypto.PublicKey {
+	return bs.pub
+}
+
+func (bs *brokenSigner) Sign(_ io.Reader, _ []byte, _ crypto.SignerOpts) ([]byte, error) {
+	return []byte{1, 2, 3}, nil
+}
+
+func TestCreateCertificateBrokenSigner(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	expectedErr := "x509: signature over certificate returned by signer is invalid: crypto/rsa: verification error"
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err == nil {
+		t.Fatal("expected CreateCertificate to fail with a broken signer")
+	} else if err.Error() != expectedErr {
+		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestCreateCertificateMD5(t *testing.T) {
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: MD5WithRSA,
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
 	}
 }

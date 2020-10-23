@@ -403,7 +403,7 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		}
 		defer cli.Close()
 		clientState = cli.ConnectionState()
-		buf, err := ioutil.ReadAll(cli)
+		buf, err := io.ReadAll(cli)
 		if err != nil {
 			t.Errorf("failed to call cli.Read: %v", err)
 		}

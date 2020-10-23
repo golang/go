@@ -34,7 +34,7 @@ func testFileLevelDict(t *testing.T, fn string, level int, d string) {
 		return
 	}
 	defer golden.Close()
-	b0, err0 := ioutil.ReadAll(golden)
+	b0, err0 := io.ReadAll(golden)
 	if err0 != nil {
 		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err0)
 		return
@@ -74,7 +74,7 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
 	defer zlibr.Close()
 
 	// Compare the decompressed data.
-	b1, err1 := ioutil.ReadAll(zlibr)
+	b1, err1 := io.ReadAll(zlibr)
 	if err1 != nil {
 		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err1)
 		return

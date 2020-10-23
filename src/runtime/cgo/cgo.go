@@ -21,6 +21,7 @@ package cgo
 #cgo openbsd LDFLAGS: -lpthread
 #cgo aix LDFLAGS: -Wl,-berok
 #cgo solaris LDFLAGS: -lxnet
+#cgo illumos LDFLAGS: -lsocket
 
 // Issue 35247.
 #cgo darwin CFLAGS: -Wno-nullability-completeness

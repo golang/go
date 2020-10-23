@@ -6412,17 +6412,17 @@ func rewriteValueARM_OpARMMOVWloadshiftLL(v *Value) bool {
 		return true
 	}
 	// match: (MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem)
-	// result: (MOVWload [int64(uint32(c)<<uint64(d))] ptr mem)
+	// result: (MOVWload [int32(uint32(c)<<uint64(d))] ptr mem)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		ptr := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		mem := v_2
 		v.reset(OpARMMOVWload)
-		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AuxInt = int32ToAuxInt(int32(uint32(c) << uint64(d)))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -6492,17 +6492,17 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value) bool {
 		return true
 	}
 	// match: (MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem)
-	// result: (MOVWload [int64(uint32(c)>>uint64(d))] ptr mem)
+	// result: (MOVWload [int32(uint32(c)>>uint64(d))] ptr mem)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		ptr := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		mem := v_2
 		v.reset(OpARMMOVWload)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -6833,18 +6833,18 @@ func rewriteValueARM_OpARMMOVWstoreshiftLL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWstoreshiftLL ptr (MOVWconst [c]) [d] val mem)
-	// result: (MOVWstore [int64(uint32(c)<<uint64(d))] ptr val mem)
+	// result: (MOVWstore [int32(uint32(c)<<uint64(d))] ptr val mem)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		ptr := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		val := v_2
 		mem := v_3
 		v.reset(OpARMMOVWstore)
-		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AuxInt = int32ToAuxInt(int32(uint32(c) << uint64(d)))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -6879,18 +6879,18 @@ func rewriteValueARM_OpARMMOVWstoreshiftRL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWstoreshiftRL ptr (MOVWconst [c]) [d] val mem)
-	// result: (MOVWstore [int64(uint32(c)>>uint64(d))] ptr val mem)
+	// result: (MOVWstore [int32(uint32(c)>>uint64(d))] ptr val mem)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		ptr := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		val := v_2
 		mem := v_3
 		v.reset(OpARMMOVWstore)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -8105,15 +8105,15 @@ func rewriteValueARM_OpARMMVNshiftLLreg(v *Value) bool {
 func rewriteValueARM_OpARMMVNshiftRA(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MVNshiftRA (MOVWconst [c]) [d])
-	// result: (MOVWconst [^int64(int32(c)>>uint64(d))])
+	// result: (MOVWconst [int32(c)>>uint64(d)])
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = ^int64(int32(c) >> uint64(d))
+		v.AuxInt = int32ToAuxInt(int32(c) >> uint64(d))
 		return true
 	}
 	return false
@@ -8139,15 +8139,15 @@ func rewriteValueARM_OpARMMVNshiftRAreg(v *Value) bool {
 func rewriteValueARM_OpARMMVNshiftRL(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MVNshiftRL (MOVWconst [c]) [d])
-	// result: (MOVWconst [^int64(uint32(c)>>uint64(d))])
+	// result: (MOVWconst [^int32(uint32(c)>>uint64(d))])
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = ^int64(uint32(c) >> uint64(d))
+		v.AuxInt = int32ToAuxInt(^int32(uint32(c) >> uint64(d)))
 		return true
 	}
 	return false

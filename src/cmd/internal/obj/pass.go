@@ -118,7 +118,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 }
 
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
-	for p := sym.Func.Text; p != nil; p = p.Link {
+	for p := sym.Func().Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		if p.GetFrom3() != nil {
 			checkaddr(ctxt, p, p.GetFrom3())
@@ -138,7 +138,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		if p.To.Sym != nil {
 			continue
 		}
-		q := sym.Func.Text
+		q := sym.Func().Text
 		for q != nil && p.To.Offset != q.Pc {
 			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
@@ -164,7 +164,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	}
 
 	// Collapse series of jumps to jumps.
-	for p := sym.Func.Text; p != nil; p = p.Link {
+	for p := sym.Func().Text; p != nil; p = p.Link {
 		if p.To.Target() == nil {
 			continue
 		}

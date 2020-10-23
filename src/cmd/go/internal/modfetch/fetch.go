@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -67,7 +68,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if err == nil {
 		// The directory has already been completely extracted (no .partial file exists).
 		return dir, nil
-	} else if dir == "" || !errors.Is(err, os.ErrNotExist) {
+	} else if dir == "" || !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
 
@@ -233,12 +234,28 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 		}
 	}()
 
+	var unrecoverableErr error
 	err = TryProxies(func(proxy string) error {
-		repo, err := Lookup(proxy, mod.Path)
-		if err != nil {
-			return err
+		if unrecoverableErr != nil {
+			return unrecoverableErr
 		}
-		return repo.Zip(f, mod.Version)
+		repo := Lookup(proxy, mod.Path)
+		err := repo.Zip(f, mod.Version)
+		if err != nil {
+			// Zip may have partially written to f before failing.
+			// (Perhaps the server crashed while sending the file?)
+			// Since we allow fallback on error in some cases, we need to fix up the
+			// file to be empty again for the next attempt.
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				unrecoverableErr = err
+				return err
+			}
+			if err := f.Truncate(0); err != nil {
+				unrecoverableErr = err
+				return err
+			}
+		}
+		return err
 	})
 	if err != nil {
 		return err
@@ -298,10 +315,10 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 func makeDirsReadOnly(dir string) {
 	type pathMode struct {
 		path string
-		mode os.FileMode
+		mode fs.FileMode
 	}
 	var dirs []pathMode // in lexical order
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err == nil && info.Mode()&0222 != 0 {
 			if info.IsDir() {
 				dirs = append(dirs, pathMode{path, info.Mode()})
@@ -320,7 +337,7 @@ func makeDirsReadOnly(dir string) {
 // any permission changes needed to do so.
 func RemoveAll(dir string) error {
 	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return nil // ignore errors walking in file system
 		}
@@ -425,7 +442,7 @@ func checkMod(mod module.Version) {
 	}
 	data, err := renameio.ReadFile(ziphash)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
 			return
 		}
@@ -444,7 +461,7 @@ func checkMod(mod module.Version) {
 // goModSum returns the checksum for the go.mod contents.
 func goModSum(data []byte) (string, error) {
 	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 }
 

@@ -25,10 +25,7 @@
 //
 package registry
 
-import (
-	"io"
-	"syscall"
-)
+import "syscall"
 
 const (
 	// Registry key security and access rights.
@@ -90,20 +87,13 @@ func OpenKey(k Key, path string, access uint32) (Key, error) {
 }
 
 // ReadSubKeyNames returns the names of subkeys of key k.
-// The parameter n controls the number of returned names,
-// analogous to the way os.File.Readdirnames works.
-func (k Key) ReadSubKeyNames(n int) ([]string, error) {
+func (k Key) ReadSubKeyNames() ([]string, error) {
 	names := make([]string, 0)
 	// Registry key size limit is 255 bytes and described there:
 	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
 	buf := make([]uint16, 256) //plus extra room for terminating zero byte
 loopItems:
 	for i := uint32(0); ; i++ {
-		if n > 0 {
-			if len(names) == n {
-				return names, nil
-			}
-		}
 		l := uint32(len(buf))
 		for {
 			err := syscall.RegEnumKeyEx(syscall.Handle(k), i, &buf[0], &l, nil, nil, nil, nil)
@@ -122,9 +112,6 @@ loopItems:
 			return names, err
 		}
 		names = append(names, syscall.UTF16ToString(buf[:l]))
-	}
-	if n > len(names) {
-		return names, io.EOF
 	}
 	return names, nil
 }

@@ -5,9 +5,16 @@
 package obj
 
 import (
+	"bytes"
 	"cmd/internal/goobj"
 	"cmd/internal/sys"
+	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
+	"unsafe"
 )
 
 var dummyArch = LinkArch{Arch: sys.ArchAMD64}
@@ -83,5 +90,34 @@ func TestContentHash(t *testing.T) {
 			}
 			t.Errorf("h%d=%x, h%d=%x, expect %s", test.a, h[test.a], test.b, h[test.b], eq)
 		}
+	}
+}
+
+func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+	testenv.MustHaveGoBuild(t)
+	if unsafe.Sizeof(uintptr(0)) < 8 {
+		t.Skip("skip on 32-bit architectures")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestSymbolTooLarge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "p.go")
+	err = ioutil.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v\n", err)
+	}
+	obj := filepath.Join(tmpdir, "p.o")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("did not fail\noutput: %s", out)
+	}
+	const want = "symbol too large"
+	if !bytes.Contains(out, []byte(want)) {
+		t.Errorf("unexpected error message: want: %q, got: %s", want, out)
 	}
 }

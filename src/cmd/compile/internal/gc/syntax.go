@@ -247,7 +247,7 @@ func (n *Node) Val() Val {
 // SetVal sets the Val for the node, which must not have been used with SetOpt.
 func (n *Node) SetVal(v Val) {
 	if n.HasOpt() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Opt", n)
 		Fatalf("have Opt")
 	}
@@ -270,7 +270,7 @@ func (n *Node) SetOpt(x interface{}) {
 		return
 	}
 	if n.HasVal() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Val", n)
 		Fatalf("have Val")
 	}
@@ -460,14 +460,14 @@ type Param struct {
 	//     x1 := xN.Defn
 	//     x1.Innermost = xN.Outer
 	//
-	// We leave xN.Innermost set so that we can still get to the original
+	// We leave x1.Innermost set so that we can still get to the original
 	// variable quickly. Not shown here, but once we're
 	// done parsing a function and no longer need xN.Outer for the
-	// lexical x reference links as described above, closurebody
+	// lexical x reference links as described above, funcLit
 	// recomputes xN.Outer as the semantic x reference link tree,
 	// even filling in x in intermediate closures that might not
 	// have mentioned it along the way to inner closures that did.
-	// See closurebody for details.
+	// See funcLit for details.
 	//
 	// During the eventual compilation, then, for closure variables we have:
 	//

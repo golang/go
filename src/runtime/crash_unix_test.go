@@ -241,7 +241,7 @@ func TestPanicSystemstack(t *testing.T) {
 	}
 
 	// Get traceback.
-	tb, err := ioutil.ReadAll(pr)
+	tb, err := io.ReadAll(pr)
 	if err != nil {
 		t.Fatal("reading traceback from pipe: ", err)
 	}

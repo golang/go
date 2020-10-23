@@ -913,7 +913,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Retpoline = false // don't keep printing
 	}
 
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -943,8 +943,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				alignedValue := p.From.Offset
 				m = pcAlignPadLength(pc, alignedValue, ctxt)
 				// Update the current text symbol alignment value.
-				if int32(alignedValue) > cursym.Func.Align {
-					cursym.Func.Align = int32(alignedValue)
+				if int32(alignedValue) > cursym.Func().Align {
+					cursym.Func().Align = int32(alignedValue)
 				}
 				break
 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
@@ -983,7 +983,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			if p.As == ADWORD && (pc&7) != 0 {
 				pc += 4
 			}
@@ -1047,7 +1047,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	psz := int32(0)
 	var i int
 	var out [6]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 
@@ -1088,7 +1088,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
 // isUnsafePoint returns whether p is an unsafe point.

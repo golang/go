@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"sync"
@@ -282,7 +281,7 @@ func TestSendfilePipe(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		io.Copy(ioutil.Discard, conn)
+		io.Copy(io.Discard, conn)
 	}()
 
 	// Wait for the byte to be copied, meaning that sendfile has

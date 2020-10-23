@@ -114,16 +114,16 @@ func (v Val) Interface() interface{} {
 
 type NilVal struct{}
 
-// Int64 returns n as an int64.
+// Int64Val returns n as an int64.
 // n must be an integer or rune constant.
-func (n *Node) Int64() int64 {
+func (n *Node) Int64Val() int64 {
 	if !Isconst(n, CTINT) {
-		Fatalf("Int64(%v)", n)
+		Fatalf("Int64Val(%v)", n)
 	}
 	return n.Val().U.(*Mpint).Int64()
 }
 
-// CanInt64 reports whether it is safe to call Int64() on n.
+// CanInt64 reports whether it is safe to call Int64Val() on n.
 func (n *Node) CanInt64() bool {
 	if !Isconst(n, CTINT) {
 		return false
@@ -131,16 +131,25 @@ func (n *Node) CanInt64() bool {
 
 	// if the value inside n cannot be represented as an int64, the
 	// return value of Int64 is undefined
-	return n.Val().U.(*Mpint).CmpInt64(n.Int64()) == 0
+	return n.Val().U.(*Mpint).CmpInt64(n.Int64Val()) == 0
 }
 
-// Bool returns n as a bool.
+// BoolVal returns n as a bool.
 // n must be a boolean constant.
-func (n *Node) Bool() bool {
+func (n *Node) BoolVal() bool {
 	if !Isconst(n, CTBOOL) {
-		Fatalf("Bool(%v)", n)
+		Fatalf("BoolVal(%v)", n)
 	}
 	return n.Val().U.(bool)
+}
+
+// StringVal returns the value of a literal string Node as a string.
+// n must be a string constant.
+func (n *Node) StringVal() string {
+	if !Isconst(n, CTSTR) {
+		Fatalf("StringVal(%v)", n)
+	}
+	return n.Val().U.(string)
 }
 
 // truncate float literal fv to 32-bit or 64-bit precision
@@ -612,7 +621,7 @@ func evconst(n *Node) {
 				var strs []string
 				i2 := i1
 				for i2 < len(s) && Isconst(s[i2], CTSTR) {
-					strs = append(strs, strlit(s[i2]))
+					strs = append(strs, s[i2].StringVal())
 					i2++
 				}
 
@@ -635,7 +644,7 @@ func evconst(n *Node) {
 		switch nl.Type.Etype {
 		case TSTRING:
 			if Isconst(nl, CTSTR) {
-				setintconst(n, int64(len(strlit(nl))))
+				setintconst(n, int64(len(nl.StringVal())))
 			}
 		case TARRAY:
 			if !hascallchan(nl) {
@@ -1127,11 +1136,6 @@ func defaultType(t *types.Type) *types.Type {
 
 	Fatalf("bad type %v", t)
 	return nil
-}
-
-// strlit returns the value of a literal string Node as a string.
-func strlit(n *Node) string {
-	return n.Val().U.(string)
 }
 
 func smallintconst(n *Node) bool {

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -432,6 +433,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 			need &^= needBuild
 			if b.NeedExport {
 				p.Export = a.built
+				p.BuildID = a.buildID
 			}
 			if need&needCompiledGoFiles != 0 {
 				if err := b.loadCachedSrcFiles(a); err == nil {
@@ -1560,7 +1562,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	perm := os.FileMode(0666)
+	perm := fs.FileMode(0666)
 	if a1.Mode == "link" {
 		switch cfg.BuildBuildmode {
 		case "c-archive", "c-shared", "plugin":
@@ -1609,7 +1611,7 @@ func (b *Builder) cleanup(a *Action) {
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
-func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool) error {
+func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN {
 		b.Showcmd("", "mv %s %s", src, dst)
 		return nil
@@ -1635,7 +1637,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool) 
 	// we have to copy the file to retain the correct permissions.
 	// https://golang.org/issue/18878
 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
-		if fi.IsDir() && (fi.Mode()&os.ModeSetgid) != 0 {
+		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
 			return b.copyFile(dst, src, perm, force)
 		}
 	}
@@ -1670,7 +1672,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool) 
 }
 
 // copyFile is like 'cp src dst'.
-func (b *Builder) copyFile(dst, src string, perm os.FileMode, force bool) error {
+func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "cp %s %s", src, dst)
 		if cfg.BuildN {
@@ -1999,6 +2001,13 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 	defer cleanup()
 	cmd.Dir = dir
 	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+
+	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
+	// It doesn't really matter if -toolexec isn't being used.
+	if a != nil && a.Package != nil {
+		cmd.Env = append(cmd.Env, "TOOLEXEC_IMPORTPATH="+a.Package.ImportPath)
+	}
+
 	cmd.Env = append(cmd.Env, env...)
 	start := time.Now()
 	err := cmd.Run()
@@ -2214,6 +2223,8 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	// when -trimpath is enabled.
 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		if cfg.BuildTrimpath {
+			// TODO(#39958): handle overlays
+
 			// Keep in sync with Action.trimpath.
 			// The trimmed paths are a little different, but we need to trim in the
 			// same situations.

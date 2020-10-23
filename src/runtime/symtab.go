@@ -844,6 +844,22 @@ func funcname(f funcInfo) string {
 	return gostringnocopy(cfuncname(f))
 }
 
+func funcpkgpath(f funcInfo) string {
+	name := funcname(f)
+	i := len(name) - 1
+	for ; i > 0; i-- {
+		if name[i] == '/' {
+			break
+		}
+	}
+	for ; i < len(name); i++ {
+		if name[i] == '.' {
+			break
+		}
+	}
+	return name[:i]
+}
+
 func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
 	if !f.valid() {
 		return nil

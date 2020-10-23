@@ -15,6 +15,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/pkgpath"
@@ -93,13 +94,37 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg 
 			args = append(args, "-I", root)
 		}
 	}
-	if cfg.BuildTrimpath && b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
-		args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
-		args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+
+	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
+		if cfg.BuildTrimpath {
+			args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
+			args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
+		}
+		if fsys.OverlayFile != "" {
+			for _, name := range gofiles {
+				absPath := mkAbs(p.Dir, name)
+				overlayPath, ok := fsys.OverlayPath(absPath)
+				if !ok {
+					continue
+				}
+				toPath := absPath
+				// gccgo only applies the last matching rule, so also handle the case where
+				// BuildTrimpath is true and the path is relative to base.Cwd.
+				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd) {
+					toPath = "." + toPath[len(base.Cwd):]
+				}
+				args = append(args, "-ffile-prefix-map="+overlayPath+"="+toPath)
+			}
+		}
 	}
+
 	args = append(args, a.Package.Internal.Gccgoflags...)
 	for _, f := range gofiles {
-		args = append(args, mkAbs(p.Dir, f))
+		f := mkAbs(p.Dir, f)
+		// Overlay files if necessary.
+		// See comment on gctoolchain.gc about overlay TODOs
+		f, _ = fsys.OverlayPath(f)
+		args = append(args, f)
 	}
 
 	output, err = b.runOut(a, p.Dir, nil, args)

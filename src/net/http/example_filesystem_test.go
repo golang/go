@@ -5,9 +5,9 @@
 package http_test
 
 import (
+	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -33,7 +33,7 @@ type dotFileHidingFile struct {
 
 // Readdir is a wrapper around the Readdir method of the embedded File
 // that filters out all files that start with a period in their name.
-func (f dotFileHidingFile) Readdir(n int) (fis []os.FileInfo, err error) {
+func (f dotFileHidingFile) Readdir(n int) (fis []fs.FileInfo, err error) {
 	files, err := f.File.Readdir(n)
 	for _, file := range files { // Filters out the dot files
 		if !strings.HasPrefix(file.Name(), ".") {
@@ -52,12 +52,12 @@ type dotFileHidingFileSystem struct {
 // Open is a wrapper around the Open method of the embedded FileSystem
 // that serves a 403 permission error when name has a file or directory
 // with whose name starts with a period in its path.
-func (fs dotFileHidingFileSystem) Open(name string) (http.File, error) {
+func (fsys dotFileHidingFileSystem) Open(name string) (http.File, error) {
 	if containsDotFile(name) { // If dot file, return 403 response
-		return nil, os.ErrPermission
+		return nil, fs.ErrPermission
 	}
 
-	file, err := fs.FileSystem.Open(name)
+	file, err := fsys.FileSystem.Open(name)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (fs dotFileHidingFileSystem) Open(name string) (http.File, error) {
 }
 
 func ExampleFileServer_dotFileHiding() {
-	fs := dotFileHidingFileSystem{http.Dir(".")}
-	http.Handle("/", http.FileServer(fs))
+	fsys := dotFileHidingFileSystem{http.Dir(".")}
+	http.Handle("/", http.FileServer(fsys))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

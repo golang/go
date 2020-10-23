@@ -152,8 +152,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		// so these paths can be handed directly to tools.
 		// Deleted files won't show up in when scanning directories earlier,
 		// so OverlayPath will never return "" (meaning a deleted file) here.
-		// TODO(#39958): Handle -trimprefix and other cases where
-		// tools depend on the names of the files that are passed in.
 		// TODO(#39958): Handle cases where the package directory
 		// doesn't exist on disk (this can happen when all the package's
 		// files are in an overlay): the code expects the package directory
@@ -167,7 +165,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		args = append(args, f)
 	}
 
-	output, err = b.runOut(a, p.Dir, nil, args...)
+	output, err = b.runOut(a, base.Cwd, nil, args...)
 	return ofile, output, err
 }
 
@@ -256,17 +254,28 @@ func (a *Action) trimpath() string {
 	}
 	rewrite := objdir + "=>"
 
-	// For "go build -trimpath", rewrite package source directory
-	// to a file system-independent path (just the import path).
+	rewriteDir := a.Package.Dir
 	if cfg.BuildTrimpath {
 		if m := a.Package.Module; m != nil && m.Version != "" {
-			rewrite += ";" + a.Package.Dir + "=>" + m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
+			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
 		} else {
-			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
+			rewriteDir = a.Package.ImportPath
 		}
+		rewrite += ";" + a.Package.Dir + "=>" + rewriteDir
 	}
 
-	// TODO(#39958): Add rewrite rules for overlaid files.
+	// Add rewrites for overlays. The 'from' and 'to' paths in overlays don't need to have
+	// same basename, so go from the overlay contents file path (passed to the compiler)
+	// to the path the disk path would be rewritten to.
+	if fsys.OverlayFile != "" {
+		for _, filename := range a.Package.AllFiles() {
+			overlayPath, ok := fsys.OverlayPath(filepath.Join(a.Package.Dir, filename))
+			if !ok {
+				continue
+			}
+			rewrite += ";" + overlayPath + "=>" + filepath.Join(rewriteDir, filename)
+		}
+	}
 
 	return rewrite
 }
@@ -283,14 +292,20 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 			}
 		}
 	}
-	if p.ImportPath == "runtime" && objabi.Regabi_enabled != 0 {
-		// In order to make it easier to port runtime assembly
-		// to the register ABI, we introduce a macro
-		// indicating the experiment is enabled.
-		//
-		// TODO(austin): Remove this once we commit to the
-		// register ABI (#40724).
-		args = append(args, "-D=GOEXPERIMENT_REGABI=1")
+	if objabi.IsRuntimePackagePath(pkgpath) {
+		args = append(args, "-compiling-runtime")
+		if objabi.Regabi_enabled != 0 {
+			// In order to make it easier to port runtime assembly
+			// to the register ABI, we introduce a macro
+			// indicating the experiment is enabled.
+			//
+			// Note: a similar change also appears in
+			// cmd/dist/build.go.
+			//
+			// TODO(austin): Remove this once we commit to the
+			// register ABI (#40724).
+			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
+		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

@@ -50,7 +50,7 @@ type Order struct {
 // Order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *Node) {
-	if Debug['W'] > 1 {
+	if Debug.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
@@ -323,12 +323,7 @@ func (o *Order) stmtList(l Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []*Node) {
-	const go115makeslicecopy = true
-	if !go115makeslicecopy {
-		return
-	}
-
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return
 	}
 
@@ -1102,7 +1097,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		haslit := false
 		for _, n1 := range n.List.Slice() {
 			hasbyte = hasbyte || n1.Op == OBYTES2STR
-			haslit = haslit || n1.Op == OLITERAL && len(strlit(n1)) != 0
+			haslit = haslit || n1.Op == OLITERAL && len(n1.StringVal()) != 0
 		}
 
 		if haslit && hasbyte {
@@ -1274,7 +1269,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			var t *types.Type
 			switch n.Op {
 			case OSLICELIT:
-				t = types.NewArray(n.Type.Elem(), n.Right.Int64())
+				t = types.NewArray(n.Type.Elem(), n.Right.Int64Val())
 			case OCALLPART:
 				t = partialCallType(n)
 			}

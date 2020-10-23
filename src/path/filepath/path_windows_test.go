@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -34,7 +35,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 
 	const (
 		cmdfile             = `printdir.cmd`
-		perm    os.FileMode = 0700
+		perm    fs.FileMode = 0700
 	)
 
 	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")

@@ -14,6 +14,7 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	pathpkg "path"
@@ -27,12 +28,14 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/sys"
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -58,6 +61,7 @@ type PackagePublic struct {
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+	BuildID       string                `json:",omitempty"` // build ID of the export data (set by go list -export)
 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
 	Match         []string              `json:",omitempty"` // command-line patterns matching this package
 	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
@@ -974,7 +978,7 @@ var isDirCache par.Cache
 
 func isDir(path string) bool {
 	return isDirCache.Do(path, func() interface{} {
-		fi, err := os.Stat(path)
+		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
 	}).(bool)
 }
@@ -1330,6 +1334,11 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 	// Check for "internal" element: three cases depending on begin of string and/or end of string.
 	i, ok := findInternal(p.ImportPath)
 	if !ok {
+		return p
+	}
+
+	// Allow sync package to access lightweight atomic functions limited to the runtime.
+	if p.Standard && strings.HasPrefix(importerPath, "sync") && p.ImportPath == "runtime/internal/atomic" {
 		return p
 	}
 
@@ -1947,37 +1956,44 @@ func LinkerDeps(p *Package) []string {
 // externalLinkingForced reports whether external linking is being
 // forced even for programs that do not use cgo.
 func externalLinkingForced(p *Package) bool {
+	if !cfg.BuildContext.CgoEnabled {
+		return false
+	}
+
 	// Some targets must use external linking even inside GOROOT.
 	switch cfg.BuildContext.GOOS {
 	case "android":
 		if cfg.BuildContext.GOARCH != "arm64" {
 			return true
 		}
-	case "darwin", "ios":
+	case "ios":
+		return true
+	case "darwin":
 		if cfg.BuildContext.GOARCH == "arm64" {
 			return true
 		}
 	}
 
-	if !cfg.BuildContext.CgoEnabled {
-		return false
-	}
 	// Currently build modes c-shared, pie (on systems that do not
 	// support PIE with internal linking mode (currently all
 	// systems: issue #18968)), plugin, and -linkshared force
 	// external linking mode, as of course does
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
-	pieCgo := cfg.BuildBuildmode == "pie"
+	// If there are multiple -linkmode options, the last one wins.
+	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
-		for i, a := range ldflags {
-			if a == "-linkmode=external" {
+		for i := len(ldflags) - 1; i >= 0; i-- {
+			a := ldflags[i]
+			if a == "-linkmode=external" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
 				linkmodeExternal = true
-			}
-			if a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
-				linkmodeExternal = true
+				break
+			} else if a == "-linkmode=internal" ||
+				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "internal" {
+				break
 			}
 		}
 	}
@@ -2141,7 +2157,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 		if strings.HasSuffix(p, ".go") {
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
 				return []*Package{GoFilesPackage(ctx, patterns)}
 			}
 		}
@@ -2298,10 +2314,10 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	// to make it look like this is a standard package or
 	// command directory. So that local imports resolve
 	// consistently, the files must all be in the same directory.
-	var dirent []os.FileInfo
+	var dirent []fs.FileInfo
 	var dir string
 	for _, file := range gofiles {
-		fi, err := os.Stat(file)
+		fi, err := fsys.Stat(file)
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
@@ -2319,7 +2335,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 		}
 		dirent = append(dirent, fi)
 	}
-	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
+	ctxt.ReadDir = func(string) ([]fs.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
 		modload.ImportFromFiles(ctx, gofiles)

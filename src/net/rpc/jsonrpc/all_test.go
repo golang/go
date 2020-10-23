@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/rpc"
 	"reflect"
@@ -249,7 +248,7 @@ func TestMalformedInput(t *testing.T) {
 func TestMalformedOutput(t *testing.T) {
 	cli, srv := net.Pipe()
 	go srv.Write([]byte(`{"id":0,"result":null,"error":null}`))
-	go ioutil.ReadAll(srv)
+	go io.ReadAll(srv)
 
 	client := NewClient(cli)
 	defer client.Close()
@@ -271,7 +270,7 @@ func TestServerErrorHasNullResult(t *testing.T) {
 	}{
 		Reader: strings.NewReader(`{"method": "Arith.Add", "id": "123", "params": []}`),
 		Writer: &out,
-		Closer: ioutil.NopCloser(nil),
+		Closer: io.NopCloser(nil),
 	})
 	r := new(rpc.Request)
 	if err := sc.ReadRequestHeader(r); err != nil {

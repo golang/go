@@ -8,7 +8,7 @@ package filelock
 
 import (
 	"internal/syscall/windows"
-	"os"
+	"io/fs"
 	"syscall"
 )
 
@@ -34,7 +34,7 @@ func lock(f File, lt lockType) error {
 
 	err := windows.LockFileEx(syscall.Handle(f.Fd()), uint32(lt), reserved, allBytes, allBytes, ol)
 	if err != nil {
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   lt.String(),
 			Path: f.Name(),
 			Err:  err,
@@ -47,7 +47,7 @@ func unlock(f File) error {
 	ol := new(syscall.Overlapped)
 	err := windows.UnlockFileEx(syscall.Handle(f.Fd()), reserved, allBytes, allBytes, ol)
 	if err != nil {
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   "Unlock",
 			Path: f.Name(),
 			Err:  err,

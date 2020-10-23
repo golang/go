@@ -951,6 +951,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 		}
 		P := out.WriteSym(ldr, s)
 		st.relocsym(s, P)
+		if f, ok := ctxt.generatorSyms[s]; ok {
+			f(ctxt, s)
+		}
 		addr += int64(len(P))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {
@@ -2188,7 +2191,7 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	va := uint64(*FlagTextAddr)
+	va := uint64(Rnd(*FlagTextAddr, int64(Funcalign)))
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
@@ -2214,7 +2217,7 @@ func (ctxt *Link) textaddress() {
 		// Set the address of the start/end symbols, if not already
 		// (i.e. not darwin+dynlink or AIX+external, see above).
 		ldr.SetSymValue(etext, int64(va))
-		ldr.SetSymValue(text, *FlagTextAddr)
+		ldr.SetSymValue(text, int64(Segtext.Sections[0].Vaddr))
 	}
 
 	// merge tramps into Textp, keeping Textp in address order

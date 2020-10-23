@@ -4,6 +4,16 @@
 
 package os
 
+import "io/fs"
+
+type readdirMode int
+
+const (
+	readdirName readdirMode = iota
+	readdirDirEntry
+	readdirFileInfo
+)
+
 // Readdir reads the contents of the directory associated with file and
 // returns a slice of up to n FileInfo values, as would be returned
 // by Lstat, in directory order. Subsequent calls on the same file will yield
@@ -19,11 +29,14 @@ package os
 // nil error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
+//
+// Most clients are better served by the more efficient ReadDir method.
 func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
-	return f.readdir(n)
+	_, _, infos, err := f.readdir(n, readdirFileInfo)
+	return infos, err
 }
 
 // Readdirnames reads the contents of the directory associated with file
@@ -45,5 +58,32 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
-	return f.readdirnames(n)
+	names, _, _, err = f.readdir(n, readdirName)
+	return names, err
 }
+
+// A DirEntry is an entry read from a directory
+// (using the ReadDir function or a File's ReadDir method).
+type DirEntry = fs.DirEntry
+
+// ReadDir reads the contents of the directory associated with the file f
+// and returns a slice of DirEntry values in directory order.
+// Subsequent calls on the same file will yield later DirEntry records in the directory.
+//
+// If n > 0, ReadDir returns at most n DirEntry records.
+// In this case, if ReadDir returns an empty slice, it will return an error explaining why.
+// At the end of a directory, the error is io.EOF.
+//
+// If n <= 0, ReadDir returns all the DirEntry records remaining in the directory.
+// When it succeeds, it returns a nil error (not io.EOF).
+func (f *File) ReadDir(n int) ([]DirEntry, error) {
+	if f == nil {
+		return nil, ErrInvalid
+	}
+	_, dirents, _, err := f.readdir(n, readdirDirEntry)
+	return dirents, err
+}
+
+// testingForceReadDirLstat forces ReadDir to call Lstat, for testing that code path.
+// This can be difficult to provoke on some Unix systems otherwise.
+var testingForceReadDirLstat bool

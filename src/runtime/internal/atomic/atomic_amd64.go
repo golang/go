@@ -35,6 +35,18 @@ func LoadAcq(ptr *uint32) uint32 {
 	return *ptr
 }
 
+//go:nosplit
+//go:noinline
+func LoadAcq64(ptr *uint64) uint64 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func LoadAcquintptr(ptr *uintptr) uintptr {
+	return *ptr
+}
+
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32
 
@@ -84,6 +96,12 @@ func Store64(ptr *uint64, val uint64)
 
 //go:noescape
 func StoreRel(ptr *uint32, val uint32)
+
+//go:noescape
+func StoreRel64(ptr *uint64, val uint64)
+
+//go:noescape
+func StoreReluintptr(ptr *uintptr, val uintptr)
 
 // StorepNoWB performs *ptr = val atomically and without a write
 // barrier.

@@ -1052,8 +1052,8 @@
 (BICshiftRL x (MOVWconst [c]) [d]) => (BICconst x [int32(uint32(c)>>uint64(d))])
 (BICshiftRA x (MOVWconst [c]) [d]) => (BICconst x [c>>uint64(d)])
 (MVNshiftLL (MOVWconst [c]) [d]) => (MOVWconst [^(c<<uint64(d))])
-(MVNshiftRL (MOVWconst [c]) [d]) -> (MOVWconst [^int64(uint32(c)>>uint64(d))])
-(MVNshiftRA (MOVWconst [c]) [d]) -> (MOVWconst [^int64(int32(c)>>uint64(d))])
+(MVNshiftRL (MOVWconst [c]) [d]) => (MOVWconst [^int32(uint32(c)>>uint64(d))])
+(MVNshiftRA (MOVWconst [c]) [d]) => (MOVWconst [int32(c)>>uint64(d)])
 (CMPshiftLL x (MOVWconst [c]) [d]) => (CMPconst x [c<<uint64(d)])
 (CMPshiftRL x (MOVWconst [c]) [d]) => (CMPconst x [int32(uint32(c)>>uint64(d))])
 (CMPshiftRA x (MOVWconst [c]) [d]) => (CMPconst x [c>>uint64(d)])
@@ -1190,12 +1190,12 @@
 (MOVWstoreidx ptr (SRAconst idx [c]) val mem) => (MOVWstoreshiftRA ptr idx [c] val mem)
 (MOVWstoreidx (SRAconst idx [c]) ptr val mem) => (MOVWstoreshiftRA ptr idx [c] val mem)
 
-(MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem) -> (MOVWload [int64(uint32(c)<<uint64(d))] ptr mem)
-(MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem) -> (MOVWload [int64(uint32(c)>>uint64(d))] ptr mem)
+(MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem) => (MOVWload [int32(uint32(c)<<uint64(d))] ptr mem)
+(MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem) => (MOVWload [int32(uint32(c)>>uint64(d))] ptr mem)
 (MOVWloadshiftRA ptr (MOVWconst [c]) [d] mem) => (MOVWload [c>>uint64(d)] ptr mem)
 
-(MOVWstoreshiftLL ptr (MOVWconst [c]) [d] val mem) -> (MOVWstore [int64(uint32(c)<<uint64(d))] ptr val mem)
-(MOVWstoreshiftRL ptr (MOVWconst [c]) [d] val mem) -> (MOVWstore [int64(uint32(c)>>uint64(d))] ptr val mem)
+(MOVWstoreshiftLL ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [int32(uint32(c)<<uint64(d))] ptr val mem)
+(MOVWstoreshiftRL ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [int32(uint32(c)>>uint64(d))] ptr val mem)
 (MOVWstoreshiftRA ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [c>>uint64(d)] ptr val mem)
 
 // generic simplifications
