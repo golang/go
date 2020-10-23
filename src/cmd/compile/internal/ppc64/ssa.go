@@ -649,6 +649,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+		// Auxint holds encoded rotate + mask
+	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
+		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+
+		// Auxint holds mask
+	case ssa.OpPPC64RLWNM:
+		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()

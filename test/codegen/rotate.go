@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math/bits"
+
 // ------------------- //
 //    const rotates    //
 // ------------------- //
@@ -165,4 +167,47 @@ func rot8nc(x uint8, z uint) uint8 {
 func f32(x uint32) uint32 {
 	// amd64:"ROLL\t[$]7"
 	return rot32nc(x, 7)
+}
+
+// --------------------------------------- //
+//    Combined Rotate + Masking operations //
+// --------------------------------------- //
+
+func checkMaskedRotate32(a []uint32, r int) {
+	i := 0
+
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[i], 16) & 0xFF0000
+	i++
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[i]&0xFF, 16)
+	i++
+	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
+	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[i], 4) & 0xFF0
+	i++
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[i]&0xFF0000, 16)
+	i++
+
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[i], r) & 0xFF0000
+	i++
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
+	i++
+
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
+	i++
+	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
+	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
+	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
+	i++
 }
