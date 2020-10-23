@@ -435,6 +435,29 @@ func CreateModFile(ctx context.Context, modPath string) {
 
 	modFileToBuildList()
 	WriteGoMod()
+
+	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+	// imported all the correct requirements above, we're probably missing
+	// some sums, so the next build command in -mod=readonly will likely fail.
+	//
+	// We look for non-hidden .go files or subdirectories to determine whether
+	// this is an existing project. Walking the tree for packages would be more
+	// accurate, but could take much longer.
+	empty := true
+	fis, _ := ioutil.ReadDir(modRoot)
+	for _, fi := range fis {
+		name := fi.Name()
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+			continue
+		}
+		if strings.HasSuffix(name, ".go") || fi.IsDir() {
+			empty = false
+			break
+		}
+	}
+	if !empty {
+		fmt.Fprintf(os.Stderr, "go: run 'go mod tidy' to add module requirements and sums\n")
+	}
 }
 
 // checkModulePathLax checks that the path meets some minimum requirements
