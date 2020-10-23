@@ -152,8 +152,7 @@ six
 	}
 }
 
-func TestReadDir(t *testing.T) {
-	initOverlay(t, `
+const readDirOverlay = `
 {
 	"Replace": {
 		"subdir2/file2.txt":                 "overlayfiles/subdir2_file2.txt",
@@ -210,70 +209,124 @@ x
 -- overlayfiles/this_is_a_directory/file.txt --
 -- overlayfiles/textfile_txt_file.go --
 x
-`)
+`
 
-	testCases := map[string][]struct {
+func TestReadDir(t *testing.T) {
+	initOverlay(t, readDirOverlay)
+
+	type entry struct {
 		name  string
 		size  int64
 		isDir bool
-	}{
-		".": {
-			{"other", 0, true},
-			{"overlayfiles", 0, true},
-			{"parentoverwritten", 0, true},
-			{"subdir1", 0, true},
-			{"subdir10", 0, true},
-			{"subdir11", 0, false},
-			{"subdir2", 0, true},
-			{"subdir3", 0, true},
-			{"subdir4", 2, false},
-			// no subdir5.
-			{"subdir6", 0, true},
-			{"subdir7", 0, true},
-			{"subdir8", 0, true},
-			{"subdir9", 0, true},
-			{"textfile.txt", 0, true},
-		},
-		"subdir1": {{"file1.txt", 1, false}},
-		"subdir2": {{"file2.txt", 2, false}},
-		"subdir3": {{"file3a.txt", 3, false}, {"file3b.txt", 6, false}},
-		"subdir6": {
-			{"anothersubsubdir", 0, true},
-			{"asubsubdir", 0, true},
-			{"file.txt", 0, false},
-			{"zsubsubdir", 0, true},
-		},
-		"subdir6/asubsubdir": {{"afile.txt", 0, false}, {"file.txt", 0, false}, {"zfile.txt", 0, false}},
-		"subdir8":            {{"doesntexist", 0, false}}, // entry is returned even if destination file doesn't exist
-		// check that read dir actually redirects files that already exist
-		// the original this_file_is_overlaid.txt is empty
-		"subdir9":           {{"this_file_is_overlaid.txt", 9, false}},
-		"subdir10":          {},
-		"parentoverwritten": {{"subdir1", 2, false}},
-		"textfile.txt":      {{"file.go", 2, false}},
 	}
 
-	for dir, want := range testCases {
-		fis, err := ReadDir(dir)
+	testCases := []struct {
+		dir  string
+		want []entry
+	}{
+		{
+			".", []entry{
+				{"other", 0, true},
+				{"overlayfiles", 0, true},
+				{"parentoverwritten", 0, true},
+				{"subdir1", 0, true},
+				{"subdir10", 0, true},
+				{"subdir11", 0, false},
+				{"subdir2", 0, true},
+				{"subdir3", 0, true},
+				{"subdir4", 2, false},
+				// no subdir5.
+				{"subdir6", 0, true},
+				{"subdir7", 0, true},
+				{"subdir8", 0, true},
+				{"subdir9", 0, true},
+				{"textfile.txt", 0, true},
+			},
+		},
+		{
+			"subdir1", []entry{
+				{"file1.txt", 1, false},
+			},
+		},
+		{
+			"subdir2", []entry{
+				{"file2.txt", 2, false},
+			},
+		},
+		{
+			"subdir3", []entry{
+				{"file3a.txt", 3, false},
+				{"file3b.txt", 6, false},
+			},
+		},
+		{
+			"subdir6", []entry{
+				{"anothersubsubdir", 0, true},
+				{"asubsubdir", 0, true},
+				{"file.txt", 0, false},
+				{"zsubsubdir", 0, true},
+			},
+		},
+		{
+			"subdir6/asubsubdir", []entry{
+				{"afile.txt", 0, false},
+				{"file.txt", 0, false},
+				{"zfile.txt", 0, false},
+			},
+		},
+		{
+			"subdir8", []entry{
+				{"doesntexist", 0, false}, // entry is returned even if destination file doesn't exist
+			},
+		},
+		{
+			// check that read dir actually redirects files that already exist
+			// the original this_file_is_overlaid.txt is empty
+			"subdir9", []entry{
+				{"this_file_is_overlaid.txt", 9, false},
+			},
+		},
+		{
+			"subdir10", []entry{},
+		},
+		{
+			"parentoverwritten", []entry{
+				{"subdir1", 2, false},
+			},
+		},
+		{
+			"textfile.txt", []entry{
+				{"file.go", 2, false},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		dir, want := tc.dir, tc.want
+		infos, err := ReadDir(dir)
 		if err != nil {
-			t.Fatalf("ReadDir(%q): got error %q, want no error", dir, err)
+			t.Errorf("ReadDir(%q): %v", dir, err)
+			continue
 		}
-		if len(fis) != len(want) {
-			t.Fatalf("ReadDir(%q) result: got %v entries; want %v entries", dir, len(fis), len(want))
-		}
-		for i := range fis {
-			if fis[i].Name() != want[i].name {
-				t.Fatalf("ReadDir(%q) entry %v: got Name() = %v, want %v", dir, i, fis[i].Name(), want[i].name)
-			}
-			if fis[i].IsDir() != want[i].isDir {
-				t.Fatalf("ReadDir(%q) entry %v: got IsDir() = %v, want %v", dir, i, fis[i].IsDir(), want[i].isDir)
-			}
-			if want[i].isDir {
-				// We don't try to get size right for directories
-				continue
-			}
-			if fis[i].Size() != want[i].size {
-				t.Fatalf("ReadDir(%q) entry %v: got Size() = %v, want %v", dir, i, fis[i].Size(), want[i].size)
+		// Sorted diff of want and infos.
+		for len(infos) > 0 || len(want) > 0 {
+			switch {
+			case len(want) == 0 || len(infos) > 0 && infos[0].Name() < want[0].name:
+				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v Size=%v", dir, infos[0].Name(), infos[0].IsDir(), infos[0].Size())
+				infos = infos[1:]
+			case len(infos) == 0 || len(want) > 0 && want[0].name < infos[0].Name():
+				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v Size=%v", dir, want[0].name, want[0].isDir, want[0].size)
+				want = want[1:]
+			default:
+				infoSize := infos[0].Size()
+				if want[0].isDir {
+					infoSize = 0
+				}
+				if infos[0].IsDir() != want[0].isDir || want[0].isDir && infoSize != want[0].size {
+					t.Errorf("ReadDir(%q): %s: IsDir=%v Size=%v, want IsDir=%v Size=%v", dir, want[0].name, infos[0].IsDir(), infoSize, want[0].isDir, want[0].size)
+				}
+				infos = infos[1:]
+				want = want[1:]
 			}
 		}
 	}
@@ -290,11 +343,80 @@ x
 	}
 
 	for _, dir := range errCases {
-		_, gotErr := ReadDir(dir)
-		if gotErr == nil {
-			t.Errorf("ReadDir(%q): got no error, want error", dir)
-		} else if _, ok := gotErr.(*fs.PathError); !ok {
-			t.Errorf("ReadDir(%q): got error with string %q and type %T, want fs.PathError", dir, gotErr.Error(), gotErr)
+		_, err := ReadDir(dir)
+		if _, ok := err.(*fs.PathError); !ok {
+			t.Errorf("ReadDir(%q): err = %T (%v), want fs.PathError", dir, err, err)
+		}
+	}
+}
+
+func TestGlob(t *testing.T) {
+	initOverlay(t, readDirOverlay)
+
+	testCases := []struct {
+		pattern string
+		match   []string
+	}{
+		{
+			"*o*",
+			[]string{
+				"other",
+				"overlayfiles",
+				"parentoverwritten",
+			},
+		},
+		{
+			"subdir2/file2.txt",
+			[]string{
+				"subdir2/file2.txt",
+			},
+		},
+		{
+			"*/*.txt",
+			[]string{
+				"overlayfiles/subdir2_file2.txt",
+				"overlayfiles/subdir3_file3b.txt",
+				"overlayfiles/subdir6_asubsubdir_afile.txt",
+				"overlayfiles/subdir6_asubsubdir_zfile.txt",
+				"overlayfiles/subdir6_zsubsubdir_file.txt",
+				"overlayfiles/subdir7_asubsubdir_file.txt",
+				"overlayfiles/subdir7_zsubsubdir_file.txt",
+				"overlayfiles/subdir9_this_file_is_overlaid.txt",
+				"subdir1/file1.txt",
+				"subdir2/file2.txt",
+				"subdir3/file3a.txt",
+				"subdir3/file3b.txt",
+				"subdir6/file.txt",
+				"subdir9/this_file_is_overlaid.txt",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		pattern := tc.pattern
+		match, err := Glob(pattern)
+		if err != nil {
+			t.Errorf("Glob(%q): %v", pattern, err)
+			continue
+		}
+		want := tc.match
+		for i, name := range want {
+			if name != tc.pattern {
+				want[i] = filepath.FromSlash(name)
+			}
+		}
+		for len(match) > 0 || len(want) > 0 {
+			switch {
+			case len(match) == 0 || len(want) > 0 && want[0] < match[0]:
+				t.Errorf("Glob(%q): missing match: %s", pattern, want[0])
+				want = want[1:]
+			case len(want) == 0 || len(match) > 0 && match[0] < want[0]:
+				t.Errorf("Glob(%q): extra match: %s", pattern, match[0])
+				match = match[1:]
+			default:
+				want = want[1:]
+				match = match[1:]
+			}
 		}
 	}
 }
@@ -605,7 +727,7 @@ contents of other file
 	}
 }
 
-func TestWalk_SkipDir(t *testing.T) {
+func TestWalkSkipDir(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
@@ -639,7 +761,7 @@ func TestWalk_SkipDir(t *testing.T) {
 	}
 }
 
-func TestWalk_Error(t *testing.T) {
+func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
@@ -662,7 +784,7 @@ func TestWalk_Error(t *testing.T) {
 	}
 }
 
-func TestWalk_Symlink(t *testing.T) {
+func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	initOverlay(t, `{
@@ -942,7 +1064,7 @@ contents`,
 	}
 }
 
-func TestStat_Symlink(t *testing.T) {
+func TestStatSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	initOverlay(t, `{
