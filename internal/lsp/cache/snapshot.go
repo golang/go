@@ -47,31 +47,15 @@ type snapshot struct {
 	builtin *builtinPackageHandle
 
 	// The snapshot's initialization state is controlled by the fields below.
-	// These fields are propagated across snapshots to avoid multiple
-	// concurrent initializations. They may be invalidated during cloning.
 	//
-	// initialized is closed when the snapshot has been fully initialized. On
-	// initialization, the snapshot's workspace packages are loaded. All of the
-	// fields below are set as part of initialization. If we failed to load, we
-	// only retry if the go.mod file changes, to avoid too many go/packages
-	// calls.
-	//
-	// When the view is created, its snapshot's initializeOnce is non-nil,
-	// initialized is open. Once initialization completes, initializedErr may
-	// be set and initializeOnce becomes nil. If initializedErr is non-nil,
-	// initialization may be retried (depending on how files are changed). To
-	// indicate that initialization should be retried, initializeOnce will be
-	// set. The next time a caller requests workspace packages, the
-	// initialization will retry.
-	initialized chan struct{}
-
-	// initializationSema is used as a mutex to guard initializeOnce and
-	// initializedErr, which will be updated after each attempt to initialize
-	// the snapshot. We use a channel instead of a mutex to avoid blocking when
-	// a context is canceled.
-	initializationSema chan struct{}
-	initializeOnce     *sync.Once
-	initializedErr     error
+	// initializeOnce guards snapshot initialization. Each snapshot is
+	// initialized at most once: reinitialization is triggered on later snapshots
+	// by invalidating this field.
+	initializeOnce *sync.Once
+	// initializedErr holds the last error resulting from initialization. If
+	// initialization fails, we only retry when the the workspace modules change,
+	// to avoid too many go/packages calls.
+	initializedErr error
 
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
@@ -884,7 +868,7 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		return
-	case <-s.initialized:
+	case <-s.view.initialWorkspaceLoad:
 	}
 	// We typically prefer to run something as intensive as the IWL without
 	// blocking. I'm not sure if there is a way to do that here.
@@ -1020,7 +1004,12 @@ func generationName(v *View, snapshotID uint64) string {
 	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
 }
 
-func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) *snapshot {
+func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
+	// Track some important types of changes.
+	var (
+		vendorChanged  bool
+		modulesChanged bool
+	)
 	newWorkspace, workspaceChanged := s.workspace.invalidate(ctx, changes)
 
 	s.mu.Lock()
@@ -1028,28 +1017,26 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 
 	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	result := &snapshot{
-		id:                 s.id + 1,
-		generation:         newGen,
-		view:               s.view,
-		builtin:            s.builtin,
-		initialized:        s.initialized,
-		initializationSema: s.initializationSema,
-		initializeOnce:     s.initializeOnce,
-		initializedErr:     s.initializedErr,
-		ids:                make(map[span.URI][]packageID),
-		importedBy:         make(map[packageID][]packageID),
-		metadata:           make(map[packageID]*metadata),
-		packages:           make(map[packageKey]*packageHandle),
-		actions:            make(map[actionKey]*actionHandle),
-		files:              make(map[span.URI]source.VersionedFileHandle),
-		goFiles:            make(map[parseKey]*parseGoHandle),
-		workspacePackages:  make(map[packageID]packagePath),
-		unloadableFiles:    make(map[span.URI]struct{}),
-		parseModHandles:    make(map[span.URI]*parseModHandle),
-		modTidyHandles:     make(map[span.URI]*modTidyHandle),
-		modUpgradeHandles:  make(map[span.URI]*modUpgradeHandle),
-		modWhyHandles:      make(map[span.URI]*modWhyHandle),
-		workspace:          newWorkspace,
+		id:                s.id + 1,
+		generation:        newGen,
+		view:              s.view,
+		builtin:           s.builtin,
+		initializeOnce:    s.initializeOnce,
+		initializedErr:    s.initializedErr,
+		ids:               make(map[span.URI][]packageID),
+		importedBy:        make(map[packageID][]packageID),
+		metadata:          make(map[packageID]*metadata),
+		packages:          make(map[packageKey]*packageHandle),
+		actions:           make(map[actionKey]*actionHandle),
+		files:             make(map[span.URI]source.VersionedFileHandle),
+		goFiles:           make(map[parseKey]*parseGoHandle),
+		workspacePackages: make(map[packageID]packagePath),
+		unloadableFiles:   make(map[span.URI]struct{}),
+		parseModHandles:   make(map[span.URI]*parseModHandle),
+		modTidyHandles:    make(map[span.URI]*modTidyHandle),
+		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
+		modWhyHandles:     make(map[span.URI]*modWhyHandle),
+		workspace:         newWorkspace,
 	}
 
 	if !workspaceChanged && s.workspaceDirHandle != nil {
@@ -1105,14 +1092,11 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 		result.modWhyHandles[k] = v
 	}
 
-	var reinitialize reinitializeView
-
 	// directIDs keeps track of package IDs that have directly changed.
 	// It maps id->invalidateMetadata.
 	directIDs := map[packageID]bool{}
 	// Invalidate all package metadata if the workspace module has changed.
 	if workspaceChanged {
-		reinitialize = definitelyReinit
 		for k := range s.metadata {
 			directIDs[k] = true
 		}
@@ -1122,7 +1106,7 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 		// Maybe reinitialize the view if we see a change in the vendor
 		// directory.
 		if inVendor(uri) {
-			reinitialize = maybeReinit
+			vendorChanged = true
 		}
 
 		// The original FileHandle for this URI is cached on the snapshot.
@@ -1158,8 +1142,8 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 			// If the view's go.mod file's contents have changed, invalidate
 			// the metadata for every known package in the snapshot.
 			delete(result.parseModHandles, uri)
-			if _, ok := result.workspace.activeModFiles()[uri]; ok && reinitialize < maybeReinit {
-				reinitialize = maybeReinit
+			if _, ok := result.workspace.activeModFiles()[uri]; ok {
+				modulesChanged = true
 			}
 		}
 		// Handle the invalidated file; it may have new contents or not exist.
@@ -1285,19 +1269,13 @@ copyIDs:
 	}
 
 	// The snapshot may need to be reinitialized.
-	if reinitialize != doNotReinit {
-		result.reinitialize(reinitialize == definitelyReinit)
+	if modulesChanged || workspaceChanged || vendorChanged {
+		if workspaceChanged || result.initializedErr != nil {
+			result.initializeOnce = &sync.Once{}
+		}
 	}
-	return result
+	return result, workspaceChanged
 }
-
-type reinitializeView int
-
-const (
-	doNotReinit = reinitializeView(iota)
-	maybeReinit
-	definitelyReinit
-)
 
 // guessPackagesForURI returns all packages related to uri. If we haven't seen this
 // URI before, we guess based on files in the same directory. This is of course

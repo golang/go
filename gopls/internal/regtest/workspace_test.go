@@ -6,6 +6,9 @@ package regtest
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -561,5 +564,67 @@ func main() {
 			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
 			env.DiagnosticAtRegexp("modc/main.go", "x"),
 		)
+	})
+}
+
+func TestWorkspaceDirAccess(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+-- moda/a/a.go --
+package main
+
+func main() {
+	fmt.Println("Hello")
+}
+-- modb/go.mod --
+module b.com
+-- modb/b/b.go --
+package main
+
+func main() {
+	fmt.Println("World")
+}
+`
+	withOptions(
+		WithModes(Experimental),
+		SendPID(),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
+		pid := os.Getpid()
+		// Don't factor this out of Server.addFolders. vscode-go expects this
+		// directory.
+		modPath := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.workspace", pid), "go.mod")
+		gotb, err := ioutil.ReadFile(modPath)
+		if err != nil {
+			t.Fatalf("reading expected workspace modfile: %v", err)
+		}
+		got := string(gotb)
+		for _, want := range []string{"a.com v0.0.0-goplsworkspace", "b.com v0.0.0-goplsworkspace"} {
+			if !strings.Contains(got, want) {
+				// want before got here, since the go.mod is multi-line
+				t.Fatalf("workspace go.mod missing %q. got:\n%s", want, got)
+			}
+		}
+		workdir := env.Sandbox.Workdir.RootURI().SpanURI().Filename()
+		env.WriteWorkspaceFile("gopls.mod", fmt.Sprintf(`
+				module gopls-workspace
+
+				require (
+					a.com v0.0.0-goplsworkspace
+				)
+
+				replace a.com => %s/moda/a
+				`, workdir))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+		gotb, err = ioutil.ReadFile(modPath)
+		if err != nil {
+			t.Fatalf("reading expected workspace modfile: %v", err)
+		}
+		got = string(gotb)
+		want := "b.com v0.0.0-goplsworkspace"
+		if strings.Contains(got, want) {
+			t.Fatalf("workspace go.mod contains unexpected %q. got:\n%s", want, got)
+		}
 	})
 }

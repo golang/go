@@ -269,7 +269,7 @@ type TidiedModule struct {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View, returning it and its first snapshot.
-	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
+	NewView(ctx context.Context, name string, folder, tempWorkspaceDir span.URI, options *Options) (View, Snapshot, func(), error)
 
 	// Cache returns the cache that created this session, for debugging only.
 	Cache() interface{}

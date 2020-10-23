@@ -26,7 +26,7 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 	return s.addFolders(ctx, event.Added)
 }
 
-func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.Snapshot, func(), error) {
+func (s *Server) addView(ctx context.Context, name string, uri, tempWorkspace span.URI) (source.Snapshot, func(), error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
@@ -37,7 +37,7 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	if err := s.fetchConfig(ctx, name, uri, options); err != nil {
 		return nil, func() {}, err
 	}
-	_, snapshot, release, err := s.session.NewView(ctx, name, uri, options)
+	_, snapshot, release, err := s.session.NewView(ctx, name, uri, tempWorkspace, options)
 	return snapshot, release, err
 }
 

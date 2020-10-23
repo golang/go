@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -89,6 +90,10 @@ type EditorConfig struct {
 	// AllExperiments sets the "allExperiments" configuration, which enables
 	// all of gopls's opt-in settings.
 	AllExperiments bool
+
+	// Whether to send the current process ID, for testing data that is joined to
+	// the PID. This can only be set by one test.
+	SendPID bool
 }
 
 // NewEditor Creates a new Editor.
@@ -232,6 +237,9 @@ func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool, e
 	params.Capabilities.Window.WorkDoneProgress = true
 	// TODO: set client capabilities
 	params.InitializationOptions = e.configuration()
+	if e.Config.SendPID {
+		params.ProcessID = float64(os.Getpid())
+	}
 
 	// This is a bit of a hack, since the fake editor doesn't actually support
 	// watching changed files that match a specific glob pattern. However, the

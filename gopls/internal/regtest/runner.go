@@ -125,6 +125,12 @@ func WithModes(modes Mode) RunOption {
 	})
 }
 
+func SendPID() RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.editor.SendPID = true
+	})
+}
+
 // EditorConfig is a RunOption option that configured the regtest editor.
 type EditorConfig fake.EditorConfig
 

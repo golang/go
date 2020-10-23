@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -143,10 +144,10 @@ func (s *Session) Cache() interface{} {
 	return s.cache
 }
 
-func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
+func (s *Session) NewView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	view, snapshot, release, err := s.createView(ctx, name, folder, options, 0)
+	view, snapshot, release, err := s.createView(ctx, name, folder, tempWorkspace, options, 0)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -156,7 +157,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	return view, snapshot, release, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
+func (s *Session) createView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
 	if s.cache.options != nil {
@@ -182,6 +183,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 
 	v := &View{
 		session:              s,
+		initialWorkspaceLoad: make(chan struct{}),
+		initializationSema:   make(chan struct{}, 1),
 		id:                   strconv.FormatInt(index, 10),
 		options:              options,
 		baseCtx:              baseCtx,
@@ -192,6 +195,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		filesByURI:           make(map[span.URI]*fileBase),
 		filesByBase:          make(map[string][]*fileBase),
 		workspaceInformation: *ws,
+		tempWorkspace:        tempWorkspace,
 	}
 	v.importsState = &importsState{
 		ctx: backgroundCtx,
@@ -202,26 +206,24 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		},
 	}
 	v.snapshot = &snapshot{
-		id:                 snapshotID,
-		view:               v,
-		initialized:        make(chan struct{}),
-		initializationSema: make(chan struct{}, 1),
-		initializeOnce:     &sync.Once{},
-		generation:         s.cache.store.Generation(generationName(v, 0)),
-		packages:           make(map[packageKey]*packageHandle),
-		ids:                make(map[span.URI][]packageID),
-		metadata:           make(map[packageID]*metadata),
-		files:              make(map[span.URI]source.VersionedFileHandle),
-		goFiles:            make(map[parseKey]*parseGoHandle),
-		importedBy:         make(map[packageID][]packageID),
-		actions:            make(map[actionKey]*actionHandle),
-		workspacePackages:  make(map[packageID]packagePath),
-		unloadableFiles:    make(map[span.URI]struct{}),
-		parseModHandles:    make(map[span.URI]*parseModHandle),
-		modTidyHandles:     make(map[span.URI]*modTidyHandle),
-		modUpgradeHandles:  make(map[span.URI]*modUpgradeHandle),
-		modWhyHandles:      make(map[span.URI]*modWhyHandle),
-		workspace:          workspace,
+		id:                snapshotID,
+		view:              v,
+		initializeOnce:    &sync.Once{},
+		generation:        s.cache.store.Generation(generationName(v, 0)),
+		packages:          make(map[packageKey]*packageHandle),
+		ids:               make(map[span.URI][]packageID),
+		metadata:          make(map[packageID]*metadata),
+		files:             make(map[span.URI]source.VersionedFileHandle),
+		goFiles:           make(map[parseKey]*parseGoHandle),
+		importedBy:        make(map[packageID][]packageID),
+		actions:           make(map[actionKey]*actionHandle),
+		workspacePackages: make(map[packageID]packagePath),
+		unloadableFiles:   make(map[span.URI]struct{}),
+		parseModHandles:   make(map[span.URI]*parseModHandle),
+		modTidyHandles:    make(map[span.URI]*modTidyHandle),
+		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
+		modWhyHandles:     make(map[span.URI]*modWhyHandle),
+		workspace:         workspace,
 	}
 
 	// Initialize the view without blocking.
@@ -231,6 +233,19 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	release := snapshot.generation.Acquire(initCtx)
 	go func() {
 		snapshot.initialize(initCtx, true)
+		if v.tempWorkspace != "" {
+			var err error
+			if err = os.Mkdir(v.tempWorkspace.Filename(), 0700); err == nil {
+				var wsdir span.URI
+				wsdir, err = snapshot.getWorkspaceDir(initCtx)
+				if err == nil {
+					err = copyWorkspace(v.tempWorkspace, wsdir)
+				}
+			}
+			if err != nil {
+				event.Error(initCtx, "creating workspace dir", err)
+			}
+		}
 		release()
 	}()
 	return v, snapshot, snapshot.generation.Acquire(ctx), nil
@@ -349,7 +364,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 	view.snapshotMu.Lock()
 	snapshotID := view.snapshot.id
 	view.snapshotMu.Unlock()
-	v, _, release, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
+	v, _, release, err := s.createView(ctx, view.name, view.folder, view.tempWorkspace, options, snapshotID)
 	release()
 	if err != nil {
 		// we have dropped the old view, but could not create the new one

@@ -39,8 +39,8 @@ var serverIndex int64
 // streams as a new LSP session, using a shared cache.
 type StreamServer struct {
 	cache *cache.Cache
-	// logConnections controls whether or not to log new connections.
-	logConnections bool
+	// daemon controls whether or not to log new connections.
+	daemon bool
 
 	// serverForTest may be set to a test fake for testing.
 	serverForTest protocol.Server
@@ -49,8 +49,8 @@ type StreamServer struct {
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache *cache.Cache, logConnections bool) *StreamServer {
-	return &StreamServer{cache: cache, logConnections: logConnections}
+func NewStreamServer(cache *cache.Cache, daemon bool) *StreamServer {
+	return &StreamServer{cache: cache, daemon: daemon}
 }
 
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
@@ -78,10 +78,10 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 	ctx = protocol.WithClient(ctx, client)
 	conn.Go(ctx,
 		protocol.Handlers(
-			handshaker(session, executable, s.logConnections,
+			handshaker(session, executable, s.daemon,
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
-	if s.logConnections {
+	if s.daemon {
 		log.Printf("Session %s: connected", session.ID())
 		defer log.Printf("Session %s: exited", session.ID())
 	}
@@ -226,6 +226,8 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 		hreq.DebugAddr = di.ListenedDebugAddress
 	}
 	if err := protocol.Call(ctx, serverConn, handshakeMethod, hreq, &hresp); err != nil {
+		// TODO(rfindley): at some point in the future we should return an error
+		// here.  Handshakes have become functional in nature.
 		event.Error(ctx, "forwarder: gopls handshake failed", err)
 	}
 	if hresp.GoplsPath != f.goplsPath {

@@ -75,9 +75,23 @@ type View struct {
 	snapshotMu sync.Mutex
 	snapshot   *snapshot
 
+	// initialWorkspaceLoad is closed when the first workspace initialization has
+	// completed. If we failed to load, we only retry if the go.mod file changes,
+	// to avoid too many go/packages calls.
+	initialWorkspaceLoad chan struct{}
+
+	// initializationSema is used limit concurrent initialization of snapshots in
+	// the view. We use a channel instead of a mutex to avoid blocking when a
+	// context is canceled.
+	initializationSema chan struct{}
+
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
 	workspaceInformation
+
+	// tempWorkspace is a temporary directory dedicated to holding the latest
+	// version of the workspace go.mod file. (TODO: also go.sum file)
+	tempWorkspace span.URI
 }
 
 type workspaceInformation struct {
@@ -397,6 +411,8 @@ func (v *View) Shutdown(ctx context.Context) {
 	v.session.removeView(ctx, v)
 }
 
+// TODO(rFindley): probably some of this should also be one in View.Shutdown
+// above?
 func (v *View) shutdown(ctx context.Context) {
 	// Cancel the initial workspace load if it is still running.
 	v.initCancelFirstAttempt()
@@ -410,6 +426,11 @@ func (v *View) shutdown(ctx context.Context) {
 	v.snapshotMu.Lock()
 	go v.snapshot.generation.Destroy()
 	v.snapshotMu.Unlock()
+	if v.tempWorkspace != "" {
+		if err := os.RemoveAll(v.tempWorkspace.Filename()); err != nil {
+			event.Error(ctx, "removing temp workspace", err)
+		}
+	}
 }
 
 func (v *View) BackgroundContext() context.Context {
@@ -465,11 +486,11 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 	select {
 	case <-ctx.Done():
 		return
-	case s.initializationSema <- struct{}{}:
+	case s.view.initializationSema <- struct{}{}:
 	}
 
 	defer func() {
-		<-s.initializationSema
+		<-s.view.initializationSema
 	}()
 
 	if s.initializeOnce == nil {
@@ -479,7 +500,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		defer func() {
 			s.initializeOnce = nil
 			if firstAttempt {
-				close(s.initialized)
+				close(s.view.initialWorkspaceLoad)
 			}
 		}()
 
@@ -552,10 +573,43 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	defer v.snapshotMu.Unlock()
 
 	oldSnapshot := v.snapshot
-	v.snapshot = oldSnapshot.clone(ctx, changes, forceReloadMetadata)
+
+	var workspaceChanged bool
+	v.snapshot, workspaceChanged = oldSnapshot.clone(ctx, changes, forceReloadMetadata)
+	if workspaceChanged && v.tempWorkspace != "" {
+		snap := v.snapshot
+		go func() {
+			wsdir, err := snap.getWorkspaceDir(ctx)
+			if err != nil {
+				event.Error(ctx, "getting workspace dir", err)
+			}
+			if err := copyWorkspace(v.tempWorkspace, wsdir); err != nil {
+				event.Error(ctx, "copying workspace dir", err)
+			}
+		}()
+	}
 	go oldSnapshot.generation.Destroy()
 
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
+}
+
+func copyWorkspace(dst span.URI, src span.URI) error {
+	srcMod := filepath.Join(src.Filename(), "go.mod")
+	srcf, err := os.Open(srcMod)
+	if err != nil {
+		return errors.Errorf("opening snapshot mod file: %w", err)
+	}
+	defer srcf.Close()
+	dstMod := filepath.Join(dst.Filename(), "go.mod")
+	dstf, err := os.Create(dstMod)
+	if err != nil {
+		return errors.Errorf("truncating view mod file: %w", err)
+	}
+	defer dstf.Close()
+	if _, err := io.Copy(dstf, srcf); err != nil {
+		return errors.Errorf("copying modfiles: %w", err)
+	}
+	return nil
 }
 
 func (v *View) cancelBackground() {
@@ -567,19 +621,6 @@ func (v *View) cancelBackground() {
 	}
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
-}
-
-func (s *snapshot) reinitialize(force bool) {
-	s.initializationSema <- struct{}{}
-	defer func() {
-		<-s.initializationSema
-	}()
-
-	if !force && s.initializedErr == nil {
-		return
-	}
-	var once sync.Once
-	s.initializeOnce = &once
 }
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {

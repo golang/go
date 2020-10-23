@@ -65,7 +65,8 @@ type Server struct {
 	stateMu sync.Mutex
 	state   serverState
 
-	session source.Session
+	session   source.Session
+	clientPID int
 
 	// notifications generated before serverInitialized
 	notifications []*protocol.ShowMessageParams
