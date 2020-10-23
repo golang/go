@@ -576,14 +576,26 @@ func atof32(s string) (f float32, n int, err error) {
 		return float32(f), n, err
 	}
 
-	if optimize && !trunc {
+	if optimize {
 		// Try pure floating-point arithmetic conversion, and if that fails,
 		// the Eisel-Lemire algorithm.
-		if f, ok := atof32exact(mantissa, exp, neg); ok {
-			return f, n, nil
+		if !trunc {
+			if f, ok := atof32exact(mantissa, exp, neg); ok {
+				return f, n, nil
+			}
 		}
-		if f, ok := eiselLemire32(mantissa, exp, neg); ok {
-			return f, n, nil
+		f, ok := eiselLemire32(mantissa, exp, neg)
+		if ok {
+			if !trunc {
+				return f, n, nil
+			}
+			// Even if the mantissa was truncated, we may
+			// have found the correct result. Confirm by
+			// converting the upper mantissa bound.
+			fUp, ok := eiselLemire32(mantissa+1, exp, neg)
+			if ok && f == fUp {
+				return f, n, nil
+			}
 		}
 	}
 
@@ -615,14 +627,26 @@ func atof64(s string) (f float64, n int, err error) {
 		return f, n, err
 	}
 
-	if optimize && !trunc {
+	if optimize {
 		// Try pure floating-point arithmetic conversion, and if that fails,
 		// the Eisel-Lemire algorithm.
-		if f, ok := atof64exact(mantissa, exp, neg); ok {
-			return f, n, nil
+		if !trunc {
+			if f, ok := atof64exact(mantissa, exp, neg); ok {
+				return f, n, nil
+			}
 		}
-		if f, ok := eiselLemire64(mantissa, exp, neg); ok {
-			return f, n, nil
+		f, ok := eiselLemire64(mantissa, exp, neg)
+		if ok {
+			if !trunc {
+				return f, n, nil
+			}
+			// Even if the mantissa was truncated, we may
+			// have found the correct result. Confirm by
+			// converting the upper mantissa bound.
+			fUp, ok := eiselLemire64(mantissa+1, exp, neg)
+			if ok && f == fUp {
+				return f, n, nil
+			}
 		}
 	}
 

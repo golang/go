@@ -674,6 +674,23 @@ func BenchmarkAtof64RandomFloats(b *testing.B) {
 	}
 }
 
+func BenchmarkAtof64RandomLongFloats(b *testing.B) {
+	initAtof()
+	samples := make([]string, len(atofRandomTests))
+	for i, t := range atofRandomTests {
+		samples[i] = FormatFloat(t.x, 'g', 20, 64)
+	}
+	b.ResetTimer()
+	idx := 0
+	for i := 0; i < b.N; i++ {
+		ParseFloat(samples[idx], 64)
+		idx++
+		if idx == len(samples) {
+			idx = 0
+		}
+	}
+}
+
 func BenchmarkAtof32Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseFloat("33909", 32)
@@ -692,13 +709,25 @@ func BenchmarkAtof32FloatExp(b *testing.B) {
 	}
 }
 
-var float32strings [4096]string
-
 func BenchmarkAtof32Random(b *testing.B) {
 	n := uint32(997)
+	var float32strings [4096]string
 	for i := range float32strings {
 		n = (99991*n + 42) % (0xff << 23)
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ParseFloat(float32strings[i%4096], 32)
+	}
+}
+
+func BenchmarkAtof32RandomLong(b *testing.B) {
+	n := uint32(997)
+	var float32strings [4096]string
+	for i := range float32strings {
+		n = (99991*n + 42) % (0xff << 23)
+		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
