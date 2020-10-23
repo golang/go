@@ -249,11 +249,11 @@ func readDir(dir string) ([]fs.FileInfo, error) {
 
 	if os.IsNotExist(err) {
 		return nil, err
-	} else if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
-	} else {
-		return nil, err
 	}
+	if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+	}
+	return nil, err
 }
 
 // ReadDir provides a slice of fs.FileInfo entries corresponding
@@ -267,7 +267,8 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 	dirNode := overlay[dir]
 	if dirNode == nil {
 		return readDir(dir)
-	} else if dirNode.isDeleted() {
+	}
+	if dirNode.isDeleted() {
 		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
 	}
 	diskfis, err := readDir(dir)
@@ -331,17 +332,18 @@ func Open(path string) (*os.File, error) {
 			return nil, &fs.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
 		}
 		return os.Open(node.actualFilePath)
-	} else if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+	}
+	if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
 		// The file is deleted explicitly in the Replace map,
 		// or implicitly because one of its parent directories was
 		// replaced by a file.
 		return nil, &fs.PathError{
 			Op:   "Open",
 			Path: path,
-			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent)}
-	} else {
-		return os.Open(cpath)
+			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent),
+		}
 	}
+	return os.Open(cpath)
 }
 
 // IsDirWithGoFiles reports whether dir is a directory containing Go files
@@ -350,7 +352,8 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 	fis, err := ReadDir(dir)
 	if os.IsNotExist(err) || errors.Is(err, errNotDir) {
 		return false, nil
-	} else if err != nil {
+	}
+	if err != nil {
 		return false, err
 	}
 
@@ -377,7 +380,8 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 		actualFilePath, _ := OverlayPath(filepath.Join(dir, fi.Name()))
 		if fi, err := os.Stat(actualFilePath); err == nil && fi.Mode().IsRegular() {
 			return true, nil
-		} else if err != nil && firstErr == nil {
+		}
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
