@@ -1,0 +1,36 @@
+# Regression test for https://golang.org/issue/41577:
+# 'go list -mod=readonly' should not resolve missing packages from
+# available replacements.
+
+# Control case: when there is no replacement, 'go list' of a missing package
+# fails due to defaulting to '-mod=readonly'.
+
+! go list example.com/x
+stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
+
+# When an unused replacement is added, 'go list' should still fail in the same way.
+# (Previously, it would resolve the missing import despite -mod=readonly.)
+
+go mod edit -replace=example.com/x@v0.1.0=./x
+go mod edit -replace=example.com/x@v0.2.0=./x
+! go list example.com/x
+stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
+
+# The command suggested by 'go list' should successfully resolve using the replacement.
+
+go get -d example.com/x
+go list example.com/x
+go list -m example.com/x
+stdout '^example.com/x v0.2.0 '
+
+
+-- go.mod --
+module example.com
+
+go 1.16
+-- x/go.mod --
+module example.com/x
+
+go 1.16
+-- x/x.go --
+package x

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -268,7 +267,7 @@ func TestDumpRequest(t *testing.T) {
 			}
 			switch b := ti.Body.(type) {
 			case []byte:
-				req.Body = ioutil.NopCloser(bytes.NewReader(b))
+				req.Body = io.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				req.Body = b()
 			default:
@@ -363,7 +362,7 @@ var dumpResTests = []struct {
 			Header: http.Header{
 				"Foo": []string{"Bar"},
 			},
-			Body: ioutil.NopCloser(strings.NewReader("foo")), // shouldn't be used
+			Body: io.NopCloser(strings.NewReader("foo")), // shouldn't be used
 		},
 		body: false, // to verify we see 50, not empty or 3.
 		want: `HTTP/1.1 200 OK
@@ -379,7 +378,7 @@ Foo: Bar`,
 			ProtoMajor:    1,
 			ProtoMinor:    1,
 			ContentLength: 3,
-			Body:          ioutil.NopCloser(strings.NewReader("foo")),
+			Body:          io.NopCloser(strings.NewReader("foo")),
 		},
 		body: true,
 		want: `HTTP/1.1 200 OK
@@ -396,7 +395,7 @@ foo`,
 			ProtoMajor:       1,
 			ProtoMinor:       1,
 			ContentLength:    -1,
-			Body:             ioutil.NopCloser(strings.NewReader("foo")),
+			Body:             io.NopCloser(strings.NewReader("foo")),
 			TransferEncoding: []string{"chunked"},
 		},
 		body: true,

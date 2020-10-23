@@ -16,8 +16,17 @@ stdout '^\[h.go i.go\]$'
 ! go list ./dir3 # contains a file without a package statement
 go list -overlay overlay.json -f '{{.GoFiles}}' ./dir3 # overlay removes that file
 
+# Walking through an overlay
+go list -overlay overlay.json ./...
+cmp stdout want-list.txt
+
 # TODO(#39958): assembly files, C files, files that require cgo preprocessing
 
+-- want-list.txt --
+m
+m/dir
+m/dir2
+m/dir3
 -- go.mod --
 // TODO(#39958): Support and test overlays including go.mod itself (especially if mod=readonly)
 module m
@@ -34,21 +43,21 @@ package dir3
 -- overlay.json --
 {
     "Replace": {
-        "f.go": "overlay/f.go",
-        "dir/g.go": "overlay/dir_g.go",
-        "dir2/i.go": "overlay/dir2_i.go",
+        "f.go": "overlay/f_go",
+        "dir/g.go": "overlay/dir_g_go",
+        "dir2/i.go": "overlay/dir2_i_go",
         "dir3/bad.go": ""
     }
 }
--- overlay/f.go --
+-- overlay/f_go --
 package m
 
 func f() {
 }
--- overlay/dir_g.go --
+-- overlay/dir_g_go --
 package m
 
 func g() {
 }
--- overlay/dir2_i.go --
+-- overlay/dir2_i_go --
 package dir2

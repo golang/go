@@ -8,6 +8,7 @@ import (
 	"cmd/internal/archive"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -221,7 +222,7 @@ func (ar *Archive) addFiles() {
 // FileLike abstracts the few methods we need, so we can test without needing real files.
 type FileLike interface {
 	Name() string
-	Stat() (os.FileInfo, error)
+	Stat() (fs.FileInfo, error)
 	Read([]byte) (int, error)
 	Close() error
 }

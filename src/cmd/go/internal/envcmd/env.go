@@ -424,6 +424,11 @@ func checkEnvWrite(key, val string) error {
 		if !filepath.IsAbs(val) && val != "" {
 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
 		}
+	// Make sure CC and CXX are absolute paths
+	case "CC", "CXX":
+		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
+			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+		}
 	}
 
 	if !utf8.ValidString(val) {

@@ -32,9 +32,9 @@ go list -m -f '{{with .Retracted}}retracted{{end}}' example.com/retract@v1.0.0-u
 # 'go list -m -retracted mod@version' shows an error if the go.mod that should
 # contain the retractions is not available.
 ! go list -m -retracted example.com/retract/missingmod@v1.0.0
-stderr '^go list -m: loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
+stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
 go list -e -m -retracted -f '{{.Error.Err}}' example.com/retract/missingmod@v1.0.0
-stdout '^loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
+stdout '^loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
 
 # 'go list -m -retracted mod@version' shows retractions.
 go list -m -retracted example.com/retract@v1.0.0-unused

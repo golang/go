@@ -34,7 +34,7 @@ func spinUnlock(state *uint32)
 func lockAndCheck(addr *uint64) {
 	// ensure 8-byte alignment
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
-		addr = nil
+		panicUnaligned()
 	}
 	// force dereference before taking lock
 	_ = *addr
@@ -133,6 +133,9 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
 func LoadAcq(ptr *uint32) uint32
 
 //go:noescape
+func LoadAcquintptr(ptr *uintptr) uintptr
+
+//go:noescape
 func And8(ptr *uint8, val uint8)
 
 //go:noescape
@@ -149,6 +152,9 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 
 //go:noescape
 func StoreRel(ptr *uint32, val uint32)
+
+//go:noescape
+func StoreReluintptr(ptr *uintptr, val uintptr)
 
 //go:noescape
 func CasRel(addr *uint32, old, new uint32) bool

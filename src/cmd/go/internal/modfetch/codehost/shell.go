@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -115,7 +116,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)
 				continue
 			}
-			data, err := ioutil.ReadAll(rc)
+			data, err := io.ReadAll(rc)
 			rc.Close()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)

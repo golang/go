@@ -7,6 +7,7 @@ package sync
 import (
 	"internal/race"
 	"runtime"
+	runtimeatomic "runtime/internal/atomic"
 	"sync/atomic"
 	"unsafe"
 )
@@ -152,8 +153,8 @@ func (p *Pool) Get() interface{} {
 
 func (p *Pool) getSlow(pid int) interface{} {
 	// See the comment in pin regarding ordering of the loads.
-	size := atomic.LoadUintptr(&p.localSize) // load-acquire
-	locals := p.local                        // load-consume
+	size := runtimeatomic.LoadAcquintptr(&p.localSize) // load-acquire
+	locals := p.local                                  // load-consume
 	// Try to steal one element from other procs.
 	for i := 0; i < int(size); i++ {
 		l := indexLocal(locals, (pid+i+1)%int(size))
@@ -165,7 +166,7 @@ func (p *Pool) getSlow(pid int) interface{} {
 	// Try the victim cache. We do this after attempting to steal
 	// from all primary caches because we want objects in the
 	// victim cache to age out if at all possible.
-	size = atomic.LoadUintptr(&p.victimSize)
+	size = runtimeatomic.Loaduintptr(&p.victimSize)
 	if uintptr(pid) >= size {
 		return nil
 	}
@@ -198,8 +199,8 @@ func (p *Pool) pin() (*poolLocal, int) {
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
-	s := atomic.LoadUintptr(&p.localSize) // load-acquire
-	l := p.local                          // load-consume
+	s := runtimeatomic.LoadAcquintptr(&p.localSize) // load-acquire
+	l := p.local                                    // load-consume
 	if uintptr(pid) < s {
 		return indexLocal(l, pid), pid
 	}
@@ -225,8 +226,8 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
-	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
+	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0]))   // store-release
+	runtimeatomic.StoreReluintptr(&p.localSize, uintptr(size)) // store-release
 	return &local[pid], pid
 }
 

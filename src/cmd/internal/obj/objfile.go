@@ -189,8 +189,8 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		// object file, and the Pcln variables haven't been filled in. As such, we
 		// need to check that Pcsp exists, and assume the other pcln variables exist
 		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
-		if s.Func != nil && s.Func.Pcln.Pcsp != nil {
-			pc := &s.Func.Pcln
+		if fn := s.Func(); fn != nil && fn.Pcln.Pcsp != nil {
+			pc := &fn.Pcln
 			w.Bytes(pc.Pcsp.P)
 			w.Bytes(pc.Pcfile.P)
 			w.Bytes(pc.Pcline.P)
@@ -261,6 +261,10 @@ func (w *writer) StringTable() {
 	}
 }
 
+// cutoff is the maximum data section size permitted by the linker
+// (see issue #9862).
+const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
+
 func (w *writer) Sym(s *LSym) {
 	abi := uint16(s.ABI())
 	if s.Static() {
@@ -303,8 +307,8 @@ func (w *writer) Sym(s *LSym) {
 		name = filepath.ToSlash(name)
 	}
 	var align uint32
-	if s.Func != nil {
-		align = uint32(s.Func.Align)
+	if fn := s.Func(); fn != nil {
+		align = uint32(fn.Align)
 	}
 	if s.ContentAddressable() {
 		// We generally assume data symbols are natually aligned,
@@ -324,6 +328,9 @@ func (w *writer) Sym(s *LSym) {
 			}
 			// don't bother setting align to 1.
 		}
+	}
+	if s.Size > cutoff {
+		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
 	}
 	var o goobj.Sym
 	o.SetName(name, w.Writer)
@@ -470,38 +477,38 @@ func (w *writer) Aux(s *LSym) {
 	if s.Gotype != nil {
 		w.aux1(goobj.AuxGotype, s.Gotype)
 	}
-	if s.Func != nil {
-		w.aux1(goobj.AuxFuncInfo, s.Func.FuncInfoSym)
+	if fn := s.Func(); fn != nil {
+		w.aux1(goobj.AuxFuncInfo, fn.FuncInfoSym)
 
-		for _, d := range s.Func.Pcln.Funcdata {
+		for _, d := range fn.Pcln.Funcdata {
 			w.aux1(goobj.AuxFuncdata, d)
 		}
 
-		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
-			w.aux1(goobj.AuxDwarfInfo, s.Func.dwarfInfoSym)
+		if fn.dwarfInfoSym != nil && fn.dwarfInfoSym.Size != 0 {
+			w.aux1(goobj.AuxDwarfInfo, fn.dwarfInfoSym)
 		}
-		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
-			w.aux1(goobj.AuxDwarfLoc, s.Func.dwarfLocSym)
+		if fn.dwarfLocSym != nil && fn.dwarfLocSym.Size != 0 {
+			w.aux1(goobj.AuxDwarfLoc, fn.dwarfLocSym)
 		}
-		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
-			w.aux1(goobj.AuxDwarfRanges, s.Func.dwarfRangesSym)
+		if fn.dwarfRangesSym != nil && fn.dwarfRangesSym.Size != 0 {
+			w.aux1(goobj.AuxDwarfRanges, fn.dwarfRangesSym)
 		}
-		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
-			w.aux1(goobj.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
+		if fn.dwarfDebugLinesSym != nil && fn.dwarfDebugLinesSym.Size != 0 {
+			w.aux1(goobj.AuxDwarfLines, fn.dwarfDebugLinesSym)
 		}
-		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
-			w.aux1(goobj.AuxPcsp, s.Func.Pcln.Pcsp)
+		if fn.Pcln.Pcsp != nil && fn.Pcln.Pcsp.Size != 0 {
+			w.aux1(goobj.AuxPcsp, fn.Pcln.Pcsp)
 		}
-		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
-			w.aux1(goobj.AuxPcfile, s.Func.Pcln.Pcfile)
+		if fn.Pcln.Pcfile != nil && fn.Pcln.Pcfile.Size != 0 {
+			w.aux1(goobj.AuxPcfile, fn.Pcln.Pcfile)
 		}
-		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
-			w.aux1(goobj.AuxPcline, s.Func.Pcln.Pcline)
+		if fn.Pcln.Pcline != nil && fn.Pcln.Pcline.Size != 0 {
+			w.aux1(goobj.AuxPcline, fn.Pcln.Pcline)
 		}
-		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
-			w.aux1(goobj.AuxPcinline, s.Func.Pcln.Pcinline)
+		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
+			w.aux1(goobj.AuxPcinline, fn.Pcln.Pcinline)
 		}
-		for _, pcSym := range s.Func.Pcln.Pcdata {
+		for _, pcSym := range fn.Pcln.Pcdata {
 			w.aux1(goobj.AuxPcdata, pcSym)
 		}
 
@@ -571,34 +578,34 @@ func nAuxSym(s *LSym) int {
 	if s.Gotype != nil {
 		n++
 	}
-	if s.Func != nil {
+	if fn := s.Func(); fn != nil {
 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
-		n += 1 + len(s.Func.Pcln.Funcdata)
-		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
+		n += 1 + len(fn.Pcln.Funcdata)
+		if fn.dwarfInfoSym != nil && fn.dwarfInfoSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
+		if fn.dwarfLocSym != nil && fn.dwarfLocSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
+		if fn.dwarfRangesSym != nil && fn.dwarfRangesSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+		if fn.dwarfDebugLinesSym != nil && fn.dwarfDebugLinesSym.Size != 0 {
 			n++
 		}
-		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
+		if fn.Pcln.Pcsp != nil && fn.Pcln.Pcsp.Size != 0 {
 			n++
 		}
-		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
+		if fn.Pcln.Pcfile != nil && fn.Pcln.Pcfile.Size != 0 {
 			n++
 		}
-		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
+		if fn.Pcln.Pcline != nil && fn.Pcln.Pcline.Size != 0 {
 			n++
 		}
-		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
+		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
 			n++
 		}
-		n += len(s.Func.Pcln.Pcdata)
+		n += len(fn.Pcln.Pcdata)
 	}
 	return n
 }
@@ -620,15 +627,16 @@ func genFuncInfoSyms(ctxt *Link) {
 	var b bytes.Buffer
 	symidx := int32(len(ctxt.defs))
 	for _, s := range ctxt.Text {
-		if s.Func == nil {
+		fn := s.Func()
+		if fn == nil {
 			continue
 		}
 		o := goobj.FuncInfo{
-			Args:   uint32(s.Func.Args),
-			Locals: uint32(s.Func.Locals),
-			FuncID: objabi.FuncID(s.Func.FuncID),
+			Args:   uint32(fn.Args),
+			Locals: uint32(fn.Locals),
+			FuncID: objabi.FuncID(fn.FuncID),
 		}
-		pc := &s.Func.Pcln
+		pc := &fn.Pcln
 		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
 		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
 		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
@@ -670,10 +678,10 @@ func genFuncInfoSyms(ctxt *Link) {
 		isym.Set(AttrIndexed, true)
 		symidx++
 		infosyms = append(infosyms, isym)
-		s.Func.FuncInfoSym = isym
+		fn.FuncInfoSym = isym
 		b.Reset()
 
-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
+		dwsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
 		for _, s := range dwsyms {
 			if s == nil || s.Size == 0 {
 				continue
@@ -744,14 +752,15 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(s.Func.Args), uint64(s.Func.Locals), uint64(s.Func.FuncID))
+		fn := s.Func()
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
 	}
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
-		for p := s.Func.Text; p != nil; p = p.Link {
+		for p := s.Func().Text; p != nil; p = p.Link {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
 			if ctxt.Debugasm > 1 {
 				io.WriteString(ctxt.Bso, p.String())

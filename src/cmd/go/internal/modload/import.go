@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/goroot"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -26,12 +27,20 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var errImportMissing = errors.New("import missing")
-
 type ImportMissingError struct {
 	Path     string
 	Module   module.Version
 	QueryErr error
+
+	// inAll indicates whether Path is in the "all" package pattern,
+	// and thus would be added by 'go mod tidy'.
+	inAll bool
+
+	// isStd indicates whether we would expect to find the package in the standard
+	// library. This is normally true for all dotless import paths, but replace
+	// directives can cause us to treat the replaced paths as also being in
+	// modules.
+	isStd bool
 
 	// newMissingVersion is set to a newer version of Module if one is present
 	// in the build list. When set, we can't automatically upgrade.
@@ -40,13 +49,25 @@ type ImportMissingError struct {
 
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
-		if search.IsStandardImportPath(e.Path) {
+		if e.isStd {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
 		if e.QueryErr != nil {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		return "cannot find module providing package " + e.Path
+		if cfg.BuildMod == "mod" {
+			return "cannot find module providing package " + e.Path
+		}
+
+		suggestion := ""
+		if !HasModRoot() {
+			suggestion = ": working directory is not part of a module"
+		} else if e.inAll {
+			suggestion = "; try 'go mod tidy' to add it"
+		} else {
+			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
+		}
+		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
 	}
 
 	if e.newMissingVersion != "" {
@@ -132,7 +153,7 @@ func (e *invalidImportError) Unwrap() error {
 // like "C" and "unsafe".
 //
 // If the package cannot be found in the current build list,
-// importFromBuildList returns errImportMissing as the error.
+// importFromBuildList returns an *ImportMissingError.
 func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
@@ -143,6 +164,10 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 	if path == "C" || path == "unsafe" {
 		// There's no directory for import "C" or import "unsafe".
 		return module.Version{}, "", nil
+	}
+	// Before any further lookup, check that the path is valid.
+	if err := module.CheckImportPath(path); err != nil {
+		return module.Version{}, "", &invalidImportError{importPath: path, err: err}
 	}
 
 	// Is the package in the standard library?
@@ -212,53 +237,67 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
 
-	return module.Version{}, "", errImportMissing
+	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
 }
 
 // queryImport attempts to locate a module that can be added to the current
 // build list to provide the package with the given import path.
+//
+// Unlike QueryPattern, queryImport prefers to add a replaced version of a
+// module *before* checking the proxies for a version to add.
 func queryImport(ctx context.Context, path string) (module.Version, error) {
 	pathIsStd := search.IsStandardImportPath(path)
 
-	if modRoot == "" && !allowMissingModuleImports {
-		return module.Version{}, &ImportMissingError{
-			Path:     path,
-			QueryErr: errors.New("working directory is not part of a module"),
+	if cfg.BuildMod == "readonly" {
+		if pathIsStd {
+			// If the package would be in the standard library and none of the
+			// available replacement modules could concievably provide it, report it
+			// as a missing standard-library package instead of complaining that
+			// module lookups are disabled.
+			maybeReplaced := false
+			if index != nil {
+				for p := range index.highestReplaced {
+					if maybeInModule(path, p) {
+						maybeReplaced = true
+						break
+					}
+				}
+			}
+			if !maybeReplaced {
+				return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+			}
 		}
+
+		var queryErr error
+		if cfg.BuildModExplicit {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		} else if cfg.BuildModReason != "" {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		}
+		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
 	}
 
-	// Not on build list.
-	// To avoid spurious remote fetches, next try the latest replacement for each
-	// module (golang.org/issue/26241). This should give a useful message
-	// in -mod=readonly, and it will allow us to add a requirement with -mod=mod.
-	if modFile != nil {
-		latest := map[string]string{} // path -> version
-		for _, r := range modFile.Replace {
-			if maybeInModule(path, r.Old.Path) {
-				// Don't use semver.Max here; need to preserve +incompatible suffix.
-				v := latest[r.Old.Path]
-				if semver.Compare(r.Old.Version, v) > 0 {
-					v = r.Old.Version
-				}
-				latest[r.Old.Path] = v
+	// To avoid spurious remote fetches, try the latest replacement for each
+	// module (golang.org/issue/26241).
+	if index != nil {
+		var mods []module.Version
+		for mp, mv := range index.highestReplaced {
+			if !maybeInModule(path, mp) {
+				continue
 			}
-		}
-
-		mods := make([]module.Version, 0, len(latest))
-		for p, v := range latest {
-			// If the replacement didn't specify a version, synthesize a
-			// pseudo-version with an appropriate major version and a timestamp below
-			// any real timestamp. That way, if the main module is used from within
-			// some other module, the user will be able to upgrade the requirement to
-			// any real version they choose.
-			if v == "" {
-				if _, pathMajor, ok := module.SplitPathVersion(p); ok && len(pathMajor) > 0 {
-					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+			if mv == "" {
+				// The only replacement is a wildcard that doesn't specify a version, so
+				// synthesize a pseudo-version with an appropriate major version and a
+				// timestamp below any real timestamp. That way, if the main module is
+				// used from within some other module, the user will be able to upgrade
+				// the requirement to any real version they choose.
+				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+					mv = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
 				} else {
-					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+					mv = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
 				}
 			}
-			mods = append(mods, module.Version{Path: p, Version: v})
+			mods = append(mods, module.Version{Path: mp, Version: mv})
 		}
 
 		// Every module path in mods is a prefix of the import path.
@@ -291,11 +330,6 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 	}
 
-	// Before any further lookup, check that the path is valid.
-	if err := module.CheckImportPath(path); err != nil {
-		return module.Version{}, &invalidImportError{importPath: path, err: err}
-	}
-
 	if pathIsStd {
 		// This package isn't in the standard library, isn't in any module already
 		// in the build list, and isn't in any other module that the user has
@@ -304,17 +338,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		// QueryPattern cannot possibly find a module containing this package.
 		//
 		// Instead of trying QueryPattern, report an ImportMissingError immediately.
-		return module.Version{}, &ImportMissingError{Path: path}
-	}
-
-	if cfg.BuildMod == "readonly" {
-		var queryErr error
-		if cfg.BuildModExplicit {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
-		} else if cfg.BuildModReason != "" {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
-		}
-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
+		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
 	}
 
 	// Look up module containing the package, for addition to the build list.
@@ -322,9 +346,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPattern(ctx, path, "latest", CheckAllowed)
+	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPattern produced.
 			return module.Version{}, &ImportMissingError{Path: path, QueryErr: err}
@@ -444,4 +468,43 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	}).(goFilesEntry)
 
 	return dir, res.haveGoFiles, res.err
+}
+
+// fetch downloads the given module (or its replacement)
+// and returns its location.
+//
+// The isLocal return value reports whether the replacement,
+// if any, is local to the filesystem.
+func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+	if mod == Target {
+		return ModRoot(), true, nil
+	}
+	if r := Replacement(mod); r.Path != "" {
+		if r.Version == "" {
+			dir = r.Path
+			if !filepath.IsAbs(dir) {
+				dir = filepath.Join(ModRoot(), dir)
+			}
+			// Ensure that the replacement directory actually exists:
+			// dirInModule does not report errors for missing modules,
+			// so if we don't report the error now, later failures will be
+			// very mysterious.
+			if _, err := os.Stat(dir); err != nil {
+				if os.IsNotExist(err) {
+					// Semantically the module version itself “exists” — we just don't
+					// have its source code. Remove the equivalence to os.ErrNotExist,
+					// and make the message more concise while we're at it.
+					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
+				} else {
+					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
+				}
+				return dir, true, module.VersionError(mod, err)
+			}
+			return dir, true, nil
+		}
+		mod = r
+	}
+
+	dir, err = modfetch.Download(ctx, mod)
+	return dir, false, err
 }

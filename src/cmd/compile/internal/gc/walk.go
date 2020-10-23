@@ -21,7 +21,7 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 func walk(fn *Node) {
 	Curfn = fn
 
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
@@ -63,14 +63,14 @@ func walk(fn *Node) {
 		return
 	}
 	walkstmtlist(Curfn.Nbody.Slice())
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	zeroResults()
 	heapmoves()
-	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
+	if Debug.W != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
@@ -436,7 +436,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 
 	lno := setlineno(n)
 
-	if Debug['w'] > 1 {
+	if Debug.w > 1 {
 		Dump("before walk expr", n)
 	}
 
@@ -1001,7 +1001,7 @@ opswitch:
 				// The SSA backend will handle those.
 				switch et {
 				case TINT64:
-					c := n.Right.Int64()
+					c := n.Right.Int64Val()
 					if c < 0 {
 						c = -c
 					}
@@ -1009,7 +1009,7 @@ opswitch:
 						break opswitch
 					}
 				case TUINT64:
-					c := uint64(n.Right.Int64())
+					c := uint64(n.Right.Int64Val())
 					if c != 0 && c&(c-1) == 0 {
 						break opswitch
 					}
@@ -1049,15 +1049,15 @@ opswitch:
 		}
 		if t.IsArray() {
 			n.SetBounded(bounded(r, t.NumElem()))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
 				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.SetBounded(bounded(r, int64(len(strlit(n.Left)))))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1491,7 +1491,7 @@ opswitch:
 	case OSTR2BYTES:
 		s := n.Left
 		if Isconst(s, CTSTR) {
-			sc := strlit(s)
+			sc := s.StringVal()
 
 			// Allocate a [n]byte of the right size.
 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
@@ -1599,7 +1599,7 @@ opswitch:
 
 	updateHasCall(n)
 
-	if Debug['w'] != 0 && n != nil {
+	if Debug.w != 0 && n != nil {
 		Dump("after walk expr", n)
 	}
 
@@ -1919,7 +1919,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	for i := 0; i < len(s); {
 		var strs []string
 		for i < len(s) && Isconst(s[i], CTSTR) {
-			strs = append(strs, strlit(s[i]))
+			strs = append(strs, s[i].StringVal())
 			i++
 		}
 		if len(strs) > 0 {
@@ -1988,7 +1988,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TSTRING:
 			cs := ""
 			if Isconst(n, CTSTR) {
-				cs = strlit(n)
+				cs = n.StringVal()
 			}
 			switch cs {
 			case " ":
@@ -2157,7 +2157,7 @@ func reorder3(all []*Node) []*Node {
 // The result of reorder3save MUST be assigned back to n, e.g.
 // 	n.Left = reorder3save(n.Left, all, i, early)
 func reorder3save(n *Node, all []*Node, i int, early *[]*Node) *Node {
-	if !aliased(n, all, i) {
+	if !aliased(n, all[:i]) {
 		return n
 	}
 
@@ -2189,73 +2189,75 @@ func outervalue(n *Node) *Node {
 	}
 }
 
-// Is it possible that the computation of n might be
-// affected by writes in as up to but not including the ith element?
-func aliased(n *Node, all []*Node, i int) bool {
-	if n == nil {
+// Is it possible that the computation of r might be
+// affected by assignments in all?
+func aliased(r *Node, all []*Node) bool {
+	if r == nil {
 		return false
 	}
 
 	// Treat all fields of a struct as referring to the whole struct.
 	// We could do better but we would have to keep track of the fields.
-	for n.Op == ODOT {
-		n = n.Left
+	for r.Op == ODOT {
+		r = r.Left
 	}
 
 	// Look for obvious aliasing: a variable being assigned
 	// during the all list and appearing in n.
-	// Also record whether there are any writes to main memory.
-	// Also record whether there are any writes to variables
-	// whose addresses have been taken.
+	// Also record whether there are any writes to addressable
+	// memory (either main memory or variables whose addresses
+	// have been taken).
 	memwrite := false
-	varwrite := false
-	for _, an := range all[:i] {
-		a := outervalue(an.Left)
-
-		for a.Op == ODOT {
-			a = a.Left
+	for _, as := range all {
+		// We can ignore assignments to blank.
+		if as.Left.isBlank() {
+			continue
 		}
 
-		if a.Op != ONAME {
+		l := outervalue(as.Left)
+		if l.Op != ONAME {
 			memwrite = true
 			continue
 		}
 
-		switch n.Class() {
+		switch l.Class() {
 		default:
-			varwrite = true
+			Fatalf("unexpected class: %v, %v", l, l.Class())
+
+		case PAUTOHEAP, PEXTERN:
+			memwrite = true
 			continue
 
 		case PAUTO, PPARAM, PPARAMOUT:
-			if n.Name.Addrtaken() {
-				varwrite = true
+			if l.Name.Addrtaken() {
+				memwrite = true
 				continue
 			}
 
-			if vmatch2(a, n) {
-				// Direct hit.
+			if vmatch2(l, r) {
+				// Direct hit: l appears in r.
 				return true
 			}
 		}
 	}
 
-	// The variables being written do not appear in n.
-	// However, n might refer to computed addresses
+	// The variables being written do not appear in r.
+	// However, r might refer to computed addresses
 	// that are being written.
 
 	// If no computed addresses are affected by the writes, no aliasing.
-	if !memwrite && !varwrite {
+	if !memwrite {
 		return false
 	}
 
-	// If n does not refer to computed addresses
-	// (that is, if n only refers to variables whose addresses
+	// If r does not refer to computed addresses
+	// (that is, if r only refers to variables whose addresses
 	// have not been taken), no aliasing.
-	if varexpr(n) {
+	if varexpr(r) {
 		return false
 	}
 
-	// Otherwise, both the writes and n refer to computed memory addresses.
+	// Otherwise, both the writes and r refer to computed memory addresses.
 	// Assume that they might conflict.
 	return true
 }
@@ -2643,7 +2645,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		sz := int64(0)
 		for _, n1 := range n.List.Slice() {
 			if n1.Op == OLITERAL {
-				sz += int64(len(strlit(n1)))
+				sz += int64(len(n1.StringVal()))
 			}
 		}
 
@@ -2817,7 +2819,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 // isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -3437,7 +3439,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
 	// Ugly hack to avoid "constant -1 overflows uintptr" errors, etc.
-	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64() < 0 {
+	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64Val() < 0 {
 		n = copyexpr(n, n.Type, init)
 	}
 
@@ -3507,7 +3509,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 			// Length-only checks are ok, though.
 			maxRewriteLen = 0
 		}
-		if s := strlit(cs); len(s) <= maxRewriteLen {
+		if s := cs.StringVal(); len(s) <= maxRewriteLen {
 			if len(s) > 0 {
 				ncs = safeexpr(ncs, init)
 			}
@@ -3602,7 +3604,7 @@ func bounded(n *Node, max int64) bool {
 	bits := int32(8 * n.Type.Width)
 
 	if smallintconst(n) {
-		v := n.Int64()
+		v := n.Int64Val()
 		return 0 <= v && v < max
 	}
 
@@ -3610,9 +3612,9 @@ func bounded(n *Node, max int64) bool {
 	case OAND:
 		v := int64(-1)
 		if smallintconst(n.Left) {
-			v = n.Left.Int64()
+			v = n.Left.Int64Val()
 		} else if smallintconst(n.Right) {
-			v = n.Right.Int64()
+			v = n.Right.Int64Val()
 		}
 
 		if 0 <= v && v < max {
@@ -3621,7 +3623,7 @@ func bounded(n *Node, max int64) bool {
 
 	case OMOD:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			if 0 <= v && v <= max {
 				return true
 			}
@@ -3629,7 +3631,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ODIV:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			for bits > 0 && v >= 2 {
 				bits--
 				v >>= 1
@@ -3638,7 +3640,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ORSH:
 		if !sign && smallintconst(n.Right) {
-			v := n.Right.Int64()
+			v := n.Right.Int64Val()
 			if v > int64(bits) {
 				return true
 			}
@@ -3879,6 +3881,16 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	}
 
 	isBuiltinCall := n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER
+
+	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
+	if !isBuiltinCall && n.IsDDD() {
+		last := n.List.Len() - 1
+		if va := n.List.Index(last); va.Op == OSLICELIT {
+			n.List.Set(append(n.List.Slice()[:last], va.List.Slice()...))
+			n.SetIsDDD(false)
+		}
+	}
+
 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
 	origArgs := make([]*Node, n.List.Len())
 	t := nod(OTFUNC, nil, nil)
@@ -3964,7 +3976,7 @@ func canMergeLoads() bool {
 // isRuneCount reports whether n is of the form len([]rune(string)).
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
-	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+	return Debug.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
 }
 
 func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {

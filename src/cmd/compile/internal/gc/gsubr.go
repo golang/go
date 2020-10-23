@@ -153,7 +153,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Debug['K'] != 0 {
+	if !pp.pos.IsKnown() && Debug.K != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
@@ -199,7 +199,7 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.lsym.Func.Text = ptxt
+	fn.Func.lsym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym

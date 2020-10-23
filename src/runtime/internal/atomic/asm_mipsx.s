@@ -122,6 +122,9 @@ TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
 TEXT ·StoreRel(SB),NOSPLIT,$0-8
 	JMP	·Store(SB)
 
+TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
+	JMP	·Store(SB)
+
 // void	Or8(byte volatile*, byte);
 TEXT ·Or8(SB),NOSPLIT,$0-5
 	MOVW	ptr+0(FP), R1

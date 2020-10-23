@@ -150,12 +150,12 @@ func (f *File) AddLine(offset int) {
 //
 func (f *File) MergeLine(line int) {
 	if line < 1 {
-		panic("illegal line number (line numbering starts at 1)")
+		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
 	}
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	if line >= len(f.lines) {
-		panic("illegal line number")
+		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
 	}
 	// To merge the line numbered <line> with the line numbered <line+1>,
 	// we need to remove the entry in lines corresponding to the line
@@ -217,12 +217,12 @@ func (f *File) SetLinesForContent(content []byte) {
 // LineStart panics if the 1-based line number is invalid.
 func (f *File) LineStart(line int) Pos {
 	if line < 1 {
-		panic("illegal line number (line numbering starts at 1)")
+		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
 	}
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	if line > len(f.lines) {
-		panic("illegal line number")
+		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
 	}
 	return Pos(f.base + f.lines[line-1])
 }
@@ -267,7 +267,7 @@ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) 
 //
 func (f *File) Pos(offset int) Pos {
 	if offset > f.size {
-		panic("illegal file offset")
+		panic(fmt.Sprintf("invalid file offset %d (should be <= %d)", offset, f.size))
 	}
 	return Pos(f.base + offset)
 }
@@ -278,7 +278,7 @@ func (f *File) Pos(offset int) Pos {
 //
 func (f *File) Offset(p Pos) int {
 	if int(p) < f.base || int(p) > f.base+f.size {
-		panic("illegal Pos value")
+		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
 	}
 	return int(p) - f.base
 }
@@ -346,7 +346,7 @@ func (f *File) position(p Pos, adjusted bool) (pos Position) {
 func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if int(p) < f.base || int(p) > f.base+f.size {
-			panic("illegal Pos value")
+			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
 		}
 		pos = f.position(p, adjusted)
 	}
@@ -430,8 +430,11 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	if base < 0 {
 		base = s.base
 	}
-	if base < s.base || size < 0 {
-		panic("illegal base or size")
+	if base < s.base {
+		panic(fmt.Sprintf("invalid base %d (should be >= %d)", base, s.base))
+	}
+	if size < 0 {
+		panic(fmt.Sprintf("invalid size %d (should be >= 0)", size))
 	}
 	// base >= s.base && size >= 0
 	f := &File{set: s, name: filename, base: base, size: size, lines: []int{0}}

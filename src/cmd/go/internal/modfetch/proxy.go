@@ -9,9 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"net/url"
-	"os"
 	"path"
 	pathpkg "path"
 	"path/filepath"
@@ -186,7 +185,7 @@ func proxyList() ([]proxySpec, error) {
 
 // TryProxies iterates f over each configured proxy (including "noproxy" and
 // "direct" if applicable) until f returns no error or until f returns an
-// error that is not equivalent to os.ErrNotExist on a proxy configured
+// error that is not equivalent to fs.ErrNotExist on a proxy configured
 // not to fall back on errors.
 //
 // TryProxies then returns that final error.
@@ -222,7 +221,7 @@ func TryProxies(f func(proxy string) error) error {
 		if err == nil {
 			return nil
 		}
-		isNotExistErr := errors.Is(err, os.ErrNotExist)
+		isNotExistErr := errors.Is(err, fs.ErrNotExist)
 
 		if proxy.url == "direct" || (proxy.url == "noproxy" && err != errUseProxy) {
 			bestErr = err
@@ -305,7 +304,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 		return nil, err
 	}
 	defer body.Close()
-	return ioutil.ReadAll(body)
+	return io.ReadAll(body)
 }
 
 func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
@@ -428,7 +427,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 func (p *proxyRepo) Latest() (*RevInfo, error) {
 	data, err := p.getBytes("@latest")
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, p.versionError("", err)
 		}
 		return p.latest()

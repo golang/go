@@ -181,7 +181,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 			// Argsize set below.
 		},
 	}
-	nameAddr.Sym.Func.Text = prog
+	nameAddr.Sym.Func().Text = prog
 	prog.To.Val = int32(argSize)
 	p.append(prog, "", true)
 }

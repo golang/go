@@ -12,6 +12,7 @@ import (
 	"internal/syscall/windows/registry"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	osexec "os/exec"
@@ -164,11 +165,11 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			t.Errorf("failed to lstat link %v: %v", link, err)
 			continue
 		}
-		if m := fi2.Mode(); m&os.ModeSymlink == 0 {
+		if m := fi2.Mode(); m&fs.ModeSymlink == 0 {
 			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
 			continue
 		}
-		if m := fi2.Mode(); m&os.ModeDir != 0 {
+		if m := fi2.Mode(); m&fs.ModeDir != 0 {
 			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
 			continue
 		}
@@ -681,7 +682,7 @@ func TestStatSymlinkLoop(t *testing.T) {
 	defer os.Remove("x")
 
 	_, err = os.Stat("x")
-	if _, ok := err.(*os.PathError); !ok {
+	if _, ok := err.(*fs.PathError); !ok {
 		t.Errorf("expected *PathError, got %T: %v\n", err, err)
 	}
 }
@@ -1291,9 +1292,9 @@ func TestWindowsReadlink(t *testing.T) {
 // os.Mkdir(os.DevNull) fails.
 func TestMkdirDevNull(t *testing.T) {
 	err := os.Mkdir(os.DevNull, 777)
-	oserr, ok := err.(*os.PathError)
+	oserr, ok := err.(*fs.PathError)
 	if !ok {
-		t.Fatalf("error (%T) is not *os.PathError", err)
+		t.Fatalf("error (%T) is not *fs.PathError", err)
 	}
 	errno, ok := oserr.Err.(syscall.Errno)
 	if !ok {

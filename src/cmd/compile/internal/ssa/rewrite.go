@@ -395,7 +395,8 @@ func canMergeLoad(target, load *Value) bool {
 
 // isSameCall reports whether sym is the same as the given named symbol
 func isSameCall(sym interface{}, name string) bool {
-	return sym.(*AuxCall).Fn.String() == name
+	fn := sym.(*AuxCall).Fn
+	return fn != nil && fn.String() == name
 }
 
 // nlz returns the number of leading zeros.

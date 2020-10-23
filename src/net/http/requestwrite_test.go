@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"strings"
@@ -229,7 +228,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -281,7 +280,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -351,7 +350,7 @@ var reqWriteTests = []reqWriteTest{
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
 			errReader := iotest.ErrReader(err)
-			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+			return io.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -371,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
 			errReader := iotest.ErrReader(err)
-			return ioutil.NopCloser(errReader)
+			return io.NopCloser(errReader)
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -620,7 +619,7 @@ func TestRequestWrite(t *testing.T) {
 			}
 			switch b := tt.Body.(type) {
 			case []byte:
-				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+				tt.Req.Body = io.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				tt.Req.Body = b()
 			}
@@ -716,20 +715,20 @@ func TestRequestWriteTransport(t *testing.T) {
 		},
 		{
 			method: "GET",
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		// A GET with a body, with explicit content length:
 		{
 			method: "GET",
 			clen:   7,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Content-Length: 7"),
 				matchSubstr("foobody")),
 		},
@@ -737,7 +736,7 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("\r\n1\r\nf\r\n"),
 				matchSubstr("oobody")),
@@ -747,14 +746,14 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("foobody")),
 		},
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   all(matchSubstr("Transfer-Encoding: chunked")),
 		},
 		// Verify that a blocking Request.Body doesn't block forever.
@@ -766,7 +765,7 @@ func TestRequestWriteTransport(t *testing.T) {
 				tt.afterReqRead = func() {
 					pw.Close()
 				}
-				tt.body = ioutil.NopCloser(pr)
+				tt.body = io.NopCloser(pr)
 			},
 			want: matchSubstr("Transfer-Encoding: chunked"),
 		},
@@ -937,7 +936,7 @@ func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
 			}
 			// Ensure all the body is read; otherwise
 			// we'll get a partial dump.
-			io.Copy(ioutil.Discard, req.Body)
+			io.Copy(io.Discard, req.Body)
 			req.Body.Close()
 		}
 		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")

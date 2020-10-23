@@ -16,7 +16,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -330,16 +329,7 @@ func ModFilePath() string {
 	return filepath.Join(modRoot, "go.mod")
 }
 
-// printStackInDie causes die to print a stack trace.
-//
-// It is enabled by the testgo tag, and helps to diagnose paths that
-// unexpectedly require a main module.
-var printStackInDie = false
-
 func die() {
-	if printStackInDie {
-		debug.PrintStack()
-	}
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}

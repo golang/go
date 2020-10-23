@@ -272,7 +272,7 @@ func dumpGlobalConst(n *Node) {
 	default:
 		return
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64Val())
 }
 
 func dumpglobls() {
@@ -305,20 +305,21 @@ func dumpglobls() {
 // global symbols can't be declared during parallel compilation.
 func addGCLocals() {
 	for _, s := range Ctxt.Text {
-		if s.Func == nil {
+		fn := s.Func()
+		if fn == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+		for _, gcsym := range []*obj.LSym{fn.GCArgs, fn.GCLocals, fn.GCRegs} {
 			if gcsym != nil && !gcsym.OnList() {
 				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
 		}
-		if x := s.Func.StackObjects; x != nil {
+		if x := fn.StackObjects; x != nil {
 			attr := int16(obj.RODATA)
 			ggloblsym(x, int32(len(x.P)), attr)
 			x.Set(obj.AttrStatic, true)
 		}
-		if x := s.Func.OpenCodedDeferInfo; x != nil {
+		if x := fn.OpenCodedDeferInfo; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}

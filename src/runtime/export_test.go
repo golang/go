@@ -749,10 +749,7 @@ func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
 func (p *PageAlloc) InUse() []AddrRange {
 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
 	for _, r := range p.inUse.ranges {
-		ranges = append(ranges, AddrRange{
-			Base:  r.base.addr(),
-			Limit: r.limit.addr(),
-		})
+		ranges = append(ranges, AddrRange{r})
 	}
 	return ranges
 }
@@ -763,10 +760,29 @@ func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
 	return (*PallocData)((*pageAlloc)(p).tryChunkOf(ci))
 }
 
-// AddrRange represents a range over addresses.
-// Specifically, it represents the range [Base, Limit).
+// AddrRange is a wrapper around addrRange for testing.
 type AddrRange struct {
-	Base, Limit uintptr
+	addrRange
+}
+
+// MakeAddrRange creates a new address range.
+func MakeAddrRange(base, limit uintptr) AddrRange {
+	return AddrRange{makeAddrRange(base, limit)}
+}
+
+// Base returns the virtual base address of the address range.
+func (a AddrRange) Base() uintptr {
+	return a.addrRange.base.addr()
+}
+
+// Base returns the virtual address of the limit of the address range.
+func (a AddrRange) Limit() uintptr {
+	return a.addrRange.limit.addr()
+}
+
+// Equals returns true if the two address ranges are exactly equal.
+func (a AddrRange) Equals(b AddrRange) bool {
+	return a == b
 }
 
 // BitRange represents a range over a bitmap.

@@ -9,6 +9,8 @@ env GO111MODULE=on
 mkdir $WORK/a/src/paths $WORK/b/src/paths
 cp paths.go $WORK/a/src/paths
 cp paths.go $WORK/b/src/paths
+cp overlay.json $WORK/a/src/paths
+cp overlay.json $WORK/b/src/paths
 cp go.mod $WORK/a/src/paths/
 cp go.mod $WORK/b/src/paths/
 
@@ -40,6 +42,29 @@ go mod edit -droprequire rsc.io/fortune
 # should be identical.
 cd $WORK/b/src/paths
 go build -trimpath -o $WORK/paths-b.exe
+cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
+
+
+# Same sequence of tests but with overlays.
+# A binary built without -trimpath should contain the module root dir
+# and GOROOT for debugging and stack traces.
+cd $WORK/a/src/paths
+go build -overlay overlay.json -o $WORK/paths-dbg.exe ./overlaydir
+exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
+stdout 'binary contains module root: true'
+stdout 'binary contains GOROOT: true'
+
+# A binary built with -trimpath should not contain the current workspace
+# or GOROOT.
+go build -overlay overlay.json -trimpath -o $WORK/paths-a.exe ./overlaydir
+exec $WORK/paths-a.exe $WORK/paths-a.exe
+stdout 'binary contains module root: false'
+stdout 'binary contains GOROOT: false'
+
+# Two binaries built from identical packages in different directories
+# should be identical.
+cd $WORK/b/src/paths
+go build -overlay overlay.json -trimpath -o $WORK/paths-b.exe ./overlaydir
 cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
 
 
@@ -129,7 +154,8 @@ func check(data []byte, desc, dir string) {
 	containsSlashDir := bytes.Contains(data, []byte(filepath.ToSlash(dir)))
 	fmt.Printf("binary contains %s: %v\n", desc, containsDir || containsSlashDir)
 }
-
+-- overlay.json --
+{ "Replace": { "overlaydir/paths.go": "paths.go" } }
 -- go.mod --
 module paths
 

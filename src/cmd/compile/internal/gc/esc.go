@@ -204,7 +204,7 @@ func heapAllocReason(n *Node) string {
 		if !smallintconst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type; t.Elem().Width != 0 && r.Int64() >= maxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type; t.Elem().Width != 0 && r.Int64Val() >= maxImplicitStackVarSize/t.Elem().Width {
 			return "too large for stack"
 		}
 	}
@@ -282,7 +282,7 @@ func addrescapes(n *Node) {
 
 // moveToHeap records the parameter or local variable n as moved to the heap.
 func moveToHeap(n *Node) {
-	if Debug['r'] != 0 {
+	if Debug.r != 0 {
 		Dump("MOVE", n)
 	}
 	if compiling_runtime {
@@ -359,7 +359,7 @@ func moveToHeap(n *Node) {
 	n.Xoffset = 0
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
-	if Debug['m'] != 0 {
+	if Debug.m != 0 {
 		Warnl(n.Pos, "moved to heap: %v", n)
 	}
 }
@@ -389,7 +389,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
 		if f.Type.IsUintptr() {
-			if Debug['m'] != 0 {
+			if Debug.m != 0 {
 				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
 			return unsafeUintptrTag
@@ -404,11 +404,11 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
 		if fn.Func.Pragma&Noescape != 0 {
-			if Debug['m'] != 0 && f.Sym != nil {
+			if Debug.m != 0 && f.Sym != nil {
 				Warnl(f.Pos, "%v does not escape", name())
 			}
 		} else {
-			if Debug['m'] != 0 && f.Sym != nil {
+			if Debug.m != 0 && f.Sym != nil {
 				Warnl(f.Pos, "leaking param: %v", name())
 			}
 			esc.AddHeap(0)
@@ -419,14 +419,14 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
 		if f.Type.IsUintptr() {
-			if Debug['m'] != 0 {
+			if Debug.m != 0 {
 				Warnl(f.Pos, "marking %v as escaping uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
 			// final argument is ...uintptr.
-			if Debug['m'] != 0 {
+			if Debug.m != 0 {
 				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
 			}
 			return uintptrEscapesTag
@@ -448,7 +448,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	esc := loc.paramEsc
 	esc.Optimize()
 
-	if Debug['m'] != 0 && !loc.escapes {
+	if Debug.m != 0 && !loc.escapes {
 		if esc.Empty() {
 			Warnl(f.Pos, "%v does not escape", name())
 		}

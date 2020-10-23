@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-# golang.org/issue/31248: module requirements imposed by dependency versions
+# golang.org/issue/31248: required modules imposed by dependency versions
 # older than the selected version must still be taken into account.
 
 env GOFLAGS=-mod=readonly

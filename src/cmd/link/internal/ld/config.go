@@ -35,16 +35,14 @@ func (mode *BuildMode) Set(s string) error {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
+		if objabi.GOOS == "darwin" && objabi.GOARCH == "arm64" {
+			*mode = BuildModePIE // On darwin/arm64 everything is PIE.
+			break
+		}
 		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
-		case "aix", "android", "linux", "windows":
-		case "darwin":
-			switch objabi.GOARCH {
-			case "amd64", "arm64":
-			default:
-				return badmode()
-			}
+		case "aix", "android", "linux", "windows", "darwin", "ios":
 		case "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
@@ -187,7 +185,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
+	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) && !(objabi.GOOS == "darwin" && objabi.GOARCH == "arm64") { // XXX allow internal linking for darwin/arm64 but not change the default
 		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
 	}
 
@@ -198,7 +196,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/14449
 	// https://golang.org/issue/21961
-	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64) {
+	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 	if iscgo && objabi.GOOS == "android" {
@@ -222,6 +220,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64", "linux/arm64", "android/arm64":
 		case "windows/386", "windows/amd64", "windows/arm":
+		case "darwin/amd64", "darwin/arm64":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
@@ -262,6 +261,8 @@ func determineLinkMode(ctxt *Link) {
 		default:
 			if extNeeded || (iscgo && externalobj) {
 				ctxt.LinkMode = LinkExternal
+			} else if ctxt.IsDarwin() && ctxt.IsARM64() {
+				ctxt.LinkMode = LinkExternal // default to external linking for now
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}
@@ -275,8 +276,6 @@ func determineLinkMode(ctxt *Link) {
 		}
 	case LinkExternal:
 		switch {
-		case objabi.GOARCH == "riscv64":
-			Exitf("external linking not supported for %s/riscv64", objabi.GOOS)
 		case objabi.GOARCH == "ppc64" && objabi.GOOS != "aix":
 			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
 		}

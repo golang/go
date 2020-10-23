@@ -7,6 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -253,7 +254,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
 		t.Fatal(err)
 	}
 

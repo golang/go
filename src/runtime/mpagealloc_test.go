@@ -54,7 +54,7 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)),
 			},
 		},
 		"Contiguous2": {
@@ -63,7 +63,7 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 1,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)),
 			},
 		},
 		"Contiguous5": {
@@ -75,7 +75,7 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 4,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+5, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+5, 0)),
 			},
 		},
 		"Discontiguous": {
@@ -85,9 +85,9 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 4,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
-				{PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)},
-				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)),
 			},
 		},
 		"Mixed": {
@@ -98,8 +98,8 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 4,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+3, 0)},
-				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+3, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)),
 			},
 		},
 		"WildlyDiscontiguous": {
@@ -110,9 +110,9 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 0x21,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
-				{PageBase(BaseChunkIdx+0x10, 0), PageBase(BaseChunkIdx+0x11, 0)},
-				{PageBase(BaseChunkIdx+0x21, 0), PageBase(BaseChunkIdx+0x22, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+0x10, 0), PageBase(BaseChunkIdx+0x11, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+0x21, 0), PageBase(BaseChunkIdx+0x22, 0)),
 			},
 		},
 		"ManyDiscontiguous": {
@@ -129,39 +129,39 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 64,
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
-				{PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)},
-				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
-				{PageBase(BaseChunkIdx+6, 0), PageBase(BaseChunkIdx+7, 0)},
-				{PageBase(BaseChunkIdx+8, 0), PageBase(BaseChunkIdx+9, 0)},
-				{PageBase(BaseChunkIdx+10, 0), PageBase(BaseChunkIdx+11, 0)},
-				{PageBase(BaseChunkIdx+12, 0), PageBase(BaseChunkIdx+13, 0)},
-				{PageBase(BaseChunkIdx+14, 0), PageBase(BaseChunkIdx+15, 0)},
-				{PageBase(BaseChunkIdx+16, 0), PageBase(BaseChunkIdx+17, 0)},
-				{PageBase(BaseChunkIdx+18, 0), PageBase(BaseChunkIdx+19, 0)},
-				{PageBase(BaseChunkIdx+20, 0), PageBase(BaseChunkIdx+21, 0)},
-				{PageBase(BaseChunkIdx+22, 0), PageBase(BaseChunkIdx+23, 0)},
-				{PageBase(BaseChunkIdx+24, 0), PageBase(BaseChunkIdx+25, 0)},
-				{PageBase(BaseChunkIdx+26, 0), PageBase(BaseChunkIdx+27, 0)},
-				{PageBase(BaseChunkIdx+28, 0), PageBase(BaseChunkIdx+29, 0)},
-				{PageBase(BaseChunkIdx+30, 0), PageBase(BaseChunkIdx+31, 0)},
-				{PageBase(BaseChunkIdx+32, 0), PageBase(BaseChunkIdx+33, 0)},
-				{PageBase(BaseChunkIdx+34, 0), PageBase(BaseChunkIdx+35, 0)},
-				{PageBase(BaseChunkIdx+36, 0), PageBase(BaseChunkIdx+37, 0)},
-				{PageBase(BaseChunkIdx+38, 0), PageBase(BaseChunkIdx+39, 0)},
-				{PageBase(BaseChunkIdx+40, 0), PageBase(BaseChunkIdx+41, 0)},
-				{PageBase(BaseChunkIdx+42, 0), PageBase(BaseChunkIdx+43, 0)},
-				{PageBase(BaseChunkIdx+44, 0), PageBase(BaseChunkIdx+45, 0)},
-				{PageBase(BaseChunkIdx+46, 0), PageBase(BaseChunkIdx+47, 0)},
-				{PageBase(BaseChunkIdx+48, 0), PageBase(BaseChunkIdx+49, 0)},
-				{PageBase(BaseChunkIdx+50, 0), PageBase(BaseChunkIdx+51, 0)},
-				{PageBase(BaseChunkIdx+52, 0), PageBase(BaseChunkIdx+53, 0)},
-				{PageBase(BaseChunkIdx+54, 0), PageBase(BaseChunkIdx+55, 0)},
-				{PageBase(BaseChunkIdx+56, 0), PageBase(BaseChunkIdx+57, 0)},
-				{PageBase(BaseChunkIdx+58, 0), PageBase(BaseChunkIdx+59, 0)},
-				{PageBase(BaseChunkIdx+60, 0), PageBase(BaseChunkIdx+61, 0)},
-				{PageBase(BaseChunkIdx+62, 0), PageBase(BaseChunkIdx+63, 0)},
-				{PageBase(BaseChunkIdx+64, 0), PageBase(BaseChunkIdx+65, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+6, 0), PageBase(BaseChunkIdx+7, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+8, 0), PageBase(BaseChunkIdx+9, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+10, 0), PageBase(BaseChunkIdx+11, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+12, 0), PageBase(BaseChunkIdx+13, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+14, 0), PageBase(BaseChunkIdx+15, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+16, 0), PageBase(BaseChunkIdx+17, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+18, 0), PageBase(BaseChunkIdx+19, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+20, 0), PageBase(BaseChunkIdx+21, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+22, 0), PageBase(BaseChunkIdx+23, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+24, 0), PageBase(BaseChunkIdx+25, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+26, 0), PageBase(BaseChunkIdx+27, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+28, 0), PageBase(BaseChunkIdx+29, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+30, 0), PageBase(BaseChunkIdx+31, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+32, 0), PageBase(BaseChunkIdx+33, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+34, 0), PageBase(BaseChunkIdx+35, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+36, 0), PageBase(BaseChunkIdx+37, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+38, 0), PageBase(BaseChunkIdx+39, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+40, 0), PageBase(BaseChunkIdx+41, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+42, 0), PageBase(BaseChunkIdx+43, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+44, 0), PageBase(BaseChunkIdx+45, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+46, 0), PageBase(BaseChunkIdx+47, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+48, 0), PageBase(BaseChunkIdx+49, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+50, 0), PageBase(BaseChunkIdx+51, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+52, 0), PageBase(BaseChunkIdx+53, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+54, 0), PageBase(BaseChunkIdx+55, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+56, 0), PageBase(BaseChunkIdx+57, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+58, 0), PageBase(BaseChunkIdx+59, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+60, 0), PageBase(BaseChunkIdx+61, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+62, 0), PageBase(BaseChunkIdx+63, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+64, 0), PageBase(BaseChunkIdx+65, 0)),
 			},
 		},
 	}
@@ -172,8 +172,8 @@ func TestPageAllocGrow(t *testing.T) {
 				BaseChunkIdx + 0x100000, // constant translates to O(TiB)
 			},
 			inUse: []AddrRange{
-				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
-				{PageBase(BaseChunkIdx+0x100000, 0), PageBase(BaseChunkIdx+0x100001, 0)},
+				MakeAddrRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)),
+				MakeAddrRange(PageBase(BaseChunkIdx+0x100000, 0), PageBase(BaseChunkIdx+0x100001, 0)),
 			},
 		}
 	}
@@ -197,7 +197,7 @@ func TestPageAllocGrow(t *testing.T) {
 				t.Fail()
 			} else {
 				for i := range want {
-					if want[i] != got[i] {
+					if !want[i].Equals(got[i]) {
 						t.Fail()
 						break
 					}
@@ -207,11 +207,11 @@ func TestPageAllocGrow(t *testing.T) {
 				t.Logf("found inUse mismatch")
 				t.Logf("got:")
 				for i, r := range got {
-					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base(), r.Limit())
 				}
 				t.Logf("want:")
 				for i, r := range want {
-					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base(), r.Limit())
 				}
 			}
 		})

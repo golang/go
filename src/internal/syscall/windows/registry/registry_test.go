@@ -34,7 +34,7 @@ func TestReadSubKeyNames(t *testing.T) {
 	}
 	defer k.Close()
 
-	names, err := k.ReadSubKeyNames(-1)
+	names, err := k.ReadSubKeyNames()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func setValues(t *testing.T, k registry.Key) {
 }
 
 func enumerateValues(t *testing.T, k registry.Key) {
-	names, err := k.ReadValueNames(-1)
+	names, err := k.ReadValueNames()
 	if err != nil {
 		t.Error(err)
 		return
@@ -480,7 +480,7 @@ func deleteValues(t *testing.T, k registry.Key) {
 			continue
 		}
 	}
-	names, err := k.ReadValueNames(-1)
+	names, err := k.ReadValueNames()
 	if err != nil {
 		t.Error(err)
 		return

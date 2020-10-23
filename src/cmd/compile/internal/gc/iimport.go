@@ -742,8 +742,8 @@ func (r *importReader) doInline(n *Node) {
 
 	importlist = append(importlist, n)
 
-	if Debug['E'] > 0 && Debug['m'] > 2 {
-		if Debug['m'] > 3 {
+	if Debug.E > 0 && Debug.m > 2 {
+		if Debug.m > 3 {
 			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
 		} else {
 			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
@@ -866,7 +866,7 @@ func (r *importReader) node() *Node {
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
-	//	unimplemented
+	//	unreachable - mapped to case OXDOT below by exporter
 
 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 	// 	unreachable - mapped to case OXDOT below by exporter

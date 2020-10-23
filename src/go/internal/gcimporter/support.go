@@ -17,7 +17,10 @@ func errorf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
 
-const deltaNewFile = -64 // see cmd/compile/internal/gc/bexport.go
+// deltaNewFile is a magic line delta offset indicating a new file.
+// We use -64 because it is rare; see issue 20080 and CL 41619.
+// -64 is the smallest int that fits in a single byte as a varint.
+const deltaNewFile = -64
 
 // Synthesize a token.Pos
 type fakeFileSet struct {

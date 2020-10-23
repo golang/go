@@ -43,7 +43,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld
+// TODO(crawshaw): de-duplicate these symbols with cmd/link/internal/ld
 const (
 	MACHO_X86_64_RELOC_UNSIGNED = 0
 	MACHO_X86_64_RELOC_SIGNED   = 1
@@ -172,11 +172,12 @@ const (
 	LdMachoCpuVax         = 1
 	LdMachoCpu68000       = 6
 	LdMachoCpu386         = 7
-	LdMachoCpuAmd64       = 0x1000007
+	LdMachoCpuAmd64       = 1<<24 | 7
 	LdMachoCpuMips        = 8
 	LdMachoCpu98000       = 10
 	LdMachoCpuHppa        = 11
 	LdMachoCpuArm         = 12
+	LdMachoCpuArm64       = 1<<24 | 12
 	LdMachoCpu88000       = 13
 	LdMachoCpuSparc       = 14
 	LdMachoCpu860         = 15
@@ -471,10 +472,13 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	switch arch.Family {
 	default:
 		return errorf("mach-o %s unimplemented", arch.Name)
-
 	case sys.AMD64:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
 			return errorf("mach-o object but not amd64")
+		}
+	case sys.ARM64:
+		if e != binary.LittleEndian || m.cputype != LdMachoCpuArm64 {
+			return errorf("mach-o object but not arm64")
 		}
 	}
 
@@ -633,7 +637,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		bld.SetType(l.SymType(outer))
-		l.AddInteriorSym(outer, s)
+		if l.SymSize(outer) != 0 { // skip empty section (0-sized symbol)
+			l.AddInteriorSym(outer, s)
+		}
 
 		bld.SetValue(int64(machsym.value - sect.addr))
 		if !l.AttrCgoExportDynamic(s) {
@@ -722,27 +728,28 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel.extrn == 0).
 			p := l.Data(s)
-			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
-				// Calculate the addend as the offset into the section.
-				//
-				// The rip-relative offset stored in the object file is encoded
-				// as follows:
-				//
-				//    movsd	0x00000360(%rip),%xmm0
-				//
-				// To get the absolute address of the value this rip-relative address is pointing
-				// to, we must add the address of the next instruction to it. This is done by
-				// taking the address of the relocation and adding 4 to it (since the rip-relative
-				// offset can at most be 32 bits long).  To calculate the offset into the section the
-				// relocation is referencing, we subtract the vaddr of the start of the referenced
-				// section found in the original object file.
-				//
-				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
-				secaddr := c.seg.sect[rel.symnum-1].addr
-
-				rAdd = int64(uint64(int64(int32(e.Uint32(p[rOff:])))+int64(rOff)+4) - secaddr)
-			} else {
-				rAdd = int64(int32(e.Uint32(p[rOff:])))
+			if arch.Family == sys.AMD64 {
+				if rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+					// Calculate the addend as the offset into the section.
+					//
+					// The rip-relative offset stored in the object file is encoded
+					// as follows:
+					//
+					//    movsd	0x00000360(%rip),%xmm0
+					//
+					// To get the absolute address of the value this rip-relative address is pointing
+					// to, we must add the address of the next instruction to it. This is done by
+					// taking the address of the relocation and adding 4 to it (since the rip-relative
+					// offset can at most be 32 bits long).  To calculate the offset into the section the
+					// relocation is referencing, we subtract the vaddr of the start of the referenced
+					// section found in the original object file.
+					//
+					// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
+					secaddr := c.seg.sect[rel.symnum-1].addr
+					rAdd = int64(uint64(int64(int32(e.Uint32(p[rOff:])))+int64(rOff)+4) - secaddr)
+				} else {
+					rAdd = int64(int32(e.Uint32(p[rOff:])))
+				}
 			}
 
 			// An unsigned internal relocation has a value offset

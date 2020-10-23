@@ -27,7 +27,7 @@ func (file *File) Stat() (FileInfo, error) {
 
 	ft, err := file.pfd.GetFileType()
 	if err != nil {
-		return nil, &PathError{"GetFileType", file.name, err}
+		return nil, &PathError{Op: "GetFileType", Path: file.name, Err: err}
 	}
 	switch ft {
 	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
@@ -45,14 +45,14 @@ func (file *File) Stat() (FileInfo, error) {
 // stat implements both Stat and Lstat of a file.
 func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	if len(name) == 0 {
-		return nil, &PathError{funcname, name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
 	if isWindowsNulName(name) {
 		return &devNullStat, nil
 	}
 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
 	if err != nil {
-		return nil, &PathError{funcname, name, err}
+		return nil, &PathError{Op: funcname, Path: name, Err: err}
 	}
 
 	// Try GetFileAttributesEx first, because it is faster than CreateFile.
@@ -80,7 +80,7 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 		var fd syscall.Win32finddata
 		sh, err := syscall.FindFirstFile(namep, &fd)
 		if err != nil {
-			return nil, &PathError{"FindFirstFile", name, err}
+			return nil, &PathError{Op: "FindFirstFile", Path: name, Err: err}
 		}
 		syscall.FindClose(sh)
 		fs := newFileStatFromWin32finddata(&fd)
@@ -94,7 +94,7 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	h, err := syscall.CreateFile(namep, 0, 0, nil,
 		syscall.OPEN_EXISTING, createFileAttrs, 0)
 	if err != nil {
-		return nil, &PathError{"CreateFile", name, err}
+		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}
 	defer syscall.CloseHandle(h)
 
