@@ -35,8 +35,7 @@ import (
 )
 
 // rule syntax:
-//  sexpr [&& extra conditions] -> [@block] sexpr  (untyped)
-//  sexpr [&& extra conditions] => [@block] sexpr  (typed)
+//  sexpr [&& extra conditions] => [@block] sexpr
 //
 // sexpr are s-expressions (lisp-like parenthesized groupings)
 // sexpr ::= [variable:](opcode sexpr*)
@@ -79,14 +78,8 @@ func normalizeSpaces(s string) string {
 }
 
 // parse returns the matching part of the rule, additional conditions, and the result.
-// parse also reports whether the generated code should use strongly typed aux and auxint fields.
-func (r Rule) parse() (match, cond, result string, typed bool) {
-	arrow := "->"
-	if strings.Contains(r.Rule, "=>") {
-		arrow = "=>"
-		typed = true
-	}
-	s := strings.Split(r.Rule, arrow)
+func (r Rule) parse() (match, cond, result string) {
+	s := strings.Split(r.Rule, "=>")
 	match = normalizeSpaces(s[0])
 	result = normalizeSpaces(s[1])
 	cond = ""
@@ -94,7 +87,7 @@ func (r Rule) parse() (match, cond, result string, typed bool) {
 		cond = normalizeSpaces(match[i+2:])
 		match = normalizeSpaces(match[:i])
 	}
-	return match, cond, result, typed
+	return match, cond, result
 }
 
 func genRules(arch arch)          { genRulesSuffix(arch, "") }
@@ -120,7 +113,7 @@ func genRulesSuffix(arch arch, suff string) {
 	scanner := bufio.NewScanner(text)
 	rule := ""
 	var lineno int
-	var ruleLineno int // line number of "->" or "=>"
+	var ruleLineno int // line number of "=>"
 	for scanner.Scan() {
 		lineno++
 		line := scanner.Text()
@@ -134,13 +127,13 @@ func genRulesSuffix(arch arch, suff string) {
 		if rule == "" {
 			continue
 		}
-		if !strings.Contains(rule, "->") && !strings.Contains(rule, "=>") {
+		if !strings.Contains(rule, "=>") {
 			continue
 		}
 		if ruleLineno == 0 {
 			ruleLineno = lineno
 		}
-		if strings.HasSuffix(rule, "->") || strings.HasSuffix(rule, "=>") {
+		if strings.HasSuffix(rule, "=>") {
 			continue // continue on the next line
 		}
 		if n := balance(rule); n > 0 {
@@ -157,7 +150,7 @@ func genRulesSuffix(arch arch, suff string) {
 				continue
 			}
 			// Do fancier value op matching.
-			match, _, _, _ := r.parse()
+			match, _, _ := r.parse()
 			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
 			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
 			oprules[opname] = append(oprules[opname], r)
@@ -231,7 +224,7 @@ func genRulesSuffix(arch arch, suff string) {
 				log.Fatalf("unconditional rule %s is followed by other rules", rr.Match)
 			}
 			rr = &RuleRewrite{Loc: rule.Loc}
-			rr.Match, rr.Cond, rr.Result, rr.Typed = rule.parse()
+			rr.Match, rr.Cond, rr.Result = rule.parse()
 			pos, _ := genMatch(rr, arch, rr.Match, fn.ArgLen >= 0)
 			if pos == "" {
 				pos = "v.Pos"
@@ -790,7 +783,6 @@ type (
 		Alloc        int    // for unique var names
 		Loc          string // file name & line number of the original rule
 		CommuteDepth int    // used to track depth of commute loops
-		Typed        bool   // aux and auxint fields should be strongly typed
 	}
 	Declare struct {
 		Name  string
@@ -844,7 +836,7 @@ func breakf(format string, a ...interface{}) *CondBreak {
 
 func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	rr := &RuleRewrite{Loc: rule.Loc}
-	rr.Match, rr.Cond, rr.Result, rr.Typed = rule.parse()
+	rr.Match, rr.Cond, rr.Result = rule.parse()
 	_, _, auxint, aux, s := extract(rr.Match) // remove parens, then split
 
 	// check match of control values
@@ -886,15 +878,6 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		{aux, "Aux", data.auxType()},
 	} {
 		if e.name == "" {
-			continue
-		}
-		if !rr.Typed {
-			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
-				// code or variable
-				rr.add(breakf("b.%s != %s", e.field, e.name))
-			} else {
-				rr.add(declf(e.name, "b.%s", e.field))
-			}
 			continue
 		}
 
@@ -965,20 +948,12 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	}
 
 	if auxint != "" {
-		if rr.Typed {
-			// Make sure auxint value has the right type.
-			rr.add(stmtf("b.AuxInt = %sToAuxInt(%s)", unTitle(outdata.auxIntType()), auxint))
-		} else {
-			rr.add(stmtf("b.AuxInt = %s", auxint))
-		}
+		// Make sure auxint value has the right type.
+		rr.add(stmtf("b.AuxInt = %sToAuxInt(%s)", unTitle(outdata.auxIntType()), auxint))
 	}
 	if aux != "" {
-		if rr.Typed {
-			// Make sure aux value has the right type.
-			rr.add(stmtf("b.Aux = %sToAux(%s)", unTitle(outdata.auxType()), aux))
-		} else {
-			rr.add(stmtf("b.Aux = %s", aux))
-		}
+		// Make sure aux value has the right type.
+		rr.add(stmtf("b.Aux = %sToAux(%s)", unTitle(outdata.auxType()), aux))
 	}
 
 	succChanged := false
@@ -1044,15 +1019,6 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		{aux, "Aux", op.auxType()},
 	} {
 		if e.name == "" {
-			continue
-		}
-		if !rr.Typed {
-			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
-				// code or variable
-				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
-			} else {
-				rr.add(declf(e.name, "%s.%s", v, e.field))
-			}
 			continue
 		}
 
@@ -1244,20 +1210,12 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	}
 
 	if auxint != "" {
-		if rr.Typed {
-			// Make sure auxint value has the right type.
-			rr.add(stmtf("%s.AuxInt = %sToAuxInt(%s)", v, unTitle(op.auxIntType()), auxint))
-		} else {
-			rr.add(stmtf("%s.AuxInt = %s", v, auxint))
-		}
+		// Make sure auxint value has the right type.
+		rr.add(stmtf("%s.AuxInt = %sToAuxInt(%s)", v, unTitle(op.auxIntType()), auxint))
 	}
 	if aux != "" {
-		if rr.Typed {
-			// Make sure aux value has the right type.
-			rr.add(stmtf("%s.Aux = %sToAux(%s)", v, unTitle(op.auxType()), aux))
-		} else {
-			rr.add(stmtf("%s.Aux = %s", v, aux))
-		}
+		// Make sure aux value has the right type.
+		rr.add(stmtf("%s.Aux = %sToAux(%s)", v, unTitle(op.auxType()), aux))
 	}
 	all := new(strings.Builder)
 	for i, arg := range args {
@@ -1538,7 +1496,7 @@ func excludeFromExpansion(s string, idx []int) bool {
 		return true
 	}
 	right := s[idx[1]:]
-	if strings.Contains(left, "&&") && (strings.Contains(right, "->") || strings.Contains(right, "=>")) {
+	if strings.Contains(left, "&&") && strings.Contains(right, "=>") {
 		// Inside && conditions.
 		return true
 	}
@@ -1640,7 +1598,6 @@ func normalizeWhitespace(x string) string {
 	x = strings.Replace(x, " )", ")", -1)
 	x = strings.Replace(x, "[ ", "[", -1)
 	x = strings.Replace(x, " ]", "]", -1)
-	x = strings.Replace(x, ")->", ") ->", -1)
 	x = strings.Replace(x, ")=>", ") =>", -1)
 	return x
 }
@@ -1697,7 +1654,7 @@ func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
 		return "", false
 	}
 	rule := rules[0]
-	match, cond, result, _ := rule.parse()
+	match, cond, result := rule.parse()
 	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
 		if strings.Contains(rule.Rule, "...") {
 			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.Loc)
@@ -1722,7 +1679,7 @@ func isEllipsisValue(s string) bool {
 }
 
 func checkEllipsisRuleCandidate(rule Rule, arch arch) {
-	match, cond, result, _ := rule.parse()
+	match, cond, result := rule.parse()
 	if cond != "" {
 		return
 	}
@@ -1732,7 +1689,7 @@ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
 	var usingCopy string
 	var eop opData
 	if result[0] != '(' {
-		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
+		// Check for (Foo x) => x, which can be converted to (Foo ...) => (Copy ...).
 		args2 = []string{result}
 		usingCopy = " using Copy"
 	} else {
