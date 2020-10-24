@@ -497,6 +497,18 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_kill(SB)
 	RET
 
+TEXT runtime·pthread_key_create_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 destructor
+	MOVD	0(R0), R0	// arg 1 *key
+	BL	libc_pthread_key_create(SB)
+	RET
+
+TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 value
+	MOVD	0(R0), R0	// arg 1 key
+	BL	libc_pthread_setspecific(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {
