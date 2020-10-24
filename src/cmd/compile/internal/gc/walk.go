@@ -474,7 +474,7 @@ opswitch:
 		ODEREF, OSPTR, OITAB, OIDATA, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
-	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
+	case OEFACE, OAND, OANDNOT, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
@@ -964,14 +964,6 @@ opswitch:
 		}
 		fn := basicnames[param] + "to" + basicnames[result]
 		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left, types.Types[param])), n.Type)
-
-	case OANDNOT:
-		n.Left = walkexpr(n.Left, init)
-		n.Op = OAND
-		n.SetImplicit(true) // for walkCheckPtrArithmetic
-		n.Right = nod(OBITNOT, n.Right, nil)
-		n.Right = typecheck(n.Right, ctxExpr)
-		n.Right = walkexpr(n.Right, init)
 
 	case ODIV, OMOD:
 		n.Left = walkexpr(n.Left, init)
@@ -3609,14 +3601,20 @@ func bounded(n *Node, max int64) bool {
 	}
 
 	switch n.Op {
-	case OAND:
+	case OAND, OANDNOT:
 		v := int64(-1)
-		if smallintconst(n.Left) {
+		switch {
+		case smallintconst(n.Left):
 			v = n.Left.Int64Val()
-		} else if smallintconst(n.Right) {
+		case smallintconst(n.Right):
 			v = n.Right.Int64Val()
+			if n.Op == OANDNOT {
+				v = ^v
+				if !sign {
+					v &= 1<<uint(bits) - 1
+				}
+			}
 		}
-
 		if 0 <= v && v < max {
 			return true
 		}
@@ -4045,12 +4043,8 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 		case OADD:
 			walk(n.Left)
 			walk(n.Right)
-		case OSUB:
+		case OSUB, OANDNOT:
 			walk(n.Left)
-		case OAND:
-			if n.Implicit() { // was OANDNOT
-				walk(n.Left)
-			}
 		case OCONVNOP:
 			if n.Left.Type.IsUnsafePtr() {
 				n.Left = cheapexpr(n.Left, init)

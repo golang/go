@@ -2472,6 +2472,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+	case OANDNOT:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		b = s.newValue1(s.ssaOp(OBITNOT, b.Type), b.Type, b)
+		return s.newValue2(s.ssaOp(OAND, n.Type), a.Type, a, b)
 	case OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
