@@ -977,10 +977,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// Load g from thread-local storage.
-	MOVB	runtime·iscgo(SB), R3
-	CBZ	R3, nocgo
 	BL	runtime·load_g(SB)
-nocgo:
 
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
