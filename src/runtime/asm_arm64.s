@@ -15,6 +15,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVW	R0, 8(RSP) // argc
 	MOVD	R1, 16(RSP) // argv
 
+#ifdef TLS_darwin
+	// Initialize TLS.
+	MOVD	ZR, g // clear g, make sure it's not junk.
+	SUB	$32, RSP
+	MRS_TPIDR_R0
+	AND	$~7, R0
+	MOVD	R0, 16(RSP)             // arg2: TLS base
+	MOVD	$runtime·tls_g(SB), R2
+	MOVD	R2, 8(RSP)              // arg1: &tlsg
+	BL	·tlsinit(SB)
+	ADD	$32, RSP
+#endif
+
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVD	$runtime·g0(SB), g
@@ -29,9 +42,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	_cgo_init(SB), R12
 	CBZ	R12, nocgo
 
+#ifdef GOOS_android
 	MRS_TPIDR_R0			// load TLS base pointer
 	MOVD	R0, R3			// arg 3: TLS base pointer
-#ifdef TLSG_IS_VARIABLE
 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
 	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
