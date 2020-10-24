@@ -202,6 +202,8 @@ func init() {
 		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
 		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
 
+		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}, resultInArg0: true}, // nop, return arg0 in same register
+
 		// Shift ops
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
