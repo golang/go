@@ -3,11 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Optimizations TODO:
-// * Somehow track when values are already zero/signed-extended, avoid re-extending.
 // * Use SLTI and SLTIU for comparisons to constants, instead of SLT/SLTU with constants in registers
-// * Find a more efficient way to do zero/sign extension than left+right shift.
-//   There are many other options (store then load-extend, LUI+ANDI for zero extend, special case 32->64, ...),
-//   but left+right shift is simple and uniform, and we don't have real hardware to do perf testing on anyway.
 // * Use the zero register instead of moving 0 into a register.
 // * Add rules to avoid generating a temp bool value for (If (SLT[U] ...) ...).
 // * Optimize left and right shift by simplifying SLTIU, Neg, and ADD for constants.
@@ -66,8 +62,8 @@
 (Mod32u ...) => (REMUW ...)
 (Mod16 x y [false])  => (REMW  (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) => (REMUW (ZeroExt16to32 x) (ZeroExt16to32 y))
-(Mod8 x y)   => (REMW  (SignExt8to32 x)  (SignExt8to32 y))
-(Mod8u x y)  => (REMUW (ZeroExt8to32 x)  (ZeroExt8to32 y))
+(Mod8 x y)   => (REMW  (SignExt8to32  x) (SignExt8to32  y))
+(Mod8u x y)  => (REMUW (ZeroExt8to32  x) (ZeroExt8to32  y))
 
 (And64 ...) => (AND ...)
 (And32 ...) => (AND ...)
@@ -257,16 +253,16 @@
 (EqPtr x y) => (SEQZ (SUB <x.Type> x y))
 (Eq64  x y) => (SEQZ (SUB <x.Type> x y))
 (Eq32  x y) => (SEQZ (SUBW <x.Type> x y))
-(Eq16  x y) => (SEQZ (ZeroExt16to64 (SUB <x.Type> x y)))
-(Eq8   x y) => (SEQZ (ZeroExt8to64  (SUB <x.Type> x y)))
+(Eq16  x y) => (SEQZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
+(Eq8   x y) => (SEQZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
 (Eq64F ...) => (FEQD ...)
 (Eq32F ...) => (FEQS ...)
 
 (NeqPtr x y) => (SNEZ (SUB <x.Type> x y))
 (Neq64  x y) => (SNEZ (SUB <x.Type> x y))
 (Neq32  x y) => (SNEZ (SUBW <x.Type> x y))
-(Neq16  x y) => (SNEZ (ZeroExt16to64 (SUB <x.Type> x y)))
-(Neq8   x y) => (SNEZ (ZeroExt8to64  (SUB <x.Type> x y)))
+(Neq16  x y) => (SNEZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
+(Neq8   x y) => (SNEZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
 (Neq64F ...) => (FNED ...)
 (Neq32F ...) => (FNES ...)
 
@@ -287,8 +283,8 @@
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  is32BitFloat(val.Type) => (FMOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
 
 // We need to fold MOVaddr into the LD/MOVDstore ops so that the live variable analysis
 // knows what variables are being read/written by the ops.
@@ -496,6 +492,65 @@
 (MOVHstore [off] {sym} ptr (MOVHconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
+
+// Avoid sign/zero extension after properly typed load.
+(MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHload  _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHload  _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWload  _ _)) => (MOVDreg x)
+(MOVBUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
+
+// Fold double extensions.
+(MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHreg  _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBUreg _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHreg  _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWreg  _)) => (MOVDreg x)
+(MOVBUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUreg _)) => (MOVDreg x)
+(MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
+
+// Do not extend before store.
+(MOVBstore [off] {sym} ptr (MOVBreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVHreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVWreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVBUreg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVHUreg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVHreg  x) mem) => (MOVHstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVWreg  x) mem) => (MOVHstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVHUreg x) mem) => (MOVHstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVHstore [off] {sym} ptr x mem)
+(MOVWstore [off] {sym} ptr (MOVWreg  x) mem) => (MOVWstore [off] {sym} ptr x mem)
+(MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
+
+// Replace extend after load with alternate load where possible.
+(MOVBreg  <t> x:(MOVBUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBload  <t> [off] {sym} ptr mem)
+(MOVHreg  <t> x:(MOVHUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHload  <t> [off] {sym} ptr mem)
+(MOVWreg  <t> x:(MOVWUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWload  <t> [off] {sym} ptr mem)
+(MOVBUreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBUload <t> [off] {sym} ptr mem)
+(MOVHUreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUload <t> [off] {sym} ptr mem)
+(MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
+
+// If a register move has only 1 use, just use the same register without emitting instruction
+// MOVnop does not emit an instruction, only for ensuring the type.
+(MOVDreg x) && x.Uses == 1 => (MOVDnop x)
 
 // Fold constant into immediate instructions where possible.
 (ADD (MOVBconst [val]) x) => (ADDI [int64(val)] x)
