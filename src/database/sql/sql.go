@@ -434,7 +434,7 @@ type DB struct {
 	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
 	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
 
-	stop func() // stop cancels the connection opener and the session resetter.
+	stop func() // stop cancels the connection opener.
 }
 
 // connReuseStrategy determines how (*DB).conn returns database connections.
