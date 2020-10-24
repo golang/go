@@ -312,7 +312,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 		}
 	}
 	call.Done = done
-	client.send(call)
+	go client.send(call)
 	return call
 }
 
