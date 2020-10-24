@@ -98,25 +98,21 @@
 
 (Sqrt ...) => (FSQRTD ...)
 
-// Zero and sign extension
-// Shift left until the bits we want are at the top of the register.
-// Then logical/arithmetic shift right for zero/sign extend.
-// We always extend to 64 bits; there's no reason not to,
-// and optimization rules can then collapse some extensions.
+// Sign and zero extension.
 
-(SignExt8to16  <t> x) => (SRAI [56] (SLLI <t> [56] x))
-(SignExt8to32  <t> x) => (SRAI [56] (SLLI <t> [56] x))
-(SignExt8to64  <t> x) => (SRAI [56] (SLLI <t> [56] x))
-(SignExt16to32 <t> x) => (SRAI [48] (SLLI <t> [48] x))
-(SignExt16to64 <t> x) => (SRAI [48] (SLLI <t> [48] x))
-(SignExt32to64 <t> x) => (ADDIW [0] x)
+(SignExt8to16  ...) => (MOVBreg ...)
+(SignExt8to32  ...) => (MOVBreg ...)
+(SignExt8to64  ...) => (MOVBreg ...)
+(SignExt16to32 ...) => (MOVHreg ...)
+(SignExt16to64 ...) => (MOVHreg ...)
+(SignExt32to64 ...) => (MOVWreg ...)
 
-(ZeroExt8to16  <t> x) => (SRLI [56] (SLLI <t> [56] x))
-(ZeroExt8to32  <t> x) => (SRLI [56] (SLLI <t> [56] x))
-(ZeroExt8to64  <t> x) => (SRLI [56] (SLLI <t> [56] x))
-(ZeroExt16to32 <t> x) => (SRLI [48] (SLLI <t> [48] x))
-(ZeroExt16to64 <t> x) => (SRLI [48] (SLLI <t> [48] x))
-(ZeroExt32to64 <t> x) => (SRLI [32] (SLLI <t> [32] x))
+(ZeroExt8to16  ...) => (MOVBUreg ...)
+(ZeroExt8to32  ...) => (MOVBUreg ...)
+(ZeroExt8to64  ...) => (MOVBUreg ...)
+(ZeroExt16to32 ...) => (MOVHUreg ...)
+(ZeroExt16to64 ...) => (MOVHUreg ...)
+(ZeroExt32to64 ...) => (MOVWUreg ...)
 
 (Cvt32to32F ...) => (FCVTSW ...)
 (Cvt32to64F ...) => (FCVTDW ...)
