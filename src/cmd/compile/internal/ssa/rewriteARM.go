@@ -448,8 +448,7 @@ func rewriteValueARM(v *Value) bool {
 		v.Op = OpARMADD
 		return true
 	case OpAddr:
-		v.Op = OpARMMOVWaddr
-		return true
+		return rewriteValueARM_OpAddr(v)
 	case OpAnd16:
 		v.Op = OpARMAND
 		return true
@@ -481,23 +480,17 @@ func rewriteValueARM(v *Value) bool {
 		v.Op = OpARMMVN
 		return true
 	case OpConst16:
-		v.Op = OpARMMOVWconst
-		return true
+		return rewriteValueARM_OpConst16(v)
 	case OpConst32:
-		v.Op = OpARMMOVWconst
-		return true
+		return rewriteValueARM_OpConst32(v)
 	case OpConst32F:
-		v.Op = OpARMMOVFconst
-		return true
+		return rewriteValueARM_OpConst32F(v)
 	case OpConst64F:
-		v.Op = OpARMMOVDconst
-		return true
+		return rewriteValueARM_OpConst64F(v)
 	case OpConst8:
-		v.Op = OpARMMOVWconst
-		return true
+		return rewriteValueARM_OpConst8(v)
 	case OpConstBool:
-		v.Op = OpARMMOVWconst
-		return true
+		return rewriteValueARM_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueARM_OpConstNil(v)
 	case OpCtz16:
@@ -12873,6 +12866,19 @@ func rewriteValueARM_OpARMXORshiftRR(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpAddr(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Addr {sym} base)
+	// result: (MOVWaddr {sym} base)
+	for {
+		sym := auxToSym(v.Aux)
+		base := v_0
+		v.reset(OpARMMOVWaddr)
+		v.Aux = symToAux(sym)
+		v.AddArg(base)
+		return true
+	}
+}
 func rewriteValueARM_OpAvg32u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -12953,6 +12959,66 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpConst16(v *Value) bool {
+	// match: (Const16 [val])
+	// result: (MOVWconst [int32(val)])
+	for {
+		val := auxIntToInt16(v.AuxInt)
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int32ToAuxInt(int32(val))
+		return true
+	}
+}
+func rewriteValueARM_OpConst32(v *Value) bool {
+	// match: (Const32 [val])
+	// result: (MOVWconst [int32(val)])
+	for {
+		val := auxIntToInt32(v.AuxInt)
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int32ToAuxInt(int32(val))
+		return true
+	}
+}
+func rewriteValueARM_OpConst32F(v *Value) bool {
+	// match: (Const32F [val])
+	// result: (MOVFconst [float64(val)])
+	for {
+		val := auxIntToFloat32(v.AuxInt)
+		v.reset(OpARMMOVFconst)
+		v.AuxInt = float64ToAuxInt(float64(val))
+		return true
+	}
+}
+func rewriteValueARM_OpConst64F(v *Value) bool {
+	// match: (Const64F [val])
+	// result: (MOVDconst [float64(val)])
+	for {
+		val := auxIntToFloat64(v.AuxInt)
+		v.reset(OpARMMOVDconst)
+		v.AuxInt = float64ToAuxInt(float64(val))
+		return true
+	}
+}
+func rewriteValueARM_OpConst8(v *Value) bool {
+	// match: (Const8 [val])
+	// result: (MOVWconst [int32(val)])
+	for {
+		val := auxIntToInt8(v.AuxInt)
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int32ToAuxInt(int32(val))
+		return true
+	}
+}
+func rewriteValueARM_OpConstBool(v *Value) bool {
+	// match: (ConstBool [b])
+	// result: (MOVWconst [b2i32(b)])
+	for {
+		b := auxIntToBool(v.AuxInt)
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int32ToAuxInt(b2i32(b))
+		return true
+	}
 }
 func rewriteValueARM_OpConstNil(v *Value) bool {
 	// match: (ConstNil)
