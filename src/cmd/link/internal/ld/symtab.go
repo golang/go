@@ -580,8 +580,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			symGroupType[s] = sym.SGOFUNC
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgofunc)
-			const align = 4
-			ldr.SetSymAlign(s, align)
+			align := int32(4)
+			if a := ldr.SymAlign(s); a < align {
+				ldr.SetSymAlign(s, align)
+			} else {
+				align = a
+			}
 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
 		}
 	}
