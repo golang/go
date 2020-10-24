@@ -169,10 +169,10 @@
 (Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 => (SRAconst (SLLconst <typ.UInt32> x [24]) [31])
 
 // constants
-(Const(8|16|32) ...) -> (MOVWconst ...)
-(Const(32F|64F) ...) -> (MOV(F|D)const ...)
+(Const(8|16|32) [val]) => (MOVWconst [int32(val)])
+(Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
 (ConstNil) => (MOVWconst [0])
-(ConstBool ...) -> (MOVWconst ...)
+(ConstBool [b]) => (MOVWconst [b2i32(b)])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.
@@ -246,7 +246,7 @@
 (OffPtr [off] ptr:(SP)) => (MOVWaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDconst [int32(off)] ptr)
 
-(Addr ...) -> (MOVWaddr ...)
+(Addr {sym} base) => (MOVWaddr {sym} base)
 (LocalAddr {sym} base _) => (MOVWaddr {sym} base)
 
 // loads
