@@ -1964,10 +1964,6 @@ func externalLinkingForced(p *Package) bool {
 		}
 	case "ios":
 		return true
-	case "darwin":
-		if cfg.BuildContext.GOARCH == "arm64" {
-			return true
-		}
 	}
 
 	// Currently build modes c-shared, pie (on systems that do not
