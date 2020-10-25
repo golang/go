@@ -90,7 +90,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// parent; return PID
 	pid = int(r1)
+	if sys.Foreground {
+		pgrp0 := int32(sys.Pgid)
+		if pgrp0 == 0 {
+			pgrp0 = int32(pid)
+		}
 
+		// Place process group in foreground.
+		_, _, err3 := RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp0)))
+		if err3 != 0 {
+			return 0, err3
+		}
+	}
+	
 	if sys.UidMappings != nil || sys.GidMappings != nil {
 		Close(p[0])
 		var err2 Errno
@@ -278,21 +290,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	if sys.Setpgid || sys.Foreground {
 		// Place child in process group.
 		_, _, err1 = RawSyscall(SYS_SETPGID, 0, uintptr(sys.Pgid), 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	}
-
-	if sys.Foreground {
-		pgrp := int32(sys.Pgid)
-		if pgrp == 0 {
-			r1, _ = rawSyscallNoError(SYS_GETPID, 0, 0, 0)
-
-			pgrp = int32(r1)
-		}
-
-		// Place process group in foreground.
-		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
 		if err1 != 0 {
 			goto childerror
 		}
