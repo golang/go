@@ -466,13 +466,14 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test the ios build tag on darwin/amd64 for the iOS simulator.
-	if goos == "darwin" && goarch == "amd64" {
+	// Test ios/amd64 for the iOS simulator.
+	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
 			name:    "amd64ios",
-			heading: "ios tag on darwin/amd64",
+			heading: "GOOS=ios on darwin/amd64",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=ios", "-run=SystemRoots", "crypto/x509")
+				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-run=SystemRoots", "crypto/x509")
+				cmd.Env = append(os.Environ(), "GOOS=ios", "CGO_ENABLED=1")
 				return nil
 			},
 		})
