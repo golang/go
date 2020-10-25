@@ -166,6 +166,72 @@ func TestBuilderWrite2(t *testing.T) {
 	}
 }
 
+func TestBuilderTruncate(t *testing.T) {
+	tests := []struct {
+		name      string
+		fn        func()
+		wantPanic bool
+	}{
+		{
+			name:      "normal",
+			wantPanic: false,
+			fn: func() {
+				var b Builder
+				if _, err := b.WriteString("abcdefg"); err != nil {
+					t.Error(err)
+				}
+				b.Truncate(1)
+				check(t, &b, "a")
+			},
+		},
+		{
+			name:      "reset",
+			wantPanic: false,
+			fn: func() {
+				var b Builder
+				if _, err := b.WriteString("abcdefg"); err != nil {
+					t.Error(err)
+				}
+				b.Truncate(0)
+				check(t, &b, "")
+			},
+		},
+		{
+			name:      "tooLong",
+			wantPanic: true,
+			fn: func() {
+				var b Builder
+				if _, err := b.WriteString("abc"); err != nil {
+					t.Error(err)
+				}
+				b.Truncate(4)
+			},
+		},
+		{
+			name:      "negative",
+			wantPanic: true,
+			fn: func() {
+				var b Builder
+				if _, err := b.WriteString("abc"); err != nil {
+					t.Error(err)
+				}
+				b.Truncate(-1)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		didPanic := make(chan bool)
+		go func() {
+			defer func() { didPanic <- recover() != nil }()
+			tt.fn()
+		}()
+		if got := <-didPanic; got != tt.wantPanic {
+			t.Errorf("%s: panicked = %v; want %v", tt.name, got, tt.wantPanic)
+		}
+	}
+}
+
 func TestBuilderWriteByte(t *testing.T) {
 	var b Builder
 	if err := b.WriteByte('a'); err != nil {

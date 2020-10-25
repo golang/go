@@ -123,3 +123,17 @@ func (b *Builder) WriteString(s string) (int, error) {
 	b.buf = append(b.buf, s...)
 	return len(s), nil
 }
+
+// Truncate discards all but the first n unread bytes from the buffer
+// It panics if n is negative or greater than the length of the buffer.
+func (b *Builder) Truncate(n int) {
+	b.copyCheck()
+	if n == 0 {
+		b.Reset()
+		return
+	}
+	if n < 0 || n > b.Len() {
+		panic("strings.Builder: truncation out of range")
+	}
+	b.buf = b.buf[:n]
+}
