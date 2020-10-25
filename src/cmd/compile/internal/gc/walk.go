@@ -989,7 +989,7 @@ opswitch:
 		// runtime calls late in SSA processing.
 		if Widthreg < 8 && (et == TINT64 || et == TUINT64) {
 			if n.Right.Op == OLITERAL {
-				// Leave div/mod by constant powers of 2.
+				// Leave div/mod by constant powers of 2 or small 16-bit constants.
 				// The SSA backend will handle those.
 				switch et {
 				case TINT64:
@@ -1002,6 +1002,9 @@ opswitch:
 					}
 				case TUINT64:
 					c := uint64(n.Right.Int64Val())
+					if c < 1<<16 {
+						break opswitch
+					}
 					if c != 0 && c&(c-1) == 0 {
 						break opswitch
 					}

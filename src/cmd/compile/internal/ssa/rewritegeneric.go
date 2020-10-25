@@ -5208,6 +5208,66 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
+	// cond: c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4
+	// result: (Add64 (Add64 <typ.UInt64> (Add64 <typ.UInt64> (Lsh64x64 <typ.UInt64> (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [32])) (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])))) (Mul64 <typ.UInt64> (ZeroExt32to64 <typ.UInt64> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [int64((1<<32)/c)]))) (ZeroExt32to64 (Div32u <typ.UInt32> (Add32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])) (Mul32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)])) (Const32 <typ.UInt32> [int32((1<<32)%c)]))) (Const32 <typ.UInt32> [int32(c)]))))
+	for {
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4) {
+			break
+		}
+		v.reset(OpAdd64)
+		v0 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpLsh64x64, typ.UInt64)
+		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v4 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
+		v6 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
+		v7 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v7.AuxInt = int64ToAuxInt(32)
+		v6.AddArg2(x, v7)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v8.AuxInt = int32ToAuxInt(int32(c))
+		v4.AddArg2(v5, v8)
+		v3.AddArg(v4)
+		v2.AddArg2(v3, v7)
+		v9 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v10 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v11 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
+		v11.AddArg(x)
+		v10.AddArg2(v11, v8)
+		v9.AddArg(v10)
+		v1.AddArg2(v2, v9)
+		v12 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v13 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v14 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v14.AddArg2(v5, v8)
+		v13.AddArg(v14)
+		v15 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v15.AuxInt = int64ToAuxInt(int64((1 << 32) / c))
+		v12.AddArg2(v13, v15)
+		v0.AddArg2(v1, v12)
+		v16 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v17 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
+		v18 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
+		v19 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v19.AddArg2(v11, v8)
+		v20 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v21 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v21.AuxInt = int32ToAuxInt(int32((1 << 32) % c))
+		v20.AddArg2(v14, v21)
+		v18.AddArg2(v19, v20)
+		v17.AddArg2(v18, v8)
+		v16.AddArg(v17)
+		v.AddArg2(v0, v16)
+		return true
+	}
+	// match: (Div64u x (Const64 [c]))
 	// cond: umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul
 	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+umagic64(c).m/2)]) x) (Const64 <typ.UInt64> [umagic64(c).s-1]))
 	for {
