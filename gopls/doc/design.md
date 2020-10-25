@@ -364,11 +364,11 @@ Previous        | N/A
 [godoc]: https://golang.org/cmd/godoc
 [gofmt]: https://golang.org/cmd/gofmt
 [gogetdoc]: https://github.com/zmb3/gogetdoc
-[goimports]: https://godoc.org/golang.org/x/tools/cmd/goimports
-[gorename]: https://godoc.org/golang.org/x/tools/cmd/gorename
+[goimports]: https://pkg.go.dev/golang.org/x/tools/cmd/goimports
+[gorename]: https://pkg.go.dev/golang.org/x/tools/cmd/gorename
 [goreturns]: https://github.com/sqs/goreturns
 [gotags]: https://github.com/jstemmer/gotags
-[guru]: https://godoc.org/golang.org/x/tools/cmd/guru
+[guru]: https://pkg.go.dev/golang.org/x/tools/cmd/guru
 [impl]: https://github.com/josharian/impl
 [staticcheck]: https://staticcheck.io/docs/
 [go/types]: https://golang.org/pkg/go/types/
