@@ -574,13 +574,11 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	switch n.Op {
-	// inhibit inlining of their argument
 	case ODEFER, OGO:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
 			n.Left.SetNoInline(true)
 		}
-		return n
 
 	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.
