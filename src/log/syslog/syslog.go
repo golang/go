@@ -161,7 +161,10 @@ func (w *Writer) connect() (err error) {
 		var c net.Conn
 		c, err = net.Dial(w.network, w.raddr)
 		if err == nil {
-			w.conn = &netConn{conn: c}
+			w.conn = &netConn{
+				conn:  c,
+				local: w.network == "unixgram" || w.network == "unix",
+			}
 			if w.hostname == "" {
 				w.hostname = c.LocalAddr().String()
 			}
