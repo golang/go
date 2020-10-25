@@ -201,7 +201,7 @@ func CanInternalLink() bool {
 		if runtime.GOARCH != "arm64" {
 			return false
 		}
-	case "darwin", "ios":
+	case "ios":
 		if runtime.GOARCH == "arm64" {
 			return false
 		}

@@ -39,7 +39,7 @@ func MustLinkExternal(goos, goarch string) bool {
 		if goarch != "arm64" {
 			return true
 		}
-	case "darwin", "ios":
+	case "ios":
 		if goarch == "arm64" {
 			return true
 		}
