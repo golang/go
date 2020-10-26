@@ -201,6 +201,15 @@ func main() {
 	use(p1k[ui&1000])
 	use(p100k[ui&1000]) // ERROR "index bounds check elided"
 
+	use(a1[i&^-1]) // ERROR "index bounds check elided"
+	use(a1[i&^0])
+	use(a1[i&^-2])
+	use(a1[i&^1])
+	use(a1k[i&^-1]) // ERROR "index bounds check elided"
+	use(a1k[i&^0])
+	use(a1k[i&^-2]) // ERROR "index bounds check elided"
+	use(a1k[i&^1])
+
 	// Right shift cuts the effective number of bits in the index,
 	// but only for unsigned (signed stays negative).
 	use(s[i32>>22])
