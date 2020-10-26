@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -405,8 +406,22 @@ func findgoversion() string {
 	}
 
 	if !precise {
-		// Tag does not point at HEAD; add hash and date to version.
-		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format: +%h %cd", "HEAD"))
+		// Tag does not point at HEAD; add 1.x base version, hash, and date to version.
+		//
+		// Note that we lightly parse internal/goversion/goversion.go to
+		// obtain the base version. We can't just import the package,
+		// because cmd/dist is built with a bootstrap GOROOT which could
+		// be an entirely different version of Go, like 1.4. We assume
+		// that the file contains "const Version = <Integer>".
+
+		goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
+		m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
+		if m == nil {
+			fatalf("internal/goversion/goversion.go does not contain 'const Version = ...'")
+		}
+		tag += fmt.Sprintf(" go1.%s-", m[1])
+
+		tag += chomp(run(goroot, CheckExit, "git", "log", "-n", "1", "--format=format:%h %cd", "HEAD"))
 	}
 
 	// Cache version.
