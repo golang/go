@@ -1156,8 +1156,9 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	i := strings.Index(s, ":")
-	if i < 0 {
+	if strings.Count(s, ":") > 1 {
+		name.Local = s
+	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
 		name.Local = s
 	} else {
 		name.Space = s[0:i]
