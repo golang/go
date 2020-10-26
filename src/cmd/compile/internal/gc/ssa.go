@@ -6978,15 +6978,10 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 
 func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	st := name.Type
-	ft := st.FieldType(i)
-	var offset int64
-	for f := 0; f < i; f++ {
-		offset += st.FieldType(f).Size()
-	}
 	// Note: the _ field may appear several times.  But
 	// have no fear, identically-named but distinct Autos are
 	// ok, albeit maybe confusing for a debugger.
-	return e.SplitSlot(&name, "."+st.FieldName(i), offset, ft)
+	return e.SplitSlot(&name, "."+st.FieldName(i), st.FieldOff(i), st.FieldType(i))
 }
 
 func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
