@@ -430,6 +430,8 @@
 (OffPtr [off] ptr) && is32Bit(off) => (ADDI [off] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
+// TODO(jsing): Check if we actually need MOV{B,H,W}const as most platforms
+// use a single MOVDconst op.
 (Const8 ...) => (MOVBconst ...)
 (Const16 ...) => (MOVHconst ...)
 (Const32 ...) => (MOVWconst ...)
@@ -506,6 +508,20 @@
 (MOVHstore [off] {sym} ptr (MOVHconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
+
+// Avoid sign/zero extension for consts.
+(MOVBreg  (MOVBconst [c])) => (MOVDconst [int64(c)])
+(MOVHreg  (MOVBconst [c])) => (MOVDconst [int64(c)])
+(MOVHreg  (MOVHconst [c])) => (MOVDconst [int64(c)])
+(MOVWreg  (MOVBconst [c])) => (MOVDconst [int64(c)])
+(MOVWreg  (MOVHconst [c])) => (MOVDconst [int64(c)])
+(MOVWreg  (MOVWconst [c])) => (MOVDconst [int64(c)])
+(MOVBUreg (MOVBconst [c])) => (MOVDconst [int64(uint8(c))])
+(MOVHUreg (MOVBconst [c])) => (MOVDconst [int64(uint16(c))])
+(MOVHUreg (MOVHconst [c])) => (MOVDconst [int64(uint16(c))])
+(MOVWUreg (MOVBconst [c])) => (MOVDconst [int64(uint32(c))])
+(MOVWUreg (MOVHconst [c])) => (MOVDconst [int64(uint32(c))])
+(MOVWUreg (MOVWconst [c])) => (MOVDconst [int64(uint32(c))])
 
 // Avoid sign/zero extension after properly typed load.
 (MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
