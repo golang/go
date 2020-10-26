@@ -768,6 +768,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					}
 					b0, b1 = b1, b
 				}
+
+				// Replace the comment with a space in the returned Directive
+				// body, so that markup parts that were separated by the comment
+				// (like a "<" and a "!") don't get joined when re-encoding the
+				// Directive, taking new semantic meaning.
+				d.buf.WriteByte(' ')
 			}
 		}
 		return Directive(d.buf.Bytes()), nil
