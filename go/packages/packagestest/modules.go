@@ -163,6 +163,7 @@ func (modules) Finalize(exported *Exported) error {
 	exported.Config.Env = append(exported.Config.Env,
 		"GO111MODULE=on",
 		"GOPATH="+filepath.Join(exported.temp, "modcache"),
+		"GOMODCACHE=",
 		"GOPROXY="+proxydir.ToURL(modProxyDir),
 		"GOSUMDB=off",
 	)

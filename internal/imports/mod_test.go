@@ -688,6 +688,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 	env := &ProcessEnv{
 		Env: map[string]string{
 			"GOPATH":      filepath.Join(dir, "gopath"),
+			"GOMODCACHE":  "",
 			"GO111MODULE": "on",
 			"GOSUMDB":     "off",
 			"GOPROXY":     proxydir.ToURL(proxyDir),
