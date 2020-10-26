@@ -72,7 +72,11 @@ func output() {
 				cm = ", "
 			}
 			t.Param += fmt.Sprintf("%s%s %s", cm, t.paramnames[i], p)
-			t.Invoke += fmt.Sprintf("%s%s", cm, t.paramnames[i])
+			this := t.paramnames[i]
+			if this == "_" {
+				this = "nil"
+			}
+			t.Invoke += fmt.Sprintf("%s%s", cm, this)
 		}
 		if len(t.Results) > 1 {
 			t.Result = "("

@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 60a5a7825e6f54f57917091f394fd8db7d1724bc
-// last fetched Thu Sep 10 2020 09:21:57 GMT-0400 (Eastern Daylight Time)
+// commit: 901fd40345060d159f07d234bbc967966a929a34
+// last fetched Mon Oct 26 2020 09:10:42 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -122,6 +122,11 @@ type CallHierarchyItem struct {
 	 * Must be contained by the [`range`](#CallHierarchyItem.range).
 	 */
 	SelectionRange Range `json:"selectionRange"`
+	/**
+	 * A data entry field that is preserved between a call hierarchy prepare and
+	 * incoming calls or outgoing calls requests.
+	 */
+	Data interface{} `json:"data,omitempty"`
 }
 
 /**
@@ -219,8 +224,8 @@ type ClientCapabilities = struct {
 		 */
 		Window interface{} `json:"window,omitempty"`
 		/**
-		 * Whether client supports handling progress notifications. If set servers are allowed to
-		 * report in `workDoneProgress` property in the request specific server capabilities.
+		 * Whether client supports server initiated progress using the
+		 * `window/workDoneProgress/create` request.
 		 *
 		 * Since 3.15.0
 		 */
@@ -264,6 +269,31 @@ type CodeAction struct {
 	 */
 	IsPreferred bool `json:"isPreferred,omitempty"`
 	/**
+	 * Marks that the code action cannot currently be applied.
+	 *
+	 * Clients should follow the following guidelines regarding disabled code actions:
+	 *
+	 *   - Disabled code actions are not shown in automatic [lightbulb](https://code.visualstudio.com/docs/editor/editingevolved#_code-action)
+	 *     code action menu.
+	 *
+	 *   - Disabled actions are shown as faded out in the code action menu when the user request a more specific type
+	 *     of code action, such as refactorings.
+	 *
+	 *   - If the user has a [keybinding](https://code.visualstudio.com/docs/editor/refactoring#_keybindings-for-code-actions)
+	 *     that auto applies a code action and only a disabled code actions are returned, the client should show the user an
+	 *     error message with `reason` in the editor.
+	 *
+	 * @since 3.16.0
+	 */
+	Disabled struct {
+		/**
+		 * Human readable description of why the code action is currently disabled.
+		 *
+		 * This is displayed in the code actions UI.
+		 */
+		Reason string `json:"reason"`
+	} `json:"disabled,omitempty"`
+	/**
 	 * The workspace edit this code action performs.
 	 */
 	Edit WorkspaceEdit `json:"edit,omitempty"`
@@ -273,6 +303,13 @@ type CodeAction struct {
 	 * executed and then the command.
 	 */
 	Command *Command `json:"command,omitempty"`
+	/**
+	 * A data entry field that is preserved on a code action between
+	 * a `textDocument/codeAction` and a `codeAction/resolve` request.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	Data interface{} `json:"data,omitempty"`
 }
 
 /**
@@ -307,9 +344,36 @@ type CodeActionClientCapabilities struct {
 	} `json:"codeActionLiteralSupport,omitempty"`
 	/**
 	 * Whether code action supports the `isPreferred` property.
+	 *
 	 * @since 3.15.0
 	 */
 	IsPreferredSupport bool `json:"isPreferredSupport,omitempty"`
+	/**
+	 * Whether code action supports the `disabled` property.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	DisabledSupport bool `json:"disabledSupport,omitempty"`
+	/**
+	 * Whether code action supports the `data` property which is
+	 * preserved between a `textDocument/codeAction` and a
+	 * `codeAction/resolve` request.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	DataSupport bool `json:"dataSupport,omitempty"`
+	/**
+	 * Whether the client support resolving additional code action
+	 * properties via a separate `codeAction/resolve` request.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	ResolveSupport struct {
+		/**
+		 * The properties that a client can resolve lazily.
+		 */
+		Properties []string `json:"properties"`
+	} `json:"resolveSupport,omitempty"`
 }
 
 /**
@@ -350,6 +414,13 @@ type CodeActionOptions struct {
 	 * may list out every specific kind they provide.
 	 */
 	CodeActionKinds []CodeActionKind `json:"codeActionKinds,omitempty"`
+	/**
+	 * The server provides support to resolve additional
+	 * information for a code action.
+	 *
+	 * @since 3.16.0
+	 */
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -371,6 +442,18 @@ type CodeActionParams struct {
 	Context CodeActionContext `json:"context"`
 	WorkDoneProgressParams
 	PartialResultParams
+}
+
+/**
+ * Structure to capture a description for an error code.
+ *
+ * @since 3.16.0 - proposed state
+ */
+type CodeDescription struct {
+	/**
+	 * An URI to open with more information about the diagnostic error.
+	 */
+	Href URI `json:"href"`
 }
 
 /**
@@ -585,16 +668,22 @@ type CompletionClientCapabilities struct {
 		 * Client support insert replace edit to control different behavior if a
 		 * completion item is inserted in the text or should replace text.
 		 *
-		 * @since 3.16.0 - Proposed state
+		 * @since 3.16.0 - proposed state
 		 */
 		InsertReplaceSupport bool `json:"insertReplaceSupport,omitempty"`
 		/**
-		 * Client supports to resolve `additionalTextEdits` in the `completionItem/resolve`
-		 * request. So servers can postpone computing them.
+		 * Indicates which properties a client can resolve lazily on a completion
+		 * item. Before version 3.16.0 only the predefined properties `documentation`
+		 * and `details` could be resolved lazily.
 		 *
-		 * @since 3.16.0 - Proposed state
+		 * @since 3.16.0 - proposed state
 		 */
-		ResolveAdditionalTextEditsSupport bool `json:"resolveAdditionalTextEditsSupport,omitempty"`
+		ResolveSupport struct {
+			/**
+			 * The properties that a client can resolve lazily.
+			 */
+			Properties []string `json:"properties"`
+		} `json:"resolveSupport,omitempty"`
 	} `json:"completionItem,omitempty"`
 	CompletionItemKind struct {
 		/**
@@ -722,7 +811,7 @@ type CompletionItem struct {
 	 * *Note 2:* If an `InsertReplaceEdit` is returned the edit's insert range must be a prefix of
 	 * the edit's replace range, that means it must be contained and starting at the same position.
 	 *
-	 * @since 3.16.0 additional type `InsertReplaceEdit` - Proposed state
+	 * @since 3.16.0 additional type `InsertReplaceEdit` - proposed state
 	 */
 	TextEdit *TextEdit/*TextEdit | InsertReplaceEdit*/ `json:"textEdit,omitempty"`
 	/**
@@ -1041,10 +1130,14 @@ type Diagnostic struct {
 	Severity DiagnosticSeverity `json:"severity,omitempty"`
 	/**
 	 * The diagnostic's code, which usually appear in the user interface.
-	 *
-	 * @since 3.16.0 Support for `DiagnosticCode` - Proposed state
 	 */
-	Code interface{}/* float64 | string | DiagnosticCode*/ `json:"code,omitempty"`
+	Code interface{}/*number | string*/ `json:"code,omitempty"`
+	/**
+	 * An optional property to describe the error code.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	CodeDescription CodeDescription `json:"codeDescription,omitempty"`
 	/**
 	 * A human-readable string describing the source of this
 	 * diagnostic, e.g. 'typescript' or 'super lint'. It usually
@@ -1066,22 +1159,13 @@ type Diagnostic struct {
 	 * a scope collide all definitions can be marked via this property.
 	 */
 	RelatedInformation []DiagnosticRelatedInformation `json:"relatedInformation,omitempty"`
-}
-
-/**
- * Structure to capture more complex diagnostic codes.
- *
- * @since 3.16.0 - Proposed state
- */
-type DiagnosticCode struct {
 	/**
-	 * The actual code
+	 * A data entry field that is preserved between a `textDocument/publishDiagnostics`
+	 * notification and `textDocument/codeAction` request.
+	 *
+	 * @since 3.16.0 - proposed state
 	 */
-	Value string/*string | number*/ `json:"value"`
-	/**
-	 * A target URI to open with more information about the diagnostic error.
-	 */
-	Target URI `json:"target"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 /**
@@ -1545,7 +1629,7 @@ type DocumentSymbol struct {
 	/**
 	 * Tags for this completion item.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	Tags []SymbolTag `json:"tags,omitempty"`
 	/**
@@ -1556,13 +1640,13 @@ type DocumentSymbol struct {
 	Deprecated bool `json:"deprecated,omitempty"`
 	/**
 	 * The range enclosing this symbol not including leading/trailing whitespace but everything else
-	 * like comments. This information is typically used to determine if the clients cursor is
+	 * like comments. This information is typically used to determine if the the clients cursor is
 	 * inside the symbol to reveal in the symbol in the UI.
 	 */
 	Range Range `json:"range"`
 	/**
 	 * The range that should be selected and revealed when this symbol is being picked, e.g the name of a function.
-	 * Must be contained by the `range`.
+	 * Must be contained by the the `range`.
 	 */
 	SelectionRange Range `json:"selectionRange"`
 	/**
@@ -1604,7 +1688,7 @@ type DocumentSymbolClientCapabilities struct {
 	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
 	 * Clients supporting tags have to handle unknown tags gracefully.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	TagSupport struct {
 		/**
@@ -1612,12 +1696,26 @@ type DocumentSymbolClientCapabilities struct {
 		 */
 		ValueSet []SymbolTag `json:"valueSet"`
 	} `json:"tagSupport,omitempty"`
+	/**
+	 * The client supports an additional label presented in the UI when
+	 * registering a document symbol provider.
+	 *
+	 * @since 3.16.0
+	 */
+	LabelSupport bool `json:"labelSupport,omitempty"`
 }
 
 /**
  * Provider options for a [DocumentSymbolRequest](#DocumentSymbolRequest).
  */
 type DocumentSymbolOptions struct {
+	/**
+	 * A human-readable string that is shown when multiple outlines trees
+	 * are shown for the same document.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	Label string `json:"label,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -2114,13 +2212,13 @@ type InnerServerCapabilities struct {
 	/**
 	 * The server provides Call Hierarchy support.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
 	/**
 	 * The server provides semantic tokens support.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
 	/**
@@ -2132,7 +2230,7 @@ type InnerServerCapabilities struct {
 /**
  * A special text edit to provide an insert and a replace operation.
  *
- * @since 3.16.0 - Proposed state
+ * @since 3.16.0 - proposed state
  */
 type InsertReplaceEdit struct {
 	/**
@@ -2188,7 +2286,7 @@ type LocationLink struct {
 	TargetRange Range `json:"targetRange"`
 	/**
 	 * The range that should be selected and revealed when this link is being followed, e.g the name of a function.
-	 * Must be contained by the `targetRange`. See also `DocumentSymbol#range`
+	 * Must be contained by the the `targetRange`. See also `DocumentSymbol#range`
 	 */
 	TargetSelectionRange Range `json:"targetSelectionRange"`
 }
@@ -2283,6 +2381,44 @@ type MessageActionItem struct {
  * The message type
  */
 type MessageType float64
+
+/**
+ * Moniker definition to match LSIF 0.5 moniker definition.
+ *
+ * @since 3.16.0
+ */
+type Moniker struct {
+	/**
+	 * The scheme of the moniker. For example tsc or .Net
+	 */
+	Scheme string `json:"scheme"`
+	/**
+	 * The identifier of the moniker. The value is opaque in LSIF however
+	 * schema owners are allowed to define the structure if they want.
+	 */
+	Identifier string `json:"identifier"`
+	/**
+	 * The scope in which the moniker is unique
+	 */
+	Unique UniquenessLevel `json:"unique"`
+	/**
+	 * The moniker kind if known.
+	 */
+	Kind MonikerKind `json:"kind,omitempty"`
+}
+
+/**
+ * The moniker kind.
+ *
+ * @since 3.16.0
+ */
+type MonikerKind string
+
+type MonikerParams struct {
+	TextDocumentPositionParams
+	WorkDoneProgressParams
+	PartialResultParams
+}
 
 /**
  * Represents a parameter of a callable-signature. A parameter can
@@ -2390,11 +2526,19 @@ type PublishDiagnosticsClientCapabilities struct {
 	 */
 	VersionSupport bool `json:"versionSupport,omitempty"`
 	/**
-	 * Clients support complex diagnostic codes (e.g. code and target URI).
+	 * Client supports a codeDescription property
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
-	ComplexDiagnosticCodeSupport bool `json:"complexDiagnosticCodeSupport,omitempty"`
+	CodeDescriptionSupport bool `json:"codeDescriptionSupport,omitempty"`
+	/**
+	 * Whether code action supports the `data` property which is
+	 * preserved between a `textDocument/publishDiagnostics` and
+	 * `textDocument/codeAction` request.
+	 *
+	 * @since 3.16.0 - proposed state
+	 */
+	DataSupport bool `json:"dataSupport,omitempty"`
 }
 
 /**
@@ -2679,6 +2823,45 @@ type SemanticTokens struct {
 /**
  * @since 3.16.0 - Proposed state
  */
+type SemanticTokensClientCapabilities struct {
+	/**
+	 * Whether implementation supports dynamic registration. If this is set to `true`
+	 * the client supports the new `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+	 * return value for the corresponding server capability as well.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+	/**
+	 * Which requests the client supports and might send to the server
+	 */
+	Requests struct {
+		/**
+		 * The client will send the `textDocument/semanticTokens/range` request if
+		 * the server provides a corresponding handler.
+		 */
+		Range bool/*boolean | {		}*/ `json:"range,omitempty"`
+		/**
+		 * The client will send the `textDocument/semanticTokens/full` request if
+		 * the server provides a corresponding handler.
+		 */
+		Full interface{}/*boolean | <elided struct>*/ `json:"full,omitempty"`
+	} `json:"requests"`
+	/**
+	 * The token types that the client supports.
+	 */
+	TokenTypes []string `json:"tokenTypes"`
+	/**
+	 * The token modifiers that the client supports.
+	 */
+	TokenModifiers []string `json:"tokenModifiers"`
+	/**
+	 * The formats the clients supports.
+	 */
+	Formats []TokenFormat `json:"formats"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
 type SemanticTokensDelta struct {
 	ResultID string `json:"resultId,omitempty"`
 	/**
@@ -2752,7 +2935,7 @@ type SemanticTokensOptions struct {
 	/**
 	 * Server supports providing semantic tokens for a full document.
 	 */
-	Full bool/*boolean | <elided struct>*/ `json:"full,omitempty"`
+	Full interface{}/*boolean | <elided struct>*/ `json:"full,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -2791,6 +2974,16 @@ type SemanticTokensRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	SemanticTokensOptions
 	StaticRegistrationOptions
+}
+
+type SemanticTokensWorkspaceClientCapabilities struct {
+	/**
+	 * Whether the client implementation supports a refresh request send from the server
+	 * to the client. This is useful if a server detects a project wide configuration change
+	 * which requires a re-calculation of all semantic tokens provided by the server issuing
+	 * the request.
+	 */
+	RefreshSupport bool `json:"refreshSupport,omitempty"`
 }
 
 type ServerCapabilities = struct {
@@ -2894,13 +3087,13 @@ type ServerCapabilities = struct {
 	/**
 	 * The server provides Call Hierarchy support.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
 	/**
 	 * The server provides semantic tokens support.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
 	/**
@@ -3149,7 +3342,7 @@ type SymbolInformation struct {
 	/**
 	 * Tags for this completion item.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	Tags []SymbolTag `json:"tags,omitempty"`
 	/**
@@ -3289,23 +3482,28 @@ type TextDocumentClientCapabilities struct {
 	 */
 	SelectionRange SelectionRangeClientCapabilities `json:"selectionRange,omitempty"`
 	/**
-	 * Capabilities specific to `textDocument/publishDiagnostics`.
+	 * Capabilities specific to `textDocument/publishDiagnostics` notification.
 	 */
 	PublishDiagnostics PublishDiagnosticsClientCapabilities `json:"publishDiagnostics,omitempty"`
 	/**
-	 * Capabilities specific to the `textDocument/callHierarchy`.
+	 * Capabilities specific to the various call hierarchy requests.
 	 *
 	 * @since 3.16.0
 	 */
 	CallHierarchy CallHierarchyClientCapabilities `json:"callHierarchy,omitempty"`
-
-	// missing in source, generated
-	SemanticTokens *SemanticTokensClientCapabilities `json:"semanticTokens,omitempty"`
+	/**
+	 * Capabilities specific to the various semantic token requsts.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	SemanticTokens SemanticTokensClientCapabilities `json:"semanticTokens,omitempty"`
 }
 
 /**
  * An event describing a change to a text document. If range and rangeLength are omitted
  * the new text is considered to be the full content of the document.
+ *
+ * @deprecated Use the text document from the new vscode-languageserver-textdocument package.
  */
 type TextDocumentContentChangeEvent = struct {
 	/**
@@ -3477,6 +3675,8 @@ type TextEdit struct {
 	NewText string `json:"newText"`
 }
 
+type TokenFormat = string
+
 type TraceValues = string /*'off' | 'messages' | 'verbose'*/
 
 /**
@@ -3516,9 +3716,16 @@ type TypeDefinitionRegistrationOptions struct {
 /**
  * A tagging type for string properties that are actually URIs
  *
- * @since 3.16.0 - Proposed state
+ * @since 3.16.0 - proposed state
  */
 type URI = string
+
+/**
+ * Moniker uniqueness level to define scope of the moniker.
+ *
+ * @since 3.16.0
+ */
+type UniquenessLevel string
 
 /**
  * General parameters to unregister a request or notification.
@@ -3617,8 +3824,8 @@ type WorkDoneProgressClientCapabilities struct {
 	 */
 	Window struct {
 		/**
-		 * Whether client supports handling progress notifications. If set servers are allowed to
-		 * report in `workDoneProgress` property in the request specific server capabilities.
+		 * Whether client supports server initiated progress using the
+		 * `window/workDoneProgress/create` request.
 		 *
 		 * Since 3.15.0
 		 */
@@ -3711,6 +3918,13 @@ type WorkspaceClientCapabilities struct {
 	 * Capabilities specific to the `workspace/executeCommand` request.
 	 */
 	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+	/**
+	 * Capabilities specific to the semantic token requsts scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0 - proposed state.
+	 */
+	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
 }
 
 /**
@@ -3834,7 +4048,7 @@ type WorkspaceSymbolClientCapabilities struct {
 	 * The client supports tags on `SymbolInformation`.
 	 * Clients supporting tags have to handle unknown tags gracefully.
 	 *
-	 * @since 3.16.0 - Proposed state
+	 * @since 3.16.0 - proposed state
 	 */
 	TagSupport struct {
 		/**
@@ -3862,20 +4076,6 @@ type WorkspaceSymbolParams struct {
 	Query string `json:"query"`
 	WorkDoneProgressParams
 	PartialResultParams
-}
-
-// generated
-type SemanticTokensClientCapabilities struct {
-	TokenModifiers []string
-	Formats        []string
-	Requests       struct {
-		Range bool
-		Full  struct {
-			Delta bool
-		}
-	}
-	DynamicRegistration bool
-	TokenTypes          []string
 }
 
 const (
@@ -4159,6 +4359,19 @@ const (
 
 	Log MessageType = 4
 	/**
+	 * The moniker represent a symbol that is imported into a project
+	 */
+	Import MonikerKind = "import"
+	/**
+	 * The moniker represents a symbol that is exported from a project
+	 */
+	Export MonikerKind = "export"
+	/**
+	 * The moniker represents a symbol that is local to a project (e.g. a local
+	 * variable of a function, a class not visible outside the project, ...)
+	 */
+	Local MonikerKind = "local"
+	/**
 	 * Supports creating new files and folders.
 	 */
 
@@ -4253,6 +4466,26 @@ const (
 	 */
 
 	Incremental TextDocumentSyncKind = 2
+	/**
+	 * The moniker is only unique inside a document
+	 */
+	Document UniquenessLevel = "document"
+	/**
+	 * The moniker is unique inside a project for which a dump got created
+	 */
+	Project UniquenessLevel = "project"
+	/**
+	 * The moniker is unique inside the group to which a project belongs
+	 */
+	Group UniquenessLevel = "group"
+	/**
+	 * The moniker is unique inside the moniker scheme.
+	 */
+	Scheme UniquenessLevel = "scheme"
+	/**
+	 * The moniker is globally unique
+	 */
+	Global UniquenessLevel = "global"
 	/**
 	 * Interested in create events.
 	 */

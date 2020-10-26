@@ -36,8 +36,8 @@ func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 	return s.didChange(ctx, params)
 }
 
-func (s *Server) DidChangeConfiguration(ctx context.Context, changed *protocol.DidChangeConfigurationParams) error {
-	return s.didChangeConfiguration(ctx, changed)
+func (s *Server) DidChangeConfiguration(ctx context.Context, _ *protocol.DidChangeConfigurationParams) error {
+	return s.didChangeConfiguration(ctx, nil)
 }
 
 func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
@@ -116,6 +116,10 @@ func (s *Server) LogTrace(context.Context, *protocol.LogTraceParams) error {
 	return notImplemented("LogTrace")
 }
 
+func (s *Server) Moniker(context.Context, *protocol.MonikerParams) ([]protocol.Moniker, error) {
+	return nil, notImplemented("Moniker")
+}
+
 func (s *Server) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
 	return s.nonstandardRequest(ctx, method, params)
 }
@@ -150,6 +154,10 @@ func (s *Server) Rename(ctx context.Context, params *protocol.RenameParams) (*pr
 
 func (s *Server) Resolve(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {
 	return nil, notImplemented("Resolve")
+}
+
+func (s *Server) ResolveCodeAction(context.Context, *protocol.CodeAction) (*protocol.CodeAction, error) {
+	return nil, notImplemented("ResolveCodeAction")
 }
 
 func (s *Server) ResolveCodeLens(context.Context, *protocol.CodeLens) (*protocol.CodeLens, error) {
