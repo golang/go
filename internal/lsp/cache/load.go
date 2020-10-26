@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/packagesinternal"
@@ -91,70 +92,14 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	defer done()
 
 	cleanup := func() {}
-	wdir := s.view.rootURI.Filename()
 
-	var modFile string
-	var modURI span.URI
-	var modContent []byte
-	switch {
-	case s.workspaceMode()&usesWorkspaceModule != 0:
-		var (
-			tmpDir span.URI
-			err    error
-		)
-		tmpDir, cleanup, err = s.tempWorkspaceModule(ctx)
-		if err != nil {
-			return err
-		}
-		wdir = tmpDir.Filename()
-		modURI = span.URIFromPath(filepath.Join(wdir, "go.mod"))
-		modContent, err = ioutil.ReadFile(modURI.Filename())
-		if err != nil {
-			return err
-		}
-	case s.workspaceMode()&tempModfile != 0:
-		// -modfile is unsupported when there are > 1 modules in the workspace.
-		if len(s.modules) != 1 {
-			panic(fmt.Sprintf("unsupported use of -modfile, expected 1 module, got %v", len(s.modules)))
-		}
-		var mod *moduleRoot
-		for _, m := range s.modules { // range to access the only element
-			mod = m
-		}
-		modURI = mod.modURI
-		modFH, err := s.GetFile(ctx, mod.modURI)
-		if err != nil {
-			return err
-		}
-		modContent, err = modFH.Read()
-		if err != nil {
-			return err
-		}
-		var sumFH source.FileHandle
-		if mod.sumURI != "" {
-			sumFH, err = s.GetFile(ctx, mod.sumURI)
-			if err != nil {
-				return err
-			}
-		}
-		var tmpURI span.URI
-		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
-		if err != nil {
-			return err
-		}
-		modFile = tmpURI.Filename()
-	}
-
-	cfg := s.config(ctx, wdir)
-	packagesinternal.SetModFile(cfg, modFile)
-	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, source.ForTypeChecking, &gocommand.Invocation{
+		WorkingDir: s.view.rootURI.Filename(),
+	})
 	if err != nil {
 		return err
 	}
-	if modMod {
-		packagesinternal.SetModFlag(cfg, "mod")
-	}
-
+	cfg := s.config(ctx, inv)
 	pkgs, err := packages.Load(cfg, query...)
 	cleanup()
 

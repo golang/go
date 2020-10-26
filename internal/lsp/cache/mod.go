@@ -238,7 +238,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 		for _, req := range pm.File.Require {
 			inv.Args = append(inv.Args, req.Mod.Path)
 		}
-		stdout, err := snapshot.RunGoCommandDirect(ctx, inv)
+		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal, inv)
 		if err != nil {
 			return &modWhyData{err: err}
 		}
@@ -336,7 +336,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 			// (see golang/go#38711).
 			inv.ModFlag = "readonly"
 		}
-		stdout, err := snapshot.RunGoCommandDirect(ctx, inv)
+		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal, inv)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}

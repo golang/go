@@ -265,7 +265,7 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	}
 	snapshot, release := view.Snapshot(ctx)
 	defer release()
-	_, err = snapshot.RunGoCommandDirect(ctx, &gocommand.Invocation{
+	_, err = snapshot.RunGoCommandDirect(ctx, source.UpdateUserModFile, &gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		WorkingDir: filepath.Dir(uri.SpanURI().Filename()),
@@ -296,7 +296,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 			Args:       []string{pkgPath, "-v", "-count=1", "-run", fmt.Sprintf("^%s$", funcName)},
 			WorkingDir: filepath.Dir(uri.SpanURI().Filename()),
 		}
-		if err := snapshot.RunGoCommandPiped(ctx, inv, out, out); err != nil {
+		if err := snapshot.RunGoCommandPiped(ctx, source.Normal, inv, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -312,7 +312,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 			Args:       []string{pkgPath, "-v", "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)},
 			WorkingDir: filepath.Dir(uri.SpanURI().Filename()),
 		}
-		if err := snapshot.RunGoCommandPiped(ctx, inv, out, out); err != nil {
+		if err := snapshot.RunGoCommandPiped(ctx, source.Normal, inv, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -367,7 +367,7 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, di
 		WorkingDir: dir.Filename(),
 	}
 	stderr := io.MultiWriter(er, workDoneWriter{work})
-	if err := snapshot.RunGoCommandPiped(ctx, inv, er, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, source.Normal, inv, er, stderr); err != nil {
 		return err
 	}
 	return nil

@@ -182,18 +182,16 @@ func (s *snapshot) workspaceMode() workspaceMode {
 // TODO(rstambler): go/packages requires that we do not provide overlays for
 // multiple modules in on config, so buildOverlay needs to filter overlays by
 // module.
-func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
+func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packages.Config {
 	s.view.optionsMu.Lock()
-	env := s.view.options.EnvSlice()
-	buildFlags := append([]string{}, s.view.options.BuildFlags...)
 	verboseOutput := s.view.options.VerboseOutput
 	s.view.optionsMu.Unlock()
 
 	cfg := &packages.Config{
 		Context:    ctx,
-		Dir:        dir,
-		Env:        append(append([]string{}, env...), "GO111MODULE="+s.view.go111module),
-		BuildFlags: buildFlags,
+		Dir:        inv.WorkingDir,
+		Env:        inv.Env,
+		BuildFlags: inv.BuildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
@@ -213,6 +211,8 @@ func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 		},
 		Tests: true,
 	}
+	packagesinternal.SetModFile(cfg, inv.ModFile)
+	packagesinternal.SetModFlag(cfg, inv.ModFlag)
 	// We want to type check cgo code if go/types supports it.
 	if typesinternal.SetUsesCgo(&types.Config{}) {
 		cfg.Mode |= packages.LoadMode(packagesinternal.TypecheckCgo)
@@ -221,8 +221,8 @@ func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 	return cfg
 }
 
-func (s *snapshot) RunGoCommandDirect(ctx context.Context, inv *gocommand.Invocation) (*bytes.Buffer, error) {
-	_, inv, cleanup, err := s.goCommandInvocation(ctx, false, inv)
+func (s *snapshot) RunGoCommandDirect(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation) (*bytes.Buffer, error) {
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, mode, inv)
 	if err != nil {
 		return nil, err
 	}
@@ -231,8 +231,8 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, inv *gocommand.Invoca
 	return s.view.session.gocmdRunner.Run(ctx, *inv)
 }
 
-func (s *snapshot) RunGoCommandPiped(ctx context.Context, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
-	_, inv, cleanup, err := s.goCommandInvocation(ctx, true, inv)
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, mode, inv)
 	if err != nil {
 		return err
 	}
@@ -240,16 +240,49 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, inv *gocommand.Invocat
 	return s.view.session.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
-func (s *snapshot) goCommandInvocation(ctx context.Context, allowTempModfile bool, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
+func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
-	env := s.view.options.EnvSlice()
+	inv.Env = append(append(append([]string{}, s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.go111module)
+	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
 	s.view.optionsMu.Unlock()
-
 	cleanup = func() {} // fallback
-	inv.Env = append(append(append([]string{}, env...), inv.Env...), "GO111MODULE="+s.view.go111module)
 
-	modURI := s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
-	if allowTempModfile && s.workspaceMode()&tempModfile != 0 {
+	var modURI span.URI
+	if s.workspaceMode()&moduleMode != 0 {
+		// Select the module context to use.
+		// If we're type checking, we need to use the workspace context, meaning
+		// the main (workspace) module. Otherwise, we should use the module for
+		// the passed-in working dir.
+		if mode == source.ForTypeChecking {
+			if s.workspaceMode()&usesWorkspaceModule == 0 {
+				var mod *moduleRoot
+				for _, m := range s.modules { // range to access the only element
+					mod = m
+				}
+				modURI = mod.modURI
+			} else {
+				var tmpDir span.URI
+				var err error
+				tmpDir, cleanup, err = s.tempWorkspaceModule(ctx)
+				if err != nil {
+					return "", nil, cleanup, err
+				}
+				inv.WorkingDir = tmpDir.Filename()
+				modURI = span.URIFromPath(filepath.Join(tmpDir.Filename(), "go.mod"))
+			}
+		} else {
+			modURI = s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
+		}
+	}
+
+	wantTempMod := mode != source.UpdateUserModFile
+	needTempMod := mode == source.WriteTemporaryModFile
+	tempMod := wantTempMod && s.workspaceMode()&tempModfile != 0
+	if needTempMod && !tempMod {
+		return "", nil, cleanup, source.ErrTmpModfileUnsupported
+	}
+
+	if tempMod {
 		if modURI == "" {
 			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
 		}

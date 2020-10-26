@@ -84,11 +84,11 @@ type Snapshot interface {
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
-	RunGoCommandPiped(ctx context.Context, inv *gocommand.Invocation, stdout, stderr io.Writer) error
+	RunGoCommandPiped(ctx context.Context, mode InvocationMode, inv *gocommand.Invocation, stdout, stderr io.Writer) error
 
 	// RunGoCommandDirect runs the given `go` command. Verb, Args, and
 	// WorkingDir must be specified.
-	RunGoCommandDirect(ctx context.Context, inv *gocommand.Invocation) (*bytes.Buffer, error)
+	RunGoCommandDirect(ctx context.Context, mode InvocationMode, inv *gocommand.Invocation) (*bytes.Buffer, error)
 
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
@@ -167,6 +167,24 @@ const (
 	// This is useful for something like diagnostics, where we'd prefer to
 	// offer diagnostics for as many files as possible.
 	WidestPackage
+)
+
+// InvocationMode represents the goal of a particular go command invocation.
+type InvocationMode int
+
+const (
+	// Normal is appropriate for commands that might be run by a user and don't
+	// deliberately modify go.mod files, e.g. `go test`.
+	Normal = iota
+	// UpdateUserModFile is for commands that intend to update the user's real
+	// go.mod file, e.g. `go mod tidy` in response to a user's request to tidy.
+	UpdateUserModFile
+	// WriteTemporaryModFile is for commands that need information from a
+	// modified version of the user's go.mod file, e.g. `go mod tidy` used to
+	// generate diagnostics.
+	WriteTemporaryModFile
+	// ForTypeChecking is for packages.Load.
+	ForTypeChecking
 )
 
 // View represents a single workspace.

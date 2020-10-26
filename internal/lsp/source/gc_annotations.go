@@ -46,7 +46,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 		},
 		WorkingDir: pkgDir.Filename(),
 	}
-	_, err = snapshot.RunGoCommandDirect(ctx, inv)
+	_, err = snapshot.RunGoCommandDirect(ctx, Normal, inv)
 	if err != nil {
 		return nil, err
 	}
