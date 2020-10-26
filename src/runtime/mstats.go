@@ -720,11 +720,17 @@ func flushallmcaches() {
 type sysMemStat uint64
 
 // load atomically reads the value of the stat.
+//
+// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//go:nosplit
 func (s *sysMemStat) load() uint64 {
 	return atomic.Load64((*uint64)(s))
 }
 
 // add atomically adds the sysMemStat by n.
+//
+// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//go:nosplit
 func (s *sysMemStat) add(n int64) {
 	if s == nil {
 		return
