@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
@@ -36,12 +37,16 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 	if !strings.HasPrefix(outDir, "/") {
 		outDirURI = span.URI(strings.Replace(string(outDirURI), "file:///", "file://", 1))
 	}
-	args := []string{
-		fmt.Sprintf("-gcflags=-json=0,%s", outDirURI),
-		fmt.Sprintf("-o=%s", tmpFile.Name()),
-		".",
+	inv := &gocommand.Invocation{
+		Verb: "build",
+		Args: []string{
+			fmt.Sprintf("-gcflags=-json=0,%s", outDirURI),
+			fmt.Sprintf("-o=%s", tmpFile.Name()),
+			".",
+		},
+		WorkingDir: pkgDir.Filename(),
 	}
-	err = snapshot.RunGoCommandDirect(ctx, pkgDir.Filename(), "build", args)
+	_, err = snapshot.RunGoCommandDirect(ctx, inv)
 	if err != nil {
 		return nil, err
 	}

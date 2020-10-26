@@ -19,11 +19,11 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -165,7 +165,7 @@ func extractModParseErrors(uri span.URI, m *protocol.ColumnMapper, parseErr erro
 // modKey is uniquely identifies cached data for `go mod why` or dependencies
 // to upgrade.
 type modKey struct {
-	sessionID, cfg, view string
+	sessionID, env, view string
 	mod                  source.FileIdentity
 	verb                 modAction
 }
@@ -208,11 +208,9 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	if handle := s.getModWhyHandle(fh.URI()); handle != nil {
 		return handle.why(ctx, s)
 	}
-	// Make sure to use the module root as the working directory.
-	cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
-		cfg:       hashConfig(cfg),
+		env:       hashEnv(s),
 		mod:       fh.FileIdentity(),
 		view:      s.view.rootURI.Filename(),
 		verb:      why,
@@ -232,11 +230,15 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 			return &modWhyData{}
 		}
 		// Run `go mod why` on all the dependencies.
-		args := []string{"why", "-m"}
-		for _, req := range pm.File.Require {
-			args = append(args, req.Mod.Path)
+		inv := &gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"why", "-m"},
+			WorkingDir: filepath.Dir(fh.URI().Filename()),
 		}
-		stdout, err := snapshot.runGoCommandWithConfig(ctx, cfg, "mod", args)
+		for _, req := range pm.File.Require {
+			inv.Args = append(inv.Args, req.Mod.Path)
+		}
+		stdout, err := snapshot.RunGoCommandDirect(ctx, inv)
 		if err != nil {
 			return &modWhyData{err: err}
 		}
@@ -300,11 +302,9 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 	if handle := s.getModUpgradeHandle(fh.URI()); handle != nil {
 		return handle.upgrades(ctx, s)
 	}
-	// Use the module root as the working directory.
-	cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
-		cfg:       hashConfig(cfg),
+		env:       hashEnv(s),
 		mod:       fh.FileIdentity(),
 		view:      s.view.rootURI.Filename(),
 		verb:      upgrade,
@@ -326,13 +326,17 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		}
 		// Run "go list -mod readonly -u -m all" to be able to see which deps can be
 		// upgraded without modifying mod file.
-		args := []string{"-u", "-m", "-json", "all"}
+		inv := &gocommand.Invocation{
+			Verb:       "list",
+			Args:       []string{"-u", "-m", "-json", "all"},
+			WorkingDir: filepath.Dir(fh.URI().Filename()),
+		}
 		if s.workspaceMode()&tempModfile == 0 || containsVendor(fh.URI()) {
 			// Use -mod=readonly if the module contains a vendor directory
 			// (see golang/go#38711).
-			packagesinternal.SetModFlag(cfg, "readonly")
+			inv.ModFlag = "readonly"
 		}
-		stdout, err := snapshot.runGoCommandWithConfig(ctx, cfg, "list", args)
+		stdout, err := snapshot.RunGoCommandDirect(ctx, inv)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}

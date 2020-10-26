@@ -285,7 +285,8 @@ func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
 
 func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 	s.view.optionsMu.Lock()
-	env, buildFlags := s.view.envLocked()
+	env := s.view.options.EnvSlice()
+	buildFlags := append([]string{}, s.view.options.BuildFlags...)
 	s.view.optionsMu.Unlock()
 
 	fullEnv := make(map[string]string)
@@ -328,14 +329,6 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 
 func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
 	return s.view.importsState.runProcessEnvFunc(ctx, s, fn)
-}
-
-// envLocked returns the environment and build flags for the current view.
-// It assumes that the caller is holding the view's optionsMu.
-func (v *View) envLocked() ([]string, []string) {
-	env := append(os.Environ(), v.options.EnvSlice()...)
-	buildFlags := append([]string{}, v.options.BuildFlags...)
-	return env, buildFlags
 }
 
 func (v *View) contains(uri span.URI) bool {

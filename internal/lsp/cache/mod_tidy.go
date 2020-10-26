@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -27,7 +28,7 @@ import (
 
 type modTidyKey struct {
 	sessionID       string
-	cfg             string
+	env             string
 	gomod           source.FileIdentity
 	imports         string
 	unsavedOverlays string
@@ -82,15 +83,13 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 	overlayHash := hashUnsavedOverlays(s.files)
 	s.mu.Unlock()
 
-	// Make sure to use the module root in the configuration.
-	cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
 		view:            s.view.folder.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
 		gomod:           fh.FileIdentity(),
-		cfg:             hashConfig(cfg),
+		env:             hashEnv(s),
 	}
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(fh.URI()))
@@ -114,17 +113,19 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 				err: err,
 			}
 		}
-		// Get a new config to avoid races, since it may be modified by
-		// goCommandInvocation.
-		cfg := s.config(ctx, filepath.Dir(fh.URI().Filename()))
-		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, cfg, true, "mod", []string{"tidy"})
+		inv := &gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"tidy"},
+			WorkingDir: filepath.Dir(fh.URI().Filename()),
+		}
+		tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, true, inv)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
 		// Keep the temporary go.mod file around long enough to parse it.
 		defer cleanup()
 
-		if _, err := runner.Run(ctx, *inv); err != nil {
+		if _, err := s.view.session.gocmdRunner.Run(ctx, *inv); err != nil {
 			return &modTidyData{err: err}
 		}
 		// Go directly to disk to get the temporary mod file, since it is

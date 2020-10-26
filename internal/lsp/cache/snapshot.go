@@ -184,7 +184,8 @@ func (s *snapshot) workspaceMode() workspaceMode {
 // module.
 func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 	s.view.optionsMu.Lock()
-	env, buildFlags := s.view.envLocked()
+	env := s.view.options.EnvSlice()
+	buildFlags := append([]string{}, s.view.options.BuildFlags...)
 	verboseOutput := s.view.options.VerboseOutput
 	s.view.optionsMu.Unlock()
 
@@ -192,7 +193,7 @@ func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 		Context:    ctx,
 		Dir:        dir,
 		Env:        append(append([]string{}, env...), "GO111MODULE="+s.view.go111module),
-		BuildFlags: append([]string{}, buildFlags...),
+		BuildFlags: buildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
@@ -220,63 +221,48 @@ func (s *snapshot) config(ctx context.Context, dir string) *packages.Config {
 	return cfg
 }
 
-func (s *snapshot) RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error {
-	cfg := s.config(ctx, wd)
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, false, verb, args)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
-	_, err = runner.Run(ctx, *inv)
-	return err
-}
-
-func (s *snapshot) runGoCommandWithConfig(ctx context.Context, cfg *packages.Config, verb string, args []string) (*bytes.Buffer, error) {
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
+func (s *snapshot) RunGoCommandDirect(ctx context.Context, inv *gocommand.Invocation) (*bytes.Buffer, error) {
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, false, inv)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
 
-	return runner.Run(ctx, *inv)
+	return s.view.session.gocmdRunner.Run(ctx, *inv)
 }
 
-func (s *snapshot) RunGoCommandPiped(ctx context.Context, wd, verb string, args []string, stdout, stderr io.Writer) error {
-	cfg := s.config(ctx, wd)
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, true, inv)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
-	return runner.RunPiped(ctx, *inv, stdout, stderr)
+	return s.view.session.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
-func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
+func (s *snapshot) goCommandInvocation(ctx context.Context, allowTempModfile bool, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
+	s.view.optionsMu.Lock()
+	env := s.view.options.EnvSlice()
+	s.view.optionsMu.Unlock()
+
 	cleanup = func() {} // fallback
-	modURI := s.GoModForFile(ctx, span.URIFromPath(cfg.Dir))
+	inv.Env = append(append(append([]string{}, env...), inv.Env...), "GO111MODULE="+s.view.go111module)
 
-	inv = &gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		Env:        cfg.Env,
-		WorkingDir: cfg.Dir,
-	}
-
+	modURI := s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
 	if allowTempModfile && s.workspaceMode()&tempModfile != 0 {
 		if modURI == "" {
-			return "", nil, nil, cleanup, fmt.Errorf("no go.mod file found in %s", cfg.Dir)
+			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
 		}
 		modFH, err := s.GetFile(ctx, modURI)
 		if err != nil {
-			return "", nil, nil, cleanup, err
+			return "", nil, cleanup, err
 		}
 		// Use the go.sum if it happens to be available.
 		sumFH, _ := s.sumFH(ctx, modFH)
 
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
-			return "", nil, nil, cleanup, err
+			return "", nil, cleanup, err
 		}
 		inv.ModFile = tmpURI.Filename()
 	}
@@ -285,23 +271,22 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config
 	if modURI != "" {
 		modFH, err := s.GetFile(ctx, modURI)
 		if err != nil {
-			return "", nil, nil, cleanup, err
+			return "", nil, cleanup, err
 		}
 		modContent, err = modFH.Read()
 		if err != nil {
-			return "", nil, nil, nil, err
+			return "", nil, nil, err
 		}
 	}
 	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
 	if err != nil {
-		return "", nil, nil, cleanup, err
+		return "", nil, cleanup, err
 	}
 	if modMod {
 		inv.ModFlag = "mod"
 	}
 
-	runner = packagesinternal.GetGoCmdRunner(cfg)
-	return tmpURI, runner, inv, cleanup, nil
+	return tmpURI, inv, cleanup, nil
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {

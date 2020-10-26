@@ -5,6 +5,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -80,16 +82,13 @@ type Snapshot interface {
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Error, error)
 
-	// RunGoCommandPiped runs the given `go` command in the view, using the
-	// provided stdout and stderr. It will use the -modfile flag, if possible.
-	// If the provided working directory is empty, the snapshot's root folder
-	// will be used as the working directory.
-	RunGoCommandPiped(ctx context.Context, wd, verb string, args []string, stdout, stderr io.Writer) error
+	// RunGoCommandPiped runs the given `go` command, writing its output
+	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
+	RunGoCommandPiped(ctx context.Context, inv *gocommand.Invocation, stdout, stderr io.Writer) error
 
-	// RunGoCommandDirect runs the given `go` command, never using the
-	// -modfile flag. If the provided working directory is empty, the
-	// snapshot's root folder will be used as the working directory.
-	RunGoCommandDirect(ctx context.Context, wd, verb string, args []string) error
+	// RunGoCommandDirect runs the given `go` command. Verb, Args, and
+	// WorkingDir must be specified.
+	RunGoCommandDirect(ctx context.Context, inv *gocommand.Invocation) (*bytes.Buffer, error)
 
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
