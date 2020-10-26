@@ -802,11 +802,11 @@ var directivesWithCommentsInput = `
 
 var directivesWithCommentsTokens = []Token{
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
+	Directive(`DOCTYPE [ <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
-	Directive(`DOCTYPE <!-> <!>    [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE <!-> <!>       [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
 }
 
@@ -1051,9 +1051,10 @@ func testRoundTrip(t *testing.T, input string) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := map[string]string{
-		"leading colon":  `<::Test ::foo="bar"><:::Hello></:::Hello><Hello></Hello></::Test>`,
-		"trailing colon": `<foo abc:="x"></foo>`,
-		"double colon":   `<x:y:foo></x:y:foo>`,
+		"leading colon":          `<::Test ::foo="bar"><:::Hello></:::Hello><Hello></Hello></::Test>`,
+		"trailing colon":         `<foo abc:="x"></foo>`,
+		"double colon":           `<x:y:foo></x:y:foo>`,
+		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
 	}
 	for name, input := range tests {
 		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
