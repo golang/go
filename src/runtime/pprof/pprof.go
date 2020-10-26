@@ -206,11 +206,11 @@ func unlockProfiles() {
 // For compatibility with various tools that read pprof data,
 // profile names should not contain spaces.
 func NewProfile(name string) *Profile {
-	lockProfiles()
-	defer unlockProfiles()
 	if name == "" {
 		panic("pprof: NewProfile with empty name")
 	}
+	lockProfiles()
+	defer unlockProfiles()
 	if profiles.m[name] != nil {
 		panic("pprof: NewProfile name already in use: " + name)
 	}
