@@ -303,7 +303,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			ld.Adddynsym(ldr, target, syms, targ)
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(targ)), uint32(elf.R_386_32)))
+			rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_386_32)))
 			su := ldr.MakeSymbolUpdater(s)
 			su.SetRelocType(rIdx, objabi.R_CONST) // write r->add during relocsym
 			su.SetRelocSym(rIdx, 0)
@@ -483,7 +483,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rel.AddAddrPlus(target.Arch, got.Sym(), got.Size()-4)
 
 		sDynid := ldr.SymDynid(s)
-		rel.AddUint32(target.Arch, elf.R_INFO32(uint32(sDynid), uint32(elf.R_386_JMP_SLOT)))
+		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(sDynid), uint32(elf.R_386_JMP_SLOT)))
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
 	} else {
