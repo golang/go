@@ -1031,15 +1031,15 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	return true
 }
 
-// msigsave saves the current thread's signal mask into mp.sigmask.
+// sigsave saves the current thread's signal mask into *p.
 // This is used to preserve the non-Go signal mask when a non-Go
 // thread calls a Go function.
 // This is nosplit and nowritebarrierrec because it is called by needm
 // which may be called on a non-Go thread with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+func sigsave(p *sigset) {
+	sigprocmask(_SIG_SETMASK, nil, p)
 }
 
 // msigrestore sets the current thread's signal mask to sigmask.
@@ -1111,7 +1111,7 @@ func minitSignalStack() {
 // thread's signal mask. When this is called all signals have been
 // blocked for the thread.  This starts with m.sigmask, which was set
 // either from initSigmask for a newly created thread or by calling
-// msigsave if this is a non-Go thread calling a Go function. It
+// sigsave if this is a non-Go thread calling a Go function. It
 // removes all essential signals from the mask, thus causing those
 // signals to not be blocked. Then it sets the thread's signal mask.
 // After this is called the thread can receive signals.
