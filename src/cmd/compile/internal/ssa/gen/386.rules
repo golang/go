@@ -310,7 +310,7 @@
 (Const32  ...) => (MOVLconst ...)
 (Const(32|64)F ...) => (MOVS(S|D)const ...)
 (ConstNil) => (MOVLconst [0])
-(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
+(ConstBool [c]) => (MOVLconst [b2i32(c)])
 
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)
