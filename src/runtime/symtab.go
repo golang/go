@@ -274,9 +274,9 @@ const (
 
 	_FUNCDATA_ArgsPointerMaps    = 0
 	_FUNCDATA_LocalsPointerMaps  = 1
-	_FUNCDATA_StackObjects       = 3
-	_FUNCDATA_InlTree            = 4
-	_FUNCDATA_OpenCodedDeferInfo = 5
+	_FUNCDATA_StackObjects       = 2
+	_FUNCDATA_InlTree            = 3
+	_FUNCDATA_OpenCodedDeferInfo = 4
 
 	_ArgsSizeUnknown = -0x80000000
 )
