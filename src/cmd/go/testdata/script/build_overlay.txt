@@ -43,6 +43,12 @@ go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
 exec ./main_cgo_angle$GOEXE
 stdout '^hello cgo\r?\n'
 
+go list -compiled -overlay -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+cp stdout compiled_cgo_sources.txt
+go run ../print_line_comments.go compiled_cgo_sources.txt
+stdout $GOPATH/src/m/cgo_hello_replace/cgo_hello_replace.go
+!stdout $GOPATH/src/m/overlay/hello.c
+
 # Run same tests but with gccgo.
 env GO111MODULE=off
 [!exec:gccgo] stop
@@ -207,3 +213,33 @@ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 
 void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 
+-- print_line_comments.go --
+package main
+
+import (
+    "fmt"
+    "io/ioutil"
+    "log"
+    "os"
+    "strings"
+)
+
+func main() {
+    compiledGoFilesArg := os.Args[1]
+    b, err := ioutil.ReadFile(compiledGoFilesArg)
+    if err != nil {
+        log.Fatal(err)
+    }
+    compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
+    for _, f := range compiledGoFiles {
+        b, err := ioutil.ReadFile(f)
+        if err != nil {
+            log.Fatal(err)
+        }
+        for _, line := range strings.Split(string(b), "\n") {
+            if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
+                fmt.Println(line)
+            }
+        }
+    }
+}
