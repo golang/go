@@ -1770,12 +1770,12 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.Flags)
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.flags)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			ehdr.Flags = flags
+			ehdr.flags = flags
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
@@ -2520,12 +2520,12 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 		if target.Arch.PtrSize == 8 {
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rela.AddUint64(target.Arch, ELF64_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
 			rela.AddUint64(target.Arch, 0)
 		} else {
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rel.AddUint32(target.Arch, ELF32_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
 		}
 	} else if target.IsDarwin() {
 		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)

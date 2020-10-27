@@ -381,7 +381,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
 			if r.Siz() == 8 {
-				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
+				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
@@ -913,7 +913,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
 		sDynid := ldr.SymDynid(s)
 
-		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
