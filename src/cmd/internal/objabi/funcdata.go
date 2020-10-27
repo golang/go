@@ -17,9 +17,9 @@ const (
 
 	FUNCDATA_ArgsPointerMaps    = 0
 	FUNCDATA_LocalsPointerMaps  = 1
-	FUNCDATA_StackObjects       = 3
-	FUNCDATA_InlTree            = 4
-	FUNCDATA_OpenCodedDeferInfo = 5
+	FUNCDATA_StackObjects       = 2
+	FUNCDATA_InlTree            = 3
+	FUNCDATA_OpenCodedDeferInfo = 4
 
 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
 	// whose argument size is unknown (C vararg functions, and
