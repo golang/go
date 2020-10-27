@@ -488,10 +488,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$296
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
 	// Save the registers clobbered by the fast path.
-	MOV	A0, 280(X2)
-	MOV	A1, 288(X2)
+	MOV	A0, 25*8(X2)
+	MOV	A1, 26*8(X2)
 	MOV	g_m(g), A0
 	MOV	m_p(A0), A0
 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
@@ -507,8 +507,8 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$296
 	// Is the buffer full?
 	BEQ	A1, T6, flush
 ret:
-	MOV	280(X2), A0
-	MOV	288(X2), A1
+	MOV	25*8(X2), A0
+	MOV	26*8(X2), A1
 	// Do the write.
 	MOV	T1, (T0)
 	RET
@@ -516,84 +516,68 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOV	T0, 8(X2)	// Also first argument to wbBufFlush
-	MOV	T1, 16(X2)	// Also second argument to wbBufFlush
-
-	// TODO: Optimise
-	// X5 already saved (T0)
-	// X6 already saved (T1)
+	MOV	T0, 1*8(X2)	// Also first argument to wbBufFlush
+	MOV	T1, 2*8(X2)	// Also second argument to wbBufFlush
+	// X0 is zero register
+	// X1 is LR, saved by prologue
+	// X2 is SP
+	MOV	X3, 3*8(X2)
+	// X4 is TP
+	// X5 is first arg to wbBufFlush (T0)
+	// X6 is second arg to wbBufFlush (T1)
+	MOV	X7, 4*8(X2)
+	MOV	X8, 5*8(X2)
+	MOV	X9, 6*8(X2)
 	// X10 already saved (A0)
 	// X11 already saved (A1)
+	MOV	X12, 7*8(X2)
+	MOV	X13, 8*8(X2)
+	MOV	X14, 9*8(X2)
+	MOV	X15, 10*8(X2)
+	MOV	X16, 11*8(X2)
+	MOV	X17, 12*8(X2)
+	MOV	X18, 13*8(X2)
+	MOV	X19, 14*8(X2)
+	MOV	X20, 15*8(X2)
+	MOV	X21, 16*8(X2)
+	MOV	X22, 17*8(X2)
+	MOV	X23, 18*8(X2)
+	MOV	X24, 19*8(X2)
+	MOV	X25, 20*8(X2)
+	MOV	X26, 21*8(X2)
 	// X27 is g.
+	MOV	X28, 22*8(X2)
+	MOV	X29, 23*8(X2)
+	MOV	X30, 24*8(X2)
 	// X31 is tmp register.
-	MOV	X0, 24(X2)
-	MOV	X1, 32(X2)
-	MOV	X2, 40(X2)
-	MOV	X3, 48(X2)
-	MOV	X4, 56(X2)
-	MOV	X5, 64(X2)
-	MOV	X6, 72(X2)
-	MOV	X7, 80(X2)
-	MOV	X8, 88(X2)
-	MOV	X9, 96(X2)
-	MOV	X10, 104(X2)
-	MOV	X11, 112(X2)
-	MOV	X12, 120(X2)
-	MOV	X13, 128(X2)
-	MOV	X14, 136(X2)
-	MOV	X15, 144(X2)
-	MOV	X16, 152(X2)
-	MOV	X17, 160(X2)
-	MOV	X18, 168(X2)
-	MOV	X19, 176(X2)
-	MOV	X20, 184(X2)
-	MOV	X21, 192(X2)
-	MOV	X22, 200(X2)
-	MOV	X23, 208(X2)
-	MOV	X24, 216(X2)
-	MOV	X25, 224(X2)
-	MOV	X26, 232(X2)
-	MOV	X27, 240(X2)
-	MOV	X28, 248(X2)
-	MOV	X29, 256(X2)
-	MOV	X30, 264(X2)
-	MOV	X31, 272(X2)
 
 	// This takes arguments T0 and T1.
 	CALL	runtime·wbBufFlush(SB)
 
-	MOV	24(X2), X0
-	MOV	32(X2), X1
-	MOV	40(X2), X2
-	MOV	48(X2), X3
-	MOV	56(X2), X4
-	MOV	64(X2), X5
-	MOV	72(X2), X6
-	MOV	80(X2), X7
-	MOV	88(X2), X8
-	MOV	96(X2), X9
-	MOV	104(X2), X10
-	MOV	112(X2), X11
-	MOV	120(X2), X12
-	MOV	128(X2), X13
-	MOV	136(X2), X14
-	MOV	144(X2), X15
-	MOV	152(X2), X16
-	MOV	160(X2), X17
-	MOV	168(X2), X18
-	MOV	176(X2), X19
-	MOV	184(X2), X20
-	MOV	192(X2), X21
-	MOV	200(X2), X22
-	MOV	208(X2), X23
-	MOV	216(X2), X24
-	MOV	224(X2), X25
-	MOV	232(X2), X26
-	MOV	240(X2), X27
-	MOV	248(X2), X28
-	MOV	256(X2), X29
-	MOV	264(X2), X30
-	MOV	272(X2), X31
+	MOV	1*8(X2), T0
+	MOV	2*8(X2), T1
+	MOV	3*8(X2), X3
+	MOV	4*8(X2), X7
+	MOV	5*8(X2), X8
+	MOV	6*8(X2), X9
+	MOV	7*8(X2), X12
+	MOV	8*8(X2), X13
+	MOV	9*8(X2), X14
+	MOV	10*8(X2), X15
+	MOV	11*8(X2), X16
+	MOV	12*8(X2), X17
+	MOV	13*8(X2), X18
+	MOV	14*8(X2), X19
+	MOV	15*8(X2), X20
+	MOV	16*8(X2), X21
+	MOV	17*8(X2), X22
+	MOV	18*8(X2), X23
+	MOV	19*8(X2), X24
+	MOV	20*8(X2), X25
+	MOV	21*8(X2), X26
+	MOV	22*8(X2), X28
+	MOV	23*8(X2), X29
+	MOV	24*8(X2), X30
 
 	JMP	ret
 
