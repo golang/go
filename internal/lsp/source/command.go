@@ -81,8 +81,9 @@ var (
 
 	// CommandGenerate runs `go generate` for a given directory.
 	CommandGenerate = &Command{
-		Name:  "generate",
-		Title: "Run go generate",
+		Name:        "generate",
+		Title:       "Run go generate",
+		Synchronous: true,
 	}
 
 	// CommandTidy runs `go mod tidy` for a module.

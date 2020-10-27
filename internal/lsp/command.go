@@ -42,10 +42,6 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	if !match {
 		return nil, fmt.Errorf("%s is not a supported command", command.ID())
 	}
-	title := command.Title
-	if title == "" {
-		title = command.Name
-	}
 	// Some commands require that all files are saved to disk. If we detect
 	// unsaved files, warn the user instead of running the commands.
 	unsaved := false
@@ -60,7 +56,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		case source.CommandTest.ID(), source.CommandGenerate.ID(), source.CommandToggleDetails.ID():
 			// TODO(PJW): for Toggle, not an error if it is being disabled
 			err := errors.New("unsaved files in the view")
-			s.showCommandError(ctx, title, err)
+			s.showCommandError(ctx, command.Title, err)
 			return nil, err
 		}
 	}
@@ -69,7 +65,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	if command.IsSuggestedFix() {
 		err := s.runSuggestedFixCommand(ctx, command, params.Arguments)
 		if err != nil {
-			s.showCommandError(ctx, title, err)
+			s.showCommandError(ctx, command.Title, err)
 		}
 		return nil, err
 	}
@@ -78,25 +74,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	// clients are aware of the work item before the command completes. This
 	// matters for regtests, where having a continuous thread of work is
 	// convenient for assertions.
-	work := s.progress.start(ctx, title, "Running...", params.WorkDoneToken, cancel)
+	work := s.progress.start(ctx, command.Title, "Running...", params.WorkDoneToken, cancel)
 	if command.Synchronous {
 		return nil, s.runCommand(ctx, work, command, params.Arguments)
 	}
 	go func() {
 		defer cancel()
-		err := s.runCommand(ctx, work, command, params.Arguments)
-		switch {
-		case errors.Is(err, context.Canceled):
-			work.end(title + ": canceled")
-		case err != nil:
-			event.Error(ctx, fmt.Sprintf("%s: command error", title), err)
-			work.end(title + ": failed")
-			// Show a message when work completes with error, because the progress end
-			// message is typically dismissed immediately by LSP clients.
-			s.showCommandError(ctx, title, err)
-		default:
-			work.end(command.ID() + ": completed")
-		}
+		s.runCommand(ctx, work, command, params.Arguments)
 	}()
 	return nil, nil
 }
@@ -141,7 +125,21 @@ func (s *Server) showCommandError(ctx context.Context, title string, err error) 
 	}
 }
 
-func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) error {
+func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) (err error) {
+	defer func() {
+		switch {
+		case errors.Is(err, context.Canceled):
+			work.end(command.Title + ": canceled")
+		case err != nil:
+			event.Error(ctx, fmt.Sprintf("%s: command error", command.Title), err)
+			work.end(command.Title + ": failed")
+			// Show a message when work completes with error, because the progress end
+			// message is typically dismissed immediately by LSP clients.
+			s.showCommandError(ctx, command.Title, err)
+		default:
+			work.end(command.ID() + ": completed")
+		}
+	}()
 	switch command {
 	case source.CommandTest:
 		var uri protocol.DocumentURI
