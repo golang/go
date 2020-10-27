@@ -422,12 +422,6 @@ func nto(x int64) int64 {
 	return int64(ntz64(^x))
 }
 
-// log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
-// Rounds down.
-func log2(n int64) int64 {
-	return int64(bits.Len64(uint64(n))) - 1
-}
-
 // logX returns logarithm of n base 2.
 // n must be a positive power of 2 (isPowerOfTwoX returns true).
 func log8(n int8) int64 {

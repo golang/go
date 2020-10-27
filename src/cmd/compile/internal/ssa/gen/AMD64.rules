@@ -583,7 +583,7 @@
 ((NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
     => ((ULT|UGE) (BTQconst [int8(log32(c))] x))
 ((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUint64PowerOfTwo(c)
-    => ((ULT|UGE) (BTQconst [int8(log2(c))] x))
+    => ((ULT|UGE) (BTQconst [int8(log64(c))] x))
 (SET(NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => (SET(B|AE)  (BTL x y))
 (SET(NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => (SET(B|AE)  (BTQ x y))
 (SET(NE|EQ) (TESTLconst [c] x)) && isUint32PowerOfTwo(int64(c))
@@ -591,7 +591,7 @@
 (SET(NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
     => (SET(B|AE)  (BTQconst [int8(log32(c))] x))
 (SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUint64PowerOfTwo(c)
-    => (SET(B|AE)  (BTQconst [int8(log2(c))] x))
+    => (SET(B|AE)  (BTQconst [int8(log64(c))] x))
 // SET..store variant
 (SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
@@ -602,7 +602,7 @@
 (SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isUint64PowerOfTwo(int64(c))
     => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log32(c))] x) mem)
 (SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUint64PowerOfTwo(c)
-    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log2(c))] x) mem)
+    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log64(c))] x) mem)
 
 // Handle bit-testing in the form (a>>b)&1 != 0 by building the above rules
 // and further combining shifts.
@@ -631,7 +631,7 @@
 ((ORL|XORL)const [c] x) && isUint32PowerOfTwo(int64(c)) && uint64(c) >= 128
     => (BT(S|C)Lconst [int8(log32(c))] x)
 ((ORQ|XORQ) (MOVQconst [c]) x) && isUint64PowerOfTwo(c) && uint64(c) >= 128
-    => (BT(S|C)Qconst [int8(log2(c))] x)
+    => (BT(S|C)Qconst [int8(log64(c))] x)
 ((ORL|XORL) (MOVLconst [c]) x) && isUint32PowerOfTwo(int64(c)) && uint64(c) >= 128
     => (BT(S|C)Lconst [int8(log32(c))] x)
 
@@ -642,7 +642,7 @@
 (ANDLconst [c] x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRLconst [int8(log32(^c))] x)
 (ANDQ (MOVQconst [c]) x) && isUint64PowerOfTwo(^c) && uint64(^c) >= 128
-    => (BTRQconst [int8(log2(^c))] x)
+    => (BTRQconst [int8(log64(^c))] x)
 (ANDL (MOVLconst [c]) x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRLconst [int8(log32(^c))] x)
 
@@ -959,7 +959,7 @@
 (MUL(Q|L)const [73] x) => (LEA(Q|L)8 x (LEA(Q|L)8 <v.Type> x x))
 (MUL(Q|L)const [81] x) => (LEA(Q|L)8 (LEA(Q|L)8 <v.Type> x x) (LEA(Q|L)8 <v.Type> x x))
 
-(MUL(Q|L)const [c] x) && isPowerOfTwo64(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log2(int64(c)+1))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo64(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log64(int64(c)+1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
