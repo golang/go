@@ -7013,7 +7013,7 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 	}
 	// match: (Select1 (MULVU x (MOVVconst [c])))
 	// cond: isPowerOfTwo64(c)
-	// result: (SLLVconst [log2(c)] x)
+	// result: (SLLVconst [log64(c)] x)
 	for {
 		if v_0.Op != OpMIPS64MULVU {
 			break
@@ -7031,7 +7031,7 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 				continue
 			}
 			v.reset(OpMIPS64SLLVconst)
-			v.AuxInt = int64ToAuxInt(log2(c))
+			v.AuxInt = int64ToAuxInt(log64(c))
 			v.AddArg(x)
 			return true
 		}
@@ -7054,7 +7054,7 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 	}
 	// match: (Select1 (DIVVU x (MOVVconst [c])))
 	// cond: isPowerOfTwo64(c)
-	// result: (SRLVconst [log2(c)] x)
+	// result: (SRLVconst [log64(c)] x)
 	for {
 		if v_0.Op != OpMIPS64DIVVU {
 			break
@@ -7070,7 +7070,7 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 			break
 		}
 		v.reset(OpMIPS64SRLVconst)
-		v.AuxInt = int64ToAuxInt(log2(c))
+		v.AuxInt = int64ToAuxInt(log64(c))
 		v.AddArg(x)
 		return true
 	}
