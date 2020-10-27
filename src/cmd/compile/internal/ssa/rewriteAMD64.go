@@ -29719,11 +29719,11 @@ func rewriteValueAMD64_OpConst8(v *Value) bool {
 }
 func rewriteValueAMD64_OpConstBool(v *Value) bool {
 	// match: (ConstBool [c])
-	// result: (MOVLconst [int32(b2i(c))])
+	// result: (MOVLconst [b2i32(c)])
 	for {
 		c := auxIntToBool(v.AuxInt)
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = int32ToAuxInt(int32(b2i(c)))
+		v.AuxInt = int32ToAuxInt(b2i32(c))
 		return true
 	}
 }
