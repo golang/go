@@ -378,7 +378,8 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 		// But it's okay if the file is a symlink pointing to a regular
 		// file, so use os.Stat to follow symlinks and check that.
 		actualFilePath, _ := OverlayPath(filepath.Join(dir, fi.Name()))
-		if fi, err := os.Stat(actualFilePath); err == nil && fi.Mode().IsRegular() {
+		fi, err := os.Stat(actualFilePath)
+		if err == nil && fi.Mode().IsRegular() {
 			return true, nil
 		}
 		if err != nil && firstErr == nil {
