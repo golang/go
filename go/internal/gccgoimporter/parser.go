@@ -521,6 +521,13 @@ func (p *parser) parseNamedType(nlist []interface{}) types.Type {
 		p.errorf("%v has nil type", obj)
 	}
 
+	if p.tok == scanner.Ident && p.lit == "notinheap" {
+		p.next()
+		// The go/types package has no way of recording that
+		// this type is marked notinheap. Presumably no user
+		// of this package actually cares.
+	}
+
 	// type alias
 	if p.tok == '=' {
 		p.next()
