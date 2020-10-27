@@ -449,10 +449,7 @@ func log2uint32(n int64) int64 {
 	return int64(bits.Len32(uint32(n))) - 1
 }
 
-// isPowerOfTwo reports whether n is a power of 2.
-func isPowerOfTwo(n int64) bool {
-	return n > 0 && n&(n-1) == 0
-}
+// isPowerOfTwo functions report whether n is a power of 2.
 func isPowerOfTwo8(n int8) bool {
 	return n > 0 && n&(n-1) == 0
 }
@@ -1555,7 +1552,7 @@ func (bfc arm64BitField) getARM64BFwidth() int64 {
 // checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
 func isARM64BFMask(lsb, mask, rshift int64) bool {
 	shiftedMask := int64(uint64(mask) >> uint64(rshift))
-	return shiftedMask != 0 && isPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+	return shiftedMask != 0 && isPowerOfTwo64(shiftedMask+1) && nto(shiftedMask)+lsb < 64
 }
 
 // returns the bitfield width of mask >> rshift for arm64 bitfield ops
