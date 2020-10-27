@@ -13,6 +13,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -302,7 +303,7 @@ func adddynlib(ctxt *Link, lib string) {
 			dsu.Addstring("")
 		}
 		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic)
-		Elfwritedynent(ctxt.Arch, du, DT_NEEDED, uint64(dsu.Addstring(lib)))
+		Elfwritedynent(ctxt.Arch, du, elf.DT_NEEDED, uint64(dsu.Addstring(lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
 	}
