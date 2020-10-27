@@ -59,10 +59,10 @@ type operand struct {
 	id   builtinId
 }
 
-// pos returns the position of the expression corresponding to x.
+// Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is token.NoPos.
 //
-func (x *operand) pos() token.Pos {
+func (x *operand) Pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
 		return token.NoPos

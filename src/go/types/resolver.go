@@ -60,22 +60,22 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
 	case init == nil && r == 0:
 		// var decl w/o init expr
 		if s.Type == nil {
-			check.errorf(s.Pos(), code, "missing type or init expr")
+			check.errorf(s, code, "missing type or init expr")
 		}
 	case l < r:
 		if l < len(s.Values) {
 			// init exprs from s
 			n := s.Values[l]
-			check.errorf(n.Pos(), code, "extra init expr %s", n)
+			check.errorf(n, code, "extra init expr %s", n)
 			// TODO(gri) avoid declared but not used error here
 		} else {
 			// init exprs "inherited"
-			check.errorf(s.Pos(), code, "extra init expr at %s", check.fset.Position(init.Pos()))
+			check.errorf(s, code, "extra init expr at %s", check.fset.Position(init.Pos()))
 			// TODO(gri) avoid declared but not used error here
 		}
 	case l > r && (init != nil || r != 1):
 		n := s.Names[r]
-		check.errorf(n.Pos(), code, "missing init expr for %s", n)
+		check.errorf(n, code, "missing init expr for %s", n)
 	}
 }
 
@@ -104,14 +104,14 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 	// spec: "A package-scope or file-scope identifier with name init
 	// may only be declared to be a function with this (func()) signature."
 	if ident.Name == "init" {
-		check.errorf(ident.Pos(), _InvalidInitDecl, "cannot declare init - must be func")
+		check.errorf(ident, _InvalidInitDecl, "cannot declare init - must be func")
 		return
 	}
 
 	// spec: "The main package must have package name main and declare
 	// a function main that takes no arguments and returns no value."
 	if ident.Name == "main" && check.pkg.name == "main" {
-		check.errorf(ident.Pos(), _InvalidMainDecl, "cannot declare main - must be func")
+		check.errorf(ident, _InvalidMainDecl, "cannot declare main - must be func")
 		return
 	}
 
@@ -169,7 +169,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 			imp = nil // create fake package below
 		}
 		if err != nil {
-			check.errorf(pos, _BrokenImport, "could not import %s (%s)", path, err)
+			check.errorf(atPos(pos), _BrokenImport, "could not import %s (%s)", path, err)
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
@@ -242,7 +242,7 @@ func (check *Checker) collectObjects() {
 				// import package
 				path, err := validatedImportPath(d.spec.Path.Value)
 				if err != nil {
-					check.errorf(d.spec.Path.Pos(), _BadImportPath, "invalid import path (%s)", err)
+					check.errorf(d.spec.Path, _BadImportPath, "invalid import path (%s)", err)
 					return
 				}
 
@@ -265,11 +265,11 @@ func (check *Checker) collectObjects() {
 					name = d.spec.Name.Name
 					if path == "C" {
 						// match cmd/compile (not prescribed by spec)
-						check.errorf(d.spec.Name.Pos(), _ImportCRenamed, `cannot rename import "C"`)
+						check.errorf(d.spec.Name, _ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
 					if name == "init" {
-						check.errorf(d.spec.Name.Pos(), _InvalidInitDecl, "cannot declare init - must be func")
+						check.errorf(d.spec.Name, _InvalidInitDecl, "cannot declare init - must be func")
 						return
 					}
 				}
@@ -300,14 +300,14 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
 							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(d.spec.Name.Pos(), _DuplicateDecl, "%s redeclared in this block", obj.Name())
+								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 								check.reportAltDecl(alt)
 							}
 						}
 					}
 					// add position to set of dot-import positions for this file
 					// (this is only needed for "imported but not used" errors)
-					check.addUnusedDotImport(fileScope, imp, d.spec.Pos())
+					check.addUnusedDotImport(fileScope, imp, d.spec)
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.Name since we called check.recordDef earlier)
@@ -373,7 +373,7 @@ func (check *Checker) collectObjects() {
 						check.recordDef(d.decl.Name, obj)
 						// init functions must have a body
 						if d.decl.Body == nil {
-							check.softErrorf(obj.pos, _MissingInitBody, "missing function body")
+							check.softErrorf(obj, _MissingInitBody, "missing function body")
 						}
 					} else {
 						check.declare(pkg.scope, d.decl.Name, obj, token.NoPos)
@@ -403,10 +403,10 @@ func (check *Checker) collectObjects() {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt.Pos(), _DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					check.errorf(alt, _DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					check.reportAltDecl(pkg)
 				} else {
-					check.errorf(alt.Pos(), _DuplicateDecl, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					check.errorf(alt, _DuplicateDecl, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
 					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
 					check.reportAltDecl(obj)
 				}
@@ -575,9 +575,9 @@ func (check *Checker) unusedImports() {
 					path := obj.imported.path
 					base := pkgName(path)
 					if obj.name == base {
-						check.softErrorf(obj.pos, _UnusedImport, "%q imported but not used", path)
+						check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
 					} else {
-						check.softErrorf(obj.pos, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+						check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
 					}
 				}
 			}
