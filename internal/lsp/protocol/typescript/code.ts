@@ -185,9 +185,7 @@ function strData(d: Data): string {
   const f = function (na: ts.NodeArray<any>): number {
     return na.length
   };
-  return `D(${d.name}) g;${f(d.generics)} a:${f(d.as)} p:${f(d.properties)} s:${
-    f(d.statements)} e:${f(d.enums)} m:${f(d.members)} ${
-    d.alias != undefined}`
+  return `D(${d.name}) g;${f(d.generics)} a:${f(d.as)} p:${f(d.properties)} s:${f(d.statements)} e:${f(d.enums)} m:${f(d.members)} ${d.alias != undefined}`
 }
 
 let data = new Map<string, Data>();            // parsed data types
@@ -401,6 +399,7 @@ function underlying(n: ts.Node, f: (n: ts.Node) => void) {
     n.kind == ts.SyntaxKind.StringKeyword ||
     n.kind == ts.SyntaxKind.NumberKeyword ||
     n.kind == ts.SyntaxKind.AnyKeyword ||
+    n.kind == ts.SyntaxKind.UnknownKeyword ||
     n.kind == ts.SyntaxKind.NullKeyword ||
     n.kind == ts.SyntaxKind.BooleanKeyword ||
     n.kind == ts.SyntaxKind.ObjectKeyword ||
@@ -433,7 +432,7 @@ function underlying(n: ts.Node, f: (n: ts.Node) => void) {
     if (ts.isStringLiteral(n.initializer)) return;
     throw new Error(`EnumMember ${strKind(n.initializer)} ${n.name.getText()}`)
   } else {
-    throw new Error(`saw ${strKind(n)} in underlying. ${n.getText()}`)
+    throw new Error(`saw ${strKind(n)} in underlying. ${n.getText()} at ${loc(n)}`)
   }
 }
 
@@ -532,7 +531,7 @@ function goInterface(d: Data, nm: string) {
         gt = '*' + gt;
       };
     })
-    ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n')
+    ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n');
   };
   d.properties.forEach(g)
   // heritage clauses become embedded types
@@ -607,8 +606,7 @@ function goEnum(d: Data, nm: string) {
 function goTypeAlias(d: Data, nm: string) {
   if (d.as.length != 0 || d.generics.length != 0) {
     if (nm != 'ServerCapabilities')
-      throw new Error(`${nm} has extra fields(${d.as.length},${
-        d.generics.length}) ${d.me.getText()}`);
+      throw new Error(`${nm} has extra fields(${d.as.length},${d.generics.length}) ${d.me.getText()}`);
   }
   typesOut.push(getComments(d.me))
   // d.alias doesn't seem to have comments
@@ -631,7 +629,7 @@ function goType(n: ts.TypeNode, nm: string, parent?: string): string {
     return 'float64';
   } else if (strKind(n) == 'BooleanKeyword') {
     return 'bool';
-  } else if (strKind(n) == 'AnyKeyword') {
+  } else if (strKind(n) == 'AnyKeyword' || strKind(n) == 'UnknownKeyword') {
     return 'interface{}';
   } else if (strKind(n) == 'NullKeyword') {
     return 'nil'
@@ -669,9 +667,9 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
   // range?: boolean | {\n	};
   // full?: boolean | {\n		/**\n		 * The server supports deltas for full documents.\n		 */\n		delta?: boolean;\n	}
   // These are handled specially:
-  if (parent == 'SemanticTokensOptions') {
-    if (nm == 'range') help = help.replace(/\n/, '');
-    if (nm == 'full') help = '/*boolean | <elided struct>*/';
+  if (nm == 'range') help = help.replace(/\n/, '');
+  if (nm == 'full' && help.indexOf('\n') != -1) {
+    help = '/*boolean | <elided struct>*/';
   }
   // handle all the special cases
   switch (n.types.length) {
@@ -693,6 +691,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
       if (a == 'BooleanKeyword') {  // usually want bool
         if (nm == 'codeActionProvider') return `interface{} ${help}`;
         if (nm == 'renameProvider') return `interface{} ${help}`;
+        if (nm == 'full') return `interface{} ${help}`; // there's a struct
         if (nm == 'save') return `${goType(n.types[1], '680')} ${help}`;
         return `${goType(n.types[0], 'b')} ${help}`
       }
@@ -1003,8 +1002,7 @@ function goReq(side: side, m: string) {
     const p2 = a == '' ? 'nil' : 'params';
     const returnType = indirect(b) ? `*${b}` : b;
     callBody = `var result ${returnType}
-			if err := Call(ctx, s.Conn, "${m}", ${
-      p2}, &result); err != nil {
+			if err := Call(ctx, s.Conn, "${m}", ${p2}, &result); err != nil {
 				return nil, err
       }
       return result, nil
