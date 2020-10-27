@@ -41,10 +41,22 @@ undeclared_name adds a variable declaration for an undeclared
 name.
 
 
+### **Add dependency**
+Identifier: `gopls.add_dependency`
+
+add_dependency adds a dependency.
+
+
 ### **Upgrade dependency**
 Identifier: `gopls.upgrade_dependency`
 
 upgrade_dependency upgrades a dependency.
+
+
+### **Remove dependency**
+Identifier: `gopls.remove_dependency`
+
+remove_dependency removes a dependency.
 
 
 ### **Run go mod vendor**

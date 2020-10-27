@@ -546,14 +546,19 @@ func (err *ErrorList) Error() string {
 	return b.String()
 }
 
+// An Error corresponds to an LSP Diagnostic.
+// https://microsoft.github.io/language-server-protocol/specification#diagnostic
 type Error struct {
-	URI            span.URI
-	Range          protocol.Range
-	Kind           ErrorKind
-	Message        string
-	Category       string // only used by analysis errors so far
+	URI      span.URI
+	Range    protocol.Range
+	Kind     ErrorKind
+	Message  string
+	Category string // only used by analysis errors so far
+	Related  []RelatedInformation
+
+	// SuggestedFixes is used to generate quick fixes for a CodeAction request.
+	// It isn't part of the Diagnostic type.
 	SuggestedFixes []SuggestedFix
-	Related        []RelatedInformation
 }
 
 // GoModTidy is the source for a diagnostic computed by running `go mod tidy`.

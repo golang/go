@@ -54,9 +54,10 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	}
 	if unsaved {
 		switch params.Command {
-		case source.CommandTest.ID(), source.CommandGenerate.ID(), source.CommandToggleDetails.ID():
+		case source.CommandTest.ID(), source.CommandGenerate.ID(), source.CommandToggleDetails.ID(),
+			source.CommandAddDependency.ID(), source.CommandUpgradeDependency.ID(), source.CommandRemoveDependency.ID():
 			// TODO(PJW): for Toggle, not an error if it is being disabled
-			err := errors.New("unsaved files in the view")
+			err := errors.New("all files must be saved first")
 			s.showCommandError(ctx, command.Title, err)
 			return nil, err
 		}
@@ -189,14 +190,23 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if command == source.CommandVendor {
 			a = "vendor"
 		}
-		return s.directGoModCommand(ctx, uri, "mod", []string{a}...)
-	case source.CommandUpgradeDependency:
+		return s.directGoModCommand(ctx, uri, "mod", a)
+	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
 		if err := source.UnmarshalArgs(args, &uri, &goCmdArgs); err != nil {
 			return err
 		}
-		return s.directGoModCommand(ctx, uri, "get", goCmdArgs...)
+		if command == source.CommandAddDependency {
+			// Using go get to create a new dependency results in an
+			// `// indirect` comment we don't want. The only way to avoid it is
+			// to add the require as direct first. Then we can use go get to
+			// update go.sum and tidy up.
+			if err := s.directGoModCommand(ctx, uri, "mod", append([]string{"edit", "-require"}, goCmdArgs...)...); err != nil {
+				return err
+			}
+		}
+		return s.directGoModCommand(ctx, uri, "get", append([]string{"-d"}, goCmdArgs...)...)
 	case source.CommandToggleDetails:
 		var fileURI span.URI
 		if err := source.UnmarshalArgs(args, &fileURI); err != nil {

@@ -141,9 +141,8 @@ require random.org v1.2.3
 				randomDiag = diag
 			}
 		}
-		env.OpenFile("go.mod")
 		env.ApplyQuickFixes("main.go", []protocol.Diagnostic{randomDiag})
-		if got := env.Editor.BufferText("go.mod"); got != want {
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
 		}
 	})
@@ -223,7 +222,7 @@ go 1.14
 			),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
-		if got := env.Editor.BufferText("go.mod"); got != want {
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
 		}
 	})
@@ -268,7 +267,6 @@ func _() {
     caire.RemoveTempImage()
 }`
 	runner.Run(t, repro, func(t *testing.T, env *Env) {
-		env.OpenFile("go.mod")
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
@@ -287,7 +285,7 @@ require (
 	google.golang.org/protobuf v1.20.0
 )
 `
-		if got := env.Editor.BufferText("go.mod"); got != want {
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", tests.Diff(want, got))
 		}
 	}, WithProxyFiles(proxy))
@@ -321,6 +319,8 @@ func main() {
 	}, WithProxyFiles(proxy))
 }
 
+// Tests golang/go#39784: a missing indirect dependency, necessary
+// due to blah@v2.0.0's incomplete go.mod file.
 func TestBadlyVersionedModule(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
@@ -369,6 +369,8 @@ func TestBlah(t *testing.T) {}
 -- go.mod --
 module mod.com
 
+go 1.12
+
 require (
 	example.com/blah/v2 v2.0.0
 )
@@ -394,12 +396,17 @@ func main() {
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		const want = `module mod.com
 
+go 1.12
+
 require (
 	example.com/blah v1.0.0
 	example.com/blah/v2 v2.0.0
 )
 `
-		if got := env.Editor.BufferText("go.mod"); got != want {
+		// We need to read from disk even though go.mod is open -- the regtests
+		// currently don't apply on-disk changes to open but unmodified buffers
+		// like most editors would.
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(want, got))
 		}
 	}, WithProxyFiles(badModule))

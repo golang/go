@@ -508,6 +508,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 				Kind:        protocol.QuickFix,
 				Diagnostics: []protocol.Diagnostic{*diag},
 				Edit:        protocol.WorkspaceEdit{},
+				Command:     fix.Command,
 			}
 			for uri, edits := range fix.Edits {
 				if uri != modFH.URI() {

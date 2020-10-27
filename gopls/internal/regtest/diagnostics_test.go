@@ -716,7 +716,6 @@ go 1.12
 		WithProxyFiles(ardanLabsProxy),
 	).run(t, emptyFile, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.OpenFile("go.mod")
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
 
 import "github.com/ardanlabs/conf"
@@ -734,6 +733,7 @@ func main() {
 			),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.CheckForFileChanges()
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)

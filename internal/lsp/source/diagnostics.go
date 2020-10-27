@@ -28,8 +28,9 @@ type Diagnostic struct {
 }
 
 type SuggestedFix struct {
-	Title string
-	Edits map[span.URI][]protocol.TextEdit
+	Title   string
+	Edits   map[span.URI][]protocol.TextEdit
+	Command *protocol.Command
 }
 
 type RelatedInformation struct {

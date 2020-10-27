@@ -63,7 +63,9 @@ var Commands = []*Command{
 	CommandTest,
 	CommandTidy,
 	CommandUndeclaredName,
+	CommandAddDependency,
 	CommandUpgradeDependency,
+	CommandRemoveDependency,
 	CommandVendor,
 	CommandExtractVariable,
 	CommandExtractFunction,
@@ -97,10 +99,22 @@ var (
 		Title: "Run go mod vendor",
 	}
 
+	// CommandAddDependency adds a dependency.
+	CommandAddDependency = &Command{
+		Name:  "add_dependency",
+		Title: "Add dependency",
+	}
+
 	// CommandUpgradeDependency upgrades a dependency.
 	CommandUpgradeDependency = &Command{
 		Name:  "upgrade_dependency",
 		Title: "Upgrade dependency",
+	}
+
+	// CommandRemoveDependency removes a dependency.
+	CommandRemoveDependency = &Command{
+		Name:  "remove_dependency",
+		Title: "Remove dependency",
 	}
 
 	// CommandRegenerateCgo regenerates cgo definitions.

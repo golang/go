@@ -109,25 +109,7 @@ func main() {
 `
 	runner.Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		lenses := env.CodeLens("go.mod")
-		want := "Upgrade dependency to v1.3.3"
-		var found protocol.CodeLens
-		for _, lens := range lenses {
-			if lens.Command.Title == want {
-				found = lens
-				break
-			}
-		}
-		if found.Command.Command == "" {
-			t.Fatalf("did not find lens %q, got %v", want, lenses)
-		}
-		if _, err := env.Editor.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
-			Command:   found.Command.Command,
-			Arguments: found.Command.Arguments,
-		}); err != nil {
-			t.Fatal(err)
-		}
-		env.Await(NoOutstandingWork())
+		env.ExecuteCodeLensCommand("go.mod", source.CommandUpgradeDependency)
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
 
@@ -182,7 +164,6 @@ func main() {
 	runner.Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.ExecuteCodeLensCommand("go.mod", source.CommandTidy)
-		env.Await(NoOutstandingWork())
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
 
