@@ -959,7 +959,7 @@
 (MUL(Q|L)const [73] x) => (LEA(Q|L)8 x (LEA(Q|L)8 <v.Type> x x))
 (MUL(Q|L)const [81] x) => (LEA(Q|L)8 (LEA(Q|L)8 <v.Type> x x) (LEA(Q|L)8 <v.Type> x x))
 
-(MUL(Q|L)const [c] x) && isPowerOfTwo(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log2(int64(c)+1))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo64(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log2(int64(c)+1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
