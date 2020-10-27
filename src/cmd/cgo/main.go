@@ -243,6 +243,8 @@ var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used wit
 var gccgoMangler func(string) string
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
+var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
+
 var goarch, goos string
 
 func main() {
@@ -322,6 +324,13 @@ func main() {
 			input = filepath.Join(*srcDir, input)
 		}
 
+		// Create absolute path for file, so that it will be used in error
+		// messages and recorded in debug line number information.
+		// This matches the rest of the toolchain. See golang.org/issue/5122.
+		if aname, err := filepath.Abs(input); err == nil {
+			input = aname
+		}
+
 		b, err := ioutil.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
@@ -329,6 +338,10 @@ func main() {
 		if _, err = h.Write(b); err != nil {
 			fatalf("%s", err)
 		}
+
+		// Apply trimpath to the file path. The path won't be read from after this point.
+		input, _ = objabi.ApplyRewrites(input, *trimpath)
+		goFiles[i] = input
 
 		f := new(File)
 		f.Edit = edit.NewBuffer(b)
@@ -367,7 +380,7 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f, input))
+			os.Stdout.WriteString(p.godefs(f))
 		} else {
 			p.writeOutput(f, input)
 		}
