@@ -1886,6 +1886,18 @@ func TestGoEnv(t *testing.T) {
 	tg.grepStdout("gcc", "CC not found")
 	tg.run("env", "GOGCCFLAGS")
 	tg.grepStdout("-ffaster", "CC arguments not found")
+
+	tg.run("env", "GOVERSION")
+	envVersion := strings.TrimSpace(tg.stdout.String())
+
+	tg.run("version")
+	cmdVersion := strings.TrimSpace(tg.stdout.String())
+
+	// If 'go version' is "go version <version> <goos>/<goarch>", then
+	// 'go env GOVERSION' is just "<version>".
+	if cmdVersion == envVersion || !strings.Contains(cmdVersion, envVersion) {
+		t.Fatalf("'go env GOVERSION' %q should be a shorter substring of 'go version' %q", envVersion, cmdVersion)
+	}
 }
 
 const (

@@ -1916,6 +1916,8 @@
 // 		If module-aware mode is disabled, GOMOD will be the empty string.
 // 	GOTOOLDIR
 // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+// 	GOVERSION
+// 		The version of the installed Go tree, as reported by runtime.Version.
 //
 //
 // File types
