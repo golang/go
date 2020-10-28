@@ -2828,12 +2828,10 @@ func TestTxStmtDeadlock(t *testing.T) {
 	}
 	// Run number of stmt queries to reproduce deadlock from context cancel
 	for i := 0; i < 1e3; i++ {
+		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
+		// is expected due to context cancel.
 		_, err = stmt.Query(1)
 		if err != nil {
-			// Encounter ErrTxDone here is expected due to context cancel
-			if err != ErrTxDone {
-				t.Fatalf("unexpected error while executing stmt, err: %v", err)
-			}
 			break
 		}
 	}
