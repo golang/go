@@ -5635,7 +5635,7 @@ func rewriteValueS390X_OpS390XADDWload(v *Value) bool {
 	}
 	// match: (ADDWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ADDWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ADDWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -5652,7 +5652,7 @@ func rewriteValueS390X_OpS390XADDWload(v *Value) bool {
 		}
 		v.reset(OpS390XADDWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -5815,7 +5815,7 @@ func rewriteValueS390X_OpS390XADDload(v *Value) bool {
 	}
 	// match: (ADDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ADDload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ADDload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -5832,7 +5832,7 @@ func rewriteValueS390X_OpS390XADDload(v *Value) bool {
 		}
 		v.reset(OpS390XADDload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -6191,7 +6191,7 @@ func rewriteValueS390X_OpS390XANDWload(v *Value) bool {
 	}
 	// match: (ANDWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ANDWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ANDWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -6208,7 +6208,7 @@ func rewriteValueS390X_OpS390XANDWload(v *Value) bool {
 		}
 		v.reset(OpS390XANDWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -6316,7 +6316,7 @@ func rewriteValueS390X_OpS390XANDload(v *Value) bool {
 	}
 	// match: (ANDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ANDload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ANDload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -6333,7 +6333,7 @@ func rewriteValueS390X_OpS390XANDload(v *Value) bool {
 		}
 		v.reset(OpS390XANDload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -7439,7 +7439,7 @@ func rewriteValueS390X_OpS390XFMOVDload(v *Value) bool {
 	}
 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (FMOVDload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -7455,7 +7455,7 @@ func rewriteValueS390X_OpS390XFMOVDload(v *Value) bool {
 		}
 		v.reset(OpS390XFMOVDload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -7489,7 +7489,7 @@ func rewriteValueS390X_OpS390XFMOVDstore(v *Value) bool {
 	}
 	// match: (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (FMOVDstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -7506,7 +7506,7 @@ func rewriteValueS390X_OpS390XFMOVDstore(v *Value) bool {
 		}
 		v.reset(OpS390XFMOVDstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -7556,7 +7556,7 @@ func rewriteValueS390X_OpS390XFMOVSload(v *Value) bool {
 	}
 	// match: (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (FMOVSload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (FMOVSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -7572,7 +7572,7 @@ func rewriteValueS390X_OpS390XFMOVSload(v *Value) bool {
 		}
 		v.reset(OpS390XFMOVSload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -7606,7 +7606,7 @@ func rewriteValueS390X_OpS390XFMOVSstore(v *Value) bool {
 	}
 	// match: (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (FMOVSstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -7623,7 +7623,7 @@ func rewriteValueS390X_OpS390XFMOVSstore(v *Value) bool {
 		}
 		v.reset(OpS390XFMOVSstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -8101,7 +8101,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value) bool {
 	}
 	// match: (MOVBZload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (MOVBZload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVBZload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -8117,7 +8117,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVBZload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -8371,7 +8371,7 @@ func rewriteValueS390X_OpS390XMOVBload(v *Value) bool {
 	}
 	// match: (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (MOVBload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -8387,7 +8387,7 @@ func rewriteValueS390X_OpS390XMOVBload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVBload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -8658,7 +8658,7 @@ func rewriteValueS390X_OpS390XMOVBstore(v *Value) bool {
 	}
 	// match: (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
-	// result: (MOVBstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -8675,7 +8675,7 @@ func rewriteValueS390X_OpS390XMOVBstore(v *Value) bool {
 		}
 		v.reset(OpS390XMOVBstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -8931,7 +8931,7 @@ func rewriteValueS390X_OpS390XMOVBstoreconst(v *Value) bool {
 	}
 	// match: (MOVBstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
 	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off)
-	// result: (MOVBstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	// result: (MOVBstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := auxIntToValAndOff(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -8947,7 +8947,7 @@ func rewriteValueS390X_OpS390XMOVBstoreconst(v *Value) bool {
 		}
 		v.reset(OpS390XMOVBstoreconst)
 		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -9025,7 +9025,7 @@ func rewriteValueS390X_OpS390XMOVDaddridx(v *Value) bool {
 	}
 	// match: (MOVDaddridx [off1] {sym1} (MOVDaddr [off2] {sym2} x) y)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB
-	// result: (MOVDaddridx [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+	// result: (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9041,13 +9041,13 @@ func rewriteValueS390X_OpS390XMOVDaddridx(v *Value) bool {
 		}
 		v.reset(OpS390XMOVDaddridx)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (MOVDaddridx [off1] {sym1} x (MOVDaddr [off2] {sym2} y))
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && y.Op != OpSB
-	// result: (MOVDaddridx [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+	// result: (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9063,7 +9063,7 @@ func rewriteValueS390X_OpS390XMOVDaddridx(v *Value) bool {
 		}
 		v.reset(OpS390XMOVDaddridx)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(x, y)
 		return true
 	}
@@ -9132,7 +9132,7 @@ func rewriteValueS390X_OpS390XMOVDload(v *Value) bool {
 	}
 	// match: (MOVDload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%8 == 0 && (off1+off2)%8 == 0))
-	// result: (MOVDload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9149,7 +9149,7 @@ func rewriteValueS390X_OpS390XMOVDload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVDload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -9204,7 +9204,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 	}
 	// match: (MOVDstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%8 == 0 && (off1+off2)%8 == 0))
-	// result: (MOVDstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9222,7 +9222,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		}
 		v.reset(OpS390XMOVDstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -9335,7 +9335,7 @@ func rewriteValueS390X_OpS390XMOVDstoreconst(v *Value) bool {
 	}
 	// match: (MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
 	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off)
-	// result: (MOVDstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	// result: (MOVDstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := auxIntToValAndOff(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9351,7 +9351,7 @@ func rewriteValueS390X_OpS390XMOVDstoreconst(v *Value) bool {
 		}
 		v.reset(OpS390XMOVDstoreconst)
 		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -9518,7 +9518,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value) bool {
 	}
 	// match: (MOVHZload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0))
-	// result: (MOVHZload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVHZload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9535,7 +9535,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVHZload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -9759,7 +9759,7 @@ func rewriteValueS390X_OpS390XMOVHload(v *Value) bool {
 	}
 	// match: (MOVHload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0))
-	// result: (MOVHload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -9776,7 +9776,7 @@ func rewriteValueS390X_OpS390XMOVHload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVHload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -10053,7 +10053,7 @@ func rewriteValueS390X_OpS390XMOVHstore(v *Value) bool {
 	}
 	// match: (MOVHstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0))
-	// result: (MOVHstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -10071,7 +10071,7 @@ func rewriteValueS390X_OpS390XMOVHstore(v *Value) bool {
 		}
 		v.reset(OpS390XMOVHstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -10219,7 +10219,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst(v *Value) bool {
 	}
 	// match: (MOVHstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
 	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off)
-	// result: (MOVHstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	// result: (MOVHstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := auxIntToValAndOff(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -10235,7 +10235,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst(v *Value) bool {
 		}
 		v.reset(OpS390XMOVHstoreconst)
 		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -10374,7 +10374,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value) bool {
 	}
 	// match: (MOVWZload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0))
-	// result: (MOVWZload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVWZload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -10391,7 +10391,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVWZload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -10594,7 +10594,7 @@ func rewriteValueS390X_OpS390XMOVWload(v *Value) bool {
 	}
 	// match: (MOVWload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0))
-	// result: (MOVWload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -10611,7 +10611,7 @@ func rewriteValueS390X_OpS390XMOVWload(v *Value) bool {
 		}
 		v.reset(OpS390XMOVWload)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
 		return true
 	}
@@ -10874,7 +10874,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 	}
 	// match: (MOVWstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
 	// cond: is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0))
-	// result: (MOVWstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := auxIntToInt32(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -10892,7 +10892,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		}
 		v.reset(OpS390XMOVWstore)
 		v.AuxInt = int32ToAuxInt(off1 + off2)
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
 		return true
 	}
@@ -11063,7 +11063,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst(v *Value) bool {
 	}
 	// match: (MOVWstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
 	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off)
-	// result: (MOVWstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	// result: (MOVWstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := auxIntToValAndOff(v.AuxInt)
 		sym1 := auxToSym(v.Aux)
@@ -11079,7 +11079,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst(v *Value) bool {
 		}
 		v.reset(OpS390XMOVWstoreconst)
 		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
-		v.Aux = symToAux(mergeSymTyped(sym1, sym2))
+		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -11293,7 +11293,7 @@ func rewriteValueS390X_OpS390XMULLDload(v *Value) bool {
 	}
 	// match: (MULLDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (MULLDload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (MULLDload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -11310,7 +11310,7 @@ func rewriteValueS390X_OpS390XMULLDload(v *Value) bool {
 		}
 		v.reset(OpS390XMULLDload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -11496,7 +11496,7 @@ func rewriteValueS390X_OpS390XMULLWload(v *Value) bool {
 	}
 	// match: (MULLWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (MULLWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (MULLWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -11513,7 +11513,7 @@ func rewriteValueS390X_OpS390XMULLWload(v *Value) bool {
 		}
 		v.reset(OpS390XMULLWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -12846,7 +12846,7 @@ func rewriteValueS390X_OpS390XORWload(v *Value) bool {
 	}
 	// match: (ORWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ORWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ORWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -12863,7 +12863,7 @@ func rewriteValueS390X_OpS390XORWload(v *Value) bool {
 		}
 		v.reset(OpS390XORWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -12957,7 +12957,7 @@ func rewriteValueS390X_OpS390XORload(v *Value) bool {
 	}
 	// match: (ORload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (ORload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (ORload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -12974,7 +12974,7 @@ func rewriteValueS390X_OpS390XORload(v *Value) bool {
 		}
 		v.reset(OpS390XORload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -14333,7 +14333,7 @@ func rewriteValueS390X_OpS390XSUBWload(v *Value) bool {
 	}
 	// match: (SUBWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (SUBWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (SUBWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -14350,7 +14350,7 @@ func rewriteValueS390X_OpS390XSUBWload(v *Value) bool {
 		}
 		v.reset(OpS390XSUBWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -14466,7 +14466,7 @@ func rewriteValueS390X_OpS390XSUBload(v *Value) bool {
 	}
 	// match: (SUBload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (SUBload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (SUBload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -14483,7 +14483,7 @@ func rewriteValueS390X_OpS390XSUBload(v *Value) bool {
 		}
 		v.reset(OpS390XSUBload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -14812,7 +14812,7 @@ func rewriteValueS390X_OpS390XXORWload(v *Value) bool {
 	}
 	// match: (XORWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (XORWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (XORWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -14829,7 +14829,7 @@ func rewriteValueS390X_OpS390XXORWload(v *Value) bool {
 		}
 		v.reset(OpS390XXORWload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
@@ -14913,7 +14913,7 @@ func rewriteValueS390X_OpS390XXORload(v *Value) bool {
 	}
 	// match: (XORload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem)
 	// cond: ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2)
-	// result: (XORload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+	// result: (XORload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 	for {
 		o1 := auxIntToInt32(v.AuxInt)
 		s1 := auxToSym(v.Aux)
@@ -14930,7 +14930,7 @@ func rewriteValueS390X_OpS390XXORload(v *Value) bool {
 		}
 		v.reset(OpS390XXORload)
 		v.AuxInt = int32ToAuxInt(o1 + o2)
-		v.Aux = symToAux(mergeSymTyped(s1, s2))
+		v.Aux = symToAux(mergeSym(s1, s2))
 		v.AddArg3(x, ptr, mem)
 		return true
 	}
