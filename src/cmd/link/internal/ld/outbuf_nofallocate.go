@@ -6,8 +6,6 @@
 
 package ld
 
-import "errors"
-
 func (out *OutBuf) fallocate(size uint64) error {
-	return errors.New(fallocateNotSupportedErr)
+	return errNoFallocate
 }
