@@ -70,8 +70,6 @@ func init() {
 			// the full set of external tests.
 			skipExternal = true
 		case "mips", "mipsle", "mips64", "mips64le":
-			// Also slow.
-			skipExternal = true
 			if testenv.Builder() != "" {
 				// On the builders, skip the cmd/go
 				// tests. They're too slow and already
