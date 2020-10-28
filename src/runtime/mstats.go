@@ -601,6 +601,8 @@ func readGCStats_m(pauses *[]uint64) {
 //
 //go:nowritebarrier
 func updatememstats() {
+	assertWorldStopped()
+
 	// Flush mcaches to mcentral before doing anything else.
 	//
 	// Flushing to the mcentral may in general cause stats to
@@ -706,6 +708,8 @@ func updatememstats() {
 //
 //go:nowritebarrier
 func flushmcache(i int) {
+	assertWorldStopped()
+
 	p := allp[i]
 	c := p.mcache
 	if c == nil {
@@ -721,6 +725,8 @@ func flushmcache(i int) {
 //
 //go:nowritebarrier
 func flushallmcaches() {
+	assertWorldStopped()
+
 	for i := 0; i < int(gomaxprocs); i++ {
 		flushmcache(i)
 	}
@@ -876,10 +882,10 @@ func (m *consistentHeapStats) release(c *mcache) {
 // unsafeRead aggregates the delta for this shard into out.
 //
 // Unsafe because it does so without any synchronization. The
-// only safe time to call this is if the world is stopped or
-// we're freezing the world or going down anyway (and we just
-// want _some_ estimate).
+// world must be stopped.
 func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
+	assertWorldStopped()
+
 	for i := range m.stats {
 		out.merge(&m.stats[i])
 	}
@@ -890,6 +896,8 @@ func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
 // Unsafe because the world must be stopped and values should
 // be donated elsewhere before clearing.
 func (m *consistentHeapStats) unsafeClear() {
+	assertWorldStopped()
+
 	for i := range m.stats {
 		m.stats[i] = heapStatsDelta{}
 	}

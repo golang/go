@@ -54,6 +54,8 @@ const (
 //
 // The world must be stopped.
 func gcMarkRootPrepare() {
+	assertWorldStopped()
+
 	work.nFlushCacheRoots = 0
 
 	// Compute how many data and BSS root blocks there are.
@@ -1535,6 +1537,8 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
 //
 // The world must be stopped.
 func gcMarkTinyAllocs() {
+	assertWorldStopped()
+
 	for _, p := range allp {
 		c := p.mcache
 		if c == nil || c.tiny == 0 {
