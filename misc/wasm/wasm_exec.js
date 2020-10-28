@@ -503,6 +503,9 @@
 		}
 
 		async run(instance) {
+			if (!(instance instanceof WebAssembly.Instance)) {
+				throw new Error("Go.run: WebAssembly.Instance expected");
+			}
 			this._inst = instance;
 			this.mem = new DataView(this._inst.exports.mem.buffer);
 			this._values = [ // JS values that Go currently has references to, indexed by reference id
