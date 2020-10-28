@@ -76,9 +76,9 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		targType = ldr.SymType(targ)
 	}
 
-	switch r.Type() {
+	switch rt := r.Type(); rt {
 	default:
-		if r.Type() >= objabi.ElfRelocOffset {
+		if rt >= objabi.ElfRelocOffset {
 			ldr.Errorf(s, "unexpected relocation type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
 			return false
 		}
@@ -167,12 +167,23 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
-		// TODO: What is the difference between all these?
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
+		}
+		if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			if rt == objabi.MachoRelocOffset+ld.MACHO_X86_64_RELOC_UNSIGNED*2 {
+				break
+			} else {
+				// MACHO_X86_64_RELOC_SIGNED or MACHO_X86_64_RELOC_BRANCH
+				// Can this happen? The object is expected to be PIC.
+				ldr.Errorf(s, "unsupported relocation for PIE: %v", rt)
+			}
 		}
 		return true
 
@@ -223,7 +234,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType != sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
 		}
-		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
+		ld.AddGotSym(target, ldr, syms, targ, 0)
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocSym(rIdx, syms.GOT)
@@ -343,7 +354,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
 			if r.Siz() == 8 {
-				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
+				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
@@ -355,28 +366,15 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return true
 		}
 
-		if target.IsDarwin() && ldr.SymSize(s) == int64(target.Arch.PtrSize) && r.Off() == 0 {
+		if target.IsDarwin() {
 			// Mach-O relocations are a royal pain to lay out.
-			// They use a compact stateful bytecode representation
-			// that is too much bother to deal with.
-			// Instead, interpret the C declaration
-			//	void *_Cvar_stderr = &stderr;
-			// as making _Cvar_stderr the name of a GOT entry
-			// for stderr. This is separate from the usual GOT entry,
-			// just in case the C code assigns to the variable,
-			// and of course it only works for single pointers,
-			// but we only need to support cgo and that's all it needs.
-			ld.Adddynsym(ldr, target, syms, targ)
-
-			got := ldr.MakeSymbolUpdater(syms.GOT)
-			su := ldr.MakeSymbolUpdater(s)
-			su.SetType(got.Type())
-			got.AddInteriorSym(s)
-			su.SetValue(got.Size())
-			got.AddUint64(target.Arch, 0)
-			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
-			leg.AddUint32(target.Arch, uint32(ldr.SymDynid(targ)))
-			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
+			// They use a compact stateful bytecode representation.
+			// Here we record what are needed and encode them later.
+			ld.MachoAddRebase(s, int64(r.Off()))
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
 			return true
 		}
 	}
@@ -622,31 +620,21 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddAddrPlus(target.Arch, got.Sym(), got.Size()-8)
 
 		sDynid := ldr.SymDynid(s)
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_X86_64_JMP_SLOT)))
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_X86_64_JMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
 	} else if target.IsDarwin() {
-		// To do lazy symbol lookup right, we're supposed
-		// to tell the dynamic loader which library each
-		// symbol comes from and format the link info
-		// section just so. I'm too lazy (ha!) to do that
-		// so for now we'll just use non-lazy pointers,
-		// which don't need to be told which library to use.
-		//
-		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
-		// has details about what we're avoiding.
-
-		ld.AddGotSym(target, ldr, syms, s, uint32(elf.R_X86_64_GLOB_DAT))
-		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		ld.AddGotSym(target, ldr, syms, s, 0)
 
 		sDynid := ldr.SymDynid(s)
 		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
 		lep.AddUint32(target.Arch, uint32(sDynid))
 
-		// jmpq *got+size(IP)
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
 		ldr.SetPlt(s, int32(plt.Size()))
 
+		// jmpq *got+size(IP)
 		plt.AddUint8(0xff)
 		plt.AddUint8(0x25)
 		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(ldr.SymGot(s)))
@@ -654,6 +642,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
+
 func tlsIEtoLE(P []byte, off, size int) {
 	// Transform the PC-relative instruction into a constant load.
 	// That is,

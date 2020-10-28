@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -197,12 +198,26 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
-	// Only if we're listing all environment variables ("go env")
-	// or the variables being requested are in the extra list.
-	needCostly := true
-	if len(args) > 0 {
+	needCostly := false
+	if *envU || *envW {
+		// We're overwriting or removing default settings,
+		// so it doesn't really matter what the existing settings are.
+		//
+		// Moreover, we haven't validated the new settings yet, so it is
+		// important that we NOT perform any actions based on them,
+		// such as initializing the builder to compute other variables.
+	} else if len(args) == 0 {
+		// We're listing all environment variables ("go env"),
+		// including the expensive ones.
+		needCostly = true
+	} else {
 		needCostly = false
+	checkCostly:
 		for _, arg := range args {
 			switch argKey(arg) {
 			case "CGO_CFLAGS",
@@ -213,6 +228,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 				"PKG_CONFIG",
 				"GOGCCFLAGS":
 				needCostly = true
+				break checkCostly
 			}
 		}
 	}
@@ -261,6 +277,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
 				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
+		gotmp, okGOTMP := add["GOTMPDIR"]
+		if okGOTMP {
+			if !filepath.IsAbs(gotmp) && gotmp != "" {
+				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
 			}
 		}
 
@@ -403,6 +426,11 @@ func checkEnvWrite(key, val string) error {
 		if !filepath.IsAbs(val) && val != "" {
 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
 		}
+	// Make sure CC and CXX are absolute paths
+	case "CC", "CXX":
+		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
+			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+		}
 	}
 
 	if !utf8.ValidString(val) {
@@ -497,7 +525,10 @@ func lineToKey(line string) string {
 }
 
 // sortKeyValues sorts a sequence of lines by key.
-// It differs from sort.Strings in that GO386= sorts after GO=.
+// It differs from sort.Strings in that keys which are GOx where x is an ASCII
+// character smaller than = sort after GO=.
+// (There are no such keys currently. It used to matter for GO386 which was
+// removed in Go 1.16.)
 func sortKeyValues(lines []string) {
 	sort.Slice(lines, func(i, j int) bool {
 		return lineToKey(lines[i]) < lineToKey(lines[j])

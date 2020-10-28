@@ -159,10 +159,6 @@ type dsaAlgorithmParameters struct {
 	P, Q, G *big.Int
 }
 
-type dsaSignature struct {
-	R, S *big.Int
-}
-
 type validity struct {
 	NotBefore, NotAfter time.Time
 }
@@ -182,14 +178,15 @@ type SignatureAlgorithm int
 
 const (
 	UnknownSignatureAlgorithm SignatureAlgorithm = iota
-	MD2WithRSA
-	MD5WithRSA
+
+	MD2WithRSA // Unsupported.
+	MD5WithRSA // Only supported for signing, not verification.
 	SHA1WithRSA
 	SHA256WithRSA
 	SHA384WithRSA
 	SHA512WithRSA
-	DSAWithSHA1
-	DSAWithSHA256
+	DSAWithSHA1   // Unsupported.
+	DSAWithSHA256 // Unsupported.
 	ECDSAWithSHA1
 	ECDSAWithSHA256
 	ECDSAWithSHA384
@@ -223,7 +220,7 @@ type PublicKeyAlgorithm int
 const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
-	DSA
+	DSA // Unsupported.
 	ECDSA
 	Ed25519
 )
@@ -845,28 +842,6 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		} else {
 			return rsa.VerifyPKCS1v15(pub, hashType, signed, signature)
 		}
-	case *dsa.PublicKey:
-		if pubKeyAlgo != DSA {
-			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
-		}
-		dsaSig := new(dsaSignature)
-		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
-			return err
-		} else if len(rest) != 0 {
-			return errors.New("x509: trailing data after DSA signature")
-		}
-		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
-			return errors.New("x509: DSA signature contained zero or negative values")
-		}
-		// According to FIPS 186-3, section 4.6, the hash must be truncated if it is longer
-		// than the key length, but crypto/dsa doesn't do it automatically.
-		if maxHashLen := pub.Q.BitLen() / 8; maxHashLen < len(signed) {
-			signed = signed[:maxHashLen]
-		}
-		if !dsa.Verify(pub, signed, dsaSig.R, dsaSig.S) {
-			return errors.New("x509: DSA verification failure")
-		}
-		return
 	case *ecdsa.PublicKey:
 		if pubKeyAlgo != ECDSA {
 			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
@@ -2170,12 +2145,26 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
-	return asn1.Marshal(certificate{
+	signedCert, err := asn1.Marshal(certificate{
 		nil,
 		c,
 		signatureAlgorithm,
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the signature to ensure the crypto.Signer behaved correctly.
+	// We skip this check if the signature algorithm is MD5WithRSA as we
+	// only support this algorithm for signing, and not verification.
+	if sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm); sigAlg != MD5WithRSA {
+		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
+			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+		}
+	}
+
+	return signedCert, nil
 }
 
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded

@@ -751,11 +751,11 @@ func (w *exportWriter) param(f *types.Field) {
 
 func constTypeOf(typ *types.Type) Ctype {
 	switch typ {
-	case types.Idealint, types.Idealrune:
+	case types.UntypedInt, types.UntypedRune:
 		return CTINT
-	case types.Idealfloat:
+	case types.UntypedFloat:
 		return CTFLT
-	case types.Idealcomplex:
+	case types.UntypedComplex:
 		return CTCPLX
 	}
 
@@ -780,8 +780,8 @@ func constTypeOf(typ *types.Type) Ctype {
 }
 
 func (w *exportWriter) value(typ *types.Type, v Val) {
-	if typ.IsUntyped() {
-		typ = untype(v.Ctype())
+	if vt := idealType(v.Ctype()); typ.IsUntyped() && typ != vt {
+		Fatalf("exporter: untyped type mismatch, have: %v, want: %v", typ, vt)
 	}
 	w.typ(typ)
 
@@ -1017,6 +1017,8 @@ func (w *exportWriter) symIdx(s *types.Sym) {
 }
 
 func (w *exportWriter) typeExt(t *types.Type) {
+	// Export whether this type is marked notinheap.
+	w.bool(t.NotInHeap())
 	// For type T, export the index of type descriptor symbols of T and *T.
 	if i, ok := typeSymIdx[t]; ok {
 		w.int64(i[0])
@@ -1264,8 +1266,13 @@ func (w *exportWriter) expr(n *Node) {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	// case OCALLPART:
-	//	unimplemented - handled by default case
+	case OCALLPART:
+		// An OCALLPART is an OXDOT before type checking.
+		w.op(OXDOT)
+		w.pos(n.Pos)
+		w.expr(n.Left)
+		// Right node should be ONAME
+		w.selector(n.Right.Sym)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		w.op(OXDOT)

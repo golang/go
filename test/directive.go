@@ -6,10 +6,15 @@
 
 // Verify that misplaced directives are diagnosed.
 
+// ok
+//go:build !ignore
+
 //go:noinline // ERROR "misplaced compiler directive"
 
 //go:noinline // ERROR "misplaced compiler directive"
 package main
+
+//go:build bad // ERROR "misplaced compiler directive"
 
 //go:nosplit
 func f1() {}
@@ -93,3 +98,5 @@ type T6 = int
 
 // EOF
 //go:noinline // ERROR "misplaced compiler directive"
+
+//go:build bad // ERROR "misplaced compiler directive"

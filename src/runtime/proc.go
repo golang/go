@@ -137,6 +137,10 @@ func main() {
 	mainStarted = true
 
 	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+		// For runtime_syscall_doAllThreadsSyscall, we
+		// register sysmon is not ready for the world to be
+		// stopped.
+		atomic.Store(&sched.sysmonStarting, 1)
 		systemstack(func() {
 			newm(sysmon, nil, -1)
 		})
@@ -153,11 +157,21 @@ func main() {
 	if g.m != &m0 {
 		throw("runtime.main not on m0")
 	}
+	m0.doesPark = true
 
-	doInit(&runtime_inittask) // must be before defer
-	if nanotime() == 0 {
+	// Record when the world started.
+	// Must be before doInit for tracing init.
+	runtimeInitTime = nanotime()
+	if runtimeInitTime == 0 {
 		throw("nanotime returning zero")
 	}
+
+	if debug.inittrace != 0 {
+		inittrace.id = getg().goid
+		inittrace.active = true
+	}
+
+	doInit(&runtime_inittask) // Must be before defer.
 
 	// Defer unlock so that runtime.Goexit during init does the unlock too.
 	needUnlock := true
@@ -166,9 +180,6 @@ func main() {
 			unlockOSThread()
 		}
 	}()
-
-	// Record when the world started.
-	runtimeInitTime = nanotime()
 
 	gcenable()
 
@@ -195,6 +206,10 @@ func main() {
 	}
 
 	doInit(&main_inittask)
+
+	// Disable init tracing after main init done to avoid overhead
+	// of collecting statistics in malloc and newproc
+	inittrace.active = false
 
 	close(main_init_done)
 
@@ -583,7 +598,7 @@ func schedinit() {
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
 
-	msigsave(_g_.m)
+	sigsave(&_g_.m.sigmask)
 	initSigmask = _g_.m.sigmask
 
 	goargs()
@@ -1216,6 +1231,21 @@ func mstartm0() {
 	initsig(false)
 }
 
+// mPark causes a thread to park itself - temporarily waking for
+// fixups but otherwise waiting to be fully woken. This is the
+// only way that m's should park themselves.
+//go:nosplit
+func mPark() {
+	g := getg()
+	for {
+		notesleep(&g.m.park)
+		noteclear(&g.m.park)
+		if !mDoFixup() {
+			return
+		}
+	}
+}
+
 // mexit tears down and exits the current thread.
 //
 // Don't call this directly to exit the thread, since it must run at
@@ -1247,7 +1277,7 @@ func mexit(osStack bool) {
 		sched.nmfreed++
 		checkdead()
 		unlock(&sched.lock)
-		notesleep(&m.park)
+		mPark()
 		throw("locked m0 woke up")
 	}
 
@@ -1300,6 +1330,14 @@ found:
 	sched.nmfreed++
 	checkdead()
 	unlock(&sched.lock)
+
+	if GOOS == "darwin" {
+		// Make sure pendingPreemptSignals is correct when an M exits.
+		// For #41702.
+		if atomic.Load(&m.signalPending) != 0 {
+			atomic.Xadd(&pendingPreemptSignals, -1)
+		}
+	}
 
 	if osStack {
 		// Return from mstart and let the system thread
@@ -1404,6 +1442,127 @@ func forEachP(fn func(*p)) {
 	sched.safePointFn = nil
 	unlock(&sched.lock)
 	releasem(mp)
+}
+
+// syscall_runtime_doAllThreadsSyscall serializes Go execution and
+// executes a specified fn() call on all m's.
+//
+// The boolean argument to fn() indicates whether the function's
+// return value will be consulted or not. That is, fn(true) should
+// return true if fn() succeeds, and fn(true) should return false if
+// it failed. When fn(false) is called, its return status will be
+// ignored.
+//
+// syscall_runtime_doAllThreadsSyscall first invokes fn(true) on a
+// single, coordinating, m, and only if it returns true does it go on
+// to invoke fn(false) on all of the other m's known to the process.
+//
+//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
+	if iscgo {
+		panic("doAllThreadsSyscall not supported with cgo enabled")
+	}
+	if fn == nil {
+		return
+	}
+	for atomic.Load(&sched.sysmonStarting) != 0 {
+		osyield()
+	}
+	stopTheWorldGC("doAllThreadsSyscall")
+	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
+		// Ensure that there are no in-flight thread
+		// creations: don't want to race with allm.
+		lock(&newmHandoff.lock)
+		for !newmHandoff.waiting {
+			unlock(&newmHandoff.lock)
+			osyield()
+			lock(&newmHandoff.lock)
+		}
+		unlock(&newmHandoff.lock)
+	}
+	if netpollinited() {
+		netpollBreak()
+	}
+	_g_ := getg()
+	if raceenabled {
+		// For m's running without racectx, we loan out the
+		// racectx of this call.
+		lock(&mFixupRace.lock)
+		mFixupRace.ctx = _g_.racectx
+		unlock(&mFixupRace.lock)
+	}
+	if ok := fn(true); ok {
+		tid := _g_.m.procid
+		for mp := allm; mp != nil; mp = mp.alllink {
+			if mp.procid == tid {
+				// This m has already completed fn()
+				// call.
+				continue
+			}
+			// Be wary of mp's without procid values if
+			// they are known not to park. If they are
+			// marked as parking with a zero procid, then
+			// they will be racing with this code to be
+			// allocated a procid and we will annotate
+			// them with the need to execute the fn when
+			// they acquire a procid to run it.
+			if mp.procid == 0 && !mp.doesPark {
+				// Reaching here, we are either
+				// running Windows, or cgo linked
+				// code. Neither of which are
+				// currently supported by this API.
+				throw("unsupported runtime environment")
+			}
+			// stopTheWorldGC() doesn't guarantee stopping
+			// all the threads, so we lock here to avoid
+			// the possibility of racing with mp.
+			lock(&mp.mFixup.lock)
+			mp.mFixup.fn = fn
+			if mp.doesPark {
+				// For non-service threads this will
+				// cause the wakeup to be short lived
+				// (once the mutex is unlocked). The
+				// next real wakeup will occur after
+				// startTheWorldGC() is called.
+				notewakeup(&mp.park)
+			}
+			unlock(&mp.mFixup.lock)
+		}
+		for {
+			done := true
+			for mp := allm; done && mp != nil; mp = mp.alllink {
+				if mp.procid == tid {
+					continue
+				}
+				lock(&mp.mFixup.lock)
+				done = done && (mp.mFixup.fn == nil)
+				unlock(&mp.mFixup.lock)
+			}
+			if done {
+				break
+			}
+			// if needed force sysmon and/or newmHandoff to wakeup.
+			lock(&sched.lock)
+			if atomic.Load(&sched.sysmonwait) != 0 {
+				atomic.Store(&sched.sysmonwait, 0)
+				notewakeup(&sched.sysmonnote)
+			}
+			unlock(&sched.lock)
+			lock(&newmHandoff.lock)
+			if newmHandoff.waiting {
+				newmHandoff.waiting = false
+				notewakeup(&newmHandoff.wake)
+			}
+			unlock(&newmHandoff.lock)
+			osyield()
+		}
+	}
+	if raceenabled {
+		lock(&mFixupRace.lock)
+		mFixupRace.ctx = 0
+		unlock(&mFixupRace.lock)
+	}
+	startTheWorldGC()
 }
 
 // runSafePointFn runs the safe point function, if any, for this P.
@@ -1536,7 +1695,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 // When the callback is done with the m, it calls dropm to
 // put the m back on the list.
 //go:nosplit
-func needm(x byte) {
+func needm() {
 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can also happen on Windows if a global ctor uses a
@@ -1547,6 +1706,18 @@ func needm(x byte) {
 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
 		exit(1)
 	}
+
+	// Save and block signals before getting an M.
+	// The signal handler may call needm itself,
+	// and we must avoid a deadlock. Also, once g is installed,
+	// any incoming signals will try to execute,
+	// but we won't have the sigaltstack settings and other data
+	// set up appropriately until the end of minit, which will
+	// unblock the signals. This is the same dance as when
+	// starting a new m to run Go code via newosproc.
+	var sigmask sigset
+	sigsave(&sigmask)
+	sigblock()
 
 	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,
@@ -1565,14 +1736,8 @@ func needm(x byte) {
 	extraMCount--
 	unlockextra(mp.schedlink.ptr())
 
-	// Save and block signals before installing g.
-	// Once g is installed, any incoming signals will try to execute,
-	// but we won't have the sigaltstack settings and other data
-	// set up appropriately until the end of minit, which will
-	// unblock the signals. This is the same dance as when
-	// starting a new m to run Go code via newosproc.
-	msigsave(mp)
-	sigblock()
+	// Store the original signal mask for use by minit.
+	mp.sigmask = sigmask
 
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack. We don't actually know
@@ -1581,8 +1746,8 @@ func needm(x byte) {
 	// which is more than enough for us.
 	setg(mp.g0)
 	_g_ := getg()
-	_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&x))) + 1024
-	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
+	_g_.stack.hi = getcallersp() + 1024
+	_g_.stack.lo = getcallersp() - 32*1024
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
 	// Initialize this thread to use the m.
@@ -1798,6 +1963,7 @@ var newmHandoff struct {
 //go:nowritebarrierrec
 func newm(fn func(), _p_ *p, id int64) {
 	mp := allocm(_p_, fn, id)
+	mp.doesPark = (_p_ != nil)
 	mp.nextp.set(_p_)
 	mp.sigmask = initSigmask
 	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
@@ -1870,6 +2036,57 @@ func startTemplateThread() {
 	releasem(mp)
 }
 
+// mFixupRace is used to temporarily borrow the race context from the
+// coordinating m during a syscall_runtime_doAllThreadsSyscall and
+// loan it out to each of the m's of the runtime so they can execute a
+// mFixup.fn in that context.
+var mFixupRace struct {
+	lock mutex
+	ctx  uintptr
+}
+
+// mDoFixup runs any outstanding fixup function for the running m.
+// Returns true if a fixup was outstanding and actually executed.
+//
+//go:nosplit
+func mDoFixup() bool {
+	_g_ := getg()
+	lock(&_g_.m.mFixup.lock)
+	fn := _g_.m.mFixup.fn
+	if fn != nil {
+		if gcphase != _GCoff {
+			// We can't have a write barrier in this
+			// context since we may not have a P, but we
+			// clear fn to signal that we've executed the
+			// fixup. As long as fn is kept alive
+			// elsewhere, technically we should have no
+			// issues with the GC, but fn is likely
+			// generated in a different package altogether
+			// that may change independently. Just assert
+			// the GC is off so this lack of write barrier
+			// is more obviously safe.
+			throw("GC must be disabled to protect validity of fn value")
+		}
+		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
+		if _g_.racectx != 0 || !raceenabled {
+			fn(false)
+		} else {
+			// temporarily acquire the context of the
+			// originator of the
+			// syscall_runtime_doAllThreadsSyscall and
+			// block others from using it for the duration
+			// of the fixup call.
+			lock(&mFixupRace.lock)
+			_g_.racectx = mFixupRace.ctx
+			fn(false)
+			_g_.racectx = 0
+			unlock(&mFixupRace.lock)
+		}
+	}
+	unlock(&_g_.m.mFixup.lock)
+	return fn != nil
+}
+
 // templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
 // may not be in a good state.
@@ -1906,6 +2123,7 @@ func templateThread() {
 		noteclear(&newmHandoff.wake)
 		unlock(&newmHandoff.lock)
 		notesleep(&newmHandoff.wake)
+		mDoFixup()
 	}
 }
 
@@ -1927,8 +2145,7 @@ func stopm() {
 	lock(&sched.lock)
 	mput(_g_.m)
 	unlock(&sched.lock)
-	notesleep(&_g_.m.park)
-	noteclear(&_g_.m.park)
+	mPark()
 	acquirep(_g_.m.nextp.ptr())
 	_g_.m.nextp = 0
 }
@@ -2053,11 +2270,16 @@ func handoffp(_p_ *p) {
 		startm(_p_, false)
 		return
 	}
-	if when := nobarrierWakeTime(_p_); when != 0 {
-		wakeNetPoller(when)
-	}
+
+	// The scheduler lock cannot be held when calling wakeNetPoller below
+	// because wakeNetPoller may call wakep which may call startm.
+	when := nobarrierWakeTime(_p_)
 	pidleput(_p_)
 	unlock(&sched.lock)
+
+	if when != 0 {
+		wakeNetPoller(when)
+	}
 }
 
 // Tries to add one more P to execute G's.
@@ -2088,12 +2310,11 @@ func stoplockedm() {
 	}
 	incidlelocked(1)
 	// Wait until another thread schedules lockedg again.
-	notesleep(&_g_.m.park)
-	noteclear(&_g_.m.park)
+	mPark()
 	status := readgstatus(_g_.m.lockedg.ptr())
 	if status&^_Gscan != _Grunnable {
-		print("runtime:stoplockedm: g is not Grunnable or Gscanrunnable\n")
-		dumpgstatus(_g_)
+		print("runtime:stoplockedm: lockedg (atomicstatus=", status, ") is not Grunnable or Gscanrunnable\n")
+		dumpgstatus(_g_.m.lockedg.ptr())
 		throw("stoplockedm: not runnable")
 	}
 	acquirep(_g_.m.nextp.ptr())
@@ -2267,31 +2488,33 @@ top:
 		_g_.m.spinning = true
 		atomic.Xadd(&sched.nmspinning, 1)
 	}
-	for i := 0; i < 4; i++ {
+	const stealTries = 4
+	for i := 0; i < stealTries; i++ {
+		stealTimersOrRunNextG := i == stealTries-1
+
 		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
 			if sched.gcwaiting != 0 {
 				goto top
 			}
-			stealRunNextG := i > 2 // first look for ready queues with more than 1 g
 			p2 := allp[enum.position()]
 			if _p_ == p2 {
 				continue
 			}
-			if gp := runqsteal(_p_, p2, stealRunNextG); gp != nil {
-				return gp, false
-			}
 
-			// Consider stealing timers from p2.
-			// This call to checkTimers is the only place where
-			// we hold a lock on a different P's timers.
-			// Lock contention can be a problem here, so
-			// initially avoid grabbing the lock if p2 is running
-			// and is not marked for preemption. If p2 is running
-			// and not being preempted we assume it will handle its
-			// own timers.
-			// If we're still looking for work after checking all
-			// the P's, then go ahead and steal from an active P.
-			if i > 2 || (i > 1 && shouldStealTimers(p2)) {
+			// Steal timers from p2. This call to checkTimers is the only place
+			// where we might hold a lock on a different P's timers. We do this
+			// once on the last pass before checking runnext because stealing
+			// from the other P's runnext should be the last resort, so if there
+			// are timers to steal do that first.
+			//
+			// We only check timers on one of the stealing iterations because
+			// the time stored in now doesn't change in this loop and checking
+			// the timers for each P more than once with the same value of now
+			// is probably a waste of time.
+			//
+			// TODO(prattmic): Maintain a global look-aside similar to idlepMask
+			// to avoid looking at p2 if it can't possibly have timers.
+			if stealTimersOrRunNextG {
 				tnow, w, ran := checkTimers(p2, now)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
@@ -2310,6 +2533,13 @@ top:
 						return gp, inheritTime
 					}
 					ranTimer = true
+				}
+			}
+
+			// Don't bother to attempt to steal if p2 is idle.
+			if !idlepMask.read(enum.position()) {
+				if gp := runqsteal(_p_, p2, stealTimersOrRunNextG); gp != nil {
+					return gp, false
 				}
 			}
 		}
@@ -2361,6 +2591,9 @@ stop:
 	// safe-points. We don't need to snapshot the contents because
 	// everything up to cap(allp) is immutable.
 	allpSnapshot := allp
+	// Also snapshot idlepMask. Value changes are OK, but we can't allow
+	// len to change out from under us.
+	idlepMaskSnapshot := idlepMask
 
 	// return P and block
 	lock(&sched.lock)
@@ -2384,7 +2617,7 @@ stop:
 	// drop nmspinning first and then check all per-P queues again (with
 	// #StoreLoad memory barrier in between). If we do it the other way around,
 	// another thread can submit a goroutine after we've checked all run queues
-	// but before we drop nmspinning; as the result nobody will unpark a thread
+	// but before we drop nmspinning; as a result nobody will unpark a thread
 	// to run the goroutine.
 	// If we discover new work below, we need to restore m.spinning as a signal
 	// for resetspinning to unpark a new worker thread (because there can be more
@@ -2401,8 +2634,8 @@ stop:
 	}
 
 	// check all runqueues once again
-	for _, _p_ := range allpSnapshot {
-		if !runqempty(_p_) {
+	for id, _p_ := range allpSnapshot {
+		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(_p_) {
 			lock(&sched.lock)
 			_p_ = pidleget()
 			unlock(&sched.lock)
@@ -2415,6 +2648,35 @@ stop:
 				goto top
 			}
 			break
+		}
+	}
+
+	// Similar to above, check for timer creation or expiry concurrently with
+	// transitioning from spinning to non-spinning. Note that we cannot use
+	// checkTimers here because it calls adjusttimers which may need to allocate
+	// memory, and that isn't allowed when we don't have an active P.
+	for _, _p_ := range allpSnapshot {
+		// This is similar to nobarrierWakeTime, but minimizes calls to
+		// nanotime.
+		if atomic.Load(&_p_.adjustTimers) > 0 {
+			if now == 0 {
+				now = nanotime()
+			}
+			pollUntil = now
+		} else {
+			w := int64(atomic.Load64(&_p_.timer0When))
+			if w != 0 && (pollUntil == 0 || w < pollUntil) {
+				pollUntil = w
+			}
+		}
+	}
+	if pollUntil != 0 {
+		if now == 0 {
+			now = nanotime()
+		}
+		delta = pollUntil - now
+		if delta < 0 {
+			delta = 0
 		}
 	}
 
@@ -2513,9 +2775,9 @@ func pollWork() bool {
 	return false
 }
 
-// wakeNetPoller wakes up the thread sleeping in the network poller,
-// if there is one, and if it isn't going to wake up anyhow before
-// the when argument.
+// wakeNetPoller wakes up the thread sleeping in the network poller if it isn't
+// going to wake up before the when argument; or it wakes an idle P to service
+// timers and the network poller if there isn't one already.
 func wakeNetPoller(when int64) {
 	if atomic.Load64(&sched.lastpoll) == 0 {
 		// In findrunnable we ensure that when polling the pollUntil
@@ -2526,6 +2788,10 @@ func wakeNetPoller(when int64) {
 		if pollerPollUntil == 0 || pollerPollUntil > when {
 			netpollBreak()
 		}
+	} else {
+		// There are no threads in the network poller, try to get
+		// one there so it can handle new timers.
+		wakep()
 	}
 }
 
@@ -2757,40 +3023,40 @@ func dropg() {
 // We pass now in and out to avoid extra calls of nanotime.
 //go:yeswritebarrierrec
 func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
-	// If there are no timers to adjust, and the first timer on
-	// the heap is not yet ready to run, then there is nothing to do.
-	if atomic.Load(&pp.adjustTimers) == 0 {
-		next := int64(atomic.Load64(&pp.timer0When))
-		if next == 0 {
-			return now, 0, false
-		}
-		if now == 0 {
-			now = nanotime()
-		}
-		if now < next {
-			// Next timer is not ready to run.
-			// But keep going if we would clear deleted timers.
-			// This corresponds to the condition below where
-			// we decide whether to call clearDeletedTimers.
-			if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
-				return now, next, false
-			}
+	// If it's not yet time for the first timer, or the first adjusted
+	// timer, then there is nothing to do.
+	next := int64(atomic.Load64(&pp.timer0When))
+	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+		next = nextAdj
+	}
+
+	if next == 0 {
+		// No timers to run or adjust.
+		return now, 0, false
+	}
+
+	if now == 0 {
+		now = nanotime()
+	}
+	if now < next {
+		// Next timer is not ready to run, but keep going
+		// if we would clear deleted timers.
+		// This corresponds to the condition below where
+		// we decide whether to call clearDeletedTimers.
+		if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
+			return now, next, false
 		}
 	}
 
 	lock(&pp.timersLock)
 
-	adjusttimers(pp)
-
-	rnow = now
 	if len(pp.timers) > 0 {
-		if rnow == 0 {
-			rnow = nanotime()
-		}
+		adjusttimers(pp, now)
 		for len(pp.timers) > 0 {
 			// Note that runtimer may temporarily unlock
 			// pp.timersLock.
-			if tw := runtimer(pp, rnow); tw != 0 {
+			if tw := runtimer(pp, now); tw != 0 {
 				if tw > 0 {
 					pollUntil = tw
 				}
@@ -2809,26 +3075,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 
 	unlock(&pp.timersLock)
 
-	return rnow, pollUntil, ran
-}
-
-// shouldStealTimers reports whether we should try stealing the timers from p2.
-// We don't steal timers from a running P that is not marked for preemption,
-// on the assumption that it will run its own timers. This reduces
-// contention on the timers lock.
-func shouldStealTimers(p2 *p) bool {
-	if p2.status != _Prunning {
-		return true
-	}
-	mp := p2.m.ptr()
-	if mp == nil || mp.locks > 0 {
-		return false
-	}
-	gp := mp.curg
-	if gp == nil || gp.atomicstatus != _Grunning || !gp.preempt {
-		return false
-	}
-	return true
+	return now, pollUntil, ran
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
@@ -2986,7 +3233,8 @@ func goexit0(gp *g) {
 		// Flush assist credit to the global pool. This gives
 		// better information to pacing if the application is
 		// rapidly creating an exiting goroutines.
-		scanCredit := int64(gcController.assistWorkPerByte * float64(gp.gcAssistBytes))
+		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+		scanCredit := int64(assistWorkPerByte * float64(gp.gcAssistBytes))
 		atomic.Xaddint64(&gcController.bgScanCredit, scanCredit)
 		gp.gcAssistBytes = 0
 	}
@@ -3434,7 +3682,7 @@ func beforefork() {
 	// a signal handler before exec if a signal is sent to the process
 	// group. See issue #18600.
 	gp.m.locks++
-	msigsave(gp.m)
+	sigsave(&gp.m.sigmask)
 	sigblock()
 
 	// This function is called before fork in syscall package.
@@ -3500,11 +3748,24 @@ func syscall_runtime_AfterForkInChild() {
 	inForkedChild = false
 }
 
+// pendingPreemptSignals is the number of preemption signals
+// that have been sent but not received. This is only used on Darwin.
+// For #41702.
+var pendingPreemptSignals uint32
+
 // Called from syscall package before Exec.
 //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
 func syscall_runtime_BeforeExec() {
 	// Prevent thread creation during exec.
 	execLock.lock()
+
+	// On Darwin, wait for all pending preemption signals to
+	// be received. See issue #41702.
+	if GOOS == "darwin" {
+		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
+			osyield()
+		}
+	}
 }
 
 // Called from syscall package after Exec.
@@ -4008,7 +4269,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// First, it may be that the g switch has no PC update, because the SP
 	// either corresponds to a user g throughout (as in asmcgocall)
 	// or because it has been arranged to look like a user g frame
-	// (as in cgocallback_gofunc). In this case, since the entire
+	// (as in cgocallback). In this case, since the entire
 	// transition is a g+SP update, a partial transition updating just one of
 	// those will be detected by the stack bounds check.
 	//
@@ -4367,6 +4628,8 @@ func procresize(nprocs int32) *p {
 	}
 	sched.procresizetime = now
 
+	maskWords := (nprocs + 31) / 32
+
 	// Grow allp if necessary.
 	if nprocs > int32(len(allp)) {
 		// Synchronize with retake, which could be running
@@ -4380,6 +4643,15 @@ func procresize(nprocs int32) *p {
 			// never lose old allocated Ps.
 			copy(nallp, allp[:cap(allp)])
 			allp = nallp
+		}
+
+		if maskWords <= int32(cap(idlepMask)) {
+			idlepMask = idlepMask[:maskWords]
+		} else {
+			nidlepMask := make([]uint32, maskWords)
+			// No need to copy beyond len, old Ps are irrelevant.
+			copy(nidlepMask, idlepMask)
+			idlepMask = nidlepMask
 		}
 		unlock(&allpLock)
 	}
@@ -4439,6 +4711,7 @@ func procresize(nprocs int32) *p {
 	if int32(len(allp)) != nprocs {
 		lock(&allpLock)
 		allp = allp[:nprocs]
+		idlepMask = idlepMask[:maskWords]
 		unlock(&allpLock)
 	}
 
@@ -4660,9 +4933,14 @@ func sysmon() {
 	checkdead()
 	unlock(&sched.lock)
 
+	// For syscall_runtime_doAllThreadsSyscall, sysmon is
+	// sufficiently up to participate in fixups.
+	atomic.Store(&sched.sysmonStarting, 0)
+
 	lasttrace := int64(0)
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
+
 	for {
 		if idle == 0 { // start with 20us sleep...
 			delay = 20
@@ -4673,11 +4951,29 @@ func sysmon() {
 			delay = 10 * 1000
 		}
 		usleep(delay)
+		mDoFixup()
+
+		// sysmon should not enter deep sleep if schedtrace is enabled so that
+		// it can print that information at the right time.
+		//
+		// It should also not enter deep sleep if there are any active P's so
+		// that it can retake P's from syscalls, preempt long running G's, and
+		// poll the network if all P's are busy for long stretches.
+		//
+		// It should wakeup from deep sleep if any P's become active either due
+		// to exiting a syscall or waking up due to a timer expiring so that it
+		// can resume performing those duties. If it wakes from a syscall it
+		// resets idle and delay as a bet that since it had retaken a P from a
+		// syscall before, it may need to do it again shortly after the
+		// application starts work again. It does not reset idle when waking
+		// from a timer to avoid adding system load to applications that spend
+		// most of their time sleeping.
 		now := nanotime()
-		next, _ := timeSleepUntil()
 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
 			lock(&sched.lock)
 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+				syscallWake := false
+				next, _ := timeSleepUntil()
 				if next > now {
 					atomic.Store(&sched.sysmonwait, 1)
 					unlock(&sched.lock)
@@ -4691,32 +4987,27 @@ func sysmon() {
 					if shouldRelax {
 						osRelax(true)
 					}
-					notetsleep(&sched.sysmonnote, sleep)
+					syscallWake = notetsleep(&sched.sysmonnote, sleep)
+					mDoFixup()
 					if shouldRelax {
 						osRelax(false)
 					}
-					now = nanotime()
-					next, _ = timeSleepUntil()
 					lock(&sched.lock)
 					atomic.Store(&sched.sysmonwait, 0)
 					noteclear(&sched.sysmonnote)
 				}
-				idle = 0
-				delay = 20
+				if syscallWake {
+					idle = 0
+					delay = 20
+				}
 			}
 			unlock(&sched.lock)
 		}
+
 		lock(&sched.sysmonlock)
-		{
-			// If we spent a long time blocked on sysmonlock
-			// then we want to update now and next since it's
-			// likely stale.
-			now1 := nanotime()
-			if now1-now > 50*1000 /* 50µs */ {
-				next, _ = timeSleepUntil()
-			}
-			now = now1
-		}
+		// Update now in case we blocked on sysmonnote or spent a long time
+		// blocked on schedlock or sysmonlock above.
+		now = nanotime()
 
 		// trigger libc interceptors if needed
 		if *cgo_yield != nil {
@@ -4740,12 +5031,7 @@ func sysmon() {
 				incidlelocked(1)
 			}
 		}
-		if next < now {
-			// There are timers that should have already run,
-			// perhaps because there is an unpreemptible P.
-			// Try to start an M to run them.
-			startm(nil, false)
-		}
+		mDoFixup()
 		if atomic.Load(&scavenge.sysmonWake) != 0 {
 			// Kick the scavenger awake if someone requested it.
 			wakeScavenger()
@@ -5122,8 +5408,46 @@ func globrunqget(_p_ *p, max int32) *g {
 	return gp
 }
 
-// Put p to on _Pidle list.
+// pIdleMask is a bitmap of of Ps in the _Pidle list, one bit per P.
+type pIdleMask []uint32
+
+// read returns true if P id is in the _Pidle list, and thus cannot have work.
+func (p pIdleMask) read(id uint32) bool {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	return (atomic.Load(&p[word]) & mask) != 0
+}
+
+// set sets P id as idle in mask.
+//
+// Must be called only for a P owned by the caller. In order to maintain
+// consistency, a P going idle must the idle mask simultaneously with updates
+// to the idle P list under the sched.lock, otherwise a racing pidleget may
+// clear the mask before pidleput sets the mask, corrupting the bitmap.
+//
+// N.B., procresize takes ownership of all Ps in stopTheWorldWithSema.
+func (p pIdleMask) set(id int32) {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	atomic.Or(&p[word], mask)
+}
+
+// clear sets P id as non-idle in mask.
+//
+// See comment on set.
+func (p pIdleMask) clear(id int32) {
+	word := id / 32
+	mask := uint32(1) << (id % 32)
+	atomic.And(&p[word], ^mask)
+}
+
+// pidleput puts p to on the _Pidle list.
+//
+// This releases ownership of p. Once sched.lock is released it is no longer
+// safe to use p.
+//
 // sched.lock must be held.
+//
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleput(_p_ *p) {
@@ -5132,13 +5456,16 @@ func pidleput(_p_ *p) {
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
 	}
+	idlepMask.set(_p_.id)
 	_p_.link = sched.pidle
 	sched.pidle.set(_p_)
 	atomic.Xadd(&sched.npidle, 1) // TODO: fast atomic
 }
 
-// Try get a p from _Pidle list.
+// pidleget tries to get a p from the _Pidle list, acquiring ownership.
+//
 // sched.lock must be held.
+//
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleget() *p {
@@ -5146,6 +5473,7 @@ func pidleget() *p {
 
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
+		idlepMask.clear(_p_.id)
 		sched.pidle = _p_.link
 		atomic.Xadd(&sched.npidle, -1) // TODO: fast atomic
 	}
@@ -5665,6 +5993,17 @@ type initTask struct {
 	// followed by nfns pcs, one per init function to run
 }
 
+// inittrace stores statistics for init functions which are
+// updated by malloc and newproc when active is true.
+var inittrace tracestat
+
+type tracestat struct {
+	active bool   // init tracing activation status
+	id     int64  // init go routine id
+	allocs uint64 // heap allocations
+	bytes  uint64 // heap allocated bytes
+}
+
 func doInit(t *initTask) {
 	switch t.state {
 	case 2: // fully initialized
@@ -5673,16 +6012,52 @@ func doInit(t *initTask) {
 		throw("recursive call during initialization - linker skew")
 	default: // not initialized yet
 		t.state = 1 // initialization in progress
+
 		for i := uintptr(0); i < t.ndeps; i++ {
 			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
 			t2 := *(**initTask)(p)
 			doInit(t2)
 		}
+
+		if t.nfns == 0 {
+			t.state = 2 // initialization done
+			return
+		}
+
+		var (
+			start  int64
+			before tracestat
+		)
+
+		if inittrace.active {
+			start = nanotime()
+			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			before = inittrace
+		}
+
+		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
 		for i := uintptr(0); i < t.nfns; i++ {
-			p := add(unsafe.Pointer(t), (3+t.ndeps+i)*sys.PtrSize)
+			p := add(firstFunc, i*sys.PtrSize)
 			f := *(*func())(unsafe.Pointer(&p))
 			f()
 		}
+
+		if inittrace.active {
+			end := nanotime()
+			// Load stats non-atomically since tracinit is updated only by this init go routine.
+			after := inittrace
+
+			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
+
+			var sbuf [24]byte
+			print("init ", pkg, " @")
+			print(string(fmtNSAsMS(sbuf[:], uint64(start-runtimeInitTime))), " ms, ")
+			print(string(fmtNSAsMS(sbuf[:], uint64(end-start))), " ms clock, ")
+			print(string(itoa(sbuf[:], after.bytes-before.bytes)), " bytes, ")
+			print(string(itoa(sbuf[:], after.allocs-before.allocs)), " allocs")
+			print("\n")
+		}
+
 		t.state = 2 // initialization done
 	}
 }

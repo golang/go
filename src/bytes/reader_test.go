@@ -8,7 +8,6 @@ import (
 	. "bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sync"
 	"testing"
 )
@@ -235,7 +234,7 @@ func TestReaderCopyNothing(t *testing.T) {
 	type justWriter struct {
 		io.Writer
 	}
-	discard := justWriter{ioutil.Discard} // hide ReadFrom
+	discard := justWriter{io.Discard} // hide ReadFrom
 
 	var with, withOut nErr
 	with.n, with.err = io.Copy(discard, NewReader(nil))
@@ -248,7 +247,7 @@ func TestReaderCopyNothing(t *testing.T) {
 // tests that Len is affected by reads, but Size is not.
 func TestReaderLenSize(t *testing.T) {
 	r := NewReader([]byte("abc"))
-	io.CopyN(ioutil.Discard, r, 1)
+	io.CopyN(io.Discard, r, 1)
 	if r.Len() != 2 {
 		t.Errorf("Len = %d; want 2", r.Len())
 	}
@@ -268,7 +267,7 @@ func TestReaderReset(t *testing.T) {
 	if err := r.UnreadRune(); err == nil {
 		t.Errorf("UnreadRune: expected error, got nil")
 	}
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		t.Errorf("ReadAll: unexpected error: %v", err)
 	}
@@ -314,7 +313,7 @@ func TestReaderZero(t *testing.T) {
 		t.Errorf("UnreadRune: got nil, want error")
 	}
 
-	if n, err := (&Reader{}).WriteTo(ioutil.Discard); n != 0 || err != nil {
+	if n, err := (&Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
 		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
 	}
 }

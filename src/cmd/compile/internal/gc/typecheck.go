@@ -257,12 +257,12 @@ func typecheck(n *Node, top int) (res *Node) {
 				// are substituted.
 				cycle := cycleFor(n)
 				for _, n1 := range cycle {
-					if n1.Name != nil && !n1.Name.Param.Alias {
+					if n1.Name != nil && !n1.Name.Param.Alias() {
 						// Cycle is ok. But if n is an alias type and doesn't
 						// have a type yet, we have a recursive type declaration
 						// with aliases that we can't handle properly yet.
 						// Report an error rather than crashing later.
-						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
+						if n.Name != nil && n.Name.Param.Alias() && n.Type == nil {
 							lineno = n.Pos
 							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
 						}
@@ -361,7 +361,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 
 		if n.Type == nil && n.Val().Ctype() == CTSTR {
-			n.Type = types.Idealstring
+			n.Type = types.UntypedString
 		}
 
 	case ONONAME:
@@ -623,8 +623,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// no defaultlit for left
 			// the outer context gives the type
 			n.Type = l.Type
-			if (l.Type == types.Idealfloat || l.Type == types.Idealcomplex) && r.Op == OLITERAL {
-				n.Type = types.Idealint
+			if (l.Type == types.UntypedFloat || l.Type == types.UntypedComplex) && r.Op == OLITERAL {
+				n.Type = types.UntypedInt
 			}
 
 			break
@@ -674,8 +674,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// The conversion allocates, so only do it if the concrete type is huge.
 			converted := false
 			if r.Type.Etype != TBLANK {
-				aop = assignop(l.Type, r.Type, nil)
-				if aop != 0 {
+				aop, _ = assignop(l.Type, r.Type)
+				if aop != OXXX {
 					if r.Type.IsInterface() && !l.Type.IsInterface() && !IsComparable(l.Type) {
 						yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type))
 						n.Type = nil
@@ -696,8 +696,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 			if !converted && l.Type.Etype != TBLANK {
-				aop = assignop(r.Type, l.Type, nil)
-				if aop != 0 {
+				aop, _ = assignop(r.Type, l.Type)
+				if aop != OXXX {
 					if l.Type.IsInterface() && !r.Type.IsInterface() && !IsComparable(r.Type) {
 						yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type))
 						n.Type = nil
@@ -777,7 +777,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if iscmp[n.Op] {
 			evconst(n)
-			t = types.Idealbool
+			t = types.UntypedBool
 			if n.Op != OLITERAL {
 				l, r = defaultlit2(l, r, true)
 				n.Left = l
@@ -1046,13 +1046,13 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 			if !n.Bounded() && Isconst(n.Right, CTINT) {
-				x := n.Right.Int64()
+				x := n.Right.Int64Val()
 				if x < 0 {
 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if t.IsArray() && x >= t.NumElem() {
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(strlit(n.Left))) {
-					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(strlit(n.Left)))
+				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.StringVal())) {
+					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.StringVal()))
 				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
@@ -1148,11 +1148,11 @@ func typecheck1(n *Node, top int) (res *Node) {
 		l = defaultlit(l, types.Types[TINT])
 		c = defaultlit(c, types.Types[TINT])
 
-		if Isconst(l, CTINT) && l.Int64() < 0 {
+		if Isconst(l, CTINT) && l.Int64Val() < 0 {
 			Fatalf("len for OSLICEHEADER must be non-negative")
 		}
 
-		if Isconst(c, CTINT) && c.Int64() < 0 {
+		if Isconst(c, CTINT) && c.Int64Val() < 0 {
 			Fatalf("cap for OSLICEHEADER must be non-negative")
 		}
 
@@ -1201,7 +1201,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 				Fatalf("len for OMAKESLICECOPY too large")
 			}
-			if n.Left.Int64() < 0 {
+			if n.Left.Int64Val() < 0 {
 				Fatalf("len for OMAKESLICECOPY must be non-negative")
 			}
 		}
@@ -1458,7 +1458,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		// Determine result type.
 		switch t.Etype {
 		case TIDEAL:
-			n.Type = types.Idealfloat
+			n.Type = types.UntypedFloat
 		case TCOMPLEX64:
 			n.Type = types.Types[TFLOAT32]
 		case TCOMPLEX128:
@@ -1504,7 +1504,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 
 		case TIDEAL:
-			t = types.Idealcomplex
+			t = types.UntypedComplex
 
 		case TFLOAT32:
 			t = types.Types[TCOMPLEX64]
@@ -1691,7 +1691,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		var why string
-		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
+		n.Op, why = convertop(n.Left.Op == OLITERAL, t, n.Type)
 		if n.Op == OXXX {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
@@ -2187,14 +2187,14 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 	}
 
 	if r.Op == OLITERAL {
-		if r.Int64() < 0 {
+		if r.Int64Val() < 0 {
 			yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
+		} else if tp != nil && tp.NumElem() >= 0 && r.Int64Val() > tp.NumElem() {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(strlit(l))) {
-			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(strlit(l)))
+		} else if Isconst(l, CTSTR) && r.Int64Val() > int64(len(l.StringVal())) {
+			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.StringVal()))
 			return false
 		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 			yyerror("invalid slice index %v (index too large)", r)
@@ -2516,7 +2516,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
-			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
+			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
 				n.Left = nod(ODEREF, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
@@ -2724,9 +2724,9 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 // e.g in error messages about wrong arguments to return.
 func sigrepr(t *types.Type, isddd bool) string {
 	switch t {
-	case types.Idealstring:
+	case types.UntypedString:
 		return "string"
-	case types.Idealbool:
+	case types.UntypedBool:
 		return "bool"
 	}
 
@@ -3267,9 +3267,7 @@ func typecheckas(n *Node) {
 }
 
 func checkassignto(src *types.Type, dst *Node) {
-	var why string
-
-	if assignop(src, dst.Type, &why) == 0 {
+	if op, why := assignop(src, dst.Type); op == OXXX {
 		yyerror("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}
@@ -3450,9 +3448,8 @@ func stringtoruneslit(n *Node) *Node {
 	}
 
 	var l []*Node
-	s := strlit(n.Left)
 	i := 0
-	for _, r := range s {
+	for _, r := range n.Left.StringVal() {
 		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
 		i++
 	}
@@ -3507,7 +3504,7 @@ func setUnderlying(t, underlying *types.Type) {
 	}
 
 	// Propagate go:notinheap pragma from the Name to the Type.
-	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
+	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma()&NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
 
@@ -3679,7 +3676,7 @@ func typecheckdef(n *Node) {
 		n.Name.Defn = typecheck(n.Name.Defn, ctxStmt) // fills in n.Type
 
 	case OTYPE:
-		if p := n.Name.Param; p.Alias {
+		if p := n.Name.Param; p.Alias() {
 			// Type alias declaration: Simply use the rhs type - no need
 			// to create a new type.
 			// If we have a syntax error, p.Ntype may be nil.
@@ -3904,7 +3901,7 @@ func deadcodefn(fn *Node) {
 				return
 			}
 		case OFOR:
-			if !Isconst(n.Left, CTBOOL) || n.Left.Bool() {
+			if !Isconst(n.Left, CTBOOL) || n.Left.BoolVal() {
 				return
 			}
 		default:
@@ -3934,7 +3931,7 @@ func deadcodeslice(nn Nodes) {
 			n.Left = deadcodeexpr(n.Left)
 			if Isconst(n.Left, CTBOOL) {
 				var body Nodes
-				if n.Left.Bool() {
+				if n.Left.BoolVal() {
 					n.Rlist = Nodes{}
 					body = n.Nbody
 				} else {
@@ -3977,7 +3974,7 @@ func deadcodeexpr(n *Node) *Node {
 		n.Left = deadcodeexpr(n.Left)
 		n.Right = deadcodeexpr(n.Right)
 		if Isconst(n.Left, CTBOOL) {
-			if n.Left.Bool() {
+			if n.Left.BoolVal() {
 				return n.Right // true && x => x
 			} else {
 				return n.Left // false && x => false
@@ -3987,7 +3984,7 @@ func deadcodeexpr(n *Node) *Node {
 		n.Left = deadcodeexpr(n.Left)
 		n.Right = deadcodeexpr(n.Right)
 		if Isconst(n.Left, CTBOOL) {
-			if n.Left.Bool() {
+			if n.Left.BoolVal() {
 				return n.Left // true || x => true
 			} else {
 				return n.Right // false || x => x

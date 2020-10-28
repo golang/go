@@ -663,8 +663,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 		// the function alignment is not changed which might
 		// result in 16 byte alignment but that is still fine.
 		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func.Align < 32 {
-			cursym.Func.Align = 32
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
+			cursym.Func().Align = 32
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -673,7 +673,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 }
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -722,7 +722,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
@@ -784,7 +784,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	bp := c.cursym.P
 	var i int32
 	var out [6]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
@@ -1279,6 +1279,9 @@ func buildop(ctxt *obj.Link) {
 		case AREMD:
 			opset(AREMDU, r0)
 
+		case AMULLW:
+			opset(AMULLD, r0)
+
 		case ADIVW: /* op Rb[,Ra],Rd */
 			opset(AMULHW, r0)
 
@@ -1312,7 +1315,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AMULHDCC, r0)
 			opset(AMULHDU, r0)
 			opset(AMULHDUCC, r0)
-			opset(AMULLD, r0)
 			opset(AMULLDCC, r0)
 			opset(AMULLDVCC, r0)
 			opset(AMULLDV, r0)
@@ -1996,7 +1998,6 @@ func buildop(ctxt *obj.Link) {
 			AMOVB,  /* macro: move byte with sign extension */
 			AMOVBU, /* macro: move byte with sign extension & update */
 			AMOVFL,
-			AMULLW,
 			/* op $s[,r2],r3; op r1[,r2],r3; no cc/v */
 			ASUBC, /* op r1,$s,r3; op r1[,r2],r3 */
 			ASTSW,
@@ -2158,7 +2159,7 @@ func AOP_DQ(op uint32, d uint32, a uint32, b uint32) uint32 {
 
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
-	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<9
 }
 
 /* X-form, 3-register operands + EH field */
@@ -2749,7 +2750,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			me := int(d)
 			sh := c.regoff(&p.From)
 			if me < 0 || me > 63 || sh > 63 {
-				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
+				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh, p)
 			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
 
@@ -2757,19 +2758,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			mb := int(d)
 			sh := c.regoff(&p.From)
 			if mb < 0 || mb > 63 || sh > 63 {
-				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
+				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh, p)
 			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
 
 		case ACLRLSLDI:
 			// This is an extended mnemonic defined in the ISA section C.8.1
-			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
+			// clrlsldi ra,rs,b,n --> rldic ra,rs,n,b-n
 			// It maps onto RLDIC so is directly generated here based on the operands from
 			// the clrlsldi.
-			b := int(d)
-			n := c.regoff(&p.From)
-			if n > int32(b) || b > 63 {
-				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
+			n := int32(d)
+			b := c.regoff(&p.From)
+			if n > b || b > 63 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
 			}
 			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
@@ -3395,14 +3396,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		switch p.As {
 		case ACLRLSLWI:
-			b := c.regoff(p.GetFrom3())
+			n := c.regoff(p.GetFrom3())
 			// This is an extended mnemonic described in the ISA C.8.2
-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
 			// It maps onto rlwinm which is directly generated here.
-			if v < 0 || v > 32 || b > 32 {
-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			if n > v || v >= 32 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
 			}
-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
 		default:
 			var mask [2]uint8
 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
@@ -3414,16 +3416,16 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		switch p.As {
 		case ACLRLSLWI:
-			b := c.regoff(p.GetFrom3())
-			if v > b || b > 32 {
+			n := c.regoff(p.GetFrom3())
+			if n > v || v >= 32 {
 				// Message will match operands from the ISA even though in the
 				// code it uses 'v'
-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
 			}
 			// This is an extended mnemonic described in the ISA C.8.2
-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
 			// It generates the rlwinm directly here.
-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
 		default:
 			var mask [2]uint8
 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
@@ -4989,8 +4991,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 	case ADARN:
 		return OPVCC(31, 755, 0, 0) /* darn - v3.00 */
 
-	case AMULLW:
-		return OPVCC(7, 0, 0, 0)
+	case AMULLW, AMULLD:
+		return OPVCC(7, 0, 0, 0) /* mulli works with MULLW or MULLD */
 
 	case AOR:
 		return OPVCC(24, 0, 0, 0)

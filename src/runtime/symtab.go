@@ -326,7 +326,7 @@ const (
 	funcID_gcBgMarkWorker
 	funcID_systemstack_switch
 	funcID_systemstack
-	funcID_cgocallback_gofunc
+	funcID_cgocallback
 	funcID_gogo
 	funcID_externalthreadhandler
 	funcID_debugCallV1
@@ -842,6 +842,22 @@ func cfuncname(f funcInfo) *byte {
 
 func funcname(f funcInfo) string {
 	return gostringnocopy(cfuncname(f))
+}
+
+func funcpkgpath(f funcInfo) string {
+	name := funcname(f)
+	i := len(name) - 1
+	for ; i > 0; i-- {
+		if name[i] == '/' {
+			break
+		}
+	}
+	for ; i < len(name); i++ {
+		if name[i] == '.' {
+			break
+		}
+	}
+	return name[:i]
 }
 
 func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {

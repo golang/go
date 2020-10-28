@@ -421,15 +421,6 @@ func newdefer(siz int32) *_defer {
 			total := roundupsize(totaldefersize(uintptr(siz)))
 			d = (*_defer)(mallocgc(total, deferType, true))
 		})
-		if debugCachedWork {
-			// Duplicate the tail below so if there's a
-			// crash in checkPut we can tell if d was just
-			// allocated or came from the pool.
-			d.siz = siz
-			d.link = gp._defer
-			gp._defer = d
-			return d
-		}
 	}
 	d.siz = siz
 	d.heap = true

@@ -245,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
 // DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
-	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err

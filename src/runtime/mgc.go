@@ -388,10 +388,24 @@ type gcControllerState struct {
 	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heap_scan is updated.
-	assistWorkPerByte float64
+	//
+	// Stored as a uint64, but it's actually a float64. Use
+	// float64frombits to get the value.
+	//
+	// Read and written atomically.
+	assistWorkPerByte uint64
 
 	// assistBytesPerWork is 1/assistWorkPerByte.
-	assistBytesPerWork float64
+	//
+	// Stored as a uint64, but it's actually a float64. Use
+	// float64frombits to get the value.
+	//
+	// Read and written atomically.
+	//
+	// Note that because this is read and written independently
+	// from assistWorkPerByte users may notice a skew between
+	// the two values, and such a state should be safe.
+	assistBytesPerWork uint64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker on
@@ -409,7 +423,8 @@ type gcControllerState struct {
 }
 
 // startCycle resets the GC controller's state and computes estimates
-// for a new GC cycle. The caller must hold worldsema.
+// for a new GC cycle. The caller must hold worldsema and the world
+// must be stopped.
 func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
 	c.bgScanCredit = 0
@@ -469,7 +484,8 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		print("pacer: assist ratio=", c.assistWorkPerByte,
+		assistRatio := float64frombits(atomic.Load64(&c.assistWorkPerByte))
+		print("pacer: assist ratio=", assistRatio,
 			" (scan ", memstats.heap_scan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			memstats.next_gc>>20, " MB)",
@@ -479,9 +495,22 @@ func (c *gcControllerState) startCycle() {
 }
 
 // revise updates the assist ratio during the GC cycle to account for
-// improved estimates. This should be called either under STW or
-// whenever memstats.heap_scan, memstats.heap_live, or
-// memstats.next_gc is updated (with mheap_.lock held).
+// improved estimates. This should be called whenever memstats.heap_scan,
+// memstats.heap_live, or memstats.next_gc is updated. It is safe to
+// call concurrently, but it may race with other calls to revise.
+//
+// The result of this race is that the two assist ratio values may not line
+// up or may be stale. In practice this is OK because the assist ratio
+// moves slowly throughout a GC cycle, and the assist ratio is a best-effort
+// heuristic anyway. Furthermore, no part of the heuristic depends on
+// the two assist ratio values being exact reciprocals of one another, since
+// the two values are used to convert values from different sources.
+//
+// The worst case result of this raciness is that we may miss a larger shift
+// in the ratio (say, if we decide to pace more aggressively against the
+// hard heap goal) but even this "hard goal" is best-effort (see #40460).
+// The dedicated GC should ensure we don't exceed the hard goal by too much
+// in the rare case we do exceed it.
 //
 // It should only be called when gcBlackenEnabled != 0 (because this
 // is when assists are enabled and the necessary statistics are
@@ -494,10 +523,12 @@ func (c *gcControllerState) revise() {
 		gcpercent = 100000
 	}
 	live := atomic.Load64(&memstats.heap_live)
+	scan := atomic.Load64(&memstats.heap_scan)
+	work := atomic.Loadint64(&c.scanWork)
 
 	// Assume we're under the soft goal. Pace GC to complete at
 	// next_gc assuming the heap is in steady-state.
-	heapGoal := int64(memstats.next_gc)
+	heapGoal := int64(atomic.Load64(&memstats.next_gc))
 
 	// Compute the expected scan work remaining.
 	//
@@ -508,17 +539,17 @@ func (c *gcControllerState) revise() {
 	//
 	// (This is a float calculation to avoid overflowing on
 	// 100*heap_scan.)
-	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
 
-	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
+	if int64(live) > heapGoal || work > scanWorkExpected {
 		// We're past the soft goal, or we've already done more scan
 		// work than we expected. Pace GC so that in the worst case it
 		// will complete by the hard goal.
 		const maxOvershoot = 1.1
-		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
+		heapGoal = int64(float64(heapGoal) * maxOvershoot)
 
 		// Compute the upper bound on the scan work remaining.
-		scanWorkExpected = int64(memstats.heap_scan)
+		scanWorkExpected = int64(scan)
 	}
 
 	// Compute the remaining scan work estimate.
@@ -528,7 +559,7 @@ func (c *gcControllerState) revise() {
 	// (scanWork), so allocation will change this difference
 	// slowly in the soft regime and not at all in the hard
 	// regime.
-	scanWorkRemaining := scanWorkExpected - c.scanWork
+	scanWorkRemaining := scanWorkExpected - work
 	if scanWorkRemaining < 1000 {
 		// We set a somewhat arbitrary lower bound on
 		// remaining scan work since if we aim a little high,
@@ -552,8 +583,15 @@ func (c *gcControllerState) revise() {
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
 	// have done (or stolen) the remaining amount of scan work.
-	c.assistWorkPerByte = float64(scanWorkRemaining) / float64(heapRemaining)
-	c.assistBytesPerWork = float64(heapRemaining) / float64(scanWorkRemaining)
+	// Note that the assist ratio values are updated atomically
+	// but not together. This means there may be some degree of
+	// skew between the two values. This is generally OK as the
+	// values shift relatively slowly over the course of a GC
+	// cycle.
+	assistWorkPerByte := float64(scanWorkRemaining) / float64(heapRemaining)
+	assistBytesPerWork := float64(heapRemaining) / float64(scanWorkRemaining)
+	atomic.Store64(&c.assistWorkPerByte, float64bits(assistWorkPerByte))
+	atomic.Store64(&c.assistBytesPerWork, float64bits(assistBytesPerWork))
 }
 
 // endCycle computes the trigger ratio for the next cycle.
@@ -844,7 +882,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 
 	// Commit to the trigger and goal.
 	memstats.gc_trigger = trigger
-	memstats.next_gc = goal
+	atomic.Store64(&memstats.next_gc, goal)
 	if trace.enabled {
 		traceNextGC()
 	}
@@ -901,7 +939,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcEffectiveGrowthRatio() float64 {
-	egogc := float64(memstats.next_gc-memstats.heap_marked) / float64(memstats.heap_marked)
+	egogc := float64(atomic.Load64(&memstats.next_gc)-memstats.heap_marked) / float64(memstats.heap_marked)
 	if egogc < 0 {
 		// Shouldn't happen, but just in case.
 		egogc = 0
@@ -983,7 +1021,6 @@ var work struct {
 	nproc  uint32
 	tstart int64
 	nwait  uint32
-	ndone  uint32
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nFlushCacheRoots                               int
@@ -1381,6 +1418,7 @@ func gcStart(trigger gcTrigger) {
 		now = startTheWorldWithSema(trace.enabled)
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
+		memstats.gcPauseDist.record(now - work.pauseStart)
 	})
 
 	// Release the world sema before Gosched() in STW mode
@@ -1406,19 +1444,6 @@ func gcStart(trigger gcTrigger) {
 //
 // This is protected by markDoneSema.
 var gcMarkDoneFlushed uint32
-
-// debugCachedWork enables extra checks for debugging premature mark
-// termination.
-//
-// For debugging issue #27993.
-const debugCachedWork = false
-
-// gcWorkPauseGen is for debugging the mark completion algorithm.
-// gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
-// Only used if debugCachedWork is true.
-//
-// For debugging issue #27993.
-var gcWorkPauseGen uint32 = 1
 
 // gcMarkDone transitions the GC from mark to mark termination if all
 // reachable objects have been marked (that is, there are no grey
@@ -1475,15 +1500,7 @@ top:
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
 			wbBufFlush1(_p_)
-			// For debugging, shrink the write barrier
-			// buffer so it flushes immediately.
-			// wbBuf.reset will keep it at this size as
-			// long as throwOnGCWork is set.
-			if debugCachedWork {
-				b := &_p_.wbBuf
-				b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
-				b.debugGen = gcWorkPauseGen
-			}
+
 			// Flush the gcWork, since this may create global work
 			// and set the flushedWork flag.
 			//
@@ -1494,29 +1511,12 @@ top:
 			if _p_.gcw.flushedWork {
 				atomic.Xadd(&gcMarkDoneFlushed, 1)
 				_p_.gcw.flushedWork = false
-			} else if debugCachedWork {
-				// For debugging, freeze the gcWork
-				// until we know whether we've reached
-				// completion or not. If we think
-				// we've reached completion, but
-				// there's a paused gcWork, then
-				// that's a bug.
-				_p_.gcw.pauseGen = gcWorkPauseGen
-				// Capture the G's stack.
-				for i := range _p_.gcw.pauseStack {
-					_p_.gcw.pauseStack[i] = 0
-				}
-				callers(1, _p_.gcw.pauseStack[:])
 			}
 		})
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
 
 	if gcMarkDoneFlushed != 0 {
-		if debugCachedWork {
-			// Release paused gcWorks.
-			atomic.Xadd(&gcWorkPauseGen, 1)
-		}
 		// More grey objects were discovered since the
 		// previous termination check, so there may be more
 		// work to do. Keep going. It's possible the
@@ -1524,13 +1524,6 @@ top:
 		// ragged barrier, so re-check it.
 		semrelease(&worldsema)
 		goto top
-	}
-
-	if debugCachedWork {
-		throwOnGCWork = true
-		// Release paused gcWorks. If there are any, they
-		// should now observe throwOnGCWork and panic.
-		atomic.Xadd(&gcWorkPauseGen, 1)
 	}
 
 	// There was no global work, no local work, and no Ps
@@ -1549,59 +1542,34 @@ top:
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
 
-	if debugCachedWork {
-		// For debugging, double check that no work was added after we
-		// went around above and disable write barrier buffering.
+	// There is sometimes work left over when we enter mark termination due
+	// to write barriers performed after the completion barrier above.
+	// Detect this and resume concurrent mark. This is obviously
+	// unfortunate.
+	//
+	// See issue #27993 for details.
+	//
+	// Switch to the system stack to call wbBufFlush1, though in this case
+	// it doesn't matter because we're non-preemptible anyway.
+	restart := false
+	systemstack(func() {
 		for _, p := range allp {
-			gcw := &p.gcw
-			if !gcw.empty() {
-				printlock()
-				print("runtime: P ", p.id, " flushedWork ", gcw.flushedWork)
-				if gcw.wbuf1 == nil {
-					print(" wbuf1=<nil>")
-				} else {
-					print(" wbuf1.n=", gcw.wbuf1.nobj)
-				}
-				if gcw.wbuf2 == nil {
-					print(" wbuf2=<nil>")
-				} else {
-					print(" wbuf2.n=", gcw.wbuf2.nobj)
-				}
-				print("\n")
-				if gcw.pauseGen == gcw.putGen {
-					println("runtime: checkPut already failed at this generation")
-				}
-				throw("throwOnGCWork")
+			wbBufFlush1(p)
+			if !p.gcw.empty() {
+				restart = true
+				break
 			}
 		}
-	} else {
-		// For unknown reasons (see issue #27993), there is
-		// sometimes work left over when we enter mark
-		// termination. Detect this and resume concurrent
-		// mark. This is obviously unfortunate.
-		//
-		// Switch to the system stack to call wbBufFlush1,
-		// though in this case it doesn't matter because we're
-		// non-preemptible anyway.
-		restart := false
+	})
+	if restart {
+		getg().m.preemptoff = ""
 		systemstack(func() {
-			for _, p := range allp {
-				wbBufFlush1(p)
-				if !p.gcw.empty() {
-					restart = true
-					break
-				}
-			}
+			now := startTheWorldWithSema(true)
+			work.pauseNS += now - work.pauseStart
+			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
-		if restart {
-			getg().m.preemptoff = ""
-			systemstack(func() {
-				now := startTheWorldWithSema(true)
-				work.pauseNS += now - work.pauseStart
-			})
-			semrelease(&worldsema)
-			goto top
-		}
+		semrelease(&worldsema)
+		goto top
 	}
 
 	// Disable assists and background workers. We must do
@@ -1630,10 +1598,10 @@ top:
 	gcMarkTermination(nextTriggerRatio)
 }
 
+// World must be stopped and mark assists and background workers must be
+// disabled.
 func gcMarkTermination(nextTriggerRatio float64) {
-	// World is stopped.
-	// Start marktermination which includes enabling the write barrier.
-	atomic.Store(&gcBlackenEnabled, 0)
+	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
 	work.heap1 = memstats.heap_live
@@ -1711,6 +1679,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	unixNow := sec*1e9 + int64(nsec)
 	work.pauseNS += now - work.pauseStart
 	work.tEnd = now
+	memstats.gcPauseDist.record(now - work.pauseStart)
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
@@ -2085,7 +2054,7 @@ func gcMark(start_time int64) {
 		// ensured all reachable objects were marked, all of
 		// these must be pointers to black objects. Hence we
 		// can just discard the write barrier buffer.
-		if debug.gccheckmark > 0 || throwOnGCWork {
+		if debug.gccheckmark > 0 {
 			// For debugging, flush the buffer and make
 			// sure it really was all marked.
 			wbBufFlush1(p)
@@ -2117,12 +2086,20 @@ func gcMark(start_time int64) {
 		gcw.dispose()
 	}
 
-	throwOnGCWork = false
-
-	cachestats()
-
 	// Update the marked heap stat.
 	memstats.heap_marked = work.bytesMarked
+
+	// Flush scanAlloc from each mcache since we're about to modify
+	// heap_scan directly. If we were to flush this later, then scanAlloc
+	// might have incorrect information.
+	for _, p := range allp {
+		c := p.mcache
+		if c == nil {
+			continue
+		}
+		memstats.heap_scan += uint64(c.scanAlloc)
+		c.scanAlloc = 0
+	}
 
 	// Update other GC heap size stats. This must happen after
 	// cachestats (which flushes local statistics to these) and

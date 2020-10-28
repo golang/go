@@ -18,6 +18,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
@@ -88,7 +89,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "runtime/trace", "sync", "syscall", "time":
+		case "bytes", "internal/poll", "net", "os":
+			fallthrough
+		case "runtime/metrics", "runtime/pprof", "runtime/trace":
+			fallthrough
+		case "sync", "syscall", "time":
 			extFiles++
 		}
 	}
@@ -145,10 +150,26 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 	}
 
 	for _, f := range gofiles {
-		args = append(args, mkAbs(p.Dir, f))
+		f := mkAbs(p.Dir, f)
+
+		// Handle overlays. Convert path names using OverlayPath
+		// so these paths can be handed directly to tools.
+		// Deleted files won't show up in when scanning directories earlier,
+		// so OverlayPath will never return "" (meaning a deleted file) here.
+		// TODO(#39958): Handle cases where the package directory
+		// doesn't exist on disk (this can happen when all the package's
+		// files are in an overlay): the code expects the package directory
+		// to exist and runs some tools in that directory.
+		// TODO(#39958): Process the overlays when the
+		// gofiles, cgofiles, cfiles, sfiles, and cxxfiles variables are
+		// created in (*Builder).build. Doing that requires rewriting the
+		// code that uses those values to expect absolute paths.
+		f, _ = fsys.OverlayPath(f)
+
+		args = append(args, f)
 	}
 
-	output, err = b.runOut(a, p.Dir, nil, args...)
+	output, err = b.runOut(a, base.Cwd, nil, args...)
 	return ofile, output, err
 }
 
@@ -237,13 +258,26 @@ func (a *Action) trimpath() string {
 	}
 	rewrite := objdir + "=>"
 
-	// For "go build -trimpath", rewrite package source directory
-	// to a file system-independent path (just the import path).
+	rewriteDir := a.Package.Dir
 	if cfg.BuildTrimpath {
 		if m := a.Package.Module; m != nil && m.Version != "" {
-			rewrite += ";" + a.Package.Dir + "=>" + m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
+			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
 		} else {
-			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
+			rewriteDir = a.Package.ImportPath
+		}
+		rewrite += ";" + a.Package.Dir + "=>" + rewriteDir
+	}
+
+	// Add rewrites for overlays. The 'from' and 'to' paths in overlays don't need to have
+	// same basename, so go from the overlay contents file path (passed to the compiler)
+	// to the path the disk path would be rewritten to.
+	if fsys.OverlayFile != "" {
+		for _, filename := range a.Package.AllFiles() {
+			overlayPath, ok := fsys.OverlayPath(filepath.Join(a.Package.Dir, filename))
+			if !ok {
+				continue
+			}
+			rewrite += ";" + overlayPath + "=>" + filepath.Join(rewriteDir, filename)
 		}
 	}
 
@@ -262,14 +296,20 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 			}
 		}
 	}
-	if p.ImportPath == "runtime" && objabi.Regabi_enabled != 0 {
-		// In order to make it easier to port runtime assembly
-		// to the register ABI, we introduce a macro
-		// indicating the experiment is enabled.
-		//
-		// TODO(austin): Remove this once we commit to the
-		// register ABI (#40724).
-		args = append(args, "-D=GOEXPERIMENT_REGABI=1")
+	if objabi.IsRuntimePackagePath(pkgpath) {
+		args = append(args, "-compiling-runtime")
+		if objabi.Regabi_enabled != 0 {
+			// In order to make it easier to port runtime assembly
+			// to the register ABI, we introduce a macro
+			// indicating the experiment is enabled.
+			//
+			// Note: a similar change also appears in
+			// cmd/dist/build.go.
+			//
+			// TODO(austin): Remove this once we commit to the
+			// register ABI (#40724).
+			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
+		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

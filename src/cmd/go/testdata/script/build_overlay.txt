@@ -1,0 +1,130 @@
+[short] skip
+
+# Test building in overlays.
+# TODO(matloob): add a test case where the destination file in the replace map
+#   isn't a go file. Either completely exclude that case in fs.IsDirWithGoFiles
+#   if the compiler doesn't allow it, or test that it works all the way.
+
+# The main package (m) is contained in an overlay. It imports m/dir2 which has one
+# file in an overlay and one file outside the overlay, which in turn imports m/dir,
+# which only has source files in the overlay.
+
+cd m
+
+! go build .
+go build -overlay overlay.json -o main$GOEXE .
+exec ./main$goexe
+stdout '^hello$'
+
+go build -overlay overlay.json -o print_abspath$GOEXE ./printpath
+exec ./print_abspath$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+
+go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
+exec ./print_trimpath$GOEXE
+stdout ^m[/\\]printpath[/\\]main.go
+
+go build -overlay overlay.json -o print_trimpath_two_files$GOEXE printpath/main.go printpath/other.go
+exec ./print_trimpath_two_files$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
+
+# Run same tests but with gccgo.
+env GO111MODULE=off
+[!exec:gccgo] stop
+
+! go build -compiler=gccgo .
+go build -compiler=gccgo -overlay overlay.json -o main_gccgo$GOEXE .
+exec ./main_gccgo$goexe
+stdout '^hello$'
+
+go build -compiler=gccgo -overlay overlay.json -o print_abspath_gccgo$GOEXE ./printpath
+exec ./print_abspath_gccgo$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+
+go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -trimpath ./printpath
+exec ./print_trimpath_gccgo$GOEXE
+stdout ^\.[/\\]printpath[/\\]main.go
+
+-- m/go.mod --
+// TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
+module m
+
+go 1.16
+
+-- m/dir2/h.go --
+package dir2
+
+func PrintMessage() {
+	printMessage()
+}
+-- m/dir/foo.txt --
+The build action code currently expects the package directory
+to exist, so it can run the compiler in that directory.
+TODO(matloob): Remove this requirement.
+-- m/printpath/about.txt --
+the actual code is in the overlay
+-- m/overlay.json --
+{
+	"Replace": {
+		"f.go": "overlay/f.go",
+		"dir/g.go": "overlay/dir_g.go",
+		"dir2/i.go": "overlay/dir2_i.go",
+		"printpath/main.go": "overlay/printpath.go",
+		"printpath/other.go": "overlay2/printpath2.go"
+	}
+}
+-- m/overlay/f.go --
+package main
+
+import "m/dir2"
+
+func main() {
+	dir2.PrintMessage()
+}
+-- m/overlay/dir_g.go --
+package dir
+
+import "fmt"
+
+func PrintMessage() {
+	fmt.Println("hello")
+}
+-- m/overlay/printpath.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
+
+func main() {
+	_, file, _, _ := runtime.Caller(0)
+
+	// Since https://golang.org/cl/214286, the runtime's debug paths are
+	// slash-separated regardless of platform, so normalize them to system file
+	// paths.
+	fmt.Println(filepath.FromSlash(file))
+}
+-- m/overlay2/printpath2.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
+
+func init() {
+	_, file, _, _ := runtime.Caller(0)
+	fmt.Println(filepath.FromSlash(file))
+}
+-- m/overlay/dir2_i.go --
+package dir2
+
+import "m/dir"
+
+func printMessage() {
+	dir.PrintMessage()
+}

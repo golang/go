@@ -53,6 +53,6 @@ func BenchmarkPrint(b *testing.B) {
 		initialize()
 	}
 	for i := 0; i < b.N; i++ {
-		testprint(ioutil.Discard, testfile)
+		testprint(io.Discard, testfile)
 	}
 }

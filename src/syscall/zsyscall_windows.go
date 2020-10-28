@@ -95,6 +95,7 @@ var (
 	procCryptAcquireContextW               = modadvapi32.NewProc("CryptAcquireContextW")
 	procCryptReleaseContext                = modadvapi32.NewProc("CryptReleaseContext")
 	procCryptGenRandom                     = modadvapi32.NewProc("CryptGenRandom")
+	procSystemFunction036                  = modadvapi32.NewProc("SystemFunction036")
 	procGetEnvironmentStringsW             = modkernel32.NewProc("GetEnvironmentStringsW")
 	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
 	procGetEnvironmentVariableW            = modkernel32.NewProc("GetEnvironmentVariableW")
@@ -811,6 +812,18 @@ func CryptReleaseContext(provhandle Handle, flags uint32) (err error) {
 
 func CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) {
 	r1, _, e1 := Syscall(procCryptGenRandom.Addr(), 3, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func RtlGenRandom(buf *uint8, bytes uint32) (err error) {
+	r1, _, e1 := Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(bytes), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)

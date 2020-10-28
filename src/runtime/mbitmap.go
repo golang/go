@@ -1868,12 +1868,12 @@ func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
 	bitmapBytes := divRoundUp(ptrdata, 8*sys.PtrSize)
 	// Compute the number of pages needed for bitmapBytes.
 	pages := divRoundUp(bitmapBytes, pageSize)
-	s := mheap_.allocManual(pages, &memstats.gc_sys)
+	s := mheap_.allocManual(pages, spanAllocPtrScalarBits)
 	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
 	return s
 }
 func dematerializeGCProg(s *mspan) {
-	mheap_.freeManual(s, &memstats.gc_sys)
+	mheap_.freeManual(s, spanAllocPtrScalarBits)
 }
 
 func dumpGCProg(p *byte) {

@@ -169,10 +169,10 @@
 (Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 => (SRAconst (SLLconst <typ.UInt32> x [24]) [31])
 
 // constants
-(Const(8|16|32) ...) -> (MOVWconst ...)
-(Const(32F|64F) ...) -> (MOV(F|D)const ...)
+(Const(8|16|32) [val]) => (MOVWconst [int32(val)])
+(Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
 (ConstNil) => (MOVWconst [0])
-(ConstBool ...) -> (MOVWconst ...)
+(ConstBool [b]) => (MOVWconst [b2i32(b)])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.
@@ -243,10 +243,10 @@
 (Leq16U x y) => (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) => (LessEqualU (CMP x y))
 
-(OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
-(OffPtr [off] ptr) -> (ADDconst [off] ptr)
+(OffPtr [off] ptr:(SP)) => (MOVWaddr [int32(off)] ptr)
+(OffPtr [off] ptr) => (ADDconst [int32(off)] ptr)
 
-(Addr ...) -> (MOVWaddr ...)
+(Addr {sym} base) => (MOVWaddr {sym} base)
 (LocalAddr {sym} base _) => (MOVWaddr {sym} base)
 
 // loads
@@ -1052,8 +1052,8 @@
 (BICshiftRL x (MOVWconst [c]) [d]) => (BICconst x [int32(uint32(c)>>uint64(d))])
 (BICshiftRA x (MOVWconst [c]) [d]) => (BICconst x [c>>uint64(d)])
 (MVNshiftLL (MOVWconst [c]) [d]) => (MOVWconst [^(c<<uint64(d))])
-(MVNshiftRL (MOVWconst [c]) [d]) -> (MOVWconst [^int64(uint32(c)>>uint64(d))])
-(MVNshiftRA (MOVWconst [c]) [d]) -> (MOVWconst [^int64(int32(c)>>uint64(d))])
+(MVNshiftRL (MOVWconst [c]) [d]) => (MOVWconst [^int32(uint32(c)>>uint64(d))])
+(MVNshiftRA (MOVWconst [c]) [d]) => (MOVWconst [int32(c)>>uint64(d)])
 (CMPshiftLL x (MOVWconst [c]) [d]) => (CMPconst x [c<<uint64(d)])
 (CMPshiftRL x (MOVWconst [c]) [d]) => (CMPconst x [int32(uint32(c)>>uint64(d))])
 (CMPshiftRA x (MOVWconst [c]) [d]) => (CMPconst x [c>>uint64(d)])
@@ -1190,12 +1190,12 @@
 (MOVWstoreidx ptr (SRAconst idx [c]) val mem) => (MOVWstoreshiftRA ptr idx [c] val mem)
 (MOVWstoreidx (SRAconst idx [c]) ptr val mem) => (MOVWstoreshiftRA ptr idx [c] val mem)
 
-(MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem) -> (MOVWload [int64(uint32(c)<<uint64(d))] ptr mem)
-(MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem) -> (MOVWload [int64(uint32(c)>>uint64(d))] ptr mem)
+(MOVWloadshiftLL ptr (MOVWconst [c]) [d] mem) => (MOVWload [int32(uint32(c)<<uint64(d))] ptr mem)
+(MOVWloadshiftRL ptr (MOVWconst [c]) [d] mem) => (MOVWload [int32(uint32(c)>>uint64(d))] ptr mem)
 (MOVWloadshiftRA ptr (MOVWconst [c]) [d] mem) => (MOVWload [c>>uint64(d)] ptr mem)
 
-(MOVWstoreshiftLL ptr (MOVWconst [c]) [d] val mem) -> (MOVWstore [int64(uint32(c)<<uint64(d))] ptr val mem)
-(MOVWstoreshiftRL ptr (MOVWconst [c]) [d] val mem) -> (MOVWstore [int64(uint32(c)>>uint64(d))] ptr val mem)
+(MOVWstoreshiftLL ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [int32(uint32(c)<<uint64(d))] ptr val mem)
+(MOVWstoreshiftRL ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [int32(uint32(c)>>uint64(d))] ptr val mem)
 (MOVWstoreshiftRA ptr (MOVWconst [c]) [d] val mem) => (MOVWstore [c>>uint64(d)] ptr val mem)
 
 // generic simplifications
@@ -1263,8 +1263,8 @@
 (SRLconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
 
 // comparison simplification
-(CMP x (RSBconst [0] y)) => (CMN x y)
-(CMN x (RSBconst [0] y)) => (CMP x y)
+((LT|LE|EQ|NE|GE|GT) (CMP x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMN x y)) // sense of carry bit not preserved
+((LT|LE|EQ|NE|GE|GT) (CMN x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMP x y)) // sense of carry bit not preserved
 (EQ (CMPconst [0] l:(SUB x y)) yes no) && l.Uses==1 => (EQ (CMP x y) yes no)
 (EQ (CMPconst [0] l:(MULS x y a)) yes no) && l.Uses==1 => (EQ (CMP a (MUL <x.Type> x y)) yes no)
 (EQ (CMPconst [0] l:(SUBconst [c] x)) yes no) && l.Uses==1 => (EQ (CMPconst [c] x) yes no)
@@ -1470,6 +1470,6 @@
 (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRLreg x y z) yes no)
 (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRAreg x y z) yes no)
 
-(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])

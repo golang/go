@@ -170,35 +170,51 @@ func usage() {
 
 var ptrSizeMap = map[string]int64{
 	"386":      4,
+	"alpha":    8,
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
 	"mips64":   8,
 	"mips64le": 8,
+	"nios2":    4,
+	"ppc":      4,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv":    4,
 	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sh":       4,
+	"shbe":     4,
+	"sparc":    4,
 	"sparc64":  8,
 }
 
 var intSizeMap = map[string]int64{
 	"386":      4,
+	"alpha":    8,
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
 	"mips64":   8,
 	"mips64le": 8,
+	"nios2":    4,
+	"ppc":      4,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv":    4,
 	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sh":       4,
+	"shbe":     4,
+	"sparc":    4,
 	"sparc64":  8,
 }
 
@@ -224,8 +240,7 @@ var exportHeader = flag.String("exportheader", "", "where to write export header
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
-var gccgoMangleCheckDone bool
-var gccgoNewmanglingInEffect bool
+var gccgoMangler func(string) string
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var goarch, goos string

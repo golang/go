@@ -470,6 +470,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -537,6 +538,7 @@ TEXT callRet<>(SB), NOSPLIT, $32-0
 	CALL	runtime·reflectcallmove(SB)
 	RET
 
+CALLFN(·call16, 16)
 CALLFN(·call32, 32)
 CALLFN(·call64, 64)
 CALLFN(·call128, 128)
@@ -689,25 +691,9 @@ nosave:
 	MOVL	AX, ret+16(FP)
 	RET
 
-// func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
-	LEAQ	fn+0(FP), AX
-	MOVQ	AX, 0(SP)
-	MOVQ	frame+8(FP), AX
-	MOVQ	AX, 8(SP)
-	MOVQ	framesize+16(FP), AX
-	MOVQ	AX, 16(SP)
-	MOVQ	ctxt+24(FP), AX
-	MOVQ	AX, 24(SP)
-	MOVQ	$runtime·cgocallback_gofunc(SB), AX
-	CALL	AX
-	RET
-
-// func cgocallback_gofunc(fn, frame, framesize, ctxt uintptr)
+// func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -725,13 +711,12 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	CMPQ	BX, $0
 	JEQ	needm
 	MOVQ	g_m(BX), BX
-	MOVQ	BX, R8 // holds oldm until end of function
+	MOVQ	BX, savedm-8(SP)	// saved copy of oldm
 	JMP	havem
 needm:
-	MOVQ	$0, 0(SP)
-	MOVQ	$runtime·needm(SB), AX
+	MOVQ    $runtime·needm(SB), AX
 	CALL	AX
-	MOVQ	0(SP), R8
+	MOVQ	$0, savedm-8(SP) // dropm on return
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
@@ -767,37 +752,36 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, 8(SP) holds the saved R8.
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
 	MOVQ	(g_sched+gobuf_pc)(SI), BX
-	MOVQ	BX, -8(DI)
+	MOVQ	BX, -8(DI)  // "push" return PC on the g stack
+	// Gather our arguments into registers.
+	MOVQ	fn+0(FP), BX
+	MOVQ	frame+8(FP), CX
+	MOVQ	ctxt+16(FP), DX
 	// Compute the size of the frame, including return PC and, if
 	// GOEXPERIMENT=framepointer, the saved base pointer
-	MOVQ	ctxt+24(FP), BX
-	LEAQ	fv+0(FP), AX
-	SUBQ	SP, AX
-	SUBQ	AX, DI
+	LEAQ	fn+0(FP), AX
+	SUBQ	SP, AX   // AX is our actual frame size
+	SUBQ	AX, DI   // Allocate the same frame size on the g stack
 	MOVQ	DI, SP
 
-	MOVQ	R8, 8(SP)
 	MOVQ	BX, 0(SP)
+	MOVQ	CX, 8(SP)
+	MOVQ	DX, 16(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVQ	8(SP), R8
 
 	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
 	// but only their difference matters.
-	LEAQ	fv+0(FP), AX
+	LEAQ	fn+0(FP), AX
 	SUBQ	SP, AX
 
 	// Restore g->sched (== m->curg->sched) from saved values.
@@ -822,7 +806,8 @@ havem:
 
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
-	CMPQ	R8, $0
+	MOVQ	savedm-8(SP), BX
+	CMPQ	BX, $0
 	JNE 3(PC)
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX

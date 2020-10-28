@@ -166,34 +166,46 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p2.To.Reg = v.Reg1()
 
 	case ssa.OpPPC64LoweredAtomicAnd8,
-		ssa.OpPPC64LoweredAtomicOr8:
+		ssa.OpPPC64LoweredAtomicAnd32,
+		ssa.OpPPC64LoweredAtomicOr8,
+		ssa.OpPPC64LoweredAtomicOr32:
 		// LWSYNC
-		// LBAR		(Rarg0), Rtmp
+		// LBAR/LWAR	(Rarg0), Rtmp
 		// AND/OR	Rarg1, Rtmp
-		// STBCCC	Rtmp, (Rarg0)
+		// STBCCC/STWCCC Rtmp, (Rarg0)
 		// BNE		-3(PC)
+		ld := ppc64.ALBAR
+		st := ppc64.ASTBCCC
+		if v.Op == ssa.OpPPC64LoweredAtomicAnd32 || v.Op == ssa.OpPPC64LoweredAtomicOr32 {
+			ld = ppc64.ALWAR
+			st = ppc64.ASTWCCC
+		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
 		plwsync := s.Prog(ppc64.ALWSYNC)
 		plwsync.To.Type = obj.TYPE_NONE
-		p := s.Prog(ppc64.ALBAR)
+		// LBAR or LWAR
+		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP
+		// AND/OR reg1,out
 		p1 := s.Prog(v.Op.Asm())
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = r1
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = ppc64.REGTMP
-		p2 := s.Prog(ppc64.ASTBCCC)
+		// STBCCC or STWCCC
+		p2 := s.Prog(st)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = ppc64.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = r0
 		p2.RegTo2 = ppc64.REGTMP
+		// BNE retry
 		p3 := s.Prog(ppc64.ABNE)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
@@ -570,9 +582,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r1 := v.Args[0].Reg()
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
-		// clrlslwi ra,rs,sh,mb will become rlwinm ra,rs,sh,mb-sh,31-n as described in ISA
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
+		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -582,9 +594,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r1 := v.Args[0].Reg()
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
-		// clrlsldi ra,rs,sh,mb will become rldic ra,rs,sh,mb-sh
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
+		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -637,6 +649,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+		// Auxint holds encoded rotate + mask
+	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
+		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+
+		// Auxint holds mask
+	case ssa.OpPPC64RLWNM:
+		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
@@ -677,7 +707,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 
 	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst,
-		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst:
+		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst,
+		ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst, ssa.OpPPC64MULLWconst, ssa.OpPPC64MULLDconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
 		p.From.Type = obj.TYPE_CONST

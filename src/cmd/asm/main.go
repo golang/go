@@ -74,7 +74,8 @@ func main() {
 	var failedFile string
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
-		parser := asm.NewParser(ctxt, architecture, lexer)
+		parser := asm.NewParser(ctxt, architecture, lexer,
+			*flags.CompilingRuntime)
 		ctxt.DiagFunc = func(format string, args ...interface{}) {
 			diag = true
 			log.Printf(format, args...)

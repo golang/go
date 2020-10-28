@@ -150,6 +150,31 @@
 (ROTLW  x (MOVDconst [c])) => (ROTLWconst  x [c&31])
 (ROTL   x (MOVDconst [c])) => (ROTLconst   x [c&63])
 
+// Combine rotate and mask operations
+(ANDconst [m] (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
+(AND (MOVDconst [m]) (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
+(ANDconst [m] (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
+(AND (MOVDconst [m]) (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
+
+// Note, any rotated word bitmask is still a valid word bitmask.
+(ROTLWconst [r] (AND (MOVDconst [m]) x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
+(ROTLWconst [r] (ANDconst [m] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
+
+(ANDconst [m] (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
+(ANDconst [m] (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
+(AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
+(AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
+
+(SRWconst (ANDconst [m] x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
+(SRWconst (ANDconst [m] x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
+(SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
+(SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
+
+// Merge shift right + shift left and clear left (e.g for a table lookup)
+(CLRLSLDI [c] (SRWconst [s] x)) && mergePPC64ClrlsldiSrw(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)
+(SLDconst [l] (SRWconst [r] x)) && mergePPC64SldiSrw(l,r) != 0 => (RLWINM [mergePPC64SldiSrw(l,r)] x)
+// The following reduction shows up frequently too. e.g b[(x>>14)&0xFF]
+(CLRLSLDI [c] i:(RLWINM [s] x)) && mergePPC64ClrlsldiRlwinm(c,s) != 0 => (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)
 
 // large constant shifts
 (Lsh64x64  _ (MOVDconst [c])) && uint64(c) >= 64 => (MOVDconst [0])
@@ -821,6 +846,8 @@
 
 (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
 
+(MULL(W|D) x (MOVDconst [c])) && is16Bit(c) => (MULL(W|D)const [int32(c)] x)
+
 // Subtract from (with carry, but ignored) constant.
 // Note, these clobber the carry bit.
 (SUB (MOVDconst [c]) x) && is32Bit(c) => (SUBFCconst [c] x)
@@ -965,10 +992,10 @@
 
 // atomic intrinsics
 (AtomicLoad(8|32|64|Ptr)  ptr mem) => (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
-(AtomicLoadAcq32        ptr mem) => (LoweredAtomicLoad32 [0] ptr mem)
+(AtomicLoadAcq(32|64)     ptr mem) => (LoweredAtomicLoad(32|64) [0] ptr mem)
 
 (AtomicStore(8|32|64)    ptr val mem) => (LoweredAtomicStore(8|32|64) [1] ptr val mem)
-(AtomicStoreRel32        ptr val mem) => (LoweredAtomicStore32 [0] ptr val mem)
+(AtomicStoreRel(32|64)   ptr val mem) => (LoweredAtomicStore(32|64) [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) => (STLR  ptr val mem)
 
 (AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
@@ -978,8 +1005,10 @@
 (AtomicCompareAndSwap(32|64) ptr old new_ mem) => (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
 (AtomicCompareAndSwapRel32   ptr old new_ mem) => (LoweredAtomicCas32 [0] ptr old new_ mem)
 
-(AtomicAnd8 ...) => (LoweredAtomicAnd8 ...)
-(AtomicOr8  ...) => (LoweredAtomicOr8  ...)
+(AtomicAnd8  ...) => (LoweredAtomicAnd8  ...)
+(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+(AtomicOr8   ...) => (LoweredAtomicOr8   ...)
+(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
 
 (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
 
@@ -1018,13 +1047,12 @@
 (SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
 (SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
 
-(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
-(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
 (SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
 (SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
-(SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
-(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
-(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 // special case for power9
 (SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
 

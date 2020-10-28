@@ -323,10 +323,27 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when
 			l.cacheEnd = omega
+			zoneIdx := tx[i].index
 			if i+1 < len(tx) {
 				l.cacheEnd = tx[i+1].when
+			} else if l.extend != "" {
+				// If we're at the end of the known zone transitions,
+				// try the extend string.
+				if name, _, estart, eend, ok := tzset(l.extend, l.cacheEnd, sec); ok {
+					l.cacheStart = estart
+					l.cacheEnd = eend
+					// Find the zone that is returned by tzset,
+					// the last transition is not always the correct zone.
+					for i, z := range l.zone {
+						if z.name == name {
+							zoneIdx = uint8(i)
+							break
+						}
+					}
+				}
 			}
-			l.cacheZone = &l.zone[tx[i].index]
+			l.cacheZone = &l.zone[zoneIdx]
+			break
 		}
 	}
 

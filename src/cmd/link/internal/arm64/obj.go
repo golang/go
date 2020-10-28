@@ -102,7 +102,7 @@ func archinit(ctxt *ld.Link) {
 	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+			*ld.FlagTextAddr = 1<<32 + int64(ld.HEADR)
 		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 16384 // 16K page alignment

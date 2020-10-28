@@ -168,18 +168,18 @@ type halfConn struct {
 	trafficSecret []byte // current TLS 1.3 traffic secret
 }
 
-type permamentError struct {
+type permanentError struct {
 	err net.Error
 }
 
-func (e *permamentError) Error() string   { return e.err.Error() }
-func (e *permamentError) Unwrap() error   { return e.err }
-func (e *permamentError) Timeout() bool   { return e.err.Timeout() }
-func (e *permamentError) Temporary() bool { return false }
+func (e *permanentError) Error() string   { return e.err.Error() }
+func (e *permanentError) Unwrap() error   { return e.err }
+func (e *permanentError) Timeout() bool   { return e.err.Timeout() }
+func (e *permanentError) Temporary() bool { return false }
 
 func (hc *halfConn) setErrorLocked(err error) error {
 	if e, ok := err.(net.Error); ok {
-		hc.err = &permamentError{err: e}
+		hc.err = &permanentError{err: e}
 	} else {
 		hc.err = err
 	}

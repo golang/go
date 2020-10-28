@@ -1489,7 +1489,7 @@ var (
 	// value[0] is the variant-changing environment variable, and values[1:]
 	// are the supported variants.
 	archVariants = map[string][]string{
-		"386":     {"GO386", "387", "sse2"},
+		"386":     {"GO386", "sse2", "softfloat"},
 		"amd64":   {},
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},

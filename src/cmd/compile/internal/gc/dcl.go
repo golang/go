@@ -283,7 +283,7 @@ func oldname(s *types.Sym) *Node {
 			c.Name.Defn = n
 
 			// Link into list of active closure variables.
-			// Popped from list in func closurebody.
+			// Popped from list in func funcLit.
 			c.Name.Param.Outer = n.Name.Param.Innermost
 			n.Name.Param.Innermost = c
 

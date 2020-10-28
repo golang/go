@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -285,99 +287,108 @@ func TestCallbackInAnotherThread(t *testing.T) {
 	}
 }
 
-type cbDLLFunc int // int determines number of callback parameters
-
-func (f cbDLLFunc) stdcallName() string {
-	return fmt.Sprintf("stdcall%d", f)
+type cbFunc struct {
+	goFunc interface{}
 }
 
-func (f cbDLLFunc) cdeclName() string {
-	return fmt.Sprintf("cdecl%d", f)
+func (f cbFunc) cName(cdecl bool) string {
+	name := "stdcall"
+	if cdecl {
+		name = "cdecl"
+	}
+	t := reflect.TypeOf(f.goFunc)
+	for i := 0; i < t.NumIn(); i++ {
+		name += "_" + t.In(i).Name()
+	}
+	return name
 }
 
-func (f cbDLLFunc) buildOne(stdcall bool) string {
-	var funcname, attr string
-	if stdcall {
-		funcname = f.stdcallName()
-		attr = "__stdcall"
-	} else {
-		funcname = f.cdeclName()
+func (f cbFunc) cSrc(w io.Writer, cdecl bool) {
+	// Construct a C function that takes a callback with
+	// f.goFunc's signature, and calls it with integers 1..N.
+	funcname := f.cName(cdecl)
+	attr := "__stdcall"
+	if cdecl {
 		attr = "__cdecl"
 	}
 	typename := "t" + funcname
-	p := make([]string, f)
-	for i := range p {
-		p[i] = "uintptr_t"
+	t := reflect.TypeOf(f.goFunc)
+	cTypes := make([]string, t.NumIn())
+	cArgs := make([]string, t.NumIn())
+	for i := range cTypes {
+		// We included stdint.h, so this works for all sized
+		// integer types, and uint8Pair_t.
+		cTypes[i] = t.In(i).Name() + "_t"
+		if t.In(i).Name() == "uint8Pair" {
+			cArgs[i] = fmt.Sprintf("(uint8Pair_t){%d,1}", i)
+		} else {
+			cArgs[i] = fmt.Sprintf("%d", i+1)
+		}
 	}
-	params := strings.Join(p, ",")
-	for i := range p {
-		p[i] = fmt.Sprintf("%d", i+1)
-	}
-	args := strings.Join(p, ",")
-	return fmt.Sprintf(`
-typedef void %s (*%s)(%s);
-void %s(%s f, uintptr_t n) {
-	uintptr_t i;
-	for(i=0;i<n;i++){
-		f(%s);
-	}
+	fmt.Fprintf(w, `
+typedef uintptr_t %s (*%s)(%s);
+uintptr_t %s(%s f) {
+	return f(%s);
 }
-	`, attr, typename, params, funcname, typename, args)
-}
-
-func (f cbDLLFunc) build() string {
-	return "#include <stdint.h>\n\n" + f.buildOne(false) + f.buildOne(true)
+	`, attr, typename, strings.Join(cTypes, ","), funcname, typename, strings.Join(cArgs, ","))
 }
 
-var cbFuncs = [...]interface{}{
-	2: func(i1, i2 uintptr) uintptr {
-		if i1+i2 != 3 {
-			panic("bad input")
-		}
-		return 0
-	},
-	3: func(i1, i2, i3 uintptr) uintptr {
-		if i1+i2+i3 != 6 {
-			panic("bad input")
-		}
-		return 0
-	},
-	4: func(i1, i2, i3, i4 uintptr) uintptr {
-		if i1+i2+i3+i4 != 10 {
-			panic("bad input")
-		}
-		return 0
-	},
-	5: func(i1, i2, i3, i4, i5 uintptr) uintptr {
-		if i1+i2+i3+i4+i5 != 15 {
-			panic("bad input")
-		}
-		return 0
-	},
-	6: func(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
-		if i1+i2+i3+i4+i5+i6 != 21 {
-			panic("bad input")
-		}
-		return 0
-	},
-	7: func(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
-		if i1+i2+i3+i4+i5+i6+i7 != 28 {
-			panic("bad input")
-		}
-		return 0
-	},
-	8: func(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
-		if i1+i2+i3+i4+i5+i6+i7+i8 != 36 {
-			panic("bad input")
-		}
-		return 0
-	},
-	9: func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
-		if i1+i2+i3+i4+i5+i6+i7+i8+i9 != 45 {
-			panic("bad input")
-		}
-		return 0
-	},
+func (f cbFunc) testOne(t *testing.T, dll *syscall.DLL, cdecl bool, cb uintptr) {
+	r1, _, _ := dll.MustFindProc(f.cName(cdecl)).Call(cb)
+
+	want := 0
+	for i := 0; i < reflect.TypeOf(f.goFunc).NumIn(); i++ {
+		want += i + 1
+	}
+	if int(r1) != want {
+		t.Errorf("wanted result %d; got %d", want, r1)
+	}
+}
+
+type uint8Pair struct{ x, y uint8 }
+
+var cbFuncs = []cbFunc{
+	{func(i1, i2 uintptr) uintptr {
+		return i1 + i2
+	}},
+	{func(i1, i2, i3 uintptr) uintptr {
+		return i1 + i2 + i3
+	}},
+	{func(i1, i2, i3, i4 uintptr) uintptr {
+		return i1 + i2 + i3 + i4
+	}},
+	{func(i1, i2, i3, i4, i5 uintptr) uintptr {
+		return i1 + i2 + i3 + i4 + i5
+	}},
+	{func(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
+		return i1 + i2 + i3 + i4 + i5 + i6
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
+		return i1 + i2 + i3 + i4 + i5 + i6 + i7
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
+		return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
+		return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9
+	}},
+
+	// Non-uintptr parameters.
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint8) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint16) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 int8) uintptr {
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
+	{func(i1 int8, i2 int16, i3 int32, i4, i5 uintptr) uintptr {
+		return uintptr(i1) + uintptr(i2) + uintptr(i3) + i4 + i5
+	}},
+	{func(i1, i2, i3, i4, i5 uint8Pair) uintptr {
+		return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
+	}},
 }
 
 type cbDLL struct {
@@ -385,21 +396,26 @@ type cbDLL struct {
 	buildArgs func(out, src string) []string
 }
 
-func (d *cbDLL) buildSrc(t *testing.T, path string) {
+func (d *cbDLL) makeSrc(t *testing.T, path string) {
 	f, err := os.Create(path)
 	if err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 	defer f.Close()
 
-	for i := 2; i < 10; i++ {
-		fmt.Fprint(f, cbDLLFunc(i).build())
+	fmt.Fprint(f, `
+#include <stdint.h>
+typedef struct { uint8_t x, y; } uint8Pair_t;
+`)
+	for _, cbf := range cbFuncs {
+		cbf.cSrc(f, false)
+		cbf.cSrc(f, true)
 	}
 }
 
 func (d *cbDLL) build(t *testing.T, dir string) string {
 	srcname := d.name + ".c"
-	d.buildSrc(t, filepath.Join(dir, srcname))
+	d.makeSrc(t, filepath.Join(dir, srcname))
 	outname := d.name + ".dll"
 	args := d.buildArgs(outname, srcname)
 	cmd := exec.Command(args[0], args[1:]...)
@@ -426,51 +442,6 @@ var cbDLLs = []cbDLL{
 	},
 }
 
-type cbTest struct {
-	n     int     // number of callback parameters
-	param uintptr // dll function parameter
-}
-
-func (test *cbTest) run(t *testing.T, dllpath string) {
-	dll := syscall.MustLoadDLL(dllpath)
-	defer dll.Release()
-	cb := cbFuncs[test.n]
-	stdcall := syscall.NewCallback(cb)
-	f := cbDLLFunc(test.n)
-	test.runOne(t, dll, f.stdcallName(), stdcall)
-	cdecl := syscall.NewCallbackCDecl(cb)
-	test.runOne(t, dll, f.cdeclName(), cdecl)
-}
-
-func (test *cbTest) runOne(t *testing.T, dll *syscall.DLL, proc string, cb uintptr) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("dll call %v(..., %d) failed: %v", proc, test.param, r)
-		}
-	}()
-	dll.MustFindProc(proc).Call(cb, test.param)
-}
-
-var cbTests = []cbTest{
-	{2, 1},
-	{2, 10000},
-	{3, 3},
-	{4, 5},
-	{4, 6},
-	{5, 2},
-	{6, 7},
-	{6, 8},
-	{7, 6},
-	{8, 1},
-	{9, 8},
-	{9, 10000},
-	{3, 4},
-	{5, 3},
-	{7, 7},
-	{8, 2},
-	{9, 9},
-}
-
 func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
@@ -482,10 +453,21 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	for _, dll := range cbDLLs {
-		dllPath := dll.build(t, tmp)
-		for _, test := range cbTests {
-			test.run(t, dllPath)
-		}
+		t.Run(dll.name, func(t *testing.T) {
+			dllPath := dll.build(t, tmp)
+			dll := syscall.MustLoadDLL(dllPath)
+			defer dll.Release()
+			for _, cbf := range cbFuncs {
+				t.Run(cbf.cName(false), func(t *testing.T) {
+					stdcall := syscall.NewCallback(cbf.goFunc)
+					cbf.testOne(t, dll, false, stdcall)
+				})
+				t.Run(cbf.cName(true), func(t *testing.T) {
+					cdecl := syscall.NewCallbackCDecl(cbf.goFunc)
+					cbf.testOne(t, dll, true, cdecl)
+				})
+			}
+		})
 	}
 }
 

@@ -395,7 +395,8 @@ func canMergeLoad(target, load *Value) bool {
 
 // isSameCall reports whether sym is the same as the given named symbol
 func isSameCall(sym interface{}, name string) bool {
-	return sym.(*AuxCall).Fn.String() == name
+	fn := sym.(*AuxCall).Fn
+	return fn != nil && fn.String() == name
 }
 
 // nlz returns the number of leading zeros.
@@ -448,10 +449,7 @@ func log2uint32(n int64) int64 {
 	return int64(bits.Len32(uint32(n))) - 1
 }
 
-// isPowerOfTwo reports whether n is a power of 2.
-func isPowerOfTwo(n int64) bool {
-	return n > 0 && n&(n-1) == 0
-}
+// isPowerOfTwo functions report whether n is a power of 2.
 func isPowerOfTwo8(n int8) bool {
 	return n > 0 && n&(n-1) == 0
 }
@@ -762,6 +760,36 @@ func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
 	}
 	va := aux.(*AuxCall)
 	return StaticAuxCall(lsym, va.args, va.results)
+}
+
+// de-virtualize an InterLECall
+// 'sym' is the symbol for the itab
+func devirtLESym(v *Value, aux interface{}, sym Sym, offset int64) *obj.LSym {
+	n, ok := sym.(*obj.LSym)
+	if !ok {
+		return nil
+	}
+
+	f := v.Block.Func
+	lsym := f.fe.DerefItab(n, offset)
+	if f.pass.debug > 0 {
+		if lsym != nil {
+			f.Warnl(v.Pos, "de-virtualizing call")
+		} else {
+			f.Warnl(v.Pos, "couldn't de-virtualize call")
+		}
+	}
+	if lsym == nil {
+		return nil
+	}
+	return lsym
+}
+
+func devirtLECall(v *Value, sym *obj.LSym) *Value {
+	v.Op = OpStaticLECall
+	v.Aux.(*AuxCall).Fn = sym
+	v.RemoveArg(0)
+	return v
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.
@@ -1350,8 +1378,73 @@ func GetPPC64Shiftme(auxint int64) int64 {
 	return int64(int8(auxint))
 }
 
-// Catch the simple ones first
-// TODO: Later catch more cases
+// Test if this value can encoded as a mask for a rlwinm like
+// operation.  Masks can also extend from the msb and wrap to
+// the lsb too.  That is, the valid masks are 32 bit strings
+// of the form: 0..01..10..0 or 1..10..01..1 or 1...1
+func isPPC64WordRotateMask(v64 int64) bool {
+	// Isolate rightmost 1 (if none 0) and add.
+	v := uint32(v64)
+	vp := (v & -v) + v
+	// Likewise, for the wrapping case.
+	vn := ^v
+	vpn := (vn & -vn) + vn
+	return (v&vp == 0 || vn&vpn == 0) && v != 0
+}
+
+// Compress mask and and shift into single value of the form
+// me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
+// be used to regenerate the input mask.
+func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
+	var mb, me, mbn, men int
+
+	// Determine boundaries and then decode them
+	if mask == 0 || ^mask == 0 || rotate >= nbits {
+		panic("Invalid PPC64 rotate mask")
+	} else if nbits == 32 {
+		mb = bits.LeadingZeros32(uint32(mask))
+		me = 32 - bits.TrailingZeros32(uint32(mask))
+		mbn = bits.LeadingZeros32(^uint32(mask))
+		men = 32 - bits.TrailingZeros32(^uint32(mask))
+	} else {
+		mb = bits.LeadingZeros64(uint64(mask))
+		me = 64 - bits.TrailingZeros64(uint64(mask))
+		mbn = bits.LeadingZeros64(^uint64(mask))
+		men = 64 - bits.TrailingZeros64(^uint64(mask))
+	}
+	// Check for a wrapping mask (e.g bits at 0 and 63)
+	if mb == 0 && me == int(nbits) {
+		// swap the inverted values
+		mb, me = men, mbn
+	}
+
+	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
+}
+
+// The inverse operation of encodePPC64RotateMask.  The values returned as
+// mb and me satisfy the POWER ISA definition of MASK(x,y) where MASK(mb,me) = mask.
+func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {
+	auxint := uint64(sauxint)
+	rotate = int64((auxint >> 16) & 0xFF)
+	mb = int64((auxint >> 8) & 0xFF)
+	me = int64((auxint >> 0) & 0xFF)
+	nbits := int64((auxint >> 24) & 0xFF)
+	mask = ((1 << uint(nbits-mb)) - 1) ^ ((1 << uint(nbits-me)) - 1)
+	if mb > me {
+		mask = ^mask
+	}
+	if nbits == 32 {
+		mask = uint64(uint32(mask))
+	}
+
+	// Fixup ME to match ISA definition.  The second argument to MASK(..,me)
+	// is inclusive.
+	me = (me - 1) & (nbits - 1)
+	return
+}
+
+// This verifies that the mask occupies the
+// rightmost bits.
 func isPPC64ValidShiftMask(v int64) bool {
 	if ((v + 1) & v) == 0 {
 		return true
@@ -1361,6 +1454,78 @@ func isPPC64ValidShiftMask(v int64) bool {
 
 func getPPC64ShiftMaskLength(v int64) int64 {
 	return int64(bits.Len64(uint64(v)))
+}
+
+// Decompose a shift right into an equivalent rotate/mask,
+// and return mask & m.
+func mergePPC64RShiftMask(m, s, nbits int64) int64 {
+	smask := uint64((1<<uint(nbits))-1) >> uint(s)
+	return m & int64(smask)
+}
+
+// Combine (ANDconst [m] (SRWconst [s])) into (RLWINM [y]) or return 0
+func mergePPC64AndSrwi(m, s int64) int64 {
+	mask := mergePPC64RShiftMask(m, s, 32)
+	if !isPPC64WordRotateMask(mask) {
+		return 0
+	}
+	return encodePPC64RotateMask(32-s, mask, 32)
+}
+
+// Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
+// Return the encoded RLWINM constant, or 0 if they cannot be merged.
+func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
+	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
+	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+
+	// Rewrite mask to apply after the final left shift.
+	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
+
+	r_1 := 32 - srw
+	r_2 := GetPPC64Shiftsh(sld)
+	r_3 := (r_1 + r_2) & 31 // This can wrap.
+
+	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
+		return 0
+	}
+	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+}
+
+// Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
+// the encoded RLWINM constant, or 0 if they cannot be merged.
+func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
+	r_1, _, _, mask_1 := DecodePPC64RotateMask(rlw)
+	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+
+	// combine the masks, and adjust for the final left shift.
+	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(int64(sld)))
+	r_2 := GetPPC64Shiftsh(int64(sld))
+	r_3 := (r_1 + r_2) & 31 // This can wrap.
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if !isPPC64WordRotateMask(int64(mask_3)) || uint64(uint32(mask_3)) != mask_3 {
+		return 0
+	}
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
+}
+
+// Compute the encoded RLWINM constant from combining (SLDconst [sld] (SRWconst [srw] x)),
+// or return 0 if they cannot be combined.
+func mergePPC64SldiSrw(sld, srw int64) int64 {
+	if sld > srw || srw >= 32 {
+		return 0
+	}
+	mask_r := uint32(0xFFFFFFFF) >> uint(srw)
+	mask_l := uint32(0xFFFFFFFF) >> uint(sld)
+	mask := (mask_r & mask_l) << uint(sld)
+	return encodePPC64RotateMask((32-srw+sld)&31, int64(mask), 32)
+}
+
+// Convenience function to rotate a 32 bit constant value by another constant.
+func rotateLeft32(v, rotate int64) int64 {
+	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
 }
 
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
@@ -1387,7 +1552,7 @@ func (bfc arm64BitField) getARM64BFwidth() int64 {
 // checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
 func isARM64BFMask(lsb, mask, rshift int64) bool {
 	shiftedMask := int64(uint64(mask) >> uint64(rshift))
-	return shiftedMask != 0 && isPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+	return shiftedMask != 0 && isPowerOfTwo64(shiftedMask+1) && nto(shiftedMask)+lsb < 64
 }
 
 // returns the bitfield width of mask >> rshift for arm64 bitfield ops

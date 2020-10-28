@@ -267,13 +267,11 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 		}
 		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
 		var info *goobj.FuncInfo
-		lengths := info.ReadFuncInfoLengths(b)
 		pcline := getSymData(info.ReadPcline(b))
 		line := int(pcValue(pcline, pc-addr, f.arch))
 		pcfile := getSymData(info.ReadPcfile(b))
 		fileID := pcValue(pcfile, pc-addr, f.arch)
-		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
-		fileName := r.File(int(globalFileID))
+		fileName := r.File(int(fileID))
 		// Note: we provide only the name in the Func structure.
 		// We could provide more if needed.
 		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: osym.Name(r)}}

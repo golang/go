@@ -6,6 +6,7 @@ package web
 
 import (
 	"errors"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func TestGetNonexistentFile(t *testing.T) {
 	}
 
 	b, err := GetBytes(u)
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("GetBytes(%v) = %q, %v; want _, os.ErrNotExist", u, b, err)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("GetBytes(%v) = %q, %v; want _, fs.ErrNotExist", u, b, err)
 	}
 }

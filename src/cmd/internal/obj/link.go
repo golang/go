@@ -38,6 +38,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"log"
 	"sync"
 )
 
@@ -395,17 +396,16 @@ type LSym struct {
 	Type objabi.SymKind
 	Attribute
 
-	RefIdx int // Index of this symbol in the symbol reference list.
 	Size   int64
 	Gotype *LSym
 	P      []byte
 	R      []Reloc
 
-	Func *FuncInfo
+	Extra *interface{} // *FuncInfo or *FileInfo, if present
 
 	Pkg    string
 	PkgIdx int32
-	SymIdx int32 // TODO: replace RefIdx
+	SymIdx int32
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
@@ -432,6 +432,53 @@ type FuncInfo struct {
 	OpenCodedDeferInfo *LSym
 
 	FuncInfoSym *LSym
+}
+
+// NewFuncInfo allocates and returns a FuncInfo for LSym.
+func (s *LSym) NewFuncInfo() *FuncInfo {
+	if s.Extra != nil {
+		log.Fatalf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra)
+	}
+	f := new(FuncInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// Func returns the *FuncInfo associated with s, or else nil.
+func (s *LSym) Func() *FuncInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FuncInfo)
+	return f
+}
+
+// A FileInfo contains extra fields for SDATA symbols backed by files.
+// (If LSym.Extra is a *FileInfo, LSym.P == nil.)
+type FileInfo struct {
+	Name string // name of file to read into object file
+	Size int64  // length of file
+}
+
+// NewFileInfo allocates and returns a FileInfo for LSym.
+func (s *LSym) NewFileInfo() *FileInfo {
+	if s.Extra != nil {
+		log.Fatalf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra)
+	}
+	f := new(FileInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// File returns the *FileInfo associated with s, or else nil.
+func (s *LSym) File() *FileInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FileInfo)
+	return f
 }
 
 type InlMark struct {
@@ -481,6 +528,20 @@ const (
 
 	ABICount
 )
+
+// ParseABI converts from a string representation in 'abistr' to the
+// corresponding ABI value. Second return value is TRUE if the
+// abi string is recognized, FALSE otherwise.
+func ParseABI(abistr string) (ABI, bool) {
+	switch abistr {
+	default:
+		return ABI0, false
+	case "ABI0":
+		return ABI0, true
+	case "ABIInternal":
+		return ABIInternal, true
+	}
+}
 
 // Attribute is a set of symbol attributes.
 type Attribute uint32

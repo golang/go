@@ -81,11 +81,6 @@ func (p *exporter) markType(t *types.Type) {
 	}
 }
 
-// deltaNewFile is a magic line delta offset indicating a new file.
-// We use -64 because it is rare; see issue 20080 and CL 41619.
-// -64 is the smallest int that fits in a single byte as a varint.
-const deltaNewFile = -64
-
 // ----------------------------------------------------------------------------
 // Export format
 
@@ -126,30 +121,6 @@ const (
 	aliasTag
 )
 
-// untype returns the "pseudo" untyped type for a Ctype (import/export use only).
-// (we can't use a pre-initialized array because we must be sure all types are
-// set up)
-func untype(ctype Ctype) *types.Type {
-	switch ctype {
-	case CTINT:
-		return types.Idealint
-	case CTRUNE:
-		return types.Idealrune
-	case CTFLT:
-		return types.Idealfloat
-	case CTCPLX:
-		return types.Idealcomplex
-	case CTSTR:
-		return types.Idealstring
-	case CTBOOL:
-		return types.Idealbool
-	case CTNIL:
-		return types.Types[TNIL]
-	}
-	Fatalf("exporter: unknown Ctype")
-	return nil
-}
-
 var predecl []*types.Type // initialized lazily
 
 func predeclared() []*types.Type {
@@ -184,13 +155,13 @@ func predeclared() []*types.Type {
 			types.Errortype,
 
 			// untyped types
-			untype(CTBOOL),
-			untype(CTINT),
-			untype(CTRUNE),
-			untype(CTFLT),
-			untype(CTCPLX),
-			untype(CTSTR),
-			untype(CTNIL),
+			types.UntypedBool,
+			types.UntypedInt,
+			types.UntypedRune,
+			types.UntypedFloat,
+			types.UntypedComplex,
+			types.UntypedString,
+			types.Types[TNIL],
 
 			// package unsafe
 			types.Types[TUNSAFEPTR],

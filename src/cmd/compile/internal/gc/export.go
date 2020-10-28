@@ -31,7 +31,7 @@ func exportsym(n *Node) {
 	}
 	n.Sym.SetOnExportList(true)
 
-	if Debug['E'] != 0 {
+	if Debug.E != 0 {
 		fmt.Printf("export symbol %v\n", n.Sym)
 	}
 
@@ -96,7 +96,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 	return n
 }
 
-// pkgtype returns the named type declared by symbol s.
+// importtype returns the named type declared by symbol s.
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
@@ -150,7 +150,7 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
 
 	n.SetVal(val)
 
-	if Debug['E'] != 0 {
+	if Debug.E != 0 {
 		fmt.Printf("import const %v %L = %v\n", s, t, val)
 	}
 }
@@ -166,7 +166,7 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 	n.Func = new(Func)
 	t.SetNname(asTypesNode(n))
 
-	if Debug['E'] != 0 {
+	if Debug.E != 0 {
 		fmt.Printf("import func %v%S\n", s, t)
 	}
 }
@@ -179,7 +179,7 @@ func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 		return
 	}
 
-	if Debug['E'] != 0 {
+	if Debug.E != 0 {
 		fmt.Printf("import var %v %L\n", s, t)
 	}
 }
@@ -192,7 +192,7 @@ func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 		return
 	}
 
-	if Debug['E'] != 0 {
+	if Debug.E != 0 {
 		fmt.Printf("import type %v = %L\n", s, t)
 	}
 }

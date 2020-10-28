@@ -71,13 +71,13 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
-
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
 	}
 
+	const pcrel = 1
 	switch r.Type() {
 	default:
 		if r.Type() >= objabi.ElfRelocOffset {
@@ -201,6 +201,75 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ARM64_LDST128)
 		return true
+
+	// Handle relocations found in Mach-O object files.
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_UNSIGNED*2:
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_CALLARM64)
+		if targType == sym.SDYNIMPORT {
+			addpltsym(target, ldr, syms, targ)
+			su.SetRelocSym(rIdx, syms.PLT)
+			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		}
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_PAGE21*2 + pcrel,
+		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_PAGEOFF12*2:
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_PCREL)
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21*2 + pcrel,
+		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12*2:
+		if targType != sym.SDYNIMPORT {
+			// have symbol
+			// turn MOVD sym@GOT (adrp+ldr) into MOVD $sym (adrp+add)
+			data := ldr.Data(s)
+			off := r.Off()
+			if int(off+3) >= len(data) {
+				ldr.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			o := target.Arch.ByteOrder.Uint32(data[off:])
+			su := ldr.MakeSymbolUpdater(s)
+			switch {
+			case (o>>24)&0x9f == 0x90: // adrp
+				// keep instruction unchanged, change relocation type below
+			case o>>24 == 0xf9: // ldr
+				// rewrite to add
+				o = (0x91 << 24) | (o & (1<<22 - 1))
+				su.MakeWritable()
+				su.SetUint32(target.Arch, int64(off), o)
+			default:
+				ldr.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su.SetRelocType(rIdx, objabi.R_ARM64_PCREL)
+			return true
+		}
+		ld.AddGotSym(target, ldr, syms, targ, 0)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_GOT)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+		return true
 	}
 
 	// Reread the reloc to incorporate any changes in type above.
@@ -219,6 +288,16 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// External linker will do this relocation.
 			return true
 		}
+		// Internal linking.
+		if r.Add() != 0 {
+			ldr.Errorf(s, "PLT call with non-zero addend (%v)", r.Add())
+		}
+		// Build a PLT entry and change the relocation target to that entry.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		return true
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
@@ -302,11 +381,23 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
 			if r.Siz() == 8 {
-				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
+				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
 			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
+			return true
+		}
+
+		if target.IsDarwin() {
+			// Mach-O relocations are a royal pain to lay out.
+			// They use a compact stateful bytecode representation.
+			// Here we record what are needed and encode them later.
+			ld.MachoAddRebase(s, int64(r.Off()))
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -371,7 +462,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rt := r.Type
 	siz := r.Size
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 {
+	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -415,6 +506,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
+	case objabi.R_ARM64_GOTPCREL:
+		siz = 4
+		// Two relocation entries: MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 MACHO_ARM64_RELOC_GOT_LOAD_PAGE21
+		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff + 4))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(v | (ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 << 28) | (2 << 25))
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21 << 28
 	}
 
 	switch siz {
@@ -457,7 +564,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 
 			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
-			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && xadd != 0 {
+			if target.IsDarwin() && xadd != 0 {
 				nExtReloc = 4 // need another two relocations for non-zero addend
 			}
 
@@ -633,14 +740,28 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			o0 := (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
 			return val | int64(o0), noExtReloc, isOk
-		} else if (val>>24)&0x91 == 0x91 {
-			// R_AARCH64_ADD_ABS_LO12_NC
+		} else if (val>>24)&0x9f == 0x91 {
+			// ELF R_AARCH64_ADD_ABS_LO12_NC or Mach-O ARM64_RELOC_PAGEOFF12
 			// patch instruction: add
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			o1 := uint32(t&0xfff) << 10
 			return val | int64(o1), noExtReloc, isOk
+		} else if (val>>24)&0x3b == 0x39 {
+			// Mach-O ARM64_RELOC_PAGEOFF12
+			// patch ldr/str(b/h/w/d/q) (integer or vector) instructions, which have different scaling factors.
+			// Mach-O uses same relocation type for them.
+			shift := uint32(val) >> 30
+			if shift == 0 && (val>>20)&0x048 == 0x048 { // 128-bit vector load
+				shift = 4
+			}
+			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
+			if t&(1<<shift-1) != 0 {
+				ldr.Errorf(s, "invalid address: %x for relocation type: ARM64_RELOC_PAGEOFF12", t)
+			}
+			o1 := (uint32(t&0xfff) >> shift) << 10
+			return val | int64(o1), noExtReloc, isOk
 		} else {
-			ldr.Errorf(s, "unsupported instruction for %x R_PCRELARM64", val)
+			ldr.Errorf(s, "unsupported instruction for %x R_ARM64_PCREL", val)
 		}
 
 	case objabi.R_ARM64_LDST8:
@@ -792,10 +913,38 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
 		sDynid := ldr.SymDynid(s)
 
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
+	} else if target.IsDarwin() {
+		ld.AddGotSym(target, ldr, syms, s, 0)
+
+		sDynid := ldr.SymDynid(s)
+		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
+		lep.AddUint32(target.Arch, uint32(sDynid))
+
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		ldr.SetPlt(s, int32(plt.Size()))
+
+		// adrp x16, GOT
+		plt.AddUint32(target.Arch, 0x90000010)
+		r, _ := plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// ldr x17, [x16, <offset>]
+		plt.AddUint32(target.Arch, 0xf9400211)
+		r, _ = plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// br x17
+		plt.AddUint32(target.Arch, 0xd61f0220)
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}

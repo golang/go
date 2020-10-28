@@ -342,6 +342,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 // func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), T0
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -452,8 +453,9 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOV	ZERO, ZERO	// NOP
 
-// func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
+// See cgocall.go for more details.
+TEXT ·cgocallback(SB),NOSPLIT,$0-24
 	// TODO(jsing): Add support for cgo - issue #36641.
 	WORD $0		// crash
 
@@ -518,12 +520,12 @@ flush:
 	MOV	T1, 16(X2)	// Also second argument to wbBufFlush
 
 	// TODO: Optimise
-	// R3 is g.
-	// R4 already saved (T0)
-	// R5 already saved (T1)
-	// R9 already saved (A0)
-	// R10 already saved (A1)
-	// R30 is tmp register.
+	// X5 already saved (T0)
+	// X6 already saved (T1)
+	// X10 already saved (A0)
+	// X11 already saved (A1)
+	// X27 is g.
+	// X31 is tmp register.
 	MOV	X0, 24(X2)
 	MOV	X1, 32(X2)
 	MOV	X2, 40(X2)

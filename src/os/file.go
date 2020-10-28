@@ -45,6 +45,7 @@ import (
 	"internal/poll"
 	"internal/testlog"
 	"io"
+	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
@@ -127,7 +128,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 
 	if off < 0 {
-		return 0, &PathError{"readat", f.name, errors.New("negative offset")}
+		return 0, &PathError{Op: "readat", Path: f.name, Err: errors.New("negative offset")}
 	}
 
 	for len(b) > 0 {
@@ -203,7 +204,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	}
 
 	if off < 0 {
-		return 0, &PathError{"writeat", f.name, errors.New("negative offset")}
+		return 0, &PathError{Op: "writeat", Path: f.name, Err: errors.New("negative offset")}
 	}
 
 	for len(b) > 0 {
@@ -253,7 +254,7 @@ func (f *File) WriteString(s string) (n int, err error) {
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	if runtime.GOOS == "windows" && isWindowsNulName(name) {
-		return &PathError{"mkdir", name, syscall.ENOTDIR}
+		return &PathError{Op: "mkdir", Path: name, Err: syscall.ENOTDIR}
 	}
 	longName := fixLongPath(name)
 	e := ignoringEINTR(func() error {
@@ -261,7 +262,7 @@ func Mkdir(name string, perm FileMode) error {
 	})
 
 	if e != nil {
-		return &PathError{"mkdir", name, e}
+		return &PathError{Op: "mkdir", Path: name, Err: e}
 	}
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
@@ -291,7 +292,7 @@ func setStickyBit(name string) error {
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
 		testlog.Open(dir) // observe likely non-existent directory
-		return &PathError{"chdir", dir, e}
+		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
@@ -366,7 +367,7 @@ func (f *File) wrapErr(op string, err error) error {
 	if err == poll.ErrFileClosing {
 		err = ErrClosed
 	}
-	return &PathError{op, f.name, err}
+	return &PathError{Op: op, Path: f.name, Err: err}
 }
 
 // TempDir returns the default directory to use for temporary files.
@@ -607,4 +608,22 @@ func isWindowsNulName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
+func DirFS(dir string) fs.FS {
+	return dirFS(dir)
+}
+
+type dirFS string
+
+func (dir dirFS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) {
+		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	}
+	f, err := Open(string(dir) + "/" + name)
+	if err != nil {
+		return nil, err // nil fs.File
+	}
+	return f, nil
 }

@@ -7,6 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -221,10 +222,8 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "darwin", "ios":
-		if runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
+	case "ios":
+		t.Skip("can't set SetGID bit with chmod on iOS")
 	case "windows", "plan9":
 		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
@@ -255,7 +254,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
 		t.Fatal(err)
 	}
 

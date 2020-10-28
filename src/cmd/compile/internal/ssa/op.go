@@ -127,6 +127,17 @@ func (a *AuxCall) NResults() int64 {
 	return int64(len(a.results))
 }
 
+// LateExpansionResultType returns the result type (including trailing mem)
+// for a call that will be expanded later in the SSA phase.
+func (a *AuxCall) LateExpansionResultType() *types.Type {
+	var tys []*types.Type
+	for i := int64(0); i < a.NResults(); i++ {
+		tys = append(tys, a.TypeOfResult(i))
+	}
+	tys = append(tys, types.TypeMem)
+	return types.NewResults(tys)
+}
+
 // NArgs returns the number of arguments
 func (a *AuxCall) NArgs() int64 {
 	return int64(len(a.args))
@@ -255,9 +266,6 @@ func (x ValAndOff) Val8() int8   { return int8(int64(x) >> 32) }
 func (x ValAndOff) Off() int64   { return int64(int32(x)) }
 func (x ValAndOff) Off32() int32 { return int32(x) }
 
-func (x ValAndOff) Int64() int64 {
-	return int64(x)
-}
 func (x ValAndOff) String() string {
 	return fmt.Sprintf("val=%d,off=%d", x.Val(), x.Off())
 }
@@ -286,17 +294,9 @@ func validValAndOff(val, off int64) bool {
 	return true
 }
 
-// makeValAndOff encodes a ValAndOff into an int64 suitable for storing in an AuxInt field.
-func makeValAndOff(val, off int64) int64 {
-	if !validValAndOff(val, off) {
-		panic("invalid makeValAndOff")
-	}
-	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
-}
 func makeValAndOff32(val, off int32) ValAndOff {
 	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
 }
-
 func makeValAndOff64(val, off int64) ValAndOff {
 	if !validValAndOff(val, off) {
 		panic("invalid makeValAndOff64")
@@ -304,35 +304,26 @@ func makeValAndOff64(val, off int64) ValAndOff {
 	return ValAndOff(val<<32 + int64(uint32(off)))
 }
 
-func (x ValAndOff) canAdd(off int64) bool {
-	newoff := x.Off() + off
-	return newoff == int64(int32(newoff))
-}
-
 func (x ValAndOff) canAdd32(off int32) bool {
 	newoff := x.Off() + int64(off)
 	return newoff == int64(int32(newoff))
 }
-
-func (x ValAndOff) add(off int64) int64 {
-	if !x.canAdd(off) {
-		panic("invalid ValAndOff.add")
-	}
-	return makeValAndOff(x.Val(), x.Off()+off)
+func (x ValAndOff) canAdd64(off int64) bool {
+	newoff := x.Off() + off
+	return newoff == int64(int32(newoff))
 }
 
 func (x ValAndOff) addOffset32(off int32) ValAndOff {
 	if !x.canAdd32(off) {
-		panic("invalid ValAndOff.add")
+		panic("invalid ValAndOff.addOffset32")
 	}
-	return ValAndOff(makeValAndOff(x.Val(), x.Off()+int64(off)))
+	return makeValAndOff64(x.Val(), x.Off()+int64(off))
 }
-
 func (x ValAndOff) addOffset64(off int64) ValAndOff {
-	if !x.canAdd(off) {
-		panic("invalid ValAndOff.add")
+	if !x.canAdd64(off) {
+		panic("invalid ValAndOff.addOffset64")
 	}
-	return ValAndOff(makeValAndOff(x.Val(), x.Off()+off))
+	return makeValAndOff64(x.Val(), x.Off()+off)
 }
 
 // int128 is a type that stores a 128-bit constant.

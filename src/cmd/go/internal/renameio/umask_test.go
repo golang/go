@@ -7,6 +7,7 @@
 package renameio
 
 import (
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", file, mode, err)
 	}
 
-	if fi.Mode()&os.ModePerm != 0640 {
-		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&os.ModePerm, 0640)
+	if fi.Mode()&fs.ModePerm != 0640 {
+		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&fs.ModePerm, 0640)
 	}
 }

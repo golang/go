@@ -773,22 +773,29 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
 		var name string
 		switch t {
-		case types.Idealbool:
+		case types.UntypedBool:
 			name = "untyped bool"
-		case types.Idealstring:
+		case types.UntypedString:
 			name = "untyped string"
-		case types.Idealint:
+		case types.UntypedInt:
 			name = "untyped int"
-		case types.Idealrune:
+		case types.UntypedRune:
 			name = "untyped rune"
-		case types.Idealfloat:
+		case types.UntypedFloat:
 			name = "untyped float"
-		case types.Idealcomplex:
+		case types.UntypedComplex:
 			name = "untyped complex"
 		default:
 			name = basicnames[t.Etype]
 		}
 		b.WriteString(name)
+		return
+	}
+
+	if mode == FDbg {
+		b.WriteString(t.Etype.String())
+		b.WriteByte('-')
+		tconv2(b, t, flag, FErr, visited)
 		return
 	}
 
@@ -805,12 +812,6 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	visited[t] = b.Len()
 	defer delete(visited, t)
 
-	if mode == FDbg {
-		b.WriteString(t.Etype.String())
-		b.WriteByte('-')
-		tconv2(b, t, flag, FErr, visited)
-		return
-	}
 	switch t.Etype {
 	case TPTR:
 		b.WriteByte('*')
@@ -1333,7 +1334,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			n.Orig.exprfmt(s, prec, mode)
 			return
 		}
-		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.Idealbool && n.Type != types.Idealstring {
+		if n.Type != nil && !n.Type.IsUntyped() {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {

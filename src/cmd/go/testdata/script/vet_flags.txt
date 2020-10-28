@@ -2,20 +2,24 @@ env GO111MODULE=on
 
 # Issue 35837: "go vet -<analyzer> <std package>" should use the requested
 # analyzers, not the default analyzers for 'go test'.
-go vet -n -unreachable=false encoding/binary
-stderr '-unreachable=false'
+go vet -n -buildtags=false runtime
+stderr '-buildtags=false'
 ! stderr '-unsafeptr=false'
 
 # Issue 37030: "go vet <std package>" without other flags should disable the
 # unsafeptr check by default.
-go vet -n encoding/binary
+go vet -n runtime
 stderr '-unsafeptr=false'
 ! stderr '-unreachable=false'
 
 # However, it should be enabled if requested explicitly.
-go vet -n -unsafeptr encoding/binary
+go vet -n -unsafeptr runtime
 stderr '-unsafeptr'
 ! stderr '-unsafeptr=false'
+
+# -unreachable is disabled during test but on during plain vet.
+go test -n runtime
+stderr '-unreachable=false'
 
 # A flag terminator should be allowed before the package list.
 go vet -n -- .
@@ -60,10 +64,10 @@ stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # "go test" on a standard package should by default disable an explicit list.
 go test -x -run=none encoding/binary
-stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 go test -x -vet= -run=none encoding/binary
-stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # Both should allow users to override via the -vet flag.
 go test -x -vet=unreachable -run=none .

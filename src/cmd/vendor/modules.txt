@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+# github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
 ## explicit
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -18,7 +18,7 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
 ## explicit
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.0.0-20200826200359-b19915210f00
+# golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
 ## explicit
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
@@ -45,7 +45,7 @@ golang.org/x/mod/zip
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/tools v0.0.0-20200918232735-d647fc253266
+# golang.org/x/tools v0.0.0-20201014170642-d1624618ad65
 ## explicit
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags

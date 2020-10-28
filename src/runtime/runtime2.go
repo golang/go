@@ -387,14 +387,6 @@ type libcall struct {
 	err  uintptr // error number
 }
 
-// describes how to handle callback
-type wincallbackcontext struct {
-	gobody       unsafe.Pointer // go function to call
-	argsize      uintptr        // callback arguments size (in bytes)
-	restorestack uintptr        // adjust stack on return by (in bytes) (386 only)
-	cleanstack   bool
-}
-
 // Stack describes a Go execution stack.
 // The bounds of the stack are exactly [lo, hi),
 // with no implicit data structures on either side.
@@ -528,6 +520,7 @@ type m struct {
 	ncgo          int32       // number of cgo calls currently in progress
 	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
 	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
+	doesPark      bool        // non-P running threads: sysmon and newmHandoff never use .park
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
@@ -543,6 +536,13 @@ type m struct {
 	startingtrace bool
 	syscalltick   uint32
 	freelink      *m // on sched.freem
+
+	// mFixup is used to synchronize OS related m state (credentials etc)
+	// use mutex to access.
+	mFixup struct {
+		lock mutex
+		fn   func(bool) bool
+	}
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
@@ -645,6 +645,13 @@ type p struct {
 	// This is updated using atomic functions.
 	// This is 0 if the timer heap is empty.
 	timer0When uint64
+
+	// The earliest known nextwhen field of a timer with
+	// timerModifiedEarlier status. Because the timer may have been
+	// modified again, there need not be any timer with this value.
+	// This is updated using atomic functions.
+	// This is 0 if the value is unknown.
+	timerModifiedEarliest uint64
 
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
@@ -767,6 +774,10 @@ type schedt struct {
 	stopnote   note
 	sysmonwait uint32
 	sysmonnote note
+
+	// While true, sysmon not ready for mFixup calls.
+	// Accessed atomically.
+	sysmonStarting uint32
 
 	// safepointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
@@ -1035,13 +1046,21 @@ func (w waitReason) String() string {
 var (
 	allglen    uintptr
 	allm       *m
-	allp       []*p  // len(allp) == gomaxprocs; may change at safe points, otherwise immutable
-	allpLock   mutex // Protects P-less reads of allp and all writes
 	gomaxprocs int32
 	ncpu       int32
 	forcegc    forcegcstate
 	sched      schedt
 	newprocs   int32
+
+	// allpLock protects P-less reads and size changes of allp and
+	// idlepMask, and all writes to allp.
+	allpLock mutex
+	// len(allp) == gomaxprocs; may change at safe points, otherwise
+	// immutable.
+	allp []*p
+	// Bitmask of Ps in _Pidle list, one bit per P. Reads and writes must
+	// be atomic. Length may change at safe points.
+	idlepMask pIdleMask
 
 	// Information about what cpu features are available.
 	// Packages outside the runtime should not use these

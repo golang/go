@@ -88,7 +88,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	lock(&finlock)
 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
-			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
+			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gcMiscSys))
 			finc.alllink = allfin
 			allfin = finc
 			if finptrmask[0] == 0 {
@@ -210,7 +210,7 @@ func runfinq() {
 					// set up with empty interface
 					(*eface)(frame)._type = &f.ot.typ
 					(*eface)(frame).data = f.arg
-					if len(ityp.mhdr) != 0 {
+					if !ityp.isEmpty() {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
 						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
@@ -394,7 +394,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		}
 	case fint.kind&kindMask == kindInterface:
 		ityp := (*interfacetype)(unsafe.Pointer(fint))
-		if len(ityp.mhdr) == 0 {
+		if ityp.isEmpty() {
 			// ok - satisfies empty interface
 			goto okarg
 		}

@@ -24,10 +24,11 @@ import (
 // L               = 64 bit int, used when the opcode starts with F
 
 const (
-	riscv64REG_G    = 4
+	riscv64REG_G    = 27
 	riscv64REG_CTXT = 20
 	riscv64REG_LR   = 1
 	riscv64REG_SP   = 2
+	riscv64REG_TP   = 4
 	riscv64REG_TMP  = 31
 	riscv64REG_ZERO = 0
 )
@@ -78,8 +79,8 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_TMP:
+		// ZERO, TP and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_TP, riscv64REG_TMP:
 		case riscv64REG_G:
 			gpgMask |= mask
 			gpspsbgMask |= mask
@@ -192,6 +193,17 @@ func init() {
 		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
+		// Conversions
+		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},   // move from arg0, sign-extended from half
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0, sign-extended from word
+		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOV"},    // move from arg0
+		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
+		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
+
+		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}, resultInArg0: true}, // nop, return arg0 in same register
+
 		// Shift ops
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
@@ -227,6 +239,44 @@ func init() {
 		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},         // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "CallOff", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+
+		// duffzero
+		// arg0 = address of memory to zero (in X10, changed as side effect)
+		// arg1 = mem
+		// auxint = offset into duffzero code to start executing
+		// X1 (link register) changed because of function call
+		// returns mem
+		{
+			name:      "DUFFZERO",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:   []regMask{regNamed["X10"]},
+				clobbers: regNamed["X1"] | regNamed["X10"],
+			},
+			typ:            "Mem",
+			faultOnNilArg0: true,
+		},
+
+		// duffcopy
+		// arg0 = address of dst memory (in X11, changed as side effect)
+		// arg1 = address of src memory (in X10, changed as side effect)
+		// arg2 = mem
+		// auxint = offset into duffcopy code to start executing
+		// X1 (link register) changed because of function call
+		// returns mem
+		{
+			name:      "DUFFCOPY",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{regNamed["X11"], regNamed["X10"]},
+				clobbers: regNamed["X1"] | regNamed["X10"] | regNamed["X11"],
+			},
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
 
 		// Generic moves and zeros
 

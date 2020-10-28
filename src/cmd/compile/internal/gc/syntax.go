@@ -142,7 +142,7 @@ const (
 	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
 	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
+	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP
 	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=
@@ -247,7 +247,7 @@ func (n *Node) Val() Val {
 // SetVal sets the Val for the node, which must not have been used with SetOpt.
 func (n *Node) SetVal(v Val) {
 	if n.HasOpt() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Opt", n)
 		Fatalf("have Opt")
 	}
@@ -270,7 +270,7 @@ func (n *Node) SetOpt(x interface{}) {
 		return
 	}
 	if n.HasVal() {
-		Debug['h'] = 1
+		Debug.h = 1
 		Dump("have Val", n)
 		Fatalf("have Val")
 	}
@@ -460,14 +460,14 @@ type Param struct {
 	//     x1 := xN.Defn
 	//     x1.Innermost = xN.Outer
 	//
-	// We leave xN.Innermost set so that we can still get to the original
+	// We leave x1.Innermost set so that we can still get to the original
 	// variable quickly. Not shown here, but once we're
 	// done parsing a function and no longer need xN.Outer for the
-	// lexical x reference links as described above, closurebody
+	// lexical x reference links as described above, funcLit
 	// recomputes xN.Outer as the semantic x reference link tree,
 	// even filling in x in intermediate closures that might not
 	// have mentioned it along the way to inner closures that did.
-	// See closurebody for details.
+	// See funcLit for details.
 	//
 	// During the eventual compilation, then, for closure variables we have:
 	//
@@ -480,11 +480,87 @@ type Param struct {
 	Innermost *Node
 	Outer     *Node
 
-	// OTYPE
-	//
-	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma PragmaFlag
-	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
+	// OTYPE & ONAME //go:embed info,
+	// sharing storage to reduce gc.Param size.
+	// Extra is nil, or else *Extra is a *paramType or an *embedFileList.
+	Extra *interface{}
+}
+
+type paramType struct {
+	flag  PragmaFlag
+	alias bool
+}
+
+type embedFileList []string
+
+// Pragma returns the PragmaFlag for p, which must be for an OTYPE.
+func (p *Param) Pragma() PragmaFlag {
+	if p.Extra == nil {
+		return 0
+	}
+	return (*p.Extra).(*paramType).flag
+}
+
+// SetPragma sets the PragmaFlag for p, which must be for an OTYPE.
+func (p *Param) SetPragma(flag PragmaFlag) {
+	if p.Extra == nil {
+		if flag == 0 {
+			return
+		}
+		p.Extra = new(interface{})
+		*p.Extra = &paramType{flag: flag}
+		return
+	}
+	(*p.Extra).(*paramType).flag = flag
+}
+
+// Alias reports whether p, which must be for an OTYPE, is a type alias.
+func (p *Param) Alias() bool {
+	if p.Extra == nil {
+		return false
+	}
+	t, ok := (*p.Extra).(*paramType)
+	if !ok {
+		return false
+	}
+	return t.alias
+}
+
+// SetAlias sets whether p, which must be for an OTYPE, is a type alias.
+func (p *Param) SetAlias(alias bool) {
+	if p.Extra == nil {
+		if !alias {
+			return
+		}
+		p.Extra = new(interface{})
+		*p.Extra = &paramType{alias: alias}
+		return
+	}
+	(*p.Extra).(*paramType).alias = alias
+}
+
+// EmbedFiles returns the list of embedded files for p,
+// which must be for an ONAME var.
+func (p *Param) EmbedFiles() []string {
+	if p.Extra == nil {
+		return nil
+	}
+	return *(*p.Extra).(*embedFileList)
+}
+
+// SetEmbedFiles sets the list of embedded files for p,
+// which must be for an ONAME var.
+func (p *Param) SetEmbedFiles(list []string) {
+	if p.Extra == nil {
+		if len(list) == 0 {
+			return
+		}
+		f := embedFileList(list)
+		p.Extra = new(interface{})
+		*p.Extra = &f
+		return
+	}
+	*(*p.Extra).(*embedFileList) = list
 }
 
 // Functions

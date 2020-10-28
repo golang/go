@@ -298,6 +298,32 @@ func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
 
+func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+	stopTheWorld("ReadMetricsSlow")
+
+	// Initialize the metrics beforehand because this could
+	// allocate and skew the stats.
+	semacquire(&metricsSema)
+	initMetrics()
+	semrelease(&metricsSema)
+
+	systemstack(func() {
+		// Read memstats first. It's going to flush
+		// the mcaches which readMetrics does not do, so
+		// going the other way around may result in
+		// inconsistent statistics.
+		readmemstats_m(memStats)
+	})
+
+	// Read metrics off the system stack.
+	//
+	// The only part of readMetrics that could allocate
+	// and skew the stats is initMetrics.
+	readMetrics(samplesp, len, cap)
+
+	startTheWorld()
+}
+
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
@@ -337,20 +363,22 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			}
 		}
 
-		// Add in frees. readmemstats_m flushed the cached stats, so
-		// these are up-to-date.
+		// Add in frees by just reading the stats for those directly.
+		var m heapStatsDelta
+		memstats.heapStats.unsafeRead(&m)
+
+		// Collect per-sizeclass free stats.
 		var smallFree uint64
-		slow.Frees = mheap_.nlargefree
-		for i := range mheap_.nsmallfree {
-			slow.Frees += mheap_.nsmallfree[i]
-			bySize[i].Frees = mheap_.nsmallfree[i]
-			bySize[i].Mallocs += mheap_.nsmallfree[i]
-			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		for i := 0; i < _NumSizeClasses; i++ {
+			slow.Frees += uint64(m.smallFreeCount[i])
+			bySize[i].Frees += uint64(m.smallFreeCount[i])
+			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
+			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
 		}
-		slow.Frees += memstats.tinyallocs
+		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
 		slow.Mallocs += slow.Frees
 
-		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
+		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
 
 		for i := range slow.BySize {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
@@ -749,10 +777,7 @@ func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
 func (p *PageAlloc) InUse() []AddrRange {
 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
 	for _, r := range p.inUse.ranges {
-		ranges = append(ranges, AddrRange{
-			Base:  r.base.addr(),
-			Limit: r.limit.addr(),
-		})
+		ranges = append(ranges, AddrRange{r})
 	}
 	return ranges
 }
@@ -763,10 +788,111 @@ func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
 	return (*PallocData)((*pageAlloc)(p).tryChunkOf(ci))
 }
 
-// AddrRange represents a range over addresses.
-// Specifically, it represents the range [Base, Limit).
+// AddrRange is a wrapper around addrRange for testing.
 type AddrRange struct {
-	Base, Limit uintptr
+	addrRange
+}
+
+// MakeAddrRange creates a new address range.
+func MakeAddrRange(base, limit uintptr) AddrRange {
+	return AddrRange{makeAddrRange(base, limit)}
+}
+
+// Base returns the virtual base address of the address range.
+func (a AddrRange) Base() uintptr {
+	return a.addrRange.base.addr()
+}
+
+// Base returns the virtual address of the limit of the address range.
+func (a AddrRange) Limit() uintptr {
+	return a.addrRange.limit.addr()
+}
+
+// Equals returns true if the two address ranges are exactly equal.
+func (a AddrRange) Equals(b AddrRange) bool {
+	return a == b
+}
+
+// Size returns the size in bytes of the address range.
+func (a AddrRange) Size() uintptr {
+	return a.addrRange.size()
+}
+
+// AddrRanges is a wrapper around addrRanges for testing.
+type AddrRanges struct {
+	addrRanges
+	mutable bool
+}
+
+// NewAddrRanges creates a new empty addrRanges.
+//
+// Note that this initializes addrRanges just like in the
+// runtime, so its memory is persistentalloc'd. Call this
+// function sparingly since the memory it allocates is
+// leaked.
+//
+// This AddrRanges is mutable, so we can test methods like
+// Add.
+func NewAddrRanges() AddrRanges {
+	r := addrRanges{}
+	r.init(new(sysMemStat))
+	return AddrRanges{r, true}
+}
+
+// MakeAddrRanges creates a new addrRanges populated with
+// the ranges in a.
+//
+// The returned AddrRanges is immutable, so methods like
+// Add will fail.
+func MakeAddrRanges(a ...AddrRange) AddrRanges {
+	// Methods that manipulate the backing store of addrRanges.ranges should
+	// not be used on the result from this function (e.g. add) since they may
+	// trigger reallocation. That would normally be fine, except the new
+	// backing store won't come from the heap, but from persistentalloc, so
+	// we'll leak some memory implicitly.
+	ranges := make([]addrRange, 0, len(a))
+	total := uintptr(0)
+	for _, r := range a {
+		ranges = append(ranges, r.addrRange)
+		total += r.Size()
+	}
+	return AddrRanges{addrRanges{
+		ranges:     ranges,
+		totalBytes: total,
+		sysStat:    new(sysMemStat),
+	}, false}
+}
+
+// Ranges returns a copy of the ranges described by the
+// addrRanges.
+func (a *AddrRanges) Ranges() []AddrRange {
+	result := make([]AddrRange, 0, len(a.addrRanges.ranges))
+	for _, r := range a.addrRanges.ranges {
+		result = append(result, AddrRange{r})
+	}
+	return result
+}
+
+// FindSucc returns the successor to base. See addrRanges.findSucc
+// for more details.
+func (a *AddrRanges) FindSucc(base uintptr) int {
+	return a.findSucc(base)
+}
+
+// Add adds a new AddrRange to the AddrRanges.
+//
+// The AddrRange must be mutable (i.e. created by NewAddrRanges),
+// otherwise this method will throw.
+func (a *AddrRanges) Add(r AddrRange) {
+	if !a.mutable {
+		throw("attempt to mutate immutable AddrRanges")
+	}
+	a.add(r.addrRange)
+}
+
+// TotalBytes returns the totalBytes field of the addrRanges.
+func (a *AddrRanges) TotalBytes() uintptr {
+	return a.addrRanges.totalBytes
 }
 
 // BitRange represents a range over a bitmap.
@@ -1014,4 +1140,28 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	result := s.countAlloc()
 	s.gcmarkBits = nil
 	return result
+}
+
+const (
+	TimeHistSubBucketBits   = timeHistSubBucketBits
+	TimeHistNumSubBuckets   = timeHistNumSubBuckets
+	TimeHistNumSuperBuckets = timeHistNumSuperBuckets
+)
+
+type TimeHistogram timeHistogram
+
+// Counts returns the counts for the given bucket, subBucket indices.
+// Returns true if the bucket was valid, otherwise returns the counts
+// for the overflow bucket and false.
+func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
+	t := (*timeHistogram)(th)
+	i := bucket*TimeHistNumSubBuckets + subBucket
+	if i >= uint(len(t.counts)) {
+		return t.overflow, false
+	}
+	return t.counts[i], true
+}
+
+func (th *TimeHistogram) Record(duration int64) {
+	(*timeHistogram)(th).record(duration)
 }

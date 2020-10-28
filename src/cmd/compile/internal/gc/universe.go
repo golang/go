@@ -123,21 +123,21 @@ func lexinit() {
 		asNode(s2.Def).SetSubOp(s.op)
 	}
 
-	types.Idealstring = types.New(TSTRING)
-	types.Idealbool = types.New(TBOOL)
+	types.UntypedString = types.New(TSTRING)
+	types.UntypedBool = types.New(TBOOL)
 	types.Types[TANY] = types.New(TANY)
 
 	s := builtinpkg.Lookup("true")
 	s.Def = asTypesNode(nodbool(true))
 	asNode(s.Def).Sym = lookup("true")
 	asNode(s.Def).Name = new(Name)
-	asNode(s.Def).Type = types.Idealbool
+	asNode(s.Def).Type = types.UntypedBool
 
 	s = builtinpkg.Lookup("false")
 	s.Def = asTypesNode(nodbool(false))
 	asNode(s.Def).Sym = lookup("false")
 	asNode(s.Def).Name = new(Name)
-	asNode(s.Def).Type = types.Idealbool
+	asNode(s.Def).Type = types.UntypedBool
 
 	s = lookup("_")
 	s.Block = -100
@@ -351,7 +351,7 @@ func typeinit() {
 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
 
 	dowidth(types.Types[TSTRING])
-	dowidth(types.Idealstring)
+	dowidth(types.UntypedString)
 }
 
 func makeErrorInterface() *types.Type {

@@ -6,43 +6,20 @@
 package ioutil
 
 import (
-	"bytes"
 	"io"
+	"io/fs"
 	"os"
 	"sort"
-	"sync"
 )
-
-// readAll reads from r until an error or EOF and returns the data it read
-// from the internal buffer allocated with a specified capacity.
-func readAll(r io.Reader, capacity int64) (b []byte, err error) {
-	var buf bytes.Buffer
-	// If the buffer overflows, we will get bytes.ErrTooLarge.
-	// Return that as an error. Any other panic remains.
-	defer func() {
-		e := recover()
-		if e == nil {
-			return
-		}
-		if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
-			err = panicErr
-		} else {
-			panic(e)
-		}
-	}()
-	if int64(int(capacity)) == capacity {
-		buf.Grow(int(capacity))
-	}
-	_, err = buf.ReadFrom(r)
-	return buf.Bytes(), err
-}
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
 // A successful call returns err == nil, not err == EOF. Because ReadAll is
 // defined to read from src until EOF, it does not treat an EOF from Read
 // as an error to be reported.
+//
+// As of Go 1.16, this function simply calls io.ReadAll.
 func ReadAll(r io.Reader) ([]byte, error) {
-	return readAll(r, bytes.MinRead)
+	return io.ReadAll(r)
 }
 
 // ReadFile reads the file named by filename and returns the contents.
@@ -57,7 +34,8 @@ func ReadFile(filename string) ([]byte, error) {
 	defer f.Close()
 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
 	// read, so let's try it but be prepared for the answer to be wrong.
-	var n int64 = bytes.MinRead
+	const minRead = 512
+	var n int64 = minRead
 
 	if fi, err := f.Stat(); err == nil {
 		// As initial capacity for readAll, use Size + a little extra in case Size
@@ -66,17 +44,36 @@ func ReadFile(filename string) ([]byte, error) {
 		// cheaply. If the size was wrong, we'll either waste some space off the end
 		// or reallocate as needed, but in the overwhelmingly common case we'll get
 		// it just right.
-		if size := fi.Size() + bytes.MinRead; size > n {
+		if size := fi.Size() + minRead; size > n {
 			n = size
 		}
 	}
-	return readAll(f, n)
+
+	if int64(int(n)) != n {
+		n = minRead
+	}
+
+	b := make([]byte, 0, n)
+	for {
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
+		}
+		n, err := f.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return b, err
+		}
+	}
 }
 
 // WriteFile writes data to a file named by filename.
 // If the file does not exist, WriteFile creates it with permissions perm
 // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
-func WriteFile(filename string, data []byte, perm os.FileMode) error {
+func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err
@@ -90,7 +87,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 
 // ReadDir reads the directory named by dirname and returns
 // a list of directory entries sorted by filename.
-func ReadDir(dirname string) ([]os.FileInfo, error) {
+func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err
@@ -104,55 +101,16 @@ func ReadDir(dirname string) ([]os.FileInfo, error) {
 	return list, nil
 }
 
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
-
 // NopCloser returns a ReadCloser with a no-op Close method wrapping
 // the provided Reader r.
+//
+// As of Go 1.16, this function simply calls io.NopCloser.
 func NopCloser(r io.Reader) io.ReadCloser {
-	return nopCloser{r}
-}
-
-type devNull int
-
-// devNull implements ReaderFrom as an optimization so io.Copy to
-// ioutil.Discard can avoid doing unnecessary work.
-var _ io.ReaderFrom = devNull(0)
-
-func (devNull) Write(p []byte) (int, error) {
-	return len(p), nil
-}
-
-func (devNull) WriteString(s string) (int, error) {
-	return len(s), nil
-}
-
-var blackHolePool = sync.Pool{
-	New: func() interface{} {
-		b := make([]byte, 8192)
-		return &b
-	},
-}
-
-func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
-	bufp := blackHolePool.Get().(*[]byte)
-	readSize := 0
-	for {
-		readSize, err = r.Read(*bufp)
-		n += int64(readSize)
-		if err != nil {
-			blackHolePool.Put(bufp)
-			if err == io.EOF {
-				return n, nil
-			}
-			return
-		}
-	}
+	return io.NopCloser(r)
 }
 
 // Discard is an io.Writer on which all Write calls succeed
 // without doing anything.
-var Discard io.Writer = devNull(0)
+//
+// As of Go 1.16, this value is simply io.Discard.
+var Discard io.Writer = io.Discard

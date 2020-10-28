@@ -7,6 +7,7 @@
 package lockedfile
 
 import (
+	"io/fs"
 	"math/rand"
 	"os"
 	"strings"
@@ -41,7 +42,7 @@ func isLocked(err error) bool {
 	return false
 }
 
-func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	// Plan 9 uses a mode bit instead of explicit lock/unlock syscalls.
 	//
 	// Per http://man.cat-v.org/plan_9/5/stat: “Exclusive use files may be open
@@ -56,8 +57,8 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
 	// can be confident that a successful OpenFile implies exclusive use.
 	if fi, err := os.Stat(name); err == nil {
-		if fi.Mode()&os.ModeExclusive == 0 {
-			if err := os.Chmod(name, fi.Mode()|os.ModeExclusive); err != nil {
+		if fi.Mode()&fs.ModeExclusive == 0 {
+			if err := os.Chmod(name, fi.Mode()|fs.ModeExclusive); err != nil {
 				return nil, err
 			}
 		}
@@ -68,7 +69,7 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	nextSleep := 1 * time.Millisecond
 	const maxSleep = 500 * time.Millisecond
 	for {
-		f, err := os.OpenFile(name, flag, perm|os.ModeExclusive)
+		f, err := os.OpenFile(name, flag, perm|fs.ModeExclusive)
 		if err == nil {
 			return f, nil
 		}

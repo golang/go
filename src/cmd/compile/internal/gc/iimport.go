@@ -375,7 +375,7 @@ func (p *importReader) value() (typ *types.Type, v Val) {
 		v.U = p.string()
 	case CTINT:
 		x := new(Mpint)
-		x.Rune = typ == types.Idealrune
+		x.Rune = typ == types.UntypedRune
 		p.mpint(&x.Val, typ)
 		v.U = x
 	case CTFLT:
@@ -596,7 +596,6 @@ func (r *importReader) typ1() *types.Type {
 
 		// Ensure we expand the interface in the frontend (#25055).
 		checkwidth(t)
-
 		return t
 	}
 }
@@ -711,6 +710,7 @@ func (r *importReader) symIdx(s *types.Sym) {
 }
 
 func (r *importReader) typeExt(t *types.Type) {
+	t.SetNotInHeap(r.bool())
 	i, pi := r.int64(), r.int64()
 	if i != -1 && pi != -1 {
 		typeSymIdx[t] = [2]int64{i, pi}
@@ -742,8 +742,8 @@ func (r *importReader) doInline(n *Node) {
 
 	importlist = append(importlist, n)
 
-	if Debug['E'] > 0 && Debug['m'] > 2 {
-		if Debug['m'] > 3 {
+	if Debug.E > 0 && Debug.m > 2 {
+		if Debug.m > 3 {
 			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
 		} else {
 			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
@@ -866,7 +866,7 @@ func (r *importReader) node() *Node {
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
-	//	unimplemented
+	//	unreachable - mapped to case OXDOT below by exporter
 
 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 	// 	unreachable - mapped to case OXDOT below by exporter

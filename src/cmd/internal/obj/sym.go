@@ -205,7 +205,7 @@ func (ctxt *Link) NumberSyms() {
 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
 		// may reference named symbols whose names are not fully expanded.
 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
-			if len(s.P) <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
+			if s.Size <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
 				// We can use short hash only for symbols without relocations.
 				// Don't use short hash for type symbols, as they need special handling.
 				s.PkgIdx = goobj.PkgIdxHashed64
@@ -358,7 +358,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 }
 
 func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
-	pc := &fsym.Func.Pcln
+	fninfo := fsym.Func()
+	pc := &fninfo.Pcln
 	if flag&traverseAux == 0 {
 		// NB: should it become necessary to walk aux sym reloc references
 		// without walking the aux syms themselves, this can be changed.
@@ -389,7 +390,8 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, filesym)
 		}
 	}
-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
+
+	dwsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym}
 	for _, dws := range dwsyms {
 		if dws == nil || dws.Size == 0 {
 			continue

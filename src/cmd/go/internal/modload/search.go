@@ -7,11 +7,13 @@ package modload
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/search"
 
@@ -53,7 +55,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
-		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				m.AddError(err)
 				return nil
@@ -84,8 +86,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&os.ModeSymlink != 0 && want {
-					if target, err := os.Stat(path); err == nil && target.IsDir() {
+				if fi.Mode()&fs.ModeSymlink != 0 && want {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
 				}
@@ -154,7 +156,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(ctx, mod)
+			needSum := true
+			root, isLocal, err = fetch(ctx, mod, needSum)
 			if err != nil {
 				m.AddError(err)
 				continue

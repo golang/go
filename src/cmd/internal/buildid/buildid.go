@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"internal/xcoff"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -109,7 +110,7 @@ func ReadFile(name string) (id string, err error) {
 // in cmd/go/internal/work/exec.go.
 func readGccgoArchive(name string, f *os.File) (string, error) {
 	bad := func() (string, error) {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	off := int64(8)
@@ -167,7 +168,7 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
 // in cmd/go/internal/work/exec.go.
 func readGccgoBigArchive(name string, f *os.File) (string, error) {
 	bad := func() (string, error) {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	// Read fixed-length header.
@@ -309,13 +310,13 @@ func readRaw(name string, data []byte) (id string, err error) {
 
 	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
 	if j < 0 {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
 	id, err = strconv.Unquote(string(quoted))
 	if err != nil {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 	return id, nil
 }

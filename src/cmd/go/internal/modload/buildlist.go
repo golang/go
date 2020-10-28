@@ -37,7 +37,7 @@ var buildList []module.Version
 //
 // The caller must not modify the returned list.
 func LoadAllModules(ctx context.Context) []module.Version {
-	InitMod(ctx)
+	LoadModFile(ctx)
 	ReloadBuildList()
 	WriteGoMod()
 	return buildList
@@ -52,6 +52,21 @@ func LoadedModules() []module.Version {
 	return buildList
 }
 
+// Selected returns the selected version of the module with the given path, or
+// the empty string if the given module has no selected version
+// (either because it is not required or because it is the Target module).
+func Selected(path string) (version string) {
+	if path == Target.Path {
+		return ""
+	}
+	for _, m := range buildList {
+		if m.Path == path {
+			return m.Version
+		}
+	}
+	return ""
+}
+
 // SetBuildList sets the module build list.
 // The caller is responsible for ensuring that the list is valid.
 // SetBuildList does not retain a reference to the original list.
@@ -63,7 +78,9 @@ func SetBuildList(list []module.Version) {
 // the build list set in SetBuildList.
 func ReloadBuildList() []module.Version {
 	loaded = loadFromRoots(loaderParams{
-		tags:               imports.Tags(),
+		PackageOpts: PackageOpts{
+			Tags: imports.Tags(),
+		},
 		listRoots:          func() []string { return nil },
 		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
 	})

@@ -359,7 +359,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 			t.Errorf("got %q, expected pathErr.path %q", g, w)
 		}
 	} else {
-		t.Errorf("got %T, expected *os.PathError", err)
+		t.Errorf("got %T, expected *fs.PathError", err)
 	}
 
 	for _, dir := range dirs {

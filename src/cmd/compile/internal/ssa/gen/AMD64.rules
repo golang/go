@@ -401,7 +401,7 @@
 (Const32F ...) => (MOVSSconst ...)
 (Const64F ...) => (MOVSDconst ...)
 (ConstNil    ) => (MOVQconst [0])
-(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
+(ConstBool [c]) => (MOVLconst [b2i32(c)])
 
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)
@@ -530,8 +530,10 @@
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)
 
 // Atomic memory updates.
-(AtomicAnd8 ptr val mem) => (ANDBlock ptr val mem)
-(AtomicOr8 ptr val mem) => (ORBlock ptr val mem)
+(AtomicAnd8  ptr val mem) => (ANDBlock ptr val mem)
+(AtomicAnd32 ptr val mem) => (ANDLlock ptr val mem)
+(AtomicOr8   ptr val mem) => (ORBlock  ptr val mem)
+(AtomicOr32  ptr val mem) => (ORLlock  ptr val mem)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -957,7 +959,7 @@
 (MUL(Q|L)const [73] x) => (LEA(Q|L)8 x (LEA(Q|L)8 <v.Type> x x))
 (MUL(Q|L)const [81] x) => (LEA(Q|L)8 (LEA(Q|L)8 <v.Type> x x) (LEA(Q|L)8 <v.Type> x x))
 
-(MUL(Q|L)const [c] x) && isPowerOfTwo(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log2(int64(c)+1))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo64(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log2(int64(c)+1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
 (MUL(Q|L)const [c] x) && isPowerOfTwo32(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
@@ -1274,8 +1276,8 @@
 (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
 (CMPQconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
-(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= m && int16(m) < n => (FlagLT_ULT)
-(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= m && int8(m)  < n => (FlagLT_ULT)
+(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < n => (FlagLT_ULT)
+(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m)  && int8(m)  < n => (FlagLT_ULT)
 
 // TESTQ c c sets flags like CMPQ c 0.
 (TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c == 0 => (FlagEQ)

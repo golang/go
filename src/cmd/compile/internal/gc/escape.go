@@ -170,7 +170,7 @@ func (e *Escape) initFunc(fn *Node) {
 		Fatalf("unexpected node: %v", fn)
 	}
 	fn.Esc = EscFuncPlanned
-	if Debug['m'] > 3 {
+	if Debug.m > 3 {
 		Dump("escAnalyze", fn)
 	}
 
@@ -247,7 +247,7 @@ func (e *Escape) stmt(n *Node) {
 		lineno = lno
 	}()
 
-	if Debug['m'] > 2 {
+	if Debug.m > 2 {
 		fmt.Printf("%v:[%d] %v stmt: %v\n", linestr(lineno), e.loopDepth, funcSym(e.curfn), n)
 	}
 
@@ -275,11 +275,11 @@ func (e *Escape) stmt(n *Node) {
 	case OLABEL:
 		switch asNode(n.Sym.Label) {
 		case &nonlooping:
-			if Debug['m'] > 2 {
+			if Debug.m > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
 		case &looping:
-			if Debug['m'] > 2 {
+			if Debug.m > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopDepth++
@@ -717,7 +717,7 @@ func (e *Escape) addrs(l Nodes) []EscHole {
 func (e *Escape) assign(dst, src *Node, why string, where *Node) {
 	// Filter out some no-op assignments for escape analysis.
 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
-	if ignore && Debug['m'] != 0 {
+	if ignore && Debug.m != 0 {
 		Warnl(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
 	}
 
@@ -771,10 +771,11 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		var fn *Node
 		switch call.Op {
 		case OCALLFUNC:
-			if call.Left.Op == ONAME && call.Left.Class() == PFUNC {
-				fn = call.Left
-			} else if call.Left.Op == OCLOSURE {
-				fn = call.Left.Func.Closure.Func.Nname
+			switch v := staticValue(call.Left); {
+			case v.Op == ONAME && v.Class() == PFUNC:
+				fn = v
+			case v.Op == OCLOSURE:
+				fn = v.Func.Closure.Func.Nname
 			}
 		case OCALLMETH:
 			fn = asNode(call.Left.Type.FuncType().Nname)
@@ -930,7 +931,7 @@ func (k EscHole) note(where *Node, why string) EscHole {
 	if where == nil || why == "" {
 		Fatalf("note: missing where/why")
 	}
-	if Debug['m'] >= 2 || logopt.Enabled() {
+	if Debug.m >= 2 || logopt.Enabled() {
 		k.notes = &EscNote{
 			next:  k.notes,
 			where: where,
@@ -1051,11 +1052,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 		}
 		n.SetOpt(loc)
 
-		if mustHeapAlloc(n) {
-			why := "too large for stack"
-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || (n.Right != nil && !Isconst(n.Right, CTINT))) {
-				why = "non-constant size"
-			}
+		if why := heapAllocReason(n); why != "" {
 			e.flow(e.heapHole().addr(n, why), loc)
 		}
 	}
@@ -1080,9 +1077,9 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
 		return
 	}
 	if dst.escapes && k.derefs < 0 { // dst = &src
-		if Debug['m'] >= 2 || logopt.Enabled() {
+		if Debug.m >= 2 || logopt.Enabled() {
 			pos := linestr(src.n.Pos)
-			if Debug['m'] >= 2 {
+			if Debug.m >= 2 {
 				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
 			}
 			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
@@ -1182,8 +1179,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// that value flow for tagging the function
 			// later.
 			if l.isName(PPARAM) {
-				if (logopt.Enabled() || Debug['m'] >= 2) && !l.escapes {
-					if Debug['m'] >= 2 {
+				if (logopt.Enabled() || Debug.m >= 2) && !l.escapes {
+					if Debug.m >= 2 {
 						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
 					}
 					explanation := e.explainPath(root, l)
@@ -1199,8 +1196,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// outlives it, then l needs to be heap
 			// allocated.
 			if addressOf && !l.escapes {
-				if logopt.Enabled() || Debug['m'] >= 2 {
-					if Debug['m'] >= 2 {
+				if logopt.Enabled() || Debug.m >= 2 {
+					if Debug.m >= 2 {
 						fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
 					}
 					explanation := e.explainPath(root, l)
@@ -1238,7 +1235,7 @@ func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
 	for {
 		// Prevent infinite loop.
 		if visited[src] {
-			if Debug['m'] >= 2 {
+			if Debug.m >= 2 {
 				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
 			}
 			break
@@ -1266,7 +1263,7 @@ func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, n
 	if derefs >= 0 {
 		ops = strings.Repeat("*", derefs)
 	}
-	print := Debug['m'] >= 2
+	print := Debug.m >= 2
 
 	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
 	if print {
@@ -1420,7 +1417,7 @@ func (e *Escape) finish(fns []*Node) {
 
 		if loc.escapes {
 			if n.Op != ONAME {
-				if Debug['m'] != 0 {
+				if Debug.m != 0 {
 					Warnl(n.Pos, "%S escapes to heap", n)
 				}
 				if logopt.Enabled() {
@@ -1430,7 +1427,7 @@ func (e *Escape) finish(fns []*Node) {
 			n.Esc = EscHeap
 			addrescapes(n)
 		} else {
-			if Debug['m'] != 0 && n.Op != ONAME {
+			if Debug.m != 0 && n.Op != ONAME {
 				Warnl(n.Pos, "%S does not escape", n)
 			}
 			n.Esc = EscNone

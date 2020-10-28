@@ -35,13 +35,14 @@ var modFile *modfile.File
 // A modFileIndex is an index of data corresponding to a modFile
 // at a specific point in time.
 type modFileIndex struct {
-	data         []byte
-	dataNeedsFix bool // true if fixVersion applied a change while parsing data
-	module       module.Version
-	goVersionV   string // GoVersion with "v" prefix
-	require      map[module.Version]requireMeta
-	replace      map[module.Version]module.Version
-	exclude      map[module.Version]bool
+	data            []byte
+	dataNeedsFix    bool // true if fixVersion applied a change while parsing data
+	module          module.Version
+	goVersionV      string // GoVersion with "v" prefix
+	require         map[module.Version]requireMeta
+	replace         map[module.Version]module.Version
+	highestReplaced map[string]string // highest replaced version of each module path; empty string for wildcard-only replacements
+	exclude         map[module.Version]bool
 }
 
 // index is the index of the go.mod file as of when it was last read or written.
@@ -115,9 +116,9 @@ func checkRetractions(ctx context.Context, m module.Version) error {
 		// Ignore exclusions from the main module's go.mod.
 		// We may need to account for the current version: for example,
 		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
-		rev, err := Query(ctx, path, "latest", findCurrentVersion(path), nil)
+		rev, err := Query(ctx, path, "latest", Selected(path), nil)
 		if err != nil {
-			return &entry{err: err}
+			return &entry{nil, err}
 		}
 
 		// Load go.mod for that version.
@@ -138,13 +139,19 @@ func checkRetractions(ctx context.Context, m module.Version) error {
 		}
 		summary, err := rawGoModSummary(rm)
 		if err != nil {
-			return &entry{err: err}
+			return &entry{nil, err}
 		}
-		return &entry{retract: summary.retract}
+		return &entry{summary.retract, nil}
 	}).(*entry)
 
-	if e.err != nil {
-		return fmt.Errorf("loading module retractions: %v", e.err)
+	if err := e.err; err != nil {
+		// Attribute the error to the version being checked, not the version from
+		// which the retractions were to be loaded.
+		var mErr *module.ModuleError
+		if errors.As(err, &mErr) {
+			err = mErr.Err
+		}
+		return &retractionLoadingError{m: m, err: err}
 	}
 
 	var rationale []string
@@ -158,7 +165,7 @@ func checkRetractions(ctx context.Context, m module.Version) error {
 		}
 	}
 	if isRetracted {
-		return &retractedError{rationale: rationale}
+		return module.VersionError(m, &retractedError{rationale: rationale})
 	}
 	return nil
 }
@@ -181,6 +188,19 @@ func (e *retractedError) Error() string {
 
 func (e *retractedError) Is(err error) bool {
 	return err == ErrDisallowed
+}
+
+type retractionLoadingError struct {
+	m   module.Version
+	err error
+}
+
+func (e *retractionLoadingError) Error() string {
+	return fmt.Sprintf("loading module retractions for %v: %v", e.m, e.err)
+}
+
+func (e *retractionLoadingError) Unwrap() error {
+	return e.err
 }
 
 // ShortRetractionRationale returns a retraction rationale string that is safe
@@ -253,6 +273,14 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 			base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v", r.Old, prev, r.New)
 		}
 		i.replace[r.Old] = r.New
+	}
+
+	i.highestReplaced = make(map[string]string)
+	for _, r := range modFile.Replace {
+		v, ok := i.highestReplaced[r.Old.Path]
+		if !ok || semver.Compare(r.Old.Version, v) > 0 {
+			i.highestReplaced[r.Old.Path] = r.Old.Version
+		}
 	}
 
 	i.exclude = make(map[module.Version]bool, len(modFile.Exclude))
@@ -378,8 +406,11 @@ type retraction struct {
 // taking into account any replacements for m, exclusions of its dependencies,
 // and/or vendoring.
 //
-// goModSummary cannot be used on the Target module, as its requirements
-// may change.
+// m must be a version in the module graph, reachable from the Target module.
+// In readonly mode, the go.sum file must contain an entry for m's go.mod file
+// (or its replacement). goModSummary must not be called for the Target module
+// itself, as its requirements may change. Use rawGoModSummary for other
+// module versions.
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
@@ -413,6 +444,13 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 	actual := Replacement(m)
 	if actual.Path == "" {
 		actual = m
+	}
+	if cfg.BuildMod == "readonly" && actual.Version != "" {
+		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+		if !modfetch.HaveSum(key) {
+			suggestion := fmt.Sprintf("; try 'go mod download %s' to add it", m.Path)
+			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
+		}
 	}
 	summary, err := rawGoModSummary(actual)
 	if err != nil {

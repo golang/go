@@ -44,6 +44,9 @@ func rewriteValueMIPS(v *Value) bool {
 	case OpAtomicAdd32:
 		v.Op = OpMIPSLoweredAtomicAdd
 		return true
+	case OpAtomicAnd32:
+		v.Op = OpMIPSLoweredAtomicAnd
+		return true
 	case OpAtomicAnd8:
 		return rewriteValueMIPS_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
@@ -60,6 +63,9 @@ func rewriteValueMIPS(v *Value) bool {
 		return true
 	case OpAtomicLoadPtr:
 		v.Op = OpMIPSLoweredAtomicLoad32
+		return true
+	case OpAtomicOr32:
+		v.Op = OpMIPSLoweredAtomicOr
 		return true
 	case OpAtomicOr8:
 		return rewriteValueMIPS_OpAtomicOr8(v)
@@ -862,11 +868,11 @@ func rewriteValueMIPS_OpConst8(v *Value) bool {
 }
 func rewriteValueMIPS_OpConstBool(v *Value) bool {
 	// match: (ConstBool [b])
-	// result: (MOVWconst [int32(b2i(b))])
+	// result: (MOVWconst [b2i32(b)])
 	for {
 		b := auxIntToBool(v.AuxInt)
 		v.reset(OpMIPSMOVWconst)
-		v.AuxInt = int32ToAuxInt(int32(b2i(b)))
+		v.AuxInt = int32ToAuxInt(b2i32(b))
 		return true
 	}
 }
@@ -3846,7 +3852,7 @@ func rewriteValueMIPS_OpMIPSMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL (MOVWconst [c]) x )
-	// cond: isPowerOfTwo(int64(uint32(c)))
+	// cond: isPowerOfTwo64(int64(uint32(c)))
 	// result: (SLLconst [int32(log2uint32(int64(c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -3855,7 +3861,7 @@ func rewriteValueMIPS_OpMIPSMUL(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isPowerOfTwo64(int64(uint32(c)))) {
 				continue
 			}
 			v.reset(OpMIPSSLLconst)
@@ -6382,7 +6388,7 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 		break
 	}
 	// match: (Select0 (MULTU (MOVWconst [c]) x ))
-	// cond: isPowerOfTwo(int64(uint32(c)))
+	// cond: isPowerOfTwo64(int64(uint32(c)))
 	// result: (SRLconst [int32(32-log2uint32(int64(c)))] x)
 	for {
 		if v_0.Op != OpMIPSMULTU {
@@ -6397,7 +6403,7 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isPowerOfTwo64(int64(uint32(c)))) {
 				continue
 			}
 			v.reset(OpMIPSSRLconst)
@@ -6570,7 +6576,7 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 		break
 	}
 	// match: (Select1 (MULTU (MOVWconst [c]) x ))
-	// cond: isPowerOfTwo(int64(uint32(c)))
+	// cond: isPowerOfTwo64(int64(uint32(c)))
 	// result: (SLLconst [int32(log2uint32(int64(c)))] x)
 	for {
 		if v_0.Op != OpMIPSMULTU {
@@ -6585,7 +6591,7 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isPowerOfTwo64(int64(uint32(c)))) {
 				continue
 			}
 			v.reset(OpMIPSSLLconst)

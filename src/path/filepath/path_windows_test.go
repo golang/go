@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -34,7 +35,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 
 	const (
 		cmdfile             = `printdir.cmd`
-		perm    os.FileMode = 0700
+		perm    fs.FileMode = 0700
 	)
 
 	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")
@@ -412,6 +413,9 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+
+		// test UNC paths
+		{".", `\\localhost\c$`, `\\localhost\c$`},
 	}
 
 	tmp, err := ioutil.TempDir("", "testToNorm")

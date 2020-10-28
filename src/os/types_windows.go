@@ -45,7 +45,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	var d syscall.ByHandleFileInformation
 	err = syscall.GetFileInformationByHandle(h, &d)
 	if err != nil {
-		return nil, &PathError{"GetFileInformationByHandle", path, err}
+		return nil, &PathError{Op: "GetFileInformationByHandle", Path: path, Err: err}
 	}
 
 	var ti windows.FILE_ATTRIBUTE_TAG_INFO
@@ -58,7 +58,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 			// instance to indicate no symlinks are possible.
 			ti.ReparseTag = 0
 		} else {
-			return nil, &PathError{"GetFileInformationByHandleEx", path, err}
+			return nil, &PathError{Op: "GetFileInformationByHandleEx", Path: path, Err: err}
 		}
 	}
 
@@ -197,7 +197,7 @@ func (fs *fileStat) saveInfoFromPath(path string) error {
 		var err error
 		fs.path, err = syscall.FullPath(fs.path)
 		if err != nil {
-			return &PathError{"FullPath", path, err}
+			return &PathError{Op: "FullPath", Path: path, Err: err}
 		}
 	}
 	fs.name = basename(path)

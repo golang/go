@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -377,7 +378,7 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 
 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
 	if err != nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return out, nil
 }
@@ -395,7 +396,7 @@ func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 	return nil, vcsErrorf("ReadFileRevs not implemented")
 }
 
-func (r *vcsRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
+func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
 	// We don't technically need to lock here since we're returning an error
 	// uncondititonally, but doing so anyway will help to avoid baking in
 	// lock-inversion bugs.

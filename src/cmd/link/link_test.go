@@ -181,6 +181,7 @@ main.x: relocation target main.zero not defined
 func TestIssue33979(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
+	testenv.MustInternalLink(t)
 
 	// Skip test on platforms that do not support cgo internal linking.
 	switch runtime.GOARCH {
@@ -308,7 +309,7 @@ func TestBuildForTvOS(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
 	cmd.Env = append(os.Environ(),
 		"CGO_ENABLED=1",
-		"GOOS=darwin",
+		"GOOS=ios",
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
@@ -817,5 +818,58 @@ func TestReadOnly(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("running test program did not fail. output:\n%s", out)
+	}
+}
+
+const testIssue38554Src = `
+package main
+
+type T [10<<20]byte
+
+//go:noinline
+func f() T {
+	return T{} // compiler will make a large stmp symbol, but not used.
+}
+
+func main() {
+	x := f()
+	println(x[1])
+}
+`
+
+func TestIssue38554(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue38554")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "x.go")
+	err = ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	fi, err := os.Stat(exe)
+	if err != nil {
+		t.Fatalf("failed to stat output file: %v", err)
+	}
+
+	// The test program is not much different from a helloworld, which is
+	// typically a little over 1 MB. We allow 5 MB. If the bad stmp is live,
+	// it will be over 10 MB.
+	const want = 5 << 20
+	if got := fi.Size(); got > want {
+		t.Errorf("binary too big: got %d, want < %d", got, want)
 	}
 }

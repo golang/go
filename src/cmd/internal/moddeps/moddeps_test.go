@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -32,7 +33,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.Walk(runtime.GOROOT(), func(path string, info os.FileInfo, err error) error {
+		goroot.err = filepath.Walk(runtime.GOROOT(), func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}

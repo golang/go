@@ -60,7 +60,6 @@ var altVgotests = map[string]string{
 type codeRepoTest struct {
 	vcs         string
 	path        string
-	lookErr     string
 	mpath       string
 	rev         string
 	err         string
@@ -332,9 +331,9 @@ var codeRepoTests = []codeRepoTest{
 		// package in subdirectory - custom domain
 		// In general we can't reject these definitively in Lookup,
 		// but gopkg.in is special.
-		vcs:     "git",
-		path:    "gopkg.in/yaml.v2/abc",
-		lookErr: "invalid module path \"gopkg.in/yaml.v2/abc\"",
+		vcs:  "git",
+		path: "gopkg.in/yaml.v2/abc",
+		err:  "invalid module path \"gopkg.in/yaml.v2/abc\"",
 	},
 	{
 		// package in subdirectory - github
@@ -440,16 +439,7 @@ func TestCodeRepo(t *testing.T) {
 						testenv.MustHaveExecPath(t, tt.vcs)
 					}
 
-					repo, err := Lookup("direct", tt.path)
-					if tt.lookErr != "" {
-						if err != nil && err.Error() == tt.lookErr {
-							return
-						}
-						t.Errorf("Lookup(%q): %v, want error %q", tt.path, err, tt.lookErr)
-					}
-					if err != nil {
-						t.Fatalf("Lookup(%q): %v", tt.path, err)
-					}
+					repo := Lookup("direct", tt.path)
 
 					if tt.mpath == "" {
 						tt.mpath = tt.path
@@ -658,7 +648,7 @@ var codeRepoVersionsTests = []struct {
 	{
 		vcs:      "git",
 		path:     "gopkg.in/russross/blackfriday.v2",
-		versions: []string{"v2.0.0", "v2.0.1"},
+		versions: []string{"v2.0.0", "v2.0.1", "v2.1.0-pre.1"},
 	},
 	{
 		vcs:      "git",
@@ -685,10 +675,7 @@ func TestCodeRepoVersions(t *testing.T) {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
 
-				repo, err := Lookup("direct", tt.path)
-				if err != nil {
-					t.Fatalf("Lookup(%q): %v", tt.path, err)
-				}
+				repo := Lookup("direct", tt.path)
 				list, err := repo.Versions(tt.prefix)
 				if err != nil {
 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
@@ -763,10 +750,7 @@ func TestLatest(t *testing.T) {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
 
-				repo, err := Lookup("direct", tt.path)
-				if err != nil {
-					t.Fatalf("Lookup(%q): %v", tt.path, err)
-				}
+				repo := Lookup("direct", tt.path)
 				info, err := repo.Latest()
 				if err != nil {
 					if tt.err != "" {

@@ -662,13 +662,12 @@
 // this automatically as well.
 //
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
+// custom domains using insecure schemes such as HTTP, and also bypassess
+// module sum validation using the checksum database. Use with caution.
 // This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable is usually a better alternative, since
-// it provides control over which modules may be retrieved using an insecure
-// scheme. It should be noted that the -insecure flag also turns the module
-// checksum validation off. GOINSECURE does not do that, use GONOSUMDB.
-// See 'go help environment' for details.
+// To permit the use of insecure schemes, use the GOINSECURE environment
+// variable instead. To bypass module sum validation, use GOPRIVATE or
+// GONOSUMDB. See 'go help environment' for details.
 //
 // The second step is to download (if needed), build, and install
 // the named packages.
@@ -797,26 +796,28 @@
 //         BinaryOnly    bool     // binary-only package (no longer supported)
 //         ForTest       string   // package is only for use in named test
 //         Export        string   // file containing export data (when using -export)
+//         BuildID       string   // build ID of the compiled package (when using -export)
 //         Module        *Module  // info about package's containing module, if any (can be nil)
 //         Match         []string // command-line patterns matching this package
 //         DepOnly       bool     // package is only a dependency, not explicitly listed
 //
 //         // Source files
-//         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-//         CgoFiles        []string // .go source files that import "C"
-//         CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
-//         IgnoredGoFiles  []string // .go source files ignored due to build constraints
-//         CFiles          []string // .c source files
-//         CXXFiles        []string // .cc, .cxx and .cpp source files
-//         MFiles          []string // .m source files
-//         HFiles          []string // .h, .hh, .hpp and .hxx source files
-//         FFiles          []string // .f, .F, .for and .f90 Fortran source files
-//         SFiles          []string // .s source files
-//         SwigFiles       []string // .swig files
-//         SwigCXXFiles    []string // .swigcxx files
-//         SysoFiles       []string // .syso object files to add to archive
-//         TestGoFiles     []string // _test.go files in package
-//         XTestGoFiles    []string // _test.go files outside package
+//         GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+//         CgoFiles        []string   // .go source files that import "C"
+//         CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+//         IgnoredGoFiles  []string   // .go source files ignored due to build constraints
+//         IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+//         CFiles          []string   // .c source files
+//         CXXFiles        []string   // .cc, .cxx and .cpp source files
+//         MFiles          []string   // .m source files
+//         HFiles          []string   // .h, .hh, .hpp and .hxx source files
+//         FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+//         SFiles          []string   // .s source files
+//         SwigFiles       []string   // .swig files
+//         SwigCXXFiles    []string   // .swigcxx files
+//         SysoFiles       []string   // .syso object files to add to archive
+//         TestGoFiles     []string   // _test.go files in package
+//         XTestGoFiles    []string   // _test.go files outside package
 //
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -1854,8 +1855,8 @@
 // 		For GOARCH=arm, the ARM architecture for which to compile.
 // 		Valid values are 5, 6, 7.
 // 	GO386
-// 		For GOARCH=386, the floating point instruction set.
-// 		Valid values are 387, sse2.
+// 		For GOARCH=386, how to implement floating point instructions.
+// 		Valid values are sse2 (default), softfloat.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
@@ -2214,8 +2215,8 @@
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
 // This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable is usually a better alternative, since
-// it provides control over which modules may be retrieved using an insecure
+// The GOINSECURE environment variable should be used instead, since it
+// provides control over which packages may be retrieved using an insecure
 // scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build

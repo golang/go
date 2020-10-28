@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
@@ -276,6 +277,8 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+
+	cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -738,7 +741,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}
-	qrs, err := modload.QueryPattern(ctx, patterns[0], version, allowed)
+	qrs, err := modload.QueryPattern(ctx, patterns[0], version, modload.Selected, allowed)
 	if err != nil {
 		base.Fatalf("go install %s: %v", args[0], err)
 	}

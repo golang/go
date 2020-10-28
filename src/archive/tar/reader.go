@@ -7,7 +7,6 @@ package tar
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -104,7 +103,7 @@ func (tr *Reader) next() (*Header, error) {
 			continue // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
 			format.mayOnlyBe(FormatGNU)
-			realname, err := ioutil.ReadAll(tr)
+			realname, err := io.ReadAll(tr)
 			if err != nil {
 				return nil, err
 			}
@@ -294,7 +293,7 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 // parsePAX parses PAX headers.
 // If an extended header (type 'x') is invalid, ErrHeader is returned
 func parsePAX(r io.Reader) (map[string]string, error) {
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +849,7 @@ func discard(r io.Reader, n int64) error {
 		}
 	}
 
-	copySkipped, err := io.CopyN(ioutil.Discard, r, n-seekSkipped)
+	copySkipped, err := io.CopyN(io.Discard, r, n-seekSkipped)
 	if err == io.EOF && seekSkipped+copySkipped < n {
 		err = io.ErrUnexpectedEOF
 	}

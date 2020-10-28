@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"reflect"
@@ -282,7 +281,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		if resp.ContentLength > 0 && req.Method != "HEAD" {
 			return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with content length %d but a nil Body", rt, resp.ContentLength)
 		}
-		resp.Body = ioutil.NopCloser(strings.NewReader(""))
+		resp.Body = io.NopCloser(strings.NewReader(""))
 	}
 	if !deadline.IsZero() {
 		resp.Body = &cancelTimerBody{
@@ -697,7 +696,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			// fails, the Transport won't reuse it anyway.
 			const maxBodySlurpSize = 2 << 10
 			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
-				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
+				io.CopyN(io.Discard, resp.Body, maxBodySlurpSize)
 			}
 			resp.Body.Close()
 

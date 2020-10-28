@@ -144,11 +144,7 @@ func xinit() {
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
+		b = "sse2"
 	}
 	go386 = b
 
@@ -836,6 +832,21 @@ func runInstall(pkg string, ch chan struct{}) {
 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
+	if IsRuntimePackagePath(pkg) {
+		asmArgs = append(asmArgs, "-compiling-runtime")
+		if os.Getenv("GOEXPERIMENT") == "regabi" {
+			// In order to make it easier to port runtime assembly
+			// to the register ABI, we introduce a macro
+			// indicating the experiment is enabled.
+			//
+			// Note: a similar change also appears in
+			// cmd/go/internal/work/gc.go.
+			//
+			// TODO(austin): Remove this once we commit to the
+			// register ABI (#40724).
+			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
+		}
+	}
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -1466,9 +1477,9 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
-		if gohostos != "darwin" || gohostarch != "arm64" {
-			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+	case goos == "ios":
+		if gohostos != "ios" {
+			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
 		}
 	}
 	return ""
@@ -1546,6 +1557,7 @@ var cgoEnabled = map[string]bool{
 	"android/arm":     true,
 	"android/arm64":   true,
 	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
@@ -1555,6 +1567,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
+	"openbsd/mips64":  false,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1567,7 +1580,8 @@ var cgoEnabled = map[string]bool{
 // List of platforms which are supported but not complete yet. These get
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
-	"linux/sparc64": true,
+	"linux/sparc64":  true,
+	"openbsd/mips64": true,
 }
 
 func needCC() bool {
@@ -1736,4 +1750,24 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
+}
+
+// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+// belongs to the collection of "runtime-related" packages, including
+// "runtime" itself, "reflect", "syscall", and the
+// "runtime/internal/*" packages. See also the function of the same
+// name in cmd/internal/objabi/path.go.
+func IsRuntimePackagePath(pkgpath string) bool {
+	rval := false
+	switch pkgpath {
+	case "runtime":
+		rval = true
+	case "reflect":
+		rval = true
+	case "syscall":
+		rval = true
+	default:
+		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+	}
+	return rval
 }

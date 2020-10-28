@@ -6,7 +6,7 @@
 
 // detect attempts to autodetect the correct
 // values of the environment variables
-// used by go_darwin_arm_exec.
+// used by go_ios_exec.
 // detect shells out to ideviceinfo, a third party program that can
 // be obtained by following the instructions at
 // https://github.com/libimobiledevice/libimobiledevice.

@@ -129,9 +129,13 @@ func main() {
 			gohostarch = "riscv64"
 		case strings.Contains(out, "s390x"):
 			gohostarch = "s390x"
-		case gohostos == "darwin":
+		case gohostos == "darwin", gohostos == "ios":
 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
 				gohostarch = "arm64"
+			}
+		case gohostos == "openbsd":
+			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
+				gohostarch = "mips64"
 			}
 		default:
 			fatalf("unknown architecture: %s", out)

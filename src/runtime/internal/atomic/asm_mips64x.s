@@ -158,6 +158,12 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 TEXT ·StoreRel(SB), NOSPLIT, $0-12
 	JMP	·Store(SB)
 
+TEXT ·StoreRel64(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
+TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
 TEXT ·Store(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R1
 	MOVW	val+8(FP), R2
@@ -235,5 +241,31 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	AND	R2, R4
 	SC	R4, (R3)
 	BEQ	R4, -4(PC)
+	SYNC
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOVV	ptr+0(FP), R1
+	MOVW	val+8(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	OR	R2, R3
+	SC	R3, (R1)
+	BEQ	R3, -4(PC)
+	SYNC
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOVV	ptr+0(FP), R1
+	MOVW	val+8(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	AND	R2, R3
+	SC	R3, (R1)
+	BEQ	R3, -4(PC)
 	SYNC
 	RET
