@@ -1003,7 +1003,9 @@ func (pc *allThreadsCaller) doSyscall(initial bool) bool {
 		pc.r1 = r1
 		pc.r2 = r2
 		pc.err = err
-	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
+	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+		print("trap:", pc.trap, ", a123=[", pc.a1, ",", pc.a2, ",", pc.a3, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
 		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
 	}
 	return err == 0
@@ -1019,7 +1021,9 @@ func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
 		pc.r1 = r1
 		pc.r2 = r2
 		pc.err = err
-	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
+	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
+		print("trap:", pc.trap, ", a123456=[", pc.a1, ",", pc.a2, ",", pc.a3, ",", pc.a4, ",", pc.a5, ",", pc.a6, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
 		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
 	}
 	return err == 0
