@@ -286,3 +286,23 @@ func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
 	}
 	return cmd
 }
+
+// CPUIsSlow reports whether the CPU running the test is suspected to be slow.
+func CPUIsSlow() bool {
+	switch runtime.GOARCH {
+	case "arm", "mips", "mipsle", "mips64", "mips64le":
+		return true
+	}
+	return false
+}
+
+// SkipIfShortAndSlow skips t if -short is set and the CPU running the test is
+// suspected to be slow.
+//
+// (This is useful for CPU-intensive tests that otherwise complete quickly.)
+func SkipIfShortAndSlow(t testing.TB) {
+	if testing.Short() && CPUIsSlow() {
+		t.Helper()
+		t.Skipf("skipping test in -short mode on %s", runtime.GOARCH)
+	}
+}
