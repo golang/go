@@ -224,7 +224,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 				if gcDetailsDir == "" {
 					dirURI := span.URIFromPath(filepath.Dir(pgf.URI.Filename()))
 					s.gcOptimizationDetailsMu.Lock()
-					_, ok := s.gcOptimizatonDetails[dirURI]
+					_, ok := s.gcOptimizationDetails[dirURI]
 					s.gcOptimizationDetailsMu.Unlock()
 					if ok {
 						gcDetailsDir = dirURI

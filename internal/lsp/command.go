@@ -201,10 +201,10 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		}
 		pkgDir := span.URIFromPath(filepath.Dir(fileURI.Filename()))
 		s.gcOptimizationDetailsMu.Lock()
-		if _, ok := s.gcOptimizatonDetails[pkgDir]; ok {
-			delete(s.gcOptimizatonDetails, pkgDir)
+		if _, ok := s.gcOptimizationDetails[pkgDir]; ok {
+			delete(s.gcOptimizationDetails, pkgDir)
 		} else {
-			s.gcOptimizatonDetails[pkgDir] = struct{}{}
+			s.gcOptimizationDetails[pkgDir] = struct{}{}
 		}
 		s.gcOptimizationDetailsMu.Unlock()
 		// need to recompute diagnostics.
