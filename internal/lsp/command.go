@@ -60,29 +60,26 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, err
 		}
 	}
-	// If the command has a suggested fix function available, use it and apply
-	// the edits to the workspace.
-	if command.IsSuggestedFix() {
-		err := s.runSuggestedFixCommand(ctx, command, params.Arguments)
-		if err != nil {
-			s.showCommandError(ctx, command.Title, err)
-		}
-		return nil, err
-	}
 	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
-	// Start progress prior to spinning off a goroutine specifically so that
-	// clients are aware of the work item before the command completes. This
-	// matters for regtests, where having a continuous thread of work is
-	// convenient for assertions.
-	work := s.progress.start(ctx, command.Title, "Running...", params.WorkDoneToken, cancel)
-	if command.Synchronous {
-		return nil, s.runCommand(ctx, work, command, params.Arguments)
+
+	var work *workDone
+	// Don't show progress for suggested fixes. They should be quick.
+	if !command.IsSuggestedFix() {
+		// Start progress prior to spinning off a goroutine specifically so that
+		// clients are aware of the work item before the command completes. This
+		// matters for regtests, where having a continuous thread of work is
+		// convenient for assertions.
+		work = s.progress.start(ctx, command.Title, "Running...", params.WorkDoneToken, cancel)
 	}
-	go func() {
-		defer cancel()
-		s.runCommand(ctx, work, command, params.Arguments)
-	}()
-	return nil, nil
+	if command.Async {
+		go func() {
+			defer cancel()
+			s.runCommand(ctx, work, command, params.Arguments)
+		}()
+		return nil, nil
+	}
+	defer cancel()
+	return nil, s.runCommand(ctx, work, command, params.Arguments)
 }
 
 func (s *Server) runSuggestedFixCommand(ctx context.Context, command *source.Command, args []json.RawMessage) error {
@@ -140,6 +137,11 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 			work.end(command.ID() + ": completed")
 		}
 	}()
+	// If the command has a suggested fix function available, use it and apply
+	// the edits to the workspace.
+	if command.IsSuggestedFix() {
+		return s.runSuggestedFixCommand(ctx, command, args)
+	}
 	switch command {
 	case source.CommandTest:
 		var uri protocol.DocumentURI
