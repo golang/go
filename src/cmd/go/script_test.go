@@ -40,9 +40,7 @@ import (
 // TestScript runs the tests in testdata/script/*.txt.
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.SkipIfShortAndSlow(t)
 
 	files, err := filepath.Glob("testdata/script/*.txt")
 	if err != nil {
