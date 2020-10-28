@@ -647,11 +647,6 @@ var codeRepoVersionsTests = []struct {
 	},
 	{
 		vcs:      "git",
-		path:     "gopkg.in/russross/blackfriday.v2",
-		versions: []string{"v2.0.0", "v2.0.1", "v2.1.0-pre.1"},
-	},
-	{
-		vcs:      "git",
 		path:     "gopkg.in/natefinch/lumberjack.v2",
 		versions: []string{"v2.0.0"},
 	},
