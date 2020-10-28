@@ -460,6 +460,9 @@ func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot
 	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
 	var hasGo bool
 	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
