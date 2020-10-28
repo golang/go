@@ -48,7 +48,7 @@ go list -m example.com/x
 stdout '^example.com/x v0.1.0 '
 
 
-# Replacements should not be listed as known versions, but 'go get' should sort
+# Replacements should also be listed as known versions, and 'go get' should sort
 # them in with ordinary versions.
 
 env GOPROXY=$oldGOPROXY
@@ -64,7 +64,7 @@ stdout '^rsc.io/quote v1.3.0'
 go mod edit -replace rsc.io/quote@v1.3.1=rsc.io/quote@v1.4.0
 
 go list -versions -m rsc.io/quote
-stdout 'v1.3.0 v1.4.0'
+stdout 'v1.3.0 v1.3.1 v1.4.0'
 
 go get -d rsc.io/quote@v1.3
 go list -m rsc.io/quote
