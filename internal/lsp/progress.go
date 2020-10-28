@@ -8,6 +8,7 @@ import (
 	"context"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/event"
@@ -176,6 +177,7 @@ func (wd *workDone) report(message string, percentage float64) {
 		// to send incremental messages.
 		return
 	}
+	message = strings.TrimSuffix(message, "\n")
 	err := wd.client.Progress(wd.ctx, &protocol.ProgressParams{
 		Token: wd.token,
 		Value: &protocol.WorkDoneProgressReport{
