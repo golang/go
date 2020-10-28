@@ -874,67 +874,67 @@
 // loads/stores using PC-relative addressing directly must be aligned to the
 // size of the target.
 (MOVDload   [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%8 == 0 && (off1+off2)%8 == 0)) =>
-	(MOVDload  [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVDload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVWZload  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0)) =>
-	(MOVWZload  [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVWZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVHZload  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0)) =>
-	(MOVHZload  [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVHZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVBZload  [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(MOVBZload  [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVBZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(FMOVSload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(FMOVSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(FMOVDload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
 (MOVWload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0)) =>
-	(MOVWload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVHload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0)) =>
-	(MOVHload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(MOVBload [off1+off2] {mergeSymTyped(sym1,sym2)} base mem)
+	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
 (MOVDstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%8 == 0 && (off1+off2)%8 == 0)) =>
-	(MOVDstore  [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(MOVDstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVWstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%4 == 0 && (off1+off2)%4 == 0)) =>
-	(MOVWstore  [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVHstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.Elem().Alignment()%2 == 0 && (off1+off2)%2 == 0)) =>
-	(MOVHstore  [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(MOVHstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVBstore  [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(MOVBstore  [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(FMOVSstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	(FMOVDstore [off1+off2] {mergeSymTyped(sym1,sym2)} base val mem)
+	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
-(ADDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ADDload   [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(ADDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ADDWload  [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(MULLDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (MULLDload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(MULLWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (MULLWload [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(SUBload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (SUBload   [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(SUBWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (SUBWload  [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+(ADDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ADDload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ADDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ADDWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(MULLDload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (MULLDload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(MULLWload [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (MULLWload [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(SUBload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (SUBload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(SUBWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (SUBWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 
-(ANDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ANDload   [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(ANDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ANDWload  [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(ORload    [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ORload    [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(ORWload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ORWload   [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(XORload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (XORload   [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
-(XORWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (XORWload  [o1+o2] {mergeSymTyped(s1, s2)} x ptr mem)
+(ANDload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ANDload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ANDWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ANDWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ORload    [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ORload    [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(ORWload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (ORWload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(XORload   [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (XORload   [o1+o2] {mergeSym(s1, s2)} x ptr mem)
+(XORWload  [o1] {s1} x (MOVDaddr [o2] {s2} ptr) mem) && ptr.Op != OpSB && is20Bit(int64(o1)+int64(o2)) && canMergeSym(s1, s2) => (XORWload  [o1+o2] {mergeSym(s1, s2)} x ptr mem)
 
 // Cannot store constant to SB directly (no 'move relative long immediate' instructions).
 (MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVDstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	(MOVDstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 (MOVWstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVWstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	(MOVWstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 (MOVHstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVHstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	(MOVHstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 (MOVBstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVBstoreconst [sc.addOffset32(off)] {mergeSymTyped(sym1, sym2)} ptr mem)
+	(MOVBstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 
 // MOVDaddr into MOVDaddridx
 (MOVDaddridx [off1] {sym1} (MOVDaddr [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
-       (MOVDaddridx [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+       (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 (MOVDaddridx [off1] {sym1} x (MOVDaddr [off2] {sym2} y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && y.Op != OpSB =>
-       (MOVDaddridx [off1+off2] {mergeSymTyped(sym1,sym2)} x y)
+       (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // Absorb InvertFlags into branches.
 (BRC {c} (InvertFlags cmp) yes no) => (BRC {c.ReverseComparison()} cmp yes no)

@@ -212,21 +212,7 @@ func isSigned(t *types.Type) bool {
 
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
-func mergeSym(x, y interface{}) interface{} {
-	if x == nil {
-		return y
-	}
-	if y == nil {
-		return x
-	}
-	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
-}
-
-func canMergeSym(x, y interface{}) bool {
-	return x == nil || y == nil
-}
-
-func mergeSymTyped(x, y Sym) Sym {
+func mergeSym(x, y Sym) Sym {
 	if x == nil {
 		return y
 	}
@@ -234,6 +220,10 @@ func mergeSymTyped(x, y Sym) Sym {
 		return x
 	}
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %v %v", x, y))
+}
+
+func canMergeSym(x, y Sym) bool {
+	return x == nil || y == nil
 }
 
 // canMergeLoadClobber reports whether the load can be merged into target without
