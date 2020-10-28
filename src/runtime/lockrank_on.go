@@ -7,8 +7,13 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
+
+// worldIsStopped is accessed atomically to track world-stops. 1 == world
+// stopped.
+var worldIsStopped uint32
 
 // lockRankStruct is embedded in mutex
 type lockRankStruct struct {
@@ -282,5 +287,79 @@ func assertRankHeld(r lockRank) {
 		print("caller requires lock with rank ", r.String(), "), holding:\n")
 		printHeldLocks(gp)
 		throw("not holding required lock!")
+	})
+}
+
+// worldStopped notes that the world is stopped.
+//
+// Caller must hold worldsema.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func worldStopped() {
+	if stopped := atomic.Xadd(&worldIsStopped, 1); stopped != 1 {
+		print("world stop count=", stopped, "\n")
+		throw("recursive world stop")
+	}
+}
+
+// worldStarted that the world is starting.
+//
+// Caller must hold worldsema.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func worldStarted() {
+	if stopped := atomic.Xadd(&worldIsStopped, -1); stopped != 0 {
+		print("world stop count=", stopped, "\n")
+		throw("released non-stopped world stop")
+	}
+}
+
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func checkWorldStopped() bool {
+	stopped := atomic.Load(&worldIsStopped)
+	if stopped > 1 {
+		print("inconsistent world stop count=", stopped, "\n")
+		throw("inconsistent world stop count")
+	}
+
+	return stopped == 1
+}
+
+// assertWorldStopped throws if the world is not stopped. It does not check
+// which M stopped the world.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertWorldStopped() {
+	if checkWorldStopped() {
+		return
+	}
+
+	throw("world not stopped")
+}
+
+// assertWorldStoppedOrLockHeld throws if the world is not stopped and the
+// passed lock is not held.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertWorldStoppedOrLockHeld(l *mutex) {
+	if checkWorldStopped() {
+		return
+	}
+
+	gp := getg()
+	systemstack(func() {
+		held := checkLockHeld(gp, l)
+		if !held {
+			printlock()
+			print("caller requires world stop or lock ", l, " (rank ", l.rank.String(), "), holding:\n")
+			println("<no world stop>")
+			printHeldLocks(gp)
+			throw("no world stop or required lock!")
+		}
 	})
 }

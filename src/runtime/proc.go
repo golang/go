@@ -587,6 +587,9 @@ func schedinit() {
 
 	sched.maxmcount = 10000
 
+	// The world starts stopped.
+	worldStopped()
+
 	moduledataverify()
 	stackinit()
 	mallocinit()
@@ -616,6 +619,9 @@ func schedinit() {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 	unlock(&sched.lock)
+
+	// World is effectively started now, as P's can run.
+	worldStarted()
 
 	// For cgocheck > 1, we turn on the write barrier at all times
 	// and check all pointer writes. We can't do this until after
@@ -1082,9 +1088,13 @@ func stopTheWorldWithSema() {
 	if bad != "" {
 		throw(bad)
 	}
+
+	worldStopped()
 }
 
 func startTheWorldWithSema(emitTraceEvent bool) int64 {
+	assertWorldStopped()
+
 	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if netpollinited() {
 		list := netpoll(0) // non-blocking
@@ -1104,6 +1114,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
+
+	worldStarted()
 
 	for p1 != nil {
 		p := p1
@@ -4539,6 +4551,7 @@ func (pp *p) init(id int32) {
 // sched.lock must be held and the world must be stopped.
 func (pp *p) destroy() {
 	assertLockHeld(&sched.lock)
+	assertWorldStopped()
 
 	// Move all runnable goroutines to the global queue
 	for pp.runqhead != pp.runqtail {
@@ -4629,6 +4642,7 @@ func (pp *p) destroy() {
 // Returns list of Ps with local work, they need to be scheduled by the caller.
 func procresize(nprocs int32) *p {
 	assertLockHeld(&sched.lock)
+	assertWorldStopped()
 
 	old := gomaxprocs
 	if old < 0 || nprocs <= 0 {

@@ -34,6 +34,8 @@ var useCheckmark = false
 //
 // The world must be stopped.
 func startCheckmarks() {
+	assertWorldStopped()
+
 	// Clear all checkmarks.
 	for _, ai := range mheap_.allArenas {
 		arena := mheap_.arenas[ai.l1()][ai.l2()]

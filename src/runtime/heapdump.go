@@ -431,6 +431,9 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 }
 
 func dumproots() {
+	// To protect mheap_.allspans.
+	assertWorldStopped()
+
 	// TODO(mwhudson): dump datamask etc from all objects
 	// data segment
 	dumpint(tagData)
@@ -468,6 +471,9 @@ func dumproots() {
 var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
+	// To protect mheap_.allspans.
+	assertWorldStopped()
+
 	for _, s := range mheap_.allspans {
 		if s.state.get() != mSpanInUse {
 			continue
@@ -552,6 +558,8 @@ func dumpms() {
 
 //go:systemstack
 func dumpmemstats(m *MemStats) {
+	assertWorldStopped()
+
 	// These ints should be identical to the exported
 	// MemStats structure and should be ordered the same
 	// way too.
@@ -634,6 +642,9 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 }
 
 func dumpmemprof() {
+	// To protect mheap_.allspans.
+	assertWorldStopped()
+
 	iterate_memprof(dumpmemprof_callback)
 	for _, s := range mheap_.allspans {
 		if s.state.get() != mSpanInUse {
@@ -655,6 +666,8 @@ func dumpmemprof() {
 var dumphdr = []byte("go1.7 heap dump\n")
 
 func mdump(m *MemStats) {
+	assertWorldStopped()
+
 	// make sure we're done sweeping
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {
@@ -676,6 +689,8 @@ func mdump(m *MemStats) {
 }
 
 func writeheapdump_m(fd uintptr, m *MemStats) {
+	assertWorldStopped()
+
 	_g_ := getg()
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
 	_g_.waitreason = waitReasonDumpingHeap

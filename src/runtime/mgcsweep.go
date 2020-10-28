@@ -123,6 +123,8 @@ func (h *mheap) nextSpanForSweep() *mspan {
 //
 //go:nowritebarrier
 func finishsweep_m() {
+	assertWorldStopped()
+
 	// Sweeping must be complete before marking commences, so
 	// sweep any unswept spans. If this is a concurrent GC, there
 	// shouldn't be any spans left to sweep, so this should finish

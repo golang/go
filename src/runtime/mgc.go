@@ -2164,6 +2164,8 @@ func gcMark(start_time int64) {
 //
 //go:systemstack
 func gcSweep(mode gcMode) {
+	assertWorldStopped()
+
 	if gcphase != _GCoff {
 		throw("gcSweep being done but phase is not GCoff")
 	}
