@@ -358,12 +358,3 @@ func TestSignalM(t *testing.T) {
 		t.Fatalf("signal sent to M %d, but received on M %d", want, got)
 	}
 }
-
-// Issue #42207.
-func TestNeedmDeadlock(t *testing.T) {
-	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
-	want := "OK\n"
-	if output != want {
-		t.Fatalf("want %s, got %s\n", want, output)
-	}
-}
