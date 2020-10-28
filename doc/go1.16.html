@@ -237,10 +237,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- CL 256897 -->
   I/O operations on closing or closed TLS connections can now be detected using
-  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
-  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
   the only way to reliably detect this case was to match the string returned
   by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
+<p><!-- CL 266037 -->
+  A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
+  before sending the close notify alert, in order to prevent blocking
+  indefinitely.
 </p>
 
 <h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>

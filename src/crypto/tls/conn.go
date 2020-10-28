@@ -1074,6 +1074,11 @@ var (
 )
 
 // Write writes data to the connection.
+//
+// As Write calls Handshake, in order to prevent indefinite blocking a deadline
+// must be set for both Read and Write before Write is called when the handshake
+// has not yet completed. See SetDeadline, SetReadDeadline, and
+// SetWriteDeadline.
 func (c *Conn) Write(b []byte) (int, error) {
 	// interlock with Close below
 	for {
@@ -1232,8 +1237,12 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 	return nil
 }
 
-// Read can be made to time out and return a net.Error with Timeout() == true
-// after a fixed time limit; see SetDeadline and SetReadDeadline.
+// Read reads data from the connection.
+//
+// As Read calls Handshake, in order to prevent indefinite blocking a deadline
+// must be set for both Read and Write before Read is called when the handshake
+// has not yet completed. See SetDeadline, SetReadDeadline, and
+// SetWriteDeadline.
 func (c *Conn) Read(b []byte) (int, error) {
 	if err := c.Handshake(); err != nil {
 		return 0, err
@@ -1301,9 +1310,10 @@ func (c *Conn) Close() error {
 	}
 
 	var alertErr error
-
 	if c.handshakeComplete() {
-		alertErr = c.closeNotify()
+		if err := c.closeNotify(); err != nil {
+			alertErr = fmt.Errorf("tls: failed to send closeNotify alert (but connection was closed anyway): %w", err)
+		}
 	}
 
 	if err := c.conn.Close(); err != nil {
@@ -1330,8 +1340,12 @@ func (c *Conn) closeNotify() error {
 	defer c.out.Unlock()
 
 	if !c.closeNotifySent {
+		// Set a Write Deadline to prevent possibly blocking forever.
+		c.SetWriteDeadline(time.Now().Add(time.Second * 5))
 		c.closeNotifyErr = c.sendAlertLocked(alertCloseNotify)
 		c.closeNotifySent = true
+		// Any subsequent writes will fail.
+		c.SetWriteDeadline(time.Now())
 	}
 	return c.closeNotifyErr
 }
