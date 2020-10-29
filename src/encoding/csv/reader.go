@@ -197,6 +197,7 @@ func (r *Reader) Read() (record []string, err error) {
 // A successful call returns err == nil, not err == io.EOF. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
 // reported.
+// If there is no input left, records == nil.
 func (r *Reader) ReadAll() (records [][]string, err error) {
 	for {
 		record, err := r.readRecord(nil)
