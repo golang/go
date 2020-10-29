@@ -13,7 +13,6 @@ import (
 	"go/build"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -1561,13 +1560,18 @@ func hashOpen(name string) (cache.ActionID, error) {
 	}
 	hashWriteStat(h, info)
 	if info.IsDir() {
-		names, err := ioutil.ReadDir(name)
+		files, err := os.ReadDir(name)
 		if err != nil {
 			fmt.Fprintf(h, "err %v\n", err)
 		}
-		for _, f := range names {
+		for _, f := range files {
 			fmt.Fprintf(h, "file %s ", f.Name())
-			hashWriteStat(h, f)
+			finfo, err := f.Info()
+			if err != nil {
+				fmt.Fprintf(h, "err %v\n", err)
+			} else {
+				hashWriteStat(h, finfo)
+			}
 		}
 	} else if info.Mode().IsRegular() {
 		// Because files might be very large, do not attempt

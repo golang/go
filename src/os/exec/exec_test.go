@@ -15,7 +15,6 @@ import (
 	"internal/poll"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -386,7 +385,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	// Reading /proc/self/fd is more reliable than calling lsof, so try that
 	// first.
 	numOpenFDs := func() (int, []byte, error) {
-		fds, err := ioutil.ReadDir("/proc/self/fd")
+		fds, err := os.ReadDir("/proc/self/fd")
 		if err != nil {
 			return 0, nil, err
 		}

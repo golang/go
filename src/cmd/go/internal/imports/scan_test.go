@@ -7,7 +7,6 @@ package imports
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -58,7 +57,7 @@ func TestScan(t *testing.T) {
 func TestScanDir(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	dirs, err := ioutil.ReadDir("testdata")
+	dirs, err := os.ReadDir("testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
