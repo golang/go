@@ -2606,9 +2606,10 @@ stop:
 	// safe-points. We don't need to snapshot the contents because
 	// everything up to cap(allp) is immutable.
 	allpSnapshot := allp
-	// Also snapshot idlepMask. Value changes are OK, but we can't allow
+	// Also snapshot masks. Value changes are OK, but we can't allow
 	// len to change out from under us.
 	idlepMaskSnapshot := idlepMask
+	timerpMaskSnapshot := timerpMask
 
 	// return P and block
 	lock(&sched.lock)
@@ -2670,10 +2671,12 @@ stop:
 	// transitioning from spinning to non-spinning. Note that we cannot use
 	// checkTimers here because it calls adjusttimers which may need to allocate
 	// memory, and that isn't allowed when we don't have an active P.
-	for _, _p_ := range allpSnapshot {
-		w := nobarrierWakeTime(_p_)
-		if w != 0 && (pollUntil == 0 || w < pollUntil) {
-			pollUntil = w
+	for id, _p_ := range allpSnapshot {
+		if timerpMaskSnapshot.read(uint32(id)) {
+			w := nobarrierWakeTime(_p_)
+			if w != 0 && (pollUntil == 0 || w < pollUntil) {
+				pollUntil = w
+			}
 		}
 	}
 	if pollUntil != 0 {
