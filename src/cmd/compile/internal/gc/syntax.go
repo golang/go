@@ -631,7 +631,7 @@ type Func struct {
 	Ntype      *Node // signature
 	Top        int   // top context (ctxCallee, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
-	Nname      *Node
+	Nname      *Node // The ONAME node associated with an ODCLFUNC (both have same Type)
 	lsym       *obj.LSym
 
 	Inl *Inline
@@ -773,7 +773,7 @@ const (
 	OCALLPART  // Left.Right (method expression x.Method, not called)
 	OCAP       // cap(Left)
 	OCLOSE     // close(Left)
-	OCLOSURE   // func Type { Body } (func literal)
+	OCLOSURE   // func Type { Func.Closure.Nbody } (func literal)
 	OCOMPLIT   // Right{List} (composite literal, not yet lowered to specific form)
 	OMAPLIT    // Type{List} (composite literal, Type is map)
 	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
@@ -863,9 +863,14 @@ const (
 	OSIZEOF      // unsafe.Sizeof(Left)
 
 	// statements
-	OBLOCK    // { List } (block of code)
-	OBREAK    // break [Sym]
-	OCASE     // case List: Nbody (List==nil means default)
+	OBLOCK // { List } (block of code)
+	OBREAK // break [Sym]
+	// OCASE:  case List: Nbody (List==nil means default)
+	//   For OTYPESW, List is a OTYPE node for the specified type (or OLITERAL
+	//   for nil), and, if a type-switch variable is specified, Rlist is an
+	//   ONAME for the version of the type-switch variable with the specified
+	//   type.
+	OCASE
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
@@ -889,15 +894,19 @@ const (
 	ORETURN // return List
 	OSELECT // select { List } (List is list of OCASE)
 	OSWITCH // switch Ninit; Left { List } (List is a list of OCASE)
-	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
+	// OTYPESW:  Left := Right.(type) (appears as .Left of OSWITCH)
+	//   Left is nil if there is no type-switch variable
+	OTYPESW
 
 	// types
 	OTCHAN   // chan int
 	OTMAP    // map[string]int
 	OTSTRUCT // struct{}
 	OTINTER  // interface{}
-	OTFUNC   // func()
-	OTARRAY  // []int, [8]int, [N]int or [...]int
+	// OTFUNC: func() - Left is receiver field, List is list of param fields, Rlist is
+	// list of result fields.
+	OTFUNC
+	OTARRAY // []int, [8]int, [N]int or [...]int
 
 	// misc
 	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
