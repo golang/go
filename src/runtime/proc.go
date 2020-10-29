@@ -2659,18 +2659,9 @@ stop:
 	// checkTimers here because it calls adjusttimers which may need to allocate
 	// memory, and that isn't allowed when we don't have an active P.
 	for _, _p_ := range allpSnapshot {
-		// This is similar to nobarrierWakeTime, but minimizes calls to
-		// nanotime.
-		if atomic.Load(&_p_.adjustTimers) > 0 {
-			if now == 0 {
-				now = nanotime()
-			}
-			pollUntil = now
-		} else {
-			w := int64(atomic.Load64(&_p_.timer0When))
-			if w != 0 && (pollUntil == 0 || w < pollUntil) {
-				pollUntil = w
-			}
+		w := nobarrierWakeTime(_p_)
+		if w != 0 && (pollUntil == 0 || w < pollUntil) {
+			pollUntil = w
 		}
 	}
 	if pollUntil != 0 {

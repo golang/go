@@ -742,16 +742,15 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 // nobarrierWakeTime looks at P's timers and returns the time when we
 // should wake up the netpoller. It returns 0 if there are no timers.
 // This function is invoked when dropping a P, and must run without
-// any write barriers. Therefore, if there are any timers that needs
-// to be moved earlier, it conservatively returns the current time.
-// The netpoller M will wake up and adjust timers before sleeping again.
+// any write barriers.
 //go:nowritebarrierrec
 func nobarrierWakeTime(pp *p) int64 {
-	if atomic.Load(&pp.adjustTimers) > 0 {
-		return nanotime()
-	} else {
-		return int64(atomic.Load64(&pp.timer0When))
+	next := int64(atomic.Load64(&pp.timer0When))
+	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+		next = nextAdj
 	}
+	return next
 }
 
 // runtimer examines the first timer in timers. If it is ready based on now,
