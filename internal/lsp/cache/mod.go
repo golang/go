@@ -202,9 +202,6 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	if fh.Kind() != source.Mod {
 		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
 	}
-	if err := s.awaitLoaded(ctx); err != nil {
-		return nil, err
-	}
 	if handle := s.getModWhyHandle(fh.URI()); handle != nil {
 		return handle.why(ctx, s)
 	}
@@ -295,9 +292,6 @@ type moduleUpgrade struct {
 func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
 	if fh.Kind() != source.Mod {
 		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
-	}
-	if err := s.awaitLoaded(ctx); err != nil {
-		return nil, err
 	}
 	if handle := s.getModUpgradeHandle(fh.URI()); handle != nil {
 		return handle.upgrades(ctx, s)
