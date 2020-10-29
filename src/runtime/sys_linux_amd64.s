@@ -380,8 +380,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$72
+TEXT runtime·sigtramp(SB),NOSPLIT,$72
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVQ	BX,  bx-8(SP)
 	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
@@ -408,8 +407,7 @@ TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$72
 
 // Used instead of sigtramp in programs that use cgo.
 // Arguments from kernel are in DI, SI, DX.
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	// If no traceback function, do usual sigtramp.
 	MOVQ	runtime·cgoTraceback(SB), AX
 	TESTQ	AX, AX
@@ -452,12 +450,12 @@ TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
 	// The first three arguments, and the fifth, are already in registers.
 	// Set the two remaining arguments now.
 	MOVQ	runtime·cgoTraceback(SB), CX
-	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
+	MOVQ	$runtime·sigtramp(SB), R9
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
 sigtramp:
-	JMP	runtime·sigtramp<ABIInternal>(SB)
+	JMP	runtime·sigtramp(SB)
 
 sigtrampnog:
 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
@@ -488,8 +486,7 @@ sigtrampnog:
 // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
 // The code that cares about the precise instructions used is:
 // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·sigreturn<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVQ	$SYS_rt_sigreturn, AX
 	SYSCALL
 	INT $3	// not reached

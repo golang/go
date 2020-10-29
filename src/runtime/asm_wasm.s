@@ -196,7 +196,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 	Get CTXT
 	I64Eqz
 	If
-		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
+		CALLNORESUME runtime·sigpanic(SB)
 	End
 
 	// caller sp after CALL
@@ -300,7 +300,7 @@ TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	I64Load fn+8(FP)
 	I64Eqz
 	If
-		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
+		CALLNORESUME runtime·sigpanic(SB)
 	End
 
 	MOVW argsize+24(FP), R0
