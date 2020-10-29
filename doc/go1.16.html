@@ -71,6 +71,16 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: write and link to blog post
 </p>
 
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code>, with or without a version suffix (as
+  described above), is now the recommended way to build and install packages in
+  module mode. <code>go</code> <code>get</code> should be used with the
+  <code>-d</code> flag to adjust the current module's dependencies without
+  building packages, and use of <code>go</code> <code>get</code> to build and
+  install packages is deprecated. In a future release, the <code>-d</code> flag
+  will always be enabled.
+</p>
+
 <p><!-- golang.org/issue/24031 -->
   <code>retract</code> directives may now be used in a <code>go.mod</code> file
   to indicate that certain published versions of the module should not be used
