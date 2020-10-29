@@ -22,7 +22,10 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/search"
 	"cmd/go/internal/web"
+
+	"golang.org/x/mod/module"
 )
 
 // A vcsCmd describes how to use a version control system
@@ -591,10 +594,144 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 	}
 
 	if vcsRet != nil {
+		if err := checkGOVCS(vcsRet, rootRet); err != nil {
+			return nil, "", err
+		}
 		return vcsRet, rootRet, nil
 	}
 
 	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
+}
+
+// A govcsRule is a single GOVCS rule like private:hg|svn.
+type govcsRule struct {
+	pattern string
+	allowed []string
+}
+
+// A govcsConfig is a full GOVCS configuration.
+type govcsConfig []govcsRule
+
+func parseGOVCS(s string) (govcsConfig, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	var cfg govcsConfig
+	have := make(map[string]string)
+	for _, item := range strings.Split(s, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, fmt.Errorf("empty entry in GOVCS")
+		}
+		i := strings.Index(item, ":")
+		if i < 0 {
+			return nil, fmt.Errorf("malformed entry in GOVCS (missing colon): %q", item)
+		}
+		pattern, list := strings.TrimSpace(item[:i]), strings.TrimSpace(item[i+1:])
+		if pattern == "" {
+			return nil, fmt.Errorf("empty pattern in GOVCS: %q", item)
+		}
+		if list == "" {
+			return nil, fmt.Errorf("empty VCS list in GOVCS: %q", item)
+		}
+		if search.IsRelativePath(pattern) {
+			return nil, fmt.Errorf("relative pattern not allowed in GOVCS: %q", pattern)
+		}
+		if old := have[pattern]; old != "" {
+			return nil, fmt.Errorf("unreachable pattern in GOVCS: %q after %q", item, old)
+		}
+		have[pattern] = item
+		allowed := strings.Split(list, "|")
+		for i, a := range allowed {
+			a = strings.TrimSpace(a)
+			if a == "" {
+				return nil, fmt.Errorf("empty VCS name in GOVCS: %q", item)
+			}
+			allowed[i] = a
+		}
+		cfg = append(cfg, govcsRule{pattern, allowed})
+	}
+	return cfg, nil
+}
+
+func (c *govcsConfig) allow(path string, private bool, vcs string) bool {
+	for _, rule := range *c {
+		match := false
+		switch rule.pattern {
+		case "private":
+			match = private
+		case "public":
+			match = !private
+		default:
+			// Note: rule.pattern is known to be comma-free,
+			// so MatchPrefixPatterns is only matching a single pattern for us.
+			match = module.MatchPrefixPatterns(rule.pattern, path)
+		}
+		if !match {
+			continue
+		}
+		for _, allow := range rule.allowed {
+			if allow == vcs || allow == "all" {
+				return true
+			}
+		}
+		return false
+	}
+
+	// By default, nothing is allowed.
+	return false
+}
+
+var (
+	govcs     govcsConfig
+	govcsErr  error
+	govcsOnce sync.Once
+)
+
+// defaultGOVCS is the default setting for GOVCS.
+// Setting GOVCS adds entries ahead of these but does not remove them.
+// (They are appended to the parsed GOVCS setting.)
+//
+// The rationale behind allowing only Git and Mercurial is that
+// these two systems have had the most attention to issues
+// of being run as clients of untrusted servers. In contrast,
+// Bazaar, Fossil, and Subversion have primarily been used
+// in trusted, authenticated environments and are not as well
+// scrutinized as attack surfaces.
+//
+// See golang.org/issue/41730 for details.
+var defaultGOVCS = govcsConfig{
+	{"private", []string{"all"}},
+	{"public", []string{"git", "hg"}},
+}
+
+func checkGOVCS(vcs *Cmd, root string) error {
+	if vcs.Cmd == "mod" {
+		// Direct module (proxy protocol) fetches don't
+		// involve an external version control system
+		// and are always allowed.
+		return nil
+	}
+
+	govcsOnce.Do(func() {
+		govcs, govcsErr = parseGOVCS(os.Getenv("GOVCS"))
+		govcs = append(govcs, defaultGOVCS...)
+	})
+	if govcsErr != nil {
+		return govcsErr
+	}
+
+	private := module.MatchPrefixPatterns(cfg.GOPRIVATE, root)
+	if !govcs.allow(root, private, vcs.Cmd) {
+		what := "public"
+		if private {
+			what = "private"
+		}
+		return fmt.Errorf("GOVCS disallows using %s for %s %s", vcs.Cmd, what, root)
+	}
+
+	return nil
 }
 
 // CheckNested checks for an incorrectly-nested VCS-inside-VCS
@@ -733,6 +870,9 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
+		if err := checkGOVCS(vcs, match["root"]); err != nil {
+			return nil, err
+		}
 		var repoURL string
 		if !srv.schemelessRepo {
 			repoURL = match["repo"]
@@ -855,6 +995,10 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		if vcs == nil {
 			return nil, fmt.Errorf("%s: unknown vcs %q", resp.URL, mmi.VCS)
 		}
+	}
+
+	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
+		return nil, err
 	}
 
 	rr := &RepoRoot{
