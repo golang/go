@@ -701,6 +701,13 @@ func Main(archInit func(*Arch)) {
 		})
 	}
 
+	for _, n := range xtop {
+		if n.Op == ODCLFUNC {
+			devirtualize(n)
+		}
+	}
+	Curfn = nil
+
 	// Phase 6: Escape analysis.
 	// Required for moving heap allocations onto stack,
 	// which in turn is required by the closure implementation,
