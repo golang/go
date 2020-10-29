@@ -72,7 +72,7 @@
 //
 // Usage:
 //
-// 	go build [-o output] [-i] [build flags] [packages]
+// 	go build [-o output] [build flags] [packages]
 //
 // Build compiles the packages named by the import paths,
 // along with their dependencies, but it does not install the results.
@@ -99,6 +99,7 @@
 // will be written to that directory.
 //
 // The -i flag installs the packages that are dependencies of the target.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
@@ -717,7 +718,7 @@
 //
 // Usage:
 //
-// 	go install [-i] [build flags] [packages]
+// 	go install [build flags] [packages]
 //
 // Install compiles and installs the packages named by the import paths.
 //
@@ -758,6 +759,7 @@
 // other packages are built and cached but not installed.
 //
 // The -i flag installs the dependencies of the named packages as well.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -1459,6 +1461,7 @@
 // 	-i
 // 	    Install packages that are dependencies of the test.
 // 	    Do not run the test.
+// 	    The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // 	-json
 // 	    Convert test output to JSON suitable for automated processing.
