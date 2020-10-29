@@ -7,6 +7,7 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -83,8 +84,10 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		}
 	}
 
-	goplsVer := &bytes.Buffer{}
-	debug.PrintVersionInfo(ctx, goplsVer, true, debug.PlainText)
+	goplsVersion, err := json.Marshal(debug.VersionInfo())
+	if err != nil {
+		return nil, err
+	}
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
@@ -130,10 +133,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 			Version string `json:"version,omitempty"`
 		}{
 			Name:    "gopls",
-			Version: goplsVer.String(),
+			Version: string(goplsVersion),
 		},
 	}, nil
-
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {
