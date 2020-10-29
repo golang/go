@@ -86,7 +86,7 @@ func Init(wd string) error {
 		return nil
 	}
 
-	b, err := ioutil.ReadFile(OverlayFile)
+	b, err := os.ReadFile(OverlayFile)
 	if err != nil {
 		return fmt.Errorf("reading overlay file: %v", err)
 	}

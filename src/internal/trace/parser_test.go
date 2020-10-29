@@ -47,7 +47,7 @@ func TestParseCanned(t *testing.T) {
 		if testing.Short() && info.Size() > 10000 {
 			continue
 		}
-		data, err := ioutil.ReadFile(name)
+		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}

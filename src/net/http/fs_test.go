@@ -79,7 +79,7 @@ func TestServeFile(t *testing.T) {
 
 	var err error
 
-	file, err := ioutil.ReadFile(testFile)
+	file, err := os.ReadFile(testFile)
 	if err != nil {
 		t.Fatal("reading file:", err)
 	}
@@ -379,12 +379,12 @@ func mustRemoveAll(dir string) {
 
 func TestFileServerImplicitLeadingSlash(t *testing.T) {
 	defer afterTest(t)
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer mustRemoveAll(tempDir)
-	if err := ioutil.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	ts := httptest.NewServer(StripPrefix("/bar/", FileServer(Dir(tempDir))))
@@ -1177,7 +1177,7 @@ func TestLinuxSendfile(t *testing.T) {
 	filename := fmt.Sprintf("1kb-%d", os.Getpid())
 	filepath := path.Join(os.TempDir(), filename)
 
-	if err := ioutil.WriteFile(filepath, bytes.Repeat([]byte{'a'}, 1<<10), 0755); err != nil {
+	if err := os.WriteFile(filepath, bytes.Repeat([]byte{'a'}, 1<<10), 0755); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(filepath)

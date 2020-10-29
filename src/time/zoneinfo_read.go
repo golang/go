@@ -546,7 +546,7 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 }
 
 // readFile reads and returns the content of the named file.
-// It is a trivial implementation of ioutil.ReadFile, reimplemented
+// It is a trivial implementation of os.ReadFile, reimplemented
 // here to avoid depending on io/ioutil or os.
 // It returns an error if name exceeds maxFileSize bytes.
 func readFile(name string) ([]byte, error) {

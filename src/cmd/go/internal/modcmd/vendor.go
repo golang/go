@@ -155,7 +155,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 }

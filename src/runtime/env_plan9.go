@@ -23,8 +23,8 @@ const (
 // to the (possibly shared) Plan 9 environment, so that Setenv and Getenv
 // conform to the same Posix semantics as on other operating systems.
 // For Plan 9 shared environment semantics, instead of Getenv(key) and
-// Setenv(key, value), one can use ioutil.ReadFile("/env/" + key) and
-// ioutil.WriteFile("/env/" + key, value, 0666) respectively.
+// Setenv(key, value), one can use os.ReadFile("/env/" + key) and
+// os.WriteFile("/env/" + key, value, 0666) respectively.
 //go:nosplit
 func goenvs() {
 	buf := make([]byte, envBufSize)

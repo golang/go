@@ -8,7 +8,6 @@ package race_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +18,7 @@ import (
 )
 
 func TestOutput(t *testing.T) {
-	pkgdir, err := ioutil.TempDir("", "go-build-race-output")
+	pkgdir, err := os.MkdirTemp("", "go-build-race-output")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +33,7 @@ func TestOutput(t *testing.T) {
 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
 			continue
 		}
-		dir, err := ioutil.TempDir("", "go-build")
+		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
 			t.Fatalf("failed to create temp directory: %v", err)
 		}

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -416,7 +415,7 @@ func chtmpdir(t *testing.T) (restore func()) {
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
-	d, err := ioutil.TempDir("", "test")
+	d, err := os.MkdirTemp("", "test")
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
@@ -459,7 +458,7 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
 		defer restore()
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWalk")
+	tmpDir, err := os.MkdirTemp("", "TestWalk")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
@@ -563,7 +562,7 @@ func touch(t *testing.T, name string) {
 }
 
 func TestWalkSkipDirOnFile(t *testing.T) {
-	td, err := ioutil.TempDir("", "walktest")
+	td, err := os.MkdirTemp("", "walktest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -613,7 +612,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 }
 
 func TestWalkFileError(t *testing.T) {
-	td, err := ioutil.TempDir("", "walktest")
+	td, err := os.MkdirTemp("", "walktest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -892,7 +891,7 @@ func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
 func TestEvalSymlinks(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "evalsymlink")
+	tmpDir, err := os.MkdirTemp("", "evalsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
 	}
@@ -978,7 +977,7 @@ func TestEvalSymlinksIsNotExist(t *testing.T) {
 func TestIssue13582(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "issue13582")
+	tmpDir, err := os.MkdirTemp("", "issue13582")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -995,7 +994,7 @@ func TestIssue13582(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(linkToDir, "file")
-	err = ioutil.WriteFile(file, nil, 0644)
+	err = os.WriteFile(file, nil, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1065,7 +1064,7 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	root, err := ioutil.TempDir("", "TestAbs")
+	root, err := os.MkdirTemp("", "TestAbs")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -1136,7 +1135,7 @@ func TestAbs(t *testing.T) {
 // We test it separately from all other absTests because the empty string is not
 // a valid path, so it can't be used with os.Stat.
 func TestAbsEmptyString(t *testing.T) {
-	root, err := ioutil.TempDir("", "TestAbsEmptyString")
+	root, err := os.MkdirTemp("", "TestAbsEmptyString")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
@@ -1357,7 +1356,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 }
 
 func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
-	tmpdir, err := ioutil.TempDir("", "testWalkSymlink")
+	tmpdir, err := os.MkdirTemp("", "testWalkSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1407,14 +1406,14 @@ func TestWalkSymlink(t *testing.T) {
 }
 
 func TestIssue29372(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestIssue29372")
+	tmpDir, err := os.MkdirTemp("", "TestIssue29372")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
 	path := filepath.Join(tmpDir, "file.txt")
-	err = ioutil.WriteFile(path, nil, 0644)
+	err = os.WriteFile(path, nil, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1443,7 +1442,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRoot")
+	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRoot")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1460,7 +1459,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 	if err := os.Symlink(filepath.Join(evalTmpDir, "a"), filepath.Join(evalTmpDir, "b")); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(evalTmpDir, "a", "file"), nil, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(evalTmpDir, "a", "file"), nil, 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1491,7 +1490,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRootChdir")
+	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRootChdir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1514,7 +1513,7 @@ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 	if err := os.Symlink(subdir, "c"); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(subdir, "file"), nil, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(subdir, "file"), nil, 0666); err != nil {
 		t.Fatal(err)
 	}
 

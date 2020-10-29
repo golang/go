@@ -9,16 +9,15 @@ package net
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
 	"time"
 )
 
-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
+// testUnixAddr uses os.CreateTemp to get a name that is unique.
 func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "go-nettest")
+	f, err := os.CreateTemp("", "go-nettest")
 	if err != nil {
 		panic(err)
 	}

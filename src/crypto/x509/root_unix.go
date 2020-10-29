@@ -40,7 +40,7 @@ func loadSystemRoots() (*CertPool, error) {
 
 	var firstErr error
 	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
 			break
@@ -68,7 +68,7 @@ func loadSystemRoots() (*CertPool, error) {
 			continue
 		}
 		for _, fi := range fis {
-			data, err := ioutil.ReadFile(directory + "/" + fi.Name())
+			data, err := os.ReadFile(directory + "/" + fi.Name())
 			if err == nil {
 				roots.AppendCertsFromPEM(data)
 			}

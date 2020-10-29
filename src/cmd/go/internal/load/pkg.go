@@ -1147,7 +1147,7 @@ var (
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
 	return goModPathCache.Do(dir, func() interface{} {
-		data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
 		}
@@ -1728,7 +1728,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// not work for any package that lacks a Target — such as a non-main
 			// package in module mode. We should probably fix that.
 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
-			shlib, err := ioutil.ReadFile(shlibnamefile)
+			shlib, err := os.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {
 				base.Fatalf("reading shlibname: %v", err)
 			}

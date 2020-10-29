@@ -5,7 +5,6 @@
 package poll_test
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"sync"
@@ -22,7 +21,7 @@ func TestRead(t *testing.T) {
 				go func(p string) {
 					defer wg.Done()
 					for i := 0; i < 100; i++ {
-						if _, err := ioutil.ReadFile(p); err != nil {
+						if _, err := os.ReadFile(p); err != nil {
 							t.Error(err)
 							return
 						}

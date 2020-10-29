@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,7 +116,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	testprog.Lock()
 	defer testprog.Unlock()
 	if testprog.dir == "" {
-		dir, err := ioutil.TempDir("", "go-build")
+		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
 			t.Fatalf("failed to create temp directory: %v", err)
 		}

@@ -27,9 +27,9 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -155,7 +155,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile(*output, source, 0644); err != nil {
+	if err := os.WriteFile(*output, source, 0644); err != nil {
 		log.Fatal(err)
 	}
 }

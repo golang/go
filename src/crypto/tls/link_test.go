@@ -7,7 +7,6 @@ package tls
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,7 +76,7 @@ func main() { tls.Dial("", "", nil) }
 	exeFile := filepath.Join(tmpDir, "x.exe")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ioutil.WriteFile(goFile, []byte(tt.program), 0644); err != nil {
+			if err := os.WriteFile(goFile, []byte(tt.program), 0644); err != nil {
 				t.Fatal(err)
 			}
 			os.Remove(exeFile)

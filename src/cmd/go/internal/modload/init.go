@@ -632,7 +632,7 @@ func setDefaultBuildMod() {
 func convertLegacyConfig(modPath string) (from string, err error) {
 	for _, name := range altConfigs {
 		cfg := filepath.Join(modRoot, name)
-		data, err := ioutil.ReadFile(cfg)
+		data, err := os.ReadFile(cfg)
 		if err == nil {
 			convert := modconv.Converters[name]
 			if convert == nil {
@@ -753,7 +753,7 @@ func findModulePath(dir string) (string, error) {
 	}
 
 	// Look for Godeps.json declaring import path.
-	data, _ := ioutil.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
+	data, _ := os.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
 	var cfg1 struct{ ImportPath string }
 	json.Unmarshal(data, &cfg1)
 	if cfg1.ImportPath != "" {
@@ -761,7 +761,7 @@ func findModulePath(dir string) (string, error) {
 	}
 
 	// Look for vendor.json declaring import path.
-	data, _ = ioutil.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
+	data, _ = os.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
 	var cfg2 struct{ RootPath string }
 	json.Unmarshal(data, &cfg2)
 	if cfg2.RootPath != "" {
@@ -813,7 +813,7 @@ var (
 )
 
 func findImportComment(file string) string {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return ""
 	}

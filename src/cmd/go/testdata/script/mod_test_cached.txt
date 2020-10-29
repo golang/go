@@ -51,26 +51,25 @@ bar
 package foo_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestWriteTmp(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	err = ioutil.WriteFile(filepath.Join(dir, "x"), nil, 0666)
+	err = os.WriteFile(filepath.Join(dir, "x"), nil, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestReadTestdata(t *testing.T) {
-	_, err := ioutil.ReadFile("testdata/foo.txt")
+	_, err := os.ReadFile("testdata/foo.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
