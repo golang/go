@@ -58,11 +58,10 @@ func efaceEscape0() {
 		sink = v1
 	}
 	{
-		i := 0 // ERROR "moved to heap: i"
+		i := 0
 		v := M0{&i}
-		// BAD: v does not escape to heap here
 		var x M = v
-		x.M()
+		x.M() // ERROR "devirtualizing x.M"
 	}
 	{
 		i := 0 // ERROR "moved to heap: i"
@@ -115,11 +114,10 @@ func efaceEscape1() {
 		sink = v1 // ERROR "v1 escapes to heap"
 	}
 	{
-		i := 0 // ERROR "moved to heap: i"
+		i := 0
 		v := M1{&i, 0}
-		// BAD: v does not escape to heap here
-		var x M = v // ERROR "v escapes to heap"
-		x.M()
+		var x M = v // ERROR "v does not escape"
+		x.M()       // ERROR "devirtualizing x.M"
 	}
 	{
 		i := 0 // ERROR "moved to heap: i"
@@ -189,11 +187,10 @@ func efaceEscape2() {
 		_ = ok
 	}
 	{
-		i := 0       // ERROR "moved to heap: i"
-		v := &M2{&i} // ERROR "&M2{...} escapes to heap"
-		// BAD: v does not escape to heap here
+		i := 0
+		v := &M2{&i} // ERROR "&M2{...} does not escape"
 		var x M = v
-		x.M()
+		x.M() // ERROR "devirtualizing x.M"
 	}
 	{
 		i := 0       // ERROR "moved to heap: i"

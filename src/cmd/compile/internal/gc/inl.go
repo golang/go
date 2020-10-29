@@ -1418,3 +1418,56 @@ func pruneUnusedAutos(ll []*Node, vis *hairyVisitor) []*Node {
 	}
 	return s
 }
+
+// devirtualize replaces interface method calls within fn with direct
+// concrete-type method calls where applicable.
+func devirtualize(fn *Node) {
+	Curfn = fn
+	inspectList(fn.Nbody, func(n *Node) bool {
+		if n.Op == OCALLINTER {
+			devirtualizeCall(n)
+		}
+		return true
+	})
+}
+
+func devirtualizeCall(call *Node) {
+	recv := staticValue(call.Left.Left)
+	if recv.Op != OCONVIFACE {
+		return
+	}
+
+	typ := recv.Left.Type
+	if typ.IsInterface() {
+		return
+	}
+
+	if Debug.m != 0 {
+		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+	}
+
+	x := nodl(call.Left.Pos, ODOTTYPE, call.Left.Left, nil)
+	x.Type = typ
+	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
+	x = typecheck(x, ctxExpr|ctxCallee)
+	if x.Op != ODOTMETH {
+		Fatalf("devirtualization failed: %v", x)
+	}
+	call.Op = OCALLMETH
+	call.Left = x
+
+	// Duplicated logic from typecheck for function call return
+	// value types.
+	//
+	// Receiver parameter size may have changed; need to update
+	// call.Type to get correct stack offsets for result
+	// parameters.
+	checkwidth(x.Type)
+	switch ft := x.Type; ft.NumResults() {
+	case 0:
+	case 1:
+		call.Type = ft.Results().Field(0).Type
+	default:
+		call.Type = ft.Results()
+	}
+}
