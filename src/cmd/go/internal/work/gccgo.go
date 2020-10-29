@@ -199,7 +199,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 		base := filepath.Base(sfile)
 		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		sfile = mkAbs(p.Dir, sfile)
+		sfile, _ = fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
 		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)

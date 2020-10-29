@@ -43,6 +43,10 @@ go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
 exec ./main_cgo_angle$GOEXE
 stdout '^hello cgo\r?\n'
 
+go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
+exec ./main_call_asm$GOEXE
+! stdout .
+
 go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
 cp stdout compiled_cgo_sources.txt
 go run ../print_line_comments.go compiled_cgo_sources.txt
@@ -79,6 +83,10 @@ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./
 exec ./main_cgo_angle_gccgo$GOEXE
 stdout '^hello cgo\r?\n'
 
+go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
+exec ./main_call_asm_gccgo$GOEXE
+! stdout .
+
 -- m/go.mod --
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
 module m
@@ -105,6 +113,7 @@ the actual code is in the overlay
 		"dir2/i.go": "overlay/dir2_i.go",
 		"printpath/main.go": "overlay/printpath.go",
 		"printpath/other.go": "overlay2/printpath2.go",
+		"call_asm/asm.s": "overlay/asm_file.s",
 		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
 		"cgo_hello_replace/hello.c": "overlay/hello.c",
 		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
@@ -138,6 +147,14 @@ import "m/dir2"
 
 func main() {
 	dir2.PrintMessage()
+}
+-- m/call_asm/main.go --
+package main
+
+func foo() // There will be a "missing function body" error if the assembly file isn't found.
+
+func main() {
+	foo()
 }
 -- m/overlay/dir_g.go --
 package dir
