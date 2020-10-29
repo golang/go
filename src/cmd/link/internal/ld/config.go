@@ -206,7 +206,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
 	// internal linking does not support it.
-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+	if *flagRace && (ctxt.Arch.InFamily(sys.PPC64) || ctxt.IsDarwin() && ctxt.IsARM64()) {
 		return true, "race on " + objabi.GOARCH
 	}
 

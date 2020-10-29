@@ -47,7 +47,7 @@ THE SOFTWARE.
 const (
 	MACHO_X86_64_RELOC_UNSIGNED = 0
 	MACHO_X86_64_RELOC_SIGNED   = 1
-	MACHO_FAKE_GOTPCREL         = 100
+	MACHO_ARM64_RELOC_ADDEND    = 10
 )
 
 type ldMachoObj struct {
@@ -707,11 +707,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		sb := l.MakeSymbolUpdater(sect.sym)
+		var rAdd int64
 		for j := uint32(0); j < sect.nreloc; j++ {
 			var (
 				rOff  int32
 				rSize uint8
-				rAdd  int64
 				rType objabi.RelocType
 				rSym  loader.Sym
 			)
@@ -720,6 +720,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				// mach-o only uses scattered relocation on 32-bit platforms,
 				// which are no longer supported.
 				return errorf("%v: unexpected scattered relocation", s)
+			}
+
+			if arch.Family == sys.ARM64 && rel.type_ == MACHO_ARM64_RELOC_ADDEND {
+				// Two relocations. This addend will be applied to the next one.
+				rAdd = int64(rel.symnum)
+				continue
+			} else {
+				rAdd = 0
 			}
 
 			rSize = rel.length
