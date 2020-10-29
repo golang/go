@@ -392,13 +392,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.reason = "call to recover"
 		return true
 
-	case OCALLPART:
-		// OCALLPART is inlineable, but no extra cost to the budget
-
 	case OCLOSURE,
 		ORANGE,
 		OSELECT,
-		OTYPESW,
 		OGO,
 		ODEFER,
 		ODCLTYPE, // can't print yet

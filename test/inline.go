@@ -152,8 +152,7 @@ func switchBreak(x, y int) int {
 	return n
 }
 
-// can't currently inline functions with a type switch
-func switchType(x interface{}) int { // ERROR "x does not escape"
+func switchType(x interface{}) int { // ERROR "can inline switchType" "x does not escape"
 	switch x.(type) {
 	case int:
 		return x.(int)
