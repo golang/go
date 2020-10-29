@@ -520,9 +520,10 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 // DirImportPath returns the effective import path for dir,
 // provided it is within the main module, or else returns ".".
 func DirImportPath(dir string) string {
-	if modRoot == "" {
+	if !HasModRoot() {
 		return "."
 	}
+	LoadModFile(context.TODO())
 
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(base.Cwd, dir)
