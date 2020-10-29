@@ -17,7 +17,7 @@ stdout '^example.net/pkgremoved'
 
 ! go get -d example.net/pkgremoved@patch example.net/other@v0.1.0
 
-stderr '^go get example.net/pkgremoved@patch: module example.net/pkgremoved@latest found \(v0.2.1\), but does not contain package example.net/pkgremoved$'
+stderr '^go get example.net/pkgremoved@patch: module example.net/pkgremoved@latest found \(v0.2.1, replaced by ./pr2\), but does not contain package example.net/pkgremoved$'
 
 
 -- go.mod --
@@ -27,6 +27,10 @@ go 1.16
 
 replace (
 	example.net/other v0.1.0 => ./other
+  example.net/pkgremoved v0.1.0 => ./pr1
+  example.net/pkgremoved v0.1.1 => ./pr1
+  example.net/pkgremoved v0.2.0 => ./pr2
+  example.net/pkgremoved v0.2.1 => ./pr2
 )
 -- other/go.mod --
 module example.net/other
@@ -36,3 +40,13 @@ go 1.16
 require example.net/pkgremoved v0.2.0
 -- other/other.go --
 package other
+-- pr1/go.mod --
+module example.net/pkgremoved
+
+go 1.16
+-- pr1/pkgremoved.go --
+package pkgremoved
+-- pr2/go.mod --
+module example.net/pkgremoved
+-- pr2/README.txt --
+Package pkgremoved was removed in v0.2.0.
