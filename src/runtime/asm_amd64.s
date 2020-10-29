@@ -84,9 +84,7 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
-// Defined as ABIInternal since it does not use the stack-based Go ABI (and
-// in addition there are no calls to this entry point from Go code).
-TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
@@ -231,13 +229,10 @@ ok:
 
 	// Prevent dead-code elimination of debugCallV1, which is
 	// intended to be called by debuggers.
-	MOVQ	$runtime·debugCallV1<ABIInternal>(SB), AX
+	MOVQ	$runtime·debugCallV1(SB), AX
 	RET
 
-// mainPC is a function value for runtime.main, to be passed to newproc.
-// The reference to runtime.main is made via ABIInternal, since the
-// actual function (not the ABI0 wrapper) is needed by newproc.
-DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
+DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
@@ -473,7 +468,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall<ABIInternal>(SB), NOSPLIT, $0-32
+TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -1359,11 +1354,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 	RET
 
 // The top-most function running on a goroutine
-// returns to goexit+PCQuantum. Defined as ABIInternal
-// so as to make it identifiable to traceback (this
-// function it used as a sentinel; traceback wants to
-// see the func PC, not a wrapper PC).
-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT,$0-0
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
@@ -1385,8 +1377,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // - AX is the value being written at DI
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$120
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
 	// Save the registers clobbered by the fast path. This is slightly
 	// faster than having the caller spill these.
 	MOVQ	R14, 104(SP)
@@ -1470,58 +1461,51 @@ flush:
 	JMP	ret
 
 // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierCX(SB),NOSPLIT,$0
 	XCHGQ CX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ CX, AX
 	RET
 
 // gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierDX(SB),NOSPLIT,$0
 	XCHGQ DX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ DX, AX
 	RET
 
 // gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierBX(SB),NOSPLIT,$0
 	XCHGQ BX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ BX, AX
 	RET
 
 // gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierBP(SB),NOSPLIT,$0
 	XCHGQ BP, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ BP, AX
 	RET
 
 // gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierSI(SB),NOSPLIT,$0
 	XCHGQ SI, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ SI, AX
 	RET
 
 // gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierR8(SB),NOSPLIT,$0
 	XCHGQ R8, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ R8, AX
 	RET
 
 // gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·gcWriteBarrierR9(SB),NOSPLIT,$0
 	XCHGQ R9, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+	CALL runtime·gcWriteBarrier(SB)
 	XCHGQ R9, AX
 	RET
 
@@ -1560,10 +1544,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // obey escape analysis requirements. Specifically, it must not pass
 // a stack pointer to an escaping argument. debugCallV1 cannot check
 // this invariant.
-//
-// This is ABIInternal because Go code injects its PC directly into new
-// goroutine stacks.
-TEXT runtime·debugCallV1<ABIInternal>(SB),NOSPLIT,$152-0
+TEXT runtime·debugCallV1(SB),NOSPLIT,$152-0
 	// Save all registers that may contain pointers so they can be
 	// conservatively scanned.
 	//
@@ -1724,68 +1705,67 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 // in the caller's stack frame. These stubs write the args into that stack space and
 // then tail call to the corresponding runtime handler.
 // The tail call makes these stubs disappear in backtraces.
-// Defined as ABIInternal since they do not use the stack-based Go ABI.
-TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
 	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
 	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
 	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
 	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
 	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
