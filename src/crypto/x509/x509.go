@@ -28,6 +28,8 @@ import (
 	"time"
 	"unicode"
 
+	// Explicitly import these for their crypto.RegisterHash init side-effects.
+	// Keep these as blank imports, even if they're imported above.
 	_ "crypto/sha1"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
