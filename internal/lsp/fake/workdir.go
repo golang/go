@@ -180,7 +180,7 @@ func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) err
 // RemoveFile removes a workdir-relative file path.
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.AbsPath(path)
-	if err := os.Remove(fp); err != nil {
+	if err := os.RemoveAll(fp); err != nil {
 		return errors.Errorf("removing %q: %w", path, err)
 	}
 	evts := []FileEvent{{

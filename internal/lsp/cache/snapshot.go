@@ -608,6 +608,62 @@ func (s *snapshot) WorkspaceDirectories(ctx context.Context) []span.URI {
 	return s.workspace.dirs(ctx, s)
 }
 
+// allKnownSubdirs returns all of the subdirectories within the snapshot's
+// workspace directories. None of the workspace directories are included.
+func (s *snapshot) allKnownSubdirs(ctx context.Context) map[span.URI]struct{} {
+	// Don't return results until the snapshot is loaded, otherwise it may not
+	// yet "know" its files.
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil
+	}
+
+	dirs := s.workspace.dirs(ctx, s)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seen := make(map[span.URI]struct{})
+	for uri := range s.files {
+		dir := filepath.Dir(uri.Filename())
+		var matched span.URI
+		for _, wsDir := range dirs {
+			// Note: InDir handles symlinks, but InDirLex does not--it's too
+			// expensive to call InDir on every file in the snapshot.
+			if source.InDirLex(wsDir.Filename(), dir) {
+				matched = wsDir
+				break
+			}
+		}
+		// Don't watch any directory outside of the workspace directories.
+		if matched == "" {
+			continue
+		}
+		for {
+			if dir == "" || dir == matched.Filename() {
+				break
+			}
+			uri := span.URIFromPath(dir)
+			if _, ok := seen[uri]; ok {
+				break
+			}
+			seen[uri] = struct{}{}
+			dir = filepath.Dir(dir)
+		}
+	}
+	return seen
+}
+
+// knownFilesInDir returns the files known to the given snapshot that are in
+// the given directory. It does not respect symlinks.
+func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI {
+	var files []span.URI
+	for uri := range s.files {
+		if source.InDirLex(dir.Filename(), uri.Filename()) {
+			files = append(files, uri)
+		}
+	}
+	return files
+}
+
 func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err

@@ -1484,3 +1484,33 @@ go 1.hello
 		)
 	})
 }
+
+func TestDeleteDirectory(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const mod = `
+-- bob/bob.go --
+package bob
+
+func Hello() {
+	var x int
+}
+-- go.mod --
+module mod.com
+-- main.go --
+package main
+
+import "mod.com/bob"
+
+func main() {
+	bob.Hello()
+}
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.RemoveWorkspaceFile("bob")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+			EmptyDiagnostics("bob/bob.go"),
+		)
+	})
+}

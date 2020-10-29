@@ -482,6 +482,10 @@ func checkIgnored(suffix string) bool {
 }
 
 func (v *View) Snapshot(ctx context.Context) (source.Snapshot, func()) {
+	return v.getSnapshot(ctx)
+}
+
+func (v *View) getSnapshot(ctx context.Context) (*snapshot, func()) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
@@ -561,7 +565,6 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-// It returns true if we were already tracking the given file, false otherwise.
 func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (source.Snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)

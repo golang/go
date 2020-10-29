@@ -447,25 +447,25 @@ func isDirective(c string) bool {
 //
 // Copied and slightly adjusted from go/src/cmd/go/internal/search/search.go.
 func InDir(dir, path string) bool {
-	if rel := inDirLex(path, dir); rel != "" {
+	if InDirLex(dir, path) {
 		return true
 	}
 	xpath, err := filepath.EvalSymlinks(path)
 	if err != nil || xpath == path {
 		xpath = ""
 	} else {
-		if rel := inDirLex(xpath, dir); rel != "" {
+		if InDirLex(dir, xpath) {
 			return true
 		}
 	}
 
 	xdir, err := filepath.EvalSymlinks(dir)
 	if err == nil && xdir != dir {
-		if rel := inDirLex(path, xdir); rel != "" {
+		if InDirLex(xdir, path) {
 			return true
 		}
 		if xpath != "" {
-			if rel := inDirLex(xpath, xdir); rel != "" {
+			if InDirLex(xdir, xpath) {
 				return true
 			}
 		}
@@ -473,43 +473,40 @@ func InDir(dir, path string) bool {
 	return false
 }
 
-// Copied from go/src/cmd/go/internal/search/search.go.
-//
-// inDirLex is like inDir but only checks the lexical form of the file names.
+// InDirLex is like inDir but only checks the lexical form of the file names.
 // It does not consider symbolic links.
-// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
-// return the suffix. Most uses of str.HasFilePathPrefix should probably
-// be calling InDir instead.
-func inDirLex(path, dir string) string {
+//
+// Copied from go/src/cmd/go/internal/search/search.go.
+func InDirLex(dir, path string) bool {
 	pv := strings.ToUpper(filepath.VolumeName(path))
 	dv := strings.ToUpper(filepath.VolumeName(dir))
 	path = path[len(pv):]
 	dir = dir[len(dv):]
 	switch {
 	default:
-		return ""
+		return false
 	case pv != dv:
-		return ""
+		return false
 	case len(path) == len(dir):
 		if path == dir {
-			return "."
+			return true
 		}
-		return ""
+		return false
 	case dir == "":
-		return path
+		return path != ""
 	case len(path) > len(dir):
 		if dir[len(dir)-1] == filepath.Separator {
 			if path[:len(dir)] == dir {
-				return path[len(dir):]
+				return path[len(dir):] != ""
 			}
-			return ""
+			return false
 		}
 		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
 			if len(path) == len(dir)+1 {
-				return "."
+				return true
 			}
-			return path[len(dir)+1:]
+			return path[len(dir)+1:] != ""
 		}
-		return ""
+		return false
 	}
 }
