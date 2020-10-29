@@ -35,6 +35,14 @@ import (
 	"cmd/internal/sys"
 )
 
+func init() {
+	// GOVCS defaults to public:git|hg,private:all,
+	// which breaks many tests here - they can't use non-git, non-hg VCS at all!
+	// Change to fully permissive.
+	// The tests of the GOVCS setting itself are in ../../testdata/script/govcs.txt.
+	os.Setenv("GOVCS", "*:all")
+}
+
 var (
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo

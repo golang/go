@@ -87,6 +87,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOVCS", Value: cfg.GOVCS},
 	}
 
 	if work.GccgoBin != "" {
