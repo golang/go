@@ -694,7 +694,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) span.URI {
 	var match span.URI
 	for modURI := range s.workspace.activeModFiles() {
-		if !isSubdirectory(dirURI(modURI).Filename(), uri.Filename()) {
+		if !inDir(dirURI(modURI).Filename(), uri.Filename()) {
 			continue
 		}
 		if len(modURI) > len(match) {
@@ -1377,7 +1377,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	}
 	// If a go.mod in the workspace has been changed, invalidate metadata.
 	if kind := originalFH.Kind(); kind == source.Mod {
-		return isSubdirectory(filepath.Dir(s.view.rootURI.Filename()), filepath.Dir(originalFH.URI().Filename()))
+		return inDir(filepath.Dir(s.view.rootURI.Filename()), filepath.Dir(originalFH.URI().Filename()))
 	}
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the
