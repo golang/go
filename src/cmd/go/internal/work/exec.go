@@ -538,6 +538,34 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 	}
 
+	// Compute overlays for .c/.cc/.h/etc. and if there are any overlays
+	// put correct contents of all those files in the objdir, to ensure
+	// the correct headers are included. nonGoOverlay is the overlay that
+	// points from nongo files to the copied files in objdir.
+	nonGoFileLists := [][]string{a.Package.CFiles, a.Package.SFiles, a.Package.CXXFiles, a.Package.HFiles, a.Package.FFiles}
+OverlayLoop:
+	for _, fs := range nonGoFileLists {
+		for _, f := range fs {
+			if _, ok := fsys.OverlayPath(mkAbs(p.Dir, f)); ok {
+				a.nonGoOverlay = make(map[string]string)
+				break OverlayLoop
+			}
+		}
+	}
+	if a.nonGoOverlay != nil {
+		for _, fs := range nonGoFileLists {
+			for i := range fs {
+				from := mkAbs(p.Dir, fs[i])
+				opath, _ := fsys.OverlayPath(from)
+				dst := objdir + filepath.Base(fs[i])
+				if err := b.copyFile(dst, opath, 0666, false); err != nil {
+					return err
+				}
+				a.nonGoOverlay[from] = dst
+			}
+		}
+	}
+
 	// Run SWIG on each .swig and .swigcxx file.
 	// Each run will generate two files, a .go file and a .c or .cxx file.
 	// The .go file will use import "C" and is to be processed by cgo.
@@ -2269,7 +2297,11 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 		}
 	}
 
-	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
+	overlayPath := file
+	if p, ok := a.nonGoOverlay[overlayPath]; ok {
+		overlayPath = p
+	}
+	output, err := b.runOut(a, filepath.Dir(overlayPath), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(overlayPath))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it
 		// invokes its internal assembler with -dwarf-version=2.
@@ -2655,8 +2687,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cfiles = append(cfiles, f+".cgo2.c")
 	}
 
-	hfiles := append([]string{}, p.HFiles...)
-
 	// TODO: make cgo not depend on $GOARCH?
 
 	cgoflags := []string{}
@@ -2702,35 +2732,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	}
 
 	execdir := p.Dir
-
-	// If any of the Cgo, C, or H files are overlaid, copy them all to
-	// objdir to ensure that they refer to the right header files.
-	// TODO(#39958): Ideally, we'd always do this, but this could
-	// subtly break some cgo files that include .h files across directory
-	// boundaries, even though they shouldn't.
-	hasOverlay := false
-	cgoFileLists := [][]string{gccfiles, gxxfiles, mfiles, ffiles, hfiles}
-OverlayLoop:
-	for _, fs := range cgoFileLists {
-		for _, f := range fs {
-			if _, ok := fsys.OverlayPath(mkAbs(p.Dir, f)); ok {
-				hasOverlay = true
-				break OverlayLoop
-			}
-		}
-	}
-	if hasOverlay {
-		execdir = objdir
-		for _, fs := range cgoFileLists {
-			for i := range fs {
-				opath, _ := fsys.OverlayPath(mkAbs(p.Dir, fs[i]))
-				fs[i] = objdir + filepath.Base(fs[i])
-				if err := b.copyFile(fs[i], opath, 0666, false); err != nil {
-					return nil, nil, err
-				}
-			}
-		}
-	}
 
 	// Rewrite overlaid paths in cgo files.
 	// cgo adds //line and #line pragmas in generated files with these paths.
