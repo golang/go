@@ -7,6 +7,7 @@ package modload
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
 
 	"cmd/go/internal/modfetch"
@@ -102,6 +103,9 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return module.Version{Path: m.Path, Version: "none"}, nil
+		}
 		return module.Version{}, err
 	}
 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
