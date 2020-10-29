@@ -144,6 +144,17 @@ GONOSUMDB. See 'go help environment' for details.
 The second step is to download (if needed), build, and install
 the named packages.
 
+The -d flag instructs get to skip this step, downloading source code
+needed to build the named packages and their dependencies, but not
+building or installing.
+
+Building and installing packages with get is deprecated. In a future release,
+the -d flag will be enabled by default, and 'go get' will be only be used to
+adjust dependencies of the current module. To install a package using
+dependencies from the current module, use 'go install'. To install a package
+ignoring the current module, use 'go install' with an @version suffix like
+"@latest" after each argument.
+
 If an argument names a module but not a package (because there is no
 Go source code in the module's root directory), then the install step
 is skipped for that argument, instead of causing a build failure.
@@ -154,10 +165,6 @@ Note that package patterns are allowed and are expanded after resolving
 the module versions. For example, 'go get golang.org/x/perf/cmd/...'
 adds the latest golang.org/x/perf and then installs the commands in that
 latest version.
-
-The -d flag instructs get to download the source code needed to build
-the named packages, including downloading necessary dependencies,
-but not to build and install them.
 
 With no package arguments, 'go get' applies to Go package in the
 current directory, if any. In particular, 'go get -u' and
@@ -436,12 +443,36 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Note that 'go get -u' without arguments is equivalent to
 	// 'go get -u .', so we'll typically build the package in the current
 	// directory.
-	if !*getD {
-		if len(pkgPatterns) > 0 {
-			work.BuildInit()
-			pkgs := load.PackagesForBuild(ctx, pkgPatterns)
-			work.InstallPackages(ctx, pkgPatterns, pkgs)
+	if !*getD && len(pkgPatterns) > 0 {
+		work.BuildInit()
+		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+		work.InstallPackages(ctx, pkgPatterns, pkgs)
+
+		haveExe := false
+		for _, pkg := range pkgs {
+			if pkg.Name == "main" {
+				haveExe = true
+				break
+			}
 		}
+		if haveExe {
+			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
+			var altMsg string
+			if modload.HasModRoot() {
+				altMsg = `
+	To adjust dependencies of the current module, use 'go get -d'.
+	To install using requirements of the current module, use 'go install'.
+	To install ignoring the current module, use 'go install' with a version,
+	like 'go install example.com/cmd@latest'.
+`
+			} else {
+				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
+			}
+			fmt.Fprint(os.Stderr, altMsg)
+			fmt.Fprint(os.Stderr, "\tSee 'go help get' and 'go help install' for more information.\n")
+		}
+		// TODO(golang.org/issue/40276): link to HTML documentation explaining
+		// what's changing and gives more examples.
 	}
 
 	// Everything succeeded. Update go.mod.

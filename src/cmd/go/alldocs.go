@@ -673,6 +673,17 @@
 // The second step is to download (if needed), build, and install
 // the named packages.
 //
+// The -d flag instructs get to skip this step, downloading source code
+// needed to build the named packages and their dependencies, but not
+// building or installing.
+//
+// Building and installing packages with get is deprecated. In a future release,
+// the -d flag will be enabled by default, and 'go get' will be only be used to
+// adjust dependencies of the current module. To install a package using
+// dependencies from the current module, use 'go install'. To install a package
+// ignoring the current module, use 'go install' with an @version suffix like
+// "@latest" after each argument.
+//
 // If an argument names a module but not a package (because there is no
 // Go source code in the module's root directory), then the install step
 // is skipped for that argument, instead of causing a build failure.
@@ -683,10 +694,6 @@
 // the module versions. For example, 'go get golang.org/x/perf/cmd/...'
 // adds the latest golang.org/x/perf and then installs the commands in that
 // latest version.
-//
-// The -d flag instructs get to download the source code needed to build
-// the named packages, including downloading necessary dependencies,
-// but not to build and install them.
 //
 // With no package arguments, 'go get' applies to Go package in the
 // current directory, if any. In particular, 'go get -u' and
