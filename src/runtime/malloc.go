@@ -521,6 +521,14 @@ func mallocinit() {
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled:
+				// The TSAN runtime requires the heap
+				// to be in the range [0x00c000000000,
+				// 0x00e000000000).
+				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
+				if p >= uintptrMask&0x00e000000000 {
+					continue
+				}
 			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
@@ -532,14 +540,6 @@ func mallocinit() {
 					continue
 				}
 				p = uintptr(i)<<40 | uintptrMask&(0xa0<<52)
-			case raceenabled:
-				// The TSAN runtime requires the heap
-				// to be in the range [0x00c000000000,
-				// 0x00e000000000).
-				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
-				if p >= uintptrMask&0x00e000000000 {
-					continue
-				}
 			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
