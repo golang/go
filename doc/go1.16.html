@@ -501,6 +501,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
+    <p>
+      The <code>GODEBUG=x509ignoreCN=0</code> flag will be removed in Go 1.17.
+      It enables the legacy behavior of treating the <code>CommonName</code>
+      field on X.509 certificates as a host name when no Subject Alternative
+      Names are present.
+    </p>
+
     <p><!-- CL 235078 -->
       <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
       <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
