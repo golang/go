@@ -67,6 +67,12 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 		if fh == nil {
 			continue
 		}
+		if pkgDir.Filename() != filepath.Dir(fh.URI().Filename()) {
+			// https://github.com/golang/go/issues/42198
+			// sometimes the detail diagnostics generated for files
+			// outside the package can never be taken back.
+			continue
+		}
 		reports[fh.VersionedFileIdentity()] = diagnostics
 	}
 	return reports, parseError
