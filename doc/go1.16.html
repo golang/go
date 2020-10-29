@@ -151,6 +151,18 @@ Do not send CLs removing the interior tags from such phrases.
   being built.
 </p>
 
+<h4 id="i-flag">The <code>-i</code> build flag</h4>
+
+<p><!-- golang.org/issue/41696 -->
+  The <code>-i</code> flag accepted by <code>go</code> <code>build</code>,
+  <code>go</code> <code>install</code>, and <code>go</code> <code>test</code> is
+  now deprecated. The <code>-i</code> flag instructs the <code>go</code> command
+  to install packages imported by packages named on the command line. Since
+  the build cache was introduced in Go 1.10, the <code>-i</code> flag no longer
+  has a significant effect on build times, and it causes errors when the install
+  directory is not writable.
+</p>
+
 <h4 id="list-buildid">The <code>list</code> command</h4>
 
 <p><!-- golang.org/cl/263542 -->
