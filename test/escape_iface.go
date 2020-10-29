@@ -255,3 +255,11 @@ func dotTypeEscape2() { // #13805, #15796
 		sink, *(&ok) = y.(*int)
 	}
 }
+
+func issue42279() {
+	type I interface{ M() }
+	type T struct{ I }
+
+	var i I = T{} // ERROR "T\{\} does not escape"
+	i.M()         // ERROR "partially devirtualizing i.M to T"
+}
