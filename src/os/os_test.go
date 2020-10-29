@@ -419,19 +419,19 @@ func testReadDir(dir string, contents []string, t *testing.T) {
 	}
 }
 
-func TestReaddirnames(t *testing.T) {
+func TestFileReaddirnames(t *testing.T) {
 	testReaddirnames(".", dot, t)
 	testReaddirnames(sysdir.name, sysdir.files, t)
 	testReaddirnames(t.TempDir(), nil, t)
 }
 
-func TestReaddir(t *testing.T) {
+func TestFileReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
 	testReaddir(t.TempDir(), nil, t)
 }
 
-func TestReadDir(t *testing.T) {
+func TestFileReadDir(t *testing.T) {
 	testReadDir(".", dot, t)
 	testReadDir(sysdir.name, sysdir.files, t)
 	testReadDir(t.TempDir(), nil, t)
@@ -1235,6 +1235,7 @@ func TestChmod(t *testing.T) {
 }
 
 func checkSize(t *testing.T, f *File, size int64) {
+	t.Helper()
 	dir, err := f.Stat()
 	if err != nil {
 		t.Fatalf("Stat %q (looking for size %d): %s", f.Name(), size, err)
@@ -2688,5 +2689,24 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 func TestDirFS(t *testing.T) {
 	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReadFileProc(t *testing.T) {
+	// Linux files in /proc report 0 size,
+	// but then if ReadFile reads just a single byte at offset 0,
+	// the read at offset 1 returns EOF instead of more data.
+	// ReadFile has a minimum read size of 512 to work around this,
+	// but test explicitly that it's working.
+	name := "/proc/sys/fs/pipe-max-size"
+	if _, err := Stat(name); err != nil {
+		t.Skip(err)
+	}
+	data, err := ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		t.Fatalf("read %s: not newline-terminated: %q", name, data)
 	}
 }
