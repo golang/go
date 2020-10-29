@@ -1446,19 +1446,27 @@ func devirtualizeCall(call *Node) {
 	x.Type = typ
 	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
 	x = typecheck(x, ctxExpr|ctxCallee)
-	if x.Op != ODOTMETH {
-		// TODO(mdempsky): Figure out how to avoid this and
-		// turn back into a Fatalf.
+	switch x.Op {
+	case ODOTMETH:
 		if Debug.m != 0 {
-			Warnl(call.Pos, "failed to devirtualize %v", x)
+			Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+		}
+		call.Op = OCALLMETH
+		call.Left = x
+	case ODOTINTER:
+		// Promoted method from embedded interface-typed field (#42279).
+		if Debug.m != 0 {
+			Warnl(call.Pos, "partially devirtualizing %v to %v", call.Left, typ)
+		}
+		call.Op = OCALLINTER
+		call.Left = x
+	default:
+		// TODO(mdempsky): Turn back into Fatalf after more testing.
+		if Debug.m != 0 {
+			Warnl(call.Pos, "failed to devirtualize %v (%v)", x, x.Op)
 		}
 		return
 	}
-	if Debug.m != 0 {
-		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
-	}
-	call.Op = OCALLMETH
-	call.Left = x
 
 	// Duplicated logic from typecheck for function call return
 	// value types.
