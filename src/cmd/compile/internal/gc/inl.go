@@ -1442,16 +1442,20 @@ func devirtualizeCall(call *Node) {
 		return
 	}
 
-	if Debug.m != 0 {
-		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
-	}
-
 	x := nodl(call.Left.Pos, ODOTTYPE, call.Left.Left, nil)
 	x.Type = typ
 	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
 	x = typecheck(x, ctxExpr|ctxCallee)
 	if x.Op != ODOTMETH {
-		Fatalf("devirtualization failed: %v", x)
+		// TODO(mdempsky): Figure out how to avoid this and
+		// turn back into a Fatalf.
+		if Debug.m != 0 {
+			Warnl(call.Pos, "failed to devirtualize %v", x)
+		}
+		return
+	}
+	if Debug.m != 0 {
+		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
 	}
 	call.Op = OCALLMETH
 	call.Left = x
