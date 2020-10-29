@@ -38,7 +38,6 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -471,7 +470,7 @@ type FuncInfo struct {
 // NewFuncInfo allocates and returns a FuncInfo for LSym.
 func (s *LSym) NewFuncInfo() *FuncInfo {
 	if s.Extra != nil {
-		log.Fatalf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra)
+		panic(fmt.Sprintf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra))
 	}
 	f := new(FuncInfo)
 	s.Extra = new(interface{})
@@ -498,7 +497,7 @@ type FileInfo struct {
 // NewFileInfo allocates and returns a FileInfo for LSym.
 func (s *LSym) NewFileInfo() *FileInfo {
 	if s.Extra != nil {
-		log.Fatalf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra)
+		panic(fmt.Sprintf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra))
 	}
 	f := new(FileInfo)
 	s.Extra = new(interface{})
