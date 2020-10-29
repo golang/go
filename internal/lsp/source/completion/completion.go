@@ -510,7 +510,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		opts: &completionOptions{
 			matcher:           opts.Matcher,
 			unimported:        opts.CompleteUnimported,
-			documentation:     opts.CompletionDocumentation,
+			documentation:     opts.CompletionDocumentation && opts.HoverKind != source.NoDocumentation,
 			fullDocumentation: opts.HoverKind == source.FullDocumentation,
 			placeholders:      opts.UsePlaceholders,
 			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,

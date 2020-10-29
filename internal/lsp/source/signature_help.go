@@ -7,7 +7,6 @@ package source
 import (
 	"context"
 	"go/ast"
-	"go/doc"
 	"go/token"
 	"go/types"
 
@@ -123,7 +122,7 @@ FindCall:
 	}
 	return &protocol.SignatureInformation{
 		Label:         name + s.Format(),
-		Documentation: doc.Synopsis(s.doc),
+		Documentation: s.doc,
 		Parameters:    paramInfo,
 	}, activeParam, nil
 }
@@ -140,7 +139,7 @@ func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.Call
 	activeParam := activeParameter(callExpr, len(sig.params), sig.variadic, pos)
 	return &protocol.SignatureInformation{
 		Label:         sig.name + sig.Format(),
-		Documentation: doc.Synopsis(sig.doc),
+		Documentation: sig.doc,
 		Parameters:    paramInfo,
 	}, activeParam, nil
 

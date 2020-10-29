@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/printer"
 	"go/token"
 	"go/types"
@@ -79,8 +80,8 @@ func (s *signature) Params() []string {
 
 // NewBuiltinSignature returns signature for the builtin object with a given
 // name, if a builtin object with the name exists.
-func NewBuiltinSignature(ctx context.Context, snapshot Snapshot, name string) (*signature, error) {
-	builtin, err := snapshot.BuiltinPackage(ctx)
+func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signature, error) {
+	builtin, err := s.BuiltinPackage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +104,17 @@ func NewBuiltinSignature(ctx context.Context, snapshot Snapshot, name string) (*
 			variadic = true
 		}
 	}
-	params, _ := formatFieldList(ctx, snapshot, decl.Type.Params, variadic)
-	results, needResultParens := formatFieldList(ctx, snapshot, decl.Type.Results, false)
+	params, _ := formatFieldList(ctx, s, decl.Type.Params, variadic)
+	results, needResultParens := formatFieldList(ctx, s, decl.Type.Results, false)
+	d := decl.Doc.Text()
+	switch s.View().Options().HoverKind {
+	case SynopsisDocumentation:
+		d = doc.Synopsis(d)
+	case NoDocumentation:
+		d = ""
+	}
 	return &signature{
-		doc:              decl.Doc.Text(),
+		doc:              d,
 		name:             name,
 		needResultParens: needResultParens,
 		params:           params,
@@ -188,12 +196,18 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 			results = append(results, el.Name()+" "+typ)
 		}
 	}
-	var doc string
+	var d string
 	if comment != nil {
-		doc = comment.Text()
+		d = comment.Text()
+	}
+	switch s.View().Options().HoverKind {
+	case SynopsisDocumentation:
+		d = doc.Synopsis(d)
+	case NoDocumentation:
+		d = ""
 	}
 	return &signature{
-		doc:              doc,
+		doc:              d,
 		params:           params,
 		results:          results,
 		variadic:         sig.Variadic(),
