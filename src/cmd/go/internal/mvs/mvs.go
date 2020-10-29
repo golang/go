@@ -120,7 +120,9 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 		}
 		node.required = required
 		for _, r := range node.required {
-			work.Add(r)
+			if r.Version != "none" {
+				work.Add(r)
+			}
 		}
 
 		if upgrade != nil {
@@ -208,6 +210,9 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 		n := modGraph[module.Version{Path: path, Version: vers}]
 		required := n.required
 		for _, r := range required {
+			if r.Version == "none" {
+				continue
+			}
 			v := min[r.Path]
 			if r.Path != target.Path && reqs.Max(v, r.Version) != v {
 				panic(fmt.Sprintf("mistake: version %q does not satisfy requirement %+v", v, r)) // TODO: Don't panic.
