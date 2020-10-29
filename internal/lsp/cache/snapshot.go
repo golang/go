@@ -242,7 +242,7 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.Invocation
 
 func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
-	inv.Env = append(append(append([]string{}, s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.go111module)
+	inv.Env = append(append(append(os.Environ(), s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.go111module)
 	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
 	s.view.optionsMu.Unlock()
 	cleanup = func() {} // fallback
