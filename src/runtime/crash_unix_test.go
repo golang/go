@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,13 +84,13 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
 		t.Fatalf("failed to create Go file: %v", err)
 	}
 

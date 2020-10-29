@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -66,7 +67,7 @@ func TestScanDir(t *testing.T) {
 			continue
 		}
 		t.Run(dir.Name(), func(t *testing.T) {
-			tagsData, err := ioutil.ReadFile(filepath.Join("testdata", dir.Name(), "tags.txt"))
+			tagsData, err := os.ReadFile(filepath.Join("testdata", dir.Name(), "tags.txt"))
 			if err != nil {
 				t.Fatalf("error reading tags: %v", err)
 			}
@@ -75,7 +76,7 @@ func TestScanDir(t *testing.T) {
 				tags[t] = true
 			}
 
-			wantData, err := ioutil.ReadFile(filepath.Join("testdata", dir.Name(), "want.txt"))
+			wantData, err := os.ReadFile(filepath.Join("testdata", dir.Name(), "want.txt"))
 			if err != nil {
 				t.Fatalf("error reading want: %v", err)
 			}

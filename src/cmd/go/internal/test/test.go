@@ -884,7 +884,7 @@ func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAc
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
-		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+		if err := os.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
 	}
@@ -1616,7 +1616,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 	}
 
 	// See comment about two-level lookup in tryCacheWithID above.
-	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
+	testlog, err := os.ReadFile(a.Objdir + "testlog.txt")
 	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {

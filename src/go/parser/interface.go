@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -39,7 +40,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 		return nil, errors.New("invalid source")
 	}
-	return ioutil.ReadFile(filename)
+	return os.ReadFile(filename)
 }
 
 // A Mode value is a set of flags (or 0).

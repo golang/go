@@ -6,7 +6,7 @@ package os_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestRemoveAll(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestRemoveAllLarge(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestRemoveAllLongPath(t *testing.T) {
 		t.Fatalf("Could not get wd: %s", err)
 	}
 
-	startPath, err := ioutil.TempDir("", "TestRemoveAllLongPath-")
+	startPath, err := os.MkdirTemp("", "TestRemoveAllLongPath-")
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
@@ -211,7 +211,7 @@ func TestRemoveAllDot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not get wd: %s", err)
 	}
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllDot-")
+	tempDir, err := os.MkdirTemp("", "TestRemoveAllDot-")
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
@@ -236,7 +236,7 @@ func TestRemoveAllDot(t *testing.T) {
 func TestRemoveAllDotDot(t *testing.T) {
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllDotDot-")
+	tempDir, err := os.MkdirTemp("", "TestRemoveAllDotDot-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestRemoveAllDotDot(t *testing.T) {
 func TestRemoveReadOnlyDir(t *testing.T) {
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveReadOnlyDir-")
+	tempDir, err := os.MkdirTemp("", "TestRemoveReadOnlyDir-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
+	tempDir, err := os.MkdirTemp("", "TestRemoveAllButReadOnly-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestRemoveUnreadableDir(t *testing.T) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
+	tempDir, err := os.MkdirTemp("", "TestRemoveAllButReadOnly-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +413,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/textproto"
 	"os"
@@ -91,7 +90,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		}
 		if n > maxMemory {
 			// too big, write to disk and flush buffer
-			file, err := ioutil.TempFile("", "multipart-")
+			file, err := os.CreateTemp("", "multipart-")
 			if err != nil {
 				return nil, err
 			}

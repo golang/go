@@ -17,7 +17,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -342,7 +341,7 @@ func fileFeatures(filename string) []string {
 	if filename == "" {
 		return nil
 	}
-	bs, err := ioutil.ReadFile(filename)
+	bs, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
 	}

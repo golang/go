@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -170,7 +169,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	checkGdbVersion(t)
 	checkGdbPython(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -195,7 +194,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
+	err = os.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
@@ -404,7 +403,7 @@ func TestGdbBacktrace(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -412,7 +411,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	// Build the source code.
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(backtraceSource), 0644)
+	err = os.WriteFile(src, []byte(backtraceSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
@@ -482,7 +481,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
 	}
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -490,7 +489,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Build the source code.
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(autotmpTypeSource), 0644)
+	err = os.WriteFile(src, []byte(autotmpTypeSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
@@ -551,7 +550,7 @@ func TestGdbConst(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -559,7 +558,7 @@ func TestGdbConst(t *testing.T) {
 
 	// Build the source code.
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(constsSource), 0644)
+	err = os.WriteFile(src, []byte(constsSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
@@ -618,7 +617,7 @@ func TestGdbPanic(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -626,7 +625,7 @@ func TestGdbPanic(t *testing.T) {
 
 	// Build the source code.
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(panicSource), 0644)
+	err = os.WriteFile(src, []byte(panicSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
@@ -696,7 +695,7 @@ func TestGdbInfCallstack(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
+	dir, err := os.MkdirTemp("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -704,7 +703,7 @@ func TestGdbInfCallstack(t *testing.T) {
 
 	// Build the source code.
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(InfCallstackSource), 0644)
+	err = os.WriteFile(src, []byte(InfCallstackSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}

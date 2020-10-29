@@ -27,7 +27,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 var blocking = 32 * 1024
@@ -103,7 +103,7 @@ func main() {
 	genCrc32ConstTable(w, 0xeb31d82e, "Koop")
 	b := w.Bytes()
 
-	err := ioutil.WriteFile("crc32_table_ppc64le.s", b, 0666)
+	err := os.WriteFile("crc32_table_ppc64le.s", b, 0666)
 	if err != nil {
 		fmt.Printf("can't write output: %s\n", err)
 	}
