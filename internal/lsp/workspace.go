@@ -91,9 +91,15 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	return nil
 }
 
+// This is a work-around for
+// https://github.com/microsoft/language-server-protocol/issues/1107. Once
+// https://golang.org/cl/266497 has been released for ~1 month, we can probably
+// remove this function and use the only correct method name, which is
+// "textDocument/semanticTokens".
 func semanticTokenRegistrations() []protocol.Registration {
 	var registrations []protocol.Registration
 	for _, method := range []string{
+		"textDocument/semanticTokens",
 		"textDocument/semanticTokens/full",
 		"textDocument/semanticTokens/full/delta",
 		"textDocument/semanticTokens/range",
