@@ -70,16 +70,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 			codeActions = append(codeActions, modQuickFixes...)
 		}
-		if wanted[protocol.SourceOrganizeImports] {
-			action, err := goModTidy(ctx, snapshot, fh)
-			if source.IsNonFatalGoModError(err) {
-				return nil, nil
-			}
-			if err != nil {
-				return nil, err
-			}
-			codeActions = append(codeActions, *action)
-		}
 	case source.Go:
 		// Don't suggest fixes for generated files, since they are generally
 		// not useful and some editors may apply them automatically on save.
@@ -540,38 +530,6 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 
 func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
 	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
-}
-
-func goModTidy(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) (*protocol.CodeAction, error) {
-	tidied, err := snapshot.ModTidy(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	left, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-	right := tidied.TidiedContent
-	edits := snapshot.View().Options().ComputeEdits(fh.URI(), string(left), string(right))
-	protocolEdits, err := source.ToProtocolEdits(tidied.Parsed.Mapper, edits)
-	if err != nil {
-		return nil, err
-	}
-	return &protocol.CodeAction{
-		Title: "Tidy",
-		Kind:  protocol.SourceOrganizeImports,
-		Edit: protocol.WorkspaceEdit{
-			DocumentChanges: []protocol.TextDocumentEdit{{
-				TextDocument: protocol.VersionedTextDocumentIdentifier{
-					Version: fh.Version(),
-					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-						URI: protocol.URIFromSpanURI(fh.URI()),
-					},
-				},
-				Edits: protocolEdits,
-			}},
-		},
-	}, err
 }
 
 func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {

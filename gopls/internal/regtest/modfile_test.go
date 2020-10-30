@@ -462,44 +462,6 @@ func main() {
 	})
 }
 
-func TestTidyOnSave(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
-	const untidyModule = `
--- go.mod --
-module mod.com
-
-go 1.14
-
-require random.org v1.2.3
--- main.go --
-package main
-
-import "example.com/blah"
-
-func main() {
-	fmt.Println(blah.Name)
-}
-`
-	withOptions(WithProxyFiles(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
-		env.OpenFile("go.mod")
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
-			env.DiagnosticAtRegexp("go.mod", `require random.org v1.2.3`),
-		)
-		env.SaveBuffer("go.mod")
-		const want = `module mod.com
-
-go 1.14
-
-require example.com v1.2.3
-`
-		if got := env.ReadWorkspaceFile("go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
-		}
-	})
-}
-
 // Confirm that an error in an indirect dependency of a requirement is surfaced
 // as a diagnostic in the go.mod file.
 func TestErrorInIndirectDependency(t *testing.T) {

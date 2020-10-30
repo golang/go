@@ -116,7 +116,7 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	return []protocol.CodeLens{{
 		Range: rng,
 		Command: protocol.Command{
-			Title:     "Tidy module",
+			Title:     source.CommandTidy.Title,
 			Command:   source.CommandTidy.ID(),
 			Arguments: goModArgs,
 		},
