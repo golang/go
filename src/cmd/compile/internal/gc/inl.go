@@ -1054,7 +1054,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	var retvars []*Node
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
-		if n := asNode(t.Nname); n != nil && !n.isBlank() {
+		if n := asNode(t.Nname); n != nil && !n.isBlank() && !strings.HasPrefix(n.Sym.Name, "~r") {
 			m = inlvar(n)
 			m = typecheck(m, ctxExpr)
 			inlvars[n] = m

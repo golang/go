@@ -6,7 +6,10 @@ package b
 
 import "./a"
 
-func g() { // ERROR "can inline g"
+func g() {
+	h := a.E() // ERROR "inlining call to a.E" "a.I\(a.T\(0\)\) does not escape"
+	h.M()      // ERROR "devirtualizing h.M to a.T"
+
 	// BAD: T(0) could be stack allocated.
 	i := a.F(a.T(0)) // ERROR "inlining call to a.F" "a.T\(0\) escapes to heap"
 
