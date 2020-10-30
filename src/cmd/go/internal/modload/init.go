@@ -206,7 +206,7 @@ func Init() {
 		base.Fatalf("missing $GOPATH")
 	}
 	gopath = list[0]
-	if _, err := os.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+	if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
 		base.Fatalf("$GOPATH/go.mod exists but should not")
 	}
 
@@ -407,7 +407,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	modRoot = base.Cwd
 	Init()
 	modFilePath := ModFilePath()
-	if _, err := os.Stat(modFilePath); err == nil {
+	if _, err := fsys.Stat(modFilePath); err == nil {
 		base.Fatalf("go: %s already exists", modFilePath)
 	}
 
@@ -605,7 +605,7 @@ func setDefaultBuildMod() {
 		return
 	}
 
-	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+	if fi, err := fsys.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
 		modGo := "unspecified"
 		if index.goVersionV != "" {
 			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
@@ -685,7 +685,7 @@ func findModuleRoot(dir string) (root string) {
 
 	// Look for enclosing go.mod.
 	for {
-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+		if fi, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
 			return dir
 		}
 		d := filepath.Dir(dir)
@@ -709,7 +709,7 @@ func findAltConfig(dir string) (root, name string) {
 	}
 	for {
 		for _, name := range altConfigs {
-			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
+			if fi, err := fsys.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
 				return dir, name
 			}
 		}

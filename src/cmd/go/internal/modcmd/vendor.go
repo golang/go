@@ -18,6 +18,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 
@@ -259,7 +260,7 @@ func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
 		return false
 	}
 	if strings.HasSuffix(info.Name(), ".go") {
-		f, err := os.Open(filepath.Join(dir, info.Name()))
+		f, err := fsys.Open(filepath.Join(dir, info.Name()))
 		if err != nil {
 			base.Fatalf("go mod vendor: %v", err)
 		}
