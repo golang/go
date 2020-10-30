@@ -2,7 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package x509 parses X.509-encoded keys and certificates.
+// Package x509 implements a subset of the X.509 standard.
+//
+// It allows parsing and generating certificates, certificate signing
+// requests, certificate revocation lists, and encoded public and private keys.
+// It provides a certificate verifier, complete with a chain builder.
+//
+// The package targets the X.509 technical profile defined by the IETF (RFC
+// 2459/3280/5280), and as further restricted by the CA/Browser Forum Baseline
+// Requirements. There is minimal support for features outside of these
+// profiles, as the primary goal of the package is to provide compatibility
+// with the publicly trusted TLS certificate ecosystem and its policies and
+// constraints.
+//
+// On macOS and Windows, certificate verification is handled by system APIs, but
+// the package aims to apply consistent validation rules across operating
+// systems.
 package x509
 
 import (
