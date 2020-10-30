@@ -1263,7 +1263,9 @@ func (c *Config) BuildNameToCertificate() {
 		if err != nil {
 			continue
 		}
-		if len(x509Cert.Subject.CommonName) > 0 {
+		// If SANs are *not* present, some clients will consider the certificate
+		// valid for the name in the Common Name.
+		if x509Cert.Subject.CommonName != "" && len(x509Cert.DNSNames) == 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
 		}
 		for _, san := range x509Cert.DNSNames {
