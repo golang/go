@@ -17,6 +17,7 @@ func TestIssue38815(t *testing.T) {
 -- go.mod --
 module foo
 
+go 1.12
 -- a.go --
 package main
 func f() {}
@@ -126,8 +127,12 @@ const Y = 2
 -- go.mod --
 module mod.com
 
-require example.com v1.2.3
+go 1.12
 
+require example.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:6vTQqzX+pnwngZF1+5gcO3ZEWmix1jJ/h+pWS8wUxK0=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 

@@ -30,6 +30,9 @@ module mod.com
 go 1.14
 
 require golang.org/x/hello v1.2.3
+-- go.sum --
+golang.org/x/hello v1.2.3 h1:EcMp5gSkIhaTkPXp8/3+VH+IFqTpk3ZbpOhqk0Ncmho=
+golang.org/x/hello v1.2.3/go.mod h1:WW7ER2MRNXWA6c8/4bDIek4Hc/+DofTrMaQQitGXcco=
 -- vendor/modules.txt --
 -- a/a1.go --
 package a

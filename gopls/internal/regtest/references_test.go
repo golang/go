@@ -13,6 +13,7 @@ func TestStdlibReferences(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- main.go --
 package main
 

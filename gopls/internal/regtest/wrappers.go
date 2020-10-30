@@ -247,6 +247,13 @@ func (e *Env) RunGoCommand(verb string, args ...string) {
 	}
 }
 
+func (e *Env) DumpGoSum() {
+	e.T.Helper()
+	e.RunGoCommand("list", "-mod=mod", "...")
+	e.T.Log("\n\n-- go.sum --\n" + e.ReadWorkspaceFile("go.sum"))
+	e.T.Fatal("see contents above")
+}
+
 // CheckForFileChanges triggers a manual poll of the workspace for any file
 // changes since creation, or since last polling. It is a workaround for the
 // lack of true file watching support in the fake workspace.

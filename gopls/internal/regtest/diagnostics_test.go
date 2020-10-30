@@ -183,6 +183,7 @@ const test38878 = `
 -- go.mod --
 module foo
 
+go 1.12
 -- a.go --
 package x
 
@@ -352,6 +353,8 @@ func TestPackageChange_Issue38328(t *testing.T) {
 	const packageChange = `
 -- go.mod --
 module fake
+
+go 1.12
 -- a.go --
 package foo
 func main() {}
@@ -379,9 +382,10 @@ module mod.com
 
 go 1.12
 
-require (
-	foo.test v1.2.3
-)
+require foo.test v1.2.3
+-- go.sum --
+foo.test v1.2.3 h1:TMA+lyd1ck0TqjSFpNe4T6cf/K6TYkoHwOOcMBMjaEw=
+foo.test v1.2.3/go.mod h1:Ij3kyLIe5lzjycjh13NL8I2gX0quZuTdW0MnmlwGBL4=
 -- print.go --
 package lib
 
@@ -465,6 +469,7 @@ func TestEqualInEnv_Issue38669(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- main.go --
 package main
 
@@ -488,6 +493,7 @@ func TestNoSuggestedFixesForGeneratedFiles_Issue38467(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- main.go --
 package main
 
@@ -728,7 +734,7 @@ func main() {
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+				env.DiagnosticAtRegexpWithMessage("main.go", `"github.com/ardanlabs/conf"`, "your go.mod file"),
 				ReadDiagnostics("main.go", &d),
 			),
 		)
@@ -855,6 +861,8 @@ func TestCreateOnlyXTest(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- foo/foo.go --
 package foo
 -- foo/bar_test.go --
@@ -885,6 +893,8 @@ func TestChangePackageName(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- foo/foo.go --
 package foo
 -- foo/bar_test.go --
@@ -1212,6 +1222,8 @@ func TestInvalidPackageName(t *testing.T) {
 	const pkgDefault = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- main.go --
 package default
 
@@ -1230,6 +1242,8 @@ func TestLimitWorkspaceScope(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- a/main.go --
 package main
 
@@ -1259,6 +1273,8 @@ func TestStaticcheckDiagnostic(t *testing.T) {
 	const files = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- main.go --
 package main
 
@@ -1288,6 +1304,8 @@ func TestSecondaryDiagnostics(t *testing.T) {
 	const dir = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- main.go --
 package main
 func main() {
@@ -1365,6 +1383,7 @@ func TestEnableAllExperiments(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- main.go --
 package main
 
@@ -1390,6 +1409,8 @@ func TestSwig(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- pkg/simple/export_swig.go --
 package simple
 
@@ -1439,6 +1460,8 @@ func TestRenamePackage(t *testing.T) {
 	const contents = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- foo.go --
 package foo
 -- foo_test.go --

@@ -192,18 +192,29 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if err := source.UnmarshalArgs(args, &uri); err != nil {
 			return err
 		}
+		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
+		}
 		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
 		// so we combine them into one case for convenience.
 		action := "tidy"
 		if command == source.CommandVendor {
 			action = "vendor"
 		}
+		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "mod", []string{action})
+	case source.CommandUpdateGoSum:
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(args, &uri); err != nil {
+			return err
+		}
 		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
 		defer release()
 		if !ok {
 			return err
 		}
-		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "mod", []string{action})
+		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "list", []string{"all"})
 	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string

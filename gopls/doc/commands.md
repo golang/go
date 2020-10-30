@@ -34,6 +34,12 @@ Identifier: `gopls.tidy`
 tidy runs `go mod tidy` for a module.
 
 
+### **Update go.sum**
+Identifier: `gopls.update_go_sum`
+
+update_go_sum updates the go.sum file for a module.
+
+
 ### **Undeclared name**
 Identifier: `gopls.undeclared_name`
 

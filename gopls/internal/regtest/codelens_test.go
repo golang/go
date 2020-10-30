@@ -21,6 +21,8 @@ func TestDisablingCodeLens(t *testing.T) {
 	const workspace = `
 -- go.mod --
 module codelens.test
+
+go 1.12
 -- lib.go --
 package lib
 
@@ -155,6 +157,11 @@ go 1.14
 
 require golang.org/x/hello v1.0.0
 require golang.org/x/unused v1.0.0
+-- go.sum --
+golang.org/x/hello v1.0.0 h1:qbzE1/qT0/zojAMd/JcPsO2Vb9K4Bkeyq0vB2JGMmsw=
+golang.org/x/hello v1.0.0/go.mod h1:WW7ER2MRNXWA6c8/4bDIek4Hc/+DofTrMaQQitGXcco=
+golang.org/x/unused v1.0.0 h1:LecSbCn5P3vTcxubungSt1Pn4D/WocCaiWOPDC0y0rw=
+golang.org/x/unused v1.0.0/go.mod h1:ihoW8SgWzugwwj0N2SfLfPZCxTB1QOVfhMfB5PWTQ8U=
 -- main.go --
 package main
 
@@ -188,6 +195,8 @@ func TestRegenerateCgo(t *testing.T) {
 	const workspace = `
 -- go.mod --
 module example.com
+
+go 1.12
 -- cgo.go --
 package x
 

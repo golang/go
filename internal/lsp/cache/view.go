@@ -879,11 +879,10 @@ var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 // after we have a version of the workspace go.mod file on disk. Getting a
 // FileHandle from the cache for temporary files is problematic, since we
 // cannot delete it.
-func (s *snapshot) needsModEqualsMod(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
-	if s.view.goversion < 16 || s.workspaceMode()&moduleMode == 0 {
+func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
+	if s.workspaceMode()&moduleMode == 0 {
 		return false, nil
 	}
-
 	matches := modFlagRegexp.FindStringSubmatch(s.view.goEnv["GOFLAGS"])
 	var modFlag string
 	if len(matches) != 0 {
@@ -901,8 +900,8 @@ func (s *snapshot) needsModEqualsMod(ctx context.Context, modURI span.URI, modCo
 		return false, err
 	}
 	if fi, err := os.Stat(filepath.Join(s.view.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
-		return true, nil
+		return false, nil
 	}
 	vendorEnabled := modFile.Go != nil && modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
-	return !vendorEnabled, nil
+	return vendorEnabled, nil
 }

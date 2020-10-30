@@ -48,6 +48,7 @@ const stdlibDefinition = `
 -- go.mod --
 module mod.com
 
+go 1.12
 -- main.go --
 package main
 
@@ -110,6 +111,8 @@ func TestHoverOnError(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- main.go --
 package main
 

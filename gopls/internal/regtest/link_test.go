@@ -20,6 +20,9 @@ module mod.test
 go 1.12
 
 require import.test v1.2.3
+-- go.sum --
+import.test v1.2.3 h1:Mu4N9BICLJFxwwn8YNg6T3frkFWW1O7evXvo0HiRjBc=
+import.test v1.2.3/go.mod h1:KooCN1g237upRg7irU7F+3oADn5tVClU8YYW4I1xhMk=
 -- main.go --
 package main
 

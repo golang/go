@@ -254,30 +254,70 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 	s.view.optionsMu.Unlock()
 	cleanup = func() {} // fallback
 
+	// All logic below is for module mode.
+	if s.workspaceMode()&moduleMode == 0 {
+		return "", inv, cleanup, nil
+	}
+
 	var modURI span.URI
-	if s.workspaceMode()&moduleMode != 0 {
-		// Select the module context to use.
-		// If we're type checking, we need to use the workspace context, meaning
-		// the main (workspace) module. Otherwise, we should use the module for
-		// the passed-in working dir.
-		if mode == source.LoadWorkspace {
-			if s.workspaceMode()&usesWorkspaceModule == 0 {
-				for m := range s.workspace.getActiveModFiles() { // range to access the only element
-					modURI = m
-				}
-			} else {
-				var tmpDir span.URI
-				var err error
-				tmpDir, err = s.getWorkspaceDir(ctx)
-				if err != nil {
-					return "", nil, cleanup, err
-				}
-				inv.WorkingDir = tmpDir.Filename()
-				modURI = span.URIFromPath(filepath.Join(tmpDir.Filename(), "go.mod"))
+	// Select the module context to use.
+	// If we're type checking, we need to use the workspace context, meaning
+	// the main (workspace) module. Otherwise, we should use the module for
+	// the passed-in working dir.
+	if mode == source.LoadWorkspace {
+		if s.workspaceMode()&usesWorkspaceModule == 0 {
+			for m := range s.workspace.getActiveModFiles() { // range to access the only element
+				modURI = m
 			}
 		} else {
-			modURI = s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
+			var tmpDir span.URI
+			var err error
+			tmpDir, err = s.getWorkspaceDir(ctx)
+			if err != nil {
+				return "", nil, cleanup, err
+			}
+			inv.WorkingDir = tmpDir.Filename()
+			modURI = span.URIFromPath(filepath.Join(tmpDir.Filename(), "go.mod"))
 		}
+	} else {
+		modURI = s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
+	}
+
+	var modContent []byte
+	if modURI != "" {
+		modFH, err := s.GetFile(ctx, modURI)
+		if err != nil {
+			return "", nil, cleanup, err
+		}
+		modContent, err = modFH.Read()
+		if err != nil {
+			return "", nil, cleanup, err
+		}
+	}
+
+	vendorEnabled, err := s.vendorEnabled(ctx, modURI, modContent)
+	if err != nil {
+		return "", nil, cleanup, err
+	}
+
+	mutableModFlag := ""
+	if s.view.goversion >= 16 {
+		mutableModFlag = "mod"
+	}
+
+	switch mode {
+	case source.LoadWorkspace, source.Normal:
+		if vendorEnabled {
+			inv.ModFlag = "vendor"
+		} else if s.workspaceMode()&usesWorkspaceModule == 0 {
+			inv.ModFlag = "readonly"
+		} else {
+			// Temporarily allow updates for multi-module workspace mode:
+			// it doesn't create a go.sum at all. golang/go#42509.
+			inv.ModFlag = mutableModFlag
+		}
+	case source.UpdateUserModFile, source.WriteTemporaryModFile:
+		inv.ModFlag = mutableModFlag
 	}
 
 	wantTempMod := mode != source.UpdateUserModFile
@@ -302,25 +342,6 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 			return "", nil, cleanup, err
 		}
 		inv.ModFile = tmpURI.Filename()
-	}
-
-	var modContent []byte
-	if modURI != "" {
-		modFH, err := s.GetFile(ctx, modURI)
-		if err != nil {
-			return "", nil, cleanup, err
-		}
-		modContent, err = modFH.Read()
-		if err != nil {
-			return "", nil, nil, err
-		}
-	}
-	modMod, err := s.needsModEqualsMod(ctx, modURI, modContent)
-	if err != nil {
-		return "", nil, cleanup, err
-	}
-	if modMod {
-		inv.ModFlag = "mod"
 	}
 
 	return tmpURI, inv, cleanup, nil

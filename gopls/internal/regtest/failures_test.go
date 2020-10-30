@@ -15,6 +15,8 @@ func TestHoverFailure(t *testing.T) {
 	const mod = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- a.y --
 DWIM(main)
 
@@ -41,6 +43,8 @@ func main() {
 const badPackageDup = `
 -- go.mod --
 module mod.com
+
+go 1.12
 -- a.go --
 package consts
 

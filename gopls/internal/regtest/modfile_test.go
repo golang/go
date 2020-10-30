@@ -167,6 +167,9 @@ module mod.com
 go 1.12
 
 require example.com v1.2.3 // indirect
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 
@@ -210,7 +213,9 @@ const X = 1
 module mod.com
 go 1.14
 require example.com v1.0.0
-
+-- go.sum --
+example.com v1.0.0 h1:38O7j5rEBajXk+Q5wzLbRN7KqMkSgEiN9NqcM1O2bBM=
+example.com v1.0.0/go.mod h1:vUsPMGpx9ZXXzECCOsOmYCW7npJTwuA16yl89n3Mgls=
 -- main.go --
 package main
 func main() {}
@@ -265,6 +270,11 @@ module mod.com
 go 1.14
 
 require google.golang.org/protobuf v1.20.0
+-- go.sum --
+github.com/esimov/caire v1.2.5 h1:OcqDII/BYxcBYj3DuwDKjd+ANhRxRqLa2n69EGje7qw=
+github.com/esimov/caire v1.2.5/go.mod h1:mXnjRjg3+WUtuhfSC1rKRmdZU9vJZyS1ZWU0qSvJhK8=
+google.golang.org/protobuf v1.20.0 h1:y9T1vAtFKQg0faFNMOxJU7WuEqPWolVkjIkU6aI8qCY=
+google.golang.org/protobuf v1.20.0/go.mod h1:FcqsytGClbtLv1ot8NvsJHjBi0h22StKVP+K/j2liKA=
 -- main.go --
 package main
 
@@ -313,6 +323,9 @@ module mod.com
 go 1.12
 
 require example.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 
@@ -361,6 +374,11 @@ module mod.com
 go 1.12
 
 require example.com/blah/v2 v2.0.0
+-- go.sum --
+example.com/blah v1.0.0 h1:kGPlWJbMsn1P31H9xp/q2mYI32cxLnCvauHN0AVaHnc=
+example.com/blah v1.0.0/go.mod h1:PZUQaGFeVjyDmAE8ywmLbmDn3fj4Ws8epg4oLuDzW3M=
+example.com/blah/v2 v2.0.0 h1:w5baE9JuuU11s3de3yWx2sU05AhNkgLYdZ4qukv+V0k=
+example.com/blah/v2 v2.0.0/go.mod h1:UZiKbTwobERo/hrqFLvIQlJwQZQGxWMVY4xere8mj7w=
 -- main.go --
 package main
 
@@ -424,8 +442,23 @@ func main() {
 				env.DiagnosticAtRegexp("go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
-			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Editor.SaveBuffer(env.Ctx, "go.mod") // go.mod changes must be on disk
+
+			// Bring the go.sum file back into sync. Multi-module workspace
+			// mode currently doesn't set -mod=readonly, so won't need to.
+			if !strings.Contains(t.Name(), "experimental") {
+				d := protocol.PublishDiagnosticsParams{}
+				env.Await(
+					OnceMet(
+						env.DiagnosticAtRegexp("go.mod", "module"),
+						ReadDiagnostics("go.mod", &d),
+					),
+				)
+				env.ApplyQuickFixes("go.mod", d.Diagnostics)
+			}
+
 			env.Await(
+				EmptyDiagnostics("go.mod"),
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)
 		})
@@ -438,6 +471,9 @@ module mod.com
 require (
 	example.com v1.2.3
 )
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 
@@ -456,12 +492,12 @@ func main() {
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)
 			env.RegexpReplace("go.mod", "v1.2.3", "v1.2.2")
-			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Editor.SaveBuffer(env.Ctx, "go.mod") // go.mod changes must be on disk
 			env.Await(
 				env.DiagnosticAtRegexp("go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
-			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Editor.SaveBuffer(env.Ctx, "go.mod") // go.mod changes must be on disk
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)

@@ -21,6 +21,7 @@ func TestPackageCompletion(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- fruits/apple.go --
 package apple
 
@@ -174,6 +175,7 @@ func TestPackageNameCompletion(t *testing.T) {
 -- go.mod --
 module mod.com
 
+go 1.12
 -- math/add.go --
 package ma
 `

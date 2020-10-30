@@ -149,29 +149,39 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	return mth.tidy(ctx, s)
 }
 
-func (s *snapshot) parseModErrors(ctx context.Context, fh source.FileHandle, err error) (*source.TidiedModule, bool) {
-	if err == nil {
+func (s *snapshot) parseModErrors(ctx context.Context, fh source.FileHandle, goCommandErr error) (*source.TidiedModule, bool) {
+	if goCommandErr == nil {
 		return nil, false
 	}
-	switch {
+
 	// Match on common error messages. This is really hacky, but I'm not sure
 	// of any better way. This can be removed when golang/go#39164 is resolved.
-	case strings.Contains(err.Error(), "inconsistent vendoring"):
-		pmf, err := s.ParseMod(ctx, fh)
-		if err != nil {
-			return nil, false
-		}
-		if pmf.File.Module == nil || pmf.File.Module.Syntax == nil {
-			return nil, false
-		}
-		rng, err := rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
-		if err != nil {
-			return nil, false
-		}
-		args, err := source.MarshalArgs(protocol.URIFromSpanURI(fh.URI()))
-		if err != nil {
-			return nil, false
-		}
+	errText := goCommandErr.Error()
+	isInconsistentVendor := strings.Contains(errText, "inconsistent vendoring")
+	isGoSumUpdates := strings.Contains(errText, "updates to go.sum needed") || strings.Contains(errText, "missing go.sum entry")
+
+	if !isInconsistentVendor && !isGoSumUpdates {
+		return nil, false
+	}
+
+	pmf, err := s.ParseMod(ctx, fh)
+	if err != nil {
+		return nil, false
+	}
+	if pmf.File.Module == nil || pmf.File.Module.Syntax == nil {
+		return nil, false
+	}
+	rng, err := rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
+	if err != nil {
+		return nil, false
+	}
+	args, err := source.MarshalArgs(protocol.URIFromSpanURI(fh.URI()))
+	if err != nil {
+		return nil, false
+	}
+
+	switch {
+	case isInconsistentVendor:
 		return &source.TidiedModule{
 			Errors: []*source.Error{{
 				URI:   fh.URI(),
@@ -189,7 +199,34 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 				}},
 			}},
 		}, true
+
+	case isGoSumUpdates:
+		return &source.TidiedModule{
+			Errors: []*source.Error{{
+				URI:     fh.URI(),
+				Range:   rng,
+				Kind:    source.ListError,
+				Message: `go.sum is out of sync with go.mod. Please update it or run "go mod tidy".`,
+				SuggestedFixes: []source.SuggestedFix{
+					{
+						Command: &protocol.Command{
+							Command:   source.CommandTidy.ID(),
+							Title:     source.CommandTidy.Title,
+							Arguments: args,
+						},
+					},
+					{
+						Command: &protocol.Command{
+							Command:   source.CommandUpdateGoSum.ID(),
+							Title:     source.CommandUpdateGoSum.Title,
+							Arguments: args,
+						},
+					},
+				},
+			}},
+		}, true
 	}
+
 	return nil, false
 }
 
@@ -268,9 +305,19 @@ func modTidyErrors(ctx context.Context, snapshot source.Snapshot, pm *source.Par
 	// workspace.
 	for _, pkg := range workspacePkgs {
 		missingImports := map[string]*modfile.Require{}
+		var importedPkgs []string
+
+		// If -mod=readonly is not set we may have successfully imported
+		// packages from missing modules. Otherwise they'll be in
+		// MissingDependencies. Combine both.
 		for _, imp := range pkg.Imports() {
-			if req, ok := missing[imp.PkgPath()]; ok {
-				missingImports[imp.PkgPath()] = req
+			importedPkgs = append(importedPkgs, imp.PkgPath())
+		}
+		importedPkgs = append(importedPkgs, pkg.MissingDependencies()...)
+
+		for _, imp := range importedPkgs {
+			if req, ok := missing[imp]; ok {
+				missingImports[imp] = req
 				break
 			}
 			// If the import is a package of the dependency, then add the
@@ -285,12 +332,12 @@ func modTidyErrors(ctx context.Context, snapshot source.Snapshot, pm *source.Par
 			// They both are related to the same module: "golang.org/x/tools".
 			var match string
 			for _, req := range ideal.Require {
-				if strings.HasPrefix(imp.PkgPath(), req.Mod.Path) && len(req.Mod.Path) > len(match) {
+				if strings.HasPrefix(imp, req.Mod.Path) && len(req.Mod.Path) > len(match) {
 					match = req.Mod.Path
 				}
 			}
 			if req, ok := missing[match]; ok {
-				missingImports[imp.PkgPath()] = req
+				missingImports[imp] = req
 			}
 		}
 		// None of this package's imports are from missing modules.
