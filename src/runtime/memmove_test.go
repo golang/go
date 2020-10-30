@@ -286,6 +286,9 @@ var bufSizes = []int{
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 	32, 64, 128, 256, 512, 1024, 2048, 4096,
 }
+var bufSizesOverlap = []int{
+	32, 64, 128, 256, 512, 1024, 2048, 4096,
+}
 
 func BenchmarkMemmove(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
@@ -293,6 +296,15 @@ func BenchmarkMemmove(b *testing.B) {
 		y := make([]byte, n)
 		for i := 0; i < b.N; i++ {
 			copy(x, y)
+		}
+	})
+}
+
+func BenchmarkMemmoveOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+16)
+		for i := 0; i < b.N; i++ {
+			copy(x[16:n+16], x[:n])
 		}
 	})
 }
@@ -307,12 +319,30 @@ func BenchmarkMemmoveUnalignedDst(b *testing.B) {
 	})
 }
 
+func BenchmarkMemmoveUnalignedDstOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+16)
+		for i := 0; i < b.N; i++ {
+			copy(x[16:n+16], x[1:n+1])
+		}
+	})
+}
+
 func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		y := make([]byte, n+1)
 		for i := 0; i < b.N; i++ {
 			copy(x, y[1:])
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+1)
+		for i := 0; i < b.N; i++ {
+			copy(x[1:n+1], x[:n])
 		}
 	})
 }
