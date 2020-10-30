@@ -109,8 +109,8 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	if path == Target.Path {
-		if query != "latest" {
-			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
+		if query != "latest" && query != "upgrade" && query != "patch" {
+			return nil, &QueryMatchesMainModuleError{Pattern: path, Query: query}
 		}
 		if err := allowed(ctx, Target); err != nil {
 			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
@@ -579,7 +579,11 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		m := match(Target, modRoot, true)
 		if len(m.Pkgs) > 0 {
 			if query != "latest" && query != "upgrade" && query != "patch" {
-				return nil, nil, fmt.Errorf("can't query version %q for package %s in the main module (%s)", query, pattern, Target.Path)
+				return nil, nil, &QueryMatchesPackagesInMainModuleError{
+					Pattern:  pattern,
+					Query:    query,
+					Packages: m.Pkgs,
+				}
 			}
 			if err := allowed(ctx, Target); err != nil {
 				return nil, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed: %w", pattern, Target.Path, err)
@@ -1022,4 +1026,40 @@ func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) 
 		rev.Short, _ = modfetch.PseudoVersionRev(v)
 	}
 	return rev, nil
+}
+
+// A QueryMatchesMainModuleError indicates that a query requests
+// a version of the main module that cannot be satisfied.
+// (The main module's version cannot be changed.)
+type QueryMatchesMainModuleError struct {
+	Pattern string
+	Query   string
+}
+
+func (e *QueryMatchesMainModuleError) Error() string {
+	if e.Pattern == Target.Path {
+		return fmt.Sprintf("can't request version %q of the main module (%s)", e.Query, e.Pattern)
+	}
+
+	return fmt.Sprintf("can't request version %q of pattern %q that includes the main module (%s)", e.Query, e.Pattern, Target.Path)
+}
+
+// A QueryMatchesPackagesInMainModuleError indicates that a query cannot be
+// satisfied because it matches one or more packages found in the main module.
+type QueryMatchesPackagesInMainModuleError struct {
+	Pattern  string
+	Query    string
+	Packages []string
+}
+
+func (e *QueryMatchesPackagesInMainModuleError) Error() string {
+	if len(e.Packages) > 1 {
+		return fmt.Sprintf("pattern %s matches %d packages in the main module, so can't request version %s", e.Pattern, len(e.Packages), e.Query)
+	}
+
+	if search.IsMetaPackage(e.Pattern) || strings.Contains(e.Pattern, "...") {
+		return fmt.Sprintf("pattern %s matches package %s in the main module, so can't request version %s", e.Pattern, e.Packages[0], e.Query)
+	}
+
+	return fmt.Sprintf("package %s is in the main module, so can't request version %s", e.Packages[0], e.Query)
 }
