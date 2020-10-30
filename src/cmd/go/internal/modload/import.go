@@ -477,7 +477,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
-				fi, err := os.Stat(filepath.Join(d, "go.mod"))
+				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
 			}).(bool)
 
@@ -531,7 +531,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 			// dirInModule does not report errors for missing modules,
 			// so if we don't report the error now, later failures will be
 			// very mysterious.
-			if _, err := os.Stat(dir); err != nil {
+			if _, err := fsys.Stat(dir); err != nil {
 				if os.IsNotExist(err) {
 					// Semantically the module version itself “exists” — we just don't
 					// have its source code. Remove the equivalence to os.ErrNotExist,
