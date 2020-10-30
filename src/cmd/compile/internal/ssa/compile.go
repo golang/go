@@ -304,37 +304,39 @@ commas. For example:
 `
 	}
 
-	if phase == "check" && flag == "on" {
-		checkEnabled = val != 0
-		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
-		return ""
-	}
-	if phase == "check" && flag == "off" {
-		checkEnabled = val == 0
-		debugPoset = checkEnabled
-		return ""
-	}
-	if phase == "check" && flag == "seed" {
-		checkEnabled = true
-		checkRandSeed = val
-		debugPoset = checkEnabled
-		return ""
+	if phase == "check" {
+		switch flag {
+		case "on":
+			checkEnabled = val != 0
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			return ""
+		case "off":
+			checkEnabled = val == 0
+			debugPoset = checkEnabled
+			return ""
+		case "seed":
+			checkEnabled = true
+			checkRandSeed = val
+			debugPoset = checkEnabled
+			return ""
+		}
 	}
 
 	alltime := false
 	allmem := false
 	alldump := false
 	if phase == "all" {
-		if flag == "time" {
+		switch flag {
+		case "time":
 			alltime = val != 0
-		} else if flag == "mem" {
+		case "mem":
 			allmem = val != 0
-		} else if flag == "dump" {
+		case "dump":
 			alldump = val != 0
 			if alldump {
 				BuildDump = valString
 			}
-		} else {
+		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
 		}
 	}
