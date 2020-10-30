@@ -63,7 +63,7 @@ func TestDebouncer(t *testing.T) {
 			for i, e := range test.events {
 				wg.Add(1)
 				go func(e *event) {
-					d.debounce(e.key, e.order, 100*time.Millisecond, func() {
+					d.debounce(e.key, e.order, 500*time.Millisecond, func() {
 						e.fired = true
 					})
 					wg.Done()
