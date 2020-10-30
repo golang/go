@@ -47,6 +47,14 @@ go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
 exec ./main_call_asm$GOEXE
 ! stdout .
 
+# Change the contents of a file in the overlay and ensure that makes the target stale
+go install -overlay overlay.json ./test_cache
+go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^false$'
+cp overlay/test_cache_different.go overlay/test_cache.go
+go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^true$'
+
 go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
 cp stdout compiled_cgo_sources.txt
 go run ../print_line_comments.go compiled_cgo_sources.txt
@@ -87,6 +95,13 @@ go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./ca
 exec ./main_call_asm_gccgo$GOEXE
 ! stdout .
 
+go install -gccgo -overlay overlay.json ./test_cache
+go list -gccgo -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^false$'
+cp overlay/test_cache_different.go overlay/test_cache.go
+go list -gccgo -overlay overlay.json -f '{{.Stale}}' ./test_cache
+stdout '^true$'
+
 -- m/go.mod --
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
 module m
@@ -114,6 +129,7 @@ the actual code is in the overlay
 		"printpath/main.go": "overlay/printpath.go",
 		"printpath/other.go": "overlay2/printpath2.go",
 		"call_asm/asm.s": "overlay/asm_file.s",
+		"test_cache/main.go": "overlay/test_cache.go",
 		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
 		"cgo_hello_replace/hello.c": "overlay/hello.c",
 		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
@@ -230,6 +246,22 @@ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 TEXT ·foo(SB),0,$0
 	RET
 
+-- m/overlay/test_cache.go --
+package foo
+
+import "fmt"
+
+func bar() {
+    fmt.Println("something")
+}
+-- m/overlay/test_cache_different.go --
+package foo
+
+import "fmt"
+
+func bar() {
+    fmt.Println("different")
+}
 -- m/cgo_hello_quote/hello.c --
 #include <stdio.h>
 
