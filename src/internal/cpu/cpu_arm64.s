@@ -10,3 +10,9 @@ TEXT ·getisar0(SB),NOSPLIT,$0
 	MRS	ID_AA64ISAR0_EL1, R0
 	MOVD	R0, ret+0(FP)
 	RET
+
+// func getMIDR() uint64
+TEXT ·getMIDR(SB), NOSPLIT, $0-8
+	MRS	MIDR_EL1, R0
+	MOVD	R0, ret+0(FP)
+	RET
