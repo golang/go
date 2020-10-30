@@ -1851,9 +1851,9 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	return q
 }
 
-// If the environment variable GOAMD64=alignedjumps the assembler will ensure that
-// no standalone or macro-fused jump will straddle or end on a 32 byte boundary
-// by inserting NOPs before the jumps
+// isJump returns whether p is a jump instruction.
+// It is used to ensure that no standalone or macro-fused jump will straddle
+// or end on a 32 byte boundary by inserting NOPs before the jumps.
 func isJump(p *obj.Prog) bool {
 	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
 		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
@@ -1985,11 +1985,6 @@ func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
 	// Disable jump padding for hand written assembly code.
 	if ctxt.IsAsm {
 		return padJumpsCtx(0)
-	}
-
-	if objabi.GOAMD64 != "alignedjumps" {
-		return padJumpsCtx(0)
-
 	}
 
 	return padJumpsCtx(32)
