@@ -839,14 +839,12 @@ func (v *reassignVisitor) visit(n *Node) *Node {
 		if n.Left == v.name && n != v.name.Name.Defn {
 			return n
 		}
-		return nil
 	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
 		for _, p := range n.List.Slice() {
 			if p == v.name && n != v.name.Name.Defn {
 				return n
 			}
 		}
-		return nil
 	}
 	if a := v.visit(n.Left); a != nil {
 		return a
