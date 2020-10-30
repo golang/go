@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
@@ -98,6 +99,13 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	// Set a last resort deadline on packages.Load since it calls the go
+	// command, which may hang indefinitely if it has a bug. golang/go#42132
+	// and golang/go#42255 have more context.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
+
 	cfg := s.config(ctx, inv)
 	pkgs, err := packages.Load(cfg, query...)
 	cleanup()
