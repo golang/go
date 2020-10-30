@@ -68,33 +68,12 @@ type View struct {
 	filesByURI  map[span.URI]*fileBase
 	filesByBase map[string][]*fileBase
 
-	snapshotMu sync.Mutex
-	snapshot   *snapshot
-
-	// initialized is closed when the view has been fully initialized. On
-	// initialization, the view's workspace packages are loaded. All of the
-	// fields below are set as part of initialization. If we failed to load, we
-	// only retry if the go.mod file changes, to avoid too many go/packages
-	// calls.
-	//
-	// When the view is created, initializeOnce is non-nil, initialized is
-	// open, and initCancelFirstAttempt can be used to terminate
-	// initialization. Once initialization completes, initializedErr may be set
-	// and initializeOnce becomes nil. If initializedErr is non-nil,
-	// initialization may be retried (depending on how files are changed). To
-	// indicate that initialization should be retried, initializeOnce will be
-	// set. The next time a caller requests workspace packages, the
-	// initialization will retry.
-	initialized            chan struct{}
+	// initCancelFirstAttempt can be used to terminate the view's first
+	// attempt at initialization.
 	initCancelFirstAttempt context.CancelFunc
 
-	// initializationSema is used as a mutex to guard initializeOnce and
-	// initializedErr, which will be updated after each attempt to initialize
-	// the view. We use a channel instead of a mutex to avoid blocking when a
-	// context is canceled.
-	initializationSema chan struct{}
-	initializeOnce     *sync.Once
-	initializedErr     error
+	snapshotMu sync.Mutex
+	snapshot   *snapshot
 
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
@@ -495,21 +474,21 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 	select {
 	case <-ctx.Done():
 		return
-	case s.view.initializationSema <- struct{}{}:
+	case s.initializationSema <- struct{}{}:
 	}
 
 	defer func() {
-		<-s.view.initializationSema
+		<-s.initializationSema
 	}()
 
-	if s.view.initializeOnce == nil {
+	if s.initializeOnce == nil {
 		return
 	}
-	s.view.initializeOnce.Do(func() {
+	s.initializeOnce.Do(func() {
 		defer func() {
-			s.view.initializeOnce = nil
+			s.initializeOnce = nil
 			if firstAttempt {
-				close(s.view.initialized)
+				close(s.initialized)
 			}
 		}()
 
@@ -557,9 +536,9 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		if err != nil {
 			event.Error(ctx, "initial workspace load failed", err)
 			if modErrors != nil {
-				s.view.initializedErr = errors.Errorf("errors loading modules: %v: %w", err, modErrors)
+				s.initializedErr = errors.Errorf("errors loading modules: %v: %w", err, modErrors)
 			} else {
-				s.view.initializedErr = err
+				s.initializedErr = err
 			}
 		}
 	})
@@ -584,13 +563,8 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 	defer v.snapshotMu.Unlock()
 
 	oldSnapshot := v.snapshot
-	var reinitialize reinitializeView
-	v.snapshot, reinitialize = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
+	v.snapshot = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
 	go oldSnapshot.generation.Destroy()
-
-	if reinitialize == maybeReinit || reinitialize == definitelyReinit {
-		v.reinitialize(reinitialize == definitelyReinit)
-	}
 
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
 }
@@ -606,17 +580,17 @@ func (v *View) cancelBackground() {
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 }
 
-func (v *View) reinitialize(force bool) {
-	v.initializationSema <- struct{}{}
+func (s *snapshot) reinitialize(force bool) {
+	s.initializationSema <- struct{}{}
 	defer func() {
-		<-v.initializationSema
+		<-s.initializationSema
 	}()
 
-	if !force && v.initializedErr == nil {
+	if !force && s.initializedErr == nil {
 		return
 	}
 	var once sync.Once
-	v.initializeOnce = &once
+	s.initializeOnce = &once
 }
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {

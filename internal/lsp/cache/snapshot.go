@@ -46,6 +46,33 @@ type snapshot struct {
 	// builtin pins the AST and package for builtin.go in memory.
 	builtin *builtinPackageHandle
 
+	// The snapshot's initialization state is controlled by the fields below.
+	// These fields are propagated across snapshots to avoid multiple
+	// concurrent initializations. They may be invalidated during cloning.
+	//
+	// initialized is closed when the snapshot has been fully initialized. On
+	// initialization, the snapshot's workspace packages are loaded. All of the
+	// fields below are set as part of initialization. If we failed to load, we
+	// only retry if the go.mod file changes, to avoid too many go/packages
+	// calls.
+	//
+	// When the view is created, its snapshot's initializeOnce is non-nil,
+	// initialized is open. Once initialization completes, initializedErr may
+	// be set and initializeOnce becomes nil. If initializedErr is non-nil,
+	// initialization may be retried (depending on how files are changed). To
+	// indicate that initialization should be retried, initializeOnce will be
+	// set. The next time a caller requests workspace packages, the
+	// initialization will retry.
+	initialized chan struct{}
+
+	// initializationSema is used as a mutex to guard initializeOnce and
+	// initializedErr, which will be updated after each attempt to initialize
+	// the snapshot. We use a channel instead of a mutex to avoid blocking when
+	// a context is canceled.
+	initializationSema chan struct{}
+	initializeOnce     *sync.Once
+	initializedErr     error
+
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
 
@@ -866,7 +893,7 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.metadata) == 0 {
-		return s.view.initializedErr
+		return s.initializedErr
 	}
 	return nil
 }
@@ -875,7 +902,7 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		return
-	case <-s.view.initialized:
+	case <-s.initialized:
 	}
 	// We typically prefer to run something as intensive as the IWL without
 	// blocking. I'm not sure if there is a way to do that here.
@@ -992,7 +1019,7 @@ func generationName(v *View, snapshotID uint64) string {
 	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) (*snapshot, reinitializeView) {
+func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1002,6 +1029,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		generation:            newGen,
 		view:                  s.view,
 		builtin:               s.builtin,
+		initialized:           s.initialized,
+		initializationSema:    s.initializationSema,
+		initializeOnce:        s.initializeOnce,
+		initializedErr:        s.initializedErr,
 		ids:                   make(map[span.URI][]packageID),
 		importedBy:            make(map[packageID][]packageID),
 		metadata:              make(map[packageID]*metadata),
@@ -1298,20 +1329,17 @@ copyIDs:
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
 
-	var reinitialize reinitializeView
-	if modulesChanged {
-		reinitialize = maybeReinit
-	}
-	if shouldReinitializeView {
-		reinitialize = definitelyReinit
-	}
-
 	// If the snapshot's workspace mode has changed, the packages loaded using
 	// the previous mode are no longer relevant, so clear them out.
 	if s.workspaceMode() != result.workspaceMode() {
 		result.workspacePackages = map[packageID]packagePath{}
 	}
-	return result, reinitialize
+
+	// The snapshot may need to be reinitialized.
+	if modulesChanged || shouldReinitializeView {
+		result.reinitialize(shouldReinitializeView)
+	}
+	return result
 }
 
 // guessPackagesForURI returns all packages related to uri. If we haven't seen this
@@ -1363,14 +1391,6 @@ func guessPackagesForURI(uri span.URI, known map[span.URI][]packageID) []package
 	}
 	return found
 }
-
-type reinitializeView int
-
-const (
-	doNotReinit = reinitializeView(iota)
-	maybeReinit
-	definitelyReinit
-)
 
 // fileWasSaved reports whether the FileHandle passed in has been saved. It
 // accomplishes this by checking to see if the original and current FileHandles
