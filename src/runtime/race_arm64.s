@@ -25,12 +25,15 @@
 
 // The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
 
+// Darwin may return unaligned thread pointer. Align it. (See tls_arm64.s)
+// No-op on other OSes.
 #ifdef TLS_darwin
 #define TP_ALIGN	AND	$~7, R0
 #else
 #define TP_ALIGN
 #endif
 
+// Load g from TLS. (See tls_arm64.s)
 #define load_g \
 	MRS_TPIDR_R0 \
 	TP_ALIGN \
