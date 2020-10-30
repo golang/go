@@ -912,21 +912,14 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	// If it turns out to only exist as a module, we can detect the resulting
 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
 	// all of the configured proxies.
-	results, err := modload.QueryPattern(ctx, path, vers, modload.Selected, allowed)
+	results, modOnly, err := modload.QueryPattern(ctx, path, vers, modload.Selected, allowed)
 	if err != nil {
-		// If the path doesn't contain a wildcard, check whether it was actually a
-		// module path instead. If so, return that.
-		if !strings.Contains(path, "...") {
-			var modErr *modload.PackageNotInModuleError
-			if errors.As(err, &modErr) && modErr.Mod.Path == path {
-				if modErr.Mod.Version != vers {
-					logOncef("go: %s %s => %s", path, vers, modErr.Mod.Version)
-				}
-				return modErr.Mod, nil
-			}
-		}
-
 		return module.Version{}, err
+	}
+	if len(results) == 0 {
+		// The path doesn't contain a wildcard, but was actually a
+		// module path instead. Return that.
+		return modOnly.Mod, nil
 	}
 
 	m := results[0].Mod

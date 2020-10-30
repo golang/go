@@ -504,20 +504,39 @@ type QueryResult struct {
 	Packages []string
 }
 
+// QueryPackages is like QueryPattern, but requires that the pattern match at
+// least one package and omits the non-package result (if any).
+func QueryPackages(ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
+	pkgMods, modOnly, err := QueryPattern(ctx, pattern, query, current, allowed)
+
+	if len(pkgMods) == 0 && err == nil {
+		return nil, &PackageNotInModuleError{
+			Mod:         modOnly.Mod,
+			Replacement: Replacement(modOnly.Mod),
+			Query:       query,
+			Pattern:     pattern,
+		}
+	}
+
+	return pkgMods, err
+}
+
 // QueryPattern looks up the module(s) containing at least one package matching
 // the given pattern at the given version. The results are sorted by module path
-// length in descending order.
+// length in descending order. If any proxy provides a non-empty set of candidate
+// modules, no further proxies are tried.
 //
-// QueryPattern queries modules with package paths up to the first "..."
-// in the pattern. For the pattern "example.com/a/b.../c", QueryPattern would
-// consider prefixes of "example.com/a". If multiple modules have versions
-// that match the query and packages that match the pattern, QueryPattern
-// picks the one with the longest module path.
+// For wildcard patterns, QueryPattern looks in modules with package paths up to
+// the first "..." in the pattern. For the pattern "example.com/a/b.../c",
+// QueryPattern would consider prefixes of "example.com/a".
 //
 // If any matching package is in the main module, QueryPattern considers only
 // the main module and only the version "latest", without checking for other
 // possible modules.
-func QueryPattern(ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
+//
+// QueryPattern always returns at least one QueryResult (which may be only
+// modOnly) or a non-nil error.
+func QueryPattern(ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) (pkgMods []QueryResult, modOnly *QueryResult, err error) {
 	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
 	defer span.Done()
 
@@ -531,6 +550,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	}
 
 	var match func(mod module.Version, root string, isLocal bool) *search.Match
+	matchPattern := search.MatchPattern(pattern)
 
 	if i := strings.Index(pattern, "..."); i >= 0 {
 		base = pathpkg.Dir(pattern[:i+3])
@@ -558,20 +578,29 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	if HasModRoot() {
 		m := match(Target, modRoot, true)
 		if len(m.Pkgs) > 0 {
-			if query != "latest" {
-				return nil, fmt.Errorf("can't query specific version for package %s in the main module (%s)", pattern, Target.Path)
+			if query != "latest" && query != "upgrade" && query != "patch" {
+				return nil, nil, fmt.Errorf("can't query version %q for package %s in the main module (%s)", query, pattern, Target.Path)
 			}
 			if err := allowed(ctx, Target); err != nil {
-				return nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed: %w", pattern, Target.Path, err)
+				return nil, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed: %w", pattern, Target.Path, err)
 			}
 			return []QueryResult{{
 				Mod:      Target,
 				Rev:      &modfetch.RevInfo{Version: Target.Version},
 				Packages: m.Pkgs,
-			}}, nil
+			}}, nil, nil
 		}
 		if err := firstError(m); err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		if query != "latest" && query != "upgrade" && query != "patch" && matchPattern(Target.Path) {
+			if err := allowed(ctx, Target); err == nil {
+				modOnly = &QueryResult{
+					Mod: Target,
+					Rev: &modfetch.RevInfo{Version: Target.Version},
+				}
+			}
 		}
 	}
 
@@ -580,14 +609,17 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		candidateModules = modulePrefixesExcludingTarget(base)
 	)
 	if len(candidateModules) == 0 {
-		return nil, &PackageNotInModuleError{
-			Mod:     Target,
-			Query:   query,
-			Pattern: pattern,
+		if modOnly == nil {
+			return nil, nil, &PackageNotInModuleError{
+				Mod:     Target,
+				Query:   query,
+				Pattern: pattern,
+			}
 		}
+		return nil, modOnly, nil
 	}
 
-	err := modfetch.TryProxies(func(proxy string) error {
+	err = modfetch.TryProxies(func(proxy string) error {
 		queryModule := func(ctx context.Context, path string) (r QueryResult, err error) {
 			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
 			defer span.Done()
@@ -606,7 +638,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 			}
 			m := match(r.Mod, root, isLocal)
 			r.Packages = m.Pkgs
-			if len(r.Packages) == 0 {
+			if len(r.Packages) == 0 && !matchPattern(path) {
 				if err := firstError(m); err != nil {
 					return r, err
 				}
@@ -620,12 +652,19 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 			return r, nil
 		}
 
-		var err error
-		results, err = queryPrefixModules(ctx, candidateModules, queryModule)
+		allResults, err := queryPrefixModules(ctx, candidateModules, queryModule)
+		results = allResults[:0]
+		for _, r := range allResults {
+			if len(r.Packages) == 0 {
+				modOnly = &r
+			} else {
+				results = append(results, r)
+			}
+		}
 		return err
 	})
 
-	return results, err
+	return results[:len(results):len(results)], modOnly, err
 }
 
 // modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
@@ -649,11 +688,6 @@ func modulePrefixesExcludingTarget(path string) []string {
 	}
 
 	return prefixes
-}
-
-type prefixResult struct {
-	QueryResult
-	err error
 }
 
 func queryPrefixModules(ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
