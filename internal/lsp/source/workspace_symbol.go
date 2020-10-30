@@ -64,9 +64,9 @@ type matcherFunc func(name string) float64
 type symbolizer func(name string, pkg Package, m matcherFunc) (string, float64)
 
 func fullyQualifiedSymbolMatch(name string, pkg Package, matcher matcherFunc) (string, float64) {
-	fullyQualified := pkg.PkgPath() + "." + name
-	if matcher(fullyQualified) > 0 {
-		return fullyQualified, 1
+	_, score := dynamicSymbolMatch(name, pkg, matcher)
+	if score > 0 {
+		return pkg.PkgPath() + "." + name, score
 	}
 	return "", 0
 }
