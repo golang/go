@@ -20,10 +20,6 @@ import "runtime/internal/atomic"
 type mcentral struct {
 	spanclass spanClass
 
-	// For !go115NewMCentralImpl.
-	nonempty mSpanList // list of spans with a free object, ie a nonempty free list
-	empty    mSpanList // list of spans with no free objects (or cached in an mcache)
-
 	// partial and full contain two mspan sets: one of swept in-use
 	// spans, and one of unswept in-use spans. These two trade
 	// roles on each GC cycle. The unswept set is drained either by
