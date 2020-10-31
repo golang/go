@@ -491,9 +491,9 @@ func (r reqsMap) Max(v1, v2 string) string {
 }
 
 func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
-	var u module.Version
+	u := module.Version{Version: "none"}
 	for k := range r {
-		if k.Path == m.Path && u.Version < k.Version && !strings.HasSuffix(k.Version, ".hidden") {
+		if k.Path == m.Path && r.Max(u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
 			u = k
 		}
 	}
