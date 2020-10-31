@@ -58,7 +58,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 // be chosen over other versions of the same module in the module dependency
 // graph.
 func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && semver.Compare(v1, v2) == -1 {
+	if v1 != "" && (v2 == "" || semver.Compare(v1, v2) == -1) {
 		return v2
 	}
 	return v1
