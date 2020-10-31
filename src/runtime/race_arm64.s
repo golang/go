@@ -38,8 +38,7 @@
 	MRS_TPIDR_R0 \
 	TP_ALIGN \
 	MOVD    runtime·tls_g(SB), R11 \
-	ADD     R11, R0 \
-	MOVD    0(R0), g
+	MOVD    (R0)(R11), g
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
