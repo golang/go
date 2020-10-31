@@ -308,7 +308,8 @@ Files:
 				continue
 			}
 
-			if strings.Contains(line, "RET") {
+			if strings.Contains(line, "RET") && !strings.Contains(line, "(SB)") {
+				// RET f(SB) is a tail call. It is okay to not write the results.
 				retLine = append(retLine, lineno)
 			}
 
