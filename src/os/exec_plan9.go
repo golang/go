@@ -50,9 +50,12 @@ func (p *Process) writeProcFile(file string, data string) error {
 	return e
 }
 
+// ErrProcessDone indicates a Process has finished.
+var ErrProcessDone = errors.New("os: process already finished")
+
 func (p *Process) signal(sig Signal) error {
 	if p.done() {
-		return errors.New("os: process already finished")
+		return ErrProcessDone
 	}
 	if e := p.writeProcFile("note", sig.String()); e != nil {
 		return NewSyscallError("signal", e)
