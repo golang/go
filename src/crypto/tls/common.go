@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"internal/cpu"
 	"io"
+	mRand "math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -631,6 +632,17 @@ type Config struct {
 	// ciphersuites are not configurable.
 	CipherSuites []uint16
 
+	//CipherSuitesOrderKeep controls the order of elements in CipherSuites.
+	//Sometime CipherSuites order changed because of method makeClientHello.
+	//If true then CipherSuites will keep order as same as input.
+	CipherSuitesOrderKeep bool
+
+	//Grease is mechanism to prevent extensibility failures in the TLS ecosystem.
+	//See https://tools.ietf.org/html/rfc8701
+	//if true then client reserves a set of TLS protocol values that
+	// may be advertised to ensure peers correctly handle unknown values.
+	Grease bool
+
 	// PreferServerCipherSuites controls whether the server selects the
 	// client's most preferred ciphersuite, or the server's most preferred
 	// ciphersuite. If true then the server's preference, as expressed in
@@ -780,6 +792,8 @@ func (c *Config) Clone() *Config {
 		KeyLogWriter:                c.KeyLogWriter,
 		sessionTicketKeys:           c.sessionTicketKeys,
 		autoSessionTicketKeys:       c.autoSessionTicketKeys,
+		CipherSuitesOrderKeep:       c.CipherSuitesOrderKeep,
+		Grease:                      c.Grease,
 	}
 }
 
@@ -1510,4 +1524,14 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 		}
 	}
 	return false
+}
+
+var randomGrease = []uint16{
+	0x0A0A, 0x1A1A, 0x2A2, 0x3A3A, 0x4A4A, 0x5A5A, 0x6A6A, 0x7A7A,
+	0x8A8A, 0x9A9A, 0xAAAA, 0xBABA, 0xCACA, 0xDADA, 0xEAEA, 0xFAFA,
+}
+
+func grease() uint16 {
+	index := mRand.Intn(16)
+	return randomGrease[index]
 }

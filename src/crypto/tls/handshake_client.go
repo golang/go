@@ -75,6 +75,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		secureRenegotiationSupported: true,
 		alpnProtocols:                config.NextProtos,
 		supportedVersions:            supportedVersions,
+		grease:                       config.Grease,
 	}
 
 	if c.handshakes > 0 {
@@ -128,6 +129,22 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 			return nil, nil, err
 		}
 		hello.keyShares = []keyShare{{group: curveID, data: params.PublicKey()}}
+	}
+	
+	if config.CipherSuitesOrderKeep {
+		orderedCipherSuites := make([]uint16, 0, len(hello.cipherSuites))
+		for _, suiteId := range possibleCipherSuites {
+			for _, helloSuiteId := range hello.cipherSuites {
+				if helloSuiteId == suiteId {
+					orderedCipherSuites = append(orderedCipherSuites, helloSuiteId)
+				}
+			}
+		}
+		hello.cipherSuites = orderedCipherSuites
+	}
+
+	if config.Grease {
+		hello.cipherSuites = append([]uint16{grease()}, hello.cipherSuites...)
 	}
 
 	return hello, params, nil

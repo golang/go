@@ -798,6 +798,10 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]Certificate{
 				{Certificate: [][]byte{{'b'}}},
 			}))
+		case "CipherSuitesOrderKeep":
+			f.Set(reflect.ValueOf(true))
+		case "Grease":
+			f.Set(reflect.ValueOf(true))
 		case "NameToCertificate":
 			f.Set(reflect.ValueOf(map[string]*Certificate{"a": nil}))
 		case "RootCAs", "ClientCAs":
