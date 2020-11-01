@@ -724,10 +724,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 			if arch.Family == sys.ARM64 && rel.type_ == MACHO_ARM64_RELOC_ADDEND {
 				// Two relocations. This addend will be applied to the next one.
-				rAdd = int64(rel.symnum)
+				rAdd = int64(rel.symnum) << 40 >> 40 // convert unsigned 24-bit to signed 24-bit
 				continue
-			} else {
-				rAdd = 0
 			}
 
 			rSize = rel.length
@@ -789,6 +787,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			r.SetSiz(rSize)
 			r.SetSym(rSym)
 			r.SetAdd(rAdd)
+
+			rAdd = 0 // clear rAdd for next iteration
 		}
 
 		sb.SortRelocs()
