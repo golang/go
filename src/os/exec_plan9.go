@@ -5,7 +5,6 @@
 package os
 
 import (
-	"errors"
 	"runtime"
 	"syscall"
 	"time"
@@ -52,7 +51,7 @@ func (p *Process) writeProcFile(file string, data string) error {
 
 func (p *Process) signal(sig Signal) error {
 	if p.done() {
-		return errors.New("os: process already finished")
+		return ErrProcessDone
 	}
 	if e := p.writeProcFile("note", sig.String()); e != nil {
 		return NewSyscallError("signal", e)
