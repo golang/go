@@ -568,7 +568,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 
 func fossilParseStat(rev, out string) (*RevInfo, error) {
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "uuid:") {
+		if strings.HasPrefix(line, "uuid:") || strings.HasPrefix(line, "hash:") {
 			f := strings.Fields(line)
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
