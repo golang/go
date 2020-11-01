@@ -55,9 +55,6 @@ func terminateProcess(pid, exitcode int) error {
 	return NewSyscallError("TerminateProcess", e)
 }
 
-// ErrProcessDone indicates a Process has finished.
-var ErrProcessDone = errors.New("os: process already finished")
-
 func (p *Process) signal(sig Signal) error {
 	handle := atomic.LoadUintptr(&p.handle)
 	if handle == uintptr(syscall.InvalidHandle) {

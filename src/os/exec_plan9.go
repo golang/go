@@ -5,7 +5,6 @@
 package os
 
 import (
-	"errors"
 	"runtime"
 	"syscall"
 	"time"
@@ -49,9 +48,6 @@ func (p *Process) writeProcFile(file string, data string) error {
 	_, e = f.Write([]byte(data))
 	return e
 }
-
-// ErrProcessDone indicates a Process has finished.
-var ErrProcessDone = errors.New("os: process already finished")
 
 func (p *Process) signal(sig Signal) error {
 	if p.done() {
