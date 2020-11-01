@@ -841,9 +841,21 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 		return Method{}, false
 	}
 	// TODO(mdempsky): Binary search.
-	for i, p := range ut.exportedMethods() {
-		if t.nameOff(p.name).name() == name {
-			return t.Method(i), true
+	return t.binarySearchMethod(ut.exportedMethods(), name)
+}
+
+func (t *rtype) binarySearchMethod(methods []method, name string) (m Method, ok bool) {
+	low, high := 0, len(methods)
+	for low <= high {
+		mid := low + (high-low)/2
+		val := methods[mid]
+		vname := t.nameOff(val.name).name()
+		if vname == name {
+			return t.Method(mid), true
+		} else if vname > name {
+			high = mid - 1
+		} else {
+			low = mid + 1
 		}
 	}
 	return Method{}, false
