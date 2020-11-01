@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"internal/testlog"
 	"runtime"
 	"sync"
@@ -12,6 +13,9 @@ import (
 	"syscall"
 	"time"
 )
+
+// ErrProcessDone indicates a Process has finished.
+var ErrProcessDone = errors.New("os: process already finished")
 
 // Process stores the information about a process created by StartProcess.
 type Process struct {

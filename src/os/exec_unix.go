@@ -59,9 +59,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-// ErrProcessDone indicates a Process has finished.
-var ErrProcessDone = errors.New("os: process already finished")
-
 func (p *Process) signal(sig Signal) error {
 	if p.Pid == -1 {
 		return errors.New("os: process already released")
