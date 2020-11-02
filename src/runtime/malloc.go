@@ -975,6 +975,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	shouldhelpgc := false
 	dataSize := size
 	c := getMCache()
+	if c == nil {
+		throw("mallocgc called without a P or outside bootstrapping")
+	}
 	var span *mspan
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
@@ -1202,7 +1205,11 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	getMCache().nextSample = nextSample()
+	c := getMCache()
+	if c == nil {
+		throw("profilealloc called without a P or outside bootstrapping")
+	}
+	c.nextSample = nextSample()
 	mProf_Malloc(x, size)
 }
 
