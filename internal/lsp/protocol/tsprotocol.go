@@ -1137,7 +1137,7 @@ type Diagnostic struct {
 	 *
 	 * @since 3.16.0 - proposed state
 	 */
-	CodeDescription CodeDescription `json:"codeDescription,omitempty"`
+	CodeDescription *CodeDescription `json:"codeDescription,omitempty"`
 	/**
 	 * A human-readable string describing the source of this
 	 * diagnostic, e.g. 'typescript' or 'super lint'. It usually

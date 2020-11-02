@@ -509,7 +509,8 @@ function toGo(d: Data, nm: string) {
 // these fields need a *
 var starred: [string, string][] = [
   ['TextDocumentContentChangeEvent', 'range'], ['CodeAction', 'command'],
-  ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command']
+  ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command'],
+  ['Diagnostic', 'codeDescription']
 ];
 
 // generate Go code for an interface
