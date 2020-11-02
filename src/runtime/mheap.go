@@ -1247,6 +1247,10 @@ HaveSpan:
 	}
 	// Update consistent stats.
 	c := getMCache()
+	if c == nil {
+		// TODO(mknyszek): Remove this and handle this case to fix #42339.
+		throw("allocSpan called without P or outside bootstrapping")
+	}
 	stats := memstats.heapStats.acquire(c)
 	atomic.Xaddint64(&stats.committed, int64(scav))
 	atomic.Xaddint64(&stats.released, -int64(scav))
@@ -1341,6 +1345,10 @@ func (h *mheap) grow(npage uintptr) bool {
 		// just add directly to heap_released.
 		atomic.Xadd64(&memstats.heap_released, int64(asize))
 		c := getMCache()
+		if c == nil {
+			// TODO(mknyszek): Remove this and handle this case to fix #42339.
+			throw("grow called without P or outside bootstrapping")
+		}
 		stats := memstats.heapStats.acquire(c)
 		atomic.Xaddint64(&stats.released, int64(asize))
 		memstats.heapStats.release(c)
@@ -1440,6 +1448,10 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	}
 	// Update consistent stats.
 	c := getMCache()
+	if c == nil {
+		// TODO(mknyszek): Remove this and handle this case to fix #42339.
+		throw("freeSpanLocked called without P or outside bootstrapping")
+	}
 	stats := memstats.heapStats.acquire(c)
 	switch typ {
 	case spanAllocHeap:
