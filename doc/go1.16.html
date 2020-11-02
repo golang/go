@@ -161,6 +161,18 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<p><!-- CL 267100 -->
+  On Linux, the runtime now defaults to releasing memory to the
+  operating system promptly (using <code>MADV_DONTNEED</code>), rather
+  than lazily when the operating system is under memory pressure
+  (using <code>MADV_FREE</code>). This means process-level memory
+  statistics like RSS will more accurately reflect the amount of
+  physical memory being used by Go processes. Systems that are
+  currently using <code>GODEBUG=madvdontneed=1</code> to improve
+  memory monitoring behavior no longer need to set this environment
+  variable.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
 <p>
