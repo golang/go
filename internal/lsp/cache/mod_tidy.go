@@ -415,10 +415,15 @@ func directnessError(m *protocol.ColumnMapper, req *modfile.Require, computeEdit
 }
 
 func missingModuleError(snapshot source.Snapshot, pm *source.ParsedModule, req *modfile.Require) (source.Error, error) {
-	start, end := pm.File.Module.Syntax.Span()
-	rng, err := rangeFromPositions(pm.Mapper, start, end)
-	if err != nil {
-		return source.Error{}, err
+	var rng protocol.Range
+	// Default to the start of the file if there is no module declaration.
+	if pm.File != nil && pm.File.Module != nil && pm.File.Module.Syntax != nil {
+		start, end := pm.File.Module.Syntax.Span()
+		var err error
+		rng, err = rangeFromPositions(pm.Mapper, start, end)
+		if err != nil {
+			return source.Error{}, err
+		}
 	}
 	args, err := source.MarshalArgs(pm.Mapper.URI, []string{req.Mod.Path + "@" + req.Mod.Version})
 	if err != nil {
