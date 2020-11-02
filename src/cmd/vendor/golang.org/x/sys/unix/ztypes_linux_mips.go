@@ -602,3 +602,19 @@ type TIPCSIOCNodeIDReq struct {
 	Peer uint32
 	Id   [16]int8
 }
+
+type PPSKInfo struct {
+	Assert_sequence uint32
+	Clear_sequence  uint32
+	Assert_tu       PPSKTime
+	Clear_tu        PPSKTime
+	Current_mode    int32
+	_               [4]byte
+}
+
+const (
+	PPS_GETPARAMS = 0x400470a1
+	PPS_SETPARAMS = 0x800470a2
+	PPS_GETCAP    = 0x400470a3
+	PPS_FETCH     = 0xc00470a4
+)

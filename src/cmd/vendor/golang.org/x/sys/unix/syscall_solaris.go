@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -553,8 +554,10 @@ func Minor(dev uint64) uint32 {
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
 
-func IoctlSetTermio(fd int, req uint, value *Termio) (err error) {
-	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+func IoctlSetTermio(fd int, req uint, value *Termio) error {
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
 }
 
 func IoctlGetTermio(fd int, req uint) (*Termio, error) {
