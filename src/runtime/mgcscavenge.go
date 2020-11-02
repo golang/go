@@ -733,14 +733,10 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr 
 	atomic.Xadd64(&memstats.heap_released, nbytes)
 
 	// Update consistent accounting too.
-	c := getMCache()
-	if c == nil {
-		throw("scavengeRangeLocked called without a P or outside bootstrapping")
-	}
-	stats := memstats.heapStats.acquire(c)
+	stats := memstats.heapStats.acquire()
 	atomic.Xaddint64(&stats.committed, -nbytes)
 	atomic.Xaddint64(&stats.released, nbytes)
-	memstats.heapStats.release(c)
+	memstats.heapStats.release()
 
 	return addr
 }

@@ -339,8 +339,6 @@ func (s *mspan) sweep(preserve bool) bool {
 	spc := s.spanclass
 	size := s.elemsize
 
-	c := _g_.m.p.ptr().mcache
-
 	// The allocBits indicate which unmarked objects don't need to be
 	// processed since they were free at the end of the last GC cycle
 	// and were not allocated since then.
@@ -505,9 +503,9 @@ func (s *mspan) sweep(preserve bool) bool {
 			// wasn't totally filled, but then swept, still has all of its
 			// free slots zeroed.
 			s.needzero = 1
-			stats := memstats.heapStats.acquire(c)
+			stats := memstats.heapStats.acquire()
 			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
-			memstats.heapStats.release(c)
+			memstats.heapStats.release()
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -552,10 +550,10 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			stats := memstats.heapStats.acquire(c)
+			stats := memstats.heapStats.acquire()
 			atomic.Xadduintptr(&stats.largeFreeCount, 1)
 			atomic.Xadduintptr(&stats.largeFree, size)
-			memstats.heapStats.release(c)
+			memstats.heapStats.release()
 			return true
 		}
 

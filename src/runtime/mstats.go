@@ -158,7 +158,7 @@ type mstats struct {
 	// heapStats is a set of statistics
 	heapStats consistentHeapStats
 
-	_ uint32 // ensure gcPauseDist is aligned
+	// _ uint32 // ensure gcPauseDist is aligned
 
 	// gcPauseDist represents the distribution of all GC-related
 	// application pauses in the runtime.
@@ -818,10 +818,11 @@ type consistentHeapStats struct {
 	// Writers always atomically update the delta at index gen.
 	//
 	// Readers operate by rotating gen (0 -> 1 -> 2 -> 0 -> ...)
-	// and synchronizing with writers by observing each mcache's
-	// statsSeq field. If the reader observes a P (to which the
-	// mcache is bound) not writing, it can be sure that it will
-	// pick up the new gen value the next time it writes.
+	// and synchronizing with writers by observing each P's
+	// statsSeq field. If the reader observes a P not writing,
+	// it can be sure that it will pick up the new gen value the
+	// next time it writes.
+	//
 	// The reader then takes responsibility by clearing space
 	// in the ring buffer for the next reader to rotate gen to
 	// that space (i.e. it merges in values from index (gen-2) mod 3
@@ -830,7 +831,7 @@ type consistentHeapStats struct {
 	// Note that this means only one reader can be reading at a time.
 	// There is no way for readers to synchronize.
 	//
-	// This process is why we need ring buffer of size 3 instead
+	// This process is why we need a ring buffer of size 3 instead
 	// of 2: one is for the writers, one contains the most recent
 	// data, and the last one is clear so writers can begin writing
 	// to it the moment gen is updated.
@@ -840,24 +841,34 @@ type consistentHeapStats struct {
 	// are writing, and can take on the value of 0, 1, or 2.
 	// This value is updated atomically.
 	gen uint32
+
+	// noPLock is intended to provide mutual exclusion for updating
+	// stats when no P is available. It does not block other writers
+	// with a P, only other writers without a P and the reader. Because
+	// stats are usually updated when a P is available, contention on
+	// this lock should be minimal.
+	noPLock mutex
 }
 
 // acquire returns a heapStatsDelta to be updated. In effect,
 // it acquires the shard for writing. release must be called
-// as soon as the relevant deltas are updated. c must be
-// a valid mcache not being used by any other thread.
+// as soon as the relevant deltas are updated.
 //
 // The returned heapStatsDelta must be updated atomically.
 //
-// Note however, that this is unsafe to call concurrently
-// with other writers and there must be only one writer
-// at a time.
-func (m *consistentHeapStats) acquire(c *mcache) *heapStatsDelta {
-	seq := atomic.Xadd(&c.statsSeq, 1)
-	if seq%2 == 0 {
-		// Should have been incremented to odd.
-		print("runtime: seq=", seq, "\n")
-		throw("bad sequence number")
+// The caller's P must not change between acquire and
+// release. This also means that the caller should not
+// acquire a P or release its P in between.
+func (m *consistentHeapStats) acquire() *heapStatsDelta {
+	if pp := getg().m.p.ptr(); pp != nil {
+		seq := atomic.Xadd(&pp.statsSeq, 1)
+		if seq%2 == 0 {
+			// Should have been incremented to odd.
+			print("runtime: seq=", seq, "\n")
+			throw("bad sequence number")
+		}
+	} else {
+		lock(&m.noPLock)
 	}
 	gen := atomic.Load(&m.gen) % 3
 	return &m.stats[gen]
@@ -868,14 +879,19 @@ func (m *consistentHeapStats) acquire(c *mcache) *heapStatsDelta {
 // acquire must no longer be accessed or modified after
 // release is called.
 //
-// The mcache passed here must be the same as the one
-// passed to acquire.
-func (m *consistentHeapStats) release(c *mcache) {
-	seq := atomic.Xadd(&c.statsSeq, 1)
-	if seq%2 != 0 {
-		// Should have been incremented to even.
-		print("runtime: seq=", seq, "\n")
-		throw("bad sequence number")
+// The caller's P must not change between acquire and
+// release. This also means that the caller should not
+// acquire a P or release its P in between.
+func (m *consistentHeapStats) release() {
+	if pp := getg().m.p.ptr(); pp != nil {
+		seq := atomic.Xadd(&pp.statsSeq, 1)
+		if seq%2 != 0 {
+			// Should have been incremented to even.
+			print("runtime: seq=", seq, "\n")
+			throw("bad sequence number")
+		}
+	} else {
+		unlock(&m.noPLock)
 	}
 }
 
@@ -916,25 +932,33 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
 	// so it doesn't change out from under us.
 	mp := acquirem()
 
+	// Get the current generation. We can be confident that this
+	// will not change since read is serialized and is the only
+	// one that modifies currGen.
+	currGen := atomic.Load(&m.gen)
+	prevGen := currGen - 1
+	if currGen == 0 {
+		prevGen = 2
+	}
+
+	// Prevent writers without a P from writing while we update gen.
+	lock(&m.noPLock)
+
 	// Rotate gen, effectively taking a snapshot of the state of
 	// these statistics at the point of the exchange by moving
 	// writers to the next set of deltas.
 	//
 	// This exchange is safe to do because we won't race
 	// with anyone else trying to update this value.
-	currGen := atomic.Load(&m.gen)
 	atomic.Xchg(&m.gen, (currGen+1)%3)
-	prevGen := currGen - 1
-	if currGen == 0 {
-		prevGen = 2
-	}
+
+	// Allow P-less writers to continue. They'll be writing to the
+	// next generation now.
+	unlock(&m.noPLock)
+
 	for _, p := range allp {
-		c := p.mcache
-		if c == nil {
-			continue
-		}
 		// Spin until there are no more writers.
-		for atomic.Load(&c.statsSeq)%2 != 0 {
+		for atomic.Load(&p.statsSeq)%2 != 0 {
 		}
 	}
 
@@ -951,5 +975,6 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
 
 	// Finally, copy out the complete delta.
 	*out = m.stats[currGen]
+
 	releasem(mp)
 }
