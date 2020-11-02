@@ -681,38 +681,38 @@ again:
 	LDADDLH	R5, (RSP), R7                        // e7036578
 	LDADDLB	R5, (R6), R7                         // c7006538
 	LDADDLB	R5, (RSP), R7                        // e7036538
-	LDANDAD	R5, (R6), R7                         // c710a5f8
-	LDANDAD	R5, (RSP), R7                        // e713a5f8
-	LDANDAW	R5, (R6), R7                         // c710a5b8
-	LDANDAW	R5, (RSP), R7                        // e713a5b8
-	LDANDAH	R5, (R6), R7                         // c710a578
-	LDANDAH	R5, (RSP), R7                        // e713a578
-	LDANDAB	R5, (R6), R7                         // c710a538
-	LDANDAB	R5, (RSP), R7                        // e713a538
-	LDANDALD	R5, (R6), R7                 // c710e5f8
-	LDANDALD	R5, (RSP), R7                // e713e5f8
-	LDANDALW	R5, (R6), R7                 // c710e5b8
-	LDANDALW	R5, (RSP), R7                // e713e5b8
-	LDANDALH	R5, (R6), R7                 // c710e578
-	LDANDALH	R5, (RSP), R7                // e713e578
-	LDANDALB	R5, (R6), R7                 // c710e538
-	LDANDALB	R5, (RSP), R7                // e713e538
-	LDANDD	R5, (R6), R7                         // c71025f8
-	LDANDD	R5, (RSP), R7                        // e71325f8
-	LDANDW	R5, (R6), R7                         // c71025b8
-	LDANDW	R5, (RSP), R7                        // e71325b8
-	LDANDH	R5, (R6), R7                         // c7102578
-	LDANDH	R5, (RSP), R7                        // e7132578
-	LDANDB	R5, (R6), R7                         // c7102538
-	LDANDB	R5, (RSP), R7                        // e7132538
-	LDANDLD	R5, (R6), R7                         // c71065f8
-	LDANDLD	R5, (RSP), R7                        // e71365f8
-	LDANDLW	R5, (R6), R7                         // c71065b8
-	LDANDLW	R5, (RSP), R7                        // e71365b8
-	LDANDLH	R5, (R6), R7                         // c7106578
-	LDANDLH	R5, (RSP), R7                        // e7136578
-	LDANDLB	R5, (R6), R7                         // c7106538
-	LDANDLB	R5, (RSP), R7                        // e7136538
+	LDCLRAD	R5, (R6), R7                         // c710a5f8
+	LDCLRAD	R5, (RSP), R7                        // e713a5f8
+	LDCLRAW	R5, (R6), R7                         // c710a5b8
+	LDCLRAW	R5, (RSP), R7                        // e713a5b8
+	LDCLRAH	R5, (R6), R7                         // c710a578
+	LDCLRAH	R5, (RSP), R7                        // e713a578
+	LDCLRAB	R5, (R6), R7                         // c710a538
+	LDCLRAB	R5, (RSP), R7                        // e713a538
+	LDCLRALD	R5, (R6), R7                 // c710e5f8
+	LDCLRALD	R5, (RSP), R7                // e713e5f8
+	LDCLRALW	R5, (R6), R7                 // c710e5b8
+	LDCLRALW	R5, (RSP), R7                // e713e5b8
+	LDCLRALH	R5, (R6), R7                 // c710e578
+	LDCLRALH	R5, (RSP), R7                // e713e578
+	LDCLRALB	R5, (R6), R7                 // c710e538
+	LDCLRALB	R5, (RSP), R7                // e713e538
+	LDCLRD	R5, (R6), R7                         // c71025f8
+	LDCLRD	R5, (RSP), R7                        // e71325f8
+	LDCLRW	R5, (R6), R7                         // c71025b8
+	LDCLRW	R5, (RSP), R7                        // e71325b8
+	LDCLRH	R5, (R6), R7                         // c7102578
+	LDCLRH	R5, (RSP), R7                        // e7132578
+	LDCLRB	R5, (R6), R7                         // c7102538
+	LDCLRB	R5, (RSP), R7                        // e7132538
+	LDCLRLD	R5, (R6), R7                         // c71065f8
+	LDCLRLD	R5, (RSP), R7                        // e71365f8
+	LDCLRLW	R5, (R6), R7                         // c71065b8
+	LDCLRLW	R5, (RSP), R7                        // e71365b8
+	LDCLRLH	R5, (R6), R7                         // c7106578
+	LDCLRLH	R5, (RSP), R7                        // e7136578
+	LDCLRLB	R5, (R6), R7                         // c7106538
+	LDCLRLB	R5, (RSP), R7                        // e7136538
 	LDEORAD	R5, (R6), R7                         // c720a5f8
 	LDEORAD	R5, (RSP), R7                        // e723a5f8
 	LDEORAW	R5, (R6), R7                         // c720a5b8
