@@ -1246,12 +1246,7 @@ HaveSpan:
 		memstats.heap_sys.add(-int64(nbytes))
 	}
 	// Update consistent stats.
-	c := getMCache()
-	if c == nil {
-		// TODO(mknyszek): Remove this and handle this case to fix #42339.
-		throw("allocSpan called without P or outside bootstrapping")
-	}
-	stats := memstats.heapStats.acquire(c)
+	stats := memstats.heapStats.acquire()
 	atomic.Xaddint64(&stats.committed, int64(scav))
 	atomic.Xaddint64(&stats.released, -int64(scav))
 	switch typ {
@@ -1264,7 +1259,7 @@ HaveSpan:
 	case spanAllocWorkBuf:
 		atomic.Xaddint64(&stats.inWorkBufs, int64(nbytes))
 	}
-	memstats.heapStats.release(c)
+	memstats.heapStats.release()
 
 	// Publish the span in various locations.
 
@@ -1344,14 +1339,9 @@ func (h *mheap) grow(npage uintptr) bool {
 		// size which is always > physPageSize, so its safe to
 		// just add directly to heap_released.
 		atomic.Xadd64(&memstats.heap_released, int64(asize))
-		c := getMCache()
-		if c == nil {
-			// TODO(mknyszek): Remove this and handle this case to fix #42339.
-			throw("grow called without P or outside bootstrapping")
-		}
-		stats := memstats.heapStats.acquire(c)
+		stats := memstats.heapStats.acquire()
 		atomic.Xaddint64(&stats.released, int64(asize))
-		memstats.heapStats.release(c)
+		memstats.heapStats.release()
 
 		// Recalculate nBase.
 		// We know this won't overflow, because sysAlloc returned
@@ -1447,12 +1437,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 		memstats.heap_sys.add(int64(nbytes))
 	}
 	// Update consistent stats.
-	c := getMCache()
-	if c == nil {
-		// TODO(mknyszek): Remove this and handle this case to fix #42339.
-		throw("freeSpanLocked called without P or outside bootstrapping")
-	}
-	stats := memstats.heapStats.acquire(c)
+	stats := memstats.heapStats.acquire()
 	switch typ {
 	case spanAllocHeap:
 		atomic.Xaddint64(&stats.inHeap, -int64(nbytes))
@@ -1463,7 +1448,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	case spanAllocWorkBuf:
 		atomic.Xaddint64(&stats.inWorkBufs, -int64(nbytes))
 	}
-	memstats.heapStats.release(c)
+	memstats.heapStats.release()
 
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)

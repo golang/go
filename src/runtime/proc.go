@@ -577,6 +577,10 @@ func schedinit() {
 	lockInit(&trace.lock, lockRankTrace)
 	lockInit(&cpuprof.lock, lockRankCpuprof)
 	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
+	// Enforce that this lock is always a leaf lock.
+	// All of this lock's critical sections should be
+	// extremely short.
+	lockInit(&memstats.heapStats.noPLock, lockRankLeafRank)
 
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
