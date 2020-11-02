@@ -258,7 +258,7 @@ func (wm *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileC
 				// Legacy mode only considers a module a workspace root.
 				continue
 			}
-			if !inDir(wm.root.Filename(), uri.Filename()) {
+			if !source.InDir(wm.root.Filename(), uri.Filename()) {
 				// Otherwise, the module must be contained within the workspace root.
 				continue
 			}

@@ -441,3 +441,77 @@ func isDirective(c string) bool {
 	}
 	return true
 }
+
+// InDir checks whether path is in the file tree rooted at dir.
+// If so, InDir returns an equivalent path relative to dir.
+// If not, InDir returns an empty string.
+// InDir makes some effort to succeed even in the presence of symbolic links.
+//
+// Copied and slightly adjusted from go/src/cmd/go/internal/search/search.go.
+func InDir(dir, path string) bool {
+	if rel := inDirLex(path, dir); rel != "" {
+		return true
+	}
+	xpath, err := filepath.EvalSymlinks(path)
+	if err != nil || xpath == path {
+		xpath = ""
+	} else {
+		if rel := inDirLex(xpath, dir); rel != "" {
+			return true
+		}
+	}
+
+	xdir, err := filepath.EvalSymlinks(dir)
+	if err == nil && xdir != dir {
+		if rel := inDirLex(path, xdir); rel != "" {
+			return true
+		}
+		if xpath != "" {
+			if rel := inDirLex(xpath, xdir); rel != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Copied from go/src/cmd/go/internal/search/search.go.
+//
+// inDirLex is like inDir but only checks the lexical form of the file names.
+// It does not consider symbolic links.
+// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
+// return the suffix. Most uses of str.HasFilePathPrefix should probably
+// be calling InDir instead.
+func inDirLex(path, dir string) string {
+	pv := strings.ToUpper(filepath.VolumeName(path))
+	dv := strings.ToUpper(filepath.VolumeName(dir))
+	path = path[len(pv):]
+	dir = dir[len(dv):]
+	switch {
+	default:
+		return ""
+	case pv != dv:
+		return ""
+	case len(path) == len(dir):
+		if path == dir {
+			return "."
+		}
+		return ""
+	case dir == "":
+		return path
+	case len(path) > len(dir):
+		if dir[len(dir)-1] == filepath.Separator {
+			if path[:len(dir)] == dir {
+				return path[len(dir):]
+			}
+			return ""
+		}
+		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
+			if len(path) == len(dir)+1 {
+				return "."
+			}
+			return path[len(dir)+1:]
+		}
+		return ""
+	}
+}

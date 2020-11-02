@@ -348,13 +348,20 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, dirs map[
 	}}
 	for dir := range dirs {
 		filename := dir.Filename()
+
 		// If the directory is within a workspace folder, we're already
 		// watching it via the relative path above.
+		var matched bool
 		for _, view := range s.session.Views() {
-			if isSubdirectory(view.Folder().Filename(), filename) {
-				continue
+			if source.InDir(view.Folder().Filename(), filename) {
+				matched = true
+				break
 			}
 		}
+		if matched {
+			continue
+		}
+
 		// If microsoft/vscode#100870 is resolved before
 		// microsoft/vscode#104387, we will need a work-around for Windows
 		// drive letter casing.
