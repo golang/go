@@ -2283,6 +2283,24 @@ func rewriteValueARM64_OpARM64ANDconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDconst [c] (UBFX [bfc] x))
+	// cond: isARM64BFMask(0, c, 0)
+	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpARM64UBFX {
+			break
+		}
+		bfc := auxIntToArm64BitField(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(isARM64BFMask(0, c, 0)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0))))
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64ANDshiftLL(v *Value) bool {
@@ -21802,6 +21820,24 @@ func rewriteValueARM64_OpARM64UBFIZ(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64UBFX(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (UBFX [bfc] (ANDconst [c] x))
+	// cond: isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)
+	// result: (UBFX [bfc] x)
+	for {
+		bfc := auxIntToArm64BitField(v.AuxInt)
+		if v_0.Op != OpARM64ANDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb()+bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(bfc)
+		v.AddArg(x)
+		return true
+	}
 	// match: (UBFX [bfc] (SRLconst [sc] x))
 	// cond: sc+bfc.getARM64BFwidth()+bfc.getARM64BFlsb() < 64
 	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth())] x)
