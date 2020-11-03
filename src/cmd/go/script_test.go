@@ -1255,7 +1255,12 @@ func (ts *testScript) parse(line string) command {
 
 		if cmd.name != "" {
 			cmd.args = append(cmd.args, arg)
-			isRegexp = false // Commands take only one regexp argument, so no subsequent args are regexps.
+			// Commands take only one regexp argument (after the optional flags),
+			// so no subsequent args are regexps. Liberally assume an argument that
+			// starts with a '-' is a flag.
+			if len(arg) == 0 || arg[0] != '-' {
+				isRegexp = false
+			}
 			return
 		}
 
