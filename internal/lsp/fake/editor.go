@@ -47,6 +47,7 @@ type buffer struct {
 	version int
 	path    string
 	content []string
+	dirty   bool
 }
 
 func (b buffer) text() string {
@@ -270,10 +271,28 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 	if e.Server == nil {
 		return
 	}
+	e.mu.Lock()
 	var lspevts []protocol.FileEvent
 	for _, evt := range evts {
+		// Always send an on-disk change, even for events that seem useless
+		// because they're shadowed by an open buffer.
 		lspevts = append(lspevts, evt.ProtocolEvent)
+
+		if buf, ok := e.buffers[evt.Path]; ok {
+			// Following VS Code, don't honor deletions or changes to dirty buffers.
+			if buf.dirty || evt.ProtocolEvent.Type == protocol.Deleted {
+				continue
+			}
+
+			content, err := e.sandbox.Workdir.ReadFile(evt.Path)
+			if err != nil {
+				continue // A race with some other operation.
+			}
+			// During shutdown, this call will fail. Ignore the error.
+			_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
+		}
 	}
+	e.mu.Unlock()
 	e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
 		Changes: lspevts,
 	})
@@ -285,15 +304,7 @@ func (e *Editor) OpenFile(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	return e.CreateBuffer(ctx, path, content)
-}
-
-func newBuffer(path, content string) buffer {
-	return buffer{
-		version: 1,
-		path:    path,
-		content: strings.Split(content, "\n"),
-	}
+	return e.createBuffer(ctx, path, false, content)
 }
 
 func textDocumentItem(wd *Workdir, buf buffer) protocol.TextDocumentItem {
@@ -314,7 +325,16 @@ func textDocumentItem(wd *Workdir, buf buffer) protocol.TextDocumentItem {
 // CreateBuffer creates a new unsaved buffer corresponding to the workdir path,
 // containing the given textual content.
 func (e *Editor) CreateBuffer(ctx context.Context, path, content string) error {
-	buf := newBuffer(path, content)
+	return e.createBuffer(ctx, path, true, content)
+}
+
+func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, content string) error {
+	buf := buffer{
+		version: 1,
+		path:    path,
+		content: strings.Split(content, "\n"),
+		dirty:   dirty,
+	}
 	e.mu.Lock()
 	e.buffers[path] = buf
 	item := textDocumentItem(e.sandbox.Workdir, buf)
@@ -396,6 +416,12 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 	if err := e.sandbox.Workdir.WriteFile(ctx, path, content); err != nil {
 		return errors.Errorf("writing %q: %w", path, err)
 	}
+
+	e.mu.Lock()
+	buf.dirty = false
+	e.buffers[path] = buf
+	e.mu.Unlock()
+
 	if e.Server != nil {
 		params := &protocol.DidSaveTextDocumentParams{
 			TextDocument: protocol.VersionedTextDocumentIdentifier{
@@ -534,7 +560,7 @@ func (e *Editor) SetBufferContent(ctx context.Context, path, content string) err
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	lines := strings.Split(content, "\n")
-	return e.setBufferContentLocked(ctx, path, lines, nil)
+	return e.setBufferContentLocked(ctx, path, true, lines, nil)
 }
 
 // BufferText returns the content of the buffer with the given name.
@@ -563,16 +589,17 @@ func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit
 	if err != nil {
 		return err
 	}
-	return e.setBufferContentLocked(ctx, path, content, edits)
+	return e.setBufferContentLocked(ctx, path, true, content, edits)
 }
 
-func (e *Editor) setBufferContentLocked(ctx context.Context, path string, content []string, fromEdits []Edit) error {
+func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty bool, content []string, fromEdits []Edit) error {
 	buf, ok := e.buffers[path]
 	if !ok {
 		return fmt.Errorf("unknown buffer %q", path)
 	}
 	buf.content = content
 	buf.version++
+	buf.dirty = dirty
 	e.buffers[path] = buf
 	// A simple heuristic: if there is only one edit, send it incrementally.
 	// Otherwise, send the entire content.
@@ -739,7 +766,16 @@ func (e *Editor) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCom
 	if !match {
 		return nil, fmt.Errorf("unsupported command %q", params.Command)
 	}
-	return e.Server.ExecuteCommand(ctx, params)
+	result, err := e.Server.ExecuteCommand(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	// Some commands use the go command, which writes directly to disk.
+	// For convenience, check for those changes.
+	if err := e.sandbox.Workdir.CheckForFileChanges(ctx); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func convertEdits(protocolEdits []protocol.TextEdit) []Edit {

@@ -379,10 +379,8 @@ require (
 	example.com/blah/v2 v2.0.0
 )
 `
-		// We need to read from disk even though go.mod is open -- the regtests
-		// currently don't apply on-disk changes to open but unmodified buffers
-		// like most editors would.
-		if got := env.ReadWorkspaceFile("go.mod"); got != want {
+		env.Await(EmptyDiagnostics("go.mod"))
+		if got := env.Editor.BufferText("go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(want, got))
 		}
 	})

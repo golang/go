@@ -639,7 +639,6 @@ var ErrHelpWanted error
 
 // Test for golang/go#38211.
 func Test_Issue38211(t *testing.T) {
-	t.Skip("Requires CL 267577 to work without the save hook.")
 	testenv.NeedsGo1Point(t, 14)
 	const ardanLabs = `
 -- go.mod --
