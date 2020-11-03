@@ -229,11 +229,15 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		viewURIs[view] = append(viewURIs[view], uri)
 	}
 	for view, uris := range viewURIs {
+		snapshot := snapshots[view]
+		if snapshot == nil {
+			panic(fmt.Sprintf("no snapshot assigned for files %v", uris))
+		}
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()
 			s.diagnoseSnapshot(snapshot, uris)
-		}(snapshots[view], uris)
+		}(snapshot, uris)
 	}
 
 	go func() {
