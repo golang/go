@@ -321,6 +321,12 @@ func ubfx15(x uint64) bool {
 	return false
 }
 
+// merge ANDconst and ubfx into ubfx
+func ubfx16(x uint64) uint64 {
+	// arm64:"UBFX\t[$]4, R[0-9]+, [$]6",-"AND\t[$]63"
+	return ((x >> 3) & 0xfff) >> 1 & 0x3f
+}
+
 // Check that we don't emit comparisons for constant shifts.
 //go:nosplit
 func shift_no_cmp(x int) int {
