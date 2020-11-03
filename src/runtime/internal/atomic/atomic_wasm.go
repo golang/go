@@ -133,6 +133,18 @@ func Or8(ptr *uint8, val uint8) {
 
 //go:nosplit
 //go:noinline
+func And(ptr *uint32, val uint32) {
+	*ptr = *ptr & val
+}
+
+//go:nosplit
+//go:noinline
+func Or(ptr *uint32, val uint32) {
+	*ptr = *ptr | val
+}
+
+//go:nosplit
+//go:noinline
 func Cas64(ptr *uint64, old, new uint64) bool {
 	if *ptr == old {
 		*ptr = new

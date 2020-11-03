@@ -412,7 +412,7 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
 			w.WriteHeader(200)
 			w.(Flusher).Flush()
 		} else {
-			w.Header().Set("Content-Type", strconv.Itoa(len(msg)))
+			w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
 			w.WriteHeader(200)
 		}
 		w.Write([]byte(msg))

@@ -257,21 +257,39 @@ func inlFlood(n *Node) {
 
 	typecheckinl(n)
 
+	// Recursively identify all referenced functions for
+	// reexport. We want to include even non-called functions,
+	// because after inlining they might be callable.
 	inspectList(asNodes(n.Func.Inl.Body), func(n *Node) bool {
 		switch n.Op {
 		case ONAME:
-			// Mark any referenced global variables or
-			// functions for reexport. Skip methods,
-			// because they're reexported alongside their
-			// receiver type.
-			if n.Class() == PEXTERN || n.Class() == PFUNC && !n.isMethodExpression() {
+			switch n.Class() {
+			case PFUNC:
+				if n.isMethodExpression() {
+					inlFlood(asNode(n.Type.Nname()))
+				} else {
+					inlFlood(n)
+					exportsym(n)
+				}
+			case PEXTERN:
 				exportsym(n)
 			}
 
-		case OCALLFUNC, OCALLMETH:
-			// Recursively flood any functions called by
-			// this one.
-			inlFlood(asNode(n.Left.Type.Nname()))
+		case ODOTMETH:
+			fn := asNode(n.Type.Nname())
+			inlFlood(fn)
+
+		case OCALLPART:
+			// Okay, because we don't yet inline indirect
+			// calls to method values.
+		case OCLOSURE:
+			// If the closure is inlinable, we'll need to
+			// flood it too. But today we don't support
+			// inlining functions that contain closures.
+			//
+			// When we do, we'll probably want:
+			//     inlFlood(n.Func.Closure.Func.Nname)
+			Fatalf("unexpected closure in inlinable function")
 		}
 		return true
 	})
@@ -574,13 +592,11 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	switch n.Op {
-	// inhibit inlining of their argument
 	case ODEFER, OGO:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
 			n.Left.SetNoInline(true)
 		}
-		return n
 
 	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.
@@ -708,7 +724,14 @@ func inlCallee(fn *Node) *Node {
 	switch {
 	case fn.Op == ONAME && fn.Class() == PFUNC:
 		if fn.isMethodExpression() {
-			return asNode(fn.Sym.Def)
+			n := asNode(fn.Type.Nname())
+			// Check that receiver type matches fn.Left.
+			// TODO(mdempsky): Handle implicit dereference
+			// of pointer receiver argument?
+			if n == nil || !types.Identical(n.Type.Recv().Type, fn.Left.Type) {
+				return nil
+			}
+			return n
 		}
 		return fn
 	case fn.Op == OCLOSURE:
@@ -721,6 +744,11 @@ func inlCallee(fn *Node) *Node {
 
 func staticValue(n *Node) *Node {
 	for {
+		if n.Op == OCONVNOP {
+			n = n.Left
+			continue
+		}
+
 		n1 := staticValue1(n)
 		if n1 == nil {
 			return n
@@ -811,14 +839,12 @@ func (v *reassignVisitor) visit(n *Node) *Node {
 		if n.Left == v.name && n != v.name.Name.Defn {
 			return n
 		}
-		return nil
 	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
 		for _, p := range n.List.Slice() {
 			if p == v.name && n != v.name.Name.Defn {
 				return n
 			}
 		}
-		return nil
 	}
 	if a := v.visit(n.Left); a != nil {
 		return a
@@ -1011,15 +1037,28 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		}
 	}
 
+	nreturns := 0
+	inspectList(asNodes(fn.Func.Inl.Body), func(n *Node) bool {
+		if n != nil && n.Op == ORETURN {
+			nreturns++
+		}
+		return true
+	})
+
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's only one "return" statement in the inlined
+	// function, and (2) the result parameters aren't named.
+	delayretvars := nreturns == 1
+
 	// temporaries for return values.
 	var retvars []*Node
 	for i, t := range fn.Type.Results().Fields().Slice() {
 		var m *Node
-		mpos := t.Pos
-		if n := asNode(t.Nname); n != nil && !n.isBlank() {
+		if n := asNode(t.Nname); n != nil && !n.isBlank() && !strings.HasPrefix(n.Sym.Name, "~r") {
 			m = inlvar(n)
 			m = typecheck(m, ctxExpr)
 			inlvars[n] = m
+			delayretvars = false // found a named result parameter
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -1031,12 +1070,11 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 			// were not part of the original callee.
 			if !strings.HasPrefix(m.Sym.Name, "~R") {
 				m.Name.SetInlFormal(true)
-				m.Pos = mpos
+				m.Pos = t.Pos
 				inlfvars = append(inlfvars, m)
 			}
 		}
 
-		ninit.Append(nod(ODCL, m, nil))
 		retvars = append(retvars, m)
 	}
 
@@ -1097,11 +1135,14 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 		ninit.Append(vas)
 	}
 
-	// Zero the return parameters.
-	for _, n := range retvars {
-		ras := nod(OAS, n, nil)
-		ras = typecheck(ras, ctxStmt)
-		ninit.Append(ras)
+	if !delayretvars {
+		// Zero the return parameters.
+		for _, n := range retvars {
+			ninit.Append(nod(ODCL, n, nil))
+			ras := nod(OAS, n, nil)
+			ras = typecheck(ras, ctxStmt)
+			ninit.Append(ras)
+		}
 	}
 
 	retlabel := autolabel(".i")
@@ -1132,11 +1173,12 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 
 	subst := inlsubst{
-		retlabel:    retlabel,
-		retvars:     retvars,
-		inlvars:     inlvars,
-		bases:       make(map[*src.PosBase]*src.PosBase),
-		newInlIndex: newIndex,
+		retlabel:     retlabel,
+		retvars:      retvars,
+		delayretvars: delayretvars,
+		inlvars:      inlvars,
+		bases:        make(map[*src.PosBase]*src.PosBase),
+		newInlIndex:  newIndex,
 	}
 
 	body := subst.list(asNodes(fn.Func.Inl.Body))
@@ -1232,6 +1274,10 @@ type inlsubst struct {
 	// Temporary result variables.
 	retvars []*Node
 
+	// Whether result variables should be initialized at the
+	// "return" statement.
+	delayretvars bool
+
 	inlvars map[*Node]*Node
 
 	// bases maps from original PosBase to PosBase with an extra
@@ -1300,6 +1346,14 @@ func (subst *inlsubst) node(n *Node) *Node {
 				as.List.Append(n)
 			}
 			as.Rlist.Set(subst.list(n.List))
+
+			if subst.delayretvars {
+				for _, n := range as.List.Slice() {
+					as.Ninit.Append(nod(ODCL, n, nil))
+					n.Name.Defn = as
+				}
+			}
+
 			as = typecheck(as, ctxStmt)
 			m.Ninit.Append(as)
 		}
@@ -1361,4 +1415,69 @@ func pruneUnusedAutos(ll []*Node, vis *hairyVisitor) []*Node {
 		s = append(s, n)
 	}
 	return s
+}
+
+// devirtualize replaces interface method calls within fn with direct
+// concrete-type method calls where applicable.
+func devirtualize(fn *Node) {
+	Curfn = fn
+	inspectList(fn.Nbody, func(n *Node) bool {
+		if n.Op == OCALLINTER {
+			devirtualizeCall(n)
+		}
+		return true
+	})
+}
+
+func devirtualizeCall(call *Node) {
+	recv := staticValue(call.Left.Left)
+	if recv.Op != OCONVIFACE {
+		return
+	}
+
+	typ := recv.Left.Type
+	if typ.IsInterface() {
+		return
+	}
+
+	x := nodl(call.Left.Pos, ODOTTYPE, call.Left.Left, nil)
+	x.Type = typ
+	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
+	x = typecheck(x, ctxExpr|ctxCallee)
+	switch x.Op {
+	case ODOTMETH:
+		if Debug.m != 0 {
+			Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+		}
+		call.Op = OCALLMETH
+		call.Left = x
+	case ODOTINTER:
+		// Promoted method from embedded interface-typed field (#42279).
+		if Debug.m != 0 {
+			Warnl(call.Pos, "partially devirtualizing %v to %v", call.Left, typ)
+		}
+		call.Op = OCALLINTER
+		call.Left = x
+	default:
+		// TODO(mdempsky): Turn back into Fatalf after more testing.
+		if Debug.m != 0 {
+			Warnl(call.Pos, "failed to devirtualize %v (%v)", x, x.Op)
+		}
+		return
+	}
+
+	// Duplicated logic from typecheck for function call return
+	// value types.
+	//
+	// Receiver parameter size may have changed; need to update
+	// call.Type to get correct stack offsets for result
+	// parameters.
+	checkwidth(x.Type)
+	switch ft := x.Type; ft.NumResults() {
+	case 0:
+	case 1:
+		call.Type = ft.Results().Field(0).Type
+	default:
+		call.Type = ft.Results()
+	}
 }

@@ -126,7 +126,8 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {
@@ -495,12 +496,12 @@ func genPPC64() {
 }
 
 func genRISCV64() {
-	// X0 (zero), X1 (LR), X2 (SP), X4 (g), X31 (TMP) are special.
+	// X0 (zero), X1 (LR), X2 (SP), X4 (TP), X27 (g), X31 (TMP) are special.
 	var l = layout{sp: "X2", stack: 8}
 
-	// Add integer registers (X3, X5-X30).
+	// Add integer registers (X3, X5-X26, X28-30).
 	for i := 3; i < 31; i++ {
-		if i == 4 {
+		if i == 4 || i == 27 {
 			continue
 		}
 		reg := fmt.Sprintf("X%d", i)

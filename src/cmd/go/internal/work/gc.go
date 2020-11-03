@@ -52,7 +52,7 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	if archive != "" {
@@ -89,7 +89,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "runtime/trace", "sync", "syscall", "time":
+		case "bytes", "internal/poll", "net", "os":
+			fallthrough
+		case "runtime/metrics", "runtime/pprof", "runtime/trace":
+			fallthrough
+		case "sync", "syscall", "time":
 			extFiles++
 		}
 	}
@@ -132,6 +136,12 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 			return "", nil, err
 		}
 		args = append(args, "-importcfg", objdir+"importcfg")
+	}
+	if embedcfg != nil {
+		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-embedcfg", objdir+"embedcfg")
 	}
 	if ofile == archive {
 		args = append(args, "-pack")

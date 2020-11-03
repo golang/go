@@ -58,7 +58,7 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, cfg conf
 	taghide, err := compileRegexOption("taghide", cfg.TagHide, err)
 	tns, tnh := prof.FilterTagsByName(tagshow, taghide)
 	warnNoMatches(tagshow == nil || tns, "TagShow", ui)
-	warnNoMatches(tagignore == nil || tnh, "TagHide", ui)
+	warnNoMatches(taghide == nil || tnh, "TagHide", ui)
 
 	if prunefrom != nil {
 		prof.PruneFrom(prunefrom)

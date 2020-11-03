@@ -246,3 +246,20 @@ func ii() { // ERROR "can inline ii"
 	f := getMeth(t1) // ERROR "inlining call to getMeth" "t1.meth does not escape"
 	_ = f(3)
 }
+
+// Issue #42194 - make sure that functions evaluated in
+// go and defer statements can be inlined.
+func gd1(int) {
+	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd3()()    // ERROR "inlining call to gd3"
+	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd3()()       // ERROR "inlining call to gd3"
+}
+
+func gd2() int { // ERROR "can inline gd2"
+	return 1
+}
+
+func gd3() func() { // ERROR "can inline gd3"
+	return ii
+}

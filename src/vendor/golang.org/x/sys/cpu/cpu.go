@@ -29,26 +29,46 @@ type CacheLinePad struct{ _ [cacheLineSize]byte }
 // and HasAVX2 are only set if the OS supports XMM and YMM
 // registers in addition to the CPUID feature bit being set.
 var X86 struct {
-	_            CacheLinePad
-	HasAES       bool // AES hardware implementation (AES NI)
-	HasADX       bool // Multi-precision add-carry instruction extensions
-	HasAVX       bool // Advanced vector extension
-	HasAVX2      bool // Advanced vector extension 2
-	HasBMI1      bool // Bit manipulation instruction set 1
-	HasBMI2      bool // Bit manipulation instruction set 2
-	HasERMS      bool // Enhanced REP for MOVSB and STOSB
-	HasFMA       bool // Fused-multiply-add instructions
-	HasOSXSAVE   bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
-	HasPCLMULQDQ bool // PCLMULQDQ instruction - most often used for AES-GCM
-	HasPOPCNT    bool // Hamming weight instruction POPCNT.
-	HasRDRAND    bool // RDRAND instruction (on-chip random number generator)
-	HasRDSEED    bool // RDSEED instruction (on-chip random number generator)
-	HasSSE2      bool // Streaming SIMD extension 2 (always available on amd64)
-	HasSSE3      bool // Streaming SIMD extension 3
-	HasSSSE3     bool // Supplemental streaming SIMD extension 3
-	HasSSE41     bool // Streaming SIMD extension 4 and 4.1
-	HasSSE42     bool // Streaming SIMD extension 4 and 4.2
-	_            CacheLinePad
+	_                   CacheLinePad
+	HasAES              bool // AES hardware implementation (AES NI)
+	HasADX              bool // Multi-precision add-carry instruction extensions
+	HasAVX              bool // Advanced vector extension
+	HasAVX2             bool // Advanced vector extension 2
+	HasAVX512           bool // Advanced vector extension 512
+	HasAVX512F          bool // Advanced vector extension 512 Foundation Instructions
+	HasAVX512CD         bool // Advanced vector extension 512 Conflict Detection Instructions
+	HasAVX512ER         bool // Advanced vector extension 512 Exponential and Reciprocal Instructions
+	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions Instructions
+	HasAVX512VL         bool // Advanced vector extension 512 Vector Length Extensions
+	HasAVX512BW         bool // Advanced vector extension 512 Byte and Word Instructions
+	HasAVX512DQ         bool // Advanced vector extension 512 Doubleword and Quadword Instructions
+	HasAVX512IFMA       bool // Advanced vector extension 512 Integer Fused Multiply Add
+	HasAVX512VBMI       bool // Advanced vector extension 512 Vector Byte Manipulation Instructions
+	HasAVX5124VNNIW     bool // Advanced vector extension 512 Vector Neural Network Instructions Word variable precision
+	HasAVX5124FMAPS     bool // Advanced vector extension 512 Fused Multiply Accumulation Packed Single precision
+	HasAVX512VPOPCNTDQ  bool // Advanced vector extension 512 Double and quad word population count instructions
+	HasAVX512VPCLMULQDQ bool // Advanced vector extension 512 Vector carry-less multiply operations
+	HasAVX512VNNI       bool // Advanced vector extension 512 Vector Neural Network Instructions
+	HasAVX512GFNI       bool // Advanced vector extension 512 Galois field New Instructions
+	HasAVX512VAES       bool // Advanced vector extension 512 Vector AES instructions
+	HasAVX512VBMI2      bool // Advanced vector extension 512 Vector Byte Manipulation Instructions 2
+	HasAVX512BITALG     bool // Advanced vector extension 512 Bit Algorithms
+	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
+	HasBMI1             bool // Bit manipulation instruction set 1
+	HasBMI2             bool // Bit manipulation instruction set 2
+	HasERMS             bool // Enhanced REP for MOVSB and STOSB
+	HasFMA              bool // Fused-multiply-add instructions
+	HasOSXSAVE          bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
+	HasPCLMULQDQ        bool // PCLMULQDQ instruction - most often used for AES-GCM
+	HasPOPCNT           bool // Hamming weight instruction POPCNT.
+	HasRDRAND           bool // RDRAND instruction (on-chip random number generator)
+	HasRDSEED           bool // RDSEED instruction (on-chip random number generator)
+	HasSSE2             bool // Streaming SIMD extension 2 (always available on amd64)
+	HasSSE3             bool // Streaming SIMD extension 3
+	HasSSSE3            bool // Supplemental streaming SIMD extension 3
+	HasSSE41            bool // Streaming SIMD extension 4 and 4.1
+	HasSSE42            bool // Streaming SIMD extension 4 and 4.2
+	_                   CacheLinePad
 }
 
 // ARM64 contains the supported CPU features of the

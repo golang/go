@@ -183,6 +183,26 @@ func And8(addr *uint8, v uint8) {
 }
 
 //go:nosplit
+func Or(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old|v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
+func And(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old&v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
 
 //go:noescape

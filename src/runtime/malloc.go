@@ -521,6 +521,14 @@ func mallocinit() {
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled:
+				// The TSAN runtime requires the heap
+				// to be in the range [0x00c000000000,
+				// 0x00e000000000).
+				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
+				if p >= uintptrMask&0x00e000000000 {
+					continue
+				}
 			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
@@ -532,14 +540,6 @@ func mallocinit() {
 					continue
 				}
 				p = uintptr(i)<<40 | uintptrMask&(0xa0<<52)
-			case raceenabled:
-				// The TSAN runtime requires the heap
-				// to be in the range [0x00c000000000,
-				// 0x00e000000000).
-				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
-				if p >= uintptrMask&0x00e000000000 {
-					continue
-				}
 			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
@@ -627,6 +627,8 @@ func mallocinit() {
 //
 // h must be locked.
 func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+	assertLockHeld(&h.lock)
+
 	n = alignUp(n, heapArenaBytes)
 
 	// First, try the arena pre-reservation.
@@ -743,9 +745,9 @@ mapped:
 			throw("arena already initialized")
 		}
 		var r *heapArena
-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gc_sys))
+		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
 		if r == nil {
-			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gc_sys))
+			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
 			if r == nil {
 				throw("out of memory allocating heap arena metadata")
 			}
@@ -757,7 +759,7 @@ mapped:
 			if size == 0 {
 				size = physPageSize
 			}
-			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gc_sys))
+			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gcMiscSys))
 			if newArray == nil {
 				throw("out of memory allocating allArenas")
 			}
@@ -972,18 +974,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	shouldhelpgc := false
 	dataSize := size
-	var c *mcache
-	if mp.p != 0 {
-		c = mp.p.ptr().mcache
-	} else {
-		// We will be called without a P while bootstrapping,
-		// in which case we use mcache0, which is set in mallocinit.
-		// mcache0 is cleared when bootstrapping is complete,
-		// by procresize.
-		c = mcache0
-		if c == nil {
-			throw("malloc called with no P")
-		}
+	c := getMCache()
+	if c == nil {
+		throw("mallocgc called without a P or outside bootstrapping")
 	}
 	var span *mspan
 	var x unsafe.Pointer
@@ -1040,7 +1033,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				// The object fits into existing tiny block.
 				x = unsafe.Pointer(c.tiny + off)
 				c.tinyoffset = off + size
-				c.local_tinyallocs++
+				c.tinyAllocs++
 				mp.mallocing = 0
 				releasem(mp)
 				return x
@@ -1082,9 +1075,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	} else {
 		shouldhelpgc = true
-		systemstack(func() {
-			span = largeAlloc(size, needzero, noscan)
-		})
+		span = c.allocLarge(size, needzero, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
 		x = unsafe.Pointer(span.base())
@@ -1113,7 +1104,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		} else {
 			scanSize = typ.ptrdata
 		}
-		c.local_scan += scanSize
+		c.scanAlloc += scanSize
 	}
 
 	// Ensure that the stores above that initialize x to
@@ -1155,8 +1146,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	if rate := MemProfileRate; rate > 0 {
-		if rate != 1 && size < c.next_sample {
-			c.next_sample -= size
+		if rate != 1 && size < c.nextSample {
+			c.nextSample -= size
 		} else {
 			mp := acquirem()
 			profilealloc(mp, x, size)
@@ -1177,35 +1168,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	return x
-}
-
-func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
-	// print("largeAlloc size=", size, "\n")
-
-	if size+_PageSize < size {
-		throw("out of memory")
-	}
-	npages := size >> _PageShift
-	if size&_PageMask != 0 {
-		npages++
-	}
-
-	// Deduct credit for this span allocation and sweep if
-	// necessary. mHeap_Alloc will also sweep npages, so this only
-	// pays the debt down to npage pages.
-	deductSweepCredit(npages*_PageSize, npages)
-
-	spc := makeSpanClass(0, noscan)
-	s := mheap_.alloc(npages, spc, needzero)
-	if s == nil {
-		throw("out of memory")
-	}
-	// Put the large span in the mcentral swept list so that it's
-	// visible to the background sweeper.
-	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
-	s.limit = s.base() + size
-	heapBitsForAddr(s.base()).initSpan(s)
-	return s
 }
 
 // implementation of new builtin
@@ -1243,16 +1205,11 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	var c *mcache
-	if mp.p != 0 {
-		c = mp.p.ptr().mcache
-	} else {
-		c = mcache0
-		if c == nil {
-			throw("profilealloc called with no P")
-		}
+	c := getMCache()
+	if c == nil {
+		throw("profilealloc called without a P or outside bootstrapping")
 	}
-	c.next_sample = nextSample()
+	c.nextSample = nextSample()
 	mProf_Malloc(x, size)
 }
 
@@ -1344,7 +1301,7 @@ var persistentChunks *notInHeap
 // The returned memory will be zeroed.
 //
 // Consider marking persistentalloc'd types go:notinheap.
-func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	var p *notInHeap
 	systemstack(func() {
 		p = persistentalloc1(size, align, sysStat)
@@ -1355,7 +1312,7 @@ func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
 // Must run on system stack because stack growth can (re)invoke it.
 // See issue 9174.
 //go:systemstack
-func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 	const (
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
 	)
@@ -1414,8 +1371,8 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
 	}
 
 	if sysStat != &memstats.other_sys {
-		mSysStatInc(sysStat, size)
-		mSysStatDec(&memstats.other_sys, size)
+		sysStat.add(int64(size))
+		memstats.other_sys.add(-int64(size))
 	}
 	return p
 }
@@ -1456,7 +1413,7 @@ func (l *linearAlloc) init(base, size uintptr) {
 	l.end = base + size
 }
 
-func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	p := alignUp(l.next, align)
 	if p+size > l.end {
 		return nil

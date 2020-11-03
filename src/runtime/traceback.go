@@ -450,7 +450,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 		n++
 
-		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
+		if f.funcID == funcID_cgocallback && len(cgoCtxt) > 0 {
 			ctxt := cgoCtxt[len(cgoCtxt)-1]
 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
 

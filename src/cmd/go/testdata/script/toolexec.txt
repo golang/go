@@ -11,7 +11,7 @@ go build ./cmd/mytool
 # Finally, note that asm and cgo are run twice.
 
 go build -toolexec=$PWD/mytool
-stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
+[amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
 stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
 [cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
 [cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
@@ -46,7 +46,9 @@ package withcgo
 // Stub file to ensure we build without cgo too.
 -- withasm/withasm.go --
 package withasm
--- withasm/withasm.s --
+
+// Note that we don't need to declare the Add func at all.
+-- withasm/withasm_amd64.s --
 TEXT ·Add(SB),$0-24
 	MOVQ a+0(FP), AX
 	ADDQ b+8(FP), AX

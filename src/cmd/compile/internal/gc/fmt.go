@@ -419,8 +419,15 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
+	// Useful to see which nodes in an AST printout are actually identical
+	fmt.Fprintf(s, " p(%p)", n)
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+	}
+
+	if c == 0 && n.Name != nil && n.Name.Defn != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
 	}
 
 	if n.Pos.IsKnown() {
@@ -491,6 +498,15 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		}
 		if n.Name.Assigned() {
 			fmt.Fprint(s, " assigned")
+		}
+		if n.Name.IsClosureVar() {
+			fmt.Fprint(s, " closurevar")
+		}
+		if n.Name.Captured() {
+			fmt.Fprint(s, " captured")
+		}
+		if n.Name.IsOutputParamHeapAddr() {
+			fmt.Fprint(s, " outputparamheapaddr")
 		}
 	}
 	if n.Bounded() {
@@ -1710,6 +1726,9 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 	}
 
+	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
+		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
+	}
 	if n.Sym != nil && n.Op != ONAME {
 		mode.Fprintf(s, " %v", n.Sym)
 	}
@@ -1724,6 +1743,16 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 		if n.Right != nil {
 			mode.Fprintf(s, "%v", n.Right)
+		}
+		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
+			indent(s)
+			// The function associated with a closure
+			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
+		}
+		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
+			indent(s)
+			// The dcls for a func or closure
+			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
 		}
 		if n.List.Len() != 0 {
 			indent(s)

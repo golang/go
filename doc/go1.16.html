@@ -131,6 +131,16 @@ Do not send CLs removing the interior tags from such phrases.
   being built.
 </p>
 
+<h4 id="list-buildid">The <code>list</code> command</h4>
+
+<p><!-- golang.org/cl/263542 -->
+  When the <code>-export</code> flag is specified, the <code>BuildID</code>
+  field is now set to the build ID of the compiled package. This is equivalent
+  to running <code>go</code> <code>tool</code> <code>buildid</code> on
+  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}</code>,
+  but without the extra step.
+</p>
+
 <h3 id="cgo">Cgo</h3>
 
 <p> <!-- CL 252378 -->
@@ -149,6 +159,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   TODO
+</p>
+
+<p><!-- CL 267100 -->
+  On Linux, the runtime now defaults to releasing memory to the
+  operating system promptly (using <code>MADV_DONTNEED</code>), rather
+  than lazily when the operating system is under memory pressure
+  (using <code>MADV_FREE</code>). This means process-level memory
+  statistics like RSS will more accurately reflect the amount of
+  physical memory being used by Go processes. Systems that are
+  currently using <code>GODEBUG=madvdontneed=1</code> to improve
+  memory monitoring behavior no longer need to set this environment
+  variable.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -182,7 +204,10 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
-<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
+<p> <!-- CL 255259 -->
+  On Windows, <code>go build -buildmode=c-shared</code> now generates Windows
+  ASLR DLLs by default. ASLR can be disabled with <code>--ldflags=-aslr=false</code>.
+</p>
 
 <h2 id="library">Core library</h2>
 
@@ -249,15 +274,6 @@ Do not send CLs removing the interior tags from such phrases.
   In previous Go releases the default TCP listener backlog size on Linux systems,
   set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
   On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
-</p>
-
-<h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
-
-<p><!-- CL 259237, golang.org/issue/22075 -->
-  For interface types and values, <a href="/pkg/reflect/#Value.Method">Method</a>,
-  <a href="/pkg/reflect/#Value.MethodByName">MethodByName</a>, and
-  <a href="/pkg/reflect/#Value.NumMethod">NumMethod</a> now
-  operate on the interface's exported method set, rather than its full method set.
 </p>
 
 <h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>

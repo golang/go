@@ -217,6 +217,9 @@ func (t *tester) run() {
 		fmt.Println("\nFAILED")
 		xexit(1)
 	} else if incomplete[goos+"/"+goarch] {
+		// The test succeeded, but consider it as failed so we don't
+		// forget to remove the port from the incomplete map once the
+		// port is complete.
 		fmt.Println("\nFAILED (incomplete port)")
 		xexit(1)
 	} else if t.partial {
@@ -463,13 +466,14 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test the ios build tag on darwin/amd64 for the iOS simulator.
-	if goos == "darwin" && goarch == "amd64" {
+	// Test ios/amd64 for the iOS simulator.
+	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
 			name:    "amd64ios",
-			heading: "ios tag on darwin/amd64",
+			heading: "GOOS=ios on darwin/amd64",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=ios", "-run=SystemRoots", "crypto/x509")
+				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-run=SystemRoots", "crypto/x509")
+				cmd.Env = append(os.Environ(), "GOOS=ios", "CGO_ENABLED=1")
 				return nil
 			},
 		})
@@ -949,7 +953,7 @@ func (t *tester) internalLink() bool {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
+	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
 		return false
 	}
 	if goos == "aix" {
@@ -1078,7 +1082,12 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
 
-	if t.internalLink() {
+	// Skip internal linking cases on arm64 to support GCC-9.4 and above,
+	// only for linux, conservatively.
+	// See issue #39466.
+	skipInternalLink := goarch == "arm64" && goos == "linux"
+
+	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=internal")
 	}
@@ -1108,8 +1117,8 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"android-arm", "android-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
-		"netbsd-386", "netbsd-amd64", "linux-arm64":
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+		"netbsd-386", "netbsd-amd64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
@@ -1154,7 +1163,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
-				if t.internalLink() && t.internalLinkPIE() {
+				if t.internalLink() && t.internalLinkPIE() && !skipInternalLink {
 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
@@ -1610,7 +1619,9 @@ func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
-	case "darwin", "freebsd", "netbsd", "windows":
+	case "darwin":
+		return goarch == "amd64" || goarch == "arm64"
+	case "freebsd", "netbsd", "windows":
 		return goarch == "amd64"
 	default:
 		return false

@@ -66,7 +66,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly    bool     // binary-only package (no longer supported)
         ForTest       string   // package is only for use in named test
         Export        string   // file containing export data (when using -export)
-        BuildID       string   // build ID of the export data (when using -export)
+        BuildID       string   // build ID of the compiled package (when using -export)
         Module        *Module  // info about package's containing module, if any (can be nil)
         Match         []string // command-line patterns matching this package
         DepOnly       bool     // package is only a dependency, not explicitly listed
@@ -415,7 +415,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -570,6 +570,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
+		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
+		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {

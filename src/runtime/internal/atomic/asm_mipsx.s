@@ -172,3 +172,29 @@ try_and8:
 	BEQ	R4, try_and8
 	SYNC
 	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-8
+	MOVW	ptr+0(FP), R1
+	MOVW	val+4(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	OR	R2, R3
+	SC	R3, (R1)
+	BEQ	R3, -4(PC)
+	SYNC
+	RET
+
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-8
+	MOVW	ptr+0(FP), R1
+	MOVW	val+4(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	AND	R2, R3
+	SC	R3, (R1)
+	BEQ	R3, -4(PC)
+	SYNC
+	RET

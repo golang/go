@@ -185,7 +185,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) && !(objabi.GOOS == "darwin" && objabi.GOARCH == "arm64") { // XXX allow internal linking for darwin/arm64 but not change the default
+	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
 		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
 	}
 
@@ -261,8 +261,6 @@ func determineLinkMode(ctxt *Link) {
 		default:
 			if extNeeded || (iscgo && externalobj) {
 				ctxt.LinkMode = LinkExternal
-			} else if ctxt.IsDarwin() && ctxt.IsARM64() {
-				ctxt.LinkMode = LinkExternal // default to external linking for now
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}

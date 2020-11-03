@@ -75,8 +75,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -155,9 +157,11 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		if _, err := Glob(pattern); err != ErrBadPattern {
+			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
+		}
 	}
 }
 

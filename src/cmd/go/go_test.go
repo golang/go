@@ -9,6 +9,7 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"go/format"
@@ -35,15 +36,17 @@ import (
 )
 
 var (
-	canRun  = true  // whether we can run go or ./testgo
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo
 	canMSan = false // whether we can run the memory sanitizer
-
-	exeSuffix string // ".exe" on Windows
-
-	skipExternal = false // skip external tests
 )
+
+var exeSuffix string = func() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}()
 
 func tooSlow(t *testing.T) {
 	if testing.Short() {
@@ -51,53 +54,8 @@ func tooSlow(t *testing.T) {
 		if testenv.Builder() != "" && runtime.GOARCH == "amd64" && (runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 			return
 		}
+		t.Helper()
 		t.Skip("skipping test in -short mode")
-	}
-}
-
-func init() {
-	switch runtime.GOOS {
-	case "android", "js":
-		canRun = false
-	case "darwin":
-		// nothing to do
-	case "ios":
-		canRun = false
-	case "linux":
-		switch runtime.GOARCH {
-		case "arm":
-			// many linux/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-		case "mips", "mipsle", "mips64", "mips64le":
-			// Also slow.
-			skipExternal = true
-			if testenv.Builder() != "" {
-				// On the builders, skip the cmd/go
-				// tests. They're too slow and already
-				// covered by other ports. There's
-				// nothing os/arch specific in the
-				// tests.
-				canRun = false
-			}
-		}
-	case "freebsd":
-		switch runtime.GOARCH {
-		case "arm":
-			// many freebsd/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-			canRun = false
-		}
-	case "plan9":
-		switch runtime.GOARCH {
-		case "arm":
-			// many plan9/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-		}
-	case "windows":
-		exeSuffix = ".exe"
 	}
 }
 
@@ -153,7 +111,7 @@ func TestMain(m *testing.M) {
 	}
 
 	testGOCACHE = cache.DefaultDir()
-	if canRun {
+	if testenv.HasGoBuild() {
 		testBin = filepath.Join(testTmpDir, "testbin")
 		if err := os.Mkdir(testBin, 0777); err != nil {
 			log.Fatal(err)
@@ -224,7 +182,7 @@ func TestMain(m *testing.M) {
 		cmd.Stderr = new(strings.Builder)
 		if out, err := cmd.Output(); err != nil {
 			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
-			canRun = false
+			os.Exit(2)
 		} else {
 			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
 			if err != nil {
@@ -324,10 +282,7 @@ func skipIfGccgo(t *testing.T, msg string) {
 func testgo(t *testing.T) *testgoData {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
-
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.SkipIfShortAndSlow(t)
 
 	return &testgoData{t: t}
 }
@@ -416,9 +371,6 @@ func (tg *testgoData) goTool() string {
 // returning exit status.
 func (tg *testgoData) doRun(args []string) error {
 	tg.t.Helper()
-	if !canRun {
-		panic("testgoData.doRun called but canRun false")
-	}
 	if tg.inParallel {
 		for _, arg := range args {
 			if strings.HasPrefix(arg, "testdata") || strings.HasPrefix(arg, "./testdata") {
@@ -2177,6 +2129,38 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 		}
 		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
+		}
+		if useCgo {
+			// Test that only one symbol is exported (#40795).
+			// PIE binaries don´t require .edata section but unfortunately
+			// binutils doesn´t generate a .reloc section unless there is
+			// at least one symbol exported.
+			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+			section := f.Section(".edata")
+			if section == nil {
+				t.Fatalf(".edata section is not present")
+			}
+			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+			type IMAGE_EXPORT_DIRECTORY struct {
+				_                 [2]uint32
+				_                 [2]uint16
+				_                 [2]uint32
+				NumberOfFunctions uint32
+				NumberOfNames     uint32
+				_                 [3]uint32
+			}
+			var e IMAGE_EXPORT_DIRECTORY
+			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
+				t.Fatalf("binary.Read failed: %v", err)
+			}
+
+			// Only _cgo_dummy_export should be exported
+			if e.NumberOfFunctions != 1 {
+				t.Fatalf("got %d exported functions; want 1", e.NumberOfFunctions)
+			}
+			if e.NumberOfNames != 1 {
+				t.Fatalf("got %d exported names; want 1", e.NumberOfNames)
+			}
 		}
 	default:
 		panic("unreachable")

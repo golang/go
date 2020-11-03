@@ -110,41 +110,43 @@ func (check *Checker) err(err error) {
 	f(err)
 }
 
-func (check *Checker) error(pos token.Pos, msg string) {
-	check.err(Error{Fset: check.fset, Pos: pos, Msg: msg})
+func (check *Checker) error(pos token.Pos, code errorCode, msg string) {
+	check.err(Error{Fset: check.fset, Pos: pos, Msg: msg, go116code: code})
 }
 
 // newErrorf creates a new Error, but does not handle it.
-func (check *Checker) newErrorf(pos token.Pos, format string, args ...interface{}) error {
+func (check *Checker) newErrorf(pos token.Pos, code errorCode, format string, args ...interface{}) error {
 	return Error{
-		Fset: check.fset,
-		Pos:  pos,
-		Msg:  check.sprintf(format, args...),
-		Soft: false,
+		Fset:      check.fset,
+		Pos:       pos,
+		Msg:       check.sprintf(format, args...),
+		Soft:      false,
+		go116code: code,
 	}
 }
 
-func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.error(pos, check.sprintf(format, args...))
+func (check *Checker) errorf(pos token.Pos, code errorCode, format string, args ...interface{}) {
+	check.error(pos, code, check.sprintf(format, args...))
 }
 
-func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) softErrorf(pos token.Pos, code errorCode, format string, args ...interface{}) {
 	check.err(Error{
-		Fset: check.fset,
-		Pos:  pos,
-		Msg:  check.sprintf(format, args...),
-		Soft: true,
+		Fset:      check.fset,
+		Pos:       pos,
+		Msg:       check.sprintf(format, args...),
+		Soft:      true,
+		go116code: code,
 	})
 }
 
 func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid AST: "+format, args...)
+	check.errorf(pos, 0, "invalid AST: "+format, args...)
 }
 
-func (check *Checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid argument: "+format, args...)
+func (check *Checker) invalidArg(pos token.Pos, code errorCode, format string, args ...interface{}) {
+	check.errorf(pos, code, "invalid argument: "+format, args...)
 }
 
-func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid operation: "+format, args...)
+func (check *Checker) invalidOp(pos token.Pos, code errorCode, format string, args ...interface{}) {
+	check.errorf(pos, code, "invalid operation: "+format, args...)
 }

@@ -79,7 +79,7 @@ func instrumentInit() {
 	}
 	if cfg.BuildRace {
 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
 			base.SetExitStatus(2)
 			base.Exit()
 		}

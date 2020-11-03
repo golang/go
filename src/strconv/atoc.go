@@ -40,10 +40,10 @@ func convErr(err error, s string) (syntax, range_ error) {
 // away from the largest floating point number of the given component's size,
 // ParseComplex returns err.Err = ErrRange and c = ±Inf for the respective component.
 func ParseComplex(s string, bitSize int) (complex128, error) {
-	size := 128
-	if bitSize == 64 {
-		size = 32 // complex64 uses float32 parts
+	if bitSize != 64 && bitSize != 128 {
+		return 0, bitSizeError(fnParseComplex, s, bitSize)
 	}
+	size := bitSize >> 1
 
 	orig := s
 

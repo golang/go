@@ -142,6 +142,12 @@ func And8(ptr *uint8, val uint8)
 func Or8(ptr *uint8, val uint8)
 
 //go:noescape
+func And(ptr *uint32, val uint32)
+
+//go:noescape
+func Or(ptr *uint32, val uint32)
+
+//go:noescape
 func Store(ptr *uint32, val uint32)
 
 //go:noescape

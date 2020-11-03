@@ -72,9 +72,9 @@ func initssaconfig() {
 	deferproc = sysfunc("deferproc")
 	deferprocStack = sysfunc("deferprocStack")
 	Deferreturn = sysfunc("deferreturn")
-	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
-	Duffzero = sysvar("duffzero")             // asm func with special ABI
-	gcWriteBarrier = sysvar("gcWriteBarrier") // asm func with special ABI
+	Duffcopy = sysfunc("duffcopy")
+	Duffzero = sysfunc("duffzero")
+	gcWriteBarrier = sysfunc("gcWriteBarrier")
 	goschedguarded = sysfunc("goschedguarded")
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
@@ -105,51 +105,51 @@ func initssaconfig() {
 	// asm funcs with special ABI
 	if thearch.LinkArch.Name == "amd64" {
 		GCWriteBarrierReg = map[int16]*obj.LSym{
-			x86.REG_AX: sysvar("gcWriteBarrier"),
-			x86.REG_CX: sysvar("gcWriteBarrierCX"),
-			x86.REG_DX: sysvar("gcWriteBarrierDX"),
-			x86.REG_BX: sysvar("gcWriteBarrierBX"),
-			x86.REG_BP: sysvar("gcWriteBarrierBP"),
-			x86.REG_SI: sysvar("gcWriteBarrierSI"),
-			x86.REG_R8: sysvar("gcWriteBarrierR8"),
-			x86.REG_R9: sysvar("gcWriteBarrierR9"),
+			x86.REG_AX: sysfunc("gcWriteBarrier"),
+			x86.REG_CX: sysfunc("gcWriteBarrierCX"),
+			x86.REG_DX: sysfunc("gcWriteBarrierDX"),
+			x86.REG_BX: sysfunc("gcWriteBarrierBX"),
+			x86.REG_BP: sysfunc("gcWriteBarrierBP"),
+			x86.REG_SI: sysfunc("gcWriteBarrierSI"),
+			x86.REG_R8: sysfunc("gcWriteBarrierR8"),
+			x86.REG_R9: sysfunc("gcWriteBarrierR9"),
 		}
 	}
 
 	if thearch.LinkArch.Family == sys.Wasm {
-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("goPanicSliceAlen")
-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("goPanicSliceAlenU")
-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("goPanicSliceAcap")
-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("goPanicSliceAcapU")
-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("goPanicSliceB")
-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("goPanicSliceBU")
-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("goPanicSlice3Alen")
-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("goPanicSlice3AlenU")
-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("goPanicSlice3Acap")
-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("goPanicSlice3AcapU")
-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("goPanicSlice3B")
-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("goPanicSlice3BU")
-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("goPanicSlice3C")
-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("goPanicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("goPanicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("goPanicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("goPanicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("goPanicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("goPanicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("goPanicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("goPanicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("goPanicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("goPanicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("goPanicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("goPanicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("goPanicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("goPanicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("goPanicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("goPanicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("goPanicSlice3CU")
 	} else {
-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("panicIndex")
-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("panicIndexU")
-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicSliceAlen")
-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicSliceAlenU")
-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicSliceAcap")
-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicSliceAcapU")
-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("panicSliceB")
-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("panicSliceBU")
-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicSlice3Alen")
-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicSlice3AlenU")
-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicSlice3Acap")
-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicSlice3AcapU")
-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("panicSlice3B")
-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicSlice3BU")
-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("panicSlice3C")
-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicSlice3CU")
+		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("panicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("panicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("panicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("panicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("panicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("panicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("panicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("panicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("panicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("panicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("panicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("panicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("panicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("panicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("panicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("panicSlice3CU")
 	}
 	if thearch.LinkArch.PtrSize == 4 {
 		ExtendCheckFunc[ssa.BoundsIndex] = sysvar("panicExtendIndex")
@@ -409,11 +409,17 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
+	var args []ssa.Param
+	var results []ssa.Param
 	for _, n := range fn.Func.Dcl {
 		switch n.Class() {
-		case PPARAM, PPARAMOUT:
+		case PPARAM:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type), n, s.sp, s.startmem)
-			if n.Class() == PPARAMOUT && s.canSSA(n) {
+			args = append(args, ssa.Param{Type: n.Type, Offset: int32(n.Xoffset)})
+		case PPARAMOUT:
+			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type), n, s.sp, s.startmem)
+			results = append(results, ssa.Param{Type: n.Type, Offset: int32(n.Xoffset)})
+			if s.canSSA(n) {
 				// Save ssa-able PPARAMOUT variables so we can
 				// store them back to the stack at the end of
 				// the function.
@@ -2472,6 +2478,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+	case OANDNOT:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		b = s.newValue1(s.ssaOp(OBITNOT, b.Type), b.Type, b)
+		return s.newValue2(s.ssaOp(OAND, n.Type), a.Type, a, b)
 	case OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
@@ -3541,9 +3552,21 @@ func init() {
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+	addF("runtime/internal/atomic", "And",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+			return nil
+		},
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
 	addF("runtime/internal/atomic", "Or8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+			return nil
+		},
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+	addF("runtime/internal/atomic", "Or",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
@@ -3557,13 +3580,17 @@ func init() {
 	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
 	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
+	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...) // linknamed
 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
+	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...) // linknamed
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
 	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
 	alias("runtime/internal/atomic", "StoreRel64", "runtime/internal/atomic", "Store64", lwatomics...)
 	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...)
+	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...) // linknamed
 	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
+	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...) // linknamed
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
@@ -4728,7 +4755,7 @@ func (s *state) getClosureAndRcvr(fn *Node) (*ssa.Value, *ssa.Value) {
 	s.nilCheck(itab)
 	itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
-	rcvr := s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
+	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
 }
 
@@ -4888,7 +4915,7 @@ func (s *state) canSSA(n *Node) bool {
 	if n.Class() == PPARAM && n.Sym != nil && n.Sym.Name == ".this" {
 		// wrappers generated by genwrapper need to update
 		// the .this pointer in place.
-		// TODO: treat as a PPARMOUT?
+		// TODO: treat as a PPARAMOUT?
 		return false
 	}
 	return canSSAType(n.Type)
@@ -5201,7 +5228,10 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.store(t, left, right)
 	case t.IsPtrShaped():
-		// no scalar fields.
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			s.store(t, left, right) // see issue 42032
+		}
+		// otherwise, no scalar fields.
 	case t.IsString():
 		if skip&skipLen != 0 {
 			return
@@ -5245,6 +5275,9 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
+		if t.IsPtr() && t.Elem().NotInHeap() {
+			break // see issue 42032
+		}
 		s.store(t, left, right)
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
@@ -6232,7 +6265,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
 		// preemptible, unless this function is "all unsafe".
-		s.pp.nextLive = LivenessIndex{-1, -1, allUnsafe(f)}
+		s.pp.nextLive = LivenessIndex{-1, allUnsafe(f)}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
@@ -6892,56 +6925,38 @@ func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
 }
 
 func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	ptrType := types.NewPtr(types.Types[TUINT8])
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this string up into two separate variables.
-		p := e.splitSlot(&name, ".ptr", 0, ptrType)
-		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
-		return p, l
-	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off}, ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)}
+	// Split this string up into two separate variables.
+	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+	return p, l
 }
 
 func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	u := types.Types[TUINTPTR]
 	t := types.NewPtr(types.Types[TUINT8])
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this interface up into two separate variables.
-		f := ".itab"
-		if n.Type.IsEmptyInterface() {
-			f = ".type"
-		}
-		c := e.splitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
-		d := e.splitSlot(&name, ".data", u.Size(), t)
-		return c, d
+	// Split this interface up into two separate variables.
+	f := ".itab"
+	if n.Type.IsEmptyInterface() {
+		f = ".type"
 	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: u, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
+	c := e.SplitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
+	d := e.SplitSlot(&name, ".data", u.Size(), t)
+	return c, d
 }
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	ptrType := types.NewPtr(name.Type.Elem())
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this slice up into three separate variables.
-		p := e.splitSlot(&name, ".ptr", 0, ptrType)
-		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
-		c := e.splitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
-		return p, l, c
-	}
-	// Return the three parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off},
-		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)},
-		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(2*Widthptr)}
+	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+	c := e.SplitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+	return p, l, c
 }
 
 func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	s := name.Type.Size() / 2
 	var t *types.Type
 	if s == 8 {
@@ -6949,53 +6964,30 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) 
 	} else {
 		t = types.Types[TFLOAT32]
 	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this complex up into two separate variables.
-		r := e.splitSlot(&name, ".real", 0, t)
-		i := e.splitSlot(&name, ".imag", t.Size(), t)
-		return r, i
-	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
+	r := e.SplitSlot(&name, ".real", 0, t)
+	i := e.SplitSlot(&name, ".imag", t.Size(), t)
+	return r, i
 }
 
 func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	var t *types.Type
 	if name.Type.IsSigned() {
 		t = types.Types[TINT32]
 	} else {
 		t = types.Types[TUINT32]
 	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this int64 up into two separate variables.
-		if thearch.LinkArch.ByteOrder == binary.BigEndian {
-			return e.splitSlot(&name, ".hi", 0, t), e.splitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
-		}
-		return e.splitSlot(&name, ".hi", t.Size(), t), e.splitSlot(&name, ".lo", 0, types.Types[TUINT32])
-	}
-	// Return the two parts of the larger variable.
 	if thearch.LinkArch.ByteOrder == binary.BigEndian {
-		return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: types.Types[TUINT32], Off: name.Off + 4}
+		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
 	}
-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: types.Types[TUINT32], Off: name.Off}
+	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[TUINT32])
 }
 
 func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
-	n := name.N.(*Node)
 	st := name.Type
-	ft := st.FieldType(i)
-	var offset int64
-	for f := 0; f < i; f++ {
-		offset += st.FieldType(f).Size()
-	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Note: the _ field may appear several times.  But
-		// have no fear, identically-named but distinct Autos are
-		// ok, albeit maybe confusing for a debugger.
-		return e.splitSlot(&name, "."+st.FieldName(i), offset, ft)
-	}
-	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
+	// Note: the _ field may appear several times.  But
+	// have no fear, identically-named but distinct Autos are
+	// ok, albeit maybe confusing for a debugger.
+	return e.SplitSlot(&name, "."+st.FieldName(i), st.FieldOff(i), st.FieldType(i))
 }
 
 func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
@@ -7005,19 +6997,23 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 		e.Fatalf(n.Pos, "bad array size")
 	}
 	et := at.Elem()
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		return e.splitSlot(&name, "[0]", 0, et)
-	}
-	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
+	return e.SplitSlot(&name, "[0]", 0, et)
 }
 
 func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 	return itabsym(it, offset)
 }
 
-// splitSlot returns a slot representing the data of parent starting at offset.
-func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
-	s := &types.Sym{Name: parent.N.(*Node).Sym.Name + suffix, Pkg: localpkg}
+// SplitSlot returns a slot representing the data of parent starting at offset.
+func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+	node := parent.N.(*Node)
+
+	if node.Class() != PAUTO || node.Name.Addrtaken() {
+		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
+		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+	}
+
+	s := &types.Sym{Name: node.Sym.Name + suffix, Pkg: localpkg}
 
 	n := &Node{
 		Name: new(Name),

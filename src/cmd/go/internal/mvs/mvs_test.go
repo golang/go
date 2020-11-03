@@ -317,6 +317,13 @@ B1: X2
 X1: I1
 X2: 
 req M: A1 B1
+
+name: reqnone
+M: Anone B1 D1 E1
+B1: Cnone D1
+E1: Fnone
+build M: M B1 D1 E1
+req M: B1 E1
 `
 
 func Test(t *testing.T) {

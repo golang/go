@@ -375,11 +375,6 @@ func readonlystaticname(t *types.Type) *Node {
 	return n
 }
 
-func isLiteral(n *Node) bool {
-	// Treat nils as zeros rather than literals.
-	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
-}
-
 func (n *Node) isSimpleName() bool {
 	return n.Op == ONAME && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
 }
@@ -404,7 +399,7 @@ const (
 func getdyn(n *Node, top bool) initGenType {
 	switch n.Op {
 	default:
-		if isLiteral(n) {
+		if n.isGoConst() {
 			return initConst
 		}
 		return initDynamic
@@ -559,7 +554,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			continue
 		}
 
-		islit := isLiteral(value)
+		islit := value.isGoConst()
 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
 			continue
 		}
@@ -732,7 +727,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			continue
 		}
 
-		if vstat != nil && isLiteral(value) { // already set by copy from static value
+		if vstat != nil && value.isGoConst() { // already set by copy from static value
 			continue
 		}
 

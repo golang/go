@@ -487,6 +487,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// If there are instructions following
 			// this ARET, they come from a branch
 			// with the same stackframe, so no spadj.
+
 			if p.To.Sym != nil { // retjmp
 				p.To.Reg = REGLINK
 				q2 = obj.Appendp(p, newprog)
@@ -494,6 +495,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q2.To.Type = obj.TYPE_BRANCH
 				q2.To.Sym = p.To.Sym
 				p.To.Sym = nil
+				p.To.Name = obj.NAME_NONE
 				p = q2
 			}
 

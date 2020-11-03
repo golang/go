@@ -1851,9 +1851,9 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	return q
 }
 
-// If the environment variable GOAMD64=alignedjumps the assembler will ensure that
-// no standalone or macro-fused jump will straddle or end on a 32 byte boundary
-// by inserting NOPs before the jumps
+// isJump returns whether p is a jump instruction.
+// It is used to ensure that no standalone or macro-fused jump will straddle
+// or end on a 32 byte boundary by inserting NOPs before the jumps.
 func isJump(p *obj.Prog) bool {
 	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
 		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
@@ -1985,11 +1985,6 @@ func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
 	// Disable jump padding for hand written assembly code.
 	if ctxt.IsAsm {
 		return padJumpsCtx(0)
-	}
-
-	if objabi.GOAMD64 != "alignedjumps" {
-		return padJumpsCtx(0)
-
 	}
 
 	return padJumpsCtx(32)
@@ -4270,7 +4265,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		args = append(args, ft)
 	}
 	for i := range p.RestArgs {
-		args = append(args, oclass(ctxt, p, &p.RestArgs[i])*Ymax)
+		args = append(args, oclass(ctxt, p, &p.RestArgs[i].Addr)*Ymax)
 	}
 	if tt != Ynone*Ymax {
 		args = append(args, tt)
@@ -5438,10 +5433,10 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 // unpackOps4 extracts 4 operands from p.
 func unpackOps4(p *obj.Prog) (arg0, arg1, arg2, dst *obj.Addr) {
-	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.To
+	return &p.From, &p.RestArgs[0].Addr, &p.RestArgs[1].Addr, &p.To
 }
 
 // unpackOps5 extracts 5 operands from p.
 func unpackOps5(p *obj.Prog) (arg0, arg1, arg2, arg3, dst *obj.Addr) {
-	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.RestArgs[2], &p.To
+	return &p.From, &p.RestArgs[0].Addr, &p.RestArgs[1].Addr, &p.RestArgs[2].Addr, &p.To
 }

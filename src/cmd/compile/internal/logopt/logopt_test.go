@@ -213,15 +213,15 @@ func s15a8(x *[15]int64) [15]int64 {
 			`"relatedInformation":[`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r1 = y:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~R0 = y:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~r1:"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~r1) (return)"}]}`)
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u003cN\u003e (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
 	})
 }
 

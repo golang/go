@@ -75,8 +75,19 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 
 	inspectList(n.Nbody, func(n *Node) bool {
 		switch n.Op {
-		case OCALLFUNC, OCALLMETH:
-			fn := asNode(n.Left.Type.Nname())
+		case ONAME:
+			if n.Class() == PFUNC {
+				if n.isMethodExpression() {
+					n = asNode(n.Type.Nname())
+				}
+				if n != nil && n.Name.Defn != nil {
+					if m := v.visit(n.Name.Defn); m < min {
+						min = m
+					}
+				}
+			}
+		case ODOTMETH:
+			fn := asNode(n.Type.Nname())
 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 				if m := v.visit(fn.Name.Defn); m < min {
 					min = m

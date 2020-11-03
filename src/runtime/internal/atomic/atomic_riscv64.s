@@ -242,3 +242,17 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	SLL	A2, A1
 	AMOORW	A1, (A0), ZERO
 	RET
+
+// func And(ptr *uint32, val uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	AMOANDW	A1, (A0), ZERO
+	RET
+
+// func Or(ptr *uint32, val uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	AMOORW	A1, (A0), ZERO
+	RET
