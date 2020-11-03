@@ -1095,7 +1095,6 @@ func (t *tester) cgoTest(dt *distTest) error {
 	pair := gohostos + "-" + goarch
 	switch pair {
 	case "darwin-amd64", "darwin-arm64",
-		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
 		if !t.extLink() {
@@ -1118,7 +1117,8 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
-		"netbsd-386", "netbsd-amd64":
+		"netbsd-386", "netbsd-amd64",
+		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
