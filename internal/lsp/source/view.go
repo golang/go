@@ -142,10 +142,6 @@ type Snapshot interface {
 
 	// WorkspacePackages returns the snapshot's top-level packages.
 	WorkspacePackages(ctx context.Context) ([]Package, error)
-
-	// WorkspaceDirectories returns any directory known by the view. For views
-	// within a module, this is the module root and any replace targets.
-	WorkspaceDirectories(ctx context.Context) []span.URI
 }
 
 // PackageFilter sets how a package is filtered out from a set of packages
@@ -301,6 +297,11 @@ type Session interface {
 
 	// SetOptions sets the options of this session to new values.
 	SetOptions(*Options)
+
+	// FileWatchingGlobPatterns returns glob patterns to watch every directory
+	// known by the view. For views within a module, this is the module root,
+	// any directory in the module root, and any replace targets.
+	FileWatchingGlobPatterns(ctx context.Context) map[string]struct{}
 }
 
 // Overlay is the type for a file held in memory on a session.

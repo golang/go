@@ -481,6 +481,10 @@ func checkIgnored(suffix string) bool {
 }
 
 func (v *View) Snapshot(ctx context.Context) (source.Snapshot, func()) {
+	return v.getSnapshot(ctx)
+}
+
+func (v *View) getSnapshot(ctx context.Context) (*snapshot, func()) {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 	return v.snapshot, v.snapshot.generation.Acquire(ctx)
