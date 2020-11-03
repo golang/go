@@ -216,6 +216,9 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 		// go/parser strips out \r\n returns from the comment text, so go
 		// line-by-line through the comment text to get the correct positions.
 		for _, comment := range doc.List {
+			if isDirective(comment.Text) {
+				continue
+			}
 			lines := strings.Split(comment.Text, "\n")
 			tok := r.fset.File(comment.Pos())
 			commentLine := tok.Position(comment.Pos()).Line

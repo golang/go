@@ -401,3 +401,43 @@ func Qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		return p.Name()
 	}
 }
+
+// isDirective reports whether c is a comment directive.
+//
+// Copied and adapted from go/src/go/ast/ast.go.
+func isDirective(c string) bool {
+	if len(c) < 3 {
+		return false
+	}
+	if c[1] != '/' {
+		return false
+	}
+	//-style comment (no newline at the end)
+	c = c[2:]
+	if len(c) == 0 {
+		// empty line
+		return false
+	}
+	// "//line " is a line directive.
+	// (The // has been removed.)
+	if strings.HasPrefix(c, "line ") {
+		return true
+	}
+
+	// "//[a-z0-9]+:[a-z0-9]"
+	// (The // has been removed.)
+	colon := strings.Index(c, ":")
+	if colon <= 0 || colon+1 >= len(c) {
+		return false
+	}
+	for i := 0; i <= colon+1; i++ {
+		if i == colon {
+			continue
+		}
+		b := c[i]
+		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
+			return false
+		}
+	}
+	return true
+}

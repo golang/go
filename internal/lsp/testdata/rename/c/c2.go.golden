@@ -1,0 +1,5 @@
+-- static-rename --
+package c
+
+//go:embed Static/*
+var static embed.FS //@rename("Static", "static")
