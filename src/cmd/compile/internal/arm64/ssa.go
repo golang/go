@@ -688,15 +688,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.To.Reg = out
 		gc.Patch(p2, p5)
 	case ssa.OpARM64LoweredAtomicAnd8,
-		ssa.OpARM64LoweredAtomicOr8:
-		// LDAXRB	(Rarg0), Rout
+		ssa.OpARM64LoweredAtomicAnd32,
+		ssa.OpARM64LoweredAtomicOr8,
+		ssa.OpARM64LoweredAtomicOr32:
+		// LDAXRB/LDAXRW (Rarg0), Rout
 		// AND/OR	Rarg1, Rout
-		// STLXRB	Rout, (Rarg0), Rtmp
+		// STLXRB/STLXRB Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
+		ld := arm64.ALDAXRB
+		st := arm64.ASTLXRB
+		if v.Op == ssa.OpARM64LoweredAtomicAnd32 || v.Op == ssa.OpARM64LoweredAtomicOr32 {
+			ld = arm64.ALDAXRW
+			st = arm64.ASTLXRW
+		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
-		p := s.Prog(arm64.ALDAXRB)
+		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
 		p.To.Type = obj.TYPE_REG
@@ -706,7 +714,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p1.From.Reg = r1
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = out
-		p2 := s.Prog(arm64.ASTLXRB)
+		p2 := s.Prog(st)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = out
 		p2.To.Type = obj.TYPE_MEM

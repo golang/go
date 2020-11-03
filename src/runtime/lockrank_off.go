@@ -46,3 +46,19 @@ func assertLockHeld(l *mutex) {
 //go:nosplit
 func assertRankHeld(r lockRank) {
 }
+
+//go:nosplit
+func worldStopped() {
+}
+
+//go:nosplit
+func worldStarted() {
+}
+
+//go:nosplit
+func assertWorldStopped() {
+}
+
+//go:nosplit
+func assertWorldStoppedOrLockHeld(l *mutex) {
+}

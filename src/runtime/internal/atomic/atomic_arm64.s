@@ -164,3 +164,22 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	CBNZ	R3, -3(PC)
 	RET
 
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	LDAXRW	(R0), R2
+	AND	R1, R2
+	STLXRW	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	LDAXRW	(R0), R2
+	ORR	R1, R2
+	STLXRW	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET

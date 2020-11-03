@@ -2995,14 +2995,6 @@ func TestUnexportedMethods(t *testing.T) {
 	if got := typ.NumMethod(); got != 0 {
 		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
 	}
-
-	var i unexpI
-	if got := TypeOf(&i).Elem().NumMethod(); got != 0 {
-		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
-	}
-	if got := ValueOf(&i).Elem().NumMethod(); got != 0 {
-		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
-	}
 }
 
 type InnerInt struct {
@@ -3656,21 +3648,21 @@ func TestCallPanic(t *testing.T) {
 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
 	badCall(func() { call(v.Field(0).Method(0)) })          // .t0.W
 	badCall(func() { call(v.Field(0).Elem().Method(0)) })   // .t0.W
-	badMethod(func() { call(v.Field(0).Method(1)) })        // .t0.w
+	badCall(func() { call(v.Field(0).Method(1)) })          // .t0.w
 	badMethod(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
 	ok(func() { call(v.Field(1).Method(0)) })               // .T1.Y
 	ok(func() { call(v.Field(1).Elem().Method(0)) })        // .T1.Y
-	badMethod(func() { call(v.Field(1).Method(1)) })        // .T1.y
+	badCall(func() { call(v.Field(1).Method(1)) })          // .T1.y
 	badMethod(func() { call(v.Field(1).Elem().Method(2)) }) // .T1.y
 
 	ok(func() { call(v.Field(2).Method(0)) })               // .NamedT0.W
 	ok(func() { call(v.Field(2).Elem().Method(0)) })        // .NamedT0.W
-	badMethod(func() { call(v.Field(2).Method(1)) })        // .NamedT0.w
+	badCall(func() { call(v.Field(2).Method(1)) })          // .NamedT0.w
 	badMethod(func() { call(v.Field(2).Elem().Method(2)) }) // .NamedT0.w
 
 	ok(func() { call(v.Field(3).Method(0)) })               // .NamedT1.Y
 	ok(func() { call(v.Field(3).Elem().Method(0)) })        // .NamedT1.Y
-	badMethod(func() { call(v.Field(3).Method(1)) })        // .NamedT1.y
+	badCall(func() { call(v.Field(3).Method(1)) })          // .NamedT1.y
 	badMethod(func() { call(v.Field(3).Elem().Method(3)) }) // .NamedT1.y
 
 	ok(func() { call(v.Field(4).Field(0).Method(0)) })             // .NamedT2.T1.Y
@@ -3680,7 +3672,7 @@ func TestCallPanic(t *testing.T) {
 
 	badCall(func() { call(v.Field(5).Method(0)) })          // .namedT0.W
 	badCall(func() { call(v.Field(5).Elem().Method(0)) })   // .namedT0.W
-	badMethod(func() { call(v.Field(5).Method(1)) })        // .namedT0.w
+	badCall(func() { call(v.Field(5).Method(1)) })          // .namedT0.w
 	badMethod(func() { call(v.Field(5).Elem().Method(2)) }) // .namedT0.w
 
 	badCall(func() { call(v.Field(6).Method(0)) })        // .namedT1.Y

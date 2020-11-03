@@ -1320,9 +1320,6 @@ func (ctxt *Link) hostlink() {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
 			argv = addASLRargs(argv)
-			// Work around binutils limitation that strips relocation table for dynamicbase.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			argv = append(argv, "-Wl,--export-all-symbols")
 		default:
 			// ELF.
 			if ctxt.UseRelro() {
@@ -1614,12 +1611,12 @@ func (ctxt *Link) hostlink() {
 
 	if combineDwarf {
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+		if out, err := exec.Command("xcrun", "dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
-		if out, err := exec.Command("strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+		if out, err := exec.Command("xcrun", "strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
@@ -1770,12 +1767,12 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.flags)
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.Flags)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			ehdr.flags = flags
+			ehdr.Flags = flags
 			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
@@ -2520,12 +2517,12 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 		if target.Arch.PtrSize == 8 {
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rela.AddUint64(target.Arch, ELF64_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
 			rela.AddUint64(target.Arch, 0)
 		} else {
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-			rel.AddUint32(target.Arch, ELF32_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(s)), elfRelocTyp))
 		}
 	} else if target.IsDarwin() {
 		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)

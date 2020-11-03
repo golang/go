@@ -7,6 +7,7 @@ package modload
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
 
 	"cmd/go/internal/modfetch"
@@ -74,7 +75,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
-		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
+		repo, err := lookupRepo(proxy, path)
+		if err != nil {
+			return err
+		}
+		allVersions, err := repo.Versions("")
 		if err != nil {
 			return err
 		}
@@ -98,6 +103,9 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return module.Version{Path: m.Path, Version: "none"}, nil
+		}
 		return module.Version{}, err
 	}
 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })

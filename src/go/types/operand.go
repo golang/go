@@ -210,16 +210,16 @@ func (x *operand) isNil() bool {
 // detailed explanation of the failure (result != ""). The check parameter may
 // be nil if assignableTo is invoked through an exported API call, i.e., when
 // all methods have been type-checked.
-func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
 	if x.mode == invalid || T == Typ[Invalid] {
-		return true // avoid spurious errors
+		return true, 0 // avoid spurious errors
 	}
 
 	V := x.typ
 
 	// x's type is identical to T
 	if check.identical(V, T) {
-		return true
+		return true, 0
 	}
 
 	Vu := V.Underlying()
@@ -228,16 +228,16 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
 		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
-			return representableConst(x.val, check, t, nil)
+			return representableConst(x.val, check, t, nil), _IncompatibleAssign
 		}
-		return check.implicitType(x, Tu) != nil
+		return check.implicitType(x, Tu) != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
 	// x's type V and T have identical underlying types and at least one of V or
 	// T is not a named type.
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
-		return true
+		return true, 0
 	}
 
 	// T is an interface type and x implements T
@@ -255,9 +255,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 					*reason = "missing method " + m.Name()
 				}
 			}
-			return false
+			return false, _InvalidIfaceAssign
 		}
-		return true
+		return true, 0
 	}
 
 	// x is a bidirectional channel value, T is a channel
@@ -265,9 +265,13 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T)
+			if !isNamed(V) || !isNamed(T) {
+				return true, 0
+			} else {
+				return false, _InvalidChanAssign
+			}
 		}
 	}
 
-	return false
+	return false, _IncompatibleAssign
 }

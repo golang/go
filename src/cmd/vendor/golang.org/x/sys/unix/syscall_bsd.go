@@ -18,6 +18,21 @@ import (
 	"unsafe"
 )
 
+const ImplementsGetwd = true
+
+func Getwd() (string, error) {
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil {
+		return "", err
+	}
+	n := clen(buf[:])
+	if n < 1 {
+		return "", EINVAL
+	}
+	return string(buf[:n]), nil
+}
+
 /*
  * Wrapped
  */
@@ -262,7 +277,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		}
 		return sa, nil
 	}
-	return nil, EAFNOSUPPORT
+	return anyToSockaddrGOOS(fd, rsa)
 }
 
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {

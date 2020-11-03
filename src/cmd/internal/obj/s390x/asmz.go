@@ -718,7 +718,7 @@ func (c *ctxtz) oplook(p *obj.Prog) *Optab {
 	p.From.Class = int8(c.aclass(&p.From) + 1)
 	p.To.Class = int8(c.aclass(&p.To) + 1)
 	for i := range p.RestArgs {
-		p.RestArgs[i].Class = int8(c.aclass(&p.RestArgs[i]) + 1)
+		p.RestArgs[i].Addr.Class = int8(c.aclass(&p.RestArgs[i].Addr) + 1)
 	}
 
 	// Mirrors the argument list in Optab.

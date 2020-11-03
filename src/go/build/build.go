@@ -805,7 +805,7 @@ Found:
 			continue
 		}
 		if d.Mode()&fs.ModeSymlink != 0 {
-			if fi, err := os.Stat(filepath.Join(p.Dir, d.Name())); err == nil && fi.IsDir() {
+			if ctxt.isDir(ctxt.joinPath(p.Dir, d.Name())) {
 				// Symlinks to directories are not source files.
 				continue
 			}
@@ -1117,9 +1117,14 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 			}
 		}
 		for {
-			info, err := os.Stat(filepath.Join(parent, "go.mod"))
-			if err == nil && !info.IsDir() {
-				break
+			if f, err := ctxt.openFile(ctxt.joinPath(parent, "go.mod")); err == nil {
+				buf := make([]byte, 100)
+				_, err := f.Read(buf)
+				f.Close()
+				if err == nil || err == io.EOF {
+					// go.mod exists and is readable (is a file, not a directory).
+					break
+				}
 			}
 			d := filepath.Dir(parent)
 			if len(d) >= len(parent) {

@@ -175,9 +175,11 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
 		sep = ", "
 	}
 	for i := range p.RestArgs {
-		io.WriteString(w, sep)
-		WriteDconv(w, p, &p.RestArgs[i])
-		sep = ", "
+		if p.RestArgs[i].Pos == Source {
+			io.WriteString(w, sep)
+			WriteDconv(w, p, &p.RestArgs[i].Addr)
+			sep = ", "
+		}
 	}
 
 	if p.As == ATEXT {
@@ -197,6 +199,13 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
 	}
 	if p.RegTo2 != REG_NONE {
 		fmt.Fprintf(w, "%s%v", sep, Rconv(int(p.RegTo2)))
+	}
+	for i := range p.RestArgs {
+		if p.RestArgs[i].Pos == Destination {
+			io.WriteString(w, sep)
+			WriteDconv(w, p, &p.RestArgs[i].Addr)
+			sep = ", "
+		}
 	}
 }
 

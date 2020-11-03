@@ -47,6 +47,10 @@ type devReader struct {
 // urandom-style randomness.
 var altGetRandom func([]byte) (ok bool)
 
+func warnBlocked() {
+	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+}
+
 func (r *devReader) Read(b []byte) (n int, err error) {
 	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
 		// First use of randomness. Start timer to warn about

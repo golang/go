@@ -282,6 +282,12 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		glob = strings.Join(elem, "/") + "/"
 	}
 
+	// Test that malformed patterns are detected.
+	// The error is likely path.ErrBadPattern but need not be.
+	if _, err := t.fsys.(fs.GlobFS).Glob(glob + "nonexist/[]"); err == nil {
+		t.errorf("%s: Glob(%#q): bad pattern not detected", dir, glob+"nonexist/[]")
+	}
+
 	// Try to find a letter that appears in only some of the final names.
 	c := rune('a')
 	for ; c <= 'z'; c++ {

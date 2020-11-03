@@ -309,7 +309,7 @@ Read at 0x[0-9,a-f]+ by main goroutine:
 Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.goCallback\(\)
       .*/main\.go:27 \+0x[0-9,a-f]+
-  main._cgoexpwrap_[0-9a-z]+_goCallback\(\)
+  _cgoexp_[0-9a-z]+_goCallback\(\)
       .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:

@@ -196,7 +196,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 	Get CTXT
 	I64Eqz
 	If
-		CALLNORESUME runtime·sigpanic(SB)
+		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
 	End
 
 	// caller sp after CALL
@@ -288,9 +288,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 TEXT ·asmcgocall(SB), NOSPLIT, $0-0
 	UNDEF
 
-TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
-	UNDEF
-
 #define DISPATCH(NAME, MAXSIZE) \
 	Get R0; \
 	I64Const $MAXSIZE; \
@@ -303,7 +300,7 @@ TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	I64Load fn+8(FP)
 	I64Eqz
 	If
-		CALLNORESUME runtime·sigpanic(SB)
+		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
 	End
 
 	MOVW argsize+24(FP), R0
@@ -432,7 +429,7 @@ TEXT runtime·goexit(SB), NOSPLIT, $0-0
 	CALL runtime·goexit1(SB) // does not return
 	UNDEF
 
-TEXT runtime·cgocallback(SB), NOSPLIT, $32-32
+TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 	UNDEF
 
 // gcWriteBarrier performs a heap pointer write and informs the GC.

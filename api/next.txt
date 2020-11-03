@@ -1,3 +1,5 @@
+pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
 pkg debug/elf, const DT_ADDRRNGHI = 1879047935
 pkg debug/elf, const DT_ADDRRNGHI DynTag
 pkg debug/elf, const DT_ADDRRNGLO = 1879047680
@@ -216,13 +218,25 @@ pkg debug/elf, const PT_SUNWSTACK = 1879048187
 pkg debug/elf, const PT_SUNWSTACK ProgType
 pkg debug/elf, const PT_SUNW_EH_FRAME = 1685382480
 pkg debug/elf, const PT_SUNW_EH_FRAME ProgType
+pkg embed, method (FS) Open(string) (fs.File, error)
+pkg embed, method (FS) ReadDir(string) ([]fs.DirEntry, error)
+pkg embed, method (FS) ReadFile(string) ([]uint8, error)
+pkg embed, type FS struct
 pkg flag, func Func(string, string, func(string) error)
 pkg flag, method (*FlagSet) Func(string, string, func(string) error)
+pkg go/build, type Package struct, EmbedPatterns []string
 pkg go/build, type Package struct, IgnoredOtherFiles []string
+pkg go/build, type Package struct, TestEmbedPatterns []string
+pkg go/build, type Package struct, XTestEmbedPatterns []string
+pkg html/template, func ParseFS(fs.FS, ...string) (*Template, error)
+pkg html/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
+pkg io, func NopCloser(Reader) ReadCloser
+pkg io, func ReadAll(Reader) ([]uint8, error)
 pkg io, type ReadSeekCloser interface { Close, Read, Seek }
 pkg io, type ReadSeekCloser interface, Close() error
 pkg io, type ReadSeekCloser interface, Read([]uint8) (int, error)
 pkg io, type ReadSeekCloser interface, Seek(int64, int) (int64, error)
+pkg io, var Discard Writer
 pkg io/fs, const ModeAppend = 1073741824
 pkg io/fs, const ModeAppend FileMode
 pkg io/fs, const ModeCharDevice = 2097152
@@ -253,6 +267,11 @@ pkg io/fs, const ModeTemporary = 268435456
 pkg io/fs, const ModeTemporary FileMode
 pkg io/fs, const ModeType = 2401763328
 pkg io/fs, const ModeType FileMode
+pkg io/fs, func Glob(FS, string) ([]string, error)
+pkg io/fs, func ReadDir(FS, string) ([]DirEntry, error)
+pkg io/fs, func ReadFile(FS, string) ([]uint8, error)
+pkg io/fs, func Stat(FS, string) (FileInfo, error)
+pkg io/fs, func ValidPath(string) bool
 pkg io/fs, method (*PathError) Error() string
 pkg io/fs, method (*PathError) Timeout() bool
 pkg io/fs, method (*PathError) Unwrap() error
@@ -261,6 +280,17 @@ pkg io/fs, method (FileMode) IsRegular() bool
 pkg io/fs, method (FileMode) Perm() FileMode
 pkg io/fs, method (FileMode) String() string
 pkg io/fs, method (FileMode) Type() FileMode
+pkg io/fs, type DirEntry interface { Info, IsDir, Name, Type }
+pkg io/fs, type DirEntry interface, Info() (FileInfo, error)
+pkg io/fs, type DirEntry interface, IsDir() bool
+pkg io/fs, type DirEntry interface, Name() string
+pkg io/fs, type DirEntry interface, Type() FileMode
+pkg io/fs, type FS interface { Open }
+pkg io/fs, type FS interface, Open(string) (File, error)
+pkg io/fs, type File interface { Close, Read, Stat }
+pkg io/fs, type File interface, Close() error
+pkg io/fs, type File interface, Read([]uint8) (int, error)
+pkg io/fs, type File interface, Stat() (FileInfo, error)
 pkg io/fs, type FileInfo interface { IsDir, ModTime, Mode, Name, Size, Sys }
 pkg io/fs, type FileInfo interface, IsDir() bool
 pkg io/fs, type FileInfo interface, ModTime() time.Time
@@ -269,16 +299,35 @@ pkg io/fs, type FileInfo interface, Name() string
 pkg io/fs, type FileInfo interface, Size() int64
 pkg io/fs, type FileInfo interface, Sys() interface{}
 pkg io/fs, type FileMode uint32
+pkg io/fs, type GlobFS interface { Glob, Open }
+pkg io/fs, type GlobFS interface, Glob(string) ([]string, error)
+pkg io/fs, type GlobFS interface, Open(string) (File, error)
 pkg io/fs, type PathError struct
 pkg io/fs, type PathError struct, Err error
 pkg io/fs, type PathError struct, Op string
 pkg io/fs, type PathError struct, Path string
+pkg io/fs, type ReadDirFS interface { Open, ReadDir }
+pkg io/fs, type ReadDirFS interface, Open(string) (File, error)
+pkg io/fs, type ReadDirFS interface, ReadDir(string) ([]DirEntry, error)
+pkg io/fs, type ReadDirFile interface { Close, Read, ReadDir, Stat }
+pkg io/fs, type ReadDirFile interface, Close() error
+pkg io/fs, type ReadDirFile interface, Read([]uint8) (int, error)
+pkg io/fs, type ReadDirFile interface, ReadDir(int) ([]DirEntry, error)
+pkg io/fs, type ReadDirFile interface, Stat() (FileInfo, error)
+pkg io/fs, type ReadFileFS interface { Open, ReadFile }
+pkg io/fs, type ReadFileFS interface, Open(string) (File, error)
+pkg io/fs, type ReadFileFS interface, ReadFile(string) ([]uint8, error)
+pkg io/fs, type StatFS interface { Open, Stat }
+pkg io/fs, type StatFS interface, Open(string) (File, error)
+pkg io/fs, type StatFS interface, Stat(string) (FileInfo, error)
 pkg io/fs, var ErrClosed error
 pkg io/fs, var ErrExist error
 pkg io/fs, var ErrInvalid error
 pkg io/fs, var ErrNotExist error
 pkg io/fs, var ErrPermission error
+pkg log, func Default() *Logger
 pkg net, var ErrClosed error
+pkg net/http, func FS(fs.FS) FileSystem
 pkg net/http, type Transport struct, GetProxyConnectHeader func(context.Context, *url.URL, string) (Header, error)
 pkg os, const ModeAppend fs.FileMode
 pkg os, const ModeCharDevice fs.FileMode
@@ -296,6 +345,7 @@ pkg os, const ModeSymlink fs.FileMode
 pkg os, const ModeTemporary fs.FileMode
 pkg os, const ModeType fs.FileMode
 pkg os, func Chmod(string, fs.FileMode) error
+pkg os, func DirFS(string) fs.FS
 pkg os, func Lstat(string) (fs.FileInfo, error)
 pkg os, func Mkdir(string, fs.FileMode) error
 pkg os, func MkdirAll(string, fs.FileMode) error
@@ -303,19 +353,84 @@ pkg os, func OpenFile(string, int, fs.FileMode) (*File, error)
 pkg os, func SameFile(fs.FileInfo, fs.FileInfo) bool
 pkg os, func Stat(string) (fs.FileInfo, error)
 pkg os, method (*File) Chmod(fs.FileMode) error
-pkg os, method (*File) ReadDir(int) ([]DirEntry, error)
+pkg os, method (*File) ReadDir(int) ([]fs.DirEntry, error)
 pkg os, method (*File) Readdir(int) ([]fs.FileInfo, error)
 pkg os, method (*File) Stat() (fs.FileInfo, error)
-pkg os, type DirEntry interface { Info, IsDir, Name, Type }
-pkg os, type DirEntry interface, Info() (fs.FileInfo, error)
-pkg os, type DirEntry interface, IsDir() bool
-pkg os, type DirEntry interface, Name() string
-pkg os, type DirEntry interface, Type() fs.FileMode
+pkg os, type DirEntry = fs.DirEntry
 pkg os, type FileInfo = fs.FileInfo
 pkg os, type FileMode = fs.FileMode
 pkg os, type PathError = fs.PathError
 pkg os/signal, func NotifyContext(context.Context, ...os.Signal) (context.Context, context.CancelFunc)
+pkg runtime/metrics, const KindBad = 0
+pkg runtime/metrics, const KindBad ValueKind
+pkg runtime/metrics, const KindFloat64 = 2
+pkg runtime/metrics, const KindFloat64 ValueKind
+pkg runtime/metrics, const KindFloat64Histogram = 3
+pkg runtime/metrics, const KindFloat64Histogram ValueKind
+pkg runtime/metrics, const KindUint64 = 1
+pkg runtime/metrics, const KindUint64 ValueKind
+pkg runtime/metrics, func All() []Description
+pkg runtime/metrics, func Read([]Sample)
+pkg runtime/metrics, method (Value) Float64() float64
+pkg runtime/metrics, method (Value) Float64Histogram() *Float64Histogram
+pkg runtime/metrics, method (Value) Kind() ValueKind
+pkg runtime/metrics, method (Value) Uint64() uint64
+pkg runtime/metrics, type Description struct
+pkg runtime/metrics, type Description struct, Cumulative bool
+pkg runtime/metrics, type Description struct, Description string
+pkg runtime/metrics, type Description struct, Kind ValueKind
+pkg runtime/metrics, type Description struct, Name string
+pkg runtime/metrics, type Description struct, StopTheWorld bool
+pkg runtime/metrics, type Float64Histogram struct
+pkg runtime/metrics, type Float64Histogram struct, Buckets []float64
+pkg runtime/metrics, type Float64Histogram struct, Counts []uint64
+pkg runtime/metrics, type Sample struct
+pkg runtime/metrics, type Sample struct, Name string
+pkg runtime/metrics, type Sample struct, Value Value
+pkg runtime/metrics, type Value struct
+pkg runtime/metrics, type ValueKind int
+pkg syscall (linux-386), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func Setegid(int) error
+pkg syscall (linux-386), func Seteuid(int) error
+pkg syscall (linux-386-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func Setegid(int) error
+pkg syscall (linux-386-cgo), func Seteuid(int) error
+pkg syscall (linux-amd64), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func Setegid(int) error
+pkg syscall (linux-amd64), func Seteuid(int) error
+pkg syscall (linux-amd64-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func Setegid(int) error
+pkg syscall (linux-amd64-cgo), func Seteuid(int) error
+pkg syscall (linux-arm), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func Setegid(int) error
+pkg syscall (linux-arm), func Seteuid(int) error
+pkg syscall (linux-arm-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm-cgo), func Setegid(int) error
+pkg syscall (linux-arm-cgo), func Seteuid(int) error
+pkg syscall (windows-386), func RtlGenRandom(*uint8, uint32) error
+pkg syscall (windows-amd64), func RtlGenRandom(*uint8, uint32) error
+pkg testing/fstest, func TestFS(fs.FS, ...string) error
+pkg testing/fstest, method (MapFS) Glob(string) ([]string, error)
+pkg testing/fstest, method (MapFS) Open(string) (fs.File, error)
+pkg testing/fstest, method (MapFS) ReadDir(string) ([]fs.DirEntry, error)
+pkg testing/fstest, method (MapFS) ReadFile(string) ([]uint8, error)
+pkg testing/fstest, method (MapFS) Stat(string) (fs.FileInfo, error)
+pkg testing/fstest, type MapFS map[string]*MapFile
+pkg testing/fstest, type MapFile struct
+pkg testing/fstest, type MapFile struct, Data []uint8
+pkg testing/fstest, type MapFile struct, ModTime time.Time
+pkg testing/fstest, type MapFile struct, Mode fs.FileMode
+pkg testing/fstest, type MapFile struct, Sys interface{}
 pkg testing/iotest, func ErrReader(error) io.Reader
+pkg testing/iotest, func TestReader(io.Reader, []uint8) error
+pkg text/template, func ParseFS(fs.FS, ...string) (*Template, error)
+pkg text/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
 pkg text/template/parse, const NodeComment = 20
 pkg text/template/parse, const NodeComment NodeType
 pkg text/template/parse, const ParseComments = 1

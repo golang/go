@@ -52,6 +52,12 @@ func Or8(ptr *uint8, val uint8)
 func And8(ptr *uint8, val uint8)
 
 //go:noescape
+func And(ptr *uint32, val uint32)
+
+//go:noescape
+func Or(ptr *uint32, val uint32)
+
+//go:noescape
 func Cas64(ptr *uint64, old, new uint64) bool
 
 //go:noescape

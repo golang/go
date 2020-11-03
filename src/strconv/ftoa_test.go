@@ -212,6 +212,15 @@ func TestFtoaRandom(t *testing.T) {
 	}
 }
 
+func TestFormatFloatInvalidBitSize(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic due to invalid bitSize")
+		}
+	}()
+	_ = FormatFloat(3.14, 'g', -1, 100)
+}
+
 var ftoaBenches = []struct {
 	name    string
 	float   float64

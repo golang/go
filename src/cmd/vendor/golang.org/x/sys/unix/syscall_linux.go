@@ -106,15 +106,24 @@ func IoctlGetRTCTime(fd int) (*RTCTime, error) {
 	return &value, err
 }
 
+// IoctlGetWatchdogInfo fetches information about a watchdog device from the
+// Linux watchdog API. For more information, see:
+// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
+func IoctlGetWatchdogInfo(fd int) (*WatchdogInfo, error) {
+	var value WatchdogInfo
+	err := ioctl(fd, WDIOC_GETSUPPORT, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+}
+
 func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) {
 	var value RTCWkAlrm
 	err := ioctl(fd, RTC_WKALM_RD, uintptr(unsafe.Pointer(&value)))
 	return &value, err
 }
 
-// IoctlFileClone performs an FICLONERANGE ioctl operation to clone the range of
-// data conveyed in value to the file associated with the file descriptor
-// destFd. See the ioctl_ficlonerange(2) man page for details.
+// IoctlFileCloneRange performs an FICLONERANGE ioctl operation to clone the
+// range of data conveyed in value to the file associated with the file
+// descriptor destFd. See the ioctl_ficlonerange(2) man page for details.
 func IoctlFileCloneRange(destFd int, value *FileCloneRange) error {
 	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
 	runtime.KeepAlive(value)
@@ -128,13 +137,20 @@ func IoctlFileClone(destFd, srcFd int) error {
 	return ioctl(destFd, FICLONE, uintptr(srcFd))
 }
 
-// IoctlFileClone performs an FIDEDUPERANGE ioctl operation to share the range of
-// data conveyed in value with the file associated with the file descriptor
-// destFd. See the ioctl_fideduperange(2) man page for details.
+// IoctlFileDedupeRange performs an FIDEDUPERANGE ioctl operation to share the
+// range of data conveyed in value with the file associated with the file
+// descriptor destFd. See the ioctl_fideduperange(2) man page for details.
 func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
 	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
 	runtime.KeepAlive(value)
 	return err
+}
+
+// IoctlWatchdogKeepalive issues a keepalive ioctl to a watchdog device. For
+// more information, see:
+// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
+func IoctlWatchdogKeepalive(fd int) error {
+	return ioctl(fd, WDIOC_KEEPALIVE, 0)
 }
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)

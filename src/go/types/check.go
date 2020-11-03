@@ -217,7 +217,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name.Pos(), "invalid package name _")
+				check.errorf(file.Name.Pos(), _BlankPkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -225,7 +225,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			check.errorf(file.Package, _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}

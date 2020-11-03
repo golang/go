@@ -160,10 +160,10 @@ type addrRanges struct {
 	totalBytes uintptr
 
 	// sysStat is the stat to track allocations by this type
-	sysStat *uint64
+	sysStat *sysMemStat
 }
 
-func (a *addrRanges) init(sysStat *uint64) {
+func (a *addrRanges) init(sysStat *sysMemStat) {
 	ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
 	ranges.len = 0
 	ranges.cap = 16
@@ -172,20 +172,46 @@ func (a *addrRanges) init(sysStat *uint64) {
 	a.totalBytes = 0
 }
 
-// findSucc returns the first index in a such that base is
+// findSucc returns the first index in a such that addr is
 // less than the base of the addrRange at that index.
 func (a *addrRanges) findSucc(addr uintptr) int {
-	// TODO(mknyszek): Consider a binary search for large arrays.
-	// While iterating over these ranges is potentially expensive,
-	// the expected number of ranges is small, ideally just 1,
-	// since Go heaps are usually mostly contiguous.
 	base := offAddr{addr}
-	for i := range a.ranges {
+
+	// Narrow down the search space via a binary search
+	// for large addrRanges until we have at most iterMax
+	// candidates left.
+	const iterMax = 8
+	bot, top := 0, len(a.ranges)
+	for top-bot > iterMax {
+		i := ((top - bot) / 2) + bot
+		if a.ranges[i].contains(base.addr()) {
+			// a.ranges[i] contains base, so
+			// its successor is the next index.
+			return i + 1
+		}
+		if base.lessThan(a.ranges[i].base) {
+			// In this case i might actually be
+			// the successor, but we can't be sure
+			// until we check the ones before it.
+			top = i
+		} else {
+			// In this case we know base is
+			// greater than or equal to a.ranges[i].limit-1,
+			// so i is definitely not the successor.
+			// We already checked i, so pick the next
+			// one.
+			bot = i + 1
+		}
+	}
+	// There are top-bot candidates left, so
+	// iterate over them and find the first that
+	// base is strictly less than.
+	for i := bot; i < top; i++ {
 		if base.lessThan(a.ranges[i].base) {
 			return i
 		}
 	}
-	return len(a.ranges)
+	return top
 }
 
 // findAddrGreaterEqual returns the smallest address represented by a
@@ -218,7 +244,7 @@ func (a *addrRanges) contains(addr uintptr) bool {
 
 // add inserts a new address range to a.
 //
-// r must not overlap with any address range in a.
+// r must not overlap with any address range in a and r.size() must be > 0.
 func (a *addrRanges) add(r addrRange) {
 	// The copies in this function are potentially expensive, but this data
 	// structure is meant to represent the Go heap. At worst, copying this
@@ -229,6 +255,12 @@ func (a *addrRanges) add(r addrRange) {
 	// of 16) and Go heaps are usually mostly contiguous, so the chance that
 	// an addrRanges even grows to that size is extremely low.
 
+	// An empty range has no effect on the set of addresses represented
+	// by a, but passing a zero-sized range is almost always a bug.
+	if r.size() == 0 {
+		print("runtime: range = {", hex(r.base.addr()), ", ", hex(r.limit.addr()), "}\n")
+		throw("attempted to add zero-sized address range")
+	}
 	// Because we assume r is not currently represented in a,
 	// findSucc gives us our insertion index.
 	i := a.findSucc(r.base.addr())

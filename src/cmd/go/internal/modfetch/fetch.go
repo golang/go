@@ -428,6 +428,28 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 	return nil
 }
 
+// HaveSum returns true if the go.sum file contains an entry for mod.
+// The entry's hash must be generated with a known hash algorithm.
+// mod.Version may have a "/go.mod" suffix to distinguish sums for
+// .mod and .zip files.
+func HaveSum(mod module.Version) bool {
+	goSum.mu.Lock()
+	defer goSum.mu.Unlock()
+	inited, err := initGoSum()
+	if err != nil || !inited {
+		return false
+	}
+	for _, h := range goSum.m[mod] {
+		if !strings.HasPrefix(h, "h1:") {
+			continue
+		}
+		if !goSum.status[modSum{mod, h}].dirty {
+			return true
+		}
+	}
+	return false
+}
+
 // checkMod checks the given module's checksum.
 func checkMod(mod module.Version) {
 	if cfg.GOMODCACHE == "" {

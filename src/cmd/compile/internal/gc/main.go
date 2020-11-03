@@ -34,8 +34,6 @@ import (
 	"strings"
 )
 
-var imported_unsafe bool
-
 var (
 	buildid      string
 	spectre      string
@@ -241,6 +239,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
+	objabi.Flagfn1("embedcfg", "read go:embed configuration from `file`", readEmbedCfg)
 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
@@ -605,7 +604,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
+		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias()) {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -617,7 +616,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
+		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias() {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -709,6 +708,13 @@ func Main(archInit func(*Arch)) {
 			}
 		})
 	}
+
+	for _, n := range xtop {
+		if n.Op == ODCLFUNC {
+			devirtualize(n)
+		}
+	}
+	Curfn = nil
 
 	// Phase 6: Escape analysis.
 	// Required for moving heap allocations onto stack,
@@ -1185,7 +1191,6 @@ func importfile(f *Val) *types.Pkg {
 	}
 
 	if path_ == "unsafe" {
-		imported_unsafe = true
 		return unsafepkg
 	}
 

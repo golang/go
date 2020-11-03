@@ -122,25 +122,28 @@ Scan:
 // If so, it returns the remainder of s (after the match).
 // Chunk is all single-character operators: literals, char classes, and ?.
 func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+	// failed records whether the match has failed.
+	// After the match fails, the loop continues on processing chunk,
+	// checking that the pattern is well-formed but no longer reading s.
+	failed := false
 	for len(chunk) > 0 {
-		if len(s) == 0 {
-			return
+		if !failed && len(s) == 0 {
+			failed = true
 		}
 		switch chunk[0] {
 		case '[':
 			// character class
-			r, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
-			chunk = chunk[1:]
-			// We can't end right after '[', we're expecting at least
-			// a closing bracket and possibly a caret.
-			if len(chunk) == 0 {
-				err = ErrBadPattern
-				return
+			var r rune
+			if !failed {
+				var n int
+				r, n = utf8.DecodeRuneInString(s)
+				s = s[n:]
 			}
+			chunk = chunk[1:]
 			// possibly negated
-			negated := chunk[0] == '^'
-			if negated {
+			negated := false
+			if len(chunk) > 0 && chunk[0] == '^' {
+				negated = true
 				chunk = chunk[1:]
 			}
 			// parse all ranges
@@ -153,12 +156,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				}
 				var lo, hi rune
 				if lo, chunk, err = getEsc(chunk); err != nil {
-					return
+					return "", false, err
 				}
 				hi = lo
 				if chunk[0] == '-' {
 					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
-						return
+						return "", false, err
 					}
 				}
 				if lo <= r && r <= hi {
@@ -167,34 +170,40 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				nrange++
 			}
 			if match == negated {
-				return
+				failed = true
 			}
 
 		case '?':
-			if s[0] == Separator {
-				return
+			if !failed {
+				if s[0] == Separator {
+					failed = true
+				}
+				_, n := utf8.DecodeRuneInString(s)
+				s = s[n:]
 			}
-			_, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
 			chunk = chunk[1:]
 
 		case '\\':
 			if runtime.GOOS != "windows" {
 				chunk = chunk[1:]
 				if len(chunk) == 0 {
-					err = ErrBadPattern
-					return
+					return "", false, ErrBadPattern
 				}
 			}
 			fallthrough
 
 		default:
-			if chunk[0] != s[0] {
-				return
+			if !failed {
+				if chunk[0] != s[0] {
+					failed = true
+				}
+				s = s[1:]
 			}
-			s = s[1:]
 			chunk = chunk[1:]
 		}
+	}
+	if failed {
+		return "", false, nil
 	}
 	return s, true, nil
 }
@@ -232,6 +241,10 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 // The only possible returned error is ErrBadPattern, when pattern
 // is malformed.
 func Glob(pattern string) (matches []string, err error) {
+	// Check pattern is well-formed.
+	if _, err := Match(pattern, ""); err != nil {
+		return nil, err
+	}
 	if !hasMeta(pattern) {
 		if _, err = os.Lstat(pattern); err != nil {
 			return nil, nil

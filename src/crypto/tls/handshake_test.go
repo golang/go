@@ -86,7 +86,7 @@ func checkOpenSSLVersion() error {
 	println("to update the test data.")
 	println("")
 	println("Configure it with:")
-	println("./Configure enable-weak-ssl-ciphers")
+	println("./Configure enable-weak-ssl-ciphers no-shared")
 	println("and then add the apps/ directory at the front of your PATH.")
 	println("***********************************************")
 

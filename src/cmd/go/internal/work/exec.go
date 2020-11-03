@@ -339,6 +339,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		p.SysoFiles,
 		p.SwigFiles,
 		p.SwigCXXFiles,
+		p.EmbedFiles,
 	)
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
@@ -694,6 +695,26 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 	}
 
+	// Prepare Go embed config if needed.
+	// Unlike the import config, it's okay for the embed config to be empty.
+	var embedcfg []byte
+	if len(p.Internal.Embed) > 0 {
+		var embed struct {
+			Patterns map[string][]string
+			Files    map[string]string
+		}
+		embed.Patterns = p.Internal.Embed
+		embed.Files = make(map[string]string)
+		for _, file := range p.EmbedFiles {
+			embed.Files[file] = filepath.Join(p.Dir, file)
+		}
+		js, err := json.MarshalIndent(&embed, "", "\t")
+		if err != nil {
+			return fmt.Errorf("marshal embedcfg: %v", err)
+		}
+		embedcfg = js
+	}
+
 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
 		if err := b.writeFile(objdir+"_gomod_.go", modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
 			return err
@@ -703,7 +724,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), symabis, len(sfiles) > 0, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
 		output := b.processOutput(out)
 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
@@ -2125,9 +2146,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	//
-	// TODO: This argument list is long. Consider putting it in a struct.
-	gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2167,7 +2186,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -2934,7 +2953,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(context.TODO(), srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, "", false, srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil

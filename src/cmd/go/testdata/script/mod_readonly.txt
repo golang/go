@@ -41,7 +41,8 @@ go list -m all
 
 # -mod=readonly should reject inconsistent go.mod files
 # (ones that would be rewritten).
-go mod edit -require rsc.io/sampler@v1.2.0
+go get -d rsc.io/sampler@v1.2.0
+go mod edit -require rsc.io/quote@v1.5.2
 cp go.mod go.mod.inconsistent
 ! go list
 stderr 'go: updates to go.mod needed, disabled by -mod=readonly'

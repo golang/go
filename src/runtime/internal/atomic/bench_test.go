@@ -51,6 +51,14 @@ func BenchmarkAnd8(b *testing.B) {
 	}
 }
 
+func BenchmarkAnd(b *testing.B) {
+	var x [128]uint32 // give x its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.And(&x[63], uint32(i))
+	}
+}
+
 func BenchmarkAnd8Parallel(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
@@ -58,6 +66,18 @@ func BenchmarkAnd8Parallel(b *testing.B) {
 		i := uint8(0)
 		for pb.Next() {
 			atomic.And8(&x[255], i)
+			i++
+		}
+	})
+}
+
+func BenchmarkAndParallel(b *testing.B) {
+	var x [128]uint32 // give x its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint32(0)
+		for pb.Next() {
+			atomic.And(&x[63], i)
 			i++
 		}
 	})
@@ -71,6 +91,14 @@ func BenchmarkOr8(b *testing.B) {
 	}
 }
 
+func BenchmarkOr(b *testing.B) {
+	var x [128]uint32 // give x its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.Or(&x[63], uint32(i))
+	}
+}
+
 func BenchmarkOr8Parallel(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
@@ -78,6 +106,18 @@ func BenchmarkOr8Parallel(b *testing.B) {
 		i := uint8(0)
 		for pb.Next() {
 			atomic.Or8(&x[255], i)
+			i++
+		}
+	})
+}
+
+func BenchmarkOrParallel(b *testing.B) {
+	var x [128]uint32 // give x its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint32(0)
+		for pb.Next() {
+			atomic.Or(&x[63], i)
 			i++
 		}
 	})

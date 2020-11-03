@@ -352,6 +352,17 @@ func parsedebugvars() {
 	// defaults
 	debug.cgocheck = 1
 	debug.invalidptr = 1
+	if GOOS == "linux" {
+		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+		// but doesn't affect many of the statistics that
+		// MADV_DONTNEED does until the memory is actually
+		// reclaimed. This generally leads to poor user
+		// experience, like confusing stats in top and other
+		// monitoring tools; and bad integration with
+		// management systems that respond to memory usage.
+		// Hence, default to MADV_DONTNEED.
+		debug.madvdontneed = 1
+	}
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""

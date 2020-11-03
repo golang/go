@@ -366,19 +366,7 @@ type imethod struct {
 type interfacetype struct {
 	typ     _type
 	pkgpath name
-	// expMethods contains all interface methods.
-	//
-	// - len(expMethods) returns number of exported methods.
-	// - cap(expMethods) returns all interface methods, including both exported/non-exported methods.
-	expMethods []imethod
-}
-
-func (it *interfacetype) methods() []imethod {
-	return it.expMethods[:cap(it.expMethods)]
-}
-
-func (it *interfacetype) isEmpty() bool {
-	return cap(it.expMethods) == 0
+	mhdr    []imethod
 }
 
 type maptype struct {
@@ -676,15 +664,13 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		if it.pkgpath.name() != iv.pkgpath.name() {
 			return false
 		}
-		itmethods := it.methods()
-		ivmethods := iv.methods()
-		if len(itmethods) != len(ivmethods) {
+		if len(it.mhdr) != len(iv.mhdr) {
 			return false
 		}
-		for i := range itmethods {
-			tm := &itmethods[i]
-			vm := &ivmethods[i]
-			// Note the expMethods array can be relocated from
+		for i := range it.mhdr {
+			tm := &it.mhdr[i]
+			vm := &iv.mhdr[i]
+			// Note the mhdr array can be relocated from
 			// another module. See #17724.
 			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
 			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)
