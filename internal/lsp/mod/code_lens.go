@@ -52,7 +52,7 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 		if err != nil {
 			return nil, err
 		}
-		upgradeDepArgs, err := source.MarshalArgs(fh.URI(), []string{dep})
+		upgradeDepArgs, err := source.MarshalArgs(fh.URI(), false, []string{dep})
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +69,7 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 	// If there is at least 1 upgrade, add "Upgrade all dependencies" to
 	// the module statement.
 	if len(allUpgrades) > 0 {
-		upgradeDepArgs, err := source.MarshalArgs(fh.URI(), append([]string{"-u"}, allUpgrades...))
+		upgradeDepArgs, err := source.MarshalArgs(fh.URI(), false, append([]string{"-u"}, allUpgrades...))
 		if err != nil {
 			return nil, err
 		}

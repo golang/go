@@ -200,13 +200,14 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
-		if err := source.UnmarshalArgs(args, &uri, &goCmdArgs); err != nil {
+		var addRequire bool
+		if err := source.UnmarshalArgs(args, &uri, &addRequire, &goCmdArgs); err != nil {
 			return err
 		}
-		if command == source.CommandAddDependency {
+		if addRequire {
 			// Using go get to create a new dependency results in an
-			// `// indirect` comment we don't want. The only way to avoid it is
-			// to add the require as direct first. Then we can use go get to
+			// `// indirect` comment we may not want. The only way to avoid it
+			// is to add the require as direct first. Then we can use go get to
 			// update go.sum and tidy up.
 			if err := s.directGoModCommand(ctx, uri, "mod", append([]string{"edit", "-require"}, goCmdArgs...)...); err != nil {
 				return err

@@ -353,7 +353,7 @@ func unusedError(m *protocol.ColumnMapper, req *modfile.Require, computeEdits di
 	if err != nil {
 		return source.Error{}, err
 	}
-	args, err := source.MarshalArgs(m.URI, []string{req.Mod.Path + "@none"})
+	args, err := source.MarshalArgs(m.URI, false, []string{req.Mod.Path + "@none"})
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -425,7 +425,7 @@ func missingModuleError(snapshot source.Snapshot, pm *source.ParsedModule, req *
 			return source.Error{}, err
 		}
 	}
-	args, err := source.MarshalArgs(pm.Mapper.URI, []string{req.Mod.Path + "@" + req.Mod.Version})
+	args, err := source.MarshalArgs(pm.Mapper.URI, !req.Indirect, []string{req.Mod.Path + "@" + req.Mod.Version})
 	if err != nil {
 		return source.Error{}, err
 	}

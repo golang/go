@@ -324,9 +324,7 @@ func main() {
 func TestBadlyVersionedModule(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
-	const badModule = `
--- example.com/blah/@v/list --
-v1.0.0
+	const proxy = `
 -- example.com/blah/@v/v1.0.0.mod --
 module example.com
 
@@ -335,17 +333,6 @@ go 1.12
 package blah
 
 const Name = "Blah"
--- example.com/blah@v1.0.0/blah_test.go --
-package blah_test
-
-import (
-	"testing"
-)
-
-func TestBlah(t *testing.T) {}
-
--- example.com/blah/v2/@v/list --
-v2.0.0
 -- example.com/blah/v2/@v/v2.0.0.mod --
 module example.com
 
@@ -353,37 +340,26 @@ go 1.12
 -- example.com/blah/v2@v2.0.0/blah.go --
 package blah
 
+import "example.com/blah"
+
+var _ = blah.Name
 const Name = "Blah"
--- example.com/blah/v2@v2.0.0/blah_test.go --
-package blah_test
-
-import (
-	"testing"
-
-	"example.com/blah"
-)
-
-func TestBlah(t *testing.T) {}
 `
-	const pkg = `
+	const files = `
 -- go.mod --
 module mod.com
 
 go 1.12
 
-require (
-	example.com/blah/v2 v2.0.0
-)
+require example.com/blah/v2 v2.0.0
 -- main.go --
 package main
 
 import "example.com/blah/v2"
 
-func main() {
-	println(blah.Name)
-}
+var _ = blah.Name
 `
-	runner.Run(t, pkg, func(t *testing.T, env *Env) {
+	withOptions(WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 		var d protocol.PublishDiagnosticsParams
@@ -399,7 +375,7 @@ func main() {
 go 1.12
 
 require (
-	example.com/blah v1.0.0
+	example.com/blah v1.0.0 // indirect
 	example.com/blah/v2 v2.0.0
 )
 `
@@ -409,7 +385,7 @@ require (
 		if got := env.ReadWorkspaceFile("go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(want, got))
 		}
-	}, WithProxyFiles(badModule))
+	})
 }
 
 // Reproduces golang/go#38232.
