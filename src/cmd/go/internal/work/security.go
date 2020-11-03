@@ -42,8 +42,8 @@ import (
 var re = lazyregexp.New
 
 var validCompilerFlags = []*lazyregexp.Regexp{
-	re(`-D([A-Za-z_].*)`),
-	re(`-U([A-Za-z_]*)`),
+	re(`-D([A-Za-z_][A-Za-z0-9_]*)(=[^@\-]*)?`),
+	re(`-U([A-Za-z_][A-Za-z0-9_]*)`),
 	re(`-F([^@\-].*)`),
 	re(`-I([^@\-].*)`),
 	re(`-O`),
@@ -51,8 +51,8 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-W`),
 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
 	re(`-Wa,-mbig-obj`),
-	re(`-Wp,-D([A-Za-z_].*)`),
-	re(`-Wp,-U([A-Za-z_]*)`),
+	re(`-Wp,-D([A-Za-z_][A-Za-z0-9_]*)(=[^@,\-]*)?`),
+	re(`-Wp,-U([A-Za-z_][A-Za-z0-9_]*)`),
 	re(`-ansi`),
 	re(`-f(no-)?asynchronous-unwind-tables`),
 	re(`-f(no-)?blocks`),
