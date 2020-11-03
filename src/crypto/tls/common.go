@@ -1535,3 +1535,12 @@ func grease() uint16 {
 	index := mRand.Intn(16)
 	return randomGrease[index]
 }
+
+func containGrease(grease uint16) bool {
+	for _, g := range randomGrease {
+		if g == grease{
+			return true
+		}
+	}
+	return false
+}
