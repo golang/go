@@ -31,6 +31,29 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="darwin">Darwin</h3>
+
+<p><!-- golang.org/issue/38485, golang.org/issue/41385, many CLs -->
+  Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
+  Apple Silicon) with <code>GOOS=darwin</code>, <code>GOARCH=arm64</code>.
+  Like the <code>darwin/amd64</code> port, the <code>darwin/arm64</code>
+  port supports cgo, internal and external linking, <code>c-archive</code>,
+  <code>c-shared</code>, and <code>pie</code> build modes, and the race
+  detector.
+</p>
+
+<p>
+  The iOS port, which was previously <code>darwin/arm64</code>, is now
+  moved to <code>ios/arm64</code>. <code>GOOS=ios</code> implies the
+  <code>darwin</code> build tag, just as <code>GOOS=android</code>
+  implies the <code>linux</code> build tag.
+</p>
+
+<p><!-- golang.org/issue/42100, CL 263798 -->
+  The <code>ios/amd64</code> port is added, targetting the iOS simulator
+  running on AMD64-based macOS.
+</p>
+
 <h3 id="netbsd">NetBSD</h3>
 
 <p><!-- golang.org/issue/30824 -->
