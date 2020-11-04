@@ -402,7 +402,7 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 
 	// For Server-Sent Events responses, flush immediately.
 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
-	if resCT == "text/event-stream" {
+	if strings.HasPrefix(resCT, "text/event-stream") {
 		return -1 // negative means immediately
 	}
 

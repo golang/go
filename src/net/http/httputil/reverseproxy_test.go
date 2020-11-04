@@ -1096,6 +1096,46 @@ func TestSelectFlushInterval(t *testing.T) {
 			want: -1,
 		},
 		{
+			name: "server-sent events overrides non-zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream;charset=UTF-8"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: -1,
+		},
+		{
+			name: "server-sent events overrides zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream;charset=UTF-8"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 0},
+			want: -1,
+		},
+		{
+			name: "server-sent events overrides non-zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream; charset=UTF-8"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: -1,
+		},
+		{
+			name: "server-sent events overrides zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream; charset=UTF-8"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 0},
+			want: -1,
+		},
+		{
 			name: "Content-Length: -1, overrides non-zero",
 			res: &http.Response{
 				ContentLength: -1,
