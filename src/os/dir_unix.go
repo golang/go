@@ -36,9 +36,16 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 	}
 	d := f.dirinfo
 
-	size := n
-	if size <= 0 {
-		size = 100
+	// Change the meaning of n for the implementation below.
+	//
+	// The n above was for the public interface of "if n <= 0,
+	// Readdir returns all the FileInfo from the directory in a
+	// single slice".
+	//
+	// But below, we use only negative to mean looping until the
+	// end and positive to mean bounded, with positive
+	// terminating at 0.
+	if n == 0 {
 		n = -1
 	}
 
@@ -88,7 +95,9 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if string(name) == "." || string(name) == ".." {
 			continue
 		}
-		n--
+		if n > 0 { // see 'n == 0' comment above
+			n--
+		}
 		if mode == readdirName {
 			names = append(names, string(name))
 		} else if mode == readdirDirEntry {
