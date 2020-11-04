@@ -142,3 +142,54 @@ func BenchmarkXadd64(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkCas(b *testing.B) {
+	var x uint32
+	x = 1
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			atomic.Cas(ptr, 1, 0)
+			atomic.Cas(ptr, 0, 1)
+		}
+	})
+}
+
+func BenchmarkCas64(b *testing.B) {
+	var x uint64
+	x = 1
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			atomic.Cas64(ptr, 1, 0)
+			atomic.Cas64(ptr, 0, 1)
+		}
+	})
+}
+func BenchmarkXchg(b *testing.B) {
+	var x uint32
+	x = 1
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		var y uint32
+		y = 1
+		for pb.Next() {
+			y = atomic.Xchg(ptr, y)
+			y += 1
+		}
+	})
+}
+
+func BenchmarkXchg64(b *testing.B) {
+	var x uint64
+	x = 1
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		var y uint64
+		y = 1
+		for pb.Next() {
+			y = atomic.Xchg64(ptr, y)
+			y += 1
+		}
+	})
+}
