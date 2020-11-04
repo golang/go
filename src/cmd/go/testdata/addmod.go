@@ -122,8 +122,8 @@ func main() {
 			{Name: ".info", Data: info},
 		}
 		dir = filepath.Clean(dir)
-		err = filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
-			if !info.Mode().IsRegular() {
+		err = filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+			if !info.Type().IsRegular() {
 				return nil
 			}
 			name := info.Name()
