@@ -36,6 +36,12 @@ func (f *File) Readdir(n int) ([]FileInfo, error) {
 		return nil, ErrInvalid
 	}
 	_, _, infos, err := f.readdir(n, readdirFileInfo)
+	if infos == nil {
+		// Readdir has historically always returned a non-nil empty slice, never nil,
+		// even on error (except misuse with nil receiver above).
+		// Keep it that way to avoid breaking overly sensitive callers.
+		infos = []FileInfo{}
+	}
 	return infos, err
 }
 
@@ -59,6 +65,12 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
 		return nil, ErrInvalid
 	}
 	names, _, _, err = f.readdir(n, readdirName)
+	if names == nil {
+		// Readdirnames has historically always returned a non-nil empty slice, never nil,
+		// even on error (except misuse with nil receiver above).
+		// Keep it that way to avoid breaking overly sensitive callers.
+		names = []string{}
+	}
 	return names, err
 }
 
@@ -81,6 +93,10 @@ func (f *File) ReadDir(n int) ([]DirEntry, error) {
 		return nil, ErrInvalid
 	}
 	_, dirents, _, err := f.readdir(n, readdirDirEntry)
+	if dirents == nil {
+		// Match Readdir and Readdirnames: don't return nil slices.
+		dirents = []DirEntry{}
+	}
 	return dirents, err
 }
 

@@ -330,6 +330,9 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 			t.Error("could not find", m)
 		}
 	}
+	if s == nil {
+		t.Error("Readdirnames returned nil instead of empty slice")
+	}
 }
 
 func testReaddir(dir string, contents []string, t *testing.T) {
@@ -359,6 +362,9 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 		if !found {
 			t.Error("could not find", m)
 		}
+	}
+	if s == nil {
+		t.Error("Readdir returned nil instead of empty slice")
 	}
 }
 
@@ -408,21 +414,27 @@ func testReadDir(dir string, contents []string, t *testing.T) {
 			t.Error("could not find", m)
 		}
 	}
+	if s == nil {
+		t.Error("ReadDir returned nil instead of empty slice")
+	}
 }
 
 func TestReaddirnames(t *testing.T) {
 	testReaddirnames(".", dot, t)
 	testReaddirnames(sysdir.name, sysdir.files, t)
+	testReaddirnames(t.TempDir(), nil, t)
 }
 
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
+	testReaddir(t.TempDir(), nil, t)
 }
 
 func TestReadDir(t *testing.T) {
 	testReadDir(".", dot, t)
 	testReadDir(sysdir.name, sysdir.files, t)
+	testReadDir(t.TempDir(), nil, t)
 }
 
 func benchmarkReaddirname(path string, b *testing.B) {
