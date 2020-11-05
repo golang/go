@@ -77,6 +77,7 @@ package time
 
 import (
 	"errors"
+	"strconv"
 	_ "unsafe" // for go:linkname
 )
 
@@ -1236,7 +1237,7 @@ func (t *Time) GobDecode(data []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
+// The time is translate to a quoted in UnixNano
 func (t Time) MarshalJSON() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
 		// RFC 3339 is clear that years are 4 digits exactly.
@@ -1244,23 +1245,29 @@ func (t Time) MarshalJSON() ([]byte, error) {
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
 	}
 
-	b := make([]byte, 0, len(RFC3339Nano)+2)
+	nano := t.UnixNano()
+	nanoStr := strconv.FormatInt(nano, 10)
+	b := make([]byte, 0, len(nanoStr)+2)
 	b = append(b, '"')
-	b = t.AppendFormat(b, RFC3339Nano)
+	b = append(b, []byte(nanoStr)...)
 	b = append(b, '"')
 	return b, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// The time is expected to be a quoted string in RFC 3339 format.
+// The time is expected to be a quoted in UnixNano
 func (t *Time) UnmarshalJSON(data []byte) error {
 	// Ignore null, like in the main JSON package.
 	if string(data) == "null" {
 		return nil
 	}
-	// Fractional seconds are handled implicitly by Parse.
 	var err error
-	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+	nanoStr := string(data)
+	nano, err := strconv.ParseInt(nanoStr, 10, 64)
+	if err != nil {
+		return err
+	}
+	*t = Unix(nano/1e9, nano%1e9)
 	return err
 }
 
