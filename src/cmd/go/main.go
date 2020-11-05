@@ -75,11 +75,10 @@ func init() {
 		modload.HelpModules,
 		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
+		modfetch.HelpModulePrivate,
 		help.HelpPackages,
-		modfetch.HelpPrivate,
 		test.HelpTestflag,
 		test.HelpTestfunc,
-		modget.HelpVCS,
 	}
 }
 
