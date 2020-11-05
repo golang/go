@@ -1580,8 +1580,7 @@ var cgoEnabled = map[string]bool{
 // List of platforms which are supported but not complete yet. These get
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
-	"linux/sparc64":  true,
-	"openbsd/mips64": true,
+	"linux/sparc64": true,
 }
 
 func needCC() bool {
