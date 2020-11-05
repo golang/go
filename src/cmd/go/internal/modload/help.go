@@ -365,7 +365,7 @@ list if the error is a 404 or 410 HTTP response or if the current proxy is
 followed by a pipe character, indicating it is safe to fall back on any error.
 
 The GOPRIVATE and GONOPROXY environment variables allow bypassing
-the proxy for selected modules. See 'go help private' for details.
+the proxy for selected modules. See 'go help module-private' for details.
 
 No matter the source of the modules, the go command checks downloads against
 known checksums, to detect unexpected changes in the content of any specific
