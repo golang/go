@@ -57,30 +57,13 @@ var ARM struct {
 // The struct is padded to avoid false sharing.
 var ARM64 struct {
 	_            CacheLinePad
-	HasFP        bool
-	HasASIMD     bool
-	HasEVTSTRM   bool
 	HasAES       bool
 	HasPMULL     bool
 	HasSHA1      bool
 	HasSHA2      bool
 	HasCRC32     bool
 	HasATOMICS   bool
-	HasFPHP      bool
-	HasASIMDHP   bool
 	HasCPUID     bool
-	HasASIMDRDM  bool
-	HasJSCVT     bool
-	HasFCMA      bool
-	HasLRCPC     bool
-	HasDCPOP     bool
-	HasSHA3      bool
-	HasSM3       bool
-	HasSM4       bool
-	HasASIMDDP   bool
-	HasSHA512    bool
-	HasSVE       bool
-	HasASIMDFHM  bool
 	IsNeoverseN1 bool
 	IsZeus       bool
 	_            CacheLinePad
