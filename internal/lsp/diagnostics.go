@@ -26,8 +26,8 @@ import (
 // idWithAnalysis is used to track if the diagnostics for a given file were
 // computed with analyses.
 type idWithAnalysis struct {
-	id           source.VersionedFileIdentity
-	withAnalysis bool
+	id              source.VersionedFileIdentity
+	includeAnalysis bool
 }
 
 // A reportSet collects diagnostics for publication, sorting them by file and
@@ -38,15 +38,15 @@ type reportSet struct {
 	reports map[idWithAnalysis]map[string]*source.Diagnostic
 }
 
-func (s *reportSet) add(id source.VersionedFileIdentity, withAnalysis bool, diags ...*source.Diagnostic) {
+func (s *reportSet) add(id source.VersionedFileIdentity, includeAnalysis bool, diags ...*source.Diagnostic) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.reports == nil {
 		s.reports = make(map[idWithAnalysis]map[string]*source.Diagnostic)
 	}
 	key := idWithAnalysis{
-		id:           id,
-		withAnalysis: withAnalysis,
+		id:              id,
+		includeAnalysis: includeAnalysis,
 	}
 	if _, ok := s.reports[key]; !ok {
 		s.reports[key] = map[string]*source.Diagnostic{}
@@ -79,7 +79,7 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 		// If a view has been created or the configuration changed, warn the user.
 		s.client.ShowMessage(ctx, shows)
 	}
-	s.publishReports(ctx, snapshot, reports)
+	s.publishReports(ctx, snapshot, reports, false)
 }
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI) {
@@ -99,17 +99,17 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 				event.Error(ctx, "diagnosing changed files", err)
 			}
 		}
-		s.publishReports(ctx, snapshot, reports)
+		s.publishReports(ctx, snapshot, reports, true)
 		s.debouncer.debounce(snapshot.View().Name(), snapshot.ID(), delay, func() {
 			reports, _ := s.diagnose(ctx, snapshot, false)
-			s.publishReports(ctx, snapshot, reports)
+			s.publishReports(ctx, snapshot, reports, false)
 		})
 		return
 	}
 
 	// Ignore possible workspace configuration warnings in the normal flow.
 	reports, _ := s.diagnose(ctx, snapshot, false)
-	s.publishReports(ctx, snapshot, reports)
+	s.publishReports(ctx, snapshot, reports, false)
 }
 
 func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI) (*reportSet, error) {
@@ -215,11 +215,11 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		go func(pkg source.Package) {
 			defer wg.Done()
 
-			withAnalysis := alwaysAnalyze // only run analyses for packages with open files
-			var gcDetailsDir span.URI     // find the package's optimization details, if available
+			includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
+			var gcDetailsDir span.URI        // find the package's optimization details, if available
 			for _, pgf := range pkg.CompiledGoFiles() {
 				if snapshot.IsOpen(pgf.URI) {
-					withAnalysis = true
+					includeAnalysis = true
 				}
 				if gcDetailsDir == "" {
 					dirURI := span.URIFromPath(filepath.Dir(pgf.URI.Filename()))
@@ -232,7 +232,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 				}
 			}
 
-			pkgReports, warn, err := source.Diagnostics(ctx, snapshot, pkg, withAnalysis)
+			pkgReports, warn, err := source.Diagnostics(ctx, snapshot, pkg, includeAnalysis)
 
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.
@@ -251,7 +251,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 
 			// Add all reports to the global map, checking for duplicates.
 			for id, diags := range pkgReports {
-				reports.add(id, withAnalysis, diags...)
+				reports.add(id, includeAnalysis, diags...)
 			}
 			// If gc optimization details are available, add them to the
 			// diagnostic reports.
@@ -261,7 +261,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 					event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()))
 				}
 				for id, diags := range gcReports {
-					reports.add(id, withAnalysis, diags...)
+					reports.add(id, includeAnalysis, diags...)
 				}
 			}
 		}(pkg)
@@ -274,10 +274,10 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			// Check if we already have diagnostic reports for the given file,
 			// meaning that we have already seen its package.
 			var seen bool
-			for _, withAnalysis := range []bool{true, false} {
+			for _, includeAnalysis := range []bool{true, false} {
 				_, ok := reports.reports[idWithAnalysis{
-					id:           o.VersionedFileIdentity(),
-					withAnalysis: withAnalysis,
+					id:              o.VersionedFileIdentity(),
+					includeAnalysis: includeAnalysis,
 				}]
 				seen = seen || ok
 			}
@@ -349,7 +349,7 @@ func errorsToDiagnostic(ctx context.Context, snapshot source.Snapshot, errors []
 	return nil
 }
 
-func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports *reportSet) {
+func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports *reportSet, isFirstPass bool) {
 	// Check for context cancellation before publishing diagnostics.
 	if ctx.Err() != nil || reports == nil {
 		return
@@ -370,10 +370,10 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		}
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
-			id:           key.id,
-			sorted:       diagnostics,
-			withAnalysis: key.withAnalysis,
-			snapshotID:   snapshot.ID(),
+			id:              key.id,
+			sorted:          diagnostics,
+			includeAnalysis: key.includeAnalysis,
+			snapshotID:      snapshot.ID(),
 		}
 
 		// We use the zero values if this is an unknown file.
@@ -382,10 +382,11 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		// Snapshot IDs are always increasing, so we use them instead of file
 		// versions to create the correct order for diagnostics.
 
-		// If we've already delivered diagnostics for a future snapshot for this file,
-		// do not deliver them.
+		// If we've already delivered diagnostics for a future snapshot for
+		// this file, do not deliver them.
 		if delivered.snapshotID > toSend.snapshotID {
-			// Do not update the delivered map since it already contains newer diagnostics.
+			// Do not update the delivered map since it already contains newer
+			// diagnostics.
 			continue
 		}
 
@@ -399,10 +400,18 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		// If we've already delivered diagnostics for this file, at this
 		// snapshot, with analyses, do not send diagnostics without analyses.
 		if delivered.snapshotID == toSend.snapshotID && delivered.id == toSend.id &&
-			delivered.withAnalysis && !toSend.withAnalysis {
+			delivered.includeAnalysis && !toSend.includeAnalysis {
 			// Do not update the delivered map since it already contains better diagnostics.
 			continue
 		}
+
+		// If we've previously delivered non-empty diagnostics and this is a
+		// first diagnostic pass, wait for a subsequent pass to complete before
+		// sending empty diagnostics to avoid flickering diagnostics.
+		if isFirstPass && delivered.includeAnalysis && !toSend.includeAnalysis && len(toSend.sorted) == 0 {
+			continue
+		}
+
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(diagnostics),
 			URI:         protocol.URIFromSpanURI(key.id.URI),

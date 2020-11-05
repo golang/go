@@ -107,10 +107,10 @@ type Server struct {
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.
 type sentDiagnostics struct {
-	id           source.VersionedFileIdentity
-	sorted       []*source.Diagnostic
-	withAnalysis bool
-	snapshotID   uint64
+	id              source.VersionedFileIdentity
+	sorted          []*source.Diagnostic
+	includeAnalysis bool
+	snapshotID      uint64
 }
 
 func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {

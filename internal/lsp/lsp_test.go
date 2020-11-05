@@ -1159,7 +1159,7 @@ func (r *runner) collectDiagnostics(view source.View) {
 
 	// Always run diagnostics with analysis.
 	reports, _ := r.server.diagnose(r.ctx, snapshot, true)
-	r.server.publishReports(r.ctx, snapshot, reports)
+	r.server.publishReports(r.ctx, snapshot, reports, false)
 	for uri, sent := range r.server.delivered {
 		var diagnostics []*source.Diagnostic
 		for _, d := range sent.sorted {
