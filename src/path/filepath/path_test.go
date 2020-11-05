@@ -394,8 +394,8 @@ func checkMarks(t *testing.T, report bool) {
 // Assumes that each node name is unique. Good enough for a test.
 // If clear is true, any incoming error is cleared before return. The errors
 // are always accumulated, though.
-func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
-	name := d.Name()
+func mark(info fs.FileInfo, err error, errors *[]error, clear bool) error {
+	name := info.Name()
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.name == name {
 			n.mark++
@@ -432,19 +432,6 @@ func chtmpdir(t *testing.T) (restore func()) {
 }
 
 func TestWalk(t *testing.T) {
-	walk := func(root string, fn filepath.WalkDirFunc) error {
-		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-			return fn(path, &filepath.DirEntryFromInfo{info}, err)
-		})
-	}
-	testWalk(t, walk, 1)
-}
-
-func TestWalkDir(t *testing.T) {
-	testWalk(t, filepath.WalkDir, 2)
-}
-
-func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVisit int) {
 	if runtime.GOOS == "ios" {
 		restore := chtmpdir(t)
 		defer restore()
@@ -468,11 +455,11 @@ func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVi
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
-	markFn := func(path string, d fs.DirEntry, err error) error {
-		return mark(d, err, &errors, clear)
+	markFn := func(path string, info fs.FileInfo, err error) error {
+		return mark(info, err, &errors, clear)
 	}
 	// Expect no errors.
-	err = walk(tree.name, markFn)
+	err = filepath.Walk(tree.name, markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -482,17 +469,10 @@ func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVi
 	checkMarks(t, true)
 	errors = errors[0:0]
 
-	t.Run("PermErr", func(t *testing.T) {
-		// Test permission errors. Only possible if we're not root
-		// and only on some file systems (AFS, FAT).  To avoid errors during
-		// all.bash on those file systems, skip during go test -short.
-		if os.Getuid() == 0 {
-			t.Skip("skipping as root")
-		}
-		if testing.Short() {
-			t.Skip("skipping in short mode")
-		}
-
+	// Test permission errors. Only possible if we're not root
+	// and only on some file systems (AFS, FAT).  To avoid errors during
+	// all.bash on those file systems, skip during go test -short.
+	if os.Getuid() > 0 && !testing.Short() {
 		// introduce 2 errors: chmod top-level directories to 0
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0)
@@ -502,9 +482,9 @@ func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVi
 		markTree(tree.entries[1])
 		markTree(tree.entries[3])
 		// correct double-marking of directory itself
-		tree.entries[1].mark -= errVisit
-		tree.entries[3].mark -= errVisit
-		err := walk(tree.name, markFn)
+		tree.entries[1].mark--
+		tree.entries[3].mark--
+		err := filepath.Walk(tree.name, markFn)
 		if err != nil {
 			t.Fatalf("expected no error return from Walk, got %s", err)
 		}
@@ -520,10 +500,10 @@ func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVi
 		markTree(tree.entries[1])
 		markTree(tree.entries[3])
 		// correct double-marking of directory itself
-		tree.entries[1].mark -= errVisit
-		tree.entries[3].mark -= errVisit
+		tree.entries[1].mark--
+		tree.entries[3].mark--
 		clear = false // error will stop processing
-		err = walk(tree.name, markFn)
+		err = filepath.Walk(tree.name, markFn)
 		if err == nil {
 			t.Fatalf("expected error return from Walk")
 		}
@@ -537,7 +517,7 @@ func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVi
 		// restore permissions
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
-	})
+	}
 }
 
 func touch(t *testing.T, name string) {
@@ -564,7 +544,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	touch(t, filepath.Join(td, "dir/foo2"))
 
 	sawFoo2 := false
-	walker := func(path string) error {
+	walker := func(path string, info fs.FileInfo, err error) error {
 		if strings.HasSuffix(path, "foo2") {
 			sawFoo2 = true
 		}
@@ -573,31 +553,22 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 		}
 		return nil
 	}
-	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
-	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
 
-	check := func(t *testing.T, walk func(root string) error, root string) {
-		t.Helper()
-		sawFoo2 = false
-		err = walk(root)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if sawFoo2 {
-			t.Errorf("SkipDir on file foo1 did not block processing of foo2")
-		}
+	err = filepath.Walk(td, walker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
 	}
 
-	t.Run("Walk", func(t *testing.T) {
-		Walk := func(root string) error { return filepath.Walk(td, walkFn) }
-		check(t, Walk, td)
-		check(t, Walk, filepath.Join(td, "dir"))
-	})
-	t.Run("WalkDir", func(t *testing.T) {
-		WalkDir := func(root string) error { return filepath.WalkDir(td, walkDirFn) }
-		check(t, WalkDir, td)
-		check(t, WalkDir, filepath.Join(td, "dir"))
-	})
+	err = filepath.Walk(filepath.Join(td, "dir"), walker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+	}
 }
 
 func TestWalkFileError(t *testing.T) {
