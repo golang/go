@@ -82,7 +82,7 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	s.publishReports(ctx, snapshot, reports, false)
 }
 
-func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI) {
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool) {
 	ctx := snapshot.View().BackgroundContext()
 
 	delay := snapshot.View().Options().ExperimentalDiagnosticsDelay
@@ -93,7 +93,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		// by file modifications (no analysis).
 		//
 		// The second phase does everything, and is debounced by the configured delay.
-		reports, err := s.diagnoseChangedFiles(ctx, snapshot, changedURIs)
+		reports, err := s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				event.Error(ctx, "diagnosing changed files", err)
@@ -112,11 +112,16 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 	s.publishReports(ctx, snapshot, reports, false)
 }
 
-func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI) (*reportSet, error) {
+func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI, onDisk bool) (*reportSet, error) {
 	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles")
 	defer done()
 	packages := make(map[source.Package]struct{})
 	for _, uri := range uris {
+		// If the change is only on-disk and the file is not open, don't
+		// directly request its package. It may not be a workspace package.
+		if onDisk && !snapshot.IsOpen(uri) {
+			continue
+		}
 		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
 		if err != nil {
 			// TODO (rFindley): we should probably do something with the error here,

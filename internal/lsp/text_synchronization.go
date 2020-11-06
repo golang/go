@@ -236,7 +236,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()
-			s.diagnoseSnapshot(snapshot, uris)
+			s.diagnoseSnapshot(snapshot, uris, cause == FromDidChangeWatchedFiles)
 		}(snapshot, uris)
 	}
 

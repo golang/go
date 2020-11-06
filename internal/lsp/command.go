@@ -235,7 +235,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		}
 		snapshot, release := sv.Snapshot(ctx)
 		defer release()
-		s.diagnoseSnapshot(snapshot, nil)
+		s.diagnoseSnapshot(snapshot, nil, false)
 	case source.CommandGenerateGoplsMod:
 		var v source.View
 		if len(args) == 0 {
