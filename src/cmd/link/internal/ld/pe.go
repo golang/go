@@ -1515,6 +1515,17 @@ func Asmbpe(ctxt *Link) {
 	case sys.AMD64, sys.I386, sys.ARM:
 	}
 
+	if rsrcsym != 0 {
+		// rsrc.P resides in mmap'd memory, which could be munmap'd
+		// underneath us before it comes time to actually use it.
+		// To avoid any issues we copy the data to the heap to ensure
+		// we don't segfault later when trying to access it.
+		rsrc := ctxt.loader.Syms[rsrcsym]
+		data := make([]byte, len(rsrc.P))
+		copy(data, rsrc.P)
+		rsrc.P = data
+	}
+
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {
