@@ -89,8 +89,8 @@ downgrades the dependency. The version suffix @none indicates that the
 dependency should be removed entirely, downgrading or removing modules
 depending on it as needed.
 
-The version suffix @latest explicitly requests the latest minor release ofthe
-module named by the given path. The suffix @upgrade is like @latest but
+The version suffix @latest explicitly requests the latest minor release of
+the module named by the given path. The suffix @upgrade is like @latest but
 will not downgrade a module if it is already required at a revision or
 pre-release version newer than the latest released version. The suffix
 @patch requests the latest patch release: the latest released version
