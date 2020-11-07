@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"runtime"
+	"sync"
 )
 
 type sum224 [sha256.Size224]byte
@@ -224,16 +225,27 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 			continue
 		}
 
-		cert, err := ParseCertificate(block.Bytes)
+		certBytes := block.Bytes
+		cert, err := ParseCertificate(certBytes)
 		if err != nil {
 			continue
 		}
-
-		s.AddCert(cert)
+		var lazyCert struct {
+			sync.Once
+			v *Certificate
+		}
+		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+			lazyCert.Do(func() {
+				// This can't fail, as the same bytes already parsed above.
+				lazyCert.v, _ = ParseCertificate(certBytes)
+				certBytes = nil
+			})
+			return lazyCert.v, nil
+		})
 		ok = true
 	}
 
-	return
+	return ok
 }
 
 // Subjects returns a list of the DER-encoded subjects of
