@@ -35,7 +35,10 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	if err != nil {
 		return err
 	}
-	*(*reflect.SliceHeader)(unsafe.Pointer(&out.buf)) = reflect.SliceHeader{Data: ptr, Len: int(filesize), Cap: int(filesize)}
+	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&out.buf))
+	bufHdr.Data = ptr
+	bufHdr.Len = int(filesize)
+	bufHdr.Cap = int(filesize)
 
 	// copy heap to new mapping
 	if uint64(oldlen+len(out.heap)) > filesize {
