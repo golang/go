@@ -302,6 +302,12 @@ func ggloblnod(nam *Node) {
 	if nam.Name.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
+	if nam.Sym.Linkname != "" {
+		// Make sure linkname'd symbol is non-package. When a symbol is
+		// both imported and linkname'd, s.Pkg may not set to "_" in
+		// types.Sym.Linksym because LSym already exists. Set it here.
+		s.Pkg = "_"
+	}
 }
 
 func ggloblsym(s *obj.LSym, width int32, flags int16) {
