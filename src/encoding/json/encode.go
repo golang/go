@@ -832,7 +832,7 @@ func newMapEncoder(t reflect.Type) encoderFunc {
 
 func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 	if v.IsNil() {
-		e.WriteString("null")
+		e.WriteString("[]")
 		return
 	}
 	s := v.Bytes()
