@@ -44,11 +44,13 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/testlog"
+	"internal/unsafeheader"
 	"io"
 	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Name returns the name of the file as presented to Open.
@@ -246,7 +248,12 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
 func (f *File) WriteString(s string) (n int, err error) {
-	return f.Write([]byte(s))
+	var b []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
+	hdr.Cap = len(s)
+	hdr.Len = len(s)
+	return f.Write(b)
 }
 
 // Mkdir creates a new directory with the specified name and permission
