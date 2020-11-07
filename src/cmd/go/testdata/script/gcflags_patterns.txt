@@ -3,6 +3,8 @@ env GO111MODULE=off
 [!gc] skip 'using -gcflags and -ldflags'
 [short] skip
 
+env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+
 # -gcflags=-e applies to named packages, not dependencies
 go build -n -v -gcflags=-e z1 z2
 stderr 'compile.* -e.* -p z1'
@@ -60,6 +62,10 @@ stderr 'link.* -X=math.pi=3'
 [darwin] cd $WORK/GoPath/src/my/cmd/prog
 go build -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
+
+# cgo.a should not be a dependency of internally-linked go package
+go build -ldflags='-linkmode=external -linkmode=internal' -n prog.go
+! stderr 'packagefile .*runtime/cgo.a'
 
 -- z1/z.go --
 package z1

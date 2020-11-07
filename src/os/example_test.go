@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"time"
@@ -62,9 +63,9 @@ func ExampleFileMode() {
 		fmt.Println("regular file")
 	case mode.IsDir():
 		fmt.Println("directory")
-	case mode&os.ModeSymlink != 0:
+	case mode&fs.ModeSymlink != 0:
 		fmt.Println("symbolic link")
-	case mode&os.ModeNamedPipe != 0:
+	case mode&fs.ModeNamedPipe != 0:
 		fmt.Println("named pipe")
 	}
 }

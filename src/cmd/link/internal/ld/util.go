@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/link/internal/sym"
+	"cmd/link/internal/loader"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -38,18 +38,9 @@ func Exitf(format string, a ...interface{}) {
 	Exit(2)
 }
 
-// Errorf logs an error message.
-//
-// If more than 20 errors have been printed, exit with an error.
-//
-// Logging an error means that on exit cmd/link will delete any
-// output file and return a non-zero error code.
-func Errorf(s *sym.Symbol, format string, args ...interface{}) {
-	if s != nil {
-		format = s.Name + ": " + format
-	}
-	format += "\n"
-	fmt.Fprintf(os.Stderr, format, args...)
+// afterErrorAction updates 'nerrors' on error and invokes exit or
+// panics in the proper circumstances.
+func afterErrorAction() {
 	nerrors++
 	if *flagH {
 		panic("error")
@@ -57,6 +48,39 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 	if nerrors > 20 {
 		Exitf("too many errors")
 	}
+}
+
+// Errorf logs an error message.
+//
+// If more than 20 errors have been printed, exit with an error.
+//
+// Logging an error means that on exit cmd/link will delete any
+// output file and return a non-zero error code.
+//
+// TODO: remove. Use ctxt.Errof instead.
+// All remaining calls use nil as first arg.
+func Errorf(dummy *int, format string, args ...interface{}) {
+	format += "\n"
+	fmt.Fprintf(os.Stderr, format, args...)
+	afterErrorAction()
+}
+
+// Errorf method logs an error message.
+//
+// If more than 20 errors have been printed, exit with an error.
+//
+// Logging an error means that on exit cmd/link will delete any
+// output file and return a non-zero error code.
+func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
+	if ctxt.loader != nil {
+		ctxt.loader.Errorf(s, format, args...)
+		return
+	}
+	// Note: this is not expected to happen very often.
+	format = fmt.Sprintf("sym %d: %s", s, format)
+	format += "\n"
+	fmt.Fprintf(os.Stderr, format, args...)
+	afterErrorAction()
 }
 
 func artrim(x []byte) string {
@@ -88,10 +112,3 @@ func contains(s []string, v string) bool {
 	}
 	return false
 }
-
-// implements sort.Interface, for sorting symbols by name.
-type byName []*sym.Symbol
-
-func (s byName) Len() int           { return len(s) }
-func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s byName) Less(i, j int) bool { return s[i].Name < s[j].Name }

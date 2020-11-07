@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj/s390x"
 	"math"
 	"math/bits"
 )
@@ -119,6 +120,7 @@ func checkFunc(f *Func) {
 			// Check to make sure aux values make sense.
 			canHaveAux := false
 			canHaveAuxInt := false
+			// TODO: enforce types of Aux in this switch (like auxString does below)
 			switch opcodeTable[v.Op].auxType {
 			case auxNone:
 			case auxBool:
@@ -141,25 +143,65 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt64, auxFloat64:
+			case auxInt64, auxARM64BitField:
 				canHaveAuxInt = true
 			case auxInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+				}
 				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
-			case auxString, auxSym, auxTyp, auxArchSpecific:
+			case auxFloat64:
+				canHaveAuxInt = true
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+				}
+			case auxString:
+				if _, ok := v.Aux.(string); !ok {
+					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
+				}
+				canHaveAux = true
+			case auxCallOff:
+				canHaveAuxInt = true
+				fallthrough
+			case auxCall:
+				if ac, ok := v.Aux.(*AuxCall); ok {
+					if v.Op == OpStaticCall && ac.Fn == nil {
+						f.Fatalf("value %v has *AuxCall with nil Fn", v)
+					}
+				} else {
+					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
+				}
+				canHaveAux = true
+			case auxSym, auxTyp:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:
 				canHaveAuxInt = true
 				canHaveAux = true
 			case auxCCop:
-				if _, ok := v.Aux.(Op); !ok {
-					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+				if opcodeTable[Op(v.AuxInt)].name == "OpInvalid" {
+					f.Fatalf("value %v has an AuxInt value that is a valid opcode", v)
+				}
+				canHaveAuxInt = true
+			case auxS390XCCMask:
+				if _, ok := v.Aux.(s390x.CCMask); !ok {
+					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
 				}
 				canHaveAux = true
+			case auxS390XRotateParams:
+				if _, ok := v.Aux.(s390x.RotateParams); !ok {
+					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
+				}
+				canHaveAux = true
+			case auxFlagConstant:
+				if v.AuxInt < 0 || v.AuxInt > 15 {
+					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}
@@ -227,6 +269,38 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad %s type: want uintptr, have %s",
 						v.Op, v.Type.String())
 				}
+			case OpStringLen:
+				if v.Type != c.Types.Int {
+					f.Fatalf("bad %s type: want int, have %s",
+						v.Op, v.Type.String())
+				}
+			case OpLoad:
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 type to %s: want mem, have %s",
+						v.Op, v.Args[1].Type.String())
+				}
+			case OpStore:
+				if !v.Type.IsMemory() {
+					f.Fatalf("bad %s type: want mem, have %s",
+						v.Op, v.Type.String())
+				}
+				if !v.Args[2].Type.IsMemory() {
+					f.Fatalf("bad arg 2 type to %s: want mem, have %s",
+						v.Op, v.Args[2].Type.String())
+				}
+			case OpCondSelect:
+				if !v.Args[2].Type.IsBoolean() {
+					f.Fatalf("bad arg 2 type to %s: want boolean, have %s",
+						v.Op, v.Args[2].Type.String())
+				}
+			case OpAddPtr:
+				if !v.Args[0].Type.IsPtrShaped() && v.Args[0].Type != c.Types.Uintptr {
+					f.Fatalf("bad arg 0 type to %s: want ptr, have %s", v.Op, v.Args[0].LongString())
+				}
+				if !v.Args[1].Type.IsInteger() {
+					f.Fatalf("bad arg 1 type to %s: want integer, have %s", v.Op, v.Args[1].LongString())
+				}
+
 			}
 
 			// TODO: check for cycles in values

@@ -428,9 +428,9 @@ func init() {
 		{name: "SRAcond", argLength: 3, reg: gp2flags1, asm: "SRA"},                                         // arg0 >> 31 if flags indicates HS, arg0 >> arg1 otherwise, signed shift, arg2=flags
 
 		// function calls
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
@@ -542,26 +542,20 @@ func init() {
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
 		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
 
-		// Constant flag values. For any comparison, there are 5 possible
-		// outcomes: the three from the signed total order (<,==,>) and the
-		// three from the unsigned total order. The == cases overlap.
-		// Note: there's a sixth "unordered" outcome for floating-point
+		// Constant flag value.
+		// Note: there's an "unordered" outcome for floating-point
 		// comparisons, but we don't use such a beast yet.
-		// These ops are for temporary use by rewrite rules. They
+		// This op is for temporary use by rewrite rules. It
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},     // equal
-		{name: "FlagLT_ULT"}, // signed < and unsigned <
-		{name: "FlagLT_UGT"}, // signed < and unsigned >
-		{name: "FlagGT_UGT"}, // signed > and unsigned <
-		{name: "FlagGT_ULT"}, // signed > and unsigned >
+		{name: "FlagConstant", aux: "FlagConstant"},
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -584,6 +578,10 @@ func init() {
 		{name: "ULE", controls: 1},
 		{name: "UGT", controls: 1},
 		{name: "UGE", controls: 1},
+		{name: "LTnoov", controls: 1}, // 'LT' but without honoring overflow
+		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
+		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
+		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
 	}
 
 	archs = append(archs, arch{

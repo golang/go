@@ -74,7 +74,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -123,7 +123,7 @@ func TestLookupGmailMX(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -169,7 +169,7 @@ func TestLookupGmailNS(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -218,7 +218,7 @@ func TestLookupGmailTXT(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -511,7 +511,7 @@ func TestDNSFlood(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 
 	var N = 5000
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// On Darwin this test consumes kernel threads much
 		// than other platforms for some reason.
 		// When we monitor the number of allocated Ms by
@@ -628,7 +628,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 27992)
 	}
 	mustHaveExternalNetwork(t)
@@ -637,7 +637,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -913,6 +913,7 @@ func TestNilResolverLookup(t *testing.T) {
 	r.LookupCNAME(ctx, "google.com")
 	r.LookupHost(ctx, "google.com")
 	r.LookupIPAddr(ctx, "google.com")
+	r.LookupIP(ctx, "ip", "google.com")
 	r.LookupMX(ctx, "gmail.com")
 	r.LookupNS(ctx, "google.com")
 	r.LookupPort(ctx, "tcp", "smtp")
@@ -998,11 +999,15 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
 			defer wg.Done()
 			_, err := r.LookupIPAddr(context.Background(), "google.com")
 			if err != nil {
-				t.Fatalf("lookup failed for resolver %d: %q", index, err)
+				t.Errorf("lookup failed for resolver %d: %q", index, err)
 			}
 		}(resolver.Resolver, i)
 	}
 	wg.Wait()
+
+	if t.Failed() {
+		t.FailNow()
+	}
 
 	for i, resolver := range resolvers {
 		if !resolver.dialed {
@@ -1175,12 +1180,89 @@ func TestWithUnexpiredValuesPreserved(t *testing.T) {
 	}
 }
 
-// Issue 31586: don't crash on null byte in name
+// Issue 31597: don't panic on null byte in name
 func TestLookupNullByte(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.SkipFlakyNet(t)
-	_, err := LookupHost("foo\x00bar") // used to crash on Windows
-	if err == nil {
-		t.Errorf("unexpected success")
+	LookupHost("foo\x00bar") // check that it doesn't panic; it used to on Windows
+}
+
+func TestResolverLookupIP(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	v4Ok := supportsIPv4() && *testIPv4
+	v6Ok := supportsIPv6() && *testIPv6
+
+	defer dnsWaitGroup.Wait()
+
+	for _, impl := range []struct {
+		name string
+		fn   func() func()
+	}{
+		{"go", forceGoDNS},
+		{"cgo", forceCgoDNS},
+	} {
+		t.Run("implementation: "+impl.name, func(t *testing.T) {
+			fixup := impl.fn()
+			if fixup == nil {
+				t.Skip("not supported")
+			}
+			defer fixup()
+
+			for _, network := range []string{"ip", "ip4", "ip6"} {
+				t.Run("network: "+network, func(t *testing.T) {
+					switch {
+					case network == "ip4" && !v4Ok:
+						t.Skip("IPv4 is not supported")
+					case network == "ip6" && !v6Ok:
+						t.Skip("IPv6 is not supported")
+					}
+
+					// google.com has both A and AAAA records.
+					const host = "google.com"
+					ips, err := DefaultResolver.LookupIP(context.Background(), network, host)
+					if err != nil {
+						testenv.SkipFlakyNet(t)
+						t.Fatalf("DefaultResolver.LookupIP(%q, %q): failed with unexpected error: %v", network, host, err)
+					}
+
+					var v4Addrs []IP
+					var v6Addrs []IP
+					for _, ip := range ips {
+						switch {
+						case ip.To4() != nil:
+							// We need to skip the test below because To16 will
+							// convent an IPv4 address to an IPv4-mapped IPv6
+							// address.
+							v4Addrs = append(v4Addrs, ip)
+						case ip.To16() != nil:
+							v6Addrs = append(v6Addrs, ip)
+						default:
+							t.Fatalf("IP=%q is neither IPv4 nor IPv6", ip)
+						}
+					}
+
+					// Check that we got the expected addresses.
+					if network == "ip4" || network == "ip" && v4Ok {
+						if len(v4Addrs) == 0 {
+							t.Errorf("DefaultResolver.LookupIP(%q, %q): no IPv4 addresses", network, host)
+						}
+					}
+					if network == "ip6" || network == "ip" && v6Ok {
+						if len(v6Addrs) == 0 {
+							t.Errorf("DefaultResolver.LookupIP(%q, %q): no IPv6 addresses", network, host)
+						}
+					}
+
+					// Check that we didn't get any unexpected addresses.
+					if network == "ip6" && len(v4Addrs) > 0 {
+						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv4 addresses: %v", network, host, v4Addrs)
+					}
+					if network == "ip4" && len(v6Addrs) > 0 {
+						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 addresses: %v", network, host, v6Addrs)
+					}
+				})
+			}
+		})
 	}
 }

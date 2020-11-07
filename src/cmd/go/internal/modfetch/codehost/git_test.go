@@ -10,6 +10,8 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -57,7 +59,6 @@ func testMain(m *testing.M) int {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	WorkRoot = dir
 
 	if testenv.HasExternalNetwork() && testenv.HasExec() {
 		// Clone gitrepo1 into a local directory.
@@ -211,7 +212,7 @@ var readFileTests = []struct {
 		repo: gitrepo1,
 		rev:  "v2.3.4",
 		file: "another.txt",
-		err:  os.ErrNotExist.Error(),
+		err:  fs.ErrNotExist.Error(),
 	},
 }
 
@@ -433,7 +434,7 @@ func TestReadZip(t *testing.T) {
 			if tt.err != "" {
 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
 			}
-			zipdata, err := ioutil.ReadAll(rc)
+			zipdata, err := io.ReadAll(rc)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -6,8 +6,8 @@
 #include "textflag.h"
 
 TEXT ·IndexByte(SB),NOSPLIT,$0-40
-	MOV	s+0(FP), A1
-	MOV	s_len+8(FP), A2
+	MOV	b_base+0(FP), A1
+	MOV	b_len+8(FP), A2
 	MOVBU	c+24(FP), A3	// byte to find
 	MOV	A1, A4		// store base for later
 	ADD	A1, A2		// end
@@ -29,8 +29,8 @@ notfound:
 	RET
 
 TEXT ·IndexByteString(SB),NOSPLIT,$0-32
-	MOV	p+0(FP), A1
-	MOV	b_len+8(FP), A2
+	MOV	s_base+0(FP), A1
+	MOV	s_len+8(FP), A2
 	MOVBU	c+16(FP), A3	// byte to find
 	MOV	A1, A4		// store base for later
 	ADD	A1, A2		// end

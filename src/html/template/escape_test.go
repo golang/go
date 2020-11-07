@@ -238,12 +238,12 @@ func TestEscape(t *testing.T) {
 		{
 			"jsStr",
 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
-			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+			`<button onclick='alert(&quot;\u003cHello\u003e&quot;)'>`,
 		},
 		{
 			"badMarshaler",
 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: json: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
 		},
 		{
 			"jsMarshaler",
@@ -259,7 +259,7 @@ func TestEscape(t *testing.T) {
 		{
 			"jsRe",
 			`<button onclick='alert(/{{"foo+bar"}}/.test(""))'>`,
-			`<button onclick='alert(/foo\x2bbar/.test(""))'>`,
+			`<button onclick='alert(/foo\u002bbar/.test(""))'>`,
 		},
 		{
 			"jsReBlank",
@@ -825,7 +825,7 @@ func TestEscapeSet(t *testing.T) {
 				"main":   `<button onclick="title='{{template "helper"}}'; ...">{{template "helper"}}</button>`,
 				"helper": `{{11}} of {{"<100>"}}`,
 			},
-			`<button onclick="title='11 of \x3c100\x3e'; ...">11 of &lt;100&gt;</button>`,
+			`<button onclick="title='11 of \u003c100\u003e'; ...">11 of &lt;100&gt;</button>`,
 		},
 		// A non-recursive template that ends in a different context.
 		// helper starts in jsCtxRegexp and ends in jsCtxDivOp.
@@ -1821,7 +1821,7 @@ func TestIndirectPrint(t *testing.T) {
 }
 
 // This is a test for issue 3272.
-func TestEmptyTemplate(t *testing.T) {
+func TestEmptyTemplateHTML(t *testing.T) {
 	page := Must(New("page").ParseFiles(os.DevNull))
 	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
 		t.Fatal("expected error")

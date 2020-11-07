@@ -4,6 +4,12 @@
 
 #include "textflag.h"
 
+// See comment in runtime/sys_openbsd_arm64.s re this construction.
+#define	INVOKE_SYSCALL	\
+	SVC;		\
+	NOOP;		\
+	NOOP
+
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
 TEXT ·Syscall(SB),NOSPLIT,$0-56
 	BL	runtime·entersyscall(SB)
@@ -14,7 +20,7 @@ TEXT ·Syscall(SB),NOSPLIT,$0-56
 	MOVD	$0, R4
 	MOVD	$0, R5
 	MOVD	trap+0(FP), R8	// syscall number
-	SVC
+	INVOKE_SYSCALL
 	BCC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+32(FP)	// r1
@@ -38,7 +44,7 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVD	a5+40(FP), R4
 	MOVD	a6+48(FP), R5
 	MOVD	trap+0(FP), R8	// syscall number
-	SVC
+	INVOKE_SYSCALL
 	BCC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+56(FP)	// r1
@@ -66,7 +72,7 @@ TEXT ·Syscall9(SB),NOSPLIT,$0-104
 	MOVD	a9+72(FP), R8	// on stack
 	MOVD	R8, 8(RSP)
 	MOVD	num+0(FP), R8	// syscall number
-	SVC
+	INVOKE_SYSCALL
 	BCC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+80(FP)	// r1
@@ -89,7 +95,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	MOVD	$0, R4
 	MOVD	$0, R5
 	MOVD	trap+0(FP), R8	// syscall number
-	SVC
+	INVOKE_SYSCALL
 	BCC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+32(FP)	// r1
@@ -110,7 +116,7 @@ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
 	MOVD	a5+40(FP), R4
 	MOVD	a6+48(FP), R5
 	MOVD	trap+0(FP), R8	// syscall number
-	SVC
+	INVOKE_SYSCALL
 	BCC	ok
 	MOVD	$-1, R4
 	MOVD	R4, r1+56(FP)	// r1

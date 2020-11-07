@@ -58,29 +58,57 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev           uint64
-	Mode          uint32
-	Pad_cgo_0     [4]byte
-	Ino           uint64
-	Nlink         uint32
-	Uid           uint32
-	Gid           uint32
-	Pad_cgo_1     [4]byte
-	Rdev          uint64
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Birthtimespec Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       uint32
-	Flags         uint32
-	Gen           uint32
-	Spare         [2]uint32
-	Pad_cgo_2     [4]byte
+	Dev     uint64
+	Mode    uint32
+	_       [4]byte
+	Ino     uint64
+	Nlink   uint32
+	Uid     uint32
+	Gid     uint32
+	_       [4]byte
+	Rdev    uint64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize uint32
+	Flags   uint32
+	Gen     uint32
+	Spare   [2]uint32
+	_       [4]byte
 }
 
 type Statfs_t [0]byte
+
+type Statvfs_t struct {
+	Flag        uint64
+	Bsize       uint64
+	Frsize      uint64
+	Iosize      uint64
+	Blocks      uint64
+	Bfree       uint64
+	Bavail      uint64
+	Bresvd      uint64
+	Files       uint64
+	Ffree       uint64
+	Favail      uint64
+	Fresvd      uint64
+	Syncreads   uint64
+	Syncwrites  uint64
+	Asyncreads  uint64
+	Asyncwrites uint64
+	Fsidx       Fsid
+	Fsid        uint64
+	Namemax     uint64
+	Owner       uint32
+	Spare       [4]uint32
+	Fstypename  [32]byte
+	Mntonname   [1024]byte
+	Mntfromname [1024]byte
+	_           [4]byte
+}
 
 type Flock_t struct {
 	Start  int64
@@ -105,6 +133,11 @@ type Fsid struct {
 
 const (
 	PathMax = 0x400
+)
+
+const (
+	ST_WAIT   = 0x1
+	ST_NOWAIT = 0x2
 )
 
 const (
@@ -418,6 +451,7 @@ type Ptmget struct {
 
 const (
 	AT_FDCWD            = -0x64
+	AT_SYMLINK_FOLLOW   = 0x400
 	AT_SYMLINK_NOFOLLOW = 0x200
 )
 

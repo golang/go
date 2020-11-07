@@ -189,16 +189,19 @@ func typecheckExprSwitch(n *Node) {
 				continue
 			}
 
-			switch {
-			case nilonly != "" && !n1.isNil():
+			if nilonly != "" && !n1.isNil() {
 				yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-			case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
+			} else if t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type) {
 				yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
-			case assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
-				if n.Left != nil {
-					yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
-				} else {
-					yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+			} else {
+				op1, _ := assignop(n1.Type, t)
+				op2, _ := assignop(t, n1.Type)
+				if op1 == OXXX && op2 == OXXX {
+					if n.Left != nil {
+						yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+					} else {
+						yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+					}
 				}
 			}
 
@@ -358,8 +361,8 @@ func (s *exprSwitch) flush() {
 		// all we need here is consistency. We respect this
 		// sorting below.
 		sort.Slice(cc, func(i, j int) bool {
-			si := strlit(cc[i].lo)
-			sj := strlit(cc[j].lo)
+			si := cc[i].lo.StringVal()
+			sj := cc[j].lo.StringVal()
 			if len(si) != len(sj) {
 				return len(si) < len(sj)
 			}
@@ -368,7 +371,7 @@ func (s *exprSwitch) flush() {
 
 		// runLen returns the string length associated with a
 		// particular run of exprClauses.
-		runLen := func(run []exprClause) int64 { return int64(len(strlit(run[0].lo))) }
+		runLen := func(run []exprClause) int64 { return int64(len(run[0].lo.StringVal())) }
 
 		// Collapse runs of consecutive strings with the same length.
 		var runs [][]exprClause
@@ -405,7 +408,7 @@ func (s *exprSwitch) flush() {
 		merged := cc[:1]
 		for _, c := range cc[1:] {
 			last := &merged[len(merged)-1]
-			if last.jmp == c.jmp && last.hi.Int64()+1 == c.lo.Int64() {
+			if last.jmp == c.jmp && last.hi.Int64Val()+1 == c.lo.Int64Val() {
 				last.hi = c.lo
 			} else {
 				merged = append(merged, c)
@@ -440,7 +443,7 @@ func (c *exprClause) test(exprname *Node) *Node {
 
 	// Optimize "switch true { ...}" and "switch false { ... }".
 	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
-		if exprname.Val().U.(bool) {
+		if exprname.BoolVal() {
 			return c.lo
 		} else {
 			return nodl(c.pos, ONOT, c.lo, nil)
@@ -540,10 +543,14 @@ func walkTypeSwitch(sw *Node) {
 			caseVar = ncase.Rlist.First()
 		}
 
-		// For single-type cases, we initialize the case
-		// variable as part of the type assertion; but in
-		// other cases, we initialize it in the body.
-		singleType := ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE
+		// For single-type cases with an interface type,
+		// we initialize the case variable as part of the type assertion.
+		// In other cases, we initialize it in the body.
+		var singleType *types.Type
+		if ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE {
+			singleType = ncase.List.First().Type
+		}
+		caseVarInitialized := false
 
 		label := autolabel(".s")
 		jmp := npos(ncase.Pos, nodSym(OGOTO, nil, label))
@@ -564,18 +571,27 @@ func walkTypeSwitch(sw *Node) {
 				continue
 			}
 
-			if singleType {
-				s.Add(n1.Type, caseVar, jmp)
+			if singleType != nil && singleType.IsInterface() {
+				s.Add(ncase.Pos, n1.Type, caseVar, jmp)
+				caseVarInitialized = true
 			} else {
-				s.Add(n1.Type, nil, jmp)
+				s.Add(ncase.Pos, n1.Type, nil, jmp)
 			}
 		}
 
 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
-		if caseVar != nil && !singleType {
+		if caseVar != nil && !caseVarInitialized {
+			val := s.facename
+			if singleType != nil {
+				// We have a single concrete type. Extract the data.
+				if singleType.IsInterface() {
+					Fatalf("singleType interface should have been handled in Add")
+				}
+				val = ifaceData(ncase.Pos, s.facename, singleType)
+			}
 			l := []*Node{
 				nodl(ncase.Pos, ODCL, caseVar, nil),
-				nodl(ncase.Pos, OAS, caseVar, s.facename),
+				nodl(ncase.Pos, OAS, caseVar, val),
 			}
 			typecheckslice(l, ctxStmt)
 			body.Append(l...)
@@ -616,12 +632,12 @@ type typeClause struct {
 	body Nodes
 }
 
-func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
+func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp *Node) {
 	var body Nodes
 	if caseVar != nil {
 		l := []*Node{
-			nod(ODCL, caseVar, nil),
-			nod(OAS, caseVar, nil),
+			nodl(pos, ODCL, caseVar, nil),
+			nodl(pos, OAS, caseVar, nil),
 		}
 		typecheckslice(l, ctxStmt)
 		body.Append(l...)
@@ -630,9 +646,9 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	}
 
 	// cv, ok = iface.(type)
-	as := nod(OAS2, nil, nil)
+	as := nodl(pos, OAS2, nil, nil)
 	as.List.Set2(caseVar, s.okname) // cv, ok =
-	dot := nod(ODOTTYPE, s.facename, nil)
+	dot := nodl(pos, ODOTTYPE, s.facename, nil)
 	dot.Type = typ // iface.(type)
 	as.Rlist.Set1(dot)
 	as = typecheck(as, ctxStmt)
@@ -640,7 +656,7 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	body.Append(as)
 
 	// if ok { goto label }
-	nif := nod(OIF, nil, nil)
+	nif := nodl(pos, OIF, nil, nil)
 	nif.Left = s.okname
 	nif.Nbody.Set1(jmp)
 	body.Append(nif)

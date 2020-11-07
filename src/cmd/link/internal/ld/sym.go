@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,16 +34,23 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"log"
+	"runtime"
 )
 
 func linknew(arch *sys.Arch) *Link {
+	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
 	ctxt := &Link{
-		Syms:         sym.NewSymbols(),
-		Out:          &OutBuf{arch: arch},
-		Arch:         arch,
-		LibraryByPkg: make(map[string]*sym.Library),
+		Target:        Target{Arch: arch},
+		version:       sym.SymVerStatic,
+		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
+		Out:           NewOutBuf(arch),
+		LibraryByPkg:  make(map[string]*sym.Library),
+		numelfsym:     1,
+		ErrorReporter: ErrorReporter{ErrorReporter: ler},
+		generatorSyms: make(map[loader.Sym]generatorFunc),
 	}
 
 	if objabi.GOARCH != arch.Name {
@@ -51,8 +58,8 @@ func linknew(arch *sys.Arch) *Link {
 	}
 
 	AtExit(func() {
-		if nerrors > 0 && ctxt.Out.f != nil {
-			ctxt.Out.f.Close()
+		if nerrors > 0 {
+			ctxt.Out.Close()
 			mayberemoveoutfile()
 		}
 	})
@@ -93,19 +100,13 @@ func (ctxt *Link) computeTLSOffset() {
 
 			/*
 			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
-			 * That slot is at offset 0x30 on amd64, and 0x18 on 386.
+			 * That slot is at offset 0x30 on amd64.
 			 * The slot will hold the G pointer.
-			 * These constants should match those in runtime/sys_darwin_{386,amd64}.s
-			 * and runtime/cgo/gcc_darwin_{386,amd64}.c.
+			 * These constants should match those in runtime/sys_darwin_amd64.s
+			 * and runtime/cgo/gcc_darwin_amd64.c.
 			 */
-		case sys.I386:
-			ctxt.Tlsoffset = 0x18
-
 		case sys.AMD64:
 			ctxt.Tlsoffset = 0x30
-
-		case sys.ARM:
-			ctxt.Tlsoffset = 0 // dummy value, not needed
 
 		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed

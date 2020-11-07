@@ -42,10 +42,11 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
 	// Avoid partial register write
-	if !t.IsFloat() && t.Size() <= 2 {
-		if t.Size() == 1 {
+	if !t.IsFloat() {
+		switch t.Size() {
+		case 1:
 			return x86.AMOVBLZX
-		} else {
+		case 2:
 			return x86.AMOVWLZX
 		}
 	}
@@ -199,7 +200,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Op == ssa.Op386DIVL || v.Op == ssa.Op386DIVW ||
 			v.Op == ssa.Op386MODL || v.Op == ssa.Op386MODW {
 
-			if ssa.NeedsFixUp(v) {
+			if ssa.DivisionNeedsFixUp(v) {
 				var c *obj.Prog
 				switch v.Op {
 				case ssa.Op386DIVL, ssa.Op386MODL:
@@ -261,8 +262,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				n.To.Reg = x86.REG_DX
 			}
 
-			j.To.Val = n
-			j2.To.Val = s.Pc()
+			j.To.SetTarget(n)
+			j2.To.SetTarget(s.Pc())
 		}
 
 	case ssa.Op386HMULL, ssa.Op386HMULLU:
@@ -852,8 +853,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
-	case ssa.Op386FCHS:
-		v.Fatalf("FCHS in non-387 mode")
 	case ssa.OpClobber:
 		p := s.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_CONST
@@ -885,11 +884,11 @@ var blockJump = [...]struct {
 	ssa.Block386NAN: {x86.AJPS, x86.AJPC},
 }
 
-var eqfJumps = [2][2]gc.FloatingEQNEJump{
+var eqfJumps = [2][2]gc.IndexJump{
 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPS, Index: 1}}, // next == b.Succs[0]
 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPC, Index: 0}}, // next == b.Succs[1]
 }
-var nefJumps = [2][2]gc.FloatingEQNEJump{
+var nefJumps = [2][2]gc.IndexJump{
 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPC, Index: 1}}, // next == b.Succs[0]
 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
 }
@@ -929,10 +928,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.Block386EQF:
-		s.FPJump(b, next, &eqfJumps)
+		s.CombJump(b, next, &eqfJumps)
 
 	case ssa.Block386NEF:
-		s.FPJump(b, next, &nefJumps)
+		s.CombJump(b, next, &nefJumps)
 
 	case ssa.Block386EQ, ssa.Block386NE,
 		ssa.Block386LT, ssa.Block386GE,

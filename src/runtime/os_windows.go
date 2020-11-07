@@ -21,6 +21,7 @@ const (
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateWaitableTimerExW CreateWaitableTimerExW%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
@@ -28,7 +29,7 @@ const (
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
@@ -68,6 +69,7 @@ var (
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
+	_CreateWaitableTimerExW,
 	_DuplicateHandle,
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
@@ -75,7 +77,7 @@ var (
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
-	_GetQueuedCompletionStatus,
+	_GetQueuedCompletionStatusEx,
 	_GetStdHandle,
 	_GetSystemDirectoryA,
 	_GetSystemInfo,
@@ -111,7 +113,6 @@ var (
 	// We will load syscalls, if available, before using them.
 	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx,
 	_LoadLibraryExA,
 	_LoadLibraryExW,
 	_ stdFunction
@@ -151,6 +152,31 @@ type mOS struct {
 
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
+
+	highResTimer uintptr // high resolution timer handle used in usleep
+
+	// preemptExtLock synchronizes preemptM with entry/exit from
+	// external C code.
+	//
+	// This protects against races between preemptM calling
+	// SuspendThread and external code on this thread calling
+	// ExitProcess. If these happen concurrently, it's possible to
+	// exit the suspending thread and suspend the exiting thread,
+	// leading to deadlock.
+	//
+	// 0 indicates this M is not being preempted or in external
+	// code. Entering external code CASes this from 0 to 1. If
+	// this fails, a preemption is in progress, so the thread must
+	// wait for the preemption. preemptM also CASes this from 0 to
+	// 1. If this fails, the preemption fails (as it would if the
+	// PC weren't in Go code). The value is reset to 0 when
+	// returning from external code or after a preemption is
+	// complete.
+	//
+	// TODO(austin): We may not need this if preemption were more
+	// tightly synchronized on the G/P status and preemption
+	// blocked transition into _Gsyscall/_Psyscall.
+	preemptExtLock uint32
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -216,7 +242,6 @@ func loadOptionalSyscalls() {
 	}
 	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
@@ -272,7 +297,6 @@ func loadOptionalSyscalls() {
 func monitorSuspendResume() {
 	const (
 		_DEVICE_NOTIFY_CALLBACK = 2
-		_ERROR_FILE_NOT_FOUND   = 2
 	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
@@ -299,21 +323,8 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
-	// This function doesn't use GetLastError(), so we use the return value directly.
-	switch ret {
-	case 0:
-		return // Successful, nothing more to do.
-	case _ERROR_FILE_NOT_FOUND:
-		// Systems without access to the suspend/resume notifier
-		// also have their clock on "program time", and therefore
-		// don't want or need this anyway.
-		return
-	default:
-		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
-		throw("runtime: PowerRegisterSuspendResumeNotification failure")
-	}
 }
 
 //go:nosplit
@@ -395,15 +406,61 @@ const osRelaxMinNS = 60 * 1e6
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 //
-// On Windows, it adjusts the system-wide timer resolution. Go needs a
+// Some versions of Windows have high resolution timer. For those
+// versions osRelax is noop.
+// For Windows versions without high resolution timer, osRelax
+// adjusts the system-wide timer resolution. Go needs a
 // high resolution timer while running and there's little extra cost
 // if we're already using the CPU, but if all Ps are idle there's no
 // need to consume extra power to drive the high-res timer.
 func osRelax(relax bool) uint32 {
+	if haveHighResTimer {
+		// If the high resolution timer is available, the runtime uses the timer
+		// to sleep for short durations. This means there's no need to adjust
+		// the global clock frequency.
+		return 0
+	}
+
 	if relax {
 		return uint32(stdcall1(_timeEndPeriod, 1))
 	} else {
 		return uint32(stdcall1(_timeBeginPeriod, 1))
+	}
+}
+
+// haveHighResTimer indicates that the CreateWaitableTimerEx
+// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag is available.
+var haveHighResTimer = false
+
+// createHighResTimer calls CreateWaitableTimerEx with
+// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag to create high
+// resolution timer. createHighResTimer returns new timer
+// handle or 0, if CreateWaitableTimerEx failed.
+func createHighResTimer() uintptr {
+	const (
+		// As per @jstarks, see
+		// https://github.com/golang/go/issues/8687#issuecomment-656259353
+		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x00000002
+
+		_SYNCHRONIZE        = 0x00100000
+		_TIMER_QUERY_STATE  = 0x0001
+		_TIMER_MODIFY_STATE = 0x0002
+	)
+	return stdcall4(_CreateWaitableTimerExW, 0, 0,
+		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
+}
+
+func initHighResTimer() {
+	if GOARCH == "arm" {
+		// TODO: Not yet implemented.
+		return
+	}
+	h := createHighResTimer()
+	if h != 0 {
+		haveHighResTimer = true
+		usleep2Addr = unsafe.Pointer(funcPC(usleep2HighRes))
+		stdcall1(_CloseHandle, h)
 	}
 }
 
@@ -422,6 +479,7 @@ func osinit() {
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
 
+	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
 
 	ncpu = getproccount()
@@ -815,7 +873,7 @@ func mpreinit(mp *m) {
 }
 
 //go:nosplit
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 //go:nosplit
@@ -837,9 +895,20 @@ func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
 
+	// Configure usleep timer, if possible.
+	var timer uintptr
+	if haveHighResTimer {
+		timer = createHighResTimer()
+		if timer == 0 {
+			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+	}
+
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
+	mp.highResTimer = timer
 	unlock(&mp.threadLock)
 
 	// Query the true stack base from the OS. Currently we're
@@ -877,6 +946,10 @@ func unminit() {
 	lock(&mp.threadLock)
 	stdcall1(_CloseHandle, mp.thread)
 	mp.thread = 0
+	if mp.highResTimer != 0 {
+		stdcall1(_CloseHandle, mp.highResTimer)
+		mp.highResTimer = 0
+	}
 	unlock(&mp.threadLock)
 }
 
@@ -969,9 +1042,12 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	return stdcall(fn)
 }
 
-// in sys_windows_386.s and sys_windows_amd64.s
+// In sys_windows_386.s and sys_windows_amd64.s.
 func onosstack(fn unsafe.Pointer, arg uint32)
+
+// These are not callable functions. They should only be called via onosstack.
 func usleep2(usec uint32)
+func usleep2HighRes(usec uint32)
 func switchtothread()
 
 var usleep2Addr unsafe.Pointer
@@ -1003,7 +1079,6 @@ func ctrlhandler1(_type uint32) uint32 {
 	if sigsend(s) {
 		return 1
 	}
-	exit(2) // SIGINT, SIGTERM, etc
 	return 0
 }
 
@@ -1016,17 +1091,17 @@ func callbackasm1()
 var profiletimer uintptr
 
 func profilem(mp *m, thread uintptr) {
-	var r *context
-	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
+	// Align Context to 16 bytes.
+	var c *context
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 
-	// align Context to 16 bytes
-	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
-	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
+	c.contextflags = _CONTEXT_CONTROL
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
 	gp := gFromTLS(mp)
 
-	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
+	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
 }
 
 func gFromTLS(mp *m) *g {
@@ -1121,11 +1196,20 @@ func preemptM(mp *m) {
 		throw("self-preempt")
 	}
 
+	// Synchronize with external code that may try to ExitProcess.
+	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// External code is running. Fail the preemption
+		// attempt.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
 	// Acquire our own handle to mp's thread.
 	lock(&mp.threadLock)
 	if mp.thread == 0 {
 		// The M hasn't been minit'd yet (or was just unminit'd).
 		unlock(&mp.threadLock)
+		atomic.Store(&mp.preemptExtLock, 0)
 		atomic.Xadd(&mp.preemptGen, 1)
 		return
 	}
@@ -1133,10 +1217,9 @@ func preemptM(mp *m) {
 	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	unlock(&mp.threadLock)
 
-	// Prepare thread context buffer.
+	// Prepare thread context buffer. This must be aligned to 16 bytes.
 	var c *context
-	cbuf := make([]byte, unsafe.Sizeof(*c)+15)
-	// Align Context to 16 bytes.
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
 	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 	c.contextflags = _CONTEXT_CONTROL
 
@@ -1151,6 +1234,7 @@ func preemptM(mp *m) {
 	if int32(stdcall1(_SuspendThread, thread)) == -1 {
 		unlock(&suspendLock)
 		stdcall1(_CloseHandle, thread)
+		atomic.Store(&mp.preemptExtLock, 0)
 		// The thread no longer exists. This shouldn't be
 		// possible, but just acknowledge the request.
 		atomic.Xadd(&mp.preemptGen, 1)
@@ -1172,28 +1256,63 @@ func preemptM(mp *m) {
 
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromTLS(mp)
-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()) {
-		// Inject call to asyncPreempt
-		targetPC := funcPC(asyncPreempt)
-		switch GOARCH {
-		default:
-			throw("unsupported architecture")
-		case "386", "amd64":
-			// Make it look like the thread called targetPC.
-			pc := c.ip()
-			sp := c.sp()
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = pc
-			c.set_sp(sp)
-			c.set_ip(targetPC)
-		}
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+			// Inject call to asyncPreempt
+			targetPC := funcPC(asyncPreempt)
+			switch GOARCH {
+			default:
+				throw("unsupported architecture")
+			case "386", "amd64":
+				// Make it look like the thread called targetPC.
+				sp := c.sp()
+				sp -= sys.PtrSize
+				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+				c.set_sp(sp)
+				c.set_ip(targetPC)
+			}
 
-		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+		}
 	}
+
+	atomic.Store(&mp.preemptExtLock, 0)
 
 	// Acknowledge the preemption.
 	atomic.Xadd(&mp.preemptGen, 1)
 
 	stdcall1(_ResumeThread, thread)
 	stdcall1(_CloseHandle, thread)
+}
+
+// osPreemptExtEnter is called before entering external code that may
+// call ExitProcess.
+//
+// This must be nosplit because it may be called from a syscall with
+// untyped stack slots, so the stack must not be grown or scanned.
+//
+//go:nosplit
+func osPreemptExtEnter(mp *m) {
+	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// An asynchronous preemption is in progress. It's not
+		// safe to enter external code because it may call
+		// ExitProcess and deadlock with SuspendThread.
+		// Ideally we would do the preemption ourselves, but
+		// can't since there may be untyped syscall arguments
+		// on the stack. Instead, just wait and encourage the
+		// SuspendThread APC to run. The preemption should be
+		// done shortly.
+		osyield()
+	}
+	// Asynchronous preemption is now blocked.
+}
+
+// osPreemptExtExit is called after returning from external code that
+// may call ExitProcess.
+//
+// See osPreemptExtEnter for why this is nosplit.
+//
+//go:nosplit
+func osPreemptExtExit(mp *m) {
+	atomic.Store(&mp.preemptExtLock, 0)
 }

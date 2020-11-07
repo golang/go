@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	. "runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -61,8 +62,11 @@ func testSemaHandoff() bool {
 	// to another goroutine. Stop the current goroutine from migrating to
 	// another CPU where it can win the race (and appear to have not yielded) by
 	// keeping the CPUs slightly busy.
+	var wg sync.WaitGroup
 	for i := 0; i < GOMAXPROCS(-1); i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				select {
 				case <-done:
@@ -74,7 +78,9 @@ func testSemaHandoff() bool {
 		}()
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		Semacquire(&sema)
 		atomic.CompareAndSwapUint32(&res, 0, 1)
 
@@ -91,7 +97,7 @@ func testSemaHandoff() bool {
 	Semrelease1(&sema, true, 0)
 	atomic.CompareAndSwapUint32(&res, 0, 2)
 
-	<-done // wait for goroutines to finish to avoid data races
+	wg.Wait() // wait for goroutines to finish to avoid data races
 
 	return res == 1 // did the waiter run first?
 }

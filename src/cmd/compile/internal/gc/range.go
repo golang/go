@@ -112,12 +112,13 @@ func typecheckrangeExpr(n *Node) {
 		v2 = nil
 	}
 
-	var why string
 	if v1 != nil {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
-		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
-			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
+		} else if v1.Type != nil {
+			if op, why := assignop(t1, v1.Type); op == OXXX {
+				yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
+			}
 		}
 		checkassign(n, v1)
 	}
@@ -125,8 +126,10 @@ func typecheckrangeExpr(n *Node) {
 	if v2 != nil {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
-		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
-			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
+		} else if v2.Type != nil {
+			if op, why := assignop(t2, v2.Type); op == OXXX {
+				yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
+			}
 		}
 		checkassign(n, v2)
 	}
@@ -334,7 +337,7 @@ func walkrange(n *Node) *Node {
 
 		hv1 := temp(t.Elem())
 		hv1.SetTypecheck(1)
-		if types.Haspointers(t.Elem()) {
+		if t.Elem().HasPointers() {
 			init = append(init, nod(OAS, hv1, nil))
 		}
 		hb := temp(types.Types[TBOOL])
@@ -463,7 +466,7 @@ func walkrange(n *Node) *Node {
 //
 // where == for keys of map m is reflexive.
 func isMapClear(n *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -530,7 +533,7 @@ func mapClear(m *Node) *Node {
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
 func arrayClear(n, v1, v2, a *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -586,7 +589,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(nod(OAS, hn, tmp))
 
 	var fn *Node
-	if a.Type.Elem().HasHeapPointer() {
+	if a.Type.Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
 		Curfn.Func.setWBPos(stmt.Pos)
 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)

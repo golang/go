@@ -35,7 +35,7 @@ fatalf(const char* format, ...)
 // Truncated to a different magic value on 32-bit; that's ok.
 #define magic1 (0x23581321345589ULL)
 
-// From https://android.googlesource.com/platform/bionic/+/refs/heads/master/libc/private/bionic_asm_tls.h#69.
+// From https://android.googlesource.com/platform/bionic/+/refs/heads/android10-tests-release/libc/private/bionic_asm_tls.h#69.
 #define TLS_SLOT_APP 2
 
 // inittls allocates a thread-local storage slot for g.

@@ -3,14 +3,15 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD R30, -496(RSP)
 	SUB $496, RSP
 	#ifdef GOOS_linux
 	MOVD R29, -8(RSP)
 	SUB $8, RSP, R29
 	#endif
-	#ifdef GOOS_darwin
+	#ifdef GOOS_ios
 	MOVD R30, (RSP)
 	#endif
 	MOVD R0, 8(RSP)

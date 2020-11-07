@@ -25,13 +25,24 @@ type SysProcAttr struct {
 	// Ptrace tells the child to call ptrace(PTRACE_TRACEME).
 	// Call runtime.LockOSThread before starting a process with this set,
 	// and don't call UnlockOSThread until done with PtraceSyscall calls.
-	Ptrace       bool
-	Setsid       bool           // Create session.
-	Setpgid      bool           // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
-	Setctty      bool           // Set controlling terminal to fd Ctty (only meaningful if Setsid is set)
-	Noctty       bool           // Detach fd 0 from controlling terminal
-	Ctty         int            // Controlling TTY fd
-	Foreground   bool           // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+	Ptrace bool
+	Setsid bool // Create session.
+	// Setpgid sets the process group ID of the child to Pgid,
+	// or, if Pgid == 0, to the new child's process ID.
+	Setpgid bool
+	// Setctty sets the controlling terminal of the child to
+	// file descriptor Ctty. Ctty must be a descriptor number
+	// in the child process: an index into ProcAttr.Files.
+	// This is only meaningful if Setsid is true.
+	Setctty bool
+	Noctty  bool // Detach fd 0 from controlling terminal
+	Ctty    int  // Controlling TTY fd
+	// Foreground places the child process group in the foreground.
+	// This implies Setpgid. The Ctty field must be set to
+	// the descriptor of the controlling TTY.
+	// Unlike Setctty, in this case Ctty must be a descriptor
+	// number in the parent process.
+	Foreground   bool
 	Pgid         int            // Child's process group ID if Setpgid.
 	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
 	Cloneflags   uintptr        // Flags for clone calls (Linux only)
@@ -196,7 +207,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	hasRawVforkSyscall := runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "s390x" || runtime.GOARCH == "arm64"
+	var hasRawVforkSyscall bool
+	switch runtime.GOARCH {
+	case "amd64", "arm64", "ppc64", "riscv64", "s390x":
+		hasRawVforkSyscall = true
+	}
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
@@ -434,11 +449,16 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
-		if err1 != 0 {
+		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
+		if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
+			_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
+			if err1 != 0 {
+				goto childerror
+			}
+			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+		} else if err1 != 0 {
 			goto childerror
 		}
-		RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 		pipe = nextfd
 		nextfd++
 	}
@@ -447,11 +467,16 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
-			_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
-			if err1 != 0 {
+			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
+				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
+				if err1 != 0 {
+					goto childerror
+				}
+				RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+			} else if err1 != 0 {
 				goto childerror
 			}
-			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
 		}

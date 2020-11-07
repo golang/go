@@ -12,7 +12,7 @@ chmod 0640 go.mod
 chmod 0604 go.sum
 go mod edit -module=golang.org/issue/34634
 
-go build .
+go get -d
 cmp go.mod go.mod.want
 cmp go.sum go.sum.want
 

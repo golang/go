@@ -6,12 +6,20 @@ package ssa
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 )
 
 func printFunc(f *Func) {
 	f.Logf("%s", f)
+}
+
+func hashFunc(f *Func) []byte {
+	h := sha256.New()
+	p := stringFuncPrinter{w: h}
+	fprintFunc(p, f)
+	return h.Sum(nil)
 }
 
 func (f *Func) String() string {

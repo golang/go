@@ -12,7 +12,7 @@ func Foo(x int) int { // ERROR "cannot inline Foo: marked go:norace with -race c
 	return x * (x + 1) * (x + 2)
 }
 
-func Bar(x int) int { // ERROR "can inline Bar as: func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
+func Bar(x int) int { // ERROR "can inline Bar with cost .* as: func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
 	return x * (x + 1) * (x + 2)
 }
 

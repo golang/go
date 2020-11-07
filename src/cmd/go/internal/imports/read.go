@@ -198,7 +198,7 @@ func (r *importReader) readImport(imports *[]string) {
 	r.readString(imports)
 }
 
-// ReadComments is like ioutil.ReadAll, except that it only reads the leading
+// ReadComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
 func ReadComments(f io.Reader) ([]byte, error) {
 	r := &importReader{b: bufio.NewReader(f)}
@@ -210,7 +210,7 @@ func ReadComments(f io.Reader) ([]byte, error) {
 	return r.buf, r.err
 }
 
-// ReadImports is like ioutil.ReadAll, except that it expects a Go file as input
+// ReadImports is like io.ReadAll, except that it expects a Go file as input
 // and stops reading the input once the imports have completed.
 func ReadImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
 	r := &importReader{b: bufio.NewReader(f)}

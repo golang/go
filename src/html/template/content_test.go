@@ -18,7 +18,7 @@ func TestTypedContent(t *testing.T) {
 		HTML(`Hello, <b>World</b> &amp;tc!`),
 		HTMLAttr(` dir="ltr"`),
 		JS(`c && alert("Hello, World!");`),
-		JSStr(`Hello, World & O'Reilly\x21`),
+		JSStr(`Hello, World & O'Reilly\u0021`),
 		URL(`greeting=H%69,&addressee=(World)`),
 		Srcset(`greeting=H%69,&addressee=(World) 2x, https://golang.org/favicon.ico 500.5w`),
 		URL(`,foo/,`),
@@ -70,7 +70,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello, <b>World</b> &amp;tc!`,
 				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
-				`Hello, World &amp; O&#39;Reilly\x21`,
+				`Hello, World &amp; O&#39;Reilly\u0021`,
 				`greeting=H%69,&amp;addressee=(World)`,
 				`greeting=H%69,&amp;addressee=(World) 2x, https://golang.org/favicon.ico 500.5w`,
 				`,foo/,`,
@@ -100,7 +100,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello,&#32;World&#32;&amp;tc!`,
 				`&#32;dir&#61;&#34;ltr&#34;`,
 				`c&#32;&amp;&amp;&#32;alert(&#34;Hello,&#32;World!&#34;);`,
-				`Hello,&#32;World&#32;&amp;&#32;O&#39;Reilly\x21`,
+				`Hello,&#32;World&#32;&amp;&#32;O&#39;Reilly\u0021`,
 				`greeting&#61;H%69,&amp;addressee&#61;(World)`,
 				`greeting&#61;H%69,&amp;addressee&#61;(World)&#32;2x,&#32;https://golang.org/favicon.ico&#32;500.5w`,
 				`,foo/,`,
@@ -115,7 +115,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello, World &amp;tc!`,
 				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
-				`Hello, World &amp; O&#39;Reilly\x21`,
+				`Hello, World &amp; O&#39;Reilly\u0021`,
 				`greeting=H%69,&amp;addressee=(World)`,
 				`greeting=H%69,&amp;addressee=(World) 2x, https://golang.org/favicon.ico 500.5w`,
 				`,foo/,`,
@@ -130,7 +130,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello, &lt;b&gt;World&lt;/b&gt; &amp;tc!`,
 				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
-				`Hello, World &amp; O&#39;Reilly\x21`,
+				`Hello, World &amp; O&#39;Reilly\u0021`,
 				`greeting=H%69,&amp;addressee=(World)`,
 				`greeting=H%69,&amp;addressee=(World) 2x, https://golang.org/favicon.ico 500.5w`,
 				`,foo/,`,
@@ -146,7 +146,7 @@ func TestTypedContent(t *testing.T) {
 				// Not escaped.
 				`c && alert("Hello, World!");`,
 				// Escape sequence not over-escaped.
-				`"Hello, World & O'Reilly\x21"`,
+				`"Hello, World & O'Reilly\u0021"`,
 				`"greeting=H%69,\u0026addressee=(World)"`,
 				`"greeting=H%69,\u0026addressee=(World) 2x, https://golang.org/favicon.ico 500.5w"`,
 				`",foo/,"`,
@@ -162,7 +162,7 @@ func TestTypedContent(t *testing.T) {
 				// Not JS escaped but HTML escaped.
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				// Escape sequence not over-escaped.
-				`&#34;Hello, World &amp; O&#39;Reilly\x21&#34;`,
+				`&#34;Hello, World &amp; O&#39;Reilly\u0021&#34;`,
 				`&#34;greeting=H%69,\u0026addressee=(World)&#34;`,
 				`&#34;greeting=H%69,\u0026addressee=(World) 2x, https://golang.org/favicon.ico 500.5w&#34;`,
 				`&#34;,foo/,&#34;`,
@@ -171,30 +171,30 @@ func TestTypedContent(t *testing.T) {
 		{
 			`<script>alert("{{.}}")</script>`,
 			[]string{
-				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
-				`a[href =~ \x22\/\/example.com\x22]#foo`,
-				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
-				` dir=\x22ltr\x22`,
-				`c \x26\x26 alert(\x22Hello, World!\x22);`,
+				`\u003cb\u003e \u0022foo%\u0022 O\u0027Reilly \u0026bar;`,
+				`a[href =~ \u0022\/\/example.com\u0022]#foo`,
+				`Hello, \u003cb\u003eWorld\u003c\/b\u003e \u0026amp;tc!`,
+				` dir=\u0022ltr\u0022`,
+				`c \u0026\u0026 alert(\u0022Hello, World!\u0022);`,
 				// Escape sequence not over-escaped.
-				`Hello, World \x26 O\x27Reilly\x21`,
-				`greeting=H%69,\x26addressee=(World)`,
-				`greeting=H%69,\x26addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
+				`Hello, World \u0026 O\u0027Reilly\u0021`,
+				`greeting=H%69,\u0026addressee=(World)`,
+				`greeting=H%69,\u0026addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
 				`,foo\/,`,
 			},
 		},
 		{
 			`<script type="text/javascript">alert("{{.}}")</script>`,
 			[]string{
-				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
-				`a[href =~ \x22\/\/example.com\x22]#foo`,
-				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
-				` dir=\x22ltr\x22`,
-				`c \x26\x26 alert(\x22Hello, World!\x22);`,
+				`\u003cb\u003e \u0022foo%\u0022 O\u0027Reilly \u0026bar;`,
+				`a[href =~ \u0022\/\/example.com\u0022]#foo`,
+				`Hello, \u003cb\u003eWorld\u003c\/b\u003e \u0026amp;tc!`,
+				` dir=\u0022ltr\u0022`,
+				`c \u0026\u0026 alert(\u0022Hello, World!\u0022);`,
 				// Escape sequence not over-escaped.
-				`Hello, World \x26 O\x27Reilly\x21`,
-				`greeting=H%69,\x26addressee=(World)`,
-				`greeting=H%69,\x26addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
+				`Hello, World \u0026 O\u0027Reilly\u0021`,
+				`greeting=H%69,\u0026addressee=(World)`,
+				`greeting=H%69,\u0026addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
 				`,foo\/,`,
 			},
 		},
@@ -208,7 +208,7 @@ func TestTypedContent(t *testing.T) {
 				// Not escaped.
 				`c && alert("Hello, World!");`,
 				// Escape sequence not over-escaped.
-				`"Hello, World & O'Reilly\x21"`,
+				`"Hello, World & O'Reilly\u0021"`,
 				`"greeting=H%69,\u0026addressee=(World)"`,
 				`"greeting=H%69,\u0026addressee=(World) 2x, https://golang.org/favicon.ico 500.5w"`,
 				`",foo/,"`,
@@ -224,7 +224,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello, <b>World</b> &amp;tc!`,
 				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
-				`Hello, World &amp; O&#39;Reilly\x21`,
+				`Hello, World &amp; O&#39;Reilly\u0021`,
 				`greeting=H%69,&amp;addressee=(World)`,
 				`greeting=H%69,&amp;addressee=(World) 2x, https://golang.org/favicon.ico 500.5w`,
 				`,foo/,`,
@@ -233,15 +233,15 @@ func TestTypedContent(t *testing.T) {
 		{
 			`<button onclick='alert("{{.}}")'>`,
 			[]string{
-				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
-				`a[href =~ \x22\/\/example.com\x22]#foo`,
-				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
-				` dir=\x22ltr\x22`,
-				`c \x26\x26 alert(\x22Hello, World!\x22);`,
+				`\u003cb\u003e \u0022foo%\u0022 O\u0027Reilly \u0026bar;`,
+				`a[href =~ \u0022\/\/example.com\u0022]#foo`,
+				`Hello, \u003cb\u003eWorld\u003c\/b\u003e \u0026amp;tc!`,
+				` dir=\u0022ltr\u0022`,
+				`c \u0026\u0026 alert(\u0022Hello, World!\u0022);`,
 				// Escape sequence not over-escaped.
-				`Hello, World \x26 O\x27Reilly\x21`,
-				`greeting=H%69,\x26addressee=(World)`,
-				`greeting=H%69,\x26addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
+				`Hello, World \u0026 O\u0027Reilly\u0021`,
+				`greeting=H%69,\u0026addressee=(World)`,
+				`greeting=H%69,\u0026addressee=(World) 2x, https:\/\/golang.org\/favicon.ico 500.5w`,
 				`,foo\/,`,
 			},
 		},
@@ -253,7 +253,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
 				`%20dir%3d%22ltr%22`,
 				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
-				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
+				`Hello%2c%20World%20%26%20O%27Reilly%5cu0021`,
 				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is done.
 				`greeting=H%69,&amp;addressee=%28World%29`,
 				`greeting%3dH%2569%2c%26addressee%3d%28World%29%202x%2c%20https%3a%2f%2fgolang.org%2ffavicon.ico%20500.5w`,
@@ -268,7 +268,7 @@ func TestTypedContent(t *testing.T) {
 				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
 				`%20dir%3d%22ltr%22`,
 				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
-				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
+				`Hello%2c%20World%20%26%20O%27Reilly%5cu0021`,
 				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is not done.
 				`greeting=H%69,&addressee=%28World%29`,
 				`greeting%3dH%2569%2c%26addressee%3d%28World%29%202x%2c%20https%3a%2f%2fgolang.org%2ffavicon.ico%20500.5w`,
@@ -401,11 +401,11 @@ func TestTypedContent(t *testing.T) {
 }
 
 // Test that we print using the String method. Was issue 3073.
-type stringer struct {
+type myStringer struct {
 	v int
 }
 
-func (s *stringer) String() string {
+func (s *myStringer) String() string {
 	return fmt.Sprintf("string=%d", s.v)
 }
 
@@ -418,7 +418,7 @@ func (s *errorer) Error() string {
 }
 
 func TestStringer(t *testing.T) {
-	s := &stringer{3}
+	s := &myStringer{3}
 	b := new(bytes.Buffer)
 	tmpl := Must(New("x").Parse("{{.}}"))
 	if err := tmpl.Execute(b, s); err != nil {

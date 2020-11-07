@@ -236,7 +236,11 @@ func goenvs() {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
-	mp.gsignal = malg(32 * 1024)
+	gsignalSize := int32(32 * 1024)
+	if GOARCH == "mips64" {
+		gsignalSize = int32(64 * 1024)
+	}
+	mp.gsignal = malg(gsignalSize)
 	mp.gsignal.m = mp
 }
 
@@ -340,6 +344,7 @@ func osStackRemap(s *mspan, flags int32) {
 	}
 }
 
+//go:nosplit
 func raise(sig uint32) {
 	thrkill(getthrid(), int(sig))
 }

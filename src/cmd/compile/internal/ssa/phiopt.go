@@ -148,6 +148,13 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 		negate = !negate
 	}
 
+	a := b0.Controls[0]
+	if negate {
+		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
+	}
+	v.AddArg(a)
+
+	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
 	switch v.Type.Size() {
 	case 1:
 		v.reset(OpCopy)
@@ -160,12 +167,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 	default:
 		v.Fatalf("bad int size %d", v.Type.Size())
 	}
-
-	a := b0.Controls[0]
-	if negate {
-		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
-	}
-	v.AddArg(a)
+	v.AddArg(cvt)
 
 	f := b0.Func
 	if f.pass.debug > 0 {

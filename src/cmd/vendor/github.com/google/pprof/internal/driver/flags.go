@@ -44,27 +44,6 @@ func (*GoFlags) String(o, d, c string) *string {
 	return flag.String(o, d, c)
 }
 
-// BoolVar implements the plugin.FlagSet interface.
-func (*GoFlags) BoolVar(b *bool, o string, d bool, c string) {
-	flag.BoolVar(b, o, d, c)
-}
-
-// IntVar implements the plugin.FlagSet interface.
-func (*GoFlags) IntVar(i *int, o string, d int, c string) {
-	flag.IntVar(i, o, d, c)
-}
-
-// Float64Var implements the plugin.FlagSet interface.
-// the value of the flag.
-func (*GoFlags) Float64Var(f *float64, o string, d float64, c string) {
-	flag.Float64Var(f, o, d, c)
-}
-
-// StringVar implements the plugin.FlagSet interface.
-func (*GoFlags) StringVar(s *string, o, d, c string) {
-	flag.StringVar(s, o, d, c)
-}
-
 // StringList implements the plugin.FlagSet interface.
 func (*GoFlags) StringList(o, d, c string) *[]*string {
 	return &[]*string{flag.String(o, d, c)}

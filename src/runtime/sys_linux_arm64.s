@@ -112,7 +112,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 
 // func pipe() (r, w int32, errno int32)
 TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	ADD	$8, RSP, R0
+	MOVD	$r+0(FP), R0
 	MOVW	$0, R1
 	MOVW	$SYS_pipe2, R8
 	SVC
@@ -121,7 +121,7 @@ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
 
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
-	ADD	$16, RSP, R0
+	MOVD	$r+8(FP), R0
 	MOVW	flags+0(FP), R1
 	MOVW	$SYS_pipe2, R8
 	SVC
@@ -214,6 +214,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$24-12
 	MOVD	g_m(g), R21	// R21 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R2
+	MOVD	m_vdsoSP(R21), R3
+	MOVD	R2, 8(RSP)
+	MOVD	R3, 16(RSP)
+
 	MOVD	LR, m_vdsoPC(R21)
 	MOVD	R20, m_vdsoSP(R21)
 
@@ -269,7 +276,15 @@ finish:
 	MOVD	8(RSP), R5	// nsec
 
 	MOVD	R20, RSP	// restore SP
-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
 
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
@@ -282,6 +297,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
 	MOVD	g_m(g), R21	// R21 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R2
+	MOVD	m_vdsoSP(R21), R3
+	MOVD	R2, 8(RSP)
+	MOVD	R3, 16(RSP)
+
 	MOVD	LR, m_vdsoPC(R21)
 	MOVD	R20, m_vdsoSP(R21)
 
@@ -337,7 +359,15 @@ finish:
 	MOVD	8(RSP), R5	// nsec
 
 	MOVD	R20, RSP	// restore SP
-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
 
 	// sec is in R3, nsec in R5
 	// return nsec in R3
@@ -419,8 +449,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 8(RSP)
 	MOVBU	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	2(PC)
+	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
 
 	MOVD	R1, 16(RSP)
@@ -688,7 +717,7 @@ TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
 	MOVD	$SYS_fcntl, R8
 	SVC
 	MOVD	$0x800, R2 // O_NONBLOCK
-	EOR	R0, R2
+	ORR	R0, R2
 	MOVW	fd+0(FP), R0 // fd
 	MOVD	$4, R1	// F_SETFL
 	MOVD	$SYS_fcntl, R8

@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rsa implements RSA encryption as specified in PKCS#1.
+// Package rsa implements RSA encryption as specified in PKCS #1 and RFC 8017.
 //
 // RSA is a single, fundamental operation that is used in this package to
 // implement either public-key encryption or public-key signatures.
 //
-// The original specification for encryption and signatures with RSA is PKCS#1
+// The original specification for encryption and signatures with RSA is PKCS #1
 // and the terms "RSA encryption" and "RSA signatures" by default refer to
-// PKCS#1 version 1.5. However, that specification has flaws and new designs
-// should use version two, usually called by just OAEP and PSS, where
+// PKCS #1 version 1.5. However, that specification has flaws and new designs
+// should use version 2, usually called by just OAEP and PSS, where
 // possible.
 //
 // Two sets of interfaces are included in this package. When a more abstract
 // interface isn't necessary, there are functions for encrypting/decrypting
 // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
-// over the public-key primitive, the PrivateKey struct implements the
+// over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
 // The RSA operations in this package are not implemented using constant-time algorithms.
@@ -44,10 +44,22 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
 // Size returns the modulus size in bytes. Raw signatures and ciphertexts
 // for or by this public key will have the same size.
 func (pub *PublicKey) Size() int {
 	return (pub.N.BitLen() + 7) / 8
+}
+
+// Equal reports whether pub and x have the same value.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
 }
 
 // OAEPOptions is an interface for passing options to OAEP decryption using the
@@ -100,9 +112,31 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
 }
 
+// Equal reports whether priv and x have equivalent values. It ignores
+// Precomputed values.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+		return false
+	}
+	if len(priv.Primes) != len(xx.Primes) {
+		return false
+	}
+	for i := range priv.Primes {
+		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Sign signs digest with priv, reading randomness from rand. If opts is a
-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
-// be used.
+// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+// be used. digest must be the result of hashing the input message using
+// opts.HashFunc().
 //
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
@@ -116,7 +150,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 }
 
 // Decrypt decrypts ciphertext with priv. If opts is nil or of type
-// *PKCS1v15DecryptOptions then PKCS#1 v1.5 decryption is performed. Otherwise
+// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
 // opts must have type *OAEPOptions and OAEP decryption is done.
 func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
 	if opts == nil {
@@ -152,7 +186,7 @@ type PrecomputedValues struct {
 
 	// CRTValues is used for the 3rd and subsequent primes. Due to a
 	// historical accident, the CRT for the first two primes is handled
-	// differently in PKCS#1 and interoperability is sufficiently
+	// differently in PKCS #1 and interoperability is sufficiently
 	// important that we mirror this.
 	CRTValues []CRTValue
 }
@@ -326,7 +360,7 @@ func incCounter(c *[4]byte) {
 }
 
 // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
-// specified in PKCS#1 v2.1.
+// specified in PKCS #1 v2.1.
 func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	var counter [4]byte
 	var digest []byte
@@ -406,16 +440,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	m := new(big.Int)
 	m.SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out := c.Bytes()
 
-	if len(out) < k {
-		// If the output is too small, we need to left-pad with zeros.
-		t := make([]byte, k)
-		copy(t[k-len(out):], out)
-		out = t
-	}
-
-	return out, nil
+	out := make([]byte, k)
+	return c.FillBytes(out), nil
 }
 
 // ErrDecryption represents a failure to decrypt a message.
@@ -587,12 +614,9 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	lHash := hash.Sum(nil)
 	hash.Reset()
 
-	// Converting the plaintext number to bytes will strip any
-	// leading zeros so we may have to left pad. We do this unconditionally
-	// to avoid leaking timing information. (Although we still probably
-	// leak the number of leading zeros. It's not clear that we can do
-	// anything about this.)
-	em := leftPad(m.Bytes(), k)
+	// We probably leak the number of leading zeros.
+	// It's not clear that we can do anything about this.
+	em := m.FillBytes(make([]byte, k))
 
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 
@@ -632,16 +656,4 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	return rest[index+1:], nil
-}
-
-// leftPad returns a new slice of length size. The contents of input are right
-// aligned in the new slice.
-func leftPad(input []byte, size int) (out []byte) {
-	n := len(input)
-	if n > size {
-		n = size
-	}
-	out = make([]byte, size)
-	copy(out[len(out)-n:], input)
-	return
 }

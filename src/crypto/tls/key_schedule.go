@@ -173,11 +173,8 @@ func (p *nistParameters) SharedKey(peerPublicKey []byte) []byte {
 	}
 
 	xShared, _ := curve.ScalarMult(x, y, p.privateKey)
-	sharedKey := make([]byte, (curve.Params().BitSize+7)>>3)
-	xBytes := xShared.Bytes()
-	copy(sharedKey[len(sharedKey)-len(xBytes):], xBytes)
-
-	return sharedKey
+	sharedKey := make([]byte, (curve.Params().BitSize+7)/8)
+	return xShared.FillBytes(sharedKey)
 }
 
 type x25519Parameters struct {

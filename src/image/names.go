@@ -47,6 +47,7 @@ func (c *Uniform) Opaque() bool {
 	return a == 0xffff
 }
 
+// NewUniform returns a new Uniform image of the given color.
 func NewUniform(c color.Color) *Uniform {
 	return &Uniform{c}
 }

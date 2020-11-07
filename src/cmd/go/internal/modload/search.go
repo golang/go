@@ -5,27 +5,39 @@
 package modload
 
 import (
+	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
 )
 
-// matchPackages returns a list of packages in the list of modules
-// matching the pattern. Package loading assumes the given set of tags.
-func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []module.Version) []string {
-	match := func(string) bool { return true }
+type stdFilter int8
+
+const (
+	omitStd = stdFilter(iota)
+	includeStd
+)
+
+// matchPackages is like m.MatchPackages, but uses a local variable (rather than
+// a global) for tags, can include or exclude packages in the standard library,
+// and is restricted to the given list of modules.
+func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
+	m.Pkgs = []string{}
+
+	isMatch := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if !search.IsMetaPackage(pattern) {
-		match = search.MatchPattern(pattern)
-		treeCanMatch = search.TreeCanMatchPattern(pattern)
+	if !m.IsMeta() {
+		isMatch = search.MatchPattern(m.Pattern())
+		treeCanMatch = search.TreeCanMatchPattern(m.Pattern())
 	}
 
 	have := map[string]bool{
@@ -34,7 +46,6 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	if !cfg.BuildContext.CgoEnabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
-	var pkgs []string
 
 	type pruning int8
 	const (
@@ -44,8 +55,9 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
-		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
+				m.AddError(err)
 				return nil
 			}
 
@@ -74,8 +86,8 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&os.ModeSymlink != 0 && want {
-					if target, err := os.Stat(path); err == nil && target.IsDir() {
+				if fi.Mode()&fs.ModeSymlink != 0 && want {
+					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
 				}
@@ -94,9 +106,9 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 
 			if !have[name] {
 				have[name] = true
-				if match(name) {
+				if isMatch(name) {
 					if _, _, err := scanDir(path, tags); err != imports.ErrNoGo {
-						pkgs = append(pkgs, name)
+						m.Pkgs = append(m.Pkgs, name)
 					}
 				}
 			}
@@ -106,9 +118,12 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			}
 			return nil
 		})
+		if err != nil {
+			m.AddError(err)
+		}
 	}
 
-	if useStd {
+	if filter == includeStd {
 		walkPkgs(cfg.GOROOTsrc, "", pruneGoMod)
 		if treeCanMatch("cmd") {
 			walkPkgs(filepath.Join(cfg.GOROOTsrc, "cmd"), "cmd", pruneGoMod)
@@ -120,7 +135,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			walkPkgs(ModRoot(), targetPrefix, pruneGoMod|pruneVendor)
 			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", pruneVendor)
 		}
-		return pkgs
+		return
 	}
 
 	for _, mod := range modules {
@@ -141,9 +156,10 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(mod)
+			const needSum = true
+			root, isLocal, err = fetch(ctx, mod, needSum)
 			if err != nil {
-				base.Errorf("go: %v", err)
+				m.AddError(err)
 				continue
 			}
 			modPrefix = mod.Path
@@ -156,5 +172,48 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 		walkPkgs(root, modPrefix, prune)
 	}
 
-	return pkgs
+	return
+}
+
+// MatchInModule identifies the packages matching the given pattern within the
+// given module version, which does not need to be in the build list or module
+// requirement graph.
+//
+// If m is the zero module.Version, MatchInModule matches the pattern
+// against the standard library (std and cmd) in GOROOT/src.
+func MatchInModule(ctx context.Context, pattern string, m module.Version, tags map[string]bool) *search.Match {
+	match := search.NewMatch(pattern)
+	if m == (module.Version{}) {
+		matchPackages(ctx, match, tags, includeStd, nil)
+	}
+
+	LoadModFile(ctx)
+
+	if !match.IsLiteral() {
+		matchPackages(ctx, match, tags, omitStd, []module.Version{m})
+		return match
+	}
+
+	const needSum = true
+	root, isLocal, err := fetch(ctx, m, needSum)
+	if err != nil {
+		match.Errs = []error{err}
+		return match
+	}
+
+	dir, haveGoFiles, err := dirInModule(pattern, m.Path, root, isLocal)
+	if err != nil {
+		match.Errs = []error{err}
+		return match
+	}
+	if haveGoFiles {
+		if _, _, err := scanDir(dir, tags); err != imports.ErrNoGo {
+			// ErrNoGo indicates that the directory is not actually a Go package,
+			// perhaps due to the tags in use. Any other non-nil error indicates a
+			// problem with one or more of the Go source files, but such an error does
+			// not stop the package from existing, so it has no impact on matching.
+			match.Pkgs = []string{pattern}
+		}
+	}
+	return match
 }

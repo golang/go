@@ -87,7 +87,7 @@ func TestNilcheckSimple(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -124,7 +124,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -157,7 +157,7 @@ func TestNilcheckAddr(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -191,7 +191,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -235,7 +235,7 @@ func TestNilcheckPhi(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -276,7 +276,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -323,7 +323,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -374,7 +374,7 @@ func TestNilcheckUser(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -418,7 +418,7 @@ func TestNilcheckBug(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fusePlain(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)

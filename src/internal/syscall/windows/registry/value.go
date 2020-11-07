@@ -8,7 +8,6 @@ package registry
 
 import (
 	"errors"
-	"io"
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
@@ -341,9 +340,7 @@ func (k Key) DeleteValue(name string) error {
 }
 
 // ReadValueNames returns the value names of key k.
-// The parameter n controls the number of returned names,
-// analogous to the way os.File.Readdirnames works.
-func (k Key) ReadValueNames(n int) ([]string, error) {
+func (k Key) ReadValueNames() ([]string, error) {
 	ki, err := k.Stat()
 	if err != nil {
 		return nil, err
@@ -352,11 +349,6 @@ func (k Key) ReadValueNames(n int) ([]string, error) {
 	buf := make([]uint16, ki.MaxValueNameLen+1) // extra room for terminating null character
 loopItems:
 	for i := uint32(0); ; i++ {
-		if n > 0 {
-			if len(names) == n {
-				return names, nil
-			}
-		}
 		l := uint32(len(buf))
 		for {
 			err := regEnumValue(syscall.Handle(k), i, &buf[0], &l, nil, nil, nil, nil)
@@ -375,9 +367,6 @@ loopItems:
 			return names, err
 		}
 		names = append(names, syscall.UTF16ToString(buf[:l]))
-	}
-	if n > len(names) {
-		return names, io.EOF
 	}
 	return names, nil
 }

@@ -88,7 +88,8 @@ func jumpX86(word string) bool {
 
 func jumpRISCV(word string) bool {
 	switch word {
-	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
+	case "BEQ", "BEQZ", "BGE", "BGEU", "BGEZ", "BGT", "BGTU", "BGTZ", "BLE", "BLEU", "BLEZ",
+		"BLT", "BLTU", "BLTZ", "BNE", "BNEZ", "CALL", "JAL", "JALR", "JMP":
 		return true
 	}
 	return false
@@ -484,6 +485,9 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := mips.REG_W0; i <= mips.REG_W31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	register["HI"] = mips.REG_HI
 	register["LO"] = mips.REG_LO
 	// Pseudo-registers.
@@ -501,6 +505,7 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 		"FCR": true,
 		"M":   true,
 		"R":   true,
+		"W":   true,
 	}
 
 	instructions := make(map[string]obj.As)
@@ -530,6 +535,9 @@ func archRISCV64() *Arch {
 
 	// Standard register names.
 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
+		if i == riscv.REG_G {
+			continue
+		}
 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
 		register[name] = int16(i)
 	}
@@ -566,7 +574,7 @@ func archRISCV64() *Arch {
 	register["S8"] = riscv.REG_S8
 	register["S9"] = riscv.REG_S9
 	register["S10"] = riscv.REG_S10
-	register["S11"] = riscv.REG_S11
+	// Skip S11 as it is the g register.
 	register["T3"] = riscv.REG_T3
 	register["T4"] = riscv.REG_T4
 	register["T5"] = riscv.REG_T5

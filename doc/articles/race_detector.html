@@ -133,6 +133,11 @@ cost of increased memory usage.
 <code>halt_on_error</code> (default <code>0</code>): Controls whether the program
 exits after reporting first data race.
 </li>
+
+<li>
+<code>atexit_sleep_ms</code> (default <code>1000</code>): Amount of milliseconds
+to sleep in the main goroutine before exiting.
+</li>
 </ul>
 
 <p>
@@ -374,6 +379,38 @@ func (w *Watchdog) Start() {
 }
 </pre>
 
+<h3 id="Unsynchronized_send_and_close_operations">Unsynchronized send and close operations</h3>
+
+<p>
+As this example demonstrates, unsynchronized send and close operations
+on the same channel can also be a race condition:
+</p>
+
+<pre>
+c := make(chan struct{}) // or buffered channel
+
+// The race detector cannot derive the happens before relation
+// for the following send and close operations. These two operations
+// are unsynchronized and happen concurrently.
+go func() { c <- struct{}{} }()
+close(c)
+</pre>
+
+<p>
+According to the Go memory model, a send on a channel happens before
+the corresponding receive from that channel completes. To synchronize
+send and close operations, use a receive operation that guarantees
+the send is done before the close:
+</p>
+
+<pre>
+c := make(chan struct{}) // or buffered channel
+
+go func() { c <- struct{}{} }()
+<-c
+close(c)
+</pre>
+
 <h2 id="Supported_Systems">Supported Systems</h2>
 
 <p>
@@ -389,4 +426,15 @@ func (w *Watchdog) Start() {
 <p>
 The cost of race detection varies by program, but for a typical program, memory
 usage may increase by 5-10x and execution time by 2-20x.
+</p>
+
+<p>
+The race detector currently allocates an extra 8 bytes per <code>defer</code>
+and <code>recover</code> statement. Those extra allocations <a
+href="https://golang.org/issue/26813">are not recovered until the goroutine
+exits</a>. This means that if you have a long-running goroutine that is
+periodically issuing <code>defer</code> and <code>recover</code> calls,
+the program memory usage may grow without bound. These memory allocations
+will not show up in the output of <code>runtime.ReadMemStats</code> or
+<code>runtime/pprof</code>.
 </p>

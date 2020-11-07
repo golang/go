@@ -591,3 +591,14 @@ func BenchmarkDOM(b *testing.B) {
 		document.Get("body").Call("removeChild", div)
 	}
 }
+
+func TestGlobal(t *testing.T) {
+	ident := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		return args[0]
+	})
+	defer ident.Release()
+
+	if got := ident.Invoke(js.Global()); !got.Equal(js.Global()) {
+		t.Errorf("got %#v, want %#v", got, js.Global())
+	}
+}

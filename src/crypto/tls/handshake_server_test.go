@@ -182,7 +182,7 @@ func TestRenegotiationExtension(t *testing.T) {
 		cipherSuites:                 []uint16{TLS_RSA_WITH_RC4_128_SHA},
 	}
 
-	bufChan := make(chan []byte)
+	bufChan := make(chan []byte, 1)
 	c, s := localPipe(t)
 
 	go func() {
@@ -355,7 +355,8 @@ func TestAlertForwarding(t *testing.T) {
 
 	err := Server(s, testConfig).Handshake()
 	s.Close()
-	if e, ok := err.(*net.OpError); !ok || e.Err != error(alertUnknownCA) {
+	var opErr *net.OpError
+	if !errors.As(err, &opErr) || opErr.Err != error(alertUnknownCA) {
 		t.Errorf("Got error: %s; expected: %s", err, error(alertUnknownCA))
 	}
 }
@@ -575,11 +576,12 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		return nil, nil, err
 	}
 
-	connChan := make(chan interface{})
+	connChan := make(chan interface{}, 1)
 	go func() {
 		tcpConn, err := l.Accept()
 		if err != nil {
 			connChan <- err
+			return
 		}
 		connChan <- tcpConn
 	}()
@@ -1494,12 +1496,8 @@ var getConfigForClientTests = []struct {
 		},
 		"",
 		func(config *Config) error {
-			// The value of SessionTicketKey should have been
-			// duplicated into the per-connection Config.
-			for i := range config.SessionTicketKey {
-				if b := config.SessionTicketKey[i]; b != byte(i) {
-					return fmt.Errorf("SessionTicketKey was not duplicated from original Config: byte %d has value %d", i, b)
-				}
+			if config.SessionTicketKey == [32]byte{} {
+				return fmt.Errorf("expected SessionTicketKey to be set")
 			}
 			return nil
 		},
@@ -1520,10 +1518,8 @@ var getConfigForClientTests = []struct {
 		},
 		"",
 		func(config *Config) error {
-			// The session ticket keys should have been duplicated
-			// into the per-connection Config.
-			if l := len(config.sessionTicketKeys); l != 1 {
-				return fmt.Errorf("got len(sessionTicketKeys) == %d, wanted 1", l)
+			if config.SessionTicketKey == [32]byte{} {
+				return fmt.Errorf("expected SessionTicketKey to be set")
 			}
 			return nil
 		},

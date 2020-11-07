@@ -8,8 +8,12 @@ package generate
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -22,6 +26,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -118,6 +123,9 @@ in the file, one at a time. The go generate tool also sets the build
 tag "generate" so that files may be examined by go generate but ignored
 during build.
 
+For packages with invalid code, generate processes only source files with a
+valid package clause.
+
 If any generator returns an error exit status, "go generate" skips
 all further processing for that package.
 
@@ -153,7 +161,7 @@ func init() {
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
-func runGenerate(cmd *base.Command, args []string) {
+func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 	load.IgnoreImports = true
 
 	if generateRunFlag != "" {
@@ -168,7 +176,7 @@ func runGenerate(cmd *base.Command, args []string) {
 
 	// Even if the arguments are .go files, this loop suffices.
 	printed := false
-	for _, pkg := range load.Packages(args) {
+	for _, pkg := range load.PackagesAndErrors(ctx, args) {
 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
@@ -177,18 +185,14 @@ func runGenerate(cmd *base.Command, args []string) {
 			continue
 		}
 
-		pkgName := pkg.Name
-
 		for _, file := range pkg.InternalGoFiles() {
-			if !generate(pkgName, file) {
+			if !generate(file) {
 				break
 			}
 		}
 
-		pkgName += "_test"
-
 		for _, file := range pkg.InternalXGoFiles() {
-			if !generate(pkgName, file) {
+			if !generate(file) {
 				break
 			}
 		}
@@ -196,16 +200,23 @@ func runGenerate(cmd *base.Command, args []string) {
 }
 
 // generate runs the generation directives for a single file.
-func generate(pkg, absFile string) bool {
-	fd, err := os.Open(absFile)
+func generate(absFile string) bool {
+	src, err := ioutil.ReadFile(absFile)
 	if err != nil {
 		log.Fatalf("generate: %s", err)
 	}
-	defer fd.Close()
+
+	// Parse package clause
+	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly)
+	if err != nil {
+		// Invalid package clause - ignore file.
+		return true
+	}
+
 	g := &Generator{
-		r:        fd,
+		r:        bytes.NewReader(src),
 		path:     absFile,
-		pkg:      pkg,
+		pkg:      filePkg.Name.String(),
 		commands: make(map[string][]string),
 	}
 	return g.run()
@@ -438,7 +449,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = append(cfg.OrigEnv, g.env...)
+	cmd.Env = str.StringList(cfg.OrigEnv, g.env)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

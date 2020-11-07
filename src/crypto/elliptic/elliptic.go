@@ -20,7 +20,10 @@ import (
 )
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
-// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+//
+// Note that the point at infinity (0, 0) is not considered on the curve, and
+// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
+// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
@@ -52,11 +55,8 @@ func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
-func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ - 3x + b
-	y2 := new(big.Int).Mul(y, y)
-	y2.Mod(y2, curve.P)
-
+// polynomial returns x³ - 3x + b.
+func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)
 	x3.Mul(x3, x)
 
@@ -67,7 +67,15 @@ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	x3.Add(x3, curve.B)
 	x3.Mod(x3, curve.P)
 
-	return x3.Cmp(y2) == 0
+	return x3
+}
+
+func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+	// y² = x³ - 3x + b
+	y2 := new(big.Int).Mul(y, y)
+	y2.Mod(y2, curve.P)
+
+	return curve.polynomial(x).Cmp(y2) == 0
 }
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
@@ -277,7 +285,7 @@ var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err error) {
 	N := curve.Params().N
 	bitSize := N.BitLen()
-	byteLen := (bitSize + 7) >> 3
+	byteLen := (bitSize + 7) / 8
 	priv = make([]byte, byteLen)
 
 	for x == nil {
@@ -302,36 +310,77 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 	return
 }
 
-// Marshal converts a point into the uncompressed form specified in section 4.3.6 of ANSI X9.62.
+// Marshal converts a point on the curve into the uncompressed form specified in
+// section 4.3.6 of ANSI X9.62.
 func Marshal(curve Curve, x, y *big.Int) []byte {
-	byteLen := (curve.Params().BitSize + 7) >> 3
+	byteLen := (curve.Params().BitSize + 7) / 8
 
 	ret := make([]byte, 1+2*byteLen)
 	ret[0] = 4 // uncompressed point
 
-	xBytes := x.Bytes()
-	copy(ret[1+byteLen-len(xBytes):], xBytes)
-	yBytes := y.Bytes()
-	copy(ret[1+2*byteLen-len(yBytes):], yBytes)
+	x.FillBytes(ret[1 : 1+byteLen])
+	y.FillBytes(ret[1+byteLen : 1+2*byteLen])
+
 	return ret
+}
+
+// MarshalCompressed converts a point on the curve into the compressed form
+// specified in section 4.3.6 of ANSI X9.62.
+func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	compressed := make([]byte, 1+byteLen)
+	compressed[0] = byte(y.Bit(0)) | 2
+	x.FillBytes(compressed[1:])
+	return compressed
 }
 
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair.
 // It is an error if the point is not in uncompressed form or is not on the curve.
 // On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
-	byteLen := (curve.Params().BitSize + 7) >> 3
+	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
-		return
+		return nil, nil
 	}
 	if data[0] != 4 { // uncompressed form
-		return
+		return nil, nil
 	}
 	p := curve.Params().P
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
 	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
 		return nil, nil
+	}
+	if !curve.IsOnCurve(x, y) {
+		return nil, nil
+	}
+	return
+}
+
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
+// It is an error if the point is not in compressed form or is not on the curve.
+// On error, x = nil.
+func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	if len(data) != 1+byteLen {
+		return nil, nil
+	}
+	if data[0] != 2 && data[0] != 3 { // compressed form
+		return nil, nil
+	}
+	p := curve.Params().P
+	x = new(big.Int).SetBytes(data[1:])
+	if x.Cmp(p) >= 0 {
+		return nil, nil
+	}
+	// y² = x³ - 3x + b
+	y = curve.Params().polynomial(x)
+	y = y.ModSqrt(y, p)
+	if y == nil {
+		return nil, nil
+	}
+	if byte(y.Bit(0)) != data[0]&1 {
+		y.Neg(y).Mod(y, p)
 	}
 	if !curve.IsOnCurve(x, y) {
 		return nil, nil
@@ -372,7 +421,12 @@ func initP521() {
 	p521.BitSize = 521
 }
 
-// P256 returns a Curve which implements P-256 (see FIPS 186-3, section D.2.3)
+// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
+// also known as secp256r1 or prime256v1. The CurveParams.Name of this Curve is
+// "P-256".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations are implemented using constant-time algorithms.
 func P256() Curve {
@@ -380,7 +434,11 @@ func P256() Curve {
 	return p256
 }
 
-// P384 returns a Curve which implements P-384 (see FIPS 186-3, section D.2.4)
+// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
+// also known as secp384r1. The CurveParams.Name of this Curve is "P-384".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations do not use constant-time algorithms.
 func P384() Curve {
@@ -388,7 +446,11 @@ func P384() Curve {
 	return p384
 }
 
-// P521 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
+// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
+// also known as secp521r1. The CurveParams.Name of this Curve is "P-521".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations do not use constant-time algorithms.
 func P521() Curve {

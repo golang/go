@@ -290,7 +290,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
 }
 
-var _ fmt.Scanner = &floatZero // *Float must implement fmt.Scanner
+var _ fmt.Scanner = (*Float)(nil) // *Float must implement fmt.Scanner
 
 // Scan is a support routine for fmt.Scanner; it sets z to the value of
 // the scanned number. It accepts formats whose verbs are supported by

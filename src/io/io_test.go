@@ -285,6 +285,9 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	if err != nil {
 		t.Error(err)
 	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
+	}
 	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {
 		t.Errorf("expected ErrShortBuffer got %v", err)
@@ -424,5 +427,33 @@ func TestSectionReader_Size(t *testing.T) {
 		if got := sr.Size(); got != tt.want {
 			t.Errorf("Size = %v; want %v", got, tt.want)
 		}
+	}
+}
+
+// largeWriter returns an invalid count that is larger than the number
+// of bytes provided (issue 39978).
+type largeWriter struct {
+	err error
+}
+
+func (w largeWriter) Write(p []byte) (int, error) {
+	return len(p) + 1, w.err
+}
+
+func TestCopyLargeWriter(t *testing.T) {
+	want := ErrInvalidWrite
+	rb := new(Buffer)
+	wb := largeWriter{}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
+	}
+
+	want = errors.New("largeWriterError")
+	rb = new(Buffer)
+	wb = largeWriter{err: want}
+	rb.WriteString("hello, world.")
+	if _, err := Copy(wb, rb); err != want {
+		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }

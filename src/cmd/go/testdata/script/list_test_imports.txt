@@ -16,6 +16,6 @@ package b_test; import _ "a"
 -- imports.txt --
 a: b
 b:
-b.test: b [b.test], b_test [b.test], os, testing, testing/internal/testdeps
+b.test: b [b.test], b_test [b.test], os, reflect, testing, testing/internal/testdeps
 b [b.test]:
 b_test [b.test]: a [b.test]

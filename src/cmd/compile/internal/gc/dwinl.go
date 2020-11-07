@@ -34,7 +34,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 
 	// Walk progs to build up the InlCalls data structure
 	var prevpos src.XPos
-	for p := fnsym.Func.Text; p != nil; p = p.Link {
+	for p := fnsym.Func().Text; p != nil; p = p.Link {
 		if p.Pos == prevpos {
 			continue
 		}
@@ -150,7 +150,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	start := int64(-1)
 	curii := -1
 	var prevp *obj.Prog
-	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
+	for p := fnsym.Func().Text; p != nil; prevp, p = p, p.Link {
 		if prevp != nil && p.Pos == prevp.Pos {
 			continue
 		}

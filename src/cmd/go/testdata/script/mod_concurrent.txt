@@ -1,6 +1,7 @@
 env GO111MODULE=on
 
 # Concurrent builds should succeed, even if they need to download modules.
+go get -d ./x ./y
 go build ./x &
 go build ./y
 wait

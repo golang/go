@@ -12,8 +12,8 @@ package main
 import (
 	"fmt"
 
-	ssa1 "./p1/ssa"
-	ssa2 "./p2/ssa"
+	ssa1 "issue29612.dir/p1/ssa"
+	ssa2 "issue29612.dir/p2/ssa"
 )
 
 func main() {

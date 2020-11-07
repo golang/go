@@ -33,7 +33,7 @@ grep 'rsc.io/quote v1.5.1$' go.mod
 
 # 'go get all' should consider test dependencies with or without -t.
 cp go.mod.empty go.mod
-go get all
+go get -d all
 grep 'rsc.io/quote v1.5.2$' go.mod
 
 -- go.mod.empty --

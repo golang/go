@@ -7,6 +7,7 @@
 package reflectlite
 
 import (
+	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -338,7 +339,7 @@ func (n name) name() (s string) {
 	}
 	b := (*[4]byte)(unsafe.Pointer(n.bytes))
 
-	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
 	hdr.Data = unsafe.Pointer(&b[3])
 	hdr.Len = int(b[1])<<8 | int(b[2])
 	return s
@@ -350,7 +351,7 @@ func (n name) tag() (s string) {
 		return ""
 	}
 	nl := n.nameLen()
-	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
 	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
 	hdr.Len = tl
 	return s
@@ -382,6 +383,44 @@ const (
 	kindGCProg      = 1 << 6 // Type.gc points to GC program
 	kindMask        = (1 << 5) - 1
 )
+
+// String returns the name of k.
+func (k Kind) String() string {
+	if int(k) < len(kindNames) {
+		return kindNames[k]
+	}
+	return kindNames[0]
+}
+
+var kindNames = []string{
+	Invalid:       "invalid",
+	Bool:          "bool",
+	Int:           "int",
+	Int8:          "int8",
+	Int16:         "int16",
+	Int32:         "int32",
+	Int64:         "int64",
+	Uint:          "uint",
+	Uint8:         "uint8",
+	Uint16:        "uint16",
+	Uint32:        "uint32",
+	Uint64:        "uint64",
+	Uintptr:       "uintptr",
+	Float32:       "float32",
+	Float64:       "float64",
+	Complex64:     "complex64",
+	Complex128:    "complex128",
+	Array:         "array",
+	Chan:          "chan",
+	Func:          "func",
+	Interface:     "interface",
+	Map:           "map",
+	Ptr:           "ptr",
+	Slice:         "slice",
+	String:        "string",
+	Struct:        "struct",
+	UnsafePointer: "unsafe.Pointer",
+}
 
 func (t *uncommonType) methods() []method {
 	if t.mcount == 0 {

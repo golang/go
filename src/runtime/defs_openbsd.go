@@ -7,8 +7,11 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_amd64.h
-GOARCH=386 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_386.h
+GOARCH=amd64 go tool cgo -godefs defs_openbsd.go
+GOARCH=386 go tool cgo -godefs defs_openbsd.go
+GOARCH=arm go tool cgo -godefs defs_openbsd.go
+GOARCH=arm64 go tool cgo -godefs defs_openbsd.go
+GOARCH=mips64 go tool cgo -godefs defs_openbsd.go
 */
 
 package runtime
@@ -21,6 +24,7 @@ package runtime
 #include <sys/unistd.h>
 #include <sys/signal.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 */
 import "C"

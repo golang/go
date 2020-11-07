@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -907,6 +908,9 @@ func testResumption(t *testing.T, version uint16) {
 		if didResume && (hs.PeerCertificates == nil || hs.VerifiedChains == nil) {
 			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifiedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
 		}
+		if got, want := hs.ServerName, clientConfig.ServerName; got != want {
+			t.Errorf("%s: server name %s, want %s", test, got, want)
+		}
 	}
 
 	getTicket := func() []byte {
@@ -937,6 +941,21 @@ func testResumption(t *testing.T, version uint16) {
 		t.Fatal("ticket didn't change after resumption")
 	}
 
+	// An old session ticket can resume, but the server will provide a ticket encrypted with a fresh key.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	testResumeState("ResumeWithOldTicket", true)
+	if bytes.Equal(ticket[:ticketKeyNameLen], getTicket()[:ticketKeyNameLen]) {
+		t.Fatal("old first ticket matches the fresh one")
+	}
+
+	// Now the session tickey key is expired, so a full handshake should occur.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	testResumeState("ResumeWithExpiredTicket", false)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("expired first ticket matches the fresh one")
+	}
+
+	serverConfig.Time = func() time.Time { return time.Now() } // reset the time back
 	key1 := randomKey()
 	serverConfig.SetSessionTicketKeys([][32]byte{key1})
 
@@ -951,6 +970,39 @@ func testResumption(t *testing.T, version uint16) {
 		t.Fatal("new ticket wasn't included while resuming")
 	}
 	testResumeState("KeyChangeFinish", true)
+
+	// Age the session ticket a bit, but not yet expired.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	testResumeState("OldSessionTicket", true)
+	ticket = getTicket()
+	// Expire the session ticket, which would force a full handshake.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	testResumeState("ExpiredSessionTicket", false)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("new ticket wasn't provided after old ticket expired")
+	}
+
+	// Age the session ticket a bit at a time, but don't expire it.
+	d := 0 * time.Hour
+	for i := 0; i < 13; i++ {
+		d += 12 * time.Hour
+		serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+		testResumeState("OldSessionTicket", true)
+	}
+	// Expire it (now a little more than 7 days) and make sure a full
+	// handshake occurs for TLS 1.2. Resumption should still occur for
+	// TLS 1.3 since the client should be using a fresh ticket sent over
+	// by the server.
+	d += 12 * time.Hour
+	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	if version == VersionTLS13 {
+		testResumeState("ExpiredSessionTicket", true)
+	} else {
+		testResumeState("ExpiredSessionTicket", false)
+	}
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("new ticket wasn't provided after old ticket expired")
+	}
 
 	// Reset serverConfig to ensure that calling SetSessionTicketKeys
 	// before the serverConfig is used works.
@@ -1413,6 +1465,228 @@ func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 	}
 }
 
+func TestVerifyConnection(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testVerifyConnection(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyConnection(t, VersionTLS13) })
+}
+
+func testVerifyConnection(t *testing.T, version uint16) {
+	checkFields := func(c ConnectionState, called *int, errorType string) error {
+		if c.Version != version {
+			return fmt.Errorf("%s: got Version %v, want %v", errorType, c.Version, version)
+		}
+		if c.HandshakeComplete {
+			return fmt.Errorf("%s: got HandshakeComplete, want false", errorType)
+		}
+		if c.ServerName != "example.golang" {
+			return fmt.Errorf("%s: got ServerName %s, want %s", errorType, c.ServerName, "example.golang")
+		}
+		if c.NegotiatedProtocol != "protocol1" {
+			return fmt.Errorf("%s: got NegotiatedProtocol %s, want %s", errorType, c.NegotiatedProtocol, "protocol1")
+		}
+		if c.CipherSuite == 0 {
+			return fmt.Errorf("%s: got CipherSuite 0, want non-zero", errorType)
+		}
+		wantDidResume := false
+		if *called == 2 { // if this is the second time, then it should be a resumption
+			wantDidResume = true
+		}
+		if c.DidResume != wantDidResume {
+			return fmt.Errorf("%s: got DidResume %t, want %t", errorType, c.DidResume, wantDidResume)
+		}
+		return nil
+	}
+
+	tests := []struct {
+		name            string
+		configureServer func(*Config, *int)
+		configureClient func(*Config, *int)
+	}{
+		{
+			name: "RequireAndVerifyClientCert",
+			configureServer: func(config *Config, called *int) {
+				config.ClientAuth = RequireAndVerifyClientCert
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					if l := len(c.PeerCertificates); l != 1 {
+						return fmt.Errorf("server: got len(PeerCertificates) = %d, wanted 1", l)
+					}
+					if len(c.VerifiedChains) == 0 {
+						return fmt.Errorf("server: got len(VerifiedChains) = 0, wanted non-zero")
+					}
+					return checkFields(c, called, "server")
+				}
+			},
+			configureClient: func(config *Config, called *int) {
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					if l := len(c.PeerCertificates); l != 1 {
+						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
+					}
+					if len(c.VerifiedChains) == 0 {
+						return fmt.Errorf("client: got len(VerifiedChains) = 0, wanted non-zero")
+					}
+					if c.DidResume {
+						return nil
+						// The SCTs and OCSP Responce are dropped on resumption.
+						// See http://golang.org/issue/39075.
+					}
+					if len(c.OCSPResponse) == 0 {
+						return fmt.Errorf("client: got len(OCSPResponse) = 0, wanted non-zero")
+					}
+					if len(c.SignedCertificateTimestamps) == 0 {
+						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
+					}
+					return checkFields(c, called, "client")
+				}
+			},
+		},
+		{
+			name: "InsecureSkipVerify",
+			configureServer: func(config *Config, called *int) {
+				config.ClientAuth = RequireAnyClientCert
+				config.InsecureSkipVerify = true
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					if l := len(c.PeerCertificates); l != 1 {
+						return fmt.Errorf("server: got len(PeerCertificates) = %d, wanted 1", l)
+					}
+					if c.VerifiedChains != nil {
+						return fmt.Errorf("server: got Verified Chains %v, want nil", c.VerifiedChains)
+					}
+					return checkFields(c, called, "server")
+				}
+			},
+			configureClient: func(config *Config, called *int) {
+				config.InsecureSkipVerify = true
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					if l := len(c.PeerCertificates); l != 1 {
+						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
+					}
+					if c.VerifiedChains != nil {
+						return fmt.Errorf("server: got Verified Chains %v, want nil", c.VerifiedChains)
+					}
+					if c.DidResume {
+						return nil
+						// The SCTs and OCSP Responce are dropped on resumption.
+						// See http://golang.org/issue/39075.
+					}
+					if len(c.OCSPResponse) == 0 {
+						return fmt.Errorf("client: got len(OCSPResponse) = 0, wanted non-zero")
+					}
+					if len(c.SignedCertificateTimestamps) == 0 {
+						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
+					}
+					return checkFields(c, called, "client")
+				}
+			},
+		},
+		{
+			name: "NoClientCert",
+			configureServer: func(config *Config, called *int) {
+				config.ClientAuth = NoClientCert
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					return checkFields(c, called, "server")
+				}
+			},
+			configureClient: func(config *Config, called *int) {
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					return checkFields(c, called, "client")
+				}
+			},
+		},
+		{
+			name: "RequestClientCert",
+			configureServer: func(config *Config, called *int) {
+				config.ClientAuth = RequestClientCert
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					return checkFields(c, called, "server")
+				}
+			},
+			configureClient: func(config *Config, called *int) {
+				config.Certificates = nil // clear the client cert
+				config.VerifyConnection = func(c ConnectionState) error {
+					*called++
+					if l := len(c.PeerCertificates); l != 1 {
+						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
+					}
+					if len(c.VerifiedChains) == 0 {
+						return fmt.Errorf("client: got len(VerifiedChains) = 0, wanted non-zero")
+					}
+					if c.DidResume {
+						return nil
+						// The SCTs and OCSP Responce are dropped on resumption.
+						// See http://golang.org/issue/39075.
+					}
+					if len(c.OCSPResponse) == 0 {
+						return fmt.Errorf("client: got len(OCSPResponse) = 0, wanted non-zero")
+					}
+					if len(c.SignedCertificateTimestamps) == 0 {
+						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
+					}
+					return checkFields(c, called, "client")
+				}
+			},
+		},
+	}
+	for _, test := range tests {
+		issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+		if err != nil {
+			panic(err)
+		}
+		rootCAs := x509.NewCertPool()
+		rootCAs.AddCert(issuer)
+
+		var serverCalled, clientCalled int
+
+		serverConfig := &Config{
+			MaxVersion:   version,
+			Certificates: []Certificate{testConfig.Certificates[0]},
+			ClientCAs:    rootCAs,
+			NextProtos:   []string{"protocol1"},
+		}
+		serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+		serverConfig.Certificates[0].OCSPStaple = []byte("dummy ocsp")
+		test.configureServer(serverConfig, &serverCalled)
+
+		clientConfig := &Config{
+			MaxVersion:         version,
+			ClientSessionCache: NewLRUClientSessionCache(32),
+			RootCAs:            rootCAs,
+			ServerName:         "example.golang",
+			Certificates:       []Certificate{testConfig.Certificates[0]},
+			NextProtos:         []string{"protocol1"},
+		}
+		test.configureClient(clientConfig, &clientCalled)
+
+		testHandshakeState := func(name string, didResume bool) {
+			_, hs, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatalf("%s: handshake failed: %s", name, err)
+			}
+			if hs.DidResume != didResume {
+				t.Errorf("%s: resumed: %v, expected: %v", name, hs.DidResume, didResume)
+			}
+			wantCalled := 1
+			if didResume {
+				wantCalled = 2 // resumption would mean this is the second time it was called in this test
+			}
+			if clientCalled != wantCalled {
+				t.Errorf("%s: expected client VerifyConnection called %d times, did %d times", name, wantCalled, clientCalled)
+			}
+			if serverCalled != wantCalled {
+				t.Errorf("%s: expected server VerifyConnection called %d times, did %d times", name, wantCalled, serverCalled)
+			}
+		}
+		testHandshakeState(fmt.Sprintf("%s-FullHandshake", test.name), false)
+		testHandshakeState(fmt.Sprintf("%s-Resumption", test.name), true)
+	}
+}
+
 func TestVerifyPeerCertificate(t *testing.T) {
 	t.Run("TLSv12", func(t *testing.T) { testVerifyPeerCertificate(t, VersionTLS12) })
 	t.Run("TLSv13", func(t *testing.T) { testVerifyPeerCertificate(t, VersionTLS13) })
@@ -1431,12 +1705,25 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
-	verifyCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+	verifyPeerCertificateCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 		if l := len(rawCerts); l != 1 {
 			return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 		}
 		if len(validatedChains) == 0 {
 			return errors.New("got len(validatedChains) = 0, wanted non-zero")
+		}
+		*called = true
+		return nil
+	}
+	verifyConnectionCallback := func(called *bool, isClient bool, c ConnectionState) error {
+		if l := len(c.PeerCertificates); l != 1 {
+			return fmt.Errorf("got len(PeerCertificates) = %d, wanted 1", l)
+		}
+		if len(c.VerifiedChains) == 0 {
+			return fmt.Errorf("got len(VerifiedChains) = 0, wanted non-zero")
+		}
+		if isClient && len(c.OCSPResponse) == 0 {
+			return fmt.Errorf("got len(OCSPResponse) = 0, wanted non-zero")
 		}
 		*called = true
 		return nil
@@ -1451,13 +1738,13 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
 				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyCallback(called, rawCerts, validatedChains)
+					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
 				}
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
 				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyCallback(called, rawCerts, validatedChains)
+					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
 				}
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
@@ -1538,6 +1825,116 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 				}
 			},
 		},
+		{
+			configureServer: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = func(c ConnectionState) error {
+					return verifyConnectionCallback(called, false, c)
+				}
+			},
+			configureClient: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = func(c ConnectionState) error {
+					return verifyConnectionCallback(called, true, c)
+				}
+			},
+			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
+				if clientErr != nil {
+					t.Errorf("test[%d]: client handshake failed: %v", testNo, clientErr)
+				}
+				if serverErr != nil {
+					t.Errorf("test[%d]: server handshake failed: %v", testNo, serverErr)
+				}
+				if !clientCalled {
+					t.Errorf("test[%d]: client did not call callback", testNo)
+				}
+				if !serverCalled {
+					t.Errorf("test[%d]: server did not call callback", testNo)
+				}
+			},
+		},
+		{
+			configureServer: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = func(c ConnectionState) error {
+					return sentinelErr
+				}
+			},
+			configureClient: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = nil
+			},
+			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
+				if serverErr != sentinelErr {
+					t.Errorf("#%d: got server error %v, wanted sentinelErr", testNo, serverErr)
+				}
+			},
+		},
+		{
+			configureServer: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = nil
+			},
+			configureClient: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyConnection = func(c ConnectionState) error {
+					return sentinelErr
+				}
+			},
+			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
+				if clientErr != sentinelErr {
+					t.Errorf("#%d: got client error %v, wanted sentinelErr", testNo, clientErr)
+				}
+			},
+		},
+		{
+			configureServer: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
+				}
+				config.VerifyConnection = func(c ConnectionState) error {
+					return sentinelErr
+				}
+			},
+			configureClient: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyPeerCertificate = nil
+				config.VerifyConnection = nil
+			},
+			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
+				if serverErr != sentinelErr {
+					t.Errorf("#%d: got server error %v, wanted sentinelErr", testNo, serverErr)
+				}
+				if !serverCalled {
+					t.Errorf("test[%d]: server did not call callback", testNo)
+				}
+			},
+		},
+		{
+			configureServer: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyPeerCertificate = nil
+				config.VerifyConnection = nil
+			},
+			configureClient: func(config *Config, called *bool) {
+				config.InsecureSkipVerify = false
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
+				}
+				config.VerifyConnection = func(c ConnectionState) error {
+					return sentinelErr
+				}
+			},
+			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
+				if clientErr != sentinelErr {
+					t.Errorf("#%d: got client error %v, wanted sentinelErr", testNo, clientErr)
+				}
+				if !clientCalled {
+					t.Errorf("test[%d]: client did not call callback", testNo)
+				}
+			},
+		},
 	}
 
 	for i, test := range tests {
@@ -1553,6 +1950,11 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			config.ClientCAs = rootCAs
 			config.Time = now
 			config.MaxVersion = version
+			config.Certificates = make([]Certificate, 1)
+			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
+			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].SignedCertificateTimestamps = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+			config.Certificates[0].OCSPStaple = []byte("dummy ocsp")
 			test.configureServer(config, &serverCalled)
 
 			err = Server(s, config).Handshake()
@@ -1748,7 +2150,7 @@ func TestHandshakeRace(t *testing.T) {
 
 		startWrite := make(chan struct{})
 		startRead := make(chan struct{})
-		readDone := make(chan struct{})
+		readDone := make(chan struct{}, 1)
 
 		client := Client(c, testConfig)
 		go func() {
@@ -1982,5 +2384,130 @@ func TestCloseClientConnectionOnIdleServer(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Error expected, but no error returned")
+	}
+}
+
+func testDowngradeCanary(t *testing.T, clientVersion, serverVersion uint16) error {
+	defer func() { testingOnlyForceDowngradeCanary = false }()
+	testingOnlyForceDowngradeCanary = true
+
+	clientConfig := testConfig.Clone()
+	clientConfig.MaxVersion = clientVersion
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = serverVersion
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	return err
+}
+
+func TestDowngradeCanary(t *testing.T) {
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS12); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.2 was not detected")
+	}
+	if testing.Short() {
+		t.Skip("skipping the rest of the checks in short mode")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS11); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.1 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS10); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.0 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS11); err == nil {
+		t.Errorf("downgrade from TLS 1.2 to TLS 1.1 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS10); err == nil {
+		t.Errorf("downgrade from TLS 1.2 to TLS 1.0 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS13); err != nil {
+		t.Errorf("server unexpectedly sent downgrade canary for TLS 1.3")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS12); err != nil {
+		t.Errorf("client didn't ignore expected TLS 1.2 canary")
+	}
+	if err := testDowngradeCanary(t, VersionTLS11, VersionTLS11); err != nil {
+		t.Errorf("client unexpectedly reacted to a canary in TLS 1.1")
+	}
+	if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
+		t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
+	}
+}
+
+func TestResumptionKeepsOCSPAndSCT(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS13) })
+}
+
+func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		t.Fatalf("failed to parse test issuer")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(issuer)
+	clientConfig := &Config{
+		MaxVersion:         ver,
+		ClientSessionCache: NewLRUClientSessionCache(32),
+		ServerName:         "example.golang",
+		RootCAs:            roots,
+	}
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = ver
+	serverConfig.Certificates[0].OCSPStaple = []byte{1, 2, 3}
+	serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{{4, 5, 6}}
+
+	_, ccs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	// after a new session we expect to see OCSPResponse and
+	// SignedCertificateTimestamps populated as usual
+	if !bytes.Equal(ccs.OCSPResponse, serverConfig.Certificates[0].OCSPStaple) {
+		t.Errorf("client ConnectionState contained unexpected OCSPResponse: wanted %v, got %v",
+			serverConfig.Certificates[0].OCSPStaple, ccs.OCSPResponse)
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps: wanted %v, got %v",
+			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
+	}
+
+	// if the server doesn't send any SCTs, repopulate the old SCTs
+	oldSCTs := serverConfig.Certificates[0].SignedCertificateTimestamps
+	serverConfig.Certificates[0].SignedCertificateTimestamps = nil
+	_, ccs, err = testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !ccs.DidResume {
+		t.Fatalf("expected session to be resumed")
+	}
+	// after a resumed session we also expect to see OCSPResponse
+	// and SignedCertificateTimestamps populated
+	if !bytes.Equal(ccs.OCSPResponse, serverConfig.Certificates[0].OCSPStaple) {
+		t.Errorf("client ConnectionState contained unexpected OCSPResponse after resumption: wanted %v, got %v",
+			serverConfig.Certificates[0].OCSPStaple, ccs.OCSPResponse)
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, oldSCTs) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
+			oldSCTs, ccs.SignedCertificateTimestamps)
+	}
+
+	//  Only test overriding the SCTs for TLS 1.2, since in 1.3
+	// the server won't send the message containing them
+	if ver == VersionTLS13 {
+		return
+	}
+
+	// if the server changes the SCTs it sends, they should override the saved SCTs
+	serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{{7, 8, 9}}
+	_, ccs, err = testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !ccs.DidResume {
+		t.Fatalf("expected session to be resumed")
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
+			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
 	}
 }

@@ -42,6 +42,48 @@ func SubMem(arr []int, b, c, d int) int {
 	return arr[0] - arr[1]
 }
 
+func SubFromConst(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	b := 40 - a
+	return b
+}
+
+func SubFromConstNeg(a int) int {
+	// ppc64le: `ADD\t[$]40,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]40,\sR[0-9]+,\sR`
+	c := 40 - (-a)
+	return c
+}
+
+func SubSubFromConst(a int) int {
+	// ppc64le: `ADD\t[$]20,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]20,\sR[0-9]+,\sR`
+	c := 40 - (20 - a)
+	return c
+}
+
+func AddSubFromConst(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]60,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]60,\sR`
+	c := 40 + (20 - a)
+	return c
+}
+
+func NegSubFromConst(a int) int {
+	// ppc64le: `ADD\t[$]-20,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]-20,\sR[0-9]+,\sR`
+	c := -(20 - a)
+	return c
+}
+
+func NegAddFromConstNeg(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	c := -(-40 + a)
+	return c
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
@@ -71,7 +113,13 @@ func Mul_96(n int) int {
 	// 386:`SHLL\t[$]5`,`LEAL\t\(.*\)\(.*\*2\),`,-`IMULL`
 	// arm64:`LSL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
 	// arm:`SLL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
+	// s390x:`SLD\t[$]5`,`SLD\t[$]6`,-`MULLD`
 	return n * 96
+}
+
+func Mul_n120(n int) int {
+	// s390x:`SLD\t[$]3`,`SLD\t[$]7`,-`MULLD`
+	return n * -120
 }
 
 func MulMemSrc(a []uint32, b []float32) {
@@ -247,16 +295,20 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
 	// arm64:"MUL","ADD\t[$]3074457345618258602","ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
-	// ppc64:"MULLD","ADD","ROTL\t[$]63"
-	// ppc64le:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64/power9:"MADDLD","ROTL\t[$]63"
+	// ppc64le/power9:"MADDLD","ROTL\t[$]63"
 	evenS := n2%6 == 0
 
 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
 	// arm64:"MUL","ADD\t[$]485440633518672410",-"ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]113025455",-".*udiv"
-	// ppc64:"MULLD","ADD",-"ROTL"
-	// ppc64le:"MULLD","ADD",-"ROTL"
+	// ppc64/power8:"MULLD","ADD",-"ROTL"
+	// ppc64/power9:"MADDLD",-"ROTL"
+	// ppc64le/power8:"MULLD","ADD",-"ROTL"
+	// ppc64le/power9:"MADDLD",-"ROTL"
 	oddS := n2%19 == 0
 
 	return evenU, oddU, evenS, oddS
@@ -450,4 +502,44 @@ func addSpecial(a, b, c uint32) (uint32, uint32, uint32) {
 	// amd64:`SUBL.*-128`
 	c += 128
 	return a, b, c
+}
+
+// Divide -> shift rules usually require fixup for negative inputs.
+// If the input is non-negative, make sure the fixup is eliminated.
+func divInt(v int64) int64 {
+	if v < 0 {
+		return 0
+	}
+	// amd64:-`.*SARQ.*63,`, -".*SHRQ", ".*SARQ.*[$]9,"
+	return v / 512
+}
+
+// The reassociate rules "x - (z + C) -> (x - z) - C" and
+// "(z + C) -x -> C + (z - x)" can optimize the following cases.
+func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
+	// arm64:"SUB","ADD\t[$]2"
+	r0 := (i0 + 3) - (j0 + 1)
+	// arm64:"SUB","SUB\t[$]4"
+	r1 := (i1 - 3) - (j1 + 1)
+	// arm64:"SUB","ADD\t[$]4"
+	r2 := (i2 + 3) - (j2 - 1)
+	// arm64:"SUB","SUB\t[$]2"
+	r3 := (i3 - 3) - (j3 - 1)
+	return r0, r1, r2, r3
+}
+
+// The reassociate rules "x - (z + C) -> (x - z) - C" and
+// "(C - z) - x -> C - (z + x)" can optimize the following cases.
+func constantFold2(i0, j0, i1, j1 int) (int, int) {
+	// arm64:"ADD","MOVD\t[$]2","SUB"
+	r0 := (3 - i0) - (j0 + 1)
+	// arm64:"ADD","MOVD\t[$]4","SUB"
+	r1 := (3 - i1) - (j1 - 1)
+	return r0, r1
+}
+
+func constantFold3(i, j int) int {
+	// arm64: "MOVD\t[$]30","MUL",-"ADD",-"LSL"
+	r := (5 * i) * (6 * j)
+	return r
 }

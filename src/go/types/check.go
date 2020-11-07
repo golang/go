@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -84,8 +85,8 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files            []*ast.File                       // package files
-	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+	files            []*ast.File                             // package files
+	unusedDotImports map[*Scope]map[*Package]*ast.ImportSpec // unused dot-imported packages
 
 	firstErr error                 // first error encountered
 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
@@ -104,18 +105,18 @@ type Checker struct {
 
 // addUnusedImport adds the position of a dot-imported package
 // pkg to the map of dot imports for the given file scope.
-func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos token.Pos) {
+func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, spec *ast.ImportSpec) {
 	mm := check.unusedDotImports
 	if mm == nil {
-		mm = make(map[*Scope]map[*Package]token.Pos)
+		mm = make(map[*Scope]map[*Package]*ast.ImportSpec)
 		check.unusedDotImports = mm
 	}
 	m := mm[scope]
 	if m == nil {
-		m = make(map[*Package]token.Pos)
+		m = make(map[*Package]*ast.ImportSpec)
 		mm[scope] = m
 	}
-	m[pkg] = pos
+	m[pkg] = spec
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -216,7 +217,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name.Pos(), "invalid package name _")
+				check.errorf(file.Name, _BlankPkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -224,7 +225,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			check.errorf(atPos(file.Package), _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}
@@ -247,7 +248,13 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
+var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+		return errBadCgo
+	}
+
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)
@@ -316,7 +323,6 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if mode == invalid {
 		return // omit
 	}
-	assert(typ != nil)
 	if mode == constant_ {
 		assert(val != nil)
 		assert(typ == Typ[Invalid] || isConstType(typ))
@@ -349,7 +355,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

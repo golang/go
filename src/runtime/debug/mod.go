@@ -47,9 +47,27 @@ func readBuildInfo(data string) (*BuildInfo, bool) {
 		repLine  = "=>\t"
 	)
 
-	info := &BuildInfo{}
+	readEntryFirstLine := func(elem []string) (Module, bool) {
+		if len(elem) != 2 && len(elem) != 3 {
+			return Module{}, false
+		}
+		sum := ""
+		if len(elem) == 3 {
+			sum = elem[2]
+		}
+		return Module{
+			Path:    elem[0],
+			Version: elem[1],
+			Sum:     sum,
+		}, true
+	}
 
-	var line string
+	var (
+		info = &BuildInfo{}
+		last *Module
+		line string
+		ok   bool
+	)
 	// Reverse of cmd/go/internal/modload.PackageBuildInfo
 	for len(data) > 0 {
 		i := strings.IndexByte(data, '\n')
@@ -63,42 +81,33 @@ func readBuildInfo(data string) (*BuildInfo, bool) {
 			info.Path = elem
 		case strings.HasPrefix(line, modLine):
 			elem := strings.Split(line[len(modLine):], "\t")
-			if len(elem) != 3 {
+			last = &info.Main
+			*last, ok = readEntryFirstLine(elem)
+			if !ok {
 				return nil, false
-			}
-			info.Main = Module{
-				Path:    elem[0],
-				Version: elem[1],
-				Sum:     elem[2],
 			}
 		case strings.HasPrefix(line, depLine):
 			elem := strings.Split(line[len(depLine):], "\t")
-			if len(elem) != 2 && len(elem) != 3 {
+			last = new(Module)
+			info.Deps = append(info.Deps, last)
+			*last, ok = readEntryFirstLine(elem)
+			if !ok {
 				return nil, false
 			}
-			sum := ""
-			if len(elem) == 3 {
-				sum = elem[2]
-			}
-			info.Deps = append(info.Deps, &Module{
-				Path:    elem[0],
-				Version: elem[1],
-				Sum:     sum,
-			})
 		case strings.HasPrefix(line, repLine):
 			elem := strings.Split(line[len(repLine):], "\t")
 			if len(elem) != 3 {
 				return nil, false
 			}
-			last := len(info.Deps) - 1
-			if last < 0 {
+			if last == nil {
 				return nil, false
 			}
-			info.Deps[last].Replace = &Module{
+			last.Replace = &Module{
 				Path:    elem[0],
 				Version: elem[1],
 				Sum:     elem[2],
 			}
+			last = nil
 		}
 	}
 	return info, true

@@ -1,0 +1,15 @@
+# Plugins are only supported on linux,cgo (!riscv64) and darwin,cgo.
+[!linux] [!darwin] skip
+[linux] [riscv64] skip
+[!cgo] skip
+
+go build -n testdep
+! go build -buildmode=plugin testdep
+stderr '-buildmode=plugin requires exactly one main package'
+
+-- go.mod --
+module testdep
+
+go 1.16
+-- testdep.go --
+package p

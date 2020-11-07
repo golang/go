@@ -182,11 +182,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		i := v.Aux.(s390x.RotateParams)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
-		p.RestArgs = []obj.Addr{
+		p.SetRestArgs([]obj.Addr{
 			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
 			{Type: obj.TYPE_REG, Reg: r2},
-		}
+		})
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+	case ssa.OpS390XRISBGZ:
+		r1 := v.Reg()
+		r2 := v.Args[0].Reg()
+		i := v.Aux.(s390x.RotateParams)
+		p := s.Prog(v.Op.Asm())
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
+		p.SetRestArgs([]obj.Addr{
+			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
+			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
+			{Type: obj.TYPE_REG, Reg: r2},
+		})
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
 	case ssa.OpS390XADD, ssa.OpS390XADDW,
 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
@@ -234,9 +246,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	// 2-address opcode arithmetic
 	case ssa.OpS390XMULLD, ssa.OpS390XMULLW,
 		ssa.OpS390XMULHD, ssa.OpS390XMULHDU,
-		ssa.OpS390XFADDS, ssa.OpS390XFADD, ssa.OpS390XFSUBS, ssa.OpS390XFSUB,
 		ssa.OpS390XFMULS, ssa.OpS390XFMUL, ssa.OpS390XFDIVS, ssa.OpS390XFDIV:
 		r := v.Reg()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
+	case ssa.OpS390XFSUBS, ssa.OpS390XFSUB,
+		ssa.OpS390XFADDS, ssa.OpS390XFADD:
+		r := v.Reg0()
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
@@ -332,8 +350,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				n.To.Reg = dividend
 			}
 
-			j.To.Val = n
-			j2.To.Val = s.Pc()
+			j.To.SetTarget(n)
+			j2.To.SetTarget(s.Pc())
 		}
 	case ssa.OpS390XADDconst, ssa.OpS390XADDWconst:
 		opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
@@ -354,7 +372,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XSLDconst, ssa.OpS390XSLWconst,
 		ssa.OpS390XSRDconst, ssa.OpS390XSRWconst,
 		ssa.OpS390XSRADconst, ssa.OpS390XSRAWconst,
-		ssa.OpS390XRLLGconst, ssa.OpS390XRLLconst:
+		ssa.OpS390XRLLconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -498,6 +516,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
 		ssa.OpS390XCEFBRA, ssa.OpS390XCDFBRA, ssa.OpS390XCEGBRA, ssa.OpS390XCDGBRA,
 		ssa.OpS390XCFEBRA, ssa.OpS390XCFDBRA, ssa.OpS390XCGEBRA, ssa.OpS390XCGDBRA,
+		ssa.OpS390XCELFBR, ssa.OpS390XCDLFBR, ssa.OpS390XCELGBR, ssa.OpS390XCDLGBR,
+		ssa.OpS390XCLFEBR, ssa.OpS390XCLFDBR, ssa.OpS390XCLGEBR, ssa.OpS390XCLGDBR,
 		ssa.OpS390XLDEBR, ssa.OpS390XLEDBR,
 		ssa.OpS390XFNEG, ssa.OpS390XFNEGS,
 		ssa.OpS390XLPDFR, ssa.OpS390XLNDFR:
@@ -603,6 +623,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpS390XLTDBR, ssa.OpS390XLTEBR:
+		opregreg(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[0].Reg())
 	case ssa.OpS390XInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:
@@ -751,6 +773,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
+	case ssa.OpS390XLAN, ssa.OpS390XLAO:
+		// LA(N|O) Ry, TMP, 0(Rx)
+		op := s.Prog(v.Op.Asm())
+		op.From.Type = obj.TYPE_REG
+		op.From.Reg = v.Args[1].Reg()
+		op.Reg = s390x.REGTMP
+		op.To.Type = obj.TYPE_MEM
+		op.To.Reg = v.Args[0].Reg()
 	case ssa.OpS390XLANfloor, ssa.OpS390XLAOfloor:
 		r := v.Args[0].Reg() // clobbered, assumed R1 in comments
 
@@ -895,7 +925,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
 		p.Reg = s390x.REG_R3
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: 0}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
 		if b.Succs[0].Block() != next {
 			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
@@ -938,17 +968,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()})
 	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))})
 	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))})
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

@@ -83,6 +83,7 @@ var arches = map[string]func(){
 	"mips64x": func() { genMIPS(true) },
 	"mipsx":   func() { genMIPS(false) },
 	"ppc64x":  genPPC64,
+	"riscv64": genRISCV64,
 	"s390x":   genS390X,
 	"wasm":    genWasm,
 }
@@ -125,12 +126,13 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {
 	fmted := fmt.Sprintf(f, args...)
-	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
+	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }
 
 func label(l string) {
@@ -188,7 +190,6 @@ func (l *layout) restore() {
 
 func gen386() {
 	p("PUSHFL")
-
 	// Save general purpose registers.
 	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
@@ -197,12 +198,6 @@ func gen386() {
 		}
 		l.add("MOVL", reg, 4)
 	}
-
-	// Save the 387 state.
-	l.addSpecial(
-		"FSAVE %d(SP)\nFLDCW runtime·controlWord64(SB)",
-		"FRSTOR %d(SP)",
-		108)
 
 	// Save SSE state only if supported.
 	lSSE := layout{stack: l.stack, sp: "SP"}
@@ -251,6 +246,18 @@ func genAMD64() {
 	p("ADJSP $%d", l.stack)
 	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
 	p("NOP SP")
+
+	// Apparently, the signal handling code path in darwin kernel leaves
+	// the upper bits of Y registers in a dirty state, which causes
+	// many SSE operations (128-bit and narrower) become much slower.
+	// Clear the upper bits to get to a clean state. See issue #37174.
+	// It is safe here as Go code don't use the upper bits of Y registers.
+	p("#ifdef GOOS_darwin")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
+	p("JE 2(PC)")
+	p("VZEROUPPER")
+	p("#endif")
+
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore()
@@ -342,10 +349,10 @@ func genARM64() {
 	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
 	p("SUB $8, RSP, R29")  // set up new frame pointer
 	p("#endif")
-	// On darwin, save the LR again after decrementing SP. We run the
-	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
+	// On iOS, save the LR again after decrementing SP. We run the
+	// signal handler on the G stack (as it doesn't support sigaltstack),
 	// so any writes below SP may be clobbered.
-	p("#ifdef GOOS_darwin")
+	p("#ifdef GOOS_ios")
 	p("MOVD R30, (RSP)")
 	p("#endif")
 
@@ -369,6 +376,7 @@ func genMIPS(_64bit bool) {
 	sub := "SUB"
 	r28 := "R28"
 	regsize := 4
+	softfloat := "GOMIPS_softfloat"
 	if _64bit {
 		mov = "MOVV"
 		movf = "MOVD"
@@ -376,6 +384,7 @@ func genMIPS(_64bit bool) {
 		sub = "SUBV"
 		r28 = "RSB"
 		regsize = 8
+		softfloat = "GOMIPS64_softfloat"
 	}
 
 	// Add integer registers R1-R22, R24-R25, R28
@@ -398,28 +407,36 @@ func genMIPS(_64bit bool) {
 		mov+" LO, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, LO",
 		regsize)
+
 	// Add floating point control/status register FCR31 (FCR0-FCR30 are irrelevant)
-	l.addSpecial(
+	var lfp = layout{sp: "R29", stack: l.stack}
+	lfp.addSpecial(
 		mov+" FCR31, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, FCR31",
 		regsize)
 	// Add floating point registers F0-F31.
 	for i := 0; i <= 31; i++ {
 		reg := fmt.Sprintf("F%d", i)
-		l.add(movf, reg, regsize)
+		lfp.add(movf, reg, regsize)
 	}
 
 	// allocate frame, save PC of interrupted instruction (in LR)
-	p(mov+" R31, -%d(R29)", l.stack)
-	p(sub+" $%d, R29", l.stack)
+	p(mov+" R31, -%d(R29)", lfp.stack)
+	p(sub+" $%d, R29", lfp.stack)
 
 	l.save()
+	p("#ifndef %s", softfloat)
+	lfp.save()
+	p("#endif")
 	p("CALL ·asyncPreempt2(SB)")
+	p("#ifndef %s", softfloat)
+	lfp.restore()
+	p("#endif")
 	l.restore()
 
-	p(mov+" %d(R29), R31", l.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
-	p(mov + " (R29), R23")              // load PC to REGTMP
-	p(add+" $%d, R29", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
+	p(mov+" %d(R29), R31", lfp.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p(mov + " (R29), R23")                // load PC to REGTMP
+	p(add+" $%d, R29", lfp.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R23)")
 }
 
@@ -476,6 +493,36 @@ func genPPC64() {
 	p("MOVD 32(R1), R31")        // restore R31
 	p("ADD $%d, R1", l.stack+32) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (CTR)")
+}
+
+func genRISCV64() {
+	// X0 (zero), X1 (LR), X2 (SP), X4 (TP), X27 (g), X31 (TMP) are special.
+	var l = layout{sp: "X2", stack: 8}
+
+	// Add integer registers (X3, X5-X26, X28-30).
+	for i := 3; i < 31; i++ {
+		if i == 4 || i == 27 {
+			continue
+		}
+		reg := fmt.Sprintf("X%d", i)
+		l.add("MOV", reg, 8)
+	}
+
+	// Add floating point registers (F0-F31).
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add("MOVD", reg, 8)
+	}
+
+	p("MOV X1, -%d(X2)", l.stack)
+	p("ADD $-%d, X2", l.stack)
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+	p("MOV %d(X2), X1", l.stack)
+	p("MOV (X2), X31")
+	p("ADD $%d, X2", l.stack+8)
+	p("JMP (X31)")
 }
 
 func genS390X() {

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -88,7 +87,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 // The first call to ReadContinuedLine will return "Line 1 continued..."
 // and the second will return "Line 2".
 //
-// A line consisting of only white space is never continued.
+// Empty lines are never continued.
 //
 func (r *Reader) ReadContinuedLine() (string, error) {
 	line, err := r.readContinuedLineSlice(noValidation)
@@ -426,7 +425,7 @@ func (r *Reader) closeDot() {
 //
 // See the documentation for the DotReader method for details about dot-encoding.
 func (r *Reader) ReadDotBytes() ([]byte, error) {
-	return ioutil.ReadAll(r.DotReader())
+	return io.ReadAll(r.DotReader())
 }
 
 // ReadDotLines reads a dot-encoding and returns a slice
@@ -557,7 +556,7 @@ func noValidation(_ []byte) error { return nil }
 // contain a colon.
 func mustHaveFieldNameColon(line []byte) error {
 	if bytes.IndexByte(line, ':') < 0 {
-		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q" + string(line)))
+		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q", line))
 	}
 	return nil
 }

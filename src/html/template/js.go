@@ -163,7 +163,6 @@ func jsValEscaper(args ...interface{}) string {
 	}
 	// TODO: detect cycles before calling Marshal which loops infinitely on
 	// cyclic data. This may be an unacceptable DoS risk.
-
 	b, err := json.Marshal(a)
 	if err != nil {
 		// Put a space before comment so that if it is flush against
@@ -178,8 +177,8 @@ func jsValEscaper(args ...interface{}) string {
 	// TODO: maybe post-process output to prevent it from containing
 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
 	// in case custom marshalers produce output containing those.
-
-	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+	// Note: Do not use \x escaping to save bytes because it is not JSON compatible and this escaper
+	// supports ld+json content-type.
 	if len(b) == 0 {
 		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
 		// not cause the output `x=y/*z`.
@@ -260,6 +259,8 @@ func replace(s string, replacementTable []string) string {
 		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
 		switch {
+		case int(r) < len(lowUnicodeReplacementTable):
+			repl = lowUnicodeReplacementTable[r]
 		case int(r) < len(replacementTable) && replacementTable[r] != "":
 			repl = replacementTable[r]
 		case r == '\u2028':
@@ -283,67 +284,80 @@ func replace(s string, replacementTable []string) string {
 	return b.String()
 }
 
-var jsStrReplacementTable = []string{
-	0:    `\0`,
+var lowUnicodeReplacementTable = []string{
+	0: `\u0000`, 1: `\u0001`, 2: `\u0002`, 3: `\u0003`, 4: `\u0004`, 5: `\u0005`, 6: `\u0006`,
+	'\a': `\u0007`,
+	'\b': `\u0008`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	0xe:  `\u000e`, 0xf: `\u000f`, 0x10: `\u0010`, 0x11: `\u0011`, 0x12: `\u0012`, 0x13: `\u0013`,
+	0x14: `\u0014`, 0x15: `\u0015`, 0x16: `\u0016`, 0x17: `\u0017`, 0x18: `\u0018`, 0x19: `\u0019`,
+	0x1a: `\u001a`, 0x1b: `\u001b`, 0x1c: `\u001c`, 0x1d: `\u001d`, 0x1e: `\u001e`, 0x1f: `\u001f`,
+}
+
+var jsStrReplacementTable = []string{
+	0:    `\u0000`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'\\': `\\`,
 }
 
 // jsStrNormReplacementTable is like jsStrReplacementTable but does not
 // overencode existing escapes since this table has no entry for `\`.
 var jsStrNormReplacementTable = []string{
-	0:    `\0`,
+	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 }
-
 var jsRegexpReplacementTable = []string{
-	0:    `\0`,
+	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
+	'"':  `\u0022`,
 	'$':  `\$`,
-	'&':  `\x26`,
-	'\'': `\x27`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
 	'(':  `\(`,
 	')':  `\)`,
 	'*':  `\*`,
-	'+':  `\x2b`,
+	'+':  `\u002b`,
 	'-':  `\-`,
 	'.':  `\.`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'?':  `\?`,
 	'[':  `\[`,
 	'\\': `\\`,

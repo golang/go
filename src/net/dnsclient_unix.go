@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -40,14 +39,14 @@ var (
 	errInvalidDNSResponse        = errors.New("invalid DNS response")
 	errNoAnswerFromDNSServer     = errors.New("no answer from DNS server")
 
-	// errServerTemporarlyMisbehaving is like errServerMisbehaving, except
+	// errServerTemporarilyMisbehaving is like errServerMisbehaving, except
 	// that when it gets translated to a DNSError, the IsTemporary field
 	// gets set to true.
-	errServerTemporarlyMisbehaving = errors.New("server misbehaving")
+	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
 )
 
 func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
-	id = uint16(rand.Int()) ^ uint16(time.Now().UnixNano())
+	id = uint16(randInt())
 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
 	b.EnableCompression()
 	if err := b.StartQuestions(); err != nil {
@@ -206,7 +205,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 		// the server is behaving incorrectly or
 		// having temporary trouble.
 		if h.RCode == dnsmessage.RCodeServerFailure {
-			return errServerTemporarlyMisbehaving
+			return errServerTemporarilyMisbehaving
 		}
 		return errServerMisbehaving
 	}
@@ -278,7 +277,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 					Name:   name,
 					Server: server,
 				}
-				if err == errServerTemporarlyMisbehaving {
+				if err == errServerTemporarilyMisbehaving {
 					dnsErr.IsTemporary = true
 				}
 				if err == errNoSuchHost {

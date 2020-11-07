@@ -7,8 +7,13 @@
 package x509
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -119,5 +124,109 @@ func TestEnvVars(t *testing.T) {
 				t.Errorf("got %v certs, which is more than %v wanted", len(r.certs), len(tc.cns))
 			}
 		})
+	}
+}
+
+// Ensure that "SSL_CERT_DIR" when used as the environment
+// variable delimited by colons, allows loadSystemRoots to
+// load all the roots from the respective directories.
+// See https://golang.org/issue/35325.
+func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
+	origFile, origDir := os.Getenv(certFileEnv), os.Getenv(certDirEnv)
+	origCertFiles := certFiles[:]
+
+	// To prevent any other certs from being loaded in
+	// through "SSL_CERT_FILE" or from known "certFiles",
+	// clear them all, and they'll be reverting on defer.
+	certFiles = certFiles[:0]
+	os.Setenv(certFileEnv, "")
+
+	defer func() {
+		certFiles = origCertFiles[:]
+		os.Setenv(certDirEnv, origDir)
+		os.Setenv(certFileEnv, origFile)
+	}()
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "x509-issue35325")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	rootPEMs := []string{
+		geoTrustRoot,
+		googleLeaf,
+		startComRoot,
+	}
+
+	var certDirs []string
+	for i, certPEM := range rootPEMs {
+		certDir := filepath.Join(tmpDir, fmt.Sprintf("cert-%d", i))
+		if err := os.MkdirAll(certDir, 0755); err != nil {
+			t.Fatalf("Failed to create certificate dir: %v", err)
+		}
+		certOutFile := filepath.Join(certDir, "cert.crt")
+		if err := ioutil.WriteFile(certOutFile, []byte(certPEM), 0655); err != nil {
+			t.Fatalf("Failed to write certificate to file: %v", err)
+		}
+		certDirs = append(certDirs, certDir)
+	}
+
+	// Sanity check: the number of certDirs should be equal to the number of roots.
+	if g, w := len(certDirs), len(rootPEMs); g != w {
+		t.Fatalf("Failed sanity check: len(certsDir)=%d is not equal to len(rootsPEMS)=%d", g, w)
+	}
+
+	// Now finally concatenate them with a colon.
+	colonConcatCertDirs := strings.Join(certDirs, ":")
+	os.Setenv(certDirEnv, colonConcatCertDirs)
+	gotPool, err := loadSystemRoots()
+	if err != nil {
+		t.Fatalf("Failed to load system roots: %v", err)
+	}
+	subjects := gotPool.Subjects()
+	// We expect exactly len(rootPEMs) subjects back.
+	if g, w := len(subjects), len(rootPEMs); g != w {
+		t.Fatalf("Invalid number of subjects: got %d want %d", g, w)
+	}
+
+	wantPool := NewCertPool()
+	for _, certPEM := range rootPEMs {
+		wantPool.AppendCertsFromPEM([]byte(certPEM))
+	}
+	strCertPool := func(p *CertPool) string {
+		return string(bytes.Join(p.Subjects(), []byte("\n")))
+	}
+	if !reflect.DeepEqual(gotPool, wantPool) {
+		g, w := strCertPool(gotPool), strCertPool(wantPool)
+		t.Fatalf("Mismatched certPools\nGot:\n%s\n\nWant:\n%s", g, w)
+	}
+}
+
+func TestReadUniqueDirectoryEntries(t *testing.T) {
+	tmp := t.TempDir()
+	temp := func(base string) string { return filepath.Join(tmp, base) }
+	if f, err := os.Create(temp("file")); err != nil {
+		t.Fatal(err)
+	} else {
+		f.Close()
+	}
+	if err := os.Symlink("target-in", temp("link-in")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../target-out", temp("link-out")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readUniqueDirectoryEntries(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotNames := []string{}
+	for _, fi := range got {
+		gotNames = append(gotNames, fi.Name())
+	}
+	wantNames := []string{"file", "link-out"}
+	if !reflect.DeepEqual(gotNames, wantNames) {
+		t.Errorf("got %q; want %q", gotNames, wantNames)
 	}
 }

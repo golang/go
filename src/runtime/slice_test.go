@@ -1,6 +1,7 @@
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package runtime_test
 
 import (
@@ -9,6 +10,84 @@ import (
 )
 
 const N = 20
+
+func BenchmarkMakeSliceCopy(b *testing.B) {
+	const length = 32
+	var bytes = make([]byte, 8*length)
+	var ints = make([]int, length)
+	var ptrs = make([]*byte, length)
+	b.Run("mallocmove", func(b *testing.B) {
+		b.Run("Byte", func(b *testing.B) {
+			var x []byte
+			for i := 0; i < b.N; i++ {
+				x = make([]byte, len(bytes))
+				copy(x, bytes)
+			}
+		})
+		b.Run("Int", func(b *testing.B) {
+			var x []int
+			for i := 0; i < b.N; i++ {
+				x = make([]int, len(ints))
+				copy(x, ints)
+			}
+		})
+		b.Run("Ptr", func(b *testing.B) {
+			var x []*byte
+			for i := 0; i < b.N; i++ {
+				x = make([]*byte, len(ptrs))
+				copy(x, ptrs)
+			}
+
+		})
+	})
+	b.Run("makecopy", func(b *testing.B) {
+		b.Run("Byte", func(b *testing.B) {
+			var x []byte
+			for i := 0; i < b.N; i++ {
+				x = make([]byte, 8*length)
+				copy(x, bytes)
+			}
+		})
+		b.Run("Int", func(b *testing.B) {
+			var x []int
+			for i := 0; i < b.N; i++ {
+				x = make([]int, length)
+				copy(x, ints)
+			}
+		})
+		b.Run("Ptr", func(b *testing.B) {
+			var x []*byte
+			for i := 0; i < b.N; i++ {
+				x = make([]*byte, length)
+				copy(x, ptrs)
+			}
+
+		})
+	})
+	b.Run("nilappend", func(b *testing.B) {
+		b.Run("Byte", func(b *testing.B) {
+			var x []byte
+			for i := 0; i < b.N; i++ {
+				x = append([]byte(nil), bytes...)
+				_ = x
+			}
+		})
+		b.Run("Int", func(b *testing.B) {
+			var x []int
+			for i := 0; i < b.N; i++ {
+				x = append([]int(nil), ints...)
+				_ = x
+			}
+		})
+		b.Run("Ptr", func(b *testing.B) {
+			var x []*byte
+			for i := 0; i < b.N; i++ {
+				x = append([]*byte(nil), ptrs...)
+				_ = x
+			}
+		})
+	})
+}
 
 type (
 	struct24 struct{ a, b, c int64 }

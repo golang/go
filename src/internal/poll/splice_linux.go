@@ -87,6 +87,9 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
 	}
 	for {
 		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err != syscall.EAGAIN {
 			return n, err
 		}

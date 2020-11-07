@@ -7,8 +7,9 @@ package httptest
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"net/textproto"
 	"strconv"
 	"strings"
 
@@ -178,7 +179,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	}
 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if rw.Body != nil {
-		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+		res.Body = io.NopCloser(bytes.NewReader(rw.Body.Bytes()))
 	} else {
 		res.Body = http.NoBody
 	}
@@ -221,13 +222,13 @@ func (rw *ResponseRecorder) Result() *http.Response {
 // This a modified version of same function found in net/http/transfer.go. This
 // one just ignores an invalid header.
 func parseContentLength(cl string) int64 {
-	cl = strings.TrimSpace(cl)
+	cl = textproto.TrimString(cl)
 	if cl == "" {
 		return -1
 	}
-	n, err := strconv.ParseInt(cl, 10, 64)
+	n, err := strconv.ParseUint(cl, 10, 63)
 	if err != nil {
 		return -1
 	}
-	return n
+	return int64(n)
 }

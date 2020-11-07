@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"cmd/compile/internal/syntax"
@@ -44,7 +45,7 @@ func parseFiles(filenames []string) uint {
 
 			f, err := os.Open(filename)
 			if err != nil {
-				p.error(syntax.Error{Pos: syntax.MakePos(base, 0, 0), Msg: err.Error()})
+				p.error(syntax.Error{Msg: err.Error()})
 				return
 			}
 			defer f.Close()
@@ -90,7 +91,11 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 		} else {
 			// line directive base
 			p0 := b0.Pos()
-			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line(), p0.Col())
+			p0b := p0.Base()
+			if p0b == b0 {
+				panic("infinite recursion in makeSrcPosBase")
+			}
+			p1 := src.MakePos(p.makeSrcPosBase(p0b), p0.Line(), p0.Col())
 			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
 		}
 		p.basemap[b0] = b1
@@ -130,11 +135,13 @@ type noder struct {
 		base *src.PosBase
 	}
 
-	file       *syntax.File
-	linknames  []linkname
-	pragcgobuf [][]string
-	err        chan syntax.Error
-	scope      ScopeID
+	file           *syntax.File
+	linknames      []linkname
+	pragcgobuf     [][]string
+	err            chan syntax.Error
+	scope          ScopeID
+	importedUnsafe bool
+	importedEmbed  bool
 
 	// scopeVars is a stack tracking the number of variables declared in the
 	// current function at the moment each open scope was opened.
@@ -236,15 +243,21 @@ type linkname struct {
 
 func (p *noder) node() {
 	types.Block = 1
-	imported_unsafe = false
+	p.importedUnsafe = false
+	p.importedEmbed = false
 
 	p.setlineno(p.file.PkgName)
 	mkpackage(p.file.PkgName.Value)
 
+	if pragma, ok := p.file.Pragma.(*Pragma); ok {
+		pragma.Flag &^= GoBuildPragma
+		p.checkUnused(pragma)
+	}
+
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
 	for _, n := range p.linknames {
-		if !imported_unsafe {
+		if !p.importedUnsafe {
 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 			continue
 		}
@@ -313,14 +326,24 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return // avoid follow-on errors if there was a syntax error
 	}
 
+	if pragma, ok := imp.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
+	}
+
 	val := p.basicLit(imp.Path)
 	ipkg := importfile(&val)
-
 	if ipkg == nil {
 		if nerrors == 0 {
 			Fatalf("phase error in import")
 		}
 		return
+	}
+
+	if ipkg == unsafepkg {
+		p.importedUnsafe = true
+	}
+	if ipkg.Path == "embed" {
+		p.importedEmbed = true
 	}
 
 	ipkg.Direct = true
@@ -363,6 +386,24 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 		exprs = p.exprList(decl.Values)
 	}
 
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		if len(pragma.Embeds) > 0 {
+			if !p.importedEmbed {
+				// This check can't be done when building the list pragma.Embeds
+				// because that list is created before the noder starts walking over the file,
+				// so at that point it hasn't seen the imports.
+				// We're left to check now, just before applying the //go:embed lines.
+				for _, e := range pragma.Embeds {
+					p.yyerrorpos(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
+				}
+			} else {
+				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
+			}
+			pragma.Embeds = nil
+		}
+		p.checkUnused(pragma)
+	}
+
 	p.setlineno(decl)
 	return variter(names, typ, exprs)
 }
@@ -382,6 +423,10 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 		*cs = constState{
 			group: decl.Group,
 		}
+	}
+
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		p.checkUnused(pragma)
 	}
 
 	names := p.declNames(decl.NameList)
@@ -438,15 +483,17 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 
 	param := n.Name.Param
 	param.Ntype = typ
-	param.Pragma = decl.Pragma
-	param.Alias = decl.Alias
-	if param.Alias && param.Pragma != 0 {
-		yyerror("cannot specify directive with type alias")
-		param.Pragma = 0
+	param.SetAlias(decl.Alias)
+	if pragma, ok := decl.Pragma.(*Pragma); ok {
+		if !decl.Alias {
+			param.SetPragma(pragma.Flag & TypePragmas)
+			pragma.Flag &^= TypePragmas
+		}
+		p.checkUnused(pragma)
 	}
 
 	nod := p.nod(decl, ODCLTYPE, n, nil)
-	if param.Alias && !langSupported(1, 9, localpkg) {
+	if param.Alias() && !langSupported(1, 9, localpkg) {
 		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -493,10 +540,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t
 
-	pragma := fun.Pragma
-	f.Func.Pragma = fun.Pragma
-	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
-		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+	if pragma, ok := fun.Pragma.(*Pragma); ok {
+		f.Func.Pragma = pragma.Flag & FuncPragmas
+		if pragma.Flag&Systemstack != 0 && pragma.Flag&Nosplit != 0 {
+			yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+		}
+		pragma.Flag &^= FuncPragmas
+		p.checkUnused(pragma)
 	}
 
 	if fun.Recv == nil {
@@ -632,7 +682,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		obj := p.expr(expr.X)
 		if obj.Op == OPACK {
 			obj.Name.SetUsed(true)
-			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
+			return importName(obj.Name.Pkg.Lookup(expr.Sel.Value))
 		}
 		n := nodSym(OXDOT, obj, p.name(expr.Sel))
 		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
@@ -646,7 +696,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		}
 		n := p.nod(expr, op, p.expr(expr.X), nil)
 		var index [3]*Node
-		for i, x := range expr.Index {
+		for i, x := range &expr.Index {
 			if x != nil {
 				index[i] = p.expr(x)
 			}
@@ -752,7 +802,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 	n := p.expr(x)
 	if Isconst(n, CTSTR) && n.Sym == nil {
 		nstr = n
-		chunks = append(chunks, strlit(nstr))
+		chunks = append(chunks, nstr.StringVal())
 	}
 
 	for i := len(adds) - 1; i >= 0; i-- {
@@ -762,12 +812,12 @@ func (p *noder) sum(x syntax.Expr) *Node {
 		if Isconst(r, CTSTR) && r.Sym == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
-				chunks = append(chunks, strlit(r))
+				chunks = append(chunks, r.StringVal())
 				continue
 			}
 
 			nstr = r
-			chunks = append(chunks, strlit(nstr))
+			chunks = append(chunks, nstr.StringVal())
 		} else {
 			if len(chunks) > 1 {
 				nstr.SetVal(Val{U: strings.Join(chunks, "")})
@@ -836,7 +886,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 		p.setlineno(method)
 		var n *Node
 		if method.Name == nil {
-			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
+			n = p.nodSym(method, ODCLFIELD, importName(p.packname(method.Type)), nil)
 		} else {
 			mname := p.name(method.Name)
 			sig := p.typeExpr(method.Type)
@@ -875,7 +925,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 			def.Name.SetUsed(true)
 			pkg = def.Name.Pkg
 		}
-		return restrictlookup(expr.Sel.Value, pkg)
+		return pkg.Lookup(expr.Sel.Value)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
@@ -890,7 +940,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
+	n := p.nodSym(typ, ODCLFIELD, importName(sym), lookup(sym.Name))
 	n.SetEmbedded(true)
 
 	if isStar {
@@ -1416,11 +1466,6 @@ func (p *noder) mkname(name *syntax.Name) *Node {
 	return mkname(p.name(name))
 }
 
-func (p *noder) newname(name *syntax.Name) *Node {
-	// TODO(mdempsky): Set line number?
-	return newname(p.name(name))
-}
-
 func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
@@ -1476,16 +1521,78 @@ var allowedStdPragmas = map[string]bool{
 	"go:cgo_import_dynamic": true,
 	"go:cgo_ldflag":         true,
 	"go:cgo_dynamic_linker": true,
+	"go:embed":              true,
 	"go:generate":           true,
 }
 
+// *Pragma is the value stored in a syntax.Pragma during parsing.
+type Pragma struct {
+	Flag   PragmaFlag  // collected bits
+	Pos    []PragmaPos // position of each individual flag
+	Embeds []PragmaEmbed
+}
+
+type PragmaPos struct {
+	Flag PragmaFlag
+	Pos  syntax.Pos
+}
+
+type PragmaEmbed struct {
+	Pos      syntax.Pos
+	Patterns []string
+}
+
+func (p *noder) checkUnused(pragma *Pragma) {
+	for _, pos := range pragma.Pos {
+		if pos.Flag&pragma.Flag != 0 {
+			p.yyerrorpos(pos.Pos, "misplaced compiler directive")
+		}
+	}
+	if len(pragma.Embeds) > 0 {
+		for _, e := range pragma.Embeds {
+			p.yyerrorpos(e.Pos, "misplaced go:embed directive")
+		}
+	}
+}
+
+func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+	for _, pos := range pragma.Pos {
+		if pos.Flag&pragma.Flag != 0 {
+			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
+		}
+	}
+	if len(pragma.Embeds) > 0 {
+		for _, e := range pragma.Embeds {
+			p.error(syntax.Error{Pos: e.Pos, Msg: "misplaced go:embed directive"})
+		}
+	}
+}
+
 // pragma is called concurrently if files are parsed concurrently.
-func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
-	switch {
-	case strings.HasPrefix(text, "line "):
+func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.Pragma) syntax.Pragma {
+	pragma, _ := old.(*Pragma)
+	if pragma == nil {
+		pragma = new(Pragma)
+	}
+
+	if text == "" {
+		// unused pragma; only called with old != nil.
+		p.checkUnusedDuringParse(pragma)
+		return nil
+	}
+
+	if strings.HasPrefix(text, "line ") {
 		// line directives are handled by syntax package
 		panic("unreachable")
+	}
 
+	if !blankLine {
+		// directive must be on line by itself
+		p.error(syntax.Error{Pos: pos, Msg: "misplaced compiler directive"})
+		return pragma
+	}
+
+	switch {
 	case strings.HasPrefix(text, "go:linkname "):
 		f := strings.Fields(text)
 		if !(2 <= len(f) && len(f) <= 3) {
@@ -1503,6 +1610,17 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		}
 		p.linknames = append(p.linknames, linkname{pos, f[1], target})
 
+	case text == "go:embed", strings.HasPrefix(text, "go:embed "):
+		args, err := parseGoEmbed(text[len("go:embed"):])
+		if err != nil {
+			p.error(syntax.Error{Pos: pos, Msg: err.Error()})
+		}
+		if len(args) == 0 {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:embed pattern..."})
+			break
+		}
+		pragma.Embeds = append(pragma.Embeds, PragmaEmbed{pos, args})
+
 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
 		// This is permitted for general use because Solaris
 		// code relies on it in golang.org/x/sys/unix and others.
@@ -1513,7 +1631,8 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
 			}
 			p.pragcgo(pos, text)
-			return pragmaValue("go:cgo_import_dynamic")
+			pragma.Flag |= pragmaFlag("go:cgo_import_dynamic")
+			break
 		}
 		fallthrough
 	case strings.HasPrefix(text, "go:cgo_"):
@@ -1530,18 +1649,19 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
-		prag := pragmaValue(verb)
+		flag := pragmaFlag(verb)
 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
-		if !compiling_runtime && prag&runtimePragmas != 0 {
+		if !compiling_runtime && flag&runtimePragmas != 0 {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
 		}
-		if prag == 0 && !allowedStdPragmas[verb] && compiling_std {
+		if flag == 0 && !allowedStdPragmas[verb] && compiling_std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
-		return prag
+		pragma.Flag |= flag
+		pragma.Pos = append(pragma.Pos, PragmaPos{flag, pos})
 	}
 
-	return 0
+	return pragma
 }
 
 // isCgoGeneratedFile reports whether pos is in a file
@@ -1574,9 +1694,63 @@ func mkname(sym *types.Sym) *Node {
 	return n
 }
 
-func unparen(x *Node) *Node {
-	for x.Op == OPAREN {
-		x = x.Left
+// parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
+// It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
+// go/build/read.go also processes these strings and contains similar logic.
+func parseGoEmbed(args string) ([]string, error) {
+	var list []string
+	for args = strings.TrimSpace(args); args != ""; args = strings.TrimSpace(args) {
+		var path string
+	Switch:
+		switch args[0] {
+		default:
+			i := len(args)
+			for j, c := range args {
+				if unicode.IsSpace(c) {
+					i = j
+					break
+				}
+			}
+			path = args[:i]
+			args = args[i:]
+
+		case '`':
+			i := strings.Index(args[1:], "`")
+			if i < 0 {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+			path = args[1 : 1+i]
+			args = args[1+i+1:]
+
+		case '"':
+			i := 1
+			for ; i < len(args); i++ {
+				if args[i] == '\\' {
+					i++
+					continue
+				}
+				if args[i] == '"' {
+					q, err := strconv.Unquote(args[:i+1])
+					if err != nil {
+						return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args[:i+1])
+					}
+					path = q
+					args = args[i+1:]
+					break Switch
+				}
+			}
+			if i >= len(args) {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+		}
+
+		if args != "" {
+			r, _ := utf8.DecodeRuneInString(args)
+			if !unicode.IsSpace(r) {
+				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+			}
+		}
+		list = append(list, path)
 	}
-	return x
+	return list, nil
 }

@@ -118,6 +118,7 @@ TEXT runtime·pipe(SB),NOSPLIT,$0-12
 	MOVW	$-1, R1
 	MOVW	R1, r+0(FP)
 	MOVW	R1, w+4(FP)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, errno+8(FP)
 	RET
 pipeok:
@@ -132,6 +133,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
 	MOVW	flags+0(FP), R5
 	MOVW	$SYS_pipe2, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, errno+12(FP)
 	RET
 

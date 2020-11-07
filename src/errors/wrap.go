@@ -32,9 +32,9 @@ func Unwrap(err error) error {
 // An error type might provide an Is method so it can be treated as equivalent
 // to an existing error. For example, if MyError defines
 //
-//	func (m MyError) Is(target error) bool { return target == os.ErrExist }
+//	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
 //
-// then Is(MyError{}, os.ErrExist) returns true. See syscall.Errno.Is for
+// then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
 // an example in the standard library.
 func Is(err, target error) bool {
 	if target == nil {
@@ -70,7 +70,7 @@ func Is(err, target error) bool {
 // setting target.
 //
 // An error type might provide an As method so it can be treated as if it were a
-// a different error type.
+// different error type.
 //
 // As panics if target is not a non-nil pointer to either a type that implements
 // error, or to any interface type.

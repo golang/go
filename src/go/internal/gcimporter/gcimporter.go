@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,11 +142,11 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	switch hdr {
 	case "$$\n":
-		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
+		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
 
 	case "$$B\n":
 		var data []byte
-		data, err = ioutil.ReadAll(buf)
+		data, err = io.ReadAll(buf)
 		if err != nil {
 			break
 		}
@@ -158,21 +157,14 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		if len(data) > 0 && data[0] == 'i' {
 			_, pkg, err = iImportData(fset, packages, data[1:], id)
 		} else {
-			_, pkg, err = BImportData(fset, packages, data, id)
+			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
 
 	default:
-		err = fmt.Errorf("unknown export data header: %q", hdr)
+		err = fmt.Errorf("import %q: unknown export data header: %q", path, hdr)
 	}
 
 	return
-}
-
-func deref(typ types.Type) types.Type {
-	if p, _ := typ.(*types.Pointer); p != nil {
-		return p.Elem()
-	}
-	return typ
 }
 
 type byPath []*types.Package

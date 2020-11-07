@@ -116,6 +116,13 @@ const (
 	_CLONE_NEWUTS         = 0x4000000
 	_CLONE_NEWIPC         = 0x8000000
 
+	// As of QEMU 2.8.0 (5ea2fc84d), user emulation requires all six of these
+	// flags to be set when creating a thread; attempts to share the other
+	// five but leave SYSVSEM unshared will fail with -EINVAL.
+	//
+	// In non-QEMU environments CLONE_SYSVSEM is inconsequential as we do not
+	// use System V semaphores.
+
 	cloneFlags = _CLONE_VM | /* share memory */
 		_CLONE_FS | /* share cwd, etc */
 		_CLONE_FILES | /* share fd table */
@@ -241,6 +248,10 @@ func sysargs(argc int32, argv **byte) {
 	sysauxv(buf[:])
 }
 
+// startupRandomData holds random bytes initialized at startup. These come from
+// the ELF AT_RANDOM auxiliary vector.
+var startupRandomData []byte
+
 func sysauxv(auxv []uintptr) int {
 	var i int
 	for ; auxv[i] != _AT_NULL; i += 2 {
@@ -269,13 +280,14 @@ func getHugePageSize() uintptr {
 	if fd < 0 {
 		return 0
 	}
-	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
+	ptr := noescape(unsafe.Pointer(&numbuf[0]))
+	n := read(fd, ptr, int32(len(numbuf)))
 	closefd(fd)
 	if n <= 0 {
 		return 0
 	}
-	l := n - 1 // remove trailing newline
-	v, ok := atoi(slicebytetostringtmp(numbuf[:l]))
+	n-- // remove trailing newline
+	v, ok := atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
 	if !ok || v < 0 {
 		v = 0
 	}
@@ -319,20 +331,11 @@ func libpreinit() {
 	initsig(true)
 }
 
-// gsignalInitQuirk, if non-nil, is called for every allocated gsignal G.
-//
-// TODO(austin): Remove this after Go 1.15 when we remove the
-// mlockGsignal workaround.
-var gsignalInitQuirk func(gsignal *g)
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
 	mp.gsignal.m = mp
-	if gsignalInitQuirk != nil {
-		gsignalInitQuirk(mp.gsignal)
-	}
 }
 
 func gettid() uint32
@@ -343,7 +346,7 @@ func minit() {
 	minitSignals()
 
 	// Cgo-created threads and the bootstrap m are missing a
-	// procid. We need this for asynchronous preemption and its
+	// procid. We need this for asynchronous preemption and it's
 	// useful in debuggers.
 	getg().m.procid = uint64(gettid())
 }

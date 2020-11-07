@@ -341,6 +341,14 @@ var joinTests = []joinTest{
 	{`\\host\share\`, `foo\bar`, `\\host\share\foo\bar`},
 	{`//host/share/`, `foo/bar`, `//host/share/foo/bar`},
 
+	// Note: the Go compiler currently emits DWARF line table paths
+	// with '/' instead of '\' (see issues #19784, #36495). These
+	// tests are to cover cases that might come up for Windows Go
+	// binaries.
+	{`c:/workdir/go/src/x`, `y.go`, `c:/workdir/go/src/x/y.go`},
+	{`d:/some/thing/`, `b.go`, `d:/some/thing/b.go`},
+	{`e:\blah\`, `foo.c`, `e:\blah\foo.c`},
+
 	// The following are "best effort". We shouldn't see relative
 	// base directories in DWARF, but these test that pathJoin
 	// doesn't fail miserably if it sees one.

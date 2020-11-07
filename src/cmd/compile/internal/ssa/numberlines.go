@@ -66,12 +66,9 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 	return i
 }
 
-// notStmtBoundary indicates which value opcodes can never be a statement
-// boundary because they don't correspond to a user's understanding of a
-// statement boundary.  Called from *Value.reset(), and *Func.newValue(),
-// located here to keep all the statement boundary heuristics in one place.
-// Note: *Value.reset() filters out OpCopy because of how that is used in
-// rewrite.
+// notStmtBoundary reports whether a value with opcode op can never be a statement
+// boundary. Such values don't correspond to a user's understanding of a
+// statement boundary.
 func notStmtBoundary(op Op) bool {
 	switch op {
 	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg:

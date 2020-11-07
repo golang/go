@@ -86,7 +86,7 @@ func checkOpenSSLVersion() error {
 	println("to update the test data.")
 	println("")
 	println("Configure it with:")
-	println("./Configure enable-weak-ssl-ciphers")
+	println("./Configure enable-weak-ssl-ciphers no-shared")
 	println("and then add the apps/ directory at the front of your PATH.")
 	println("***********************************************")
 
@@ -403,7 +403,7 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		}
 		defer cli.Close()
 		clientState = cli.ConnectionState()
-		buf, err := ioutil.ReadAll(cli)
+		buf, err := io.ReadAll(cli)
 		if err != nil {
 			t.Errorf("failed to call cli.Read: %v", err)
 		}

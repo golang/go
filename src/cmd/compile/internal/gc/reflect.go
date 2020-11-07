@@ -61,8 +61,9 @@ const (
 	MAXELEMSIZE = 128
 )
 
-func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
+func structfieldSize() int { return 3 * Widthptr }       // Sizeof(runtime.structfield{})
+func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imethod{})
+func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
@@ -119,7 +120,7 @@ func bmap(t *types.Type) *types.Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
-	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
+	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
@@ -510,6 +511,7 @@ func dimportpath(p *types.Pkg) {
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	p.Pathsym = s
 }
 
@@ -637,6 +639,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 	}
 	ot := dnameData(s, 0, name, tag, pkg, exported)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	return s
 }
 
@@ -754,7 +757,7 @@ var kinds = []int{
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
 func typeptrdata(t *types.Type) int64 {
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return 0
 	}
 
@@ -788,7 +791,7 @@ func typeptrdata(t *types.Type) int64 {
 		// Find the last field that has pointers.
 		var lastPtrField *types.Field
 		for _, t1 := range t.Fields().Slice() {
-			if types.Haspointers(t1.Type) {
+			if t1.Type.HasPointers() {
 				lastPtrField = t1
 			}
 		}
@@ -1168,6 +1171,15 @@ func dtypesym(t *types.Type) *obj.LSym {
 	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
+			if i, ok := typeSymIdx[tbase]; ok {
+				lsym.Pkg = tbase.Sym.Pkg.Prefix
+				if t != tbase {
+					lsym.SymIdx = int32(i[1])
+				} else {
+					lsym.SymIdx = int32(i[0])
+				}
+				lsym.Set(obj.AttrIndexed, true)
+			}
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.
@@ -1413,6 +1425,20 @@ func dtypesym(t *types.Type) *obj.LSym {
 	return lsym
 }
 
+// ifaceMethodOffset returns the offset of the i-th method in the interface
+// type descriptor, ityp.
+func ifaceMethodOffset(ityp *types.Type, i int64) int64 {
+	// interface type descriptor layout is struct {
+	//   _type        // commonSize
+	//   pkgpath      // 1 word
+	//   []imethod    // 3 words (pointing to [...]imethod below)
+	//   uncommontype // uncommonSize
+	//   [...]imethod
+	// }
+	// The size of imethod is 8.
+	return int64(commonSize()+4*Widthptr+uncommonSize(ityp)) + i*8
+}
+
 // for each itabEntry, gather the methods on
 // the concrete type that implement the interface
 func peekitabs() {
@@ -1550,9 +1576,7 @@ func dumptabs() {
 		}
 		// Nothing writes static itabs, so they are read only.
 		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
-		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
-		dsymptr(ilink, 0, i.lsym, 0)
-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+		i.lsym.Set(obj.AttrContentAddressable, true)
 	}
 
 	// process ptabs
@@ -1715,6 +1739,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
 			duint8(lsym, i, x)
 		}
 		ggloblsym(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		lsym.Set(obj.AttrContentAddressable, true)
 	}
 	return lsym
 }
@@ -1726,7 +1751,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	for i := range ptrmask {
 		ptrmask[i] = 0
 	}
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 
@@ -1795,7 +1820,7 @@ func (p *GCProg) end() {
 
 func (p *GCProg) emit(t *types.Type, offset int64) {
 	dowidth(t)
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 	if t.Width == int64(Widthptr) {

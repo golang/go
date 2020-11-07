@@ -22,6 +22,9 @@ go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' syntaxerr
 stdout 'pkgdep <nil>'
 stdout 'testdep_a <nil>'
 stdout 'testdep_b <nil>'
+stdout 'syntaxerr <nil>'
+stdout 'syntaxerr \[syntaxerr.test\] <nil>'
+stdout 'syntaxerr_test \[syntaxerr.test\] <nil>'
 stdout 'syntaxerr\.test "[^"]*expected declaration'
 ! stderr 'expected declaration'
 

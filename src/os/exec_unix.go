@@ -33,9 +33,18 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		p.sigMu.Unlock()
 	}
 
-	var status syscall.WaitStatus
-	var rusage syscall.Rusage
-	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+	var (
+		status syscall.WaitStatus
+		rusage syscall.Rusage
+		pid1   int
+		e      error
+	)
+	for {
+		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}
@@ -50,8 +59,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-var errFinished = errors.New("os: process already finished")
-
 func (p *Process) signal(sig Signal) error {
 	if p.Pid == -1 {
 		return errors.New("os: process already released")
@@ -62,7 +69,7 @@ func (p *Process) signal(sig Signal) error {
 	p.sigMu.RLock()
 	defer p.sigMu.RUnlock()
 	if p.done() {
-		return errFinished
+		return ErrProcessDone
 	}
 	s, ok := sig.(syscall.Signal)
 	if !ok {
@@ -70,7 +77,7 @@ func (p *Process) signal(sig Signal) error {
 	}
 	if e := syscall.Kill(p.Pid, s); e != nil {
 		if e == syscall.ESRCH {
-			return errFinished
+			return ErrProcessDone
 		}
 		return e
 	}

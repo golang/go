@@ -73,19 +73,37 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
+
+	// Debug paths are stored slash-separated, so convert to system-native.
+	srcPath = filepath.FromSlash(srcPath)
 	fi2, err := os.Stat(srcPath)
+
+	// If GOROOT_FINAL is set and srcPath is not the file we expect, perhaps
+	// srcPath has had GOROOT_FINAL substituted for GOROOT and GOROOT hasn't been
+	// moved to its final location yet. If so, try the original location instead.
+	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" &&
+		(os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2))) {
+		// srcPath is clean, but GOROOT_FINAL itself might not be.
+		// (See https://golang.org/issue/41447.)
+		gorootFinal = filepath.Clean(gorootFinal)
+
+		if strings.HasPrefix(srcPath, gorootFinal) {
+			fi2, err = os.Stat(runtime.GOROOT() + strings.TrimPrefix(srcPath, gorootFinal))
+		}
+	}
+
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "89" {
-		t.Fatalf("line number = %v; want 89", srcLineNo)
+	if srcLineNo != "107" {
+		t.Fatalf("line number = %v; want 107", srcLineNo)
 	}
 }
 
-// This is line 88. The test depends on that.
+// This is line 106. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 

@@ -45,6 +45,7 @@ import (
 	"internal/poll"
 	"internal/testlog"
 	"io"
+	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
@@ -127,7 +128,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 
 	if off < 0 {
-		return 0, &PathError{"readat", f.name, errors.New("negative offset")}
+		return 0, &PathError{Op: "readat", Path: f.name, Err: errors.New("negative offset")}
 	}
 
 	for len(b) > 0 {
@@ -141,6 +142,26 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 		off += int64(m)
 	}
 	return
+}
+
+// ReadFrom implements io.ReaderFrom.
+func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
+	if err := f.checkValid("write"); err != nil {
+		return 0, err
+	}
+	n, handled, e := f.readFrom(r)
+	if !handled {
+		return genericReadFrom(f, r) // without wrapping
+	}
+	return n, f.wrapErr("write", e)
+}
+
+func genericReadFrom(f *File, r io.Reader) (int64, error) {
+	return io.Copy(onlyWriter{f}, r)
+}
+
+type onlyWriter struct {
+	io.Writer
 }
 
 // Write writes len(b) bytes to the File.
@@ -183,7 +204,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	}
 
 	if off < 0 {
-		return 0, &PathError{"writeat", f.name, errors.New("negative offset")}
+		return 0, &PathError{Op: "writeat", Path: f.name, Err: errors.New("negative offset")}
 	}
 
 	for len(b) > 0 {
@@ -204,6 +225,10 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
+//
+// If f is a directory, the behavior of Seek varies by operating
+// system; you can seek to the beginning of the directory on Unix-like
+// operating systems, but not on Windows.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 	if err := f.checkValid("seek"); err != nil {
 		return 0, err
@@ -229,12 +254,15 @@ func (f *File) WriteString(s string) (n int, err error) {
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	if runtime.GOOS == "windows" && isWindowsNulName(name) {
-		return &PathError{"mkdir", name, syscall.ENOTDIR}
+		return &PathError{Op: "mkdir", Path: name, Err: syscall.ENOTDIR}
 	}
-	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
+	longName := fixLongPath(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Mkdir(longName, syscallMode(perm))
+	})
 
 	if e != nil {
-		return &PathError{"mkdir", name, e}
+		return &PathError{Op: "mkdir", Path: name, Err: e}
 	}
 
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
@@ -264,7 +292,7 @@ func setStickyBit(name string) error {
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
 		testlog.Open(dir) // observe likely non-existent directory
-		return &PathError{"chdir", dir, e}
+		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
@@ -339,7 +367,7 @@ func (f *File) wrapErr(op string, err error) error {
 	if err == poll.ErrFileClosing {
 		err = ErrClosed
 	}
-	return &PathError{op, f.name, err}
+	return &PathError{Op: op, Path: f.name, Err: err}
 }
 
 // TempDir returns the default directory to use for temporary files.
@@ -360,7 +388,7 @@ func TempDir() string {
 // within this one and use that.
 //
 // On Unix systems, it returns $XDG_CACHE_HOME as specified by
-// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.cache.
 // On Darwin, it returns $HOME/Library/Caches.
 // On Windows, it returns %LocalAppData%.
@@ -478,7 +506,7 @@ func UserHomeDir() (string, error) {
 	case "android":
 		return "/sdcard", nil
 	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+		if runtime.GOARCH == "arm64" {
 			return "/", nil
 		}
 	}
@@ -522,10 +550,12 @@ func (f *File) Chmod(mode FileMode) error { return f.chmod(mode) }
 // After a deadline has been exceeded, the connection can be refreshed
 // by setting a deadline in the future.
 //
-// An error returned after a timeout fails will implement the
-// Timeout method, and calling the Timeout method will return true.
-// The PathError and SyscallError types implement the Timeout method.
-// In general, call IsTimeout to test whether an error indicates a timeout.
+// If the deadline is exceeded a call to Read or Write or to other I/O
+// methods will return an error that wraps ErrDeadlineExceeded.
+// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
+// That error implements the Timeout method, and calling the Timeout
+// method will return true, but there are other possible errors for which
+// the Timeout will return true even if the deadline has not been exceeded.
 //
 // An idle timeout can be implemented by repeatedly extending
 // the deadline after successful Read or Write calls.
@@ -578,4 +608,22 @@ func isWindowsNulName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
+func DirFS(dir string) fs.FS {
+	return dirFS(dir)
+}
+
+type dirFS string
+
+func (dir dirFS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) {
+		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	}
+	f, err := Open(string(dir) + "/" + name)
+	if err != nil {
+		return nil, err // nil fs.File
+	}
+	return f, nil
 }

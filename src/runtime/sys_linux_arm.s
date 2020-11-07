@@ -242,7 +242,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·walltime1(SB),NOSPLIT,$0-12
+TEXT runtime·walltime1(SB),NOSPLIT,$8-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -252,6 +252,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$0-12
 	MOVW	g_m(g), R5 // R5 is unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVW	m_vdsoPC(R5), R1
+	MOVW	m_vdsoSP(R5), R2
+	MOVW	R1, 4(R13)
+	MOVW	R2, 8(R13)
+
 	MOVW	LR, m_vdsoPC(R5)
 	MOVW	R13, m_vdsoSP(R5)
 
@@ -269,8 +276,8 @@ noswitch:
 
 	MOVW	$CLOCK_REALTIME, R0
 	MOVW	$8(R13), R1	// timespec
-	MOVW	runtime·vdsoClockgettimeSym(SB), R11
-	CMP	$0, R11
+	MOVW	runtime·vdsoClockgettimeSym(SB), R2
+	CMP	$0, R2
 	B.EQ	fallback
 
 	// Store g on gsignal's stack, so if we receive a signal
@@ -292,7 +299,7 @@ noswitch:
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
-	BL	(R11)
+	BL	(R2)
 
 	MOVW	$0, R1
 	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
@@ -300,7 +307,7 @@ noswitch:
 	JMP	finish
 
 nosaveg:
-	BL	(R11)
+	BL	(R2)
 	JMP	finish
 
 fallback:
@@ -312,8 +319,15 @@ finish:
 	MOVW	12(R13), R2  // nsec
 
 	MOVW	R4, R13		// Restore real SP
-	MOVW	$0, R1
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVW	8(R13), R1
 	MOVW	R1, m_vdsoSP(R5)
+	MOVW	4(R13), R1
+	MOVW	R1, m_vdsoPC(R5)
 
 	MOVW	R0, sec_lo+0(FP)
 	MOVW	R1, sec_hi+4(FP)
@@ -321,7 +335,7 @@ finish:
 	RET
 
 // int64 nanotime1(void)
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
@@ -330,6 +344,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVW	g_m(g), R5 // R5 is unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVW	m_vdsoPC(R5), R1
+	MOVW	m_vdsoSP(R5), R2
+	MOVW	R1, 4(R13)
+	MOVW	R2, 8(R13)
+
 	MOVW	LR, m_vdsoPC(R5)
 	MOVW	R13, m_vdsoSP(R5)
 
@@ -347,8 +368,8 @@ noswitch:
 
 	MOVW	$CLOCK_MONOTONIC, R0
 	MOVW	$8(R13), R1	// timespec
-	MOVW	runtime·vdsoClockgettimeSym(SB), R11
-	CMP	$0, R11
+	MOVW	runtime·vdsoClockgettimeSym(SB), R2
+	CMP	$0, R2
 	B.EQ	fallback
 
 	// Store g on gsignal's stack, so if we receive a signal
@@ -370,7 +391,7 @@ noswitch:
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
-	BL	(R11)
+	BL	(R2)
 
 	MOVW	$0, R1
 	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
@@ -378,7 +399,7 @@ noswitch:
 	JMP	finish
 
 nosaveg:
-	BL	(R11)
+	BL	(R2)
 	JMP	finish
 
 fallback:
@@ -390,8 +411,15 @@ finish:
 	MOVW	12(R13), R2	// nsec
 
 	MOVW	R4, R13		// Restore real SP
-	MOVW	$0, R4
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVW	8(R13), R4
 	MOVW	R4, m_vdsoSP(R5)
+	MOVW	4(R13), R4
+	MOVW	R4, m_vdsoPC(R5)
 
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)

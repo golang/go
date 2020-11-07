@@ -40,7 +40,6 @@ git.torproject.org/pluggable-transports/goptlib.git,v1.1.0,h1:LMQAA8pAho+QtYrrVN
 gitee.com/nggs/util,v0.0.0-20190830024003-3e49d2efc84b,h1:6KQpPEs326uPrICQy9x/PxmR8U0v/XsFzpt0k1nFKcY=,a062c99c2b560a36168fe51eab8f17f4fadf5d534238881628e83d8d61e51c2a
 github.com/1and1/oneandone-cloudserver-sdk-go,v1.0.1,h1:RMTyvS5bjvSWiUcfqfr/E2pxHEMrALvU+E12n6biymg=,7f068808fc0857d7de8c8f829cc380dce1c6611a3fc819daf4421e9bcb75a07c
 github.com/99designs/gqlgen,v0.10.1,h1:1BgB6XKGTHq7uH4G1/PYyKe2Kz7/vw3AlvMZlD3TEEY=,04b9e7d8a3df6543cd870325b1140ce9ac3f4bbfd8c90ebecec4f908dd420d08
-github.com/AlexStocks/log4go,v1.0.5,h1:45boeHy0qh0NFBaEhrFT/pUKzQUGf7q2Ux1iQDr/f6o=,59371c2108f62aa9a2233ca8f7de57868ad2c64313b2d68434e0ed6a1748ce2c
 github.com/AndreasBriese/bbloom,v0.0.0-20190306092124-e2d15f34fcf9,h1:HD8gA2tkByhMAwYaFAX9w2l7vxvBQ5NMoxDrkhqhtn4=,6d7c1af06f8597fde1e86166f26416057392f1b0bdb84f2af555aa461282dd18
 github.com/AsynkronIT/goconsole,v0.0.0-20160504192649-bfa12eebf716,h1:Pk/Kzi5O0T4QxfqvbaUsh8UklbJ9BklZ/ClZBptX5WU=,5a2507b89bb4436881718d785a0ef383652aa99782508b7444cf20255082dab9
 github.com/Azure/azure-amqp-common-go,v1.1.4,h1:DmPXxmLZwi/71CgRTZIKR6yiKEW3eC42S4gSBhfG7y0=,4b800793ff4fefa86a427c445e3a4671b8d1dcd87a44075f6309cace6b0e01e2
@@ -243,7 +242,6 @@ github.com/beego/x2j,v0.0.0-20131220205130-a0352aadc542,h1:nYXb+3jF6Oq/j8R/y90Xr
 github.com/beevik/etree,v1.1.0,h1:T0xke/WvNtMoCqgzPhkX2r4rjY3GDZFi+FjpRZY2Jbs=,614a33736f8b9262a809f101df5bf71f47777879b1191165b6247d6b67c7468c
 github.com/beevik/guid,v0.0.0-20170504223318-d0ea8faecee0,h1:oLd/YLOTOgA4D4aAUhIE8vhl/LAP1ZJrj0mDQpl7GB8=,5add94fcade6c7afa236112c8da300d47ec499ad1789a5e805c8198062dd0749
 github.com/beevik/ntp,v0.2.0,h1:sGsd+kAXzT0bfVfzJfce04g+dSRfrs+tbQW8lweuYgw=,42e14f30c23ba2f5ddaff76101016d87f0f0a0f1d96d3d20e42fd02842091c76
-github.com/belogik/goes,v0.0.0-20151229125003-e54d722c3aff,h1:/kO0p2RTGLB8R5gub7ps0GmYpB2O8LXEoPq8tzFDCUI=,f926f1040febe5318efa145541a6fc7898d32514bc13899e812185f05710c5db
 github.com/beorn7/perks,v1.0.1,h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=,25bd9e2d94aca770e6dbc1f53725f84f6af4432f631d35dd2c46f96ef0512f1a
 github.com/bep/debounce,v1.2.0,h1:wXds8Kq8qRfwAOpAxHrJDbCXgC5aHSzgQb/0gKsHQqo=,ddc0a77e4819b6b826d69fdf1a5a153f3f867a31e030cfe28296355b670adf21
 github.com/bep/gitmap,v1.1.1,h1:Nf8ySnC3I7/xPjuWeCwzukUFv185iTUQ6nOvLy9gCJA=,364163e67741ae331d164fd881964160f19fdbdfe094e0e762314cc37aac646a
@@ -1461,7 +1459,6 @@ github.com/opencontainers/runc,v0.1.1,h1:GlxAyO6x8rfZYN9Tt0Kti5a/cP41iuiO2yYT0IJ
 github.com/opencontainers/runtime-spec,v1.0.1,h1:wY4pOY8fBdSIvs9+IDHC55thBuEulhzfSgKeC1yFvzQ=,1958458b00ce912425f5c7d2ee836431b296a3f9320d565512d8c96b107fffbf
 github.com/opencontainers/runtime-tools,v0.9.0,h1:FYgwVsKRI/H9hU32MJ/4MLOzXWodKK5zsQavY8NPMkU=,53c720dbb7452cfb2fd3945e37c26b5a0140cb1012d35a2b72a5e035f28a32c4
 github.com/opencontainers/selinux,v1.3.0,h1:xsI95WzPZu5exzA6JzkLSfdr/DilzOhCJOqGe5TgR0g=,88286825b32cd46a0469e578f378a185032da2d5b03893623861ef3af59359d8
-github.com/openshift/api,v3.9.0+incompatible,h1:fJ/KsefYuZAjmrr3+5U9yZIZbTOpVkDDLDLFresAeYs=,fc087ac9809ce58bdd15614e04c13f8ecc4a17e71addbe6eb6b777c377b01243
 github.com/openshift/client-go,v3.9.0+incompatible,h1:13k3Ok0B7TA2hA3bQW2aFqn6y04JaJWdk7ITTyg+Ek0=,661b7f28b4905f1936dd58e373374513d54663ec85aecafede1c7d9c260e9369
 github.com/openshift/library-go,v0.0.0-20191101161407-e7c97b468b83,h1:wwR+laNaFKVGiizoIDL/cAKIZVoKXJ9jbjUoUlq2p5I=,c74f8134013f978ef154d6accf9b4b0c5126941f2d45e6eb223db7098f7ab2a4
 github.com/opentracing-contrib/go-observer,v0.0.0-20170622124052-a52f23424492,h1:lM6RxxfUMrYL/f8bWEUqdXrANWtrL7Nndbm9iFN0DlU=,50023eee1ef04412410f43d8b5dcf3ef481c0fc39067add27799654705fa84b2
@@ -1882,7 +1879,6 @@ github.com/zondax/ledger-go,v0.9.0,h1:oTrtFqPFA4VdCPRvqMaN45mQnJxkPc0JxoVZfCoUpj
 github.com/zquestz/grab,v0.0.0-20190224022517-abcee96e61b1,h1:1qKTeMTSIEvRIjvVYzgcRp0xVp0eoiRTTiHSncb5gD8=,4decd67f1252df4ee34968cb0cb4e7dc6010302b24ce8edd418f1c2520f1c351
 gitlab.com/NebulousLabs/errors,v0.0.0-20171229012116-7ead97ef90b8,h1:gZfMjx7Jr6N8b7iJO4eUjDsn6xJqoyXg8D+ogdoAfKY=,b355474f1a2ef2722ae450ef6df7209d223188ae413706be122b472fcc053c48
 gitlab.com/NebulousLabs/fastrand,v0.0.0-20181126182046-603482d69e40,h1:dizWJqTWjwyD8KGcMOwgrkqu1JIkofYgKkmDeNE7oAs=,a56acdda993c7a4795028fe38844d54de9b1877d22e8ae09f205e488ce2284bc
-gitlab.com/yumeko/MumbleEmu,v0.0.0-20170923112213-54c9892f02e9,h1:QSaGLacCEAlWXhL/xGZyS3+2aDVvBZe5jcmrDWwXhqs=,51cc295a04dc3b9c39b341f21b95fc42765e3bb61fe30ec2a59fe867c1b5e5ed
 go.bug.st/serial.v1,v0.0.0-20180827123349-5f7892a7bb45,h1:mACY1anK6HNCZtm/DK2Rf2ZPHggVqeB0+7rY9Gl6wyI=,f0ea4cd4c51228f1a3cf14c6b92888169944f267e1ee778909512a4c8ac4762f
 go.cryptoscope.co/luigi,v0.3.4,h1:eDrtCoUL5Vl2Atr5ty2dq0uFbzFCc6Pz1HEqU1e7I1I=,949612e92dcb2fc919e506740f36d0cfe0797c1f85579a98763aad0135a4580a
 go.dedis.ch/fixbuf,v1.0.3,h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=,dfa737543a5873b14cdfd0eec675c63044b16d3dbe481b2289c758ae4186ae95
@@ -2085,7 +2081,6 @@ layeh.com/radius,v0.0.0-20190322222518-890bc1058917,h1:BDXFaFzUt5EIqe/4wrTc4AcYZ
 leb.io/aeshash,v0.0.0-20190627052759-9e6b40329b3b,h1:MG17Tc0pA3XmFTsPwklMMEfcos3pTFnVYM4A0YfVSbU=,a78b48ac18e98ea68dacce16cd94c9074688a0b125f824f047313a33b264ea88
 leb.io/hashland,v0.0.0-20171003003232-07375b562dea,h1:s9IkzZTqYqw77voO6taUZHc0C1B096h4T/kQtujGApE=,0698177f24cbde0a7b45495e7fe976fe7623f2b9205995b7d91fd2e7b0f0e243
 leb.io/hrff,v0.0.0-20170927164517-757f8bd43e20,h1:9CHS8LIq9MDwUsAaCHUsbUq7zb5lSjLQYWlJ/AbMZKg=,538008712599401a903a7982714c0a9ae745221042d3dfb1437bc508d8fb9e96
-llvm.org/llvm,v0.0.0-20191022153947-000000375505,h1:cncItmsQ0kcXFrnkQZv2TGle2ELPCEDi3Q36Kf2T3yg=,3f48da9846fc0f69ccc447ead4480f8c7f2b44b0c24b98a793d36d8cb2a572c0
 modernc.org/cc,v1.0.0,h1:nPibNuDEx6tvYrUAtvDTTw98rx5juGsa5zuDnKwEEQQ=,24711e9b28b0d79dd32438eeb7debd86b850350f5f7749b7af640422ecf6b93b
 modernc.org/golex,v1.0.0,h1:wWpDlbK8ejRfSyi0frMyhilD3JBvtcx2AdGDnU+JtsE=,335133038991d7feaba5349ac2385db7b49601bba0904abf680803ee2d3c99df
 modernc.org/mathutil,v1.0.0,h1:93vKjrJopTPrtTNpZ8XIovER7iCIH1QU7wNbOQXC60I=,766ad95195543fe1ac217ce9f54e1fb43119c25db2b89013b9ef5477ad2dd9d1

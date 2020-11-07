@@ -20,7 +20,7 @@ import (
 var testfile *ast.File
 
 func testprint(out io.Writer, file *ast.File) {
-	if err := (&Config{TabIndent | UseSpaces, 8, 0}).Fprint(out, fset, file); err != nil {
+	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
 		log.Fatalf("print error: %s", err)
 	}
 }
@@ -53,6 +53,6 @@ func BenchmarkPrint(b *testing.B) {
 		initialize()
 	}
 	for i := 0; i < b.N; i++ {
-		testprint(ioutil.Discard, testfile)
+		testprint(io.Discard, testfile)
 	}
 }

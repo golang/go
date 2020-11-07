@@ -4,182 +4,193 @@
 
 package main
 
+import "strings"
+
 func init() {
-	addTestCases(eglTests, eglfix)
+	addTestCases(eglTestsFor("EGLDisplay"), eglfixDisp)
+	addTestCases(eglTestsFor("EGLConfig"), eglfixConfig)
 }
 
-var eglTests = []testCase{
-	{
-		Name: "egl.localVariable",
-		In: `package main
+func eglTestsFor(tname string) []testCase {
+	var eglTests = []testCase{
+		{
+			Name: "egl.localVariable",
+			In: `package main
 
 import "C"
 
 func f() {
-	var x C.EGLDisplay = nil
+	var x C.$EGLTYPE = nil
 	x = nil
 	x, x = nil, nil
 }
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
 func f() {
-	var x C.EGLDisplay = 0
+	var x C.$EGLTYPE = 0
 	x = 0
 	x, x = 0, 0
 }
 `,
-	},
-	{
-		Name: "egl.globalVariable",
-		In: `package main
+		},
+		{
+			Name: "egl.globalVariable",
+			In: `package main
 
 import "C"
 
-var x C.EGLDisplay = nil
+var x C.$EGLTYPE = nil
 
 func f() {
 	x = nil
 }
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x C.EGLDisplay = 0
+var x C.$EGLTYPE = 0
 
 func f() {
 	x = 0
 }
 `,
-	},
-	{
-		Name: "egl.EqualArgument",
-		In: `package main
+		},
+		{
+			Name: "egl.EqualArgument",
+			In: `package main
 
 import "C"
 
-var x C.EGLDisplay
+var x C.$EGLTYPE
 var y = x == nil
 var z = x != nil
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x C.EGLDisplay
+var x C.$EGLTYPE
 var y = x == 0
 var z = x != 0
 `,
-	},
-	{
-		Name: "egl.StructField",
-		In: `package main
+		},
+		{
+			Name: "egl.StructField",
+			In: `package main
 
 import "C"
 
 type T struct {
-	x C.EGLDisplay
+	x C.$EGLTYPE
 }
 
 var t = T{x: nil}
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
 type T struct {
-	x C.EGLDisplay
+	x C.$EGLTYPE
 }
 
 var t = T{x: 0}
 `,
-	},
-	{
-		Name: "egl.FunctionArgument",
-		In: `package main
+		},
+		{
+			Name: "egl.FunctionArgument",
+			In: `package main
 
 import "C"
 
-func f(x C.EGLDisplay) {
+func f(x C.$EGLTYPE) {
 }
 
 func g() {
 	f(nil)
 }
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-func f(x C.EGLDisplay) {
+func f(x C.$EGLTYPE) {
 }
 
 func g() {
 	f(0)
 }
 `,
-	},
-	{
-		Name: "egl.ArrayElement",
-		In: `package main
+		},
+		{
+			Name: "egl.ArrayElement",
+			In: `package main
 
 import "C"
 
-var x = [3]C.EGLDisplay{nil, nil, nil}
+var x = [3]C.$EGLTYPE{nil, nil, nil}
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x = [3]C.EGLDisplay{0, 0, 0}
+var x = [3]C.$EGLTYPE{0, 0, 0}
 `,
-	},
-	{
-		Name: "egl.SliceElement",
-		In: `package main
+		},
+		{
+			Name: "egl.SliceElement",
+			In: `package main
 
 import "C"
 
-var x = []C.EGLDisplay{nil, nil, nil}
+var x = []C.$EGLTYPE{nil, nil, nil}
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x = []C.EGLDisplay{0, 0, 0}
+var x = []C.$EGLTYPE{0, 0, 0}
 `,
-	},
-	{
-		Name: "egl.MapKey",
-		In: `package main
+		},
+		{
+			Name: "egl.MapKey",
+			In: `package main
 
 import "C"
 
-var x = map[C.EGLDisplay]int{nil: 0}
+var x = map[C.$EGLTYPE]int{nil: 0}
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x = map[C.EGLDisplay]int{0: 0}
+var x = map[C.$EGLTYPE]int{0: 0}
 `,
-	},
-	{
-		Name: "egl.MapValue",
-		In: `package main
+		},
+		{
+			Name: "egl.MapValue",
+			In: `package main
 
 import "C"
 
-var x = map[int]C.EGLDisplay{0: nil}
+var x = map[int]C.$EGLTYPE{0: nil}
 `,
-		Out: `package main
+			Out: `package main
 
 import "C"
 
-var x = map[int]C.EGLDisplay{0: 0}
+var x = map[int]C.$EGLTYPE{0: 0}
 `,
-	},
+		},
+	}
+	for i := range eglTests {
+		t := &eglTests[i]
+		t.In = strings.ReplaceAll(t.In, "$EGLTYPE", tname)
+		t.Out = strings.ReplaceAll(t.Out, "$EGLTYPE", tname)
+	}
+	return eglTests
 }

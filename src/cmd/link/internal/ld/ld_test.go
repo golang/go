@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"debug/pe"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -17,8 +18,13 @@ import (
 )
 
 func TestUndefinedRelocErrors(t *testing.T) {
-	t.Parallel()
 	testenv.MustHaveGoBuild(t)
+
+	// When external linking, symbols may be defined externally, so we allow
+	// undefined symbols and let external linker resolve. Skip the test.
+	testenv.MustInternalLink(t)
+
+	t.Parallel()
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatal(err)
@@ -132,5 +138,107 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 	if !found {
 		t.Errorf("expected '%s' in -v output, got:\n%s\n", want, string(out))
+	}
+}
+
+func TestPPC64LargeTextSectionSplitting(t *testing.T) {
+	// The behavior we're checking for is of interest only on ppc64.
+	if !strings.HasPrefix(runtime.GOARCH, "ppc64") {
+		t.Skip("test useful only for ppc64")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	t.Parallel()
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// NB: the use of -ldflags=-debugppc64textsize=1048576 tells the linker to
+	// split text sections at a size threshold of 1M instead of the
+	// architected limit of 67M. The choice of building cmd/go is
+	// arbitrary; we just need something sufficiently large that uses
+	// external linking.
+	exe := filepath.Join(dir, "go.exe")
+	out, eerr := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugppc64textsize=1048576", "cmd/go").CombinedOutput()
+	if eerr != nil {
+		t.Fatalf("build failure: %s\n%s\n", eerr, string(out))
+	}
+
+	// Result should be runnable.
+	_, err = exec.Command(exe, "version").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWindowsBuildmodeCSharedASLR(t *testing.T) {
+	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+	switch platform {
+	case "windows/amd64", "windows/386":
+	default:
+		t.Skip("skipping windows amd64/386 only test")
+	}
+
+	t.Run("aslr", func(t *testing.T) {
+		testWindowsBuildmodeCSharedASLR(t, true)
+	})
+	t.Run("no-aslr", func(t *testing.T) {
+		testWindowsBuildmodeCSharedASLR(t, false)
+	})
+}
+
+func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	srcfile := filepath.Join(dir, "test.go")
+	objfile := filepath.Join(dir, "test.dll")
+	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
+		t.Fatal(err)
+	}
+	argv := []string{"build", "-buildmode=c-shared"}
+	if !useASLR {
+		argv = append(argv, "-ldflags", "-aslr=false")
+	}
+	argv = append(argv, "-o", objfile, srcfile)
+	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failure: %s\n%s\n", err, string(out))
+	}
+
+	f, err := pe.Open(objfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var dc uint16
+	switch oh := f.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		dc = oh.DllCharacteristics
+	case *pe.OptionalHeader64:
+		dc = oh.DllCharacteristics
+		hasHEVA := (dc & pe.IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) != 0
+		if useASLR && !hasHEVA {
+			t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag is not set")
+		} else if !useASLR && hasHEVA {
+			t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag should not be set")
+		}
+	default:
+		t.Fatalf("unexpected optional header type of %T", f.OptionalHeader)
+	}
+	hasASLR := (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) != 0
+	if useASLR && !hasASLR {
+		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
+	} else if !useASLR && hasASLR {
+		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag should not be set")
 	}
 }

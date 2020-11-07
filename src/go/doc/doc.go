@@ -138,9 +138,12 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 // NewFromFiles computes documentation for a package.
 //
 // The package is specified by a list of *ast.Files and corresponding
-// file set, which must not be nil. NewFromFiles does not skip files
-// based on build constraints, so it is the caller's responsibility to
-// provide only the files that are matched by the build context.
+// file set, which must not be nil.
+// NewFromFiles uses all provided files when computing documentation,
+// so it is the caller's responsibility to provide only the files that
+// match the desired build context. "go/build".Context.MatchFile can
+// be used for determining whether a file matches a build context with
+// the desired GOOS and GOARCH values, and other build constraints.
 // The import path of the package is specified by importPath.
 //
 // Examples found in _test.go files are associated with the corresponding

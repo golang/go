@@ -7,7 +7,6 @@ package httptest
 import (
 	"crypto/tls"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -155,7 +154,7 @@ func TestNewRequest(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewRequest(tt.method, tt.uri, tt.body)
-			slurp, err := ioutil.ReadAll(got.Body)
+			slurp, err := io.ReadAll(got.Body)
 			if err != nil {
 				t.Errorf("ReadAll: %v", err)
 			}

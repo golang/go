@@ -537,3 +537,60 @@ func TestHugeBuffer(t *testing.T) {
 		t.Fatal("after scan:", s.Err())
 	}
 }
+
+// negativeEOFReader returns an invalid -1 at the end, as though it
+// were wrapping the read system call.
+type negativeEOFReader int
+
+func (r *negativeEOFReader) Read(p []byte) (int, error) {
+	if *r > 0 {
+		c := int(*r)
+		if c > len(p) {
+			c = len(p)
+		}
+		for i := 0; i < c; i++ {
+			p[i] = 'a'
+		}
+		p[c-1] = '\n'
+		*r -= negativeEOFReader(c)
+		return c, nil
+	}
+	return -1, io.EOF
+}
+
+// Test that the scanner doesn't panic and returns ErrBadReadCount
+// on a reader that returns a negative count of bytes read (issue 38053).
+func TestNegativeEOFReader(t *testing.T) {
+	r := negativeEOFReader(10)
+	scanner := NewScanner(&r)
+	c := 0
+	for scanner.Scan() {
+		c++
+		if c > 1 {
+			t.Error("read too many lines")
+			break
+		}
+	}
+	if got, want := scanner.Err(), ErrBadReadCount; got != want {
+		t.Errorf("scanner.Err: got %v, want %v", got, want)
+	}
+}
+
+// largeReader returns an invalid count that is larger than the number
+// of bytes requested.
+type largeReader struct{}
+
+func (largeReader) Read(p []byte) (int, error) {
+	return len(p) + 1, nil
+}
+
+// Test that the scanner doesn't panic and returns ErrBadReadCount
+// on a reader that returns an impossibly large count of bytes read (issue 38053).
+func TestLargeReader(t *testing.T) {
+	scanner := NewScanner(largeReader{})
+	for scanner.Scan() {
+	}
+	if got, want := scanner.Err(), ErrBadReadCount; got != want {
+		t.Errorf("scanner.Err: got %v, want %v", got, want)
+	}
+}

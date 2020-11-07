@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime
 
 // Constants
@@ -87,7 +91,6 @@ const (
 	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
-	_F_SETFL    = 0x4
 	_SOCK_DGRAM = 0x2
 )
 

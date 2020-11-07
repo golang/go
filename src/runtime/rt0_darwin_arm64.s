@@ -4,11 +4,14 @@
 
 #include "textflag.h"
 
-// No need for _rt0_arm64_darwin as darwin/arm64 only
-// supports external linking.
 TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$42, R0
-	BL  libc_exit(SB)
+	MOVD	$runtime·rt0_go(SB), R2
+	BL	(R2)
+exit:
+	MOVD	$0, R0
+	MOVD	$1, R16	// sys_exit
+	SVC	$0x80
+	B	exit
 
 // When linking with -buildmode=c-archive or -buildmode=c-shared,
 // this symbol is called from a global initialization function.
@@ -86,11 +89,6 @@ GLOBL _rt0_arm64_darwin_lib_argc<>(SB),NOPTR, $8
 DATA  _rt0_arm64_darwin_lib_argv<>(SB)/8, $0
 GLOBL _rt0_arm64_darwin_lib_argv<>(SB),NOPTR, $8
 
+// external linking entry point.
 TEXT main(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·rt0_go(SB), R2
-	BL	(R2)
-exit:
-	MOVD	$0, R0
-	MOVD	$1, R16	// sys_exit
-	SVC	$0x80
-	B	exit
+	JMP	_rt0_arm64_darwin(SB)

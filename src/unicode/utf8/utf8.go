@@ -14,7 +14,7 @@ package utf8
 // Numbers fundamental to the encoding.
 const (
 	RuneError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
-	RuneSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
+	RuneSelf  = 0x80         // characters below RuneSelf are represented as themselves in a single byte.
 	MaxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
 	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
 )
@@ -337,6 +337,7 @@ func RuneLen(r rune) int {
 }
 
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+// If the rune is out of range, it writes the encoding of RuneError.
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
 	// Negative values are erroneous. Making it unsigned addresses the problem.
@@ -448,6 +449,20 @@ func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 
 // Valid reports whether p consists entirely of valid UTF-8-encoded runes.
 func Valid(p []byte) bool {
+	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
+	for len(p) >= 8 {
+		// Combining two 32 bit loads allows the same code to be used
+		// for 32 and 64 bit platforms.
+		// The compiler can generate a 32bit load for first32 and second32
+		// on many platforms. See test/codegen/memcombine.go.
+		first32 := uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+		second32 := uint32(p[4]) | uint32(p[5])<<8 | uint32(p[6])<<16 | uint32(p[7])<<24
+		if (first32|second32)&0x80808080 != 0 {
+			// Found a non ASCII byte (>= RuneSelf).
+			break
+		}
+		p = p[8:]
+	}
 	n := len(p)
 	for i := 0; i < n; {
 		pi := p[i]
@@ -480,6 +495,20 @@ func Valid(p []byte) bool {
 
 // ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
 func ValidString(s string) bool {
+	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
+	for len(s) >= 8 {
+		// Combining two 32 bit loads allows the same code to be used
+		// for 32 and 64 bit platforms.
+		// The compiler can generate a 32bit load for first32 and second32
+		// on many platforms. See test/codegen/memcombine.go.
+		first32 := uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 | uint32(s[3])<<24
+		second32 := uint32(s[4]) | uint32(s[5])<<8 | uint32(s[6])<<16 | uint32(s[7])<<24
+		if (first32|second32)&0x80808080 != 0 {
+			// Found a non ASCII byte (>= RuneSelf).
+			break
+		}
+		s = s[8:]
+	}
 	n := len(s)
 	for i := 0; i < n; {
 		si := s[i]

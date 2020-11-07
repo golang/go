@@ -12,7 +12,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,10 +23,9 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/get"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
 	"cmd/go/internal/web"
+
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb"
 	"golang.org/x/mod/sumdb/note"
@@ -33,7 +33,7 @@ import (
 
 // useSumDB reports whether to use the Go checksum database for the given module.
 func useSumDB(mod module.Version) bool {
-	return cfg.GOSUMDB != "off" && !get.Insecure && !str.GlobsMatchPath(cfg.GONOSUMDB, mod.Path)
+	return cfg.GOSUMDB != "off" && !cfg.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
 }
 
 // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
@@ -130,7 +130,7 @@ func (c *dbClient) ReadRemote(path string) ([]byte, error) {
 	targ := web.Join(c.base, path)
 	data, err := web.GetBytes(targ)
 	if false {
-		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), web.Redacted(targ))
+		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), targ.Redacted())
 	}
 	return data, err
 }
@@ -146,49 +146,50 @@ func (c *dbClient) initBase() {
 	}
 
 	// Try proxies in turn until we find out how to connect to this database.
-	urls, err := proxyURLs()
-	if err != nil {
-		c.baseErr = err
-		return
-	}
-	for _, proxyURL := range urls {
-		if proxyURL == "noproxy" {
-			continue
-		}
-		if proxyURL == "direct" || proxyURL == "off" {
-			break
-		}
-		proxy, err := url.Parse(proxyURL)
-		if err != nil {
-			c.baseErr = err
-			return
-		}
-		// Quoting https://golang.org/design/25530-sumdb#proxying-a-checksum-database:
-		//
-		// Before accessing any checksum database URL using a proxy,
-		// the proxy client should first fetch <proxyURL>/sumdb/<sumdb-name>/supported.
-		// If that request returns a successful (HTTP 200) response, then the proxy supports
-		// proxying checksum database requests. In that case, the client should use
-		// the proxied access method only, never falling back to a direct connection to the database.
-		// If the /sumdb/<sumdb-name>/supported check fails with a “not found” (HTTP 404)
-		// or “gone” (HTTP 410) response, the proxy is unwilling to proxy the checksum database,
-		// and the client should connect directly to the database.
-		// Any other response is treated as the database being unavailable.
-		_, err = web.GetBytes(web.Join(proxy, "sumdb/"+c.name+"/supported"))
-		if err == nil {
+	//
+	// Before accessing any checksum database URL using a proxy, the proxy
+	// client should first fetch <proxyURL>/sumdb/<sumdb-name>/supported.
+	//
+	// If that request returns a successful (HTTP 200) response, then the proxy
+	// supports proxying checksum database requests. In that case, the client
+	// should use the proxied access method only, never falling back to a direct
+	// connection to the database.
+	//
+	// If the /sumdb/<sumdb-name>/supported check fails with a “not found” (HTTP
+	// 404) or “gone” (HTTP 410) response, or if the proxy is configured to fall
+	// back on errors, the client will try the next proxy. If there are no
+	// proxies left or if the proxy is "direct" or "off", the client should
+	// connect directly to that database.
+	//
+	// Any other response is treated as the database being unavailable.
+	//
+	// See https://golang.org/design/25530-sumdb#proxying-a-checksum-database.
+	err := TryProxies(func(proxy string) error {
+		switch proxy {
+		case "noproxy":
+			return errUseProxy
+		case "direct", "off":
+			return errProxyOff
+		default:
+			proxyURL, err := url.Parse(proxy)
+			if err != nil {
+				return err
+			}
+			if _, err := web.GetBytes(web.Join(proxyURL, "sumdb/"+c.name+"/supported")); err != nil {
+				return err
+			}
 			// Success! This proxy will help us.
-			c.base = web.Join(proxy, "sumdb/"+c.name)
-			return
+			c.base = web.Join(proxyURL, "sumdb/"+c.name)
+			return nil
 		}
-		// If the proxy serves a non-404/410, give up.
-		if !errors.Is(err, os.ErrNotExist) {
-			c.baseErr = err
-			return
-		}
+	})
+	if errors.Is(err, fs.ErrNotExist) {
+		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+		// to fall back), or we reached an explicit "direct" or "off".
+		c.base = c.direct
+	} else if err != nil {
+		c.baseErr = err
 	}
-
-	// No proxies, or all proxies said 404, or we reached an explicit "direct".
-	c.base = c.direct
 }
 
 // ReadConfig reads the key from c.key
@@ -198,10 +199,12 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 		return []byte(c.key), nil
 	}
 
-	// GOPATH/pkg is PkgMod/..
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return nil, errors.New("could not locate sumdb file: missing $GOPATH")
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	data, err = lockedfile.Read(targ)
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, fs.ErrNotExist) {
 		// Treat non-existent as empty, to bootstrap the "latest" file
 		// the first time we connect to a given database.
 		return []byte{}, nil
@@ -215,14 +218,17 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		// Should not happen.
 		return fmt.Errorf("cannot write key")
 	}
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return errors.New("could not locate sumdb file: missing $GOPATH")
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	f, err := lockedfile.Edit(targ)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
@@ -245,21 +251,21 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 // GOPATH/pkg/mod/cache/download/sumdb,
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	data, err := lockedfile.Read(targ)
 	// lockedfile.Write does not atomically create the file with contents.
 	// There is a moment between file creation and locking the file for writing,
 	// during which the empty file can be locked for reading.
 	// Treat observing an empty file as file not found.
 	if err == nil && len(data) == 0 {
-		err = &os.PathError{Op: "read", Path: targ, Err: os.ErrNotExist}
+		err = &fs.PathError{Op: "read", Path: targ, Err: fs.ErrNotExist}
 	}
 	return data, err
 }
 
 // WriteCache updates cached lookups or tiles.
 func (*dbClient) WriteCache(file string, data []byte) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
 }

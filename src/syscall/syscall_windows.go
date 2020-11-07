@@ -10,6 +10,7 @@ import (
 	errorspkg "errors"
 	"internal/oserror"
 	"internal/race"
+	"internal/unsafeheader"
 	"runtime"
 	"sync"
 	"unicode/utf16"
@@ -59,20 +60,24 @@ func UTF16ToString(s []uint16) string {
 
 // utf16PtrToString is like UTF16ToString, but takes *uint16
 // as a parameter instead of []uint16.
-// max is how many times p can be advanced looking for the null terminator.
-// If max is hit, the string is truncated at that point.
-func utf16PtrToString(p *uint16, max int) string {
+func utf16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
 	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
-	for *(*uint16)(end) != 0 && n < max {
+	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	s := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(p))[:n:n]
+	// Turn *uint16 into []uint16.
+	var s []uint16
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(p)
+	hdr.Cap = n
+	hdr.Len = n
+	// Decode []uint16 into string.
 	return string(utf16.Decode(s))
 }
 
@@ -101,7 +106,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 // using errors.Is. For example:
 //
 //	_, _, err := syscall.Syscall(...)
-//	if errors.Is(err, os.ErrNotExist) ...
+//	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
@@ -229,6 +234,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (err error) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle Handle, flags uint32) (err error) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) = advapi32.CryptGenRandom
+//sys	RtlGenRandom(buf *uint8, bytes uint32) (err error) = advapi32.SystemFunction036
 //sys	GetEnvironmentStrings() (envs *uint16, err error) [failretval==nil] = kernel32.GetEnvironmentStringsW
 //sys	FreeEnvironmentStrings(envs *uint16) (err error) = kernel32.FreeEnvironmentStringsW
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, err error) = kernel32.GetEnvironmentVariableW
@@ -334,6 +340,26 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
+		if createmode == CREATE_ALWAYS {
+			// We have been asked to create a read-only file.
+			// If the file already exists, the semantics of
+			// the Unix open system call is to preserve the
+			// existing permissions. If we pass CREATE_ALWAYS
+			// and FILE_ATTRIBUTE_READONLY to CreateFile,
+			// and the file already exists, CreateFile will
+			// change the file permissions.
+			// Avoid that to preserve the Unix semantics.
+			h, e := CreateFile(pathp, access, sharemode, sa, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+			switch e {
+			case ERROR_FILE_NOT_FOUND, _ERROR_BAD_NETPATH, ERROR_PATH_NOT_FOUND:
+				// File does not exist. These are the same
+				// errors as Errno.Is checks for ErrNotExist.
+				// Carry on to create the file.
+			default:
+				// Success or some different error.
+				return h, e
+			}
+		}
 	}
 	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 	return h, e
@@ -871,11 +897,19 @@ func Shutdown(fd Handle, how int) (err error) {
 }
 
 func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
-	rsa, l, err := to.sockaddr()
+	rsa, len, err := to.sockaddr()
 	if err != nil {
 		return err
 	}
-	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
 }
 
 func LoadGetAddrInfo() error {

@@ -2336,10 +2336,9 @@ of the request from the client.
 </p>
 <p>
 For brevity, let's ignore POSTs and assume HTTP requests are always
-GETs; that simplification does not affect the way the handlers are
-set up.  Here's a trivial but complete implementation of a handler to
-count the number of times the
-page is visited.
+GETs; that simplification does not affect the way the handlers are set up.
+Here's a trivial implementation of a handler to count the number of times
+the page is visited.
 </p>
 <pre>
 // Simple counter server.
@@ -2355,6 +2354,11 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 <p>
 (Keeping with our theme, note how <code>Fprintf</code> can print to an
 <code>http.ResponseWriter</code>.)
+In a real server, access to <code>ctr.n</code> would need protection from
+concurrent access.
+See the <code>sync</code> and <code>atomic</code> packages for suggestions.
+</p>
+<p>
 For reference, here's how to attach such a server to a node on the URL tree.
 </p>
 <pre>
@@ -2695,8 +2699,7 @@ type ReadWriter interface {
 <p>
 This says just what it looks like: A <code>ReadWriter</code> can do
 what a <code>Reader</code> does <em>and</em> what a <code>Writer</code>
-does; it is a union of the embedded interfaces (which must be disjoint
-sets of methods).
+does; it is a union of the embedded interfaces.
 Only interfaces can be embedded within interfaces.
 </p>
 <p>

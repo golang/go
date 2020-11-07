@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// A Ticker holds a channel that delivers `ticks' of a clock
+// A Ticker holds a channel that delivers ``ticks'' of a clock
 // at intervals.
 type Ticker struct {
 	C <-chan Time // The channel on which the ticks are delivered.
@@ -44,6 +44,15 @@ func NewTicker(d Duration) *Ticker {
 // reading from the channel from seeing an erroneous "tick".
 func (t *Ticker) Stop() {
 	stopTimer(&t.r)
+}
+
+// Reset stops a ticker and resets its period to the specified duration.
+// The next tick will arrive after the new period elapses.
+func (t *Ticker) Reset(d Duration) {
+	if t.r.f == nil {
+		panic("time: Reset called on uninitialized Ticker")
+	}
+	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking

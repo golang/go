@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"internal/testenv"
 	"io/ioutil"
 	"log"
@@ -15,8 +16,6 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/module"
 )
@@ -36,8 +35,7 @@ func testMain(m *testing.M) int {
 
 	os.Setenv("GOPATH", dir)
 	cfg.BuildContext.GOPATH = dir
-	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
-	codehost.WorkRoot = filepath.Join(dir, "codework")
+	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
 	return m.Run()
 }
 
@@ -47,7 +45,7 @@ var (
 	queryRepoV3 = queryRepo + "/v3"
 
 	// Empty version list (no semver tags), not actually empty.
-	emptyRepo = "vcs-test.golang.org/git/emptytest.git"
+	emptyRepoPath = "vcs-test.golang.org/git/emptytest.git"
 )
 
 var queryTests = []struct {
@@ -123,14 +121,14 @@ var queryTests = []struct {
 	{path: queryRepo, query: "upgrade", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "upgrade", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
-	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "upgrade" (current version is v1.9.9)`},
+	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `vcs-test.golang.org/git/querytest.git@v1.9.9: disallowed module version`},
 	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
 	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
 	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: "patch", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
-	{path: queryRepo, query: "patch", current: "v1.99.99", err: `no matching versions for query "patch" (current version is v1.99.99)`},
+	{path: queryRepo, query: "patch", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},
 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
@@ -163,48 +161,56 @@ var queryTests = []struct {
 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
-	// e0cf3de987e6 is the latest commit on the master branch, and it's actually
-	// v1.19.10-pre1, not anything resembling v3: attempting to query it as such
-	// should fail.
+	// Commit e0cf3de987e6 is actually v1.19.10-pre1, not anything resembling v3,
+	// and it has a go.mod file with a non-v3 module path. Attempting to query it
+	// as the v3 module should fail.
 	{path: queryRepoV3, query: "e0cf3de987e6", err: `vcs-test.golang.org/git/querytest.git/v3@v3.0.0-20180704024501-e0cf3de987e6: invalid version: go.mod has non-.../v3 module path "vcs-test.golang.org/git/querytest.git" (and .../v3/go.mod does not exist) at revision e0cf3de987e6`},
+
+	// The querytest repo does not have any commits tagged with major version 3,
+	// and the latest commit in the repo has a go.mod file specifying a non-v3 path.
+	// That should prevent us from resolving any version for the /v3 path.
 	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
 
-	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
-	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
-	{path: emptyRepo, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
+	{path: emptyRepoPath, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
+	{path: emptyRepoPath, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
+	{path: emptyRepoPath, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
 }
 
 func TestQuery(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
+	ctx := context.Background()
+
 	for _, tt := range queryTests {
 		allow := tt.allow
 		if allow == "" {
 			allow = "*"
 		}
-		allowed := func(m module.Version) bool {
-			ok, _ := path.Match(allow, m.Version)
-			return ok
+		allowed := func(ctx context.Context, m module.Version) error {
+			if ok, _ := path.Match(allow, m.Version); !ok {
+				return module.VersionError(m, ErrDisallowed)
+			}
+			return nil
 		}
 		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
 			t.Parallel()
 
-			info, err := Query(tt.path, tt.query, tt.current, allowed)
+			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
-					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)
+					t.Errorf("Query(_, %q, %q, %q, %v) = %v, want error %q", tt.path, tt.query, tt.current, allow, info.Version, tt.err)
 				} else if err.Error() != tt.err {
-					t.Errorf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
+					t.Errorf("Query(_, %q, %q, %q, %v): %v\nwant error %q", tt.path, tt.query, tt.current, allow, err, tt.err)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("Query(%q, %q, %v): %v", tt.path, tt.query, allow, err)
+				t.Fatalf("Query(_, %q, %q, %q, %v): %v\nwant %v", tt.path, tt.query, tt.current, allow, err, tt.vers)
 			}
 			if info.Version != tt.vers {
-				t.Errorf("Query(%q, %q, %v) = %v, want %v", tt.path, tt.query, allow, info.Version, tt.vers)
+				t.Errorf("Query(_, %q, %q, %q, %v) = %v, want %v", tt.path, tt.query, tt.current, allow, info.Version, tt.vers)
 			}
 		})
 	}

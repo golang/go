@@ -80,6 +80,7 @@ var okgoos = []string{
 	"darwin",
 	"dragonfly",
 	"illumos",
+	"ios",
 	"js",
 	"linux",
 	"android",
@@ -110,6 +111,9 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+	if modRoot := findModuleRoot(goroot); modRoot != "" {
+		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
+	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -140,11 +144,7 @@ func xinit() {
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
+		b = "sse2"
 	}
 	go386 = b
 
@@ -821,6 +821,7 @@ func runInstall(pkg string, ch chan struct{}) {
 		"-D", "GOOS_" + goos,
 		"-D", "GOARCH_" + goarch,
 		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+		"-p", pkg,
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		// Define GOMIPS_value from gomips.
@@ -831,6 +832,21 @@ func runInstall(pkg string, ch chan struct{}) {
 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
+	if IsRuntimePackagePath(pkg) {
+		asmArgs = append(asmArgs, "-compiling-runtime")
+		if os.Getenv("GOEXPERIMENT") == "regabi" {
+			// In order to make it easier to port runtime assembly
+			// to the register ABI, we introduce a macro
+			// indicating the experiment is enabled.
+			//
+			// Note: a similar change also appears in
+			// cmd/go/internal/work/gc.go.
+			//
+			// TODO(austin): Remove this once we commit to the
+			// register ABI (#40724).
+			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
+		}
+	}
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -966,7 +982,10 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+		(goos == "android" && tag == "linux") ||
+		(goos == "illumos" && tag == "solaris") ||
+		(goos == "ios" && tag == "darwin")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -980,7 +999,7 @@ func shouldbuild(file, pkg string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") || (ok == "ios" && x == "darwin") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -1205,7 +1224,7 @@ func timelog(op, name string) {
 		}
 		i := strings.Index(s, " start")
 		if i < 0 {
-			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBULDTIMELOGFILE"))
+			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBUILDTIMELOGFILE"))
 		}
 		t, err := time.Parse(time.UnixDate, s[:i])
 		if err != nil {
@@ -1458,9 +1477,9 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
-		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
-			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+	case goos == "ios":
+		if gohostos != "ios" {
+			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
 		}
 	}
 	return ""
@@ -1512,9 +1531,7 @@ func checkNotStale(goBinary string, targets ...string) {
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
 	"aix/ppc64":       true,
-	"darwin/386":      false, // Issue 31751
 	"darwin/amd64":    true,
-	"darwin/arm":      true,
 	"darwin/arm64":    true,
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,
@@ -1539,6 +1556,8 @@ var cgoEnabled = map[string]bool{
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
@@ -1548,6 +1567,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
+	"openbsd/mips64":  false,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1560,7 +1580,6 @@ var cgoEnabled = map[string]bool{
 // List of platforms which are supported but not complete yet. These get
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
-	"linux/riscv64": true,
 	"linux/sparc64": true,
 }
 
@@ -1588,6 +1607,20 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
+}
+
+func findModuleRoot(dir string) (root string) {
+	for {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+			return dir
+		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
+	}
+	return ""
 }
 
 func defaulttarg() string {
@@ -1716,4 +1749,24 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
+}
+
+// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+// belongs to the collection of "runtime-related" packages, including
+// "runtime" itself, "reflect", "syscall", and the
+// "runtime/internal/*" packages. See also the function of the same
+// name in cmd/internal/objabi/path.go.
+func IsRuntimePackagePath(pkgpath string) bool {
+	rval := false
+	switch pkgpath {
+	case "runtime":
+		rval = true
+	case "reflect":
+		rval = true
+	case "syscall":
+		rval = true
+	default:
+		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+	}
+	return rval
 }

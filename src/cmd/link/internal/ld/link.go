@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,7 +32,6 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -42,115 +41,69 @@ import (
 )
 
 type Shlib struct {
-	Path            string
-	Hash            []byte
-	Deps            []string
-	File            *elf.File
-	gcdataAddresses map[*sym.Symbol]uint64
+	Path string
+	Hash []byte
+	Deps []string
+	File *elf.File
 }
 
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
-	Out *OutBuf
+	Target
+	ErrorReporter
+	ArchSyms
 
-	Syms *sym.Symbols
+	outSem chan int // limits the number of output writers
+	Out    *OutBuf
 
-	Arch      *sys.Arch
+	version int // current version number for static/file-local symbols
+
 	Debugvlog int
 	Bso       *bufio.Writer
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
-	IsELF    bool
-	HeadType objabi.HeadType
-
-	linkShared    bool // link against installed Go shared libraries
-	LinkMode      LinkMode
-	BuildMode     BuildMode
-	canUsePlugins bool // initialized when Loaded is set to true
 	compressDWARF bool
 
-	Tlsg         *sym.Symbol
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
-	Tlsoffset    int
-	Textp        []*sym.Symbol
-	Filesyms     []*sym.Symbol
-	Moduledata   *sym.Symbol
+	Textp        []loader.Sym
+	Moduledata   loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
-
-	// unresolvedSymSet is a set of erroneous unresolved references.
-	// Used to avoid duplicated error messages.
-	unresolvedSymSet map[unresolvedSymKey]bool
-
-	// Used to implement field tracking.
-	Reachparent map[*sym.Symbol]*sym.Symbol
+	tramps []loader.Sym // trampolines
 
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
-
-	relocbuf []byte // temporary buffer for applying relocations
 
 	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
 
 	cgo_export_static  map[string]bool
 	cgo_export_dynamic map[string]bool
+
+	datap  []loader.Sym
+	dynexp []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+
+	// These are symbols that created and written by the linker.
+	// Rather than creating a symbol, and writing all its data into the heap,
+	// you can create a symbol, and just a generation function will be called
+	// after the symbol's been created in the output mmap.
+	generatorSyms map[loader.Sym]generatorFunc
 }
 
 type cgodata struct {
 	file       string
 	pkg        string
 	directives [][]string
-}
-
-type unresolvedSymKey struct {
-	from *sym.Symbol // Symbol that referenced unresolved "to"
-	to   *sym.Symbol // Unresolved symbol referenced by "from"
-}
-
-// ErrorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
-func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
-	if ctxt.unresolvedSymSet == nil {
-		ctxt.unresolvedSymSet = make(map[unresolvedSymKey]bool)
-	}
-
-	k := unresolvedSymKey{from: s, to: r.Sym}
-	if !ctxt.unresolvedSymSet[k] {
-		ctxt.unresolvedSymSet[k] = true
-
-		// Try to find symbol under another ABI.
-		var reqABI, haveABI obj.ABI
-		haveABI = ^obj.ABI(0)
-		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
-		if ok {
-			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
-				v := sym.ABIToVersion(abi)
-				if v == -1 {
-					continue
-				}
-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
-					haveABI = abi
-				}
-			}
-		}
-
-		// Give a special error message for main symbol (see #24809).
-		if r.Sym.Name == "main.main" {
-			Errorf(s, "function main is undeclared in the main package")
-		} else if haveABI != ^obj.ABI(0) {
-			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
-		} else {
-			Errorf(s, "relocation target %s not defined", r.Sym.Name)
-		}
-	}
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -177,11 +130,47 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.ImportStrings {
-		lib := addlib(ctxt, pkg, pn, importStr)
+	for _, imp := range l.Autolib {
+		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
 		if lib != nil {
 			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.ImportStrings = nil
+	l.Autolib = nil
+}
+
+// Allocate a new version (i.e. symbol namespace).
+func (ctxt *Link) IncVersion() int {
+	ctxt.version++
+	return ctxt.version - 1
+}
+
+// returns the maximum version number
+func (ctxt *Link) MaxVersion() int {
+	return ctxt.version
+}
+
+// generatorFunc is a convenience type.
+// Linker created symbols that are large, and shouldn't really live in the
+// heap can define a generator function, and their bytes can be generated
+// directly in the output mmap.
+//
+// Generator symbols shouldn't grow the symbol size, and might be called in
+// parallel in the future.
+//
+// Generator Symbols have their Data set to the mmapped area when the
+// generator is called.
+type generatorFunc func(*Link, loader.Sym)
+
+// createGeneratorSymbol is a convenience method for creating a generator
+// symbol.
+func (ctxt *Link) createGeneratorSymbol(name string, version int, t sym.SymKind, size int64, gen generatorFunc) loader.Sym {
+	ldr := ctxt.loader
+	s := ldr.LookupOrCreateSym(name, version)
+	ldr.SetIsGeneratedSym(s, true)
+	sb := ldr.MakeSymbolUpdater(s)
+	sb.SetType(t)
+	sb.SetSize(size)
+	ctxt.generatorSyms[s] = gen
+	return s
 }

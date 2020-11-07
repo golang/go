@@ -61,7 +61,7 @@ func (p *Process) signal(sig Signal) error {
 		return syscall.EINVAL
 	}
 	if p.done() {
-		return errors.New("os: process already finished")
+		return ErrProcessDone
 	}
 	if sig == Kill {
 		err := terminateProcess(p.Pid, 1)
@@ -98,7 +98,7 @@ func findProcess(pid int) (p *Process, err error) {
 }
 
 func init() {
-	cmd := windows.UTF16PtrToString(syscall.GetCommandLine(), 0xffff)
+	cmd := windows.UTF16PtrToString(syscall.GetCommandLine())
 	if len(cmd) == 0 {
 		arg0, _ := Executable()
 		Args = []string{arg0}

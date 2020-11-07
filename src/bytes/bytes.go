@@ -117,17 +117,17 @@ func LastIndex(s, sep []byte) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashss, pow := hashStrRev(sep)
+	hashss, pow := bytealg.HashStrRevBytes(sep)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
-		h = h*primeRK + uint32(s[i])
+		h = h*bytealg.PrimeRK + uint32(s[i])
 	}
 	if h == hashss && Equal(s[last:], sep) {
 		return last
 	}
 	for i := last - 1; i >= 0; i-- {
-		h *= primeRK
+		h *= bytealg.PrimeRK
 		h += uint32(s[i])
 		h -= pow * uint32(s[i+n])
 		if h == hashss && Equal(s[i:i+n], sep) {
@@ -183,6 +183,29 @@ func IndexAny(s []byte, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			// search utf8.RuneError.
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		r := rune(chars[0])
+		if r >= utf8.RuneSelf {
+			r = utf8.RuneError
+		}
+		return IndexRune(s, r)
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i, c := range s {
@@ -197,9 +220,28 @@ func IndexAny(s []byte, chars string) int {
 	for i := 0; i < len(s); i += width {
 		r := rune(s[i])
 		if r < utf8.RuneSelf {
+			if bytealg.IndexByteString(chars, s[i]) >= 0 {
+				return i
+			}
 			width = 1
-		} else {
-			r, width = utf8.DecodeRune(s[i:])
+			continue
+		}
+		r, width = utf8.DecodeRune(s[i:])
+		if r != utf8.RuneError {
+			// r is 2 to 4 bytes
+			if len(chars) == width {
+				if chars == string(r) {
+					return i
+				}
+				continue
+			}
+			// Use bytealg.IndexString for performance if available.
+			if bytealg.MaxLen >= width {
+				if bytealg.IndexString(chars, string(r)) >= 0 {
+					return i
+				}
+				continue
+			}
 		}
 		for _, ch := range chars {
 			if r == ch {
@@ -229,11 +271,64 @@ func LastIndexAny(s []byte, chars string) int {
 			return -1
 		}
 	}
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		cr := rune(chars[0])
+		if cr >= utf8.RuneSelf {
+			cr = utf8.RuneError
+		}
+		for i := len(s); i > 0; {
+			r, size := utf8.DecodeLastRune(s[:i])
+			i -= size
+			if r == cr {
+				return i
+			}
+		}
+		return -1
+	}
 	for i := len(s); i > 0; {
+		r := rune(s[i-1])
+		if r < utf8.RuneSelf {
+			if bytealg.IndexByteString(chars, s[i-1]) >= 0 {
+				return i - 1
+			}
+			i--
+			continue
+		}
 		r, size := utf8.DecodeLastRune(s[:i])
 		i -= size
-		for _, c := range chars {
-			if r == c {
+		if r != utf8.RuneError {
+			// r is 2 to 4 bytes
+			if len(chars) == size {
+				if chars == string(r) {
+					return i
+				}
+				continue
+			}
+			// Use bytealg.IndexString for performance if available.
+			if bytealg.MaxLen >= size {
+				if bytealg.IndexString(chars, string(r)) >= 0 {
+					return i
+				}
+				continue
+			}
+		}
+		for _, ch := range chars {
+			if r == ch {
 				return i
 			}
 		}
@@ -364,8 +459,9 @@ func Fields(s []byte) [][]byte {
 // It splits the slice s at each run of code points c satisfying f(c) and
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
 // len(s) == 0, an empty slice is returned.
-// FieldsFunc makes no guarantees about the order in which it calls f(c).
-// If f does not return consistent results for a given c, FieldsFunc may crash.
+//
+// FieldsFunc makes no guarantees about the order in which it calls f(c)
+// and assumes that f always returns the same value for a given c.
 func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	// A span is used to record a slice of s of the form s[start:end].
 	// The start index is inclusive and the end index is exclusive.
@@ -376,8 +472,10 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	spans := make([]span, 0, 32)
 
 	// Find the field start and end indices.
-	wasField := false
-	fromIndex := 0
+	// Doing this in a separate pass (rather than slicing the string s
+	// and collecting the result substrings right away) is significantly
+	// more efficient, possibly due to cache effects.
+	start := -1 // valid span start if >= 0
 	for i := 0; i < len(s); {
 		size := 1
 		r := rune(s[i])
@@ -385,22 +483,21 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 			r, size = utf8.DecodeRune(s[i:])
 		}
 		if f(r) {
-			if wasField {
-				spans = append(spans, span{start: fromIndex, end: i})
-				wasField = false
+			if start >= 0 {
+				spans = append(spans, span{start, i})
+				start = -1
 			}
 		} else {
-			if !wasField {
-				fromIndex = i
-				wasField = true
+			if start < 0 {
+				start = i
 			}
 		}
 		i += size
 	}
 
 	// Last field might end at EOF.
-	if wasField {
-		spans = append(spans, span{fromIndex, len(s)})
+	if start >= 0 {
+		spans = append(spans, span{start, len(s)})
 	}
 
 	// Create subslices from recorded field indices.
@@ -1019,11 +1116,11 @@ func Index(s, sep []byte) int {
 			if s[i] != c0 {
 				// IndexByte is faster than bytealg.Index, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(s[i:t], c0)
+				o := IndexByte(s[i+1:t], c0)
 				if o < 0 {
 					return -1
 				}
-				i += o
+				i += o + 1
 			}
 			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 				return i
@@ -1048,11 +1145,11 @@ func Index(s, sep []byte) int {
 	t := len(s) - n + 1
 	for i < t {
 		if s[i] != c0 {
-			o := IndexByte(s[i:t], c0)
+			o := IndexByte(s[i+1:t], c0)
 			if o < 0 {
 				break
 			}
-			i += o
+			i += o + 1
 		}
 		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 			return i
@@ -1068,7 +1165,7 @@ func Index(s, sep []byte) int {
 			// we should cutover at even larger average skips,
 			// because Equal becomes that much more expensive.
 			// This code does not take that effect into account.
-			j := indexRabinKarp(s[i:], sep)
+			j := bytealg.IndexRabinKarpBytes(s[i:], sep)
 			if j < 0 {
 				return -1
 			}
@@ -1076,64 +1173,4 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
-}
-
-func indexRabinKarp(s, sep []byte) int {
-	// Rabin-Karp search
-	hashsep, pow := hashStr(sep)
-	n := len(sep)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashsep && Equal(s[:n], sep) {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashsep && Equal(s[i-n:i], sep) {
-			return i - n
-		}
-	}
-	return -1
-}
-
-// primeRK is the prime base used in Rabin-Karp algorithm.
-const primeRK = 16777619
-
-// hashStr returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func hashStr(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// hashStrRev returns the hash of the reverse of sep and the
-// appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func hashStrRev(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := len(sep) - 1; i >= 0; i-- {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
 }

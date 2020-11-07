@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -240,7 +241,7 @@ func TestPanicSystemstack(t *testing.T) {
 	}
 
 	// Get traceback.
-	tb, err := ioutil.ReadAll(pr)
+	tb, err := io.ReadAll(pr)
 	if err != nil {
 		t.Fatal("reading traceback from pipe: ", err)
 	}
@@ -288,6 +289,12 @@ func TestSignalExitStatus(t *testing.T) {
 }
 
 func TestSignalIgnoreSIGTRAP(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		if bn := testenv.Builder(); strings.HasSuffix(bn, "-62") || strings.HasSuffix(bn, "-64") {
+			testenv.SkipFlaky(t, 17496)
+		}
+	}
+
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")
 	want := "OK\n"
 	if output != want {

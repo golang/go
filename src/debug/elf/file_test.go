@@ -293,6 +293,7 @@ func decompress(gz string) (io.ReaderAt, error) {
 type relocationTestEntry struct {
 	entryNumber int
 	entry       *dwarf.Entry
+	pcRanges    [][2]uint64
 }
 
 type relocationTest struct {
@@ -304,367 +305,481 @@ var relocationTests = []relocationTest{
 	{
 		"testdata/go-relocation-test-gcc441-x86-64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x6), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x6), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x6}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc441-x86.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "t.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x5), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "t.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x5), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x5}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc424-x86-64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x6), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x6), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x6}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc482-aarch64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -g -fstack-protector", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(0x24), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -g -fstack-protector", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x24), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x24}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc492-arm.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 20141224 (prerelease) -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mtls-dialect=gnu -g", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc492.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/root/go/src/debug/elf/testdata", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(0x28), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 20141224 (prerelease) -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mtls-dialect=gnu -g", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc492.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/root/go/src/debug/elf/testdata", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x28), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x28}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-clang-arm.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "Debian clang version 3.5.0-10 (tags/RELEASE_350/final) (based on LLVM 3.5.0)", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrStmtList, Val: int64(0x0), Class: dwarf.ClassLinePtr},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(48), Class: dwarf.ClassConstant},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "Debian clang version 3.5.0-10 (tags/RELEASE_350/final) (based on LLVM 3.5.0)", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrStmtList, Val: int64(0x0), Class: dwarf.ClassLinePtr},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x30), Class: dwarf.ClassConstant},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x30}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc5-ppc.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.0.0 20150116 (experimental) -Asystem=linux -Asystem=unix -Asystem=posix -g", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc5-ppc.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(0x44), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C11 5.0.0 20150116 (experimental) -Asystem=linux -Asystem=unix -Asystem=posix -g", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc5-ppc.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x44), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x44}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc482-ppc64le.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -Asystem=linux -Asystem=unix -Asystem=posix -msecure-plt -mtune=power8 -mcpu=power7 -gdwarf-2 -fstack-protector", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482-ppc64le.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x24), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -Asystem=linux -Asystem=unix -Asystem=posix -msecure-plt -mtune=power8 -mcpu=power7 -gdwarf-2 -fstack-protector", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482-ppc64le.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x24), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x24}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc492-mips64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -meb -mabi=64 -march=mips3 -mtune=mips64 -mllsc -mno-shared -g", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -meb -mabi=64 -march=mips3 -mtune=mips64 -mllsc -mno-shared -g", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x64), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x64}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc531-s390x.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.3.1 20160316 -march=zEC12 -m64 -mzarch -g -fstack-protector-strong", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(58), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C11 5.3.1 20160316 -march=zEC12 -m64 -mzarch -g -fstack-protector-strong", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x3a), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x3a}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc620-sparc64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C11 6.2.0 20160914 -mcpu=v9 -g -fstack-protector-strong", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(0x2c), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C11 6.2.0 20160914 -mcpu=v9 -g -fstack-protector-strong", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x2c), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x2c}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc492-mipsle.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -mel -march=mips2 -mtune=mips32 -mllsc -mno-shared -mabi=32 -g", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(0x58), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -mel -march=mips2 -mtune=mips32 -mllsc -mno-shared -mabi=32 -g", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x58), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x58}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc540-mips.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.4.0 20160609 -meb -mips32 -mtune=mips32r2 -mfpxx -mllsc -mno-shared -mabi=32 -g -gdwarf-2", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x5c), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C11 5.4.0 20160609 -meb -mips32 -mtune=mips32r2 -mfpxx -mllsc -mno-shared -mabi=32 -g -gdwarf-2", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x5c), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x5c}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc493-mips64le.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.3 -mel -mabi=64 -mllsc -mno-shared -g -fstack-protector-strong", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.3 -mel -mabi=64 -mllsc -mno-shared -g -fstack-protector-strong", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x64), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x64}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-gcc720-riscv64.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "GNU C11 7.2.0 -march=rv64imafdc -mabi=lp64d -g -gdwarf-2", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrHighpc, Val: uint64(0x2c), Class: dwarf.ClassAddress},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C11 7.2.0 -march=rv64imafdc -mabi=lp64d -g -gdwarf-2", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: uint64(0x2c), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
 				},
-			}},
+				pcRanges: [][2]uint64{{0x0, 0x2c}},
+			},
 		},
 	},
 	{
 		"testdata/go-relocation-test-clang-x86.obj",
 		[]relocationTestEntry{
-			{0, &dwarf.Entry{
-				Offset:   0xb,
-				Tag:      dwarf.TagCompileUnit,
-				Children: true,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrProducer, Val: "clang version google3-trunk (trunk r209387)", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrName, Val: "go-relocation-test-clang.c", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
-					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "clang version google3-trunk (trunk r209387)", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "go-relocation-test-clang.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+					},
 				},
-			}},
+			},
 		},
 	},
 	{
 		"testdata/gcc-amd64-openbsd-debug-with-rela.obj",
 		[]relocationTestEntry{
-			{203, &dwarf.Entry{
-				Offset:   0xc62,
-				Tag:      dwarf.TagMember,
-				Children: false,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrName, Val: "it_interval", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrDeclFile, Val: int64(7), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrDeclLine, Val: int64(236), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f), Class: dwarf.ClassReference},
-					{Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x0}, Class: dwarf.ClassExprLoc},
+			{
+				entryNumber: 203,
+				entry: &dwarf.Entry{
+					Offset:   0xc62,
+					Tag:      dwarf.TagMember,
+					Children: false,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrName, Val: "it_interval", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrDeclFile, Val: int64(7), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrDeclLine, Val: int64(236), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f), Class: dwarf.ClassReference},
+						{Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x0}, Class: dwarf.ClassExprLoc},
+					},
 				},
-			}},
-			{204, &dwarf.Entry{
-				Offset:   0xc70,
-				Tag:      dwarf.TagMember,
-				Children: false,
-				Field: []dwarf.Field{
-					{Attr: dwarf.AttrName, Val: "it_value", Class: dwarf.ClassString},
-					{Attr: dwarf.AttrDeclFile, Val: int64(7), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrDeclLine, Val: int64(237), Class: dwarf.ClassConstant},
-					{Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f), Class: dwarf.ClassReference},
-					{Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x10}, Class: dwarf.ClassExprLoc},
+			},
+			{
+				entryNumber: 204,
+				entry: &dwarf.Entry{
+					Offset:   0xc70,
+					Tag:      dwarf.TagMember,
+					Children: false,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrName, Val: "it_value", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrDeclFile, Val: int64(7), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrDeclLine, Val: int64(237), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f), Class: dwarf.ClassReference},
+						{Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x10}, Class: dwarf.ClassExprLoc},
+					},
 				},
-			}},
+			},
+		},
+	},
+	{
+		"testdata/go-relocation-test-gcc930-ranges-no-rela-x86-64",
+		[]relocationTestEntry{
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C17 9.3.0 -mtune=generic -march=x86-64 -g -fno-asynchronous-unwind-tables", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "multiple-code-sections.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrRanges, Val: int64(0), Class: dwarf.ClassRangeListPtr},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
+				},
+				pcRanges: [][2]uint64{
+					{0x765, 0x777},
+					{0x7e1, 0x7ec},
+				},
+			},
+		},
+	},
+	{
+		"testdata/go-relocation-test-gcc930-ranges-with-rela-x86-64",
+		[]relocationTestEntry{
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C17 9.3.0 -mtune=generic -march=x86-64 -g -fno-asynchronous-unwind-tables", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "multiple-code-sections.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrRanges, Val: int64(0), Class: dwarf.ClassRangeListPtr},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
+				},
+				pcRanges: [][2]uint64{
+					{0x765, 0x777},
+					{0x7e1, 0x7ec},
+				},
+			},
 		},
 	},
 }
 
 func TestDWARFRelocations(t *testing.T) {
-	for i, test := range relocationTests {
-		f, err := Open(test.file)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		dwarf, err := f.DWARF()
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		for _, testEntry := range test.entries {
+	for _, test := range relocationTests {
+		test := test
+		t.Run(test.file, func(t *testing.T) {
+			t.Parallel()
+			f, err := Open(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dwarf, err := f.DWARF()
+			if err != nil {
+				t.Fatal(err)
+			}
 			reader := dwarf.Reader()
-			for j := 0; j < testEntry.entryNumber; j++ {
+			idx := 0
+			for _, testEntry := range test.entries {
+				if testEntry.entryNumber < idx {
+					t.Fatalf("internal test error: %d < %d", testEntry.entryNumber, idx)
+				}
+				for ; idx < testEntry.entryNumber; idx++ {
+					entry, err := reader.Next()
+					if entry == nil || err != nil {
+						t.Fatalf("Failed to skip to entry %d: %v", testEntry.entryNumber, err)
+					}
+				}
 				entry, err := reader.Next()
-				if entry == nil || err != nil {
-					t.Errorf("Failed to skip to entry %d: %v", testEntry.entryNumber, err)
-					continue
+				idx++
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(testEntry.entry, entry) {
+					t.Errorf("entry %d mismatch: got:%#v want:%#v", testEntry.entryNumber, entry, testEntry.entry)
+				}
+				pcRanges, err := dwarf.Ranges(entry)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(testEntry.pcRanges, pcRanges) {
+					t.Errorf("entry %d: PC range mismatch: got:%#v want:%#v", testEntry.entryNumber, pcRanges, testEntry.pcRanges)
 				}
 			}
-			entry, err := reader.Next()
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			if !reflect.DeepEqual(testEntry.entry, entry) {
-				t.Errorf("#%d/%d: mismatch: got:%#v want:%#v", i, testEntry.entryNumber, entry, testEntry.entry)
-				continue
-			}
-		}
+		})
 	}
 }
 
@@ -784,7 +899,7 @@ func TestCompressedSection(t *testing.T) {
 func TestNoSectionOverlaps(t *testing.T) {
 	// Ensure cmd/link outputs sections without overlaps.
 	switch runtime.GOOS {
-	case "aix", "android", "darwin", "js", "plan9", "windows":
+	case "aix", "android", "darwin", "ios", "js", "plan9", "windows":
 		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
 	}
 	_ = net.ResolveIPAddr // force dynamic linkage

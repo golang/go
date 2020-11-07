@@ -14,12 +14,14 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
 )
 
@@ -29,7 +31,7 @@ func usage() {
 }
 
 func main() {
-	codehost.WorkRoot = "/tmp/vcswork"
+	cfg.GOMODCACHE = "/tmp/vcswork"
 	log.SetFlags(0)
 	log.SetPrefix("shell: ")
 	flag.Usage = usage
@@ -114,7 +116,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)
 				continue
 			}
-			data, err := ioutil.ReadAll(rc)
+			data, err := io.ReadAll(rc)
 			rc.Close()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)

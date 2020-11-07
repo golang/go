@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/syscall/execenv"
 	"runtime"
 	"syscall"
 )
@@ -39,7 +40,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
-		sysattr.Env, err = environForSysProcAttr(sysattr.Sys)
+		sysattr.Env, err = execenv.Default(sysattr.Sys)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +56,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	runtime.KeepAlive(attr)
 
 	if e != nil {
-		return nil, &PathError{"fork/exec", name, e}
+		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
 	}
 
 	return newProcess(pid, h), nil

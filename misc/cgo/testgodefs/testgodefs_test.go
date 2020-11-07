@@ -19,8 +19,13 @@ import (
 // import "C" block.  Add more tests here.
 var filePrefixes = []string{
 	"anonunion",
+	"bitfields",
 	"issue8478",
 	"fieldtypedef",
+	"issue37479",
+	"issue37621",
+	"issue38649",
+	"issue39534",
 }
 
 func TestGoDefs(t *testing.T) {

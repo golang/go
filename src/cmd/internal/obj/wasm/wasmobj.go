@@ -129,7 +129,6 @@ var (
 	morestackNoCtxt *obj.LSym
 	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
-	sigpanic0       *obj.LSym
 	deferreturn     *obj.LSym
 	jmpdefer        *obj.LSym
 )
@@ -142,9 +141,8 @@ const (
 func instinit(ctxt *obj.Link) {
 	morestack = ctxt.Lookup("runtime.morestack")
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
-	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
+	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
-	sigpanic0 = ctxt.LookupABI("runtime.sigpanic", 0) // sigpanic called from assembly, which has ABI0
 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 	// jmpdefer is defined in assembly as ABI0, but what we're
 	// looking for is the *call* to jmpdefer from the Go function
@@ -182,14 +180,14 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		return p
 	}
 
-	framesize := s.Func.Text.To.Offset
+	framesize := s.Func().Text.To.Offset
 	if framesize < 0 {
 		panic("bad framesize")
 	}
-	s.Func.Args = s.Func.Text.To.Val.(int32)
-	s.Func.Locals = int32(framesize)
+	s.Func().Args = s.Func().Text.To.Val.(int32)
+	s.Func().Locals = int32(framesize)
 
-	if s.Func.Text.From.Sym.Wrapper() {
+	if s.Func().Text.From.Sym.Wrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
 		// }
@@ -222,7 +220,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			Offset: 0, // panic.argp
 		}
 
-		p := s.Func.Text
+		p := s.Func().Text
 		p = appendp(p, AMOVD, gpanic, regAddr(REG_R0))
 
 		p = appendp(p, AGet, regAddr(REG_R0))
@@ -245,7 +243,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	if framesize > 0 {
-		p := s.Func.Text
+		p := s.Func().Text
 		p = appendp(p, AGet, regAddr(REG_SP))
 		p = appendp(p, AI32Const, constAddr(framesize))
 		p = appendp(p, AI32Sub)
@@ -260,8 +258,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	pc := int64(0) // pc is only incremented when necessary, this avoids bloat of the BrTable instruction
 	var tableIdxs []uint64
 	tablePC := int64(0)
-	base := ctxt.PosTable.Pos(s.Func.Text.Pos).Base()
-	for p := s.Func.Text; p != nil; p = p.Link {
+	base := ctxt.PosTable.Pos(s.Func().Text.Pos).Base()
+	for p := s.Func().Text; p != nil; p = p.Link {
 		prevBase := base
 		base = ctxt.PosTable.Pos(p.Pos).Base()
 		switch p.As {
@@ -313,8 +311,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
 	s.Size = pc + 1
 
-	if !s.Func.Text.From.Sym.NoSplit() {
-		p := s.Func.Text
+	if !s.Func().Text.From.Sym.NoSplit() {
+		p := s.Func().Text
 
 		if framesize <= objabi.StackSmall {
 			// small stack: SP <= stackguard
@@ -352,7 +350,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 		p = appendp(p, AIf)
 		p = appendp(p, obj.ACALL, constAddr(0))
-		if s.Func.Text.From.Sym.NeedCtxt() {
+		if s.Func().Text.From.Sym.NeedCtxt() {
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestack}
 		} else {
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestackNoCtxt}
@@ -365,7 +363,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	var entryPointLoopBranches []*obj.Prog
 	var unwindExitBranches []*obj.Prog
 	currentDepth := 0
-	for p := s.Func.Text; p != nil; p = p.Link {
+	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
 			currentDepth++
@@ -493,7 +491,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
-			if call.As == ACALLNORESUME && call.To.Sym != sigpanic && call.To.Sym != sigpanic0 { // sigpanic unwinds the stack, but it never resumes
+			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
 				p = appendp(p, AIf)
 				p = appendp(p, obj.AUNDEF)
@@ -562,7 +560,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	for p := s.Func.Text; p != nil; p = p.Link {
+	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.From.Name {
 		case obj.NAME_AUTO:
 			p.From.Offset += int64(framesize)
@@ -712,7 +710,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	{
-		p := s.Func.Text
+		p := s.Func().Text
 		if len(unwindExitBranches) > 0 {
 			p = appendp(p, ABlock) // unwindExit, used to return 1 when unwinding the stack
 			for _, b := range unwindExitBranches {
@@ -749,7 +747,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	currentDepth = 0
 	blockDepths := make(map[*obj.Prog]int)
-	for p := s.Func.Text; p != nil; p = p.Link {
+	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
 			currentDepth++
@@ -850,7 +848,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		hasLocalSP = true
 
 		var regUsed [MAXREG - MINREG]bool
-		for p := s.Func.Text; p != nil; p = p.Link {
+		for p := s.Func().Text; p != nil; p = p.Link {
 			if p.From.Reg != 0 {
 				regUsed[p.From.Reg-MINREG] = true
 			}
@@ -896,7 +894,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		updateLocalSP(w)
 	}
 
-	for p := s.Func.Text; p != nil; p = p.Link {
+	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AGet:
 			if p.From.Type != obj.TYPE_REG {
@@ -1007,6 +1005,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					panic("bad name for Call")
 				}
 				r := obj.Addrel(s)
+				r.Siz = 1 // actually variable sized
 				r.Off = int32(w.Len())
 				r.Type = objabi.R_CALL
 				if p.Mark&WasmImport != 0 {
@@ -1033,6 +1032,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case AI32Const, AI64Const:
 			if p.From.Name == obj.NAME_EXTERN {
 				r := obj.Addrel(s)
+				r.Siz = 1 // actually variable sized
 				r.Off = int32(w.Len())
 				r.Type = objabi.R_ADDR
 				r.Sym = p.From.Sym

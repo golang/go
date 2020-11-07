@@ -9,6 +9,9 @@ import (
 	"unsafe"
 )
 
+// runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
+func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr
+
 // runtime_setProfLabel is defined in runtime/proflabel.go.
 func runtime_setProfLabel(labels unsafe.Pointer)
 

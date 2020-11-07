@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!arm,!arm64,!ios
+// +build !ios
 
 package x509
 
+// This cgo implementation exists only to support side-by-side testing by
+// TestSystemRoots. It can be removed once we are confident in the no-cgo
+// implementation.
+
 /*
-#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
+#cgo CFLAGS: -mmacosx-version-min=10.11
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
 #include <errno.h>
@@ -159,7 +163,7 @@ static Boolean isRootCertificate(SecCertificateRef cert, CFErrorRef *errRef) {
 //
 // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
 // be released (using CFRelease) after we've consumed its content.
-int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
+static int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
 	int i;
 
 	if (debugDarwinRoots) {
@@ -283,7 +287,11 @@ import (
 	"unsafe"
 )
 
-func loadSystemRoots() (*CertPool, error) {
+func init() {
+	loadSystemRootsWithCgo = _loadSystemRootsWithCgo
+}
+
+func _loadSystemRootsWithCgo() (*CertPool, error) {
 	var data, untrustedData C.CFDataRef
 	err := C.CopyPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
 	if err == -1 {

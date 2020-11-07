@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 func epollcreate(size int32) int32
 func epollcreate1(flags int32) int32
@@ -22,6 +25,8 @@ var (
 	epfd int32 = -1 // epoll descriptor
 
 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+
+	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
@@ -74,20 +79,22 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts an epollwait.
 func netpollBreak() {
-	for {
-		var b byte
-		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
-		if n == 1 {
-			break
+	if atomic.Cas(&netpollWakeSig, 0, 1) {
+		for {
+			var b byte
+			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+			if n == 1 {
+				break
+			}
+			if n == -_EINTR {
+				continue
+			}
+			if n == -_EAGAIN {
+				return
+			}
+			println("runtime: netpollBreak write failed with", -n)
+			throw("runtime: netpollBreak write failed")
 		}
-		if n == -_EINTR {
-			continue
-		}
-		if n == -_EAGAIN {
-			return
-		}
-		println("runtime: netpollBreak write failed with", -n)
-		throw("runtime: netpollBreak write failed")
 	}
 }
 
@@ -147,6 +154,7 @@ retry:
 				// if blocking.
 				var tmp [16]byte
 				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+				atomic.Store(&netpollWakeSig, 0)
 			}
 			continue
 		}

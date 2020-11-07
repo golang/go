@@ -356,31 +356,35 @@ func wantAsyncPreempt(gp *g) bool {
 // 3. It's generally safe to interact with the runtime, even if we're
 // in a signal handler stopped here. For example, there are no runtime
 // locks held, so acquiring a runtime lock won't self-deadlock.
-func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+//
+// In some cases the PC is safe for asynchronous preemption but it
+// also needs to adjust the resumption PC. The new PC is returned in
+// the second result.
+func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	mp := gp.m
 
 	// Only user Gs can have safe-points. We check this first
 	// because it's extremely common that we'll catch mp in the
 	// scheduler processing this G preemption.
 	if mp.curg != gp {
-		return false
+		return false, 0
 	}
 
 	// Check M state.
 	if mp.p == 0 || !canPreemptM(mp) {
-		return false
+		return false, 0
 	}
 
 	// Check stack space.
 	if sp < gp.stack.lo || sp-gp.stack.lo < asyncPreemptStack {
-		return false
+		return false, 0
 	}
 
 	// Check if PC is an unsafe-point.
 	f := findfunc(pc)
 	if !f.valid() {
 		// Not Go code.
-		return false
+		return false, 0
 	}
 	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
 		// We probably stopped at a half-executed CALL instruction,
@@ -391,14 +395,14 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		// stack for unwinding, not the LR value. But if this is a
 		// call to morestack, we haven't created the frame, and we'll
 		// use the LR for unwinding, which will be bad.
-		return false
+		return false, 0
 	}
-	smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
-	if smi == -2 {
+	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
+	if up != _PCDATA_UnsafePointSafe {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit
 		// functions (except at calls).
-		return false
+		return false, 0
 	}
 	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
 		// This is assembly code. Don't assume it's
@@ -409,7 +413,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		//
 		// TODO: Are there cases that are safe but don't have a
 		// locals pointer map, like empty frame functions?
-		return false
+		return false, 0
 	}
 	name := funcname(f)
 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
@@ -432,10 +436,21 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		//
 		// TODO(austin): We should improve this, or opt things
 		// in incrementally.
-		return false
+		return false, 0
 	}
-
-	return true
+	switch up {
+	case _PCDATA_Restart1, _PCDATA_Restart2:
+		// Restartable instruction sequence. Back off PC to
+		// the start PC.
+		if startpc == 0 || startpc > pc || pc-startpc > 20 {
+			throw("bad restart PC")
+		}
+		return true, startpc
+	case _PCDATA_RestartAtEntry:
+		// Restart from the function entry at resumption.
+		return true, f.entry
+	}
+	return true, pc
 }
 
 var no_pointers_stackmap uint64 // defined in assembly, for NO_LOCAL_POINTERS macro

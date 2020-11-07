@@ -303,6 +303,12 @@ var atoftests = []atofTest{
 	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil},
 	{"0x1.00000000000018p0", "1.0000000000000004", nil},
 
+	// Halfway between 1090544144181609278303144771584 and 1090544144181609419040633126912
+	// (15497564393479157p+46, should round to even 15497564393479156p+46, issue 36657)
+	{"1090544144181609348671888949248", "1.0905441441816093e+30", nil},
+	// slightly above, rounds up
+	{"1090544144181609348835077142190", "1.0905441441816094e+30", nil},
+
 	// Underscores.
 	{"1_23.50_0_0e+1_2", "1.235e+14", nil},
 	{"-_123.5e+12", "0", ErrSyntax},
@@ -479,6 +485,28 @@ func initAtofOnce() {
 	}
 }
 
+func TestParseFloatPrefix(t *testing.T) {
+	for i := range atoftests {
+		test := &atoftests[i]
+		if test.err != nil {
+			continue
+		}
+		// Adding characters that do not extend a number should not invalidate it.
+		// Test a few. The "i" and "init" cases test that we accept "infi", "infinit"
+		// correctly as "inf" with suffix.
+		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")", "i", "init"} {
+			in := test.in + suffix
+			_, n, err := ParseFloatPrefix(in, 64)
+			if err != nil {
+				t.Errorf("ParseFloatPrefix(%q, 64): err = %v; want no error", in, err)
+			}
+			if n != len(test.in) {
+				t.Errorf("ParseFloatPrefix(%q, 64): n = %d; want %d", in, n, len(test.in))
+			}
+		}
+	}
+}
+
 func testAtof(t *testing.T, opt bool) {
 	initAtof()
 	oldopt := SetOptimize(opt)
@@ -606,6 +634,23 @@ func TestRoundTrip32(t *testing.T) {
 	t.Logf("tested %d float32's", count)
 }
 
+// Issue 42297: a lot of code in the wild accidentally calls ParseFloat(s, 10)
+// or ParseFloat(s, 0), so allow bitSize values other than 32 and 64.
+func TestParseFloatIncorrectBitSize(t *testing.T) {
+	const s = "1.5e308"
+	const want = 1.5e308
+
+	for _, bitSize := range []int{0, 10, 100, 128} {
+		f, err := ParseFloat(s, bitSize)
+		if err != nil {
+			t.Fatalf("ParseFloat(%q, %d) gave error %s", s, bitSize, err)
+		}
+		if f != want {
+			t.Fatalf("ParseFloat(%q, %d) = %g (expected %g)", s, bitSize, f, want)
+		}
+	}
+}
+
 func BenchmarkAtof64Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseFloat("33909", 64)
@@ -631,14 +676,35 @@ func BenchmarkAtof64Big(b *testing.B) {
 }
 
 func BenchmarkAtof64RandomBits(b *testing.B) {
+	initAtof()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseFloat(benchmarksRandomBits[i%1024], 64)
 	}
 }
 
 func BenchmarkAtof64RandomFloats(b *testing.B) {
+	initAtof()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
+	}
+}
+
+func BenchmarkAtof64RandomLongFloats(b *testing.B) {
+	initAtof()
+	samples := make([]string, len(atofRandomTests))
+	for i, t := range atofRandomTests {
+		samples[i] = FormatFloat(t.x, 'g', 20, 64)
+	}
+	b.ResetTimer()
+	idx := 0
+	for i := 0; i < b.N; i++ {
+		ParseFloat(samples[idx], 64)
+		idx++
+		if idx == len(samples) {
+			idx = 0
+		}
 	}
 }
 
@@ -660,13 +726,25 @@ func BenchmarkAtof32FloatExp(b *testing.B) {
 	}
 }
 
-var float32strings [4096]string
-
 func BenchmarkAtof32Random(b *testing.B) {
 	n := uint32(997)
+	var float32strings [4096]string
 	for i := range float32strings {
 		n = (99991*n + 42) % (0xff << 23)
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ParseFloat(float32strings[i%4096], 32)
+	}
+}
+
+func BenchmarkAtof32RandomLong(b *testing.B) {
+	n := uint32(997)
+	var float32strings [4096]string
+	for i := range float32strings {
+		n = (99991*n + 42) % (0xff << 23)
+		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

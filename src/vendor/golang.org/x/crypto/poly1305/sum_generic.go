@@ -31,16 +31,18 @@ func sumGeneric(out *[TagSize]byte, msg []byte, key *[32]byte) {
 	h.Sum(out)
 }
 
-func newMACGeneric(key *[32]byte) (h macGeneric) {
-	initialize(key, &h.r, &h.s)
-	return
+func newMACGeneric(key *[32]byte) macGeneric {
+	m := macGeneric{}
+	initialize(key, &m.macState)
+	return m
 }
 
 // macState holds numbers in saturated 64-bit little-endian limbs. That is,
 // the value of [x0, x1, x2] is x[0] + x[1] * 2⁶⁴ + x[2] * 2¹²⁸.
 type macState struct {
 	// h is the main accumulator. It is to be interpreted modulo 2¹³⁰ - 5, but
-	// can grow larger during and after rounds.
+	// can grow larger during and after rounds. It must, however, remain below
+	// 2 * (2¹³⁰ - 5).
 	h [3]uint64
 	// r and s are the private key components.
 	r [2]uint64
@@ -97,11 +99,12 @@ const (
 	rMask1 = 0x0FFFFFFC0FFFFFFC
 )
 
-func initialize(key *[32]byte, r, s *[2]uint64) {
-	r[0] = binary.LittleEndian.Uint64(key[0:8]) & rMask0
-	r[1] = binary.LittleEndian.Uint64(key[8:16]) & rMask1
-	s[0] = binary.LittleEndian.Uint64(key[16:24])
-	s[1] = binary.LittleEndian.Uint64(key[24:32])
+// initialize loads the 256-bit key into the two 128-bit secret values r and s.
+func initialize(key *[32]byte, m *macState) {
+	m.r[0] = binary.LittleEndian.Uint64(key[0:8]) & rMask0
+	m.r[1] = binary.LittleEndian.Uint64(key[8:16]) & rMask1
+	m.s[0] = binary.LittleEndian.Uint64(key[16:24])
+	m.s[1] = binary.LittleEndian.Uint64(key[24:32])
 }
 
 // uint128 holds a 128-bit number as two 64-bit limbs, for use with the

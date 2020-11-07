@@ -37,7 +37,7 @@ type A interface {
 }
 
 type B interface {
-	a() interface {
+	b() interface {
 		AB
 	}
 }
@@ -59,8 +59,7 @@ var y interface {
 	B
 }
 
-// TODO(gri) This should be a valid compare. See #33656.
-var _ = x /* ERROR cannot compare */ == y
+var _ = x == y
 
 
 // Test case for issue 6638.

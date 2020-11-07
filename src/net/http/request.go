@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net"
@@ -83,12 +82,7 @@ var (
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
-type badStringError struct {
-	what string
-	str  string
-}
-
-func (e *badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
 
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
@@ -180,6 +174,10 @@ type Request struct {
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
+	//
+	// Body must allow Read to be called concurrently with Close.
+	// In particular, calling Close should unblock a Read waiting
+	// for input.
 	Body io.ReadCloser
 
 	// GetBody defines an optional func to return a new copy of
@@ -387,7 +385,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	if s := r.TransferEncoding; s != nil {
 		s2 := make([]string, len(s))
 		copy(s2, s)
-		r2.TransferEncoding = s
+		r2.TransferEncoding = s2
 	}
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)
@@ -430,6 +428,8 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 // AddCookie does not attach more than one Cookie header field. That
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
+// AddCookie only sanitizes c's name and value, and does not sanitize
+// a Cookie header already present in the request.
 func (r *Request) AddCookie(c *Cookie) {
 	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
 	if c := r.Header.Get("Cookie"); c != "" {
@@ -506,7 +506,7 @@ func valueOrDefault(value, def string) string {
 
 // NOTE: This is not intended to reflect the actual Go version being used.
 // It was changed at the time of Go 1.1 release because the former User-Agent
-// had ended up on a blacklist for some intrusion detection systems.
+// had ended up blocked by some intrusion detection systems.
 // See https://codereview.appspot.com/7532043.
 const defaultUserAgent = "Go-http-client/1.1"
 
@@ -543,6 +543,7 @@ var errMissingHost = errors.New("http: Request.Write on Request with no Host or 
 
 // extraHeaders may be nil
 // waitForContinue may be nil
+// always closes body
 func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
 	trace := httptrace.ContextClientTrace(r.Context())
 	if trace != nil && trace.WroteRequest != nil {
@@ -552,6 +553,15 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			})
 		}()
 	}
+	closed := false
+	defer func() {
+		if closed {
+			return
+		}
+		if closeErr := r.closeBody(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	// Find the target host. Prefer the Host: header, but if that
 	// is not given, use the host from the request URL.
@@ -670,6 +680,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			trace.Wait100Continue()
 		}
 		if !waitForContinue() {
+			closed = true
 			r.closeBody()
 			return nil
 		}
@@ -682,6 +693,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	}
 
 	// Write body and trailer
+	closed = true
 	err = tw.writeBody(w)
 	if err != nil {
 		if tw.bodyReadError == err {
@@ -857,7 +869,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 	}
 	rc, ok := body.(io.ReadCloser)
 	if !ok && body != nil {
-		rc = ioutil.NopCloser(body)
+		rc = io.NopCloser(body)
 	}
 	// The host's colon:port should be normalized. See Issue 14836.
 	u.Host = removeEmptyPort(u.Host)
@@ -879,21 +891,21 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 			buf := v.Bytes()
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := bytes.NewReader(buf)
-				return ioutil.NopCloser(r), nil
+				return io.NopCloser(r), nil
 			}
 		case *bytes.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := snapshot
-				return ioutil.NopCloser(&r), nil
+				return io.NopCloser(&r), nil
 			}
 		case *strings.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
 				r := snapshot
-				return ioutil.NopCloser(&r), nil
+				return io.NopCloser(&r), nil
 			}
 		default:
 			// This is where we'd set it to -1 (at least
@@ -1025,14 +1037,14 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	var ok bool
 	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
 	if !ok {
-		return nil, &badStringError{"malformed HTTP request", s}
+		return nil, badStringError("malformed HTTP request", s)
 	}
 	if !validMethod(req.Method) {
-		return nil, &badStringError{"invalid method", req.Method}
+		return nil, badStringError("invalid method", req.Method)
 	}
 	rawurl := req.RequestURI
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", req.Proto}
+		return nil, badStringError("malformed HTTP version", req.Proto)
 	}
 
 	// CONNECT requests are used two different ways, and neither uses a full URL:
@@ -1192,7 +1204,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 			maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
 			reader = io.LimitReader(r.Body, maxFormSize+1)
 		}
-		b, e := ioutil.ReadAll(reader)
+		b, e := io.ReadAll(reader)
 		if e != nil {
 			if err == nil {
 				err = e
@@ -1223,16 +1235,16 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 // For all requests, ParseForm parses the raw query from the URL and updates
 // r.Form.
 //
-// For POST, PUT, and PATCH requests, it also parses the request body as a form
-// and puts the results into both r.PostForm and r.Form. Request body parameters
-// take precedence over URL query string values in r.Form.
+// For POST, PUT, and PATCH requests, it also reads the request body, parses it
+// as a form and puts the results into both r.PostForm and r.Form. Request body
+// parameters take precedence over URL query string values in r.Form.
+//
+// If the request Body's size has not already been limited by MaxBytesReader,
+// the size is capped at 10MB.
 //
 // For other HTTP methods, or when the Content-Type is not
 // application/x-www-form-urlencoded, the request Body is not read, and
 // r.PostForm is initialized to a non-nil, empty value.
-//
-// If the request Body's size has not already been limited by MaxBytesReader,
-// the size is capped at 10MB.
 //
 // ParseMultipartForm calls ParseForm automatically.
 // ParseForm is idempotent.
@@ -1386,10 +1398,11 @@ func (r *Request) wantsClose() bool {
 	return hasToken(r.Header.get("Connection"), "close")
 }
 
-func (r *Request) closeBody() {
-	if r.Body != nil {
-		r.Body.Close()
+func (r *Request) closeBody() error {
+	if r.Body == nil {
+		return nil
 	}
+	return r.Body.Close()
 }
 
 func (r *Request) isReplayable() bool {

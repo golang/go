@@ -116,9 +116,9 @@ func Example_escape() {
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34; &lt;tasty@example.com&gt;
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34; &lt;tasty@example.com&gt;
 	// &#34;Fran &amp; Freddie&#39;s Diner&#34;32&lt;tasty@example.com&gt;
-	// \"Fran \x26 Freddie\'s Diner\" \x3Ctasty@example.com\x3E
-	// \"Fran \x26 Freddie\'s Diner\" \x3Ctasty@example.com\x3E
-	// \"Fran \x26 Freddie\'s Diner\"32\x3Ctasty@example.com\x3E
+	// \"Fran \u0026 Freddie\'s Diner\" \u003Ctasty@example.com\u003E
+	// \"Fran \u0026 Freddie\'s Diner\" \u003Ctasty@example.com\u003E
+	// \"Fran \u0026 Freddie\'s Diner\"32\u003Ctasty@example.com\u003E
 	// %22Fran+%26+Freddie%27s+Diner%2232%3Ctasty%40example.com%3E
 
 }

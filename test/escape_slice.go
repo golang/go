@@ -18,28 +18,28 @@ var sink interface{}
 func slice0() {
 	var s []*int
 	// BAD: i should not escape
-	i := 0            // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s = append(s, &i)
 	_ = s
 }
 
 func slice1() *int {
 	var s []*int
-	i := 0            // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s = append(s, &i)
 	return s[0]
 }
 
 func slice2() []*int {
 	var s []*int
-	i := 0            // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s = append(s, &i)
 	return s
 }
 
 func slice3() *int {
 	var s []*int
-	i := 0            // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s = append(s, &i)
 	for _, p := range s {
 		return p
@@ -48,7 +48,7 @@ func slice3() *int {
 }
 
 func slice4(s []*int) { // ERROR "s does not escape"
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s[0] = &i
 }
 
@@ -56,14 +56,14 @@ func slice5(s []*int) { // ERROR "s does not escape"
 	if s != nil {
 		s = make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
 	}
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s[0] = &i
 }
 
 func slice6() {
 	s := make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
 	// BAD: i should not escape
-	i := 0    // ERROR "moved to heap: i"
+	i := 0 // ERROR "moved to heap: i"
 	s[0] = &i
 	_ = s
 }
@@ -77,25 +77,33 @@ func slice7() *int {
 
 func slice8() {
 	i := 0
-	s := []*int{&i} // ERROR "literal does not escape"
+	s := []*int{&i} // ERROR "\[\]\*int{...} does not escape"
 	_ = s
 }
 
 func slice9() *int {
 	i := 0          // ERROR "moved to heap: i"
-	s := []*int{&i} // ERROR "literal does not escape"
+	s := []*int{&i} // ERROR "\[\]\*int{...} does not escape"
 	return s[0]
 }
 
 func slice10() []*int {
 	i := 0          // ERROR "moved to heap: i"
-	s := []*int{&i} // ERROR "literal escapes to heap"
+	s := []*int{&i} // ERROR "\[\]\*int{...} escapes to heap"
 	return s
+}
+
+func slice11() {
+	i := 2
+	s := make([]int, 2, 3) // ERROR "make\(\[\]int, 2, 3\) does not escape"
+	s = make([]int, i, 3)  // ERROR "make\(\[\]int, i, 3\) does not escape"
+	s = make([]int, i, 1)  // ERROR "make\(\[\]int, i, 1\) does not escape"
+	_ = s
 }
 
 func envForDir(dir string) []string { // ERROR "dir does not escape"
 	env := os.Environ()
-	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string literal does not escape"
+	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"
 }
 
 func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r2 level=0"
@@ -152,14 +160,14 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 
 func setupTestData() {
 	resolveIPAddrTests = append(resolveIPAddrTests,
-		[]resolveIPAddrTest{ // ERROR "\[\]resolveIPAddrTest literal does not escape"
+		[]resolveIPAddrTest{ // ERROR "\[\]resolveIPAddrTest{...} does not escape"
 			{"ip",
 				"localhost",
-				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr literal escapes to heap"
+				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr{...} escapes to heap"
 				nil},
 			{"ip4",
 				"localhost",
-				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr literal escapes to heap"
+				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr{...} escapes to heap"
 				nil},
 		}...)
 }

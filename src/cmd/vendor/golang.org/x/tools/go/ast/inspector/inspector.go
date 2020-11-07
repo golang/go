@@ -90,7 +90,7 @@ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
 // The types argument, if non-empty, enables type-based filtering of
 // events. The function f if is called only for nodes whose type
 // matches an element of the types slice.
-func (in *Inspector) Nodes(types []ast.Node, f func(n ast.Node, push bool) (prune bool)) {
+func (in *Inspector) Nodes(types []ast.Node, f func(n ast.Node, push bool) (proceed bool)) {
 	mask := maskOf(types)
 	for i := 0; i < len(in.events); {
 		ev := in.events[i]
@@ -114,7 +114,7 @@ func (in *Inspector) Nodes(types []ast.Node, f func(n ast.Node, push bool) (prun
 // supplies each call to f an additional argument, the current
 // traversal stack. The stack's first element is the outermost node,
 // an *ast.File; its last is the innermost, n.
-func (in *Inspector) WithStack(types []ast.Node, f func(n ast.Node, push bool, stack []ast.Node) (prune bool)) {
+func (in *Inspector) WithStack(types []ast.Node, f func(n ast.Node, push bool, stack []ast.Node) (proceed bool)) {
 	mask := maskOf(types)
 	var stack []ast.Node
 	for i := 0; i < len(in.events); {
@@ -150,7 +150,11 @@ func traverse(files []*ast.File) []event {
 		extent += int(f.End() - f.Pos())
 	}
 	// This estimate is based on the net/http package.
-	events := make([]event, 0, extent*33/100)
+	capacity := extent * 33 / 100
+	if capacity > 1e6 {
+		capacity = 1e6 // impose some reasonable maximum
+	}
+	events := make([]event, 0, capacity)
 
 	var stack []event
 	for _, f := range files {

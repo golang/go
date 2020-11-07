@@ -9,6 +9,8 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	"strings"
+	"unicode"
 )
 
 func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
@@ -27,7 +29,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		x.mode = invalid
 		switch n := len(e.Args); n {
 		case 0:
-			check.errorf(e.Rparen, "missing argument in conversion to %s", T)
+			check.errorf(inNode(e, e.Rparen), _WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(x, e.Args[0])
 			if x.mode != invalid {
@@ -35,7 +37,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			}
 		default:
 			check.use(e.Args...)
-			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
+			check.errorf(e.Args[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
 		return conversion
@@ -54,9 +56,11 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 	default:
 		// function/method call
+		cgocall := x.mode == cgofunc
+
 		sig, _ := x.typ.Underlying().(*Signature)
 		if sig == nil {
-			check.invalidOp(x.pos(), "cannot call non-function %s", x)
+			check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 			x.mode = invalid
 			x.expr = e
 			return statement
@@ -74,7 +78,11 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		case 0:
 			x.mode = novalue
 		case 1:
-			x.mode = value
+			if cgocall {
+				x.mode = commaerr
+			} else {
+				x.mode = value
+			}
 			x.typ = sig.results.vars[0].typ // unpack tuple
 		default:
 			x.mode = value
@@ -192,10 +200,13 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 		}, t.Len(), false
 	}
 
-	if x0.mode == mapindex || x0.mode == commaok {
+	if x0.mode == mapindex || x0.mode == commaok || x0.mode == commaerr {
 		// comma-ok value
 		if allowCommaOk {
 			a := [2]Type{x0.typ, Typ[UntypedBool]}
+			if x0.mode == commaerr {
+				a[1] = universeError
+			}
 			return func(x *operand, i int) {
 				x.mode = value
 				x.expr = x0.expr
@@ -220,13 +231,13 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...
 		if !sig.variadic {
-			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			check.errorf(atPos(call.Ellipsis), _NonVariadicDotDotDot, "cannot use ... in call to non-variadic %s", call.Fun)
 			check.useGetter(arg, n)
 			return
 		}
 		if len(call.Args) == 1 && n > 1 {
 			// f()... is not permitted if f() is multi-valued
-			check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", n, call.Args[0])
+			check.errorf(atPos(call.Ellipsis), _InvalidDotDotDotOperand, "cannot use ... with %d-valued %s", n, call.Args[0])
 			check.useGetter(arg, n)
 			return
 		}
@@ -252,7 +263,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 		n++
 	}
 	if n < sig.params.Len() {
-		check.errorf(call.Rparen, "too few arguments in call to %s", call.Fun)
+		check.errorf(inNode(call, call.Rparen), _WrongArgCount, "too few arguments in call to %s", call.Fun)
 		// ok to continue
 	}
 }
@@ -280,18 +291,18 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 			}
 		}
 	default:
-		check.errorf(x.pos(), "too many arguments")
+		check.errorf(x, _WrongArgCount, "too many arguments")
 		return
 	}
 
 	if ellipsis.IsValid() {
-		// argument is of the form x... and x is single-valued
 		if i != n-1 {
-			check.errorf(ellipsis, "can only use ... with matching parameter")
+			check.errorf(atPos(ellipsis), _MisplacedDotDotDot, "can only use ... with matching parameter")
 			return
 		}
+		// argument is of the form x... and x is single-valued
 		if _, ok := x.typ.Underlying().(*Slice); !ok && x.typ != Typ[UntypedNil] { // see issue #18268
-			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
+			check.errorf(x, _InvalidDotDotDotOperand, "cannot use %s as parameter of type %s", x, typ)
 			return
 		}
 	} else if sig.variadic && i >= n-1 {
@@ -300,6 +311,17 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 	}
 
 	check.assignment(x, typ, context)
+}
+
+var cgoPrefixes = [...]string{
+	"_Ciconst_",
+	"_Cfconst_",
+	"_Csconst_",
+	"_Ctype_",
+	"_Cvar_", // actually a pointer to the var
+	"_Cfpvar_fp_",
+	"_Cfunc_",
+	"_Cmacro_", // function to evaluate the expanded expression
 }
 
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
@@ -322,16 +344,43 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.recordUse(ident, pname)
 			pname.used = true
 			pkg := pname.imported
-			exp := pkg.scope.Lookup(sel)
-			if exp == nil {
-				if !pkg.fake {
-					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+
+			var exp Object
+			funcMode := value
+			if pkg.cgo {
+				// cgo special cases C.malloc: it's
+				// rewritten to _CMalloc and does not
+				// support two-result calls.
+				if sel == "malloc" {
+					sel = "_CMalloc"
+				} else {
+					funcMode = cgofunc
 				}
-				goto Error
-			}
-			if !exp.Exported() {
-				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
-				// ok to continue
+				for _, prefix := range cgoPrefixes {
+					// cgo objects are part of the current package (in file
+					// _cgo_gotypes.go). Use regular lookup.
+					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
+					if exp != nil {
+						break
+					}
+				}
+				if exp == nil {
+					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
+					goto Error
+				}
+				check.objDecl(exp, nil)
+			} else {
+				exp = pkg.scope.Lookup(sel)
+				if exp == nil {
+					if !pkg.fake {
+						check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
+					}
+					goto Error
+				}
+				if !exp.Exported() {
+					check.errorf(e.Sel, _UnexportedName, "%s not exported by package %s", sel, pkg.name)
+					// ok to continue
+				}
 			}
 			check.recordUse(e.Sel, exp)
 
@@ -349,9 +398,16 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			case *Var:
 				x.mode = variable
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cvar_") {
+					x.typ = x.typ.(*Pointer).base
+				}
 			case *Func:
-				x.mode = value
+				x.mode = funcMode
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cmacro_") {
+					x.mode = value
+					x.typ = x.typ.(*Signature).results.vars[0].typ
+				}
 			case *Builtin:
 				x.mode = builtin
 				x.typ = exp.typ
@@ -370,18 +426,30 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	obj, index, indirect = check.LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
 		case indirect:
-			// TODO(gri) be more specific with this error message
-			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+			check.errorf(e.Sel, _InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
 		default:
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
-			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
+			// Check if capitalization of sel matters and provide better error
+			// message in that case.
+			if len(sel) > 0 {
+				var changeCase string
+				if r := rune(sel[0]); unicode.IsUpper(r) {
+					changeCase = string(unicode.ToLower(r)) + sel[1:]
+				} else {
+					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+				}
+				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+					check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
+					break
+				}
+			}
+			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
 	}
@@ -396,7 +464,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		m, _ := obj.(*Func)
 		if m == nil {
 			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
-			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 

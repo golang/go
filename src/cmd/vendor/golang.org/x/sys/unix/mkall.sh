@@ -50,7 +50,7 @@ if [[ "$GOOS" = "linux" ]]; then
 	# Use the Docker-based build system
 	# Files generated through docker (use $cmd so you can Ctl-C the build or run)
 	$cmd docker build --tag generate:$GOOS $GOOS
-	$cmd docker run --interactive --tty --volume $(dirname "$(readlink -f "$0")"):/build generate:$GOOS
+	$cmd docker run --interactive --tty --volume $(cd -- "$(dirname -- "$0")" && /bin/pwd):/build generate:$GOOS
 	exit
 fi
 
@@ -73,26 +73,22 @@ aix_ppc64)
 darwin_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="go run mksyscall.go -l32"
-	mksysnum="go run mksysnum.go $(xcrun --show-sdk-path --sdk macosx)/usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	mkasm="go run mkasm_darwin.go"
 	;;
 darwin_amd64)
 	mkerrors="$mkerrors -m64"
-	mksysnum="go run mksysnum.go $(xcrun --show-sdk-path --sdk macosx)/usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	mkasm="go run mkasm_darwin.go"
 	;;
 darwin_arm)
 	mkerrors="$mkerrors"
 	mksyscall="go run mksyscall.go -l32"
-	mksysnum="go run mksysnum.go $(xcrun --show-sdk-path --sdk iphoneos)/usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	mkasm="go run mkasm_darwin.go"
 	;;
 darwin_arm64)
 	mkerrors="$mkerrors -m64"
-	mksysnum="go run mksysnum.go $(xcrun --show-sdk-path --sdk iphoneos)/usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	mkasm="go run mkasm_darwin.go"
 	;;
@@ -105,26 +101,26 @@ dragonfly_amd64)
 freebsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="go run mksyscall.go -l32"
-	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master'"
+	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/11/sys/kern/syscalls.master'"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 freebsd_amd64)
 	mkerrors="$mkerrors -m64"
-	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master'"
+	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/11/sys/kern/syscalls.master'"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 freebsd_arm)
 	mkerrors="$mkerrors"
 	mksyscall="go run mksyscall.go -l32 -arm"
-	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master'"
+	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/11/sys/kern/syscalls.master'"
 	# Let the type of C char be signed for making the bare syscall
 	# API consistent across platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
 freebsd_arm64)
 	mkerrors="$mkerrors -m64"
-	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master'"
-	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mksysnum="go run mksysnum.go 'https://svn.freebsd.org/base/stable/11/sys/kern/syscalls.master'"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
 netbsd_386)
 	mkerrors="$mkerrors -m32"
@@ -184,11 +180,26 @@ openbsd_arm64)
 	# API consistent across platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+openbsd_mips64)
+	mkerrors="$mkerrors -m64"
+	mksyscall="go run mksyscall.go -openbsd"
+	mksysctl="go run mksysctl_openbsd.go"
+	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+	# Let the type of C char be signed for making the bare syscall
+	# API consistent across platforms.
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
 solaris_amd64)
 	mksyscall="go run mksyscall_solaris.go"
 	mkerrors="$mkerrors -m64"
 	mksysnum=
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
+illumos_amd64)
+        mksyscall="go run mksyscall_solaris.go"
+	mkerrors=
+	mksysnum=
+	mktypes=
 	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
@@ -211,10 +222,15 @@ esac
 				# aix/ppc64 script generates files instead of writing to stdin.
 				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in && gofmt -w zsyscall_$GOOSARCH.go && gofmt -w zsyscall_"$GOOSARCH"_gccgo.go && gofmt -w zsyscall_"$GOOSARCH"_gc.go " ;
 			elif [ "$GOOS" == "darwin" ]; then
-			        # pre-1.12, direct syscalls
-			        echo "$mksyscall -tags $GOOS,$GOARCH,!go1.12 $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.1_11.go";
 			        # 1.12 and later, syscalls via libSystem
 				echo "$mksyscall -tags $GOOS,$GOARCH,go1.12 $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
+				# 1.13 and later, syscalls via libSystem (including syscallPtr)
+				echo "$mksyscall -tags $GOOS,$GOARCH,go1.13 syscall_darwin.1_13.go |gofmt >zsyscall_$GOOSARCH.1_13.go";
+			elif [ "$GOOS" == "illumos" ]; then
+			        # illumos code generation requires a --illumos switch
+			        echo "$mksyscall -illumos -tags illumos,$GOARCH syscall_illumos.go |gofmt > zsyscall_illumos_$GOARCH.go";
+			        # illumos implies solaris, so solaris code generation is also required
+				echo "$mksyscall -tags solaris,$GOARCH syscall_solaris.go syscall_solaris_$GOARCH.go |gofmt >zsyscall_solaris_$GOARCH.go";
 			else
 				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
 			fi

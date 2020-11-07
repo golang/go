@@ -18,6 +18,10 @@ func (iov *Iovec) SetLen(length int) {
 	iov.Len = uint64(length)
 }
 
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = int32(length)
+}
+
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }

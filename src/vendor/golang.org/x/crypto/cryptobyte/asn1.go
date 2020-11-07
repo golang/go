@@ -81,7 +81,7 @@ func (b *Builder) AddASN1BigInt(n *big.Int) {
 			for i := range bytes {
 				bytes[i] ^= 0xff
 			}
-			if bytes[0]&0x80 == 0 {
+			if len(bytes) == 0 || bytes[0]&0x80 == 0 {
 				c.add(0xff)
 			}
 			c.add(bytes...)
@@ -230,12 +230,12 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
 
 // String
 
-// ReadASN1Boolean decodes an ASN.1 INTEGER and converts it to a boolean
+// ReadASN1Boolean decodes an ASN.1 BOOLEAN and converts it to a boolean
 // representation into out and advances. It reports whether the read
 // was successful.
 func (s *String) ReadASN1Boolean(out *bool) bool {
 	var bytes String
-	if !s.ReadASN1(&bytes, asn1.INTEGER) || len(bytes) != 1 {
+	if !s.ReadASN1(&bytes, asn1.BOOLEAN) || len(bytes) != 1 {
 		return false
 	}
 
@@ -470,7 +470,8 @@ func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
 // It reports whether the read was successful.
 func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	var bytes String
-	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 {
+	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 ||
+		len(bytes)*8/8 != len(bytes) {
 		return false
 	}
 
@@ -740,7 +741,7 @@ func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {
 		length = headerLen + len32
 	}
 
-	if uint32(int(length)) != length || !s.ReadBytes((*[]byte)(out), int(length)) {
+	if int(length) < 0 || !s.ReadBytes((*[]byte)(out), int(length)) {
 		return false
 	}
 	if skipHeader && !out.Skip(int(headerLen)) {

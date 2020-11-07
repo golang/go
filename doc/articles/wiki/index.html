@@ -257,6 +257,7 @@ To use the <code>net/http</code> package, it must be imported:
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	<b>"net/http"</b>
 )
 </pre>
@@ -674,7 +675,7 @@ The closure returned by <code>makeHandler</code> is a function that takes
 an <code>http.ResponseWriter</code> and <code>http.Request</code> (in other
 words, an <code>http.HandlerFunc</code>).
 The closure extracts the <code>title</code> from the request path, and
-validates it with the <code>TitleValidator</code> regexp. If the
+validates it with the <code>validPath</code> regexp. If the
 <code>title</code> is invalid, an error will be written to the
 <code>ResponseWriter</code> using the <code>http.NotFound</code> function.
 If the <code>title</code> is valid, the enclosed handler function

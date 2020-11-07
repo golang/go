@@ -1,0 +1,6 @@
+[!net] skip
+[!exec:git] skip
+env GO111MODULE=off
+
+# This used to fail with errors about internal packages
+go get github.com/rsc/go-get-issue-11960/...

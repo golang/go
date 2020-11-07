@@ -143,8 +143,3 @@ func StoreUintptr(addr *uintptr, val uintptr)
 
 // StorePointer atomically stores val into *addr.
 func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer)
-
-// Helper for ARM.  Linker will discard on other systems
-func panic64() {
-	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")
-}

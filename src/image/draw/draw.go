@@ -180,9 +180,25 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		drawRGBA(dst0, r, src, sp, mask, mp, op)
 		return
 	case *image.Paletted:
-		if op == Src && mask == nil && !processBackward(dst, r, src, sp) {
-			drawPaletted(dst0, r, src, sp, false)
-			return
+		if op == Src && mask == nil {
+			if src0, ok := src.(*image.Uniform); ok {
+				colorIndex := uint8(dst0.Palette.Index(src0.C))
+				i0 := dst0.PixOffset(r.Min.X, r.Min.Y)
+				i1 := i0 + r.Dx()
+				for i := i0; i < i1; i++ {
+					dst0.Pix[i] = colorIndex
+				}
+				firstRow := dst0.Pix[i0:i1]
+				for y := r.Min.Y + 1; y < r.Max.Y; y++ {
+					i0 += dst0.Stride
+					i1 += dst0.Stride
+					copy(dst0.Pix[i0:i1], firstRow)
+				}
+				return
+			} else if !processBackward(dst, r, src, sp) {
+				drawPaletted(dst0, r, src, sp, false)
+				return
+			}
 		}
 	}
 

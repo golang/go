@@ -129,7 +129,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 		s.acquiretime = t0
 	}
 	for {
-		lock(&root.lock)
+		lockWithRank(&root.lock, lockRankRoot)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
 		atomic.Xadd(&root.nwait, 1)
 		// Check cansemacquire to avoid missed wakeup.
@@ -168,7 +168,7 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	}
 
 	// Harder case: search for a waiter and wake it.
-	lock(&root.lock)
+	lockWithRank(&root.lock, lockRankRoot)
 	if atomic.Load(&root.nwait) == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
@@ -199,9 +199,9 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			// the waiter G immediately.
 			// Note that waiter inherits our time slice: this is desirable
 			// to avoid having a highly contended semaphore hog the P
-			// indefinitely. goyield is like Gosched, but it does not emit a
-			// GoSched trace event and, more importantly, puts the current G
-			// on the local runq instead of the global one.
+			// indefinitely. goyield is like Gosched, but it emits a
+			// "preempted" trace event instead and, more importantly, puts
+			// the current G on the local runq instead of the global one.
 			// We only do this in the starving regime (handoff=true), as in
 			// the non-starving case it is possible for a different waiter
 			// to acquire the semaphore while we are yielding/scheduling,
@@ -486,7 +486,7 @@ func notifyListAdd(l *notifyList) uint32 {
 // notifyListAdd was called, it returns immediately. Otherwise, it blocks.
 //go:linkname notifyListWait sync.runtime_notifyListWait
 func notifyListWait(l *notifyList, t uint32) {
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 
 	// Return right away if this ticket has already been notified.
 	if less(t, l.notify) {
@@ -528,7 +528,7 @@ func notifyListNotifyAll(l *notifyList) {
 
 	// Pull the list out into a local variable, waiters will be readied
 	// outside the lock.
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 	s := l.head
 	l.head = nil
 	l.tail = nil
@@ -558,7 +558,7 @@ func notifyListNotifyOne(l *notifyList) {
 		return
 	}
 
-	lock(&l.lock)
+	lockWithRank(&l.lock, lockRankNotifyList)
 
 	// Re-check under the lock if we need to do anything.
 	t := l.notify

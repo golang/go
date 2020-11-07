@@ -20,14 +20,14 @@ TEXT ·Syscall(SB),NOSPLIT,$0-56
 	BLTU	T0, A0, err
 	MOV	A0, r1+32(FP)	// r1
 	MOV	A1, r2+40(FP)	// r2
-	MOV	$0, err+48(FP)	// errno
+	MOV	ZERO, err+48(FP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
 err:
 	MOV	$-1, T0
 	MOV	T0, r1+32(FP)	// r1
-	MOV	$0, r2+40(FP)	// r2
-	SUB	A0, $0, A0
+	MOV	ZERO, r2+40(FP)	// r2
+	SUB	A0, ZERO, A0
 	MOV	A0, err+48(FP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
@@ -47,14 +47,14 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	BLTU	T0, A0, err
 	MOV	A0, r1+56(FP)	// r1
 	MOV	A1, r2+64(FP)	// r2
-	MOV	$0, err+72(FP)	// errno
+	MOV	ZERO, err+72(FP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
 err:
 	MOV	$-1, T0
 	MOV	T0, r1+56(FP)	// r1
-	MOV	$0, r2+64(FP)	// r2
-	SUB	A0, $0, A0
+	MOV	ZERO, r2+64(FP)	// r2
+	SUB	A0, ZERO, A0
 	MOV	A0, err+72(FP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
@@ -70,13 +70,13 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	BLTU	T0, A0, err
 	MOV	A0, r1+32(FP)	// r1
 	MOV	A1, r2+40(FP)	// r2
-	MOV	$0, err+48(FP)	// errno
+	MOV	ZERO, err+48(FP)	// errno
 	RET
 err:
 	MOV	$-1, T0
 	MOV	T0, r1+32(FP)	// r1
-	MOV	$0, r2+40(FP)	// r2
-	SUB	A0, $0, A0
+	MOV	ZERO, r2+40(FP)	// r2
+	SUB	A0, ZERO, A0
 	MOV	A0, err+48(FP)	// errno
 	RET
 
@@ -94,14 +94,36 @@ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
 	BLTU	T0, A0, err
 	MOV	A0, r1+56(FP)	// r1
 	MOV	A1, r2+64(FP)	// r2
-	MOV	$0, err+72(FP)	// errno
+	MOV	ZERO, err+72(FP)	// errno
 	RET
 err:
 	MOV	$-1, T0
 	MOV	T0, r1+56(FP)	// r1
-	MOV	$0, r2+64(FP)	// r2
-	SUB	A0, $0, A0
+	MOV	ZERO, r2+64(FP)	// r2
+	SUB	A0, ZERO, A0
 	MOV	A0, err+72(FP)	// errno
+	RET
+
+// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+	MOV	a1+8(FP), A0
+	MOV	ZERO, A1
+	MOV	ZERO, A2
+	MOV	ZERO, A3
+	MOV	ZERO, A4
+	MOV	ZERO, A5
+	MOV	trap+0(FP), A7	// syscall entry
+	ECALL
+	MOV	$-4096, T0
+	BLTU	T0, A0, err
+	MOV	A0, r1+16(FP)	// r1
+	MOV	ZERO, err+24(FP)	// errno
+	RET
+err:
+	MOV	$-1, T0
+	MOV	T0, r1+16(FP)	// r1
+	SUB	A0, ZERO, A0
+	MOV	A0, err+24(FP)	// errno
 	RET
 
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48

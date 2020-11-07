@@ -9,6 +9,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"testing"
 	"text/template/parse"
 )
@@ -153,6 +154,35 @@ func TestParseGlob(t *testing.T) {
 	testExecute(multiExecTests, template, t)
 }
 
+func TestParseFS(t *testing.T) {
+	fs := os.DirFS("testdata")
+
+	{
+		_, err := ParseFS(fs, "DOES NOT EXIST")
+		if err == nil {
+			t.Error("expected error for non-existent file; got none")
+		}
+	}
+
+	{
+		template := New("root")
+		_, err := template.ParseFS(fs, "file1.tmpl", "file2.tmpl")
+		if err != nil {
+			t.Fatalf("error parsing files: %v", err)
+		}
+		testExecute(multiExecTests, template, t)
+	}
+
+	{
+		template := New("root")
+		_, err := template.ParseFS(fs, "file*.tmpl")
+		if err != nil {
+			t.Fatalf("error parsing files: %v", err)
+		}
+		testExecute(multiExecTests, template, t)
+	}
+}
+
 // In these tests, actual content (not just template definitions) comes from the parsed files.
 
 var templateFileExecTests = []execTest{
@@ -242,7 +272,7 @@ func TestAddParseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Add a new parse tree.
-	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins)
+	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,6 +389,7 @@ func TestEmptyTemplate(t *testing.T) {
 		in   string
 		want string
 	}{
+		{[]string{"x", "y"}, "", "y"},
 		{[]string{""}, "once", ""},
 		{[]string{"", ""}, "twice", ""},
 		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},

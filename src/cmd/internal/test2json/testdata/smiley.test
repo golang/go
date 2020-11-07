@@ -58,11 +58,11 @@
 === CONT  Test☺☹/2
 --- PASS: TestTags (0.00s)
     --- PASS: TestTags/x_testtag_y (0.04s)
-    	vet_test.go:187: -tags=x testtag y
+        vet_test.go:187: -tags=x testtag y
     --- PASS: TestTags/x,testtag,y (0.04s)
-    	vet_test.go:187: -tags=x,testtag,y
+        vet_test.go:187: -tags=x,testtag,y
     --- PASS: TestTags/testtag (0.04s)
-    	vet_test.go:187: -tags=testtag
+        vet_test.go:187: -tags=testtag
 === CONT  Test☺☹/1
 === CONT  Test☺☹Dirs/testingpkg
 === CONT  Test☺☹Dirs/buildtag
@@ -71,21 +71,21 @@
 === CONT  Test☺☹Dirs/cgo
 --- PASS: Test☺☹ (0.39s)
     --- PASS: Test☺☹/5 (0.07s)
-    	vet_test.go:114: φιλεσ: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
+        vet_test.go:114: φιλεσ: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
     --- PASS: Test☺☹/3 (0.07s)
-    	vet_test.go:114: φιλεσ: ["testdata/composite.go" "testdata/nilfunc.go"]
+        vet_test.go:114: φιλεσ: ["testdata/composite.go" "testdata/nilfunc.go"]
     --- PASS: Test☺☹/6 (0.07s)
-    	vet_test.go:114: φιλεσ: ["testdata/copylock_range.go" "testdata/shadow.go"]
+        vet_test.go:114: φιλεσ: ["testdata/copylock_range.go" "testdata/shadow.go"]
     --- PASS: Test☺☹/2 (0.07s)
-    	vet_test.go:114: φιλεσ: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
+        vet_test.go:114: φιλεσ: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
     --- PASS: Test☺☹/0 (0.13s)
-    	vet_test.go:114: φιλεσ: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
+        vet_test.go:114: φιλεσ: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
     --- PASS: Test☺☹/4 (0.16s)
-    	vet_test.go:114: φιλεσ: ["testdata/copylock.go" "testdata/print.go"]
+        vet_test.go:114: φιλεσ: ["testdata/copylock.go" "testdata/print.go"]
     --- PASS: Test☺☹/1 (0.07s)
-    	vet_test.go:114: φιλεσ: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
+        vet_test.go:114: φιλεσ: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
     --- PASS: Test☺☹/7 (0.19s)
-    	vet_test.go:114: φιλεσ: ["testdata/deadcode.go" "testdata/shift.go"]
+        vet_test.go:114: φιλεσ: ["testdata/deadcode.go" "testdata/shift.go"]
 --- PASS: Test☺☹Dirs (0.01s)
     --- PASS: Test☺☹Dirs/testingpkg (0.06s)
     --- PASS: Test☺☹Dirs/divergent (0.05s)

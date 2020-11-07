@@ -151,7 +151,8 @@ type Type struct {
 	Go         ast.Expr
 	EnumValues map[string]int64
 	Typedef    string
-	BadPointer bool
+	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
+	NotInHeap  bool // this type should have a go:notinheap annotation
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
@@ -169,35 +170,51 @@ func usage() {
 
 var ptrSizeMap = map[string]int64{
 	"386":      4,
+	"alpha":    8,
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
 	"mips64":   8,
 	"mips64le": 8,
+	"nios2":    4,
+	"ppc":      4,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv":    4,
 	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sh":       4,
+	"shbe":     4,
+	"sparc":    4,
 	"sparc64":  8,
 }
 
 var intSizeMap = map[string]int64{
 	"386":      4,
+	"alpha":    8,
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
 	"mips64":   8,
 	"mips64le": 8,
+	"nios2":    4,
+	"ppc":      4,
 	"ppc64":    8,
 	"ppc64le":  8,
+	"riscv":    4,
 	"riscv64":  8,
 	"s390":     4,
 	"s390x":    8,
+	"sh":       4,
+	"shbe":     4,
+	"sparc":    4,
 	"sparc64":  8,
 }
 
@@ -223,10 +240,11 @@ var exportHeader = flag.String("exportheader", "", "where to write export header
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
-var gccgoMangleCheckDone bool
-var gccgoNewmanglingInEffect bool
+var gccgoMangler func(string) string
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
+var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
+
 var goarch, goos string
 
 func main() {
@@ -306,6 +324,13 @@ func main() {
 			input = filepath.Join(*srcDir, input)
 		}
 
+		// Create absolute path for file, so that it will be used in error
+		// messages and recorded in debug line number information.
+		// This matches the rest of the toolchain. See golang.org/issue/5122.
+		if aname, err := filepath.Abs(input); err == nil {
+			input = aname
+		}
+
 		b, err := ioutil.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
@@ -313,6 +338,10 @@ func main() {
 		if _, err = h.Write(b); err != nil {
 			fatalf("%s", err)
 		}
+
+		// Apply trimpath to the file path. The path won't be read from after this point.
+		input, _ = objabi.ApplyRewrites(input, *trimpath)
+		goFiles[i] = input
 
 		f := new(File)
 		f.Edit = edit.NewBuffer(b)
@@ -351,7 +380,7 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f, input))
+			os.Stdout.WriteString(p.godefs(f))
 		} else {
 			p.writeOutput(f, input)
 		}

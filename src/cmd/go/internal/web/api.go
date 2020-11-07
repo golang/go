@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package web defines minimal helper routines for accessing HTTP/HTTPS
-// resources without requiring external dependenicies on the net package.
+// resources without requiring external dependencies on the net package.
 //
 // If the cmd_go_bootstrap build tag is present, web avoids the use of the net
 // package and returns errors for all network operations.
@@ -13,9 +13,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"net/url"
-	"os"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -56,7 +55,7 @@ func (e *HTTPError) Error() string {
 	}
 
 	if err := e.Err; err != nil {
-		if pErr, ok := e.Err.(*os.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
+		if pErr, ok := e.Err.(*fs.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
 			// Remove the redundant copy of the path.
 			err = pErr.Err
 		}
@@ -67,7 +66,7 @@ func (e *HTTPError) Error() string {
 }
 
 func (e *HTTPError) Is(target error) bool {
-	return target == os.ErrNotExist && (e.StatusCode == 404 || e.StatusCode == 410)
+	return target == fs.ErrNotExist && (e.StatusCode == 404 || e.StatusCode == 410)
 }
 
 func (e *HTTPError) Unwrap() error {
@@ -87,9 +86,9 @@ func GetBytes(u *url.URL) ([]byte, error) {
 	if err := resp.Err(); err != nil {
 		return nil, err
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %v", Redacted(u), err)
+		return nil, fmt.Errorf("reading %s: %v", u.Redacted(), err)
 	}
 	return b, nil
 }
@@ -130,7 +129,7 @@ func (r *Response) formatErrorDetail() string {
 	}
 
 	// Ensure that r.errorDetail has been populated.
-	_, _ = io.Copy(ioutil.Discard, r.Body)
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	s := r.errorDetail.buf.String()
 	if !utf8.ValidString(s) {
@@ -181,21 +180,6 @@ func (r *Response) formatErrorDetail() string {
 // under any applicable scheme. (A non-2xx response does not cause an error.)
 func Get(security SecurityMode, u *url.URL) (*Response, error) {
 	return get(security, u)
-}
-
-// Redacted returns a redacted string form of the URL,
-// suitable for printing in error messages.
-// The string form replaces any non-empty password
-// in the original URL with "[redacted]".
-func Redacted(u *url.URL) string {
-	if u.User != nil {
-		if _, ok := u.User.Password(); ok {
-			redacted := *u
-			redacted.User = url.UserPassword(u.User.Username(), "[redacted]")
-			u = &redacted
-		}
-	}
-	return u.String()
 }
 
 // OpenBrowser attempts to open the requested URL in a web browser.

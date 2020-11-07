@@ -718,24 +718,6 @@ var (
 		OpLeq64:  {signed, lt | eq},
 		OpLeq64U: {unsigned, lt | eq},
 
-		OpGeq8:   {signed, eq | gt},
-		OpGeq8U:  {unsigned, eq | gt},
-		OpGeq16:  {signed, eq | gt},
-		OpGeq16U: {unsigned, eq | gt},
-		OpGeq32:  {signed, eq | gt},
-		OpGeq32U: {unsigned, eq | gt},
-		OpGeq64:  {signed, eq | gt},
-		OpGeq64U: {unsigned, eq | gt},
-
-		OpGreater8:   {signed, gt},
-		OpGreater8U:  {unsigned, gt},
-		OpGreater16:  {signed, gt},
-		OpGreater16U: {unsigned, gt},
-		OpGreater32:  {signed, gt},
-		OpGreater32U: {unsigned, gt},
-		OpGreater64:  {signed, gt},
-		OpGreater64U: {unsigned, gt},
-
 		// For these ops, the negative branch is different: we can only
 		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
 		// See the special case in addBranchRestrictions.
@@ -1069,6 +1051,11 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 	//
 	// If all of these conditions are true, then i1 < max and i1 >= min.
 
+	// To ensure this is a loop header node.
+	if len(b.Preds) != 2 {
+		return
+	}
+
 	for _, i1 := range b.Values {
 		if i1.Op != OpPhi {
 			continue
@@ -1110,6 +1097,9 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 					continue
 				}
 				br = negative
+			}
+			if br == unknown {
+				continue
 			}
 
 			tr, has := domainRelationTable[control.Op]
@@ -1207,15 +1197,38 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				}
 				v.Op = ctzNonZeroOp[v.Op]
 			}
-
+		case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
+			// Check whether, for a >> b, we know that a is non-negative
+			// and b is all of a's bits except the MSB. If so, a is shifted to zero.
+			bits := 8 * v.Type.Size()
+			if v.Args[1].isGenericIntConst() && v.Args[1].AuxInt >= bits-1 && ft.isNonNegative(v.Args[0]) {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
+				}
+				switch bits {
+				case 64:
+					v.reset(OpConst64)
+				case 32:
+					v.reset(OpConst32)
+				case 16:
+					v.reset(OpConst16)
+				case 8:
+					v.reset(OpConst8)
+				default:
+					panic("unexpected integer size")
+				}
+				v.AuxInt = 0
+				continue // Be sure not to fallthrough - this is no longer OpRsh.
+			}
+			// If the Rsh hasn't been replaced with 0, still check if it is bounded.
+			fallthrough
 		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
 			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
 			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
 			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
-			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
-			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
-			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
-			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
 			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
 			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
 			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
@@ -1237,15 +1250,23 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
 			// On amd64 and 386 fix-up code can be avoided if we know
 			//  the divisor is not -1 or the dividend > MinIntNN.
+			// Don't modify AuxInt on other architectures,
+			// as that can interfere with CSE.
+			// TODO: add other architectures?
+			if b.Func.Config.arch != "386" && b.Func.Config.arch != "amd64" {
+				break
+			}
 			divr := v.Args[1]
 			divrLim, divrLimok := ft.limits[divr.ID]
 			divd := v.Args[0]
 			divdLim, divdLimok := ft.limits[divd.ID]
 			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
 				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
-				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
-				// that the divisor is not -1 and the dividend is not the most negative,
-				// so we need to add fix-up code.
+				// See DivisionNeedsFixUp in rewrite.go.
+				// v.AuxInt = 1 means we have proved both that the divisor is not -1
+				// and that the dividend is not the most negative integer,
+				// so we do not need to add fix-up code.
+				v.AuxInt = 1
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 				}
@@ -1312,6 +1333,13 @@ func removeBranch(b *Block, branch branch) {
 
 // isNonNegative reports whether v is known to be greater or equal to zero.
 func isNonNegative(v *Value) bool {
+	if !v.Type.IsInteger() {
+		v.Fatalf("isNonNegative bad type: %v", v.Type)
+	}
+	// TODO: return true if !v.Type.IsSigned()
+	// SSA isn't type-safe enough to do that now (issue 37753).
+	// The checks below depend only on the pattern of bits.
+
 	switch v.Op {
 	case OpConst64:
 		return v.AuxInt >= 0
@@ -1319,16 +1347,37 @@ func isNonNegative(v *Value) bool {
 	case OpConst32:
 		return int32(v.AuxInt) >= 0
 
+	case OpConst16:
+		return int16(v.AuxInt) >= 0
+
+	case OpConst8:
+		return int8(v.AuxInt) >= 0
+
 	case OpStringLen, OpSliceLen, OpSliceCap,
-		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
+		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64,
+		OpZeroExt8to32, OpZeroExt16to32, OpZeroExt8to16,
+		OpCtz64, OpCtz32, OpCtz16, OpCtz8:
 		return true
 
-	case OpRsh64Ux64:
+	case OpRsh64Ux64, OpRsh32Ux64:
 		by := v.Args[1]
 		return by.Op == OpConst64 && by.AuxInt > 0
 
-	case OpRsh64x64:
+	case OpRsh64x64, OpRsh32x64, OpRsh8x64, OpRsh16x64, OpRsh32x32, OpRsh64x32,
+		OpSignExt32to64, OpSignExt16to64, OpSignExt8to64, OpSignExt16to32, OpSignExt8to32:
 		return isNonNegative(v.Args[0])
+
+	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+		return isNonNegative(v.Args[0]) || isNonNegative(v.Args[1])
+
+	case OpMod64, OpMod32, OpMod16, OpMod8,
+		OpDiv64, OpDiv32, OpDiv16, OpDiv8,
+		OpOr64, OpOr32, OpOr16, OpOr8,
+		OpXor64, OpXor32, OpXor16, OpXor8:
+		return isNonNegative(v.Args[0]) && isNonNegative(v.Args[1])
+
+		// We could handle OpPhi here, but the improvements from doing
+		// so are very minor, and it is neither simple nor cheap.
 	}
 	return false
 }

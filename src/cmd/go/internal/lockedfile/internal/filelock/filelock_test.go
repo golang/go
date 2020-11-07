@@ -161,7 +161,7 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 
 	doUnlockTF := false
 	switch runtime.GOOS {
-	case "aix", "illumos", "solaris":
+	case "aix", "solaris":
 		// When using POSIX locks (as on Solaris), we can't safely read-lock the
 		// same inode through two different descriptors at the same time: when the
 		// first descriptor is closed, the second descriptor would still be open but

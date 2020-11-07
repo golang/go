@@ -47,6 +47,18 @@ func LoadAcq(ptr *uint32) uint32 {
 
 //go:nosplit
 //go:noinline
+func LoadAcq64(ptr *uint64) uint64 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func LoadAcquintptr(ptr *uintptr) uintptr {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
 func Load8(ptr *uint8) uint8 {
 	return *ptr
 }
@@ -121,6 +133,18 @@ func Or8(ptr *uint8, val uint8) {
 
 //go:nosplit
 //go:noinline
+func And(ptr *uint32, val uint32) {
+	*ptr = *ptr & val
+}
+
+//go:nosplit
+//go:noinline
+func Or(ptr *uint32, val uint32) {
+	*ptr = *ptr | val
+}
+
+//go:nosplit
+//go:noinline
 func Cas64(ptr *uint64, old, new uint64) bool {
 	if *ptr == old {
 		*ptr = new
@@ -143,6 +167,18 @@ func StoreRel(ptr *uint32, val uint32) {
 
 //go:nosplit
 //go:noinline
+func StoreRel64(ptr *uint64, val uint64) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
+func StoreReluintptr(ptr *uintptr, val uintptr) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
 func Store8(ptr *uint8, val uint8) {
 	*ptr = val
 }
@@ -153,14 +189,11 @@ func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
-//go:notinheap
-type noWB struct{}
-
-//go:noinline
-//go:nosplit
-func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(**noWB)(ptr) = (*noWB)(val)
-}
+// StorepNoWB performs *ptr = val atomically and without a write
+// barrier.
+//
+// NO go:noescape annotation; see atomic_pointer.go.
+func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 
 //go:nosplit
 //go:noinline

@@ -36,11 +36,25 @@ TEXT ·Loadp(SB),NOSPLIT,$0-16
 TEXT ·LoadAcq(SB),NOSPLIT,$0-12
 	B	·Load(SB)
 
+// uint64 runtime∕internal∕atomic·LoadAcquintptr(uint64 volatile* addr)
+TEXT ·LoadAcq64(SB),NOSPLIT,$0-16
+	B	·Load64(SB)
+
+// uintptr runtime∕internal∕atomic·LoadAcq64(uintptr volatile* addr)
+TEXT ·LoadAcquintptr(SB),NOSPLIT,$0-16
+	B	·Load64(SB)
+
 TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Store64(SB)
 
 TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
 	B	runtime∕internal∕atomic·Store(SB)
+
+TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
+	B	runtime∕internal∕atomic·Store64(SB)
+
+TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
+	B	runtime∕internal∕atomic·Store64(SB)
 
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVD	ptr+0(FP), R0
@@ -61,9 +75,9 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	RET
 
 TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
-again:
 	MOVD	ptr+0(FP), R0
 	MOVW	new+8(FP), R1
+again:
 	LDAXRW	(R0), R2
 	STLXRW	R1, (R0), R3
 	CBNZ	R3, again
@@ -71,9 +85,9 @@ again:
 	RET
 
 TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
-again:
 	MOVD	ptr+0(FP), R0
 	MOVD	new+8(FP), R1
+again:
 	LDAXR	(R0), R2
 	STLXR	R1, (R0), R3
 	CBNZ	R3, again
@@ -108,9 +122,9 @@ ok:
 //      *val += delta;
 //      return *val;
 TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
-again:
 	MOVD	ptr+0(FP), R0
 	MOVW	delta+8(FP), R1
+again:
 	LDAXRW	(R0), R2
 	ADDW	R2, R1, R2
 	STLXRW	R2, (R0), R3
@@ -119,9 +133,9 @@ again:
 	RET
 
 TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
-again:
 	MOVD	ptr+0(FP), R0
 	MOVD	delta+8(FP), R1
+again:
 	LDAXR	(R0), R2
 	ADD	R2, R1, R2
 	STLXR	R2, (R0), R3
@@ -150,3 +164,22 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	CBNZ	R3, -3(PC)
 	RET
 
+// func And(addr *uint32, v uint32)
+TEXT ·And(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	LDAXRW	(R0), R2
+	AND	R1, R2
+	STLXRW	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET
+
+// func Or(addr *uint32, v uint32)
+TEXT ·Or(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	LDAXRW	(R0), R2
+	ORR	R1, R2
+	STLXRW	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET

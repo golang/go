@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -150,7 +149,7 @@ func TestEncoderDecoder(t *testing.T) {
 func TestDecoderErr(t *testing.T) {
 	for _, tt := range errTests {
 		dec := NewDecoder(strings.NewReader(tt.in))
-		out, err := ioutil.ReadAll(dec)
+		out, err := io.ReadAll(dec)
 		wantErr := tt.err
 		// Decoder is reading from stream, so it reports io.ErrUnexpectedEOF instead of ErrLength.
 		if wantErr == ErrLength {
@@ -267,7 +266,6 @@ func BenchmarkDecode(b *testing.B) {
 func BenchmarkDump(b *testing.B) {
 	for _, size := range []int{256, 1024, 4096, 16384} {
 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
-		sink = make([]byte, 2*size)
 
 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
 			b.SetBytes(int64(size))

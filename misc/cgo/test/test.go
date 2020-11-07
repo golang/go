@@ -319,6 +319,7 @@ typedef enum {
 
 // issue 4339
 // We've historically permitted #include <>, so test it here.  Issue 29333.
+// Also see issue 41059.
 #include <issue4339.h>
 
 // issue 4417
@@ -897,6 +898,16 @@ static uint16_t issue31093F(uint16_t v) { return v; }
 
 // issue 32579
 typedef struct S32579 { unsigned char data[1]; } S32579;
+
+// issue 38649
+// Test that #define'd type aliases work.
+#define netbsd_gid unsigned int
+
+// issue 40494
+// Inconsistent handling of tagged enum and union types.
+enum Enum40494 { X_40494 };
+union Union40494 { int x; };
+void issue40494(enum Enum40494 e, union Union40494* up) {}
 */
 import "C"
 
@@ -986,6 +997,32 @@ func testConst(t *testing.T) {
 func testEnum(t *testing.T) {
 	if C.Enum1 != 1 || C.Enum2 != 2 {
 		t.Error("bad enum", C.Enum1, C.Enum2)
+	}
+}
+
+func testNamedEnum(t *testing.T) {
+	e := new(C.enum_E)
+
+	*e = C.Enum1
+	if *e != 1 {
+		t.Error("bad enum", C.Enum1)
+	}
+
+	*e = C.Enum2
+	if *e != 2 {
+		t.Error("bad enum", C.Enum2)
+	}
+}
+
+func testCastToEnum(t *testing.T) {
+	e := C.enum_E(C.Enum1)
+	if e != 1 {
+		t.Error("bad enum", C.Enum1)
+	}
+
+	e = C.enum_E(C.Enum2)
+	if e != 2 {
+		t.Error("bad enum", C.Enum2)
 	}
 }
 
@@ -1765,7 +1802,7 @@ func test14838(t *testing.T) {
 var sink C.int
 
 func test17065(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		t.Skip("broken on darwin; issue 17065")
 	}
 	for i := range C.ii {
@@ -2191,4 +2228,19 @@ func test32579(t *testing.T) {
 	if s[0].data[0] != 1 {
 		t.Errorf("&s[0].data[0] failed: got %d, want %d", s[0].data[0], 1)
 	}
+}
+
+// issue 38649
+
+var issue38649 C.netbsd_gid = 42
+
+// issue 39877
+
+var issue39877 *C.void = nil
+
+// issue 40494
+// No runtime test; just make sure it compiles.
+
+func Issue40494() {
+	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
 }

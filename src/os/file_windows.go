@@ -26,8 +26,11 @@ type file struct {
 }
 
 // Fd returns the Windows handle referencing the open file.
-// The handle is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
 func (file *File) Fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
@@ -165,7 +168,7 @@ func openDir(name string) (file *File, err error) {
 // openFileNolog is the Windows implementation of OpenFile.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
-		return nil, &PathError{"open", name, syscall.ENOENT}
+		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
 	r, errf := openFile(name, flag, perm)
 	if errf == nil {
@@ -175,22 +178,11 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if errd == nil {
 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
 			r.Close()
-			return nil, &PathError{"open", name, syscall.EISDIR}
+			return nil, &PathError{Op: "open", Path: name, Err: syscall.EISDIR}
 		}
 		return r, nil
 	}
-	return nil, &PathError{"open", name, errf}
-}
-
-// Close closes the File, rendering it unusable for I/O.
-// On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an error.
-// Close will return an error if it has already been called.
-func (file *File) Close() error {
-	if file == nil {
-		return ErrInvalid
-	}
-	return file.file.close()
+	return nil, &PathError{Op: "open", Path: name, Err: errf}
 }
 
 func (file *file) close() error {
@@ -206,45 +198,12 @@ func (file *file) close() error {
 		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)
 	return err
-}
-
-// read reads up to len(b) bytes from the File.
-// It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err error) {
-	n, err = f.pfd.Read(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pread reads len(b) bytes from the File starting at byte offset off.
-// It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to 0.
-func (f *File) pread(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pread(b, off)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// write writes len(b) bytes to the File.
-// It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err error) {
-	n, err = f.pfd.Write(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pwrite writes len(b) bytes to the File starting at byte offset off.
-// It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pwrite(b, off)
-	runtime.KeepAlive(f)
-	return n, err
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted
@@ -277,7 +236,7 @@ func Truncate(name string, size int64) error {
 func Remove(name string) error {
 	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
-		return &PathError{"remove", name, e}
+		return &PathError{Op: "remove", Path: name, Err: e}
 	}
 
 	// Go file interface forces us to know whether
@@ -308,7 +267,7 @@ func Remove(name string) error {
 			}
 		}
 	}
-	return &PathError{"remove", name, e}
+	return &PathError{Op: "remove", Path: name, Err: e}
 }
 
 func rename(oldname, newname string) error {
@@ -374,8 +333,18 @@ func Symlink(oldname, newname string) error {
 
 	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
-	if !isAbs(oldname) {
-		destpath = dirname(newname) + `\` + oldname
+	if v := volumeName(oldname); v == "" {
+		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
+			// oldname is relative to the volume containing newname.
+			if v = volumeName(newname); v != "" {
+				// Prepend the volume explicitly, because it may be different from the
+				// volume of the current working directory.
+				destpath = v + oldname
+			}
+		} else {
+			// oldname is relative to newname.
+			destpath = dirname(newname) + `\` + oldname
+		}
 	}
 
 	fi, err := Stat(destpath)
@@ -524,7 +493,7 @@ func readlink(path string) (string, error) {
 func Readlink(name string) (string, error) {
 	s, err := readlink(fixLongPath(name))
 	if err != nil {
-		return "", &PathError{"readlink", name, err}
+		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}
 	return s, nil
 }

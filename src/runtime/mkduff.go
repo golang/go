@@ -38,6 +38,7 @@ func main() {
 	gen("arm64", notags, zeroARM64, copyARM64)
 	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
 	gen("mips64x", tagsMIPS64x, zeroMIPS64x, copyMIPS64x)
+	gen("riscv64", notags, zeroRISCV64, copyRISCV64)
 }
 
 func gen(arch string, tags, zero, copy func(io.Writer)) {
@@ -83,7 +84,6 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	// The STOSQ in duffzero seem fine, though.
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
@@ -194,7 +194,9 @@ func zeroPPC64x(w io.Writer) {
 }
 
 func copyPPC64x(w io.Writer) {
-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+	// duffcopy is not used on PPC64.
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "\tUNDEF")
 }
 
 func tagsMIPS64x(w io.Writer) {
@@ -222,6 +224,33 @@ func copyMIPS64x(w io.Writer) {
 		fmt.Fprintln(w, "\tADDV\t$8, R1")
 		fmt.Fprintln(w, "\tMOVV\tR23, (R2)")
 		fmt.Fprintln(w, "\tADDV\t$8, R2")
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "\tRET")
+}
+
+func zeroRISCV64(w io.Writer) {
+	// ZERO: always zero
+	// X10: ptr to memory to be zeroed
+	// X10 is updated as a side effect.
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOV\tZERO, (X10)")
+		fmt.Fprintln(w, "\tADD\t$8, X10")
+	}
+	fmt.Fprintln(w, "\tRET")
+}
+
+func copyRISCV64(w io.Writer) {
+	// X10: ptr to source memory
+	// X11: ptr to destination memory
+	// X10 and X11 are updated as a side effect
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOV\t(X10), X31")
+		fmt.Fprintln(w, "\tADD\t$8, X10")
+		fmt.Fprintln(w, "\tMOV\tX31, (X11)")
+		fmt.Fprintln(w, "\tADD\t$8, X11")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

@@ -5,6 +5,7 @@
 package build
 
 import (
+	"flag"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,14 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 func TestMatch(t *testing.T) {
 	ctxt := Default
@@ -111,11 +120,8 @@ func TestMultiplePackageImport(t *testing.T) {
 }
 
 func TestLocalDirectory(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "ios" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	cwd, err := os.Getwd()
@@ -132,48 +138,178 @@ func TestLocalDirectory(t *testing.T) {
 	}
 }
 
+var shouldBuildTests = []struct {
+	name        string
+	content     string
+	tags        map[string]bool
+	binaryOnly  bool
+	shouldBuild bool
+	err         error
+}{
+	{
+		name: "Yes",
+		content: "// +build yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
+		name: "Or",
+		content: "// +build no yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: true,
+	},
+	{
+		name: "And",
+		content: "// +build no,yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: false,
+	},
+	{
+		name: "Cgo",
+		content: "// +build cgo\n\n" +
+			"// Copyright The Go Authors.\n\n" +
+			"// This package implements parsing of tags like\n" +
+			"// +build tag1\n" +
+			"package build",
+		tags:        map[string]bool{"cgo": true},
+		shouldBuild: false,
+	},
+	{
+		name: "AfterPackage",
+		content: "// Copyright The Go Authors.\n\n" +
+			"package build\n\n" +
+			"// shouldBuild checks tags given by lines of the form\n" +
+			"// +build tag\n" +
+			"func shouldBuild(content []byte)\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "TooClose",
+		content: "// +build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "TooCloseNo",
+		content: "// +build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "BinaryOnly",
+		content: "//go:binary-only-package\n" +
+			"// +build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		binaryOnly:  true,
+		shouldBuild: true,
+	},
+	{
+		name: "ValidGoBuild",
+		content: "// +build yes\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
+		name: "MissingBuild",
+		content: "//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "MissingBuild2",
+		content: "/* */\n" +
+			"// +build yes\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "MissingBuild2",
+		content: "/*\n" +
+			"// +build yes\n\n" +
+			"*/\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment1",
+		content: "/*\n" +
+			"//go:build no\n" +
+			"*/\n\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "Comment2",
+		content: "/*\n" +
+			"text\n" +
+			"*/\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment3",
+		content: "/*/*/ /* hi *//* \n" +
+			"text\n" +
+			"*/\n\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+	{
+		name: "Comment4",
+		content: "/**///go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		name: "Comment5",
+		content: "/**/\n" +
+			"//go:build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: false,
+		err:         errGoBuildWithoutBuild,
+	},
+}
+
 func TestShouldBuild(t *testing.T) {
-	const file1 = "// +build tag1\n\n" +
-		"package main\n"
-	want1 := map[string]bool{"tag1": true}
-
-	const file2 = "// +build cgo\n\n" +
-		"// This package implements parsing of tags like\n" +
-		"// +build tag1\n" +
-		"package build"
-	want2 := map[string]bool{"cgo": true}
-
-	const file3 = "// Copyright The Go Authors.\n\n" +
-		"package build\n\n" +
-		"// shouldBuild checks tags given by lines of the form\n" +
-		"// +build tag\n" +
-		"func shouldBuild(content []byte)\n"
-	want3 := map[string]bool{}
-
-	ctx := &Context{BuildTags: []string{"tag1"}}
-	m := map[string]bool{}
-	if !ctx.shouldBuild([]byte(file1), m, nil) {
-		t.Errorf("shouldBuild(file1) = false, want true")
-	}
-	if !reflect.DeepEqual(m, want1) {
-		t.Errorf("shouldBuild(file1) tags = %v, want %v", m, want1)
-	}
-
-	m = map[string]bool{}
-	if ctx.shouldBuild([]byte(file2), m, nil) {
-		t.Errorf("shouldBuild(file2) = true, want false")
-	}
-	if !reflect.DeepEqual(m, want2) {
-		t.Errorf("shouldBuild(file2) tags = %v, want %v", m, want2)
-	}
-
-	m = map[string]bool{}
-	ctx = &Context{BuildTags: nil}
-	if !ctx.shouldBuild([]byte(file3), m, nil) {
-		t.Errorf("shouldBuild(file3) = false, want true")
-	}
-	if !reflect.DeepEqual(m, want3) {
-		t.Errorf("shouldBuild(file3) tags = %v, want %v", m, want3)
+	for _, tt := range shouldBuildTests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &Context{BuildTags: []string{"yes"}}
+			tags := map[string]bool{}
+			shouldBuild, binaryOnly, err := ctx.shouldBuild([]byte(tt.content), tags)
+			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) || err != tt.err {
+				t.Errorf("mismatch:\n"+
+					"have shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v\n"+
+					"want shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v",
+					shouldBuild, binaryOnly, tags, err,
+					tt.shouldBuild, tt.binaryOnly, tt.tags, tt.err)
+			}
+		})
 	}
 }
 
@@ -244,11 +380,8 @@ func TestMatchFile(t *testing.T) {
 }
 
 func TestImportCmd(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "ios" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	p, err := Import("cmd/internal/objfile", "", 0)
@@ -340,20 +473,38 @@ func TestImportDirNotExist(t *testing.T) {
 		{"Import(full, FindOnly)", "go/build/doesnotexist", "", FindOnly},
 		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
 	}
-	for _, test := range tests {
-		p, err := ctxt.Import(test.path, test.srcDir, test.mode)
-		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
-			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
-		}
-		// If an error occurs, build.Import is documented to return
-		// a non-nil *Package containing partial information.
-		if p == nil {
-			t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
-		}
-		// Verify partial information in p.
-		if p.ImportPath != "go/build/doesnotexist" {
-			t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
-		}
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+
+	for _, GO111MODULE := range []string{"off", "on"} {
+		t.Run("GO111MODULE="+GO111MODULE, func(t *testing.T) {
+			os.Setenv("GO111MODULE", GO111MODULE)
+
+			for _, test := range tests {
+				p, err := ctxt.Import(test.path, test.srcDir, test.mode)
+
+				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
+				wantErr := `"cannot find package" error`
+				if test.srcDir == "" {
+					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
+						errOk = true
+					}
+					wantErr = `"cannot find package" or "is not in GOROOT" error`
+				}
+				if !errOk {
+					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)
+				}
+				// If an error occurs, build.Import is documented to return
+				// a non-nil *Package containing partial information.
+				if p == nil {
+					t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
+				}
+				// Verify partial information in p.
+				if p.ImportPath != "go/build/doesnotexist" {
+					t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
+				}
+			}
+		})
 	}
 }
 
@@ -461,11 +612,13 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	ctxt.GOPATH = gopath
 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
-	want := "cannot find module providing package"
+	want := "working directory is not part of a module"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
 		t.Fatalf("error when importing package when no go.mod is present: got %q; want %q", errStr, want)
+	} else {
+		t.Logf(`ctxt.Import("example.com/p", _, FindOnly): %v`, err)
 	}
 }
 
@@ -526,9 +679,16 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected success")
 	}
+
 	// Don't count the package path with a URL like https://...?go-get=1.
 	// See golang.org/issue/35986.
 	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
+
+	// Also don't count instances in suggested "go get" or similar commands
+	// (see https://golang.org/issue/41576). The suggested command typically
+	// follows a semicolon.
+	errStr = strings.SplitN(errStr, ";", 2)[0]
+
 	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}

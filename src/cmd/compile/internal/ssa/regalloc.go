@@ -588,7 +588,7 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
 	}
-	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+	if objabi.Framepointer_enabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
 	if s.f.Config.LinkReg != -1 {
@@ -624,9 +624,6 @@ func (s *regAllocState) init(f *Func) {
 		default:
 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
-	}
-	if s.f.Config.use387 {
-		s.allocatable &^= 1 << 15 // X7 disallowed (one 387 register is used as scratch space during SSE->387 generation in ../x86/387.go)
 	}
 
 	// Linear scan register allocation can be influenced by the order in which blocks appear.
@@ -977,25 +974,22 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Second pass - deallocate any phi inputs which are now dead.
+			// Second pass - deallocate all in-register phi inputs.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
 				}
 				a := v.Args[idx]
-				if !regValLiveSet.contains(a.ID) {
-					// Input is dead beyond the phi, deallocate
-					// anywhere else it might live.
-					s.freeRegs(s.values[a.ID].regs)
-				} else {
-					// Input is still live.
+				r := phiRegs[i]
+				if r == noRegister {
+					continue
+				}
+				if regValLiveSet.contains(a.ID) {
+					// Input value is still live (it is used by something other than Phi).
 					// Try to move it around before kicking out, if there is a free register.
 					// We generate a Copy in the predecessor block and record it. It will be
-					// deleted if never used.
-					r := phiRegs[i]
-					if r == noRegister {
-						continue
-					}
+					// deleted later if never used.
+					//
 					// Pick a free register. At this point some registers used in the predecessor
 					// block may have been deallocated. Those are the ones used for Phis. Exclude
 					// them (and they are not going to be helpful anyway).
@@ -1011,15 +1005,15 @@ func (s *regAllocState) regalloc(f *Func) {
 						s.assignReg(r2, a, c)
 						s.endRegs[p.ID] = append(s.endRegs[p.ID], endReg{r2, a, c})
 					}
-					s.freeReg(r)
 				}
+				s.freeReg(r)
 			}
 
 			// Copy phi ops into new schedule.
 			b.Values = append(b.Values, phis...)
 
-			// Third pass - pick registers for phis whose inputs
-			// were not in a register.
+			// Third pass - pick registers for phis whose input
+			// was not in a register in the primary predecessor.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
@@ -1027,10 +1021,25 @@ func (s *regAllocState) regalloc(f *Func) {
 				if phiRegs[i] != noRegister {
 					continue
 				}
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
-				}
 				m := s.compatRegs(v.Type) &^ phiUsed &^ s.used
+				// If one of the other inputs of v is in a register, and the register is available,
+				// select this register, which can save some unnecessary copies.
+				for i, pe := range b.Preds {
+					if int32(i) == idx {
+						continue
+					}
+					ri := noRegister
+					for _, er := range s.endRegs[pe.b.ID] {
+						if er.v == s.orig[v.Args[i].ID] {
+							ri = er.r
+							break
+						}
+					}
+					if ri != noRegister && m>>ri&1 != 0 {
+						m = regMask(1) << ri
+						break
+					}
+				}
 				if m != 0 {
 					r := pickReg(m)
 					phiRegs[i] = r
@@ -1128,7 +1137,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				rp, ok := s.f.getHome(v.ID).(*Register)
 				if !ok {
-					continue
+					// If v is not assigned a register, pick a register assigned to one of v's inputs.
+					// Hopefully v will get assigned that register later.
+					// If the inputs have allocated register information, add it to desired,
+					// which may reduce spill or copy operations when the register is available.
+					for _, a := range v.Args {
+						rp, ok = s.f.getHome(a.ID).(*Register)
+						if ok {
+							break
+						}
+					}
+					if !ok {
+						continue
+					}
 				}
 				desired.add(v.Args[pidx].ID, register(rp.num))
 			}
@@ -1531,11 +1552,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.freeUseRecords = u
 		}
 
-		// Spill any values that can't live across basic block boundaries.
-		if s.f.Config.use387 {
-			s.freeRegs(s.f.Config.fpRegMask)
-		}
-
 		// If we are approaching a merge point and we are the primary
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
@@ -1565,10 +1581,20 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				v := s.orig[vid]
-				if s.f.Config.use387 && v.Type.IsFloat() {
-					continue // 387 can't handle floats in registers between blocks
-				}
 				m := s.compatRegs(v.Type) &^ s.used
+				// Used desired register if available.
+			outerloop:
+				for _, e := range desired.entries {
+					if e.ID != v.ID {
+						continue
+					}
+					for _, r := range e.regs {
+						if r != noRegister && m>>r&1 != 0 {
+							m = regMask(1) << r
+							break outerloop
+						}
+					}
+				}
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
 				}
@@ -1630,7 +1656,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// we'll rematerialize during the merge.
 				continue
 			}
-			//fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
+			}
 			spill := s.makeSpill(s.orig[e.ID], b)
 			s.spillLive[b.ID] = append(s.spillLive[b.ID], spill.ID)
 		}
@@ -1851,6 +1879,11 @@ func (s *regAllocState) shuffle(stacklive [][]ID) {
 			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
 			e.process()
 		}
+	}
+
+	if s.f.pass.debug > regDebug {
+		fmt.Printf("post shuffle %s\n", s.f.Name)
+		fmt.Println(s.f.String())
 	}
 }
 
@@ -2162,6 +2195,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 	a = append(a, c)
 	e.cache[vid] = a
 	if r, ok := loc.(*Register); ok {
+		if e.usedRegs&(regMask(1)<<uint(r.num)) != 0 {
+			e.s.f.Fatalf("%v is already set (v%d/%v)", r, vid, c)
+		}
 		e.usedRegs |= regMask(1) << uint(r.num)
 		if final {
 			e.finalRegs |= regMask(1) << uint(r.num)
@@ -2493,7 +2529,7 @@ func (s *regAllocState) computeLive() {
 		for _, b := range f.Blocks {
 			fmt.Printf("  %s:", b)
 			for _, x := range s.live[b.ID] {
-				fmt.Printf(" v%d", x.ID)
+				fmt.Printf(" v%d(%d)", x.ID, x.dist)
 				for _, e := range s.desired[b.ID].entries {
 					if e.ID != x.ID {
 						continue

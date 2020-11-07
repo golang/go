@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-go list x
+go get -d x
 go list -m all
 stdout 'rsc.io/breaker v2.0.0\+incompatible'
 

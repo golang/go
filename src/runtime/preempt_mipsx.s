@@ -5,7 +5,8 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW R31, -244(R29)
 	SUB $244, R29
 	MOVW R1, 4(R29)
@@ -37,6 +38,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW R1, 104(R29)
 	MOVW LO, R1
 	MOVW R1, 108(R29)
+	#ifndef GOMIPS_softfloat
 	MOVW FCR31, R1
 	MOVW R1, 112(R29)
 	MOVF F0, 116(R29)
@@ -71,7 +73,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVF F29, 232(R29)
 	MOVF F30, 236(R29)
 	MOVF F31, 240(R29)
+	#endif
 	CALL ·asyncPreempt2(SB)
+	#ifndef GOMIPS_softfloat
 	MOVF 240(R29), F31
 	MOVF 236(R29), F30
 	MOVF 232(R29), F29
@@ -106,6 +110,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVF 116(R29), F0
 	MOVW 112(R29), R1
 	MOVW R1, FCR31
+	#endif
 	MOVW 108(R29), R1
 	MOVW R1, LO
 	MOVW 104(R29), R1

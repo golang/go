@@ -1,0 +1,27 @@
+=== RUN   TestOutputWithSubtest
+=== RUN   TestOutputWithSubtest/sub_test
+=== RUN   TestOutputWithSubtest/sub_test/sub2
+=== RUN   TestOutputWithSubtest/sub_test2
+=== RUN   TestOutputWithSubtest/sub_test2/sub2
+--- FAIL: TestOutputWithSubtest (0.00s)
+    foo_test.go:6: output before sub tests
+    foo_test.go:10: output from root test
+    foo_test.go:15: output from root test
+    --- PASS: TestOutputWithSubtest/sub_test (0.00s)
+        foo_test.go:9: output from sub test
+        foo_test.go:11: more output from sub test
+        foo_test.go:16: more output from sub test
+        --- PASS: TestOutputWithSubtest/sub_test/sub2 (0.00s)
+            foo_test.go:14: output from sub2 test
+    foo_test.go:22: output from root test
+    foo_test.go:27: output from root test
+    --- PASS: TestOutputWithSubtest/sub_test2 (0.00s)
+        foo_test.go:21: output from sub test2
+        foo_test.go:23: more output from sub test2
+        foo_test.go:28: more output from sub test2
+        --- PASS: TestOutputWithSubtest/sub_test2/sub2 (0.00s)
+            foo_test.go:26: output from sub2 test
+    foo_test.go:32: output after sub test
+FAIL
+FAIL	gotest.tools/gotestsum/foo	0.001s
+FAIL

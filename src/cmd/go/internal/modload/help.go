@@ -21,14 +21,15 @@ which source files are used in a given build.
 
 Module support
 
-Go 1.13 includes support for Go modules. Module-aware mode is active by default
-whenever a go.mod file is found in, or in a parent of, the current directory.
+The go command includes support for Go modules. Module-aware mode is active
+by default whenever a go.mod file is found in the current directory or in
+any parent directory.
 
 The quickest way to take advantage of module support is to check out your
 repository, create a go.mod file (described in the next section) there, and run
 go commands from within that file tree.
 
-For more fine-grained control, Go 1.13 continues to respect
+For more fine-grained control, the go command continues to respect
 a temporary environment variable, GO111MODULE, which can be set to one
 of three string values: off, on, or auto (the default).
 If GO111MODULE=on, then the go command requires the use of modules,
@@ -123,64 +124,63 @@ and the build list. For example:
 
 Maintaining module requirements
 
-The go.mod file is meant to be readable and editable by both
-programmers and tools. The go command itself automatically updates the go.mod file
-to maintain a standard formatting and the accuracy of require statements.
+The go.mod file is meant to be readable and editable by both programmers and
+tools. Most updates to dependencies can be performed using "go get" and
+"go mod tidy". Other module-aware build commands may be invoked using the
+-mod=mod flag to automatically add missing requirements and fix inconsistencies.
 
-Any go command that finds an unfamiliar import will look up the module
-containing that import and add the latest version of that module
-to go.mod automatically. In most cases, therefore, it suffices to
-add an import to source code and run 'go build', 'go test', or even 'go list':
-as part of analyzing the package, the go command will discover
-and resolve the import and update the go.mod file.
+The "go get" command updates go.mod to change the module versions used in a
+build. An upgrade of one module may imply upgrading others, and similarly a
+downgrade of one module may imply downgrading others. The "go get" command
+makes these implied changes as well. See "go help module-get".
 
-Any go command can determine that a module requirement is
-missing and must be added, even when considering only a single
-package from the module. On the other hand, determining that a module requirement
-is no longer necessary and can be deleted requires a full view of
-all packages in the module, across all possible build configurations
-(architectures, operating systems, build tags, and so on).
-The 'go mod tidy' command builds that view and then
-adds any missing module requirements and removes unnecessary ones.
+The "go mod" command provides other functionality for use in maintaining
+and understanding modules and go.mod files. See "go help mod", particularly
+"go help mod tidy" and "go help mod edit".
 
 As part of maintaining the require statements in go.mod, the go command
 tracks which ones provide packages imported directly by the current module
 and which ones provide packages only used indirectly by other module
 dependencies. Requirements needed only for indirect uses are marked with a
-"// indirect" comment in the go.mod file. Indirect requirements are
+"// indirect" comment in the go.mod file. Indirect requirements may be
 automatically removed from the go.mod file once they are implied by other
 direct requirements. Indirect requirements only arise when using modules
 that fail to state some of their own dependencies or when explicitly
 upgrading a module's dependencies ahead of its own stated requirements.
 
-Because of this automatic maintenance, the information in go.mod is an
-up-to-date, readable description of the build.
+The -mod build flag provides additional control over the updating and use of
+go.mod for commands that build packages like "go build" and "go test".
 
-The 'go get' command updates go.mod to change the module versions used in a
-build. An upgrade of one module may imply upgrading others, and similarly a
-downgrade of one module may imply downgrading others. The 'go get' command
-makes these implied changes as well. If go.mod is edited directly, commands
-like 'go build' or 'go list' will assume that an upgrade is intended and
-automatically make any implied upgrades and update go.mod to reflect them.
+If invoked with -mod=readonly (the default in most situations), the go command
+reports an error if a package named on the command line or an imported package
+is not provided by any module in the build list computed from the main module's
+requirements. The go command also reports an error if a module's checksum is
+missing from go.sum (see Module downloading and verification). Either go.mod or
+go.sum must be updated in these situations.
 
-The 'go mod' command provides other functionality for use in maintaining
-and understanding modules and go.mod files. See 'go help mod'.
+If invoked with -mod=mod, the go command automatically updates go.mod and
+go.sum, fixing inconsistencies and adding missing requirements and checksums
+as needed. If the go command finds an unfamiliar import, it looks up the
+module containing that import and adds a requirement for the latest version
+of that module to go.mod. In most cases, therefore, one may add an import to
+source code and run "go build", "go test", or even "go list" with -mod=mod:
+as part of analyzing the package, the go command will resolve the import and
+update the go.mod file.
 
-The -mod build flag provides additional control over updating and use of go.mod.
+If invoked with -mod=vendor, the go command loads packages from the main
+module's vendor directory instead of downloading modules to and loading packages
+from the module cache. The go command assumes the vendor directory holds
+correct copies of dependencies, and it does not compute the set of required
+module versions from go.mod files. However, the go command does check that
+vendor/modules.txt (generated by "go mod vendor") contains metadata consistent
+with go.mod.
 
-If invoked with -mod=readonly, the go command is disallowed from the implicit
-automatic updating of go.mod described above. Instead, it fails when any changes
-to go.mod are needed. This setting is most useful to check that go.mod does
-not need updates, such as in a continuous integration and testing system.
-The "go get" command remains permitted to update go.mod even with -mod=readonly,
-and the "go mod" commands do not take the -mod flag (or any other build flags).
+If the go command is not invoked with a -mod flag, and the vendor directory
+is present, and the "go" version in go.mod is 1.14 or higher, the go command
+will act as if it were invoked with -mod=vendor. Otherwise, the -mod flag
+defaults to -mod=readonly.
 
-If invoked with -mod=vendor, the go command assumes that the vendor
-directory holds the correct copies of dependencies and ignores
-the dependency descriptions in go.mod.
-
-If invoked with -mod=mod, the go command loads modules from the module cache
-even if there is a vendor directory present.
+Note that neither "go get" nor the "go mod" subcommands accept the -mod flag.
 
 Pseudo-versions
 
@@ -354,15 +354,15 @@ variable (see 'go help env'). The default setting for GOPROXY is
 Go module mirror run by Google and fall back to a direct connection
 if the proxy reports that it does not have the module (HTTP error 404 or 410).
 See https://proxy.golang.org/privacy for the service's privacy policy.
-If GOPROXY is set to the string "direct", downloads use a direct connection
-to source control servers. Setting GOPROXY to "off" disallows downloading
-modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
-list of the URLs of module proxies, in which case the go command will fetch
-modules from those proxies. For each request, the go command tries each proxy
-in sequence, only moving to the next if the current proxy returns a 404 or 410
-HTTP response. The string "direct" may appear in the proxy list,
-to cause a direct connection to be attempted at that point in the search.
-Any proxies listed after "direct" are never consulted.
+
+If GOPROXY is set to the string "direct", downloads use a direct connection to
+source control servers. Setting GOPROXY to "off" disallows downloading modules
+from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+separated by either comma (,) or pipe (|) characters, which control error
+fallback behavior. For each request, the go command tries each proxy in
+sequence. If there is an error, the go command will try the next proxy in the
+list if the error is a 404 or 410 HTTP response or if the current proxy is
+followed by a pipe character, indicating it is safe to fall back on any error.
 
 The GOPRIVATE and GONOPROXY environment variables allow bypassing
 the proxy for selected modules. See 'go help module-private' for details.
@@ -379,22 +379,28 @@ the format of the cached downloaded packages.
 
 Modules and vendoring
 
-When using modules, the go command completely ignores vendor directories.
+When using modules, the go command typically satisfies dependencies by
+downloading modules from their sources and using those downloaded copies
+(after verification, as described in the previous section). Vendoring may
+be used to allow interoperation with older versions of Go, or to ensure
+that all files used for a build are stored together in a single file tree.
 
-By default, the go command satisfies dependencies by downloading modules
-from their sources and using those downloaded copies (after verification,
-as described in the previous section). To allow interoperation with older
-versions of Go, or to ensure that all files used for a build are stored
-together in a single file tree, 'go mod vendor' creates a directory named
-vendor in the root directory of the main module and stores there all the
-packages from dependency modules that are needed to support builds and
-tests of packages in the main module.
+The command 'go mod vendor' constructs a directory named vendor in the main
+module's root directory that contains copies of all packages needed to support
+builds and tests of packages in the main module. 'go mod vendor' also
+creates the file vendor/modules.txt that contains metadata about vendored
+packages and module versions. This file should be kept consistent with go.mod:
+when vendoring is used, 'go mod vendor' should be run after go.mod is updated.
 
-To build using the main module's top-level vendor directory to satisfy
-dependencies (disabling use of the usual network sources and local
-caches), use 'go build -mod=vendor'. Note that only the main module's
-top-level vendor directory is used; vendor directories in other locations
-are still ignored.
+If the vendor directory is present in the main module's root directory, it will
+be used automatically if the "go" version in the main module's go.mod file is
+1.14 or higher. Build commands like 'go build' and 'go test' will load packages
+from the vendor directory instead of accessing the network or the local module
+cache. To explicitly enable vendoring, invoke the go command with the flag
+-mod=vendor. To disable vendoring, use the flag -mod=mod.
+
+Unlike vendoring in GOPATH, the go command ignores vendor directories in
+locations other than the main module's root directory.
 	`,
 }
 
@@ -417,15 +423,17 @@ verb followed by arguments. For example:
 	require new/thing/v2 v2.3.4
 	exclude old/thing v1.2.3
 	replace bad/thing v1.4.5 => good/thing v1.4.5
+	retract v1.5.6
 
 The verbs are
 	module, to define the module path;
 	go, to set the expected language version;
 	require, to require a particular module at a given version or later;
-	exclude, to exclude a particular module version from use; and
-	replace, to replace a module version with a different module version.
+	exclude, to exclude a particular module version from use;
+	replace, to replace a module version with a different module version; and
+	retract, to indicate a previously released version should not be used.
 Exclude and replace apply only in the main module's go.mod and are ignored
-in dependencies.  See https://research.swtch.com/vgo-mvs for details.
+in dependencies.  See https://golang.org/ref/mod for details.
 
 The leading verb can be factored out of adjacent lines to create a block,
 like in Go imports:

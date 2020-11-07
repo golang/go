@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func Open(dir string) (*Cache, error) {
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, &os.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
+		return nil, &fs.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
 	}
 	for i := 0; i < 256; i++ {
 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
@@ -108,7 +109,7 @@ const (
 // GODEBUG=gocacheverify=1.
 var verify = false
 
-var errVerifyMode = errors.New("gocachverify=1")
+var errVerifyMode = errors.New("gocacheverify=1")
 
 // DebugTest is set when GODEBUG=gocachetest=1 is in the environment.
 var DebugTest = false

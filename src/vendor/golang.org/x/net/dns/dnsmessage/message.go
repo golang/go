@@ -1819,17 +1819,6 @@ func unpackText(msg []byte, off int) (string, int, error) {
 	return string(msg[beginOff:endOff]), endOff, nil
 }
 
-func skipText(msg []byte, off int) (int, error) {
-	if off >= len(msg) {
-		return off, errBaseLen
-	}
-	endOff := off + 1 + int(msg[off])
-	if endOff > len(msg) {
-		return off, errCalcLen
-	}
-	return endOff, nil
-}
-
 // packBytes appends the wire format of field to msg.
 func packBytes(msg []byte, field []byte) []byte {
 	return append(msg, field...)
@@ -1841,14 +1830,6 @@ func unpackBytes(msg []byte, off int, field []byte) (int, error) {
 		return off, errBaseLen
 	}
 	copy(field, msg[off:newOff])
-	return newOff, nil
-}
-
-func skipBytes(msg []byte, off int, field []byte) (int, error) {
-	newOff := off + len(field)
-	if newOff > len(msg) {
-		return off, errBaseLen
-	}
 	return newOff, nil
 }
 
@@ -2159,7 +2140,7 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody, 
 		return nil, off, &nestedError{name + " record", err}
 	}
 	if r == nil {
-		return nil, off, errors.New("invalid resource type: " + string(hdr.Type+'0'))
+		return nil, off, errors.New("invalid resource type: " + hdr.Type.String())
 	}
 	return r, off + int(hdr.Length), nil
 }

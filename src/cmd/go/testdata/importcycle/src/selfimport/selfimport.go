@@ -1,3 +1,0 @@
-package selfimport
-
-import "selfimport"

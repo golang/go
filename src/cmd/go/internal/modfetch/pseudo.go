@@ -48,6 +48,8 @@ import (
 
 var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
 
+const pseudoVersionTimestampFormat = "20060102150405"
+
 // PseudoVersion returns a pseudo-version for the given major version ("v1")
 // preexisting older tagged version ("" or "v1.2.3" or "v1.2.3-pre"), revision time,
 // and revision identifier (usually a 12-byte commit hash prefix).
@@ -55,7 +57,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	if major == "" {
 		major = "v0"
 	}
-	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
+	segment := fmt.Sprintf("%s-%s", t.UTC().Format(pseudoVersionTimestampFormat), rev)
 	build := semver.Build(older)
 	older = semver.Canonical(older)
 	if older == "" {
@@ -72,6 +74,12 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 
 	// Reassemble.
 	return v + incDecimal(patch) + "-0." + segment + build
+}
+
+// ZeroPseudoVersion returns a pseudo-version with a zero timestamp and
+// revision, which may be used as a placeholder.
+func ZeroPseudoVersion(major string) string {
+	return PseudoVersion(major, "", time.Time{}, "000000000000")
 }
 
 // incDecimal returns the decimal string incremented by 1.
@@ -116,6 +124,12 @@ func decDecimal(decimal string) string {
 // IsPseudoVersion reports whether v is a pseudo-version.
 func IsPseudoVersion(v string) bool {
 	return strings.Count(v, "-") >= 2 && semver.IsValid(v) && pseudoVersionRE.MatchString(v)
+}
+
+// IsZeroPseudoVersion returns whether v is a pseudo-version with a zero base,
+// timestamp, and revision, as returned by ZeroPseudoVersion.
+func IsZeroPseudoVersion(v string) bool {
+	return v == ZeroPseudoVersion(semver.Major(v))
 }
 
 // PseudoVersionTime returns the time stamp of the pseudo-version v.

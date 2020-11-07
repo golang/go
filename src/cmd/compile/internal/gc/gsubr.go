@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6c/txt.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6c/txt.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,7 +32,6 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -70,9 +69,9 @@ func newProgs(fn *Node, worker int) *Progs {
 
 	pp.pos = fn.Pos
 	pp.settext(fn)
-	pp.nextLive = LivenessInvalid
 	// PCDATA tables implicitly start with index -1.
-	pp.prevLive = LivenessIndex{-1, -1}
+	pp.prevLive = LivenessIndex{-1, false}
+	pp.nextLive = pp.prevLive
 	return pp
 }
 
@@ -109,7 +108,7 @@ func (pp *Progs) Free() {
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
-	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
+	if pp.nextLive.StackMapValid() && pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
 		// Emit stack map index change.
 		idx := pp.nextLive.stackMapIndex
 		pp.prevLive.stackMapIndex = idx
@@ -117,13 +116,16 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 		Addrconst(&p.To, int64(idx))
 	}
-	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
-		// Emit register map index change.
-		idx := pp.nextLive.regMapIndex
-		pp.prevLive.regMapIndex = idx
+	if pp.nextLive.isUnsafePoint != pp.prevLive.isUnsafePoint {
+		// Emit unsafe-point marker.
+		pp.prevLive.isUnsafePoint = pp.nextLive.isUnsafePoint
 		p := pp.Prog(obj.APCDATA)
-		Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
-		Addrconst(&p.To, int64(idx))
+		Addrconst(&p.From, objabi.PCDATA_UnsafePoint)
+		if pp.nextLive.isUnsafePoint {
+			Addrconst(&p.To, objabi.PCDATA_UnsafePointUnsafe)
+		} else {
+			Addrconst(&p.To, objabi.PCDATA_UnsafePointSafe)
+		}
 	}
 
 	p := pp.next
@@ -131,7 +133,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Debug['K'] != 0 {
+	if !pp.pos.IsKnown() && Debug.K != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
@@ -177,7 +179,7 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.lsym.Func.Text = ptxt
+	fn.Func.lsym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym
@@ -293,7 +295,7 @@ func ggloblnod(nam *Node) {
 	if nam.Name.Readonly() {
 		flags = obj.RODATA
 	}
-	if nam.Type != nil && !types.Haspointers(nam.Type) {
+	if nam.Type != nil && !nam.Type.HasPointers() {
 		flags |= obj.NOPTR
 	}
 	Ctxt.Globl(s, nam.Type.Width, flags)
@@ -320,6 +322,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatalf("patch: not a branch")
 	}
-	p.To.Val = to
+	p.To.SetTarget(to)
 	p.To.Offset = to.Pc
 }

@@ -25,11 +25,20 @@
 
 // The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
 
+// Darwin may return unaligned thread pointer. Align it. (See tls_arm64.s)
+// No-op on other OSes.
+#ifdef TLS_darwin
+#define TP_ALIGN	AND	$~7, R0
+#else
+#define TP_ALIGN
+#endif
+
+// Load g from TLS. (See tls_arm64.s)
 #define load_g \
 	MRS_TPIDR_R0 \
+	TP_ALIGN \
 	MOVD    runtime·tls_g(SB), R11 \
-	ADD     R11, R0 \
-	MOVD    0(R0), g
+	MOVD    (R0)(R11), g
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
@@ -421,10 +430,15 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will
 	// benefit from this fast path.
-	CMP	$0, R0
-	BNE	rest
+	CBNZ	R0, rest
 	MOVD	g, R13
+#ifdef TLS_darwin
+	MOVD	R27, R12 // save R27 a.k.a. REGTMP (callee-save in C). load_g clobbers it
+#endif
 	load_g
+#ifdef TLS_darwin
+	MOVD	R12, R27
+#endif
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
 	MOVD	p_raceprocctx(R0), R0
@@ -478,5 +492,7 @@ noswitch:
 	BL	runtime·racecallback(SB)
 	JMP	ret
 
+#ifndef TLSG_IS_VARIABLE
 // tls_g, g value for each thread in TLS
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
+#endif

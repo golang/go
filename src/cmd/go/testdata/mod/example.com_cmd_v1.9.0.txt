@@ -1,0 +1,30 @@
+example.com/cmd contains main packages.
+
+-- .info --
+{"Version":"v1.9.0"}
+-- .mod --
+module example.com/cmd
+
+go 1.16
+
+// this is a bad version
+retract v1.9.0
+-- go.mod --
+module example.com/cmd
+
+go 1.16
+
+// this is a bad version
+retract v1.9.0
+-- a/a.go --
+package main
+
+func main() {}
+-- b/b.go --
+package main
+
+func main() {}
+-- err/err.go --
+package err
+
+var X = DoesNotCompile

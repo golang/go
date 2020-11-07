@@ -28,7 +28,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// If codepoint < 0 the absolute value is too large (or unknown) for
 			// conversion. This is the same as converting any other out-of-range
 			// value - let string(codepoint) do the work.
-			x.val = constant.MakeString(string(codepoint))
+			x.val = constant.MakeString(string(rune(codepoint)))
 			ok = true
 		}
 	case x.convertibleTo(check, T):
@@ -38,7 +38,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
 		x.mode = invalid
 		return
 	}
@@ -81,7 +81,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // exported API call, i.e., when all methods have been type-checked.
 func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// "x is assignable to T"
-	if x.assignableTo(check, T, nil) {
+	if ok, _ := x.assignableTo(check, T, nil); ok {
 		return true
 	}
 

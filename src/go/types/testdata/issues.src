@@ -129,6 +129,16 @@ func issue10260() {
 		t1 *T1
 		t2 *T2
 	)
+
+	var x I1
+	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
+
+	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+
+	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
+
 	i1 = i0 /* ERROR cannot use .* missing method foo */
 	i1 = t0 /* ERROR cannot use .* missing method foo */
 	i1 = i2 /* ERROR cannot use .* wrong type for method foo */
@@ -146,7 +156,7 @@ func issue10260() {
 	// a few more - less exhaustive now
 
 	f := func(I1, I2){}
-	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo */)
+	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo \(have func\(\), want func\(x int\)\) */ )
 
 	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
 	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
@@ -335,7 +345,7 @@ type E1 struct{ f int }
 type E2 struct{ f int }
 
 func issue26234b(x T) {
-	_ = x.f /* ERROR ambiguous selector f */
+	_ = x.f /* ERROR ambiguous selector x.f */
 }
 
 func issue26234c() {
@@ -344,10 +354,10 @@ func issue26234c() {
 
 func issue35895() {
 	// T is defined in this package, don't qualify its name with the package name.
-	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
+	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
 
 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
-	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
+	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
 
 	// Because both t1 and t2 have the same global package name (template),
 	// qualify packages with full path name in this case.

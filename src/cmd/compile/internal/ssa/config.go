@@ -38,7 +38,6 @@ type Config struct {
 	useSSE         bool          // Use SSE for non-float operations
 	useAvg         bool          // Use optimizations that need Avg* operations
 	useHmul        bool          // Use optimizations that need Hmul* operations
-	use387         bool          // GO386=387
 	SoftFloat      bool          //
 	Race           bool          // race detector enabled
 	NeedsFpScratch bool          // No direct move between GP and FP register sets
@@ -135,7 +134,7 @@ type Frontend interface {
 	Logger
 
 	// StringData returns a symbol pointing to the given string's contents.
-	StringData(string) interface{} // returns *gc.Sym
+	StringData(string) *obj.LSym
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
@@ -150,6 +149,7 @@ type Frontend interface {
 	SplitStruct(LocalSlot, int) LocalSlot
 	SplitArray(LocalSlot) LocalSlot              // array must be length 1
 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
 	// DerefItab dereferences an itab function
 	// entry, given the symbol of the itab and
@@ -173,6 +173,9 @@ type Frontend interface {
 	// SetWBPos indicates that a write barrier has been inserted
 	// in this function at position pos.
 	SetWBPos(pos src.XPos)
+
+	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+	MyImportPath() string
 }
 
 // interface used to hold a *gc.Node (a stack variable).
@@ -192,6 +195,14 @@ const (
 	ClassParam                        // argument
 	ClassParamOut                     // return value
 )
+
+const go116lateCallExpansion = true
+
+// LateCallExpansionEnabledWithin returns true if late call expansion should be tested
+// within compilation of a function/method.
+func LateCallExpansionEnabledWithin(f *Func) bool {
+	return go116lateCallExpansion
+}
 
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
@@ -245,7 +256,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = objabi.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = objabi.GOOS == "darwin" || objabi.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -305,6 +316,16 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "riscv64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockRISCV64
+		c.lowerValue = rewriteValueRISCV64
+		c.registers = registersRISCV64[:]
+		c.gpRegMask = gpRegMaskRISCV64
+		c.fpRegMask = fpRegMaskRISCV64
+		c.FPReg = framepointerRegRISCV64
+		c.hasGReg = true
 	case "wasm":
 		c.PtrSize = 8
 		c.RegSize = 8
@@ -364,11 +385,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	}
 
 	return c
-}
-
-func (c *Config) Set387(b bool) {
-	c.NeedsFpScratch = b
-	c.use387 = b
 }
 
 func (c *Config) Ctxt() *obj.Link { return c.ctxt }

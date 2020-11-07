@@ -275,9 +275,10 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 
 				// We deleted an entry but now there may be
 				// a blank line-sized hole where the import was.
-				if line-lastLine > 1 {
+				if line-lastLine > 1 || !gen.Rparen.IsValid() {
 					// There was a blank line immediately preceding the deleted import,
-					// so there's no need to close the hole.
+					// so there's no need to close the hole. The right parenthesis is
+					// invalid after AddImport to an import statement without parenthesis.
 					// Do nothing.
 				} else if line != fset.File(gen.Rparen).LineCount() {
 					// There was no blank line. Close the hole.

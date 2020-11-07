@@ -54,12 +54,12 @@ func testableNetwork(network string) bool {
 			return unixEnabledOnAIX
 		}
 		// iOS does not support unix, unixgram.
-		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		if iOS() {
 			return false
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
-		case "aix", "android", "darwin", "plan9", "windows":
+		case "aix", "android", "darwin", "ios", "plan9", "windows":
 			return false
 		case "netbsd":
 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
@@ -79,6 +79,10 @@ func testableNetwork(network string) bool {
 		}
 	}
 	return true
+}
+
+func iOS() bool {
+	return runtime.GOOS == "ios"
 }
 
 // testableAddress reports whether address of network is testable on

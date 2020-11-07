@@ -90,7 +90,7 @@ func (d *DummyAuto) IsAutoTmp() bool {
 	return true
 }
 
-func (DummyFrontend) StringData(s string) interface{} {
+func (DummyFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
@@ -125,6 +125,10 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
+
+func (d DummyFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+	return LocalSlot{N: parent.N, Type: t, Off: offset}
+}
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
 }
@@ -146,6 +150,10 @@ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
 
+func (d DummyFrontend) MyImportPath() string {
+	return "my/import/path"
+}
+
 var dummyTypes Types
 
 func init() {
@@ -153,7 +161,7 @@ func init() {
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
 
-	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
+	types.Tconv = func(t *types.Type, flag, mode int) string {
 		return t.Etype.String()
 	}
 	types.Sconv = func(s *types.Sym, flag, mode int) string {

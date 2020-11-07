@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -191,22 +192,6 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 		return list, nil
 	}
 
-	// We assume that if the latest release of any major version has a go.mod
-	// file, all subsequent major versions will also have go.mod files (and thus
-	// be ineligible for use as +incompatible versions).
-	// If we're wrong about a major version, users will still be able to 'go get'
-	// specific higher versions explicitly — they just won't affect 'latest' or
-	// appear in 'go list'.
-	//
-	// Conversely, we assume that if the latest release of any major version lacks
-	// a go.mod file, all versions also lack go.mod files. If we're wrong, we may
-	// include a +incompatible version that isn't really valid, but most
-	// operations won't try to use that version anyway.
-	//
-	// These optimizations bring
-	// 'go list -versions -m github.com/openshift/origin' down from 1m58s to 0m37s.
-	// That's still not great, but a substantial improvement.
-
 	versionHasGoMod := func(v string) (bool, error) {
 		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
 		if err == nil {
@@ -241,32 +226,41 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 		}
 	}
 
-	var lastMajor string
+	var (
+		lastMajor         string
+		lastMajorHasGoMod bool
+	)
 	for i, v := range incompatible {
 		major := semver.Major(v)
-		if major == lastMajor {
-			list = append(list, v+"+incompatible")
+
+		if major != lastMajor {
+			rem := incompatible[i:]
+			j := sort.Search(len(rem), func(j int) bool {
+				return semver.Major(rem[j]) != major
+			})
+			latestAtMajor := rem[j-1]
+
+			var err error
+			lastMajor = major
+			lastMajorHasGoMod, err = versionHasGoMod(latestAtMajor)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if lastMajorHasGoMod {
+			// The latest release of this major version has a go.mod file, so it is
+			// not allowed as +incompatible. It would be confusing to include some
+			// minor versions of this major version as +incompatible but require
+			// semantic import versioning for others, so drop all +incompatible
+			// versions for this major version.
+			//
+			// If we're wrong about a minor version in the middle, users will still be
+			// able to 'go get' specific tags for that version explicitly — they just
+			// won't appear in 'go list' or as the results for queries with inequality
+			// bounds.
 			continue
 		}
-
-		rem := incompatible[i:]
-		j := sort.Search(len(rem), func(j int) bool {
-			return semver.Major(rem[j]) != major
-		})
-		latestAtMajor := rem[j-1]
-
-		ok, err := versionHasGoMod(latestAtMajor)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			// This major version has a go.mod file, so it is not allowed as
-			// +incompatible. Subsequent major versions are likely to also have
-			// go.mod files, so stop here.
-			break
-		}
-
-		lastMajor = major
 		list = append(list, v+"+incompatible")
 	}
 
@@ -426,9 +420,14 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		tagPrefix = r.codeDir + "/"
 	}
 
+	isRetracted, err := r.retractedVersions()
+	if err != nil {
+		isRetracted = func(string) bool { return false }
+	}
+
 	// tagToVersion returns the version obtained by trimming tagPrefix from tag.
-	// If the tag is invalid or a pseudo-version, tagToVersion returns an empty
-	// version.
+	// If the tag is invalid, retracted, or a pseudo-version, tagToVersion returns
+	// an empty version.
 	tagToVersion := func(tag string) (v string, tagIsCanonical bool) {
 		if !strings.HasPrefix(tag, tagPrefix) {
 			return "", false
@@ -442,6 +441,9 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		v = semver.Canonical(trimmed) // Not module.Canonical: we don't want to pick up an explicit "+incompatible" suffix from the tag.
 		if v == "" || !strings.HasPrefix(trimmed, v) {
 			return "", false // Invalid or incomplete version (just vX or vX.Y).
+		}
+		if isRetracted(v) {
+			return "", false
 		}
 		if v == trimmed {
 			tagIsCanonical = true
@@ -507,15 +509,24 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		return checkGoMod()
 	}
 
+	// Find the highest tagged version in the revision's history, subject to
+	// major version and +incompatible constraints. Use that version as the
+	// pseudo-version base so that the pseudo-version sorts higher. Ignore
+	// retracted versions.
+	allowedMajor := func(major string) func(v string) bool {
+		return func(v string) bool {
+			return (major == "" || semver.Major(v) == major) && !isRetracted(v)
+		}
+	}
 	if pseudoBase == "" {
 		var tag string
 		if r.pseudoMajor != "" || canUseIncompatible() {
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, r.pseudoMajor)
+			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor(r.pseudoMajor))
 		} else {
 			// Allow either v1 or v0, but not incompatible higher versions.
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v1")
+			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v1"))
 			if tag == "" {
-				tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v0")
+				tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v0"))
 			}
 		}
 		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
@@ -570,7 +581,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return err
 	}
 	if !t.Equal(info.Time.Truncate(time.Second)) {
-		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
+		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
 	}
 
 	tagPrefix := ""
@@ -876,6 +887,57 @@ func (r *codeRepo) modPrefix(rev string) string {
 	return r.modPath + "@" + rev
 }
 
+func (r *codeRepo) retractedVersions() (func(string) bool, error) {
+	versions, err := r.Versions("")
+	if err != nil {
+		return nil, err
+	}
+
+	for i, v := range versions {
+		if strings.HasSuffix(v, "+incompatible") {
+			versions = versions[:i]
+			break
+		}
+	}
+	if len(versions) == 0 {
+		return func(string) bool { return false }, nil
+	}
+
+	var highest string
+	for i := len(versions) - 1; i >= 0; i-- {
+		v := versions[i]
+		if semver.Prerelease(v) == "" {
+			highest = v
+			break
+		}
+	}
+	if highest == "" {
+		highest = versions[len(versions)-1]
+	}
+
+	data, err := r.GoMod(highest)
+	if err != nil {
+		return nil, err
+	}
+	f, err := modfile.ParseLax("go.mod", data, nil)
+	if err != nil {
+		return nil, err
+	}
+	retractions := make([]modfile.VersionInterval, len(f.Retract))
+	for _, r := range f.Retract {
+		retractions = append(retractions, r.VersionInterval)
+	}
+
+	return func(v string) bool {
+		for _, r := range retractions {
+			if semver.Compare(r.Low, v) <= 0 && semver.Compare(v, r.High) <= 0 {
+				return true
+			}
+		}
+		return false
+	}, nil
+}
+
 func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	if version != module.CanonicalVersion(version) {
 		return fmt.Errorf("version %s is not canonical", version)
@@ -979,7 +1041,7 @@ type zipFile struct {
 }
 
 func (f zipFile) Path() string                 { return f.name }
-func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Lstat() (fs.FileInfo, error)  { return f.f.FileInfo(), nil }
 func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
 
 type dataFile struct {
@@ -988,9 +1050,9 @@ type dataFile struct {
 }
 
 func (f dataFile) Path() string                { return f.name }
-func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
+func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
 func (f dataFile) Open() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+	return io.NopCloser(bytes.NewReader(f.data)), nil
 }
 
 type dataFileInfo struct {
@@ -999,7 +1061,7 @@ type dataFileInfo struct {
 
 func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
 func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
-func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) Mode() fs.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
 func (fi dataFileInfo) Sys() interface{}   { return nil }
@@ -1018,29 +1080,4 @@ func hasPathPrefix(s, prefix string) bool {
 		}
 		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
 	}
-}
-
-func isVendoredPackage(name string) bool {
-	var i int
-	if strings.HasPrefix(name, "vendor/") {
-		i += len("vendor/")
-	} else if j := strings.Index(name, "/vendor/"); j >= 0 {
-		// This offset looks incorrect; this should probably be
-		//
-		// 	i = j + len("/vendor/")
-		//
-		// (See https://golang.org/issue/31562.)
-		//
-		// Unfortunately, we can't fix it without invalidating checksums.
-		// Fortunately, the error appears to be strictly conservative: we'll retain
-		// vendored packages that we should have pruned, but we won't prune
-		// non-vendored packages that we should have retained.
-		//
-		// Since this defect doesn't seem to break anything, it's not worth fixing
-		// for now.
-		i += len("/vendor/")
-	} else {
-		return false
-	}
-	return strings.Contains(name[i:], "/")
 }

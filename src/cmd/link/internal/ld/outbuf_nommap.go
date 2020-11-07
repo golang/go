@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !darwin,!dragonfly,!freebsd,!linux,!openbsd,!windows
+// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!windows
 
 package ld
 
-import "errors"
+// Mmap allocates an in-heap output buffer with the given size. It copies
+// any old data (if any) to the new buffer.
+func (out *OutBuf) Mmap(filesize uint64) error {
+	// We need space to put all the symbols before we apply relocations.
+	oldheap := out.heap
+	if filesize < uint64(len(oldheap)) {
+		panic("mmap size too small")
+	}
+	out.heap = make([]byte, filesize)
+	copy(out.heap, oldheap)
+	return nil
+}
 
-var errNotSupported = errors.New("mmap not supported")
-
-func (out *OutBuf) Mmap(filesize uint64) error { return errNotSupported }
-func (out *OutBuf) Munmap()                    { panic("unreachable") }
-func (out *OutBuf) Msync() error               { panic("unreachable") }
+func (out *OutBuf) munmap() { panic("unreachable") }

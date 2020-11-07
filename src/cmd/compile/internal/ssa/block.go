@@ -101,6 +101,9 @@ func (e Edge) Block() *Block {
 func (e Edge) Index() int {
 	return e.i
 }
+func (e Edge) String() string {
+	return fmt.Sprintf("{%v,%d}", e.b, e.i)
+}
 
 //     kind          controls        successors
 //   ------------------------------------------
@@ -121,15 +124,8 @@ func (b *Block) LongString() string {
 	if b.Aux != nil {
 		s += fmt.Sprintf(" {%s}", b.Aux)
 	}
-	if t := b.Kind.AuxIntType(); t != "" {
-		switch t {
-		case "Int8":
-			s += fmt.Sprintf(" [%v]", int8(b.AuxInt))
-		case "UInt8":
-			s += fmt.Sprintf(" [%v]", uint8(b.AuxInt))
-		default:
-			s += fmt.Sprintf(" [%v]", b.AuxInt)
-		}
+	if t := b.AuxIntString(); t != "" {
+		s += fmt.Sprintf(" [%s]", t)
 	}
 	for _, c := range b.ControlValues() {
 		s += fmt.Sprintf(" %s", c)
@@ -232,6 +228,45 @@ func (b *Block) Reset(kind BlockKind) {
 	b.AuxInt = 0
 }
 
+// resetWithControl resets b and adds control v.
+// It is equivalent to b.Reset(kind); b.AddControl(v),
+// except that it is one call instead of two and avoids a bounds check.
+// It is intended for use by rewrite rules, where this matters.
+func (b *Block) resetWithControl(kind BlockKind, v *Value) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+	b.AuxInt = 0
+	b.Controls[0] = v
+	v.Uses++
+}
+
+// resetWithControl2 resets b and adds controls v and w.
+// It is equivalent to b.Reset(kind); b.AddControl(v); b.AddControl(w),
+// except that it is one call instead of three and avoids two bounds checks.
+// It is intended for use by rewrite rules, where this matters.
+func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+	b.AuxInt = 0
+	b.Controls[0] = v
+	b.Controls[1] = w
+	v.Uses++
+	w.Uses++
+}
+
+// truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
+// The values in b.Values after i must already have had their args reset,
+// to maintain correct value uses counts.
+func (b *Block) truncateValues(i int) {
+	tail := b.Values[i:]
+	for j := range tail {
+		tail[j] = nil
+	}
+	b.Values = b.Values[:i]
+}
+
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {
@@ -308,6 +343,19 @@ func (b *Block) LackingPos() bool {
 		return false
 	}
 	return true
+}
+
+func (b *Block) AuxIntString() string {
+	switch b.Kind.AuxIntType() {
+	case "int8":
+		return fmt.Sprintf("%v", int8(b.AuxInt))
+	case "uint8":
+		return fmt.Sprintf("%v", uint8(b.AuxInt))
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
+	case "": // no aux int type
+		return ""
+	}
 }
 
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }

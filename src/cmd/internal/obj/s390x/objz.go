@@ -205,13 +205,13 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
+	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
 	}
 
 	c := ctxtz{ctxt: ctxt, cursym: cursym, newprog: newprog}
 
-	p := c.cursym.Func.Text
+	p := c.cursym.Func().Text
 	textstksiz := p.To.Offset
 	if textstksiz == -8 {
 		// Compatibility hack.
@@ -227,8 +227,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	c.cursym.Func.Args = p.To.Val.(int32)
-	c.cursym.Func.Locals = int32(textstksiz)
+	c.cursym.Func().Args = p.To.Val.(int32)
+	c.cursym.Func().Locals = int32(textstksiz)
 
 	/*
 	 * find leaf subroutines
@@ -237,7 +237,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 */
 
 	var q *obj.Prog
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ATEXT:
 			q = p
@@ -245,7 +245,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		case ABL, ABCL:
 			q = p
-			c.cursym.Func.Text.Mark &^= LEAF
+			c.cursym.Func().Text.Mark &^= LEAF
 			fallthrough
 
 		case ABC,
@@ -283,17 +283,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ACMPUBNE:
 			q = p
 			p.Mark |= BRANCH
-			if p.Pcond != nil {
-				q := p.Pcond
-				for q.As == obj.ANOP {
-					q = q.Link
-					p.Pcond = q
-				}
-			}
-
-		case obj.ANOP:
-			q.Link = p.Link /* q is non-nop */
-			p.Link.Mark |= p.Mark
 
 		default:
 			q = p
@@ -305,7 +294,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var pPre *obj.Prog
 	var pPreempt *obj.Prog
 	wasSplit := false
-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		pLast = p
 		switch p.As {
 		case obj.ATEXT:
@@ -367,19 +356,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Spadj = autosize
 
 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
-			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
+			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have
 				// no frame.
-				c.cursym.Func.Text.Mark |= LEAF
+				c.cursym.Func().Text.Mark |= LEAF
 			}
 
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
+			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
 				break
 			}
 
-			if c.cursym.Func.Text.From.Sym.Wrapper() {
+			if c.cursym.Func().Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVD g_panic(g), R3
@@ -465,14 +454,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 
 				q.As = obj.ANOP
-				p1.Pcond = q
-				p2.Pcond = q
+				p1.To.SetTarget(q)
+				p2.To.SetTarget(q)
 			}
 
 		case obj.ARET:
 			retTarget := p.To.Sym
 
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
+			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = ABR
 					p.From = obj.Addr{}
@@ -508,8 +497,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = REGSP
 			p.From.Offset = 0
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_LR
+			p.To = obj.Addr{
+				Type: obj.TYPE_REG,
+				Reg:  REG_LR,
+			}
 
 			q = p
 
@@ -690,14 +681,14 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)
-	pPre.Pcond = p
+	pPre.To.SetTarget(p)
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_LR
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R5
 	if pPreempt != nil {
-		pPreempt.Pcond = p
+		pPreempt.To.SetTarget(p)
 	}
 
 	// BL	runtime.morestack(SB)
@@ -707,7 +698,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
-	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
+	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
@@ -720,7 +711,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = c.cursym.Func.Text.Link
+	p.To.SetTarget(c.cursym.Func().Text.Link)
 	return p
 }
 
