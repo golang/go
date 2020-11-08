@@ -258,6 +258,7 @@ const (
 	// reachable.
 	R_WEAK = -1 << 15
 
+	R_WEAKADDR    = R_WEAK | R_ADDR
 	R_WEAKADDROFF = R_WEAK | R_ADDROFF
 )
 

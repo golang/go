@@ -64,6 +64,9 @@ func (d *deadcodePass) init() {
 			}
 		}
 		names = append(names, *flagEntrySymbol)
+		// runtime.unreachableMethod is a function that will throw if called.
+		// We redirect unreachable methods to it.
+		names = append(names, "runtime.unreachableMethod")
 		if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
 			// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
 			// (see function buildinfo in data.go). They should normally be reachable from the

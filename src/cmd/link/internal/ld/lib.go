@@ -118,6 +118,8 @@ type ArchSyms struct {
 	Dynamic loader.Sym
 	DynSym  loader.Sym
 	DynStr  loader.Sym
+
+	unreachableMethod loader.Sym
 }
 
 // mkArchSym is a helper for setArchSyms, to set up a special symbol.
@@ -142,6 +144,7 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
+	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
 
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)

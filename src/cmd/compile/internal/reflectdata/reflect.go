@@ -1338,7 +1338,7 @@ func WriteTabs() {
 		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
 		o += 4                                          // skip unused field
 		for _, fn := range genfun(i.t, i.itype) {
-			o = objw.SymPtr(i.lsym, o, fn, 0) // method pointer for each method
+			o = objw.SymPtrWeak(i.lsym, o, fn, 0) // method pointer for each method
 		}
 		// Nothing writes static itabs, so they are read only.
 		objw.Global(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))

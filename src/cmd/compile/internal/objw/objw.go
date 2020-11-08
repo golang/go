@@ -46,6 +46,13 @@ func SymPtr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
+func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
+	s.WriteWeakAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
+	off += types.PtrSize
+	return off
+}
+
 func SymPtrOff(s *obj.LSym, off int, x *obj.LSym) int {
 	s.WriteOff(base.Ctxt, int64(off), x, 0)
 	off += 4
