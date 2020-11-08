@@ -64,7 +64,7 @@ var SkipDir = errors.New("skip this directory")
 //   - If a directory read fails, the function is called a second time
 //     for that directory to report the error.
 //
-type WalkDirFunc func(path string, entry DirEntry, err error) error
+type WalkDirFunc func(path string, d DirEntry, err error) error
 
 // walkDir recursively descends path, calling walkDirFn.
 func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
