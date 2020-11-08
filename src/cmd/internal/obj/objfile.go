@@ -498,7 +498,7 @@ func (w *writer) Reloc(r *Reloc) {
 	var o goobj.Reloc
 	o.SetOff(r.Off)
 	o.SetSiz(r.Siz)
-	o.SetType(uint8(r.Type))
+	o.SetType(uint16(r.Type))
 	o.SetAdd(r.Add)
 	o.SetSym(makeSymRef(r.Sym))
 	o.Write(w.Writer)
