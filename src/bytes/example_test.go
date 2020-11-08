@@ -30,6 +30,13 @@ func ExampleBuffer_reader() {
 	// Output: Gophers rule!
 }
 
+func ExampleBuffer_Bytes() {
+	buf := bytes.Buffer{}
+	buf.Write([]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'})
+	os.Stdout.Write(buf.Bytes())
+	// Output: hello world
+}
+
 func ExampleBuffer_Grow() {
 	var b bytes.Buffer
 	b.Grow(64)
