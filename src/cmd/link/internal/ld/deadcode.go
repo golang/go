@@ -128,10 +128,11 @@ func (d *deadcodePass) flood() {
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)
+			if r.Weak() {
+				continue
+			}
 			t := r.Type()
 			switch t {
-			case objabi.R_WEAKADDROFF:
-				continue
 			case objabi.R_METHODOFF:
 				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
