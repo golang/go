@@ -308,7 +308,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
-				case IMAGE_REL_ARM_ADDR32:
+				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
 					rType = objabi.R_ADDR
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
