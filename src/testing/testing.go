@@ -517,10 +517,9 @@ func (c *common) frameSkip(skip int, helperNames map[string]struct{}) runtime.Fr
 	return firstFrame
 }
 
-// decorate prefixes the string with the file and line of the call site
-// omitting functions in helperNames
-// and inserts the final newline if needed and indentation spaces for formatting.
-// This function must be called with c.mu held.
+// decorate prefixes the string with the file and line of the call site,
+// omitting functions in helperNames, and inserts the final newline if needed
+// and indentation spaces for formatting. This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int, helperNames map[string]struct{}) string {
 	frame := c.frameSkip(skip, helperNames)
 	file := frame.File
