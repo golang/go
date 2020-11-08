@@ -445,7 +445,7 @@ func ImportPathsQuiet(patterns []string) []*Match {
 			for i, dir := range m.Dirs {
 				absDir := dir
 				if !filepath.IsAbs(dir) {
-					absDir = filepath.Join(base.Cwd, dir)
+					absDir = filepath.Join(base.Cwd(), dir)
 				}
 				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
 					m.Pkgs[i] = bp.ImportPath

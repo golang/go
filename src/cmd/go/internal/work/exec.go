@@ -2377,7 +2377,7 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 
 	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
 	dir := p.Dir
-	out, err := b.runOut(a, base.Cwd, b.cCompilerEnv(), cmdargs...)
+	out, err := b.runOut(a, base.Cwd(), b.cCompilerEnv(), cmdargs...)
 
 	if len(out) > 0 {
 		// Filter out useless linker warnings caused by bugs outside Go.
@@ -2991,7 +2991,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, base.Cwd, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	return b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
 }
 
 // Run SWIG on all SWIG input files.

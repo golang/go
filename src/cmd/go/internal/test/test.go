@@ -486,7 +486,7 @@ var (
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag
-	testOutputDir    = base.Cwd                        // -outputdir flag
+	testOutputDir    outputdirFlag                     // -outputdir flag
 	testShuffle      shuffleFlag                       // -shuffle flag
 	testTimeout      time.Duration                     // -timeout flag
 	testV            bool                              // -v flag
@@ -710,7 +710,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		match := make([]func(*load.Package) bool, len(testCoverPaths))
 		matched := make([]bool, len(testCoverPaths))
 		for i := range testCoverPaths {
-			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd)
+			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd())
 		}
 
 		// Select for coverage all dependencies matching the testCoverPaths patterns.
@@ -945,11 +945,11 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	var installAction, cleanAction *work.Action
 	if testC || testNeedBinary() {
 		// -c or profiling flag: create action to copy binary to ./test.out.
-		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
+		target := filepath.Join(base.Cwd(), testBinary+cfg.ExeSuffix)
 		if testO != "" {
 			target = testO
 			if !filepath.IsAbs(target) {
-				target = filepath.Join(base.Cwd, target)
+				target = filepath.Join(base.Cwd(), target)
 			}
 		}
 		if target == os.DevNull {

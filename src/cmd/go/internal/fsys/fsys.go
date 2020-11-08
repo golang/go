@@ -44,7 +44,7 @@ func (n *node) isDeleted() bool {
 
 // TODO(matloob): encapsulate these in an io/fs-like interface
 var overlay map[string]*node // path -> file or directory node
-var cwd string               // copy of base.Cwd to avoid dependency
+var cwd string               // copy of base.Cwd() to avoid dependency
 
 // Canonicalize a path for looking it up in the overlay.
 // Important: filepath.Join(cwd, path) doesn't always produce

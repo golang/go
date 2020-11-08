@@ -2832,3 +2832,25 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
 	tg.grepStdout("coverage: 100", "no coverage")
 }
+
+// Regression test for golang.org/issue/34499: version command should not crash
+// when executed in a deleted directory on Linux.
+func TestExecInDeletedDir(t *testing.T) {
+	// The crash has only been reproduced on Linux.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skip()
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	wd, err := os.Getwd()
+	tg.check(err)
+	tg.makeTempdir()
+	tg.check(os.Chdir(tg.tempdir))
+	defer func() { tg.check(os.Chdir(wd)) }()
+
+	tg.check(os.Remove(tg.tempdir))
+
+	// `go version` should not fail
+	tg.run("version")
+}
