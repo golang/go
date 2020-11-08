@@ -40,7 +40,7 @@ func TestReadWrite(t *testing.T) {
 	var r Reloc
 	r.SetOff(12)
 	r.SetSiz(4)
-	r.SetType(uint8(objabi.R_ADDR))
+	r.SetType(uint16(objabi.R_ADDR))
 	r.SetAdd(54321)
 	r.SetSym(SymRef{11, 22})
 	r.Write(w)
@@ -63,7 +63,7 @@ func TestReadWrite(t *testing.T) {
 	b = b[SymSize:]
 	var r2 Reloc
 	r2.fromBytes(b)
-	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint8(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
+	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint16(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
 		t.Errorf("read Reloc2 mismatch: got %v %v %v %v %v", r2.Off(), r2.Siz(), r2.Type(), r2.Add(), r2.Sym())
 	}
 
