@@ -8,21 +8,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
-func getwd() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		Fatalf("cannot determine current directory: %v", err)
-	}
-	return wd
-}
+var cwd string
+var cwdOnce sync.Once
 
-var Cwd = getwd()
+// Cwd returns the current working directory at the time of the first call.
+func Cwd() string {
+	cwdOnce.Do(func() {
+		var err error
+		cwd, err = os.Getwd()
+		if err != nil {
+			Fatalf("cannot determine current directory: %v", err)
+		}
+	})
+	return cwd
+}
 
 // ShortPath returns an absolute or relative name for path, whatever is shorter.
 func ShortPath(path string) string {
-	if rel, err := filepath.Rel(Cwd, path); err == nil && len(rel) < len(path) {
+	if rel, err := filepath.Rel(Cwd(), path); err == nil && len(rel) < len(path) {
 		return rel
 	}
 	return path
@@ -33,7 +39,7 @@ func ShortPath(path string) string {
 func RelPaths(paths []string) []string {
 	var out []string
 	for _, p := range paths {
-		rel, err := filepath.Rel(Cwd, p)
+		rel, err := filepath.Rel(Cwd(), p)
 		if err == nil && len(rel) < len(p) {
 			p = rel
 		}

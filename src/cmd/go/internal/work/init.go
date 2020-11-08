@@ -23,7 +23,7 @@ func BuildInit() {
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
-	if err := fsys.Init(base.Cwd); err != nil {
+	if err := fsys.Init(base.Cwd()); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 

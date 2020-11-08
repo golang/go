@@ -603,7 +603,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 		})
 		packageDataCache.Delete(p.ImportPath)
 	}
-	return LoadImport(context.TODO(), PackageOpts{}, arg, base.Cwd, nil, stk, nil, 0)
+	return LoadImport(context.TODO(), PackageOpts{}, arg, base.Cwd(), nil, stk, nil, 0)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -991,7 +991,7 @@ func (pre *preload) preloadMatches(ctx context.Context, opts PackageOpts, matche
 			case pre.sema <- struct{}{}:
 				go func(pkg string) {
 					mode := 0 // don't use vendoring or module import resolution
-					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd, "", false, mode)
+					bp, loaded, err := loadPackageData(ctx, pkg, "", base.Cwd(), "", false, mode)
 					<-pre.sema
 					if bp != nil && loaded && err == nil && !opts.IgnoreImports {
 						pre.preloadImports(ctx, opts, bp.Imports, bp)
@@ -2456,7 +2456,7 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
 			}
-			p := loadImport(ctx, opts, pre, pkg, base.Cwd, nil, &stk, nil, 0)
+			p := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, 0)
 			p.Match = append(p.Match, m.Pattern())
 			p.Internal.CmdlinePkg = true
 			if m.IsLiteral() {
@@ -2670,7 +2670,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 
 	var err error
 	if dir == "" {
-		dir = base.Cwd
+		dir = base.Cwd()
 	}
 	dir, err = filepath.Abs(dir)
 	if err != nil {
