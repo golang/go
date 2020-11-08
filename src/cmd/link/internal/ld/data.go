@@ -165,6 +165,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		rs := r.Sym()
 		rs = ldr.ResolveABIAlias(rs)
 		rt := r.Type()
+		weak := r.Weak()
 		if off < 0 || off+siz > int32(len(P)) {
 			rname := ""
 			if rs != 0 {
@@ -211,7 +212,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
 			}
 		}
-		if rs != 0 && rst != sym.STLSBSS && rt != objabi.R_WEAKADDROFF && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
+		if rs != 0 && rst != sym.STLSBSS && !weak && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
 			st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
 		}
 
@@ -387,18 +388,18 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				break
 			}
 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
-		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
+		case objabi.R_METHODOFF:
 			if !ldr.AttrReachable(rs) {
-				if rt == objabi.R_METHODOFF {
-					// Set it to a sentinel value. The runtime knows this is not pointing to
-					// anything valid.
-					o = -1
-					break
-				}
-				continue
+				// Set it to a sentinel value. The runtime knows this is not pointing to
+				// anything valid.
+				o = -1
+				break
 			}
 			fallthrough
 		case objabi.R_ADDROFF:
+			if weak && !ldr.AttrReachable(rs) {
+				continue
+			}
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
 			if ldr.SymSect(rs).Name == ".text" {
@@ -635,7 +636,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		return ExtrelocSimple(ldr, r), true
 
 	// These reloc types don't need external relocations.
-	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
 		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
 		return rr, false
 	}
@@ -710,9 +711,8 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 		if targ == 0 {
 			continue
 		}
-		rt := r.Type()
 		if !ctxt.loader.AttrReachable(targ) {
-			if rt == objabi.R_WEAKADDROFF {
+			if r.Weak() {
 				continue
 			}
 			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
@@ -786,6 +786,10 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 		if r.IsMarker() {
 			continue // skip marker relocations
 		}
+		rSym := r.Sym()
+		if r.Weak() && !ldr.AttrReachable(rSym) {
+			continue
+		}
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
@@ -794,7 +798,6 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 			continue
 		}
 
-		rSym := r.Sym()
 		if rSym != 0 && ldr.SymType(rSym) == sym.SDYNIMPORT || r.Type() >= objabi.ElfRelocOffset {
 			if rSym != 0 && !ldr.AttrReachable(rSym) {
 				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
