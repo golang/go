@@ -1524,7 +1524,7 @@ func addpersrc(ctxt *Link) {
 	data := ctxt.loader.Data(rsrcsym)
 	size := len(data)
 	h := pefile.addSection(".rsrc", size, size)
-	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
+	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
