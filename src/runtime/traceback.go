@@ -73,34 +73,17 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 
 const sizeofSkipFunction = 256
 
-// Generic traceback. Handles runtime stack prints (pcbuf == nil && callback == nil),
+// Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
 //
-// The skip argument counts the number of logical frames to skip rather
-// than physical frames (with inlining, a PC in pcbuf can represent multiple calls).
+// The skip argument is only valid with pcbuf != nil and counts the number
+// of logical frames to skip rather than physical frames (with inlining, a
+// PC in pcbuf can represent multiple calls). If a PC is partially skipped
+// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
+// N indicates the number of logical frames to skip in pcbuf[0].
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
-	var op operation = traversing
-	if pcbuf == nil && callback == nil {
-		op = printing
-	}
-	n, _ := ggentraceback(pc0, sp0, lr0, gp, skip, pcbuf, max, op, callback, v, flags)
-	return n
-}
-
-type operation int8
-
-const (
-	traversing operation = 1 << iota
-	countingframes
-	printing
-)
-
-// n always returns the number of total frames <= max.
-// nregularframes is the count of non-runtime frames.
-// nregularframes is only valid if op == countingframes.
-func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, op operation, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) (ntotalframes, nregularframes int) {
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
 	}
@@ -152,6 +135,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 	}
 	waspanic := false
 	cgoCtxt := gp.cgoCtxt
+	printing := pcbuf == nil && callback == nil
 
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.
@@ -165,7 +149,6 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 		}
 	}
 
-	printing := op == printing
 	f := findfunc(frame.pc)
 	if !f.valid() {
 		if callback != nil || printing {
@@ -175,14 +158,15 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 		if callback != nil {
 			throw("unknown pc")
 		}
-		return 0, 0
+		return 0
 	}
 	frame.fn = f
 
 	var cache pcvalueCache
 
 	lastFuncID := funcID_normal
-	for ntotalframes < max {
+	n := 0
+	for n < max {
 		// Typically:
 		//	pc is the PC of the running function.
 		//	sp is the stack pointer at that program counter.
@@ -245,7 +229,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 		} else {
 			var lrPtr uintptr
 			if usesLR {
-				if ntotalframes == 0 && frame.sp < frame.fp || frame.lr == 0 {
+				if n == 0 && frame.sp < frame.fp || frame.lr == 0 {
 					lrPtr = frame.sp
 					frame.lr = *(*uintptr)(unsafe.Pointer(lrPtr))
 				}
@@ -336,15 +320,11 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 
 		if callback != nil {
 			if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
-				return
+				return n
 			}
 		}
 
-		if pcbuf == nil && skip > 0 {
-			// In this case we are printing and we still need to count
-			// the number of frames. See https://golang.org/issues/24628.
-			skip--
-		} else if pcbuf != nil {
+		if pcbuf != nil {
 			pc := frame.pc
 			// backup to CALL instruction to read inlining info (same logic as below)
 			tracepc := pc
@@ -359,7 +339,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 			// See issue 34123.
 			// The pc can be at function entry when the frame is initialized without
 			// actually running code, like runtime.mstart.
-			if (ntotalframes == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
+			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
 				pc++
 			} else {
 				tracepc--
@@ -377,9 +357,9 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 						// ignore wrappers
 					} else if skip > 0 {
 						skip--
-					} else if ntotalframes < max {
-						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[ntotalframes] = pc
-						ntotalframes++
+					} else if n < max {
+						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+						n++
 					}
 					lastFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
@@ -392,15 +372,17 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 				// Ignore wrapper functions (except when they trigger panics).
 			} else if skip > 0 {
 				skip--
-			} else if ntotalframes < max {
-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[ntotalframes] = pc
-				ntotalframes++
+			} else if n < max {
+				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+				n++
 			}
 			lastFuncID = f.funcID
-			ntotalframes-- // offset ntotalframes++ below
+			n-- // offset n++ below
 		}
 
-		if printing && skip <= 0 {
+		if printing {
+			// assume skip=0 for printing.
+			//
 			// Never elide wrappers if we haven't printed
 			// any frames. And don't elide wrappers that
 			// called panic rather than the wrapped
@@ -408,7 +390,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 
 			// backup to CALL instruction to read inlining info (same logic as below)
 			tracepc := frame.pc
-			if (ntotalframes > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 				tracepc--
 			}
 			// If there is inlining info, print the inner frames.
@@ -466,14 +448,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 			}
 			lastFuncID = f.funcID
 		}
-
-		if op == countingframes {
-			name := fullfuncname(f, frame.pc)
-			if len(name) < len("runtime.") || name[:len("runtime.")] != "runtime." {
-				nregularframes++
-			}
-		}
-		ntotalframes++
+		n++
 
 		if f.funcID == funcID_cgocallback && len(cgoCtxt) > 0 {
 			ctxt := cgoCtxt[len(cgoCtxt)-1]
@@ -483,7 +458,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 			// callback != nil only used when we only care
 			// about Go frames.
 			if skip == 0 && callback == nil {
-				ntotalframes = tracebackCgoContext(pcbuf, printing, ctxt, ntotalframes, max)
+				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
 			}
 		}
 
@@ -523,7 +498,7 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 	}
 
 	if printing {
-		ntotalframes = nprint
+		n = nprint
 	}
 
 	// Note that panic != nil is okay here: there can be leftover panics,
@@ -566,13 +541,13 @@ func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max i
 	// At other times, such as when gathering a stack for a profiling signal
 	// or when printing a traceback during a crash, everything may not be
 	// stopped nicely, and the stack walk may not be able to complete.
-	if callback != nil && ntotalframes < max && frame.sp != gp.stktopsp {
+	if callback != nil && n < max && frame.sp != gp.stktopsp {
 		print("runtime: g", gp.goid, ": frame.sp=", hex(frame.sp), " top=", hex(gp.stktopsp), "\n")
-		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", ntotalframes, " max=", max, "\n")
+		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", n, " max=", max, "\n")
 		throw("traceback did not unwind completely")
 	}
 
-	return
+	return n
 }
 
 // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
@@ -737,77 +712,30 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 		printCgoTraceback(&cgoCallers)
 	}
 
+	var n int
 	if readgstatus(gp)&^_Gscan == _Gsyscall {
 		// Override registers if blocked in system call.
 		pc = gp.syscallpc
 		sp = gp.syscallsp
 		flags &^= _TraceTrap
 	}
-
-	printtraceback(pc, sp, lr, gp, flags)
+	// Print traceback. By default, omits runtime frames.
+	// If that means we print nothing at all, repeat forcing all frames printed.
+	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
+	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
+		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
+	}
+	if n == _TracebackMaxFrames {
+		print("...additional frames elided...\n")
+	}
 	printcreatedby(gp)
+
 	if gp.ancestors == nil {
 		return
 	}
 	for _, ancestor := range *gp.ancestors {
 		printAncestorTraceback(ancestor)
 	}
-}
-
-// countframes traverses the current stacktrace from the top of pc0 to its bottom, excluding runtime frames.
-// If flags&_TraceRuntimeframes != 0, it'll include the number of runtime frames in the count.
-func countframes(pc0, sp0, lr0 uintptr, gp *g, flags uint) (nframes int) {
-	ntotalframes, nregularframes := ggentraceback(pc0, sp0, lr0, gp, 0, nil, 1<<31-1, countingframes, nil, nil, flags)
-	nframes = nregularframes
-	if flags&_TraceRuntimeFrames != 0 {
-		nframes = ntotalframes
-	}
-	return nframes
-}
-
-func printtraceback(pc, sp, lr uintptr, gp *g, flags uint) {
-	// We'd like to print:
-	//  * top nMaxFramesPerPrint frames
-	//  * bottom nMaxFramesPerPrint frames.
-	// See https://golang.org/issue/7181.
-
-	nMaxFramesPerPrint := _TracebackMaxFrames / 2
-	nTop := gentraceback(pc, sp, lr, gp, 0, nil, nMaxFramesPerPrint, nil, nil, flags)
-	if nTop < nMaxFramesPerPrint {
-		// The common case, in which the traceback has less than nMaxFramesPerPrint.
-		// By default, omits runtime frames.
-		// If nTop == 0, it means we printed nothing at all, so repeat,
-		// and this time force all frames to be printed.
-		if nTop == 0 && (flags&_TraceRuntimeFrames) == 0 {
-			// Try again to print the frames, but this time with _TraceRuntimeFrames.
-			printtraceback(pc, sp, lr, gp, flags|_TraceRuntimeFrames)
-		}
-		return
-	}
-
-	// Figure out the stack size in order to print the bottom max(nMaxFramesPerPrint) frames.
-	//
-	// TODO(odeke-em, iant, khr): perhaps investigate and revise the solution in
-	//  https://go-review.googlesource.com/c/go/+/37222/9/src/runtime/traceback.go
-	// so that we'll always only need 1 stack walk, instead of 2 as in this worst case.
-	nframes := countframes(pc, sp, lr, gp, flags)
-
-	if nframes <= _TracebackMaxFrames {
-		// In this case, we'll just print out from where we left off until the end.
-		gentraceback(pc, sp, lr, gp, nMaxFramesPerPrint /* skip */, nil, 1<<31-1, nil, nil, flags)
-		return
-	}
-
-	// Otherwise, now skip until the bottom last nMaxFramesPerPrint.
-
-	// Calculate the number of stack frames to elide since we
-	// are printing top and bottom each of nMaxFramesPerPrint.
-	if elide := nframes - _TracebackMaxFrames; elide > 0 {
-		print("\n... (")
-		println(elide, "stack frames omitted)\n")
-	}
-	skip := nframes - nMaxFramesPerPrint
-	_ = gentraceback(pc, sp, lr, gp, skip, nil, 1<<31-1 /* max int32 as the biggest frame number */, nil, nil, flags)
 }
 
 // printAncestorTraceback prints the traceback of the given ancestor.
@@ -830,9 +758,11 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 	}
 }
 
-// fullfuncname retrieves the name for a funcInfo, but if perhaps it was inlined, it'll retrieve
-// unwind and retrieve the original name.
-func fullfuncname(f funcInfo, pc uintptr) string {
+// printAncestorTraceback prints the given function info at a given pc
+// within an ancestor traceback. The precision of this info is reduced
+// due to only have access to the pcs at the time of the caller
+// goroutine being created.
+func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 	name := funcname(f)
 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 		inltree := (*[1 << 20]inlinedCall)(inldata)
@@ -841,15 +771,6 @@ func fullfuncname(f funcInfo, pc uintptr) string {
 			name = funcnameFromNameoff(f, inltree[ix].func_)
 		}
 	}
-	return name
-}
-
-// printAncestorTraceback prints the given function info at a given pc
-// within an ancestor traceback. The precision of this info is reduced
-// due to only have access to the pcs at the time of the caller
-// goroutine being created.
-func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
-	name := fullfuncname(f, pc)
 	file, line := funcline(f, pc)
 	if name == "runtime.gopanic" {
 		name = "panic"
