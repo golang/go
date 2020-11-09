@@ -70,6 +70,10 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
 
+	if runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64" {
+		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
+	}
+
 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
 		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
 	}
