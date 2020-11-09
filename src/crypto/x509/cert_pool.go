@@ -161,18 +161,7 @@ func (s *CertPool) contains(cert *Certificate) bool {
 	if s == nil {
 		return false
 	}
-	candidates := s.byName[string(cert.RawSubject)]
-	for _, i := range candidates {
-		c, err := s.cert(i)
-		if err != nil {
-			return false
-		}
-		if c.Equal(cert) {
-			return true
-		}
-	}
-
-	return false
+	return s.haveSum[sha256.Sum224(cert.Raw)]
 }
 
 // AddCert adds a certificate to a pool.
