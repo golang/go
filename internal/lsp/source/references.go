@@ -127,7 +127,11 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 		}
 	}
 
-	if includeInterfaceRefs {
+	// When searching on type name, don't include interface references -- they
+	// would be things like all references to Stringer for any type that
+	// happened to have a String method.
+	_, isType := declIdent.Declaration.obj.(*types.TypeName)
+	if includeInterfaceRefs && !isType {
 		declRange, err := declIdent.Range()
 		if err != nil {
 			return nil, err
