@@ -81,7 +81,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
 		switch scope.(type) {
-		case viewLoadScope:
+		case viewLoadScope, moduleLoadScope:
 			containsDir = true
 		}
 	}

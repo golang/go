@@ -375,7 +375,9 @@ func _() {
 package a
 `
 	t.Run("close then delete", func(t *testing.T) {
-		runner.Run(t, pkg, func(t *testing.T, env *Env) {
+		withOptions(EditorConfig{
+			VerboseOutput: true,
+		}).run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
 			env.Await(
@@ -407,7 +409,9 @@ package a
 	})
 
 	t.Run("delete then close", func(t *testing.T) {
-		runner.Run(t, pkg, func(t *testing.T, env *Env) {
+		withOptions(EditorConfig{
+			VerboseOutput: true,
+		}).run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
 			env.Await(

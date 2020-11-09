@@ -95,6 +95,8 @@ type EditorConfig struct {
 	// Whether to send the current process ID, for testing data that is joined to
 	// the PID. This can only be set by one test.
 	SendPID bool
+
+	VerboseOutput bool
 }
 
 // NewEditor Creates a new Editor.
@@ -210,6 +212,10 @@ func (e *Editor) configuration() map[string]interface{} {
 	}
 	if e.Config.AllExperiments {
 		config["allExperiments"] = true
+	}
+
+	if e.Config.VerboseOutput {
+		config["verboseOutput"] = true
 	}
 
 	// TODO(rFindley): uncomment this if/when diagnostics delay is on by
