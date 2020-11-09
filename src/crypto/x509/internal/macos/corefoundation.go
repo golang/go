@@ -16,6 +16,10 @@ import (
 	"unsafe"
 )
 
+// Core Foundation linker flags for the external linker. See Issue 42459.
+//go:cgo_ldflag "-framework"
+//go:cgo_ldflag "CoreFoundation"
+
 // CFRef is an opaque reference to a Core Foundation object. It is a pointer,
 // but to memory not owned by Go, so not an unsafe.Pointer.
 type CFRef uintptr

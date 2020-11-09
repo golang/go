@@ -28,39 +28,6 @@ func TestSystemRoots(t *testing.T) {
 		t.Errorf("want at least %d system roots, have %d", want, have)
 	}
 
-	if loadSystemRootsWithCgo == nil {
-		t.Skip("cgo not available, can't compare pool")
-	}
-
-	t1 := time.Now()
-	cgoRoots, err := loadSystemRootsWithCgo() // cgo roots
-	cgoSysRootsDuration := time.Since(t1)
-
-	if err != nil {
-		t.Fatalf("failed to read cgo roots: %v", err)
-	}
-
-	t.Logf("loadSystemRootsWithCgo: %v", cgoSysRootsDuration)
-
-	// Check that the two cert pools are the same.
-	sysPool := make(map[string]*Certificate, sysRoots.len())
-	for i := 0; i < sysRoots.len(); i++ {
-		c := sysRoots.mustCert(t, i)
-		sysPool[string(c.Raw)] = c
-	}
-	for i := 0; i < cgoRoots.len(); i++ {
-		c := cgoRoots.mustCert(t, i)
-
-		if _, ok := sysPool[string(c.Raw)]; ok {
-			delete(sysPool, string(c.Raw))
-		} else {
-			t.Errorf("certificate only present in cgo pool: %v", c.Subject)
-		}
-	}
-	for _, c := range sysPool {
-		t.Errorf("certificate only present in real pool: %v", c.Subject)
-	}
-
 	if t.Failed() {
 		cmd := exec.Command("security", "dump-trust-settings")
 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
