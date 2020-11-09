@@ -380,20 +380,18 @@ func TestSetEncoderSETSliceSuffix(t *testing.T) {
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
 
-	var testData []struct {
+	type testCase struct {
 		in  []byte
 		out interface{}
 	}
+	var testData []testCase
 	for _, test := range unmarshalTestData {
 		pv := reflect.New(reflect.TypeOf(test.out).Elem())
 		inCopy := make([]byte, len(test.in))
 		copy(inCopy, test.in)
 		outCopy := pv.Interface()
 
-		testData = append(testData, struct {
-			in  []byte
-			out interface{}
-		}{
+		testData = append(testData, testCase{
 			in:  inCopy,
 			out: outCopy,
 		})
