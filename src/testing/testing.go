@@ -391,8 +391,9 @@ type common struct {
 	failed      bool                 // Test or benchmark has failed.
 	skipped     bool                 // Test of benchmark has been skipped.
 	done        bool                 // Test is finished and all subtests have completed.
-	helpers     map[uintptr]struct{} // functions to be skipped when writing file/line info
-	cleanups    []func()             // optional function to be called at the end of the test
+	helpersPCs  map[uintptr]struct{} // functions to be skipped when writing file/line info
+	helpers     map[string]struct{}  // helpersPCs converted to function names
+	cleanups    []func()             // optional functions to be called at the end of the test
 	cleanupName string               // Name of the cleanup function.
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
 
@@ -452,11 +453,11 @@ func Verbose() bool {
 }
 
 // frameSkip searches, starting after skip frames, for the first caller frame
-// in a function not in helperNames and returns that frame.
+// in a function not marked as a helper and returns that frame.
 // The search stops if it finds a tRunner function that
 // was the entry point into the test and the test is not a subtest.
 // This function must be called with c.mu held.
-func (c *common) frameSkip(skip int, helperNames map[string]struct{}) runtime.Frame {
+func (c *common) frameSkip(skip int) runtime.Frame {
 	// If the search continues into the parent test, we'll have to hold
 	// its mu temporarily. If we then return, we need to unlock it.
 	shouldUnlock := false
@@ -509,7 +510,7 @@ func (c *common) frameSkip(skip int, helperNames map[string]struct{}) runtime.Fr
 			}
 			return prevFrame
 		}
-		if _, ok := helperNames[frame.Function]; !ok {
+		if _, ok := c.helpers[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
 			return frame
 		}
@@ -517,11 +518,21 @@ func (c *common) frameSkip(skip int, helperNames map[string]struct{}) runtime.Fr
 	return firstFrame
 }
 
-// decorate prefixes the string with the file and line of the call site,
-// omitting functions in helperNames, and inserts the final newline if needed
-// and indentation spaces for formatting. This function must be called with c.mu held.
-func (c *common) decorate(s string, skip int, helperNames map[string]struct{}) string {
-	frame := c.frameSkip(skip, helperNames)
+// decorate prefixes the string with the file and line of the call site
+// and inserts the final newline if needed and indentation spaces for formatting.
+// This function must be called with c.mu held.
+func (c *common) decorate(s string, skip int) string {
+	// If more helper PCs have been added since we last did the conversion
+	if len(c.helpers) != len(c.helpersPCs) {
+		if c.helpers == nil {
+			c.helpers = make(map[string]struct{})
+		}
+		for pc := range c.helpersPCs {
+			c.helpers[pcToName(pc)] = struct{}{}
+		}
+	}
+
+	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
 	if file != "" {
@@ -743,14 +754,6 @@ func (c *common) log(s string) {
 func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var helperNames map[string]struct{}
-	if len(c.helpers) > 0 {
-		// convert saved PCs from helpers into function names that we exclude in decorate()
-		helperNames = make(map[string]struct{})
-		for pc := range c.helpers {
-			helperNames[pcToName(pc)] = struct{}{}
-		}
-	}
 	if c.done {
 		// This test has already finished. Try and log this message
 		// with our parent. If we don't have a parent, panic.
@@ -758,7 +761,7 @@ func (c *common) logDepth(s string, depth int) {
 			parent.mu.Lock()
 			defer parent.mu.Unlock()
 			if !parent.done {
-				parent.output = append(parent.output, parent.decorate(s, depth+1, helperNames)...)
+				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
 				return
 			}
 		}
@@ -768,14 +771,14 @@ func (c *common) logDepth(s string, depth int) {
 			if c.bench {
 				// Benchmarks don't print === CONT, so we should skip the test
 				// printer and just print straight to stdout.
-				fmt.Print(c.decorate(s, depth+1, helperNames))
+				fmt.Print(c.decorate(s, depth+1))
 			} else {
-				c.chatty.Printf(c.name, "%s", c.decorate(s, depth+1, helperNames))
+				c.chatty.Printf(c.name, "%s", c.decorate(s, depth+1))
 			}
 
 			return
 		}
-		c.output = append(c.output, c.decorate(s, depth+1, helperNames)...)
+		c.output = append(c.output, c.decorate(s, depth+1)...)
 	}
 }
 
@@ -861,8 +864,8 @@ func (c *common) Skipped() bool {
 func (c *common) Helper() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.helpers == nil {
-		c.helpers = make(map[uintptr]struct{})
+	if c.helpersPCs == nil {
+		c.helpersPCs = make(map[uintptr]struct{})
 	}
 	// repeating code from callerName here to save walking a stack frame
 	var pc [1]uintptr
@@ -870,7 +873,7 @@ func (c *common) Helper() {
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
-	c.helpers[pc[0]] = struct{}{}
+	c.helpersPCs[pc[0]] = struct{}{}
 }
 
 // Cleanup registers a function to be called when the test and all its
