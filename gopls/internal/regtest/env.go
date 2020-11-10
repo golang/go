@@ -58,8 +58,8 @@ type State struct {
 }
 
 type workProgress struct {
-	title   string
-	percent float64
+	title, msg string
+	percent    float64
 }
 
 func (s State) String() string {
@@ -200,9 +200,15 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	switch kind := v["kind"]; kind {
 	case "begin":
 		work.title = v["title"].(string)
+		if msg, ok := v["message"]; ok {
+			work.msg = msg.(string)
+		}
 	case "report":
 		if pct, ok := v["percentage"]; ok {
 			work.percent = pct.(float64)
+		}
+		if msg, ok := v["message"]; ok {
+			work.msg = msg.(string)
 		}
 	case "end":
 		title := e.state.outstandingWork[m.Token].title

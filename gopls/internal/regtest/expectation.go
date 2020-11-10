@@ -202,6 +202,24 @@ func CompletedWork(title string, atLeast int) SimpleExpectation {
 	}
 }
 
+// OutstandingWork expects a work item to be outstanding. The given title must
+// be an exact match, whereas the given msg must only be contained in the work
+// item's message.
+func OutstandingWork(title, msg string) SimpleExpectation {
+	check := func(s State) Verdict {
+		for _, work := range s.outstandingWork {
+			if work.title == title && strings.Contains(work.msg, msg) {
+				return Met
+			}
+		}
+		return Unmet
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("outstanding work: %s", title),
+	}
+}
+
 // LogExpectation is an expectation on the log messages received by the editor
 // from gopls.
 type LogExpectation struct {

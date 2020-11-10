@@ -1452,3 +1452,35 @@ package foo_`
 		)
 	})
 }
+
+// TestProgressBarErrors confirms that critical workspace load errors are shown
+// and updated via progress reports.
+func TestProgressBarErrors(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const pkg = `
+-- go.mod --
+modul mod.com
+
+go 1.12
+-- main.go --
+package main
+`
+	run(t, pkg, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.Await(
+			OutstandingWork("Error loading workspace", "unknown directive"),
+		)
+		env.EditBuffer("go.mod", fake.NewEdit(0, 0, 3, 0, `module mod.com
+
+go 1.hello
+`))
+		env.Await(
+			OutstandingWork("Error loading workspace", "invalid go version"),
+		)
+		env.RegexpReplace("go.mod", "go 1.hello", "go 1.12")
+		env.Await(
+			NoOutstandingWork(),
+		)
+	})
+}

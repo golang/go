@@ -96,13 +96,19 @@ type Server struct {
 	gcOptimizationDetailsMu sync.Mutex
 	gcOptimizationDetails   map[span.URI]struct{}
 
-	// diagnosticsSema limits the concurrency of diagnostics runs, which can be expensive.
+	// diagnosticsSema limits the concurrency of diagnostics runs, which can be
+	// expensive.
 	diagnosticsSema chan struct{}
 
 	progress *progressTracker
 
 	// debouncer is used for debouncing diagnostics.
 	debouncer *debouncer
+
+	// When the workspace fails to load, we show its status through a progress
+	// report with an error message.
+	criticalErrorStatusMu sync.Mutex
+	criticalErrorStatus   *workDone
 }
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.

@@ -182,34 +182,26 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	// Diagnose all of the packages in the workspace.
 	wsPkgs, err := snapshot.WorkspacePackages(ctx)
+	if s.shouldIgnoreError(ctx, snapshot, err) {
+		return nil, nil
+	}
+	// Show the error as a progress error report so that it appears in the
+	// status bar. If a client doesn't support progress reports, the error
+	// will still be shown as a ShowMessage. If there is no error, any running
+	// error progress reports will be closed.
+	s.showCriticalErrorStatus(ctx, err)
+
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return nil, nil
-		}
-		// Some error messages can be displayed as diagnostics.
+		// Some error messages can also be displayed as diagnostics.
 		if errList := (*source.ErrorList)(nil); errors.As(err, &errList) {
 			if err := errorsToDiagnostic(ctx, snapshot, *errList, reports); err == nil {
 				return reports, nil
 			}
 		}
-		// Try constructing a more helpful error message out of this error.
-		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
-			return nil, nil
-		}
 		event.Error(ctx, "errors diagnosing workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		// Present any `go list` errors directly to the user.
-		if errors.Is(err, source.PackagesLoadError) {
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type: protocol.Error,
-				Message: fmt.Sprintf(`The code in the workspace failed to compile (see the error message below).
-If you believe this is a mistake, please file an issue: https://github.com/golang/go/issues/new.
-%v`, err),
-			}); err != nil {
-				event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
-			}
-		}
 		return nil, nil
 	}
+
 	var (
 		showMsgMu sync.Mutex
 		showMsg   *protocol.ShowMessageParams
@@ -297,6 +289,36 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		}
 	}
 	return reports, showMsg
+}
+
+// showCriticalErrorStatus shows the error as a progress report.
+// If the error is nil, it clears any existing error progress report.
+func (s *Server) showCriticalErrorStatus(ctx context.Context, err error) {
+	s.criticalErrorStatusMu.Lock()
+	defer s.criticalErrorStatusMu.Unlock()
+
+	// Remove all newlines so that the error message can be formatted in a
+	// status bar.
+	var errMsg string
+	if err != nil {
+		errMsg = strings.Replace(err.Error(), "\n", " ", -1)
+	}
+
+	if s.criticalErrorStatus == nil {
+		if errMsg != "" {
+			s.criticalErrorStatus = s.progress.start(ctx, "Error loading workspace", errMsg, nil, nil)
+		}
+		return
+	}
+
+	// If an error is already shown to the user, update it or mark it as
+	// resolved.
+	if errMsg == "" {
+		s.criticalErrorStatus.end("Done.")
+		s.criticalErrorStatus = nil
+	} else {
+		s.criticalErrorStatus.report(errMsg, 0)
+	}
 }
 
 // checkForOrphanedFile checks that the given URIs can be mapped to packages.
@@ -470,7 +492,13 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 	return reports
 }
 
-func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, modErr, loadErr error) bool {
+func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot, err error) bool {
+	if err == nil { // if there is no error at all
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
 	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
 	var hasGo bool
 	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
