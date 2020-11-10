@@ -82,6 +82,15 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h4 id="modules">Modules</h4>
 
+<p><!-- golang.org/issue/40728 -->
+  Build commands like <code>go</code> <code>build</code> and <code>go</code>
+  <code>test</code> no longer modify <code>go.mod</code> and <code>go.sum</code>
+  by default. Instead, they report an error if a module requirement or checksum
+  needs to be added or updated (as if the <code>-mod=readonly</code> flag were
+  used). Module requirements and sums may be adjusted with <code>go</code>
+  <code>mod</code> <code>tidy</code> or <code>go</code> <code>get</code>.
+</p>
+
 <p><!-- golang.org/issue/40276 -->
   <code>go</code> <code>install</code> now accepts arguments with
   version suffixes (for example, <code>go</code> <code>install</code>
