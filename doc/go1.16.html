@@ -354,6 +354,13 @@ Do not send CLs removing the interior tags from such phrases.
   of a malformed certificate.
 </p>
 
+<p><!-- CL 233163 -->
+  A number of additional fields have been added to the
+  <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
+  These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
+  and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
+</p>
+
 <h3 id="encoding/json"><a href="/pkg/encoding/json">encoding/json</a></h3>
 
 <p><!-- CL 263619 -->
