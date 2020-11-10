@@ -38,7 +38,7 @@ func runModfileTest(t *testing.T, files, proxy string, f TestFunc) {
 		withOptions(WithProxyFiles(proxy)).run(t, files, f)
 	})
 	t.Run("nested", func(t *testing.T) {
-		withOptions(WithProxyFiles(proxy), NestWorkdir(), WithModes(Experimental)).run(t, files, f)
+		withOptions(WithProxyFiles(proxy), NestWorkdir(), WithModes(Singleton|Experimental)).run(t, files, f)
 	})
 }
 

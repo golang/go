@@ -85,6 +85,10 @@ type View struct {
 	// context is canceled.
 	initializationSema chan struct{}
 
+	// rootURI is the rootURI directory of this view. If we are in GOPATH mode, this
+	// is just the folder. If we are in module mode, this is the module rootURI.
+	rootURI span.URI
+
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
 	workspaceInformation
@@ -112,10 +116,6 @@ type workspaceInformation struct {
 	// goEnv is the `go env` output collected when a view is created.
 	// It includes the values of the environment variables above.
 	goEnv map[string]string
-
-	// rootURI is the rootURI directory of this view. If we are in GOPATH mode, this
-	// is just the folder. If we are in module mode, this is the module rootURI.
-	rootURI span.URI
 }
 
 type environmentVariables struct {
@@ -316,7 +316,7 @@ func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Optio
 }
 
 func (v *View) contains(uri span.URI) bool {
-	return strings.HasPrefix(string(uri), string(v.rootURI))
+	return source.InDir(v.rootURI.Filename(), uri.Filename()) || source.InDir(v.folder.Filename(), uri.Filename())
 }
 
 func (v *View) mapFile(uri span.URI, f *fileBase) {
@@ -673,28 +673,31 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	tool, _ := exec.LookPath("gopackagesdriver")
 	hasGopackagesDriver := gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
 
-	root := folder
-	if options.ExpandWorkspaceToModule {
-		wsRoot, err := findWorkspaceRoot(ctx, root, s)
-		if err != nil {
-			return nil, err
-		}
-		if wsRoot != "" {
-			root = wsRoot
-		}
-	}
 	return &workspaceInformation{
 		hasGopackagesDriver:  hasGopackagesDriver,
 		go111module:          go111module,
 		goversion:            goversion,
-		rootURI:              root,
 		environmentVariables: envVars,
 		goEnv:                env,
 	}, nil
 }
 
-func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource) (span.URI, error) {
-	for _, basename := range []string{"gopls.mod", "go.mod"} {
+// findWorkspaceRoot searches for the best workspace root according to the
+// following heuristics:
+//   - First, look for a parent directory containing a gopls.mod file
+//     (experimental only).
+//   - Then, a parent directory containing a go.mod file.
+//   - Then, a child directory containing a go.mod file, if there is exactly
+//     one (non-experimental only).
+// Otherwise, it returns folder.
+// TODO (rFindley): move this to workspace.go
+// TODO (rFindley): simplify this once workspace modules are enabled by default.
+func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, experimental bool) (span.URI, error) {
+	patterns := []string{"go.mod"}
+	if experimental {
+		patterns = []string{"gopls.mod", "go.mod"}
+	}
+	for _, basename := range patterns {
 		dir, err := findRootPattern(ctx, folder, basename, fs)
 		if err != nil {
 			return "", errors.Errorf("finding %s: %w", basename, err)
@@ -703,7 +706,31 @@ func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSourc
 			return dir, nil
 		}
 	}
-	return "", nil
+
+	// The experimental workspace can handle nested modules at this point...
+	if experimental {
+		return folder, nil
+	}
+
+	// ...else we should check if there's exactly one nested module.
+	const filesToSearch = 10000
+	all, err := findModules(ctx, folder, 2, filesToSearch)
+	if err == errExhausted {
+		// Fall-back behavior: if we don't find any modules after searching 10000
+		// files, assume there are none.
+		event.Log(ctx, fmt.Sprintf("stopped searching for modules after %d files", filesToSearch))
+		return folder, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(all) == 1 {
+		// range to access first element.
+		for uri := range all {
+			return dirURI(uri), nil
+		}
+	}
+	return folder, nil
 }
 
 func findRootPattern(ctx context.Context, folder span.URI, basename string, fs source.FileSource) (span.URI, error) {

@@ -60,8 +60,10 @@ module b
 module bc
 -- d/gopls.mod --
 module d-goplsworkspace
--- d/e/go.mod
+-- d/e/go.mod --
 module de
+-- f/g/go.mod --
+module fg
 `
 	dir, err := fake.Tempdir(workspace)
 	if err != nil {
@@ -71,26 +73,30 @@ module de
 
 	tests := []struct {
 		folder, want string
+		experimental bool
 	}{
-		// no module at root.
-		{"", ""},
-		{"a", "a"},
-		{"a/x", "a"},
-		{"b/c", "b/c"},
-		{"d", "d"},
-		{"d/e", "d"},
+		{"", "", false}, // no module at root, and more than one nested module
+		{"a", "a", false},
+		{"a/x", "a", false},
+		{"b/c", "b/c", false},
+		{"d", "d/e", false},
+		{"d", "d", true},
+		{"d/e", "d/e", false},
+		{"d/e", "d", true},
+		{"f", "f/g", false},
+		{"f", "f", true},
 	}
 
 	for _, test := range tests {
 		ctx := context.Background()
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
-		got, err := findWorkspaceRoot(ctx, folderURI, osFileSource{})
+		got, err := findWorkspaceRoot(ctx, folderURI, osFileSource{}, test.experimental)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if rel.RelPath(got.Filename()) != test.want {
-			t.Errorf("fileWorkspaceRoot(%q) = %q, want %q", test.folder, got, test.want)
+		if gotf, wantf := filepath.Clean(got.Filename()), rel.AbsPath(test.want); gotf != wantf {
+			t.Errorf("findWorkspaceRoot(%q, %t) = %q, want %q", test.folder, test.experimental, gotf, wantf)
 		}
 	}
 }

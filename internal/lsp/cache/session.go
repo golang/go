@@ -173,9 +173,16 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
+	root := folder
+	if options.ExpandWorkspaceToModule {
+		root, err = findWorkspaceRoot(ctx, root, s, options.ExperimentalWorkspaceModule)
+		if err != nil {
+			return nil, nil, func() {}, err
+		}
+	}
 
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, ws.rootURI, s, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, s, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -198,6 +205,7 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		folder:               folder,
 		filesByURI:           make(map[span.URI]*fileBase),
 		filesByBase:          make(map[string][]*fileBase),
+		rootURI:              root,
 		workspaceInformation: *ws,
 		tempWorkspace:        tempWorkspace,
 	}
