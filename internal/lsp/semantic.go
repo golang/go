@@ -126,8 +126,6 @@ const (
 	tokOperator  tokenType = "operator"
 )
 
-var lastPosition token.Position
-
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
 	if start == 0 {
 		e.unexpected("token at token.NoPos")

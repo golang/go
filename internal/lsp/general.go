@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/event"
@@ -407,11 +406,6 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, dirs map[
 		s.watchedDirectories[dir] = struct{}{}
 	}
 	return nil
-}
-
-func isSubdirectory(root, leaf string) bool {
-	rel, err := filepath.Rel(root, leaf)
-	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
 func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, o *source.Options) error {

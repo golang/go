@@ -308,11 +308,6 @@ func isGoMod(uri span.URI) bool {
 	return filepath.Base(uri.Filename()) == "go.mod"
 }
 
-// isGoMod reports if uri is a go.sum file.
-func isGoSum(uri span.URI) bool {
-	return filepath.Base(uri.Filename()) == "go.sum"
-}
-
 // fileExists reports if the file uri exists within source.
 func fileExists(ctx context.Context, uri span.URI, source source.FileSource) (bool, error) {
 	fh, err := source.GetFile(ctx, uri)
