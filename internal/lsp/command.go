@@ -192,11 +192,16 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		}
 		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
 		// so we combine them into one case for convenience.
-		a := "tidy"
+		action := "tidy"
 		if command == source.CommandVendor {
-			a = "vendor"
+			action = "vendor"
 		}
-		return s.directGoModCommand(ctx, uri, "mod", a)
+		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
+		}
+		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "mod", []string{action})
 	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
@@ -204,22 +209,18 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if err := source.UnmarshalArgs(args, &uri, &addRequire, &goCmdArgs); err != nil {
 			return err
 		}
-		if addRequire {
-			// Using go get to create a new dependency results in an
-			// `// indirect` comment we may not want. The only way to avoid it
-			// is to add the require as direct first. Then we can use go get to
-			// update go.sum and tidy up.
-			if err := s.directGoModCommand(ctx, uri, "mod", append([]string{"edit", "-require"}, goCmdArgs...)...); err != nil {
-				return err
-			}
+		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
 		}
-		return s.directGoModCommand(ctx, uri, "get", append([]string{"-d"}, goCmdArgs...)...)
+		return s.runGoGetModule(ctx, snapshot, uri.SpanURI(), addRequire, goCmdArgs)
 	case source.CommandToggleDetails:
-		var fileURI span.URI
+		var fileURI protocol.DocumentURI
 		if err := source.UnmarshalArgs(args, &fileURI); err != nil {
 			return err
 		}
-		pkgDir := span.URIFromPath(filepath.Dir(fileURI.Filename()))
+		pkgDir := span.URIFromPath(filepath.Dir(fileURI.SpanURI().Filename()))
 		s.gcOptimizationDetailsMu.Lock()
 		if _, ok := s.gcOptimizationDetails[pkgDir]; ok {
 			delete(s.gcOptimizationDetails, pkgDir)
@@ -229,12 +230,11 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		s.gcOptimizationDetailsMu.Unlock()
 		// need to recompute diagnostics.
 		// so find the snapshot
-		sv, err := s.session.ViewOf(fileURI)
-		if err != nil {
+		snapshot, _, ok, release, err := s.beginFileRequest(ctx, fileURI, source.UnknownKind)
+		defer release()
+		if !ok {
 			return err
 		}
-		snapshot, release := sv.Snapshot(ctx)
-		defer release()
 		s.diagnoseSnapshot(snapshot, nil, false)
 	case source.CommandGenerateGoplsMod:
 		var v source.View
@@ -273,21 +273,6 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		return fmt.Errorf("unsupported command: %s", command.ID())
 	}
 	return nil
-}
-
-func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {
-	view, err := s.session.ViewOf(uri.SpanURI())
-	if err != nil {
-		return err
-	}
-	snapshot, release := view.Snapshot(ctx)
-	defer release()
-	_, err = snapshot.RunGoCommandDirect(ctx, source.UpdateUserModFile, &gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		WorkingDir: filepath.Dir(uri.SpanURI().Filename()),
-	})
-	return err
 }
 
 func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, work *workDone, tests, benchmarks []string) error {
@@ -386,4 +371,26 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, di
 		return err
 	}
 	return nil
+}
+
+func (s *Server) runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {
+	if addRequire {
+		// Using go get to create a new dependency results in an
+		// `// indirect` comment we may not want. The only way to avoid it
+		// is to add the require as direct first. Then we can use go get to
+		// update go.sum and tidy up.
+		if err := runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri, "mod", append([]string{"edit", "-require"}, args...)); err != nil {
+			return err
+		}
+	}
+	return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri, "get", append([]string{"-d"}, args...))
+}
+
+func runSimpleGoCommand(ctx context.Context, snapshot source.Snapshot, mode source.InvocationMode, uri span.URI, verb string, args []string) error {
+	_, err := snapshot.RunGoCommandDirect(ctx, mode, &gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		WorkingDir: filepath.Dir(uri.Filename()),
+	})
+	return err
 }
