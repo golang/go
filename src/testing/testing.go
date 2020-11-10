@@ -523,10 +523,8 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
 	// If more helper PCs have been added since we last did the conversion
-	if len(c.helpers) != len(c.helpersPCs) {
-		if c.helpers == nil {
-			c.helpers = make(map[string]struct{})
-		}
+	if c.helpers == nil {
+		c.helpers = make(map[string]struct{})
 		for pc := range c.helpersPCs {
 			c.helpers[pcToName(pc)] = struct{}{}
 		}
@@ -873,7 +871,10 @@ func (c *common) Helper() {
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
-	c.helpersPCs[pc[0]] = struct{}{}
+	if _, found := c.helpersPCs[pc[0]]; !found {
+		c.helpersPCs[pc[0]] = struct{}{}
+		c.helpers = nil // map will be recreated next time it is needed
+	}
 }
 
 // Cleanup registers a function to be called when the test and all its
