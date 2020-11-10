@@ -59,7 +59,7 @@ func CheckAllowed(ctx context.Context, m module.Version) error {
 	if err := CheckExclusions(ctx, m); err != nil {
 		return err
 	}
-	if err := checkRetractions(ctx, m); err != nil {
+	if err := CheckRetractions(ctx, m); err != nil {
 		return err
 	}
 	return nil
@@ -85,9 +85,9 @@ type excludedError struct{}
 func (e *excludedError) Error() string     { return "excluded by go.mod" }
 func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 
-// checkRetractions returns an error if module m has been retracted by
+// CheckRetractions returns an error if module m has been retracted by
 // its author.
-func checkRetractions(ctx context.Context, m module.Version) error {
+func CheckRetractions(ctx context.Context, m module.Version) error {
 	if m.Version == "" {
 		// Main module, standard library, or file replacement module.
 		// Cannot be retracted.
@@ -165,28 +165,28 @@ func checkRetractions(ctx context.Context, m module.Version) error {
 		}
 	}
 	if isRetracted {
-		return module.VersionError(m, &retractedError{rationale: rationale})
+		return module.VersionError(m, &ModuleRetractedError{Rationale: rationale})
 	}
 	return nil
 }
 
 var retractCache par.Cache
 
-type retractedError struct {
-	rationale []string
+type ModuleRetractedError struct {
+	Rationale []string
 }
 
-func (e *retractedError) Error() string {
+func (e *ModuleRetractedError) Error() string {
 	msg := "retracted by module author"
-	if len(e.rationale) > 0 {
+	if len(e.Rationale) > 0 {
 		// This is meant to be a short error printed on a terminal, so just
 		// print the first rationale.
-		msg += ": " + ShortRetractionRationale(e.rationale[0])
+		msg += ": " + ShortRetractionRationale(e.Rationale[0])
 	}
 	return msg
 }
 
-func (e *retractedError) Is(err error) bool {
+func (e *ModuleRetractedError) Is(err error) bool {
 	return err == ErrDisallowed
 }
 
