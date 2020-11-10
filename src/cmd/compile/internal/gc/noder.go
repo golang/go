@@ -95,6 +95,13 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 			},
 			Importer: &gcimports{
 				packages: make(map[string]*types2.Package),
+				lookup: func(path string) (io.ReadCloser, error) {
+					file, ok := findpkg(path)
+					if !ok {
+						return nil, fmt.Errorf("can't find import: %q", path)
+					}
+					return os.Open(file)
+				},
 			},
 		}
 		conf.Check(Ctxt.Pkgpath, files, nil)
