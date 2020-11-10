@@ -47,6 +47,12 @@ undeclared_name adds a variable declaration for an undeclared
 name.
 
 
+### **go get package**
+Identifier: `gopls.go_get_package`
+
+go_get_package runs `go get` to fetch a package.
+
+
 ### **Add dependency**
 Identifier: `gopls.add_dependency`
 

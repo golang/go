@@ -128,7 +128,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		msg = e.Message
 		kind = source.Analysis
 		category = e.Category
-		fixes, err = suggestedFixes(snapshot, pkg, e)
+		fixes, err = suggestedAnalysisFixes(snapshot, pkg, e)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +154,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 	}, nil
 }
 
-func suggestedFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)

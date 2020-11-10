@@ -110,6 +110,54 @@ func main() {
 	})
 }
 
+func TestGoGetFix(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+-- main.go --
+package main
+
+import "example.com/blah"
+
+var _ = blah.Name
+`
+
+	const want = `module mod.com
+
+go 1.12
+
+require example.com v1.2.3
+`
+
+	runModfileTest(t, mod, proxy, func(t *testing.T, env *Env) {
+		if strings.Contains(t.Name(), "workspace_module") {
+			t.Skip("workspace module mode doesn't set -mod=readonly")
+		}
+		env.OpenFile("main.go")
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+				ReadDiagnostics("main.go", &d),
+			),
+		)
+		var goGetDiag protocol.Diagnostic
+		for _, diag := range d.Diagnostics {
+			if strings.Contains(diag.Message, "could not import") {
+				goGetDiag = diag
+			}
+		}
+		env.ApplyQuickFixes("main.go", []protocol.Diagnostic{goGetDiag})
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
+			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
+		}
+	})
+}
+
 // Tests that multiple missing dependencies gives good single fixes.
 func TestMissingDependencyFixes(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)

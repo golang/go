@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
@@ -228,6 +229,19 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 			return err
 		}
 		return s.runGoGetModule(ctx, snapshot, uri.SpanURI(), addRequire, goCmdArgs)
+	case source.CommandGoGetPackage:
+		var uri protocol.DocumentURI
+		var pkg string
+		if err := source.UnmarshalArgs(args, &uri, &pkg); err != nil {
+			return err
+		}
+		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
+		}
+		return s.runGoGetPackage(ctx, snapshot, uri.SpanURI(), pkg)
+
 	case source.CommandToggleDetails:
 		var fileURI protocol.DocumentURI
 		if err := source.UnmarshalArgs(args, &fileURI); err != nil {
@@ -385,6 +399,19 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, di
 		return err
 	}
 	return nil
+}
+
+func (s *Server) runGoGetPackage(ctx context.Context, snapshot source.Snapshot, uri span.URI, pkg string) error {
+	stdout, err := snapshot.RunGoCommandDirect(ctx, source.WriteTemporaryModFile|source.AllowNetwork, &gocommand.Invocation{
+		Verb:       "list",
+		Args:       []string{"-f", "{{.Module.Path}}@{{.Module.Version}}", pkg},
+		WorkingDir: filepath.Dir(uri.Filename()),
+	})
+	if err != nil {
+		return err
+	}
+	ver := strings.TrimSpace(stdout.String())
+	return s.runGoGetModule(ctx, snapshot, uri, true, []string{ver})
 }
 
 func (s *Server) runGoGetModule(ctx context.Context, snapshot source.Snapshot, uri span.URI, addRequire bool, args []string) error {

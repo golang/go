@@ -7,6 +7,7 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -103,6 +104,16 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					})
 				}
 			}
+
+			// Fix unresolved imports with "go get". This is separate from the
+			// goimports fixes because goimports will not remove an import
+			// that appears to be used, even if currently unresolved.
+			actions, err := goGetFixes(ctx, snapshot, fh.URI(), diagnostics)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, actions...)
+
 			// Send all of the import edits as one code action if the file is
 			// being organized.
 			if wanted[protocol.SourceOrganizeImports] && len(importEdits) > 0 {
@@ -347,6 +358,38 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 		}
 	}
 	return nil
+}
+
+var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
+
+func goGetFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	if snapshot.GoModForFile(ctx, uri) == "" {
+		// Go get only supports module mode for now.
+		return nil, nil
+	}
+
+	var actions []protocol.CodeAction
+	for _, diag := range diagnostics {
+		matches := importErrorRe.FindStringSubmatch(diag.Message)
+		if len(matches) == 0 {
+			return nil, nil
+		}
+		args, err := source.MarshalArgs(uri, matches[1])
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, protocol.CodeAction{
+			Title:       fmt.Sprintf("go get package %v", matches[1]),
+			Diagnostics: []protocol.Diagnostic{diag},
+			Kind:        protocol.QuickFix,
+			Command: &protocol.Command{
+				Title:     source.CommandGoGetPackage.Title,
+				Command:   source.CommandGoGetPackage.ID(),
+				Arguments: args,
+			},
+		})
+	}
+	return actions, nil
 }
 
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
