@@ -391,8 +391,8 @@ type common struct {
 	failed      bool                 // Test or benchmark has failed.
 	skipped     bool                 // Test of benchmark has been skipped.
 	done        bool                 // Test is finished and all subtests have completed.
-	helpersPCs  map[uintptr]struct{} // functions to be skipped when writing file/line info
-	helpers     map[string]struct{}  // helpersPCs converted to function names
+	helperPCs   map[uintptr]struct{} // functions to be skipped when writing file/line info
+	helperNames map[string]struct{}  // helperPCs converted to function names
 	cleanups    []func()             // optional functions to be called at the end of the test
 	cleanupName string               // Name of the cleanup function.
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
@@ -510,7 +510,7 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			}
 			return prevFrame
 		}
-		if _, ok := c.helpers[frame.Function]; !ok {
+		if _, ok := c.helperNames[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
 			return frame
 		}
@@ -523,10 +523,10 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
 	// If more helper PCs have been added since we last did the conversion
-	if c.helpers == nil {
-		c.helpers = make(map[string]struct{})
-		for pc := range c.helpersPCs {
-			c.helpers[pcToName(pc)] = struct{}{}
+	if c.helperNames == nil {
+		c.helperNames = make(map[string]struct{})
+		for pc := range c.helperPCs {
+			c.helperNames[pcToName(pc)] = struct{}{}
 		}
 	}
 
@@ -862,8 +862,8 @@ func (c *common) Skipped() bool {
 func (c *common) Helper() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.helpersPCs == nil {
-		c.helpersPCs = make(map[uintptr]struct{})
+	if c.helperPCs == nil {
+		c.helperPCs = make(map[uintptr]struct{})
 	}
 	// repeating code from callerName here to save walking a stack frame
 	var pc [1]uintptr
@@ -871,9 +871,9 @@ func (c *common) Helper() {
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
-	if _, found := c.helpersPCs[pc[0]]; !found {
-		c.helpersPCs[pc[0]] = struct{}{}
-		c.helpers = nil // map will be recreated next time it is needed
+	if _, found := c.helperPCs[pc[0]]; !found {
+		c.helperPCs[pc[0]] = struct{}{}
+		c.helperNames = nil // map will be recreated next time it is needed
 	}
 }
 
