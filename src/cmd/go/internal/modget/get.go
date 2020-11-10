@@ -419,20 +419,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			pkgPatterns = append(pkgPatterns, q.pattern)
 		}
 	}
-	if len(pkgPatterns) > 0 {
-		// We skipped over missing-package errors earlier: we want to resolve
-		// pathSets ourselves, but at that point we don't have enough context
-		// to log the package-import chains leading to the error. Reload the package
-		// import graph one last time to report any remaining unresolved
-		// dependencies.
-		pkgOpts := modload.PackageOpts{
-			LoadTests:             *getT,
-			ResolveMissingImports: false,
-			AllowErrors:           false,
-		}
-		modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
-		base.ExitIfErrors()
-	}
+	r.checkPackagesAndRetractions(ctx, pkgPatterns)
 
 	// We've already downloaded modules (and identified direct and indirect
 	// dependencies) by loading packages in findAndUpgradeImports.
@@ -479,15 +466,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 	modload.DisallowWriteGoMod()
-
-	// Report warnings if any retracted versions are in the build list.
-	// This must be done after writing go.mod to avoid spurious '// indirect'
-	// comments. These functions read and write global state.
-	//
-	// TODO(golang.org/issue/40775): ListModules (called from reportRetractions)
-	// resets modload.loader, which contains information about direct dependencies
-	// that WriteGoMod uses. Refactor to avoid these kinds of global side effects.
-	reportRetractions(ctx)
 }
 
 // parseArgs parses command-line arguments and reports errors.
@@ -525,43 +503,6 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
 	return queries
 }
 
-// reportRetractions prints warnings if any modules in the build list are
-// retracted.
-func reportRetractions(ctx context.Context) {
-	// Query for retractions of modules in the build list.
-	// Use modload.ListModules, since that provides information in the same format
-	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
-	// module.
-	buildList := modload.LoadedModules()
-	args := make([]string, 0, len(buildList))
-	for _, m := range buildList {
-		if m.Version == "" {
-			// main module or dummy target module
-			continue
-		}
-		args = append(args, m.Path+"@"+m.Version)
-	}
-	listU := false
-	listVersions := false
-	listRetractions := true
-	mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
-	retractPath := ""
-	for _, mod := range mods {
-		if len(mod.Retracted) > 0 {
-			if retractPath == "" {
-				retractPath = mod.Path
-			} else {
-				retractPath = "<module>"
-			}
-			rationale := modload.ShortRetractionRationale(mod.Retracted[0])
-			fmt.Fprintf(os.Stderr, "go: warning: %s@%s is retracted: %s\n", mod.Path, mod.Version, rationale)
-		}
-	}
-	if modload.HasModRoot() && retractPath != "" {
-		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
-	}
-}
-
 type resolver struct {
 	localQueries      []*query // queries for absolute or relative paths
 	pathQueries       []*query // package path literal queries in original order
@@ -588,9 +529,6 @@ type resolver struct {
 
 	work *par.Queue
 
-	queryModuleCache   par.Cache
-	queryPackagesCache par.Cache
-	queryPatternCache  par.Cache
 	matchInModuleCache par.Cache
 }
 
@@ -675,7 +613,7 @@ func (r *resolver) noneForPath(mPath string) (nq *query, found bool) {
 	return nil, false
 }
 
-// queryModule wraps modload.Query, substituting r.checkAllowedor to decide
+// queryModule wraps modload.Query, substituting r.checkAllowedOr to decide
 // allowed versions.
 func (r *resolver) queryModule(ctx context.Context, mPath, query string, selected func(string) string) (module.Version, error) {
 	current := r.initialSelected(mPath)
@@ -1208,7 +1146,7 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query) 
 		}
 
 		mu.Lock()
-		upgrades = append(upgrades, pathSet{pkgMods: pkgMods, err: err})
+		upgrades = append(upgrades, pathSet{path: path, pkgMods: pkgMods, err: err})
 		mu.Unlock()
 		return false
 	}
@@ -1533,6 +1471,87 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
 	}
 
 	return false, cs.mod
+}
+
+// checkPackagesAndRetractions reloads packages for the given patterns and
+// reports missing and ambiguous package errors. It also reports loads and
+// reports retractions for resolved modules and modules needed to build
+// named packages.
+//
+// We skip missing-package errors earlier in the process, since we want to
+// resolve pathSets ourselves, but at that point, we don't have enough context
+// to log the package-import chains leading to each error.
+func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns []string) {
+	defer base.ExitIfErrors()
+
+	// Build a list of modules to load retractions for. Start with versions
+	// selected based on command line queries.
+	//
+	// This is a subset of the build list. If the main module has a lot of
+	// dependencies, loading retractions for the entire build list would be slow.
+	relevantMods := make(map[module.Version]struct{})
+	for path, reason := range r.resolvedVersion {
+		relevantMods[module.Version{Path: path, Version: reason.version}] = struct{}{}
+	}
+
+	// Reload packages, reporting errors for missing and ambiguous imports.
+	if len(pkgPatterns) > 0 {
+		// LoadPackages will print errors (since it has more context) but will not
+		// exit, since we need to load retractions later.
+		pkgOpts := modload.PackageOpts{
+			LoadTests:             *getT,
+			ResolveMissingImports: false,
+			AllowErrors:           true,
+		}
+		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
+		for _, m := range matches {
+			if len(m.Errs) > 0 {
+				base.SetExitStatus(1)
+				break
+			}
+		}
+		for _, pkg := range pkgs {
+			if _, _, err := modload.Lookup("", false, pkg); err != nil {
+				base.SetExitStatus(1)
+				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
+					for _, m := range ambiguousErr.Modules {
+						relevantMods[m] = struct{}{}
+					}
+				}
+			}
+			if m := modload.PackageModule(pkg); m.Path != "" {
+				relevantMods[m] = struct{}{}
+			}
+		}
+	}
+
+	// Load and report retractions.
+	type retraction struct {
+		m   module.Version
+		err error
+	}
+	retractions := make([]retraction, 0, len(relevantMods))
+	for m := range relevantMods {
+		retractions = append(retractions, retraction{m: m})
+	}
+	sort.Slice(retractions, func(i, j int) bool {
+		return retractions[i].m.Path < retractions[j].m.Path
+	})
+	for i := 0; i < len(retractions); i++ {
+		i := i
+		r.work.Add(func() {
+			err := modload.CheckRetractions(ctx, retractions[i].m)
+			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
+				retractions[i].err = err
+			}
+		})
+	}
+	<-r.work.Idle()
+	for _, r := range retractions {
+		if r.err != nil {
+			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
+		}
+	}
 }
 
 // reportChanges logs resolved version changes to os.Stderr.
