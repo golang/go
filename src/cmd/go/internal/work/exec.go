@@ -2732,20 +2732,6 @@ OverlayLoop:
 		}
 	}
 
-	// Rewrite overlaid paths in cgo files.
-	// cgo adds //line and #line pragmas in generated files with these paths.
-	var trimpath []string
-	for i := range cgofiles {
-		path := mkAbs(p.Dir, cgofiles[i])
-		if opath, ok := fsys.OverlayPath(path); ok {
-			cgofiles[i] = opath
-			trimpath = append(trimpath, opath+"=>"+path)
-		}
-	}
-	if len(trimpath) > 0 {
-		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
-	}
-
 	if err := b.run(a, execdir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
