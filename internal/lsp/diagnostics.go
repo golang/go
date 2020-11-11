@@ -68,10 +68,13 @@ func hashDiagnostics(diags ...*source.Diagnostic) string {
 func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx = xcontext.Detach(ctx)
-	shows := s.diagnose(ctx, snapshot, false)
-	if shows != nil {
+	showWarning := s.diagnose(ctx, snapshot, false)
+	if showWarning {
 		// If a view has been created or the configuration changed, warn the user.
-		s.client.ShowMessage(ctx, shows)
+		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Warning,
+			Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor to a directory in your module. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
+		})
 	}
 	s.publishDiagnostics(ctx, true, snapshot)
 }
@@ -83,10 +86,11 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 	if delay > 0 {
 		// Experimental 2-phase diagnostics.
 		//
-		// The first phase just parses and checks packages that have been affected
-		// by file modifications (no analysis).
+		// The first phase just parses and checks packages that have been
+		// affected by file modifications (no analysis).
 		//
-		// The second phase does everything, and is debounced by the configured delay.
+		// The second phase does everything, and is debounced by the configured
+		// delay.
 		s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		s.publishDiagnostics(ctx, false, snapshot)
 		s.debouncer.debounce(snapshot.View().Name(), snapshot.ID(), delay, func() {
@@ -122,24 +126,29 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			packages[pkg] = struct{}{}
 		}
 	}
+	var wg sync.WaitGroup
 	for pkg := range packages {
-		typeCheckResults := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-		for uri, diags := range typeCheckResults.Diagnostics {
-			s.storeDiagnostics(snapshot, uri, typeCheckSource, diags)
-		}
+		wg.Add(1)
+
+		go func(pkg source.Package) {
+			defer wg.Done()
+
+			_ = s.diagnosePkg(ctx, snapshot, pkg, true)
+		}(pkg)
 	}
+	wg.Wait()
 }
 
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly.
-func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) (_ *protocol.ShowMessageParams) {
+func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) bool {
 	ctx, done := event.Start(ctx, "Server.diagnose")
 	defer done()
 
 	// Wait for a free diagnostics slot.
 	select {
 	case <-ctx.Done():
-		return nil
+		return false
 	case s.diagnosticsSema <- struct{}{}:
 	}
 	defer func() {
@@ -149,7 +158,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// First, diagnose the go.mod file.
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
-		return nil
+		return false
 	}
 	if modErr != nil {
 		event.Error(ctx, "warning: diagnose go.mod", modErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
@@ -165,7 +174,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// Diagnose all of the packages in the workspace.
 	wsPkgs, err := snapshot.WorkspacePackages(ctx)
 	if s.shouldIgnoreError(ctx, snapshot, err) {
-		return nil
+		return false
 	}
 	// Show the error as a progress error report so that it appears in the
 	// status bar. If a client doesn't support progress reports, the error
@@ -179,80 +188,30 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			s.storeErrorDiagnostics(ctx, snapshot, typeCheckSource, errList)
 		}
 		event.Error(ctx, "errors diagnosing workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		return nil
+		return false
 	}
 
 	var (
-		showMsgMu sync.Mutex
-		showMsg   *protocol.ShowMessageParams
-		wg        sync.WaitGroup
-		seenMu    sync.Mutex
-		seen      = map[span.URI]bool{}
+		wg              sync.WaitGroup
+		shouldShowMsgMu sync.Mutex
+		shouldShowMsg   bool
+		seen            = map[span.URI]struct{}{}
 	)
 	for _, pkg := range wsPkgs {
 		wg.Add(1)
+
+		for _, pgf := range pkg.CompiledGoFiles() {
+			seen[pgf.URI] = struct{}{}
+		}
+
 		go func(pkg source.Package) {
 			defer wg.Done()
 
-			includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
-			var gcDetailsDir span.URI        // find the package's optimization details, if available
-			for _, pgf := range pkg.CompiledGoFiles() {
-				seenMu.Lock()
-				seen[pgf.URI] = true
-				seenMu.Unlock()
-				if snapshot.IsOpen(pgf.URI) {
-					includeAnalysis = true
-				}
-				if gcDetailsDir == "" {
-					dirURI := span.URIFromPath(filepath.Dir(pgf.URI.Filename()))
-					s.gcOptimizationDetailsMu.Lock()
-					_, ok := s.gcOptimizationDetails[dirURI]
-					s.gcOptimizationDetailsMu.Unlock()
-					if ok {
-						gcDetailsDir = dirURI
-					}
-				}
-			}
-
-			if shouldWarn(snapshot, pkg) {
-				showMsgMu.Lock()
-				showMsg = &protocol.ShowMessageParams{
-					Type:    protocol.Warning,
-					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor to a directory in your module. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
-				}
-				showMsgMu.Unlock()
-			}
-
-			typeCheckResults := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
-			for uri, diags := range typeCheckResults.Diagnostics {
-				s.storeDiagnostics(snapshot, uri, typeCheckSource, diags)
-			}
-			if includeAnalysis && !typeCheckResults.HasParseOrListErrors {
-				reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckResults)
-				if err != nil {
-					event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
-					return
-				}
-				for uri, diags := range reports {
-					s.storeDiagnostics(snapshot, uri, analysisSource, diags)
-				}
-			}
-			// If gc optimization details are available, add them to the
-			// diagnostic reports.
-			if gcDetailsDir != "" {
-				gcReports, err := source.GCOptimizationDetails(ctx, snapshot, gcDetailsDir)
-				if err != nil {
-					event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
-				}
-				for id, diags := range gcReports {
-					fh := snapshot.FindFile(id.URI)
-					// Don't publish gc details for unsaved buffers, since the underlying
-					// logic operates on the file on disk.
-					if fh == nil || !fh.Saved() {
-						continue
-					}
-					s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)
-				}
+			show := s.diagnosePkg(ctx, snapshot, pkg, alwaysAnalyze)
+			if show {
+				shouldShowMsgMu.Lock()
+				shouldShowMsg = true
+				shouldShowMsgMu.Unlock()
 			}
 		}(pkg)
 	}
@@ -261,7 +220,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// the workspace). Otherwise, add a diagnostic to the file.
 	if len(wsPkgs) > 0 {
 		for _, o := range s.session.Overlays() {
-			if seen[o.URI()] {
+			if _, ok := seen[o.URI()]; ok {
 				continue
 			}
 			diagnostic := s.checkForOrphanedFile(ctx, snapshot, o)
@@ -271,7 +230,59 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			s.storeDiagnostics(snapshot, o.URI(), orphanedSource, []*source.Diagnostic{diagnostic})
 		}
 	}
-	return showMsg
+	return shouldShowMsg
+}
+
+func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) bool {
+	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
+	var gcDetailsDir span.URI        // find the package's optimization details, if available
+	for _, pgf := range pkg.CompiledGoFiles() {
+		if snapshot.IsOpen(pgf.URI) {
+			includeAnalysis = true
+		}
+		if gcDetailsDir == "" {
+			dirURI := span.URIFromPath(filepath.Dir(pgf.URI.Filename()))
+			s.gcOptimizationDetailsMu.Lock()
+			_, ok := s.gcOptimizationDetails[dirURI]
+			s.gcOptimizationDetailsMu.Unlock()
+			if ok {
+				gcDetailsDir = dirURI
+			}
+		}
+	}
+
+	typeCheckResults := source.GetTypeCheckDiagnostics(ctx, snapshot, pkg)
+	for uri, diags := range typeCheckResults.Diagnostics {
+		s.storeDiagnostics(snapshot, uri, typeCheckSource, diags)
+	}
+	if includeAnalysis && !typeCheckResults.HasParseOrListErrors {
+		reports, err := source.Analyze(ctx, snapshot, pkg, typeCheckResults)
+		if err != nil {
+			event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+			return false
+		}
+		for uri, diags := range reports {
+			s.storeDiagnostics(snapshot, uri, analysisSource, diags)
+		}
+	}
+	// If gc optimization details are available, add them to the
+	// diagnostic reports.
+	if gcDetailsDir != "" {
+		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, gcDetailsDir)
+		if err != nil {
+			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+		}
+		for id, diags := range gcReports {
+			fh := snapshot.FindFile(id.URI)
+			// Don't publish gc details for unsaved buffers, since the underlying
+			// logic operates on the file on disk.
+			if fh == nil || !fh.Saved() {
+				continue
+			}
+			s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)
+		}
+	}
+	return shouldWarn(snapshot, pkg)
 }
 
 // storeDiagnostics stores results from a single diagnostic source. If merge is
