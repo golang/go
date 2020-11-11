@@ -1422,7 +1422,7 @@ func main() {
 		env.Await(
 			OnceMet(
 				InitialWorkspaceLoad,
-				NoDiagnosticWithMessage("illegal character U+0023 '#'"),
+				NoDiagnosticWithMessage("", "illegal character U+0023 '#'"),
 			),
 		)
 	})

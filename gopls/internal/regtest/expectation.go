@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 )
 
 // An Expectation asserts that the state of the editor at a point in time
@@ -362,18 +362,47 @@ func UnregistrationMatching(re string) UnregistrationExpectation {
 // A DiagnosticExpectation is a condition that must be met by the current set
 // of diagnostics for a file.
 type DiagnosticExpectation struct {
-	// IsMet determines whether the diagnostics for this file version satisfy our
-	// expectation.
-	isMet func(*protocol.PublishDiagnosticsParams) bool
-	// Description is a human-readable description of the diagnostic expectation.
-	description string
-	// Path is the scratch workdir-relative path to the file being asserted on.
+	// optionally, the position of the diagnostic and the regex used to calculate it.
+	pos *fake.Pos
+	re  string
+
+	// optionally, the message that the diagnostic should contain.
+	message string
+
+	// whether the expectation is that the diagnostic is present, or absent.
+	present bool
+
+	// path is the scratch workdir-relative path to the file being asserted on.
 	path string
 }
 
 // Check implements the Expectation interface.
 func (e DiagnosticExpectation) Check(s State) Verdict {
-	if diags, ok := s.diagnostics[e.path]; ok && e.isMet(diags) {
+	diags, ok := s.diagnostics[e.path]
+	if !ok {
+		if !e.present {
+			return Met
+		}
+		return Unmet
+	}
+
+	found := false
+	for _, d := range diags.Diagnostics {
+		if e.pos != nil {
+			if d.Range.Start.Line != float64(e.pos.Line) || d.Range.Start.Character != float64(e.pos.Column) {
+				continue
+			}
+		}
+		if e.message != "" {
+			if !strings.Contains(d.Message, e.message) {
+				continue
+			}
+		}
+		found = true
+		break
+	}
+
+	if found == e.present {
 		return Met
 	}
 	return Unmet
@@ -381,7 +410,21 @@ func (e DiagnosticExpectation) Check(s State) Verdict {
 
 // Description implements the Expectation interface.
 func (e DiagnosticExpectation) Description() string {
-	return fmt.Sprintf("%s: %s", e.path, e.description)
+	desc := e.path + ":"
+	if !e.present {
+		desc += " no"
+	}
+	desc += " diagnostic"
+	if e.pos != nil {
+		desc += fmt.Sprintf(" at {line:%d, column:%d}", e.pos.Line, e.pos.Column)
+		if e.re != "" {
+			desc += fmt.Sprintf(" (location of %q)", e.re)
+		}
+	}
+	if e.message != "" {
+		desc += fmt.Sprintf(" with message %q", e.message)
+	}
+	return desc
 }
 
 // EmptyDiagnostics asserts that empty diagnostics are sent for the
@@ -419,15 +462,18 @@ func NoDiagnostics(name string) Expectation {
 // AnyDiagnosticAtCurrentVersion asserts that there is a diagnostic report for
 // the current edited version of the buffer corresponding to the given
 // workdir-relative pathname.
-func (e *Env) AnyDiagnosticAtCurrentVersion(name string) DiagnosticExpectation {
+func (e *Env) AnyDiagnosticAtCurrentVersion(name string) Expectation {
 	version := e.Editor.BufferVersion(name)
-	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
-		return int(diags.Version) == version
+	check := func(s State) Verdict {
+		diags, ok := s.diagnostics[name]
+		if ok && diags.Version == float64(version) {
+			return Met
+		}
+		return Unmet
 	}
-	return DiagnosticExpectation{
-		isMet:       isMet,
+	return SimpleExpectation{
+		check:       check,
 		description: fmt.Sprintf("any diagnostics at version %d", version),
-		path:        name,
 	}
 }
 
@@ -437,27 +483,13 @@ func (e *Env) AnyDiagnosticAtCurrentVersion(name string) DiagnosticExpectation {
 func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
-	expectation := DiagnosticAt(name, pos.Line, pos.Column)
-	expectation.description += fmt.Sprintf(" (location of %q)", re)
-	return expectation
+	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true}
 }
 
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workdir-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
-	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
-		for _, d := range diags.Diagnostics {
-			if d.Range.Start.Line == float64(line) && d.Range.Start.Character == float64(col) {
-				return true
-			}
-		}
-		return false
-	}
-	return DiagnosticExpectation{
-		isMet:       isMet,
-		description: fmt.Sprintf("diagnostic at {line:%d, column:%d}", line, col),
-		path:        name,
-	}
+	return DiagnosticExpectation{path: name, pos: &fake.Pos{Line: line, Column: col}, present: true}
 }
 
 // NoDiagnosticAtRegexp expects that there is no diagnostic entry at the start
@@ -468,9 +500,7 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 func (e *Env) NoDiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
-	expectation := NoDiagnosticAt(name, pos.Line, pos.Column)
-	expectation.description += fmt.Sprintf(" (location of %q)", re)
-	return expectation
+	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: false}
 }
 
 // NoDiagnosticAt asserts that there is no diagnostic entry at the position
@@ -478,19 +508,7 @@ func (e *Env) NoDiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 // This should only be used in combination with OnceMet for a given condition,
 // otherwise it may always succeed.
 func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
-	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
-		for _, d := range diags.Diagnostics {
-			if d.Range.Start.Line == float64(line) && d.Range.Start.Character == float64(col) {
-				return false
-			}
-		}
-		return true
-	}
-	return DiagnosticExpectation{
-		isMet:       isMet,
-		description: fmt.Sprintf("no diagnostic at {line:%d, column:%d}", line, col),
-		path:        name,
-	}
+	return DiagnosticExpectation{path: name, pos: &fake.Pos{Line: line, Column: col}, present: false}
 }
 
 // NoDiagnosticWithMessage asserts that there is no diagnostic entry with the
@@ -498,23 +516,6 @@ func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
 //
 // This should only be used in combination with OnceMet for a given condition,
 // otherwise it may always succeed.
-func NoDiagnosticWithMessage(msg string) DiagnosticExpectation {
-	var uri span.URI
-	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
-		for _, d := range diags.Diagnostics {
-			if d.Message == msg {
-				return true
-			}
-		}
-		return false
-	}
-	var path string
-	if uri != "" {
-		path = uri.Filename()
-	}
-	return DiagnosticExpectation{
-		isMet:       isMet,
-		description: fmt.Sprintf("no diagnostic with message %s", msg),
-		path:        path,
-	}
+func NoDiagnosticWithMessage(name, msg string) DiagnosticExpectation {
+	return DiagnosticExpectation{path: name, message: msg, present: false}
 }
