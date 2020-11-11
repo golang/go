@@ -373,7 +373,7 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, di
 
 	pattern := "."
 	if recursive {
-		pattern = "..."
+		pattern = "./..."
 	}
 
 	inv := &gocommand.Invocation{
