@@ -355,14 +355,12 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	} else if failedBenchmarks > 0 {
 		message = fmt.Sprintf("%d / %d benchmarks failed", failedBenchmarks, len(benchmarks))
 	}
-	messageType := protocol.Info
 	if failedTests > 0 || failedBenchmarks > 0 {
-		messageType = protocol.Error
 		message += "\n" + buf.String()
 	}
 
 	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-		Type:    messageType,
+		Type:    protocol.Info,
 		Message: message,
 	})
 }
