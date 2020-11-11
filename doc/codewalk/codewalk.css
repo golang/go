@@ -13,6 +13,8 @@
 #code-display {
   border: 0;
   width: 100%;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .setting {
@@ -196,11 +198,6 @@ code {
 .codewalkhighlight {
   font-weight: bold;
   background-color: #f8f8ff;
-}
-
-#code-display {
-  margin-top: 0px;
-  margin-bottom: 0px;
 }
 
 #sizer {
