@@ -94,10 +94,11 @@ func typecheckinl(fn *Node) {
 	typecheckslice(fn.Func.Inl.Body, ctxStmt)
 	Curfn = savefn
 
-	// During typechecking, declarations are added to
-	// Curfn.Func.Dcl. Move them to Inl.Dcl for consistency with
-	// how local functions behave. (Append because typecheckinl
-	// may be called multiple times.)
+	// During expandInline (which imports fn.Func.Inl.Body),
+	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
+	// to fn.Func.Inl.Dcl for consistency with how local functions
+	// behave. (Append because typecheckinl may be called multiple
+	// times.)
 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
 	fn.Func.Dcl = nil
 
@@ -448,9 +449,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		v.visitList(n.Ninit) || v.visitList(n.Nbody)
 }
 
-// Inlcopy and inlcopylist recursively copy the body of a function.
-// Any name-like node of non-local class is marked for re-export by adding it to
-// the exportlist.
+// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
+// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
+// the body and dcls of an inlineable function.
 func inlcopylist(ll []*Node) []*Node {
 	s := make([]*Node, 0, len(ll))
 	for _, n := range ll {
@@ -889,10 +890,10 @@ func inlParam(t *types.Field, as *Node, inlvars map[*Node]*Node) *Node {
 
 var inlgen int
 
-// If n is a call, and fn is a function with an inlinable body,
-// return an OINLCALL.
-// On return ninit has the parameter assignments, the nbody is the
-// inlined function body and list, rlist contain the input, output
+// If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
+// function with an inlinable body, return an OINLCALL node that can replace n.
+// The returned node's Ninit has the parameter assignments, the Nbody is the
+// inlined function body, and (List, Rlist) contain the (input, output)
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
