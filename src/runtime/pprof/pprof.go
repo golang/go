@@ -758,7 +758,7 @@ var cpu struct {
 // not to the one used by Go. To make it work, call os/signal.Notify
 // for syscall.SIGPROF, but note that doing so may break any profiling
 // being done by the main program.
-func StartCPUProfile(w io.Writer) error {
+func StartCPUProfile(w io.Writer, specifiedRate ...int) error {
 	// The runtime routines allow a variable profiling rate,
 	// but in practice operating systems cannot trigger signals
 	// at more than about 500 Hz, and our processing of the
@@ -780,7 +780,11 @@ func StartCPUProfile(w io.Writer) error {
 		return fmt.Errorf("cpu profiling already in use")
 	}
 	cpu.profiling = true
-	runtime.SetCPUProfileRate(hz)
+	if len(specifiedRate) > 0 {
+		runtime.SetCPUProfileRate(specifiedRate[0])
+	} else {
+		runtime.SetCPUProfileRate(hz)
+	}
 	go profileWriter(w)
 	return nil
 }
