@@ -1570,3 +1570,74 @@ func TestIssue39757(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue42484(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue42484")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("where am I? %v", err)
+	}
+	pdir := filepath.Join(wd, "testdata", "issue42484")
+	f := gobuildTestdata(t, tmpdir, pdir, NoOpt)
+
+	var lastAddr uint64
+	var lastFile string
+	var lastLine int
+
+	dw, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error parsing DWARF: %v", err)
+	}
+	rdr := dw.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		lnrdr, err := dw.LineReader(e)
+		if err != nil {
+			t.Fatalf("error creating DWARF line reader: %v", err)
+		}
+		if lnrdr != nil {
+			var lne dwarf.LineEntry
+			for {
+				err := lnrdr.Next(&lne)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("error reading next DWARF line: %v", err)
+				}
+				if lne.EndSequence {
+					continue
+				}
+				if lne.Address == lastAddr && (lne.File.Name != lastFile || lne.Line != lastLine) {
+					t.Errorf("address %#x is assigned to both %s:%d and %s:%d", lastAddr, lastFile, lastLine, lne.File.Name, lne.Line)
+				}
+				lastAddr = lne.Address
+				lastFile = lne.File.Name
+				lastLine = lne.Line
+			}
+		}
+		rdr.SkipChildren()
+	}
+	f.Close()
+}
