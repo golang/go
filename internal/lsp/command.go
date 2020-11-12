@@ -226,6 +226,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		s.gcOptimizationDetailsMu.Lock()
 		if _, ok := s.gcOptimizationDetails[pkgDir]; ok {
 			delete(s.gcOptimizationDetails, pkgDir)
+			s.clearDiagnosticSource(gcDetailsSource)
 		} else {
 			s.gcOptimizationDetails[pkgDir] = struct{}{}
 		}

@@ -1158,20 +1158,21 @@ func (r *runner) collectDiagnostics(view source.View) {
 	defer release()
 
 	// Always run diagnostics with analysis.
-	reports, _ := r.server.diagnose(r.ctx, snapshot, true)
-	r.server.publishReports(r.ctx, snapshot, reports, false)
-	for uri, sent := range r.server.delivered {
+	r.server.diagnose(r.ctx, snapshot, true)
+	for uri, reports := range r.server.diagnostics {
 		var diagnostics []*source.Diagnostic
-		for _, d := range sent.sorted {
-			diagnostics = append(diagnostics, &source.Diagnostic{
-				Range:    d.Range,
-				Message:  d.Message,
-				Related:  d.Related,
-				Severity: d.Severity,
-				Source:   d.Source,
-				Tags:     d.Tags,
-			})
+		for _, report := range reports.reports {
+			for _, d := range report.diags {
+				diagnostics = append(diagnostics, &source.Diagnostic{
+					Range:    d.Range,
+					Message:  d.Message,
+					Related:  d.Related,
+					Severity: d.Severity,
+					Source:   d.Source,
+					Tags:     d.Tags,
+				})
+			}
+			r.diagnostics[uri] = diagnostics
 		}
-		r.diagnostics[uri] = diagnostics
 	}
 }

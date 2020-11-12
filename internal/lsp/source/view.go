@@ -291,7 +291,7 @@ type Session interface {
 
 	// DidModifyFile reports a file modification to the session. It returns the
 	// resulting snapshots, a guaranteed one per view.
-	DidModifyFiles(ctx context.Context, changes []FileModification) (map[span.URI]View, map[View]Snapshot, []func(), []span.URI, error)
+	DidModifyFiles(ctx context.Context, changes []FileModification) (map[span.URI]View, map[View]Snapshot, []func(), error)
 
 	// Overlays returns a slice of file overlays for the session.
 	Overlays() []Overlay

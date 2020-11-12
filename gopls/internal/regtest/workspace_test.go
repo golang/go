@@ -470,15 +470,10 @@ require (
 replace a.com => %s/moda/a
 `, workdir))
 		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
-		// TODO: diagnostics are not being cleared from the old go.mod location,
-		// because it's not treated as a 'deleted' file. Uncomment this after
-		// fixing.
-		/*
-			env.Await(OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
-				EmptyDiagnostics("modb/go.mod"),
-			))
-		*/
+		env.Await(OnceMet(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+			EmptyDiagnostics("modb/go.mod"),
+		))
 
 		// Just as before, check that we now jump to the module cache.
 		location, _ = env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))

@@ -186,20 +186,9 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 			}()
 		}()
 	}
-	views, snapshots, releases, deletions, err := s.session.DidModifyFiles(ctx, modifications)
+	views, snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		return err
-	}
-
-	// Clear out diagnostics for deleted files.
-	for _, uri := range deletions {
-		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-			URI:         protocol.URIFromSpanURI(uri),
-			Diagnostics: []protocol.Diagnostic{},
-			Version:     0,
-		}); err != nil {
-			return err
-		}
 	}
 
 	// Check if the user is trying to modify a generated file.

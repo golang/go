@@ -405,7 +405,7 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
-	_, _, releases, _, err := s.DidModifyFiles(ctx, changes)
+	_, _, releases, err := s.DidModifyFiles(ctx, changes)
 	for _, release := range releases {
 		release()
 	}
@@ -418,13 +418,9 @@ type fileChange struct {
 	fileHandle source.VersionedFileHandle
 }
 
-func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[span.URI]source.View, map[source.View]source.Snapshot, []func(), []span.URI, error) {
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[span.URI]source.View, map[source.View]source.Snapshot, []func(), error) {
 	views := make(map[*View]map[span.URI]*fileChange)
 	bestViews := map[span.URI]source.View{}
-	// Keep track of deleted files so that we can clear their diagnostics.
-	// A file might be re-created after deletion, so only mark files that
-	// have truly been deleted.
-	deletions := map[span.URI]struct{}{}
 
 	// If the set of changes included directories, expand those directories
 	// to their files.
@@ -432,7 +428,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	var forceReloadMetadata bool
 	for _, c := range changes {
@@ -443,7 +439,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		// Build the list of affected views.
 		bestView, err := s.viewOf(c.URI)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 		bestViews[c.URI] = bestView
 
@@ -465,7 +461,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		for _, view := range changedViews {
 			// Make sure that the file is added to the view.
 			if _, err := view.getFile(c.URI); err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]*fileChange)
@@ -476,11 +472,10 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 					exists:     true,
 					fileHandle: fh,
 				}
-				delete(deletions, c.URI)
 			} else {
 				fsFile, err := s.cache.getFile(ctx, c.URI)
 				if err != nil {
-					return nil, nil, nil, nil, err
+					return nil, nil, nil, err
 				}
 				content, err := fsFile.Read()
 				fh := &closedFile{fsFile}
@@ -488,11 +483,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 					content:    content,
 					exists:     err == nil,
 					fileHandle: fh,
-				}
-				// If there was an error reading the file, assume it has been
-				// deleted.
-				if err != nil {
-					deletions[c.URI] = struct{}{}
 				}
 			}
 		}
@@ -505,11 +495,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		snapshots[view] = snapshot
 		releases = append(releases, release)
 	}
-	var deletionsSlice []span.URI
-	for uri := range deletions {
-		deletionsSlice = append(deletionsSlice, uri)
-	}
-	return bestViews, snapshots, releases, deletionsSlice, nil
+	return bestViews, snapshots, releases, nil
 }
 
 // expandChangesToDirectories returns the set of changes with the directory
