@@ -761,12 +761,12 @@ func asmbMacho(ctxt *Link) {
 		ldr := ctxt.loader
 
 		// must match domacholink below
-		s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
-		s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
-		s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
-		s4 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
-		s5 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
-		s6 := ldr.SymSize(ldr.Lookup(".machobind", 0))
+		s1 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
+		s2 := ldr.SymSize(ldr.Lookup(".machobind", 0))
+		s3 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+		s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+		s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
+		s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
@@ -778,13 +778,27 @@ func asmbMacho(ctxt *Link) {
 			ms.prot2 = 1
 		}
 
-		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
-		ml.data[0] = uint32(linkoff)                /* symoff */
-		ml.data[1] = uint32(nsortsym)               /* nsyms */
-		ml.data[2] = uint32(linkoff + s1 + s2 + s3) /* stroff */
-		ml.data[3] = uint32(s4)                     /* strsize */
+		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
+			ml := newMachoLoad(ctxt.Arch, LC_DYLD_INFO_ONLY, 10)
+			ml.data[0] = uint32(linkoff)      // rebase off
+			ml.data[1] = uint32(s1)           // rebase size
+			ml.data[2] = uint32(linkoff + s1) // bind off
+			ml.data[3] = uint32(s2)           // bind size
+			ml.data[4] = 0                    // weak bind off
+			ml.data[5] = 0                    // weak bind size
+			ml.data[6] = 0                    // lazy bind off
+			ml.data[7] = 0                    // lazy bind size
+			ml.data[8] = 0                    // export
+			ml.data[9] = 0                    // export size
+		}
 
-		machodysymtab(ctxt)
+		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
+		ml.data[0] = uint32(linkoff + s1 + s2)                /* symoff */
+		ml.data[1] = uint32(nsortsym)                         /* nsyms */
+		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
+		ml.data[3] = uint32(s6)                               /* strsize */
+
+		machodysymtab(ctxt, linkoff+s1+s2)
 
 		if ctxt.LinkMode != LinkExternal {
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
@@ -799,20 +813,6 @@ func asmbMacho(ctxt *Link) {
 				ml.data[3] = 0  /* compatibility version */
 				stringtouint32(ml.data[4:], lib)
 			}
-		}
-
-		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
-			ml := newMachoLoad(ctxt.Arch, LC_DYLD_INFO_ONLY, 10)
-			ml.data[0] = uint32(linkoff + s1 + s2 + s3 + s4)      // rebase off
-			ml.data[1] = uint32(s5)                               // rebase size
-			ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) // bind off
-			ml.data[3] = uint32(s6)                               // bind size
-			ml.data[4] = 0                                        // weak bind off
-			ml.data[5] = 0                                        // weak bind size
-			ml.data[6] = 0                                        // lazy bind off
-			ml.data[7] = 0                                        // lazy bind size
-			ml.data[8] = 0                                        // export
-			ml.data[9] = 0                                        // export size
 		}
 	}
 
@@ -1018,7 +1018,7 @@ func machosymtab(ctxt *Link) {
 	}
 }
 
-func machodysymtab(ctxt *Link) {
+func machodysymtab(ctxt *Link, base int64) {
 	ml := newMachoLoad(ctxt.Arch, LC_DYSYMTAB, 18)
 
 	n := 0
@@ -1046,7 +1046,7 @@ func machodysymtab(ctxt *Link) {
 	s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
 	s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
 	s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
-	ml.data[12] = uint32(linkoff + s1)  /* indirectsymoff */
+	ml.data[12] = uint32(base + s1)     /* indirectsymoff */
 	ml.data[13] = uint32((s2 + s3) / 4) /* nindirectsyms */
 
 	ml.data[14] = 0 /* extreloff */
@@ -1063,12 +1063,12 @@ func doMachoLink(ctxt *Link) int64 {
 	ldr := ctxt.loader
 
 	// write data that will be linkedit section
-	s1 := ldr.Lookup(".machosymtab", 0)
-	s2 := ctxt.ArchSyms.LinkEditPLT
-	s3 := ctxt.ArchSyms.LinkEditGOT
-	s4 := ldr.Lookup(".machosymstr", 0)
-	s5 := ldr.Lookup(".machorebase", 0)
-	s6 := ldr.Lookup(".machobind", 0)
+	s1 := ldr.Lookup(".machorebase", 0)
+	s2 := ldr.Lookup(".machobind", 0)
+	s3 := ldr.Lookup(".machosymtab", 0)
+	s4 := ctxt.ArchSyms.LinkEditPLT
+	s5 := ctxt.ArchSyms.LinkEditGOT
+	s6 := ldr.Lookup(".machosymstr", 0)
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary. This allows pure (non-cgo) Go binaries
@@ -1087,9 +1087,9 @@ func doMachoLink(ctxt *Link) int64 {
 	// boundary, codesign_allocate will not need to apply
 	// any alignment padding itself, working around the
 	// issue.
-	s4b := ldr.MakeSymbolUpdater(s4)
-	for s4b.Size()%16 != 0 {
-		s4b.AddUint8(0)
+	s6b := ldr.MakeSymbolUpdater(s6)
+	for s6b.Size()%16 != 0 {
+		s6b.AddUint8(0)
 	}
 
 	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4) + ldr.SymSize(s5) + ldr.SymSize(s6))
