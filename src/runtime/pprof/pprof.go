@@ -769,7 +769,11 @@ func StartCPUProfile(w io.Writer) error {
 	// convert sample counts to seconds. Instead of requiring
 	// each client to specify the frequency, we hard code it.
 	const hz = 100
+	return StartCPUProfileWithRate(w, hz)
+}
 
+// StartCPUProfileWithRate enables CPU profiling for the current process with specified rate.
+func StartCPUProfileWithRate(w io.Writer, hz int) error {
 	cpu.Lock()
 	defer cpu.Unlock()
 	if cpu.done == nil {
