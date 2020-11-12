@@ -928,7 +928,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 
 	// Now u < (v<<B), compute lower bits in the same way.
 	// Choose shift = B-1 again.
-	s := B
+	s := B - 1
 	qhat := *temps[depth]
 	qhat.clear()
 	qhat.divRecursiveStep(u[s:].norm(), v[s:], depth+1, tmp, temps)
