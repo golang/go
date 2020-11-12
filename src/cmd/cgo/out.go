@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -325,6 +326,8 @@ func dynimport(obj string) {
 			if s.Version != "" {
 				targ += "#" + s.Version
 			}
+			checkImportSymName(s.Name)
+			checkImportSymName(targ)
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
 		}
 		lib, _ := f.ImportedLibraries()
@@ -340,6 +343,7 @@ func dynimport(obj string) {
 			if len(s) > 0 && s[0] == '_' {
 				s = s[1:]
 			}
+			checkImportSymName(s)
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
 		}
 		lib, _ := f.ImportedLibraries()
@@ -354,6 +358,8 @@ func dynimport(obj string) {
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
 			name := strings.Split(ss[0], "@")[0]
+			checkImportSymName(name)
+			checkImportSymName(ss[0])
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
 		}
 		return
@@ -371,6 +377,7 @@ func dynimport(obj string) {
 				// Go symbols.
 				continue
 			}
+			checkImportSymName(s.Name)
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, s.Name, s.Library)
 		}
 		lib, err := f.ImportedLibraries()
@@ -384,6 +391,23 @@ func dynimport(obj string) {
 	}
 
 	fatalf("cannot parse %s as ELF, Mach-O, PE or XCOFF", obj)
+}
+
+// checkImportSymName checks a symbol name we are going to emit as part
+// of a //go:cgo_import_dynamic pragma. These names come from object
+// files, so they may be corrupt. We are going to emit them unquoted,
+// so while they don't need to be valid symbol names (and in some cases,
+// involving symbol versions, they won't be) they must contain only
+// graphic characters and must not contain Go comments.
+func checkImportSymName(s string) {
+	for _, c := range s {
+		if !unicode.IsGraphic(c) || unicode.IsSpace(c) {
+			fatalf("dynamic symbol %q contains unsupported character", s)
+		}
+	}
+	if strings.Index(s, "//") >= 0 || strings.Index(s, "/*") >= 0 {
+		fatalf("dynamic symbol %q contains Go comment")
+	}
 }
 
 // Construct a gcc struct matching the gc argument frame.
