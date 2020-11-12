@@ -215,8 +215,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		// Space is available in the channel buffer. Enqueue the element to send.
 		qp := chanbuf(c, c.sendx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
+			racereleaseacquire(qp)
 		}
 		typedmemmove(c.elemtype, qp, ep)
 		c.sendx++
@@ -299,10 +298,8 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 			// we copy directly. Note that we need to increment
 			// the head/tail locations only when raceenabled.
 			qp := chanbuf(c, c.recvx)
-			raceacquire(qp)
-			racerelease(qp)
-			raceacquireg(sg.g, qp)
-			racereleaseg(sg.g, qp)
+			racereleaseacquire(qp)
+			racereleaseacquireg(sg.g, qp)
 			c.recvx++
 			if c.recvx == c.dataqsiz {
 				c.recvx = 0
@@ -535,8 +532,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// Receive directly from queue
 		qp := chanbuf(c, c.recvx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
+			racereleaseacquire(qp)
 		}
 		if ep != nil {
 			typedmemmove(c.elemtype, ep, qp)
@@ -625,10 +621,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 		// queue is full, those are both the same slot.
 		qp := chanbuf(c, c.recvx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
-			raceacquireg(sg.g, qp)
-			racereleaseg(sg.g, qp)
+			racereleaseacquire(qp)
+			racereleaseacquireg(sg.g, qp)
 		}
 		// copy data from queue to receiver
 		if ep != nil {
