@@ -3734,7 +3734,7 @@ func TestTransportDialTLSContext(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return c, c.HandshakeContext(ctx)
+		return c, c.Handshake()
 	}
 
 	req, err := NewRequest("GET", ts.URL, nil)

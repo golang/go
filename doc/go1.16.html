@@ -539,16 +539,6 @@ func TestFoo(t *testing.T) {
       indefinitely.
     </p>
 
-    <p><!-- CL 246338 -->
-      The new <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>Conn.HandshakeContext</code></a>
-      method allows cancellation of an in-progress handshake. The provided
-      context is accessible through the new
-      <a href="/pkg/crypto/tls#ClientHelloInfo.Context"><code>ClientHelloInfo.Context</code></a>
-      and <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-      <code>CertificateRequestInfo.Context</code></a> methods. Canceling the
-      context after the handshake has finished has no effect.
-    </p>
-
     <p><!-- CL 239748 -->
       Clients now return a handshake error if the server selects
       <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
@@ -769,13 +759,6 @@ func TestFoo(t *testing.T) {
       Cookies set with <a href="/pkg/net/http/#SameSiteDefaultMode"><code>SameSiteDefaultMode</code></a>
       now behave according to the current spec (no attribute is set) instead of
       generating a SameSite key without a value.
-    </p>
-
-    <p><!-- CL 246338 -->
-      The <a href="/pkg/net/http/"><code>net/http</code></a> package now passes the
-      <a href="/pkg/net/http/#Request.Context"><code>Request</code> context</a> to
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>tls.Conn.HandshakeContext</code></a>
-      when performing TLS handshakes.
     </p>
 
     <p><!-- CL 250039 -->
