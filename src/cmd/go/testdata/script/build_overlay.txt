@@ -238,7 +238,7 @@ void say_hello();
 
 void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 -- m/overlay/asm_gc.s --
-// +build !gccgo
+// +build gc
 
 TEXT ·foo(SB),0,$0
 	RET
