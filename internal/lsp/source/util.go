@@ -443,8 +443,6 @@ func isDirective(c string) bool {
 }
 
 // InDir checks whether path is in the file tree rooted at dir.
-// If so, InDir returns an equivalent path relative to dir.
-// If not, InDir returns an empty string.
 // InDir makes some effort to succeed even in the presence of symbolic links.
 //
 // Copied and slightly adjusted from go/src/cmd/go/internal/search/search.go.
