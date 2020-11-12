@@ -7,7 +7,6 @@ package tls
 import (
 	"bytes"
 	"container/list"
-	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -444,16 +443,6 @@ type ClientHelloInfo struct {
 	// config is embedded by the GetCertificate or GetConfigForClient caller,
 	// for use with SupportsCertificate.
 	config *Config
-
-	// ctx is the context of the handshake that is in progress.
-	ctx context.Context
-}
-
-// Context returns the context of the handshake that is in progress.
-// This context is a child of the context passed to HandshakeContext,
-// if any, and is canceled when the handshake concludes.
-func (c *ClientHelloInfo) Context() context.Context {
-	return c.ctx
 }
 
 // CertificateRequestInfo contains information from a server's
@@ -472,16 +461,6 @@ type CertificateRequestInfo struct {
 
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
-
-	// ctx is the context of the handshake that is in progress.
-	ctx context.Context
-}
-
-// Context returns the context of the handshake that is in progress.
-// This context is a child of the context passed to HandshakeContext,
-// if any, and is canceled when the handshake concludes.
-func (c *CertificateRequestInfo) Context() context.Context {
-	return c.ctx
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
