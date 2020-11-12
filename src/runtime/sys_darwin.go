@@ -467,7 +467,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_exit _exit "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"
