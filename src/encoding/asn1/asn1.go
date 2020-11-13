@@ -1066,6 +1066,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	optional    marks the field as ASN.1 OPTIONAL
 //	set         causes a SET, rather than a SEQUENCE type to be expected
 //	tag:x       specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+//	utf8:        causes strings to be unmarshal as ASN.1, UTF8String values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.
