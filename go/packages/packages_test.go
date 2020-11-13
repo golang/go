@@ -86,8 +86,8 @@ func TestLoadZeroConfig(t *testing.T) {
 	hash := initial[0]
 	// Even though the hash package has imports,
 	// they are not reported.
-	got := fmt.Sprintf("iamashamedtousethedisabledqueryname=%s srcs=%v imports=%v", hash.Name, srcs(hash), hash.Imports)
-	want := "iamashamedtousethedisabledqueryname=hash srcs=[hash.go] imports=map[]"
+	got := fmt.Sprintf("srcs=%v imports=%v", srcs(hash), hash.Imports)
+	want := "srcs=[hash.go] imports=map[]"
 	if got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
@@ -2625,6 +2625,16 @@ func main() {
 	pkg := initial[0]
 	if len(pkg.CompiledGoFiles) != 1 {
 		t.Fatalf("expected 1 Go file in package %s, got %v", pkg.ID, len(pkg.CompiledGoFiles))
+	}
+}
+
+func TestEmptyEnvironment(t *testing.T) {
+	cfg := &packages.Config{
+		Env: []string{"FOO=BAR"},
+	}
+	_, err := packages.Load(cfg, "fmt")
+	if err == nil {
+		t.Fatal("Load with explicitly empty environment should fail")
 	}
 }
 

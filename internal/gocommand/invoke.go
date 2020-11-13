@@ -133,6 +133,9 @@ type Invocation struct {
 	ModFlag    string
 	ModFile    string
 	Overlay    string
+	// If CleanEnv is set, the invocation will run only with the environment
+	// in Env, not starting with os.Environ.
+	CleanEnv   bool
 	Env        []string
 	WorkingDir string
 	Logf       func(format string, args ...interface{})
@@ -207,7 +210,10 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 	// The Go stdlib has a special feature where if the cwd and the PWD are the
 	// same node then it trusts the PWD, so by setting it in the env for the child
 	// process we fix up all the paths returned by the go command.
-	cmd.Env = append(os.Environ(), i.Env...)
+	if !i.CleanEnv {
+		cmd.Env = os.Environ()
+	}
+	cmd.Env = append(cmd.Env, i.Env...)
 	if i.WorkingDir != "" {
 		cmd.Env = append(cmd.Env, "PWD="+i.WorkingDir)
 		cmd.Dir = i.WorkingDir
