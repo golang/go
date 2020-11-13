@@ -144,13 +144,20 @@ type ResponseWriter interface {
 	// If WriteHeader is not called explicitly, the first call to Write
 	// will trigger an implicit WriteHeader(http.StatusOK).
 	// Thus explicit calls to WriteHeader are mainly used to
-	// send error codes.
+	// send error codes or informational responses.
 	//
 	// The provided code must be a valid HTTP 1xx-5xx status code.
-	// Only one header may be written. Go does not currently
-	// support sending user-defined 1xx informational headers,
-	// with the exception of 100-continue response header that the
-	// Server sends automatically when the Request.Body is read.
+	// Only one header with a status code not in the 1xx range may
+	// be written.
+	//
+	// Informational headers (status in the 1xx range) can be sent multiple
+	// times before sending the final header.
+	//
+	// If the passed status code is 103, the current content of the header
+	// map will be sent as early hints for the client.
+	//
+	// The server automatically sends the 100-continue response header
+	// when the Request.Body is read.
 	WriteHeader(statusCode int)
 }
 
@@ -1144,6 +1151,19 @@ func (w *response) WriteHeader(code int) {
 		return
 	}
 	checkWriteHeaderCode(code)
+
+	// Handle provisional headers, except 100 (continue) which is handled automatically
+	if code > 100 && code < 200 {
+		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
+		if code == 103 {
+			// Per RFC 8297 we must not clear the current header map
+			w.handlerHeader.Write(w.conn.bufw)
+		}
+		w.conn.bufw.Write(crlf)
+
+		return
+	}
+
 	w.wroteHeader = true
 	w.status = code
 
