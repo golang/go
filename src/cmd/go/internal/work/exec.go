@@ -2883,6 +2883,21 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 				idx = bytes.Index(src, []byte(cgoLdflag))
 			}
 		}
+
+		// We expect to find the contents of cgoLDFLAGS in flags.
+		if len(cgoLDFLAGS) > 0 {
+		outer:
+			for i := range flags {
+				for j, f := range cgoLDFLAGS {
+					if f != flags[i+j] {
+						continue outer
+					}
+				}
+				flags = append(flags[:i], flags[i+len(cgoLDFLAGS):]...)
+				break
+			}
+		}
+
 		if err := checkLinkerFlags("LDFLAGS", "go:cgo_ldflag", flags); err != nil {
 			return nil, nil, err
 		}
