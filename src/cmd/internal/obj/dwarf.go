@@ -44,14 +44,12 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 		}
 	}
 
-	// Set up the debug_lines state machine.
-	// NB: This state machine is reset to this state when we've finished
-	// generating the line table. See below.
-	// TODO: Once delve can support multiple DW_LNS_end_statements, we don't have
-	// to do this.
+	// Set up the debug_lines state machine to the default values
+	// we expect at the start of a new sequence.
 	stmt := true
 	line := int64(1)
 	pc := s.Func.Text.Pc
+	var lastpc int64 // last PC written to line table, not last PC in func
 	name := ""
 	prologue, wrotePrologue := false, false
 	// Walk the progs, generating the DWARF table.
@@ -86,30 +84,32 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 
 		if line != int64(newLine) || wrote {
 			pcdelta := p.Pc - pc
+			lastpc = p.Pc
 			putpclcdelta(ctxt, dctxt, lines, uint64(pcdelta), int64(newLine)-line)
 			line, pc = int64(newLine), p.Pc
 		}
 	}
 
-	// Because these symbols will be concatenated together by the linker, we need
-	// to reset the state machine that controls the debug symbols. The fields in
-	// the state machine that need to be reset are:
-	//   file = 1
-	//   line = 1
-	//   column = 0
-	//   stmt = set in header, we assume true
-	//   basic_block = false
-	// Careful readers of the DWARF specification will note that we don't reset
-	// the address of the state machine -- but this will happen at the beginning
-	// of the NEXT block of opcodes.
-	dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
+	// Because these symbols will be concatenated together by the
+	// linker, we need to reset the state machine that controls the
+	// debug symbols. Do this using an end-of-sequence operator.
+	//
+	// Note: at one point in time, Delve did not support multiple end
+	// sequence ops within a compilation unit (bug for this:
+	// https://github.com/go-delve/delve/issues/1694), however the bug
+	// has since been fixed (Oct 2019).
+	//
+	// Issue 38192: the DWARF standard specifies that when you issue
+	// an end-sequence op, the PC value should be one past the last
+	// text address in the translation unit, so apply a delta to the
+	// text address before the end sequence op. If this isn't done,
+	// GDB will assign a line number of zero the last row in the line
+	// table, which we don't want.
+	lastlen := uint64(s.Size - (lastpc - s.Func.Text.Pc))
+	putpclcdelta(ctxt, dctxt, lines, lastlen, 0)
+	dctxt.AddUint8(lines, 0) // start extended opcode
 	dwarf.Uleb128put(dctxt, lines, 1)
-	dctxt.AddUint8(lines, dwarf.DW_LNS_advance_line)
-	dwarf.Sleb128put(dctxt, lines, int64(1-line))
-	if !stmt {
-		dctxt.AddUint8(lines, dwarf.DW_LNS_negate_stmt)
-	}
-	dctxt.AddUint8(lines, dwarf.DW_LNS_copy)
+	dctxt.AddUint8(lines, dwarf.DW_LNE_end_sequence)
 }
 
 func putpclcdelta(linkctxt *Link, dctxt dwCtxt, s *LSym, deltaPC uint64, deltaLC int64) {

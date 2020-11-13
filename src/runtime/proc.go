@@ -1281,6 +1281,14 @@ found:
 	checkdead()
 	unlock(&sched.lock)
 
+	if GOOS == "darwin" {
+		// Make sure pendingPreemptSignals is correct when an M exits.
+		// For #41702.
+		if atomic.Load(&m.signalPending) != 0 {
+			atomic.Xadd(&pendingPreemptSignals, -1)
+		}
+	}
+
 	if osStack {
 		// Return from mstart and let the system thread
 		// library free the g0 stack and terminate the thread.
@@ -3475,11 +3483,24 @@ func syscall_runtime_AfterForkInChild() {
 	inForkedChild = false
 }
 
+// pendingPreemptSignals is the number of preemption signals
+// that have been sent but not received. This is only used on Darwin.
+// For #41702.
+var pendingPreemptSignals uint32
+
 // Called from syscall package before Exec.
 //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
 func syscall_runtime_BeforeExec() {
 	// Prevent thread creation during exec.
 	execLock.lock()
+
+	// On Darwin, wait for all pending preemption signals to
+	// be received. See issue #41702.
+	if GOOS == "darwin" {
+		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
+			osyield()
+		}
+	}
 }
 
 // Called from syscall package after Exec.
