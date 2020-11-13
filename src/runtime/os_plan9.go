@@ -195,7 +195,7 @@ func msigrestore(sigmask sigset) {
 func clearSignalHandlers() {
 }
 
-func sigblock() {
+func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
