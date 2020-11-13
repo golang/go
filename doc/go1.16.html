@@ -501,6 +501,10 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 261917 -->
       <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
     </p>
+
+    <p><!-- CL 269761, golang.org/issue/42584 -->
+      <a href="/pkg/syscall/#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
+    </p>
   </dd>
 </dl><!-- syscall -->
 
