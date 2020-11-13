@@ -365,7 +365,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	if strings.HasSuffix(i.DebugAddress, ":0") {
-		log.Printf("debug server listening on port %d", port)
+		log.Printf("debug server listening at http://localhost:%d", port)
 	}
 	event.Log(ctx, "Debug serving", tag.Port.Of(port))
 	go func() {
