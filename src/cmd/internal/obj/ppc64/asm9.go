@@ -334,6 +334,7 @@ var optab = []Optab{
 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
+	{ABR, C_NONE, C_NONE, C_SCON, C_LR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_REG, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_ZOREG, 15, 8, 0},
@@ -2844,6 +2845,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
 		var v int32
+		var bh uint32 = 0
 		if p.As == ABC || p.As == ABCL {
 			v = c.regoff(&p.From) & 31
 		} else {
@@ -2863,6 +2865,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("bad optab entry (18): %d\n%v", p.To.Class, p)
 			v = 0
+		}
+
+		// Insert optional branch hint for bclr[l]/bcctr[l]
+		if p.From3Type() != obj.TYPE_NONE {
+			bh = uint32(p.GetFrom3().Offset)
+			if bh == 2 || bh > 3 {
+				log.Fatalf("BH must be 0,1,3 for %v", p)
+			}
+			o1 |= bh << 11
 		}
 
 		if p.As == ABL || p.As == ABCL {
