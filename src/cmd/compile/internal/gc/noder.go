@@ -656,6 +656,9 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.mkname(expr)
 	case *syntax.BasicLit:
 		n := nodlit(p.basicLit(expr))
+		if expr.Kind == syntax.RuneLit {
+			n.Type = types.UntypedRune
+		}
 		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
@@ -1428,7 +1431,6 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
 
 	case syntax.RuneLit:
 		x := new(Mpint)
-		x.Rune = true
 		if !lit.Bad {
 			u, _ := strconv.Unquote(s)
 			var r rune

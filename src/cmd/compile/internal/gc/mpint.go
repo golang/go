@@ -13,9 +13,8 @@ import (
 
 // Mpint represents an integer constant.
 type Mpint struct {
-	Val  big.Int
-	Ovf  bool // set if Val overflowed compiler limit (sticky)
-	Rune bool // set if syntax indicates default type rune
+	Val big.Int
+	Ovf bool // set if Val overflowed compiler limit (sticky)
 }
 
 func (a *Mpint) SetOverflow() {

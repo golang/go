@@ -526,28 +526,12 @@ func (v Val) Format(s fmt.State, verb rune) {
 func (v Val) vconv(s fmt.State, flag FmtFlag) {
 	switch u := v.U.(type) {
 	case *Mpint:
-		if !u.Rune {
-			if flag&FmtSharp != 0 {
-				fmt.Fprint(s, u.String())
-				return
-			}
-			fmt.Fprint(s, u.GoString())
+		if flag&FmtSharp != 0 {
+			fmt.Fprint(s, u.String())
 			return
 		}
-
-		switch x := u.Int64(); {
-		case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
-			fmt.Fprintf(s, "'%c'", int(x))
-
-		case 0 <= x && x < 1<<16:
-			fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
-
-		case 0 <= x && x <= utf8.MaxRune:
-			fmt.Fprintf(s, "'\\U%08x'", uint64(x))
-
-		default:
-			fmt.Fprintf(s, "('\\x00' + %v)", u)
-		}
+		fmt.Fprint(s, u.GoString())
+		return
 
 	case *Mpflt:
 		if flag&FmtSharp != 0 {
@@ -1336,19 +1320,40 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 		}
 
+		needUnparen := false
 		if n.Type != nil && !n.Type.IsUntyped() {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
-				mode.Fprintf(s, "(%v)(%v)", n.Type, n.Val())
-				return
+				mode.Fprintf(s, "(%v)(", n.Type)
 			} else {
-				mode.Fprintf(s, "%v(%v)", n.Type, n.Val())
-				return
+				mode.Fprintf(s, "%v(", n.Type)
 			}
+			needUnparen = true
 		}
 
-		mode.Fprintf(s, "%v", n.Val())
+		if n.Type == types.UntypedRune {
+			u := n.Val().U.(*Mpint)
+			switch x := u.Int64(); {
+			case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
+				fmt.Fprintf(s, "'%c'", int(x))
+
+			case 0 <= x && x < 1<<16:
+				fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
+
+			case 0 <= x && x <= utf8.MaxRune:
+				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
+
+			default:
+				fmt.Fprintf(s, "('\\x00' + %v)", u)
+			}
+		} else {
+			mode.Fprintf(s, "%v", n.Val())
+		}
+
+		if needUnparen {
+			mode.Fprintf(s, ")")
+		}
 
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
