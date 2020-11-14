@@ -6745,7 +6745,6 @@ func TestEarlyHints(t *testing.T) {
 		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
 	}
 }
-
 func TestProcessing(t *testing.T) {
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusProcessing)
