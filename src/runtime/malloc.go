@@ -242,12 +242,17 @@ const (
 	// This is particularly important with the race detector,
 	// since it significantly amplifies the cost of committed
 	// memory.
+	//
+	// Pass "-tags force_small_arena" to force 4MB heap arenas.
 	heapArenaBytes = 1 << logHeapArenaBytes
+
+	// Whether to use small (4MB) heap arenas.
+	useSmallArena = (1-_64bit) | sys.GoarchWasm | sys.GoosWindows | forceSmallArena
 
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm
+	logHeapArenaBytes = (6+20) * (1-useSmallArena) + (2+20)* useSmallArena
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
