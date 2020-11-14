@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 	"io"
 	"strconv"
 	"strings"
@@ -334,7 +335,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymErr)(arg)
 			case Nodes:
 				args[i] = fmtNodesErr(arg)
-			case Val, int32, int64, string, types.EType:
+			case int32, int64, string, types.EType, constant.Value:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -353,7 +354,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymDbg)(arg)
 			case Nodes:
 				args[i] = fmtNodesDbg(arg)
-			case Val, int32, int64, string, types.EType:
+			case int32, int64, string, types.EType, constant.Value:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -372,7 +373,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymTypeId)(arg)
 			case Nodes:
 				args[i] = fmtNodesTypeId(arg)
-			case Val, int32, int64, string, types.EType:
+			case int32, int64, string, types.EType, constant.Value:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -391,7 +392,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymTypeIdName)(arg)
 			case Nodes:
 				args[i] = fmtNodesTypeIdName(arg)
-			case Val, int32, int64, string, types.EType:
+			case int32, int64, string, types.EType, constant.Value:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -513,51 +514,37 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 }
 
-func (v Val) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		v.vconv(s, fmtFlag(s, verb))
+func vconv(v constant.Value, flag FmtFlag) string {
+	if flag&FmtSharp == 0 && v.Kind() == constant.Complex {
+		real, imag := constant.Real(v), constant.Imag(v)
 
-	default:
-		fmt.Fprintf(s, "%%!%c(Val=%T)", verb, v)
+		var re string
+		sre := constant.Sign(real)
+		if sre != 0 {
+			re = real.String()
+		}
+
+		var im string
+		sim := constant.Sign(imag)
+		if sim != 0 {
+			im = imag.String()
+		}
+
+		switch {
+		case sre == 0 && sim == 0:
+			return "0"
+		case sre == 0:
+			return im + "i"
+		case sim == 0:
+			return re
+		case sim < 0:
+			return fmt.Sprintf("(%s%si)", re, im)
+		default:
+			return fmt.Sprintf("(%s+%si)", re, im)
+		}
 	}
-}
 
-func (v Val) vconv(s fmt.State, flag FmtFlag) {
-	switch u := v.U.(type) {
-	case *Mpint:
-		if flag&FmtSharp != 0 {
-			fmt.Fprint(s, u.String())
-			return
-		}
-		fmt.Fprint(s, u.GoString())
-		return
-
-	case *Mpflt:
-		if flag&FmtSharp != 0 {
-			fmt.Fprint(s, u.String())
-			return
-		}
-		fmt.Fprint(s, u.GoString())
-		return
-
-	case *Mpcplx:
-		if flag&FmtSharp != 0 {
-			fmt.Fprint(s, u.String())
-			return
-		}
-		fmt.Fprint(s, u.GoString())
-		return
-
-	case string:
-		fmt.Fprint(s, strconv.Quote(u))
-
-	case bool:
-		fmt.Fprint(s, u)
-
-	default:
-		fmt.Fprintf(s, "<ctype=%d>", v.Kind())
-	}
+	return v.String()
 }
 
 /*
@@ -1333,8 +1320,12 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 
 		if n.Type == types.UntypedRune {
-			u := n.Val().U.(*Mpint)
-			switch x := u.Int64(); {
+			switch x, ok := constant.Int64Val(n.Val()); {
+			case !ok:
+				fallthrough
+			default:
+				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
+
 			case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
 				fmt.Fprintf(s, "'%c'", int(x))
 
@@ -1343,12 +1334,9 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 			case 0 <= x && x <= utf8.MaxRune:
 				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
-
-			default:
-				fmt.Fprintf(s, "('\\x00' + %v)", u)
 			}
 		} else {
-			mode.Fprintf(s, "%v", n.Val())
+			fmt.Fprint(s, vconv(n.Val(), fmtFlag(s, 'v')))
 		}
 
 		if needUnparen {

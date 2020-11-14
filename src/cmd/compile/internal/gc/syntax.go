@@ -12,6 +12,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"go/constant"
 	"sort"
 )
 
@@ -236,16 +237,17 @@ func (n *Node) MarkReadonly() {
 	n.Sym.Linksym().Type = objabi.SRODATA
 }
 
-// Val returns the Val for the node.
-func (n *Node) Val() Val {
+// Val returns the constant.Value for the node.
+func (n *Node) Val() constant.Value {
 	if !n.HasVal() {
-		return Val{}
+		return constant.MakeUnknown()
 	}
-	return Val{n.E}
+	return *n.E.(*constant.Value)
 }
 
-// SetVal sets the Val for the node, which must not have been used with SetOpt.
-func (n *Node) SetVal(v Val) {
+// SetVal sets the constant.Value for the node,
+// which must not have been used with SetOpt.
+func (n *Node) SetVal(v constant.Value) {
 	if n.HasOpt() {
 		Debug.h = 1
 		Dump("have Opt", n)
@@ -255,7 +257,7 @@ func (n *Node) SetVal(v Val) {
 		assertRepresents(n.Type, v)
 	}
 	n.SetHasVal(true)
-	n.E = v.U
+	n.E = &v
 }
 
 // Opt returns the optimizer data for the node.

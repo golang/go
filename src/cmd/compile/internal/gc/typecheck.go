@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"fmt"
 	"go/constant"
+	"go/token"
 	"strings"
 )
 
@@ -361,7 +362,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxExpr
 
 		if n.Type == nil && n.Val().Kind() == constant.String {
-			n.Type = types.UntypedString
+			Fatalf("string literal missing type")
 		}
 
 	case ONIL, ONONAME:
@@ -446,12 +447,13 @@ func typecheck1(n *Node, top int) (res *Node) {
 				return n
 			}
 
-			bound := v.U.(*Mpint).Int64()
-			if bound < 0 {
+			if constant.Sign(v) < 0 {
 				yyerror("array bound must be non-negative")
 				n.Type = nil
 				return n
 			}
+
+			bound, _ := constant.Int64Val(v)
 			t = types.NewArray(r.Type, bound)
 		}
 
@@ -776,8 +778,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if iscmp[n.Op] {
-			n = evalConst(n)
 			t = types.UntypedBool
+			n.Type = t
+			n = evalConst(n)
 			if n.Op != OLITERAL {
 				l, r = defaultlit2(l, r, true)
 				n.Left = l
@@ -803,7 +806,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if (op == ODIV || op == OMOD) && Isconst(r, constant.Int) {
-			if r.Val().U.(*Mpint).CmpInt64(0) == 0 {
+			if constant.Sign(r.Val()) == 0 {
 				yyerror("division by zero")
 				n.Type = nil
 				return n
@@ -1045,14 +1048,14 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 
 			if !n.Bounded() && Isconst(n.Right, constant.Int) {
-				x := n.Right.Int64Val()
-				if x < 0 {
+				x := n.Right.Val()
+				if constant.Sign(x) < 0 {
 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
-				} else if t.IsArray() && x >= t.NumElem() {
+				} else if t.IsArray() && constant.Compare(x, token.GEQ, constant.MakeInt64(t.NumElem())) {
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
-				} else if Isconst(n.Left, constant.String) && x >= int64(len(n.Left.StringVal())) {
+				} else if Isconst(n.Left, constant.String) && constant.Compare(x, token.GEQ, constant.MakeInt64(int64(len(n.Left.StringVal())))) {
 					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.StringVal()))
-				} else if doesoverflow(n.Right.Val(), types.Types[TINT]) {
+				} else if doesoverflow(x, types.Types[TINT]) {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
@@ -1155,7 +1158,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			Fatalf("cap for OSLICEHEADER must be non-negative")
 		}
 
-		if Isconst(l, constant.Int) && Isconst(c, constant.Int) && compareOp(l.Val(), OGT, c.Val()) {
+		if Isconst(l, constant.Int) && Isconst(c, constant.Int) && constant.Compare(l.Val(), token.GTR, c.Val()) {
 			Fatalf("len larger than cap for OSLICEHEADER")
 		}
 
@@ -1200,7 +1203,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			if doesoverflow(n.Left.Val(), types.Types[TINT]) {
 				Fatalf("len for OMAKESLICECOPY too large")
 			}
-			if n.Left.Int64Val() < 0 {
+			if constant.Sign(n.Left.Val()) < 0 {
 				Fatalf("len for OMAKESLICECOPY must be non-negative")
 			}
 		}
@@ -1773,7 +1776,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 				n.Type = nil
 				return n
 			}
-			if Isconst(l, constant.Int) && r != nil && Isconst(r, constant.Int) && compareOp(l.Val(), OGT, r.Val()) {
+			if Isconst(l, constant.Int) && r != nil && Isconst(r, constant.Int) && constant.Compare(l.Val(), token.GTR, r.Val()) {
 				yyerror("len larger than cap in make(%v)", t)
 				n.Type = nil
 				return n
@@ -2181,16 +2184,17 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 	}
 
 	if r.Op == OLITERAL {
-		if r.Int64Val() < 0 {
+		x := r.Val()
+		if constant.Sign(x) < 0 {
 			yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.NumElem() >= 0 && r.Int64Val() > tp.NumElem() {
+		} else if tp != nil && tp.NumElem() >= 0 && constant.Compare(x, token.GTR, constant.MakeInt64(tp.NumElem())) {
 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, constant.String) && r.Int64Val() > int64(len(l.StringVal())) {
+		} else if Isconst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(l.StringVal())))) {
 			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.StringVal()))
 			return false
-		} else if doesoverflow(r.Val(), types.Types[TINT]) {
+		} else if doesoverflow(x, types.Types[TINT]) {
 			yyerror("invalid slice index %v (index too large)", r)
 			return false
 		}
@@ -2200,7 +2204,7 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
 }
 
 func checksliceconst(lo *Node, hi *Node) bool {
-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && compareOp(lo.Val(), OGT, hi.Val()) {
+	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && constant.Compare(lo.Val(), token.GTR, hi.Val()) {
 		yyerror("invalid slice index: %v > %v", lo, hi)
 		return false
 	}
@@ -3192,7 +3196,7 @@ func samesafeexpr(l *Node, r *Node) bool {
 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
 
 	case OLITERAL:
-		return eqval(l.Val(), r.Val())
+		return constant.Compare(l.Val(), token.EQL, r.Val())
 
 	case ONIL:
 		return true
@@ -3625,7 +3629,9 @@ func typecheckdef(n *Node) {
 		}
 
 		n.Type = e.Type
-		n.SetVal(e.Val())
+		if n.Type != nil {
+			n.SetVal(e.Val())
+		}
 
 	case ONAME:
 		if n.Name.Param.Ntype != nil {
@@ -3723,14 +3729,13 @@ func checkmake(t *types.Type, arg string, np **Node) bool {
 
 	// Do range checks for constants before defaultlit
 	// to avoid redundant "constant NNN overflows int" errors.
-	switch consttype(n) {
-	case constant.Int, constant.Float, constant.Complex:
-		v := toint(n.Val()).U.(*Mpint)
-		if v.CmpInt64(0) < 0 {
+	if n.Op == OLITERAL {
+		v := toint(n.Val())
+		if constant.Sign(v) < 0 {
 			yyerror("negative %s argument in make(%v)", arg, t)
 			return false
 		}
-		if v.Cmp(maxintval[TINT]) > 0 {
+		if doesoverflow(v, types.Types[TINT]) {
 			yyerror("%s argument too large in make(%v)", arg, t)
 			return false
 		}

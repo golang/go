@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"sort"
 	"strconv"
 	"strings"
@@ -252,9 +253,7 @@ func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
 
 func nodintconst(v int64) *Node {
-	u := new(Mpint)
-	u.SetInt64(v)
-	return nodlit(Val{u})
+	return nodlit(constant.MakeInt64(v))
 }
 
 func nodnil() *Node {
@@ -264,11 +263,11 @@ func nodnil() *Node {
 }
 
 func nodbool(b bool) *Node {
-	return nodlit(Val{b})
+	return nodlit(constant.MakeBool(b))
 }
 
 func nodstr(s string) *Node {
-	return nodlit(Val{s})
+	return nodlit(constant.MakeString(s))
 }
 
 // treecopy recursively copies n, with the exception of

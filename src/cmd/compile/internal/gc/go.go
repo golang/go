@@ -178,14 +178,6 @@ var (
 	iscmp [OEND]bool
 )
 
-var minintval [NTYPE]*Mpint
-
-var maxintval [NTYPE]*Mpint
-
-var minfltval [NTYPE]*Mpflt
-
-var maxfltval [NTYPE]*Mpflt
-
 var xtop []*Node
 
 var exportlist []*Node

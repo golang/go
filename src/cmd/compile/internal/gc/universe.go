@@ -209,8 +209,6 @@ func typeinit() {
 			okforand[et] = true
 			okforconst[et] = true
 			issimple[et] = true
-			minintval[et] = new(Mpint)
-			maxintval[et] = new(Mpint)
 		}
 
 		if isFloat[et] {
@@ -220,8 +218,6 @@ func typeinit() {
 			okforarith[et] = true
 			okforconst[et] = true
 			issimple[et] = true
-			minfltval[et] = newMpflt()
-			maxfltval[et] = newMpflt()
 		}
 
 		if isComplex[et] {
@@ -310,31 +306,6 @@ func typeinit() {
 	iscmp[OEQ] = true
 	iscmp[ONE] = true
 
-	maxintval[TINT8].SetString("0x7f")
-	minintval[TINT8].SetString("-0x80")
-	maxintval[TINT16].SetString("0x7fff")
-	minintval[TINT16].SetString("-0x8000")
-	maxintval[TINT32].SetString("0x7fffffff")
-	minintval[TINT32].SetString("-0x80000000")
-	maxintval[TINT64].SetString("0x7fffffffffffffff")
-	minintval[TINT64].SetString("-0x8000000000000000")
-
-	maxintval[TUINT8].SetString("0xff")
-	maxintval[TUINT16].SetString("0xffff")
-	maxintval[TUINT32].SetString("0xffffffff")
-	maxintval[TUINT64].SetString("0xffffffffffffffff")
-
-	// f is valid float if min < f < max.  (min and max are not themselves valid.)
-	maxfltval[TFLOAT32].SetString("33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
-	minfltval[TFLOAT32].SetString("-33554431p103")
-	maxfltval[TFLOAT64].SetString("18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
-	minfltval[TFLOAT64].SetString("-18014398509481983p970")
-
-	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32]
-	minfltval[TCOMPLEX64] = minfltval[TFLOAT32]
-	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
-	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
-
 	types.Types[TINTER] = types.New(TINTER) // empty interface
 
 	// simple aliases
@@ -410,10 +381,6 @@ func lexinit1() {
 		}
 
 		simtype[s.etype] = sameas
-		minfltval[s.etype] = minfltval[sameas]
-		maxfltval[s.etype] = maxfltval[sameas]
-		minintval[s.etype] = minintval[sameas]
-		maxintval[s.etype] = maxintval[sameas]
 
 		t := types.New(s.etype)
 		t.Sym = s1

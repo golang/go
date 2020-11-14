@@ -1212,7 +1212,7 @@ func (t *Type) IsInteger() bool {
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR:
 		return true
 	}
-	return false
+	return t == UntypedInt || t == UntypedRune
 }
 
 func (t *Type) IsSigned() bool {
@@ -1223,12 +1223,20 @@ func (t *Type) IsSigned() bool {
 	return false
 }
 
+func (t *Type) IsUnsigned() bool {
+	switch t.Etype {
+	case TUINT8, TUINT16, TUINT32, TUINT64, TUINT, TUINTPTR:
+		return true
+	}
+	return false
+}
+
 func (t *Type) IsFloat() bool {
-	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64
+	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64 || t == UntypedFloat
 }
 
 func (t *Type) IsComplex() bool {
-	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
+	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128 || t == UntypedComplex
 }
 
 // IsPtr reports whether t is a regular Go pointer type.
