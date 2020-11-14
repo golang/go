@@ -207,7 +207,16 @@ const (
 	// arenaBaseOffset to offset into the top 4 GiB.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosIos*sys.GoarchArm64
+	//
+	// Limit this to 40 bits when "-tags force_small_arena" is passed
+	// so arenaL2Bits doesn't explode and cause us to allocate 512MB
+	// of arena pointers.
+	use31BitHeap = sys.GoarchMips | sys.GoarchMipsle
+	use33BitHeap = (1-use31BitHeap) & (sys.GoosIos & sys.GoarchArm64)
+	use40BitHeap = (1-use31BitHeap) & (1-use33BitHeap) & forceSmallArena
+	use48BitHeap = (1-use31BitHeap) & (1-use33BitHeap) & (1-use40BitHeap) & _64bit & (1-sys.GoarchWasm)
+	use32BitHeap = (1-use31BitHeap) & (1-use33BitHeap) & (1-use40BitHeap) & (1-use48BitHeap)
+	heapAddrBits = 31*use31BitHeap + 32*use32BitHeap + 33*use33BitHeap + 40*use40BitHeap + 48*use48BitHeap
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -242,12 +251,17 @@ const (
 	// This is particularly important with the race detector,
 	// since it significantly amplifies the cost of committed
 	// memory.
+	//
+	// Pass "-tags force_small_arena" to force 4MB heap arenas.
 	heapArenaBytes = 1 << logHeapArenaBytes
+
+	// Whether to use small (4MB) heap arenas.
+	useSmallArena = (1-_64bit) | sys.GoarchWasm | sys.GoosWindows | forceSmallArena
 
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm
+	logHeapArenaBytes = (6+20) * (1-useSmallArena) + (2+20)* useSmallArena
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
