@@ -363,7 +363,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Type = types.UntypedString
 		}
 
-	case ONONAME:
+	case ONIL, ONONAME:
 		ok |= ctxExpr
 
 	case ONAME:
@@ -1590,7 +1590,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		n.Type = t
 		if !t.IsSlice() {
-			if Isconst(args.First(), CTNIL) {
+			if args.First().isNil() {
 				yyerror("first argument to append must be typed slice; have untyped nil")
 				n.Type = nil
 				return n
@@ -3193,6 +3193,9 @@ func samesafeexpr(l *Node, r *Node) bool {
 
 	case OLITERAL:
 		return eqval(l.Val(), r.Val())
+
+	case ONIL:
+		return true
 	}
 
 	return false
@@ -3596,7 +3599,7 @@ func typecheckdef(n *Node) {
 		}
 		if !e.isGoConst() {
 			if !e.Diag() {
-				if Isconst(e, CTNIL) {
+				if e.Op == ONIL {
 					yyerrorl(n.Pos, "const initializer cannot be nil")
 				} else {
 					yyerrorl(n.Pos, "const initializer %v is not a constant", e)

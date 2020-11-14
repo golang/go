@@ -104,6 +104,9 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		s.append(nod(OAS, l, conv(r, l.Type)))
 		return true
 
+	case ONIL:
+		return true
+
 	case OLITERAL:
 		if isZero(r) {
 			return true
@@ -139,7 +142,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 			e := &p.E[i]
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
-			if e.Expr.Op == OLITERAL {
+			if e.Expr.Op == OLITERAL || e.Expr.Op == ONIL {
 				litsym(n, e.Expr, int(n.Type.Width))
 				continue
 			}
@@ -170,6 +173,9 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 	switch r.Op {
 	case ONAME:
 		return s.staticcopy(l, r)
+
+	case ONIL:
+		return true
 
 	case OLITERAL:
 		if isZero(r) {
@@ -232,7 +238,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			e := &p.E[i]
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
-			if e.Expr.Op == OLITERAL {
+			if e.Expr.Op == OLITERAL || e.Expr.Op == ONIL {
 				litsym(n, e.Expr, int(n.Type.Width))
 				continue
 			}
@@ -269,13 +275,14 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		for val.Op == OCONVIFACE {
 			val = val.Left
 		}
+
 		if val.Type.IsInterface() {
 			// val is an interface type.
 			// If val is nil, we can statically initialize l;
 			// both words are zero and so there no work to do, so report success.
 			// If val is non-nil, we have no concrete type to record,
 			// and we won't be able to statically initialize its value, so report failure.
-			return Isconst(val, CTNIL)
+			return val.Op == ONIL
 		}
 
 		markTypeUsedInInterface(val.Type, l.Sym.Linksym())
@@ -296,7 +303,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 
 		// Emit data.
 		if isdirectiface(val.Type) {
-			if Isconst(val, CTNIL) {
+			if val.Op == ONIL {
 				// Nil is zero, nothing to do.
 				return true
 			}
@@ -462,7 +469,7 @@ func isStaticCompositeLiteral(n *Node) bool {
 			}
 		}
 		return true
-	case OLITERAL:
+	case OLITERAL, ONIL:
 		return true
 	case OCONVIFACE:
 		// See staticassign's OCONVIFACE case for comments.
@@ -471,9 +478,9 @@ func isStaticCompositeLiteral(n *Node) bool {
 			val = val.Left
 		}
 		if val.Type.IsInterface() {
-			return Isconst(val, CTNIL)
+			return val.Op == ONIL
 		}
-		if isdirectiface(val.Type) && Isconst(val, CTNIL) {
+		if isdirectiface(val.Type) && val.Op == ONIL {
 			return true
 		}
 		return isStaticCompositeLiteral(val)
@@ -1105,13 +1112,14 @@ func (s *InitSchedule) addvalue(p *InitPlan, xoffset int64, n *Node) {
 
 func isZero(n *Node) bool {
 	switch n.Op {
+	case ONIL:
+		return true
+
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
 		default:
 			Dump("unexpected literal", n)
 			Fatalf("isZero")
-		case *NilVal:
-			return true
 		case string:
 			return u == ""
 		case bool:

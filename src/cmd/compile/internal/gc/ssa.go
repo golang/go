@@ -1993,7 +1993,7 @@ func (s *state) ssaShiftOp(op Op, t *types.Type, u *types.Type) ssa.Op {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n *Node) *ssa.Value {
-	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
+	if hasUniquePos(n) {
 		// ONAMEs and named OLITERALs have the line number
 		// of the decl, not the use. See issue 14742.
 		s.pushLine(n.Pos)
@@ -2029,6 +2029,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCLOSUREVAR:
 		addr := s.addr(n)
 		return s.load(n.Type, addr)
+	case ONIL:
+		t := n.Type
+		switch {
+		case t.IsSlice():
+			return s.constSlice(t)
+		case t.IsInterface():
+			return s.constInterface(t)
+		default:
+			return s.constNil(t)
+		}
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
 		case *Mpint:
@@ -2053,16 +2063,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, u)
 		case bool:
 			return s.constBool(u)
-		case *NilVal:
-			t := n.Type
-			switch {
-			case t.IsSlice():
-				return s.constSlice(t)
-			case t.IsInterface():
-				return s.constInterface(t)
-			default:
-				return s.constNil(t)
-			}
 		case *Mpflt:
 			switch n.Type.Size() {
 			case 4:

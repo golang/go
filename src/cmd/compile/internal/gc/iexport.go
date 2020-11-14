@@ -759,8 +759,6 @@ func constTypeOf(typ *types.Type) Ctype {
 	}
 
 	switch typ.Etype {
-	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TPTR, TSLICE, TUNSAFEPTR:
-		return CTNIL
 	case TBOOL:
 		return CTBOOL
 	case TSTRING:
@@ -790,9 +788,6 @@ func (w *exportWriter) value(typ *types.Type, v Val) {
 	// and provides a useful consistency check.
 
 	switch constTypeOf(typ) {
-	case CTNIL:
-		// Only one value; nothing to encode.
-		_ = v.U.(*NilVal)
 	case CTBOOL:
 		w.bool(v.U.(bool))
 	case CTSTR:
@@ -1207,11 +1202,19 @@ func (w *exportWriter) expr(n *Node) {
 	switch op := n.Op; op {
 	// expressions
 	// (somewhat closely following the structure of exprfmt in fmt.go)
-	case OLITERAL:
-		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+	case ONIL:
+		if !n.Type.HasNil() {
+			Fatalf("unexpected type for nil: %v", n.Type)
+		}
+		if n.Orig != nil && n.Orig != n {
 			w.expr(n.Orig)
 			break
 		}
+		w.op(OLITERAL)
+		w.pos(n.Pos)
+		w.typ(n.Type)
+
+	case OLITERAL:
 		w.op(OLITERAL)
 		w.pos(n.Pos)
 		w.value(n.Type, n.Val())

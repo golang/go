@@ -591,11 +591,14 @@ func litsym(n, c *Node, wid int) {
 	if n.Op != ONAME {
 		Fatalf("litsym n op %v", n.Op)
 	}
-	if c.Op != OLITERAL {
-		Fatalf("litsym c op %v", c.Op)
-	}
 	if n.Sym == nil {
 		Fatalf("litsym nil n sym")
+	}
+	if c.Op == ONIL {
+		return
+	}
+	if c.Op != OLITERAL {
+		Fatalf("litsym c op %v", c.Op)
 	}
 	s := n.Sym.Linksym()
 	switch u := c.Val().U.(type) {
