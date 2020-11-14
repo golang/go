@@ -465,7 +465,7 @@ opswitch:
 
 	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
 
-	case OTYPE, ONAME, OLITERAL:
+	case OTYPE, ONAME, OLITERAL, ONIL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 		// Perhaps refactor to use Node.mayBeShared for these instead.
 		// If these return early, make sure to still call
@@ -2277,7 +2277,7 @@ func varexpr(n *Node) bool {
 	}
 
 	switch n.Op {
-	case OLITERAL:
+	case OLITERAL, ONIL:
 		return true
 
 	case ONAME:
@@ -2332,7 +2332,7 @@ func vmatch2(l *Node, r *Node) bool {
 	case ONAME:
 		return l == r
 
-	case OLITERAL:
+	case OLITERAL, ONIL:
 		return false
 	}
 
@@ -2373,7 +2373,7 @@ func vmatch1(l *Node, r *Node) bool {
 
 		return vmatch2(l, r)
 
-	case OLITERAL:
+	case OLITERAL, ONIL:
 		return false
 	}
 
@@ -3190,7 +3190,7 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
 // The result of walkcompare MUST be assigned back to n, e.g.
 // 	n.Left = walkcompare(n.Left, init)
 func walkcompare(n *Node, init *Nodes) *Node {
-	if n.Left.Type.IsInterface() && n.Right.Type.IsInterface() && n.Left.Op != OLITERAL && n.Right.Op != OLITERAL {
+	if n.Left.Type.IsInterface() && n.Right.Type.IsInterface() && n.Left.Op != ONIL && n.Right.Op != ONIL {
 		return walkcompareInterface(n, init)
 	}
 
@@ -3788,6 +3788,7 @@ func candiscard(n *Node) bool {
 		OTYPE,
 		OPACK,
 		OLITERAL,
+		ONIL,
 		OADD,
 		OSUB,
 		OOR,

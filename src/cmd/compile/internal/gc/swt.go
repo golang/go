@@ -261,7 +261,7 @@ func walkExprSwitch(sw *Node) {
 	}
 
 	cond = walkexpr(cond, &sw.Ninit)
-	if cond.Op != OLITERAL {
+	if cond.Op != OLITERAL && cond.Op != ONIL {
 		cond = copyexpr(cond, cond.Type, &sw.Nbody)
 	}
 

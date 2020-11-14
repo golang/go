@@ -152,7 +152,7 @@ func mayAffectMemory(n *Node) bool {
 	// We're ignoring things like division by zero, index out of range,
 	// and nil pointer dereference here.
 	switch n.Op {
-	case ONAME, OCLOSUREVAR, OLITERAL:
+	case ONAME, OCLOSUREVAR, OLITERAL, ONIL:
 		return false
 
 	// Left+Right group.

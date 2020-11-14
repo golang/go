@@ -119,7 +119,7 @@ func (o *Order) cheapExpr(n *Node) *Node {
 	}
 
 	switch n.Op {
-	case ONAME, OLITERAL:
+	case ONAME, OLITERAL, ONIL:
 		return n
 	case OLEN, OCAP:
 		l := o.cheapExpr(n.Left)
@@ -143,7 +143,7 @@ func (o *Order) cheapExpr(n *Node) *Node {
 // The intended use is to apply to x when rewriting x += y into x = x + y.
 func (o *Order) safeExpr(n *Node) *Node {
 	switch n.Op {
-	case ONAME, OLITERAL:
+	case ONAME, OLITERAL, ONIL:
 		return n
 
 	case ODOT, OLEN, OCAP:
@@ -202,7 +202,7 @@ func isaddrokay(n *Node) bool {
 // The result of addrTemp MUST be assigned back to n, e.g.
 // 	n.Left = o.addrTemp(n.Left)
 func (o *Order) addrTemp(n *Node) *Node {
-	if consttype(n) != CTxxx {
+	if n.Op == OLITERAL || n.Op == ONIL {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)

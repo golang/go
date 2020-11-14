@@ -293,7 +293,8 @@ func (r *importReader) doDecl(n *Node) {
 		importalias(r.p.ipkg, pos, n.Sym, typ)
 
 	case 'C':
-		typ, val := r.value()
+		typ := r.typ()
+		val := r.value(typ)
 
 		importconst(r.p.ipkg, pos, n.Sym, typ, val)
 
@@ -354,12 +355,8 @@ func (r *importReader) doDecl(n *Node) {
 	}
 }
 
-func (p *importReader) value() (typ *types.Type, v Val) {
-	typ = p.typ()
-
+func (p *importReader) value(typ *types.Type) (v Val) {
 	switch constTypeOf(typ) {
-	case CTNIL:
-		v.U = &NilVal{}
 	case CTBOOL:
 		v.U = p.bool()
 	case CTSTR:
@@ -810,11 +807,20 @@ func (r *importReader) node() *Node {
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
 
+	// case ONIL:
+	//	unreachable - mapped to OLITERAL
+
 	case OLITERAL:
 		pos := r.pos()
-		typ, val := r.value()
+		typ := r.typ()
 
-		n := npos(pos, nodlit(val))
+		var n *Node
+		if typ.HasNil() {
+			n = nodnil()
+		} else {
+			n = nodlit(r.value(typ))
+		}
+		n = npos(pos, n)
 		n.Type = typ
 		return n
 

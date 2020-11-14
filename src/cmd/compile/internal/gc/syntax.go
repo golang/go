@@ -294,7 +294,7 @@ func (n *Node) SetIota(x int64) {
 // Extra care must be taken when mutating such a node.
 func (n *Node) mayBeShared() bool {
 	switch n.Op {
-	case ONAME, OLITERAL, OTYPE:
+	case ONAME, OLITERAL, ONIL, OTYPE:
 		return true
 	}
 	return false
