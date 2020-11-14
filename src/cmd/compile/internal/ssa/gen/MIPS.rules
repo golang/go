@@ -567,10 +567,9 @@
 (XOR x (MOVWconst [c])) => (XORconst [c] x)
 (NOR x (MOVWconst [c])) => (NORconst [c] x)
 
-(SRA x (MOVWconst [c])) && c >= 32 => (SRAconst x [31])
-(SLL x (MOVWconst [c])) => (SLLconst x [c])
-(SRL x (MOVWconst [c])) => (SRLconst x [c])
-(SRA x (MOVWconst [c])) => (SRAconst x [c])
+(SLL x (MOVWconst [c])) => (SLLconst x [c&31])
+(SRL x (MOVWconst [c])) => (SRLconst x [c&31])
+(SRA x (MOVWconst [c])) => (SRAconst x [c&31])
 
 (SGT  (MOVWconst [c]) x) => (SGTconst  [c] x)
 (SGTU (MOVWconst [c]) x) => (SGTUconst [c] x)
