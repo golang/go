@@ -2044,9 +2044,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.constNil(t)
 		}
 	case OLITERAL:
-		switch u := n.Val().U.(type) {
-		case *Mpint:
-			i := u.Int64()
+		switch u := n.Val(); u.Kind() {
+		case constant.Int:
+			i := int64Val(n.Type, u)
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
@@ -2060,44 +2060,45 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("bad integer size %d", n.Type.Size())
 				return nil
 			}
-		case string:
-			if u == "" {
+		case constant.String:
+			i := constant.StringVal(u)
+			if i == "" {
 				return s.constEmptyString(n.Type)
 			}
-			return s.entryNewValue0A(ssa.OpConstString, n.Type, u)
-		case bool:
-			return s.constBool(u)
-		case *Mpflt:
+			return s.entryNewValue0A(ssa.OpConstString, n.Type, i)
+		case constant.Bool:
+			return s.constBool(constant.BoolVal(u))
+		case constant.Float:
+			f, _ := constant.Float64Val(u)
 			switch n.Type.Size() {
 			case 4:
-				return s.constFloat32(n.Type, u.Float32())
+				return s.constFloat32(n.Type, f)
 			case 8:
-				return s.constFloat64(n.Type, u.Float64())
+				return s.constFloat64(n.Type, f)
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
 			}
-		case *Mpcplx:
-			r := &u.Real
-			i := &u.Imag
+		case constant.Complex:
+			re, _ := constant.Float64Val(constant.Real(u))
+			im, _ := constant.Float64Val(constant.Imag(u))
 			switch n.Type.Size() {
 			case 8:
 				pt := types.Types[TFLOAT32]
 				return s.newValue2(ssa.OpComplexMake, n.Type,
-					s.constFloat32(pt, r.Float32()),
-					s.constFloat32(pt, i.Float32()))
+					s.constFloat32(pt, re),
+					s.constFloat32(pt, im))
 			case 16:
 				pt := types.Types[TFLOAT64]
 				return s.newValue2(ssa.OpComplexMake, n.Type,
-					s.constFloat64(pt, r.Float64()),
-					s.constFloat64(pt, i.Float64()))
+					s.constFloat64(pt, re),
+					s.constFloat64(pt, im))
 			default:
-				s.Fatalf("bad float size %d", n.Type.Size())
+				s.Fatalf("bad complex size %d", n.Type.Size())
 				return nil
 			}
-
 		default:
-			s.Fatalf("unhandled OLITERAL %v", n.Val().Kind())
+			s.Fatalf("unhandled OLITERAL %v", u.Kind())
 			return nil
 		}
 	case OCONVNOP:

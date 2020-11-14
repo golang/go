@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"go/constant"
+	"go/token"
 	"strings"
 )
 
@@ -1002,7 +1003,7 @@ opswitch:
 						break opswitch
 					}
 				case TUINT64:
-					c := uint64(n.Right.Int64Val())
+					c := n.Right.Uint64Val()
 					if c < 1<<16 {
 						break opswitch
 					}
@@ -1062,7 +1063,7 @@ opswitch:
 		}
 
 		if Isconst(n.Right, constant.Int) {
-			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || doesoverflow(n.Right.Val(), types.Types[TINT]) {
+			if v := n.Right.Val(); constant.Sign(v) < 0 || doesoverflow(v, types.Types[TINT]) {
 				yyerror("index out of bounds")
 			}
 		}
@@ -1223,7 +1224,7 @@ opswitch:
 			// Maximum key and elem size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, constant.Int) ||
-				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+				constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(BUCKETSIZE)) {
 
 				// In case hint is larger than BUCKETSIZE runtime.makemap
 				// will allocate the buckets on the heap, see #20184
@@ -1256,7 +1257,7 @@ opswitch:
 			}
 		}
 
-		if Isconst(hint, constant.Int) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+		if Isconst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(BUCKETSIZE)) {
 			// Handling make(map[any]any) and
 			// make(map[any]any, hint) where hint <= BUCKETSIZE
 			// special allows for faster map initialization and
@@ -1588,8 +1589,8 @@ opswitch:
 		n = typecheck(n, ctxExpr)
 		// Emit string symbol now to avoid emitting
 		// any concurrently during the backend.
-		if s, ok := n.Val().U.(string); ok {
-			_ = stringsym(n.Pos, s)
+		if v := n.Val(); v.Kind() == constant.String {
+			_ = stringsym(n.Pos, constant.StringVal(v))
 		}
 	}
 
@@ -3841,17 +3842,14 @@ func candiscard(n *Node) bool {
 
 		// Discardable as long as we know it's not division by zero.
 	case ODIV, OMOD:
-		if Isconst(n.Right, constant.Int) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
-			break
-		}
-		if Isconst(n.Right, constant.Float) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
+		if n.Right.Op == OLITERAL && constant.Sign(n.Right.Val()) != 0 {
 			break
 		}
 		return false
 
 		// Discardable as long as we know it won't fail because of a bad size.
 	case OMAKECHAN, OMAKEMAP:
-		if Isconst(n.Left, constant.Int) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
+		if Isconst(n.Left, constant.Int) && constant.Sign(n.Left.Val()) == 0 {
 			break
 		}
 		return false

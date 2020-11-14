@@ -21,6 +21,7 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
+	"go/constant"
 	"internal/goversion"
 	"io"
 	"io/ioutil"
@@ -1135,13 +1136,13 @@ func loadsys() {
 // imported so far.
 var myheight int
 
-func importfile(f *Val) *types.Pkg {
-	path_, ok := f.U.(string)
-	if !ok {
+func importfile(f constant.Value) *types.Pkg {
+	if f.Kind() != constant.String {
 		yyerror("import path must be a string")
 		return nil
 	}
 
+	path_ := constant.StringVal(f)
 	if len(path_) == 0 {
 		yyerror("import path is empty")
 		return nil

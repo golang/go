@@ -250,33 +250,18 @@ func dumpGlobalConst(n *Node) {
 		return
 	}
 	// only export integer constants for now
-	switch t.Etype {
-	case TINT8:
-	case TINT16:
-	case TINT32:
-	case TINT64:
-	case TINT:
-	case TUINT8:
-	case TUINT16:
-	case TUINT32:
-	case TUINT64:
-	case TUINT:
-	case TUINTPTR:
-		// ok
-	case TIDEAL:
-		if !Isconst(n, constant.Int) {
-			return
-		}
-		x := n.Val().U.(*Mpint)
-		if x.Cmp(minintval[TINT]) < 0 || x.Cmp(maxintval[TINT]) > 0 {
-			return
-		}
-		// Ideal integers we export as int (if they fit).
-		t = types.Types[TINT]
-	default:
+	if !t.IsInteger() {
 		return
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64Val())
+	v := n.Val()
+	if t.IsUntyped() {
+		// Export untyped integers as int (if they fit).
+		t = types.Types[TINT]
+		if doesoverflow(v, t) {
+			return
+		}
+	}
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), int64Val(t, v))
 }
 
 func dumpglobls() {
@@ -595,6 +580,9 @@ func litsym(n, c *Node, wid int) {
 	if n.Sym == nil {
 		Fatalf("litsym nil n sym")
 	}
+	if !types.Identical(n.Type, c.Type) {
+		Fatalf("litsym: type mismatch: %v has type %v, but %v has type %v", n, n.Type, c, c.Type)
+	}
 	if c.Op == ONIL {
 		return
 	}
@@ -602,16 +590,16 @@ func litsym(n, c *Node, wid int) {
 		Fatalf("litsym c op %v", c.Op)
 	}
 	s := n.Sym.Linksym()
-	switch u := c.Val().U.(type) {
-	case bool:
-		i := int64(obj.Bool2int(u))
+	switch u := c.Val(); u.Kind() {
+	case constant.Bool:
+		i := int64(obj.Bool2int(constant.BoolVal(u)))
 		s.WriteInt(Ctxt, n.Xoffset, wid, i)
 
-	case *Mpint:
-		s.WriteInt(Ctxt, n.Xoffset, wid, u.Int64())
+	case constant.Int:
+		s.WriteInt(Ctxt, n.Xoffset, wid, int64Val(n.Type, u))
 
-	case *Mpflt:
-		f := u.Float64()
+	case constant.Float:
+		f, _ := constant.Float64Val(u)
 		switch n.Type.Etype {
 		case TFLOAT32:
 			s.WriteFloat32(Ctxt, n.Xoffset, float32(f))
@@ -619,22 +607,23 @@ func litsym(n, c *Node, wid int) {
 			s.WriteFloat64(Ctxt, n.Xoffset, f)
 		}
 
-	case *Mpcplx:
-		r := u.Real.Float64()
-		i := u.Imag.Float64()
+	case constant.Complex:
+		re, _ := constant.Float64Val(constant.Real(u))
+		im, _ := constant.Float64Val(constant.Imag(u))
 		switch n.Type.Etype {
 		case TCOMPLEX64:
-			s.WriteFloat32(Ctxt, n.Xoffset, float32(r))
-			s.WriteFloat32(Ctxt, n.Xoffset+4, float32(i))
+			s.WriteFloat32(Ctxt, n.Xoffset, float32(re))
+			s.WriteFloat32(Ctxt, n.Xoffset+4, float32(im))
 		case TCOMPLEX128:
-			s.WriteFloat64(Ctxt, n.Xoffset, r)
-			s.WriteFloat64(Ctxt, n.Xoffset+8, i)
+			s.WriteFloat64(Ctxt, n.Xoffset, re)
+			s.WriteFloat64(Ctxt, n.Xoffset+8, im)
 		}
 
-	case string:
-		symdata := stringsym(n.Pos, u)
+	case constant.String:
+		i := constant.StringVal(u)
+		symdata := stringsym(n.Pos, i)
 		s.WriteAddr(Ctxt, n.Xoffset, Widthptr, symdata, 0)
-		s.WriteInt(Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
+		s.WriteInt(Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(i)))
 
 	default:
 		Fatalf("litsym unhandled OLITERAL %v", c)

@@ -553,7 +553,7 @@ func structfield(n *Node) *types.Field {
 		f.Embedded = 1
 	}
 	if n.HasVal() {
-		f.Note = n.Val().U.(string)
+		f.Note = constant.StringVal(n.Val())
 	}
 
 	lineno = lno
@@ -638,7 +638,7 @@ func interfacefield(n *Node) *types.Field {
 		Fatalf("interfacefield: oops %v\n", n)
 	}
 
-	if n.Val().Kind() != constant.Unknown {
+	if n.HasVal() {
 		yyerror("interface method cannot have annotation")
 	}
 
