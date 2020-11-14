@@ -4431,7 +4431,7 @@ func rewriteValueMIPS_OpMIPSSLL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SLL x (MOVWconst [c]))
-	// result: (SLLconst x [c])
+	// result: (SLLconst x [c&31])
 	for {
 		x := v_0
 		if v_1.Op != OpMIPSMOVWconst {
@@ -4439,7 +4439,7 @@ func rewriteValueMIPS_OpMIPSSLL(v *Value) bool {
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpMIPSSLLconst)
-		v.AuxInt = int32ToAuxInt(c)
+		v.AuxInt = int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
@@ -4465,24 +4465,7 @@ func rewriteValueMIPS_OpMIPSSRA(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRA x (MOVWconst [c]))
-	// cond: c >= 32
-	// result: (SRAconst x [31])
-	for {
-		x := v_0
-		if v_1.Op != OpMIPSMOVWconst {
-			break
-		}
-		c := auxIntToInt32(v_1.AuxInt)
-		if !(c >= 32) {
-			break
-		}
-		v.reset(OpMIPSSRAconst)
-		v.AuxInt = int32ToAuxInt(31)
-		v.AddArg(x)
-		return true
-	}
-	// match: (SRA x (MOVWconst [c]))
-	// result: (SRAconst x [c])
+	// result: (SRAconst x [c&31])
 	for {
 		x := v_0
 		if v_1.Op != OpMIPSMOVWconst {
@@ -4490,7 +4473,7 @@ func rewriteValueMIPS_OpMIPSSRA(v *Value) bool {
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpMIPSSRAconst)
-		v.AuxInt = int32ToAuxInt(c)
+		v.AuxInt = int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
@@ -4516,7 +4499,7 @@ func rewriteValueMIPS_OpMIPSSRL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRL x (MOVWconst [c]))
-	// result: (SRLconst x [c])
+	// result: (SRLconst x [c&31])
 	for {
 		x := v_0
 		if v_1.Op != OpMIPSMOVWconst {
@@ -4524,7 +4507,7 @@ func rewriteValueMIPS_OpMIPSSRL(v *Value) bool {
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpMIPSSRLconst)
-		v.AuxInt = int32ToAuxInt(c)
+		v.AuxInt = int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
