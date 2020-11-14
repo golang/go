@@ -3724,7 +3724,7 @@ func checkmake(t *types.Type, arg string, np **Node) bool {
 	// Do range checks for constants before defaultlit
 	// to avoid redundant "constant NNN overflows int" errors.
 	switch consttype(n) {
-	case CTINT, CTRUNE, CTFLT, CTCPLX:
+	case CTINT, CTFLT, CTCPLX:
 		v := toint(n.Val()).U.(*Mpint)
 		if v.CmpInt64(0) < 0 {
 			yyerror("negative %s argument in make(%v)", arg, t)

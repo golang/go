@@ -1931,10 +1931,11 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	calls := []*Node{mkcall("printlock", nil, init)}
 	for i, n := range nn.List.Slice() {
 		if n.Op == OLITERAL {
-			switch n.Val().Ctype() {
-			case CTRUNE:
+			if n.Type == types.UntypedRune {
 				n = defaultlit(n, types.Runetype)
+			}
 
+			switch n.Val().Ctype() {
 			case CTINT:
 				n = defaultlit(n, types.Types[TINT64])
 

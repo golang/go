@@ -19,7 +19,6 @@ const (
 	CTxxx Ctype = iota
 
 	CTINT
-	CTRUNE
 	CTFLT
 	CTCPLX
 	CTSTR
@@ -29,7 +28,7 @@ const (
 type Val struct {
 	// U contains one of:
 	// bool     bool when Ctype() == CTBOOL
-	// *Mpint   int when Ctype() == CTINT, rune when Ctype() == CTRUNE
+	// *Mpint   int when Ctype() == CTINT
 	// *Mpflt   float when Ctype() == CTFLT
 	// *Mpcplx  pair of floats when Ctype() == CTCPLX
 	// string   string when Ctype() == CTSTR
@@ -37,7 +36,7 @@ type Val struct {
 }
 
 func (v Val) Ctype() Ctype {
-	switch x := v.U.(type) {
+	switch v.U.(type) {
 	default:
 		Fatalf("unexpected Ctype for %T", v.U)
 		panic("unreachable")
@@ -46,9 +45,6 @@ func (v Val) Ctype() Ctype {
 	case bool:
 		return CTBOOL
 	case *Mpint:
-		if x.Rune {
-			return CTRUNE
-		}
 		return CTINT
 	case *Mpflt:
 		return CTFLT
@@ -384,7 +380,7 @@ func convertVal(v Val, t *types.Type, explicit bool) Val {
 			return v
 		}
 
-	case CTINT, CTRUNE:
+	case CTINT:
 		if explicit && t.IsString() {
 			return tostr(v)
 		}
@@ -449,11 +445,6 @@ func toflt(v Val) Val {
 func toint(v Val) Val {
 	switch u := v.U.(type) {
 	case *Mpint:
-		if u.Rune {
-			i := new(Mpint)
-			i.Set(u)
-			v.U = i
-		}
 
 	case *Mpflt:
 		i := new(Mpint)
@@ -560,11 +551,7 @@ func consttype(n *Node) Ctype {
 }
 
 func Isconst(n *Node, ct Ctype) bool {
-	t := consttype(n)
-
-	// If the caller is asking for CTINT, allow CTRUNE too.
-	// Makes life easier for back ends.
-	return t == ct || (ct == CTINT && t == CTRUNE)
+	return consttype(n) == ct
 }
 
 // evconst rewrites constant expressions into OLITERAL nodes.
@@ -710,7 +697,7 @@ func compareOp(x Val, op Op, y Val) bool {
 			return x != y
 		}
 
-	case CTINT, CTRUNE:
+	case CTINT:
 		x, y := x.U.(*Mpint), y.U.(*Mpint)
 		return cmpZero(x.Cmp(y), op)
 
@@ -784,11 +771,10 @@ Outer:
 			return Val{U: x || y}
 		}
 
-	case CTINT, CTRUNE:
+	case CTINT:
 		x, y := x.U.(*Mpint), y.U.(*Mpint)
 
 		u := new(Mpint)
-		u.Rune = x.Rune || y.Rune
 		u.Set(x)
 		switch op {
 		case OADD:
@@ -879,16 +865,15 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 	switch op {
 	case OPLUS:
 		switch x.Ctype() {
-		case CTINT, CTRUNE, CTFLT, CTCPLX:
+		case CTINT, CTFLT, CTCPLX:
 			return x
 		}
 
 	case ONEG:
 		switch x.Ctype() {
-		case CTINT, CTRUNE:
+		case CTINT:
 			x := x.U.(*Mpint)
 			u := new(Mpint)
-			u.Rune = x.Rune
 			u.Set(x)
 			u.Neg()
 			return Val{U: u}
@@ -912,11 +897,10 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 
 	case OBITNOT:
 		switch x.Ctype() {
-		case CTINT, CTRUNE:
+		case CTINT:
 			x := x.U.(*Mpint)
 
 			u := new(Mpint)
-			u.Rune = x.Rune
 			if t.IsSigned() || t.IsUntyped() {
 				// Signed values change sign.
 				u.SetInt64(-1)
@@ -937,14 +921,11 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 }
 
 func shiftOp(x Val, op Op, y Val) Val {
-	if x.Ctype() != CTRUNE {
-		x = toint(x)
-	}
+	x = toint(x)
 	y = toint(y)
 
 	u := new(Mpint)
 	u.Set(x.U.(*Mpint))
-	u.Rune = x.U.(*Mpint).Rune
 	switch op {
 	case OLSH:
 		u.Lsh(y.U.(*Mpint))
@@ -1010,7 +991,7 @@ func represents(t *types.Type, v Val) bool {
 	}
 
 	vt := idealType(v.Ctype())
-	return t == vt
+	return t == vt || (t == types.UntypedRune && vt == types.UntypedInt)
 }
 
 func setboolconst(n *Node, v bool) {
@@ -1039,8 +1020,6 @@ func idealType(ct Ctype) *types.Type {
 		return types.UntypedBool
 	case CTINT:
 		return types.UntypedInt
-	case CTRUNE:
-		return types.UntypedRune
 	case CTFLT:
 		return types.UntypedFloat
 	case CTCPLX:
@@ -1091,31 +1070,30 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 	return l, r
 }
 
-func ctype(t *types.Type) Ctype {
-	switch t {
-	case types.UntypedBool:
-		return CTBOOL
-	case types.UntypedString:
-		return CTSTR
-	case types.UntypedInt:
-		return CTINT
-	case types.UntypedRune:
-		return CTRUNE
-	case types.UntypedFloat:
-		return CTFLT
-	case types.UntypedComplex:
-		return CTCPLX
-	}
-	Fatalf("bad type %v", t)
-	panic("unreachable")
-}
-
 func mixUntyped(t1, t2 *types.Type) *types.Type {
-	t := t1
-	if ctype(t2) > ctype(t1) {
-		t = t2
+	if t1 == t2 {
+		return t1
 	}
-	return t
+
+	rank := func(t *types.Type) int {
+		switch t {
+		case types.UntypedInt:
+			return 0
+		case types.UntypedRune:
+			return 1
+		case types.UntypedFloat:
+			return 2
+		case types.UntypedComplex:
+			return 3
+		}
+		Fatalf("bad type %v", t)
+		panic("unreachable")
+	}
+
+	if rank(t2) > rank(t1) {
+		return t2
+	}
+	return t1
 }
 
 func defaultType(t *types.Type) *types.Type {
