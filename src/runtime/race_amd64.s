@@ -207,110 +207,136 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 // Atomic operations for sync/atomic package.
 
 // Load
-TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_load(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_load(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0-12
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt32(SB)
 
-TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0-16
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
-TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0-16
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
-TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
 // Store
-TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_store(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_store(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0-12
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt32(SB)
 
-TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0-16
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
-TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
 // Swap
-TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt32(SB)
 
-TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
-TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
-TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
 	MOVL	add+8(FP), AX	// convert fetch_add to add_fetch
 	ADDL	AX, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
 	MOVQ	add+8(FP), AX	// convert fetch_add to add_fetch
 	ADDQ	AX, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
 	JMP	sync∕atomic·AddInt32(SB)
 
-TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
-TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
 // CompareAndSwap
-TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
+	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0-17
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt32(SB)
 
-TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0-25
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
-TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-0
+TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 // Generic atomic operation implementation.
