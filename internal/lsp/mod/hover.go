@@ -140,7 +140,7 @@ func formatExplanation(text string, req *modfile.Require, options *source.Option
 		if strings.ToLower(options.LinkTarget) == "pkg.go.dev" {
 			target = strings.Replace(target, req.Mod.Path, req.Mod.String(), 1)
 		}
-		reference = fmt.Sprintf("[%s](https://%s/%s)", imp, options.LinkTarget, target)
+		reference = fmt.Sprintf("[%s](%s)", imp, source.BuildLink(options.LinkTarget, target, ""))
 	}
 	b.WriteString("This module is necessary because " + reference + " is imported in")
 

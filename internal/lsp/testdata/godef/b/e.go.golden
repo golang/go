@@ -3,7 +3,7 @@ godef/a/d.go:6:2-8: defined here as ```go
 field Member string
 ```
 
-[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing.Member)
 
 \@Member
 -- Member-definition-json --
@@ -21,7 +21,7 @@ field Member string
 			"offset": 93
 		}
 	},
-	"description": "```go\nfield Member string\n```\n\n[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)\n\n\\@Member"
+	"description": "```go\nfield Member string\n```\n\n[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing.Member)\n\n\\@Member"
 }
 
 -- Member-hover --
@@ -29,7 +29,7 @@ field Member string
 field Member string
 ```
 
-[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing.Member)
 
 \@Member
 -- Other-definition --
@@ -37,7 +37,7 @@ godef/a/d.go:9:5-10: defined here as ```go
 var a.Other a.Thing
 ```
 
-[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Other)
 
 \@Other
 -- Other-definition-json --
@@ -55,7 +55,7 @@ var a.Other a.Thing
 			"offset": 123
 		}
 	},
-	"description": "```go\nvar a.Other a.Thing\n```\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)\n\n\\@Other"
+	"description": "```go\nvar a.Other a.Thing\n```\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Other)\n\n\\@Other"
 }
 
 -- Other-hover --
@@ -63,7 +63,7 @@ var a.Other a.Thing
 var a.Other a.Thing
 ```
 
-[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Other)
 
 \@Other
 -- Thing-definition --
@@ -73,7 +73,7 @@ type Thing struct {
 }
 ```
 
-[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing)
 -- Thing-definition-json --
 {
 	"span": {
@@ -89,7 +89,7 @@ type Thing struct {
 			"offset": 67
 		}
 	},
-	"description": "```go\ntype Thing struct {\n\tMember string //@Member\n}\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
+	"description": "```go\ntype Thing struct {\n\tMember string //@Member\n}\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing)"
 }
 
 -- Thing-hover --
@@ -99,13 +99,13 @@ type Thing struct {
 }
 ```
 
-[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Thing)
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as ```go
 func a.Things(val []string) []a.Thing
 ```
 
-[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Things)
 -- Things-definition-json --
 {
 	"span": {
@@ -121,7 +121,7 @@ func a.Things(val []string) []a.Thing
 			"offset": 151
 		}
 	},
-	"description": "```go\nfunc a.Things(val []string) []a.Thing\n```\n\n[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)"
+	"description": "```go\nfunc a.Things(val []string) []a.Thing\n```\n\n[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Things)"
 }
 
 -- Things-hover --
@@ -129,7 +129,7 @@ func a.Things(val []string) []a.Thing
 func a.Things(val []string) []a.Thing
 ```
 
-[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Things)
 -- eInt-hover --
 ```go
 var x int

@@ -43,8 +43,8 @@ const Hello = "Hello"
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 
-		modLink := "https://pkg.go.dev/mod/import.test@v1.2.3"
-		pkgLink := "https://pkg.go.dev/import.test@v1.2.3/pkg"
+		modLink := "https://pkg.go.dev/mod/import.test@v1.2.3?utm_source=gopls"
+		pkgLink := "https://pkg.go.dev/import.test@v1.2.3/pkg?utm_source=gopls"
 
 		// First, check that we get the expected links via hover and documentLink.
 		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "pkg.Hello"))

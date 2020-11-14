@@ -7,7 +7,7 @@ type S1 struct {
 }
 ```
 
-[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)
+[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1)
 -- S1-definition-json --
 {
 	"span": {
@@ -23,7 +23,7 @@ type S1 struct {
 			"offset": 523
 		}
 	},
-	"description": "```go\ntype S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)"
+	"description": "```go\ntype S1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1)"
 }
 
 -- S1-hover --
@@ -35,13 +35,13 @@ type S1 struct {
 }
 ```
 
-[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)
+[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1)
 -- S1F1-definition --
 godef/b/b.go:26:2-4: defined here as ```go
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
 
 \@mark\(S1F1, \"F1\"\)
 -- S1F1-definition-json --
@@ -59,7 +59,7 @@ field F1 int
 			"offset": 542
 		}
 	},
-	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
+	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
 }
 
 -- S1F1-hover --
@@ -67,6 +67,6 @@ field F1 int
 field F1 int
 ```
 
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b?utm_source=gopls#S1.F1)
 
 \@mark\(S1F1, \"F1\"\)
