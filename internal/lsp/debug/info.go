@@ -99,6 +99,9 @@ func (i *Instance) PrintServerInfo(ctx context.Context, w io.Writer) {
 		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress)
 	})
 	PrintVersionInfo(ctx, w, true, HTML)
+	section(w, HTML, "Command Line", func() {
+		fmt.Fprintf(w, "<a href=/debug/pprof/cmdline>cmdline</a>")
+	})
 }
 
 // PrintVersionInfo writes version information to w, using the output format

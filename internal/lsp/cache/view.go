@@ -433,6 +433,10 @@ func (v *View) shutdown(ctx context.Context) {
 	}
 }
 
+func (v *View) Session() *Session {
+	return v.session
+}
+
 func (v *View) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()

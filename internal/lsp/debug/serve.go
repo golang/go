@@ -231,6 +231,36 @@ func (st *State) dropServer(id string) {
 	}
 }
 
+// an http.ResponseWriter that filters writes
+type filterResponse struct {
+	w    http.ResponseWriter
+	edit func([]byte) []byte
+}
+
+func (c filterResponse) Header() http.Header {
+	return c.w.Header()
+}
+
+func (c filterResponse) Write(buf []byte) (int, error) {
+	ans := c.edit(buf)
+	return c.w.Write(ans)
+}
+
+func (c filterResponse) WriteHeader(n int) {
+	c.w.WriteHeader(n)
+}
+
+// replace annoying nuls by spaces
+func cmdline(w http.ResponseWriter, r *http.Request) {
+	fake := filterResponse{
+		w: w,
+		edit: func(buf []byte) []byte {
+			return bytes.ReplaceAll(buf, []byte{0}, []byte{' '})
+		},
+	}
+	pprof.Cmdline(fake, r)
+}
+
 func (i *Instance) getCache(r *http.Request) interface{} {
 	return i.State.Cache(path.Base(r.URL.Path))
 }
@@ -354,6 +384,7 @@ func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 // It also logs the port the server starts on, to allow for :0 auto assigned
 // ports.
 func (i *Instance) Serve(ctx context.Context) error {
+	log.SetFlags(log.Lshortfile)
 	if i.DebugAddress == "" {
 		return nil
 	}
@@ -373,7 +404,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))
 		mux.HandleFunc("/debug/", render(debugTmpl, nil))
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/cmdline", cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
@@ -624,7 +655,7 @@ Unknown page
 {{define "serverlink"}}<a href="/server/{{.}}">Server {{.}}</a>{{end}}
 {{define "sessionlink"}}<a href="/session/{{.}}">Session {{.}}</a>{{end}}
 {{define "viewlink"}}<a href="/view/{{.}}">View {{.}}</a>{{end}}
-{{define "filelink"}}<a href="/file/{{.SessionID}}/{{.Identifier}}">{{.URI}}</a>{{end}}
+{{define "filelink"}}<a href="/file/{{.Session}}/{{.FileIdentity.Hash}}">{{.FileIdentity.URI}}</a>{{end}}
 `)).Funcs(template.FuncMap{
 	"fuint64":  fuint64,
 	"fuint32":  fuint32,
@@ -747,7 +778,7 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 <h2>Views</h2>
 <ul>{{range .Views}}<li>{{.Name}} is {{template "viewlink" .ID}} in {{.Folder}}</li>{{end}}</ul>
 <h2>Overlays</h2>
-<ul>{{range .Overlays}}<li>{{template "filelink" .Identity}}</li>{{end}}</ul>
+<ul>{{range .Overlays}}<li>{{template "filelink" .}}</li>{{end}}</ul>
 {{end}}
 `))
 
@@ -763,16 +794,16 @@ From: <b>{{template "sessionlink" .Session.ID}}</b><br>
 `))
 
 var fileTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
-{{define "title"}}Overlay {{.Identity.Identifier}}{{end}}
+{{define "title"}}Overlay {{.FileIdentity.Hash}}{{end}}
 {{define "body"}}
-{{with .Identity}}
-	From: <b>{{template "sessionlink" .SessionID}}</b><br>
+{{with .}}
+	From: <b>{{template "sessionlink" .Session}}</b><br>
 	URI: <b>{{.URI}}</b><br>
-	Identifier: <b>{{.Identifier}}</b><br>
+	Identifier: <b>{{.FileIdentity.Hash}}</b><br>
 	Version: <b>{{.Version}}</b><br>
 	Kind: <b>{{.Kind}}</b><br>
 {{end}}
 <h3>Contents</h3>
-<pre>{{fcontent .Data}}</pre>
+<pre>{{fcontent .Read}}</pre>
 {{end}}
 `))
