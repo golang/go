@@ -121,12 +121,16 @@ outer:
 		cand := c.deepState.dequeue()
 		obj := cand.obj
 
+		if obj == nil {
+			continue
+		}
+
 		// At the top level, dedupe by object.
 		if len(cand.path) == 0 {
-			if c.seen[cand.obj] {
+			if c.seen[obj] {
 				continue
 			}
-			c.seen[cand.obj] = true
+			c.seen[obj] = true
 		}
 
 		// If obj is not accessible because it lives in another package and is
