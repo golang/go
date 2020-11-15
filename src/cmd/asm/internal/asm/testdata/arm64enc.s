@@ -420,6 +420,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    UXTBW R2, R6                               // 461c0053
    UXTHW R7, R20                              // f43c0053
    VCNT V0.B8, V0.B8                          // 0058200e
+   VCNT V0.B16, V0.B16                        // 0058204e
    WFE                                        // 5f2003d5
    WFI                                        // 7f2003d5
    YIELD                                      // 3f2003d5
@@ -590,7 +591,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    FMOVS R8, F15                              // 0f01271e
    FMOVD F2, F9                               // 4940601e
    FMOVS F4, F27                              // 9b40201e
-   //TODO VFMOV $3.125, V8.2D                 // 28f5006f
+   //TODO VFMOV $3.125, V8.D2                 // 28f5006f
    FMSUBS F13, F21, F13, F19                  // b3d50d1f
    FMSUBD F11, F7, F15, F31                   // ff9d4b1f
    //TODO VFMUL V9.S[2], F21, F19             // b39a895f
@@ -647,7 +648,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    FSUBS F25, F23, F0                         // e03a391e
    FSUBD F11, F13, F24                        // b8396b1e
    //TODO SCVTFSS F30, F20                    // d4db215e
-   //TODO VSCVTF V7.2S, V17.2S                // f1d8210e
+   //TODO VSCVTF V7.S2, V17.S2                // f1d8210e
    SCVTFWS R3, F16                            // 7000221e
    SCVTFWD R20, F4                            // 8402621e
    SCVTFS R16, F12                            // 0c02229e

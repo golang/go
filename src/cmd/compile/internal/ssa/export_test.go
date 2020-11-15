@@ -125,6 +125,10 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
+
+func (d DummyFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+	return LocalSlot{N: parent.N, Type: t, Off: offset}
+}
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
 }
@@ -145,6 +149,10 @@ func (d DummyFrontend) Log() bool                            { return true }
 func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
+
+func (d DummyFrontend) MyImportPath() string {
+	return "my/import/path"
+}
 
 var dummyTypes Types
 

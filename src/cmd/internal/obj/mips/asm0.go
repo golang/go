@@ -391,6 +391,9 @@ var optab = []Optab{
 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_SCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_FREG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
 
@@ -407,7 +410,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Retpoline = false // don't keep printing
 	}
 
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -452,13 +455,13 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
 			// very large conditional branches
-			if o.type_ == 6 && p.Pcond != nil {
-				otxt = p.Pcond.Pc - pc
+			if o.type_ == 6 && p.To.Target() != nil {
+				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
 					q = c.newprog()
 					q.Link = p.Link
@@ -466,15 +469,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.As = AJMP
 					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = p.Pcond
-					p.Pcond = q
+					q.To.SetTarget(p.To.Target())
+					p.To.SetTarget(q)
 					q = c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = AJMP
 					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = q.Link.Link
+					q.To.SetTarget(q.Link.Link)
 
 					c.addnop(p.Link)
 					c.addnop(p)
@@ -509,7 +512,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	bp := c.cursym.P
 	var i int32
 	var out [4]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
@@ -526,7 +529,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
@@ -1227,10 +1230,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 6: /* beq r1,[r2],sbra */
 		v := int32(0)
-		if p.Pcond == nil {
+		if p.To.Target() == nil {
 			v = int32(-4) >> 2
 		} else {
-			v = int32(p.Pcond.Pc-p.Pc-4) >> 2
+			v = int32(p.To.Target().Pc-p.Pc-4) >> 2
 		}
 		if (v<<16)>>16 != v {
 			c.ctxt.Diag("short branch too far\n%v", p)
@@ -1282,25 +1285,25 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if c.aclass(&p.To) == C_SBRA && p.To.Sym == nil && p.As == AJMP {
 			// use PC-relative branch for short branches
 			// BEQ	R0, R0, sbra
-			if p.Pcond == nil {
+			if p.To.Target() == nil {
 				v = int32(-4) >> 2
 			} else {
-				v = int32(p.Pcond.Pc-p.Pc-4) >> 2
+				v = int32(p.To.Target().Pc-p.Pc-4) >> 2
 			}
 			if (v<<16)>>16 == v {
 				o1 = OP_IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
 				break
 			}
 		}
-		if p.Pcond == nil {
+		if p.To.Target() == nil {
 			v = int32(p.Pc) >> 2
 		} else {
-			v = int32(p.Pcond.Pc) >> 2
+			v = int32(p.To.Target().Pc) >> 2
 		}
 		o1 = OP_JMP(c.opirr(p.As), uint32(v))
 		if p.To.Sym == nil {
-			p.To.Sym = c.cursym.Func.Text.From.Sym
-			p.To.Offset = p.Pcond.Pc
+			p.To.Sym = c.cursym.Func().Text.From.Sym
+			p.To.Offset = p.To.Target().Pc
 		}
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)

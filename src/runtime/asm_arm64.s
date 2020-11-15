@@ -15,6 +15,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVW	R0, 8(RSP) // argc
 	MOVD	R1, 16(RSP) // argv
 
+#ifdef TLS_darwin
+	// Initialize TLS.
+	MOVD	ZR, g // clear g, make sure it's not junk.
+	SUB	$32, RSP
+	MRS_TPIDR_R0
+	AND	$~7, R0
+	MOVD	R0, 16(RSP)             // arg2: TLS base
+	MOVD	$runtime·tls_g(SB), R2
+	MOVD	R2, 8(RSP)              // arg1: &tlsg
+	BL	·tlsinit(SB)
+	ADD	$32, RSP
+#endif
+
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVD	$runtime·g0(SB), g
@@ -29,9 +42,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	_cgo_init(SB), R12
 	CBZ	R12, nocgo
 
+#ifdef GOOS_android
 	MRS_TPIDR_R0			// load TLS base pointer
 	MOVD	R0, R3			// arg 3: TLS base pointer
-#ifdef TLSG_IS_VARIABLE
 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
 	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
@@ -331,6 +344,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -414,34 +428,33 @@ TEXT callRet<>(SB), NOSPLIT, $40-0
 	BL	runtime·reflectcallmove(SB)
 	RET
 
-// These have 8 added to make the overall frame size a multiple of 16,
-// as required by the ABI. (There is another +8 for the saved LR.)
-CALLFN(·call32, 40 )
-CALLFN(·call64, 72 )
-CALLFN(·call128, 136 )
-CALLFN(·call256, 264 )
-CALLFN(·call512, 520 )
-CALLFN(·call1024, 1032 )
-CALLFN(·call2048, 2056 )
-CALLFN(·call4096, 4104 )
-CALLFN(·call8192, 8200 )
-CALLFN(·call16384, 16392 )
-CALLFN(·call32768, 32776 )
-CALLFN(·call65536, 65544 )
-CALLFN(·call131072, 131080 )
-CALLFN(·call262144, 262152 )
-CALLFN(·call524288, 524296 )
-CALLFN(·call1048576, 1048584 )
-CALLFN(·call2097152, 2097160 )
-CALLFN(·call4194304, 4194312 )
-CALLFN(·call8388608, 8388616 )
-CALLFN(·call16777216, 16777224 )
-CALLFN(·call33554432, 33554440 )
-CALLFN(·call67108864, 67108872 )
-CALLFN(·call134217728, 134217736 )
-CALLFN(·call268435456, 268435464 )
-CALLFN(·call536870912, 536870920 )
-CALLFN(·call1073741824, 1073741832 )
+CALLFN(·call16, 16)
+CALLFN(·call32, 32)
+CALLFN(·call64, 64)
+CALLFN(·call128, 128)
+CALLFN(·call256, 256)
+CALLFN(·call512, 512)
+CALLFN(·call1024, 1024)
+CALLFN(·call2048, 2048)
+CALLFN(·call4096, 4096)
+CALLFN(·call8192, 8192)
+CALLFN(·call16384, 16384)
+CALLFN(·call32768, 32768)
+CALLFN(·call65536, 65536)
+CALLFN(·call131072, 131072)
+CALLFN(·call262144, 262144)
+CALLFN(·call524288, 524288)
+CALLFN(·call1048576, 1048576)
+CALLFN(·call2097152, 2097152)
+CALLFN(·call4194304, 4194304)
+CALLFN(·call8388608, 8388608)
+CALLFN(·call16777216, 16777216)
+CALLFN(·call33554432, 33554432)
+CALLFN(·call67108864, 67108864)
+CALLFN(·call134217728, 134217728)
+CALLFN(·call268435456, 268435456)
+CALLFN(·call536870912, 536870912)
+CALLFN(·call1073741824, 1073741824)
 
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
@@ -958,32 +971,13 @@ nosave:
 	MOVD	R0, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$40-32
-	MOVD	$fn+0(FP), R0
-	MOVD	R0, 8(RSP)
-	MOVD	frame+8(FP), R0
-	MOVD	R0, 16(RSP)
-	MOVD	framesize+16(FP), R0
-	MOVD	R0, 24(RSP)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, 32(RSP)
-	MOVD	$runtime·cgocallback_gofunc(SB), R0
-	BL	(R0)
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// Load g from thread-local storage.
-	MOVB	runtime·iscgo(SB), R3
-	CBZ	R3, nocgo
 	BL	runtime·load_g(SB)
-nocgo:
 
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
@@ -1001,7 +995,7 @@ needm:
 	MOVD	$runtime·needm(SB), R0
 	BL	(R0)
 
-	// Set m->sched.sp = SP, so that if a panic happens
+	// Set m->g0->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
 	// have a valid SP to run on the g0 stack.
 	// The next few lines (after the havem label)
@@ -1037,16 +1031,11 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, -8(SP) is unused (where SP refers to
-	// m->curg's SP while we're setting it up, before we've adjusted it).
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
@@ -1054,10 +1043,15 @@ havem:
 	MOVD	R5, -48(R4)
 	MOVD	(g_sched+gobuf_bp)(g), R5
 	MOVD	R5, -56(R4)
-	MOVD	ctxt+24(FP), R0
-	MOVD	R0, -40(R4)
+	// Gather our arguments into registers.
+	MOVD	fn+0(FP), R1
+	MOVD	frame+8(FP), R2
+	MOVD	ctxt+16(FP), R3
 	MOVD	$-48(R4), R0 // maintain 16-byte SP alignment
-	MOVD	R0, RSP
+	MOVD	R0, RSP	// switch stack
+	MOVD	R1, 8(RSP)
+	MOVD	R2, 16(RSP)
+	MOVD	R3, 24(RSP)
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.

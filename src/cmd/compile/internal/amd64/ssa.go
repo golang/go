@@ -42,10 +42,11 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
 	// Avoid partial register write
-	if !t.IsFloat() && t.Size() <= 2 {
-		if t.Size() == 1 {
+	if !t.IsFloat() {
+		switch t.Size() {
+		case 1:
 			return x86.AMOVBLZX
-		} else {
+		case 2:
 			return x86.AMOVWLZX
 		}
 	}
@@ -75,7 +76,7 @@ func storeByType(t *types.Type) obj.As {
 			return x86.AMOVQ
 		}
 	}
-	panic("bad store type")
+	panic(fmt.Sprintf("bad store type %v", t))
 }
 
 // moveByType returns the reg->reg move instruction of the given type.
@@ -100,7 +101,7 @@ func moveByType(t *types.Type) obj.As {
 		case 16:
 			return x86.AMOVUPS // int128s are in SSE registers
 		default:
-			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
+			panic(fmt.Sprintf("bad int register width %d:%v", t.Size(), t))
 		}
 	}
 }
@@ -319,8 +320,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// TODO(khr): issue only the -1 fixup code we need.
 			// For instance, if only the quotient is used, no point in zeroing the remainder.
 
-			j1.To.Val = n1
-			j2.To.Val = s.Pc()
+			j1.To.SetTarget(n1)
+			j2.To.SetTarget(s.Pc())
 		}
 
 	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU:
@@ -874,7 +875,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpAMD64SUBLloadidx1, ssa.OpAMD64SUBLloadidx4, ssa.OpAMD64SUBLloadidx8, ssa.OpAMD64SUBQloadidx1, ssa.OpAMD64SUBQloadidx8,
 		ssa.OpAMD64ANDLloadidx1, ssa.OpAMD64ANDLloadidx4, ssa.OpAMD64ANDLloadidx8, ssa.OpAMD64ANDQloadidx1, ssa.OpAMD64ANDQloadidx8,
 		ssa.OpAMD64ORLloadidx1, ssa.OpAMD64ORLloadidx4, ssa.OpAMD64ORLloadidx8, ssa.OpAMD64ORQloadidx1, ssa.OpAMD64ORQloadidx8,
-		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8:
+		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8,
+		ssa.OpAMD64ADDSSloadidx1, ssa.OpAMD64ADDSSloadidx4, ssa.OpAMD64ADDSDloadidx1, ssa.OpAMD64ADDSDloadidx8,
+		ssa.OpAMD64SUBSSloadidx1, ssa.OpAMD64SUBSSloadidx4, ssa.OpAMD64SUBSDloadidx1, ssa.OpAMD64SUBSDloadidx8,
+		ssa.OpAMD64MULSSloadidx1, ssa.OpAMD64MULSSloadidx4, ssa.OpAMD64MULSDloadidx1, ssa.OpAMD64MULSDloadidx8,
+		ssa.OpAMD64DIVSSloadidx1, ssa.OpAMD64DIVSSloadidx4, ssa.OpAMD64DIVSDloadidx1, ssa.OpAMD64DIVSDloadidx8:
 		p := s.Prog(v.Op.Asm())
 
 		r, i := v.Args[1].Reg(), v.Args[2].Reg()
@@ -1066,7 +1071,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
 		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc
-		if val != 0 && val != 1 && val != 2 && val != 3 {
+		if val < 0 || val > 3 {
 			v.Fatalf("Invalid rounding mode")
 		}
 		p.From.Offset = val
@@ -1206,7 +1211,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p = s.Prog(x86.ASETEQ)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
+	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock:
 		s.Prog(x86.ALOCK)
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

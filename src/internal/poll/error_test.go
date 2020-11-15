@@ -6,6 +6,7 @@ package poll_test
 
 import (
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"testing"
@@ -37,7 +38,7 @@ func parseReadError(nestedErr error, verify func(error) (string, bool)) error {
 	if nerr, ok := err.(*net.OpError); ok {
 		err = nerr.Err
 	}
-	if nerr, ok := err.(*os.PathError); ok {
+	if nerr, ok := err.(*fs.PathError); ok {
 		err = nerr.Err
 	}
 	if nerr, ok := err.(*os.SyscallError); ok {

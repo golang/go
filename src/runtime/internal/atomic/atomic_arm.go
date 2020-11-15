@@ -81,6 +81,9 @@ func Store(addr *uint32, v uint32)
 //go:noescape
 func StoreRel(addr *uint32, v uint32)
 
+//go:noescape
+func StoreReluintptr(addr *uintptr, v uintptr)
+
 //go:nosplit
 func goCas64(addr *uint64, old, new uint64) bool {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
@@ -180,6 +183,26 @@ func And8(addr *uint8, v uint8) {
 }
 
 //go:nosplit
+func Or(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old|v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
+func And(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old&v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
 
 //go:noescape
@@ -193,6 +216,9 @@ func Load8(addr *uint8) uint8
 
 //go:noescape
 func LoadAcq(addr *uint32) uint32
+
+//go:noescape
+func LoadAcquintptr(ptr *uintptr) uintptr
 
 //go:noescape
 func Cas64(addr *uint64, old, new uint64) bool

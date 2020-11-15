@@ -79,6 +79,8 @@ type Options struct {
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
 	TrimPath   string         // Paths to trim from source file paths.
+
+	IntelSyntax bool // Whether or not to print assembly in Intel syntax.
 }
 
 // Generate generates a report as directed by the Report.
@@ -438,7 +440,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		flatSum, cumSum := sns.Sum()
 
 		// Get the function assembly.
-		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End)
+		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End, o.IntelSyntax)
 		if err != nil {
 			return err
 		}
@@ -1201,6 +1203,13 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 				nodeCount, origCount))
 		}
 	}
+
+	// Help new users understand the graph.
+	// A new line is intentionally added here to better show this message.
+	if fullHeaders {
+		label = append(label, "\nSee https://git.io/JfYMW for how to read the graph")
+	}
+
 	return label
 }
 

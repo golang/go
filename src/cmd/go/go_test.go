@@ -9,12 +9,14 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"go/format"
 	"internal/race"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,16 +35,26 @@ import (
 	"cmd/internal/sys"
 )
 
+func init() {
+	// GOVCS defaults to public:git|hg,private:all,
+	// which breaks many tests here - they can't use non-git, non-hg VCS at all!
+	// Change to fully permissive.
+	// The tests of the GOVCS setting itself are in ../../testdata/script/govcs.txt.
+	os.Setenv("GOVCS", "*:all")
+}
+
 var (
-	canRun  = true  // whether we can run go or ./testgo
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo
 	canMSan = false // whether we can run the memory sanitizer
-
-	exeSuffix string // ".exe" on Windows
-
-	skipExternal = false // skip external tests
 )
+
+var exeSuffix string = func() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}()
 
 func tooSlow(t *testing.T) {
 	if testing.Short() {
@@ -50,54 +62,8 @@ func tooSlow(t *testing.T) {
 		if testenv.Builder() != "" && runtime.GOARCH == "amd64" && (runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 			return
 		}
+		t.Helper()
 		t.Skip("skipping test in -short mode")
-	}
-}
-
-func init() {
-	switch runtime.GOOS {
-	case "android", "js":
-		canRun = false
-	case "darwin":
-		switch runtime.GOARCH {
-		case "arm64":
-			canRun = false
-		}
-	case "linux":
-		switch runtime.GOARCH {
-		case "arm":
-			// many linux/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-		case "mips", "mipsle", "mips64", "mips64le":
-			// Also slow.
-			skipExternal = true
-			if testenv.Builder() != "" {
-				// On the builders, skip the cmd/go
-				// tests. They're too slow and already
-				// covered by other ports. There's
-				// nothing os/arch specific in the
-				// tests.
-				canRun = false
-			}
-		}
-	case "freebsd":
-		switch runtime.GOARCH {
-		case "arm":
-			// many freebsd/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-			canRun = false
-		}
-	case "plan9":
-		switch runtime.GOARCH {
-		case "arm":
-			// many plan9/arm machines are too slow to run
-			// the full set of external tests.
-			skipExternal = true
-		}
-	case "windows":
-		exeSuffix = ".exe"
 	}
 }
 
@@ -124,7 +90,6 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP\n")
 		return
 	}
-	os.Unsetenv("GOROOT_FINAL")
 
 	flag.Parse()
 
@@ -154,7 +119,7 @@ func TestMain(m *testing.M) {
 	}
 
 	testGOCACHE = cache.DefaultDir()
-	if canRun {
+	if testenv.HasGoBuild() {
 		testBin = filepath.Join(testTmpDir, "testbin")
 		if err := os.Mkdir(testBin, 0777); err != nil {
 			log.Fatal(err)
@@ -180,6 +145,11 @@ func TestMain(m *testing.M) {
 		}
 		testGOROOT = goEnv("GOROOT")
 		os.Setenv("TESTGO_GOROOT", testGOROOT)
+		// Ensure that GOROOT is set explicitly.
+		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
+		// yet been moved to its final location, programs that invoke runtime.GOROOT
+		// may accidentally use the wrong path.
+		os.Setenv("GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
 		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
@@ -216,9 +186,11 @@ func TestMain(m *testing.M) {
 		}
 		testCC = strings.TrimSpace(string(out))
 
-		if out, err := exec.Command(testGo, "env", "CGO_ENABLED").Output(); err != nil {
-			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
-			canRun = false
+		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
+		cmd.Stderr = new(strings.Builder)
+		if out, err := cmd.Output(); err != nil {
+			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
+			os.Exit(2)
 		} else {
 			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
 			if err != nil {
@@ -318,10 +290,7 @@ func skipIfGccgo(t *testing.T, msg string) {
 func testgo(t *testing.T) *testgoData {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
-
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.SkipIfShortAndSlow(t)
 
 	return &testgoData{t: t}
 }
@@ -410,9 +379,6 @@ func (tg *testgoData) goTool() string {
 // returning exit status.
 func (tg *testgoData) doRun(args []string) error {
 	tg.t.Helper()
-	if !canRun {
-		panic("testgoData.doRun called but canRun false")
-	}
 	if tg.inParallel {
 		for _, arg := range args {
 			if strings.HasPrefix(arg, "testdata") || strings.HasPrefix(arg, "./testdata") {
@@ -808,7 +774,7 @@ func (tg *testgoData) cleanup() {
 func removeAll(dir string) error {
 	// module cache has 0444 directories;
 	// make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		// chmod not only directories, but also things that we couldn't even stat
 		// due to permission errors: they may also be unreadable directories.
 		if err != nil || info.IsDir() {
@@ -855,7 +821,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		srcdir := filepath.Join(testGOROOT, copydir)
 		tg.tempDir(filepath.Join("goroot", copydir))
 		err := filepath.Walk(srcdir,
-			func(path string, info os.FileInfo, err error) error {
+			func(path string, info fs.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -1230,6 +1196,18 @@ func TestGoListExport(t *testing.T) {
 	}
 	if _, err := os.Stat(file); err != nil {
 		t.Fatalf("cannot find .Export result %s: %v", file, err)
+	}
+
+	tg.run("list", "-export", "-f", "{{.BuildID}}", "strings")
+	buildID := strings.TrimSpace(tg.stdout.String())
+	if buildID == "" {
+		t.Fatalf(".BuildID with -export was empty")
+	}
+
+	tg.run("tool", "buildid", file)
+	toolBuildID := strings.TrimSpace(tg.stdout.String())
+	if buildID != toolBuildID {
+		t.Fatalf(".BuildID with -export %q disagrees with 'go tool buildid' %q", buildID, toolBuildID)
 	}
 }
 
@@ -1908,6 +1886,18 @@ func TestGoEnv(t *testing.T) {
 	tg.grepStdout("gcc", "CC not found")
 	tg.run("env", "GOGCCFLAGS")
 	tg.grepStdout("-ffaster", "CC arguments not found")
+
+	tg.run("env", "GOVERSION")
+	envVersion := strings.TrimSpace(tg.stdout.String())
+
+	tg.run("version")
+	cmdVersion := strings.TrimSpace(tg.stdout.String())
+
+	// If 'go version' is "go version <version> <goos>/<goarch>", then
+	// 'go env GOVERSION' is just "<version>".
+	if cmdVersion == envVersion || !strings.Contains(cmdVersion, envVersion) {
+		t.Fatalf("'go env GOVERSION' %q should be a shorter substring of 'go version' %q", envVersion, cmdVersion)
+	}
 }
 
 const (
@@ -2013,7 +2003,7 @@ func main() {
 	tg.run("build", "-o", exe, "p")
 }
 
-func copyFile(src, dst string, perm os.FileMode) error {
+func copyFile(src, dst string, perm fs.FileMode) error {
 	sf, err := os.Open(src)
 	if err != nil {
 		return err
@@ -2052,7 +2042,7 @@ func TestBuildmodePIE(t *testing.T) {
 
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 	switch platform {
-	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 		"android/amd64", "android/arm", "android/arm64", "android/386",
 		"freebsd/amd64",
 		"windows/386", "windows/amd64", "windows/arm":
@@ -2159,6 +2149,38 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 		}
 		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
+		}
+		if useCgo {
+			// Test that only one symbol is exported (#40795).
+			// PIE binaries don´t require .edata section but unfortunately
+			// binutils doesn´t generate a .reloc section unless there is
+			// at least one symbol exported.
+			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+			section := f.Section(".edata")
+			if section == nil {
+				t.Fatalf(".edata section is not present")
+			}
+			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+			type IMAGE_EXPORT_DIRECTORY struct {
+				_                 [2]uint32
+				_                 [2]uint16
+				_                 [2]uint32
+				NumberOfFunctions uint32
+				NumberOfNames     uint32
+				_                 [3]uint32
+			}
+			var e IMAGE_EXPORT_DIRECTORY
+			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
+				t.Fatalf("binary.Read failed: %v", err)
+			}
+
+			// Only _cgo_dummy_export should be exported
+			if e.NumberOfFunctions != 1 {
+				t.Fatalf("got %d exported functions; want 1", e.NumberOfFunctions)
+			}
+			if e.NumberOfNames != 1 {
+				t.Fatalf("got %d exported names; want 1", e.NumberOfNames)
+			}
 		}
 	default:
 		panic("unreachable")

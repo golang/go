@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"net/http/internal"
 	"net/url"
 	"reflect"
@@ -620,7 +619,7 @@ func TestWriteResponse(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		err = resp.Write(ioutil.Discard)
+		err = resp.Write(io.Discard)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -722,7 +721,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		resp.Body.Close()
 
-		rest, err := ioutil.ReadAll(bufr)
+		rest, err := io.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
 			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {

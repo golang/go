@@ -324,9 +324,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		// flags and duffzero on 386 does not otherwise do so).
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = ctxt.Lookup("runtime.duffzero")
+			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = ctxt.Lookup("runtime.duffcopy")
+			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = mov
@@ -563,11 +563,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
+	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
 	}
 
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	autoffset := int32(p.To.Offset)
 	if autoffset < 0 {
 		autoffset = 0
@@ -582,7 +582,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var bpsize int
-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
+	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
 		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below
@@ -602,12 +602,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	textarg := int64(p.To.Val.(int32))
-	cursym.Func.Args = int32(textarg)
-	cursym.Func.Locals = int32(p.To.Offset)
+	cursym.Func().Args = int32(textarg)
+	cursym.Func().Locals = int32(p.To.Offset)
 
 	// TODO(rsc): Remove.
-	if ctxt.Arch.Family == sys.I386 && cursym.Func.Locals < 0 {
-		cursym.Func.Locals = 0
+	if ctxt.Arch.Family == sys.I386 && cursym.Func().Locals < 0 {
+		cursym.Func().Locals = 0
 	}
 
 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
@@ -642,7 +642,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = load_g_cx(ctxt, p, newprog) // load g into CX
 	}
 
-	if !cursym.Func.Text.From.Sym.NoSplit() {
+	if !cursym.Func().Text.From.Sym.NoSplit() {
 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
 	}
 
@@ -690,7 +690,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_BP
 	}
 
-	if cursym.Func.Text.From.Sym.Wrapper() {
+	if cursym.Func().Text.From.Sym.Wrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
 		// }
@@ -765,7 +765,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		// Set jne branch target.
-		jne.Pcond = p
+		jne.To.SetTarget(p)
 
 		// CMPQ panic_argp(BX), DI
 		p = obj.Appendp(p, newprog)
@@ -783,7 +783,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// MOVQ SP, panic_argp(BX)
 		p = obj.Appendp(p, newprog)
@@ -801,14 +801,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = obj.AJMP
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// Reset p for following code.
 		p = end
 	}
 
 	var deltasp int32
-	for p = cursym.Func.Text; p != nil; p = p.Link {
+	for p = cursym.Func().Text; p != nil; p = p.Link {
 		pcsize := ctxt.Arch.RegSize
 		switch p.From.Name {
 		case obj.NAME_AUTO:
@@ -1103,7 +1103,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	end := ctxt.EndUnsafePoint(jls, newprog, -1)
 
 	var last *obj.Prog
-	for last = cursym.Func.Text; last.Link != nil; last = last.Link {
+	for last = cursym.Func().Text; last.Link != nil; last = last.Link {
 	}
 
 	// Now we are at the end of the function, but logically
@@ -1117,7 +1117,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
-	call.Pos = cursym.Func.Text.Pos
+	call.Pos = cursym.Func().Text.Pos
 	call.As = obj.ACALL
 	call.To.Type = obj.TYPE_BRANCH
 	call.To.Name = obj.NAME_EXTERN
@@ -1125,7 +1125,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	switch {
 	case cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case !cursym.Func.Text.From.Sym.NeedCtxt():
+	case !cursym.Func().Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = ctxt.Lookup(morestack)
@@ -1144,12 +1144,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.Pcond = cursym.Func.Text.Link
+	jmp.To.SetTarget(cursym.Func().Text.Link)
 	jmp.Spadj = +framesize
 
-	jls.Pcond = call
+	jls.To.SetTarget(call)
 	if q1 != nil {
-		q1.Pcond = call
+		q1.To.SetTarget(call)
 	}
 
 	return end

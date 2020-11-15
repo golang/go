@@ -1,5 +1,6 @@
 [!net] skip
 [!exec:git] skip
+env GO111MODULE=off
 
 # Tests Issues #9797 and #19769
 

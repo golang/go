@@ -121,13 +121,14 @@ package being analyzed, and provides operations to the Run function for
 reporting diagnostics and other information back to the driver.
 
 	type Pass struct {
-		Fset       *token.FileSet
-		Files      []*ast.File
-		OtherFiles []string
-		Pkg        *types.Package
-		TypesInfo  *types.Info
-		ResultOf   map[*Analyzer]interface{}
-		Report     func(Diagnostic)
+		Fset         *token.FileSet
+		Files        []*ast.File
+		OtherFiles   []string
+		IgnoredFiles []string
+		Pkg          *types.Package
+		TypesInfo    *types.Info
+		ResultOf     map[*Analyzer]interface{}
+		Report       func(Diagnostic)
 		...
 	}
 
@@ -138,6 +139,12 @@ The OtherFiles field provides the names, but not the contents, of non-Go
 files such as assembly that are part of this package. See the "asmdecl"
 or "buildtags" analyzers for examples of loading non-Go files and reporting
 diagnostics against them.
+
+The IgnoredFiles field provides the names, but not the contents,
+of ignored Go and non-Go source files that are not part of this package
+with the current build configuration but may be part of other build
+configurations. See the "buildtags" analyzer for an example of loading
+and checking IgnoredFiles.
 
 The ResultOf field provides the results computed by the analyzers
 required by this one, as expressed in its Analyzer.Requires field. The
@@ -169,6 +176,15 @@ Diagnostic is defined as:
 
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
+
+Many analyses want to associate diagnostics with a severity level.
+Because Diagnostic does not have a severity level field, an Analyzer's
+diagnostics effectively all have the same severity level. To separate which
+diagnostics are high severity and which are low severity, expose multiple
+Analyzers instead. Analyzers should also be separated when their
+diagnostics belong in different groups, or could be tagged differently
+before being shown to the end user. Analyzers should document their severity
+level to help downstream tools surface diagnostics properly.
 
 Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
 and buildtag, inspect the raw text of Go source files or even non-Go

@@ -90,6 +90,7 @@ func (f flag) ro() flag {
 
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+// if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != ptrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -589,6 +590,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 			// Convert v to type typ if v is assignable to a variable
 			// of type t in the language spec.
 			// See issue 28761.
+			if typ.Kind() == Interface {
+				// We must clear the destination before calling assignTo,
+				// in case assignTo writes (with memory barriers) to the
+				// target location used as scratch space. See issue 39541.
+				*(*uintptr)(addr) = 0
+				*(*uintptr)(add(addr, ptrSize, "typ.size == 2*ptrSize")) = 0
+			}
 			v = v.assignTo("reflect.MakeFunc", typ, addr)
 
 			// We are writing to stack. No write barrier.
@@ -1445,7 +1453,16 @@ func (v Value) Pointer() uintptr {
 	// TODO: deprecate
 	k := v.kind()
 	switch k {
-	case Chan, Map, Ptr, UnsafePointer:
+	case Ptr:
+		if v.typ.ptrdata == 0 {
+			// Handle pointers to go:notinheap types directly,
+			// so we never materialize such pointers as an
+			// unsafe.Pointer. (Such pointers are always indirect.)
+			// See issue 42076.
+			return *(*uintptr)(v.ptr)
+		}
+		fallthrough
+	case Chan, Map, UnsafePointer:
 		return uintptr(v.pointer())
 	case Func:
 		if v.flag&flagMethod != 0 {
@@ -1546,7 +1563,11 @@ func (v Value) Set(x Value) {
 	}
 	x = x.assignTo("reflect.Set", v.typ, target)
 	if x.flag&flagIndir != 0 {
-		typedmemmove(v.typ, v.ptr, x.ptr)
+		if x.ptr == unsafe.Pointer(&zeroVal[0]) {
+			typedmemclr(v.typ, v.ptr)
+		} else {
+			typedmemmove(v.typ, v.ptr, x.ptr)
+		}
 	} else {
 		*(*unsafe.Pointer)(v.ptr) = x.ptr
 	}
@@ -2353,10 +2374,22 @@ func Zero(typ Type) Value {
 	t := typ.(*rtype)
 	fl := flag(t.Kind())
 	if ifaceIndir(t) {
-		return Value{t, unsafe_New(t), fl | flagIndir}
+		var p unsafe.Pointer
+		if t.size <= maxZero {
+			p = unsafe.Pointer(&zeroVal[0])
+		} else {
+			p = unsafe_New(t)
+		}
+		return Value{t, p, fl | flagIndir}
 	}
 	return Value{t, nil, fl}
 }
+
+// must match declarations in runtime/map.go.
+const maxZero = 1024
+
+//go:linkname zeroVal runtime.zeroVal
+var zeroVal [maxZero]byte
 
 // New returns a Value representing a pointer to a new zero value
 // for the specified type. That is, the returned Value's Type is PtrTo(typ).
@@ -2381,6 +2414,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 // assignTo returns a value v that can be assigned directly to typ.
 // It panics if v is not assignable to typ.
 // For a conversion to an interface type, target is a suggested scratch space to use.
+// target must be initialized memory (or nil).
 func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue(context, v)

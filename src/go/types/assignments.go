@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 )
@@ -33,18 +34,33 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
 		// bool, rune, int, float64, complex128 or string respectively, depending
-		// on whether the value is a boolean, rune, integer, floating-point, complex,
-		// or string constant."
+		// on whether the value is a boolean, rune, integer, floating-point,
+		// complex, or string constant."
 		if T == nil || IsInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil in %s", context)
+				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
 				x.mode = invalid
 				return
 			}
 			target = Default(x.typ)
 		}
-		check.convertUntyped(x, target)
-		if x.mode == invalid {
+		if err := check.canConvertUntyped(x, target); err != nil {
+			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
+			code := _IncompatibleAssign
+			var ierr Error
+			if errors.As(err, &ierr) {
+				// Preserve these inner errors, as they are informative.
+				switch ierr.go116code {
+				case _TruncatedFloat:
+					msg += " (truncated)"
+					code = ierr.go116code
+				case _NumericOverflow:
+					msg += " (overflows)"
+					code = ierr.go116code
+				}
+			}
+			check.error(x, code, msg)
+			x.mode = invalid
 			return
 		}
 	}
@@ -57,11 +73,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check, T, &reason) {
+	reason := ""
+	if ok, code := x.assignableTo(check, T, &reason); !ok {
 		if reason != "" {
-			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
+			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
 		} else {
-			check.errorf(x.pos(), "cannot use %s as %s value in %s", x, T, context)
+			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
 		}
 		x.mode = invalid
 	}
@@ -77,7 +94,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 
 	// rhs must be a constant
 	if x.mode != constant_ {
-		check.errorf(x.pos(), "%s is not constant", x)
+		check.errorf(x, _InvalidConstInit, "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -112,7 +129,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil in %s", context)
+				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
 				return nil
 			}
@@ -186,11 +203,11 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(z.pos(), "cannot assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(&z, _UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(z.expr))
 				return nil
 			}
 		}
-		check.errorf(z.pos(), "cannot assign to %s", &z)
+		check.errorf(&z, _UnassignableOperand, "cannot assign to %s", &z)
 		return nil
 	}
 
@@ -219,10 +236,10 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 		}
 		check.useGetter(get, r)
 		if returnPos.IsValid() {
-			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
+			check.errorf(atPos(returnPos), _WrongResultCount, "wrong number of return values (want %d, got %d)", l, r)
 			return
 		}
-		check.errorf(rhs[0].Pos(), "cannot initialize %d variables with %d values", l, r)
+		check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", l, r)
 		return
 	}
 
@@ -257,7 +274,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	}
 	if l != r {
 		check.useGetter(get, r)
-		check.errorf(rhs[0].Pos(), "cannot assign %d values to %d variables", r, l)
+		check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", r, l)
 		return
 	}
 
@@ -278,7 +295,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	}
 }
 
-func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	top := len(check.delayed)
 	scope := check.scope
 
@@ -298,7 +315,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				if alt, _ := alt.(*Var); alt != nil {
 					obj = alt
 				} else {
-					check.errorf(lhs.Pos(), "cannot assign to %s", lhs)
+					check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
 				}
 				check.recordUse(ident, alt)
 			} else {
@@ -311,7 +328,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 			}
 		} else {
 			check.useLHS(lhs)
-			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+			check.invalidAST(lhs, "cannot declare %s", lhs)
 		}
 		if obj == nil {
 			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
@@ -335,6 +352,6 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 			check.declare(scope, nil, obj, scopePos) // recordObject already called
 		}
 	} else {
-		check.softErrorf(pos, "no new variables on left side of :=")
+		check.softErrorf(pos, _NoNewVar, "no new variables on left side of :=")
 	}
 }

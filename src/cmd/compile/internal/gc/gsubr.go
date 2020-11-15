@@ -32,7 +32,6 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -71,12 +70,8 @@ func newProgs(fn *Node, worker int) *Progs {
 	pp.pos = fn.Pos
 	pp.settext(fn)
 	// PCDATA tables implicitly start with index -1.
-	pp.prevLive = LivenessIndex{-1, -1, false}
-	if go115ReduceLiveness {
-		pp.nextLive = pp.prevLive
-	} else {
-		pp.nextLive = LivenessInvalid
-	}
+	pp.prevLive = LivenessIndex{-1, false}
+	pp.nextLive = pp.prevLive
 	return pp
 }
 
@@ -121,31 +116,15 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 		Addrconst(&p.To, int64(idx))
 	}
-	if !go115ReduceLiveness {
+	if pp.nextLive.isUnsafePoint != pp.prevLive.isUnsafePoint {
+		// Emit unsafe-point marker.
+		pp.prevLive.isUnsafePoint = pp.nextLive.isUnsafePoint
+		p := pp.Prog(obj.APCDATA)
+		Addrconst(&p.From, objabi.PCDATA_UnsafePoint)
 		if pp.nextLive.isUnsafePoint {
-			// Unsafe points are encoded as a special value in the
-			// register map.
-			pp.nextLive.regMapIndex = objabi.PCDATA_RegMapUnsafe
-		}
-		if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
-			// Emit register map index change.
-			idx := pp.nextLive.regMapIndex
-			pp.prevLive.regMapIndex = idx
-			p := pp.Prog(obj.APCDATA)
-			Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
-			Addrconst(&p.To, int64(idx))
-		}
-	} else {
-		if pp.nextLive.isUnsafePoint != pp.prevLive.isUnsafePoint {
-			// Emit unsafe-point marker.
-			pp.prevLive.isUnsafePoint = pp.nextLive.isUnsafePoint
-			p := pp.Prog(obj.APCDATA)
-			Addrconst(&p.From, objabi.PCDATA_UnsafePoint)
-			if pp.nextLive.isUnsafePoint {
-				Addrconst(&p.To, objabi.PCDATA_UnsafePointUnsafe)
-			} else {
-				Addrconst(&p.To, objabi.PCDATA_UnsafePointSafe)
-			}
+			Addrconst(&p.To, objabi.PCDATA_UnsafePointUnsafe)
+		} else {
+			Addrconst(&p.To, objabi.PCDATA_UnsafePointSafe)
 		}
 	}
 
@@ -154,7 +133,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Debug['K'] != 0 {
+	if !pp.pos.IsKnown() && Debug.K != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
@@ -200,7 +179,7 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.lsym.Func.Text = ptxt
+	fn.Func.lsym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym
@@ -316,12 +295,18 @@ func ggloblnod(nam *Node) {
 	if nam.Name.Readonly() {
 		flags = obj.RODATA
 	}
-	if nam.Type != nil && !types.Haspointers(nam.Type) {
+	if nam.Type != nil && !nam.Type.HasPointers() {
 		flags |= obj.NOPTR
 	}
 	Ctxt.Globl(s, nam.Type.Width, flags)
 	if nam.Name.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+	}
+	if nam.Sym.Linkname != "" {
+		// Make sure linkname'd symbol is non-package. When a symbol is
+		// both imported and linkname'd, s.Pkg may not set to "_" in
+		// types.Sym.Linksym because LSym already exists. Set it here.
+		s.Pkg = "_"
 	}
 }
 
@@ -343,6 +328,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatalf("patch: not a branch")
 	}
-	p.To.Val = to
+	p.To.SetTarget(to)
 	p.To.Offset = to.Pc
 }

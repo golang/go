@@ -60,7 +60,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
 		} else if int(s.Sect) <= len(f.macho.Sections) {
 			sect := f.macho.Sections[s.Sect-1]
 			switch sect.Seg {
-			case "__TEXT":
+			case "__TEXT", "__DATA_CONST":
 				sym.Code = 'R'
 			case "__DATA":
 				sym.Code = 'D'

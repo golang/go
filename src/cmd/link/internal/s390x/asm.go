@@ -37,8 +37,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"fmt"
-	"sync"
 )
 
 // gentext generates assembly to append the local moduledata to the global
@@ -51,7 +49,7 @@ import (
 //	undef
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
-func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
 		return
@@ -60,7 +58,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	// larl %r2, <local.moduledata>
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0x20)
-	initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata2, 6, objabi.R_PCREL, 4)
+	initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 6, objabi.R_PCREL, 4)
 	r1 := initfunc.Relocs()
 	ldr.SetRelocVariant(initfunc.Sym(), r1.Count()-1, sym.RV_390_DBL)
 
@@ -75,7 +73,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc.AddUint32(ctxt.Arch, 0)
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -136,8 +134,8 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
-			r.SetSym(syms.PLT2)
+			addpltsym(target, ldr, syms, targ)
+			r.SetSym(syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
 		return true
@@ -148,8 +146,8 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
-			r.SetSym(syms.PLT2)
+			addpltsym(target, ldr, syms, targ)
+			r.SetSym(syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
 		return true
@@ -181,7 +179,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPC):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		return true
 
@@ -200,16 +198,16 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
-		addgotsym2(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_390_GLOB_DAT))
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ))+int64(r.Siz()))
 		return true
 	}
@@ -221,65 +219,67 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
-	ctxt.Out.Write64(uint64(sectoff))
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
+	out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+	siz := r.Size
 	switch r.Type {
 	default:
 		return false
 	case objabi.R_TLS_LE:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
 			// WARNING - silently ignored by linker in ELF64
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
 		case 8:
 			// WARNING - silently ignored by linker in ELF32
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_TLS_IE:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
-			ctxt.Out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
 		case 8:
-			ctxt.Out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_GOTPCREL:
-		if r.Siz == 4 {
-			ctxt.Out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
+		if siz == 4 {
+			out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
 		} else {
 			return false
 		}
 	case objabi.R_PCREL, objabi.R_PCRELDBL, objabi.R_CALL:
 		elfrel := elf.R_390_NONE
-		isdbl := r.Variant&sym.RV_TYPE_MASK == sym.RV_390_DBL
+		rVariant := ldr.RelocVariant(s, ri)
+		isdbl := rVariant&sym.RV_TYPE_MASK == sym.RV_390_DBL
 		// TODO(mundaym): all DBL style relocations should be
 		// signalled using the variant - see issue 14218.
 		switch r.Type {
 		case objabi.R_PCRELDBL, objabi.R_CALL:
 			isdbl = true
 		}
-		if r.Xsym.Type == sym.SDYNIMPORT && (r.Xsym.ElfType() == elf.STT_FUNC || r.Type == objabi.R_CALL) {
+		if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && (ldr.SymElfType(r.Xsym) == elf.STT_FUNC || r.Type == objabi.R_CALL) {
 			if isdbl {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PLT16DBL
 				case 4:
 					elfrel = elf.R_390_PLT32DBL
 				}
 			} else {
-				switch r.Siz {
+				switch siz {
 				case 4:
 					elfrel = elf.R_390_PLT32
 				case 8:
@@ -288,14 +288,14 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			}
 		} else {
 			if isdbl {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PC16DBL
 				case 4:
 					elfrel = elf.R_390_PC32DBL
 				}
 			} else {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PC16
 				case 4:
@@ -308,10 +308,10 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 		if elfrel == elf.R_390_NONE {
 			return false // unsupported size/dbl combination
 		}
-		ctxt.Out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
+		out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
 	}
 
-	ctxt.Out.Write64(uint64(r.Xadd))
+	out.Write64(uint64(r.Xadd))
 	return true
 }
 
@@ -363,53 +363,42 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 	}
 }
 
-func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
+func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
 	return false
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if target.IsExternal() {
-		return val, false
-	}
-
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
-	}
-
-	return val, false
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+	return val, 0, false
 }
 
-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
-	switch r.Variant & sym.RV_TYPE_MASK {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
+	switch rv & sym.RV_TYPE_MASK {
 	default:
-		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
+		ldr.Errorf(s, "unexpected relocation variant %d", rv)
 		return t
 
 	case sym.RV_NONE:
 		return t
 
 	case sym.RV_390_DBL:
-		if (t & 1) != 0 {
-			ld.Errorf(s, "%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
+		if t&1 != 0 {
+			ldr.Errorf(s, "%s+%v is not 2-byte aligned", ldr.SymName(r.Sym()), ldr.SymValue(r.Sym()))
 		}
 		return t >> 1
 	}
 }
 
-func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
 	if ldr.SymPlt(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym2(ldr, target, syms, s)
+	ld.Adddynsym(ldr, target, syms, s)
 
 	if target.IsElf() {
-		plt := ldr.MakeSymbolUpdater(syms.PLT2)
-		got := ldr.MakeSymbolUpdater(syms.GOT2)
-		rela := ldr.MakeSymbolUpdater(syms.RelaPLT2)
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		got := ldr.MakeSymbolUpdater(syms.GOT)
+		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
 		if plt.Size() == 0 {
 			panic("plt is not set up")
 		}
@@ -455,101 +444,12 @@ func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		rela.AddAddrPlus(target.Arch, got.Sym(), got.Size()-8)
 
 		sDynid := ldr.SymDynid(s)
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_390_JMP_SLOT)))
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_390_JMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-32))
 
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
-	}
-}
-
-func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
-	if ldr.SymGot(s) >= 0 {
-		return
-	}
-
-	ld.Adddynsym2(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT2)
-	ldr.SetGot(s, int32(got.Size()))
-	got.AddUint64(target.Arch, 0)
-
-	if target.IsElf() {
-		rela := ldr.MakeSymbolUpdater(syms.Rela2)
-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_390_GLOB_DAT)))
-		rela.AddUint64(target.Arch, 0)
-	} else {
-		ldr.Errorf(s, "addgotsym: unsupported binary format")
-	}
-}
-
-func asmb(ctxt *ld.Link, _ *loader.Loader) {
-	if ctxt.IsELF {
-		ld.Asmbelfsetup()
-	}
-
-	var wg sync.WaitGroup
-	sect := ld.Segtext.Sections[0]
-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
-
-	for _, sect := range ld.Segtext.Sections[1:] {
-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
-	}
-
-	if ld.Segrodata.Filelen > 0 {
-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
-	}
-
-	if ld.Segrelrodata.Filelen > 0 {
-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
-	}
-
-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
-
-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
-	wg.Wait()
-}
-
-func asmb2(ctxt *ld.Link) {
-	/* output symbol table */
-	ld.Symsize = 0
-
-	ld.Lcsize = 0
-	symo := uint32(0)
-	if !*ld.FlagS {
-		if !ctxt.IsELF {
-			ld.Errorf(nil, "unsupported executable format")
-		}
-		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
-
-		ctxt.Out.SeekSet(int64(symo))
-		ld.Asmelfsym(ctxt)
-		ctxt.Out.Write(ld.Elfstrdat)
-
-		if ctxt.LinkMode == ld.LinkExternal {
-			ld.Elfemitreloc(ctxt)
-		}
-	}
-
-	ctxt.Out.SeekSet(0)
-	switch ctxt.HeadType {
-	default:
-		ld.Errorf(nil, "unsupported operating system")
-	case objabi.Hlinux:
-		ld.Asmbelf(ctxt, int64(symo))
-	}
-
-	if *ld.FlagC {
-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
-		fmt.Printf("symsize=%d\n", ld.Symsize)
-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
 	}
 }

@@ -6,6 +6,7 @@
 package tool
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,7 +49,7 @@ func init() {
 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
-func runTool(cmd *base.Command, args []string) {
+func runTool(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		listTools()
 		return

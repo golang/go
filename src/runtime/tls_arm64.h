@@ -15,6 +15,12 @@
 #endif
 
 #ifdef GOOS_darwin
+#define TLS_darwin
+#endif
+#ifdef GOOS_ios
+#define TLS_darwin
+#endif
+#ifdef TLS_darwin
 #define TPIDR TPIDRRO_EL0
 #define TLSG_IS_VARIABLE
 #define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0

@@ -80,8 +80,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return a.Name.Used()
 	}
 
-	ap := types.Haspointers(a.Type)
-	bp := types.Haspointers(b.Type)
+	ap := a.Type.HasPointers()
+	bp := b.Type.HasPointers()
 	if ap != bp {
 		return ap
 	}
@@ -176,7 +176,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 		s.stksize += w
 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
-		if types.Haspointers(n.Type) {
+		if n.Type.HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
 		} else {
@@ -231,6 +231,11 @@ func compile(fn *Node) {
 		return
 	}
 
+	// Set up the function's LSym early to avoid data races with the assemblers.
+	// Do this before walk, as walk needs the LSym to set attributes/relocations
+	// (e.g. in markTypeUsedInInterface).
+	fn.Func.initLSym(true)
+
 	walk(fn)
 	if nerrors != 0 {
 		return
@@ -250,9 +255,6 @@ func compile(fn *Node) {
 		return
 	}
 
-	// Set up the function's LSym early to avoid data races with the assemblers.
-	fn.Func.initLSym(true)
-
 	// Make sure type syms are declared for all types that might
 	// be types of stack objects. We need to do this here
 	// because symbols must be allocated before the parallel
@@ -264,8 +266,8 @@ func compile(fn *Node) {
 				dtypesym(n.Type)
 				// Also make sure we allocate a linker symbol
 				// for the stack object data, for the same reason.
-				if fn.Func.lsym.Func.StackObjects == nil {
-					fn.Func.lsym.Func.StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
+				if fn.Func.lsym.Func().StackObjects == nil {
+					fn.Func.lsym.Func().StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
 				}
 			}
 		}
@@ -413,7 +415,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 		case PAUTO:
 			if !n.Name.Used() {
 				// Text == nil -> generating abstract function
-				if fnsym.Func.Text != nil {
+				if fnsym.Func().Text != nil {
 					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
 				}
 				continue
@@ -423,16 +425,17 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 			continue
 		}
 		apdecls = append(apdecls, n)
-		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
+		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
 	}
 
 	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
 
-	// For each type referenced by the functions auto vars, attach a
-	// dummy relocation to the function symbol to insure that the type
-	// included in DWARF processing during linking.
+	// For each type referenced by the functions auto vars but not
+	// already referenced by a dwarf var, attach a dummy relocation to
+	// the function symbol to insure that the type included in DWARF
+	// processing during linking.
 	typesyms := []*obj.LSym{}
-	for t, _ := range fnsym.Func.Autot {
+	for t, _ := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
 	sort.Sort(obj.BySymName(typesyms))
@@ -441,7 +444,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 		r.Sym = sym
 		r.Type = objabi.R_USETYPE
 	}
-	fnsym.Func.Autot = nil
+	fnsym.Func().Autot = nil
 
 	var varScopes []ScopeID
 	for _, decl := range decls {
@@ -480,7 +483,7 @@ func declPos(decl *Node) src.XPos {
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createSimpleVars(fnsym *obj.LSym, apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	var vars []*dwarf.Var
 	var decls []*Node
 	selected := make(map[*Node]bool)
@@ -490,13 +493,13 @@ func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 		}
 
 		decls = append(decls, n)
-		vars = append(vars, createSimpleVar(n))
+		vars = append(vars, createSimpleVar(fnsym, n))
 		selected[n] = true
 	}
 	return decls, vars, selected
 }
 
-func createSimpleVar(n *Node) *dwarf.Var {
+func createSimpleVar(fnsym *obj.LSym, n *Node) *dwarf.Var {
 	var abbrev int
 	offs := n.Xoffset
 
@@ -506,7 +509,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 		if Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(Widthptr)
 		}
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
 			offs -= int64(Widthptr)
 		}
@@ -519,6 +522,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 	}
 
 	typename := dwarf.InfoPrefix + typesymname(n.Type)
+	delete(fnsym.Func().Autot, ngotype(n).Linksym())
 	inlIndex := 0
 	if genDwarfInline > 1 {
 		if n.Name.InlFormal() || n.Name.InlLocal() {
@@ -546,7 +550,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createComplexVars(fnsym *obj.LSym, fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	debugInfo := fn.DebugInfo
 
 	// Produce a DWARF variable entry for each user variable.
@@ -561,7 +565,7 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
 		}
 
-		if dvar := createComplexVar(fn, ssa.VarID(varID)); dvar != nil {
+		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
 			decls = append(decls, n)
 			vars = append(vars, dvar)
 		}
@@ -578,9 +582,9 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 	var decls []*Node
 	var selected map[*Node]bool
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
-		decls, vars, selected = createComplexVars(fn)
+		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
-		decls, vars, selected = createSimpleVars(apDecls)
+		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
 
 	dcl := apDecls
@@ -616,7 +620,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 			// Args not of SSA-able type are treated here; they
 			// are homed on the stack in a single place for the
 			// entire call.
-			vars = append(vars, createSimpleVar(n))
+			vars = append(vars, createSimpleVar(fnsym, n))
 			decls = append(decls, n)
 			continue
 		}
@@ -663,7 +667,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 			ChildIndex:    -1,
 		})
 		// Record go type of to insure that it gets emitted by the linker.
-		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
+		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
 	}
 
 	return decls, vars
@@ -701,7 +705,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 		if Ctxt.FixedFrameSize() == 0 {
 			base -= int64(Widthptr)
 		}
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
 			base -= int64(Widthptr)
 		}
@@ -712,7 +716,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.
-func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
+func createComplexVar(fnsym *obj.LSym, fn *Func, varID ssa.VarID) *dwarf.Var {
 	debug := fn.DebugInfo
 	n := debug.Vars[varID].(*Node)
 
@@ -727,6 +731,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 	}
 
 	gotype := ngotype(n).Linksym()
+	delete(fnsym.Func().Autot, gotype)
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0
 	if genDwarfInline > 1 {

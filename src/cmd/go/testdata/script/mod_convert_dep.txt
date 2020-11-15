@@ -20,7 +20,6 @@ cd $WORK/gopkgdir/x
 ! go list .
 stderr 'cannot find main module'
 ! stderr 'Gopkg.lock'
-! stderr 'go mod init'
 
 -- $WORK/test/Gopkg.lock --
 -- $WORK/test/x/x.go --

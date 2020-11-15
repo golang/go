@@ -17,7 +17,7 @@ func (m *RouteMessage) marshal() ([]byte, error) {
 		return nil, errUnsupportedMessage
 	}
 	l := w.bodyOff + addrsSpace(m.Addrs)
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Fix stray pointer writes on macOS.
 		// See golang.org/issue/22456.
 		l += 1024

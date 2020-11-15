@@ -7,6 +7,7 @@ package big
 import (
 	"fmt"
 	"internal/testenv"
+	"math/bits"
 	"math/rand"
 	"strings"
 	"testing"
@@ -179,6 +180,23 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 	}
 }
 
+func testFunVWext(t *testing.T, msg string, f funVW, f_g funVW, a argVW) {
+	// using the result of addVW_g/subVW_g as golden
+	z_g := make(nat, len(a.z))
+	c_g := f_g(z_g, a.x, a.y)
+	c := f(a.z, a.x, a.y)
+
+	for i, zi := range a.z {
+		if zi != z_g[i] {
+			t.Errorf("%s\n\tgot z[%d] = %#x; want %#x", msg, i, zi, z_g[i])
+			break
+		}
+	}
+	if c != c_g {
+		t.Errorf("%s\n\tgot c = %#x; want %#x", msg, c, c_g)
+	}
+}
+
 func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
 	return func(z, x []Word, s Word) (c Word) {
 		return f(z, x, uint(s))
@@ -213,6 +231,49 @@ func TestFunVW(t *testing.T) {
 	}
 }
 
+// Construct a vector comprising the same word, usually '0' or 'maximum uint'
+func makeWordVec(e Word, n int) []Word {
+	v := make([]Word, n)
+	for i := range v {
+		v[i] = e
+	}
+	return v
+}
+
+// Extended testing to addVW and subVW using various kinds of input data.
+// We utilize the results of addVW_g and subVW_g as golden reference to check
+// correctness.
+func TestFunVWExt(t *testing.T) {
+	// 32 is the current threshold that triggers an optimized version of
+	// calculation for large-sized vector, ensure we have sizes around it tested.
+	var vwSizes = []int{0, 1, 3, 4, 5, 8, 9, 23, 31, 32, 33, 34, 35, 36, 50, 120}
+	for _, n := range vwSizes {
+		// vector of random numbers, using the result of addVW_g/subVW_g as golden
+		x := rndV(n)
+		y := rndW()
+		z := make(nat, n)
+		arg := argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, random inputs", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs", subVW, subVW_g, arg)
+
+		// vector of random numbers, but make 'x' and 'z' share storage
+		arg = argVW{x, x, y, 0}
+		testFunVWext(t, "addVW, random inputs, sharing storage", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs, sharing storage", subVW, subVW_g, arg)
+
+		// vector of maximum uint, to force carry flag set in each 'add'
+		y = ^Word(0)
+		x = makeWordVec(y, n)
+		arg = argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, vector of max uint", addVW, addVW_g, arg)
+
+		// vector of '0', to force carry flag set in each 'sub'
+		x = makeWordVec(0, n)
+		arg = argVW{z, x, 1, 0}
+		testFunVWext(t, "subVW, vector of zero", subVW, subVW_g, arg)
+	}
+}
+
 type argVU struct {
 	d  []Word // d is a Word slice, the input parameters x and z come from this array.
 	l  uint   // l is the length of the input parameters x and z.
@@ -241,20 +302,20 @@ var argshrVU = []argVU{
 }
 
 func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
-	// save a.d for error message, or it will be overwritten.
+	// work on copy of a.d to preserve the original data.
 	b := make([]Word, len(a.d))
 	copy(b, a.d)
-	z := a.d[a.zp : a.zp+a.l]
-	x := a.d[a.xp : a.xp+a.l]
+	z := b[a.zp : a.zp+a.l]
+	x := b[a.xp : a.xp+a.l]
 	c := f(z, x, a.s)
 	for i, zi := range z {
 		if zi != a.r[i] {
-			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
 			break
 		}
 	}
 	if c != a.c {
-		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
 	}
 }
 
@@ -299,6 +360,24 @@ func BenchmarkAddVW(b *testing.B) {
 	}
 }
 
+// Benchmarking addVW using vector of maximum uint to force carry flag set
+func BenchmarkAddVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		y := ^Word(0)
+		x := makeWordVec(y, n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				addVW(z, x, y)
+			}
+		})
+	}
+}
+
 func BenchmarkSubVW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
@@ -306,6 +385,24 @@ func BenchmarkSubVW(b *testing.B) {
 		}
 		x := rndV(n)
 		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
+			}
+		})
+	}
+}
+
+// Benchmarking subVW using vector of zero to force carry flag set
+func BenchmarkSubVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := makeWordVec(0, n)
+		y := Word(1)
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
@@ -397,7 +494,6 @@ func TestFunVWW(t *testing.T) {
 
 		if a.y != 0 && a.r < a.y {
 			arg := argWVW{a.x, a.c, a.z, a.y, a.r}
-			testFunWVW(t, "divWVW_g", divWVW_g, arg)
 			testFunWVW(t, "divWVW", divWVW, arg)
 		}
 	}
@@ -440,6 +536,42 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
+var divWWTests = []struct {
+	x1, x0, y Word
+	q, r      Word
+}{
+	{_M >> 1, 0, _M, _M >> 1, _M >> 1},
+	{_M - (1 << (_W - 2)), _M, 3 << (_W - 2), _M, _M - (1 << (_W - 2))},
+}
+
+const testsNumber = 1 << 16
+
+func TestDivWW(t *testing.T) {
+	i := 0
+	for i, test := range divWWTests {
+		rec := reciprocalWord(test.y)
+		q, r := divWW(test.x1, test.x0, test.y, rec)
+		if q != test.q || r != test.r {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
+		}
+	}
+	//random tests
+	for ; i < testsNumber; i++ {
+		x1 := rndW()
+		x0 := rndW()
+		y := rndW()
+		if x1 >= y {
+			continue
+		}
+		rec := reciprocalWord(y)
+		qGot, rGot := divWW(x1, x0, y, rec)
+		qWant, rWant := bits.Div(uint(x1), uint(x0), uint(y))
+		if uint(qGot) != qWant || uint(rGot) != rWant {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, qGot, rGot, qWant, rWant)
+		}
+	}
+}
+
 func BenchmarkMulAddVWW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
@@ -470,6 +602,22 @@ func BenchmarkAddMulVVW(b *testing.B) {
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addMulVVW(z, x, y)
+			}
+		})
+	}
+}
+func BenchmarkDivWVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				divWVW(z, 0, x, y)
 			}
 		})
 	}

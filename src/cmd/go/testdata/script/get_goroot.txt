@@ -1,4 +1,5 @@
 [!net] skip
+env GO111MODULE=off
 
 # Issue 4186. go get cannot be used to download packages to $GOROOT.
 # Test that without GOPATH set, go get should fail.

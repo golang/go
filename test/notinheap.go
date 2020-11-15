@@ -11,23 +11,11 @@ package p
 //go:notinheap
 type nih struct{}
 
-// Types embedding notinheap types must be notinheap.
+type embed4 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
 
-type embed1 struct { // ERROR "must be go:notinheap"
-	x nih
-}
+type embed5 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
 
-type embed2 [1]nih // ERROR "must be go:notinheap"
-
-type embed3 struct { // ERROR "must be go:notinheap"
-	x [1]nih
-}
-
-type embed4 map[nih]int // ERROR "go:notinheap map key not allowed"
-
-type embed5 map[int]nih // ERROR "go:notinheap map value not allowed"
-
-type emebd6 chan nih // ERROR "chan of go:notinheap type not allowed"
+type emebd6 chan nih // ERROR "chan of incomplete \(or unallocatable\) type not allowed"
 
 type okay1 *nih
 
@@ -56,8 +44,8 @@ var sink interface{}
 
 func i() {
 	sink = new(t1)                     // no error
-	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
-	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
-	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is go:notinheap"
-	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is go:notinheap"
+	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
+	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
+	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is incomplete \(or unallocatable\)"
+	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is incomplete \(or unallocatable\)"
 }

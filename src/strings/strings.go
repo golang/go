@@ -934,8 +934,8 @@ func Replace(s, old, new string, n int) string {
 	}
 
 	// Apply replacements to buffer.
-	t := make([]byte, len(s)+n*(len(new)-len(old)))
-	w := 0
+	var b Builder
+	b.Grow(len(s) + n*(len(new)-len(old)))
 	start := 0
 	for i := 0; i < n; i++ {
 		j := start
@@ -947,12 +947,12 @@ func Replace(s, old, new string, n int) string {
 		} else {
 			j += Index(s[start:], old)
 		}
-		w += copy(t[w:], s[start:j])
-		w += copy(t[w:], new)
+		b.WriteString(s[start:j])
+		b.WriteString(new)
 		start = j + len(old)
 	}
-	w += copy(t[w:], s[start:])
-	return string(t[0:w])
+	b.WriteString(s[start:])
+	return b.String()
 }
 
 // ReplaceAll returns a copy of the string s with all

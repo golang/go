@@ -67,11 +67,28 @@ type Statx_t struct {
 	Rdev_minor      uint32
 	Dev_major       uint32
 	Dev_minor       uint32
-	_               [14]uint64
+	Mnt_id          uint64
+	_               uint64
+	_               [12]uint64
 }
 
 type Fsid struct {
 	Val [2]int32
+}
+
+type FileCloneRange struct {
+	Src_fd      int64
+	Src_offset  uint64
+	Src_length  uint64
+	Dest_offset uint64
+}
+
+type FileDedupeRange struct {
+	Src_offset uint64
+	Src_length uint64
+	Dest_count uint16
+	Reserved1  uint16
+	Reserved2  uint32
 }
 
 type FscryptPolicy struct {
@@ -137,6 +154,48 @@ type FscryptGetKeyStatusArg struct {
 	User_count   uint32
 	_            [13]uint32
 }
+
+type DmIoctl struct {
+	Version      [3]uint32
+	Data_size    uint32
+	Data_start   uint32
+	Target_count uint32
+	Open_count   int32
+	Flags        uint32
+	Event_nr     uint32
+	_            uint32
+	Dev          uint64
+	Name         [128]byte
+	Uuid         [129]byte
+	Data         [7]byte
+}
+
+type DmTargetSpec struct {
+	Sector_start uint64
+	Length       uint64
+	Status       int32
+	Next         uint32
+	Target_type  [16]byte
+}
+
+type DmTargetDeps struct {
+	Count uint32
+	_     uint32
+}
+
+type DmTargetVersions struct {
+	Next    uint32
+	Version [3]uint32
+}
+
+type DmTargetMsg struct {
+	Sector uint64
+}
+
+const (
+	SizeofDmIoctl      = 0x138
+	SizeofDmTargetSpec = 0x28
+)
 
 type KeyctlDHParams struct {
 	Private int32
@@ -266,6 +325,15 @@ type RawSockaddrL2TPIP6 struct {
 	Conn_id  uint32
 }
 
+type RawSockaddrIUCV struct {
+	Family  uint16
+	Port    uint16
+	Addr    uint32
+	Nodeid  [8]int8
+	User_id [8]int8
+	Name    [8]int8
+}
+
 type _Socklen uint32
 
 type Linger struct {
@@ -378,6 +446,7 @@ const (
 	SizeofSockaddrTIPC      = 0x10
 	SizeofSockaddrL2TPIP    = 0x10
 	SizeofSockaddrL2TPIP6   = 0x20
+	SizeofSockaddrIUCV      = 0x20
 	SizeofLinger            = 0x8
 	SizeofIPMreq            = 0x8
 	SizeofIPMreqn           = 0xc
@@ -393,166 +462,107 @@ const (
 )
 
 const (
-	NDA_UNSPEC              = 0x0
-	NDA_DST                 = 0x1
-	NDA_LLADDR              = 0x2
-	NDA_CACHEINFO           = 0x3
-	NDA_PROBES              = 0x4
-	NDA_VLAN                = 0x5
-	NDA_PORT                = 0x6
-	NDA_VNI                 = 0x7
-	NDA_IFINDEX             = 0x8
-	NDA_MASTER              = 0x9
-	NDA_LINK_NETNSID        = 0xa
-	NDA_SRC_VNI             = 0xb
-	NTF_USE                 = 0x1
-	NTF_SELF                = 0x2
-	NTF_MASTER              = 0x4
-	NTF_PROXY               = 0x8
-	NTF_EXT_LEARNED         = 0x10
-	NTF_OFFLOADED           = 0x20
-	NTF_ROUTER              = 0x80
-	NUD_INCOMPLETE          = 0x1
-	NUD_REACHABLE           = 0x2
-	NUD_STALE               = 0x4
-	NUD_DELAY               = 0x8
-	NUD_PROBE               = 0x10
-	NUD_FAILED              = 0x20
-	NUD_NOARP               = 0x40
-	NUD_PERMANENT           = 0x80
-	NUD_NONE                = 0x0
-	IFA_UNSPEC              = 0x0
-	IFA_ADDRESS             = 0x1
-	IFA_LOCAL               = 0x2
-	IFA_LABEL               = 0x3
-	IFA_BROADCAST           = 0x4
-	IFA_ANYCAST             = 0x5
-	IFA_CACHEINFO           = 0x6
-	IFA_MULTICAST           = 0x7
-	IFA_FLAGS               = 0x8
-	IFA_RT_PRIORITY         = 0x9
-	IFA_TARGET_NETNSID      = 0xa
-	IFLA_UNSPEC             = 0x0
-	IFLA_ADDRESS            = 0x1
-	IFLA_BROADCAST          = 0x2
-	IFLA_IFNAME             = 0x3
-	IFLA_MTU                = 0x4
-	IFLA_LINK               = 0x5
-	IFLA_QDISC              = 0x6
-	IFLA_STATS              = 0x7
-	IFLA_COST               = 0x8
-	IFLA_PRIORITY           = 0x9
-	IFLA_MASTER             = 0xa
-	IFLA_WIRELESS           = 0xb
-	IFLA_PROTINFO           = 0xc
-	IFLA_TXQLEN             = 0xd
-	IFLA_MAP                = 0xe
-	IFLA_WEIGHT             = 0xf
-	IFLA_OPERSTATE          = 0x10
-	IFLA_LINKMODE           = 0x11
-	IFLA_LINKINFO           = 0x12
-	IFLA_NET_NS_PID         = 0x13
-	IFLA_IFALIAS            = 0x14
-	IFLA_NUM_VF             = 0x15
-	IFLA_VFINFO_LIST        = 0x16
-	IFLA_STATS64            = 0x17
-	IFLA_VF_PORTS           = 0x18
-	IFLA_PORT_SELF          = 0x19
-	IFLA_AF_SPEC            = 0x1a
-	IFLA_GROUP              = 0x1b
-	IFLA_NET_NS_FD          = 0x1c
-	IFLA_EXT_MASK           = 0x1d
-	IFLA_PROMISCUITY        = 0x1e
-	IFLA_NUM_TX_QUEUES      = 0x1f
-	IFLA_NUM_RX_QUEUES      = 0x20
-	IFLA_CARRIER            = 0x21
-	IFLA_PHYS_PORT_ID       = 0x22
-	IFLA_CARRIER_CHANGES    = 0x23
-	IFLA_PHYS_SWITCH_ID     = 0x24
-	IFLA_LINK_NETNSID       = 0x25
-	IFLA_PHYS_PORT_NAME     = 0x26
-	IFLA_PROTO_DOWN         = 0x27
-	IFLA_GSO_MAX_SEGS       = 0x28
-	IFLA_GSO_MAX_SIZE       = 0x29
-	IFLA_PAD                = 0x2a
-	IFLA_XDP                = 0x2b
-	IFLA_EVENT              = 0x2c
-	IFLA_NEW_NETNSID        = 0x2d
-	IFLA_IF_NETNSID         = 0x2e
-	IFLA_TARGET_NETNSID     = 0x2e
-	IFLA_CARRIER_UP_COUNT   = 0x2f
-	IFLA_CARRIER_DOWN_COUNT = 0x30
-	IFLA_NEW_IFINDEX        = 0x31
-	IFLA_MIN_MTU            = 0x32
-	IFLA_MAX_MTU            = 0x33
-	IFLA_MAX                = 0x36
-	IFLA_INFO_KIND          = 0x1
-	IFLA_INFO_DATA          = 0x2
-	IFLA_INFO_XSTATS        = 0x3
-	IFLA_INFO_SLAVE_KIND    = 0x4
-	IFLA_INFO_SLAVE_DATA    = 0x5
-	RT_SCOPE_UNIVERSE       = 0x0
-	RT_SCOPE_SITE           = 0xc8
-	RT_SCOPE_LINK           = 0xfd
-	RT_SCOPE_HOST           = 0xfe
-	RT_SCOPE_NOWHERE        = 0xff
-	RT_TABLE_UNSPEC         = 0x0
-	RT_TABLE_COMPAT         = 0xfc
-	RT_TABLE_DEFAULT        = 0xfd
-	RT_TABLE_MAIN           = 0xfe
-	RT_TABLE_LOCAL          = 0xff
-	RT_TABLE_MAX            = 0xffffffff
-	RTA_UNSPEC              = 0x0
-	RTA_DST                 = 0x1
-	RTA_SRC                 = 0x2
-	RTA_IIF                 = 0x3
-	RTA_OIF                 = 0x4
-	RTA_GATEWAY             = 0x5
-	RTA_PRIORITY            = 0x6
-	RTA_PREFSRC             = 0x7
-	RTA_METRICS             = 0x8
-	RTA_MULTIPATH           = 0x9
-	RTA_FLOW                = 0xb
-	RTA_CACHEINFO           = 0xc
-	RTA_TABLE               = 0xf
-	RTA_MARK                = 0x10
-	RTA_MFC_STATS           = 0x11
-	RTA_VIA                 = 0x12
-	RTA_NEWDST              = 0x13
-	RTA_PREF                = 0x14
-	RTA_ENCAP_TYPE          = 0x15
-	RTA_ENCAP               = 0x16
-	RTA_EXPIRES             = 0x17
-	RTA_PAD                 = 0x18
-	RTA_UID                 = 0x19
-	RTA_TTL_PROPAGATE       = 0x1a
-	RTA_IP_PROTO            = 0x1b
-	RTA_SPORT               = 0x1c
-	RTA_DPORT               = 0x1d
-	RTN_UNSPEC              = 0x0
-	RTN_UNICAST             = 0x1
-	RTN_LOCAL               = 0x2
-	RTN_BROADCAST           = 0x3
-	RTN_ANYCAST             = 0x4
-	RTN_MULTICAST           = 0x5
-	RTN_BLACKHOLE           = 0x6
-	RTN_UNREACHABLE         = 0x7
-	RTN_PROHIBIT            = 0x8
-	RTN_THROW               = 0x9
-	RTN_NAT                 = 0xa
-	RTN_XRESOLVE            = 0xb
-	SizeofNlMsghdr          = 0x10
-	SizeofNlMsgerr          = 0x14
-	SizeofRtGenmsg          = 0x1
-	SizeofNlAttr            = 0x4
-	SizeofRtAttr            = 0x4
-	SizeofIfInfomsg         = 0x10
-	SizeofIfAddrmsg         = 0x8
-	SizeofIfaCacheinfo      = 0x10
-	SizeofRtMsg             = 0xc
-	SizeofRtNexthop         = 0x8
-	SizeofNdUseroptmsg      = 0x10
-	SizeofNdMsg             = 0xc
+	NDA_UNSPEC         = 0x0
+	NDA_DST            = 0x1
+	NDA_LLADDR         = 0x2
+	NDA_CACHEINFO      = 0x3
+	NDA_PROBES         = 0x4
+	NDA_VLAN           = 0x5
+	NDA_PORT           = 0x6
+	NDA_VNI            = 0x7
+	NDA_IFINDEX        = 0x8
+	NDA_MASTER         = 0x9
+	NDA_LINK_NETNSID   = 0xa
+	NDA_SRC_VNI        = 0xb
+	NTF_USE            = 0x1
+	NTF_SELF           = 0x2
+	NTF_MASTER         = 0x4
+	NTF_PROXY          = 0x8
+	NTF_EXT_LEARNED    = 0x10
+	NTF_OFFLOADED      = 0x20
+	NTF_ROUTER         = 0x80
+	NUD_INCOMPLETE     = 0x1
+	NUD_REACHABLE      = 0x2
+	NUD_STALE          = 0x4
+	NUD_DELAY          = 0x8
+	NUD_PROBE          = 0x10
+	NUD_FAILED         = 0x20
+	NUD_NOARP          = 0x40
+	NUD_PERMANENT      = 0x80
+	NUD_NONE           = 0x0
+	IFA_UNSPEC         = 0x0
+	IFA_ADDRESS        = 0x1
+	IFA_LOCAL          = 0x2
+	IFA_LABEL          = 0x3
+	IFA_BROADCAST      = 0x4
+	IFA_ANYCAST        = 0x5
+	IFA_CACHEINFO      = 0x6
+	IFA_MULTICAST      = 0x7
+	IFA_FLAGS          = 0x8
+	IFA_RT_PRIORITY    = 0x9
+	IFA_TARGET_NETNSID = 0xa
+	RT_SCOPE_UNIVERSE  = 0x0
+	RT_SCOPE_SITE      = 0xc8
+	RT_SCOPE_LINK      = 0xfd
+	RT_SCOPE_HOST      = 0xfe
+	RT_SCOPE_NOWHERE   = 0xff
+	RT_TABLE_UNSPEC    = 0x0
+	RT_TABLE_COMPAT    = 0xfc
+	RT_TABLE_DEFAULT   = 0xfd
+	RT_TABLE_MAIN      = 0xfe
+	RT_TABLE_LOCAL     = 0xff
+	RT_TABLE_MAX       = 0xffffffff
+	RTA_UNSPEC         = 0x0
+	RTA_DST            = 0x1
+	RTA_SRC            = 0x2
+	RTA_IIF            = 0x3
+	RTA_OIF            = 0x4
+	RTA_GATEWAY        = 0x5
+	RTA_PRIORITY       = 0x6
+	RTA_PREFSRC        = 0x7
+	RTA_METRICS        = 0x8
+	RTA_MULTIPATH      = 0x9
+	RTA_FLOW           = 0xb
+	RTA_CACHEINFO      = 0xc
+	RTA_TABLE          = 0xf
+	RTA_MARK           = 0x10
+	RTA_MFC_STATS      = 0x11
+	RTA_VIA            = 0x12
+	RTA_NEWDST         = 0x13
+	RTA_PREF           = 0x14
+	RTA_ENCAP_TYPE     = 0x15
+	RTA_ENCAP          = 0x16
+	RTA_EXPIRES        = 0x17
+	RTA_PAD            = 0x18
+	RTA_UID            = 0x19
+	RTA_TTL_PROPAGATE  = 0x1a
+	RTA_IP_PROTO       = 0x1b
+	RTA_SPORT          = 0x1c
+	RTA_DPORT          = 0x1d
+	RTN_UNSPEC         = 0x0
+	RTN_UNICAST        = 0x1
+	RTN_LOCAL          = 0x2
+	RTN_BROADCAST      = 0x3
+	RTN_ANYCAST        = 0x4
+	RTN_MULTICAST      = 0x5
+	RTN_BLACKHOLE      = 0x6
+	RTN_UNREACHABLE    = 0x7
+	RTN_PROHIBIT       = 0x8
+	RTN_THROW          = 0x9
+	RTN_NAT            = 0xa
+	RTN_XRESOLVE       = 0xb
+	SizeofNlMsghdr     = 0x10
+	SizeofNlMsgerr     = 0x14
+	SizeofRtGenmsg     = 0x1
+	SizeofNlAttr       = 0x4
+	SizeofRtAttr       = 0x4
+	SizeofIfInfomsg    = 0x10
+	SizeofIfAddrmsg    = 0x8
+	SizeofIfaCacheinfo = 0x10
+	SizeofRtMsg        = 0xc
+	SizeofRtNexthop    = 0x8
+	SizeofNdUseroptmsg = 0x10
+	SizeofNdMsg        = 0xc
 )
 
 type NlMsghdr struct {
@@ -671,6 +681,8 @@ type InotifyEvent struct {
 
 const SizeofInotifyEvent = 0x10
 
+const SI_LOAD_SHIFT = 0x10
+
 type Utsname struct {
 	Sysname    [65]byte
 	Nodename   [65]byte
@@ -694,6 +706,22 @@ const (
 	AT_SYMLINK_NOFOLLOW = 0x100
 
 	AT_EACCESS = 0x200
+)
+
+type OpenHow struct {
+	Flags   uint64
+	Mode    uint64
+	Resolve uint64
+}
+
+const SizeofOpenHow = 0x18
+
+const (
+	RESOLVE_BENEATH       = 0x8
+	RESOLVE_IN_ROOT       = 0x10
+	RESOLVE_NO_MAGICLINKS = 0x2
+	RESOLVE_NO_SYMLINKS   = 0x4
+	RESOLVE_NO_XDEV       = 0x1
 )
 
 type PollFd struct {
@@ -735,8 +763,6 @@ type SignalfdSiginfo struct {
 	Arch      uint32
 	_         [28]uint8
 }
-
-const PERF_IOC_FLAG_GROUP = 0x1
 
 type Winsize struct {
 	Row    uint16
@@ -861,7 +887,10 @@ type PerfEventMmapPage struct {
 	Time_offset    uint64
 	Time_zero      uint64
 	Size           uint32
-	_              [948]uint8
+	_              uint32
+	Time_cycles    uint64
+	Time_mask      uint64
+	_              [928]uint8
 	Data_head      uint64
 	Data_tail      uint64
 	Data_offset    uint64
@@ -903,13 +932,13 @@ const (
 )
 
 const (
-	PERF_TYPE_HARDWARE   = 0x0
-	PERF_TYPE_SOFTWARE   = 0x1
-	PERF_TYPE_TRACEPOINT = 0x2
-	PERF_TYPE_HW_CACHE   = 0x3
-	PERF_TYPE_RAW        = 0x4
-	PERF_TYPE_BREAKPOINT = 0x5
-
+	PERF_TYPE_HARDWARE                    = 0x0
+	PERF_TYPE_SOFTWARE                    = 0x1
+	PERF_TYPE_TRACEPOINT                  = 0x2
+	PERF_TYPE_HW_CACHE                    = 0x3
+	PERF_TYPE_RAW                         = 0x4
+	PERF_TYPE_BREAKPOINT                  = 0x5
+	PERF_TYPE_MAX                         = 0x6
 	PERF_COUNT_HW_CPU_CYCLES              = 0x0
 	PERF_COUNT_HW_INSTRUCTIONS            = 0x1
 	PERF_COUNT_HW_CACHE_REFERENCES        = 0x2
@@ -920,99 +949,163 @@ const (
 	PERF_COUNT_HW_STALLED_CYCLES_FRONTEND = 0x7
 	PERF_COUNT_HW_STALLED_CYCLES_BACKEND  = 0x8
 	PERF_COUNT_HW_REF_CPU_CYCLES          = 0x9
-
-	PERF_COUNT_HW_CACHE_L1D  = 0x0
-	PERF_COUNT_HW_CACHE_L1I  = 0x1
-	PERF_COUNT_HW_CACHE_LL   = 0x2
-	PERF_COUNT_HW_CACHE_DTLB = 0x3
-	PERF_COUNT_HW_CACHE_ITLB = 0x4
-	PERF_COUNT_HW_CACHE_BPU  = 0x5
-	PERF_COUNT_HW_CACHE_NODE = 0x6
-
-	PERF_COUNT_HW_CACHE_OP_READ     = 0x0
-	PERF_COUNT_HW_CACHE_OP_WRITE    = 0x1
-	PERF_COUNT_HW_CACHE_OP_PREFETCH = 0x2
-
-	PERF_COUNT_HW_CACHE_RESULT_ACCESS = 0x0
-	PERF_COUNT_HW_CACHE_RESULT_MISS   = 0x1
-
-	PERF_COUNT_SW_CPU_CLOCK        = 0x0
-	PERF_COUNT_SW_TASK_CLOCK       = 0x1
-	PERF_COUNT_SW_PAGE_FAULTS      = 0x2
-	PERF_COUNT_SW_CONTEXT_SWITCHES = 0x3
-	PERF_COUNT_SW_CPU_MIGRATIONS   = 0x4
-	PERF_COUNT_SW_PAGE_FAULTS_MIN  = 0x5
-	PERF_COUNT_SW_PAGE_FAULTS_MAJ  = 0x6
-	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
-	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
-	PERF_COUNT_SW_DUMMY            = 0x9
-	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
-
-	PERF_SAMPLE_IP           = 0x1
-	PERF_SAMPLE_TID          = 0x2
-	PERF_SAMPLE_TIME         = 0x4
-	PERF_SAMPLE_ADDR         = 0x8
-	PERF_SAMPLE_READ         = 0x10
-	PERF_SAMPLE_CALLCHAIN    = 0x20
-	PERF_SAMPLE_ID           = 0x40
-	PERF_SAMPLE_CPU          = 0x80
-	PERF_SAMPLE_PERIOD       = 0x100
-	PERF_SAMPLE_STREAM_ID    = 0x200
-	PERF_SAMPLE_RAW          = 0x400
-	PERF_SAMPLE_BRANCH_STACK = 0x800
-
-	PERF_SAMPLE_BRANCH_USER       = 0x1
-	PERF_SAMPLE_BRANCH_KERNEL     = 0x2
-	PERF_SAMPLE_BRANCH_HV         = 0x4
-	PERF_SAMPLE_BRANCH_ANY        = 0x8
-	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
-	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
-	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
-	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
-	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
-	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
-	PERF_SAMPLE_BRANCH_COND       = 0x400
-	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
-	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
-	PERF_SAMPLE_BRANCH_CALL       = 0x2000
-	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
-	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
-	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
-
-	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
-	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
-	PERF_FORMAT_ID                 = 0x4
-	PERF_FORMAT_GROUP              = 0x8
-
-	PERF_RECORD_MMAP            = 0x1
-	PERF_RECORD_LOST            = 0x2
-	PERF_RECORD_COMM            = 0x3
-	PERF_RECORD_EXIT            = 0x4
-	PERF_RECORD_THROTTLE        = 0x5
-	PERF_RECORD_UNTHROTTLE      = 0x6
-	PERF_RECORD_FORK            = 0x7
-	PERF_RECORD_READ            = 0x8
-	PERF_RECORD_SAMPLE          = 0x9
-	PERF_RECORD_MMAP2           = 0xa
-	PERF_RECORD_AUX             = 0xb
-	PERF_RECORD_ITRACE_START    = 0xc
-	PERF_RECORD_LOST_SAMPLES    = 0xd
-	PERF_RECORD_SWITCH          = 0xe
-	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
-	PERF_RECORD_NAMESPACES      = 0x10
-
-	PERF_CONTEXT_HV     = -0x20
-	PERF_CONTEXT_KERNEL = -0x80
-	PERF_CONTEXT_USER   = -0x200
-
-	PERF_CONTEXT_GUEST        = -0x800
-	PERF_CONTEXT_GUEST_KERNEL = -0x880
-	PERF_CONTEXT_GUEST_USER   = -0xa00
-
-	PERF_FLAG_FD_NO_GROUP = 0x1
-	PERF_FLAG_FD_OUTPUT   = 0x2
-	PERF_FLAG_PID_CGROUP  = 0x4
-	PERF_FLAG_FD_CLOEXEC  = 0x8
+	PERF_COUNT_HW_MAX                     = 0xa
+	PERF_COUNT_HW_CACHE_L1D               = 0x0
+	PERF_COUNT_HW_CACHE_L1I               = 0x1
+	PERF_COUNT_HW_CACHE_LL                = 0x2
+	PERF_COUNT_HW_CACHE_DTLB              = 0x3
+	PERF_COUNT_HW_CACHE_ITLB              = 0x4
+	PERF_COUNT_HW_CACHE_BPU               = 0x5
+	PERF_COUNT_HW_CACHE_NODE              = 0x6
+	PERF_COUNT_HW_CACHE_MAX               = 0x7
+	PERF_COUNT_HW_CACHE_OP_READ           = 0x0
+	PERF_COUNT_HW_CACHE_OP_WRITE          = 0x1
+	PERF_COUNT_HW_CACHE_OP_PREFETCH       = 0x2
+	PERF_COUNT_HW_CACHE_OP_MAX            = 0x3
+	PERF_COUNT_HW_CACHE_RESULT_ACCESS     = 0x0
+	PERF_COUNT_HW_CACHE_RESULT_MISS       = 0x1
+	PERF_COUNT_HW_CACHE_RESULT_MAX        = 0x2
+	PERF_COUNT_SW_CPU_CLOCK               = 0x0
+	PERF_COUNT_SW_TASK_CLOCK              = 0x1
+	PERF_COUNT_SW_PAGE_FAULTS             = 0x2
+	PERF_COUNT_SW_CONTEXT_SWITCHES        = 0x3
+	PERF_COUNT_SW_CPU_MIGRATIONS          = 0x4
+	PERF_COUNT_SW_PAGE_FAULTS_MIN         = 0x5
+	PERF_COUNT_SW_PAGE_FAULTS_MAJ         = 0x6
+	PERF_COUNT_SW_ALIGNMENT_FAULTS        = 0x7
+	PERF_COUNT_SW_EMULATION_FAULTS        = 0x8
+	PERF_COUNT_SW_DUMMY                   = 0x9
+	PERF_COUNT_SW_BPF_OUTPUT              = 0xa
+	PERF_COUNT_SW_MAX                     = 0xb
+	PERF_SAMPLE_IP                        = 0x1
+	PERF_SAMPLE_TID                       = 0x2
+	PERF_SAMPLE_TIME                      = 0x4
+	PERF_SAMPLE_ADDR                      = 0x8
+	PERF_SAMPLE_READ                      = 0x10
+	PERF_SAMPLE_CALLCHAIN                 = 0x20
+	PERF_SAMPLE_ID                        = 0x40
+	PERF_SAMPLE_CPU                       = 0x80
+	PERF_SAMPLE_PERIOD                    = 0x100
+	PERF_SAMPLE_STREAM_ID                 = 0x200
+	PERF_SAMPLE_RAW                       = 0x400
+	PERF_SAMPLE_BRANCH_STACK              = 0x800
+	PERF_SAMPLE_REGS_USER                 = 0x1000
+	PERF_SAMPLE_STACK_USER                = 0x2000
+	PERF_SAMPLE_WEIGHT                    = 0x4000
+	PERF_SAMPLE_DATA_SRC                  = 0x8000
+	PERF_SAMPLE_IDENTIFIER                = 0x10000
+	PERF_SAMPLE_TRANSACTION               = 0x20000
+	PERF_SAMPLE_REGS_INTR                 = 0x40000
+	PERF_SAMPLE_PHYS_ADDR                 = 0x80000
+	PERF_SAMPLE_AUX                       = 0x100000
+	PERF_SAMPLE_CGROUP                    = 0x200000
+	PERF_SAMPLE_MAX                       = 0x400000
+	PERF_SAMPLE_BRANCH_USER_SHIFT         = 0x0
+	PERF_SAMPLE_BRANCH_KERNEL_SHIFT       = 0x1
+	PERF_SAMPLE_BRANCH_HV_SHIFT           = 0x2
+	PERF_SAMPLE_BRANCH_ANY_SHIFT          = 0x3
+	PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT     = 0x4
+	PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT   = 0x5
+	PERF_SAMPLE_BRANCH_IND_CALL_SHIFT     = 0x6
+	PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT     = 0x7
+	PERF_SAMPLE_BRANCH_IN_TX_SHIFT        = 0x8
+	PERF_SAMPLE_BRANCH_NO_TX_SHIFT        = 0x9
+	PERF_SAMPLE_BRANCH_COND_SHIFT         = 0xa
+	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT   = 0xb
+	PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT     = 0xc
+	PERF_SAMPLE_BRANCH_CALL_SHIFT         = 0xd
+	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT     = 0xe
+	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT    = 0xf
+	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT    = 0x10
+	PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT     = 0x11
+	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x12
+	PERF_SAMPLE_BRANCH_USER               = 0x1
+	PERF_SAMPLE_BRANCH_KERNEL             = 0x2
+	PERF_SAMPLE_BRANCH_HV                 = 0x4
+	PERF_SAMPLE_BRANCH_ANY                = 0x8
+	PERF_SAMPLE_BRANCH_ANY_CALL           = 0x10
+	PERF_SAMPLE_BRANCH_ANY_RETURN         = 0x20
+	PERF_SAMPLE_BRANCH_IND_CALL           = 0x40
+	PERF_SAMPLE_BRANCH_ABORT_TX           = 0x80
+	PERF_SAMPLE_BRANCH_IN_TX              = 0x100
+	PERF_SAMPLE_BRANCH_NO_TX              = 0x200
+	PERF_SAMPLE_BRANCH_COND               = 0x400
+	PERF_SAMPLE_BRANCH_CALL_STACK         = 0x800
+	PERF_SAMPLE_BRANCH_IND_JUMP           = 0x1000
+	PERF_SAMPLE_BRANCH_CALL               = 0x2000
+	PERF_SAMPLE_BRANCH_NO_FLAGS           = 0x4000
+	PERF_SAMPLE_BRANCH_NO_CYCLES          = 0x8000
+	PERF_SAMPLE_BRANCH_TYPE_SAVE          = 0x10000
+	PERF_SAMPLE_BRANCH_HW_INDEX           = 0x20000
+	PERF_SAMPLE_BRANCH_MAX                = 0x40000
+	PERF_BR_UNKNOWN                       = 0x0
+	PERF_BR_COND                          = 0x1
+	PERF_BR_UNCOND                        = 0x2
+	PERF_BR_IND                           = 0x3
+	PERF_BR_CALL                          = 0x4
+	PERF_BR_IND_CALL                      = 0x5
+	PERF_BR_RET                           = 0x6
+	PERF_BR_SYSCALL                       = 0x7
+	PERF_BR_SYSRET                        = 0x8
+	PERF_BR_COND_CALL                     = 0x9
+	PERF_BR_COND_RET                      = 0xa
+	PERF_BR_MAX                           = 0xb
+	PERF_SAMPLE_REGS_ABI_NONE             = 0x0
+	PERF_SAMPLE_REGS_ABI_32               = 0x1
+	PERF_SAMPLE_REGS_ABI_64               = 0x2
+	PERF_TXN_ELISION                      = 0x1
+	PERF_TXN_TRANSACTION                  = 0x2
+	PERF_TXN_SYNC                         = 0x4
+	PERF_TXN_ASYNC                        = 0x8
+	PERF_TXN_RETRY                        = 0x10
+	PERF_TXN_CONFLICT                     = 0x20
+	PERF_TXN_CAPACITY_WRITE               = 0x40
+	PERF_TXN_CAPACITY_READ                = 0x80
+	PERF_TXN_MAX                          = 0x100
+	PERF_TXN_ABORT_MASK                   = -0x100000000
+	PERF_TXN_ABORT_SHIFT                  = 0x20
+	PERF_FORMAT_TOTAL_TIME_ENABLED        = 0x1
+	PERF_FORMAT_TOTAL_TIME_RUNNING        = 0x2
+	PERF_FORMAT_ID                        = 0x4
+	PERF_FORMAT_GROUP                     = 0x8
+	PERF_FORMAT_MAX                       = 0x10
+	PERF_IOC_FLAG_GROUP                   = 0x1
+	PERF_RECORD_MMAP                      = 0x1
+	PERF_RECORD_LOST                      = 0x2
+	PERF_RECORD_COMM                      = 0x3
+	PERF_RECORD_EXIT                      = 0x4
+	PERF_RECORD_THROTTLE                  = 0x5
+	PERF_RECORD_UNTHROTTLE                = 0x6
+	PERF_RECORD_FORK                      = 0x7
+	PERF_RECORD_READ                      = 0x8
+	PERF_RECORD_SAMPLE                    = 0x9
+	PERF_RECORD_MMAP2                     = 0xa
+	PERF_RECORD_AUX                       = 0xb
+	PERF_RECORD_ITRACE_START              = 0xc
+	PERF_RECORD_LOST_SAMPLES              = 0xd
+	PERF_RECORD_SWITCH                    = 0xe
+	PERF_RECORD_SWITCH_CPU_WIDE           = 0xf
+	PERF_RECORD_NAMESPACES                = 0x10
+	PERF_RECORD_KSYMBOL                   = 0x11
+	PERF_RECORD_BPF_EVENT                 = 0x12
+	PERF_RECORD_CGROUP                    = 0x13
+	PERF_RECORD_TEXT_POKE                 = 0x14
+	PERF_RECORD_MAX                       = 0x15
+	PERF_RECORD_KSYMBOL_TYPE_UNKNOWN      = 0x0
+	PERF_RECORD_KSYMBOL_TYPE_BPF          = 0x1
+	PERF_RECORD_KSYMBOL_TYPE_OOL          = 0x2
+	PERF_RECORD_KSYMBOL_TYPE_MAX          = 0x3
+	PERF_BPF_EVENT_UNKNOWN                = 0x0
+	PERF_BPF_EVENT_PROG_LOAD              = 0x1
+	PERF_BPF_EVENT_PROG_UNLOAD            = 0x2
+	PERF_BPF_EVENT_MAX                    = 0x3
+	PERF_CONTEXT_HV                       = -0x20
+	PERF_CONTEXT_KERNEL                   = -0x80
+	PERF_CONTEXT_USER                     = -0x200
+	PERF_CONTEXT_GUEST                    = -0x800
+	PERF_CONTEXT_GUEST_KERNEL             = -0x880
+	PERF_CONTEXT_GUEST_USER               = -0xa00
+	PERF_CONTEXT_MAX                      = -0xfff
 )
 
 type TCPMD5Sig struct {
@@ -1232,6 +1325,394 @@ const (
 )
 
 const (
+	IFLA_UNSPEC                                = 0x0
+	IFLA_ADDRESS                               = 0x1
+	IFLA_BROADCAST                             = 0x2
+	IFLA_IFNAME                                = 0x3
+	IFLA_MTU                                   = 0x4
+	IFLA_LINK                                  = 0x5
+	IFLA_QDISC                                 = 0x6
+	IFLA_STATS                                 = 0x7
+	IFLA_COST                                  = 0x8
+	IFLA_PRIORITY                              = 0x9
+	IFLA_MASTER                                = 0xa
+	IFLA_WIRELESS                              = 0xb
+	IFLA_PROTINFO                              = 0xc
+	IFLA_TXQLEN                                = 0xd
+	IFLA_MAP                                   = 0xe
+	IFLA_WEIGHT                                = 0xf
+	IFLA_OPERSTATE                             = 0x10
+	IFLA_LINKMODE                              = 0x11
+	IFLA_LINKINFO                              = 0x12
+	IFLA_NET_NS_PID                            = 0x13
+	IFLA_IFALIAS                               = 0x14
+	IFLA_NUM_VF                                = 0x15
+	IFLA_VFINFO_LIST                           = 0x16
+	IFLA_STATS64                               = 0x17
+	IFLA_VF_PORTS                              = 0x18
+	IFLA_PORT_SELF                             = 0x19
+	IFLA_AF_SPEC                               = 0x1a
+	IFLA_GROUP                                 = 0x1b
+	IFLA_NET_NS_FD                             = 0x1c
+	IFLA_EXT_MASK                              = 0x1d
+	IFLA_PROMISCUITY                           = 0x1e
+	IFLA_NUM_TX_QUEUES                         = 0x1f
+	IFLA_NUM_RX_QUEUES                         = 0x20
+	IFLA_CARRIER                               = 0x21
+	IFLA_PHYS_PORT_ID                          = 0x22
+	IFLA_CARRIER_CHANGES                       = 0x23
+	IFLA_PHYS_SWITCH_ID                        = 0x24
+	IFLA_LINK_NETNSID                          = 0x25
+	IFLA_PHYS_PORT_NAME                        = 0x26
+	IFLA_PROTO_DOWN                            = 0x27
+	IFLA_GSO_MAX_SEGS                          = 0x28
+	IFLA_GSO_MAX_SIZE                          = 0x29
+	IFLA_PAD                                   = 0x2a
+	IFLA_XDP                                   = 0x2b
+	IFLA_EVENT                                 = 0x2c
+	IFLA_NEW_NETNSID                           = 0x2d
+	IFLA_IF_NETNSID                            = 0x2e
+	IFLA_TARGET_NETNSID                        = 0x2e
+	IFLA_CARRIER_UP_COUNT                      = 0x2f
+	IFLA_CARRIER_DOWN_COUNT                    = 0x30
+	IFLA_NEW_IFINDEX                           = 0x31
+	IFLA_MIN_MTU                               = 0x32
+	IFLA_MAX_MTU                               = 0x33
+	IFLA_PROP_LIST                             = 0x34
+	IFLA_ALT_IFNAME                            = 0x35
+	IFLA_PERM_ADDRESS                          = 0x36
+	IFLA_INET_UNSPEC                           = 0x0
+	IFLA_INET_CONF                             = 0x1
+	IFLA_INET6_UNSPEC                          = 0x0
+	IFLA_INET6_FLAGS                           = 0x1
+	IFLA_INET6_CONF                            = 0x2
+	IFLA_INET6_STATS                           = 0x3
+	IFLA_INET6_MCAST                           = 0x4
+	IFLA_INET6_CACHEINFO                       = 0x5
+	IFLA_INET6_ICMP6STATS                      = 0x6
+	IFLA_INET6_TOKEN                           = 0x7
+	IFLA_INET6_ADDR_GEN_MODE                   = 0x8
+	IFLA_BR_UNSPEC                             = 0x0
+	IFLA_BR_FORWARD_DELAY                      = 0x1
+	IFLA_BR_HELLO_TIME                         = 0x2
+	IFLA_BR_MAX_AGE                            = 0x3
+	IFLA_BR_AGEING_TIME                        = 0x4
+	IFLA_BR_STP_STATE                          = 0x5
+	IFLA_BR_PRIORITY                           = 0x6
+	IFLA_BR_VLAN_FILTERING                     = 0x7
+	IFLA_BR_VLAN_PROTOCOL                      = 0x8
+	IFLA_BR_GROUP_FWD_MASK                     = 0x9
+	IFLA_BR_ROOT_ID                            = 0xa
+	IFLA_BR_BRIDGE_ID                          = 0xb
+	IFLA_BR_ROOT_PORT                          = 0xc
+	IFLA_BR_ROOT_PATH_COST                     = 0xd
+	IFLA_BR_TOPOLOGY_CHANGE                    = 0xe
+	IFLA_BR_TOPOLOGY_CHANGE_DETECTED           = 0xf
+	IFLA_BR_HELLO_TIMER                        = 0x10
+	IFLA_BR_TCN_TIMER                          = 0x11
+	IFLA_BR_TOPOLOGY_CHANGE_TIMER              = 0x12
+	IFLA_BR_GC_TIMER                           = 0x13
+	IFLA_BR_GROUP_ADDR                         = 0x14
+	IFLA_BR_FDB_FLUSH                          = 0x15
+	IFLA_BR_MCAST_ROUTER                       = 0x16
+	IFLA_BR_MCAST_SNOOPING                     = 0x17
+	IFLA_BR_MCAST_QUERY_USE_IFADDR             = 0x18
+	IFLA_BR_MCAST_QUERIER                      = 0x19
+	IFLA_BR_MCAST_HASH_ELASTICITY              = 0x1a
+	IFLA_BR_MCAST_HASH_MAX                     = 0x1b
+	IFLA_BR_MCAST_LAST_MEMBER_CNT              = 0x1c
+	IFLA_BR_MCAST_STARTUP_QUERY_CNT            = 0x1d
+	IFLA_BR_MCAST_LAST_MEMBER_INTVL            = 0x1e
+	IFLA_BR_MCAST_MEMBERSHIP_INTVL             = 0x1f
+	IFLA_BR_MCAST_QUERIER_INTVL                = 0x20
+	IFLA_BR_MCAST_QUERY_INTVL                  = 0x21
+	IFLA_BR_MCAST_QUERY_RESPONSE_INTVL         = 0x22
+	IFLA_BR_MCAST_STARTUP_QUERY_INTVL          = 0x23
+	IFLA_BR_NF_CALL_IPTABLES                   = 0x24
+	IFLA_BR_NF_CALL_IP6TABLES                  = 0x25
+	IFLA_BR_NF_CALL_ARPTABLES                  = 0x26
+	IFLA_BR_VLAN_DEFAULT_PVID                  = 0x27
+	IFLA_BR_PAD                                = 0x28
+	IFLA_BR_VLAN_STATS_ENABLED                 = 0x29
+	IFLA_BR_MCAST_STATS_ENABLED                = 0x2a
+	IFLA_BR_MCAST_IGMP_VERSION                 = 0x2b
+	IFLA_BR_MCAST_MLD_VERSION                  = 0x2c
+	IFLA_BR_VLAN_STATS_PER_PORT                = 0x2d
+	IFLA_BR_MULTI_BOOLOPT                      = 0x2e
+	IFLA_BRPORT_UNSPEC                         = 0x0
+	IFLA_BRPORT_STATE                          = 0x1
+	IFLA_BRPORT_PRIORITY                       = 0x2
+	IFLA_BRPORT_COST                           = 0x3
+	IFLA_BRPORT_MODE                           = 0x4
+	IFLA_BRPORT_GUARD                          = 0x5
+	IFLA_BRPORT_PROTECT                        = 0x6
+	IFLA_BRPORT_FAST_LEAVE                     = 0x7
+	IFLA_BRPORT_LEARNING                       = 0x8
+	IFLA_BRPORT_UNICAST_FLOOD                  = 0x9
+	IFLA_BRPORT_PROXYARP                       = 0xa
+	IFLA_BRPORT_LEARNING_SYNC                  = 0xb
+	IFLA_BRPORT_PROXYARP_WIFI                  = 0xc
+	IFLA_BRPORT_ROOT_ID                        = 0xd
+	IFLA_BRPORT_BRIDGE_ID                      = 0xe
+	IFLA_BRPORT_DESIGNATED_PORT                = 0xf
+	IFLA_BRPORT_DESIGNATED_COST                = 0x10
+	IFLA_BRPORT_ID                             = 0x11
+	IFLA_BRPORT_NO                             = 0x12
+	IFLA_BRPORT_TOPOLOGY_CHANGE_ACK            = 0x13
+	IFLA_BRPORT_CONFIG_PENDING                 = 0x14
+	IFLA_BRPORT_MESSAGE_AGE_TIMER              = 0x15
+	IFLA_BRPORT_FORWARD_DELAY_TIMER            = 0x16
+	IFLA_BRPORT_HOLD_TIMER                     = 0x17
+	IFLA_BRPORT_FLUSH                          = 0x18
+	IFLA_BRPORT_MULTICAST_ROUTER               = 0x19
+	IFLA_BRPORT_PAD                            = 0x1a
+	IFLA_BRPORT_MCAST_FLOOD                    = 0x1b
+	IFLA_BRPORT_MCAST_TO_UCAST                 = 0x1c
+	IFLA_BRPORT_VLAN_TUNNEL                    = 0x1d
+	IFLA_BRPORT_BCAST_FLOOD                    = 0x1e
+	IFLA_BRPORT_GROUP_FWD_MASK                 = 0x1f
+	IFLA_BRPORT_NEIGH_SUPPRESS                 = 0x20
+	IFLA_BRPORT_ISOLATED                       = 0x21
+	IFLA_BRPORT_BACKUP_PORT                    = 0x22
+	IFLA_BRPORT_MRP_RING_OPEN                  = 0x23
+	IFLA_INFO_UNSPEC                           = 0x0
+	IFLA_INFO_KIND                             = 0x1
+	IFLA_INFO_DATA                             = 0x2
+	IFLA_INFO_XSTATS                           = 0x3
+	IFLA_INFO_SLAVE_KIND                       = 0x4
+	IFLA_INFO_SLAVE_DATA                       = 0x5
+	IFLA_VLAN_UNSPEC                           = 0x0
+	IFLA_VLAN_ID                               = 0x1
+	IFLA_VLAN_FLAGS                            = 0x2
+	IFLA_VLAN_EGRESS_QOS                       = 0x3
+	IFLA_VLAN_INGRESS_QOS                      = 0x4
+	IFLA_VLAN_PROTOCOL                         = 0x5
+	IFLA_VLAN_QOS_UNSPEC                       = 0x0
+	IFLA_VLAN_QOS_MAPPING                      = 0x1
+	IFLA_MACVLAN_UNSPEC                        = 0x0
+	IFLA_MACVLAN_MODE                          = 0x1
+	IFLA_MACVLAN_FLAGS                         = 0x2
+	IFLA_MACVLAN_MACADDR_MODE                  = 0x3
+	IFLA_MACVLAN_MACADDR                       = 0x4
+	IFLA_MACVLAN_MACADDR_DATA                  = 0x5
+	IFLA_MACVLAN_MACADDR_COUNT                 = 0x6
+	IFLA_VRF_UNSPEC                            = 0x0
+	IFLA_VRF_TABLE                             = 0x1
+	IFLA_VRF_PORT_UNSPEC                       = 0x0
+	IFLA_VRF_PORT_TABLE                        = 0x1
+	IFLA_MACSEC_UNSPEC                         = 0x0
+	IFLA_MACSEC_SCI                            = 0x1
+	IFLA_MACSEC_PORT                           = 0x2
+	IFLA_MACSEC_ICV_LEN                        = 0x3
+	IFLA_MACSEC_CIPHER_SUITE                   = 0x4
+	IFLA_MACSEC_WINDOW                         = 0x5
+	IFLA_MACSEC_ENCODING_SA                    = 0x6
+	IFLA_MACSEC_ENCRYPT                        = 0x7
+	IFLA_MACSEC_PROTECT                        = 0x8
+	IFLA_MACSEC_INC_SCI                        = 0x9
+	IFLA_MACSEC_ES                             = 0xa
+	IFLA_MACSEC_SCB                            = 0xb
+	IFLA_MACSEC_REPLAY_PROTECT                 = 0xc
+	IFLA_MACSEC_VALIDATION                     = 0xd
+	IFLA_MACSEC_PAD                            = 0xe
+	IFLA_MACSEC_OFFLOAD                        = 0xf
+	IFLA_XFRM_UNSPEC                           = 0x0
+	IFLA_XFRM_LINK                             = 0x1
+	IFLA_XFRM_IF_ID                            = 0x2
+	IFLA_IPVLAN_UNSPEC                         = 0x0
+	IFLA_IPVLAN_MODE                           = 0x1
+	IFLA_IPVLAN_FLAGS                          = 0x2
+	IFLA_VXLAN_UNSPEC                          = 0x0
+	IFLA_VXLAN_ID                              = 0x1
+	IFLA_VXLAN_GROUP                           = 0x2
+	IFLA_VXLAN_LINK                            = 0x3
+	IFLA_VXLAN_LOCAL                           = 0x4
+	IFLA_VXLAN_TTL                             = 0x5
+	IFLA_VXLAN_TOS                             = 0x6
+	IFLA_VXLAN_LEARNING                        = 0x7
+	IFLA_VXLAN_AGEING                          = 0x8
+	IFLA_VXLAN_LIMIT                           = 0x9
+	IFLA_VXLAN_PORT_RANGE                      = 0xa
+	IFLA_VXLAN_PROXY                           = 0xb
+	IFLA_VXLAN_RSC                             = 0xc
+	IFLA_VXLAN_L2MISS                          = 0xd
+	IFLA_VXLAN_L3MISS                          = 0xe
+	IFLA_VXLAN_PORT                            = 0xf
+	IFLA_VXLAN_GROUP6                          = 0x10
+	IFLA_VXLAN_LOCAL6                          = 0x11
+	IFLA_VXLAN_UDP_CSUM                        = 0x12
+	IFLA_VXLAN_UDP_ZERO_CSUM6_TX               = 0x13
+	IFLA_VXLAN_UDP_ZERO_CSUM6_RX               = 0x14
+	IFLA_VXLAN_REMCSUM_TX                      = 0x15
+	IFLA_VXLAN_REMCSUM_RX                      = 0x16
+	IFLA_VXLAN_GBP                             = 0x17
+	IFLA_VXLAN_REMCSUM_NOPARTIAL               = 0x18
+	IFLA_VXLAN_COLLECT_METADATA                = 0x19
+	IFLA_VXLAN_LABEL                           = 0x1a
+	IFLA_VXLAN_GPE                             = 0x1b
+	IFLA_VXLAN_TTL_INHERIT                     = 0x1c
+	IFLA_VXLAN_DF                              = 0x1d
+	IFLA_GENEVE_UNSPEC                         = 0x0
+	IFLA_GENEVE_ID                             = 0x1
+	IFLA_GENEVE_REMOTE                         = 0x2
+	IFLA_GENEVE_TTL                            = 0x3
+	IFLA_GENEVE_TOS                            = 0x4
+	IFLA_GENEVE_PORT                           = 0x5
+	IFLA_GENEVE_COLLECT_METADATA               = 0x6
+	IFLA_GENEVE_REMOTE6                        = 0x7
+	IFLA_GENEVE_UDP_CSUM                       = 0x8
+	IFLA_GENEVE_UDP_ZERO_CSUM6_TX              = 0x9
+	IFLA_GENEVE_UDP_ZERO_CSUM6_RX              = 0xa
+	IFLA_GENEVE_LABEL                          = 0xb
+	IFLA_GENEVE_TTL_INHERIT                    = 0xc
+	IFLA_GENEVE_DF                             = 0xd
+	IFLA_BAREUDP_UNSPEC                        = 0x0
+	IFLA_BAREUDP_PORT                          = 0x1
+	IFLA_BAREUDP_ETHERTYPE                     = 0x2
+	IFLA_BAREUDP_SRCPORT_MIN                   = 0x3
+	IFLA_BAREUDP_MULTIPROTO_MODE               = 0x4
+	IFLA_PPP_UNSPEC                            = 0x0
+	IFLA_PPP_DEV_FD                            = 0x1
+	IFLA_GTP_UNSPEC                            = 0x0
+	IFLA_GTP_FD0                               = 0x1
+	IFLA_GTP_FD1                               = 0x2
+	IFLA_GTP_PDP_HASHSIZE                      = 0x3
+	IFLA_GTP_ROLE                              = 0x4
+	IFLA_BOND_UNSPEC                           = 0x0
+	IFLA_BOND_MODE                             = 0x1
+	IFLA_BOND_ACTIVE_SLAVE                     = 0x2
+	IFLA_BOND_MIIMON                           = 0x3
+	IFLA_BOND_UPDELAY                          = 0x4
+	IFLA_BOND_DOWNDELAY                        = 0x5
+	IFLA_BOND_USE_CARRIER                      = 0x6
+	IFLA_BOND_ARP_INTERVAL                     = 0x7
+	IFLA_BOND_ARP_IP_TARGET                    = 0x8
+	IFLA_BOND_ARP_VALIDATE                     = 0x9
+	IFLA_BOND_ARP_ALL_TARGETS                  = 0xa
+	IFLA_BOND_PRIMARY                          = 0xb
+	IFLA_BOND_PRIMARY_RESELECT                 = 0xc
+	IFLA_BOND_FAIL_OVER_MAC                    = 0xd
+	IFLA_BOND_XMIT_HASH_POLICY                 = 0xe
+	IFLA_BOND_RESEND_IGMP                      = 0xf
+	IFLA_BOND_NUM_PEER_NOTIF                   = 0x10
+	IFLA_BOND_ALL_SLAVES_ACTIVE                = 0x11
+	IFLA_BOND_MIN_LINKS                        = 0x12
+	IFLA_BOND_LP_INTERVAL                      = 0x13
+	IFLA_BOND_PACKETS_PER_SLAVE                = 0x14
+	IFLA_BOND_AD_LACP_RATE                     = 0x15
+	IFLA_BOND_AD_SELECT                        = 0x16
+	IFLA_BOND_AD_INFO                          = 0x17
+	IFLA_BOND_AD_ACTOR_SYS_PRIO                = 0x18
+	IFLA_BOND_AD_USER_PORT_KEY                 = 0x19
+	IFLA_BOND_AD_ACTOR_SYSTEM                  = 0x1a
+	IFLA_BOND_TLB_DYNAMIC_LB                   = 0x1b
+	IFLA_BOND_PEER_NOTIF_DELAY                 = 0x1c
+	IFLA_BOND_AD_INFO_UNSPEC                   = 0x0
+	IFLA_BOND_AD_INFO_AGGREGATOR               = 0x1
+	IFLA_BOND_AD_INFO_NUM_PORTS                = 0x2
+	IFLA_BOND_AD_INFO_ACTOR_KEY                = 0x3
+	IFLA_BOND_AD_INFO_PARTNER_KEY              = 0x4
+	IFLA_BOND_AD_INFO_PARTNER_MAC              = 0x5
+	IFLA_BOND_SLAVE_UNSPEC                     = 0x0
+	IFLA_BOND_SLAVE_STATE                      = 0x1
+	IFLA_BOND_SLAVE_MII_STATUS                 = 0x2
+	IFLA_BOND_SLAVE_LINK_FAILURE_COUNT         = 0x3
+	IFLA_BOND_SLAVE_PERM_HWADDR                = 0x4
+	IFLA_BOND_SLAVE_QUEUE_ID                   = 0x5
+	IFLA_BOND_SLAVE_AD_AGGREGATOR_ID           = 0x6
+	IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE   = 0x7
+	IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE = 0x8
+	IFLA_VF_INFO_UNSPEC                        = 0x0
+	IFLA_VF_INFO                               = 0x1
+	IFLA_VF_UNSPEC                             = 0x0
+	IFLA_VF_MAC                                = 0x1
+	IFLA_VF_VLAN                               = 0x2
+	IFLA_VF_TX_RATE                            = 0x3
+	IFLA_VF_SPOOFCHK                           = 0x4
+	IFLA_VF_LINK_STATE                         = 0x5
+	IFLA_VF_RATE                               = 0x6
+	IFLA_VF_RSS_QUERY_EN                       = 0x7
+	IFLA_VF_STATS                              = 0x8
+	IFLA_VF_TRUST                              = 0x9
+	IFLA_VF_IB_NODE_GUID                       = 0xa
+	IFLA_VF_IB_PORT_GUID                       = 0xb
+	IFLA_VF_VLAN_LIST                          = 0xc
+	IFLA_VF_BROADCAST                          = 0xd
+	IFLA_VF_VLAN_INFO_UNSPEC                   = 0x0
+	IFLA_VF_VLAN_INFO                          = 0x1
+	IFLA_VF_LINK_STATE_AUTO                    = 0x0
+	IFLA_VF_LINK_STATE_ENABLE                  = 0x1
+	IFLA_VF_LINK_STATE_DISABLE                 = 0x2
+	IFLA_VF_STATS_RX_PACKETS                   = 0x0
+	IFLA_VF_STATS_TX_PACKETS                   = 0x1
+	IFLA_VF_STATS_RX_BYTES                     = 0x2
+	IFLA_VF_STATS_TX_BYTES                     = 0x3
+	IFLA_VF_STATS_BROADCAST                    = 0x4
+	IFLA_VF_STATS_MULTICAST                    = 0x5
+	IFLA_VF_STATS_PAD                          = 0x6
+	IFLA_VF_STATS_RX_DROPPED                   = 0x7
+	IFLA_VF_STATS_TX_DROPPED                   = 0x8
+	IFLA_VF_PORT_UNSPEC                        = 0x0
+	IFLA_VF_PORT                               = 0x1
+	IFLA_PORT_UNSPEC                           = 0x0
+	IFLA_PORT_VF                               = 0x1
+	IFLA_PORT_PROFILE                          = 0x2
+	IFLA_PORT_VSI_TYPE                         = 0x3
+	IFLA_PORT_INSTANCE_UUID                    = 0x4
+	IFLA_PORT_HOST_UUID                        = 0x5
+	IFLA_PORT_REQUEST                          = 0x6
+	IFLA_PORT_RESPONSE                         = 0x7
+	IFLA_IPOIB_UNSPEC                          = 0x0
+	IFLA_IPOIB_PKEY                            = 0x1
+	IFLA_IPOIB_MODE                            = 0x2
+	IFLA_IPOIB_UMCAST                          = 0x3
+	IFLA_HSR_UNSPEC                            = 0x0
+	IFLA_HSR_SLAVE1                            = 0x1
+	IFLA_HSR_SLAVE2                            = 0x2
+	IFLA_HSR_MULTICAST_SPEC                    = 0x3
+	IFLA_HSR_SUPERVISION_ADDR                  = 0x4
+	IFLA_HSR_SEQ_NR                            = 0x5
+	IFLA_HSR_VERSION                           = 0x6
+	IFLA_STATS_UNSPEC                          = 0x0
+	IFLA_STATS_LINK_64                         = 0x1
+	IFLA_STATS_LINK_XSTATS                     = 0x2
+	IFLA_STATS_LINK_XSTATS_SLAVE               = 0x3
+	IFLA_STATS_LINK_OFFLOAD_XSTATS             = 0x4
+	IFLA_STATS_AF_SPEC                         = 0x5
+	IFLA_OFFLOAD_XSTATS_UNSPEC                 = 0x0
+	IFLA_OFFLOAD_XSTATS_CPU_HIT                = 0x1
+	IFLA_XDP_UNSPEC                            = 0x0
+	IFLA_XDP_FD                                = 0x1
+	IFLA_XDP_ATTACHED                          = 0x2
+	IFLA_XDP_FLAGS                             = 0x3
+	IFLA_XDP_PROG_ID                           = 0x4
+	IFLA_XDP_DRV_PROG_ID                       = 0x5
+	IFLA_XDP_SKB_PROG_ID                       = 0x6
+	IFLA_XDP_HW_PROG_ID                        = 0x7
+	IFLA_XDP_EXPECTED_FD                       = 0x8
+	IFLA_EVENT_NONE                            = 0x0
+	IFLA_EVENT_REBOOT                          = 0x1
+	IFLA_EVENT_FEATURES                        = 0x2
+	IFLA_EVENT_BONDING_FAILOVER                = 0x3
+	IFLA_EVENT_NOTIFY_PEERS                    = 0x4
+	IFLA_EVENT_IGMP_RESEND                     = 0x5
+	IFLA_EVENT_BONDING_OPTIONS                 = 0x6
+	IFLA_TUN_UNSPEC                            = 0x0
+	IFLA_TUN_OWNER                             = 0x1
+	IFLA_TUN_GROUP                             = 0x2
+	IFLA_TUN_TYPE                              = 0x3
+	IFLA_TUN_PI                                = 0x4
+	IFLA_TUN_VNET_HDR                          = 0x5
+	IFLA_TUN_PERSIST                           = 0x6
+	IFLA_TUN_MULTI_QUEUE                       = 0x7
+	IFLA_TUN_NUM_QUEUES                        = 0x8
+	IFLA_TUN_NUM_DISABLED_QUEUES               = 0x9
+	IFLA_RMNET_UNSPEC                          = 0x0
+	IFLA_RMNET_MUX_ID                          = 0x1
+	IFLA_RMNET_FLAGS                           = 0x2
+)
+
+const (
 	NF_INET_PRE_ROUTING  = 0x0
 	NF_INET_LOCAL_IN     = 0x1
 	NF_INET_FORWARD      = 0x2
@@ -1318,7 +1799,7 @@ const (
 	NFT_MSG_DELOBJ                    = 0x14
 	NFT_MSG_GETOBJ_RESET              = 0x15
 	NFT_MSG_MAX                       = 0x19
-	NFTA_LIST_UNPEC                   = 0x0
+	NFTA_LIST_UNSPEC                  = 0x0
 	NFTA_LIST_ELEM                    = 0x1
 	NFTA_HOOK_UNSPEC                  = 0x0
 	NFTA_HOOK_HOOKNUM                 = 0x1
@@ -1689,6 +2170,21 @@ const (
 	NFT_NG_RANDOM                     = 0x1
 )
 
+const (
+	NFTA_TARGET_UNSPEC = 0x0
+	NFTA_TARGET_NAME   = 0x1
+	NFTA_TARGET_REV    = 0x2
+	NFTA_TARGET_INFO   = 0x3
+	NFTA_MATCH_UNSPEC  = 0x0
+	NFTA_MATCH_NAME    = 0x1
+	NFTA_MATCH_REV     = 0x2
+	NFTA_MATCH_INFO    = 0x3
+	NFTA_COMPAT_UNSPEC = 0x0
+	NFTA_COMPAT_NAME   = 0x1
+	NFTA_COMPAT_REV    = 0x2
+	NFTA_COMPAT_TYPE   = 0x3
+)
+
 type RTCTime struct {
 	Sec   int32
 	Min   int32
@@ -1742,9 +2238,12 @@ type XDPMmapOffsets struct {
 }
 
 type XDPStatistics struct {
-	Rx_dropped       uint64
-	Rx_invalid_descs uint64
-	Tx_invalid_descs uint64
+	Rx_dropped               uint64
+	Rx_invalid_descs         uint64
+	Tx_invalid_descs         uint64
+	Rx_ring_full             uint64
+	Rx_fill_ring_empty_descs uint64
+	Tx_ring_empty_descs      uint64
 }
 
 type XDPDesc struct {
@@ -1871,175 +2370,281 @@ const (
 )
 
 const (
-	BPF_REG_0                             = 0x0
-	BPF_REG_1                             = 0x1
-	BPF_REG_2                             = 0x2
-	BPF_REG_3                             = 0x3
-	BPF_REG_4                             = 0x4
-	BPF_REG_5                             = 0x5
-	BPF_REG_6                             = 0x6
-	BPF_REG_7                             = 0x7
-	BPF_REG_8                             = 0x8
-	BPF_REG_9                             = 0x9
-	BPF_REG_10                            = 0xa
-	BPF_MAP_CREATE                        = 0x0
-	BPF_MAP_LOOKUP_ELEM                   = 0x1
-	BPF_MAP_UPDATE_ELEM                   = 0x2
-	BPF_MAP_DELETE_ELEM                   = 0x3
-	BPF_MAP_GET_NEXT_KEY                  = 0x4
-	BPF_PROG_LOAD                         = 0x5
-	BPF_OBJ_PIN                           = 0x6
-	BPF_OBJ_GET                           = 0x7
-	BPF_PROG_ATTACH                       = 0x8
-	BPF_PROG_DETACH                       = 0x9
-	BPF_PROG_TEST_RUN                     = 0xa
-	BPF_PROG_GET_NEXT_ID                  = 0xb
-	BPF_MAP_GET_NEXT_ID                   = 0xc
-	BPF_PROG_GET_FD_BY_ID                 = 0xd
-	BPF_MAP_GET_FD_BY_ID                  = 0xe
-	BPF_OBJ_GET_INFO_BY_FD                = 0xf
-	BPF_PROG_QUERY                        = 0x10
-	BPF_RAW_TRACEPOINT_OPEN               = 0x11
-	BPF_BTF_LOAD                          = 0x12
-	BPF_BTF_GET_FD_BY_ID                  = 0x13
-	BPF_TASK_FD_QUERY                     = 0x14
-	BPF_MAP_LOOKUP_AND_DELETE_ELEM        = 0x15
-	BPF_MAP_FREEZE                        = 0x16
-	BPF_BTF_GET_NEXT_ID                   = 0x17
-	BPF_MAP_TYPE_UNSPEC                   = 0x0
-	BPF_MAP_TYPE_HASH                     = 0x1
-	BPF_MAP_TYPE_ARRAY                    = 0x2
-	BPF_MAP_TYPE_PROG_ARRAY               = 0x3
-	BPF_MAP_TYPE_PERF_EVENT_ARRAY         = 0x4
-	BPF_MAP_TYPE_PERCPU_HASH              = 0x5
-	BPF_MAP_TYPE_PERCPU_ARRAY             = 0x6
-	BPF_MAP_TYPE_STACK_TRACE              = 0x7
-	BPF_MAP_TYPE_CGROUP_ARRAY             = 0x8
-	BPF_MAP_TYPE_LRU_HASH                 = 0x9
-	BPF_MAP_TYPE_LRU_PERCPU_HASH          = 0xa
-	BPF_MAP_TYPE_LPM_TRIE                 = 0xb
-	BPF_MAP_TYPE_ARRAY_OF_MAPS            = 0xc
-	BPF_MAP_TYPE_HASH_OF_MAPS             = 0xd
-	BPF_MAP_TYPE_DEVMAP                   = 0xe
-	BPF_MAP_TYPE_SOCKMAP                  = 0xf
-	BPF_MAP_TYPE_CPUMAP                   = 0x10
-	BPF_MAP_TYPE_XSKMAP                   = 0x11
-	BPF_MAP_TYPE_SOCKHASH                 = 0x12
-	BPF_MAP_TYPE_CGROUP_STORAGE           = 0x13
-	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY      = 0x14
-	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE    = 0x15
-	BPF_MAP_TYPE_QUEUE                    = 0x16
-	BPF_MAP_TYPE_STACK                    = 0x17
-	BPF_MAP_TYPE_SK_STORAGE               = 0x18
-	BPF_MAP_TYPE_DEVMAP_HASH              = 0x19
-	BPF_PROG_TYPE_UNSPEC                  = 0x0
-	BPF_PROG_TYPE_SOCKET_FILTER           = 0x1
-	BPF_PROG_TYPE_KPROBE                  = 0x2
-	BPF_PROG_TYPE_SCHED_CLS               = 0x3
-	BPF_PROG_TYPE_SCHED_ACT               = 0x4
-	BPF_PROG_TYPE_TRACEPOINT              = 0x5
-	BPF_PROG_TYPE_XDP                     = 0x6
-	BPF_PROG_TYPE_PERF_EVENT              = 0x7
-	BPF_PROG_TYPE_CGROUP_SKB              = 0x8
-	BPF_PROG_TYPE_CGROUP_SOCK             = 0x9
-	BPF_PROG_TYPE_LWT_IN                  = 0xa
-	BPF_PROG_TYPE_LWT_OUT                 = 0xb
-	BPF_PROG_TYPE_LWT_XMIT                = 0xc
-	BPF_PROG_TYPE_SOCK_OPS                = 0xd
-	BPF_PROG_TYPE_SK_SKB                  = 0xe
-	BPF_PROG_TYPE_CGROUP_DEVICE           = 0xf
-	BPF_PROG_TYPE_SK_MSG                  = 0x10
-	BPF_PROG_TYPE_RAW_TRACEPOINT          = 0x11
-	BPF_PROG_TYPE_CGROUP_SOCK_ADDR        = 0x12
-	BPF_PROG_TYPE_LWT_SEG6LOCAL           = 0x13
-	BPF_PROG_TYPE_LIRC_MODE2              = 0x14
-	BPF_PROG_TYPE_SK_REUSEPORT            = 0x15
-	BPF_PROG_TYPE_FLOW_DISSECTOR          = 0x16
-	BPF_PROG_TYPE_CGROUP_SYSCTL           = 0x17
-	BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE = 0x18
-	BPF_PROG_TYPE_CGROUP_SOCKOPT          = 0x19
-	BPF_PROG_TYPE_TRACING                 = 0x1a
-	BPF_CGROUP_INET_INGRESS               = 0x0
-	BPF_CGROUP_INET_EGRESS                = 0x1
-	BPF_CGROUP_INET_SOCK_CREATE           = 0x2
-	BPF_CGROUP_SOCK_OPS                   = 0x3
-	BPF_SK_SKB_STREAM_PARSER              = 0x4
-	BPF_SK_SKB_STREAM_VERDICT             = 0x5
-	BPF_CGROUP_DEVICE                     = 0x6
-	BPF_SK_MSG_VERDICT                    = 0x7
-	BPF_CGROUP_INET4_BIND                 = 0x8
-	BPF_CGROUP_INET6_BIND                 = 0x9
-	BPF_CGROUP_INET4_CONNECT              = 0xa
-	BPF_CGROUP_INET6_CONNECT              = 0xb
-	BPF_CGROUP_INET4_POST_BIND            = 0xc
-	BPF_CGROUP_INET6_POST_BIND            = 0xd
-	BPF_CGROUP_UDP4_SENDMSG               = 0xe
-	BPF_CGROUP_UDP6_SENDMSG               = 0xf
-	BPF_LIRC_MODE2                        = 0x10
-	BPF_FLOW_DISSECTOR                    = 0x11
-	BPF_CGROUP_SYSCTL                     = 0x12
-	BPF_CGROUP_UDP4_RECVMSG               = 0x13
-	BPF_CGROUP_UDP6_RECVMSG               = 0x14
-	BPF_CGROUP_GETSOCKOPT                 = 0x15
-	BPF_CGROUP_SETSOCKOPT                 = 0x16
-	BPF_TRACE_RAW_TP                      = 0x17
-	BPF_TRACE_FENTRY                      = 0x18
-	BPF_TRACE_FEXIT                       = 0x19
-	BPF_STACK_BUILD_ID_EMPTY              = 0x0
-	BPF_STACK_BUILD_ID_VALID              = 0x1
-	BPF_STACK_BUILD_ID_IP                 = 0x2
-	BPF_ADJ_ROOM_NET                      = 0x0
-	BPF_ADJ_ROOM_MAC                      = 0x1
-	BPF_HDR_START_MAC                     = 0x0
-	BPF_HDR_START_NET                     = 0x1
-	BPF_LWT_ENCAP_SEG6                    = 0x0
-	BPF_LWT_ENCAP_SEG6_INLINE             = 0x1
-	BPF_LWT_ENCAP_IP                      = 0x2
-	BPF_OK                                = 0x0
-	BPF_DROP                              = 0x2
-	BPF_REDIRECT                          = 0x7
-	BPF_LWT_REROUTE                       = 0x80
-	BPF_SOCK_OPS_VOID                     = 0x0
-	BPF_SOCK_OPS_TIMEOUT_INIT             = 0x1
-	BPF_SOCK_OPS_RWND_INIT                = 0x2
-	BPF_SOCK_OPS_TCP_CONNECT_CB           = 0x3
-	BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB    = 0x4
-	BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB   = 0x5
-	BPF_SOCK_OPS_NEEDS_ECN                = 0x6
-	BPF_SOCK_OPS_BASE_RTT                 = 0x7
-	BPF_SOCK_OPS_RTO_CB                   = 0x8
-	BPF_SOCK_OPS_RETRANS_CB               = 0x9
-	BPF_SOCK_OPS_STATE_CB                 = 0xa
-	BPF_SOCK_OPS_TCP_LISTEN_CB            = 0xb
-	BPF_SOCK_OPS_RTT_CB                   = 0xc
-	BPF_TCP_ESTABLISHED                   = 0x1
-	BPF_TCP_SYN_SENT                      = 0x2
-	BPF_TCP_SYN_RECV                      = 0x3
-	BPF_TCP_FIN_WAIT1                     = 0x4
-	BPF_TCP_FIN_WAIT2                     = 0x5
-	BPF_TCP_TIME_WAIT                     = 0x6
-	BPF_TCP_CLOSE                         = 0x7
-	BPF_TCP_CLOSE_WAIT                    = 0x8
-	BPF_TCP_LAST_ACK                      = 0x9
-	BPF_TCP_LISTEN                        = 0xa
-	BPF_TCP_CLOSING                       = 0xb
-	BPF_TCP_NEW_SYN_RECV                  = 0xc
-	BPF_TCP_MAX_STATES                    = 0xd
-	BPF_FIB_LKUP_RET_SUCCESS              = 0x0
-	BPF_FIB_LKUP_RET_BLACKHOLE            = 0x1
-	BPF_FIB_LKUP_RET_UNREACHABLE          = 0x2
-	BPF_FIB_LKUP_RET_PROHIBIT             = 0x3
-	BPF_FIB_LKUP_RET_NOT_FWDED            = 0x4
-	BPF_FIB_LKUP_RET_FWD_DISABLED         = 0x5
-	BPF_FIB_LKUP_RET_UNSUPP_LWT           = 0x6
-	BPF_FIB_LKUP_RET_NO_NEIGH             = 0x7
-	BPF_FIB_LKUP_RET_FRAG_NEEDED          = 0x8
-	BPF_FD_TYPE_RAW_TRACEPOINT            = 0x0
-	BPF_FD_TYPE_TRACEPOINT                = 0x1
-	BPF_FD_TYPE_KPROBE                    = 0x2
-	BPF_FD_TYPE_KRETPROBE                 = 0x3
-	BPF_FD_TYPE_UPROBE                    = 0x4
-	BPF_FD_TYPE_URETPROBE                 = 0x5
+	BPF_REG_0                               = 0x0
+	BPF_REG_1                               = 0x1
+	BPF_REG_2                               = 0x2
+	BPF_REG_3                               = 0x3
+	BPF_REG_4                               = 0x4
+	BPF_REG_5                               = 0x5
+	BPF_REG_6                               = 0x6
+	BPF_REG_7                               = 0x7
+	BPF_REG_8                               = 0x8
+	BPF_REG_9                               = 0x9
+	BPF_REG_10                              = 0xa
+	BPF_MAP_CREATE                          = 0x0
+	BPF_MAP_LOOKUP_ELEM                     = 0x1
+	BPF_MAP_UPDATE_ELEM                     = 0x2
+	BPF_MAP_DELETE_ELEM                     = 0x3
+	BPF_MAP_GET_NEXT_KEY                    = 0x4
+	BPF_PROG_LOAD                           = 0x5
+	BPF_OBJ_PIN                             = 0x6
+	BPF_OBJ_GET                             = 0x7
+	BPF_PROG_ATTACH                         = 0x8
+	BPF_PROG_DETACH                         = 0x9
+	BPF_PROG_TEST_RUN                       = 0xa
+	BPF_PROG_GET_NEXT_ID                    = 0xb
+	BPF_MAP_GET_NEXT_ID                     = 0xc
+	BPF_PROG_GET_FD_BY_ID                   = 0xd
+	BPF_MAP_GET_FD_BY_ID                    = 0xe
+	BPF_OBJ_GET_INFO_BY_FD                  = 0xf
+	BPF_PROG_QUERY                          = 0x10
+	BPF_RAW_TRACEPOINT_OPEN                 = 0x11
+	BPF_BTF_LOAD                            = 0x12
+	BPF_BTF_GET_FD_BY_ID                    = 0x13
+	BPF_TASK_FD_QUERY                       = 0x14
+	BPF_MAP_LOOKUP_AND_DELETE_ELEM          = 0x15
+	BPF_MAP_FREEZE                          = 0x16
+	BPF_BTF_GET_NEXT_ID                     = 0x17
+	BPF_MAP_LOOKUP_BATCH                    = 0x18
+	BPF_MAP_LOOKUP_AND_DELETE_BATCH         = 0x19
+	BPF_MAP_UPDATE_BATCH                    = 0x1a
+	BPF_MAP_DELETE_BATCH                    = 0x1b
+	BPF_LINK_CREATE                         = 0x1c
+	BPF_LINK_UPDATE                         = 0x1d
+	BPF_LINK_GET_FD_BY_ID                   = 0x1e
+	BPF_LINK_GET_NEXT_ID                    = 0x1f
+	BPF_ENABLE_STATS                        = 0x20
+	BPF_ITER_CREATE                         = 0x21
+	BPF_MAP_TYPE_UNSPEC                     = 0x0
+	BPF_MAP_TYPE_HASH                       = 0x1
+	BPF_MAP_TYPE_ARRAY                      = 0x2
+	BPF_MAP_TYPE_PROG_ARRAY                 = 0x3
+	BPF_MAP_TYPE_PERF_EVENT_ARRAY           = 0x4
+	BPF_MAP_TYPE_PERCPU_HASH                = 0x5
+	BPF_MAP_TYPE_PERCPU_ARRAY               = 0x6
+	BPF_MAP_TYPE_STACK_TRACE                = 0x7
+	BPF_MAP_TYPE_CGROUP_ARRAY               = 0x8
+	BPF_MAP_TYPE_LRU_HASH                   = 0x9
+	BPF_MAP_TYPE_LRU_PERCPU_HASH            = 0xa
+	BPF_MAP_TYPE_LPM_TRIE                   = 0xb
+	BPF_MAP_TYPE_ARRAY_OF_MAPS              = 0xc
+	BPF_MAP_TYPE_HASH_OF_MAPS               = 0xd
+	BPF_MAP_TYPE_DEVMAP                     = 0xe
+	BPF_MAP_TYPE_SOCKMAP                    = 0xf
+	BPF_MAP_TYPE_CPUMAP                     = 0x10
+	BPF_MAP_TYPE_XSKMAP                     = 0x11
+	BPF_MAP_TYPE_SOCKHASH                   = 0x12
+	BPF_MAP_TYPE_CGROUP_STORAGE             = 0x13
+	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY        = 0x14
+	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE      = 0x15
+	BPF_MAP_TYPE_QUEUE                      = 0x16
+	BPF_MAP_TYPE_STACK                      = 0x17
+	BPF_MAP_TYPE_SK_STORAGE                 = 0x18
+	BPF_MAP_TYPE_DEVMAP_HASH                = 0x19
+	BPF_MAP_TYPE_STRUCT_OPS                 = 0x1a
+	BPF_MAP_TYPE_RINGBUF                    = 0x1b
+	BPF_PROG_TYPE_UNSPEC                    = 0x0
+	BPF_PROG_TYPE_SOCKET_FILTER             = 0x1
+	BPF_PROG_TYPE_KPROBE                    = 0x2
+	BPF_PROG_TYPE_SCHED_CLS                 = 0x3
+	BPF_PROG_TYPE_SCHED_ACT                 = 0x4
+	BPF_PROG_TYPE_TRACEPOINT                = 0x5
+	BPF_PROG_TYPE_XDP                       = 0x6
+	BPF_PROG_TYPE_PERF_EVENT                = 0x7
+	BPF_PROG_TYPE_CGROUP_SKB                = 0x8
+	BPF_PROG_TYPE_CGROUP_SOCK               = 0x9
+	BPF_PROG_TYPE_LWT_IN                    = 0xa
+	BPF_PROG_TYPE_LWT_OUT                   = 0xb
+	BPF_PROG_TYPE_LWT_XMIT                  = 0xc
+	BPF_PROG_TYPE_SOCK_OPS                  = 0xd
+	BPF_PROG_TYPE_SK_SKB                    = 0xe
+	BPF_PROG_TYPE_CGROUP_DEVICE             = 0xf
+	BPF_PROG_TYPE_SK_MSG                    = 0x10
+	BPF_PROG_TYPE_RAW_TRACEPOINT            = 0x11
+	BPF_PROG_TYPE_CGROUP_SOCK_ADDR          = 0x12
+	BPF_PROG_TYPE_LWT_SEG6LOCAL             = 0x13
+	BPF_PROG_TYPE_LIRC_MODE2                = 0x14
+	BPF_PROG_TYPE_SK_REUSEPORT              = 0x15
+	BPF_PROG_TYPE_FLOW_DISSECTOR            = 0x16
+	BPF_PROG_TYPE_CGROUP_SYSCTL             = 0x17
+	BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE   = 0x18
+	BPF_PROG_TYPE_CGROUP_SOCKOPT            = 0x19
+	BPF_PROG_TYPE_TRACING                   = 0x1a
+	BPF_PROG_TYPE_STRUCT_OPS                = 0x1b
+	BPF_PROG_TYPE_EXT                       = 0x1c
+	BPF_PROG_TYPE_LSM                       = 0x1d
+	BPF_CGROUP_INET_INGRESS                 = 0x0
+	BPF_CGROUP_INET_EGRESS                  = 0x1
+	BPF_CGROUP_INET_SOCK_CREATE             = 0x2
+	BPF_CGROUP_SOCK_OPS                     = 0x3
+	BPF_SK_SKB_STREAM_PARSER                = 0x4
+	BPF_SK_SKB_STREAM_VERDICT               = 0x5
+	BPF_CGROUP_DEVICE                       = 0x6
+	BPF_SK_MSG_VERDICT                      = 0x7
+	BPF_CGROUP_INET4_BIND                   = 0x8
+	BPF_CGROUP_INET6_BIND                   = 0x9
+	BPF_CGROUP_INET4_CONNECT                = 0xa
+	BPF_CGROUP_INET6_CONNECT                = 0xb
+	BPF_CGROUP_INET4_POST_BIND              = 0xc
+	BPF_CGROUP_INET6_POST_BIND              = 0xd
+	BPF_CGROUP_UDP4_SENDMSG                 = 0xe
+	BPF_CGROUP_UDP6_SENDMSG                 = 0xf
+	BPF_LIRC_MODE2                          = 0x10
+	BPF_FLOW_DISSECTOR                      = 0x11
+	BPF_CGROUP_SYSCTL                       = 0x12
+	BPF_CGROUP_UDP4_RECVMSG                 = 0x13
+	BPF_CGROUP_UDP6_RECVMSG                 = 0x14
+	BPF_CGROUP_GETSOCKOPT                   = 0x15
+	BPF_CGROUP_SETSOCKOPT                   = 0x16
+	BPF_TRACE_RAW_TP                        = 0x17
+	BPF_TRACE_FENTRY                        = 0x18
+	BPF_TRACE_FEXIT                         = 0x19
+	BPF_MODIFY_RETURN                       = 0x1a
+	BPF_LSM_MAC                             = 0x1b
+	BPF_TRACE_ITER                          = 0x1c
+	BPF_CGROUP_INET4_GETPEERNAME            = 0x1d
+	BPF_CGROUP_INET6_GETPEERNAME            = 0x1e
+	BPF_CGROUP_INET4_GETSOCKNAME            = 0x1f
+	BPF_CGROUP_INET6_GETSOCKNAME            = 0x20
+	BPF_XDP_DEVMAP                          = 0x21
+	BPF_LINK_TYPE_UNSPEC                    = 0x0
+	BPF_LINK_TYPE_RAW_TRACEPOINT            = 0x1
+	BPF_LINK_TYPE_TRACING                   = 0x2
+	BPF_LINK_TYPE_CGROUP                    = 0x3
+	BPF_LINK_TYPE_ITER                      = 0x4
+	BPF_LINK_TYPE_NETNS                     = 0x5
+	BPF_ANY                                 = 0x0
+	BPF_NOEXIST                             = 0x1
+	BPF_EXIST                               = 0x2
+	BPF_F_LOCK                              = 0x4
+	BPF_F_NO_PREALLOC                       = 0x1
+	BPF_F_NO_COMMON_LRU                     = 0x2
+	BPF_F_NUMA_NODE                         = 0x4
+	BPF_F_RDONLY                            = 0x8
+	BPF_F_WRONLY                            = 0x10
+	BPF_F_STACK_BUILD_ID                    = 0x20
+	BPF_F_ZERO_SEED                         = 0x40
+	BPF_F_RDONLY_PROG                       = 0x80
+	BPF_F_WRONLY_PROG                       = 0x100
+	BPF_F_CLONE                             = 0x200
+	BPF_F_MMAPABLE                          = 0x400
+	BPF_STATS_RUN_TIME                      = 0x0
+	BPF_STACK_BUILD_ID_EMPTY                = 0x0
+	BPF_STACK_BUILD_ID_VALID                = 0x1
+	BPF_STACK_BUILD_ID_IP                   = 0x2
+	BPF_F_RECOMPUTE_CSUM                    = 0x1
+	BPF_F_INVALIDATE_HASH                   = 0x2
+	BPF_F_HDR_FIELD_MASK                    = 0xf
+	BPF_F_PSEUDO_HDR                        = 0x10
+	BPF_F_MARK_MANGLED_0                    = 0x20
+	BPF_F_MARK_ENFORCE                      = 0x40
+	BPF_F_INGRESS                           = 0x1
+	BPF_F_TUNINFO_IPV6                      = 0x1
+	BPF_F_SKIP_FIELD_MASK                   = 0xff
+	BPF_F_USER_STACK                        = 0x100
+	BPF_F_FAST_STACK_CMP                    = 0x200
+	BPF_F_REUSE_STACKID                     = 0x400
+	BPF_F_USER_BUILD_ID                     = 0x800
+	BPF_F_ZERO_CSUM_TX                      = 0x2
+	BPF_F_DONT_FRAGMENT                     = 0x4
+	BPF_F_SEQ_NUMBER                        = 0x8
+	BPF_F_INDEX_MASK                        = 0xffffffff
+	BPF_F_CURRENT_CPU                       = 0xffffffff
+	BPF_F_CTXLEN_MASK                       = 0xfffff00000000
+	BPF_F_CURRENT_NETNS                     = -0x1
+	BPF_CSUM_LEVEL_QUERY                    = 0x0
+	BPF_CSUM_LEVEL_INC                      = 0x1
+	BPF_CSUM_LEVEL_DEC                      = 0x2
+	BPF_CSUM_LEVEL_RESET                    = 0x3
+	BPF_F_ADJ_ROOM_FIXED_GSO                = 0x1
+	BPF_F_ADJ_ROOM_ENCAP_L3_IPV4            = 0x2
+	BPF_F_ADJ_ROOM_ENCAP_L3_IPV6            = 0x4
+	BPF_F_ADJ_ROOM_ENCAP_L4_GRE             = 0x8
+	BPF_F_ADJ_ROOM_ENCAP_L4_UDP             = 0x10
+	BPF_F_ADJ_ROOM_NO_CSUM_RESET            = 0x20
+	BPF_ADJ_ROOM_ENCAP_L2_MASK              = 0xff
+	BPF_ADJ_ROOM_ENCAP_L2_SHIFT             = 0x38
+	BPF_F_SYSCTL_BASE_NAME                  = 0x1
+	BPF_SK_STORAGE_GET_F_CREATE             = 0x1
+	BPF_F_GET_BRANCH_RECORDS_SIZE           = 0x1
+	BPF_RB_NO_WAKEUP                        = 0x1
+	BPF_RB_FORCE_WAKEUP                     = 0x2
+	BPF_RB_AVAIL_DATA                       = 0x0
+	BPF_RB_RING_SIZE                        = 0x1
+	BPF_RB_CONS_POS                         = 0x2
+	BPF_RB_PROD_POS                         = 0x3
+	BPF_RINGBUF_BUSY_BIT                    = 0x80000000
+	BPF_RINGBUF_DISCARD_BIT                 = 0x40000000
+	BPF_RINGBUF_HDR_SZ                      = 0x8
+	BPF_ADJ_ROOM_NET                        = 0x0
+	BPF_ADJ_ROOM_MAC                        = 0x1
+	BPF_HDR_START_MAC                       = 0x0
+	BPF_HDR_START_NET                       = 0x1
+	BPF_LWT_ENCAP_SEG6                      = 0x0
+	BPF_LWT_ENCAP_SEG6_INLINE               = 0x1
+	BPF_LWT_ENCAP_IP                        = 0x2
+	BPF_OK                                  = 0x0
+	BPF_DROP                                = 0x2
+	BPF_REDIRECT                            = 0x7
+	BPF_LWT_REROUTE                         = 0x80
+	BPF_SOCK_OPS_RTO_CB_FLAG                = 0x1
+	BPF_SOCK_OPS_RETRANS_CB_FLAG            = 0x2
+	BPF_SOCK_OPS_STATE_CB_FLAG              = 0x4
+	BPF_SOCK_OPS_RTT_CB_FLAG                = 0x8
+	BPF_SOCK_OPS_ALL_CB_FLAGS               = 0xf
+	BPF_SOCK_OPS_VOID                       = 0x0
+	BPF_SOCK_OPS_TIMEOUT_INIT               = 0x1
+	BPF_SOCK_OPS_RWND_INIT                  = 0x2
+	BPF_SOCK_OPS_TCP_CONNECT_CB             = 0x3
+	BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB      = 0x4
+	BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB     = 0x5
+	BPF_SOCK_OPS_NEEDS_ECN                  = 0x6
+	BPF_SOCK_OPS_BASE_RTT                   = 0x7
+	BPF_SOCK_OPS_RTO_CB                     = 0x8
+	BPF_SOCK_OPS_RETRANS_CB                 = 0x9
+	BPF_SOCK_OPS_STATE_CB                   = 0xa
+	BPF_SOCK_OPS_TCP_LISTEN_CB              = 0xb
+	BPF_SOCK_OPS_RTT_CB                     = 0xc
+	BPF_TCP_ESTABLISHED                     = 0x1
+	BPF_TCP_SYN_SENT                        = 0x2
+	BPF_TCP_SYN_RECV                        = 0x3
+	BPF_TCP_FIN_WAIT1                       = 0x4
+	BPF_TCP_FIN_WAIT2                       = 0x5
+	BPF_TCP_TIME_WAIT                       = 0x6
+	BPF_TCP_CLOSE                           = 0x7
+	BPF_TCP_CLOSE_WAIT                      = 0x8
+	BPF_TCP_LAST_ACK                        = 0x9
+	BPF_TCP_LISTEN                          = 0xa
+	BPF_TCP_CLOSING                         = 0xb
+	BPF_TCP_NEW_SYN_RECV                    = 0xc
+	BPF_TCP_MAX_STATES                      = 0xd
+	TCP_BPF_IW                              = 0x3e9
+	TCP_BPF_SNDCWND_CLAMP                   = 0x3ea
+	BPF_DEVCG_ACC_MKNOD                     = 0x1
+	BPF_DEVCG_ACC_READ                      = 0x2
+	BPF_DEVCG_ACC_WRITE                     = 0x4
+	BPF_DEVCG_DEV_BLOCK                     = 0x1
+	BPF_DEVCG_DEV_CHAR                      = 0x2
+	BPF_FIB_LOOKUP_DIRECT                   = 0x1
+	BPF_FIB_LOOKUP_OUTPUT                   = 0x2
+	BPF_FIB_LKUP_RET_SUCCESS                = 0x0
+	BPF_FIB_LKUP_RET_BLACKHOLE              = 0x1
+	BPF_FIB_LKUP_RET_UNREACHABLE            = 0x2
+	BPF_FIB_LKUP_RET_PROHIBIT               = 0x3
+	BPF_FIB_LKUP_RET_NOT_FWDED              = 0x4
+	BPF_FIB_LKUP_RET_FWD_DISABLED           = 0x5
+	BPF_FIB_LKUP_RET_UNSUPP_LWT             = 0x6
+	BPF_FIB_LKUP_RET_NO_NEIGH               = 0x7
+	BPF_FIB_LKUP_RET_FRAG_NEEDED            = 0x8
+	BPF_FD_TYPE_RAW_TRACEPOINT              = 0x0
+	BPF_FD_TYPE_TRACEPOINT                  = 0x1
+	BPF_FD_TYPE_KPROBE                      = 0x2
+	BPF_FD_TYPE_KRETPROBE                   = 0x3
+	BPF_FD_TYPE_UPROBE                      = 0x4
+	BPF_FD_TYPE_URETPROBE                   = 0x5
+	BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG     = 0x1
+	BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL = 0x2
+	BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP      = 0x4
 )
 
 const (
@@ -2205,7 +2810,7 @@ const (
 	DEVLINK_CMD_DPIPE_ENTRIES_GET             = 0x20
 	DEVLINK_CMD_DPIPE_HEADERS_GET             = 0x21
 	DEVLINK_CMD_DPIPE_TABLE_COUNTERS_SET      = 0x22
-	DEVLINK_CMD_MAX                           = 0x44
+	DEVLINK_CMD_MAX                           = 0x48
 	DEVLINK_PORT_TYPE_NOTSET                  = 0x0
 	DEVLINK_PORT_TYPE_AUTO                    = 0x1
 	DEVLINK_PORT_TYPE_ETH                     = 0x2
@@ -2285,7 +2890,7 @@ const (
 	DEVLINK_ATTR_DPIPE_FIELD_MAPPING_TYPE     = 0x3c
 	DEVLINK_ATTR_PAD                          = 0x3d
 	DEVLINK_ATTR_ESWITCH_ENCAP_MODE           = 0x3e
-	DEVLINK_ATTR_MAX                          = 0x8c
+	DEVLINK_ATTR_MAX                          = 0x94
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE     = 0x0
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX  = 0x1
 	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT      = 0x0
@@ -2343,3 +2948,36 @@ const (
 	NHA_GROUPS     = 0x9
 	NHA_MASTER     = 0xa
 )
+
+const (
+	CAN_RAW_FILTER        = 0x1
+	CAN_RAW_ERR_FILTER    = 0x2
+	CAN_RAW_LOOPBACK      = 0x3
+	CAN_RAW_RECV_OWN_MSGS = 0x4
+	CAN_RAW_FD_FRAMES     = 0x5
+	CAN_RAW_JOIN_FILTERS  = 0x6
+)
+
+type WatchdogInfo struct {
+	Options  uint32
+	Version  uint32
+	Identity [32]uint8
+}
+
+type PPSFData struct {
+	Info    PPSKInfo
+	Timeout PPSKTime
+}
+
+type PPSKParams struct {
+	Api_version   int32
+	Mode          int32
+	Assert_off_tu PPSKTime
+	Clear_off_tu  PPSKTime
+}
+
+type PPSKTime struct {
+	Sec   int64
+	Nsec  int32
+	Flags uint32
+}

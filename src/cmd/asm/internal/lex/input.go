@@ -109,6 +109,9 @@ func (in *Input) Next() ScanToken {
 				in.Error("'#' must be first item on line")
 			}
 			in.beginningOfLine = in.hash()
+			in.text = "#"
+			return '#'
+
 		case scanner.Ident:
 			// Is it a macro name?
 			name := in.Stack.Text()

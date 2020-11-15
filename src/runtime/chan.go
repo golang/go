@@ -215,8 +215,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		// Space is available in the channel buffer. Enqueue the element to send.
 		qp := chanbuf(c, c.sendx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
+			racereleaseacquire(qp)
 		}
 		typedmemmove(c.elemtype, qp, ep)
 		c.sendx++
@@ -250,6 +249,11 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
+	// Signal to anyone trying to shrink our stack that we're about
+	// to park on a channel. The window between when this G's status
+	// changes and when we set gp.activeStackChans is not safe for
+	// stack shrinking.
+	atomic.Store8(&gp.parkingOnChan, 1)
 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceEvGoBlockSend, 2)
 	// Ensure the value being sent is kept alive until the
 	// receiver copies it out. The sudog has a pointer to the
@@ -263,18 +267,19 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 	gp.waiting = nil
 	gp.activeStackChans = false
-	if gp.param == nil {
-		if c.closed == 0 {
-			throw("chansend: spurious wakeup")
-		}
-		panic(plainError("send on closed channel"))
-	}
+	closed := !mysg.success
 	gp.param = nil
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
 	mysg.c = nil
 	releaseSudog(mysg)
+	if closed {
+		if c.closed == 0 {
+			throw("chansend: spurious wakeup")
+		}
+		panic(plainError("send on closed channel"))
+	}
 	return true
 }
 
@@ -293,10 +298,8 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 			// we copy directly. Note that we need to increment
 			// the head/tail locations only when raceenabled.
 			qp := chanbuf(c, c.recvx)
-			raceacquire(qp)
-			racerelease(qp)
-			raceacquireg(sg.g, qp)
-			racereleaseg(sg.g, qp)
+			racereleaseacquire(qp)
+			racereleaseacquireg(sg.g, qp)
 			c.recvx++
 			if c.recvx == c.dataqsiz {
 				c.recvx = 0
@@ -311,6 +314,7 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	gp := sg.g
 	unlockf()
 	gp.param = unsafe.Pointer(sg)
+	sg.success = true
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
@@ -384,7 +388,8 @@ func closechan(c *hchan) {
 			sg.releasetime = cputicks()
 		}
 		gp := sg.g
-		gp.param = nil
+		gp.param = unsafe.Pointer(sg)
+		sg.success = false
 		if raceenabled {
 			raceacquireg(gp, c.raceaddr())
 		}
@@ -402,7 +407,8 @@ func closechan(c *hchan) {
 			sg.releasetime = cputicks()
 		}
 		gp := sg.g
-		gp.param = nil
+		gp.param = unsafe.Pointer(sg)
+		sg.success = false
 		if raceenabled {
 			raceacquireg(gp, c.raceaddr())
 		}
@@ -526,8 +532,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// Receive directly from queue
 		qp := chanbuf(c, c.recvx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
+			racereleaseacquire(qp)
 		}
 		if ep != nil {
 			typedmemmove(c.elemtype, ep, qp)
@@ -564,6 +569,11 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
+	// Signal to anyone trying to shrink our stack that we're about
+	// to park on a channel. The window between when this G's status
+	// changes and when we set gp.activeStackChans is not safe for
+	// stack shrinking.
+	atomic.Store8(&gp.parkingOnChan, 1)
 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceEvGoBlockRecv, 2)
 
 	// someone woke us up
@@ -575,11 +585,11 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
-	closed := gp.param == nil
+	success := mysg.success
 	gp.param = nil
 	mysg.c = nil
 	releaseSudog(mysg)
-	return true, !closed
+	return true, success
 }
 
 // recv processes a receive operation on a full channel c.
@@ -611,10 +621,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 		// queue is full, those are both the same slot.
 		qp := chanbuf(c, c.recvx)
 		if raceenabled {
-			raceacquire(qp)
-			racerelease(qp)
-			raceacquireg(sg.g, qp)
-			racereleaseg(sg.g, qp)
+			racereleaseacquire(qp)
+			racereleaseacquireg(sg.g, qp)
 		}
 		// copy data from queue to receiver
 		if ep != nil {
@@ -632,6 +640,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	gp := sg.g
 	unlockf()
 	gp.param = unsafe.Pointer(sg)
+	sg.success = true
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
@@ -641,7 +650,19 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
 	// There are unlocked sudogs that point into gp's stack. Stack
 	// copying must lock the channels of those sudogs.
+	// Set activeStackChans here instead of before we try parking
+	// because we could self-deadlock in stack growth on the
+	// channel lock.
 	gp.activeStackChans = true
+	// Mark that it's safe for stack shrinking to occur now,
+	// because any thread acquiring this G's stack for shrinking
+	// is guaranteed to observe activeStackChans after this store.
+	atomic.Store8(&gp.parkingOnChan, 0)
+	// Make sure we unlock after setting activeStackChans and
+	// unsetting parkingOnChan. The moment we unlock chanLock
+	// we risk gp getting readied by a channel operation and
+	// so gp could continue running before everything before
+	// the unlock is visible (even to gp itself).
 	unlock((*mutex)(chanLock))
 	return true
 }

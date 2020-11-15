@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/race"
+	"internal/sysinfo"
 	"io"
 	"math"
 	"os"
@@ -242,7 +243,7 @@ func (b *B) run1() bool {
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty && (len(b.output) > 0 || b.finished) {
+		if b.chatty != nil && (len(b.output) > 0 || b.finished) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
 		}
@@ -261,6 +262,9 @@ func (b *B) run() {
 		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
 		if b.importPath != "" {
 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+		}
+		if cpu := sysinfo.CPU.Name(); cpu != "" {
+			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
 	if b.context != nil {
@@ -447,23 +451,27 @@ func (r BenchmarkResult) String() string {
 
 func prettyPrint(w io.Writer, x float64, unit string) {
 	// Print all numbers with 10 places before the decimal point
-	// and small numbers with three sig figs.
+	// and small numbers with four sig figs. Field widths are
+	// chosen to fit the whole part in 10 places while aligning
+	// the decimal point of all fractional formats.
 	var format string
 	switch y := math.Abs(x); {
-	case y == 0 || y >= 99.95:
+	case y == 0 || y >= 999.95:
 		format = "%10.0f %s"
-	case y >= 9.995:
+	case y >= 99.995:
 		format = "%12.1f %s"
-	case y >= 0.9995:
+	case y >= 9.9995:
 		format = "%13.2f %s"
-	case y >= 0.09995:
+	case y >= 0.99995:
 		format = "%14.3f %s"
-	case y >= 0.009995:
+	case y >= 0.099995:
 		format = "%15.4f %s"
-	case y >= 0.0009995:
+	case y >= 0.0099995:
 		format = "%16.5f %s"
-	default:
+	case y >= 0.00099995:
 		format = "%17.6f %s"
+	default:
+		format = "%18.7f %s"
 	}
 	fmt.Fprintf(w, format, x, unit)
 }
@@ -523,10 +531,9 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 	}
 	main := &B{
 		common: common{
-			name:   "Main",
-			w:      os.Stdout,
-			chatty: *chatty,
-			bench:  true,
+			name:  "Main",
+			w:     os.Stdout,
+			bench: true,
 		},
 		importPath: importPath,
 		benchFunc: func(b *B) {
@@ -536,6 +543,9 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 		},
 		benchTime: benchTime,
 		context:   ctx,
+	}
+	if Verbose() {
+		main.chatty = newChattyPrinter(main.w)
 	}
 	main.runN(1)
 	return !main.failed
@@ -549,7 +559,7 @@ func (ctx *benchContext) processBench(b *B) {
 			benchName := benchmarkName(b.name, procs)
 
 			// If it's chatty, we've already printed this information.
-			if !b.chatty {
+			if b.chatty == nil {
 				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
 			}
 			// Recompute the running time for all but the first iteration.
@@ -576,7 +586,7 @@ func (ctx *benchContext) processBench(b *B) {
 				continue
 			}
 			results := r.String()
-			if b.chatty {
+			if b.chatty != nil {
 				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
 			}
 			if *benchmarkMemory || b.showAllocResult {
@@ -639,12 +649,15 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		atomic.StoreInt32(&sub.hasSub, 1)
 	}
 
-	if b.chatty {
+	if b.chatty != nil {
 		labelsOnce.Do(func() {
 			fmt.Printf("goos: %s\n", runtime.GOOS)
 			fmt.Printf("goarch: %s\n", runtime.GOARCH)
 			if b.importPath != "" {
 				fmt.Printf("pkg: %s\n", b.importPath)
+			}
+			if cpu := sysinfo.CPU.Name(); cpu != "" {
+				fmt.Printf("cpu: %s\n", cpu)
 			}
 		})
 

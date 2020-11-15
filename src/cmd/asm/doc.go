@@ -33,14 +33,17 @@ Flags:
 		Dump instructions as they are parsed.
 	-dynlink
 		Support references to Go symbols defined in other shared libraries.
+	-gensymabis
+		Write symbol ABI information to output file. Don't assemble.
 	-o file
 		Write output to file. The default is foo.o for /a/b/c/foo.s.
 	-shared
 		Generate code that can be linked into a shared library.
+	-spectre list
+		Enable spectre mitigations in list (all, ret).
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
-	-gensymabis
-		Write symbol ABI information to output file. Don't assemble.
+
 Input language:
 
 The assembler uses mostly the same syntax for all architectures,

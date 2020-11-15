@@ -243,7 +243,7 @@ func TestEscape(t *testing.T) {
 		{
 			"badMarshaler",
 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: json: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
 		},
 		{
 			"jsMarshaler",
@@ -1821,7 +1821,7 @@ func TestIndirectPrint(t *testing.T) {
 }
 
 // This is a test for issue 3272.
-func TestEmptyTemplate(t *testing.T) {
+func TestEmptyTemplateHTML(t *testing.T) {
 	page := Must(New("page").ParseFiles(os.DevNull))
 	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
 		t.Fatal("expected error")

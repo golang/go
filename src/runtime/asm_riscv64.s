@@ -9,10 +9,9 @@
 // func rt0_go()
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// X2 = stack; A0 = argc; A1 = argv
-
 	ADD	$-24, X2
-	MOV	A0, 8(X2) // argc
-	MOV	A1, 16(X2) // argv
+	MOV	A0, 8(X2)	// argc
+	MOV	A1, 16(X2)	// argv
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -28,10 +27,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOV	_cgo_init(SB), T0
 	BEQ	T0, ZERO, nocgo
 
-	MOV	ZERO, A3	// arg 3: not used
-	MOV	ZERO, A2	// arg 2: not used
+	MOV	ZERO, A3		// arg 3: not used
+	MOV	ZERO, A2		// arg 2: not used
 	MOV	$setg_gcc<>(SB), A1	// arg 1: setg
-	MOV	g, A0	// arg 0: G
+	MOV	g, A0			// arg 0: G
 	JALR	RA, T0
 
 nocgo:
@@ -79,7 +78,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	WORD	$0xc0102573	// rdtime a0
+	RDTIME	A0
 	MOV	A0, ret+0(FP)
 	RET
 
@@ -313,10 +312,62 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	CALL	runtime·badctxt(SB)
 	RET
 
+// Save state of caller into g->sched. Smashes X31.
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+	MOV	X1, (g_sched+gobuf_pc)(g)
+	MOV	X2, (g_sched+gobuf_sp)(g)
+	MOV	ZERO, (g_sched+gobuf_lr)(g)
+	MOV	ZERO, (g_sched+gobuf_ret)(g)
+	// Assert ctxt is zero. See func save.
+	MOV	(g_sched+gobuf_ctxt)(g), X31
+	BEQ	ZERO, X31, 2(PC)
+	CALL	runtime·badctxt(SB)
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
+// Call fn(arg) on the scheduler stack,
+// aligned appropriately for the gcc ABI.
+// See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	// TODO(jsing): Add support for cgo - issue #36641.
-	WORD $0		// crash
+	MOV	fn+0(FP), X5
+	MOV	arg+8(FP), X10
+
+	MOV	X2, X8	// save original stack pointer
+	MOV	g, X9
+
+	// Figure out if we need to switch to m->g0 stack.
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	MOV	g_m(g), X6
+	MOV	m_g0(X6), X7
+	BEQ	X7, g, g0
+
+	CALL	gosave<>(SB)
+	MOV	X7, g
+	CALL	runtime·save_g(SB)
+	MOV	(g_sched+gobuf_sp)(g), X2
+
+	// Now on a scheduling stack (a pthread-created stack).
+g0:
+	// Save room for two of our pointers.
+	ADD	$-16, X2
+	MOV	X9, 0(X2)	// save old g on stack
+	MOV	(g_stack+stack_hi)(X9), X9
+	SUB	X8, X9, X8
+	MOV	X8, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+
+	JALR	RA, (X5)
+
+	// Restore g, stack pointer. X10 is return value.
+	MOV	0(X2), g
+	CALL	runtime·save_g(SB)
+	MOV	(g_stack+stack_hi)(g), X5
+	MOV	8(X2), X6
+	SUB	X6, X5, X6
+	MOV	X6, X2
+
+	MOVW	X10, ret+16(FP)
+	RET
 
 // func asminit()
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
@@ -342,6 +393,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 // func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), T0
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -443,6 +495,21 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT _cgo_topofstack(SB),NOSPLIT,$8
+	// g (X27) and REG_TMP (X31) might be clobbered by load_g.
+	// X27 is callee-save in the gcc calling convention, so save it.
+	MOV	g, savedX27-8(SP)
+
+	CALL	runtime·load_g(SB)
+	MOV	g_m(g), X5
+	MOV	m_curg(X5), X5
+	MOV	(g_stack+stack_hi)(X5), X10 // return value in X10
+
+	MOV	savedX27-8(SP), g
+	RET
+
 // func goexit(neverCallThisFunction)
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
@@ -452,10 +519,111 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOV	ZERO, ZERO	// NOP
 
-// func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
-	// TODO(jsing): Add support for cgo - issue #36641.
-	WORD $0		// crash
+// func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
+// See cgocall.go for more details.
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
+	NO_LOCAL_POINTERS
+
+	// Load m and g from thread-local storage.
+	MOVBU	runtime·iscgo(SB), X5
+	BEQ	ZERO, X5, nocgo
+	CALL	runtime·load_g(SB)
+nocgo:
+
+	// If g is nil, Go did not create the current thread.
+	// Call needm to obtain one for temporary use.
+	// In this case, we're running on the thread stack, so there's
+	// lots of space, but the linker doesn't know. Hide the call from
+	// the linker analysis by using an indirect call.
+	BEQ	ZERO, g, needm
+
+	MOV	g_m(g), X5
+	MOV	X5, savedm-8(SP)
+	JMP	havem
+
+needm:
+	MOV	g, savedm-8(SP) // g is zero, so is m.
+	MOV	$runtime·needm(SB), X6
+	JALR	RA, X6
+
+	// Set m->sched.sp = SP, so that if a panic happens
+	// during the function we are about to execute, it will
+	// have a valid SP to run on the g0 stack.
+	// The next few lines (after the havem label)
+	// will save this SP onto the stack and then write
+	// the same SP back to m->sched.sp. That seems redundant,
+	// but if an unrecovered panic happens, unwindm will
+	// restore the g->sched.sp from the stack location
+	// and then systemstack will try to use it. If we don't set it here,
+	// that restored SP will be uninitialized (typically 0) and
+	// will not be usable.
+	MOV	g_m(g), X5
+	MOV	m_g0(X5), X6
+	MOV	X2, (g_sched+gobuf_sp)(X6)
+
+havem:
+	// Now there's a valid m, and we're running on its m->g0.
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	// Save current sp in m->g0->sched.sp in preparation for
+	// switch back to m->curg stack.
+	// NOTE: unwindm knows that the saved g->sched.sp is at 8(X2) aka savedsp-24(SP).
+	MOV	m_g0(X5), X6
+	MOV	(g_sched+gobuf_sp)(X6), X7
+	MOV	X7, savedsp-24(SP)	// must match frame size
+	MOV	X2, (g_sched+gobuf_sp)(X6)
+
+	// Switch to m->curg stack and call runtime.cgocallbackg.
+	// Because we are taking over the execution of m->curg
+	// but *not* resuming what had been running, we need to
+	// save that information (m->curg->sched) so we can restore it.
+	// We can restore m->curg->sched.sp easily, because calling
+	// runtime.cgocallbackg leaves SP unchanged upon return.
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
+	MOV	m_curg(X5), g
+	CALL	runtime·save_g(SB)
+	MOV	(g_sched+gobuf_sp)(g), X6 // prepare stack as X6
+	MOV	(g_sched+gobuf_pc)(g), X7
+	MOV	X7, -(24+8)(X6)		// "saved LR"; must match frame size
+	// Gather our arguments into registers.
+	MOV	fn+0(FP), X7
+	MOV	frame+8(FP), X8
+	MOV	ctxt+16(FP), X9
+	MOV	$-(24+8)(X6), X2	// switch stack; must match frame size
+	MOV	X7, 8(X2)
+	MOV	X8, 16(X2)
+	MOV	X9, 24(X2)
+	CALL	runtime·cgocallbackg(SB)
+
+	// Restore g->sched (== m->curg->sched) from saved values.
+	MOV	0(X2), X7
+	MOV	X7, (g_sched+gobuf_pc)(g)
+	MOV	$(24+8)(X2), X6		// must match frame size
+	MOV	X6, (g_sched+gobuf_sp)(g)
+
+	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
+	// so we do not have to restore it.)
+	MOV	g_m(g), X5
+	MOV	m_g0(X5), g
+	CALL	runtime·save_g(SB)
+	MOV	(g_sched+gobuf_sp)(g), X2
+	MOV	savedsp-24(SP), X6	// must match frame size
+	MOV	X6, (g_sched+gobuf_sp)(g)
+
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
+	MOV	savedm-8(SP), X5
+	BNE	ZERO, X5, droppedm
+	MOV	$runtime·dropm(SB), X6
+	JALR	RA, X6
+droppedm:
+
+	// Done!
+	RET
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 	EBREAK
@@ -486,10 +654,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$296
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
 	// Save the registers clobbered by the fast path.
-	MOV	A0, 280(X2)
-	MOV	A1, 288(X2)
+	MOV	A0, 25*8(X2)
+	MOV	A1, 26*8(X2)
 	MOV	g_m(g), A0
 	MOV	m_p(A0), A0
 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
@@ -505,8 +673,8 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$296
 	// Is the buffer full?
 	BEQ	A1, T6, flush
 ret:
-	MOV	280(X2), A0
-	MOV	288(X2), A1
+	MOV	25*8(X2), A0
+	MOV	26*8(X2), A1
 	// Do the write.
 	MOV	T1, (T0)
 	RET
@@ -514,84 +682,68 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOV	T0, 8(X2)	// Also first argument to wbBufFlush
-	MOV	T1, 16(X2)	// Also second argument to wbBufFlush
-
-	// TODO: Optimise
-	// R3 is g.
-	// R4 already saved (T0)
-	// R5 already saved (T1)
-	// R9 already saved (A0)
-	// R10 already saved (A1)
-	// R30 is tmp register.
-	MOV	X0, 24(X2)
-	MOV	X1, 32(X2)
-	MOV	X2, 40(X2)
-	MOV	X3, 48(X2)
-	MOV	X4, 56(X2)
-	MOV	X5, 64(X2)
-	MOV	X6, 72(X2)
-	MOV	X7, 80(X2)
-	MOV	X8, 88(X2)
-	MOV	X9, 96(X2)
-	MOV	X10, 104(X2)
-	MOV	X11, 112(X2)
-	MOV	X12, 120(X2)
-	MOV	X13, 128(X2)
-	MOV	X14, 136(X2)
-	MOV	X15, 144(X2)
-	MOV	X16, 152(X2)
-	MOV	X17, 160(X2)
-	MOV	X18, 168(X2)
-	MOV	X19, 176(X2)
-	MOV	X20, 184(X2)
-	MOV	X21, 192(X2)
-	MOV	X22, 200(X2)
-	MOV	X23, 208(X2)
-	MOV	X24, 216(X2)
-	MOV	X25, 224(X2)
-	MOV	X26, 232(X2)
-	MOV	X27, 240(X2)
-	MOV	X28, 248(X2)
-	MOV	X29, 256(X2)
-	MOV	X30, 264(X2)
-	MOV	X31, 272(X2)
+	MOV	T0, 1*8(X2)	// Also first argument to wbBufFlush
+	MOV	T1, 2*8(X2)	// Also second argument to wbBufFlush
+	// X0 is zero register
+	// X1 is LR, saved by prologue
+	// X2 is SP
+	MOV	X3, 3*8(X2)
+	// X4 is TP
+	// X5 is first arg to wbBufFlush (T0)
+	// X6 is second arg to wbBufFlush (T1)
+	MOV	X7, 4*8(X2)
+	MOV	X8, 5*8(X2)
+	MOV	X9, 6*8(X2)
+	// X10 already saved (A0)
+	// X11 already saved (A1)
+	MOV	X12, 7*8(X2)
+	MOV	X13, 8*8(X2)
+	MOV	X14, 9*8(X2)
+	MOV	X15, 10*8(X2)
+	MOV	X16, 11*8(X2)
+	MOV	X17, 12*8(X2)
+	MOV	X18, 13*8(X2)
+	MOV	X19, 14*8(X2)
+	MOV	X20, 15*8(X2)
+	MOV	X21, 16*8(X2)
+	MOV	X22, 17*8(X2)
+	MOV	X23, 18*8(X2)
+	MOV	X24, 19*8(X2)
+	MOV	X25, 20*8(X2)
+	MOV	X26, 21*8(X2)
+	// X27 is g.
+	MOV	X28, 22*8(X2)
+	MOV	X29, 23*8(X2)
+	MOV	X30, 24*8(X2)
+	// X31 is tmp register.
 
 	// This takes arguments T0 and T1.
 	CALL	runtime·wbBufFlush(SB)
 
-	MOV	24(X2), X0
-	MOV	32(X2), X1
-	MOV	40(X2), X2
-	MOV	48(X2), X3
-	MOV	56(X2), X4
-	MOV	64(X2), X5
-	MOV	72(X2), X6
-	MOV	80(X2), X7
-	MOV	88(X2), X8
-	MOV	96(X2), X9
-	MOV	104(X2), X10
-	MOV	112(X2), X11
-	MOV	120(X2), X12
-	MOV	128(X2), X13
-	MOV	136(X2), X14
-	MOV	144(X2), X15
-	MOV	152(X2), X16
-	MOV	160(X2), X17
-	MOV	168(X2), X18
-	MOV	176(X2), X19
-	MOV	184(X2), X20
-	MOV	192(X2), X21
-	MOV	200(X2), X22
-	MOV	208(X2), X23
-	MOV	216(X2), X24
-	MOV	224(X2), X25
-	MOV	232(X2), X26
-	MOV	240(X2), X27
-	MOV	248(X2), X28
-	MOV	256(X2), X29
-	MOV	264(X2), X30
-	MOV	272(X2), X31
+	MOV	1*8(X2), T0
+	MOV	2*8(X2), T1
+	MOV	3*8(X2), X3
+	MOV	4*8(X2), X7
+	MOV	5*8(X2), X8
+	MOV	6*8(X2), X9
+	MOV	7*8(X2), X12
+	MOV	8*8(X2), X13
+	MOV	9*8(X2), X14
+	MOV	10*8(X2), X15
+	MOV	11*8(X2), X16
+	MOV	12*8(X2), X17
+	MOV	13*8(X2), X18
+	MOV	14*8(X2), X19
+	MOV	15*8(X2), X20
+	MOV	16*8(X2), X21
+	MOV	17*8(X2), X22
+	MOV	18*8(X2), X23
+	MOV	19*8(X2), X24
+	MOV	20*8(X2), X25
+	MOV	21*8(X2), X26
+	MOV	22*8(X2), X28
+	MOV	23*8(X2), X29
+	MOV	24*8(X2), X30
 
 	JMP	ret
 

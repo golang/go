@@ -20,6 +20,10 @@ func TestFakeTime(t *testing.T) {
 		t.Skip("faketime not supported on windows")
 	}
 
+	// Faketime is advanced in checkdead. External linking brings in cgo,
+	// causing checkdead not working.
+	testenv.MustInternalLink(t)
+
 	t.Parallel()
 
 	exe, err := buildTestProg(t, "testfaketime", "-tags=faketime")
@@ -38,7 +42,7 @@ func TestFakeTime(t *testing.T) {
 	}
 
 	t.Logf("raw stdout: %q", stdout.String())
-	t.Logf("raw stderr: %q", stdout.String())
+	t.Logf("raw stderr: %q", stderr.String())
 
 	f1, err1 := parseFakeTime(stdout.Bytes())
 	if err1 != nil {

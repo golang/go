@@ -1,11 +1,14 @@
-cd $GOPATH
-go run hello
+go run m/hello
 stderr 'hello, world'
 
-cd src/hello
+cd hello
 go run .
 stderr 'hello, world'
 
+-- go.mod --
+module m
+
+go 1.16
 -- hello/hello.go --
 package main
 

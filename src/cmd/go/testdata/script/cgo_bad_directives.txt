@@ -1,58 +1,57 @@
 [!cgo] skip
 [short] skip
 
-mkdir x
-cp x.go.txt x/x.go
+cp x.go.txt x.go
 
 # Only allow //go:cgo_ldflag .* in cgo-generated code
-[gc] cp x_gc.go.txt x/x.go
+[gc] cp x_gc.go.txt x.go
 [gc] ! go build x
 [gc] stderr '//go:cgo_ldflag .* only allowed in cgo-generated code'
 
 # Ignore _* files
-rm x/x.go
-! go build x
+rm x.go
+! go build .
 stderr 'no Go files'
-cp cgo_yy.go.txt x/_cgo_yy.go
-! go build x
+cp cgo_yy.go.txt _cgo_yy.go
+! go build .
 stderr 'no Go files' #_* files are ignored...
 
-[gc] ! go build x/_cgo_yy.go # ... but if forced, the comment is rejected
+[gc] ! go build _cgo_yy.go # ... but if forced, the comment is rejected
 # Actually, today there is a separate issue that _ files named
 # on the command line are ignored. Once that is fixed,
 # we want to see the cgo_ldflag error.
 [gc] stderr '//go:cgo_ldflag only allowed in cgo-generated code|no Go files'
 
-rm x/_cgo_yy.go
+rm _cgo_yy.go
 
 # Reject #cgo CFLAGS: -fplugin=foo.so
-cp x.go.txt x/x.go
-cp y_fplugin.go.txt x/y.go
+cp x.go.txt x.go
+cp y_fplugin.go.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: -fplugin=foo.so'
 
 # Reject #cgo CFLAGS: -lbar -fplugin=foo.so
-cp y_lbar_fplugin.go.txt x/y.go
+cp y_lbar_fplugin.go.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: -fplugin=foo.so'
 
 # Reject #cgo pkg-config: -foo
-cp y_pkgconfig_dash_foo.txt x/y.go
+cp y_pkgconfig_dash_foo.txt y.go
 ! go build x
 stderr 'invalid pkg-config package name: -foo'
 
 # Reject #cgo pkg-config: @foo
-cp y_pkgconfig_at_foo.txt x/y.go
+cp y_pkgconfig_at_foo.txt y.go
 ! go build x
 stderr 'invalid pkg-config package name: @foo'
 
 # Reject #cgo CFLAGS: @foo
-cp y_cflags_at_foo.txt x/y.go
+cp y_cflags_at_foo.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: @foo'
 
 # Reject #cgo CFLAGS: -D
-cp y_cflags_dash_d.txt x/y.go
+cp y_cflags_dash_d.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: -D without argument'
 
@@ -60,21 +59,25 @@ stderr 'invalid flag in #cgo CFLAGS: -D without argument'
 # before the check is applied. There's no such rewrite for -D.
 
 # Reject #cgo CFLAGS: -D @foo
-cp y_cflags_dash_d_space_at_foo.txt x/y.go
+cp y_cflags_dash_d_space_at_foo.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: -D @foo'
 
 # Reject #cgo CFLAGS -D@foo
-cp y_cflags_dash_d_at_foo.txt x/y.go
+cp y_cflags_dash_d_at_foo.txt y.go
 ! go build x
 stderr 'invalid flag in #cgo CFLAGS: -D@foo'
 
 # Check for CFLAGS in commands
 env CGO_CFLAGS=-D@foo
-cp y_no_cflags.txt x/y.go
+cp y_no_cflags.txt y.go
 go build -n x
 stderr '-D@foo'
 
+-- go.mod --
+module x
+
+go 1.16
 -- x_gc.go.txt --
 package x
 

@@ -5265,6 +5265,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 		if len(data) > 0 {
 			wrote, err := st.body.Write(data)
 			if err != nil {
+				sc.sendWindowUpdate(nil, int(f.Length)-wrote)
 				return http2streamError(id, http2ErrCodeStreamClosed)
 			}
 			if wrote != len(data) {
@@ -5591,7 +5592,11 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	}
 	if bodyOpen {
 		if vv, ok := rp.header["Content-Length"]; ok {
-			req.ContentLength, _ = strconv.ParseInt(vv[0], 10, 64)
+			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
+				req.ContentLength = int64(cl)
+			} else {
+				req.ContentLength = 0
+			}
 		} else {
 			req.ContentLength = -1
 		}
@@ -5629,7 +5634,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
 	var trailer Header
 	for _, v := range rp.header["Trailer"] {
 		for _, key := range strings.Split(v, ",") {
-			key = CanonicalHeaderKey(strings.TrimSpace(key))
+			key = CanonicalHeaderKey(textproto.TrimString(key))
 			switch key {
 			case "Transfer-Encoding", "Trailer", "Content-Length":
 				// Bogus. (copy of http1 rules)
@@ -5974,9 +5979,8 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		var ctype, clen string
 		if clen = rws.snapHeader.Get("Content-Length"); clen != "" {
 			rws.snapHeader.Del("Content-Length")
-			clen64, err := strconv.ParseInt(clen, 10, 64)
-			if err == nil && clen64 >= 0 {
-				rws.sentContentLen = clen64
+			if cl, err := strconv.ParseUint(clen, 10, 63); err == nil {
+				rws.sentContentLen = int64(cl)
 			} else {
 				clen = ""
 			}
@@ -6606,6 +6610,19 @@ type http2Transport struct {
 	// waiting for their turn.
 	StrictMaxConcurrentStreams bool
 
+	// ReadIdleTimeout is the timeout after which a health check using ping
+	// frame will be carried out if no frame is received on the connection.
+	// Note that a ping response will is considered a received frame, so if
+	// there is no other traffic on the connection, the health check will
+	// be performed every ReadIdleTimeout interval.
+	// If zero, no health check is performed.
+	ReadIdleTimeout time.Duration
+
+	// PingTimeout is the timeout after which the connection will be closed
+	// if a response to Ping is not received.
+	// Defaults to 15s.
+	PingTimeout time.Duration
+
 	// t1, if non-nil, is the standard library Transport using
 	// this transport. Its settings are used (but not its
 	// RoundTrip method, etc).
@@ -6629,14 +6646,31 @@ func (t *http2Transport) disableCompression() bool {
 	return t.DisableCompression || (t.t1 != nil && t.t1.DisableCompression)
 }
 
+func (t *http2Transport) pingTimeout() time.Duration {
+	if t.PingTimeout == 0 {
+		return 15 * time.Second
+	}
+	return t.PingTimeout
+
+}
+
 // ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
 // It returns an error if t1 has already been HTTP/2-enabled.
+//
+// Use ConfigureTransports instead to configure the HTTP/2 Transport.
 func http2ConfigureTransport(t1 *Transport) error {
-	_, err := http2configureTransport(t1)
+	_, err := http2ConfigureTransports(t1)
 	return err
 }
 
-func http2configureTransport(t1 *Transport) (*http2Transport, error) {
+// ConfigureTransports configures a net/http HTTP/1 Transport to use HTTP/2.
+// It returns a new HTTP/2 Transport for further configuration.
+// It returns an error if t1 has already been HTTP/2-enabled.
+func http2ConfigureTransports(t1 *Transport) (*http2Transport, error) {
+	return http2configureTransports(t1)
+}
+
+func http2configureTransports(t1 *Transport) (*http2Transport, error) {
 	connPool := new(http2clientConnPool)
 	t2 := &http2Transport{
 		ConnPool: http2noDialClientConnPool{connPool},
@@ -7167,11 +7201,26 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	cc.inflow.add(http2transportDefaultConnFlow + http2initialWindowSize)
 	cc.bw.Flush()
 	if cc.werr != nil {
+		cc.Close()
 		return nil, cc.werr
 	}
 
 	go cc.readLoop()
 	return cc, nil
+}
+
+func (cc *http2ClientConn) healthCheck() {
+	pingTimeout := cc.t.pingTimeout()
+	// We don't need to periodically ping in the health check, because the readLoop of ClientConn will
+	// trigger the healthCheck again if there is no frame received.
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer cancel()
+	err := cc.Ping(ctx)
+	if err != nil {
+		cc.closeForLostPing()
+		cc.t.connPool().MarkDead(cc)
+		return
+	}
 }
 
 func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
@@ -7345,14 +7394,12 @@ func (cc *http2ClientConn) sendGoAway() error {
 	return nil
 }
 
-// Close closes the client connection immediately.
-//
-// In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
-func (cc *http2ClientConn) Close() error {
+// closes the client connection immediately. In-flight requests are interrupted.
+// err is sent to streams.
+func (cc *http2ClientConn) closeForError(err error) error {
 	cc.mu.Lock()
 	defer cc.cond.Broadcast()
 	defer cc.mu.Unlock()
-	err := errors.New("http2: client connection force closed via ClientConn.Close")
 	for id, cs := range cc.streams {
 		select {
 		case cs.resc <- http2resAndError{err: err}:
@@ -7363,6 +7410,20 @@ func (cc *http2ClientConn) Close() error {
 	}
 	cc.closed = true
 	return cc.tconn.Close()
+}
+
+// Close closes the client connection immediately.
+//
+// In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
+func (cc *http2ClientConn) Close() error {
+	err := errors.New("http2: client connection force closed via ClientConn.Close")
+	return cc.closeForError(err)
+}
+
+// closes the client connection immediately. In-flight requests are interrupted.
+func (cc *http2ClientConn) closeForLostPing() error {
+	err := errors.New("http2: client connection lost")
+	return cc.closeForError(err)
 }
 
 const http2maxAllocFrameSize = 512 << 10
@@ -7531,6 +7592,15 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
 	cs.requestedGzip = requestedGzip
 	bodyWriter := cc.t.getBodyWriterState(cs, body)
 	cs.on100 = bodyWriter.on100
+
+	defer func() {
+		cc.wmu.Lock()
+		werr := cc.werr
+		cc.wmu.Unlock()
+		if werr != nil {
+			cc.Close()
+		}
+	}()
 
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
@@ -8236,8 +8306,17 @@ func (rl *http2clientConnReadLoop) run() error {
 	rl.closeWhenIdle = cc.t.disableKeepAlives() || cc.singleUse
 	gotReply := false // ever saw a HEADERS reply
 	gotSettings := false
+	readIdleTimeout := cc.t.ReadIdleTimeout
+	var t *time.Timer
+	if readIdleTimeout != 0 {
+		t = time.AfterFunc(readIdleTimeout, cc.healthCheck)
+		defer t.Stop()
+	}
 	for {
 		f, err := cc.fr.ReadFrame()
+		if t != nil {
+			t.Reset(readIdleTimeout)
+		}
 		if err != nil {
 			cc.vlogf("http2: Transport readFrame error on conn %p: (%T) %v", cc, err, err)
 		}
@@ -8449,8 +8528,8 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 	if !streamEnded || isHead {
 		res.ContentLength = -1
 		if clens := res.Header["Content-Length"]; len(clens) == 1 {
-			if clen64, err := strconv.ParseInt(clens[0], 10, 64); err == nil {
-				res.ContentLength = clen64
+			if cl, err := strconv.ParseUint(clens[0], 10, 63); err == nil {
+				res.ContentLength = int64(cl)
 			} else {
 				// TODO: care? unlike http/1, it won't mess up our framing, so it's
 				// more safe smuggling-wise to ignore.
@@ -8967,6 +9046,8 @@ func http2strSliceContains(ss []string, s string) bool {
 }
 
 type http2erringRoundTripper struct{ err error }
+
+func (rt http2erringRoundTripper) RoundTripErr() error { return rt.err }
 
 func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
 

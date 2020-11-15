@@ -107,6 +107,8 @@ Flags:
 		Warn about composite literals that can be simplified.
 	-shared
 		Generate code that can be linked into a shared library.
+	-spectre list
+		Enable spectre mitigations in list (all, index, ret).
 	-traceprofile file
 		Write an execution trace to file.
 	-trimpath prefix

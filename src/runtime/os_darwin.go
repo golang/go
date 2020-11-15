@@ -198,7 +198,6 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 	mp.g0.stack.hi = stacksize // for mstart
-	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -247,7 +246,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 	g0.stack.hi = stacksize // for mstart
-	mSysStatInc(&memstats.stacks_sys, stacksize)
+	memstats.stacks_sys.add(int64(stacksize))
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -289,9 +288,9 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// The alternate signal stack is buggy on arm64.
+	// iOS does not support alternate signal stack.
 	// The signal handler handles it directly.
-	if GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		minitSignalStack()
 	}
 	minitSignalMask()
@@ -301,9 +300,9 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	// The alternate signal stack is buggy on arm64.
+	// iOS does not support alternate signal stack.
 	// See minit.
-	if GOARCH != "arm64" {
+	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
 }

@@ -7,18 +7,19 @@ package modfetch
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"sort"
 	"strconv"
 	"time"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/get"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
-	"cmd/go/internal/str"
+	"cmd/go/internal/vcs"
 	web "cmd/go/internal/web"
 
+	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
 
@@ -32,8 +33,17 @@ type Repo interface {
 
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
+	//
 	// Versions should be returned sorted in semver order
 	// (implementations can use SortVersions).
+	//
+	// Versions returns a non-nil error only if there was a problem
+	// fetching the list of versions: it may return an empty list
+	// along with a nil error if the list of matching versions
+	// is known to be empty.
+	//
+	// If the underlying repository does not exist,
+	// Versions returns an error matching errors.Is(_, os.NotExist).
 	Versions(prefix string) ([]string, error)
 
 	// Stat returns information about the revision rev.
@@ -188,27 +198,26 @@ type lookupCacheKey struct {
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(proxy, path string) (Repo, error) {
+func Lookup(proxy, path string) Repo {
 	if traceRepo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
 	type cached struct {
-		r   Repo
-		err error
+		r Repo
 	}
 	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
-		r, err := lookup(proxy, path)
-		if err == nil {
-			if traceRepo {
+		r := newCachingRepo(path, func() (Repo, error) {
+			r, err := lookup(proxy, path)
+			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
-			r = newCachingRepo(r)
-		}
-		return cached{r, err}
+			return r, err
+		})
+		return cached{r}
 	}).(cached)
 
-	return c.r, c.err
+	return c.r
 }
 
 // lookup returns the module with the given module path.
@@ -217,7 +226,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 		return nil, errLookupDisabled
 	}
 
-	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
+	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
 		switch proxy {
 		case "noproxy", "direct":
 			return lookupDirect(path)
@@ -228,7 +237,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 
 	switch proxy {
 	case "off":
-		return nil, errProxyOff
+		return errRepo{path, errProxyOff}, nil
 	case "direct":
 		return lookupDirect(path)
 	case "noproxy":
@@ -261,13 +270,13 @@ func lookupDirect(path string) (Repo, error) {
 	if allowInsecure(path) {
 		security = web.Insecure
 	}
-	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
+	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
 	if err != nil {
 		// We don't know where to find code for a module with this path.
 		return nil, notExistError{err: err}
 	}
 
-	if rr.VCS == "mod" {
+	if rr.VCS.Name == "mod" {
 		// Fetch module from proxy with base URL rr.Repo.
 		return newProxyRepo(rr.Repo, path)
 	}
@@ -279,8 +288,8 @@ func lookupDirect(path string) (Repo, error) {
 	return newCodeRepo(code, rr.Root, path)
 }
 
-func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
-	code, err := codehost.NewRepo(rr.VCS, rr.Repo)
+func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
+	code, err := codehost.NewRepo(rr.VCS.Cmd, rr.Repo)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return nil, err
@@ -306,7 +315,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	if allowInsecure(path) {
 		security = web.Insecure
 	}
-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
+	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -407,7 +416,24 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
 	return l.r.Zip(dst, version)
 }
 
-// A notExistError is like os.ErrNotExist, but with a custom message
+// errRepo is a Repo that returns the same error for all operations.
+//
+// It is useful in conjunction with caching, since cache hits will not attempt
+// the prohibited operations.
+type errRepo struct {
+	modulePath string
+	err        error
+}
+
+func (r errRepo) ModulePath() string { return r.modulePath }
+
+func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
+func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
+func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
+func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
+func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
+
+// A notExistError is like fs.ErrNotExist, but with a custom message
 type notExistError struct {
 	err error
 }
@@ -421,7 +447,7 @@ func (e notExistError) Error() string {
 }
 
 func (notExistError) Is(target error) bool {
-	return target == os.ErrNotExist
+	return target == fs.ErrNotExist
 }
 
 func (e notExistError) Unwrap() error {

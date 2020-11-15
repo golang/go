@@ -467,13 +467,13 @@ func init() {
 
 		// conditional instructions; auxint is
 		// one of the arm64 comparison pseudo-ops (LessThan, LessThanU, etc.)
-		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},  // aux(flags) ? arg0 : arg1
-		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"}, // aux(flags) ? arg0 : 0
+		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},  // auxint(flags) ? arg0 : arg1
+		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"}, // auxint(flags) ? arg0 : 0
 
 		// function calls
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
@@ -507,6 +507,7 @@ func init() {
 				clobbers: buildReg("R20 R30"),
 			},
 			faultOnNilArg0: true,
+			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
 		},
 
 		// large zeroing
@@ -547,6 +548,7 @@ func init() {
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
+			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// large move
@@ -587,18 +589,12 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// Constant flag values. For any comparison, there are 5 possible
-		// outcomes: the three from the signed total order (<,==,>) and the
-		// three from the unsigned total order. The == cases overlap.
-		// Note: there's a sixth "unordered" outcome for floating-point
+		// Constant flag value.
+		// Note: there's an "unordered" outcome for floating-point
 		// comparisons, but we don't use such a beast yet.
-		// These ops are for temporary use by rewrite rules. They
+		// This op is for temporary use by rewrite rules. It
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},     // equal
-		{name: "FlagLT_ULT"}, // signed < and unsigned <
-		{name: "FlagLT_UGT"}, // signed < and unsigned >
-		{name: "FlagGT_UGT"}, // signed > and unsigned <
-		{name: "FlagGT_ULT"}, // signed > and unsigned >
+		{name: "FlagConstant", aux: "FlagConstant"},
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -624,6 +620,12 @@ func init() {
 		// CBNZ		Rtmp, -2(PC)
 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// atomic exchange variant.
+		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
+		// SWPALD	Rarg1, (Rarg0), Rout
+		{name: "LoweredAtomicExchange64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
@@ -658,14 +660,45 @@ func init() {
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
+		// atomic compare and swap variant.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOV  	Rarg1, Rtmp
+		// CASAL	Rtmp, (Rarg0), Rarg2
+		// CMP  	Rarg1, Rtmp
+		// CSET 	EQ, Rout
+		{name: "LoweredAtomicCas64Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas32Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
 		// atomic and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
-		// LDAXRB	(Rarg0), Rout
+		// LDAXR	(Rarg0), Rout
 		// AND/OR	Rarg1, Rout
-		// STLXRB	Rout, (Rarg0), Rtmp
+		// STLXR	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
 		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// atomic and/or variant.
+		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+		//   AND:
+		// MNV       Rarg1, Rtemp
+		// LDANDALB  Rtemp, (Rarg0), Rout
+		// AND       Rarg1, Rout
+		//   OR:
+		// LDORALB  Rarg1, (Rarg0), Rout
+		// ORR       Rarg1, Rout
+		{name: "LoweredAtomicAnd8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAnd32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,

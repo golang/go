@@ -18,6 +18,7 @@ func softfloat(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Type.IsFloat() {
+				f.unCache(v)
 				switch v.Op {
 				case OpPhi, OpLoad, OpArg:
 					if v.Type.Size() == 4 {
@@ -72,7 +73,7 @@ func softfloat(f *Func) {
 	if newInt64 && f.Config.RegSize == 4 {
 		// On 32bit arch, decompose Uint64 introduced in the switch above.
 		decomposeBuiltIn(f)
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, removeDeadValues)
 	}
 
 }

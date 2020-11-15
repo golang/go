@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -52,7 +53,7 @@ var sysdir = func() *sysDir {
 				"libpowermanager.so",
 			},
 		}
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			wd, err := syscall.Getwd()
@@ -144,7 +145,7 @@ func localTmp() string {
 	switch runtime.GOOS {
 	case "android", "windows":
 		return TempDir()
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			return TempDir()
@@ -309,24 +310,28 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 	defer file.Close()
 	s, err2 := file.Readdirnames(-1)
 	if err2 != nil {
-		t.Fatalf("readdirnames %q failed: %v", dir, err2)
+		t.Fatalf("Readdirnames %q failed: %v", dir, err2)
 	}
 	for _, m := range contents {
 		found := false
 		for _, n := range s {
 			if n == "." || n == ".." {
-				t.Errorf("got %s in directory", n)
+				t.Errorf("got %q in directory", n)
 			}
-			if equal(m, n) {
-				if found {
-					t.Error("present twice:", m)
-				}
-				found = true
+			if !equal(m, n) {
+				continue
 			}
+			if found {
+				t.Error("present twice:", m)
+			}
+			found = true
 		}
 		if !found {
 			t.Error("could not find", m)
 		}
+	}
+	if s == nil {
+		t.Error("Readdirnames returned nil instead of empty slice")
 	}
 }
 
@@ -338,32 +343,98 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 	defer file.Close()
 	s, err2 := file.Readdir(-1)
 	if err2 != nil {
-		t.Fatalf("readdir %q failed: %v", dir, err2)
+		t.Fatalf("Readdir %q failed: %v", dir, err2)
 	}
 	for _, m := range contents {
 		found := false
 		for _, n := range s {
-			if equal(m, n.Name()) {
-				if found {
-					t.Error("present twice:", m)
-				}
-				found = true
+			if n.Name() == "." || n.Name() == ".." {
+				t.Errorf("got %q in directory", n.Name())
+			}
+			if !equal(m, n.Name()) {
+				continue
+			}
+			if found {
+				t.Error("present twice:", m)
+			}
+			found = true
+		}
+		if !found {
+			t.Error("could not find", m)
+		}
+	}
+	if s == nil {
+		t.Error("Readdir returned nil instead of empty slice")
+	}
+}
+
+func testReadDir(dir string, contents []string, t *testing.T) {
+	file, err := Open(dir)
+	if err != nil {
+		t.Fatalf("open %q failed: %v", dir, err)
+	}
+	defer file.Close()
+	s, err2 := file.ReadDir(-1)
+	if err2 != nil {
+		t.Fatalf("ReadDir %q failed: %v", dir, err2)
+	}
+	for _, m := range contents {
+		found := false
+		for _, n := range s {
+			if n.Name() == "." || n.Name() == ".." {
+				t.Errorf("got %q in directory", n)
+			}
+			if !equal(m, n.Name()) {
+				continue
+			}
+			if found {
+				t.Error("present twice:", m)
+			}
+			found = true
+			lstat, err := Lstat(dir + "/" + m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n.IsDir() != lstat.IsDir() {
+				t.Errorf("%s: IsDir=%v, want %v", m, n.IsDir(), lstat.IsDir())
+			}
+			if n.Type() != lstat.Mode().Type() {
+				t.Errorf("%s: IsDir=%v, want %v", m, n.Type(), lstat.Mode().Type())
+			}
+			info, err := n.Info()
+			if err != nil {
+				t.Errorf("%s: Info: %v", m, err)
+				continue
+			}
+			if !SameFile(info, lstat) {
+				t.Errorf("%s: Info: SameFile(info, lstat) = false", m)
 			}
 		}
 		if !found {
 			t.Error("could not find", m)
 		}
 	}
+	if s == nil {
+		t.Error("ReadDir returned nil instead of empty slice")
+	}
 }
 
 func TestReaddirnames(t *testing.T) {
 	testReaddirnames(".", dot, t)
 	testReaddirnames(sysdir.name, sysdir.files, t)
+	testReaddirnames(t.TempDir(), nil, t)
 }
 
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
+	testReaddir(t.TempDir(), nil, t)
+}
+
+func TestReadDir(t *testing.T) {
+	testReadDir(".", dot, t)
+	testReadDir(sysdir.name, sysdir.files, t)
+	testReadDir(t.TempDir(), nil, t)
 }
 
 func benchmarkReaddirname(path string, b *testing.B) {
@@ -400,12 +471,33 @@ func benchmarkReaddir(path string, b *testing.B) {
 	b.Logf("benchmarkReaddir %q: %d entries", path, nentries)
 }
 
+func benchmarkReadDir(path string, b *testing.B) {
+	var nentries int
+	for i := 0; i < b.N; i++ {
+		f, err := Open(path)
+		if err != nil {
+			b.Fatalf("open %q failed: %v", path, err)
+		}
+		fs, err := f.ReadDir(-1)
+		f.Close()
+		if err != nil {
+			b.Fatalf("readdir %q failed: %v", path, err)
+		}
+		nentries = len(fs)
+	}
+	b.Logf("benchmarkReadDir %q: %d entries", path, nentries)
+}
+
 func BenchmarkReaddirname(b *testing.B) {
 	benchmarkReaddirname(".", b)
 }
 
 func BenchmarkReaddir(b *testing.B) {
 	benchmarkReaddir(".", b)
+}
+
+func BenchmarkReadDir(b *testing.B) {
+	benchmarkReadDir(".", b)
 }
 
 func benchmarkStat(b *testing.B, path string) {
@@ -481,7 +573,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		dir = "/system/bin"
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			wd, err := Getwd()
@@ -547,7 +639,8 @@ func TestReaddirNValues(t *testing.T) {
 		}
 	}
 
-	readDirExpect := func(n, want int, wantErr error) {
+	readdirExpect := func(n, want int, wantErr error) {
+		t.Helper()
 		fi, err := d.Readdir(n)
 		if err != wantErr {
 			t.Fatalf("Readdir of %d got error %v, want %v", n, err, wantErr)
@@ -557,7 +650,19 @@ func TestReaddirNValues(t *testing.T) {
 		}
 	}
 
-	readDirNamesExpect := func(n, want int, wantErr error) {
+	readDirExpect := func(n, want int, wantErr error) {
+		t.Helper()
+		de, err := d.ReadDir(n)
+		if err != wantErr {
+			t.Fatalf("ReadDir of %d got error %v, want %v", n, err, wantErr)
+		}
+		if g, e := len(de), want; g != e {
+			t.Errorf("ReadDir of %d got %d files, want %d", n, g, e)
+		}
+	}
+
+	readdirnamesExpect := func(n, want int, wantErr error) {
+		t.Helper()
 		fi, err := d.Readdirnames(n)
 		if err != wantErr {
 			t.Fatalf("Readdirnames of %d got error %v, want %v", n, err, wantErr)
@@ -567,7 +672,7 @@ func TestReaddirNValues(t *testing.T) {
 		}
 	}
 
-	for _, fn := range []func(int, int, error){readDirExpect, readDirNamesExpect} {
+	for _, fn := range []func(int, int, error){readdirExpect, readdirnamesExpect, readDirExpect} {
 		// Test the slurp case
 		openDir()
 		fn(0, 105, nil)
@@ -687,6 +792,10 @@ func TestReaddirOfFile(t *testing.T) {
 	names, err := reg.Readdirnames(-1)
 	if err == nil {
 		t.Error("Readdirnames succeeded; want non-nil error")
+	}
+	var pe *PathError
+	if !errors.As(err, &pe) || pe.Path != f.Name() {
+		t.Errorf("Readdirnames returned %q; want a PathError with path %q", err, f.Name())
 	}
 	if len(names) > 0 {
 		t.Errorf("unexpected dir names in regular file: %q", names)
@@ -1095,29 +1204,34 @@ func checkMode(t *testing.T, path string, mode FileMode) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
 	}
-	if dir.Mode()&0777 != mode {
+	if dir.Mode()&ModePerm != mode {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
 	}
 }
 
 func TestChmod(t *testing.T) {
-	// Chmod is not supported under windows.
-	if runtime.GOOS == "windows" {
-		return
-	}
 	f := newFile("TestChmod", t)
 	defer Remove(f.Name())
 	defer f.Close()
+	// Creation mode is read write
 
-	if err := Chmod(f.Name(), 0456); err != nil {
-		t.Fatalf("chmod %s 0456: %s", f.Name(), err)
+	fm := FileMode(0456)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0444) // read-only file
 	}
-	checkMode(t, f.Name(), 0456)
+	if err := Chmod(f.Name(), fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 
-	if err := f.Chmod(0123); err != nil {
-		t.Fatalf("chmod %s 0123: %s", f.Name(), err)
+	fm = FileMode(0123)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0666) // read-write file
 	}
-	checkMode(t, f.Name(), 0123)
+	if err := f.Chmod(fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 }
 
 func checkSize(t *testing.T, f *File, size int64) {
@@ -1295,7 +1409,7 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			dirs = nil
@@ -1564,8 +1678,8 @@ func TestOpenError(t *testing.T) {
 func TestOpenNoName(t *testing.T) {
 	f, err := Open("")
 	if err == nil {
-		t.Fatal(`Open("") succeeded`)
 		f.Close()
+		t.Fatal(`Open("") succeeded`)
 	}
 }
 
@@ -2425,7 +2539,7 @@ func testDoubleCloseError(t *testing.T, path string) {
 	if err := file.Close(); err == nil {
 		t.Error("second Close did not fail")
 	} else if pe, ok := err.(*PathError); !ok {
-		t.Errorf("second Close returned unexpected error type %T; expected os.PathError", pe)
+		t.Errorf("second Close returned unexpected error type %T; expected fs.PathError", pe)
 	} else if pe.Err != ErrClosed {
 		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
 	} else {
@@ -2568,5 +2682,11 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 		t.Error(err)
 	} else if fi.Mode()&0222 == 0 {
 		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
+	}
+}
+
+func TestDirFS(t *testing.T) {
+	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
+		t.Fatal(err)
 	}
 }

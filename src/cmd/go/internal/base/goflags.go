@@ -13,15 +13,7 @@ import (
 	"cmd/go/internal/cfg"
 )
 
-var (
-	goflags   []string                // cached $GOFLAGS list; can be -x or --x form
-	knownFlag = make(map[string]bool) // flags allowed to appear in $GOFLAGS; no leading dashes
-)
-
-// AddKnownFlag adds name to the list of known flags for use in $GOFLAGS.
-func AddKnownFlag(name string) {
-	knownFlag[name] = true
-}
+var goflags []string // cached $GOFLAGS list; can be -x or --x form
 
 // GOFLAGS returns the flags from $GOFLAGS.
 // The list can be assumed to contain one string per flag,
@@ -38,33 +30,18 @@ func InitGOFLAGS() {
 		return
 	}
 
-	// Build list of all flags for all commands.
-	// If no command has that flag, then we report the problem.
-	// This catches typos while still letting users record flags in GOFLAGS
-	// that only apply to a subset of go commands.
-	// Commands using CustomFlags can report their flag names
-	// by calling AddKnownFlag instead.
-	var walkFlags func(*Command)
-	walkFlags = func(cmd *Command) {
-		for _, sub := range cmd.Commands {
-			walkFlags(sub)
-		}
-		cmd.Flag.VisitAll(func(f *flag.Flag) {
-			knownFlag[f.Name] = true
-		})
+	goflags = strings.Fields(cfg.Getenv("GOFLAGS"))
+	if len(goflags) == 0 {
+		// nothing to do; avoid work on later InitGOFLAGS call
+		goflags = []string{}
+		return
 	}
-	walkFlags(Go)
 
 	// Ignore bad flag in go env and go bug, because
 	// they are what people reach for when debugging
 	// a problem, and maybe they're debugging GOFLAGS.
 	// (Both will show the GOFLAGS setting if let succeed.)
 	hideErrors := cfg.CmdName == "env" || cfg.CmdName == "bug"
-
-	goflags = strings.Fields(cfg.Getenv("GOFLAGS"))
-	if goflags == nil {
-		goflags = []string{} // avoid work on later InitGOFLAGS call
-	}
 
 	// Each of the words returned by strings.Fields must be its own flag.
 	// To set flag arguments use -x=value instead of -x value.
@@ -85,7 +62,7 @@ func InitGOFLAGS() {
 		if i := strings.Index(name, "="); i >= 0 {
 			name = name[:i]
 		}
-		if !knownFlag[name] {
+		if !hasFlag(Go, name) {
 			if hideErrors {
 				continue
 			}
@@ -115,7 +92,11 @@ func SetFromGOFLAGS(flags *flag.FlagSet) {
 	}
 	for _, goflag := range goflags {
 		name, value, hasValue := goflag, "", false
-		if i := strings.Index(goflag, "="); i >= 0 {
+		// Ignore invalid flags like '=' or '=value'.
+		// If it is not reported in InitGOFlags it means we don't want to report it.
+		if i := strings.Index(goflag, "="); i == 0 {
+			continue
+		} else if i > 0 {
 			name, value, hasValue = goflag[:i], goflag[i+1:], true
 		}
 		if strings.HasPrefix(name, "--") {
@@ -152,4 +133,21 @@ func SetFromGOFLAGS(flags *flag.FlagSet) {
 			}
 		}
 	}
+}
+
+// InGOFLAGS returns whether GOFLAGS contains the given flag, such as "-mod".
+func InGOFLAGS(flag string) bool {
+	for _, goflag := range GOFLAGS() {
+		name := goflag
+		if strings.HasPrefix(name, "--") {
+			name = name[1:]
+		}
+		if i := strings.Index(name, "="); i >= 0 {
+			name = name[:i]
+		}
+		if name == flag {
+			return true
+		}
+	}
+	return false
 }

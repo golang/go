@@ -577,21 +577,25 @@ func atof32(s string) (f float32, n int, err error) {
 	}
 
 	if optimize {
-		// Try pure floating-point arithmetic conversion.
+		// Try pure floating-point arithmetic conversion, and if that fails,
+		// the Eisel-Lemire algorithm.
 		if !trunc {
 			if f, ok := atof32exact(mantissa, exp, neg); ok {
 				return f, n, nil
 			}
 		}
-		// Try another fast path.
-		ext := new(extFloat)
-		if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float32info); ok {
-			b, ovf := ext.floatBits(&float32info)
-			f = math.Float32frombits(uint32(b))
-			if ovf {
-				err = rangeError(fnParseFloat, s)
+		f, ok := eiselLemire32(mantissa, exp, neg)
+		if ok {
+			if !trunc {
+				return f, n, nil
 			}
-			return f, n, err
+			// Even if the mantissa was truncated, we may
+			// have found the correct result. Confirm by
+			// converting the upper mantissa bound.
+			fUp, ok := eiselLemire32(mantissa+1, exp, neg)
+			if ok && f == fUp {
+				return f, n, nil
+			}
 		}
 	}
 
@@ -624,21 +628,25 @@ func atof64(s string) (f float64, n int, err error) {
 	}
 
 	if optimize {
-		// Try pure floating-point arithmetic conversion.
+		// Try pure floating-point arithmetic conversion, and if that fails,
+		// the Eisel-Lemire algorithm.
 		if !trunc {
 			if f, ok := atof64exact(mantissa, exp, neg); ok {
 				return f, n, nil
 			}
 		}
-		// Try another fast path.
-		ext := new(extFloat)
-		if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float64info); ok {
-			b, ovf := ext.floatBits(&float64info)
-			f = math.Float64frombits(b)
-			if ovf {
-				err = rangeError(fnParseFloat, s)
+		f, ok := eiselLemire64(mantissa, exp, neg)
+		if ok {
+			if !trunc {
+				return f, n, nil
 			}
-			return f, n, err
+			// Even if the mantissa was truncated, we may
+			// have found the correct result. Confirm by
+			// converting the upper mantissa bound.
+			fUp, ok := eiselLemire64(mantissa+1, exp, neg)
+			if ok && f == fUp {
+				return f, n, nil
+			}
 		}
 	}
 

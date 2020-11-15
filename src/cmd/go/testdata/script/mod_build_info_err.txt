@@ -1,8 +1,19 @@
 # This test verifies that line numbers are included in module import errors.
 # Verifies golang.org/issue/34393.
 
-go list -e -deps -f '{{with .Error}}{{.Pos}}: {{.Err}}{{end}}' ./main
-stdout 'bad[/\\]bad.go:3:8: malformed module path "🐧.example.com/string": invalid char ''🐧'''
+go list -e -mod=mod -deps -f '{{with .Error}}{{.Pos}}: {{.Err}}{{end}}' ./main
+stdout '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+
+# TODO(#26909): This should include an import stack.
+# (Today it includes only a file and line.)
+! go build ./main
+stderr '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+
+# TODO(#41688): This should include a file and line, and report the reason for the error..
+# (Today it includes only an import stack.)
+! go get -d ./main
+stderr '^m/main imports\n\tm/bad imports\n\t🐧.example.com/string: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+
 
 -- go.mod --
 module m

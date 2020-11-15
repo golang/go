@@ -2099,10 +2099,7 @@ func TestSkipArrayObjects(t *testing.T) {
 // slices, and arrays.
 // Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	type T struct {
-		A, B int
-	}
-	// Values here change, cannot reuse the table across runs.
+	// Values here change, cannot reuse table across runs.
 	var prefillTests = []struct {
 		in  string
 		ptr interface{}
@@ -2137,16 +2134,6 @@ func TestPrefilled(t *testing.T) {
 			in:  `[3]`,
 			ptr: &[...]int{1, 2},
 			out: &[...]int{3, 0},
-		},
-		{
-			in:  `[{"A": 3}]`,
-			ptr: &[]T{{A: -1, B: -2}, {A: -3, B: -4}},
-			out: &[]T{{A: 3}},
-		},
-		{
-			in:  `[{"A": 3}]`,
-			ptr: &[...]T{{A: -1, B: -2}, {A: -3, B: -4}},
-			out: &[...]T{{A: 3, B: -2}, {}},
 		},
 	}
 
@@ -2471,6 +2458,22 @@ func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
 	}
 	if t1 != t2 {
 		t.Errorf("Marshal and Unmarshal roundtrip mismatch: want %q got %q", t1, t2)
+	}
+
+	// See golang.org/issues/39555.
+	input := map[textUnmarshalerString]string{"FOO": "", `"`: ""}
+
+	encoded, err := Marshal(input)
+	if err != nil {
+		t.Fatalf("Marshal unexpected error: %v", err)
+	}
+	var got map[textUnmarshalerString]string
+	if err := Unmarshal(encoded, &got); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	want := map[textUnmarshalerString]string{"foo": "", `"`: ""}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Unexpected roundtrip result:\nwant: %q\ngot:  %q", want, got)
 	}
 }
 

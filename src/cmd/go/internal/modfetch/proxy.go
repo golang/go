@@ -9,9 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"net/url"
-	"os"
 	"path"
 	pathpkg "path"
 	"path/filepath"
@@ -186,7 +185,7 @@ func proxyList() ([]proxySpec, error) {
 
 // TryProxies iterates f over each configured proxy (including "noproxy" and
 // "direct" if applicable) until f returns no error or until f returns an
-// error that is not equivalent to os.ErrNotExist on a proxy configured
+// error that is not equivalent to fs.ErrNotExist on a proxy configured
 // not to fall back on errors.
 //
 // TryProxies then returns that final error.
@@ -222,7 +221,7 @@ func TryProxies(f func(proxy string) error) error {
 		if err == nil {
 			return nil
 		}
-		isNotExistErr := errors.Is(err, os.ErrNotExist)
+		isNotExistErr := errors.Is(err, fs.ErrNotExist)
 
 		if proxy.url == "direct" || (proxy.url == "noproxy" && err != errUseProxy) {
 			bestErr = err
@@ -242,8 +241,9 @@ func TryProxies(f func(proxy string) error) error {
 }
 
 type proxyRepo struct {
-	url  *url.URL
-	path string
+	url         *url.URL
+	path        string
+	redactedURL string
 }
 
 func newProxyRepo(baseURL, path string) (Repo, error) {
@@ -268,10 +268,10 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	redactedURL := base.Redacted()
 	base.Path = strings.TrimSuffix(base.Path, "/") + "/" + enc
 	base.RawPath = strings.TrimSuffix(base.RawPath, "/") + "/" + pathEscape(enc)
-	return &proxyRepo{base, path}, nil
+	return &proxyRepo{base, path, redactedURL}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
@@ -304,7 +304,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 		return nil, err
 	}
 	defer body.Close()
-	return ioutil.ReadAll(body)
+	return io.ReadAll(body)
 }
 
 func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
@@ -413,7 +413,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, p.versionError(rev, err)
+		return nil, p.versionError(rev, fmt.Errorf("invalid response from proxy %q: %w", p.redactedURL, err))
 	}
 	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
 		// If we request a correct, appropriate version for the module path, the
@@ -427,14 +427,14 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 func (p *proxyRepo) Latest() (*RevInfo, error) {
 	data, err := p.getBytes("@latest")
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, p.versionError("", err)
 		}
 		return p.latest()
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
-		return nil, p.versionError("", err)
+		return nil, p.versionError("", fmt.Errorf("invalid response from proxy %q: %w", p.redactedURL, err))
 	}
 	return info, nil
 }

@@ -54,6 +54,7 @@ func printuint(uint64)
 func printcomplex(complex128)
 func printstring(string)
 func printpointer(any)
+func printuintptr(uintptr)
 func printiface(any)
 func printeface(any)
 func printslice(any)
@@ -75,8 +76,7 @@ func slicebytetostringtmp(ptr *byte, n int) string
 func slicerunetostring(*[32]byte, []rune) string
 func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
-func slicecopy(toPtr *any, toLen int, frPtr *any, frLen int, wid uintptr) int
-func slicestringcopy(toPtr *byte, toLen int, fr string) int
+func slicecopy(toPtr *any, toLen int, fromPtr *any, fromLen int, wid uintptr) int
 
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
@@ -169,8 +169,8 @@ func selectnbsend(hchan chan<- any, elem *any) bool
 func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
-func selectsetpc(cas *byte)
-func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
+func selectsetpc(pc *uintptr)
+func selectgo(cas0 *byte, order0 *byte, pc0 *uintptr, nsends int, nrecvs int, block bool) (int, bool)
 func block()
 
 func makeslice(typ *byte, len int, cap int) unsafe.Pointer

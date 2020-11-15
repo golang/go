@@ -158,7 +158,7 @@ func TestRemoveAllLarge(t *testing.T) {
 
 func TestRemoveAllLongPath(t *testing.T) {
 	switch runtime.GOOS {
-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
@@ -359,7 +359,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 			t.Errorf("got %q, expected pathErr.path %q", g, w)
 		}
 	} else {
-		t.Errorf("got %T, expected *os.PathError", err)
+		t.Errorf("got %T, expected *fs.PathError", err)
 	}
 
 	for _, dir := range dirs {

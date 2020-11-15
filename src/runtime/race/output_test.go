@@ -309,7 +309,7 @@ Read at 0x[0-9,a-f]+ by main goroutine:
 Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.goCallback\(\)
       .*/main\.go:27 \+0x[0-9,a-f]+
-  main._cgoexpwrap_[0-9a-z]+_goCallback\(\)
+  _cgoexp_[0-9a-z]+_goCallback\(\)
       .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
@@ -338,4 +338,77 @@ func TestPass(t *testing.T) {
 --- FAIL: TestFail \(0...s\)
 .*testing.go:.*: race detected during execution of test
 FAIL`},
+	{"mutex", "run", "", "atexit_sleep_ms=0", `
+package main
+import (
+	"sync"
+	"fmt"
+)
+func main() {
+	c := make(chan bool, 1)
+	threads := 1
+	iterations := 20000
+	data := 0
+	var wg sync.WaitGroup
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				c <- true
+				data += 1
+				<- c
+			}
+		}()
+	}
+	for i := 0; i < iterations; i++ {
+		c <- true
+		data += 1
+		<- c
+	}
+	wg.Wait()
+	if (data == iterations*(threads+1)) { fmt.Println("pass") }
+}`, `pass`},
+	// Test for https://github.com/golang/go/issues/37355
+	{"chanmm", "run", "", "atexit_sleep_ms=0", `
+package main
+import (
+	"sync"
+	"time"
+)
+func main() {
+	c := make(chan bool, 1)
+	var data uint64
+	var wg sync.WaitGroup
+	wg.Add(2)
+	c <- true
+	go func() {
+		defer wg.Done()
+		c <- true
+	}()
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second)
+		<-c
+		data = 2
+	}()
+	data = 1
+	<-c
+	wg.Wait()
+	_ = data
+}
+`, `==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.main\.func2\(\)
+      .*/main\.go:21 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .*/main\.go:23 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .*/main.go:[0-9]+ \+0x[0-9,a-f]+
+==================`},
 }

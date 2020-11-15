@@ -50,7 +50,7 @@ func PProf(eo *plugin.Options) error {
 	}
 
 	if cmd != nil {
-		return generateReport(p, cmd, pprofVariables, o)
+		return generateReport(p, cmd, currentConfig(), o)
 	}
 
 	if src.HTTPHostport != "" {
@@ -59,7 +59,7 @@ func PProf(eo *plugin.Options) error {
 	return interactive(p, o)
 }
 
-func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) (*command, *report.Report, error) {
+func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) (*command, *report.Report, error) {
 	p = p.Copy() // Prevent modification to the incoming profile.
 
 	// Identify units of numeric tags in profile.
@@ -71,16 +71,16 @@ func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plug
 		panic("unexpected nil command")
 	}
 
-	vars = applyCommandOverrides(cmd[0], c.format, vars)
+	cfg = applyCommandOverrides(cmd[0], c.format, cfg)
 
 	// Delay focus after configuring report to get percentages on all samples.
-	relative := vars["relative_percentages"].boolValue()
+	relative := cfg.RelativePercentages
 	if relative {
-		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+		if err := applyFocus(p, numLabelUnits, cfg, o.UI); err != nil {
 			return nil, nil, err
 		}
 	}
-	ropt, err := reportOptions(p, numLabelUnits, vars)
+	ropt, err := reportOptions(p, numLabelUnits, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -95,19 +95,19 @@ func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plug
 
 	rpt := report.New(p, ropt)
 	if !relative {
-		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+		if err := applyFocus(p, numLabelUnits, cfg, o.UI); err != nil {
 			return nil, nil, err
 		}
 	}
-	if err := aggregate(p, vars); err != nil {
+	if err := aggregate(p, cfg); err != nil {
 		return nil, nil, err
 	}
 
 	return c, rpt, nil
 }
 
-func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
-	c, rpt, err := generateRawReport(p, cmd, vars, o)
+func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) error {
+	c, rpt, err := generateRawReport(p, cmd, cfg, o)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 	}
 
 	// If no output is specified, use default visualizer.
-	output := vars["output"].value
+	output := cfg.Output
 	if output == "" {
 		if c.visualizer != nil {
 			return c.visualizer(src, os.Stdout, o.UI)
@@ -151,7 +151,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 	return out.Close()
 }
 
-func applyCommandOverrides(cmd string, outputFormat int, v variables) variables {
+func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 	// Some report types override the trim flag to false below. This is to make
 	// sure the default heuristics of excluding insignificant nodes and edges
 	// from the call graph do not apply. One example where it is important is
@@ -160,55 +160,55 @@ func applyCommandOverrides(cmd string, outputFormat int, v variables) variables 
 	// data is selected. So, with trimming enabled, the report could end up
 	// showing no data if the specified function is "uninteresting" as far as the
 	// trimming is concerned.
-	trim := v["trim"].boolValue()
+	trim := cfg.Trim
 
 	switch cmd {
 	case "disasm", "weblist":
 		trim = false
-		v.set("addresses", "t")
+		cfg.Granularity = "addresses"
 		// Force the 'noinlines' mode so that source locations for a given address
 		// collapse and there is only one for the given address. Without this
 		// cumulative metrics would be double-counted when annotating the assembly.
 		// This is because the merge is done by address and in case of an inlined
 		// stack each of the inlined entries is a separate callgraph node.
-		v.set("noinlines", "t")
+		cfg.NoInlines = true
 	case "peek":
 		trim = false
 	case "list":
 		trim = false
-		v.set("lines", "t")
+		cfg.Granularity = "lines"
 		// Do not force 'noinlines' to be false so that specifying
 		// "-list foo -noinlines" is supported and works as expected.
 	case "text", "top", "topproto":
-		if v["nodecount"].intValue() == -1 {
-			v.set("nodecount", "0")
+		if cfg.NodeCount == -1 {
+			cfg.NodeCount = 0
 		}
 	default:
-		if v["nodecount"].intValue() == -1 {
-			v.set("nodecount", "80")
+		if cfg.NodeCount == -1 {
+			cfg.NodeCount = 80
 		}
 	}
 
 	switch outputFormat {
 	case report.Proto, report.Raw, report.Callgrind:
 		trim = false
-		v.set("addresses", "t")
-		v.set("noinlines", "f")
+		cfg.Granularity = "addresses"
+		cfg.NoInlines = false
 	}
 
 	if !trim {
-		v.set("nodecount", "0")
-		v.set("nodefraction", "0")
-		v.set("edgefraction", "0")
+		cfg.NodeCount = 0
+		cfg.NodeFraction = 0
+		cfg.EdgeFraction = 0
 	}
-	return v
+	return cfg
 }
 
-func aggregate(prof *profile.Profile, v variables) error {
+func aggregate(prof *profile.Profile, cfg config) error {
 	var function, filename, linenumber, address bool
-	inlines := !v["noinlines"].boolValue()
-	switch {
-	case v["addresses"].boolValue():
+	inlines := !cfg.NoInlines
+	switch cfg.Granularity {
+	case "addresses":
 		if inlines {
 			return nil
 		}
@@ -216,15 +216,15 @@ func aggregate(prof *profile.Profile, v variables) error {
 		filename = true
 		linenumber = true
 		address = true
-	case v["lines"].boolValue():
+	case "lines":
 		function = true
 		filename = true
 		linenumber = true
-	case v["files"].boolValue():
+	case "files":
 		filename = true
-	case v["functions"].boolValue():
+	case "functions":
 		function = true
-	case v["filefunctions"].boolValue():
+	case "filefunctions":
 		function = true
 		filename = true
 	default:
@@ -233,8 +233,8 @@ func aggregate(prof *profile.Profile, v variables) error {
 	return prof.Aggregate(inlines, function, filename, linenumber, address)
 }
 
-func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars variables) (*report.Options, error) {
-	si, mean := vars["sample_index"].value, vars["mean"].boolValue()
+func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {
+	si, mean := cfg.SampleIndex, cfg.Mean
 	value, meanDiv, sample, err := sampleFormat(p, si, mean)
 	if err != nil {
 		return nil, err
@@ -245,29 +245,37 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
 		stype = "mean_" + stype
 	}
 
-	if vars["divide_by"].floatValue() == 0 {
+	if cfg.DivideBy == 0 {
 		return nil, fmt.Errorf("zero divisor specified")
 	}
 
 	var filters []string
-	for _, k := range []string{"focus", "ignore", "hide", "show", "show_from", "tagfocus", "tagignore", "tagshow", "taghide"} {
-		v := vars[k].value
+	addFilter := func(k string, v string) {
 		if v != "" {
 			filters = append(filters, k+"="+v)
 		}
 	}
+	addFilter("focus", cfg.Focus)
+	addFilter("ignore", cfg.Ignore)
+	addFilter("hide", cfg.Hide)
+	addFilter("show", cfg.Show)
+	addFilter("show_from", cfg.ShowFrom)
+	addFilter("tagfocus", cfg.TagFocus)
+	addFilter("tagignore", cfg.TagIgnore)
+	addFilter("tagshow", cfg.TagShow)
+	addFilter("taghide", cfg.TagHide)
 
 	ropt := &report.Options{
-		CumSort:      vars["cum"].boolValue(),
-		CallTree:     vars["call_tree"].boolValue(),
-		DropNegative: vars["drop_negative"].boolValue(),
+		CumSort:      cfg.Sort == "cum",
+		CallTree:     cfg.CallTree,
+		DropNegative: cfg.DropNegative,
 
-		CompactLabels: vars["compact_labels"].boolValue(),
-		Ratio:         1 / vars["divide_by"].floatValue(),
+		CompactLabels: cfg.CompactLabels,
+		Ratio:         1 / cfg.DivideBy,
 
-		NodeCount:    vars["nodecount"].intValue(),
-		NodeFraction: vars["nodefraction"].floatValue(),
-		EdgeFraction: vars["edgefraction"].floatValue(),
+		NodeCount:    cfg.NodeCount,
+		NodeFraction: cfg.NodeFraction,
+		EdgeFraction: cfg.EdgeFraction,
 
 		ActiveFilters: filters,
 		NumLabelUnits: numLabelUnits,
@@ -277,10 +285,12 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
 		SampleType:        stype,
 		SampleUnit:        sample.Unit,
 
-		OutputUnit: vars["unit"].value,
+		OutputUnit: cfg.Unit,
 
-		SourcePath: vars["source_path"].stringValue(),
-		TrimPath:   vars["trim_path"].stringValue(),
+		SourcePath: cfg.SourcePath,
+		TrimPath:   cfg.TrimPath,
+
+		IntelSyntax: cfg.IntelSyntax,
 	}
 
 	if len(p.Mapping) > 0 && p.Mapping[0].File != "" {

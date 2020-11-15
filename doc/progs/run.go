@@ -105,7 +105,7 @@ func test(tmpdir, file, want string) error {
 
 	// Canonicalize output.
 	out = bytes.TrimRight(out, "\n")
-	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
+	out = bytes.ReplaceAll(out, []byte{'\n'}, []byte{' '})
 
 	// Check the result.
 	match, err := regexp.Match(want, out)

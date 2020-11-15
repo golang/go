@@ -14,6 +14,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 )
@@ -113,14 +115,19 @@ func dumpCompilerObj(bout *bio.Writer) {
 
 func dumpdata() {
 	externs := len(externdcl)
+	xtops := len(xtop)
 
 	dumpglobls()
 	addptabs()
+	exportlistLen := len(exportlist)
 	addsignats(externdcl)
 	dumpsignats()
 	dumptabs()
+	ptabsLen := len(ptabs)
+	itabsLen := len(itabs)
 	dumpimportstrings()
 	dumpbasictypes()
+	dumpembeds()
 
 	// Calls to dumpsignats can generate functions,
 	// like method wrappers and hash and equality routines.
@@ -129,9 +136,19 @@ func dumpdata() {
 	// number of types in a finite amount of code.
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
-	for len(compilequeue) > 0 {
+	for {
+		for i := xtops; i < len(xtop); i++ {
+			n := xtop[i]
+			if n.Op == ODCLFUNC {
+				funccompile(n)
+			}
+		}
+		xtops = len(xtop)
 		compileFunctions()
 		dumpsignats()
+		if xtops == len(xtop) {
+			break
+		}
 	}
 
 	// Dump extra globals.
@@ -149,6 +166,16 @@ func dumpdata() {
 	}
 
 	addGCLocals()
+
+	if exportlistLen != len(exportlist) {
+		Fatalf("exportlist changed after compile functions loop")
+	}
+	if ptabsLen != len(ptabs) {
+		Fatalf("ptabs changed after compile functions loop")
+	}
+	if itabsLen != len(itabs) {
+		Fatalf("itabs changed after compile functions loop")
+	}
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
@@ -166,7 +193,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	obj.WriteObjFile(Ctxt, bout, myimportpath)
+	obj.WriteObjFile(Ctxt, bout)
 }
 
 func addptabs() {
@@ -248,7 +275,7 @@ func dumpGlobalConst(n *Node) {
 	default:
 		return
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64Val())
 }
 
 func dumpglobls() {
@@ -281,22 +308,21 @@ func dumpglobls() {
 // global symbols can't be declared during parallel compilation.
 func addGCLocals() {
 	for _, s := range Ctxt.Text {
-		if s.Func == nil {
+		fn := s.Func()
+		if fn == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+		for _, gcsym := range []*obj.LSym{fn.GCArgs, fn.GCLocals} {
 			if gcsym != nil && !gcsym.OnList() {
 				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
 		}
-		if x := s.Func.StackObjects; x != nil {
+		if x := fn.StackObjects; x != nil {
 			attr := int16(obj.RODATA)
-			if s.DuplicateOK() {
-				attr |= obj.DUPOK
-			}
 			ggloblsym(x, int32(len(x.P)), attr)
+			x.Set(obj.AttrStatic, true)
 		}
-		if x := s.Func.OpenCodedDeferInfo; x != nil {
+		if x := fn.OpenCodedDeferInfo; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
@@ -335,54 +361,154 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
 	return off
 }
 
+const (
+	stringSymPrefix  = "go.string."
+	stringSymPattern = ".gostring.%d.%x"
+)
+
+// stringsym returns a symbol containing the string s.
+// The symbol contains the string data, not a string header.
 func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
 		// Indulge in some paranoia by writing the length of s, too,
 		// as protection against length extension attacks.
+		// Same pattern is known to fileStringSym below.
 		h := sha256.New()
 		io.WriteString(h, s)
-		symname = fmt.Sprintf(".gostring.%d.%x", len(s), h.Sum(nil))
+		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
 	} else {
 		// Small strings get named directly by their contents.
 		symname = strconv.Quote(s)
 	}
 
-	const prefix = "go.string."
-	symdataname := prefix + symname
-
-	symdata := Ctxt.Lookup(symdataname)
-
-	if !symdata.SeenGlobl() {
-		// string data
-		off := dsname(symdata, 0, s, pos, "string")
+	symdata := Ctxt.Lookup(stringSymPrefix + symname)
+	if !symdata.OnList() {
+		off := dstringdata(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		symdata.Set(obj.AttrContentAddressable, true)
 	}
 
 	return symdata
 }
 
-var slicebytes_gen int
+// fileStringSym returns a symbol for the contents and the size of file.
+// If readonly is true, the symbol shares storage with any literal string
+// or other file with the same content and is placed in a read-only section.
+// If readonly is false, the symbol is a read-write copy separate from any other,
+// for use as the backing store of a []byte.
+// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
+// The returned symbol contains the data itself, not a string header.
+func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, 0, fmt.Errorf("not a regular file")
+	}
+	size := info.Size()
+	if size <= 1*1024 {
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, 0, err
+		}
+		if int64(len(data)) != size {
+			return nil, 0, fmt.Errorf("file changed between reads")
+		}
+		var sym *obj.LSym
+		if readonly {
+			sym = stringsym(pos, string(data))
+		} else {
+			sym = slicedata(pos, string(data)).Sym.Linksym()
+		}
+		if len(hash) > 0 {
+			sum := sha256.Sum256(data)
+			copy(hash, sum[:])
+		}
+		return sym, size, nil
+	}
+	if size > 2e9 {
+		// ggloblsym takes an int32,
+		// and probably the rest of the toolchain
+		// can't handle such big symbols either.
+		// See golang.org/issue/9862.
+		return nil, 0, fmt.Errorf("file too large")
+	}
 
-func slicebytes(nam *Node, s string) {
-	slicebytes_gen++
-	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+	// File is too big to read and keep in memory.
+	// Compute hash if needed for read-only content hashing or if the caller wants it.
+	var sum []byte
+	if readonly || len(hash) > 0 {
+		h := sha256.New()
+		n, err := io.Copy(h, f)
+		if err != nil {
+			return nil, 0, err
+		}
+		if n != size {
+			return nil, 0, fmt.Errorf("file changed between reads")
+		}
+		sum = h.Sum(nil)
+		copy(hash, sum)
+	}
+
+	var symdata *obj.LSym
+	if readonly {
+		symname := fmt.Sprintf(stringSymPattern, size, sum)
+		symdata = Ctxt.Lookup(stringSymPrefix + symname)
+		if !symdata.OnList() {
+			info := symdata.NewFileInfo()
+			info.Name = file
+			info.Size = size
+			ggloblsym(symdata, int32(size), obj.DUPOK|obj.RODATA|obj.LOCAL)
+			// Note: AttrContentAddressable cannot be set here,
+			// because the content-addressable-handling code
+			// does not know about file symbols.
+		}
+	} else {
+		// Emit a zero-length data symbol
+		// and then fix up length and content to use file.
+		symdata = slicedata(pos, "").Sym.Linksym()
+		symdata.Size = size
+		symdata.Type = objabi.SNOPTRDATA
+		info := symdata.NewFileInfo()
+		info.Name = file
+		info.Size = size
+	}
+
+	return symdata, size, nil
+}
+
+var slicedataGen int
+
+func slicedata(pos src.XPos, s string) *Node {
+	slicedataGen++
+	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
 	sym := localpkg.Lookup(symname)
 	symnode := newname(sym)
 	sym.Def = asTypesNode(symnode)
 
 	lsym := sym.Linksym()
-	off := dsname(lsym, 0, s, nam.Pos, "slice")
+	off := dstringdata(lsym, 0, s, pos, "slice")
 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
+	return symnode
+}
+
+func slicebytes(nam *Node, s string) {
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)
 	}
-	slicesym(nam, symnode, int64(len(s)))
+	slicesym(nam, slicedata(nam.Pos, s), int64(len(s)))
 }
 
-func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
 	// Objects that are too large will cause the data section to overflow right away,
 	// causing a cryptic error message by the linker. Check for oversize objects here
 	// and provide a useful error message instead.

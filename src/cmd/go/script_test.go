@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -22,6 +23,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,9 +40,7 @@ import (
 // TestScript runs the tests in testdata/script/*.txt.
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.SkipIfShortAndSlow(t)
 
 	files, err := filepath.Glob("testdata/script/*.txt")
 	if err != nil {
@@ -130,10 +130,12 @@ func (ts *testScript) setup() {
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
+		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"TESTGO_GOROOT=" + testGOROOT,
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"GOVCS=*:all",
 		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
@@ -295,6 +297,8 @@ Script:
 				ok = os.Geteuid() == 0
 			case "symlink":
 				ok = testenv.HasSymlink()
+			case "case-sensitive":
+				ok = isCaseSensitive(ts.t)
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]
@@ -361,6 +365,41 @@ Script:
 	if !ts.stopped {
 		fmt.Fprintf(&ts.log, "PASS\n")
 	}
+}
+
+var (
+	onceCaseSensitive sync.Once
+	caseSensitive     bool
+)
+
+func isCaseSensitive(t *testing.T) bool {
+	onceCaseSensitive.Do(func() {
+		tmpdir, err := ioutil.TempDir("", "case-sensitive")
+		if err != nil {
+			t.Fatal("failed to create directory to determine case-sensitivity:", err)
+		}
+		defer os.RemoveAll(tmpdir)
+
+		fcap := filepath.Join(tmpdir, "FILE")
+		if err := ioutil.WriteFile(fcap, []byte{}, 0644); err != nil {
+			t.Fatal("error writing file to determine case-sensitivity:", err)
+		}
+
+		flow := filepath.Join(tmpdir, "file")
+		_, err = ioutil.ReadFile(flow)
+		switch {
+		case err == nil:
+			caseSensitive = false
+			return
+		case os.IsNotExist(err):
+			caseSensitive = true
+			return
+		default:
+			t.Fatal("unexpected error reading file when determining case-sensitivity:", err)
+		}
+	})
+
+	return caseSensitive
 }
 
 // scriptCmds are the script command implementations.
@@ -461,7 +500,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		ts.fatalf("usage: chmod perm paths...")
 	}
 	perm, err := strconv.ParseUint(args[0], 0, 32)
-	if err != nil || perm&uint64(os.ModePerm) != perm {
+	if err != nil || perm&uint64(fs.ModePerm) != perm {
 		ts.fatalf("invalid mode: %s", args[0])
 	}
 	for _, arg := range args[1:] {
@@ -469,7 +508,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(ts.cd, arg)
 		}
-		err := os.Chmod(path, os.FileMode(perm))
+		err := os.Chmod(path, fs.FileMode(perm))
 		ts.check(err)
 	}
 }
@@ -556,7 +595,7 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 		var (
 			src  string
 			data []byte
-			mode os.FileMode
+			mode fs.FileMode
 		)
 		switch arg {
 		case "stdout":
@@ -1217,7 +1256,12 @@ func (ts *testScript) parse(line string) command {
 
 		if cmd.name != "" {
 			cmd.args = append(cmd.args, arg)
-			isRegexp = false // Commands take only one regexp argument, so no subsequent args are regexps.
+			// Commands take only one regexp argument (after the optional flags),
+			// so no subsequent args are regexps. Liberally assume an argument that
+			// starts with a '-' is a flag.
+			if len(arg) == 0 || arg[0] != '-' {
+				isRegexp = false
+			}
 			return
 		}
 

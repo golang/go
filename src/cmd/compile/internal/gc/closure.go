@@ -71,6 +71,10 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	return clo
 }
 
+// typecheckclosure typechecks an OCLOSURE node. It also creates the named
+// function associated with the closure.
+// TODO: This creation of the named function should probably really be done in a
+// separate pass from type-checking.
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
 	// Set current associated iota value, so iota can be used inside
@@ -107,8 +111,7 @@ func typecheckclosure(clo *Node, top int) {
 	}
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
-	disableExport(xfunc.Func.Nname.Sym)
-	declare(xfunc.Func.Nname, PFUNC)
+	setNodeNameFunc(xfunc.Func.Nname)
 	xfunc = typecheck(xfunc, ctxStmt)
 
 	// Type check the body now, but only if we're inside a function.
@@ -199,7 +202,7 @@ func capturevars(xfunc *Node) {
 			outer = nod(OADDR, outer, nil)
 		}
 
-		if Debug['m'] > 1 {
+		if Debug.m > 1 {
 			var name *types.Sym
 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
 				name = v.Name.Curfn.Func.Nname.Sym
@@ -429,11 +432,14 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	// Create top-level function.
 	xfunc := makepartialcall(fn, fn.Type, sym)
 	fn.Func = xfunc.Func
+	fn.Func.SetWrapper(true)
 	fn.Right = newname(sym)
 	fn.Op = OCALLPART
 	fn.Type = xfunc.Type
 }
 
+// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+// for partial calls.
 func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	rcvrtype := fn.Left.Type
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
@@ -462,7 +468,6 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	tfn.List.Set(structargs(t0.Params(), true))
 	tfn.Rlist.Set(structargs(t0.Results(), false))
 
-	disableExport(sym)
 	xfunc := dclfunc(sym, tfn)
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.SetNeedctxt(true)
@@ -501,6 +506,10 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	funcbody()
 
 	xfunc = typecheck(xfunc, ctxStmt)
+	// Need to typecheck the body of the just-generated wrapper.
+	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+	Curfn = xfunc
+	typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
 	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
@@ -525,7 +534,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
-	//	clos = &struct{F uintptr; R T}{M.T·f, x}
+	//	clos = &struct{F uintptr; R T}{T.M·f, x}
 	//
 	// Like walkclosure above.
 

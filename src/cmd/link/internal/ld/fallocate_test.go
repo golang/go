@@ -28,6 +28,21 @@ func TestFallocate(t *testing.T) {
 	}
 	defer out.Close()
 
+	// Try fallocate first.
+	for {
+		err = out.fallocate(1 << 10)
+		if err == syscall.EOPNOTSUPP { // The underlying file system may not support fallocate
+			t.Skip("fallocate is not supported")
+		}
+		if err == syscall.EINTR {
+			continue // try again
+		}
+		if err != nil {
+			t.Fatalf("fallocate failed: %v", err)
+		}
+		break
+	}
+
 	// Mmap 1 MiB initially, and grow to 2 and 3 MiB.
 	// Check if the file size and disk usage is expected.
 	for _, sz := range []int64{1 << 20, 2 << 20, 3 << 20} {

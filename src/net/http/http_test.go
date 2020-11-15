@@ -13,12 +13,7 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
-	"time"
 )
-
-func init() {
-	shutdownPollInterval = 5 * time.Millisecond
-}
 
 func TestForeachHeaderElement(t *testing.T) {
 	tests := []struct {
@@ -91,7 +86,7 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
 	}
 	wantSym := map[string]bool{
 		// Verify these exist: (sanity checking this test)
-		"net/http.(*Client).Get":          true,
+		"net/http.(*Client).do":           true,
 		"net/http.(*Transport).RoundTrip": true,
 
 		// Verify these don't exist:

@@ -34,6 +34,7 @@ Scripts also have access to these other environment variables:
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
+	GOROOT_FINAL=<actual GOROOT_FINAL>
 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
@@ -84,6 +85,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [link] for testenv.HasLink()
    - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
+   - [case-sensitive] for whether the file system is case-sensitive
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
    - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
    - [buildmode:value] for whether -buildmode=value is supported

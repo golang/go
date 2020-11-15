@@ -1,4 +1,5 @@
 # Imports
+env GO111MODULE=off
 go list -f  '{{.ImportPath}} {{.Imports}}' 'vend/...' 'vend/vendor/...' 'vend/x/vendor/...'
 cmp stdout want_vendor_imports.txt
 

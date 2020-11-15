@@ -10,7 +10,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
@@ -97,7 +97,7 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType) {
+func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
 	ir := &intReader{in, pkg}
 
 	version := ir.uint64()
@@ -191,9 +191,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType
 		}
 	}
 
-	// Fingerprint
-	n, err := io.ReadFull(in, fingerprint[:])
-	if err != nil || n != len(fingerprint) {
+	// Fingerprint.
+	_, err = io.ReadFull(in, fingerprint[:])
+	if err != nil {
 		yyerror("import %s: error reading fingerprint", pkg.Path)
 		errorexit()
 	}
@@ -316,6 +316,7 @@ func (r *importReader) doDecl(n *Node) {
 		resumecheckwidth()
 
 		if underlying.IsInterface() {
+			r.typeExt(t)
 			break
 		}
 
@@ -346,6 +347,7 @@ func (r *importReader) doDecl(n *Node) {
 		}
 		t.Methods().Set(ms)
 
+		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
@@ -373,7 +375,7 @@ func (p *importReader) value() (typ *types.Type, v Val) {
 		v.U = p.string()
 	case CTINT:
 		x := new(Mpint)
-		x.Rune = typ == types.Idealrune
+		x.Rune = typ == types.UntypedRune
 		p.mpint(&x.Val, typ)
 		v.U = x
 	case CTFLT:
@@ -594,7 +596,6 @@ func (r *importReader) typ1() *types.Type {
 
 		// Ensure we expand the interface in the frontend (#25055).
 		checkwidth(t)
-
 		return t
 	}
 }
@@ -697,18 +698,28 @@ func (r *importReader) linkname(s *types.Sym) {
 }
 
 func (r *importReader) symIdx(s *types.Sym) {
-	if Ctxt.Flag_go115newobj {
-		lsym := s.Linksym()
-		idx := int32(r.int64())
-		if idx != -1 {
-			if s.Linkname != "" {
-				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
-			}
-			lsym.SymIdx = idx
-			lsym.Set(obj.AttrIndexed, true)
+	lsym := s.Linksym()
+	idx := int32(r.int64())
+	if idx != -1 {
+		if s.Linkname != "" {
+			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
+		lsym.SymIdx = idx
+		lsym.Set(obj.AttrIndexed, true)
 	}
 }
+
+func (r *importReader) typeExt(t *types.Type) {
+	t.SetNotInHeap(r.bool())
+	i, pi := r.int64(), r.int64()
+	if i != -1 && pi != -1 {
+		typeSymIdx[t] = [2]int64{i, pi}
+	}
+}
+
+// Map imported type T to the index of type descriptor symbols of T and *T,
+// so we can use index to reference the symbol.
+var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *Node) {
 	if len(n.Func.Inl.Body) != 0 {
@@ -731,8 +742,8 @@ func (r *importReader) doInline(n *Node) {
 
 	importlist = append(importlist, n)
 
-	if Debug['E'] > 0 && Debug['m'] > 2 {
-		if Debug['m'] > 3 {
+	if Debug.E > 0 && Debug.m > 2 {
+		if Debug.m > 3 {
 			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
 		} else {
 			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
@@ -771,6 +782,28 @@ func (r *importReader) stmtList() []*Node {
 
 	}
 	return list
+}
+
+func (r *importReader) caseList(sw *Node) []*Node {
+	namedTypeSwitch := sw.Op == OSWITCH && sw.Left != nil && sw.Left.Op == OTYPESW && sw.Left.Left != nil
+
+	cases := make([]*Node, r.uint64())
+	for i := range cases {
+		cas := nodl(r.pos(), OCASE, nil, nil)
+		cas.List.Set(r.stmtList())
+		if namedTypeSwitch {
+			// Note: per-case variables will have distinct, dotted
+			// names after import. That's okay: swt.go only needs
+			// Sym for diagnostics anyway.
+			caseVar := newnamel(cas.Pos, r.ident())
+			declare(caseVar, dclcontext)
+			cas.Rlist.Set1(caseVar)
+			caseVar.Name.Defn = sw.Left
+		}
+		cas.Nbody.Set(r.stmtList())
+		cases[i] = cas
+	}
+	return cases
 }
 
 func (r *importReader) exprList() []*Node {
@@ -820,6 +853,14 @@ func (r *importReader) node() *Node {
 	case OTYPE:
 		return typenod(r.typ())
 
+	case OTYPESW:
+		n := nodl(r.pos(), OTYPESW, nil, nil)
+		if s := r.ident(); s != nil {
+			n.Left = npos(n.Pos, newnoname(s))
+		}
+		n.Right, _ = r.exprsOrNil()
+		return n
+
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
 
@@ -855,7 +896,7 @@ func (r *importReader) node() *Node {
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
-	//	unimplemented
+	//	unreachable - mapped to case OXDOT below by exporter
 
 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 	// 	unreachable - mapped to case OXDOT below by exporter
@@ -1014,16 +1055,11 @@ func (r *importReader) node() *Node {
 		n := nodl(r.pos(), op, nil, nil)
 		n.Ninit.Set(r.stmtList())
 		n.Left, _ = r.exprsOrNil()
-		n.List.Set(r.stmtList())
+		n.List.Set(r.caseList(n))
 		return n
 
-	case OCASE:
-		n := nodl(r.pos(), OCASE, nil, nil)
-		n.List.Set(r.exprList())
-		// TODO(gri) eventually we must declare variables for type switch
-		// statements (type switch statements are not yet exported)
-		n.Nbody.Set(r.stmtList())
-		return n
+	// case OCASE:
+	//	handled by caseList
 
 	case OFALL:
 		n := nodl(r.pos(), OFALL, nil, nil)

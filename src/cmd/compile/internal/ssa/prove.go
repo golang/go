@@ -1051,6 +1051,11 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 	//
 	// If all of these conditions are true, then i1 < max and i1 >= min.
 
+	// To ensure this is a loop header node.
+	if len(b.Preds) != 2 {
+		return
+	}
+
 	for _, i1 := range b.Values {
 		if i1.Op != OpPhi {
 			continue
@@ -1077,7 +1082,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 			return nil
 		}
 		pred, child := b.Preds[1].b, b
-		for ; pred != nil; pred = uniquePred(pred) {
+		for ; pred != nil; pred, child = uniquePred(pred), pred {
 			if pred.Kind != BlockIf {
 				continue
 			}
@@ -1092,6 +1097,9 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 					continue
 				}
 				br = negative
+			}
+			if br == unknown {
+				continue
 			}
 
 			tr, has := domainRelationTable[control.Op]
@@ -1326,7 +1334,7 @@ func removeBranch(b *Block, branch branch) {
 // isNonNegative reports whether v is known to be greater or equal to zero.
 func isNonNegative(v *Value) bool {
 	if !v.Type.IsInteger() {
-		panic("isNonNegative bad type")
+		v.Fatalf("isNonNegative bad type: %v", v.Type)
 	}
 	// TODO: return true if !v.Type.IsSigned()
 	// SSA isn't type-safe enough to do that now (issue 37753).

@@ -419,8 +419,15 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
+	// Useful to see which nodes in an AST printout are actually identical
+	fmt.Fprintf(s, " p(%p)", n)
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+	}
+
+	if c == 0 && n.Name != nil && n.Name.Defn != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
 	}
 
 	if n.Pos.IsKnown() {
@@ -491,6 +498,15 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		}
 		if n.Name.Assigned() {
 			fmt.Fprint(s, " assigned")
+		}
+		if n.Name.IsClosureVar() {
+			fmt.Fprint(s, " closurevar")
+		}
+		if n.Name.Captured() {
+			fmt.Fprint(s, " captured")
+		}
+		if n.Name.IsOutputParamHeapAddr() {
+			fmt.Fprint(s, " outputparamheapaddr")
 		}
 	}
 	if n.Bounded() {
@@ -711,6 +727,17 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		return
 	}
 
+	if t.Etype == types.TRESULTS {
+		tys := t.Extra.(*types.Results).Types
+		for i, et := range tys {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(et.String())
+		}
+		return
+	}
+
 	flag, mode = flag.update(mode)
 	if mode == FTypeIdName {
 		flag |= FmtUnsigned
@@ -762,22 +789,29 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
 		var name string
 		switch t {
-		case types.Idealbool:
+		case types.UntypedBool:
 			name = "untyped bool"
-		case types.Idealstring:
+		case types.UntypedString:
 			name = "untyped string"
-		case types.Idealint:
+		case types.UntypedInt:
 			name = "untyped int"
-		case types.Idealrune:
+		case types.UntypedRune:
 			name = "untyped rune"
-		case types.Idealfloat:
+		case types.UntypedFloat:
 			name = "untyped float"
-		case types.Idealcomplex:
+		case types.UntypedComplex:
 			name = "untyped complex"
 		default:
 			name = basicnames[t.Etype]
 		}
 		b.WriteString(name)
+		return
+	}
+
+	if mode == FDbg {
+		b.WriteString(t.Etype.String())
+		b.WriteByte('-')
+		tconv2(b, t, flag, FErr, visited)
 		return
 	}
 
@@ -794,12 +828,6 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	visited[t] = b.Len()
 	defer delete(visited, t)
 
-	if mode == FDbg {
-		b.WriteString(t.Etype.String())
-		b.WriteByte('-')
-		tconv2(b, t, flag, FErr, visited)
-		return
-	}
 	switch t.Etype {
 	case TPTR:
 		b.WriteByte('*')
@@ -1322,7 +1350,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			n.Orig.exprfmt(s, prec, mode)
 			return
 		}
-		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != types.Idealbool && n.Type != types.Idealstring {
+		if n.Type != nil && !n.Type.IsUntyped() {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == types.Crecv) {
@@ -1407,7 +1435,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 				return
 			}
 			if n.Right != nil {
-				mode.Fprintf(s, "%v literal", n.Right)
+				mode.Fprintf(s, "%v{%s}", n.Right, ellipsisIf(n.List.Len() != 0))
 				return
 			}
 
@@ -1421,7 +1449,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		if mode == FErr {
-			mode.Fprintf(s, "%v literal", n.Type)
+			mode.Fprintf(s, "%v{%s}", n.Type, ellipsisIf(n.List.Len() != 0))
 			return
 		}
 		mode.Fprintf(s, "(%v{ %.v })", n.Type, n.List)
@@ -1616,7 +1644,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 			n1.exprfmt(s, nprec, mode)
 		}
-
+	case ODDD:
+		mode.Fprintf(s, "...")
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op)
 	}
@@ -1697,6 +1726,9 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 	}
 
+	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
+		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
+	}
 	if n.Sym != nil && n.Op != ONAME {
 		mode.Fprintf(s, " %v", n.Sym)
 	}
@@ -1711,6 +1743,16 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 		if n.Right != nil {
 			mode.Fprintf(s, "%v", n.Right)
+		}
+		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
+			indent(s)
+			// The function associated with a closure
+			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
+		}
+		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
+			indent(s)
+			// The dcls for a func or closure
+			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
 		}
 		if n.List.Len() != 0 {
 			indent(s)
@@ -1932,4 +1974,11 @@ func indent(s fmt.State) {
 	for i := 0; i < dumpdepth; i++ {
 		fmt.Fprint(s, ".   ")
 	}
+}
+
+func ellipsisIf(b bool) string {
+	if b {
+		return "..."
+	}
+	return ""
 }

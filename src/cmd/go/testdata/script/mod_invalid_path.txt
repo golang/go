@@ -1,0 +1,40 @@
+# Test that mod files with invalid or missing paths produce an error.
+
+# Test that go list fails on a go.mod with no module declaration.
+cd $WORK/gopath/src/mod
+! go list .
+stderr '^go: no module declaration in go.mod.\n\tRun ''go mod edit -module=example.com/mod'' to specify the module path.$'
+
+# Test that go mod init in GOPATH doesn't add a module declaration
+# with a path that can't possibly be a module path, because
+# it isn't even a valid import path.
+# The single quote and backtick are the only characters  we don't allow
+# in checkModulePathLax, but is allowed in a Windows file name.
+# TODO(matloob): choose a different character once
+# module.CheckImportPath is laxened and replaces
+# checkModulePathLax.
+cd $WORK/'gopath/src/m''d'
+! go mod init
+stderr 'cannot determine module path'
+
+# Test that a go.mod file is rejected when its module declaration has a path that can't
+# possibly be a module path, because it isn't even a valid import path
+cd $WORK/gopath/src/badname
+! go list .
+stderr 'invalid module path'
+
+-- mod/go.mod --
+
+-- mod/foo.go --
+package foo
+
+-- m'd/foo.go --
+package mad
+
+-- badname/go.mod --
+
+module .\.
+
+-- badname/foo.go --
+package badname
+

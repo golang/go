@@ -11,10 +11,6 @@ import (
 )
 
 func TestFixedGOROOT(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skipf("skipping plan9, it is inconsistent by allowing GOROOT to be updated by Setenv")
-	}
-
 	// Restore both the real GOROOT environment variable, and runtime's copies:
 	if orig, ok := syscall.Getenv("GOROOT"); ok {
 		defer syscall.Setenv("GOROOT", orig)

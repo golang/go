@@ -31,6 +31,7 @@ var sysctlMib = []mibentry{
 	{"hw.model", []_C_int{6, 2}},
 	{"hw.ncpu", []_C_int{6, 3}},
 	{"hw.ncpufound", []_C_int{6, 21}},
+	{"hw.ncpuonline", []_C_int{6, 25}},
 	{"hw.pagesize", []_C_int{6, 7}},
 	{"hw.perfpolicy", []_C_int{6, 23}},
 	{"hw.physmem", []_C_int{6, 19}},

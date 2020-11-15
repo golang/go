@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
@@ -17,6 +18,7 @@ import (
 
 type clientHandshakeStateTLS13 struct {
 	c           *Conn
+	ctx         context.Context
 	serverHello *serverHelloMsg
 	hello       *clientHelloMsg
 	ecdheParams ecdheParameters
@@ -334,6 +336,8 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 	c.didResume = true
 	c.peerCertificates = hs.session.serverCertificates
 	c.verifiedChains = hs.session.verifiedChains
+	c.ocspResponse = hs.session.ocspResponse
+	c.scts = hs.session.scts
 	return nil
 }
 
@@ -392,11 +396,17 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 	}
 	hs.transcript.Write(encryptedExtensions.marshal())
 
-	if len(encryptedExtensions.alpnProtocol) != 0 && len(hs.hello.alpnProtocols) == 0 {
-		c.sendAlert(alertUnsupportedExtension)
-		return errors.New("tls: server advertised unrequested ALPN extension")
+	if encryptedExtensions.alpnProtocol != "" {
+		if len(hs.hello.alpnProtocols) == 0 {
+			c.sendAlert(alertUnsupportedExtension)
+			return errors.New("tls: server advertised unrequested ALPN extension")
+		}
+		if mutualProtocol([]string{encryptedExtensions.alpnProtocol}, hs.hello.alpnProtocols) == "" {
+			c.sendAlert(alertUnsupportedExtension)
+			return errors.New("tls: server selected unadvertised ALPN protocol")
+		}
+		c.clientProtocol = encryptedExtensions.alpnProtocol
 	}
-	c.clientProtocol = encryptedExtensions.alpnProtocol
 
 	return nil
 }
@@ -547,6 +557,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		AcceptableCAs:    hs.certReq.certificateAuthorities,
 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
 		Version:          c.vers,
+		ctx:              hs.ctx,
 	})
 	if err != nil {
 		return err
@@ -666,6 +677,8 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		nonce:              msg.nonce,
 		useBy:              c.config.time().Add(lifetime),
 		ageAdd:             msg.ageAdd,
+		ocspResponse:       c.ocspResponse,
+		scts:               c.scts,
 	}
 
 	cacheKey := clientSessionCacheKey(c.conn.RemoteAddr(), c.config)

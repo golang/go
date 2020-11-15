@@ -25,11 +25,15 @@ func TestDeadcode(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	tests := []struct {
-		src     string
-		pattern string
+		src      string
+		pos, neg string // positive and negative patterns
 	}{
-		{"reflectcall", "main.T.M"},
-		{"typedesc", "type.main.T"},
+		{"reflectcall", "", "main.T.M"},
+		{"typedesc", "", "type.main.T"},
+		{"ifacemethod", "", "main.T.M"},
+		{"ifacemethod2", "main.T.M", ""},
+		{"ifacemethod3", "main.S.M", ""},
+		{"ifacemethod4", "", "main.T.M"},
 	}
 	for _, test := range tests {
 		test := test
@@ -42,8 +46,11 @@ func TestDeadcode(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 			}
-			if bytes.Contains(out, []byte(test.pattern)) {
-				t.Errorf("%s should not be reachable. Output:\n%s", test.pattern, out)
+			if test.pos != "" && !bytes.Contains(out, []byte(test.pos)) {
+				t.Errorf("%s should be reachable. Output:\n%s", test.pos, out)
+			}
+			if test.neg != "" && bytes.Contains(out, []byte(test.neg)) {
+				t.Errorf("%s should not be reachable. Output:\n%s", test.neg, out)
 			}
 		})
 	}

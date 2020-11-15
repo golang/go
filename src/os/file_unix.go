@@ -9,7 +9,6 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
-	"io"
 	"runtime"
 	"syscall"
 )
@@ -39,7 +38,9 @@ func rename(oldname, newname string) error {
 			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 		}
 	}
-	err = syscall.Rename(oldname, newname)
+	err = ignoringEINTR(func() error {
+		return syscall.Rename(oldname, newname)
+	})
 	if err != nil {
 		return &LinkError{"rename", oldname, newname, err}
 	}
@@ -60,8 +61,13 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
+//
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -127,9 +133,11 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// used with kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
-			err := syscall.Fstat(fdi, &st)
+			err := ignoringEINTR(func() error {
+				return syscall.Fstat(fdi, &st)
+			})
 			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
@@ -146,7 +154,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
@@ -202,14 +210,12 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 			break
 		}
 
-		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
-		// open(2) to be restarted for regular files. This is easy to reproduce on
-		// fuse file systems (see https://golang.org/issue/11180).
-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+		// We have to check EINTR here, per issues 11180 and 39237.
+		if e == syscall.EINTR {
 			continue
 		}
 
-		return nil, &PathError{"open", name, e}
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
@@ -238,7 +244,7 @@ func (file *file) close() error {
 		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
 	// no need for a finalizer anymore
@@ -266,8 +272,11 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 // If the file is a symbolic link, it changes the size of the link's target.
 // If there is an error, it will be of type *PathError.
 func Truncate(name string, size int64) error {
-	if e := syscall.Truncate(name, size); e != nil {
-		return &PathError{"truncate", name, e}
+	e := ignoringEINTR(func() error {
+		return syscall.Truncate(name, size)
+	})
+	if e != nil {
+		return &PathError{Op: "truncate", Path: name, Err: e}
 	}
 	return nil
 }
@@ -279,11 +288,15 @@ func Remove(name string) error {
 	// whether name is a file or directory.
 	// Try both: it is cheaper on average than
 	// doing a Stat plus the right one.
-	e := syscall.Unlink(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Unlink(name)
+	})
 	if e == nil {
 		return nil
 	}
-	e1 := syscall.Rmdir(name)
+	e1 := ignoringEINTR(func() error {
+		return syscall.Rmdir(name)
+	})
 	if e1 == nil {
 		return nil
 	}
@@ -300,7 +313,7 @@ func Remove(name string) error {
 	if e1 != syscall.ENOTDIR {
 		e = e1
 	}
-	return &PathError{"remove", name, e}
+	return &PathError{Op: "remove", Path: name, Err: e}
 }
 
 func tempDir() string {
@@ -318,7 +331,9 @@ func tempDir() string {
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	e := syscall.Link(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Link(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"link", oldname, newname, e}
 	}
@@ -328,38 +343,13 @@ func Link(oldname, newname string) error {
 // Symlink creates newname as a symbolic link to oldname.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	e := syscall.Symlink(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Symlink(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
 	return nil
-}
-
-func (f *File) readdir(n int) (fi []FileInfo, err error) {
-	dirname := f.name
-	if dirname == "" {
-		dirname = "."
-	}
-	names, err := f.Readdirnames(n)
-	fi = make([]FileInfo, 0, len(names))
-	for _, filename := range names {
-		fip, lerr := lstat(dirname + "/" + filename)
-		if IsNotExist(lerr) {
-			// File disappeared between readdir + stat.
-			// Just treat it as if it didn't exist.
-			continue
-		}
-		if lerr != nil {
-			return fi, lerr
-		}
-		fi = append(fi, fip)
-	}
-	if len(fi) == 0 && err == nil && n > 0 {
-		// Per File.Readdir, the slice must be non-empty or err
-		// must be non-nil if n > 0.
-		err = io.EOF
-	}
-	return fi, err
 }
 
 // Readlink returns the destination of the named symbolic link.
@@ -367,16 +357,63 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(name, b))
+		var (
+			n int
+			e error
+		)
+		for {
+			n, e = fixCount(syscall.Readlink(name, b))
+			if e != syscall.EINTR {
+				break
+			}
+		}
 		// buffer too small
 		if runtime.GOOS == "aix" && e == syscall.ERANGE {
 			continue
 		}
 		if e != nil {
-			return "", &PathError{"readlink", name, e}
+			return "", &PathError{Op: "readlink", Path: name, Err: e}
 		}
 		if n < len {
 			return string(b[0:n]), nil
 		}
 	}
+}
+
+type unixDirent struct {
+	parent string
+	name   string
+	typ    FileMode
+	info   FileInfo
+}
+
+func (d *unixDirent) Name() string   { return d.name }
+func (d *unixDirent) IsDir() bool    { return d.typ.IsDir() }
+func (d *unixDirent) Type() FileMode { return d.typ }
+
+func (d *unixDirent) Info() (FileInfo, error) {
+	if d.info != nil {
+		return d.info, nil
+	}
+	return lstat(d.parent + "/" + d.name)
+}
+
+func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
+	ude := &unixDirent{
+		parent: parent,
+		name:   name,
+		typ:    typ,
+	}
+	if typ != ^FileMode(0) && !testingForceReadDirLstat {
+		return ude, nil
+	}
+
+	info, err := lstat(parent + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+
+	ude.typ = info.Mode().Type()
+	ude.info = info
+	return ude, nil
 }

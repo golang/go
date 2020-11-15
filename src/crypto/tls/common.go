@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -20,6 +21,8 @@ import (
 	"internal/cpu"
 	"io"
 	"net"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -213,28 +216,69 @@ var testingOnlyForceDowngradeCanary bool
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
-	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
-	HandshakeComplete           bool                  // TLS handshake is complete
-	DidResume                   bool                  // connection resumes a previous TLS connection
-	CipherSuite                 uint16                // cipher suite in use (TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, ...)
-	NegotiatedProtocol          string                // negotiated next protocol (not guaranteed to be from Config.NextProtos)
-	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server (client side only)
-	ServerName                  string                // server name requested by client, if any
-	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
-	VerifiedChains              [][]*x509.Certificate // verified chains built from PeerCertificates
-	SignedCertificateTimestamps [][]byte              // SCTs from the peer, if any
-	OCSPResponse                []byte                // stapled OCSP response from peer, if any
+	// Version is the TLS version used by the connection (e.g. VersionTLS12).
+	Version uint16
+
+	// HandshakeComplete is true if the handshake has concluded.
+	HandshakeComplete bool
+
+	// DidResume is true if this connection was successfully resumed from a
+	// previous session with a session ticket or similar mechanism.
+	DidResume bool
+
+	// CipherSuite is the cipher suite negotiated for the connection (e.g.
+	// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_AES_128_GCM_SHA256).
+	CipherSuite uint16
+
+	// NegotiatedProtocol is the application protocol negotiated with ALPN.
+	NegotiatedProtocol string
+
+	// NegotiatedProtocolIsMutual used to indicate a mutual NPN negotiation.
+	//
+	// Deprecated: this value is always true.
+	NegotiatedProtocolIsMutual bool
+
+	// ServerName is the value of the Server Name Indication extension sent by
+	// the client. It's available both on the server and on the client side.
+	ServerName string
+
+	// PeerCertificates are the parsed certificates sent by the peer, in the
+	// order in which they were sent. The first element is the leaf certificate
+	// that the connection is verified against.
+	//
+	// On the client side, it can't be empty. On the server side, it can be
+	// empty if Config.ClientAuth is not RequireAnyClientCert or
+	// RequireAndVerifyClientCert.
+	PeerCertificates []*x509.Certificate
+
+	// VerifiedChains is a list of one or more chains where the first element is
+	// PeerCertificates[0] and the last element is from Config.RootCAs (on the
+	// client side) or Config.ClientCAs (on the server side).
+	//
+	// On the client side, it's set if Config.InsecureSkipVerify is false. On
+	// the server side, it's set if Config.ClientAuth is VerifyClientCertIfGiven
+	// (and the peer provided a certificate) or RequireAndVerifyClientCert.
+	VerifiedChains [][]*x509.Certificate
+
+	// SignedCertificateTimestamps is a list of SCTs provided by the peer
+	// through the TLS handshake for the leaf certificate, if any.
+	SignedCertificateTimestamps [][]byte
+
+	// OCSPResponse is a stapled Online Certificate Status Protocol (OCSP)
+	// response provided by the peer for the leaf certificate, if any.
+	OCSPResponse []byte
+
+	// TLSUnique contains the "tls-unique" channel binding value (see RFC 5929,
+	// Section 3). This value will be nil for TLS 1.3 connections and for all
+	// resumed connections.
+	//
+	// Deprecated: there are conditions in which this value might not be unique
+	// to a connection. See the Security Considerations sections of RFC 5705 and
+	// RFC 7627, and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
+	TLSUnique []byte
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
-
-	// TLSUnique contains the "tls-unique" channel binding value (see RFC
-	// 5929, section 3). For resumed sessions this value will be nil
-	// because resumption does not include enough context (see
-	// https://mitls.org/pages/attacks/3SHAKE#channelbindings). This will
-	// change in future versions of Go once the TLS master-secret fix has
-	// been standardized and implemented. It is not defined in TLS 1.3.
-	TLSUnique []byte
 }
 
 // ExportKeyingMaterial returns length bytes of exported key material in a new
@@ -250,10 +294,26 @@ func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, le
 type ClientAuthType int
 
 const (
+	// NoClientCert indicates that no client certificate should be requested
+	// during the handshake, and if any certificates are sent they will not
+	// be verified.
 	NoClientCert ClientAuthType = iota
+	// RequestClientCert indicates that a client certificate should be requested
+	// during the handshake, but does not require that the client send any
+	// certificates.
 	RequestClientCert
+	// RequireAnyClientCert indicates that a client certificate should be requested
+	// during the handshake, and that at least one certificate is required to be
+	// sent by the client, but that certificate is not required to be valid.
 	RequireAnyClientCert
+	// VerifyClientCertIfGiven indicates that a client certificate should be requested
+	// during the handshake, but does not require that the client sends a
+	// certificate. If the client does send a certificate it is required to be
+	// valid.
 	VerifyClientCertIfGiven
+	// RequireAndVerifyClientCert indicates that a client certificate should be requested
+	// during the handshake, and that at least one valid certificate is required
+	// to be sent by the client.
 	RequireAndVerifyClientCert
 )
 
@@ -278,6 +338,8 @@ type ClientSessionState struct {
 	serverCertificates []*x509.Certificate   // Certificate chain presented by the server
 	verifiedChains     [][]*x509.Certificate // Certificate chains we built for verification
 	receivedAt         time.Time             // When the session ticket was received from the server
+	ocspResponse       []byte                // Stapled OCSP response presented by the server
+	scts               [][]byte              // SCTs presented by the server
 
 	// TLS 1.3 fields.
 	nonce  []byte    // Ticket nonce sent by the server, to derive PSK
@@ -382,6 +444,16 @@ type ClientHelloInfo struct {
 	// config is embedded by the GetCertificate or GetConfigForClient caller,
 	// for use with SupportsCertificate.
 	config *Config
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *ClientHelloInfo) Context() context.Context {
+	return c.ctx
 }
 
 // CertificateRequestInfo contains information from a server's
@@ -400,6 +472,16 @@ type CertificateRequestInfo struct {
 
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *CertificateRequestInfo) Context() context.Context {
+	return c.ctx
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
@@ -554,12 +636,12 @@ type Config struct {
 	// by the policy in ClientAuth.
 	ClientCAs *x509.CertPool
 
-	// InsecureSkipVerify controls whether a client verifies the
-	// server's certificate chain and host name.
-	// If InsecureSkipVerify is true, TLS accepts any certificate
-	// presented by the server and any host name in that certificate.
-	// In this mode, TLS is susceptible to machine-in-the-middle attacks.
-	// This should be used only for testing.
+	// InsecureSkipVerify controls whether a client verifies the server's
+	// certificate chain and host name. If InsecureSkipVerify is true, crypto/tls
+	// accepts any certificate presented by the server and any host name in that
+	// certificate. In this mode, TLS is susceptible to machine-in-the-middle
+	// attacks unless custom verification is used. This should be used only for
+	// testing or in combination with VerifyConnection or VerifyPeerCertificate.
 	InsecureSkipVerify bool
 
 	// CipherSuites is a list of supported cipher suites for TLS versions up to
@@ -681,9 +763,12 @@ func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 // ticket, and the lifetime we set for tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
-// Clone returns a shallow clone of c. It is safe to clone a Config that is
+// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a Config that is
 // being used concurrently by a TLS client or server.
 func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return &Config{
@@ -1198,7 +1283,9 @@ func (c *Config) BuildNameToCertificate() {
 		if err != nil {
 			continue
 		}
-		if len(x509Cert.Subject.CommonName) > 0 {
+		// If SANs are *not* present, some clients will consider the certificate
+		// valid for the name in the Common Name.
+		if x509Cert.Subject.CommonName != "" && len(x509Cert.DNSNames) == 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
 		}
 		for _, san := range x509Cert.DNSNames {
@@ -1369,21 +1456,21 @@ func defaultCipherSuitesTLS13() []uint16 {
 	return varDefaultCipherSuitesTLS13
 }
 
+var (
+	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	// Keep in sync with crypto/aes/cipher_s390x.go.
+	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+
+	hasAESGCMHardwareSupport = runtime.GOARCH == "amd64" && hasGCMAsmAMD64 ||
+		runtime.GOARCH == "arm64" && hasGCMAsmARM64 ||
+		runtime.GOARCH == "s390x" && hasGCMAsmS390X
+)
+
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
-	// Check the cpu flags for each platform that has optimized GCM implementations.
-	// Worst case, these variables will just all be false.
-	var (
-		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
-		hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
-		// Keep in sync with crypto/aes/cipher_s390x.go.
-		hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
-
-		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
-	)
-
-	if hasGCMAsm {
+	if hasAESGCMHardwareSupport {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
 		topCipherSuites = []uint16{
@@ -1445,4 +1532,52 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 		}
 	}
 	return false
+}
+
+var aesgcmCiphers = map[uint16]bool{
+	// 1.2
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:   true,
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:   true,
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: true,
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: true,
+	// 1.3
+	TLS_AES_128_GCM_SHA256: true,
+	TLS_AES_256_GCM_SHA384: true,
+}
+
+var nonAESGCMAEADCiphers = map[uint16]bool{
+	// 1.2
+	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305:   true,
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305: true,
+	// 1.3
+	TLS_CHACHA20_POLY1305_SHA256: true,
+}
+
+// aesgcmPreferred returns whether the first valid cipher in the preference list
+// is an AES-GCM cipher, implying the peer has hardware support for it.
+func aesgcmPreferred(ciphers []uint16) bool {
+	for _, cID := range ciphers {
+		c := cipherSuiteByID(cID)
+		if c == nil {
+			c13 := cipherSuiteTLS13ByID(cID)
+			if c13 == nil {
+				continue
+			}
+			return aesgcmCiphers[cID]
+		}
+		return aesgcmCiphers[cID]
+	}
+	return false
+}
+
+// deprioritizeAES reorders cipher preference lists by rearranging
+// adjacent AEAD ciphers such that AES-GCM based ciphers are moved
+// after other AEAD ciphers. It returns a fresh slice.
+func deprioritizeAES(ciphers []uint16) []uint16 {
+	reordered := make([]uint16, len(ciphers))
+	copy(reordered, ciphers)
+	sort.SliceStable(reordered, func(i, j int) bool {
+		return nonAESGCMAEADCiphers[reordered[i]] && aesgcmCiphers[reordered[j]]
+	})
+	return reordered
 }

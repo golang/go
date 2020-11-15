@@ -51,17 +51,6 @@ var regNames386 = []string{
 	"SB",
 }
 
-// Notes on 387 support.
-//  - The 387 has a weird stack-register setup for floating-point registers.
-//    We use these registers when SSE registers are not available (when GO386=387).
-//  - We use the same register names (X0-X7) but they refer to the 387
-//    floating-point registers. That way, most of the SSA backend is unchanged.
-//  - The instruction generation pass maintains an SSE->387 register mapping.
-//    This mapping is updated whenever the FP stack is pushed or popped so that
-//    we can always find a given SSE register even when the TOS pointer has changed.
-//  - To facilitate the mapping from SSE to 387, we enforce that
-//    every basic block starts and ends with an empty floating-point stack.
-
 func init() {
 	// Make map from reg names to reg integers.
 	if len(regNames386) > 64 {
@@ -463,9 +452,9 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -551,9 +540,6 @@ func init() {
 		{name: "FlagLT_UGT"}, // signed < and unsigned >
 		{name: "FlagGT_UGT"}, // signed > and unsigned <
 		{name: "FlagGT_ULT"}, // signed > and unsigned >
-
-		// Special op for -x on 387
-		{name: "FCHS", argLength: 1, reg: fp11},
 
 		// Special ops for PIC floating-point constants.
 		// MOVSXconst1 loads the address of the constant-pool entry into a register.

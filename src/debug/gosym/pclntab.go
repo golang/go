@@ -14,6 +14,16 @@ import (
 	"sync"
 )
 
+// version of the pclntab
+type version int
+
+const (
+	verUnknown version = iota
+	ver11
+	ver12
+	ver116
+)
+
 // A LineTable is a data structure mapping program counters to line numbers.
 //
 // In Go 1.1 and earlier, each function (represented by a Func) had its own LineTable,
@@ -32,18 +42,30 @@ type LineTable struct {
 	PC   uint64
 	Line int
 
-	// Go 1.2 state
-	mu       sync.Mutex
-	go12     int // is this in Go 1.2 format? -1 no, 0 unknown, 1 yes
-	binary   binary.ByteOrder
-	quantum  uint32
-	ptrsize  uint32
-	functab  []byte
-	nfunctab uint32
-	filetab  []byte
-	nfiletab uint32
-	fileMap  map[string]uint32
-	strings  map[uint32]string // interned substrings of Data, keyed by offset
+	// This mutex is used to keep parsing of pclntab synchronous.
+	mu sync.Mutex
+
+	// Contains the version of the pclntab section.
+	version version
+
+	// Go 1.2/1.16 state
+	binary      binary.ByteOrder
+	quantum     uint32
+	ptrsize     uint32
+	funcnametab []byte
+	cutab       []byte
+	funcdata    []byte
+	functab     []byte
+	nfunctab    uint32
+	filetab     []byte
+	pctab       []byte // points to the pctables.
+	nfiletab    uint32
+	funcNames   map[uint32]string // cache the function names
+	strings     map[uint32]string // interned substrings of Data, keyed by offset
+	// fileMap varies depending on the version of the object file.
+	// For ver12, it maps the name to the index in the file table.
+	// For ver116, it maps the name to the offset in filetab.
+	fileMap map[string]uint32
 }
 
 // NOTE(rsc): This is wrong for GOARCH=arm, which uses a quantum of 4,
@@ -124,7 +146,7 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 // Text must be the start address of the
 // corresponding text segment.
 func NewLineTable(data []byte, text uint64) *LineTable {
-	return &LineTable{Data: data, PC: text, Line: 0, strings: make(map[uint32]string)}
+	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
 }
 
 // Go 1.2 symbol table format.
@@ -140,11 +162,12 @@ func NewLineTable(data []byte, text uint64) *LineTable {
 
 // isGo12 reports whether this is a Go 1.2 (or later) symbol table.
 func (t *LineTable) isGo12() bool {
-	t.go12Init()
-	return t.go12 == 1
+	t.parsePclnTab()
+	return t.version >= ver12
 }
 
 const go12magic = 0xfffffffb
+const go116magic = 0xfffffffa
 
 // uintptr returns the pointer-sized value encoded at b.
 // The pointer size is dictated by the table being read.
@@ -155,49 +178,86 @@ func (t *LineTable) uintptr(b []byte) uint64 {
 	return t.binary.Uint64(b)
 }
 
-// go12init initializes the Go 1.2 metadata if t is a Go 1.2 symbol table.
-func (t *LineTable) go12Init() {
+// parsePclnTab parses the pclntab, setting the version.
+func (t *LineTable) parsePclnTab() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.go12 != 0 {
+	if t.version != verUnknown {
 		return
 	}
 
+	// Note that during this function, setting the version is the last thing we do.
+	// If we set the version too early, and parsing failed (likely as a panic on
+	// slice lookups), we'd have a mistaken version.
+	//
+	// Error paths through this code will default the version to 1.1.
+	t.version = ver11
+
 	defer func() {
-		// If we panic parsing, assume it's not a Go 1.2 symbol table.
+		// If we panic parsing, assume it's a Go 1.1 pclntab.
 		recover()
 	}()
 
 	// Check header: 4-byte magic, two zeros, pc quantum, pointer size.
-	t.go12 = -1 // not Go 1.2 until proven otherwise
 	if len(t.Data) < 16 || t.Data[4] != 0 || t.Data[5] != 0 ||
 		(t.Data[6] != 1 && t.Data[6] != 2 && t.Data[6] != 4) || // pc quantum
 		(t.Data[7] != 4 && t.Data[7] != 8) { // pointer size
 		return
 	}
 
-	switch uint32(go12magic) {
-	case binary.LittleEndian.Uint32(t.Data):
-		t.binary = binary.LittleEndian
-	case binary.BigEndian.Uint32(t.Data):
-		t.binary = binary.BigEndian
+	var possibleVersion version
+	leMagic := binary.LittleEndian.Uint32(t.Data)
+	beMagic := binary.BigEndian.Uint32(t.Data)
+	switch {
+	case leMagic == go12magic:
+		t.binary, possibleVersion = binary.LittleEndian, ver12
+	case beMagic == go12magic:
+		t.binary, possibleVersion = binary.BigEndian, ver12
+	case leMagic == go116magic:
+		t.binary, possibleVersion = binary.LittleEndian, ver116
+	case beMagic == go116magic:
+		t.binary, possibleVersion = binary.BigEndian, ver116
 	default:
 		return
 	}
 
+	// quantum and ptrSize are the same between 1.2 and 1.16
 	t.quantum = uint32(t.Data[6])
 	t.ptrsize = uint32(t.Data[7])
 
-	t.nfunctab = uint32(t.uintptr(t.Data[8:]))
-	t.functab = t.Data[8+t.ptrsize:]
-	functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
-	fileoff := t.binary.Uint32(t.functab[functabsize:])
-	t.functab = t.functab[:functabsize]
-	t.filetab = t.Data[fileoff:]
-	t.nfiletab = t.binary.Uint32(t.filetab)
-	t.filetab = t.filetab[:t.nfiletab*4]
-
-	t.go12 = 1 // so far so good
+	switch possibleVersion {
+	case ver116:
+		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
+		t.nfiletab = uint32(t.uintptr(t.Data[8+t.ptrsize:]))
+		offset := t.uintptr(t.Data[8+2*t.ptrsize:])
+		t.funcnametab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+3*t.ptrsize:])
+		t.cutab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+4*t.ptrsize:])
+		t.filetab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+5*t.ptrsize:])
+		t.pctab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+6*t.ptrsize:])
+		t.funcdata = t.Data[offset:]
+		t.functab = t.Data[offset:]
+		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		t.functab = t.functab[:functabsize]
+	case ver12:
+		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
+		t.funcdata = t.Data
+		t.funcnametab = t.Data
+		t.functab = t.Data[8+t.ptrsize:]
+		t.pctab = t.Data
+		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		fileoff := t.binary.Uint32(t.functab[functabsize:])
+		t.functab = t.functab[:functabsize]
+		t.filetab = t.Data[fileoff:]
+		t.nfiletab = t.binary.Uint32(t.filetab)
+		t.filetab = t.filetab[:t.nfiletab*4]
+	default:
+		panic("unreachable")
+	}
+	t.version = possibleVersion
 }
 
 // go12Funcs returns a slice of Funcs derived from the Go 1.2 pcln table.
@@ -213,13 +273,13 @@ func (t *LineTable) go12Funcs() []Func {
 		f := &funcs[i]
 		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
 		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
-		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
+		info := t.funcdata[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
 		f.LineTable = t
 		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))
 		f.Sym = &Sym{
 			Value:  f.Entry,
 			Type:   'T',
-			Name:   t.string(t.binary.Uint32(info[t.ptrsize:])),
+			Name:   t.funcName(t.binary.Uint32(info[t.ptrsize:])),
 			GoType: 0,
 			Func:   f,
 		}
@@ -241,7 +301,7 @@ func (t *LineTable) findFunc(pc uint64) []byte {
 		m := nf / 2
 		fm := f[2*t.ptrsize*m:]
 		if t.uintptr(fm) <= pc && pc < t.uintptr(fm[2*t.ptrsize:]) {
-			return t.Data[t.uintptr(fm[t.ptrsize:]):]
+			return t.funcdata[t.uintptr(fm[t.ptrsize:]):]
 		} else if pc < t.uintptr(fm) {
 			nf = m
 		} else {
@@ -268,15 +328,31 @@ func (t *LineTable) readvarint(pp *[]byte) uint32 {
 	return v
 }
 
-// string returns a Go string found at off.
-func (t *LineTable) string(off uint32) string {
+// funcName returns the name of the function found at off.
+func (t *LineTable) funcName(off uint32) string {
+	if s, ok := t.funcNames[off]; ok {
+		return s
+	}
+	i := bytes.IndexByte(t.funcnametab[off:], 0)
+	s := string(t.funcnametab[off : off+uint32(i)])
+	t.funcNames[off] = s
+	return s
+}
+
+// stringFrom returns a Go string found at off from a position.
+func (t *LineTable) stringFrom(arr []byte, off uint32) string {
 	if s, ok := t.strings[off]; ok {
 		return s
 	}
-	i := bytes.IndexByte(t.Data[off:], 0)
-	s := string(t.Data[off : off+uint32(i)])
+	i := bytes.IndexByte(arr[off:], 0)
+	s := string(arr[off : off+uint32(i)])
 	t.strings[off] = s
 	return s
+}
+
+// string returns a Go string found at off.
+func (t *LineTable) string(off uint32) string {
+	return t.stringFrom(t.funcdata, off)
 }
 
 // step advances to the next pc, value pair in the encoded table.
@@ -301,7 +377,7 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
 // off is the offset to the beginning of the pc-value table,
 // and entry is the start PC for the corresponding function.
 func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
-	p := t.Data[off:]
+	p := t.pctab[off:]
 
 	val := int32(-1)
 	pc := entry
@@ -319,21 +395,25 @@ func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
 // to file number. Since most functions come from a single file, these
 // are usually short and quick to scan. If a file match is found, then the
 // code goes to the expense of looking for a simultaneous line number match.
-func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32) uint64 {
+func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32, cutab []byte) uint64 {
 	if filetab == 0 || linetab == 0 {
 		return 0
 	}
 
-	fp := t.Data[filetab:]
-	fl := t.Data[linetab:]
+	fp := t.pctab[filetab:]
+	fl := t.pctab[linetab:]
 	fileVal := int32(-1)
 	filePC := entry
 	lineVal := int32(-1)
 	linePC := entry
 	fileStartPC := filePC
 	for t.step(&fp, &filePC, &fileVal, filePC == entry) {
-		if fileVal == filenum && fileStartPC < filePC {
-			// fileVal is in effect starting at fileStartPC up to
+		fileIndex := fileVal
+		if t.version == ver116 {
+			fileIndex = int32(t.binary.Uint32(cutab[fileVal*4:]))
+		}
+		if fileIndex == filenum && fileStartPC < filePC {
+			// fileIndex is in effect starting at fileStartPC up to
 			// but not including filePC, and it's the file we want.
 			// Run the PC table looking for a matching line number
 			// or until we reach filePC.
@@ -388,13 +468,24 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	entry := t.uintptr(f)
 	filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 	fno := t.pcvalue(filetab, entry, pc)
-	if fno <= 0 {
+	if t.version == ver12 {
+		if fno <= 0 {
+			return ""
+		}
+		return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	}
+	// Go ≥ 1.16
+	if fno < 0 { // 0 is valid for ≥ 1.16
 		return ""
 	}
-	return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	cuoff := t.binary.Uint32(f[t.ptrsize+7*4:])
+	if fnoff := t.binary.Uint32(t.cutab[(cuoff+uint32(fno))*4:]); fnoff != ^uint32(0) {
+		return t.stringFrom(t.filetab, fnoff)
+	}
+	return ""
 }
 
-// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2 pcln table.
+// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2/1.16 pcln table.
 func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	defer func() {
 		if recover() != nil {
@@ -403,20 +494,25 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	}()
 
 	t.initFileMap()
-	filenum := t.fileMap[file]
-	if filenum == 0 {
+	filenum, ok := t.fileMap[file]
+	if !ok {
 		return 0
 	}
 
 	// Scan all functions.
 	// If this turns out to be a bottleneck, we could build a map[int32][]int32
 	// mapping file number to a list of functions with code from that file.
+	var cutab []byte
 	for i := uint32(0); i < t.nfunctab; i++ {
-		f := t.Data[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
+		f := t.funcdata[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
 		entry := t.uintptr(f)
 		filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 		linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
-		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line))
+		if t.version == ver116 {
+			cuoff := t.binary.Uint32(f[t.ptrsize+7*4:]) * 4
+			cutab = t.cutab[cuoff:]
+		}
+		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line), cutab)
 		if pc != 0 {
 			return pc
 		}
@@ -434,9 +530,18 @@ func (t *LineTable) initFileMap() {
 	}
 	m := make(map[string]uint32)
 
-	for i := uint32(1); i < t.nfiletab; i++ {
-		s := t.string(t.binary.Uint32(t.filetab[4*i:]))
-		m[s] = i
+	if t.version == ver12 {
+		for i := uint32(1); i < t.nfiletab; i++ {
+			s := t.string(t.binary.Uint32(t.filetab[4*i:]))
+			m[s] = i
+		}
+	} else {
+		var pos uint32
+		for i := uint32(0); i < t.nfiletab; i++ {
+			s := t.stringFrom(t.filetab, pos)
+			m[s] = pos
+			pos += uint32(len(s) + 1)
+		}
 	}
 	t.fileMap = m
 }

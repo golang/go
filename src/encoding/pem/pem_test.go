@@ -6,7 +6,7 @@ package pem
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -271,7 +271,7 @@ func BenchmarkEncode(b *testing.B) {
 	data := &Block{Bytes: make([]byte, 65536)}
 	b.SetBytes(int64(len(data.Bytes)))
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, data)
+		Encode(io.Discard, data)
 	}
 }
 

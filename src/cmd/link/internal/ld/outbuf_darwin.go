@@ -14,7 +14,10 @@ func (out *OutBuf) fallocate(size uint64) error {
 	if err != nil {
 		return err
 	}
-	cursize := uint64(stat.Size())
+	// F_PEOFPOSMODE allocates from the end of the file, so we want the size difference.
+	// Apparently, it uses the end of the allocation, instead of the logical end of the
+	// the file.
+	cursize := uint64(stat.Sys().(*syscall.Stat_t).Blocks * 512) // allocated size
 	if size <= cursize {
 		return nil
 	}
@@ -23,7 +26,7 @@ func (out *OutBuf) fallocate(size uint64) error {
 		Flags:   syscall.F_ALLOCATEALL,
 		Posmode: syscall.F_PEOFPOSMODE,
 		Offset:  0,
-		Length:  int64(size - cursize), // F_PEOFPOSMODE allocates from the end of the file, so we want the size difference here
+		Length:  int64(size - cursize),
 	}
 
 	_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))

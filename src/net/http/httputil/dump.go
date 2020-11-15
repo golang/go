@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -35,7 +34,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
 	if err = b.Close(); err != nil {
 		return nil, b, err
 	}
-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
 
 // dumpConn is a net.Conn which writes to Writer and reads from Reader
@@ -81,7 +80,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	if !body {
 		contentLength := outgoingLength(req)
 		if contentLength != 0 {
-			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
+			req.Body = io.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
 			dummyBody = true
 		}
 	} else {
@@ -133,7 +132,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		if err == nil {
 			// Ensure all the body is read; otherwise
 			// we'll get a partial dump.
-			io.Copy(ioutil.Discard, req.Body)
+			io.Copy(io.Discard, req.Body)
 			req.Body.Close()
 		}
 		select {
@@ -296,7 +295,7 @@ func (failureToReadBody) Read([]byte) (int, error) { return 0, errNoBody }
 func (failureToReadBody) Close() error             { return nil }
 
 // emptyBody is an instance of empty reader.
-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+var emptyBody = io.NopCloser(strings.NewReader(""))
 
 // DumpResponse is like DumpRequest but dumps a response.
 func DumpResponse(resp *http.Response, body bool) ([]byte, error) {

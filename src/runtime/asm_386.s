@@ -702,25 +702,9 @@ nosave:
 	MOVL	AX, ret+8(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
-	LEAL	fn+0(FP), AX
-	MOVL	AX, 0(SP)
-	MOVL	frame+4(FP), AX
-	MOVL	AX, 4(SP)
-	MOVL	framesize+8(FP), AX
-	MOVL	AX, 8(SP)
-	MOVL	ctxt+12(FP), AX
-	MOVL	AX, 12(SP)
-	MOVL	$runtime·cgocallback_gofunc(SB), AX
-	CALL	AX
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-16
+TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places below
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -738,13 +722,12 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-16
 	CMPL	BP, $0
 	JEQ	needm
 	MOVL	g_m(BP), BP
-	MOVL	BP, DX // saved copy of oldm
+	MOVL	BP, savedm-4(SP) // saved copy of oldm
 	JMP	havem
 needm:
-	MOVL	$0, 0(SP)
 	MOVL	$runtime·needm(SB), AX
 	CALL	AX
-	MOVL	0(SP), DX
+	MOVL	$0, savedm-4(SP) // dropm on return
 	get_tls(CX)
 	MOVL	g(CX), BP
 	MOVL	g_m(BP), BP
@@ -780,34 +763,32 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, 4(SP) holds the saved oldm (DX) register.
-	// 8(SP) is unused.
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVL	m_curg(BP), SI
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), DI // prepare stack as DI
 	MOVL	(g_sched+gobuf_pc)(SI), BP
-	MOVL	BP, -4(DI)
-	MOVL	ctxt+12(FP), CX
-	LEAL	-(4+12)(DI), SP
-	MOVL	DX, 4(SP)
-	MOVL	CX, 0(SP)
+	MOVL	BP, -4(DI)  // "push" return PC on the g stack
+	// Gather our arguments into registers.
+	MOVL	fn+0(FP), AX
+	MOVL	frame+4(FP), BX
+	MOVL	ctxt+8(FP), CX
+	LEAL	-(4+12)(DI), SP  // Must match declared frame size
+	MOVL	AX, 0(SP)
+	MOVL	BX, 4(SP)
+	MOVL	CX, 8(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVL	4(SP), DX
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVL	g(CX), SI
-	MOVL	12(SP), BP
+	MOVL	12(SP), BP  // Must match declared frame size
 	MOVL	BP, (g_sched+gobuf_pc)(SI)
-	LEAL	(12+4)(SP), DI
+	LEAL	(12+4)(SP), DI  // Must match declared frame size
 	MOVL	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -823,6 +804,7 @@ havem:
 
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
+	MOVL	savedm-4(SP), DX
 	CMPL	DX, $0
 	JNE 3(PC)
 	MOVL	$runtime·dropm(SB), AX

@@ -294,6 +294,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R1
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -470,25 +471,9 @@ g0:
 	MOVW	R2, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
-	MOVV	$fn+0(FP), R1
-	MOVV	R1, 8(R29)
-	MOVV	frame+8(FP), R1
-	MOVV	R1, 16(R29)
-	MOVV	framesize+16(FP), R1
-	MOVV	R1, 24(R29)
-	MOVV	ctxt+24(FP), R1
-	MOVV	R1, 32(R29)
-	MOVV	$runtime·cgocallback_gofunc(SB), R1
-	JAL	(R1)
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
@@ -536,7 +521,7 @@ havem:
 	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R29) aka savedsp-16(SP).
 	MOVV	m_g0(R3), R1
 	MOVV	(g_sched+gobuf_sp)(R1), R2
-	MOVV	R2, savedsp-16(SP)
+	MOVV	R2, savedsp-24(SP)	// must match frame size
 	MOVV	R29, (g_sched+gobuf_sp)(R1)
 
 	// Switch to m->curg stack and call runtime.cgocallbackg.
@@ -545,30 +530,30 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, -8(SP) is unused (where SP refers to
-	// m->curg's SP while we're setting it up, before we've adjusted it).
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVV	m_curg(R3), g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R2 // prepare stack as R2
 	MOVV	(g_sched+gobuf_pc)(g), R4
-	MOVV	R4, -24(R2)
-	MOVV    ctxt+24(FP), R1
-	MOVV    R1, -16(R2)
-	MOVV	$-24(R2), R29
+	MOVV	R4, -(24+8)(R2)	// "saved LR"; must match frame size
+	// Gather our arguments into registers.
+	MOVV	fn+0(FP), R5
+	MOVV	frame+8(FP), R6
+	MOVV	ctxt+16(FP), R7
+	MOVV	$-(24+8)(R2), R29	// switch stack; must match frame size
+	MOVV	R5, 8(R29)
+	MOVV	R6, 16(R29)
+	MOVV	R7, 24(R29)
 	JAL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVV	0(R29), R4
 	MOVV	R4, (g_sched+gobuf_pc)(g)
-	MOVV	$24(R29), R2
+	MOVV	$(24+8)(R29), R2	// must match frame size
 	MOVV	R2, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -578,7 +563,7 @@ havem:
 	MOVV	m_g0(R3), g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R29
-	MOVV	savedsp-16(SP), R2
+	MOVV	savedsp-24(SP), R2	// must match frame size
 	MOVV	R2, (g_sched+gobuf_sp)(g)
 
 	// If the m on entry was nil, we called needm above to borrow an m

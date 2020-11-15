@@ -477,9 +477,17 @@ func (in *input) startToken() {
 
 // endToken marks the end of an input token.
 // It records the actual token string in tok.text.
+// A single trailing newline (LF or CRLF) will be removed from comment tokens.
 func (in *input) endToken(kind tokenKind) {
 	in.token.kind = kind
 	text := string(in.tokenStart[:len(in.tokenStart)-len(in.remaining)])
+	if kind.isComment() {
+		if strings.HasSuffix(text, "\r\n") {
+			text = text[:len(text)-2]
+		} else {
+			text = strings.TrimSuffix(text, "\n")
+		}
+	}
 	in.token.text = text
 	in.token.endPos = in.pos
 }

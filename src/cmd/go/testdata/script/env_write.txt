@@ -24,6 +24,16 @@ stdout GOARCH=
 stdout GOOS=
 stdout GOROOT=
 
+# go env ignores invalid flag in GOFLAGS environment variable
+env GOFLAGS='=true'
+go env
+
+# checking errors
+! go env -w
+stderr 'go env -w: no KEY=VALUE arguments given'
+! go env -u
+stderr 'go env -u: no arguments given'
+
 # go env -w changes default setting
 env root=
 [windows] env root=c:
@@ -59,6 +69,8 @@ go env -u GOPATH
 stderr 'unknown go command variable GODEBUG'
 ! go env -w GOEXE=.bat
 stderr 'GOEXE cannot be modified'
+! go env -w GOVERSION=customversion
+stderr 'GOVERSION cannot be modified'
 ! go env -w GOENV=/env
 stderr 'GOENV can only be set using the OS environment'
 
@@ -96,6 +108,50 @@ stderr 'GOPATH entry cannot start with shell metacharacter'
 
 ! go env -w GOPATH=./go
 stderr 'GOPATH entry is relative; must be absolute path'
+
+# go env -w rejects invalid GOTMPDIR values
+! go env -w GOTMPDIR=x
+stderr 'go env -w: GOTMPDIR must be an absolute path'
+
+# go env -w should accept absolute GOTMPDIR value
+# and should not create it
+[windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!windows] go env -w GOTMPDIR=$WORK/x/y/z
+! exists $WORK/x/y/z
+# we should be able to clear an env
+go env -u GOTMPDIR
+go env GOTMPDIR
+stdout ^$
+
+[windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!windows] go env -w GOTMPDIR=$WORK/x/y/z
+go env -w GOTMPDIR=
+go env GOTMPDIR
+stdout ^$
+
+# go env -w rejects relative CC values
+[!windows] go env -w CC=/usr/bin/clang
+go env -w CC=clang
+[!windows] ! go env -w CC=./clang
+[!windows] ! go env -w CC=bin/clang
+[!windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+
+[windows] go env -w CC=$WORK\bin\clang
+[windows] ! go env -w CC=.\clang
+[windows] ! go env -w CC=bin\clang
+[windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+
+# go env -w rejects relative CXX values
+[!windows] go env -w CC=/usr/bin/cpp
+go env -w CXX=cpp
+[!windows] ! go env -w CXX=./cpp
+[!windows] ! go env -w CXX=bin/cpp
+[!windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
+
+[windows] go env -w CXX=$WORK\bin\cpp
+[windows] ! go env -w CXX=.\cpp
+[windows] ! go env -w CXX=bin\cpp
+[windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
 
 # go env -w/-u checks validity of GOOS/ARCH combinations
 env GOOS=

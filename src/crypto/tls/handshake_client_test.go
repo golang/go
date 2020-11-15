@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -19,6 +20,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -2428,5 +2431,119 @@ func TestDowngradeCanary(t *testing.T) {
 	}
 	if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
 		t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
+	}
+}
+
+func TestResumptionKeepsOCSPAndSCT(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS13) })
+}
+
+func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		t.Fatalf("failed to parse test issuer")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(issuer)
+	clientConfig := &Config{
+		MaxVersion:         ver,
+		ClientSessionCache: NewLRUClientSessionCache(32),
+		ServerName:         "example.golang",
+		RootCAs:            roots,
+	}
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = ver
+	serverConfig.Certificates[0].OCSPStaple = []byte{1, 2, 3}
+	serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{{4, 5, 6}}
+
+	_, ccs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	// after a new session we expect to see OCSPResponse and
+	// SignedCertificateTimestamps populated as usual
+	if !bytes.Equal(ccs.OCSPResponse, serverConfig.Certificates[0].OCSPStaple) {
+		t.Errorf("client ConnectionState contained unexpected OCSPResponse: wanted %v, got %v",
+			serverConfig.Certificates[0].OCSPStaple, ccs.OCSPResponse)
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps: wanted %v, got %v",
+			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
+	}
+
+	// if the server doesn't send any SCTs, repopulate the old SCTs
+	oldSCTs := serverConfig.Certificates[0].SignedCertificateTimestamps
+	serverConfig.Certificates[0].SignedCertificateTimestamps = nil
+	_, ccs, err = testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !ccs.DidResume {
+		t.Fatalf("expected session to be resumed")
+	}
+	// after a resumed session we also expect to see OCSPResponse
+	// and SignedCertificateTimestamps populated
+	if !bytes.Equal(ccs.OCSPResponse, serverConfig.Certificates[0].OCSPStaple) {
+		t.Errorf("client ConnectionState contained unexpected OCSPResponse after resumption: wanted %v, got %v",
+			serverConfig.Certificates[0].OCSPStaple, ccs.OCSPResponse)
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, oldSCTs) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
+			oldSCTs, ccs.SignedCertificateTimestamps)
+	}
+
+	//  Only test overriding the SCTs for TLS 1.2, since in 1.3
+	// the server won't send the message containing them
+	if ver == VersionTLS13 {
+		return
+	}
+
+	// if the server changes the SCTs it sends, they should override the saved SCTs
+	serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{{7, 8, 9}}
+	_, ccs, err = testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !ccs.DidResume {
+		t.Fatalf("expected session to be resumed")
+	}
+	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
+		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
+			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
+	}
+}
+
+func TestClientHandshakeContextCancellation(t *testing.T) {
+	c, s := localPipe(t)
+	serverConfig := testConfig.Clone()
+	serverErr := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		defer close(serverErr)
+		defer s.Close()
+		conn := Server(s, serverConfig)
+		_, err := conn.readClientHello(ctx)
+		cancel()
+		serverErr <- err
+	}()
+	cli := Client(c, testConfig)
+	err := cli.HandshakeContext(ctx)
+	if err == nil {
+		t.Fatal("Client handshake did not error when the context was canceled")
+	}
+	if err != context.Canceled {
+		t.Errorf("Unexpected client handshake error: %v", err)
+	}
+	if err := <-serverErr; err != nil {
+		t.Errorf("Unexpected server error: %v", err)
+	}
+	if runtime.GOARCH == "wasm" {
+		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
+	}
+	err = cli.Close()
+	if err == nil {
+		t.Error("Client connection was not closed when the context was canceled")
 	}
 }

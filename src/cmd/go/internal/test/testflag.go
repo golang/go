@@ -212,10 +212,18 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	})
 
+	// firstUnknownFlag helps us report an error when flags not known to 'go
+	// test' are used along with -i or -c.
+	firstUnknownFlag := ""
+
 	explicitArgs := make([]string, 0, len(args))
 	inPkgList := false
+	afterFlagWithoutValue := false
 	for len(args) > 0 {
 		f, remainingArgs, err := cmdflag.ParseOne(&CmdTest.Flag, args)
+
+		wasAfterFlagWithoutValue := afterFlagWithoutValue
+		afterFlagWithoutValue = false // provisionally
 
 		if errors.Is(err, flag.ErrHelp) {
 			exitWithUsage()
@@ -233,10 +241,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
 			if !inPkgList && packageNames != nil {
 				// We already saw the package list previously, and this argument is not
-				// a flag, so it — and everything after it — must be a literal argument
-				// to the test binary.
-				explicitArgs = append(explicitArgs, args...)
-				break
+				// a flag, so it — and everything after it — must be either a value for
+				// a preceding flag or a literal argument to the test binary.
+				if wasAfterFlagWithoutValue {
+					// This argument could syntactically be a flag value, so
+					// optimistically assume that it is and keep looking for go command
+					// flags after it.
+					//
+					// (If we're wrong, we'll at least be consistent with historical
+					// behavior; see https://golang.org/issue/40763.)
+					explicitArgs = append(explicitArgs, nf.RawArg)
+					args = remainingArgs
+					continue
+				} else {
+					// This argument syntactically cannot be a flag value, so it must be a
+					// positional argument, and so must everything after it.
+					explicitArgs = append(explicitArgs, args...)
+					break
+				}
 			}
 
 			inPkgList = true
@@ -270,8 +292,15 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				break
 			}
 
+			if firstUnknownFlag == "" {
+				firstUnknownFlag = nd.RawArg
+			}
+
 			explicitArgs = append(explicitArgs, nd.RawArg)
 			args = remainingArgs
+			if !nd.HasValue {
+				afterFlagWithoutValue = true
+			}
 			continue
 		}
 
@@ -290,6 +319,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 
 		args = remainingArgs
+	}
+	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
+		buildFlag := "-c"
+		if !testC {
+			buildFlag = "-i"
+		}
+		fmt.Fprintf(os.Stderr, "flag %s is not a 'go test' flag (unknown flags cannot be used with %s)\n", firstUnknownFlag, buildFlag)
+		exitWithUsage()
 	}
 
 	var injectedFlags []string
@@ -331,6 +368,23 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	// requests output.
 	if testProfile() != "" && !outputDirSet {
 		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir)
+	}
+
+	// If the user is explicitly passing -help or -h, show output
+	// of the test binary so that the help output is displayed
+	// even though the test will exit with success.
+	// This loop is imperfect: it will do the wrong thing for a case
+	// like -args -test.outputdir -help. Such cases are probably rare,
+	// and getting this wrong doesn't do too much harm.
+helpLoop:
+	for _, arg := range explicitArgs {
+		switch arg {
+		case "--":
+			break helpLoop
+		case "-h", "-help", "--help":
+			testHelp = true
+			break helpLoop
+		}
 	}
 
 	// Ensure that -race and -covermode are compatible.

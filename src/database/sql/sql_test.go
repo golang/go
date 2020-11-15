@@ -2810,6 +2810,34 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	}
 }
 
+// Issue 40985 transaction statement deadlock while context cancel.
+func TestTxStmtDeadlock(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stmt, err := tx.Prepare("SELECT|people|name,age|age=?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Run number of stmt queries to reproduce deadlock from context cancel
+	for i := 0; i < 1e3; i++ {
+		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
+		// is expected due to context cancel.
+		_, err = stmt.Query(1)
+		if err != nil {
+			break
+		}
+	}
+	_ = tx.Rollback()
+}
+
 // Issue32530 encounters an issue where a connection may
 // expire right after it comes out of a used connection pool
 // even when a new connection is requested.
@@ -2860,20 +2888,26 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 			waitingForConn := make(chan struct{})
 
 			go func() {
+				defer close(afterPutConn)
+
 				conn, err := db.conn(ctx, alwaysNewConn)
-				if err != nil {
-					t.Fatal(err)
+				if err == nil {
+					db.putConn(conn, err, false)
+				} else {
+					t.Errorf("db.conn: %v", err)
 				}
-				db.putConn(conn, err, false)
-				close(afterPutConn)
 			}()
 			go func() {
+				defer close(waitingForConn)
+
 				for {
+					if t.Failed() {
+						return
+					}
 					db.mu.Lock()
 					ct := len(db.connRequests)
 					db.mu.Unlock()
 					if ct > 0 {
-						close(waitingForConn)
 						return
 					}
 					time.Sleep(10 * time.Millisecond)
@@ -2881,6 +2915,10 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 			}()
 
 			<-waitingForConn
+
+			if t.Failed() {
+				return
+			}
 
 			offsetMu.Lock()
 			if ec.expired {
@@ -4146,6 +4184,41 @@ func TestQueryExecContextOnly(t *testing.T) {
 	}
 	if !coc.queryCtxCalled {
 		t.Error("QueryContext not called")
+	}
+}
+
+type alwaysErrScanner struct{}
+
+var errTestScanWrap = errors.New("errTestScanWrap")
+
+func (alwaysErrScanner) Scan(interface{}) error {
+	return errTestScanWrap
+}
+
+// Issue 38099: Ensure that Rows.Scan properly wraps underlying errors.
+func TestRowsScanProperlyWrapsErrors(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	rows, err := db.Query("SELECT|people|age|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+
+	var res alwaysErrScanner
+
+	for rows.Next() {
+		err = rows.Scan(&res)
+		if err == nil {
+			t.Fatal("expecting back an error")
+		}
+		if !errors.Is(err, errTestScanWrap) {
+			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errTestScanWrap)
+		}
+		// Ensure that error substring matching still correctly works.
+		if !strings.Contains(err.Error(), errTestScanWrap.Error()) {
+			t.Fatalf("Error %v does not contain %v", err, errTestScanWrap)
+		}
 	}
 }
 

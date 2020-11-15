@@ -212,6 +212,11 @@ func panicmem() {
 	panic(memoryError)
 }
 
+func panicmemAddr(addr uintptr) {
+	panicCheck2("invalid memory address or nil pointer dereference")
+	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
+}
+
 // Create a new deferred function fn with siz bytes of arguments.
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
@@ -416,15 +421,6 @@ func newdefer(siz int32) *_defer {
 			total := roundupsize(totaldefersize(uintptr(siz)))
 			d = (*_defer)(mallocgc(total, deferType, true))
 		})
-		if debugCachedWork {
-			// Duplicate the tail below so if there's a
-			// crash in checkPut we can tell if d was just
-			// allocated or came from the pool.
-			d.siz = siz
-			d.link = gp._defer
-			gp._defer = d
-			return d
-		}
 	}
 	d.siz = siz
 	d.heap = true
@@ -1283,12 +1279,6 @@ func startpanic_m() bool {
 	}
 }
 
-// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
-//
-// TODO(austin): Remove this after Go 1.15 when we remove the
-// mlockGsignal workaround.
-var throwReportQuirk func()
-
 var didothers bool
 var deadlock mutex
 
@@ -1334,10 +1324,6 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 
 	printDebugLog()
-
-	if throwReportQuirk != nil {
-		throwReportQuirk()
-	}
 
 	return docrash
 }

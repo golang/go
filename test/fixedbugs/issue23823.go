@@ -10,6 +10,7 @@ type I1 = interface {
 	I2
 }
 
-type I2 interface { // ERROR "invalid recursive type"
+// BAD: type loop should mention I1; see also #41669
+type I2 interface { // ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$"
 	I1
 }

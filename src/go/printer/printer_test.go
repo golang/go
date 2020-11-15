@@ -33,7 +33,7 @@ type checkMode uint
 const (
 	export checkMode = 1 << iota
 	rawFormat
-	stdFormat
+	normNumber
 	idempotent
 )
 
@@ -58,8 +58,8 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 	if mode&rawFormat != 0 {
 		cfg.Mode |= RawFormat
 	}
-	if mode&stdFormat != 0 {
-		cfg.Mode |= StdFormat
+	if mode&normNumber != 0 {
+		cfg.Mode |= normalizeNumbers
 	}
 
 	// print AST
@@ -205,7 +205,7 @@ var data = []entry{
 	{"slow.input", "slow.golden", idempotent},
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
-	{"go2numbers.input", "go2numbers.stdfmt", stdFormat | idempotent},
+	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
 }
 
 func TestFiles(t *testing.T) {

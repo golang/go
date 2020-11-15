@@ -77,7 +77,7 @@ if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
 for /f "tokens=*" %%g in ('where go 2^>nul') do (
 	if "x%GOROOT_BOOTSTRAP%"=="x" (
 		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
-			if /I not %%i==%GOROOT_TEMP% (
+			if /I not "%%i"=="%GOROOT_TEMP%" (
 				set GOROOT_BOOTSTRAP=%%i
 			)
 		)
@@ -150,4 +150,3 @@ set GOBUILDFAIL=1
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
 
 :end
-

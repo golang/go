@@ -41,6 +41,7 @@ const (
 	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
+	SMACHOPLT
 
 	// Read-only sections.
 	STYPE
@@ -52,7 +53,6 @@ const (
 	SFUNCTAB
 
 	SELFROSECT
-	SMACHOPLT
 
 	// Read-only sections with relocations.
 	//
@@ -102,14 +102,19 @@ const (
 	SMACHOINDIRECTPLT
 	SMACHOINDIRECTGOT
 	SFILEPATH
-	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
 	SUNDEFEXT // Undefined symbol for resolution by external linker
 
 	// Sections for debugging information
 	SDWARFSECT
-	SDWARFINFO
+	// DWARF symbol types
+	SDWARFCUINFO
+	SDWARFCONST
+	SDWARFFCN
+	SDWARFABSFCN
+	SDWARFTYPE
+	SDWARFVAR
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
@@ -129,7 +134,12 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SBSS,
 	SNOPTRBSS,
 	STLSBSS,
-	SDWARFINFO,
+	SDWARFCUINFO,
+	SDWARFCONST,
+	SDWARFFCN,
+	SDWARFABSFCN,
+	SDWARFTYPE,
+	SDWARFVAR,
 	SDWARFRANGE,
 	SDWARFLOC,
 	SDWARFLINES,

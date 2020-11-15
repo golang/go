@@ -73,8 +73,15 @@ func TestXadduintptrOnUint64(t *testing.T) {
 
 func shouldPanic(t *testing.T, name string, f func()) {
 	defer func() {
-		if recover() == nil {
+		// Check that all GC maps are sane.
+		runtime.GC()
+
+		err := recover()
+		want := "unaligned 64-bit atomic operation"
+		if err == nil {
 			t.Errorf("%s did not panic", name)
+		} else if s, _ := err.(string); s != want {
+			t.Errorf("%s: wanted panic %q, got %q", name, want, err)
 		}
 	}()
 	f()
@@ -143,6 +150,45 @@ func TestAnd8(t *testing.T) {
 	}
 }
 
+func TestAnd(t *testing.T) {
+	// Basic sanity check.
+	x := uint32(0xffffffff)
+	for i := uint32(0); i < 32; i++ {
+		atomic.And(&x, ^(1 << i))
+		if r := uint32(0xffffffff) << (i + 1); x != r {
+			t.Fatalf("clearing bit %#x: want %#x, got %#x", uint32(1<<i), r, x)
+		}
+	}
+
+	// Set every bit in array to 1.
+	a := make([]uint32, 1<<12)
+	for i := range a {
+		a[i] = 0xffffffff
+	}
+
+	// Clear array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 32; i++ {
+		m := ^uint32(1 << i)
+		go func() {
+			for i := range a {
+				atomic.And(&a[i], m)
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 32; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally cleared.
+	for i, v := range a {
+		if v != 0 {
+			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint32(0), v)
+		}
+	}
+}
+
 func TestOr8(t *testing.T) {
 	// Basic sanity check.
 	x := uint8(0)
@@ -179,7 +225,43 @@ func TestOr8(t *testing.T) {
 	}
 }
 
-func TestBitwiseContended(t *testing.T) {
+func TestOr(t *testing.T) {
+	// Basic sanity check.
+	x := uint32(0)
+	for i := uint32(0); i < 32; i++ {
+		atomic.Or(&x, 1<<i)
+		if r := (uint32(1) << (i + 1)) - 1; x != r {
+			t.Fatalf("setting bit %#x: want %#x, got %#x", uint32(1)<<i, r, x)
+		}
+	}
+
+	// Start with every bit in array set to 0.
+	a := make([]uint32, 1<<12)
+
+	// Set every bit in array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 32; i++ {
+		m := uint32(1 << i)
+		go func() {
+			for i := range a {
+				atomic.Or(&a[i], m)
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 32; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally set.
+	for i, v := range a {
+		if v != 0xffffffff {
+			t.Fatalf("a[%v] not fully set: want %#x, got %#x", i, uint32(0xffffffff), v)
+		}
+	}
+}
+
+func TestBitwiseContended8(t *testing.T) {
 	// Start with every bit in array set to 0.
 	a := make([]uint8, 16)
 
@@ -218,5 +300,57 @@ func TestBitwiseContended(t *testing.T) {
 		if v != 0 {
 			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint8(0), v)
 		}
+	}
+}
+
+func TestBitwiseContended(t *testing.T) {
+	// Start with every bit in array set to 0.
+	a := make([]uint32, 16)
+
+	// Iterations to try.
+	N := 1 << 16
+	if testing.Short() {
+		N = 1 << 10
+	}
+
+	// Set and then clear every bit in the array bit-by-bit in different goroutines.
+	done := make(chan bool)
+	for i := 0; i < 32; i++ {
+		m := uint32(1 << i)
+		go func() {
+			for n := 0; n < N; n++ {
+				for i := range a {
+					atomic.Or(&a[i], m)
+					if atomic.Load(&a[i])&m != m {
+						t.Errorf("a[%v] bit %#x not set", i, m)
+					}
+					atomic.And(&a[i], ^m)
+					if atomic.Load(&a[i])&m != 0 {
+						t.Errorf("a[%v] bit %#x not clear", i, m)
+					}
+				}
+			}
+			done <- true
+		}()
+	}
+	for i := 0; i < 32; i++ {
+		<-done
+	}
+
+	// Check that the array has been totally cleared.
+	for i, v := range a {
+		if v != 0 {
+			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint32(0), v)
+		}
+	}
+}
+
+func TestStorepNoWB(t *testing.T) {
+	var p [2]*int
+	for i := range p {
+		atomic.StorepNoWB(unsafe.Pointer(&p[i]), unsafe.Pointer(new(int)))
+	}
+	if p[0] == p[1] {
+		t.Error("Bad escape analysis of StorepNoWB")
 	}
 }

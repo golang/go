@@ -298,7 +298,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			continue
 		}
 
-		if goos == "darwin" && strings.HasSuffix(n.C, "Ref") {
+		if (goos == "darwin" || goos == "ios") && strings.HasSuffix(n.C, "Ref") {
 			// For FooRef, find out if FooGetTypeID exists.
 			s := n.C[:len(n.C)-3] + "GetTypeID"
 			n := &Name{Go: s, C: s}
@@ -369,7 +369,18 @@ func (p *Package) guessKinds(f *File) []*Name {
 	fmt.Fprintf(&b, "#line 1 \"completed\"\n"+
 		"int __cgo__1 = __cgo__2;\n")
 
-	stderr := p.gccErrors(b.Bytes())
+	// We need to parse the output from this gcc command, so ensure that it
+	// doesn't have any ANSI escape sequences in it. (TERM=dumb is
+	// insufficient; if the user specifies CGO_CFLAGS=-fdiagnostics-color,
+	// GCC will ignore TERM, and GCC can also be configured at compile-time
+	// to ignore TERM.)
+	stderr := p.gccErrors(b.Bytes(), "-fdiagnostics-color=never")
+	if strings.Contains(stderr, "unrecognized command line option") {
+		// We're using an old version of GCC that doesn't understand
+		// -fdiagnostics-color. Those versions can't print color anyway,
+		// so just rerun without that option.
+		stderr = p.gccErrors(b.Bytes())
+	}
 	if stderr == "" {
 		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
 	}
@@ -1354,7 +1365,7 @@ func (p *Package) rewriteRef(f *File) {
 
 		if *godefs {
 			// Substitute definition for mangled type name.
-			if r.Name.Type != nil {
+			if r.Name.Type != nil && r.Name.Kind == "type" {
 				expr = r.Name.Type.Go
 			}
 			if id, ok := expr.(*ast.Ident); ok {
@@ -1970,22 +1981,25 @@ func (p *Package) gccDefines(stdin []byte) string {
 // gccErrors runs gcc over the C program stdin and returns
 // the errors that gcc prints. That is, this function expects
 // gcc to fail.
-func (p *Package) gccErrors(stdin []byte) string {
+func (p *Package) gccErrors(stdin []byte, extraArgs ...string) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd()
 
 	// Optimization options can confuse the error messages; remove them.
-	nargs := make([]string, 0, len(args))
+	nargs := make([]string, 0, len(args)+len(extraArgs))
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-O") {
 			nargs = append(nargs, arg)
 		}
 	}
 
-	// Force -O0 optimization but keep the trailing "-" at the end.
-	nargs = append(nargs, "-O0")
-	nl := len(nargs)
-	nargs[nl-2], nargs[nl-1] = nargs[nl-1], nargs[nl-2]
+	// Force -O0 optimization and append extra arguments, but keep the
+	// trailing "-" at the end.
+	li := len(nargs) - 1
+	last := nargs[li]
+	nargs[li] = "-O0"
+	nargs = append(nargs, extraArgs...)
+	nargs = append(nargs, last)
 
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
@@ -2434,6 +2448,18 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			tt := *t
 			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
 			tt.Go = c.Ident("struct{}")
+			if dt.Kind == "struct" {
+				// We don't know what the representation of this struct is, so don't let
+				// anyone allocate one on the Go side. As a side effect of this annotation,
+				// pointers to this type will not be considered pointers in Go. They won't
+				// get writebarrier-ed or adjusted during a stack copy. This should handle
+				// all the cases badPointerTypedef used to handle, but hopefully will
+				// continue to work going forward without any more need for cgo changes.
+				tt.NotInHeap = true
+				// TODO: we should probably do the same for unions. Unions can't live
+				// on the Go heap, right? It currently doesn't work for unions because
+				// they are defined as a type alias for struct{}, not a defined type.
+			}
 			typedef[name.Name] = &tt
 			break
 		}
@@ -2504,6 +2530,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		}
 		t.Go = name
 		t.BadPointer = sub.BadPointer
+		t.NotInHeap = sub.NotInHeap
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2514,6 +2541,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			tt := *t
 			tt.Go = sub.Go
 			tt.BadPointer = sub.BadPointer
+			tt.NotInHeap = sub.NotInHeap
 			typedef[name.Name] = &tt
 		}
 
@@ -2817,21 +2845,11 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		tgo := t.Go
 		size := t.Size
 		talign := t.Align
-		if f.BitSize > 0 {
-			switch f.BitSize {
-			case 8, 16, 32, 64:
-			default:
-				continue
-			}
-			size = f.BitSize / 8
-			name := tgo.(*ast.Ident).String()
-			if strings.HasPrefix(name, "int") {
-				name = "int"
-			} else {
-				name = "uint"
-			}
-			tgo = ast.NewIdent(name + fmt.Sprint(f.BitSize))
-			talign = size
+		if f.BitOffset > 0 || f.BitSize > 0 {
+			// The layout of bitfields is implementation defined,
+			// so we don't know how they correspond to Go fields
+			// even if they are aligned at byte boundaries.
+			continue
 		}
 
 		if talign > 0 && f.ByteOffset%talign != 0 {
@@ -3022,6 +3040,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
 // non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
+// Note: DEPRECATED. There is now a better solution. Search for NotInHeap in this file.
 func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	if c.badCFType(dt) {
 		return true
@@ -3056,7 +3075,7 @@ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
 	// We identify the correct set of types as those ending in Ref and for which
 	// there exists a corresponding GetTypeID function.
 	// See comment below for details about the bad pointers.
-	if goos != "darwin" {
+	if goos != "darwin" && goos != "ios" {
 		return false
 	}
 	s := dt.Name

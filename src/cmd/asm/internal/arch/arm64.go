@@ -75,8 +75,30 @@ func IsARM64STLXR(op obj.As) bool {
 		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW:
 		return true
 	}
-	// atomic instructions
+	// LDADDx/SWPx/CASx atomic instructions
 	if arm64.IsAtomicInstruction(op) {
+		return true
+	}
+	return false
+}
+
+// IsARM64TBL reports whether the op (as defined by an arm64.A*
+// constant) is one of the TBL-like instructions and one of its
+// inputs does not fit into prog.Reg, so require special handling.
+func IsARM64TBL(op obj.As) bool {
+	switch op {
+	case arm64.AVTBL, arm64.AVMOVQ:
+		return true
+	}
+	return false
+}
+
+// IsARM64CASP reports whether the op (as defined by an arm64.A*
+// constant) is one of the CASP-like instructions, and its 2nd
+// destination is a register pair that require special handling.
+func IsARM64CASP(op obj.As) bool {
+	switch op {
+	case arm64.ACASPD, arm64.ACASPW:
 		return true
 	}
 	return false
@@ -123,13 +145,6 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 		}
 	}
 	return 0, false
-}
-
-// IsARM64TBL reports whether the op (as defined by an arm64.A*
-// constant) is one of the table lookup instructions that require special
-// handling.
-func IsARM64TBL(op obj.As) bool {
-	return op == arm64.AVTBL
 }
 
 // ARM64RegisterExtension parses an ARM64 register with extension or arrangement.

@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
+	darwin64Bit = (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && sizeofPtr == 8
 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
 )
 
@@ -110,7 +110,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 // using errors.Is. For example:
 //
 //	_, _, err := syscall.Syscall(...)
-//	if errors.Is(err, os.ErrNotExist) ...
+//	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {

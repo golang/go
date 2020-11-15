@@ -47,6 +47,10 @@ type SockaddrDatalink struct {
 	raw    RawSockaddrDatalink
 }
 
+func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+	return nil, EAFNOSUPPORT
+}
+
 // Translate "kern.hostname" to []_C_int{0,1,2,3}.
 func nametomib(name string) (mib []_C_int, err error) {
 	const siz = unsafe.Sizeof(mib[0])
@@ -129,22 +133,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 	return
 }
 
-const ImplementsGetwd = true
-
 //sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-
-func Getwd() (string, error) {
-	var buf [PathMax]byte
-	_, err := Getcwd(buf[0:])
-	if err != nil {
-		return "", err
-	}
-	n := clen(buf[:])
-	if n < 1 {
-		return "", EINVAL
-	}
-	return string(buf[:n]), nil
-}
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	var _p0 unsafe.Pointer

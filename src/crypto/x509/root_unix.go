@@ -7,22 +7,12 @@
 package x509
 
 import (
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-// Possible directories with certificate files; stop after successfully
-// reading at least one file from a directory.
-var certDirectories = []string{
-	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
-	"/system/etc/security/cacerts", // Android
-	"/usr/local/share/certs",       // FreeBSD
-	"/etc/pki/tls/certs",           // Fedora/RHEL
-	"/etc/openssl/certs",           // NetBSD
-	"/var/ssl/certs",               // AIX
-}
 
 const (
 	// certFileEnv is the environment variable which identifies where to locate
@@ -85,7 +75,7 @@ func loadSystemRoots() (*CertPool, error) {
 		}
 	}
 
-	if len(roots.certs) > 0 || firstErr == nil {
+	if roots.len() > 0 || firstErr == nil {
 		return roots, nil
 	}
 
@@ -94,7 +84,7 @@ func loadSystemRoots() (*CertPool, error) {
 
 // readUniqueDirectoryEntries is like ioutil.ReadDir but omits
 // symlinks that point within the directory.
-func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
+func readUniqueDirectoryEntries(dir string) ([]fs.FileInfo, error) {
 	fis, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -110,8 +100,8 @@ func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
 
 // isSameDirSymlink reports whether fi in dir is a symlink with a
 // target not containing a slash.
-func isSameDirSymlink(fi os.FileInfo, dir string) bool {
-	if fi.Mode()&os.ModeSymlink == 0 {
+func isSameDirSymlink(fi fs.FileInfo, dir string) bool {
+	if fi.Mode()&fs.ModeSymlink == 0 {
 		return false
 	}
 	target, err := os.Readlink(filepath.Join(dir, fi.Name()))

@@ -247,20 +247,26 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 // String returns the string form of n, roughly following
 // the RFC 2253 Distinguished Names syntax.
 func (n Name) String() string {
-	if len(n.ExtraNames) == 0 {
+	var rdns RDNSequence
+	// If there are no ExtraNames, surface the parsed value (all entries in
+	// Names) instead.
+	if n.ExtraNames == nil {
 		for _, atv := range n.Names {
 			t := atv.Type
 			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
 				switch t[3] {
 				case 3, 5, 6, 7, 8, 9, 10, 11, 17:
-					// These attributes are already parsed into named fields.
+					// These attributes were already parsed into named fields.
 					continue
 				}
 			}
-			n.ExtraNames = append(n.ExtraNames, atv)
+			// Place non-standard parsed values at the beginning of the sequence
+			// so they will be at the end of the string. See Issue 39924.
+			rdns = append(rdns, []AttributeTypeAndValue{atv})
 		}
 	}
-	return n.ToRDNSequence().String()
+	rdns = append(rdns, n.ToRDNSequence()...)
+	return rdns.String()
 }
 
 // oidInAttributeTypeAndValue reports whether a type with the given OID exists

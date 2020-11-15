@@ -140,4 +140,31 @@ func TestCommentMap(t *testing.T) {
 	}
 }
 
-// TODO(gri): add tests for Filter.
+func TestFilter(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmap := NewCommentMap(fset, f, f.Comments)
+
+	// delete variable declaration
+	for i, decl := range f.Decls {
+		if gen, ok := decl.(*GenDecl); ok && gen.Tok == token.VAR {
+			copy(f.Decls[i:], f.Decls[i+1:])
+			f.Decls = f.Decls[:len(f.Decls)-1]
+			break
+		}
+	}
+
+	// check if comments are filtered correctly
+	cc := cmap.Filter(f)
+	for n, list := range cc {
+		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
+		got := ctext(list)
+		want := res[key]
+		if key == "25: *ast.GenDecl" || got != want {
+			t.Errorf("%s: got %q; want %q", key, got, want)
+		}
+	}
+}

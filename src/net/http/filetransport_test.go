@@ -5,6 +5,7 @@
 package http
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -48,7 +49,7 @@ func TestFileTransport(t *testing.T) {
 		if res.Body == nil {
 			t.Fatalf("for %s, nil Body", urlstr)
 		}
-		slurp, err := ioutil.ReadAll(res.Body)
+		slurp, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		check("ReadAll "+urlstr, err)
 		if string(slurp) != "Bar" {
