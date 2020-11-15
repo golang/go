@@ -1212,6 +1212,8 @@ func usesLibcall() bool {
 	switch GOOS {
 	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
 		return true
+	case "openbsd":
+		return GOARCH == "amd64"
 	}
 	return false
 }
