@@ -1418,24 +1418,18 @@ func IsAlias(sym *types.Sym) bool {
 	return sym.Def != nil && asNode(sym.Def).Sym != sym
 }
 
-// By default, assume any debug flags are incompatible with concurrent
-// compilation. A few are safe and potentially in common use for
-// normal compiles, though; return true for those.
+// concurrentFlagOk reports whether the current compiler flags
+// are compatible with concurrent compilation.
 func concurrentFlagOk() bool {
-	// Report whether any debug flag that would prevent concurrent
-	// compilation is set, by zeroing out the allowed ones and then
-	// checking if the resulting struct is zero.
-	d := Debug
-	d.B = 0 // disable bounds checking
-	d.C = 0 // disable printing of columns in error messages
-	d.e = 0 // no limit on errors; errors all come from non-concurrent code
-	d.N = 0 // disable optimizations
-	d.l = 0 // disable inlining
-	d.w = 0 // all printing happens before compilation
-	d.W = 0 // all printing happens before compilation
-	d.S = 0 // printing disassembly happens at the end (but see concurrentBackendAllowed below)
-
-	return d == DebugFlags{}
+	// TODO(rsc): Many of these are fine. Remove them.
+	return Debug.P == 0 &&
+		Debug.E == 0 &&
+		Debug.K == 0 &&
+		Debug.L == 0 &&
+		Debug.h == 0 &&
+		Debug.j == 0 &&
+		Debug.m == 0 &&
+		Debug.r == 0
 }
 
 func concurrentBackendAllowed() bool {
