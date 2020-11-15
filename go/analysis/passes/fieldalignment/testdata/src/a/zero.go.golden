@@ -1,0 +1,11 @@
+package a
+
+type ZeroGood struct {
+	a [0]byte
+	b uint32
+}
+
+type ZeroBad struct {
+	b [0]byte
+	a uint32
+}

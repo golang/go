@@ -1,0 +1,33 @@
+package a
+
+type PointerGood struct {
+	P   *int
+	buf [1000]uintptr
+}
+
+type PointerBad struct {
+	P   *int
+	buf [1000]uintptr
+}
+
+type PointerSorta struct {
+	a struct {
+		p *int
+		q uintptr
+	}
+	b struct {
+		p *int
+		q [2]uintptr
+	}
+}
+
+type PointerSortaBad struct {
+	b struct {
+		p *int
+		q uintptr
+	}
+	a struct {
+		p *int
+		q [2]uintptr
+	}
+}
