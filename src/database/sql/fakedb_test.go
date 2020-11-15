@@ -906,7 +906,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				parentMem: s.c,
 				posRow:    -1,
 				rows: [][]*row{
-					[]*row{
+					{
 						{
 							cols: []interface{}{
 								txStatus,
@@ -915,12 +915,12 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 					},
 				},
 				cols: [][]string{
-					[]string{
+					{
 						"tx_status",
 					},
 				},
 				colType: [][]string{
-					[]string{
+					{
 						"string",
 					},
 				},
