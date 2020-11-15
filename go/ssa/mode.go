@@ -66,6 +66,9 @@ func (m BuilderMode) String() string {
 	if m&BuildSerially != 0 {
 		buf.WriteByte('L')
 	}
+	if m&BareInits != 0 {
+		buf.WriteByte('I')
+	}
 	return buf.String()
 }
 
@@ -88,6 +91,8 @@ func (m *BuilderMode) Set(s string) error {
 			mode |= NaiveForm
 		case 'L':
 			mode |= BuildSerially
+		case 'I':
+			mode |= BareInits
 		default:
 			return fmt.Errorf("unknown BuilderMode option: %q", c)
 		}
