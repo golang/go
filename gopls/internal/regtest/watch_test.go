@@ -45,11 +45,16 @@ func _() {
 	t.Run("opened", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
+			// Insert a trivial edit so that we don't automatically update the buffer
+			// (see CL 267577).
+			env.EditBuffer("a/a.go", fake.NewEdit(0, 0, 0, 0, " "))
 			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.Await(
-				env.DiagnosticAtRegexp("a/a.go", "x"),
-			)
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					env.DiagnosticAtRegexp("a/a.go", "x"),
+				))
 		})
 	})
 }
