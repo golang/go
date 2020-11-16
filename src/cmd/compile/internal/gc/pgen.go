@@ -404,30 +404,59 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 		}
 	}
 
+	// Back when there were two different *Funcs for a function, this code
+	// was not consistent about whether a particular *Node being processed
+	// was an ODCLFUNC or ONAME node. Partly this is because inlined function
+	// bodies have no ODCLFUNC node, which was it's own inconsistency.
+	// In any event, the handling of the two different nodes for DWARF purposes
+	// was subtly different, likely in unintended ways. CL 272253 merged the
+	// two nodes' Func fields, so that code sees the same *Func whether it is
+	// holding the ODCLFUNC or the ONAME. This resulted in changes in the
+	// DWARF output. To preserve the existing DWARF output and leave an
+	// intentional change for a future CL, this code does the following when
+	// fn.Op == ONAME:
+	//
+	// 1. Disallow use of createComplexVars in createDwarfVars.
+	//    It was not possible to reach that code for an ONAME before,
+	//    because the DebugInfo was set only on the ODCLFUNC Func.
+	//    Calling into it in the ONAME case causes an index out of bounds panic.
+	//
+	// 2. Do not populate apdecls. fn.Func.Dcl was in the ODCLFUNC Func,
+	//    not the ONAME Func. Populating apdecls for the ONAME case results
+	//    in selected being populated after createSimpleVars is called in
+	//    createDwarfVars, and then that causes the loop to skip all the entries
+	//    in dcl, meaning that the RecordAutoType calls don't happen.
+	//
+	// These two adjustments keep toolstash -cmp working for now.
+	// Deciding the right answer is, as they say, future work.
+	isODCLFUNC := fn.Op == ODCLFUNC
+
 	var apdecls []*Node
 	// Populate decls for fn.
-	for _, n := range fn.Func.Dcl {
-		if n.Op != ONAME { // might be OTYPE or OLITERAL
-			continue
-		}
-		switch n.Class() {
-		case PAUTO:
-			if !n.Name.Used() {
-				// Text == nil -> generating abstract function
-				if fnsym.Func().Text != nil {
-					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
-				}
+	if isODCLFUNC {
+		for _, n := range fn.Func.Dcl {
+			if n.Op != ONAME { // might be OTYPE or OLITERAL
 				continue
 			}
-		case PPARAM, PPARAMOUT:
-		default:
-			continue
+			switch n.Class() {
+			case PAUTO:
+				if !n.Name.Used() {
+					// Text == nil -> generating abstract function
+					if fnsym.Func().Text != nil {
+						Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+					}
+					continue
+				}
+			case PPARAM, PPARAMOUT:
+			default:
+				continue
+			}
+			apdecls = append(apdecls, n)
+			fnsym.Func().RecordAutoType(ngotype(n).Linksym())
 		}
-		apdecls = append(apdecls, n)
-		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
 	}
 
-	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
+	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func, apdecls)
 
 	// For each type referenced by the functions auto vars but not
 	// already referenced by a dwarf var, attach a dummy relocation to
@@ -575,12 +604,12 @@ func createComplexVars(fnsym *obj.LSym, fn *Func) ([]*Node, []*dwarf.Var, map[*N
 
 // createDwarfVars process fn, returning a list of DWARF variables and the
 // Nodes they represent.
-func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dwarf.Var) {
+func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *Func, apDecls []*Node) ([]*Node, []*dwarf.Var) {
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
 	var decls []*Node
 	var selected map[*Node]bool
-	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
+	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)

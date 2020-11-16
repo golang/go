@@ -562,12 +562,11 @@ opswitch:
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			n.List.Prepend(n.Left.Func.Enter.Slice()...)
-
-			n.Left.Func.Enter.Set(nil)
+			n.List.Prepend(n.Left.Func.ClosureEnter.Slice()...)
+			n.Left.Func.ClosureEnter.Set(nil)
 
 			// Replace OCLOSURE with ONAME/PFUNC.
-			n.Left = n.Left.Func.Closure.Func.Nname
+			n.Left = n.Left.Func.Nname
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.

@@ -101,7 +101,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 				}
 			}
 		case OCLOSURE:
-			if m := v.visit(n.Func.Closure); m < min {
+			if m := v.visit(n.Func.Decl); m < min {
 				min = m
 			}
 		}

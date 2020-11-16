@@ -259,8 +259,9 @@ func addrescapes(n *Node) {
 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
 		oldfn := Curfn
 		Curfn = n.Name.Curfn
-		if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
-			Curfn = Curfn.Func.Closure
+		if Curfn.Op == OCLOSURE {
+			Curfn = Curfn.Func.Decl
+			panic("can't happen")
 		}
 		ln := lineno
 		lineno = Curfn.Pos

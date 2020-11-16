@@ -1417,7 +1417,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			mode.Fprintf(s, "%v { %v }", n.Type, n.Nbody)
 			return
 		}
-		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
+		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Decl.Nbody)
 
 	case OCOMPLIT:
 		if mode == FErr {
@@ -1717,8 +1717,8 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		}
 	}
 
-	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
-		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
+	if n.Op == OCLOSURE && n.Func.Decl != nil && n.Func.Nname.Sym != nil {
+		mode.Fprintf(s, " fnName %v", n.Func.Nname.Sym)
 	}
 	if n.Sym != nil && n.Op != ONAME {
 		mode.Fprintf(s, " %v", n.Sym)
@@ -1735,12 +1735,12 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		if n.Right != nil {
 			mode.Fprintf(s, "%v", n.Right)
 		}
-		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
+		if n.Op == OCLOSURE && n.Func != nil && n.Func.Decl != nil && n.Func.Decl.Nbody.Len() != 0 {
 			indent(s)
 			// The function associated with a closure
-			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
+			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Decl)
 		}
-		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
+		if n.Op == ODCLFUNC && n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
 			indent(s)
 			// The dcls for a func or closure
 			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))

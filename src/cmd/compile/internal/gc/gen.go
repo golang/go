@@ -54,7 +54,7 @@ func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
 	if curfn == nil {
 		Fatalf("no curfn for tempAt")
 	}
-	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
+	if curfn.Op == OCLOSURE {
 		Dump("tempAt", curfn)
 		Fatalf("adding tempAt to wrong closure function")
 	}
