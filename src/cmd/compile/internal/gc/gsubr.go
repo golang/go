@@ -58,7 +58,7 @@ type Progs struct {
 func newProgs(fn *Node, worker int) *Progs {
 	pp := new(Progs)
 	if Ctxt.CanReuseProgs() {
-		sz := len(sharedProgArray) / nBackendWorkers
+		sz := len(sharedProgArray) / Flag.LowerC
 		pp.progcache = sharedProgArray[sz*worker : sz*(worker+1)]
 	}
 	pp.curfn = fn
@@ -90,7 +90,7 @@ func (pp *Progs) NewProg() *obj.Prog {
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
-	obj.Flushplist(Ctxt, plist, pp.NewProg, myimportpath)
+	obj.Flushplist(Ctxt, plist, pp.NewProg, Ctxt.Pkgpath)
 }
 
 // Free clears pp and any associated resources.
@@ -133,7 +133,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Debug.K != 0 {
+	if !pp.pos.IsKnown() && Flag.K != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
@@ -278,7 +278,7 @@ func (f *Func) initLSym(hasBody bool) {
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
-	if myimportpath == "reflect" {
+	if Ctxt.Pkgpath == "reflect" {
 		switch f.Nname.Sym.Name {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER

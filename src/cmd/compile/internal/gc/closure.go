@@ -203,7 +203,7 @@ func capturevars(dcl *Node) {
 			outer = nod(OADDR, outer, nil)
 		}
 
-		if Debug.m > 1 {
+		if Flag.LowerM > 1 {
 			var name *types.Sym
 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
 				name = v.Name.Curfn.Func.Nname.Sym
@@ -344,7 +344,7 @@ func closuredebugruntimecheck(clo *Node) {
 			Warnl(clo.Pos, "stack closure, captured vars = %v", clo.Func.ClosureVars)
 		}
 	}
-	if compiling_runtime && clo.Esc == EscHeap {
+	if Flag.CompilingRuntime && clo.Esc == EscHeap {
 		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime")
 	}
 }

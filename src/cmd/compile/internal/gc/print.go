@@ -59,7 +59,7 @@ func linestr(pos src.XPos) string {
 	if Ctxt == nil {
 		return "???"
 	}
-	return Ctxt.OutermostPos(pos).Format(Debug.C == 0, Debug.L == 1)
+	return Ctxt.OutermostPos(pos).Format(Flag.C == 0, Flag.L == 1)
 }
 
 // byPos sorts errors by source position.
@@ -133,7 +133,7 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 	numErrors++
 
 	hcrash()
-	if numErrors >= 10 && Debug.e == 0 {
+	if numErrors >= 10 && Flag.LowerE == 0 {
 		flusherrors()
 		fmt.Printf("%v: too many errors\n", linestr(pos))
 		errorexit()
@@ -142,7 +142,7 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 
 // ErrorfVers reports that a language feature (format, args) requires a later version of Go.
 func yyerrorv(lang string, format string, args ...interface{}) {
-	yyerror("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, flag_lang)
+	yyerror("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, Flag.Lang)
 }
 
 // UpdateErrorDot is a clumsy hack that rewrites the last error,
@@ -172,7 +172,7 @@ func Warn(format string, args ...interface{}) {
 // to additional output by setting a particular flag.
 func Warnl(pos src.XPos, format string, args ...interface{}) {
 	addErrorMsg(pos, format, args...)
-	if Debug.m != 0 {
+	if Flag.LowerM != 0 {
 		flusherrors()
 	}
 }
@@ -232,10 +232,10 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 
 // hcrash crashes the compiler when -h is set, to find out where a message is generated.
 func hcrash() {
-	if Debug.h != 0 {
+	if Flag.LowerH != 0 {
 		flusherrors()
-		if outfile != "" {
-			os.Remove(outfile)
+		if Flag.LowerO != "" {
+			os.Remove(Flag.LowerO)
 		}
 		panic("-h")
 	}
@@ -245,8 +245,8 @@ func hcrash() {
 // It flushes any pending errors, removes the output file, and exits.
 func errorexit() {
 	flusherrors()
-	if outfile != "" {
-		os.Remove(outfile)
+	if Flag.LowerO != "" {
+		os.Remove(Flag.LowerO)
 	}
 	os.Exit(2)
 }

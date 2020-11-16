@@ -282,7 +282,7 @@ func genhash(t *types.Type) *obj.LSym {
 	}
 
 	sym := typesymprefix(".hash", t)
-	if Debug.r != 0 {
+	if Flag.LowerR != 0 {
 		fmt.Printf("genhash %v %v %v\n", closure, sym, t)
 	}
 
@@ -374,7 +374,7 @@ func genhash(t *types.Type) *obj.LSym {
 	r.List.Append(nh)
 	fn.Nbody.Append(r)
 
-	if Debug.r != 0 {
+	if Flag.LowerR != 0 {
 		dumplist("genhash body", fn.Nbody)
 	}
 
@@ -509,7 +509,7 @@ func geneq(t *types.Type) *obj.LSym {
 		return closure
 	}
 	sym := typesymprefix(".eq", t)
-	if Debug.r != 0 {
+	if Flag.LowerR != 0 {
 		fmt.Printf("geneq %v\n", t)
 	}
 
@@ -753,7 +753,7 @@ func geneq(t *types.Type) *obj.LSym {
 	// We should really do a generic CL that shares epilogues across
 	// the board. See #24936.
 
-	if Debug.r != 0 {
+	if Flag.LowerR != 0 {
 		dumplist("geneq body", fn.Nbody)
 	}
 

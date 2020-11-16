@@ -205,7 +205,7 @@ func (e *Escape) initFunc(fn *Node) {
 		Fatalf("unexpected node: %v", fn)
 	}
 	fn.Esc = EscFuncPlanned
-	if Debug.m > 3 {
+	if Flag.LowerM > 3 {
 		Dump("escAnalyze", fn)
 	}
 
@@ -282,7 +282,7 @@ func (e *Escape) stmt(n *Node) {
 		lineno = lno
 	}()
 
-	if Debug.m > 2 {
+	if Flag.LowerM > 2 {
 		fmt.Printf("%v:[%d] %v stmt: %v\n", linestr(lineno), e.loopDepth, funcSym(e.curfn), n)
 	}
 
@@ -310,11 +310,11 @@ func (e *Escape) stmt(n *Node) {
 	case OLABEL:
 		switch asNode(n.Sym.Label) {
 		case nonlooping:
-			if Debug.m > 2 {
+			if Flag.LowerM > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
 		case looping:
-			if Debug.m > 2 {
+			if Flag.LowerM > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopDepth++
@@ -752,7 +752,7 @@ func (e *Escape) addrs(l Nodes) []EscHole {
 func (e *Escape) assign(dst, src *Node, why string, where *Node) {
 	// Filter out some no-op assignments for escape analysis.
 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
-	if ignore && Debug.m != 0 {
+	if ignore && Flag.LowerM != 0 {
 		Warnl(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
 	}
 
@@ -966,7 +966,7 @@ func (k EscHole) note(where *Node, why string) EscHole {
 	if where == nil || why == "" {
 		Fatalf("note: missing where/why")
 	}
-	if Debug.m >= 2 || logopt.Enabled() {
+	if Flag.LowerM >= 2 || logopt.Enabled() {
 		k.notes = &EscNote{
 			next:  k.notes,
 			where: where,
@@ -1112,9 +1112,9 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
 		return
 	}
 	if dst.escapes && k.derefs < 0 { // dst = &src
-		if Debug.m >= 2 || logopt.Enabled() {
+		if Flag.LowerM >= 2 || logopt.Enabled() {
 			pos := linestr(src.n.Pos)
-			if Debug.m >= 2 {
+			if Flag.LowerM >= 2 {
 				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
 			}
 			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
@@ -1214,8 +1214,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// that value flow for tagging the function
 			// later.
 			if l.isName(PPARAM) {
-				if (logopt.Enabled() || Debug.m >= 2) && !l.escapes {
-					if Debug.m >= 2 {
+				if (logopt.Enabled() || Flag.LowerM >= 2) && !l.escapes {
+					if Flag.LowerM >= 2 {
 						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), derefs)
 					}
 					explanation := e.explainPath(root, l)
@@ -1231,8 +1231,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// outlives it, then l needs to be heap
 			// allocated.
 			if addressOf && !l.escapes {
-				if logopt.Enabled() || Debug.m >= 2 {
-					if Debug.m >= 2 {
+				if logopt.Enabled() || Flag.LowerM >= 2 {
+					if Flag.LowerM >= 2 {
 						fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
 					}
 					explanation := e.explainPath(root, l)
@@ -1270,7 +1270,7 @@ func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
 	for {
 		// Prevent infinite loop.
 		if visited[src] {
-			if Debug.m >= 2 {
+			if Flag.LowerM >= 2 {
 				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
 			}
 			break
@@ -1298,7 +1298,7 @@ func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, n
 	if derefs >= 0 {
 		ops = strings.Repeat("*", derefs)
 	}
-	print := Debug.m >= 2
+	print := Flag.LowerM >= 2
 
 	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
 	if print {
@@ -1452,7 +1452,7 @@ func (e *Escape) finish(fns []*Node) {
 
 		if loc.escapes {
 			if n.Op != ONAME {
-				if Debug.m != 0 {
+				if Flag.LowerM != 0 {
 					Warnl(n.Pos, "%S escapes to heap", n)
 				}
 				if logopt.Enabled() {
@@ -1462,7 +1462,7 @@ func (e *Escape) finish(fns []*Node) {
 			n.Esc = EscHeap
 			addrescapes(n)
 		} else {
-			if Debug.m != 0 && n.Op != ONAME {
+			if Flag.LowerM != 0 && n.Op != ONAME {
 				Warnl(n.Pos, "%S does not escape", n)
 			}
 			n.Esc = EscNone

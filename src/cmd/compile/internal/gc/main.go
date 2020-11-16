@@ -10,7 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/logopt"
-	"cmd/compile/internal/ssa"
+
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
@@ -36,12 +36,6 @@ import (
 )
 
 var (
-	buildid      string
-	spectre      string
-	spectreIndex bool
-)
-
-var (
 	Debug_append       int
 	Debug_checkptr     int
 	Debug_closure      int
@@ -51,7 +45,6 @@ var (
 	Debug_libfuzzer    int
 	Debug_panic        int
 	Debug_slice        int
-	Debug_vlog         bool
 	Debug_wb           int
 	Debug_pctab        string
 	Debug_locationlist int
@@ -113,12 +106,6 @@ Key "pctab" supports values:
 	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
 `
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "usage: compile [options] file.go...\n")
-	objabi.Flagprint(os.Stderr)
-	Exit(2)
-}
-
 func hidePanic() {
 	if Debug_panic == 0 && Errors() > 0 {
 		// If we've already complained about things
@@ -139,7 +126,6 @@ func supportsDynlink(arch *sys.Arch) bool {
 
 // timing data for compiler phases
 var timings Timings
-var benchfile string
 
 var nowritebarrierrecCheck *nowritebarrierrecChecker
 
@@ -204,321 +190,7 @@ func Main(archInit func(*Arch)) {
 	// pseudo-package used for methods with anonymous receivers
 	gopkg = types.NewPkg("go", "")
 
-	Wasm := objabi.GOARCH == "wasm"
-
-	// Whether the limit for stack-allocated objects is much smaller than normal.
-	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
-	smallFrames := false
-	jsonLogOpt := ""
-
-	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
-	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
-	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
-
-	objabi.Flagcount("%", "debug non-static initializers", &Debug.P)
-	objabi.Flagcount("B", "disable bounds checking", &Debug.B)
-	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug.C)
-	objabi.Flagcount("E", "debug symbol export", &Debug.E)
-	objabi.Flagcount("K", "debug missing line numbers", &Debug.K)
-	objabi.Flagcount("L", "show full file names in error messages", &Debug.L)
-	objabi.Flagcount("N", "disable optimizations", &Debug.N)
-	objabi.Flagcount("S", "print assembly listing", &Debug.S)
-	objabi.Flagcount("W", "debug parse tree after type checking", &Debug.W)
-	objabi.Flagcount("e", "no limit on number of errors reported", &Debug.e)
-	objabi.Flagcount("h", "halt on error", &Debug.h)
-	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug.j)
-	objabi.Flagcount("l", "disable inlining", &Debug.l)
-	objabi.Flagcount("m", "print optimization decisions", &Debug.m)
-	objabi.Flagcount("r", "debug generated wrappers", &Debug.r)
-	objabi.Flagcount("w", "debug type checking", &Debug.w)
-
-	objabi.Flagfn1("I", "add `directory` to import search path", addidir)
-	objabi.AddVersionFlag() // -V
-	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
-	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
-	flag.IntVar(&nBackendWorkers, "c", 1, "concurrency during compilation, 1 means no concurrency")
-	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
-	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
-	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
-	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
-	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
-	objabi.Flagfn1("embedcfg", "read go:embed configuration from `file`", readEmbedCfg)
-	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
-	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
-	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
-	flag.StringVar(&flag_lang, "lang", "", "release to compile for")
-	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
-	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
-	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
-		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	}
-	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
-	flag.StringVar(&outfile, "o", "", "write output to `file`")
-	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
-	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
-	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
-		flag.BoolVar(&flag_race, "race", false, "enable race detector")
-	}
-	flag.StringVar(&spectre, "spectre", spectre, "enable spectre mitigations in `list` (all, index, ret)")
-	if enableTrace {
-		flag.BoolVar(&trace, "t", false, "trace type-checking")
-	}
-	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
-	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
-	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
-	var flag_shared bool
-	var flag_dynlink bool
-	if supportsDynlink(thearch.LinkArch.Arch) {
-		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
-		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
-		flag.BoolVar(&Ctxt.Flag_linkshared, "linkshared", false, "generate code that will be linked against Go shared libraries")
-	}
-	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
-	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
-	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	var goversion string
-	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
-	var symabisPath string
-	flag.StringVar(&symabisPath, "symabis", "", "read symbol ABIs from `file`")
-	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
-	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
-	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
-	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
-	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
-	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
-	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
-
-	objabi.Flagparse(usage)
-
-	Ctxt.Pkgpath = myimportpath
-
-	for _, f := range strings.Split(spectre, ",") {
-		f = strings.TrimSpace(f)
-		switch f {
-		default:
-			log.Fatalf("unknown setting -spectre=%s", f)
-		case "":
-			// nothing
-		case "all":
-			spectreIndex = true
-			Ctxt.Retpoline = true
-		case "index":
-			spectreIndex = true
-		case "ret":
-			Ctxt.Retpoline = true
-		}
-	}
-
-	if spectreIndex {
-		switch objabi.GOARCH {
-		case "amd64":
-			// ok
-		default:
-			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
-		}
-	}
-
-	// Record flags that affect the build result. (And don't
-	// record flags that don't, since that would cause spurious
-	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
-
-	if smallFrames {
-		maxStackVarSize = 128 * 1024
-		maxImplicitStackVarSize = 16 * 1024
-	}
-
-	Ctxt.Flag_shared = flag_dynlink || flag_shared
-	Ctxt.Flag_dynlink = flag_dynlink
-	Ctxt.Flag_optimize = Debug.N == 0
-
-	Ctxt.Debugasm = Debug.S
-	Ctxt.Debugvlog = Debug_vlog
-	if flagDWARF {
-		Ctxt.DebugInfo = debuginfo
-		Ctxt.GenAbstractFunc = genAbstractFunc
-		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
-	} else {
-		// turn off inline generation if no dwarf at all
-		genDwarfInline = 0
-		Ctxt.Flag_locationlists = false
-	}
-
-	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
-		usage()
-	}
-
-	if goversion != "" && goversion != runtime.Version() {
-		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
-		Exit(2)
-	}
-
-	checkLang()
-
-	if symabisPath != "" {
-		readSymABIs(symabisPath, myimportpath)
-	}
-
-	thearch.LinkArch.Init(Ctxt)
-
-	if outfile == "" {
-		p := flag.Arg(0)
-		if i := strings.LastIndex(p, "/"); i >= 0 {
-			p = p[i+1:]
-		}
-		if runtime.GOOS == "windows" {
-			if i := strings.LastIndex(p, `\`); i >= 0 {
-				p = p[i+1:]
-			}
-		}
-		if i := strings.LastIndex(p, "."); i >= 0 {
-			p = p[:i]
-		}
-		suffix := ".o"
-		if writearchive {
-			suffix = ".a"
-		}
-		outfile = p + suffix
-	}
-
-	startProfile()
-
-	if flag_race && flag_msan {
-		log.Fatal("cannot use both -race and -msan")
-	}
-	if flag_race || flag_msan {
-		// -race and -msan imply -d=checkptr for now.
-		Debug_checkptr = 1
-	}
-	if ispkgin(omit_pkgs) {
-		flag_race = false
-		flag_msan = false
-	}
-	if flag_race {
-		racepkg = types.NewPkg("runtime/race", "")
-	}
-	if flag_msan {
-		msanpkg = types.NewPkg("runtime/msan", "")
-	}
-	if flag_race || flag_msan {
-		instrumenting = true
-	}
-
-	if compiling_runtime && Debug.N != 0 {
-		log.Fatal("cannot disable optimizations while compiling runtime")
-	}
-	if nBackendWorkers < 1 {
-		log.Fatalf("-c must be at least 1, got %d", nBackendWorkers)
-	}
-	if nBackendWorkers > 1 && !concurrentBackendAllowed() {
-		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
-	}
-	if Ctxt.Flag_locationlists && len(Ctxt.Arch.DWARFRegisters) == 0 {
-		log.Fatalf("location lists requested but register mapping not available on %v", Ctxt.Arch.Name)
-	}
-
-	// parse -d argument
-	if debugstr != "" {
-	Split:
-		for _, name := range strings.Split(debugstr, ",") {
-			if name == "" {
-				continue
-			}
-			// display help about the -d option itself and quit
-			if name == "help" {
-				fmt.Print(debugHelpHeader)
-				maxLen := len("ssa/help")
-				for _, t := range debugtab {
-					if len(t.name) > maxLen {
-						maxLen = len(t.name)
-					}
-				}
-				for _, t := range debugtab {
-					fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
-				}
-				// ssa options have their own help
-				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
-				fmt.Print(debugHelpFooter)
-				os.Exit(0)
-			}
-			val, valstring, haveInt := 1, "", true
-			if i := strings.IndexAny(name, "=:"); i >= 0 {
-				var err error
-				name, valstring = name[:i], name[i+1:]
-				val, err = strconv.Atoi(valstring)
-				if err != nil {
-					val, haveInt = 1, false
-				}
-			}
-			for _, t := range debugtab {
-				if t.name != name {
-					continue
-				}
-				switch vp := t.val.(type) {
-				case nil:
-					// Ignore
-				case *string:
-					*vp = valstring
-				case *int:
-					if !haveInt {
-						log.Fatalf("invalid debug value %v", name)
-					}
-					*vp = val
-				default:
-					panic("bad debugtab type")
-				}
-				continue Split
-			}
-			// special case for ssa for now
-			if strings.HasPrefix(name, "ssa/") {
-				// expect form ssa/phase/flag
-				// e.g. -d=ssa/generic_cse/time
-				// _ in phase name also matches space
-				phase := name[4:]
-				flag := "debug" // default flag is debug
-				if i := strings.Index(phase, "/"); i >= 0 {
-					flag = phase[i+1:]
-					phase = phase[:i]
-				}
-				err := ssa.PhaseOption(phase, flag, val, valstring)
-				if err != "" {
-					log.Fatalf(err)
-				}
-				continue Split
-			}
-			log.Fatalf("unknown debug key -d %s\n", name)
-		}
-	}
-
-	if compiling_runtime {
-		// Runtime can't use -d=checkptr, at least not yet.
-		Debug_checkptr = 0
-
-		// Fuzzing the runtime isn't interesting either.
-		Debug_libfuzzer = 0
-	}
-
-	// set via a -d flag
-	Ctxt.Debugpcln = Debug_pctab
-	if flagDWARF {
-		dwarf.EnableLogging(Debug_gendwarfinl != 0)
-	}
-
-	if Debug_softfloat != 0 {
-		thearch.SoftFloat = true
-	}
-
-	// enable inlining.  for now:
-	//	default: inlining on.  (Debug.l == 1)
-	//	-l: inlining off  (Debug.l == 0)
-	//	-l=2, -l=3: inlining on again, with extra debugging (Debug.l > 1)
-	if Debug.l <= 1 {
-		Debug.l = 1 - Debug.l
-	}
-
-	if jsonLogOpt != "" { // parse version,destination from json logging optimization.
-		logopt.LogJsonOption(jsonLogOpt)
-	}
+	ParseFlags()
 
 	ssaDump = os.Getenv("GOSSAFUNC")
 	ssaDir = os.Getenv("GOSSADIR")
@@ -534,7 +206,7 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	trackScopes = flagDWARF
+	trackScopes = Flag.Dwarf
 
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
@@ -674,7 +346,7 @@ func Main(archInit func(*Arch)) {
 		ExitIfErrors()
 	}
 
-	if Debug.l != 0 {
+	if Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
 			numfns := numNonClosures(list)
@@ -685,7 +357,7 @@ func Main(archInit func(*Arch)) {
 					// across more than one function.
 					caninl(n)
 				} else {
-					if Debug.m > 1 {
+					if Flag.LowerM > 1 {
 						fmt.Printf("%v: cannot inline %v: recursive\n", n.Line(), n.Func.Nname)
 					}
 				}
@@ -716,7 +388,7 @@ func Main(archInit func(*Arch)) {
 	// checking. This must happen before transformclosure.
 	// We'll do the final check after write barriers are
 	// inserted.
-	if compiling_runtime {
+	if Flag.CompilingRuntime {
 		nowritebarrierrecCheck = newNowritebarrierrecChecker()
 	}
 
@@ -768,9 +440,9 @@ func Main(archInit func(*Arch)) {
 	// DWARF inlining gen so as to avoid problems with generated
 	// method wrappers.
 	if Ctxt.DwFixups != nil {
-		Ctxt.DwFixups.Finalize(myimportpath, Debug_gendwarfinl != 0)
+		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug_gendwarfinl != 0)
 		Ctxt.DwFixups = nil
-		genDwarfInline = 0
+		Flag.GenDwarfInl = 0
 	}
 
 	// Phase 9: Check external declarations.
@@ -790,7 +462,7 @@ func Main(archInit func(*Arch)) {
 	dumpdata()
 	Ctxt.NumberSyms()
 	dumpobj()
-	if asmhdr != "" {
+	if Flag.AsmHdr != "" {
 		dumpasmhdr()
 	}
 
@@ -813,14 +485,14 @@ func Main(archInit func(*Arch)) {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
 
-	logopt.FlushLoggedOpts(Ctxt, myimportpath)
+	logopt.FlushLoggedOpts(Ctxt, Ctxt.Pkgpath)
 	ExitIfErrors()
 
 	flusherrors()
 	timings.Stop()
 
-	if benchfile != "" {
-		if err := writebench(benchfile); err != nil {
+	if Flag.Bench != "" {
+		if err := writebench(Flag.Bench); err != nil {
 			log.Fatalf("cannot write benchmark data: %v", err)
 		}
 	}
@@ -847,7 +519,7 @@ func writebench(filename string) error {
 	fmt.Fprintln(&buf, "commit:", objabi.Version)
 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
-	timings.Write(&buf, "BenchmarkCompile:"+myimportpath+":")
+	timings.Write(&buf, "BenchmarkCompile:"+Ctxt.Pkgpath+":")
 
 	n, err := f.Write(buf.Bytes())
 	if err != nil {
@@ -858,70 +530,6 @@ func writebench(filename string) error {
 	}
 
 	return f.Close()
-}
-
-var (
-	importMap   map[string]string
-	packageFile map[string]string // nil means not in use
-)
-
-func addImportMap(s string) {
-	if importMap == nil {
-		importMap = make(map[string]string)
-	}
-	if strings.Count(s, "=") != 1 {
-		log.Fatal("-importmap argument must be of the form source=actual")
-	}
-	i := strings.Index(s, "=")
-	source, actual := s[:i], s[i+1:]
-	if source == "" || actual == "" {
-		log.Fatal("-importmap argument must be of the form source=actual; source and actual must be non-empty")
-	}
-	importMap[source] = actual
-}
-
-func readImportCfg(file string) {
-	if importMap == nil {
-		importMap = make(map[string]string)
-	}
-	packageFile = map[string]string{}
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatalf("-importcfg: %v", err)
-	}
-
-	for lineNum, line := range strings.Split(string(data), "\n") {
-		lineNum++ // 1-based
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
-			verb = line
-		} else {
-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
-		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
-		}
-		switch verb {
-		default:
-			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
-		case "importmap":
-			if before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid importmap: syntax is "importmap old=new"`, file, lineNum)
-			}
-			importMap[before] = after
-		case "packagefile":
-			if before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
-			}
-			packageFile[before] = after
-		}
-	}
 }
 
 // symabiDefs and symabiRefs record the defined and referenced ABIs of
@@ -1009,14 +617,6 @@ func arsize(b *bufio.Reader, name string) int {
 	return i
 }
 
-var idirs []string
-
-func addidir(dir string) {
-	if dir != "" {
-		idirs = append(idirs, dir)
-	}
-}
-
 func isDriveLetter(b byte) bool {
 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
 }
@@ -1031,12 +631,12 @@ func islocalname(name string) bool {
 
 func findpkg(name string) (file string, ok bool) {
 	if islocalname(name) {
-		if nolocalimports {
+		if Flag.NoLocalImports {
 			return "", false
 		}
 
-		if packageFile != nil {
-			file, ok = packageFile[name]
+		if Flag.Cfg.PackageFile != nil {
+			file, ok = Flag.Cfg.PackageFile[name]
 			return file, ok
 		}
 
@@ -1062,12 +662,12 @@ func findpkg(name string) (file string, ok bool) {
 		return "", false
 	}
 
-	if packageFile != nil {
-		file, ok = packageFile[name]
+	if Flag.Cfg.PackageFile != nil {
+		file, ok = Flag.Cfg.PackageFile[name]
 		return file, ok
 	}
 
-	for _, dir := range idirs {
+	for _, dir := range Flag.Cfg.ImportDirs {
 		file = fmt.Sprintf("%s/%s.a", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
@@ -1081,13 +681,13 @@ func findpkg(name string) (file string, ok bool) {
 	if objabi.GOROOT != "" {
 		suffix := ""
 		suffixsep := ""
-		if flag_installsuffix != "" {
+		if Flag.InstallSuffix != "" {
 			suffixsep = "_"
-			suffix = flag_installsuffix
-		} else if flag_race {
+			suffix = Flag.InstallSuffix
+		} else if Flag.Race {
 			suffixsep = "_"
 			suffix = "race"
-		} else if flag_msan {
+		} else if Flag.MSan {
 			suffixsep = "_"
 			suffix = "msan"
 		}
@@ -1161,12 +761,12 @@ func importfile(f constant.Value) *types.Pkg {
 		errorexit()
 	}
 
-	if myimportpath != "" && path_ == myimportpath {
+	if Ctxt.Pkgpath != "" && path_ == Ctxt.Pkgpath {
 		yyerror("import %q while compiling that package (import cycle)", path_)
 		errorexit()
 	}
 
-	if mapped, ok := importMap[path_]; ok {
+	if mapped, ok := Flag.Cfg.ImportMap[path_]; ok {
 		path_ = mapped
 	}
 
@@ -1181,8 +781,8 @@ func importfile(f constant.Value) *types.Pkg {
 		}
 
 		prefix := Ctxt.Pathname
-		if localimport != "" {
-			prefix = localimport
+		if Flag.D != "" {
+			prefix = Flag.D
 		}
 		path_ = path.Join(prefix, path_)
 
@@ -1308,7 +908,7 @@ func importfile(f constant.Value) *types.Pkg {
 	}
 
 	// assume files move (get installed) so don't record the full path
-	if packageFile != nil {
+	if Flag.Cfg.PackageFile != nil {
 		// If using a packageFile map, assume path_ can be recorded directly.
 		Ctxt.AddImport(path_, fingerprint)
 	} else {
@@ -1401,47 +1001,10 @@ func IsAlias(sym *types.Sym) bool {
 	return sym.Def != nil && asNode(sym.Def).Sym != sym
 }
 
-// concurrentFlagOk reports whether the current compiler flags
-// are compatible with concurrent compilation.
-func concurrentFlagOk() bool {
-	// TODO(rsc): Many of these are fine. Remove them.
-	return Debug.P == 0 &&
-		Debug.E == 0 &&
-		Debug.K == 0 &&
-		Debug.L == 0 &&
-		Debug.h == 0 &&
-		Debug.j == 0 &&
-		Debug.m == 0 &&
-		Debug.r == 0
-}
-
-func concurrentBackendAllowed() bool {
-	if !concurrentFlagOk() {
-		return false
-	}
-
-	// Debug.S by itself is ok, because all printing occurs
-	// while writing the object file, and that is non-concurrent.
-	// Adding Debug_vlog, however, causes Debug.S to also print
-	// while flushing the plist, which happens concurrently.
-	if Debug_vlog || debugstr != "" || debuglive > 0 {
-		return false
-	}
-	// TODO: Test and delete this condition.
-	if objabi.Fieldtrack_enabled != 0 {
-		return false
-	}
-	// TODO: fix races and enable the following flags
-	if Ctxt.Flag_shared || Ctxt.Flag_dynlink || flag_race {
-		return false
-	}
-	return true
-}
-
 // recordFlags records the specified command-line flags to be placed
 // in the DWARF info.
 func recordFlags(flags ...string) {
-	if myimportpath == "" {
+	if Ctxt.Pkgpath == "" {
 		// We can't record the flags if we don't know what the
 		// package name is.
 		return
@@ -1484,7 +1047,7 @@ func recordFlags(flags ...string) {
 	if cmd.Len() == 0 {
 		return
 	}
-	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
+	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + Ctxt.Pkgpath)
 	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
@@ -1496,7 +1059,7 @@ func recordFlags(flags ...string) {
 // recordPackageName records the name of the package being
 // compiled, so that the linker can save it in the compile unit's DIE.
 func recordPackageName() {
-	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
+	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + Ctxt.Pkgpath)
 	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
@@ -1504,9 +1067,6 @@ func recordPackageName() {
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = []byte(localpkg.Name)
 }
-
-// flag_lang is the language version we are compiling for, set by the -lang flag.
-var flag_lang string
 
 // currentLang returns the current language version.
 func currentLang() string {
@@ -1548,23 +1108,23 @@ func langSupported(major, minor int, pkg *types.Pkg) bool {
 // checkLang verifies that the -lang flag holds a valid value, and
 // exits if not. It initializes data used by langSupported.
 func checkLang() {
-	if flag_lang == "" {
+	if Flag.Lang == "" {
 		return
 	}
 
 	var err error
-	langWant, err = parseLang(flag_lang)
+	langWant, err = parseLang(Flag.Lang)
 	if err != nil {
-		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
+		log.Fatalf("invalid value %q for -lang: %v", Flag.Lang, err)
 	}
 
-	if def := currentLang(); flag_lang != def {
+	if def := currentLang(); Flag.Lang != def {
 		defVers, err := parseLang(def)
 		if err != nil {
 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
 		}
 		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
-			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
+			log.Fatalf("invalid value %q for -lang: max known version is %q", Flag.Lang, def)
 		}
 	}
 }

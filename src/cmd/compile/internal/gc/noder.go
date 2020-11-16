@@ -118,15 +118,13 @@ func (p *noder) yyerrorpos(pos syntax.Pos, format string, args ...interface{}) {
 	yyerrorl(p.makeXPos(pos), format, args...)
 }
 
-var pathPrefix string
-
 // TODO(gri) Can we eliminate fileh in favor of absFilename?
 func fileh(name string) string {
-	return objabi.AbsFile("", name, pathPrefix)
+	return objabi.AbsFile("", name, Flag.TrimPath)
 }
 
 func absFilename(name string) string {
-	return objabi.AbsFile(Ctxt.Pathname, name, pathPrefix)
+	return objabi.AbsFile(Ctxt.Pathname, name, Flag.TrimPath)
 }
 
 // noder transforms package syntax's AST into a Node tree.
@@ -269,10 +267,10 @@ func (p *noder) node() {
 		} else {
 			// Use the default object symbol name if the
 			// user didn't provide one.
-			if myimportpath == "" {
+			if Ctxt.Pkgpath == "" {
 				p.yyerrorpos(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
 			} else {
-				s.Linkname = objabi.PathToPrefix(myimportpath) + "." + n.local
+				s.Linkname = objabi.PathToPrefix(Ctxt.Pkgpath) + "." + n.local
 			}
 		}
 	}
@@ -561,7 +559,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
 		}
 	} else {
-		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+		if Flag.Complete || strings.HasPrefix(f.funcname(), "init.") {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
 			isLinknamed := false
@@ -1621,7 +1619,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		// For security, we disallow //go:cgo_* directives other
 		// than cgo_import_dynamic outside cgo-generated files.
 		// Exception: they are allowed in the standard library, for runtime and syscall.
-		if !isCgoGeneratedFile(pos) && !compiling_std {
+		if !isCgoGeneratedFile(pos) && !Flag.Std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
 		}
 		p.pragcgo(pos, text)
@@ -1633,10 +1631,10 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		}
 		flag := pragmaFlag(verb)
 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
-		if !compiling_runtime && flag&runtimePragmas != 0 {
+		if !Flag.CompilingRuntime && flag&runtimePragmas != 0 {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
 		}
-		if flag == 0 && !allowedStdPragmas[verb] && compiling_std {
+		if flag == 0 && !allowedStdPragmas[verb] && Flag.Std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
 		pragma.Flag |= flag

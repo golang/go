@@ -32,7 +32,7 @@ func exportsym(n *Node) {
 	}
 	n.Sym.SetOnExportList(true)
 
-	if Debug.E != 0 {
+	if Flag.E != 0 {
 		fmt.Printf("export symbol %v\n", n.Sym)
 	}
 
@@ -57,7 +57,7 @@ func autoexport(n *Node, ctxt Class) {
 	if types.IsExported(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && !n.Sym.Asm() {
+	if Flag.AsmHdr != "" && !n.Sym.Asm() {
 		n.Sym.SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
@@ -72,7 +72,7 @@ func dumpexport(bout *bio.Writer) {
 	exportf(bout, "\n$$\n")
 
 	if Debug_export != 0 {
-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
+		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", Ctxt.Pkgpath, size)
 	}
 }
 
@@ -151,7 +151,7 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
 
 	n.SetVal(val)
 
-	if Debug.E != 0 {
+	if Flag.E != 0 {
 		fmt.Printf("import const %v %L = %v\n", s, t, val)
 	}
 }
@@ -166,7 +166,7 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 
 	n.Func = new(Func)
 
-	if Debug.E != 0 {
+	if Flag.E != 0 {
 		fmt.Printf("import func %v%S\n", s, t)
 	}
 }
@@ -179,7 +179,7 @@ func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 		return
 	}
 
-	if Debug.E != 0 {
+	if Flag.E != 0 {
 		fmt.Printf("import var %v %L\n", s, t)
 	}
 }
@@ -192,13 +192,13 @@ func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 		return
 	}
 
-	if Debug.E != 0 {
+	if Flag.E != 0 {
 		fmt.Printf("import type %v = %L\n", s, t)
 	}
 }
 
 func dumpasmhdr() {
-	b, err := bio.Create(asmhdr)
+	b, err := bio.Create(Flag.AsmHdr)
 	if err != nil {
 		Fatalf("%v", err)
 	}

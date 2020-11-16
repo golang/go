@@ -47,9 +47,9 @@ var omit_pkgs = []string{
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
-	if myimportpath != "" {
+	if Ctxt.Pkgpath != "" {
 		for _, p := range pkgs {
-			if myimportpath == p {
+			if Ctxt.Pkgpath == p {
 				return true
 			}
 		}
@@ -63,11 +63,11 @@ func instrument(fn *Node) {
 		return
 	}
 
-	if !flag_race || !ispkgin(norace_inst_pkgs) {
+	if !Flag.Race || !ispkgin(norace_inst_pkgs) {
 		fn.Func.SetInstrumentBody(true)
 	}
 
-	if flag_race {
+	if Flag.Race {
 		lno := lineno
 		lineno = src.NoXPos
 
