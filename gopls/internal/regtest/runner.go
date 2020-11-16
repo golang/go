@@ -321,8 +321,8 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 }
 
 type loggingFramer struct {
-	mu      sync.Mutex
-	buffers []*safeBuffer
+	mu  sync.Mutex
+	buf *safeBuffer
 }
 
 // safeBuffer is a threadsafe buffer for logs.
@@ -340,11 +340,17 @@ func (b *safeBuffer) Write(p []byte) (int, error) {
 func (s *loggingFramer) framer(f jsonrpc2.Framer) jsonrpc2.Framer {
 	return func(nc net.Conn) jsonrpc2.Stream {
 		s.mu.Lock()
-		buf := &safeBuffer{buf: bytes.Buffer{}}
-		s.buffers = append(s.buffers, buf)
+		framed := false
+		if s.buf == nil {
+			s.buf = &safeBuffer{buf: bytes.Buffer{}}
+			framed = true
+		}
 		s.mu.Unlock()
 		stream := f(nc)
-		return protocol.LoggingStream(stream, buf)
+		if framed {
+			return protocol.LoggingStream(stream, s.buf)
+		}
+		return stream
 	}
 }
 
@@ -352,13 +358,14 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, buf := range s.buffers {
-		fmt.Fprintf(os.Stderr, "#### Start Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
-		buf.mu.Lock()
-		io.Copy(w, &buf.buf)
-		buf.mu.Unlock()
-		fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
+	if s.buf == nil {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "#### Start Gopls Test Logs for %q\n", testname)
+	s.buf.mu.Lock()
+	io.Copy(w, &s.buf.buf)
+	s.buf.mu.Unlock()
+	fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs for %q\n", testname)
 }
 
 func singletonServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
