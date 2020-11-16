@@ -1585,15 +1585,6 @@ func liststmt(l []*Node) *Node {
 	return n
 }
 
-func (l Nodes) asblock() *Node {
-	n := nod(OBLOCK, nil, nil)
-	n.List = l
-	if l.Len() != 0 {
-		n.Pos = l.First().Pos
-	}
-	return n
-}
-
 func ngotype(n *Node) *types.Sym {
 	if n.Type != nil {
 		return typenamesym(n.Type)
