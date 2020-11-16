@@ -10,7 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/logopt"
-
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
@@ -112,6 +112,7 @@ func Main(archInit func(*Arch)) {
 	// pseudo-package used for methods with anonymous receivers
 	gopkg = types.NewPkg("go", "")
 
+	DebugSSA = ssa.PhaseOption
 	ParseFlags()
 
 	// Record flags that affect the build result. (And don't
