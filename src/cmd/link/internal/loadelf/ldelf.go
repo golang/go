@@ -983,7 +983,11 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_GPREL16)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GOT_PAGE)<<16,
 		MIPS64 | uint32(elf.R_MIPS_JALR)<<16,
-		MIPS64 | uint32(elf.R_MIPS_GOT_OFST)<<16:
+		MIPS64 | uint32(elf.R_MIPS_GOT_OFST)<<16,
+		MIPS64 | uint32(elf.R_MIPS_CALL16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
+		MIPS64 | uint32(elf.R_MIPS_64)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
 		return 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
