@@ -12,13 +12,9 @@ import (
 	"go/constant"
 )
 
-var (
-	Debug_export int // if set, print debugging information about export data
-)
-
 func exportf(bout *bio.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(bout, format, args...)
-	if Debug_export != 0 {
+	if Debug.Export != 0 {
 		fmt.Printf(format, args...)
 	}
 }
@@ -71,7 +67,7 @@ func dumpexport(bout *bio.Writer) {
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
-	if Debug_export != 0 {
+	if Debug.Export != 0 {
 		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", Ctxt.Pkgpath, size)
 	}
 }
