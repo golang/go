@@ -89,22 +89,22 @@ func typecheckTypeSwitch(n *Node) {
 			if len(ls) == 1 {
 				if ls[0].Op == OTYPE {
 					vt = ls[0].Type
-				} else if ls[0].Op != OLITERAL { // TODO(mdempsky): Should be !ls[0].isNil()
+				} else if !ls[0].isNil() {
 					// Invalid single-type case;
 					// mark variable as broken.
 					vt = nil
 				}
 			}
 
-			// TODO(mdempsky): It should be possible to
-			// still typecheck the case body.
-			if vt == nil {
-				continue
-			}
-
 			nvar := ncase.Rlist.First()
 			nvar.Type = vt
-			nvar = typecheck(nvar, ctxExpr|ctxAssign)
+			if vt != nil {
+				nvar = typecheck(nvar, ctxExpr|ctxAssign)
+			} else {
+				// Clause variable is broken; prevent typechecking.
+				nvar.SetTypecheck(1)
+				nvar.SetWalkdef(1)
+			}
 			ncase.Rlist.SetFirst(nvar)
 		}
 
