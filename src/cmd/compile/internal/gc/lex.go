@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-func makePos(base *src.PosBase, line, col uint) src.XPos {
-	return Ctxt.PosTable.XPos(src.MakePos(base, line, col))
+func makePos(b *src.PosBase, line, col uint) src.XPos {
+	return Ctxt.PosTable.XPos(src.MakePos(b, line, col))
 }
 
 func isSpace(c rune) bool {

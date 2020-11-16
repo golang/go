@@ -720,9 +720,9 @@ func (s *typeSwitch) flush() {
 // less(i) should return a boolean expression. If it evaluates true,
 // then cases before i will be tested; otherwise, cases i and later.
 //
-// base(i, nif) should setup nif (an OIF node) to test case i. In
+// leaf(i, nif) should setup nif (an OIF node) to test case i. In
 // particular, it should set nif.Left and nif.Nbody.
-func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, nif *Node)) {
+func binarySearch(n int, out *Nodes, less func(i int) *Node, leaf func(i int, nif *Node)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 
 	var do func(lo, hi int, out *Nodes)
@@ -731,7 +731,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
 		if n < binarySearchMin {
 			for i := lo; i < hi; i++ {
 				nif := nod(OIF, nil, nil)
-				base(i, nif)
+				leaf(i, nif)
 				lineno = lineno.WithNotStmt()
 				nif.Left = typecheck(nif.Left, ctxExpr)
 				nif.Left = defaultlit(nif.Left, nil)

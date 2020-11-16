@@ -1152,16 +1152,16 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 		l := todo[len(todo)-1]
 		todo = todo[:len(todo)-1]
 
-		base := l.derefs
+		derefs := l.derefs
 
 		// If l.derefs < 0, then l's address flows to root.
-		addressOf := base < 0
+		addressOf := derefs < 0
 		if addressOf {
 			// For a flow path like "root = &l; l = x",
 			// l's address flows to root, but x's does
 			// not. We recognize this by lower bounding
-			// base at 0.
-			base = 0
+			// derefs at 0.
+			derefs = 0
 
 			// If l's address flows to a non-transient
 			// location, then l can't be transiently
@@ -1181,15 +1181,15 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			if l.isName(PPARAM) {
 				if (logopt.Enabled() || Debug.m >= 2) && !l.escapes {
 					if Debug.m >= 2 {
-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
+						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), derefs)
 					}
 					explanation := e.explainPath(root, l)
 					if logopt.Enabled() {
 						logopt.LogOpt(l.n.Pos, "leak", "escape", e.curfn.funcname(),
-							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), base), explanation)
+							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), derefs), explanation)
 					}
 				}
-				l.leakTo(root, base)
+				l.leakTo(root, derefs)
 			}
 
 			// If l's address flows somewhere that
@@ -1215,10 +1215,10 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			if edge.src.escapes {
 				continue
 			}
-			derefs := base + edge.derefs
-			if edge.src.walkgen != walkgen || edge.src.derefs > derefs {
+			d := derefs + edge.derefs
+			if edge.src.walkgen != walkgen || edge.src.derefs > d {
 				edge.src.walkgen = walkgen
-				edge.src.derefs = derefs
+				edge.src.derefs = d
 				edge.src.dst = l
 				edge.src.dstEdgeIdx = i
 				todo = append(todo, edge.src)
