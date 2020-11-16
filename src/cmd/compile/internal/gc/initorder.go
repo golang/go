@@ -104,9 +104,7 @@ func initOrder(l []*Node) []*Node {
 				// confused us and there might not be
 				// a loop. Let the user fix those
 				// first.
-				if nerrors > 0 {
-					errorexit()
-				}
+				ExitIfErrors()
 
 				findInitLoopAndExit(firstLHS(n), new([]*Node))
 				Fatalf("initialization unfinished, but failed to identify loop")

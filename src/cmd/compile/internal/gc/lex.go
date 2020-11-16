@@ -12,10 +12,6 @@ import (
 	"strings"
 )
 
-// lineno is the source position at the start of the most recently lexed token.
-// TODO(gri) rename and eventually remove
-var lineno src.XPos
-
 func makePos(base *src.PosBase, line, col uint) src.XPos {
 	return Ctxt.PosTable.XPos(src.MakePos(base, line, col))
 }

@@ -72,7 +72,7 @@ func (a *Mpint) SetFloat(b *Mpflt) bool {
 
 func (a *Mpint) Add(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Add")
 		}
 		a.SetOverflow()
@@ -88,7 +88,7 @@ func (a *Mpint) Add(b *Mpint) {
 
 func (a *Mpint) Sub(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Sub")
 		}
 		a.SetOverflow()
@@ -104,7 +104,7 @@ func (a *Mpint) Sub(b *Mpint) {
 
 func (a *Mpint) Mul(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Mul")
 		}
 		a.SetOverflow()
@@ -120,7 +120,7 @@ func (a *Mpint) Mul(b *Mpint) {
 
 func (a *Mpint) Quo(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Quo")
 		}
 		a.SetOverflow()
@@ -137,7 +137,7 @@ func (a *Mpint) Quo(b *Mpint) {
 
 func (a *Mpint) Rem(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Rem")
 		}
 		a.SetOverflow()
@@ -154,7 +154,7 @@ func (a *Mpint) Rem(b *Mpint) {
 
 func (a *Mpint) Or(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Or")
 		}
 		a.SetOverflow()
@@ -166,7 +166,7 @@ func (a *Mpint) Or(b *Mpint) {
 
 func (a *Mpint) And(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint And")
 		}
 		a.SetOverflow()
@@ -178,7 +178,7 @@ func (a *Mpint) And(b *Mpint) {
 
 func (a *Mpint) AndNot(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint AndNot")
 		}
 		a.SetOverflow()
@@ -190,7 +190,7 @@ func (a *Mpint) AndNot(b *Mpint) {
 
 func (a *Mpint) Xor(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Xor")
 		}
 		a.SetOverflow()
@@ -202,7 +202,7 @@ func (a *Mpint) Xor(b *Mpint) {
 
 func (a *Mpint) Lsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Lsh")
 		}
 		a.SetOverflow()
@@ -229,7 +229,7 @@ func (a *Mpint) Lsh(b *Mpint) {
 
 func (a *Mpint) Rsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("ovf in Mpint Rsh")
 		}
 		a.SetOverflow()
@@ -267,7 +267,7 @@ func (a *Mpint) Neg() {
 
 func (a *Mpint) Int64() int64 {
 	if a.Ovf {
-		if nsavederrors+nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("constant overflow")
 		}
 		return 0

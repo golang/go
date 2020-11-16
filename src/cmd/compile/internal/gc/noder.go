@@ -64,7 +64,7 @@ func parseFiles(filenames []string) uint {
 		lines += p.file.Lines
 		p.file = nil // release memory
 
-		if nsyntaxerrors != 0 {
+		if SyntaxErrors() != 0 {
 			errorexit()
 		}
 		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
@@ -333,7 +333,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	val := p.basicLit(imp.Path)
 	ipkg := importfile(&val)
 	if ipkg == nil {
-		if nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("phase error in import")
 		}
 		return
