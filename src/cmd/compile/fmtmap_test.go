@@ -168,6 +168,7 @@ var knownFormats = map[string]string{
 	"map[int64]uint32 %v":  "",
 	"math/big.Accuracy %s": "",
 	"reflect.Type %s":      "",
+	"reflect.Type %v":      "",
 	"rune %#U":             "",
 	"rune %c":              "",
 	"rune %q":              "",

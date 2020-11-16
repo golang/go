@@ -11,15 +11,12 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/types"
-	"cmd/internal/dwarf"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -30,195 +27,153 @@ func usage() {
 	Exit(2)
 }
 
-var Flag Flags
+// Flag holds the parsed command-line flags.
+// See ParseFlag for non-zero defaults.
+var Flag CmdFlags
 
-// gc debug flags
-type Flags struct {
-	Percent, B, C, E,
-	K, L, N, S,
-	W, LowerE, LowerH, LowerJ,
-	LowerL, LowerM, LowerR, LowerW int
-	CompilingRuntime bool
-	Std              bool
-	D                string
-	AsmHdr           string
-	BuildID          string
-	LowerC           int
-	Complete         bool
-	LowerD           string
-	Dwarf            bool
-	GenDwarfInl      int
-	InstallSuffix    string
-	Lang             string
-	LinkObj          string
-	Live             int
-	MSan             bool
-	NoLocalImports   bool
-	LowerO           string
-	Pack             bool
-	Race             bool
-	Spectre          string
-	LowerT           bool
-	TrimPath         string
-	WB               bool
-	Shared           bool
-	Dynlink          bool
-	GoVersion        string
-	SymABIs          string
-	CPUProfile       string
-	MemProfile       string
-	TraceProfile     string
-	BlockProfile     string
-	MutexProfile     string
-	Bench            string
-	SmallFrames      bool
-	JSON             string
+// A CountFlag is a counting integer flag.
+// It accepts -name=value to set the value directly,
+// but it also accepts -name with no =value to increment the count.
+type CountFlag int
 
+// CmdFlags defines the command-line flags (see var Flag).
+// Each struct field is a different flag, by default named for the lower-case of the field name.
+// If the flag name is a single letter, the default flag name is left upper-case.
+// If the flag name is "Lower" followed by a single letter, the default flag name is the lower-case of the last letter.
+//
+// If this default flag name can't be made right, the `flag` struct tag can be used to replace it,
+// but this should be done only in exceptional circumstances: it helps everyone if the flag name
+// is obvious from the field name when the flag is used elsewhere in the compiler sources.
+// The `flag:"-"` struct tag makes a field invisible to the flag logic and should also be used sparingly.
+//
+// Each field must have a `help` struct tag giving the flag help message.
+//
+// The allowed field types are bool, int, string, pointers to those (for values stored elsewhere),
+// CountFlag (for a counting flag), and func(string) (for a flag that uses special code for parsing).
+type CmdFlags struct {
+	// Single letters
+	B CountFlag    "help:\"disable bounds checking\""
+	C CountFlag    "help:\"disable printing of columns in error messages\""
+	D string       "help:\"set relative `path` for local imports\""
+	E CountFlag    "help:\"debug symbol export\""
+	I func(string) "help:\"add `directory` to import search path\""
+	K CountFlag    "help:\"debug missing line numbers\""
+	L CountFlag    "help:\"show full file names in error messages\""
+	N CountFlag    "help:\"disable optimizations\""
+	S CountFlag    "help:\"print assembly listing\""
+	// V is added by objabi.AddVersionFlag
+	W CountFlag "help:\"debug parse tree after type checking\""
+
+	LowerC int       "help:\"concurrency during compilation (1 means no concurrency)\""
+	LowerD string    "help:\"enable debugging settings; try -d help\""
+	LowerE CountFlag "help:\"no limit on number of errors reported\""
+	LowerH CountFlag "help:\"halt on error\""
+	LowerJ CountFlag "help:\"debug runtime-initialized variables\""
+	LowerL CountFlag "help:\"disable inlining\""
+	LowerM CountFlag "help:\"print optimization decisions\""
+	LowerO string    "help:\"write output to `file`\""
+	LowerP *string   "help:\"set expected package import `path`\"" // &Ctxt.Pkgpath, set below
+	LowerR CountFlag "help:\"debug generated wrappers\""
+	LowerT bool      "help:\"enable tracing for debugging the compiler\""
+	LowerW CountFlag "help:\"debug type checking\""
+	LowerV *bool     "help:\"increase debug verbosity\""
+
+	// Special characters
+	Percent          int  "flag:\"%\" help:\"debug non-static initializers\""
+	CompilingRuntime bool "flag:\"+\" help:\"compiling runtime\""
+
+	// Longer names
+	AsmHdr             string       "help:\"write assembly header to `file`\""
+	Bench              string       "help:\"append benchmark times to `file`\""
+	BlockProfile       string       "help:\"write block profile to `file`\""
+	BuildID            string       "help:\"record `id` as the build id in the export metadata\""
+	CPUProfile         string       "help:\"write cpu profile to `file`\""
+	Complete           bool         "help:\"compiling complete package (no C or assembly)\""
+	Dwarf              bool         "help:\"generate DWARF symbols\""
+	DwarfBASEntries    *bool        "help:\"use base address selection entries in DWARF\""                        // &Ctxt.UseBASEntries, set below
+	DwarfLocationLists *bool        "help:\"add location lists to DWARF in optimized mode\""                      // &Ctxt.Flag_locationlists, set below
+	Dynlink            *bool        "help:\"support references to Go symbols defined in other shared libraries\"" // &Ctxt.Flag_dynlink, set below
+	EmbedCfg           func(string) "help:\"read go:embed configuration from `file`\""
+	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
+	GoVersion          string       "help:\"required version of the runtime\""
+	ImportCfg          func(string) "help:\"read import configuration from `file`\""
+	ImportMap          func(string) "help:\"add `definition` of the form source=actual to import map\""
+	InstallSuffix      string       "help:\"set pkg directory `suffix`\""
+	JSON               string       "help:\"version,file for JSON compiler/optimizer detail output\""
+	Lang               string       "help:\"Go language version source code expects\""
+	LinkObj            string       "help:\"write linker-specific object to `file`\""
+	LinkShared         *bool        "help:\"generate code that will be linked against Go shared libraries\"" // &Ctxt.Flag_linkshared, set below
+	Live               CountFlag    "help:\"debug liveness analysis\""
+	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
+	MemProfile         string       "help:\"write memory profile to `file`\""
+	MemProfileRate     int64        "help:\"set runtime.MemProfileRate to `rate`\""
+	MutexProfile       string       "help:\"write mutex profile to `file`\""
+	NoLocalImports     bool         "help:\"reject local (relative) imports\""
+	Pack               bool         "help:\"write to file.a instead of file.o\""
+	Race               bool         "help:\"enable race detector\""
+	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
+	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
+	Spectre            string       "help:\"enable spectre mitigations in `list` (all, index, ret)\""
+	Std                bool         "help:\"compiling standard library\""
+	SymABIs            string       "help:\"read symbol ABIs from `file`\""
+	TraceProfile       string       "help:\"write an execution trace to `file`\""
+	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
+
+	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
-		Embed struct {
+		Embed struct { // set by -embedcfg
 			Patterns map[string][]string
 			Files    map[string]string
 		}
-		ImportDirs   []string
-		ImportMap    map[string]string
-		PackageFile  map[string]string
-		SpectreIndex bool
+		ImportDirs   []string          // appended to by -I
+		ImportMap    map[string]string // set by -importmap OR -importcfg
+		PackageFile  map[string]string // set by -importcfg; nil means not in use
+		SpectreIndex bool              // set by -spectre=index or -spectre=all
 	}
 }
 
+// ParseFlags parses the command-line flags into Flag.
 func ParseFlags() {
-	Wasm := objabi.GOARCH == "wasm"
+	Flag.I = addImportDir
 
-	// Whether the limit for stack-allocated objects is much smaller than normal.
-	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
-	Flag.SmallFrames = false
-	Flag.JSON = ""
+	Flag.LowerC = 1
+	Flag.LowerP = &Ctxt.Pkgpath
+	Flag.LowerV = &Ctxt.Debugvlog
 
-	flag.BoolVar(&Flag.CompilingRuntime, "+", false, "compiling runtime")
-	flag.BoolVar(&Flag.Std, "std", false, "compiling standard library")
-	flag.StringVar(&Flag.D, "D", "", "set relative `path` for local imports")
+	Flag.Dwarf = objabi.GOARCH != "wasm"
+	Flag.DwarfBASEntries = &Ctxt.UseBASEntries
+	Flag.DwarfLocationLists = &Ctxt.Flag_locationlists
+	*Flag.DwarfLocationLists = true
+	Flag.Dynlink = &Ctxt.Flag_dynlink
+	Flag.EmbedCfg = readEmbedCfg
+	Flag.GenDwarfInl = 2
+	Flag.ImportCfg = readImportCfg
+	Flag.ImportMap = addImportMap
+	Flag.LinkShared = &Ctxt.Flag_linkshared
+	Flag.Shared = &Ctxt.Flag_shared
+	Flag.WB = true
 
-	objabi.Flagcount("%", "debug non-static initializers", &Flag.Percent)
-	objabi.Flagcount("B", "disable bounds checking", &Flag.B)
-	objabi.Flagcount("C", "disable printing of columns in error messages", &Flag.C)
-	objabi.Flagcount("E", "debug symbol export", &Flag.E)
-	objabi.Flagcount("K", "debug missing line numbers", &Flag.K)
-	objabi.Flagcount("L", "show full file names in error messages", &Flag.L)
-	objabi.Flagcount("N", "disable optimizations", &Flag.N)
-	objabi.Flagcount("S", "print assembly listing", &Flag.S)
-	objabi.Flagcount("W", "debug parse tree after type checking", &Flag.W)
-	objabi.Flagcount("e", "no limit on number of errors reported", &Flag.LowerE)
-	objabi.Flagcount("h", "halt on error", &Flag.LowerH)
-	objabi.Flagcount("j", "debug runtime-initialized variables", &Flag.LowerJ)
-	objabi.Flagcount("l", "disable inlining", &Flag.LowerL)
-	objabi.Flagcount("m", "print optimization decisions", &Flag.LowerM)
-	objabi.Flagcount("r", "debug generated wrappers", &Flag.LowerR)
-	objabi.Flagcount("w", "debug type checking", &Flag.LowerW)
+	Flag.Cfg.ImportMap = make(map[string]string)
 
-	objabi.Flagfn1("I", "add `directory` to import search path", addImportDir)
 	objabi.AddVersionFlag() // -V
-	flag.StringVar(&Flag.AsmHdr, "asmhdr", "", "write assembly header to `file`")
-	flag.StringVar(&Flag.BuildID, "buildid", "", "record `id` as the build id in the export metadata")
-	flag.IntVar(&Flag.LowerC, "c", 1, "concurrency during compilation, 1 means no concurrency")
-	flag.BoolVar(&Flag.Complete, "complete", false, "compiling complete package (no C or assembly)")
-	flag.StringVar(&Flag.LowerD, "d", "", "print debug information about items in `list`; try -d help")
-	flag.BoolVar(&Flag.Dwarf, "dwarf", !Wasm, "generate DWARF symbols")
-	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
-	flag.IntVar(&Flag.GenDwarfInl, "gendwarfinl", 2, "generate DWARF inline info records")
-	objabi.Flagfn1("embedcfg", "read go:embed configuration from `file`", readEmbedCfg)
-	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
-	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
-	flag.StringVar(&Flag.InstallSuffix, "installsuffix", "", "set pkg directory `suffix`")
-	flag.StringVar(&Flag.Lang, "lang", "", "release to compile for")
-	flag.StringVar(&Flag.LinkObj, "linkobj", "", "write linker-specific object to `file`")
-	objabi.Flagcount("live", "debug liveness analysis", &Flag.Live)
-	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
-		flag.BoolVar(&Flag.MSan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	}
-	flag.BoolVar(&Flag.NoLocalImports, "nolocalimports", false, "reject local (relative) imports")
-	flag.StringVar(&Flag.LowerO, "o", "", "write output to `file`")
-	flag.StringVar(&Ctxt.Pkgpath, "p", "", "set expected package import `path`")
-	flag.BoolVar(&Flag.Pack, "pack", false, "write to file.a instead of file.o")
-	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
-		flag.BoolVar(&Flag.Race, "race", false, "enable race detector")
-	}
-	flag.StringVar(&Flag.Spectre, "spectre", Flag.Spectre, "enable spectre mitigations in `list` (all, index, ret)")
-	if enableTrace {
-		flag.BoolVar(&Flag.LowerT, "t", false, "trace type-checking")
-	}
-	flag.StringVar(&Flag.TrimPath, "trimpath", "", "remove `prefix` from recorded source file paths")
-	flag.BoolVar(&Ctxt.Debugvlog, "v", false, "increase debug verbosity")
-	flag.BoolVar(&Flag.WB, "wb", true, "enable write barrier")
-	if supportsDynlink(thearch.LinkArch.Arch) {
-		flag.BoolVar(&Flag.Shared, "shared", false, "generate code that can be linked into a shared library")
-		flag.BoolVar(&Flag.Dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
-		flag.BoolVar(&Ctxt.Flag_linkshared, "linkshared", false, "generate code that will be linked against Go shared libraries")
-	}
-	flag.StringVar(&Flag.CPUProfile, "cpuprofile", "", "write cpu profile to `file`")
-	flag.StringVar(&Flag.MemProfile, "memprofile", "", "write memory profile to `file`")
-	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	flag.StringVar(&Flag.GoVersion, "goversion", "", "required version of the runtime")
-	flag.StringVar(&Flag.SymABIs, "symabis", "", "read symbol ABIs from `file`")
-	flag.StringVar(&Flag.TraceProfile, "traceprofile", "", "write an execution trace to `file`")
-	flag.StringVar(&Flag.BlockProfile, "blockprofile", "", "write block profile to `file`")
-	flag.StringVar(&Flag.MutexProfile, "mutexprofile", "", "write mutex profile to `file`")
-	flag.StringVar(&Flag.Bench, "bench", "", "append benchmark times to `file`")
-	flag.BoolVar(&Flag.SmallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
-	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
-	flag.StringVar(&Flag.JSON, "json", "", "version,destination for JSON compiler/optimizer logging")
-
+	registerFlags()
 	objabi.Flagparse(usage)
 
-	for _, f := range strings.Split(Flag.Spectre, ",") {
-		f = strings.TrimSpace(f)
-		switch f {
-		default:
-			log.Fatalf("unknown setting -spectre=%s", f)
-		case "":
-			// nothing
-		case "all":
-			Flag.Cfg.SpectreIndex = true
-			Ctxt.Retpoline = true
-		case "index":
-			Flag.Cfg.SpectreIndex = true
-		case "ret":
-			Ctxt.Retpoline = true
-		}
+	if Flag.MSan && !sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
+		log.Fatalf("%s/%s does not support -msan", objabi.GOOS, objabi.GOARCH)
 	}
-
-	if Flag.Cfg.SpectreIndex {
-		switch objabi.GOARCH {
-		case "amd64":
-			// ok
-		default:
-			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
-		}
+	if Flag.Race && !sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+		log.Fatalf("%s/%s does not support -race", objabi.GOOS, objabi.GOARCH)
 	}
-
-	// Record flags that affect the build result. (And don't
-	// record flags that don't, since that would cause spurious
-	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
-
-	if Flag.SmallFrames {
-		maxStackVarSize = 128 * 1024
-		maxImplicitStackVarSize = 16 * 1024
+	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X) {
+		log.Fatalf("%s/%s does not support -shared", objabi.GOOS, objabi.GOARCH)
 	}
+	parseSpectre(Flag.Spectre) // left as string for recordFlags
 
-	Ctxt.Flag_shared = Flag.Dynlink || Flag.Shared
-	Ctxt.Flag_dynlink = Flag.Dynlink
+	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0
-
-	Ctxt.Debugasm = Flag.S
-	if Flag.Dwarf {
-		Ctxt.DebugInfo = debuginfo
-		Ctxt.GenAbstractFunc = genAbstractFunc
-		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
-	} else {
-		// turn off inline generation if no dwarf at all
-		Flag.GenDwarfInl = 0
-		Ctxt.Flag_locationlists = false
-	}
+	Ctxt.Debugasm = int(Flag.S)
 
 	if flag.NArg() < 1 && Flag.LowerD != "help" && Flag.LowerD != "ssa/help" {
 		usage()
@@ -228,14 +183,6 @@ func ParseFlags() {
 		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), Flag.GoVersion)
 		Exit(2)
 	}
-
-	checkLang()
-
-	if Flag.SymABIs != "" {
-		readSymABIs(Flag.SymABIs, Ctxt.Pkgpath)
-	}
-
-	thearch.LinkArch.Init(Ctxt)
 
 	if Flag.LowerO == "" {
 		p := flag.Arg(0)
@@ -257,27 +204,12 @@ func ParseFlags() {
 		Flag.LowerO = p + suffix
 	}
 
-	startProfile()
-
 	if Flag.Race && Flag.MSan {
 		log.Fatal("cannot use both -race and -msan")
 	}
 	if Flag.Race || Flag.MSan {
 		// -race and -msan imply -d=checkptr for now.
 		Debug_checkptr = 1
-	}
-	if ispkgin(omit_pkgs) {
-		Flag.Race = false
-		Flag.MSan = false
-	}
-	if Flag.Race {
-		racepkg = types.NewPkg("runtime/race", "")
-	}
-	if Flag.MSan {
-		msanpkg = types.NewPkg("runtime/msan", "")
-	}
-	if Flag.Race || Flag.MSan {
-		instrumenting = true
 	}
 
 	if Flag.CompilingRuntime && Flag.N != 0 {
@@ -288,9 +220,6 @@ func ParseFlags() {
 	}
 	if Flag.LowerC > 1 && !concurrentBackendAllowed() {
 		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
-	}
-	if Ctxt.Flag_locationlists && len(Ctxt.Arch.DWARFRegisters) == 0 {
-		log.Fatalf("location lists requested but register mapping not available on %v", Ctxt.Arch.Name)
 	}
 
 	// parse -d argument
@@ -376,24 +305,77 @@ func ParseFlags() {
 
 	// set via a -d flag
 	Ctxt.Debugpcln = Debug_pctab
-	if Flag.Dwarf {
-		dwarf.EnableLogging(Debug_gendwarfinl != 0)
-	}
+}
 
-	if Debug_softfloat != 0 {
-		thearch.SoftFloat = true
-	}
+// registerFlags adds flag registrations for all the fields in Flag.
+// See the comment on type CmdFlags for the rules.
+func registerFlags() {
+	var (
+		boolType      = reflect.TypeOf(bool(false))
+		intType       = reflect.TypeOf(int(0))
+		stringType    = reflect.TypeOf(string(""))
+		ptrBoolType   = reflect.TypeOf(new(bool))
+		ptrIntType    = reflect.TypeOf(new(int))
+		ptrStringType = reflect.TypeOf(new(string))
+		countType     = reflect.TypeOf(CountFlag(0))
+		funcType      = reflect.TypeOf((func(string))(nil))
+	)
 
-	// enable inlining.  for now:
-	//	default: inlining on.  (Debug.l == 1)
-	//	-l: inlining off  (Debug.l == 0)
-	//	-l=2, -l=3: inlining on again, with extra debugging (Debug.l > 1)
-	if Flag.LowerL <= 1 {
-		Flag.LowerL = 1 - Flag.LowerL
-	}
+	v := reflect.ValueOf(&Flag).Elem()
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.Name == "Cfg" {
+			continue
+		}
 
-	if Flag.JSON != "" { // parse version,destination from json logging optimization.
-		logopt.LogJsonOption(Flag.JSON)
+		var name string
+		if len(f.Name) == 1 {
+			name = f.Name
+		} else if len(f.Name) == 6 && f.Name[:5] == "Lower" && 'A' <= f.Name[5] && f.Name[5] <= 'Z' {
+			name = string(rune(f.Name[5] + 'a' - 'A'))
+		} else {
+			name = strings.ToLower(f.Name)
+		}
+		if tag := f.Tag.Get("flag"); tag != "" {
+			name = tag
+		}
+
+		help := f.Tag.Get("help")
+		if help == "" {
+			panic(fmt.Sprintf("base.Flag.%s is missing help text", f.Name))
+		}
+
+		if k := f.Type.Kind(); (k == reflect.Ptr || k == reflect.Func) && v.Field(i).IsNil() {
+			panic(fmt.Sprintf("base.Flag.%s is uninitialized %v", f.Name, f.Type))
+		}
+
+		switch f.Type {
+		case boolType:
+			p := v.Field(i).Addr().Interface().(*bool)
+			flag.BoolVar(p, name, *p, help)
+		case intType:
+			p := v.Field(i).Addr().Interface().(*int)
+			flag.IntVar(p, name, *p, help)
+		case stringType:
+			p := v.Field(i).Addr().Interface().(*string)
+			flag.StringVar(p, name, *p, help)
+		case ptrBoolType:
+			p := v.Field(i).Interface().(*bool)
+			flag.BoolVar(p, name, *p, help)
+		case ptrIntType:
+			p := v.Field(i).Interface().(*int)
+			flag.IntVar(p, name, *p, help)
+		case ptrStringType:
+			p := v.Field(i).Interface().(*string)
+			flag.StringVar(p, name, *p, help)
+		case countType:
+			p := (*int)(v.Field(i).Addr().Interface().(*CountFlag))
+			objabi.Flagcount(name, help, p)
+		case funcType:
+			f := v.Field(i).Interface().(func(string))
+			objabi.Flagfn1(name, help, f)
+		}
 	}
 }
 
@@ -512,5 +494,34 @@ func readEmbedCfg(file string) {
 	}
 	if Flag.Cfg.Embed.Files == nil {
 		log.Fatalf("%s: invalid embedcfg: missing Files", file)
+	}
+}
+
+// parseSpectre parses the spectre configuration from the string s.
+func parseSpectre(s string) {
+	for _, f := range strings.Split(s, ",") {
+		f = strings.TrimSpace(f)
+		switch f {
+		default:
+			log.Fatalf("unknown setting -spectre=%s", f)
+		case "":
+			// nothing
+		case "all":
+			Flag.Cfg.SpectreIndex = true
+			Ctxt.Retpoline = true
+		case "index":
+			Flag.Cfg.SpectreIndex = true
+		case "ret":
+			Ctxt.Retpoline = true
+		}
+	}
+
+	if Flag.Cfg.SpectreIndex {
+		switch objabi.GOARCH {
+		case "amd64":
+			// ok
+		default:
+			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
+		}
 	}
 }
