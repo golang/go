@@ -19,9 +19,6 @@ var externdcl []*Node
 
 func testdclstack() {
 	if !types.IsDclstackValid() {
-		if nerrors != 0 {
-			errorexit()
-		}
 		Fatalf("mark left on the dclstack")
 	}
 }

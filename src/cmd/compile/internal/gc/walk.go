@@ -20,6 +20,7 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 
 func walk(fn *Node) {
 	Curfn = fn
+	errorsBefore := Errors()
 
 	if Debug.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
@@ -59,7 +60,7 @@ func walk(fn *Node) {
 	}
 
 	lineno = lno
-	if nerrors != 0 {
+	if Errors() > errorsBefore {
 		return
 	}
 	walkstmtlist(Curfn.Nbody.Slice())

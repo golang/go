@@ -102,16 +102,6 @@ var pragcgobuf [][]string
 var outfile string
 var linkobj string
 
-// nerrors is the number of compiler errors reported
-// since the last call to saveerrors.
-var nerrors int
-
-// nsavederrors is the total number of compiler errors
-// reported before the last call to saveerrors.
-var nsavederrors int
-
-var nsyntaxerrors int
-
 var decldepth int32
 
 var nolocalimports bool

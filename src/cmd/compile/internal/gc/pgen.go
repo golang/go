@@ -198,7 +198,7 @@ func funccompile(fn *Node) {
 	}
 
 	if fn.Type == nil {
-		if nerrors == 0 {
+		if Errors() == 0 {
 			Fatalf("funccompile missing type")
 		}
 		return
@@ -224,10 +224,9 @@ func funccompile(fn *Node) {
 }
 
 func compile(fn *Node) {
-	saveerrors()
-
+	errorsBefore := Errors()
 	order(fn)
-	if nerrors != 0 {
+	if Errors() > errorsBefore {
 		return
 	}
 
@@ -237,7 +236,7 @@ func compile(fn *Node) {
 	fn.Func.initLSym(true)
 
 	walk(fn)
-	if nerrors != 0 {
+	if Errors() > errorsBefore {
 		return
 	}
 	if instrumenting {

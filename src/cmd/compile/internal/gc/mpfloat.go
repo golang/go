@@ -136,7 +136,7 @@ func (a *Mpflt) Float64() float64 {
 	x, _ := a.Val.Float64()
 
 	// check for overflow
-	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+	if math.IsInf(x, 0) && Errors() == 0 {
 		Fatalf("ovf in Mpflt Float64")
 	}
 
@@ -148,7 +148,7 @@ func (a *Mpflt) Float32() float64 {
 	x := float64(x32)
 
 	// check for overflow
-	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+	if math.IsInf(x, 0) && Errors() == 0 {
 		Fatalf("ovf in Mpflt Float32")
 	}
 

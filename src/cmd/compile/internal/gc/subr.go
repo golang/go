@@ -6,13 +6,10 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"os"
-	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,13 +17,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-type Error struct {
-	pos src.XPos
-	msg string
-}
-
-var errors []Error
 
 // largeStack is info about a function whose stack frame is too large (rare).
 type largeStack struct {
@@ -40,170 +30,6 @@ var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
 	largeStackFrames   []largeStack
 )
-
-func errorexit() {
-	flusherrors()
-	if outfile != "" {
-		os.Remove(outfile)
-	}
-	os.Exit(2)
-}
-
-func adderrorname(n *Node) {
-	if n.Op != ODOT {
-		return
-	}
-	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
-	if len(errors) > 0 && errors[len(errors)-1].pos.Line() == n.Pos.Line() && errors[len(errors)-1].msg == old {
-		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
-	}
-}
-
-func adderr(pos src.XPos, format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	// Only add the position if know the position.
-	// See issue golang.org/issue/11361.
-	if pos.IsKnown() {
-		msg = fmt.Sprintf("%v: %s", linestr(pos), msg)
-	}
-	errors = append(errors, Error{
-		pos: pos,
-		msg: msg + "\n",
-	})
-}
-
-// byPos sorts errors by source position.
-type byPos []Error
-
-func (x byPos) Len() int           { return len(x) }
-func (x byPos) Less(i, j int) bool { return x[i].pos.Before(x[j].pos) }
-func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-
-// flusherrors sorts errors seen so far by line number, prints them to stdout,
-// and empties the errors array.
-func flusherrors() {
-	Ctxt.Bso.Flush()
-	if len(errors) == 0 {
-		return
-	}
-	sort.Stable(byPos(errors))
-	for i, err := range errors {
-		if i == 0 || err.msg != errors[i-1].msg {
-			fmt.Printf("%s", err.msg)
-		}
-	}
-	errors = errors[:0]
-}
-
-func hcrash() {
-	if Debug.h != 0 {
-		flusherrors()
-		if outfile != "" {
-			os.Remove(outfile)
-		}
-		var x *int
-		*x = 0
-	}
-}
-
-func linestr(pos src.XPos) string {
-	return Ctxt.OutermostPos(pos).Format(Debug.C == 0, Debug.L == 1)
-}
-
-// lasterror keeps track of the most recently issued error.
-// It is used to avoid multiple error messages on the same
-// line.
-var lasterror struct {
-	syntax src.XPos // source position of last syntax error
-	other  src.XPos // source position of last non-syntax error
-	msg    string   // error message of last non-syntax error
-}
-
-// sameline reports whether two positions a, b are on the same line.
-func sameline(a, b src.XPos) bool {
-	p := Ctxt.PosTable.Pos(a)
-	q := Ctxt.PosTable.Pos(b)
-	return p.Base() == q.Base() && p.Line() == q.Line()
-}
-
-func yyerrorl(pos src.XPos, format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-
-	if strings.HasPrefix(msg, "syntax error") {
-		nsyntaxerrors++
-		// only one syntax error per line, no matter what error
-		if sameline(lasterror.syntax, pos) {
-			return
-		}
-		lasterror.syntax = pos
-	} else {
-		// only one of multiple equal non-syntax errors per line
-		// (flusherrors shows only one of them, so we filter them
-		// here as best as we can (they may not appear in order)
-		// so that we don't count them here and exit early, and
-		// then have nothing to show for.)
-		if sameline(lasterror.other, pos) && lasterror.msg == msg {
-			return
-		}
-		lasterror.other = pos
-		lasterror.msg = msg
-	}
-
-	adderr(pos, "%s", msg)
-
-	hcrash()
-	nerrors++
-	if nsavederrors+nerrors >= 10 && Debug.e == 0 {
-		flusherrors()
-		fmt.Printf("%v: too many errors\n", linestr(pos))
-		errorexit()
-	}
-}
-
-func yyerrorv(lang string, format string, args ...interface{}) {
-	what := fmt.Sprintf(format, args...)
-	yyerrorl(lineno, "%s requires %s or later (-lang was set to %s; check go.mod)", what, lang, flag_lang)
-}
-
-func yyerror(format string, args ...interface{}) {
-	yyerrorl(lineno, format, args...)
-}
-
-func Warn(fmt_ string, args ...interface{}) {
-	Warnl(lineno, fmt_, args...)
-}
-
-func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
-	adderr(line, fmt_, args...)
-	if Debug.m != 0 {
-		flusherrors()
-	}
-}
-
-func Fatalf(fmt_ string, args ...interface{}) {
-	flusherrors()
-
-	if Debug_panic != 0 || nsavederrors+nerrors == 0 {
-		fmt.Printf("%v: internal compiler error: ", linestr(lineno))
-		fmt.Printf(fmt_, args...)
-		fmt.Printf("\n")
-
-		// If this is a released compiler version, ask for a bug report.
-		if strings.HasPrefix(objabi.Version, "go") {
-			fmt.Printf("\n")
-			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
-			fmt.Printf("https://golang.org/issue/new\n")
-		} else {
-			// Not a release; dump a stack trace, too.
-			fmt.Println()
-			os.Stdout.Write(debug.Stack())
-			fmt.Println()
-		}
-	}
-
-	hcrash()
-	errorexit()
-}
 
 // hasUniquePos reports whether n has a unique position that can be
 // used for reporting error messages.
