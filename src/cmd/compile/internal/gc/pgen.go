@@ -698,20 +698,20 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
 // to do with its offset in the user variable.
 func stackOffset(slot ssa.LocalSlot) int32 {
 	n := slot.N.(*Node)
-	var base int64
+	var off int64
 	switch n.Class() {
 	case PAUTO:
 		if Ctxt.FixedFrameSize() == 0 {
-			base -= int64(Widthptr)
+			off -= int64(Widthptr)
 		}
 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
-			base -= int64(Widthptr)
+			off -= int64(Widthptr)
 		}
 	case PPARAM, PPARAMOUT:
-		base += Ctxt.FixedFrameSize()
+		off += Ctxt.FixedFrameSize()
 	}
-	return int32(base + n.Xoffset + slot.Off)
+	return int32(off + n.Xoffset + slot.Off)
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.

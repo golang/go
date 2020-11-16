@@ -1382,16 +1382,16 @@ func checkLangCompat(lit *syntax.BasicLit) {
 	if s[0] != '0' {
 		return
 	}
-	base := s[1]
-	if base == 'b' || base == 'B' {
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
 		yyerrorv("go1.13", "binary literals")
 		return
 	}
-	if base == 'o' || base == 'O' {
+	if radix == 'o' || radix == 'O' {
 		yyerrorv("go1.13", "0o/0O-style octal literals")
 		return
 	}
-	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
+	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
 		yyerrorv("go1.13", "hexadecimal floating-point literals")
 	}
 }

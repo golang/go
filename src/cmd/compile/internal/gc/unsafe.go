@@ -31,7 +31,7 @@ func evalunsafe(n *Node) int64 {
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
 		n.Left.Left = typecheck(n.Left.Left, ctxExpr)
-		base := n.Left.Left
+		sbase := n.Left.Left
 
 		n.Left = typecheck(n.Left, ctxExpr)
 		if n.Left.Type == nil {
@@ -48,15 +48,15 @@ func evalunsafe(n *Node) int64 {
 			return 0
 		}
 
-		// Sum offsets for dots until we reach base.
+		// Sum offsets for dots until we reach sbase.
 		var v int64
-		for r := n.Left; r != base; r = r.Left {
+		for r := n.Left; r != sbase; r = r.Left {
 			switch r.Op {
 			case ODOTPTR:
 				// For Offsetof(s.f), s may itself be a pointer,
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
-				if r.Left != base {
+				if r.Left != sbase {
 					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
 					return 0
 				}
