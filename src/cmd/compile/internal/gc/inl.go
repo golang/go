@@ -722,7 +722,7 @@ func inlCallee(fn *Node) *Node {
 		}
 		return fn
 	case fn.Op == OCLOSURE:
-		c := fn.Func.Closure
+		c := fn.Func.Decl
 		caninl(c)
 		return c.Func.Nname
 	}
@@ -806,7 +806,7 @@ func reassigned(n *Node) (bool, *Node) {
 	// We need to walk the function body to check for reassignments so we follow the
 	// linkage to the ODCLFUNC node as that is where body is held.
 	if f.Op == OCLOSURE {
-		f = f.Func.Closure
+		f = f.Func.Decl
 	}
 	v := reassignVisitor{name: n}
 	a := v.visitList(f.Nbody)
@@ -976,8 +976,8 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 
 	// Handle captured variables when inlining closures.
 	if fn.Name.Defn != nil {
-		if c := fn.Name.Defn.Func.Closure; c != nil {
-			for _, v := range c.Func.Closure.Func.Cvars.Slice() {
+		if c := fn.Name.Defn.Func.OClosure; c != nil {
+			for _, v := range c.Func.ClosureVars.Slice() {
 				if v.Op == OXXX {
 					continue
 				}
@@ -987,7 +987,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 				// NB: if we enabled inlining of functions containing OCLOSURE or refined
 				// the reassigned check via some sort of copy propagation this would most
 				// likely need to be changed to a loop to walk up to the correct Param
-				if o == nil || (o.Name.Curfn != Curfn && o.Name.Curfn.Func.Closure != Curfn) {
+				if o == nil || (o.Name.Curfn != Curfn && o.Name.Curfn.Func.OClosure != Curfn) {
 					Fatalf("%v: unresolvable capture %v %v\n", n.Line(), fn, v)
 				}
 

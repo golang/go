@@ -623,7 +623,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		k = e.spill(k, n)
 
 		// Link addresses of captured variables to closure.
-		for _, v := range n.Func.Closure.Func.Cvars.Slice() {
+		for _, v := range n.Func.ClosureVars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
@@ -810,7 +810,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 			case v.Op == ONAME && v.Class() == PFUNC:
 				fn = v
 			case v.Op == OCLOSURE:
-				fn = v.Func.Closure.Func.Nname
+				fn = v.Func.Nname
 			}
 		case OCALLMETH:
 			fn = call.Left.MethodName()
@@ -1358,7 +1358,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
 		//
 		//    var u int  // okay to stack allocate
 		//    *(func() *int { return &u }()) = 42
-		if containsClosure(other.curfn, l.curfn) && l.curfn.Func.Closure.Func.Top&ctxCallee != 0 {
+		if containsClosure(other.curfn, l.curfn) && l.curfn.Func.ClosureCalled {
 			return false
 		}
 

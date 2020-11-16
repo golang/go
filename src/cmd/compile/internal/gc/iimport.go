@@ -329,7 +329,7 @@ func (r *importReader) doDecl(n *Node) {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
+			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(Func))
 			m.Type = mtyp
 			m.SetClass(PFUNC)
 			// methodSym already marked m.Sym as a function.

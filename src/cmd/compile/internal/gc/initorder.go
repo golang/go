@@ -285,7 +285,7 @@ func (d *initDeps) visit(n *Node) bool {
 		}
 
 	case OCLOSURE:
-		d.inspectList(n.Func.Closure.Nbody)
+		d.inspectList(n.Func.Decl.Nbody)
 
 	case ODOTMETH, OCALLPART:
 		d.foundDep(n.MethodName())
