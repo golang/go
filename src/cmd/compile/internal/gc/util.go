@@ -32,18 +32,13 @@ func Exit(code int) {
 }
 
 var (
-	blockprofile   string
-	cpuprofile     string
-	memprofile     string
 	memprofilerate int64
-	traceprofile   string
 	traceHandler   func(string)
-	mutexprofile   string
 )
 
 func startProfile() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
+	if Flag.CPUProfile != "" {
+		f, err := os.Create(Flag.CPUProfile)
 		if err != nil {
 			Fatalf("%v", err)
 		}
@@ -52,11 +47,11 @@ func startProfile() {
 		}
 		atExit(pprof.StopCPUProfile)
 	}
-	if memprofile != "" {
+	if Flag.MemProfile != "" {
 		if memprofilerate != 0 {
 			runtime.MemProfileRate = int(memprofilerate)
 		}
-		f, err := os.Create(memprofile)
+		f, err := os.Create(Flag.MemProfile)
 		if err != nil {
 			Fatalf("%v", err)
 		}
@@ -75,8 +70,8 @@ func startProfile() {
 		// Not doing memory profiling; disable it entirely.
 		runtime.MemProfileRate = 0
 	}
-	if blockprofile != "" {
-		f, err := os.Create(blockprofile)
+	if Flag.BlockProfile != "" {
+		f, err := os.Create(Flag.BlockProfile)
 		if err != nil {
 			Fatalf("%v", err)
 		}
@@ -86,8 +81,8 @@ func startProfile() {
 			f.Close()
 		})
 	}
-	if mutexprofile != "" {
-		f, err := os.Create(mutexprofile)
+	if Flag.MutexProfile != "" {
+		f, err := os.Create(Flag.MutexProfile)
 		if err != nil {
 			Fatalf("%v", err)
 		}
@@ -97,7 +92,7 @@ func startProfile() {
 			f.Close()
 		})
 	}
-	if traceprofile != "" && traceHandler != nil {
-		traceHandler(traceprofile)
+	if Flag.TraceProfile != "" && traceHandler != nil {
+		traceHandler(Flag.TraceProfile)
 	}
 }

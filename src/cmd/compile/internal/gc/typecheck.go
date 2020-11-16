@@ -15,7 +15,6 @@ import (
 // To enable tracing support (-t flag), set enableTrace to true.
 const enableTrace = false
 
-var trace bool
 var traceIndent []byte
 var skipDowidthForTracing bool
 
@@ -85,7 +84,7 @@ func resolve(n *Node) (res *Node) {
 	}
 
 	// only trace if there's work to do
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("resolve", n)(&res)
 	}
 
@@ -212,7 +211,7 @@ func typecheck(n *Node, top int) (res *Node) {
 	}
 
 	// only trace if there's work to do
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheck", n)(&res)
 	}
 
@@ -326,7 +325,7 @@ func indexlit(n *Node) *Node {
 // The result of typecheck1 MUST be assigned back to n, e.g.
 // 	n.Left = typecheck1(n.Left, top)
 func typecheck1(n *Node, top int) (res *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheck1", n)(&res)
 	}
 
@@ -2359,7 +2358,7 @@ func lookdot1(errnode *Node, s *types.Sym, t *types.Type, fs *types.Fields, dost
 // typecheckMethodExpr checks selector expressions (ODOT) where the
 // base expression is a type expression (OTYPE).
 func typecheckMethodExpr(n *Node) (res *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckMethodExpr", n)(&res)
 	}
 
@@ -2797,7 +2796,7 @@ func pushtype(n *Node, t *types.Type) *Node {
 // The result of typecheckcomplit MUST be assigned back to n, e.g.
 // 	n.Left = typecheckcomplit(n.Left)
 func typecheckcomplit(n *Node) (res *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckcomplit", n)(&res)
 	}
 
@@ -3215,7 +3214,7 @@ func samesafeexpr(l *Node, r *Node) bool {
 // if this assignment is the definition of a var on the left side,
 // fill in the var's type.
 func typecheckas(n *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckas", n)(nil)
 	}
 
@@ -3273,7 +3272,7 @@ func checkassignto(src *types.Type, dst *Node) {
 }
 
 func typecheckas2(n *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckas2", n)(nil)
 	}
 
@@ -3406,7 +3405,7 @@ out:
 
 // type check function definition
 func typecheckfunc(n *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckfunc", n)(nil)
 	}
 
@@ -3520,7 +3519,7 @@ func setUnderlying(t, underlying *types.Type) {
 }
 
 func typecheckdeftype(n *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
@@ -3540,7 +3539,7 @@ func typecheckdeftype(n *Node) {
 }
 
 func typecheckdef(n *Node) {
-	if enableTrace && trace {
+	if enableTrace && Flag.LowerT {
 		defer tracePrint("typecheckdef", n)(nil)
 	}
 

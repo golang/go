@@ -47,12 +47,12 @@ const (
 )
 
 func dumpobj() {
-	if linkobj == "" {
-		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
+	if Flag.LinkObj == "" {
+		dumpobj1(Flag.LowerO, modeCompilerObj|modeLinkerObj)
 		return
 	}
-	dumpobj1(outfile, modeCompilerObj)
-	dumpobj1(linkobj, modeLinkerObj)
+	dumpobj1(Flag.LowerO, modeCompilerObj)
+	dumpobj1(Flag.LinkObj, modeLinkerObj)
 }
 
 func dumpobj1(outfile string, mode int) {
@@ -79,8 +79,8 @@ func dumpobj1(outfile string, mode int) {
 
 func printObjHeader(bout *bio.Writer) {
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-	if buildid != "" {
-		fmt.Fprintf(bout, "build id %q\n", buildid)
+	if Flag.BuildID != "" {
+		fmt.Fprintf(bout, "build id %q\n", Flag.BuildID)
 	}
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
@@ -261,7 +261,7 @@ func dumpGlobalConst(n *Node) {
 			return
 		}
 	}
-	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), int64Val(t, v))
+	Ctxt.DwarfIntConst(Ctxt.Pkgpath, n.Sym.Name, typesymname(t), int64Val(t, v))
 }
 
 func dumpglobls() {

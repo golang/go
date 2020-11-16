@@ -488,14 +488,14 @@ func dimportpath(p *types.Pkg) {
 	// If we are compiling the runtime package, there are two runtime packages around
 	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
-	if myimportpath == "runtime" && p == Runtimepkg {
+	if Ctxt.Pkgpath == "runtime" && p == Runtimepkg {
 		return
 	}
 
 	str := p.Path
 	if p == localpkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		str = myimportpath
+		str = Ctxt.Pkgpath
 	}
 
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
@@ -510,7 +510,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return duintptr(s, ot, 0)
 	}
 
-	if pkg == localpkg && myimportpath == "" {
+	if pkg == localpkg && Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -529,7 +529,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duint32(s, ot, 0)
 	}
-	if pkg == localpkg && myimportpath == "" {
+	if pkg == localpkg && Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -1158,7 +1158,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		dupok = obj.DUPOK
 	}
 
-	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
+	if Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
 			if i, ok := typeSymIdx[tbase]; ok {
@@ -1613,7 +1613,7 @@ func dumpbasictypes() {
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in object files.
-	if myimportpath == "runtime" {
+	if Ctxt.Pkgpath == "runtime" {
 		for i := types.EType(1); i <= TBOOL; i++ {
 			dtypesym(types.NewPtr(types.Types[i]))
 		}
@@ -1629,10 +1629,10 @@ func dumpbasictypes() {
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
 
-		if flag_race {
+		if Flag.Race {
 			dimportpath(racepkg)
 		}
-		if flag_msan {
+		if Flag.MSan {
 			dimportpath(msanpkg)
 		}
 		dimportpath(types.NewPkg("main", ""))

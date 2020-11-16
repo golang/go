@@ -509,7 +509,7 @@ func allUnsafe(f *ssa.Func) bool {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	return compiling_runtime || f.NoSplit
+	return Flag.CompilingRuntime || f.NoSplit
 }
 
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
@@ -966,7 +966,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
-	if debuglive == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
+	if Flag.Live == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
 		return
 	}
 	if !(v == nil || v.Op.IsCall()) {
@@ -1235,7 +1235,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	lv.prologue()
 	lv.solve()
 	lv.epilogue()
-	if debuglive > 0 {
+	if Flag.Live > 0 {
 		lv.showlive(nil, lv.stackMaps[0])
 		for _, b := range f.Blocks {
 			for _, val := range b.Values {
@@ -1245,7 +1245,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 			}
 		}
 	}
-	if debuglive >= 2 {
+	if Flag.Live >= 2 {
 		lv.printDebug()
 	}
 

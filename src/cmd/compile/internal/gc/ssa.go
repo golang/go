@@ -60,10 +60,10 @@ func initssaconfig() {
 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
 	_ = types.NewPtr(types.Errortype)                                 // *error
 	types.NewPtrCacheEnabled = false
-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug.N == 0)
+	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Flag.N == 0)
 	ssaConfig.SoftFloat = thearch.SoftFloat
-	ssaConfig.Race = flag_race
-	ssaCaches = make([]ssa.Cache, nBackendWorkers)
+	ssaConfig.Race = Flag.Race
+	ssaCaches = make([]ssa.Cache, Flag.LowerC)
 
 	// Set up some runtime functions we'll need to call.
 	assertE2I = sysfunc("assertE2I")
@@ -291,7 +291,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	name := fn.funcname()
 	printssa := false
 	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", or a package.name e.g. "compress/gzip.(*Reader).Reset"
-		printssa = name == ssaDump || myimportpath+"."+name == ssaDump
+		printssa = name == ssaDump || Ctxt.Pkgpath+"."+name == ssaDump
 	}
 	var astBuf *bytes.Buffer
 	if printssa {
@@ -342,7 +342,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	if printssa {
 		ssaDF := ssaDumpFile
 		if ssaDir != "" {
-			ssaDF = filepath.Join(ssaDir, myimportpath+"."+name+".html")
+			ssaDF = filepath.Join(ssaDir, Ctxt.Pkgpath+"."+name+".html")
 			ssaD := filepath.Dir(ssaDF)
 			os.MkdirAll(ssaD, 0755)
 		}
@@ -358,7 +358,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.fwdVars = map[*Node]*ssa.Value{}
 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
 
-	s.hasOpenDefers = Debug.N == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
+	s.hasOpenDefers = Flag.N == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
 	switch {
 	case s.hasOpenDefers && (Ctxt.Flag_shared || Ctxt.Flag_dynlink) && thearch.LinkArch.Name == "386":
 		// Don't support open-coded defers for 386 ONLY when using shared
@@ -752,7 +752,7 @@ func (s *state) pushLine(line src.XPos) {
 		// the frontend may emit node with line number missing,
 		// use the parent line number in this case.
 		line = s.peekPos()
-		if Debug.K != 0 {
+		if Flag.K != 0 {
 			Warn("buildssa: unknown position (line 0)")
 		}
 	} else {
@@ -988,13 +988,13 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
 	var fn *obj.LSym
 	needWidth := false
 
-	if flag_msan {
+	if Flag.MSan {
 		fn = msanread
 		if wr {
 			fn = msanwrite
 		}
 		needWidth = true
-	} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
+	} else if Flag.Race && t.NumComponents(types.CountBlankFields) > 1 {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
 		// composites with only one element don't have subobjects, though.
@@ -1003,7 +1003,7 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
 			fn = racewriterange
 		}
 		needWidth = true
-	} else if flag_race {
+	} else if Flag.Race {
 		// for non-composite objects we can write just the start
 		// address, as any write must write the first byte.
 		fn = raceread
@@ -1090,7 +1090,7 @@ func (s *state) stmt(n *Node) {
 	case OCALLMETH, OCALLINTER:
 		s.callResult(n, callNormal)
 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class() == PFUNC {
-			if fn := n.Left.Sym.Name; compiling_runtime && fn == "throw" ||
+			if fn := n.Left.Sym.Name; Flag.CompilingRuntime && fn == "throw" ||
 				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
 				m := s.mem()
 				b := s.endBlock()
@@ -1225,7 +1225,7 @@ func (s *state) stmt(n *Node) {
 				// Check whether we're writing the result of an append back to the same slice.
 				// If so, we handle it specially to avoid write barriers on the fast
 				// (non-growth) path.
-				if !samesafeexpr(n.Left, rhs.List.First()) || Debug.N != 0 {
+				if !samesafeexpr(n.Left, rhs.List.First()) || Flag.N != 0 {
 					break
 				}
 				// If the slice can be SSA'd, it'll be on the stack,
@@ -4130,9 +4130,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	}
 	pkg := sym.Pkg.Path
 	if sym.Pkg == localpkg {
-		pkg = myimportpath
+		pkg = Ctxt.Pkgpath
 	}
-	if flag_race && pkg == "sync/atomic" {
+	if Flag.Race && pkg == "sync/atomic" {
 		// The race detector needs to be able to intercept these calls.
 		// We can't intrinsify them.
 		return nil
@@ -4930,7 +4930,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 // canSSA reports whether n is SSA-able.
 // n must be an ONAME (or an ODOT sequence with an ONAME base).
 func (s *state) canSSA(n *Node) bool {
-	if Debug.N != 0 {
+	if Flag.N != 0 {
 		return false
 	}
 	for n.Op == ODOT || (n.Op == OINDEX && n.Left.Type.IsArray()) {
@@ -5041,7 +5041,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
 	idx = s.extendIndex(idx, len, kind, bounded)
 
-	if bounded || Debug.B != 0 {
+	if bounded || Flag.B != 0 {
 		// If bounded or bounds checking is flag-disabled, then no check necessary,
 		// just return the extended index.
 		//
@@ -5114,7 +5114,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 	s.startBlock(bNext)
 
 	// In Spectre index mode, apply an appropriate mask to avoid speculative out-of-bounds accesses.
-	if spectreIndex {
+	if Flag.Cfg.SpectreIndex {
 		op := ssa.OpSpectreIndex
 		if kind != ssa.BoundsIndex && kind != ssa.BoundsIndexU {
 			op = ssa.OpSpectreSliceIndex
@@ -6235,7 +6235,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
 
-	if debuglive != 0 {
+	if Flag.Live != 0 {
 		for _, v := range vars {
 			Warnl(v.Pos, "stack object %v %s", v, v.Type.String())
 		}
@@ -6397,7 +6397,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
-		if i < len(f.Blocks)-1 && Debug.N == 0 {
+		if i < len(f.Blocks)-1 && Flag.N == 0 {
 			// If -N, leave next==nil so every block with successors
 			// ends in a JMP (except call blocks - plive doesn't like
 			// select{send,recv} followed by a JMP call).  Helps keep
@@ -6705,7 +6705,7 @@ func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		} else {
 			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TUINT], idx)
 		}
-		if bounded || Debug.B != 0 {
+		if bounded || Flag.B != 0 {
 			return lo
 		}
 		bNext := s.f.NewBlock(ssa.BlockPlain)
@@ -7117,7 +7117,7 @@ func (e *ssafn) Debug_checknil() bool {
 }
 
 func (e *ssafn) UseWriteBarrier() bool {
-	return use_writebarrier
+	return Flag.WB
 }
 
 func (e *ssafn) Syslook(name string) *obj.LSym {
@@ -7142,7 +7142,7 @@ func (e *ssafn) SetWBPos(pos src.XPos) {
 }
 
 func (e *ssafn) MyImportPath() string {
-	return myimportpath
+	return Ctxt.Pkgpath
 }
 
 func (n *Node) Typ() *types.Type {

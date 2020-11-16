@@ -213,7 +213,7 @@ func genAbstractFunc(fn *obj.LSym) {
 	if Debug_gendwarfinl != 0 {
 		Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
 	}
-	Ctxt.DwarfAbstractFunc(ifn, fn, myimportpath)
+	Ctxt.DwarfAbstractFunc(ifn, fn, Ctxt.Pkgpath)
 }
 
 // Undo any versioning performed when a name was written

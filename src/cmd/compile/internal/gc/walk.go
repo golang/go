@@ -24,7 +24,7 @@ func walk(fn *Node) {
 	Curfn = fn
 	errorsBefore := Errors()
 
-	if Debug.W != 0 {
+	if Flag.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
@@ -66,14 +66,14 @@ func walk(fn *Node) {
 		return
 	}
 	walkstmtlist(Curfn.Nbody.Slice())
-	if Debug.W != 0 {
+	if Flag.W != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	zeroResults()
 	heapmoves()
-	if Debug.W != 0 && Curfn.Func.Enter.Len() > 0 {
+	if Flag.W != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
@@ -186,7 +186,7 @@ func walkstmt(n *Node) *Node {
 	case ODCL:
 		v := n.Left
 		if v.Class() == PAUTOHEAP {
-			if compiling_runtime {
+			if Flag.CompilingRuntime {
 				yyerror("%v escapes to heap, not allowed in runtime", v)
 			}
 			if prealloc[v] == nil {
@@ -439,7 +439,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 
 	lno := setlineno(n)
 
-	if Debug.w > 1 {
+	if Flag.LowerW > 1 {
 		Dump("before walk expr", n)
 	}
 
@@ -1046,7 +1046,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			n.SetBounded(bounded(r, t.NumElem()))
-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
+			if Flag.LowerM != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1054,7 +1054,7 @@ opswitch:
 			}
 		} else if Isconst(n.Left, constant.String) {
 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
+			if Flag.LowerM != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1174,7 +1174,7 @@ opswitch:
 		Fatalf("append outside assignment")
 
 	case OCOPY:
-		n = copyany(n, init, instrumenting && !compiling_runtime)
+		n = copyany(n, init, instrumenting && !Flag.CompilingRuntime)
 
 		// cannot use chanfn - closechan takes any, not chan any
 	case OCLOSE:
@@ -1596,7 +1596,7 @@ opswitch:
 
 	updateHasCall(n)
 
-	if Debug.w != 0 && n != nil {
+	if Flag.LowerW != 0 && n != nil {
 		Dump("after walk expr", n)
 	}
 
@@ -2784,7 +2784,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		ptr1, len1 := nptr1.backingArrayPtrLen()
 		ptr2, len2 := nptr2.backingArrayPtrLen()
 		ncopy = mkcall1(fn, types.Types[TINT], &nodes, typename(elemtype), ptr1, len1, ptr2, len2)
-	} else if instrumenting && !compiling_runtime {
+	} else if instrumenting && !Flag.CompilingRuntime {
 		// rely on runtime to instrument:
 		//  copy(s[len(l1):], l2)
 		// l2 can be a slice or string.
@@ -2827,7 +2827,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 // isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n *Node) bool {
-	if Debug.N != 0 || instrumenting {
+	if Flag.N != 0 || instrumenting {
 		return false
 	}
 
@@ -3036,7 +3036,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 
 	// General case, with no function calls left as arguments.
 	// Leave for gen, except that instrumentation requires old form.
-	if !instrumenting || compiling_runtime {
+	if !instrumenting || Flag.CompilingRuntime {
 		return n
 	}
 
@@ -3991,7 +3991,7 @@ func canMergeLoads() bool {
 // isRuneCount reports whether n is of the form len([]rune(string)).
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
-	return Debug.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+	return Flag.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
 }
 
 func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {

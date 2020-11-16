@@ -255,7 +255,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(ncas)))
 
 	var pc0, pcs *Node
-	if flag_race {
+	if Flag.Race {
 		pcs = temp(types.NewArray(types.Types[TUINTPTR], int64(ncas)))
 		pc0 = typecheck(nod(OADDR, nod(OINDEX, pcs, nodintconst(0)), nil), ctxExpr)
 	} else {
@@ -308,7 +308,7 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
-		if flag_race {
+		if Flag.Race {
 			r = mkcall("selectsetpc", nil, nil, nod(OADDR, nod(OINDEX, pcs, nodintconst(int64(i))), nil))
 			init = append(init, r)
 		}
@@ -331,7 +331,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	// selv and order are no longer alive after selectgo.
 	init = append(init, nod(OVARKILL, selv, nil))
 	init = append(init, nod(OVARKILL, order, nil))
-	if flag_race {
+	if Flag.Race {
 		init = append(init, nod(OVARKILL, pcs, nil))
 	}
 

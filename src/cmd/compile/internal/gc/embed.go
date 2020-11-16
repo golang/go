@@ -8,9 +8,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"encoding/json"
-	"io/ioutil"
-	"log"
+
 	"path"
 	"sort"
 	"strconv"
@@ -18,27 +16,6 @@ import (
 )
 
 var embedlist []*Node
-
-var embedCfg struct {
-	Patterns map[string][]string
-	Files    map[string]string
-}
-
-func readEmbedCfg(file string) {
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatalf("-embedcfg: %v", err)
-	}
-	if err := json.Unmarshal(data, &embedCfg); err != nil {
-		log.Fatalf("%s: %v", file, err)
-	}
-	if embedCfg.Patterns == nil {
-		log.Fatalf("%s: invalid embedcfg: missing Patterns", file)
-	}
-	if embedCfg.Files == nil {
-		log.Fatalf("%s: invalid embedcfg: missing Files", file)
-	}
-}
 
 const (
 	embedUnknown = iota
@@ -69,7 +46,7 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 		p.yyerrorpos(pos, "invalid go:embed: missing import \"embed\"")
 		return exprs
 	}
-	if embedCfg.Patterns == nil {
+	if Flag.Cfg.Embed.Patterns == nil {
 		p.yyerrorpos(pos, "invalid go:embed: build system did not supply embed configuration")
 		return exprs
 	}
@@ -98,12 +75,12 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 	var list []string
 	for _, e := range embeds {
 		for _, pattern := range e.Patterns {
-			files, ok := embedCfg.Patterns[pattern]
+			files, ok := Flag.Cfg.Embed.Patterns[pattern]
 			if !ok {
 				p.yyerrorpos(e.Pos, "invalid go:embed: build system did not map pattern: %s", pattern)
 			}
 			for _, file := range files {
-				if embedCfg.Files[file] == "" {
+				if Flag.Cfg.Embed.Files[file] == "" {
 					p.yyerrorpos(e.Pos, "invalid go:embed: build system did not map file: %s", file)
 					continue
 				}
@@ -152,7 +129,7 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 // can't tell whether "string" and "byte" really mean "string" and "byte".
 // The result must be confirmed later, after type checking, using embedKind.
 func embedKindApprox(typ *Node) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && myimportpath == "embed")) {
+	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	// These are not guaranteed to match only string and []byte -
@@ -170,7 +147,7 @@ func embedKindApprox(typ *Node) int {
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && myimportpath == "embed")) {
+	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	if typ == types.Types[TSTRING] {
@@ -221,7 +198,7 @@ func initEmbed(v *Node) {
 
 	case embedString, embedBytes:
 		file := files[0]
-		fsym, size, err := fileStringSym(v.Pos, embedCfg.Files[file], kind == embedString, nil)
+		fsym, size, err := fileStringSym(v.Pos, Flag.Cfg.Embed.Files[file], kind == embedString, nil)
 		if err != nil {
 			yyerrorl(v.Pos, "embed %s: %v", file, err)
 		}
@@ -257,7 +234,7 @@ func initEmbed(v *Node) {
 				off = duintptr(slicedata, off, 0)
 				off += hashSize
 			} else {
-				fsym, size, err := fileStringSym(v.Pos, embedCfg.Files[file], true, hash)
+				fsym, size, err := fileStringSym(v.Pos, Flag.Cfg.Embed.Files[file], true, hash)
 				if err != nil {
 					yyerrorl(v.Pos, "embed %s: %v", file, err)
 				}

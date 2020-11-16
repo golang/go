@@ -50,7 +50,7 @@ type Order struct {
 // Order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *Node) {
-	if Debug.W > 1 {
+	if Flag.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
@@ -323,7 +323,7 @@ func (o *Order) stmtList(l Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []*Node) {
-	if Debug.N != 0 || instrumenting {
+	if Flag.N != 0 || instrumenting {
 		return
 	}
 
