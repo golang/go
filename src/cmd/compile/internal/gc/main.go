@@ -18,7 +18,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"go/constant"
@@ -118,12 +117,6 @@ func hidePanic() {
 	}
 }
 
-// supportsDynlink reports whether or not the code generator for the given
-// architecture supports the -shared and -dynlink flags.
-func supportsDynlink(arch *sys.Arch) bool {
-	return arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X)
-}
-
 // timing data for compiler phases
 var timings Timings
 
@@ -191,6 +184,74 @@ func Main(archInit func(*Arch)) {
 	gopkg = types.NewPkg("go", "")
 
 	ParseFlags()
+
+	// Record flags that affect the build result. (And don't
+	// record flags that don't, since that would cause spurious
+	// changes in the binary.)
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+
+	if !enableTrace && Flag.LowerT {
+		log.Fatalf("compiler not built with support for -t")
+	}
+
+	// Enable inlining (after recordFlags, to avoid recording the rewritten -l).  For now:
+	//	default: inlining on.  (Flag.LowerL == 1)
+	//	-l: inlining off  (Flag.LowerL == 0)
+	//	-l=2, -l=3: inlining on again, with extra debugging (Flag.LowerL > 1)
+	if Flag.LowerL <= 1 {
+		Flag.LowerL = 1 - Flag.LowerL
+	}
+
+	if Flag.SmallFrames {
+		maxStackVarSize = 128 * 1024
+		maxImplicitStackVarSize = 16 * 1024
+	}
+
+	if Flag.Dwarf {
+		Ctxt.DebugInfo = debuginfo
+		Ctxt.GenAbstractFunc = genAbstractFunc
+		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
+	} else {
+		// turn off inline generation if no dwarf at all
+		Flag.GenDwarfInl = 0
+		Ctxt.Flag_locationlists = false
+	}
+	if Ctxt.Flag_locationlists && len(Ctxt.Arch.DWARFRegisters) == 0 {
+		log.Fatalf("location lists requested but register mapping not available on %v", Ctxt.Arch.Name)
+	}
+
+	checkLang()
+
+	if Flag.SymABIs != "" {
+		readSymABIs(Flag.SymABIs, Ctxt.Pkgpath)
+	}
+
+	if ispkgin(omit_pkgs) {
+		Flag.Race = false
+		Flag.MSan = false
+	}
+
+	thearch.LinkArch.Init(Ctxt)
+	startProfile()
+	if Flag.Race {
+		racepkg = types.NewPkg("runtime/race", "")
+	}
+	if Flag.MSan {
+		msanpkg = types.NewPkg("runtime/msan", "")
+	}
+	if Flag.Race || Flag.MSan {
+		instrumenting = true
+	}
+	if Flag.Dwarf {
+		dwarf.EnableLogging(Debug_gendwarfinl != 0)
+	}
+	if Debug_softfloat != 0 {
+		thearch.SoftFloat = true
+	}
+
+	if Flag.JSON != "" { // parse version,destination from json logging optimization.
+		logopt.LogJsonOption(Flag.JSON)
+	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
 	ssaDir = os.Getenv("GOSSADIR")
