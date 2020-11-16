@@ -70,20 +70,18 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	// Update any session-specific registrations or unregistrations.
 	if !semanticTokensRegistered && options.SemanticTokens {
 		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: semanticTokenRegistrations(),
+			Registrations: []protocol.Registration{semanticTokenRegistration()},
 		}); err != nil {
 			return err
 		}
 	} else if semanticTokensRegistered && !options.SemanticTokens {
-		var unregistrations []protocol.Unregistration
-		for _, r := range semanticTokenRegistrations() {
-			unregistrations = append(unregistrations, protocol.Unregistration{
-				ID:     r.ID,
-				Method: r.Method,
-			})
-		}
 		if err := s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
-			Unregisterations: unregistrations,
+			Unregisterations: []protocol.Unregistration{
+				{
+					ID:     semanticTokenRegistration().ID,
+					Method: semanticTokenRegistration().Method,
+				},
+			},
 		}); err != nil {
 			return err
 		}
@@ -91,31 +89,19 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	return nil
 }
 
-// This is a work-around for
-// https://github.com/microsoft/language-server-protocol/issues/1107. Once
-// https://golang.org/cl/266497 has been released for ~1 month, we can probably
-// remove this function and use the only correct method name, which is
-// "textDocument/semanticTokens".
-func semanticTokenRegistrations() []protocol.Registration {
-	var registrations []protocol.Registration
-	for _, method := range []string{
-		"textDocument/semanticTokens",
-		"textDocument/semanticTokens/full",
-		"textDocument/semanticTokens/full/delta",
-		"textDocument/semanticTokens/range",
-	} {
-		registrations = append(registrations, protocol.Registration{
-			ID:     method,
-			Method: method,
-			RegisterOptions: &protocol.SemanticTokensOptions{
-				Legend: protocol.SemanticTokensLegend{
-					// TODO(pjw): trim these to what we use (and an unused one
-					// at position 0 of TokTypes, to catch typos)
-					TokenTypes:     SemanticTypes(),
-					TokenModifiers: SemanticModifiers(),
-				},
+func semanticTokenRegistration() protocol.Registration {
+	return protocol.Registration{
+		ID:     "textDocument/semanticTokens",
+		Method: "textDocument/semanticTokens",
+		RegisterOptions: &protocol.SemanticTokensOptions{
+			Legend: protocol.SemanticTokensLegend{
+				// TODO(pjw): trim these to what we use (and an unused one
+				// at position 0 of TokTypes, to catch typos)
+				TokenTypes:     SemanticTypes(),
+				TokenModifiers: SemanticModifiers(),
 			},
-		})
+			Full:  true,
+			Range: true,
+		},
 	}
-	return registrations
 }
