@@ -98,16 +98,16 @@ func (r *intReader) uint64() uint64 {
 }
 
 func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
-	ir := &intReader{in, pkg}
+	ird := &intReader{in, pkg}
 
-	version := ir.uint64()
+	version := ird.uint64()
 	if version != iexportVersion {
 		yyerror("import %q: unknown export format version %d", pkg.Path, version)
 		errorexit()
 	}
 
-	sLen := ir.uint64()
-	dLen := ir.uint64()
+	sLen := ird.uint64()
+	dLen := ird.uint64()
 
 	// Map string (and data) section into memory as a single large
 	// string. This reduces heap fragmentation and allows
@@ -138,10 +138,10 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	}
 
 	// Declaration index.
-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
-		pkg := p.pkgAt(ir.uint64())
-		pkgName := p.stringAt(ir.uint64())
-		pkgHeight := int(ir.uint64())
+	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+		pkg := p.pkgAt(ird.uint64())
+		pkgName := p.stringAt(ird.uint64())
+		pkgHeight := int(ird.uint64())
 		if pkg.Name == "" {
 			pkg.Name = pkgName
 			pkg.Height = pkgHeight
@@ -158,9 +158,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			}
 		}
 
-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ir.uint64()))
-			off := ir.uint64()
+		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			off := ird.uint64()
 
 			if _, ok := declImporter[s]; ok {
 				continue
@@ -177,12 +177,12 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	}
 
 	// Inline body index.
-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
-		pkg := p.pkgAt(ir.uint64())
+	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+		pkg := p.pkgAt(ird.uint64())
 
-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ir.uint64()))
-			off := ir.uint64()
+		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			off := ird.uint64()
 
 			if _, ok := inlineImporter[s]; ok {
 				continue

@@ -140,6 +140,41 @@ type EscEdge struct {
 	notes  *EscNote
 }
 
+func init() {
+	EscFmt = escFmt
+}
+
+// escFmt is called from node printing to print information about escape analysis results.
+func escFmt(n *Node, short bool) string {
+	text := ""
+	switch n.Esc {
+	case EscUnknown:
+		break
+
+	case EscHeap:
+		text = "esc(h)"
+
+	case EscNone:
+		text = "esc(no)"
+
+	case EscNever:
+		if !short {
+			text = "esc(N)"
+		}
+
+	default:
+		text = fmt.Sprintf("esc(%d)", n.Esc)
+	}
+
+	if e, ok := n.Opt().(*EscLocation); ok && e.loopDepth != 0 {
+		if text != "" {
+			text += " "
+		}
+		text += fmt.Sprintf("ld(%d)", e.loopDepth)
+	}
+	return text
+}
+
 // escapeFuncs performs escape analysis on a minimal batch of
 // functions.
 func escapeFuncs(fns []*Node, recursive bool) {
