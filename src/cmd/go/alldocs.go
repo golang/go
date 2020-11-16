@@ -1155,7 +1155,7 @@
 //
 // The -retract=version and -dropretract=version flags add and drop a
 // retraction on the given version. The version may be a single version
-// like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+// like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 // -retract=version is a no-op if that retraction already exists.
 //
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
