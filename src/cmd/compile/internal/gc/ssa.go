@@ -1102,7 +1102,7 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 	case ODEFER:
-		if Debug_defer > 0 {
+		if Debug.Defer > 0 {
 			var defertype string
 			if s.hasOpenDefers {
 				defertype = "open-coded"
@@ -1232,12 +1232,12 @@ func (s *state) stmt(n *Node) {
 				// so there will be no write barriers,
 				// so there's no need to attempt to prevent them.
 				if s.canSSA(n.Left) {
-					if Debug_append > 0 { // replicating old diagnostic message
+					if Debug.Append > 0 { // replicating old diagnostic message
 						Warnl(n.Pos, "append: len-only update (in local slice)")
 					}
 					break
 				}
-				if Debug_append > 0 {
+				if Debug.Append > 0 {
 					Warnl(n.Pos, "append: len-only update")
 				}
 				s.append(rhs, true)
@@ -5026,7 +5026,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
-	if disable_checknil != 0 || s.curfn.Func.NilCheckDisabled() {
+	if Debug.DisableNil != 0 || s.curfn.Func.NilCheckDisabled() {
 		return
 	}
 	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
@@ -5837,7 +5837,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		if n.Type.IsEmptyInterface() {
 			// Converting to an empty interface.
 			// Input could be an empty or nonempty interface.
-			if Debug_typeassert > 0 {
+			if Debug.TypeAssert > 0 {
 				Warnl(n.Pos, "type assertion inlined")
 			}
 
@@ -5904,7 +5904,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 			return
 		}
 		// converting to a nonempty interface needs a runtime call.
-		if Debug_typeassert > 0 {
+		if Debug.TypeAssert > 0 {
 			Warnl(n.Pos, "type assertion not inlined")
 		}
 		if n.Left.Type.IsEmptyInterface() {
@@ -5921,14 +5921,14 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		return s.rtcall(assertI2I, true, []*types.Type{n.Type}, target, iface)[0], nil
 	}
 
-	if Debug_typeassert > 0 {
+	if Debug.TypeAssert > 0 {
 		Warnl(n.Pos, "type assertion inlined")
 	}
 
 	// Converting to a concrete type.
 	direct := isdirectiface(n.Type)
 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
-	if Debug_typeassert > 0 {
+	if Debug.TypeAssert > 0 {
 		Warnl(n.Pos, "type assertion inlined")
 	}
 	var targetITab *ssa.Value
@@ -6474,7 +6474,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	if Ctxt.Flag_locationlists {
-		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug_locationlist > 1, stackOffset)
+		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug.LocationLists > 1, stackOffset)
 		bstart := s.bstart
 		// Note that at this moment, Prog.Pc is a sequence number; it's
 		// not a real PC until after assembly, so this mapping has to
@@ -7113,7 +7113,7 @@ func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
 }
 
 func (e *ssafn) Debug_checknil() bool {
-	return Debug_checknil != 0
+	return Debug.Nil != 0
 }
 
 func (e *ssafn) UseWriteBarrier() bool {

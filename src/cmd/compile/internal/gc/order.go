@@ -384,7 +384,7 @@ func orderMakeSliceCopy(s []*Node) {
 
 // edge inserts coverage instrumentation for libfuzzer.
 func (o *Order) edge() {
-	if Debug_libfuzzer == 0 {
+	if Debug.Libfuzzer == 0 {
 		return
 	}
 
@@ -998,7 +998,7 @@ func (o *Order) stmt(n *Node) {
 	// For now just clean all the temporaries at the end.
 	// In practice that's fine.
 	case OSWITCH:
-		if Debug_libfuzzer != 0 && !hasDefaultCase(n) {
+		if Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
 			// Add empty "default:" case for instrumentation.
 			n.List.Append(nod(OCASE, nil, nil))
 		}

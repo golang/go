@@ -13,10 +13,9 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strconv"
+
 	"strings"
 
-	"cmd/compile/internal/ssa"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -209,7 +208,7 @@ func ParseFlags() {
 	}
 	if Flag.Race || Flag.MSan {
 		// -race and -msan imply -d=checkptr for now.
-		Debug_checkptr = 1
+		Debug.Checkptr = 1
 	}
 
 	if Flag.CompilingRuntime && Flag.N != 0 {
@@ -222,89 +221,18 @@ func ParseFlags() {
 		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
 	}
 
-	// parse -d argument
-	if Flag.LowerD != "" {
-	Split:
-		for _, name := range strings.Split(Flag.LowerD, ",") {
-			if name == "" {
-				continue
-			}
-			// display help about the -d option itself and quit
-			if name == "help" {
-				fmt.Print(debugHelpHeader)
-				maxLen := len("ssa/help")
-				for _, t := range debugtab {
-					if len(t.name) > maxLen {
-						maxLen = len(t.name)
-					}
-				}
-				for _, t := range debugtab {
-					fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
-				}
-				// ssa options have their own help
-				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
-				fmt.Print(debugHelpFooter)
-				os.Exit(0)
-			}
-			val, valstring, haveInt := 1, "", true
-			if i := strings.IndexAny(name, "=:"); i >= 0 {
-				var err error
-				name, valstring = name[:i], name[i+1:]
-				val, err = strconv.Atoi(valstring)
-				if err != nil {
-					val, haveInt = 1, false
-				}
-			}
-			for _, t := range debugtab {
-				if t.name != name {
-					continue
-				}
-				switch vp := t.val.(type) {
-				case nil:
-					// Ignore
-				case *string:
-					*vp = valstring
-				case *int:
-					if !haveInt {
-						log.Fatalf("invalid debug value %v", name)
-					}
-					*vp = val
-				default:
-					panic("bad debugtab type")
-				}
-				continue Split
-			}
-			// special case for ssa for now
-			if strings.HasPrefix(name, "ssa/") {
-				// expect form ssa/phase/flag
-				// e.g. -d=ssa/generic_cse/time
-				// _ in phase name also matches space
-				phase := name[4:]
-				flag := "debug" // default flag is debug
-				if i := strings.Index(phase, "/"); i >= 0 {
-					flag = phase[i+1:]
-					phase = phase[:i]
-				}
-				err := ssa.PhaseOption(phase, flag, val, valstring)
-				if err != "" {
-					log.Fatalf(err)
-				}
-				continue Split
-			}
-			log.Fatalf("unknown debug key -d %s\n", name)
-		}
-	}
+	parseDebug()
 
 	if Flag.CompilingRuntime {
 		// Runtime can't use -d=checkptr, at least not yet.
-		Debug_checkptr = 0
+		Debug.Checkptr = 0
 
 		// Fuzzing the runtime isn't interesting either.
-		Debug_libfuzzer = 0
+		Debug.Libfuzzer = 0
 	}
 
 	// set via a -d flag
-	Ctxt.Debugpcln = Debug_pctab
+	Ctxt.Debugpcln = Debug.PCTab
 }
 
 // registerFlags adds flag registrations for all the fields in Flag.

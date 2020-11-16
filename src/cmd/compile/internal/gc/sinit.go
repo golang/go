@@ -256,7 +256,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 
 	case OCLOSURE:
 		if hasemptycvars(r) {
-			if Debug_closure > 0 {
+			if Debug.Closure > 0 {
 				Warnl(r.Pos, "closure converted to global")
 			}
 			// Closures with no captured variables are globals,

@@ -1685,7 +1685,7 @@ func reduceSlice(n *Node) *Node {
 	n.SetSliceBounds(low, high, max)
 	if (n.Op == OSLICE || n.Op == OSLICESTR) && low == nil && high == nil {
 		// Reduce x[:] to x.
-		if Debug_slice > 0 {
+		if Debug.Slice > 0 {
 			Warn("slice: omit slice operation")
 		}
 		return n.Left
@@ -3262,7 +3262,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 	switch t.Etype {
 	default:
-		if Debug_libfuzzer != 0 && t.IsInteger() {
+		if Debug.Libfuzzer != 0 && t.IsInteger() {
 			n.Left = cheapexpr(n.Left, init)
 			n.Right = cheapexpr(n.Right, init)
 
@@ -4087,5 +4087,5 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 // function fn at a given level. See debugHelpFooter for defined
 // levels.
 func checkPtr(fn *Node, level int) bool {
-	return Debug_checkptr >= level && fn.Func.Pragma&NoCheckPtr == 0
+	return Debug.Checkptr >= level && fn.Func.Pragma&NoCheckPtr == 0
 }

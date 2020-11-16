@@ -291,7 +291,7 @@ func compilenow(fn *Node) bool {
 	if fn.IsMethod() && isInlinableButNotInlined(fn) {
 		return false
 	}
-	return Flag.LowerC == 1 && Debug_compilelater == 0
+	return Flag.LowerC == 1 && Debug.CompileLater == 0
 }
 
 // isInlinableButNotInlined returns true if 'fn' was marked as an

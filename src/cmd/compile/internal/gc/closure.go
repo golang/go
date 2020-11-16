@@ -337,7 +337,7 @@ func hasemptycvars(clo *Node) bool {
 // closuredebugruntimecheck applies boilerplate checks for debug flags
 // and compiling runtime
 func closuredebugruntimecheck(clo *Node) {
-	if Debug_closure > 0 {
+	if Debug.Closure > 0 {
 		if clo.Esc == EscHeap {
 			Warnl(clo.Pos, "heap closure, captured vars = %v", clo.Func.ClosureVars)
 		} else {
@@ -386,7 +386,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	// If no closure vars, don't bother wrapping.
 	if hasemptycvars(clo) {
-		if Debug_closure > 0 {
+		if Debug.Closure > 0 {
 			Warnl(clo.Pos, "closure converted to global")
 		}
 		return fn.Nname

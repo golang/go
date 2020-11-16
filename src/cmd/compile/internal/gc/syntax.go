@@ -764,7 +764,7 @@ func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentB
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
-	if Debug_wb != 0 {
+	if Debug.WB != 0 {
 		Warnl(pos, "write barrier")
 	}
 	if !f.WBPos.IsKnown() {

@@ -34,79 +34,8 @@ import (
 	"strings"
 )
 
-var (
-	Debug_append       int
-	Debug_checkptr     int
-	Debug_closure      int
-	Debug_compilelater int
-	debug_dclstack     int
-	Debug_dumpptrs     int
-	Debug_libfuzzer    int
-	Debug_panic        int
-	Debug_slice        int
-	Debug_wb           int
-	Debug_pctab        string
-	Debug_locationlist int
-	Debug_typecheckinl int
-	Debug_gendwarfinl  int
-	Debug_softfloat    int
-	Debug_defer        int
-)
-
-// Debug arguments.
-// These can be specified with the -d flag, as in "-d nil"
-// to set the debug_checknil variable.
-// Multiple options can be comma-separated.
-// Each option accepts an optional argument, as in "gcprog=2"
-var debugtab = []struct {
-	name string
-	help string
-	val  interface{} // must be *int or *string
-}{
-	{"append", "print information about append compilation", &Debug_append},
-	{"checkptr", "instrument unsafe pointer conversions", &Debug_checkptr},
-	{"closure", "print information about closure compilation", &Debug_closure},
-	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
-	{"disablenil", "disable nil checks", &disable_checknil},
-	{"dclstack", "run internal dclstack check", &debug_dclstack},
-	{"dumpptrs", "show Node pointer values in Dump/dumplist output", &Debug_dumpptrs},
-	{"gcprog", "print dump of GC programs", &Debug_gcprog},
-	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
-	{"nil", "print information about nil checks", &Debug_checknil},
-	{"panic", "do not hide any compiler panic", &Debug_panic},
-	{"slice", "print information about slice compilation", &Debug_slice},
-	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
-	{"wb", "print information about write barriers", &Debug_wb},
-	{"export", "print export data", &Debug_export},
-	{"pctab", "print named pc-value table", &Debug_pctab},
-	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
-	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
-	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
-	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
-	{"defer", "print information about defer compilation", &Debug_defer},
-	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
-}
-
-const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
-
-<key> is one of:
-
-`
-
-const debugHelpFooter = `
-<value> is key-specific.
-
-Key "checkptr" supports values:
-	"0": instrumentation disabled
-	"1": conversions involving unsafe.Pointer are instrumented
-	"2": conversions to unsafe.Pointer force heap allocation
-
-Key "pctab" supports values:
-	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
-`
-
 func hidePanic() {
-	if Debug_panic == 0 && Errors() > 0 {
+	if Debug.Panic == 0 && Errors() > 0 {
 		// If we've already complained about things
 		// in the program, don't bother complaining
 		// about a panic too; let the user clean up
@@ -243,9 +172,9 @@ func Main(archInit func(*Arch)) {
 		instrumenting = true
 	}
 	if Flag.Dwarf {
-		dwarf.EnableLogging(Debug_gendwarfinl != 0)
+		dwarf.EnableLogging(Debug.DwarfInl != 0)
 	}
-	if Debug_softfloat != 0 {
+	if Debug.SoftFloat != 0 {
 		thearch.SoftFloat = true
 	}
 
@@ -396,7 +325,7 @@ func Main(archInit func(*Arch)) {
 
 	// Phase 5: Inlining
 	timings.Start("fe", "inlining")
-	if Debug_typecheckinl != 0 {
+	if Debug.TypecheckInl != 0 {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
@@ -501,7 +430,7 @@ func Main(archInit func(*Arch)) {
 	// DWARF inlining gen so as to avoid problems with generated
 	// method wrappers.
 	if Ctxt.DwFixups != nil {
-		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug_gendwarfinl != 0)
+		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug.DwarfInl != 0)
 		Ctxt.DwFixups = nil
 		Flag.GenDwarfInl = 0
 	}
@@ -944,7 +873,7 @@ func importfile(f constant.Value) *types.Pkg {
 		return nil
 
 	case 'B':
-		if Debug_export != 0 {
+		if Debug.Export != 0 {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B

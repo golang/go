@@ -208,7 +208,7 @@ func Fatalf(format string, args ...interface{}) {
 func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 	flusherrors()
 
-	if Debug_panic != 0 || numErrors == 0 {
+	if Debug.Panic != 0 || numErrors == 0 {
 		fmt.Printf("%v: internal compiler error: ", linestr(pos))
 		fmt.Printf(format, args...)
 		fmt.Printf("\n")

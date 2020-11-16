@@ -1787,13 +1787,11 @@ type GCProg struct {
 	w      gcprog.Writer
 }
 
-var Debug_gcprog int // set by -d gcprog
-
 func (p *GCProg) init(lsym *obj.LSym) {
 	p.lsym = lsym
 	p.symoff = 4 // first 4 bytes hold program length
 	p.w.Init(p.writeByte)
-	if Debug_gcprog > 0 {
+	if Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
 		p.w.Debug(os.Stderr)
 	}
@@ -1807,7 +1805,7 @@ func (p *GCProg) end() {
 	p.w.End()
 	duint32(p.lsym, 0, uint32(p.symoff-4))
 	ggloblsym(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
-	if Debug_gcprog > 0 {
+	if Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
 	}
 }

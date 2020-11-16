@@ -26,7 +26,7 @@ type varPos struct {
 func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	var inlcalls dwarf.InlCalls
 
-	if Debug_gendwarfinl != 0 {
+	if Debug.DwarfInl != 0 {
 		Ctxt.Logf("assembling DWARF inlined routine info for %v\n", fnsym.Name)
 	}
 
@@ -181,7 +181,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	}
 
 	// Debugging
-	if Debug_gendwarfinl != 0 {
+	if Debug.DwarfInl != 0 {
 		dumpInlCalls(inlcalls)
 		dumpInlVars(dwVars)
 	}
@@ -210,7 +210,7 @@ func genAbstractFunc(fn *obj.LSym) {
 		Ctxt.Diag("failed to locate precursor fn for %v", fn)
 		return
 	}
-	if Debug_gendwarfinl != 0 {
+	if Debug.DwarfInl != 0 {
 		Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
 	}
 	Ctxt.DwarfAbstractFunc(ifn, fn, Ctxt.Pkgpath)

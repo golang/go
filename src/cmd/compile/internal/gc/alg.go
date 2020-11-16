@@ -387,7 +387,7 @@ func genhash(t *types.Type) *obj.LSym {
 	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
-	if debug_dclstack != 0 {
+	if Debug.DclStack != 0 {
 		testdclstack()
 	}
 
@@ -766,7 +766,7 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
-	if debug_dclstack != 0 {
+	if Debug.DclStack != 0 {
 		testdclstack()
 	}
 
