@@ -758,6 +758,7 @@ const (
 	OTYPE    // type name
 	OPACK    // import
 	OLITERAL // literal
+	ONIL     // nil
 
 	// expressions
 	OADD          // Left + Right
