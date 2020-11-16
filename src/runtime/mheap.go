@@ -1320,6 +1320,10 @@ func (h *mheap) grow(npage uintptr) bool {
 	assertLockHeld(&h.lock)
 
 	// We must grow the heap in whole palloc chunks.
+	// We call sysMap below but note that because we
+	// round up to pallocChunkPages which is on the order
+	// of MiB (generally >= to the huge page size) we
+	// won't be calling it too much.
 	ask := alignUp(npage, pallocChunkPages) * pageSize
 
 	totalGrowth := uintptr(0)
@@ -1346,6 +1350,17 @@ func (h *mheap) grow(npage uintptr) bool {
 			// remains of the current space and switch to
 			// the new space. This should be rare.
 			if size := h.curArena.end - h.curArena.base; size != 0 {
+				// Transition this space from Reserved to Prepared and mark it
+				// as released since we'll be able to start using it after updating
+				// the page allocator and releasing the lock at any time.
+				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
+				// Update stats.
+				atomic.Xadd64(&memstats.heap_released, int64(size))
+				stats := memstats.heapStats.acquire()
+				atomic.Xaddint64(&stats.released, int64(size))
+				memstats.heapStats.release()
+				// Update the page allocator's structures to make this
+				// space ready for allocation.
 				h.pages.grow(h.curArena.base, size)
 				totalGrowth += size
 			}
@@ -1353,17 +1368,6 @@ func (h *mheap) grow(npage uintptr) bool {
 			h.curArena.base = uintptr(av)
 			h.curArena.end = uintptr(av) + asize
 		}
-
-		// The memory just allocated counts as both released
-		// and idle, even though it's not yet backed by spans.
-		//
-		// The allocation is always aligned to the heap arena
-		// size which is always > physPageSize, so its safe to
-		// just add directly to heap_released.
-		atomic.Xadd64(&memstats.heap_released, int64(asize))
-		stats := memstats.heapStats.acquire()
-		atomic.Xaddint64(&stats.released, int64(asize))
-		memstats.heapStats.release()
 
 		// Recalculate nBase.
 		// We know this won't overflow, because sysAlloc returned
@@ -1375,6 +1379,23 @@ func (h *mheap) grow(npage uintptr) bool {
 	// Grow into the current arena.
 	v := h.curArena.base
 	h.curArena.base = nBase
+
+	// Transition the space we're going to use from Reserved to Prepared.
+	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
+
+	// The memory just allocated counts as both released
+	// and idle, even though it's not yet backed by spans.
+	//
+	// The allocation is always aligned to the heap arena
+	// size which is always > physPageSize, so its safe to
+	// just add directly to heap_released.
+	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
+	stats := memstats.heapStats.acquire()
+	atomic.Xaddint64(&stats.released, int64(nBase-v))
+	memstats.heapStats.release()
+
+	// Update the page allocator's structures to make this
+	// space ready for allocation.
 	h.pages.grow(v, nBase-v)
 	totalGrowth += nBase - v
 
