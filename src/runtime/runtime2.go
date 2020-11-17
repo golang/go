@@ -1052,7 +1052,6 @@ func (w waitReason) String() string {
 }
 
 var (
-	allglen    uintptr
 	allm       *m
 	gomaxprocs int32
 	ncpu       int32
