@@ -1391,9 +1391,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			var key operand
 			check.expr(&key, e.Index)
 			check.assignment(&key, typ.key, "map index")
-			if key.mode == invalid {
-				goto Error
-			}
+			// ok to continue even if indexing failed - map element type is known
 			x.mode = mapindex
 			x.typ = typ.elem
 			x.expr = e
@@ -1448,9 +1446,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					var key operand
 					check.expr(&key, e.Index)
 					check.assignment(&key, tkey, "map index")
-					if key.mode == invalid {
-						goto Error
-					}
+					// ok to continue even if indexing failed - map element type is known
 
 					// If there are only maps, we are done.
 					if nmaps == len(typ.types) {
@@ -1464,6 +1460,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// now we require that the map key be an integer type.
 					// TODO(gri) This is probably not good enough.
 					valid = isInteger(tkey)
+					// avoid 2nd indexing error if indexing failed above
+					if !valid && key.mode == invalid {
+						goto Error
+					}
 					x.mode = value // map index expressions are not addressable
 				} else {
 					// no maps
