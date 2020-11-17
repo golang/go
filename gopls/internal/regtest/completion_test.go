@@ -193,6 +193,54 @@ package ma
 	})
 }
 
+// Test the order of completion suggestions
+func TestStructLiteralCompletion(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+-- foo.go --
+package foo
+
+type Foo struct {
+	c int
+	b int
+	a int
+}
+
+func f() {
+	foo := Foo{
+		
+	}
+}
+`
+
+	want := []string{"c", "b", "a"}
+
+	run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo.go")
+		completions := env.Completion("foo.go", fake.Pos{
+			Line:   10,
+			Column: 0,
+		})
+
+		diff := compareCompletionResultsOnlyHead(want, completions.Items)
+		if diff != "" {
+			t.Fatal(diff)
+			return
+		}
+	})
+}
+
+func compareCompletionResultsOnlyHead(want []string, gotItems []protocol.CompletionItem) string {
+	for i := range want {
+		if want[i] != gotItems[i].Label {
+			return fmt.Sprintf("completion results are not the same: got %v, want %v", gotItems[i].Label, want[i])
+		}
+	}
+	return ""
+}
+
 func compareCompletionResults(want []string, gotItems []protocol.CompletionItem) string {
 	if len(gotItems) != len(want) {
 		return fmt.Sprintf("got %v completion(s), want %v", len(gotItems), len(want))

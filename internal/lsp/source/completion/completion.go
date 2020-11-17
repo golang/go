@@ -1522,6 +1522,7 @@ func (c *completer) structLiteralFieldName(ctx context.Context) error {
 		}
 	}
 
+	deltaScore := 0.0001
 	switch t := clInfo.clType.(type) {
 	case *types.Struct:
 		for i := 0; i < t.NumFields(); i++ {
@@ -1529,7 +1530,7 @@ func (c *completer) structLiteralFieldName(ctx context.Context) error {
 			if !addedFields[field] {
 				c.deepState.enqueue(candidate{
 					obj:   field,
-					score: highScore,
+					score: highScore - float64(i)*deltaScore,
 				})
 			}
 		}
