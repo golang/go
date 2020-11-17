@@ -31047,7 +31047,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
-		symEffect:         SymRdWr,
+		symEffect:         SymAddr,
 		asm:               riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -34771,7 +34771,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
-		symEffect:         SymRead,
+		symEffect:         SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295000064}, // SP SB
@@ -34785,7 +34785,7 @@ var opcodeTable = [...]opInfo{
 		name:      "MOVDaddridx",
 		auxType:   auxSymOff,
 		argLen:    2,
-		symEffect: SymRead,
+		symEffect: SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295000064}, // SP SB
