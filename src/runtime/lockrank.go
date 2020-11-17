@@ -44,7 +44,6 @@ const (
 	lockRankPollDesc
 	lockRankSched
 	lockRankDeadlock
-	lockRankPanic
 	lockRankAllg
 	lockRankAllp
 
@@ -92,6 +91,7 @@ const (
 	// rank, we don't allow any further locks to be acquired other than more
 	// hchan locks.
 	lockRankHchanLeaf
+	lockRankPanic
 
 	// Leaf locks with no dependencies, so these constants are not actually used anywhere.
 	// There are other architecture-dependent leaf locks as well.
@@ -123,7 +123,6 @@ var lockNames = []string{
 	lockRankPollDesc: "pollDesc",
 	lockRankSched:    "sched",
 	lockRankDeadlock: "deadlock",
-	lockRankPanic:    "panic",
 	lockRankAllg:     "allg",
 	lockRankAllp:     "allp",
 
@@ -162,6 +161,7 @@ var lockNames = []string{
 
 	lockRankGFree:     "gFree",
 	lockRankHchanLeaf: "hchanLeaf",
+	lockRankPanic:     "panic",
 
 	lockRankNewmHandoff:   "newmHandoff.lock",
 	lockRankDebugPtrmask:  "debugPtrmask.lock",
@@ -202,8 +202,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankPollDesc:      {},
 	lockRankSched:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc},
 	lockRankDeadlock:      {lockRankDeadlock},
-	lockRankPanic:         {lockRankDeadlock},
-	lockRankAllg:          {lockRankSysmon, lockRankSched, lockRankPanic},
+	lockRankAllg:          {lockRankSysmon, lockRankSched},
 	lockRankAllp:          {lockRankSysmon, lockRankSched},
 	lockRankTimers:        {lockRankSysmon, lockRankScavenge, lockRankSched, lockRankAllp, lockRankPollDesc, lockRankTimers},
 	lockRankItab:          {},
@@ -237,6 +236,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 
 	lockRankGFree:     {lockRankSched},
 	lockRankHchanLeaf: {lockRankGscan, lockRankHchanLeaf},
+	lockRankPanic:     {lockRankDeadlock}, // plus any other lock held on throw.
 
 	lockRankNewmHandoff:   {},
 	lockRankDebugPtrmask:  {},
