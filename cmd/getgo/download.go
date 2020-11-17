@@ -12,6 +12,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,7 +23,6 @@ import (
 )
 
 const (
-	currentVersionURL = "https://golang.org/VERSION?m=text"
 	downloadURLPrefix = "https://dl.google.com/go"
 )
 
@@ -168,18 +168,24 @@ func unpackZip(src, dest string) error {
 }
 
 func getLatestGoVersion() (string, error) {
-	resp, err := http.Get(currentVersionURL)
+	resp, err := http.Get("https://golang.org/dl/?mode=json")
 	if err != nil {
 		return "", fmt.Errorf("Getting current Go version failed: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode > 299 {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := ioutil.ReadAll(io.LimitReader(resp.Body, 1024))
-		return "", fmt.Errorf("Could not get current Go version: HTTP %d: %q", resp.StatusCode, b)
+		return "", fmt.Errorf("Could not get current Go release: HTTP %d: %q", resp.StatusCode, b)
 	}
-	version, err := ioutil.ReadAll(resp.Body)
+	var releases []struct {
+		Version string
+	}
+	err = json.NewDecoder(resp.Body).Decode(&releases)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(version)), nil
+	if len(releases) < 1 {
+		return "", fmt.Errorf("Could not get at least one Go release")
+	}
+	return releases[0].Version, nil
 }
