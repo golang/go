@@ -780,6 +780,11 @@ search:
 			}
 		notLast:
 			h.count--
+			// Reset the hash seed to make it more difficult for attackers to
+			// repeatedly trigger hash collisions. See issue 25237.
+			if h.count == 0 {
+				h.hash0 = fastrand()
+			}
 			break search
 		}
 	}
@@ -992,6 +997,10 @@ func mapclear(t *maptype, h *hmap) {
 	h.nevacuate = 0
 	h.noverflow = 0
 	h.count = 0
+
+	// Reset the hash seed to make it more difficult for attackers to
+	// repeatedly trigger hash collisions. See issue 25237.
+	h.hash0 = fastrand()
 
 	// Keep the mapextra allocation but clear any extra information.
 	if h.extra != nil {
@@ -1371,5 +1380,5 @@ func reflectlite_maplen(h *hmap) int {
 	return h.count
 }
 
-const maxZero = 1024 // must match value in cmd/compile/internal/gc/walk.go:zeroValSize
+const maxZero = 1024 // must match value in reflect/value.go:maxZero cmd/compile/internal/gc/walk.go:zeroValSize
 var zeroVal [maxZero]byte

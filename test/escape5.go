@@ -179,6 +179,13 @@ func _() {
 	u.N()
 }
 
+func fbad24305() {
+	// BAD u should not be heap allocated
+	var u U // ERROR "moved to heap: u"
+	(*U).M(&u)
+	(*U).N(&u)
+}
+
 // Issue 24730: taking address in a loop causes unnecessary escape
 type T24730 struct {
 	x [64]byte

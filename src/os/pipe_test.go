@@ -104,6 +104,25 @@ func TestStdPipe(t *testing.T) {
 			}
 		}
 	}
+
+	// Test redirecting stdout but not stderr.  Issue 40076.
+	cmd := osexec.Command(os.Args[0], "-test.run", "TestStdPipeHelper")
+	cmd.Stdout = w
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(), "GO_TEST_STD_PIPE_HELPER=1")
+	if err := cmd.Run(); err == nil {
+		t.Errorf("unexpected success of write to closed stdout")
+	} else if ee, ok := err.(*osexec.ExitError); !ok {
+		t.Errorf("unexpected exec error type %T: %v", err, err)
+	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+		t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
+	} else if !ws.Signaled() || ws.Signal() != syscall.SIGPIPE {
+		t.Errorf("unexpected exit status %v for write to closed stdout", err)
+	}
+	if output := stderr.Bytes(); len(output) > 0 {
+		t.Errorf("unexpected output on stderr: %s", output)
+	}
 }
 
 // This is a helper for TestStdPipe. It's not a test in itself.

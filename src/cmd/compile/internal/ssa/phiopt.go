@@ -154,7 +154,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 	}
 	v.AddArg(a)
 
-	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, a.Type, a)
+	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
 	switch v.Type.Size() {
 	case 1:
 		v.reset(OpCopy)

@@ -261,8 +261,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				n.To.Reg = x86.REG_DX
 			}
 
-			j.To.Val = n
-			j2.To.Val = s.Pc()
+			j.To.SetTarget(n)
+			j2.To.SetTarget(s.Pc())
 		}
 
 	case ssa.Op386HMULL, ssa.Op386HMULLU:

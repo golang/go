@@ -90,7 +90,7 @@ const (
 	//
 	// This ratio is used as part of multiplicative factor to help the scavenger account
 	// for the additional costs of using scavenged memory in its pacing.
-	scavengeCostRatio = 0.7 * sys.GoosDarwin
+	scavengeCostRatio = 0.7 * (sys.GoosDarwin + sys.GoosIos)
 
 	// scavengeReservationShards determines the amount of memory the scavenger
 	// should reserve for scavenging at a time. Specifically, the amount of

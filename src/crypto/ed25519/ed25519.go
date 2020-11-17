@@ -154,7 +154,7 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 	return signature
 }
 
-func signGeneric(signature, privateKey, message []byte) {
+func sign(signature, privateKey, message []byte) {
 	if l := len(privateKey); l != PrivateKeySize {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
 	}
@@ -201,10 +201,6 @@ func signGeneric(signature, privateKey, message []byte) {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return verify(publicKey, message, sig)
-}
-
-func verifyGeneric(publicKey PublicKey, message, sig []byte) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}

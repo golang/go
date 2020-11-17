@@ -18,6 +18,6 @@ package use
 import _ "rsc.io/quote"
 
 -- want --
-go: example.com/quote@v1.5.2: parsing go.mod:
+go: rsc.io/quote@v1.5.2 (replaced by example.com/quote@v1.5.2): parsing go.mod:
 	module declares its path as: rsc.io/Quote
 	        but was required as: rsc.io/quote

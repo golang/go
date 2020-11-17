@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -75,5 +76,59 @@ func main() {
 
 	if section.Info != numLocalSymbols {
 		t.Fatalf("Unexpected sh info, want greater than 0, got: %d", section.Info)
+	}
+}
+
+func TestNoDuplicateNeededEntries(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	// run this test on just a small set of platforms (no need to test it
+	// across the board given the nature of the test).
+	pair := runtime.GOOS + "-" + runtime.GOARCH
+	switch pair {
+	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
+	default:
+		t.Skip("no need for test on " + pair)
+	}
+
+	t.Parallel()
+
+	dir, err := ioutil.TempDir("", "no-dup-needed")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+
+	path := filepath.Join(dir, "x")
+	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
+	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
+	}
+
+	f, err := elf.Open(path)
+	if err != nil {
+		t.Fatalf("Failed to open ELF file: %v", err)
+	}
+	libs, err := f.ImportedLibraries()
+	if err != nil {
+		t.Fatalf("Failed to read imported libraries: %v", err)
+	}
+
+	var count int
+	for _, lib := range libs {
+		if lib == "libc.so" {
+			count++
+		}
+	}
+
+	if got, want := count, 1; got != want {
+		t.Errorf("Got %d entries for `libc.so`, want %d", got, want)
 	}
 }

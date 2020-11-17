@@ -106,6 +106,8 @@ func FreeOSMemory() {
 // the program crashes.
 // SetMaxStack returns the previous setting.
 // The initial setting is 1 GB on 64-bit systems, 250 MB on 32-bit systems.
+// There may be a system-imposed maximum stack limit regardless
+// of the value provided to SetMaxStack.
 //
 // SetMaxStack is useful mainly for limiting the damage done by
 // goroutines that enter an infinite recursion. It only limits future
@@ -139,6 +141,11 @@ func SetMaxThreads(threads int) int {
 // manipulation of memory may cause faults at non-nil addresses in less
 // dramatic situations; SetPanicOnFault allows such programs to request
 // that the runtime trigger only a panic, not a crash.
+// The runtime.Error that the runtime panics with may have an additional method:
+//     Addr() uintptr
+// If that method exists, it returns the memory address which triggered the fault.
+// The results of Addr are best-effort and the veracity of the result
+// may depend on the platform.
 // SetPanicOnFault applies only to the current goroutine.
 // It returns the previous setting.
 func SetPanicOnFault(enabled bool) bool {

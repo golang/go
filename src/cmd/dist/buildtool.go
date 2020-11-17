@@ -56,7 +56,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/gcprog",
 	"cmd/internal/dwarf",
 	"cmd/internal/edit",
-	"cmd/internal/goobj2",
+	"cmd/internal/goobj",
 	"cmd/internal/objabi",
 	"cmd/internal/obj",
 	"cmd/internal/obj/arm",
@@ -113,14 +113,15 @@ var ignorePrefixes = []string{
 
 // File suffixes that use build tags introduced since Go 1.4.
 // These must not be copied into the bootstrap build directory.
+// Also ignore test files.
 var ignoreSuffixes = []string{
 	"_arm64.s",
-	"_arm64_test.s",
 	"_arm64.go",
 	"_riscv64.s",
 	"_riscv64.go",
 	"_wasm.s",
 	"_wasm.go",
+	"_test.s",
 }
 
 func bootstrapBuildTools() {

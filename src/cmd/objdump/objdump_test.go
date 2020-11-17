@@ -117,8 +117,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
 // binary for the current system (only) and test that objdump
 // can handle that one.
 
-func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string) {
-	t.Parallel()
+func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool, flags ...string) {
 	goarch := runtime.GOARCH
 	if *target != "" {
 		f := strings.Split(*target, "/")
@@ -132,11 +131,11 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 		goarch = f[1]
 	}
 
-	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v", flags, printCode, printGnuAsm)))
+	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
-	args = append(args, "fmthello.go")
+	args = append(args, srcfname)
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	// "Bad line" bug #36683 is sensitive to being run in the source directory.
 	cmd.Dir = "testdata"
@@ -146,7 +145,7 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 	t.Logf("Running %v", cmd.Args)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
+		t.Fatalf("go build %s: %v\n%s", srcfname, err, out)
 	}
 	need := []string{
 		"TEXT main.main(SB)",
@@ -155,7 +154,7 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 	if printCode {
 		need = append(need, `	Println("hello, world")`)
 	} else {
-		need = append(need, "fmthello.go:6")
+		need = append(need, srcfname+":6")
 	}
 
 	switch goarch {
@@ -199,7 +198,8 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 	t.Logf("Running %v", cmd.Args)
 
 	if err != nil {
-		t.Fatalf("objdump fmthello.exe: %v\n%s", err, out)
+		exename := srcfname[:len(srcfname)-len(filepath.Ext(srcfname))] + ".exe"
+		t.Fatalf("objdump %q: %v\n%s", exename, err, out)
 	}
 
 	text := string(out)
@@ -222,6 +222,17 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 	}
 }
 
+func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
+	t.Parallel()
+	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
+	if build.Default.CgoEnabled {
+		if runtime.GOOS == "aix" {
+			t.Skipf("skipping on %s, issue 40972", runtime.GOOS)
+		}
+		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
+	}
+}
+
 func TestDisasm(t *testing.T) {
 	switch runtime.GOARCH {
 	case "mips", "mipsle", "mips64", "mips64le":
@@ -231,7 +242,7 @@ func TestDisasm(t *testing.T) {
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
-	testDisasm(t, false, false)
+	testGoAndCgoDisasm(t, false, false)
 }
 
 func TestDisasmCode(t *testing.T) {
@@ -239,7 +250,7 @@ func TestDisasmCode(t *testing.T) {
 	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
 		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
 	}
-	testDisasm(t, true, false)
+	testGoAndCgoDisasm(t, true, false)
 }
 
 func TestDisasmGnuAsm(t *testing.T) {
@@ -247,7 +258,7 @@ func TestDisasmGnuAsm(t *testing.T) {
 	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
 		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
 	}
-	testDisasm(t, false, true)
+	testGoAndCgoDisasm(t, false, true)
 }
 
 func TestDisasmExtld(t *testing.T) {
@@ -268,7 +279,8 @@ func TestDisasmExtld(t *testing.T) {
 	if !build.Default.CgoEnabled {
 		t.Skip("skipping because cgo is not enabled")
 	}
-	testDisasm(t, false, false, "-ldflags=-linkmode=external")
+	t.Parallel()
+	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
 }
 
 func TestDisasmGoobj(t *testing.T) {

@@ -58,7 +58,7 @@ func init() {
 	switch runtime.GOOS {
 	case "android", "js":
 		canRun = false
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			canRun = false

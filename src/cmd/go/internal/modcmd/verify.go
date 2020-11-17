@@ -6,6 +6,7 @@ package modcmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -13,10 +14,8 @@ import (
 	"runtime"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -37,29 +36,23 @@ non-zero status.
 }
 
 func init() {
-	work.AddModCommonFlags(cmdVerify)
+	base.AddModCommonFlags(&cmdVerify.Flag)
 }
 
-func runVerify(cmd *base.Command, args []string) {
+func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go mod verify: verify takes no arguments")
 	}
-	// Checks go mod expected behavior
-	if !modload.Enabled() || !modload.HasModRoot() {
-		if cfg.Getenv("GO111MODULE") == "off" {
-			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-		} else {
-			base.Fatalf("go: cannot find main module; see 'go help modules'")
-		}
-	}
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
 	// Use a slice of result channels, so that the output is deterministic.
-	mods := modload.LoadBuildList()[1:]
+	mods := modload.LoadAllModules(ctx)[1:]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {

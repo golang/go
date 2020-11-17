@@ -300,7 +300,13 @@ search:
 			}
 			// Only clear key if there are pointers in it.
 			if t.key.ptrdata != 0 {
-				memclrHasPointers(k, t.key.size)
+				if sys.PtrSize == 8 {
+					*(*unsafe.Pointer)(k) = nil
+				} else {
+					// There are three ways to squeeze at one ore more 32 bit pointers into 64 bits.
+					// Just call memclrHasPointers instead of trying to handle all cases here.
+					memclrHasPointers(k, 8)
+				}
 			}
 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.elemsize))
 			if t.elem.ptrdata != 0 {
@@ -340,6 +346,11 @@ search:
 			}
 		notLast:
 			h.count--
+			// Reset the hash seed to make it more difficult for attackers to
+			// repeatedly trigger hash collisions. See issue 25237.
+			if h.count == 0 {
+				h.hash0 = fastrand()
+			}
 			break search
 		}
 	}

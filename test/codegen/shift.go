@@ -150,6 +150,61 @@ func lshGuarded64(v int64, s uint) int64 {
 	panic("shift too large")
 }
 
+func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byte) (uint32, uint64) {
+
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f := tab[byte(v)^b]
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f += tab[byte(v)&b]
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f += tab[byte(v)|b]
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f += tab[uint16(v)&h]
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f += tab[uint16(v)^h]
+	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+	f += tab[uint16(v)|h]
+	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
+	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
+	f += tab[v&0xff]
+	// ppc64le:-".*AND",".*CLRLSLWI"
+        // ppc64:-".*AND",".*CLRLSLWI"
+        f += 2*uint32(uint16(d))
+	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
+	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
+	g := 2*uint64(uint32(d))
+	return f, g
+}
+
+func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, uint16, uint32, uint64) {
+
+	// ppc64le:-"AND","CLRLSLWI"
+	// ppc64:-"AND","CLRLSLWI"
+	f := (v8 &0xF) << 2
+	// ppc64le:-"AND","CLRLSLWI"
+        // ppc64:-"AND","CLRLSLWI"
+	f += byte(v16)<<3
+	// ppc64le:-"AND","CLRLSLWI"
+	// ppc64:-"AND","CLRLSLWI"
+	g := (v16 & 0xFF) << 3
+	// ppc64le:-"AND","CLRLSLWI"
+	// ppc64:-"AND","CLRLSLWI"
+	h := (v32 & 0xFFFFF) << 2
+	// ppc64le:-"AND","CLRLSLWI"
+        // ppc64:-"AND","CLRLSLWI"
+	h += uint32(v64)<<4
+	// ppc64le:-"AND","CLRLSLDI"
+	// ppc64:-"AND","CLRLSLDI"
+	i := (v64 & 0xFFFFFFFF) << 5
+	return f, g, h, i
+}
+
 func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
 
 	// ppc64le:-".*MOVW"

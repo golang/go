@@ -90,7 +90,7 @@ func declare(n *Node, ctxt Class) {
 			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
-		if Curfn != nil {
+		if Curfn != nil && ctxt != PFUNC {
 			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
@@ -297,6 +297,16 @@ func oldname(s *types.Sym) *Node {
 	return n
 }
 
+// importName is like oldname, but it reports an error if sym is from another package and not exported.
+func importName(sym *types.Sym) *Node {
+	n := oldname(sym)
+	if !types.IsExported(sym.Name) && sym.Pkg != localpkg {
+		n.SetDiag(true)
+		yyerror("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+	}
+	return n
+}
+
 // := declarations
 func colasname(n *Node) bool {
 	switch n.Op {
@@ -372,14 +382,11 @@ func ifacedcl(n *Node) {
 // returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
-	if Curfn == nil && dclcontext != PEXTERN {
-		Fatalf("funchdr: dclcontext = %d", dclcontext)
-	}
-
-	dclcontext = PAUTO
-	types.Markdcl()
-	funcstack = append(funcstack, Curfn)
+	funcStack = append(funcStack, funcStackEnt{Curfn, dclcontext})
 	Curfn = n
+	dclcontext = PAUTO
+
+	types.Markdcl()
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -487,21 +494,22 @@ func funcarg2(f *types.Field, ctxt Class) {
 	declare(n, ctxt)
 }
 
-var funcstack []*Node // stack of previous values of Curfn
+var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
+
+type funcStackEnt struct {
+	curfn      *Node
+	dclcontext Class
+}
 
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
 func funcbody() {
-	// change the declaration context from auto to extern
-	if dclcontext != PAUTO {
-		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
-	}
+	// change the declaration context from auto to previous context
 	types.Popdcl()
-	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
-	if Curfn == nil {
-		dclcontext = PEXTERN
-	}
+	var e funcStackEnt
+	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
+	Curfn, dclcontext = e.curfn, e.dclcontext
 }
 
 // structs, functions, and methods.
@@ -975,10 +983,14 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
-// disableExport prevents sym from being included in package export
-// data. To be effectual, it must be called before declare.
-func disableExport(sym *types.Sym) {
-	sym.SetOnExportList(true)
+// setNodeNameFunc marks a node as a function.
+func setNodeNameFunc(n *Node) {
+	if n.Op != ONAME || n.Class() != Pxxx {
+		Fatalf("expected ONAME/Pxxx node, got %v", n)
+	}
+
+	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 }
 
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
@@ -990,7 +1002,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
-	declare(fn.Func.Nname, PFUNC)
+	setNodeNameFunc(fn.Func.Nname)
 	funchdr(fn)
 	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
 	return fn

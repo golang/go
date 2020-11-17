@@ -113,12 +113,16 @@ func dumpCompilerObj(bout *bio.Writer) {
 
 func dumpdata() {
 	externs := len(externdcl)
+	xtops := len(xtop)
 
 	dumpglobls()
 	addptabs()
+	exportlistLen := len(exportlist)
 	addsignats(externdcl)
 	dumpsignats()
 	dumptabs()
+	ptabsLen := len(ptabs)
+	itabsLen := len(itabs)
 	dumpimportstrings()
 	dumpbasictypes()
 
@@ -129,9 +133,19 @@ func dumpdata() {
 	// number of types in a finite amount of code.
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
-	for len(compilequeue) > 0 {
+	for {
+		for i := xtops; i < len(xtop); i++ {
+			n := xtop[i]
+			if n.Op == ODCLFUNC {
+				funccompile(n)
+			}
+		}
+		xtops = len(xtop)
 		compileFunctions()
 		dumpsignats()
+		if xtops == len(xtop) {
+			break
+		}
 	}
 
 	// Dump extra globals.
@@ -149,6 +163,16 @@ func dumpdata() {
 	}
 
 	addGCLocals()
+
+	if exportlistLen != len(exportlist) {
+		Fatalf("exportlist changed after compile functions loop")
+	}
+	if ptabsLen != len(ptabs) {
+		Fatalf("ptabs changed after compile functions loop")
+	}
+	if itabsLen != len(itabs) {
+		Fatalf("itabs changed after compile functions loop")
+	}
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
@@ -166,7 +190,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	obj.WriteObjFile(Ctxt, bout, myimportpath)
+	obj.WriteObjFile(Ctxt, bout)
 }
 
 func addptabs() {
@@ -291,10 +315,8 @@ func addGCLocals() {
 		}
 		if x := s.Func.StackObjects; x != nil {
 			attr := int16(obj.RODATA)
-			if s.DuplicateOK() {
-				attr |= obj.DUPOK
-			}
 			ggloblsym(x, int32(len(x.P)), attr)
+			x.Set(obj.AttrStatic, true)
 		}
 		if x := s.Func.OpenCodedDeferInfo; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
@@ -354,10 +376,11 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 
 	symdata := Ctxt.Lookup(symdataname)
 
-	if !symdata.SeenGlobl() {
+	if !symdata.OnList() {
 		// string data
 		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		symdata.Set(obj.AttrContentAddressable, true)
 	}
 
 	return symdata

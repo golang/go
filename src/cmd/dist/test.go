@@ -241,13 +241,15 @@ func (t *tester) shouldRunTest(name string) bool {
 	return false
 }
 
-// short returns a -short flag to pass to 'go test'.
-// It returns "-short", unless the environment variable
+// short returns a -short flag value to use with 'go test'
+// or a test binary for tests intended to run in short mode.
+// It returns "true", unless the environment variable
 // GO_TEST_SHORT is set to a non-empty, false-ish string.
 //
 // This environment variable is meant to be an internal
-// detail between the Go build system and cmd/dist
-// and is not intended for use by users.
+// detail between the Go build system and cmd/dist for
+// the purpose of longtest builders, and is not intended
+// for use by users. See golang.org/issue/12508.
 func short() string {
 	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
 		short, err := strconv.ParseBool(v)
@@ -255,10 +257,10 @@ func short() string {
 			fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
 		}
 		if !short {
-			return "-short=false"
+			return "false"
 		}
 	}
-	return "-short"
+	return "true"
 }
 
 // goTest returns the beginning of the go test command line.
@@ -266,7 +268,7 @@ func short() string {
 // defaults as later arguments in the command line.
 func (t *tester) goTest() []string {
 	return []string{
-		"go", "test", short(), "-count=1", t.tags(), t.runFlag(""),
+		"go", "test", "-short=" + short(), "-count=1", t.tags(), t.runFlag(""),
 	}
 }
 
@@ -335,7 +337,7 @@ func (t *tester) registerStdTest(pkg string) {
 			}
 			args := []string{
 				"test",
-				short(),
+				"-short=" + short(),
 				t.tags(),
 				t.timeout(timeoutSec),
 				"-gcflags=all=" + gogcflags,
@@ -373,7 +375,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			ranGoBench = true
 			args := []string{
 				"test",
-				short(),
+				"-short=" + short(),
 				"-race",
 				t.timeout(1200), // longer timeout for race with benchmarks
 				"-run=^$",       // nothing. only benchmarks.
@@ -462,7 +464,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test the ios build tag on darwin/amd64 for the iOS simulator.
-	if goos == "darwin" && !t.iOS() {
+	if goos == "darwin" && goarch == "amd64" {
 		t.tests = append(t.tests, distTest{
 			name:    "amd64ios",
 			heading: "ios tag on darwin/amd64",
@@ -901,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return goos == "darwin" && goarch == "arm64"
+	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
 }
 
 func (t *tester) out(v string) {
@@ -941,7 +943,10 @@ func (t *tester) internalLink() bool {
 	if goos == "android" {
 		return false
 	}
-	if t.iOS() {
+	if goos == "ios" {
+		return false
+	}
+	if goos == "darwin" && goarch == "arm64" {
 		return false
 	}
 	// Internally linking cgo is incomplete on some architectures.
@@ -1069,7 +1074,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dir, f.Name(), "-test.short").Run()
+	return t.dirCmd(dir, f.Name(), "-test.short="+short()).Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
@@ -1104,8 +1109,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
-		// A -g argument in CGO_CFLAGS should not affect how the test runs.
-		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0")
+		// cgo should be able to cope with both -g arguments and colored
+		// diagnostics.
+		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
 
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
@@ -1570,7 +1576,7 @@ func (t *tester) prebuiltGoPackageTestBinary() string {
 func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
 	bin := t.prebuiltGoPackageTestBinary()
 	fmt.Fprintf(os.Stderr, "# %s: using pre-built %s...\n", stdMatches[0], bin)
-	cmd := exec.Command(bin, "-test.short", "-test.timeout="+timeout.String())
+	cmd := exec.Command(bin, "-test.short="+short(), "-test.timeout="+timeout.String())
 	cmd.Dir = filepath.Dir(bin)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

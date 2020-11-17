@@ -206,8 +206,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
-		vstat := staticname(n.Type)
-		vstat.MarkReadonly()
+		vstat := readonlystaticname(n.Type)
 		var s InitSchedule
 		s.staticassign(vstat, n)
 		if s.out != nil {
@@ -289,20 +288,13 @@ func (o *Order) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
-// to *out for each temporary above the mark on the temporary stack.
+// cleanTempNoPop emits VARKILL instructions to *out
+// for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
 func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 	var out []*Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		if n.Name.Keepalive() {
-			n.Name.SetKeepalive(false)
-			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
-			live := nod(OVARLIVE, n, nil)
-			live = typecheck(live, ctxStmt)
-			out = append(out, live)
-		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, ctxStmt)
 		out = append(out, kill)
@@ -501,8 +493,9 @@ func (o *Order) call(n *Node) {
 		// still alive when we pop the temp stack.
 		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
 			x := o.copyExpr(arg.Left, arg.Left.Type, false)
-			x.Name.SetKeepalive(true)
 			arg.Left = x
+			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
+			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
 		}
 	}
 
@@ -928,7 +921,7 @@ func (o *Order) stmt(n *Node) {
 						n2.Ninit.Append(tmp2)
 					}
 
-					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
+					r.Left = o.newTemp(r.Right.Left.Type.Elem(), r.Right.Left.Type.Elem().HasPointers())
 					tmp2 := nod(OAS, tmp1, r.Left)
 					tmp2 = typecheck(tmp2, ctxStmt)
 					n2.Ninit.Append(tmp2)
@@ -1407,7 +1400,7 @@ func (o *Order) as2(n *Node) {
 	left := []*Node{}
 	for ni, l := range n.List.Slice() {
 		if !l.isBlank() {
-			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+			tmp := o.newTemp(l.Type, l.Type.HasPointers())
 			n.List.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
@@ -1429,7 +1422,7 @@ func (o *Order) okAs2(n *Node) {
 	var tmp1, tmp2 *Node
 	if !n.List.First().isBlank() {
 		typ := n.Right.Type
-		tmp1 = o.newTemp(typ, types.Haspointers(typ))
+		tmp1 = o.newTemp(typ, typ.HasPointers())
 	}
 
 	if !n.List.Second().isBlank() {

@@ -272,6 +272,12 @@ func setProcessCPUProfiler(hz int32) {
 			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
 			setsig(_SIGPROF, funcPC(sighandler))
 		}
+
+		var it itimerval
+		it.it_interval.tv_sec = 0
+		it.it_interval.set_usec(1000000 / hz)
+		it.it_value = it.it_interval
+		setitimer(_ITIMER_PROF, &it, nil)
 	} else {
 		// If the Go signal handler should be disabled by default,
 		// switch back to the signal handler that was installed
@@ -296,23 +302,16 @@ func setProcessCPUProfiler(hz int32) {
 				setsig(_SIGPROF, h)
 			}
 		}
+
+		setitimer(_ITIMER_PROF, &itimerval{}, nil)
 	}
 }
 
 // setThreadCPUProfiler makes any thread-specific changes required to
 // implement profiling at a rate of hz.
+// No changes required on Unix systems.
 func setThreadCPUProfiler(hz int32) {
-	var it itimerval
-	if hz == 0 {
-		setitimer(_ITIMER_PROF, &it, nil)
-	} else {
-		it.it_interval.tv_sec = 0
-		it.it_interval.set_usec(1000000 / hz)
-		it.it_value = it.it_interval
-		setitimer(_ITIMER_PROF, &it, nil)
-	}
-	_g_ := getg()
-	_g_.m.profilehz = hz
+	getg().m.profilehz = hz
 }
 
 func sigpipe() {
@@ -347,7 +346,7 @@ const preemptMSupported = true
 // safe-point, it will preempt the goroutine. It always atomically
 // increments mp.preemptGen after handling a preemption request.
 func preemptM(mp *m) {
-	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
+	if (GOOS == "darwin" || GOOS == "ios") && GOARCH == "arm64" && !iscgo {
 		// On darwin, we use libc calls, and cgo is required on ARM64
 		// so we have TLS set up to save/restore G during C calls. If cgo is
 		// absent, we cannot save/restore G in TLS, and if a signal is
@@ -616,7 +615,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg.ptr()
 	}
-	if sig == _SIGILL {
+	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.
 		// Unfortunately, that's complicated to do in general (mostly for x86
 		// and s930x, but other archs have non-standard instruction lengths also).
@@ -711,7 +710,7 @@ func sigpanic() {
 		}
 		// Support runtime/debug.SetPanicOnFault.
 		if g.paniconfault {
-			panicmem()
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
@@ -721,7 +720,7 @@ func sigpanic() {
 		}
 		// Support runtime/debug.SetPanicOnFault.
 		if g.paniconfault {
-			panicmem()
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
@@ -976,7 +975,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
 	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
 	// so we have no choice but to ignore SIGPIPE.
-	if GOOS == "darwin" && sig == _SIGPIPE {
+	if (GOOS == "darwin" || GOOS == "ios") && sig == _SIGPIPE {
 		return true
 	}
 

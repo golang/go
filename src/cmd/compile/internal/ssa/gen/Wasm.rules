@@ -377,6 +377,10 @@
 (I64Ne  (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Ne y  (I64Const [x]))
 
 (I64Eq x (I64Const [0])) => (I64Eqz x)
+(I64LtU (I64Const [0]) x) => (I64Eqz (I64Eqz x))
+(I64LeU x (I64Const [0])) => (I64Eqz x)
+(I64LtU x (I64Const [1])) => (I64Eqz x)
+(I64LeU (I64Const [1]) x) => (I64Eqz (I64Eqz x))
 (I64Ne x (I64Const [0])) => (I64Eqz (I64Eqz x))
 
 (I64Add x (I64Const [y])) => (I64AddConst [y] x)

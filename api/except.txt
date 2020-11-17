@@ -456,3 +456,4 @@ pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntonname [88]int8
 pkg text/scanner, const GoTokens = 1012
 pkg unicode, const Version = "10.0.0"
 pkg unicode, const Version = "11.0.0"
+pkg unicode, const Version = "12.0.0"

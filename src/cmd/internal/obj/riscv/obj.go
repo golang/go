@@ -58,28 +58,12 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.As = AJALR
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
-	p.From.Sym = to.Sym
 	p.Reg = 0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_TMP
-	lowerJALR(p)
+	p.To.Sym = to.Sym
 
 	return p
-}
-
-// lowerJALR normalizes a JALR instruction.
-func lowerJALR(p *obj.Prog) {
-	if p.As != AJALR {
-		panic("lowerJALR: not a JALR")
-	}
-
-	// JALR gets parsed like JAL - the linkage pointer goes in From,
-	// and the target is in To. However, we need to assemble it as an
-	// I-type instruction, so place the linkage pointer in To, the
-	// target register in Reg, and the offset in From.
-	p.Reg = p.To.Reg
-	p.From, p.To = p.To, p.From
-	p.From.Type, p.From.Reg = obj.TYPE_CONST, obj.REG_NONE
 }
 
 // progedit is called individually for each *obj.Prog. It normalizes instruction
@@ -125,7 +109,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case obj.AJMP:
 		// Turn JMP into JAL ZERO or JALR ZERO.
-		// p.From is actually an _output_ for this instruction.
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_ZERO
 
@@ -136,7 +119,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			switch p.To.Name {
 			case obj.NAME_NONE:
 				p.As = AJALR
-				lowerJALR(p)
 			case obj.NAME_EXTERN:
 				// Handled in preprocess.
 			default:
@@ -154,13 +136,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AJALR
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REG_LR
-			lowerJALR(p)
 		default:
 			ctxt.Diag("unknown destination type %+v in CALL: %v", p.To.Type, p)
 		}
-
-	case AJALR:
-		lowerJALR(p)
 
 	case obj.AUNDEF:
 		p.As = AEBREAK
@@ -454,7 +432,7 @@ func containsCall(sym *obj.LSym) bool {
 		case obj.ACALL:
 			return true
 		case AJAL, AJALR:
-			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_LR {
+			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
 				return true
 			}
 		}
@@ -634,7 +612,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		getargp.Reg = 0
 		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
 
-		bneadj.Pcond = getargp
+		bneadj.To.SetTarget(getargp)
 
 		calcargp := obj.Appendp(getargp, newprog)
 		calcargp.As = AADDI
@@ -647,7 +625,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
 		testargp.Reg = REG_X13
 		testargp.To.Type = obj.TYPE_BRANCH
-		testargp.Pcond = endadj
+		testargp.To.SetTarget(endadj)
 
 		adjargp := obj.Appendp(testargp, newprog)
 		adjargp.As = AADDI
@@ -665,7 +643,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		godone.As = AJAL
 		godone.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
 		godone.To.Type = obj.TYPE_BRANCH
-		godone.Pcond = endadj
+		godone.To.SetTarget(endadj)
 	}
 
 	// Update stack-based offsets.
@@ -731,11 +709,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
 			} else {
 				p.As = AJALR
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = 0
-				p.Reg = REG_LR
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_ZERO
+				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+				p.Reg = 0
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 			}
 
 			// "Add back" the stack removed in the previous instruction.
@@ -890,41 +866,41 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				if p.To.Type != obj.TYPE_BRANCH {
 					panic("assemble: instruction with branch-like opcode lacks destination")
 				}
-				offset := p.Pcond.Pc - p.Pc
+				offset := p.To.Target().Pc - p.Pc
 				if offset < -4096 || 4096 <= offset {
 					// Branch is long.  Replace it with a jump.
 					jmp := obj.Appendp(p, newprog)
 					jmp.As = AJAL
 					jmp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
 					jmp.To = obj.Addr{Type: obj.TYPE_BRANCH}
-					jmp.Pcond = p.Pcond
+					jmp.To.SetTarget(p.To.Target())
 
 					p.As = InvertBranch(p.As)
-					p.Pcond = jmp.Link
+					p.To.SetTarget(jmp.Link)
 
 					// We may have made previous branches too long,
 					// so recheck them.
 					rescan = true
 				}
 			case AJAL:
-				if p.Pcond == nil {
+				if p.To.Target() == nil {
 					panic("intersymbol jumps should be expressed as AUIPC+JALR")
 				}
-				offset := p.Pcond.Pc - p.Pc
+				offset := p.To.Target().Pc - p.Pc
 				if offset < -(1<<20) || (1<<20) <= offset {
 					// Replace with 2-instruction sequence. This assumes
 					// that TMP is not live across J instructions, since
 					// it is reserved by SSA.
 					jmp := obj.Appendp(p, newprog)
 					jmp.As = AJALR
-					jmp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-					jmp.To = p.From
-					jmp.Reg = REG_TMP
+					jmp.From = p.From
+					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					// p.From is not generally valid, however will be
 					// fixed up in the next loop.
 					p.As = AAUIPC
 					p.From = obj.Addr{Type: obj.TYPE_BRANCH, Sym: p.From.Sym}
+					p.From.SetTarget(p.To.Target())
 					p.Reg = 0
 					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
@@ -946,16 +922,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
-				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
+				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			case obj.TYPE_MEM:
 				panic("unhandled type")
 			}
 
 		case AAUIPC:
 			if p.From.Type == obj.TYPE_BRANCH {
-				low, high, err := Split32BitImmediate(p.Pcond.Pc - p.Pc)
+				low, high, err := Split32BitImmediate(p.From.Target().Pc - p.Pc)
 				if err != nil {
-					ctxt.Diag("%v: jump displacement %d too large", p, p.Pcond.Pc-p.Pc)
+					ctxt.Diag("%v: jump displacement %d too large", p, p.To.Target().Pc-p.Pc)
 				}
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
 				p.Link.From.Offset = low
@@ -1098,7 +1074,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		p.To.Sym = ctxt.Lookup("runtime.morestack")
 	}
 	if to_more != nil {
-		to_more.Pcond = p
+		to_more.To.SetTarget(p)
 	}
 	p = jalrToSym(ctxt, p, newprog, REG_X5)
 
@@ -1107,12 +1083,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.As = AJAL
 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-	p.Pcond = cursym.Func.Text.Link
+	p.To.SetTarget(cursym.Func.Text.Link)
 
 	// placeholder for to_done's jump target
 	p = obj.Appendp(p, newprog)
 	p.As = obj.ANOP // zero-width place holder
-	to_done.Pcond = p
+	to_done.To.SetTarget(p)
 
 	return p
 }
@@ -1800,8 +1776,8 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 
 	inss := []*instruction{ins}
 	switch ins.as {
-	case AJAL:
-		ins.rd, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+	case AJAL, AJALR:
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
 	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:

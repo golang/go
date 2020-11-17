@@ -206,9 +206,9 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 		return nil, err
 	}
 	if la := plan9LocalAddr(laddr); la == "" {
-		_, err = f.WriteString("connect " + dest)
+		err = hangupCtlWrite(ctx, proto, f, "connect "+dest)
 	} else {
-		_, err = f.WriteString("connect " + dest + " " + la)
+		err = hangupCtlWrite(ctx, proto, f, "connect "+dest+" "+la)
 	}
 	if err != nil {
 		f.Close()
@@ -338,4 +338,28 @@ func plan9LocalAddr(addr Addr) string {
 		return itoa(port)
 	}
 	return ip.String() + "!" + itoa(port)
+}
+
+func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {
+	if proto != "tcp" {
+		_, err := ctl.WriteString(msg)
+		return err
+	}
+	written := make(chan struct{})
+	errc := make(chan error)
+	go func() {
+		select {
+		case <-ctx.Done():
+			ctl.WriteString("hangup")
+			errc <- mapErr(ctx.Err())
+		case <-written:
+			errc <- nil
+		}
+	}()
+	_, err := ctl.WriteString(msg)
+	close(written)
+	if e := <-errc; err == nil && e != nil { // we hung up
+		return e
+	}
+	return err
 }

@@ -609,6 +609,12 @@ Do not send CLs removing the interior tags from such phrases.
       If a program needs to accept invalid numbers like the empty string,
       consider wrapping the type with <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>.
     </p>
+
+    <p><!-- CL 200237 -->
+      <a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>
+      can now support map keys with string underlying type which implement
+      <a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>.
+    </p>
   </dd>
 </dl><!-- encoding/json -->
 

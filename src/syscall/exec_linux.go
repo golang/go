@@ -207,7 +207,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	hasRawVforkSyscall := runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "s390x" || runtime.GOARCH == "arm64"
+	var hasRawVforkSyscall bool
+	switch runtime.GOARCH {
+	case "amd64", "arm64", "ppc64", "riscv64", "s390x":
+		hasRawVforkSyscall = true
+	}
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
@@ -465,7 +469,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			}
 			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
 			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-				_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
+				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
 				if err1 != 0 {
 					goto childerror
 				}

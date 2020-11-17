@@ -27,6 +27,7 @@ func TestCheckPtr(t *testing.T) {
 		{"CheckPtrAlignmentPtr", "fatal error: checkptr: misaligned pointer conversion\n"},
 		{"CheckPtrAlignmentNoPtr", ""},
 		{"CheckPtrArithmetic", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
+		{"CheckPtrArithmetic2", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
 		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
 		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
 	}

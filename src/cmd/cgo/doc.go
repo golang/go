@@ -112,6 +112,13 @@ The default C and C++ compilers may be changed by the CC and CXX
 environment variables, respectively; those environment variables
 may include command line options.
 
+The cgo tool will always invoke the C compiler with the source file's
+directory in the include path; i.e. -I${SRCDIR} is always implied. This
+means that if a header file foo/bar.h exists both in the source
+directory and also in the system include directory (or some other place
+specified by a -I flag), then "#include <foo/bar.h>" will always find the
+local version in preference to any other version.
+
 The cgo tool is enabled by default for native builds on systems where
 it is expected to work. It is disabled by default when
 cross-compiling. You can control this by setting the CGO_ENABLED

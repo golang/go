@@ -141,6 +141,9 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
 	if name == "solaris" {
 		have = have || tags["illumos"]
 	}
+	if name == "darwin" {
+		have = have || tags["ios"]
+	}
 	return have == want
 }
 
@@ -158,6 +161,7 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
 // Exceptions:
 //     if GOOS=android, then files with GOOS=linux are also matched.
 //     if GOOS=illumos, then files with GOOS=solaris are also matched.
+//     if GOOS=ios, then files with GOOS=darwin are also matched.
 //
 // If tags["*"] is true, then MatchFile will consider all possible
 // GOOS and GOARCH to be available and will consequently
@@ -208,6 +212,7 @@ var KnownOS = map[string]bool{
 	"freebsd":   true,
 	"hurd":      true,
 	"illumos":   true,
+	"ios":       true,
 	"js":        true,
 	"linux":     true,
 	"nacl":      true, // legacy; don't remove

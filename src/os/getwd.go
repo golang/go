@@ -45,7 +45,16 @@ func Getwd() (dir string, err error) {
 	// If the operating system provides a Getwd call, use it.
 	// Otherwise, we're trying to find our way back to ".".
 	if syscall.ImplementsGetwd {
-		s, e := syscall.Getwd()
+		var (
+			s string
+			e error
+		)
+		for {
+			s, e = syscall.Getwd()
+			if e != syscall.EINTR {
+				break
+			}
+		}
 		if useSyscallwd(e) {
 			return s, NewSyscallError("getwd", e)
 		}
@@ -103,10 +112,10 @@ func Getwd() (dir string, err error) {
 
 	Found:
 		pd, err := fd.Stat()
+		fd.Close()
 		if err != nil {
 			return "", err
 		}
-		fd.Close()
 		if SameFile(pd, root) {
 			break
 		}

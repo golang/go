@@ -403,7 +403,7 @@ func dodeltimer0(pp *p) {
 }
 
 // modtimer modifies an existing timer.
-// This is called by the netpoll code or time.Ticker.Reset.
+// This is called by the netpoll code or time.Ticker.Reset or time.Timer.Reset.
 // Reports whether the timer was modified before it was run.
 func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) bool {
 	if when < 0 {

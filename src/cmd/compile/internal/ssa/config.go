@@ -173,6 +173,9 @@ type Frontend interface {
 	// SetWBPos indicates that a write barrier has been inserted
 	// in this function at position pos.
 	SetWBPos(pos src.XPos)
+
+	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+	MyImportPath() string
 }
 
 // interface used to hold a *gc.Node (a stack variable).
@@ -245,7 +248,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = objabi.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = objabi.GOOS == "darwin" || objabi.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough

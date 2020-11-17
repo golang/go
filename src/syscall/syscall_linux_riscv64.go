@@ -199,6 +199,4 @@ func Pause() error {
 	return err
 }
 
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
-	panic("not implemented")
-}
+func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

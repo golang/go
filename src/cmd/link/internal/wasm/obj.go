@@ -19,7 +19,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		AssignAddress: assignAddress,
 		Asmb:          asmb,
 		Asmb2:         asmb2,
-		Gentext2:      gentext2,
+		Gentext:       gentext,
 	}
 
 	return sys.ArchWasm, theArch

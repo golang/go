@@ -2,12 +2,12 @@ env GO111MODULE=on
 [short] skip
 
 # list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
-go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
+go list -mod=mod -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
 stdout '^x true .*[\\/]src[\\/]go.mod .*[\\/]src$'
 stdout '^rsc.io/quote false .*[\\/]v1.5.2.mod $'
 
 # list {{.Dir}} shows dependency after download (and go list without -m downloads it)
-go list -f '{{.Dir}}' rsc.io/quote
+go list -mod=mod -f '{{.Dir}}' rsc.io/quote
 stdout '.*mod[\\/]rsc.io[\\/]quote@v1.5.2$'
 
 # downloaded dependencies are read-only
@@ -20,7 +20,7 @@ go clean -modcache
 
 # list {{.Dir}} shows replaced directories
 cp go.mod2 go.mod
-go list -f {{.Dir}} rsc.io/quote
+go list -mod=mod -f {{.Dir}} rsc.io/quote
 go list -m -f '{{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} {{.GoMod}} => {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' all
 stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.1'
 stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 .*[\\/]v1.3.1.mod => v1.3.1.*sampler@v1.3.1 .*[\\/]v1.3.1.mod'
@@ -30,7 +30,7 @@ go list std
 stdout ^math/big
 
 # rsc.io/quote/buggy should be listable as a package
-go list rsc.io/quote/buggy
+go list -mod=mod rsc.io/quote/buggy
 
 # rsc.io/quote/buggy should not be listable as a module
 go list -m -e -f '{{.Error.Err}}' nonexist rsc.io/quote/buggy

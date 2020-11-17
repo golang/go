@@ -121,6 +121,13 @@ type Flock_t struct {
 	_      [2]byte
 }
 
+type DmNameList struct {
+	Dev  uint64
+	Next uint32
+	Name [0]byte
+	_    [4]byte
+}
+
 const (
 	FADV_DONTNEED = 0x4
 	FADV_NOREUSE  = 0x5

@@ -9,11 +9,18 @@ stderr 'with arguments'
 ! go version -v
 stderr 'with arguments'
 
+# Neither of the two flags above should be an issue via GOFLAGS.
+env GOFLAGS='-m -v'
+go version
+stdout '^go version'
+env GOFLAGS=
+
 env GO111MODULE=on
 # Skip the builds below if we are running in short mode.
 [short] skip
 
 # Check that 'go version' and 'go version -m' work on a binary built in module mode.
+go get -d rsc.io/fortune
 go build -o fortune.exe rsc.io/fortune
 go version fortune.exe
 stdout '^fortune.exe: .+'

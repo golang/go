@@ -25,6 +25,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	mrand "math/rand"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -41,6 +42,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -2364,6 +2366,50 @@ func TestTransportCancelRequest(t *testing.T) {
 	}
 }
 
+func testTransportCancelRequestInDo(t *testing.T, body io.Reader) {
+	setParallel(t)
+	defer afterTest(t)
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+	unblockc := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-unblockc
+	}))
+	defer ts.Close()
+	defer close(unblockc)
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+
+	donec := make(chan bool)
+	req, _ := NewRequest("GET", ts.URL, body)
+	go func() {
+		defer close(donec)
+		c.Do(req)
+	}()
+	start := time.Now()
+	timeout := 10 * time.Second
+	for time.Since(start) < timeout {
+		time.Sleep(100 * time.Millisecond)
+		tr.CancelRequest(req)
+		select {
+		case <-donec:
+			return
+		default:
+		}
+	}
+	t.Errorf("Do of canceled request has not returned after %v", timeout)
+}
+
+func TestTransportCancelRequestInDo(t *testing.T) {
+	testTransportCancelRequestInDo(t, nil)
+}
+
+func TestTransportCancelRequestWithBodyInDo(t *testing.T) {
+	testTransportCancelRequestInDo(t, bytes.NewBuffer([]byte{0}))
+}
+
 func TestTransportCancelRequestInDial(t *testing.T) {
 	defer afterTest(t)
 	if testing.Short() {
@@ -3364,12 +3410,6 @@ func TestTransportIssue10457(t *testing.T) {
 	}
 }
 
-type errorReader struct {
-	err error
-}
-
-func (e errorReader) Read(p []byte) (int, error) { return 0, e.err }
-
 type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
@@ -3566,7 +3606,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 		io.Reader
 		io.Closer
 	}{
-		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), errorReader{fakeErr}),
+		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), iotest.ErrReader(fakeErr)),
 		closerFunc(func() error {
 			select {
 			case didClose <- true:
@@ -6243,5 +6283,103 @@ func TestTransportRejectsSignInContentLength(t *testing.T) {
 	}
 	if got, want := err.Error(), `bad Content-Length "+3"`; !strings.Contains(got, want) {
 		t.Fatalf("Error mismatch\nGot: %q\nWanted substring: %q", got, want)
+	}
+}
+
+// dumpConn is a net.Conn which writes to Writer and reads from Reader
+type dumpConn struct {
+	io.Writer
+	io.Reader
+}
+
+func (c *dumpConn) Close() error                       { return nil }
+func (c *dumpConn) LocalAddr() net.Addr                { return nil }
+func (c *dumpConn) RemoteAddr() net.Addr               { return nil }
+func (c *dumpConn) SetDeadline(t time.Time) error      { return nil }
+func (c *dumpConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *dumpConn) SetWriteDeadline(t time.Time) error { return nil }
+
+// delegateReader is a reader that delegates to another reader,
+// once it arrives on a channel.
+type delegateReader struct {
+	c chan io.Reader
+	r io.Reader // nil until received from c
+}
+
+func (r *delegateReader) Read(p []byte) (int, error) {
+	if r.r == nil {
+		var ok bool
+		if r.r, ok = <-r.c; !ok {
+			return 0, errors.New("delegate closed")
+		}
+	}
+	return r.r.Read(p)
+}
+
+func testTransportRace(req *Request) {
+	save := req.Body
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	defer pw.Close()
+	dr := &delegateReader{c: make(chan io.Reader)}
+
+	t := &Transport{
+		Dial: func(net, addr string) (net.Conn, error) {
+			return &dumpConn{pw, dr}, nil
+		},
+	}
+	defer t.CloseIdleConnections()
+
+	quitReadCh := make(chan struct{})
+	// Wait for the request before replying with a dummy response:
+	go func() {
+		defer close(quitReadCh)
+
+		req, err := ReadRequest(bufio.NewReader(pr))
+		if err == nil {
+			// Ensure all the body is read; otherwise
+			// we'll get a partial dump.
+			io.Copy(ioutil.Discard, req.Body)
+			req.Body.Close()
+		}
+		select {
+		case dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"):
+		case quitReadCh <- struct{}{}:
+			// Ensure delegate is closed so Read doesn't block forever.
+			close(dr.c)
+		}
+	}()
+
+	t.RoundTrip(req)
+
+	// Ensure the reader returns before we reset req.Body to prevent
+	// a data race on req.Body.
+	pw.Close()
+	<-quitReadCh
+
+	req.Body = save
+}
+
+// Issue 37669
+// Test that a cancellation doesn't result in a data race due to the writeLoop
+// goroutine being left running, if the caller mutates the processed Request
+// upon completion.
+func TestErrorWriteLoopRace(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	t.Parallel()
+	for i := 0; i < 1000; i++ {
+		delay := time.Duration(mrand.Intn(5)) * time.Millisecond
+		ctx, cancel := context.WithTimeout(context.Background(), delay)
+		defer cancel()
+
+		r := bytes.NewBuffer(make([]byte, 10000))
+		req, err := NewRequestWithContext(ctx, MethodPost, "http://example.com", r)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		testTransportRace(req)
 	}
 }

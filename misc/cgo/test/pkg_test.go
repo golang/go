@@ -30,7 +30,7 @@ func TestCrossPackageTests(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		t.Skip("Can't exec cmd/go subprocess on Android.")
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			t.Skip("Can't exec cmd/go subprocess on iOS.")

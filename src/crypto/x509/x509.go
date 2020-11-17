@@ -14,7 +14,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1"
-	_ "crypto/sha1"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 	"crypto/x509/pkix"

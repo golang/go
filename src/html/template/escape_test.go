@@ -1821,7 +1821,7 @@ func TestIndirectPrint(t *testing.T) {
 }
 
 // This is a test for issue 3272.
-func TestEmptyTemplate(t *testing.T) {
+func TestEmptyTemplateHTML(t *testing.T) {
 	page := Must(New("page").ParseFiles(os.DevNull))
 	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
 		t.Fatal("expected error")

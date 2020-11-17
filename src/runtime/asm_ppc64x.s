@@ -916,23 +916,23 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // - R20 is the destination of the write
 // - R21 is the value being written at R20.
 // It clobbers condition codes.
-// It does not clobber R0 through R15,
+// It does not clobber R0 through R17 (except special registers),
 // but may clobber any other register, *including* R31.
 TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$112
 	// The standard prologue clobbers R31.
-	// We use R16 and R17 as scratch registers.
-	MOVD	g_m(g), R16
-	MOVD	m_p(R16), R16
-	MOVD	(p_wbBuf+wbBuf_next)(R16), R17
+	// We use R18 and R19 as scratch registers.
+	MOVD	g_m(g), R18
+	MOVD	m_p(R18), R18
+	MOVD	(p_wbBuf+wbBuf_next)(R18), R19
 	// Increment wbBuf.next position.
-	ADD	$16, R17
-	MOVD	R17, (p_wbBuf+wbBuf_next)(R16)
-	MOVD	(p_wbBuf+wbBuf_end)(R16), R16
-	CMP	R16, R17
+	ADD	$16, R19
+	MOVD	R19, (p_wbBuf+wbBuf_next)(R18)
+	MOVD	(p_wbBuf+wbBuf_end)(R18), R18
+	CMP	R18, R19
 	// Record the write.
-	MOVD	R21, -16(R17)	// Record value
-	MOVD	(R20), R16	// TODO: This turns bad writes into bad reads.
-	MOVD	R16, -8(R17)	// Record *slot
+	MOVD	R21, -16(R19)	// Record value
+	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
+	MOVD	R18, -8(R19)	// Record *slot
 	// Is the buffer full? (flags set in CMP above)
 	BEQ	flush
 ret:
@@ -956,11 +956,12 @@ flush:
 	MOVD	R8, (FIXED_FRAME+56)(R1)
 	MOVD	R9, (FIXED_FRAME+64)(R1)
 	MOVD	R10, (FIXED_FRAME+72)(R1)
-	MOVD	R11, (FIXED_FRAME+80)(R1)
-	MOVD	R12, (FIXED_FRAME+88)(R1)
+	// R11, R12 may be clobbered by external-linker-inserted trampoline
 	// R13 is REGTLS
-	MOVD	R14, (FIXED_FRAME+96)(R1)
-	MOVD	R15, (FIXED_FRAME+104)(R1)
+	MOVD	R14, (FIXED_FRAME+80)(R1)
+	MOVD	R15, (FIXED_FRAME+88)(R1)
+	MOVD	R16, (FIXED_FRAME+96)(R1)
+	MOVD	R17, (FIXED_FRAME+104)(R1)
 
 	// This takes arguments R20 and R21.
 	CALL	runtime·wbBufFlush(SB)
@@ -975,10 +976,10 @@ flush:
 	MOVD	(FIXED_FRAME+56)(R1), R8
 	MOVD	(FIXED_FRAME+64)(R1), R9
 	MOVD	(FIXED_FRAME+72)(R1), R10
-	MOVD	(FIXED_FRAME+80)(R1), R11
-	MOVD	(FIXED_FRAME+88)(R1), R12
-	MOVD	(FIXED_FRAME+96)(R1), R14
-	MOVD	(FIXED_FRAME+104)(R1), R15
+	MOVD	(FIXED_FRAME+80)(R1), R14
+	MOVD	(FIXED_FRAME+88)(R1), R15
+	MOVD	(FIXED_FRAME+96)(R1), R16
+	MOVD	(FIXED_FRAME+104)(R1), R17
 	JMP	ret
 
 // Note: these functions use a special calling convention to save generated code space.

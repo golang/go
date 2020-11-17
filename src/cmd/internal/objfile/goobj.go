@@ -7,6 +7,7 @@
 package objfile
 
 import (
+	"cmd/internal/archive"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -14,88 +15,206 @@ import (
 	"debug/gosym"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 )
 
 type goobjFile struct {
-	goobj *goobj.Package
-	f     *os.File // the underlying .o or .a file
+	goobj *archive.GoObj
+	r     *goobj.Reader
+	f     *os.File
+	arch  *sys.Arch
 }
 
-func openGoFile(r *os.File) (*File, error) {
-	f, err := goobj.Parse(r, `""`)
+func openGoFile(f *os.File) (*File, error) {
+	a, err := archive.Parse(f, false)
 	if err != nil {
 		return nil, err
 	}
-	rf := &goobjFile{goobj: f, f: r}
-	if len(f.Native) == 0 {
-		return &File{r, []*Entry{{raw: rf}}}, nil
-	}
-	entries := make([]*Entry, len(f.Native)+1)
-	entries[0] = &Entry{
-		raw: rf,
-	}
+	entries := make([]*Entry, 0, len(a.Entries))
 L:
-	for i, nr := range f.Native {
-		for _, try := range openers {
-			if raw, err := try(nr); err == nil {
-				entries[i+1] = &Entry{
-					name: nr.Name,
-					raw:  raw,
+	for _, e := range a.Entries {
+		switch e.Type {
+		case archive.EntryPkgDef:
+			continue
+		case archive.EntryGoObj:
+			o := e.Obj
+			b := make([]byte, o.Size)
+			_, err := f.ReadAt(b, o.Offset)
+			if err != nil {
+				return nil, err
+			}
+			r := goobj.NewReaderFromBytes(b, false)
+			var arch *sys.Arch
+			for _, a := range sys.Archs {
+				if a.Name == e.Obj.Arch {
+					arch = a
+					break
 				}
-				continue L
+			}
+			entries = append(entries, &Entry{
+				name: e.Name,
+				raw:  &goobjFile{e.Obj, r, f, arch},
+			})
+			continue
+		case archive.EntryNativeObj:
+			nr := io.NewSectionReader(f, e.Offset, e.Size)
+			for _, try := range openers {
+				if raw, err := try(nr); err == nil {
+					entries = append(entries, &Entry{
+						name: e.Name,
+						raw:  raw,
+					})
+					continue L
+				}
 			}
 		}
-		return nil, fmt.Errorf("open %s: unrecognized archive member %s", r.Name(), nr.Name)
+		return nil, fmt.Errorf("open %s: unrecognized archive member %s", f.Name(), e.Name)
 	}
-	return &File{r, entries}, nil
+	return &File{f, entries}, nil
 }
 
-func goobjName(id goobj.SymID) string {
-	if id.Version == 0 {
-		return id.Name
+func goobjName(name string, ver int) string {
+	if ver == 0 {
+		return name
 	}
-	return fmt.Sprintf("%s<%d>", id.Name, id.Version)
+	return fmt.Sprintf("%s<%d>", name, ver)
+}
+
+type goobjReloc struct {
+	Off  int32
+	Size uint8
+	Type objabi.RelocType
+	Add  int64
+	Sym  string
+}
+
+func (r goobjReloc) String(insnOffset uint64) string {
+	delta := int64(r.Off) - int64(insnOffset)
+	s := fmt.Sprintf("[%d:%d]%s", delta, delta+int64(r.Size), r.Type)
+	if r.Sym != "" {
+		if r.Add != 0 {
+			return fmt.Sprintf("%s:%s+%d", s, r.Sym, r.Add)
+		}
+		return fmt.Sprintf("%s:%s", s, r.Sym)
+	}
+	if r.Add != 0 {
+		return fmt.Sprintf("%s:%d", s, r.Add)
+	}
+	return s
 }
 
 func (f *goobjFile) symbols() ([]Sym, error) {
-	seen := make(map[goobj.SymID]bool)
-
+	r := f.r
 	var syms []Sym
-	for _, s := range f.goobj.Syms {
-		seen[s.SymID] = true
-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: s.Size, Type: s.Type.Name, Code: '?'}
-		switch s.Kind {
+
+	// Name of referenced indexed symbols.
+	nrefName := r.NRefName()
+	refNames := make(map[goobj.SymRef]string, nrefName)
+	for i := 0; i < nrefName; i++ {
+		rn := r.RefName(i)
+		refNames[rn.Sym()] = rn.Name(r)
+	}
+
+	abiToVer := func(abi uint16) int {
+		var ver int
+		if abi == goobj.SymABIstatic {
+			// Static symbol
+			ver = 1
+		}
+		return ver
+	}
+
+	resolveSymRef := func(s goobj.SymRef) string {
+		var i uint32
+		switch p := s.PkgIdx; p {
+		case goobj.PkgIdxInvalid:
+			if s.SymIdx != 0 {
+				panic("bad sym ref")
+			}
+			return ""
+		case goobj.PkgIdxHashed64:
+			i = s.SymIdx + uint32(r.NSym())
+		case goobj.PkgIdxHashed:
+			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def())
+		case goobj.PkgIdxNone:
+			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def()+r.NHasheddef())
+		case goobj.PkgIdxBuiltin:
+			name, abi := goobj.BuiltinName(int(s.SymIdx))
+			return goobjName(name, abi)
+		case goobj.PkgIdxSelf:
+			i = s.SymIdx
+		default:
+			return refNames[s]
+		}
+		sym := r.Sym(i)
+		return goobjName(sym.Name(r), abiToVer(sym.ABI()))
+	}
+
+	// Defined symbols
+	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
+	for i := uint32(0); i < ndef; i++ {
+		osym := r.Sym(i)
+		if osym.Name(r) == "" {
+			continue // not a real symbol
+		}
+		name := osym.Name(r)
+		ver := osym.ABI()
+		name = goobjName(name, abiToVer(ver))
+		typ := objabi.SymKind(osym.Type())
+		var code rune = '?'
+		switch typ {
 		case objabi.STEXT:
-			sym.Code = 'T'
+			code = 'T'
 		case objabi.SRODATA:
-			sym.Code = 'R'
+			code = 'R'
 		case objabi.SDATA:
-			sym.Code = 'D'
+			code = 'D'
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
-			sym.Code = 'B'
+			code = 'B'
 		}
-		if s.Version != 0 {
-			sym.Code += 'a' - 'A'
+		if ver >= goobj.SymABIstatic {
+			code += 'a' - 'A'
 		}
-		for i, r := range s.Reloc {
-			sym.Relocs = append(sym.Relocs, Reloc{Addr: uint64(s.Data.Offset) + uint64(r.Offset), Size: uint64(r.Size), Stringer: &s.Reloc[i]})
+
+		sym := Sym{
+			Name: name,
+			Addr: uint64(r.DataOff(i)),
+			Size: int64(osym.Siz()),
+			Code: code,
 		}
+
+		relocs := r.Relocs(i)
+		sym.Relocs = make([]Reloc, len(relocs))
+		for j := range relocs {
+			rel := &relocs[j]
+			sym.Relocs[j] = Reloc{
+				Addr: uint64(r.DataOff(i)) + uint64(rel.Off()),
+				Size: uint64(rel.Siz()),
+				Stringer: goobjReloc{
+					Off:  rel.Off(),
+					Size: rel.Siz(),
+					Type: objabi.RelocType(rel.Type()),
+					Add:  rel.Add(),
+					Sym:  resolveSymRef(rel.Sym()),
+				},
+			}
+		}
+
 		syms = append(syms, sym)
 	}
 
-	for _, s := range f.goobj.Syms {
-		for _, r := range s.Reloc {
-			if !seen[r.Sym] {
-				seen[r.Sym] = true
-				sym := Sym{Name: goobjName(r.Sym), Code: 'U'}
-				if s.Version != 0 {
-					// should not happen but handle anyway
-					sym.Code = 'u'
-				}
-				syms = append(syms, sym)
-			}
-		}
+	// Referenced symbols
+	n := ndef + uint32(r.NNonpkgref())
+	for i := ndef; i < n; i++ {
+		osym := r.Sym(i)
+		sym := Sym{Name: osym.Name(r), Code: 'U'}
+		syms = append(syms, sym)
+	}
+	for i := 0; i < nrefName; i++ {
+		rn := r.RefName(i)
+		sym := Sym{Name: rn.Name(r), Code: 'U'}
+		syms = append(syms, sym)
 	}
 
 	return syms, nil
@@ -111,40 +230,47 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
-	// TODO: this is really inefficient. Binary search? Memoize last result?
-	var arch *sys.Arch
-	for _, a := range sys.Archs {
-		if a.Name == f.goobj.Arch {
-			arch = a
-			break
-		}
-	}
-	if arch == nil {
+	r := f.r
+	if f.arch == nil {
 		return "", 0, nil
 	}
-	for _, s := range f.goobj.Syms {
-		if pc < uint64(s.Data.Offset) || pc >= uint64(s.Data.Offset+s.Data.Size) {
+	pcdataBase := r.PcdataBase()
+	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
+	for i := uint32(0); i < ndef; i++ {
+		osym := r.Sym(i)
+		addr := uint64(r.DataOff(i))
+		if pc < addr || pc >= addr+uint64(osym.Siz()) {
 			continue
 		}
-		if s.Func == nil {
-			return "", 0, nil
+		isym := ^uint32(0)
+		auxs := r.Auxs(i)
+		for j := range auxs {
+			a := &auxs[j]
+			if a.Type() != goobj.AuxFuncInfo {
+				continue
+			}
+			if a.Sym().PkgIdx != goobj.PkgIdxSelf {
+				panic("funcinfo symbol not defined in current package")
+			}
+			isym = a.Sym().SymIdx
 		}
-		pcfile := make([]byte, s.Func.PCFile.Size)
-		_, err := f.f.ReadAt(pcfile, s.Func.PCFile.Offset)
-		if err != nil {
-			return "", 0, nil
+		if isym == ^uint32(0) {
+			continue
 		}
-		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
-		fileName := s.Func.File[fileID]
-		pcline := make([]byte, s.Func.PCLine.Size)
-		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
-		if err != nil {
-			return "", 0, nil
-		}
-		line := int(pcValue(pcline, pc-uint64(s.Data.Offset), arch))
+		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
+		var info *goobj.FuncInfo
+		lengths := info.ReadFuncInfoLengths(b)
+		off, end := info.ReadPcline(b)
+		pcline := r.BytesAt(pcdataBase+off, int(end-off))
+		line := int(pcValue(pcline, pc-addr, f.arch))
+		off, end = info.ReadPcfile(b)
+		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
+		fileID := pcValue(pcfile, pc-addr, f.arch)
+		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
+		fileName := r.File(int(globalFileID))
 		// Note: we provide only the name in the Func structure.
 		// We could provide more if needed.
-		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: s.Name}}
+		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: osym.Name(r)}}
 	}
 	return "", 0, nil
 }
@@ -198,13 +324,8 @@ func readvarint(p *[]byte) uint32 {
 
 // We treat the whole object file as the text section.
 func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
-	var info os.FileInfo
-	info, err = f.f.Stat()
-	if err != nil {
-		return
-	}
-	text = make([]byte, info.Size())
-	_, err = f.f.ReadAt(text, 0)
+	text = make([]byte, f.goobj.Size)
+	_, err = f.f.ReadAt(text, int64(f.goobj.Offset))
 	return
 }
 

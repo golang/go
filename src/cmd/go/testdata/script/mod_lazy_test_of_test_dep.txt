@@ -1,0 +1,145 @@
+# This file demonstrates the effect of lazy loading on the reproducibility of
+# tests (and tests of test dependencies) outside the main module.
+#
+# It is similar to the cases in mod_all.txt and mod_lazy_test_horizon.txt, but
+# focuses on the effect of "go test" on specific packages instead of the "all"
+# pattern.
+
+# The package import graph used in this test looks like:
+#
+# lazy ---- a
+#           |
+#           a_test ---- b
+#                       |
+#                       b_test ---- c
+#
+# And the non-lazy module dependency graph looks like:
+#
+# lazy ---- a.1 ---- b.1 ---- c.1
+
+cp go.mod go.mod.old
+go mod tidy
+cmp go.mod go.mod.old
+
+# In Go 1.15 mode, 'go list -m all' includes modules needed by the
+# transitive closure of tests of dependencies of tests of dependencies of ….
+
+go list -m all
+stdout 'example.com/b v0.1.0'
+stdout 'example.com/c v0.1.0'
+cmp go.mod go.mod.old
+
+# 'go test' (or equivalent) of any such dependency, no matter how remote, does
+# not update the go.mod file.
+
+go list -test -deps example.com/a
+stdout example.com/b
+! stdout example.com/c
+
+[!short] go test -c example.com/a
+[!short] cmp go.mod go.mod.old
+
+go list -test -deps example.com/b
+stdout example.com/c
+
+[!short] go test -c example.com/b
+[!short] cmp go.mod go.mod.old
+
+# TODO(#36460):
+
+# After changing to 'go 1.16` uniformly, 'go list -m all' should prune out
+# example.com/c, because it is not imported by any package (or test of a package)
+# transitively imported by the main module.
+#
+# example.com/a is imported,
+# and example.com/b is needed in order to run 'go test example.com/a',
+# but example.com/c is not needed because we don't expect the user to need to run
+# 'go test example.com/b'.
+
+# If we skip directly to adding a new import of c, the dependency is too far
+# away for a deepening scan to find, which is fine because the package whose
+# test imported it wasn't even it "all". It should resolve from the latest
+# version of its module.
+
+# However, if we reach c by running successive tests starting from the main
+# module, we should end up with exactly the version require by c, with an update
+# to the go.mod file as soon as we test a test dependency that is not itself in
+# "all".
+
+-- go.mod --
+module example.com/lazy
+
+go 1.15
+
+require example.com/a v0.1.0
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b1
+	example.com/b v0.2.0 => ./b2
+	example.com/c v0.1.0 => ./c1
+	example.com/c v0.2.0 => ./c2
+)
+-- lazy.go --
+package lazy
+
+import (
+	_ "example.com/a"
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.15
+
+require example.com/b v0.1.0
+-- a/a.go --
+package a
+-- a/a_test.go --
+package a
+
+import (
+	"testing"
+
+	_ "example.com/b"
+)
+
+func TestUsingB(t *testing.T) {
+	// …
+}
+-- b1/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.1.0
+-- b1/b.go --
+package b
+-- b1/b_test.go --
+package b
+
+import _ "example.com/c"
+-- b2/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.1.0
+-- b2/b.go --
+package b
+This file should not be used, so this syntax error should be ignored.
+-- b2/b_test.go --
+package b
+This file should not be used, so this syntax error should be ignored.
+-- c1/go.mod --
+module example.com/c
+
+go 1.15
+-- c1/c.go --
+package c
+-- c2/go.mod --
+module example.com/c
+
+go 1.15
+-- c2/c.go --
+package c
+This file should not be used, so this syntax error should be ignored.

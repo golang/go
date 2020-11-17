@@ -793,6 +793,12 @@ Found:
 		if d.IsDir() {
 			continue
 		}
+		if (d.Mode() & os.ModeSymlink) != 0 {
+			if fi, err := os.Stat(filepath.Join(p.Dir, d.Name())); err == nil && fi.IsDir() {
+				// Symlinks to directories are not source files.
+				continue
+			}
+		}
 
 		name := d.Name()
 		ext := nameExt(name)
@@ -1066,9 +1072,9 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		}
 	}
 
-	// Unless GO111MODULE=on, look to see if there is a go.mod.
+	// If GO111MODULE=auto, look to see if there is a go.mod.
 	// Since go1.13, it doesn't matter if we're inside GOPATH.
-	if go111Module != "on" {
+	if go111Module == "auto" {
 		var (
 			parent string
 			err    error
@@ -1749,6 +1755,9 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "illumos" && name == "solaris" {
 		return true
 	}
+	if ctxt.GOOS == "ios" && name == "darwin" {
+		return true
+	}
 	// Let applications know that the Go+BoringCrypto toolchain is in use.
 	if name == "boringcrypto" {
 		return true
@@ -1780,7 +1789,10 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 //     name_$(GOARCH)_test.*
 //     name_$(GOOS)_$(GOARCH)_test.*
 //
-// An exception: if GOOS=android, then files with GOOS=linux are also matched.
+// Exceptions:
+// if GOOS=android, then files with GOOS=linux are also matched.
+// if GOOS=illumos, then files with GOOS=solaris are also matched.
+// if GOOS=ios, then files with GOOS=darwin are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	if dot := strings.Index(name, "."); dot != -1 {
 		name = name[:dot]

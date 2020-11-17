@@ -283,17 +283,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ACMPUBNE:
 			q = p
 			p.Mark |= BRANCH
-			if p.Pcond != nil {
-				q := p.Pcond
-				for q.As == obj.ANOP {
-					q = q.Link
-					p.Pcond = q
-				}
-			}
-
-		case obj.ANOP:
-			q.Link = p.Link /* q is non-nop */
-			p.Link.Mark |= p.Mark
 
 		default:
 			q = p
@@ -465,8 +454,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 
 				q.As = obj.ANOP
-				p1.Pcond = q
-				p2.Pcond = q
+				p1.To.SetTarget(q)
+				p2.To.SetTarget(q)
 			}
 
 		case obj.ARET:
@@ -690,14 +679,14 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)
-	pPre.Pcond = p
+	pPre.To.SetTarget(p)
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_LR
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R5
 	if pPreempt != nil {
-		pPreempt.Pcond = p
+		pPreempt.To.SetTarget(p)
 	}
 
 	// BL	runtime.morestack(SB)
@@ -720,7 +709,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = c.cursym.Func.Text.Link
+	p.To.SetTarget(c.cursym.Func.Text.Link)
 	return p
 }
 

@@ -187,6 +187,13 @@ func mustHeapAlloc(n *Node) bool {
 		return true
 	}
 
+	if n.Op == OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
+		return true
+	}
+	if n.Op == OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
+		return true
+	}
+
 	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
 		return true
 	}
@@ -370,14 +377,14 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// This really doesn't have much to do with escape analysis per se,
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
-		if f.Type.Etype == TUINTPTR {
+		if f.Type.IsUintptr() {
 			if Debug['m'] != 0 {
 				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
 			return unsafeUintptrTag
 		}
 
-		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+		if !f.Type.HasPointers() { // don't bother tagging for scalars
 			return ""
 		}
 
@@ -400,13 +407,13 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	}
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
-		if f.Type.Etype == TUINTPTR {
+		if f.Type.IsUintptr() {
 			if Debug['m'] != 0 {
 				Warnl(f.Pos, "marking %v as escaping uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
-		if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
+		if f.IsDDD() && f.Type.Elem().IsUintptr() {
 			// final argument is ...uintptr.
 			if Debug['m'] != 0 {
 				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
@@ -415,7 +422,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		}
 	}
 
-	if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+	if !f.Type.HasPointers() { // don't bother tagging for scalars
 		return ""
 	}
 

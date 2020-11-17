@@ -28,7 +28,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 	if f.dirinfo == nil {
 		dir, call, errno := f.pfd.OpenDir()
 		if errno != nil {
-			return nil, wrapSyscallError(call, errno)
+			return nil, &PathError{call, f.name, errno}
 		}
 		f.dirinfo = &dirInfo{
 			dir: dir,
@@ -46,8 +46,11 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 	var dirent syscall.Dirent
 	var entptr *syscall.Dirent
 	for len(names) < size || n == -1 {
-		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
-			return names, wrapSyscallError("readdir", syscall.Errno(res))
+		if errno := readdir_r(d.dir, &dirent, &entptr); errno != 0 {
+			if errno == syscall.EINTR {
+				continue
+			}
+			return names, &PathError{"readdir", f.name, errno}
 		}
 		if entptr == nil { // EOF
 			break
@@ -81,4 +84,4 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 func closedir(dir uintptr) (err error)
 
 //go:linkname readdir_r syscall.readdir_r
-func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res int)
+func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res syscall.Errno)

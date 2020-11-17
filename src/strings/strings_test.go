@@ -1900,3 +1900,12 @@ func BenchmarkTrimSpace(b *testing.B) {
 		})
 	}
 }
+
+var stringSink string
+
+func BenchmarkReplaceAll(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		stringSink = ReplaceAll("banana", "a", "<>")
+	}
+}

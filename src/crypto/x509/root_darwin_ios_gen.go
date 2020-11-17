@@ -4,7 +4,7 @@
 
 // +build ignore
 
-// Generates root_darwin_ios.go.
+// Generates root_darwin_iosx.go.
 //
 // As of iOS 13, there is no API for querying the system trusted X.509 root
 // certificates.
@@ -37,7 +37,10 @@ import (
 )
 
 func main() {
-	var output = flag.String("output", "root_darwin_ios.go", "file name to write")
+	// Temporarily name the file _iosx.go, to avoid restricting it to GOOS=ios,
+	// as this is also used for darwin/arm64 (macOS).
+	// TODO: maybe use darwin/amd64 implementation on macOS arm64?
+	var output = flag.String("output", "root_darwin_iosx.go", "file name to write")
 	var version = flag.String("version", "", "security_certificates version")
 	flag.Parse()
 	if *version == "" {

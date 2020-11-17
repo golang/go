@@ -108,6 +108,9 @@ func (p *Package) writeDefs() {
 	sort.Strings(typedefNames)
 	for _, name := range typedefNames {
 		def := typedef[name]
+		if def.NotInHeap {
+			fmt.Fprintf(fgo2, "//go:notinheap\n")
+		}
 		fmt.Fprintf(fgo2, "type %s ", name)
 		// We don't have source info for these types, so write them out without source info.
 		// Otherwise types would look like:
@@ -123,7 +126,9 @@ func (p *Package) writeDefs() {
 		// Moreover, empty file name makes compile emit no source debug info at all.
 		var buf bytes.Buffer
 		noSourceConf.Fprint(&buf, fset, def.Go)
-		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
+		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
+			strings.HasPrefix(name, "_Ctype_enum_") ||
+			strings.HasPrefix(name, "_Ctype_union_") {
 			// This typedef is of the form `typedef a b` and should be an alias.
 			fmt.Fprintf(fgo2, "= ")
 		}
@@ -241,6 +246,7 @@ func (p *Package) writeDefs() {
 		if err != nil {
 			fatalf("%s", err)
 		}
+		defer fgcch.Close()
 		_, err = io.Copy(fexp, fgcch)
 		if err != nil {
 			fatalf("%s", err)

@@ -321,7 +321,7 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
 		return true
 	}
 	// There's a very minor chance of a false positive with this.
-	// Insted of detecting our golang.org/x/net/http2.Transport,
+	// Instead of detecting our golang.org/x/net/http2.Transport,
 	// it might detect a Transport type in a different http2
 	// package. But I know of none, and the only problem would be
 	// some temporarily leaked goroutines if the transport didn't

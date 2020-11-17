@@ -119,7 +119,7 @@ func bmap(t *types.Type) *types.Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
-	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
+	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
@@ -754,7 +754,7 @@ var kinds = []int{
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
 func typeptrdata(t *types.Type) int64 {
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return 0
 	}
 
@@ -788,7 +788,7 @@ func typeptrdata(t *types.Type) int64 {
 		// Find the last field that has pointers.
 		var lastPtrField *types.Field
 		for _, t1 := range t.Fields().Slice() {
-			if types.Haspointers(t1.Type) {
+			if t1.Type.HasPointers() {
 				lastPtrField = t1
 			}
 		}
@@ -1168,6 +1168,15 @@ func dtypesym(t *types.Type) *obj.LSym {
 	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
+			if i, ok := typeSymIdx[tbase]; ok {
+				lsym.Pkg = tbase.Sym.Pkg.Prefix
+				if t != tbase {
+					lsym.SymIdx = int32(i[1])
+				} else {
+					lsym.SymIdx = int32(i[0])
+				}
+				lsym.Set(obj.AttrIndexed, true)
+			}
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.
@@ -1577,9 +1586,7 @@ func dumptabs() {
 		}
 		// Nothing writes static itabs, so they are read only.
 		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
-		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
-		dsymptr(ilink, 0, i.lsym, 0)
-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+		i.lsym.Set(obj.AttrContentAddressable, true)
 	}
 
 	// process ptabs
@@ -1742,6 +1749,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
 			duint8(lsym, i, x)
 		}
 		ggloblsym(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		lsym.Set(obj.AttrContentAddressable, true)
 	}
 	return lsym
 }
@@ -1753,7 +1761,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	for i := range ptrmask {
 		ptrmask[i] = 0
 	}
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 
@@ -1822,7 +1830,7 @@ func (p *GCProg) end() {
 
 func (p *GCProg) emit(t *types.Type, offset int64) {
 	dowidth(t)
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 	if t.Width == int64(Widthptr) {

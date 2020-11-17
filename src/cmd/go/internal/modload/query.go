@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -50,19 +52,34 @@ import (
 // version that would otherwise be chosen. This prevents accidental downgrades
 // from newer pre-release or development versions.
 //
-// If the allowed function is non-nil, Query excludes any versions for which
-// allowed returns false.
+// The allowed function (which may be nil) is used to filter out unsuitable
+// versions (see AllowedFunc documentation for details). If the query refers to
+// a specific revision (for example, "master"; see IsRevisionQuery), and the
+// revision is disallowed by allowed, Query returns the error. If the query
+// does not refer to a specific revision (for example, "latest"), Query
+// acts as if versions disallowed by allowed do not exist.
 //
 // If path is the path of the main module and the query is "latest",
 // Query returns Target.Version as the version.
-func Query(path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func Query(ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
-		info, err = queryProxy(proxy, path, query, current, allowed)
+		info, err = queryProxy(ctx, proxy, path, query, current, allowed)
 		return err
 	})
 	return info, err
 }
+
+// AllowedFunc is used by Query and other functions to filter out unsuitable
+// versions, for example, those listed in exclude directives in the main
+// module's go.mod file.
+//
+// An AllowedFunc returns an error equivalent to ErrDisallowed for an unsuitable
+// version. Any other error indicates the function was unable to determine
+// whether the version should be allowed, for example, the function was unable
+// to fetch or parse a go.mod file containing retractions. Typically, errors
+// other than ErrDisallowd may be ignored.
+type AllowedFunc func(context.Context, module.Version) error
 
 var errQueryDisabled error = queryDisabledError{}
 
@@ -75,7 +92,10 @@ func (queryDisabledError) Error() string {
 	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 }
 
-func queryProxy(proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func queryProxy(ctx context.Context, proxy, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
+	defer span.Done()
+
 	if current != "" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
 	}
@@ -83,7 +103,7 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		return nil, errQueryDisabled
 	}
 	if allowed == nil {
-		allowed = func(module.Version) bool { return true }
+		allowed = func(context.Context, module.Version) error { return nil }
 	}
 
 	// Parse query to detect parse errors (and possibly handle query)
@@ -99,7 +119,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		return module.CheckPathMajor(v, pathMajor) == nil
 	}
 	var (
-		ok                 func(module.Version) bool
+		match = func(m module.Version) bool { return true }
+
 		prefix             string
 		preferOlder        bool
 		mayUseLatest       bool
@@ -107,21 +128,18 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	)
 	switch {
 	case query == "latest":
-		ok = allowed
 		mayUseLatest = true
 
 	case query == "upgrade":
-		ok = allowed
 		mayUseLatest = true
 
 	case query == "patch":
 		if current == "" {
-			ok = allowed
 			mayUseLatest = true
 		} else {
 			prefix = semver.MajorMinor(current)
-			ok = func(m module.Version) bool {
-				return matchSemverPrefix(prefix, m.Version) && allowed(m)
+			match = func(m module.Version) bool {
+				return matchSemverPrefix(prefix, m.Version)
 			}
 		}
 
@@ -134,8 +152,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			// Refuse to say whether <=v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
 		}
-		ok = func(m module.Version) bool {
-			return semver.Compare(m.Version, v) <= 0 && allowed(m)
+		match = func(m module.Version) bool {
+			return semver.Compare(m.Version, v) <= 0
 		}
 		if !matchesMajor(v) {
 			preferIncompatible = true
@@ -146,8 +164,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		if !semver.IsValid(v) {
 			return badVersion(v)
 		}
-		ok = func(m module.Version) bool {
-			return semver.Compare(m.Version, v) < 0 && allowed(m)
+		match = func(m module.Version) bool {
+			return semver.Compare(m.Version, v) < 0
 		}
 		if !matchesMajor(v) {
 			preferIncompatible = true
@@ -158,8 +176,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		if !semver.IsValid(v) {
 			return badVersion(v)
 		}
-		ok = func(m module.Version) bool {
-			return semver.Compare(m.Version, v) >= 0 && allowed(m)
+		match = func(m module.Version) bool {
+			return semver.Compare(m.Version, v) >= 0
 		}
 		preferOlder = true
 		if !matchesMajor(v) {
@@ -175,8 +193,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			// Refuse to say whether >v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
 		}
-		ok = func(m module.Version) bool {
-			return semver.Compare(m.Version, v) > 0 && allowed(m)
+		match = func(m module.Version) bool {
+			return semver.Compare(m.Version, v) > 0
 		}
 		preferOlder = true
 		if !matchesMajor(v) {
@@ -184,8 +202,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		}
 
 	case semver.IsValid(query) && isSemverPrefix(query):
-		ok = func(m module.Version) bool {
-			return matchSemverPrefix(query, m.Version) && allowed(m)
+		match = func(m module.Version) bool {
+			return matchSemverPrefix(query, m.Version)
 		}
 		prefix = query + "."
 		if !matchesMajor(query) {
@@ -194,7 +212,20 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 
 	default:
 		// Direct lookup of semantic version or commit identifier.
-		//
+
+		// If the query is a valid semantic version and that version is replaced,
+		// use the replacement module without searching the proxy.
+		canonicalQuery := module.CanonicalVersion(query)
+		if canonicalQuery != "" {
+			m := module.Version{Path: path, Version: query}
+			if r := Replacement(m); r.Path != "" {
+				if err := allowed(ctx, m); errors.Is(err, ErrDisallowed) {
+					return nil, err
+				}
+				return &modfetch.RevInfo{Version: query}, nil
+			}
+		}
+
 		// If the identifier is not a canonical semver tag — including if it's a
 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
 		// info.Version with a suitable pseudo-version.
@@ -204,9 +235,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 			// The full query doesn't correspond to a tag. If it is a semantic version
 			// with a +metadata suffix, see if there is a tag without that suffix:
 			// semantic versioning defines them to be equivalent.
-			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
-				info, err = modfetch.Stat(proxy, path, vers)
-				if !errors.Is(err, os.ErrNotExist) {
+			if canonicalQuery != "" && query != canonicalQuery {
+				info, err = modfetch.Stat(proxy, path, canonicalQuery)
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
 					return info, err
 				}
 			}
@@ -214,8 +245,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 				return nil, queryErr
 			}
 		}
-		if !allowed(module.Version{Path: path, Version: info.Version}) {
-			return nil, fmt.Errorf("%s@%s excluded", path, info.Version)
+		if err := allowed(ctx, module.Version{Path: path, Version: info.Version}); errors.Is(err, ErrDisallowed) {
+			return nil, err
 		}
 		return info, nil
 	}
@@ -224,8 +255,8 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 		if query != "latest" {
 			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
 		}
-		if !allowed(Target) {
-			return nil, fmt.Errorf("internal error: main module version is not allowed")
+		if err := allowed(ctx, Target); err != nil {
+			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
 		}
 		return &modfetch.RevInfo{Version: Target.Version}, nil
 	}
@@ -243,7 +274,13 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	if err != nil {
 		return nil, err
 	}
-	releases, prereleases, err := filterVersions(path, versions, ok, preferIncompatible)
+	matchAndAllowed := func(ctx context.Context, m module.Version) error {
+		if !match(m) {
+			return ErrDisallowed
+		}
+		return allowed(ctx, m)
+	}
+	releases, prereleases, err := filterVersions(ctx, path, versions, matchAndAllowed, preferIncompatible)
 	if err != nil {
 		return nil, err
 	}
@@ -283,11 +320,12 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	}
 
 	if mayUseLatest {
-		// Special case for "latest": if no tags match, use latest commit in repo,
-		// provided it is not excluded.
+		// Special case for "latest": if no tags match, use latest commit in repo
+		// if it is allowed.
 		latest, err := repo.Latest()
 		if err == nil {
-			if allowed(module.Version{Path: path, Version: latest.Version}) {
+			m := module.Version{Path: path, Version: latest.Version}
+			if err := allowed(ctx, m); !errors.Is(err, ErrDisallowed) {
 				return lookup(latest.Version)
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -296,6 +334,22 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	}
 
 	return nil, &NoMatchingVersionError{query: query, current: current}
+}
+
+// IsRevisionQuery returns true if vers is a version query that may refer to
+// a particular version or revision in a repository like "v1.0.0", "master",
+// or "0123abcd". IsRevisionQuery returns false if vers is a query that
+// chooses from among available versions like "latest" or ">v1.0.0".
+func IsRevisionQuery(vers string) bool {
+	if vers == "latest" ||
+		vers == "upgrade" ||
+		vers == "patch" ||
+		strings.HasPrefix(vers, "<") ||
+		strings.HasPrefix(vers, ">") ||
+		(semver.IsValid(vers) && isSemverPrefix(vers)) {
+		return false
+	}
+	return true
 }
 
 // isSemverPrefix reports whether v is a semantic version prefix: v1 or v1.2 (not v1.2.3).
@@ -324,13 +378,16 @@ func matchSemverPrefix(p, v string) bool {
 
 // filterVersions classifies versions into releases and pre-releases, filtering
 // out:
-// 	1. versions that do not satisfy the 'ok' predicate, and
+// 	1. versions that do not satisfy the 'allowed' predicate, and
 // 	2. "+incompatible" versions, if a compatible one satisfies the predicate
 // 	   and the incompatible version is not preferred.
-func filterVersions(path string, versions []string, ok func(module.Version) bool, preferIncompatible bool) (releases, prereleases []string, err error) {
+//
+// If the allowed predicate returns an error not equivalent to ErrDisallowed,
+// filterVersions returns that error.
+func filterVersions(ctx context.Context, path string, versions []string, allowed AllowedFunc, preferIncompatible bool) (releases, prereleases []string, err error) {
 	var lastCompatible string
 	for _, v := range versions {
-		if !ok(module.Version{Path: path, Version: v}) {
+		if err := allowed(ctx, module.Version{Path: path, Version: v}); errors.Is(err, ErrDisallowed) {
 			continue
 		}
 
@@ -343,7 +400,7 @@ func filterVersions(path string, versions []string, ok func(module.Version) bool
 				// https://golang.org/issue/34165.) Note that we even prefer a
 				// compatible pre-release over an incompatible release.
 
-				ok, err := versionHasGoMod(module.Version{Path: path, Version: lastCompatible})
+				ok, err := versionHasGoMod(ctx, module.Version{Path: path, Version: lastCompatible})
 				if err != nil {
 					return nil, nil, err
 				}
@@ -374,20 +431,6 @@ type QueryResult struct {
 	Packages []string
 }
 
-// QueryPackage looks up the module(s) containing path at a revision matching
-// query. The results are sorted by module path length in descending order.
-//
-// If the package is in the main module, QueryPackage considers only the main
-// module and only the version "latest", without checking for other possible
-// modules.
-func QueryPackage(path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
-	m := search.NewMatch(path)
-	if m.IsLocal() || !m.IsLiteral() {
-		return nil, fmt.Errorf("pattern %s is not an importable package", path)
-	}
-	return QueryPattern(path, query, allowed)
-}
-
 // QueryPattern looks up the module(s) containing at least one package matching
 // the given pattern at the given version. The results are sorted by module path
 // length in descending order.
@@ -401,7 +444,10 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) ([]Quer
 // If any matching package is in the main module, QueryPattern considers only
 // the main module and only the version "latest", without checking for other
 // possible modules.
-func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+func QueryPattern(ctx context.Context, pattern, query string, allowed AllowedFunc) ([]QueryResult, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
+	defer span.Done()
+
 	base := pattern
 
 	firstError := func(m *search.Match) error {
@@ -417,7 +463,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		base = pathpkg.Dir(pattern[:i+3])
 		match = func(mod module.Version, root string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
-			matchPackages(m, imports.AnyTags(), omitStd, []module.Version{mod})
+			matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{mod})
 			return m
 		}
 	} else {
@@ -442,8 +488,8 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 			if query != "latest" {
 				return nil, fmt.Errorf("can't query specific version for package %s in the main module (%s)", pattern, Target.Path)
 			}
-			if !allowed(Target) {
-				return nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", pattern, Target.Path)
+			if err := allowed(ctx, Target); err != nil {
+				return nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed: %w", pattern, Target.Path, err)
 			}
 			return []QueryResult{{
 				Mod:      Target,
@@ -469,15 +515,18 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 	}
 
 	err := modfetch.TryProxies(func(proxy string) error {
-		queryModule := func(path string) (r QueryResult, err error) {
+		queryModule := func(ctx context.Context, path string) (r QueryResult, err error) {
+			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
+			defer span.Done()
+
 			current := findCurrentVersion(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(proxy, path, query, current, allowed)
+			r.Rev, err = queryProxy(ctx, proxy, path, query, current, allowed)
 			if err != nil {
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
-			root, isLocal, err := fetch(r.Mod)
+			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
@@ -498,7 +547,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		}
 
 		var err error
-		results, err = queryPrefixModules(candidateModules, queryModule)
+		results, err = queryPrefixModules(ctx, candidateModules, queryModule)
 		return err
 	})
 
@@ -542,7 +591,10 @@ type prefixResult struct {
 	err error
 }
 
-func queryPrefixModules(candidateModules []string, queryModule func(path string) (QueryResult, error)) (found []QueryResult, err error) {
+func queryPrefixModules(ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryPrefixModules")
+	defer span.Done()
+
 	// If the path we're attempting is not in the module cache and we don't have a
 	// fetch result cached either, we'll end up making a (potentially slow)
 	// request to the proxy or (often even slower) the origin server.
@@ -555,8 +607,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 	var wg sync.WaitGroup
 	wg.Add(len(candidateModules))
 	for i, p := range candidateModules {
+		ctx := trace.StartGoroutine(ctx)
 		go func(p string, r *result) {
-			r.QueryResult, r.err = queryModule(p)
+			r.QueryResult, r.err = queryModule(ctx, p)
 			wg.Done()
 		}(p, &results[i])
 	}
@@ -698,8 +751,8 @@ func (e *PackageNotInModuleError) ImportPath() string {
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.
-func ModuleHasRootPackage(m module.Version) (bool, error) {
-	root, isLocal, err := fetch(m)
+func ModuleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+	root, isLocal, err := fetch(ctx, m)
 	if err != nil {
 		return false, err
 	}
@@ -707,8 +760,8 @@ func ModuleHasRootPackage(m module.Version) (bool, error) {
 	return ok, err
 }
 
-func versionHasGoMod(m module.Version) (bool, error) {
-	root, _, err := fetch(m)
+func versionHasGoMod(ctx context.Context, m module.Version) (bool, error) {
+	root, _, err := fetch(ctx, m)
 	if err != nil {
 		return false, err
 	}

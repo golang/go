@@ -137,6 +137,7 @@ func init() {
 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
@@ -174,11 +175,13 @@ func init() {
 		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
+		{name: "SUBFCconst", argLength: 1, reg: gp11, asm: "SUBC", aux: "Int64"},  // auxInt - arg0 (with carry)
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
 
 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
+		{name: "MADDLD", argLength: 3, reg: gp31, asm: "MADDLD", typ: "Int64"},                  // (arg0*arg1)+arg2 (signed 64-bit)
 
 		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
 		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
@@ -203,10 +206,13 @@ func init() {
 
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
+		// The following are ops to implement the extended mnemonics for shifts as described in section C.8 of the ISA.
+		// The constant shift values are packed into the aux int32.
+		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int32"},     // arg0 extract bits identified by shift params"
+		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
+		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
 
-		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
-		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + auxint
-		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
+		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
 
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
@@ -413,9 +419,9 @@ func init() {
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
@@ -645,9 +651,9 @@ func init() {
 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
-		// It preserves R0 through R15, g, and its arguments R20 and R21,
+		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and its arguments R20 and R21,
 		// but may clobber anything else, including R31 (REGTMP).
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
@@ -672,11 +678,9 @@ func init() {
 
 		// These ops are for temporary use by rewrite rules. They
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},         // equal
-		{name: "FlagLT"},         // signed < or unsigned <
-		{name: "FlagGT"},         // signed > or unsigned >
-		{name: "FlagCarrySet"},   // carry flag set
-		{name: "FlagCarryClear"}, // carry flag clear
+		{name: "FlagEQ"}, // equal
+		{name: "FlagLT"}, // signed < or unsigned <
+		{name: "FlagGT"}, // signed > or unsigned >
 	}
 
 	blocks := []blockData{

@@ -7,6 +7,7 @@ package bug
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,7 +38,7 @@ func init() {
 	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 }
 
-func runBug(cmd *base.Command, args []string) {
+func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go bug: bug takes no arguments")
 	}
@@ -104,7 +105,7 @@ func printGoDetails(w io.Writer) {
 
 func printOSDetails(w io.Writer) {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		printCmdOut(w, "uname -v: ", "uname", "-v")
 		printCmdOut(w, "", "sw_vers")
 	case "linux":
