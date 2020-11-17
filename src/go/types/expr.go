@@ -1357,9 +1357,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			var key operand
 			check.expr(&key, e.Index)
 			check.assignment(&key, typ.key, "map index")
-			if x.mode == invalid {
-				goto Error
-			}
+			// ok to continue even if indexing failed - map element type is known
 			x.mode = mapindex
 			x.typ = typ.elem
 			x.expr = e
