@@ -406,7 +406,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	var startpc uintptr
 	if !go115ReduceLiveness {
 		smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
-		if smi == -2 {
+		if smi == _PCDATA_RegMapUnsafe {
 			// Unsafe-point marked by compiler. This includes
 			// atomic sequences (e.g., write barrier) and nosplit
 			// functions (except at calls).

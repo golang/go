@@ -5,8 +5,8 @@
 
 # Get errors from a go test into stderr.txt
 ! go test coverbad
-stderr 'coverbad[\\/]p\.go:4' # look for error at coverbad/p.go:4
-[cgo] stderr 'coverbad[\\/]p1\.go:6' # look for error at coverbad/p.go:6
+stderr 'p\.go:4' # look for error at coverbad/p.go:4
+[cgo] stderr 'p1\.go:6' # look for error at coverbad/p.go:6
 ! stderr $WORK # make sure temporary directory isn't in error
 
 cp stderr $WORK/stderr.txt
@@ -24,13 +24,17 @@ wait # for go run above
 
 cmp $WORK/stderr.txt $WORK/stderr2.txt
 
--- coverbad/p.go --
+-- go.mod --
+module coverbad
+
+go 1.16
+-- p.go --
 package p
 
 func f() {
 	g()
 }
--- coverbad/p1.go --
+-- p1.go --
 package p
 
 import "C"
@@ -38,13 +42,15 @@ import "C"
 func h() {
 	j()
 }
--- coverbad/p_test.go --
+-- p_test.go --
 package p
 
 import "testing"
 
 func Test(t *testing.T) {}
 -- clean_charpos.go --
+// +build ignore
+
 package main
 
 import (

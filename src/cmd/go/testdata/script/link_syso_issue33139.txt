@@ -15,6 +15,10 @@
 cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
 go build -ldflags='-linkmode=external' ./cmd/main.go
 
+-- go.mod --
+module m
+
+go 1.16
 -- syso/objTest.s --
 #include "textflag.h"
 
@@ -36,7 +40,7 @@ void objTestImpl() { /* Empty */ }
 -- cmd/main.go --
 package main
 
-import "syso"
+import "m/syso"
 
 func main() {
 	syso.ObjTest()

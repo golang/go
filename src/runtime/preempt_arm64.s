@@ -13,6 +13,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	#ifdef GOOS_darwin
 	MOVD R30, (RSP)
 	#endif
+	#ifdef GOOS_ios
+	MOVD R30, (RSP)
+	#endif
 	MOVD R0, 8(RSP)
 	MOVD R1, 16(RSP)
 	MOVD R2, 24(RSP)

@@ -79,7 +79,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	WORD	$0xc0102573	// rdtime a0
+	RDTIME	A0
 	MOV	A0, ret+0(FP)
 	RET
 

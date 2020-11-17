@@ -706,3 +706,27 @@ func BenchmarkWriteSlice1000Float32s(b *testing.B) {
 	}
 	b.StopTimer()
 }
+
+func BenchmarkReadSlice1000Uint8s(b *testing.B) {
+	bsr := &byteSliceReader{}
+	slice := make([]uint8, 1000)
+	buf := make([]byte, len(slice))
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf
+		Read(bsr, BigEndian, slice)
+	}
+}
+
+func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
+	slice := make([]uint8, 1000)
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(1000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, slice)
+	}
+}

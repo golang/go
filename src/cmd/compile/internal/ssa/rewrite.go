@@ -20,7 +20,15 @@ import (
 	"path/filepath"
 )
 
-func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+type deadValueChoice bool
+
+const (
+	leaveDeadValues  deadValueChoice = false
+	removeDeadValues                 = true
+)
+
+// deadcode indicates that rewrite should try to remove any values that become dead.
+func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
 	pendingLines.clear()
@@ -55,6 +63,18 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					v0 = new(Value)
 					*v0 = *v
 					v0.Args = append([]*Value{}, v.Args...) // make a new copy, not aliasing
+				}
+				if v.Uses == 0 && v.removeable() {
+					if v.Op != OpInvalid && deadcode == removeDeadValues {
+						// Reset any values that are now unused, so that we decrement
+						// the use count of all of its arguments.
+						// Not quite a deadcode pass, because it does not handle cycles.
+						// But it should help Uses==1 rules to fire.
+						v.reset(OpInvalid)
+						change = true
+					}
+					// No point rewriting values which aren't used.
+					continue
 				}
 
 				vchange := phielimValue(v)
@@ -373,15 +393,9 @@ func canMergeLoad(target, load *Value) bool {
 	return true
 }
 
-// symNamed reports whether sym's name is name.
-func symNamed(sym Sym, name string) bool {
-	return sym.String() == name
-}
-
-// isSameSym reports whether sym is the same as the given named symbol
-func isSameSym(sym interface{}, name string) bool {
-	s, ok := sym.(fmt.Stringer)
-	return ok && s.String() == name
+// isSameCall reports whether sym is the same as the given named symbol
+func isSameCall(sym interface{}, name string) bool {
+	return sym.(*AuxCall).Fn.String() == name
 }
 
 // nlz returns the number of leading zeros.
@@ -618,6 +632,9 @@ func auxIntToFloat64(i int64) float64 {
 func auxIntToValAndOff(i int64) ValAndOff {
 	return ValAndOff(i)
 }
+func auxIntToArm64BitField(i int64) arm64BitField {
+	return arm64BitField(i)
+}
 func auxIntToInt128(x int64) int128 {
 	if x != 0 {
 		panic("nonzero int128 not allowed")
@@ -626,6 +643,10 @@ func auxIntToInt128(x int64) int128 {
 }
 func auxIntToFlagConstant(x int64) flagConstant {
 	return flagConstant(x)
+}
+
+func auxIntToOp(cc int64) Op {
+	return Op(cc)
 }
 
 func boolToAuxInt(b bool) int64 {
@@ -658,6 +679,9 @@ func float64ToAuxInt(f float64) int64 {
 func valAndOffToAuxInt(v ValAndOff) int64 {
 	return int64(v)
 }
+func arm64BitFieldToAuxInt(v arm64BitField) int64 {
+	return int64(v)
+}
 func int128ToAuxInt(x int128) int64 {
 	if x != 0 {
 		panic("nonzero int128 not allowed")
@@ -666,6 +690,10 @@ func int128ToAuxInt(x int128) int64 {
 }
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
+}
+
+func opToAuxInt(o Op) int64 {
+	return int64(o)
 }
 
 func auxToString(i interface{}) string {
@@ -678,6 +706,9 @@ func auxToSym(i interface{}) Sym {
 }
 func auxToType(i interface{}) *types.Type {
 	return i.(*types.Type)
+}
+func auxToCall(i interface{}) *AuxCall {
+	return i.(*AuxCall)
 }
 func auxToS390xCCMask(i interface{}) s390x.CCMask {
 	return i.(s390x.CCMask)
@@ -692,6 +723,9 @@ func stringToAux(s string) interface{} {
 func symToAux(s Sym) interface{} {
 	return s
 }
+func callToAux(s *AuxCall) interface{} {
+	return s
+}
 func typeToAux(t *types.Type) interface{} {
 	return t
 }
@@ -701,9 +735,6 @@ func s390xCCMaskToAux(c s390x.CCMask) interface{} {
 func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
 	return r
 }
-func cCopToAux(o Op) interface{} {
-	return o
-}
 
 // uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
@@ -712,7 +743,7 @@ func uaddOvf(a, b int64) bool {
 
 // de-virtualize an InterCall
 // 'sym' is the symbol for the itab
-func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
+func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
 	f := v.Block.Func
 	n, ok := sym.(*obj.LSym)
 	if !ok {
@@ -726,7 +757,11 @@ func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
 			f.Warnl(v.Pos, "couldn't de-virtualize call")
 		}
 	}
-	return lsym
+	if lsym == nil {
+		return nil
+	}
+	va := aux.(*AuxCall)
+	return StaticAuxCall(lsym, va.args, va.results)
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.
@@ -1008,8 +1043,7 @@ func arm64Invert(op Op) Op {
 // evaluate an ARM64 op against a flags value
 // that is potentially constant; return 1 for true,
 // -1 for false, and 0 for not constant.
-func ccARM64Eval(cc interface{}, flags *Value) int {
-	op := cc.(Op)
+func ccARM64Eval(op Op, flags *Value) int {
 	fop := flags.Op
 	if fop == OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
@@ -1291,25 +1325,63 @@ func hasSmallRotate(c *Config) bool {
 	}
 }
 
+func newPPC64ShiftAuxInt(sh, mb, me, sz int64) int32 {
+	if sh < 0 || sh >= sz {
+		panic("PPC64 shift arg sh out of range")
+	}
+	if mb < 0 || mb >= sz {
+		panic("PPC64 shift arg mb out of range")
+	}
+	if me < 0 || me >= sz {
+		panic("PPC64 shift arg me out of range")
+	}
+	return int32(sh<<16 | mb<<8 | me)
+}
+
+func GetPPC64Shiftsh(auxint int64) int64 {
+	return int64(int8(auxint >> 16))
+}
+
+func GetPPC64Shiftmb(auxint int64) int64 {
+	return int64(int8(auxint >> 8))
+}
+
+func GetPPC64Shiftme(auxint int64) int64 {
+	return int64(int8(auxint))
+}
+
+// Catch the simple ones first
+// TODO: Later catch more cases
+func isPPC64ValidShiftMask(v int64) bool {
+	if ((v + 1) & v) == 0 {
+		return true
+	}
+	return false
+}
+
+func getPPC64ShiftMaskLength(v int64) int64 {
+	return int64(bits.Len64(uint64(v)))
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
-func armBFAuxInt(lsb, width int64) int64 {
+func armBFAuxInt(lsb, width int64) arm64BitField {
 	if lsb < 0 || lsb > 63 {
 		panic("ARM(64) bit field lsb constant out of range")
 	}
 	if width < 1 || width > 64 {
 		panic("ARM(64) bit field width constant out of range")
 	}
-	return width | lsb<<8
+	return arm64BitField(width | lsb<<8)
 }
 
 // returns the lsb part of the auxInt field of arm64 bitfield ops.
-func getARM64BFlsb(bfc int64) int64 {
+func (bfc arm64BitField) getARM64BFlsb() int64 {
 	return int64(uint64(bfc) >> 8)
 }
 
 // returns the width part of the auxInt field of arm64 bitfield ops.
-func getARM64BFwidth(bfc int64) int64 {
-	return bfc & 0xff
+func (bfc arm64BitField) getARM64BFwidth() int64 {
+	return int64(bfc) & 0xff
 }
 
 // checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
@@ -1347,12 +1419,12 @@ func registerizable(b *Block, typ *types.Type) bool {
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
-func needRaceCleanup(sym Sym, v *Value) bool {
+func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	f := v.Block.Func
 	if !f.Config.Race {
 		return false
 	}
-	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
+	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
@@ -1361,7 +1433,7 @@ func needRaceCleanup(sym Sym, v *Value) bool {
 			case OpStaticCall:
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
-				s := v.Aux.(fmt.Stringer).String()
+				s := v.Aux.(*AuxCall).Fn.String()
 				switch s {
 				case "runtime.racefuncenter", "runtime.racefuncexit",
 					"runtime.panicdivide", "runtime.panicwrap",
@@ -1378,6 +1450,15 @@ func needRaceCleanup(sym Sym, v *Value) bool {
 				return false
 			}
 		}
+	}
+	if isSameCall(sym, "runtime.racefuncenter") {
+		// If we're removing racefuncenter, remove its argument as well.
+		if v.Args[0].Op != OpStore {
+			return false
+		}
+		mem := v.Args[0].Args[2]
+		v.Args[0].reset(OpCopy)
+		v.Args[0].AddArg(mem)
 	}
 	return true
 }

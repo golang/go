@@ -279,9 +279,6 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		if p.consume(',') {
 			continue
 		}
-		if p.empty() {
-			break
-		}
 
 		addrs, err := p.parseAddress(true)
 		if err != nil {
@@ -295,8 +292,16 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		if p.empty() {
 			break
 		}
-		if !p.consume(',') {
+		if p.peek() != ',' {
 			return nil, errors.New("mail: expected comma")
+		}
+
+		// Skip empty entries for obs-addr-list.
+		for p.consume(',') {
+			p.skipSpace()
+		}
+		if p.empty() {
+			break
 		}
 	}
 	return list, nil

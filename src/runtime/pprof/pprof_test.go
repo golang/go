@@ -262,7 +262,7 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 // as interpreted by matches, and returns the parsed profile.
 func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			// nothing
@@ -280,7 +280,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 
 	broken := false
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
 		broken = true
 	case "openbsd":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {

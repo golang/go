@@ -271,13 +271,6 @@ func autolabel(prefix string) *types.Sym {
 	return lookupN(prefix, int(n))
 }
 
-func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !types.IsExported(name) && pkg != localpkg {
-		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
-	}
-	return pkg.Lookup(name)
-}
-
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *types.Pkg, pack *Node) {
@@ -696,14 +689,14 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		}
 		return OXXX
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		}
 		return OXXX
 	}
@@ -788,12 +781,12 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	}
 
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
-	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
+	if (src.IsPtr() || src.IsUintptr()) && dst.IsUnsafePtr() {
 		return OCONVNOP
 	}
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
-	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+	if src.IsUnsafePtr() && (dst.IsPtr() || dst.IsUintptr()) {
 		return OCONVNOP
 	}
 
@@ -935,16 +928,20 @@ func (o Op) IsSlice3() bool {
 	return false
 }
 
-// slicePtrLen extracts the pointer and length from a slice.
+// backingArrayPtrLen extracts the pointer and length from a slice or string.
 // This constructs two nodes referring to n, so n must be a cheapexpr.
-func (n *Node) slicePtrLen() (ptr, len *Node) {
+func (n *Node) backingArrayPtrLen() (ptr, len *Node) {
 	var init Nodes
 	c := cheapexpr(n, &init)
 	if c != n || init.Len() != 0 {
-		Fatalf("slicePtrLen not cheap: %v", n)
+		Fatalf("backingArrayPtrLen not cheap: %v", n)
 	}
 	ptr = nod(OSPTR, n, nil)
-	ptr.Type = n.Type.Elem().PtrTo()
+	if n.Type.IsString() {
+		ptr.Type = types.Types[TUINT8].PtrTo()
+	} else {
+		ptr.Type = n.Type.Elem().PtrTo()
+	}
 	len = nod(OLEN, n, nil)
 	len.Type = types.Types[TINT]
 	return ptr, len
@@ -1550,7 +1547,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	tfn.List.Set(structargs(method.Type.Params(), true))
 	tfn.Rlist.Set(structargs(method.Type.Results(), false))
 
-	disableExport(newnam)
 	fn := dclfunc(newnam, tfn)
 	fn.Func.SetDupok(true)
 
@@ -1623,7 +1619,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	escapeFuncs([]*Node{fn}, false)
 
 	Curfn = nil
-	funccompile(fn)
+	xtop = append(xtop, fn)
 }
 
 func paramNnames(ft *types.Type) []*Node {
@@ -1638,8 +1634,7 @@ func hashmem(t *types.Type) *Node {
 	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
-	n.SetClass(PFUNC)
-	n.Sym.SetFunc(true)
+	setNodeNameFunc(n)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),

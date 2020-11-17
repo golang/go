@@ -205,8 +205,9 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/src"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -295,12 +296,15 @@ func iexport(out *bufio.Writer) {
 	hdr.uint64(dataLen)
 
 	// Flush output.
-	io.Copy(out, &hdr)
-	io.Copy(out, &p.strings)
-	io.Copy(out, &p.data0)
+	h := md5.New()
+	wr := io.MultiWriter(out, h)
+	io.Copy(wr, &hdr)
+	io.Copy(wr, &p.strings)
+	io.Copy(wr, &p.data0)
 
 	// Add fingerprint (used by linker object file).
 	// Attach this to the end, so tools (e.g. gcimporter) don't care.
+	copy(Ctxt.Fingerprint[:], h.Sum(nil)[:])
 	out.Write(Ctxt.Fingerprint[:])
 }
 
@@ -480,6 +484,7 @@ func (p *iexporter) doDecl(n *Node) {
 
 		t := n.Type
 		if t.IsInterface() {
+			w.typeExt(t)
 			break
 		}
 
@@ -492,6 +497,7 @@ func (p *iexporter) doDecl(n *Node) {
 			w.signature(m.Type)
 		}
 
+		w.typeExt(t)
 		for _, m := range ms.Slice() {
 			w.methExt(m)
 		}
@@ -997,19 +1003,28 @@ func (w *exportWriter) linkname(s *types.Sym) {
 }
 
 func (w *exportWriter) symIdx(s *types.Sym) {
-	if Ctxt.Flag_go115newobj {
-		lsym := s.Linksym()
-		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
-			// Don't export index for non-package symbols, linkname'd symbols,
-			// and symbols without an index. They can only be referenced by
-			// name.
-			w.int64(-1)
-		} else {
-			// For a defined symbol, export its index.
-			// For re-exporting an imported symbol, pass its index through.
-			w.int64(int64(lsym.SymIdx))
-		}
+	lsym := s.Linksym()
+	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
+		// Don't export index for non-package symbols, linkname'd symbols,
+		// and symbols without an index. They can only be referenced by
+		// name.
+		w.int64(-1)
+	} else {
+		// For a defined symbol, export its index.
+		// For re-exporting an imported symbol, pass its index through.
+		w.int64(int64(lsym.SymIdx))
 	}
+}
+
+func (w *exportWriter) typeExt(t *types.Type) {
+	// For type T, export the index of type descriptor symbols of T and *T.
+	if i, ok := typeSymIdx[t]; ok {
+		w.int64(i[0])
+		w.int64(i[1])
+		return
+	}
+	w.symIdx(typesym(t))
+	w.symIdx(typesym(t.PtrTo()))
 }
 
 // Inline bodies.

@@ -1423,7 +1423,8 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 
 func opHasAuxInt(op opData) bool {
 	switch op.aux {
-	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant":
+	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64",
+		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop":
 		return true
 	}
 	return false
@@ -1431,7 +1432,7 @@ func opHasAuxInt(op opData) bool {
 
 func opHasAux(op opData) bool {
 	switch op.aux {
-	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop",
+	case "String", "Sym", "SymOff", "Call", "CallOff", "SymValAndOff", "Typ", "TypSize",
 		"S390XCCMask", "S390XRotateParams":
 		return true
 	}
@@ -1774,6 +1775,10 @@ func (op opData) auxType() string {
 		return "Sym"
 	case "SymOff":
 		return "Sym"
+	case "Call":
+		return "Call"
+	case "CallOff":
+		return "Call"
 	case "SymValAndOff":
 		return "Sym"
 	case "Typ":
@@ -1784,8 +1789,6 @@ func (op opData) auxType() string {
 		return "s390x.CCMask"
 	case "S390XRotateParams":
 		return "s390x.RotateParams"
-	case "CCop":
-		return "CCop"
 	default:
 		return "invalid"
 	}
@@ -1810,6 +1813,8 @@ func (op opData) auxIntType() string {
 		return "float32"
 	case "Float64":
 		return "float64"
+	case "CallOff":
+		return "int32"
 	case "SymOff":
 		return "int32"
 	case "SymValAndOff":
@@ -1820,6 +1825,8 @@ func (op opData) auxIntType() string {
 		return "Op"
 	case "FlagConstant":
 		return "flagConstant"
+	case "ARM64BitField":
+		return "arm64BitField"
 	default:
 		return "invalid"
 	}

@@ -58,8 +58,8 @@ func TestNode(t *testing.T) {
 	diff(t, buf.Bytes(), src)
 }
 
-// Node is documented to not modify the AST. Test that it is so, even when
-// formatting changes are applied due to printer.StdFormat mode being used.
+// Node is documented to not modify the AST.
+// Test that it is so even when numbers are normalized.
 func TestNodeNoModify(t *testing.T) {
 	const (
 		src    = "package p\n\nconst _ = 0000000123i\n"

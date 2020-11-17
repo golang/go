@@ -284,6 +284,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLDICLCC $0, R4, $15, R6        // 788603c1
 	RLDICR $0, R4, $15, R6          // 788603c4
 	RLDICRCC $0, R4, $15, R6        // 788603c5
+	RLDIC $0, R4, $15, R6           // 788603c8
+	RLDICCC $0, R4, $15, R6         // 788603c9
+	CLRLSLWI $16, R5, $8, R4        // 54a4861e
+	CLRLSLDI $2, R4, $24, R3        // 78831588
 
 	BEQ 0(PC)                       // 41820000
 	BGE 0(PC)                       // 40800000
@@ -595,11 +599,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	LXV 16(R3), VS1                 // f4230011
 	LXVL R3, R4, VS1                // 7c23221a
 	LXVLL R3, R4, VS1               // 7c23225a
+	LXVX R3, R4, VS1                // 7c232218
 	LXSDX (R3)(R4), VS1             // 7c241c98
 	STXVD2X VS1, (R3)(R4)           // 7c241f98
 	STXV VS1,16(R3)                 // f4230015
 	STXVL VS1, R3, R4               // 7c23231a
 	STXVLL VS1, R3, R4              // 7c23235a
+	STXVX VS1, R3, R4               // 7c232318
 	STXSDX VS1, (R3)(R4)            // 7c241d98
 	LXSIWAX (R3)(R4), VS1           // 7c241898
 	STXSIWX VS1, (R3)(R4)           // 7c241918

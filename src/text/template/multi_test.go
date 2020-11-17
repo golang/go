@@ -359,6 +359,7 @@ func TestEmptyTemplate(t *testing.T) {
 		in   string
 		want string
 	}{
+		{[]string{"x", "y"}, "", "y"},
 		{[]string{""}, "once", ""},
 		{[]string{"", ""}, "twice", ""},
 		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},

@@ -76,7 +76,11 @@ func syscallMode(i FileMode) (o uint32) {
 
 // See docs in file.go:Chmod.
 func chmod(name string, mode FileMode) error {
-	if e := syscall.Chmod(fixLongPath(name), syscallMode(mode)); e != nil {
+	longName := fixLongPath(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Chmod(longName, syscallMode(mode))
+	})
+	if e != nil {
 		return &PathError{"chmod", name, e}
 	}
 	return nil
@@ -101,7 +105,10 @@ func (f *File) chmod(mode FileMode) error {
 // On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
 // EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
-	if e := syscall.Chown(name, uid, gid); e != nil {
+	e := ignoringEINTR(func() error {
+		return syscall.Chown(name, uid, gid)
+	})
+	if e != nil {
 		return &PathError{"chown", name, e}
 	}
 	return nil
@@ -114,7 +121,10 @@ func Chown(name string, uid, gid int) error {
 // On Windows, it always returns the syscall.EWINDOWS error, wrapped
 // in *PathError.
 func Lchown(name string, uid, gid int) error {
-	if e := syscall.Lchown(name, uid, gid); e != nil {
+	e := ignoringEINTR(func() error {
+		return syscall.Lchown(name, uid, gid)
+	})
+	if e != nil {
 		return &PathError{"lchown", name, e}
 	}
 	return nil
@@ -221,4 +231,20 @@ func (f *File) checkValid(op string) error {
 		return ErrInvalid
 	}
 	return nil
+}
+
+// ignoringEINTR makes a function call and repeats it if it returns an
+// EINTR error. This appears to be required even though we install all
+// signal handlers with SA_RESTART: see #22838, #38033, #38836, #40846.
+// Also #20400 and #36644 are issues in which a signal handler is
+// installed without setting SA_RESTART. None of these are the common case,
+// but there are enough of them that it seems that we can't avoid
+// an EINTR loop.
+func ignoringEINTR(fn func() error) error {
+	for {
+		err := fn()
+		if err != syscall.EINTR {
+			return err
+		}
+	}
 }

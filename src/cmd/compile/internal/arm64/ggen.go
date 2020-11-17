@@ -11,7 +11,7 @@ import (
 	"cmd/internal/objabi"
 )
 
-var darwin = objabi.GOOS == "darwin"
+var darwin = objabi.GOOS == "darwin" || objabi.GOOS == "ios"
 
 func padframe(frame int64) int64 {
 	// arm64 requires that the frame size (not counting saved FP&LR)

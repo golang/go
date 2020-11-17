@@ -81,6 +81,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/poll"
 	"io"
 	"os"
 	"sync"
@@ -631,6 +632,17 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
 // This is not always known; a DNS lookup may fail due to a temporary
 // error and return a DNSError for which Temporary returns false.
 func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+
+// errClosed exists just so that the docs for ErrClosed don't mention
+// the internal package poll.
+var errClosed = poll.ErrNetClosing
+
+// ErrClosed is the error returned by an I/O call on a network
+// connection that has already been closed, or that is closed by
+// another goroutine before the I/O is completed. This may be wrapped
+// in another error, and should normally be tested using
+// errors.Is(err, net.ErrClosed).
+var ErrClosed = errClosed
 
 type writerOnly struct {
 	io.Writer

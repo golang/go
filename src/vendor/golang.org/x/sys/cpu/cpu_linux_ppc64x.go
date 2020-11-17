@@ -7,8 +7,6 @@
 
 package cpu
 
-const cacheLineSize = 128
-
 // HWCAP/HWCAP2 bits. These are exposed by the kernel.
 const (
 	// ISA Level

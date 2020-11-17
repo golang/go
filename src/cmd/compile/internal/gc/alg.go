@@ -392,7 +392,7 @@ func genhash(t *types.Type) *obj.LSym {
 	}
 
 	fn.Func.SetNilCheckDisabled(true)
-	funccompile(fn)
+	xtop = append(xtop, fn)
 
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
@@ -429,8 +429,7 @@ func hashfor(t *types.Type) *Node {
 	}
 
 	n := newname(sym)
-	n.SetClass(PFUNC)
-	n.Sym.SetFunc(true)
+	setNodeNameFunc(n)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
@@ -646,17 +645,11 @@ func geneq(t *types.Type) *obj.LSym {
 		// Build a list of conditions to satisfy.
 		// The conditions are a list-of-lists. Conditions are reorderable
 		// within each inner list. The outer lists must be evaluated in order.
-		// Even within each inner list, track their order so that we can preserve
-		// aspects of that order. (TODO: latter part needed?)
-		type nodeIdx struct {
-			n   *Node
-			idx int
-		}
-		var conds [][]nodeIdx
-		conds = append(conds, []nodeIdx{})
+		var conds [][]*Node
+		conds = append(conds, []*Node{})
 		and := func(n *Node) {
 			i := len(conds) - 1
-			conds[i] = append(conds[i], nodeIdx{n: n, idx: len(conds[i])})
+			conds[i] = append(conds[i], n)
 		}
 
 		// Walk the struct using memequal for runs of AMEM
@@ -674,7 +667,7 @@ func geneq(t *types.Type) *obj.LSym {
 			if !IsRegularMemory(f.Type) {
 				if EqCanPanic(f.Type) {
 					// Enforce ordering by starting a new set of reorderable conditions.
-					conds = append(conds, []nodeIdx{})
+					conds = append(conds, []*Node{})
 				}
 				p := nodSym(OXDOT, np, f.Sym)
 				q := nodSym(OXDOT, nq, f.Sym)
@@ -688,7 +681,7 @@ func geneq(t *types.Type) *obj.LSym {
 				}
 				if EqCanPanic(f.Type) {
 					// Also enforce ordering after something that can panic.
-					conds = append(conds, []nodeIdx{})
+					conds = append(conds, []*Node{})
 				}
 				i++
 				continue
@@ -713,14 +706,13 @@ func geneq(t *types.Type) *obj.LSym {
 
 		// Sort conditions to put runtime calls last.
 		// Preserve the rest of the ordering.
-		var flatConds []nodeIdx
+		var flatConds []*Node
 		for _, c := range conds {
+			isCall := func(n *Node) bool {
+				return n.Op == OCALL || n.Op == OCALLFUNC
+			}
 			sort.SliceStable(c, func(i, j int) bool {
-				x, y := c[i], c[j]
-				if (x.n.Op != OCALL) == (y.n.Op != OCALL) {
-					return x.idx < y.idx
-				}
-				return x.n.Op != OCALL
+				return !isCall(c[i]) && isCall(c[j])
 			})
 			flatConds = append(flatConds, c...)
 		}
@@ -729,9 +721,9 @@ func geneq(t *types.Type) *obj.LSym {
 		if len(flatConds) == 0 {
 			cond = nodbool(true)
 		} else {
-			cond = flatConds[0].n
+			cond = flatConds[0]
 			for _, c := range flatConds[1:] {
-				cond = nod(OANDAND, cond, c.n)
+				cond = nod(OANDAND, cond, c)
 			}
 		}
 
@@ -762,7 +754,7 @@ func geneq(t *types.Type) *obj.LSym {
 	// neither of which can be nil, and our comparisons
 	// are shallow.
 	fn.Func.SetNilCheckDisabled(true)
-	funccompile(fn)
+	xtop = append(xtop, fn)
 
 	// Generate a closure which points at the function we just generated.
 	dsymptr(closure, 0, sym.Linksym(), 0)

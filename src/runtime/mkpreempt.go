@@ -131,7 +131,7 @@ func header(arch string) {
 
 func p(f string, args ...interface{}) {
 	fmted := fmt.Sprintf(f, args...)
-	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
+	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }
 
 func label(l string) {
@@ -359,6 +359,9 @@ func genARM64() {
 	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
 	// so any writes below SP may be clobbered.
 	p("#ifdef GOOS_darwin")
+	p("MOVD R30, (RSP)")
+	p("#endif")
+	p("#ifdef GOOS_ios")
 	p("MOVD R30, (RSP)")
 	p("#endif")
 

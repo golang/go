@@ -42,7 +42,7 @@ var omit_pkgs = []string{
 	"internal/cpu",
 }
 
-// Only insert racefuncenterfp/racefuncexit into the following packages.
+// Don't insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 

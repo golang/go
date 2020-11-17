@@ -610,7 +610,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		sb := l.MakeSymbolUpdater(s)
 
 		sb.SetType(sectsb.Type())
-		sectsb.PrependSub(s)
+		sectsb.AddInteriorSym(s)
 		if !l.AttrCgoExportDynamic(s) {
 			sb.SetDynimplib("") // satisfy dynimport
 		}

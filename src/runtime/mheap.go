@@ -42,17 +42,8 @@ const (
 	// roughly 100µs.
 	//
 	// Must be a multiple of the pageInUse bitmap element size and
-	// must also evenly divid pagesPerArena.
+	// must also evenly divide pagesPerArena.
 	pagesPerReclaimerChunk = 512
-
-	// go115NewMCentralImpl is a feature flag for the new mcentral implementation.
-	//
-	// This flag depends on go115NewMarkrootSpans because the new mcentral
-	// implementation requires that markroot spans no longer rely on mgcsweepbufs.
-	// The definition of this flag helps ensure that if there's a problem with
-	// the new markroot spans implementation and it gets turned off, that the new
-	// mcentral implementation also gets turned off so the runtime isn't broken.
-	go115NewMCentralImpl = true && go115NewMarkrootSpans
 )
 
 // Main malloc heap.
@@ -84,19 +75,6 @@ type mheap struct {
 	// must ensure that allocation cannot happen around the
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
-
-	// sweepSpans contains two mspan stacks: one of swept in-use
-	// spans, and one of unswept in-use spans. These two trade
-	// roles on each GC cycle. Since the sweepgen increases by 2
-	// on each cycle, this means the swept spans are in
-	// sweepSpans[sweepgen/2%2] and the unswept spans are in
-	// sweepSpans[1-sweepgen/2%2]. Sweeping pops spans from the
-	// unswept stack and pushes spans that are still in-use on the
-	// swept stack. Likewise, allocating an in-use span pushes it
-	// on the swept stack.
-	//
-	// For !go115NewMCentralImpl.
-	sweepSpans [2]gcSweepBuf
 
 	_ uint32 // align uint64 fields on 32-bit for atomics
 
@@ -220,7 +198,7 @@ type mheap struct {
 		base, end uintptr
 	}
 
-	// _ uint32 // ensure 64-bit alignment of central
+	_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the mcentrals are
@@ -299,6 +277,10 @@ type heapArena struct {
 	// Reads are done atomically to find spans containing specials
 	// during marking.
 	pageSpecials [pagesPerArena / 8]uint8
+
+	// checkmarks stores the debug.gccheckmark state. It is only
+	// used if debug.gccheckmark > 0.
+	checkmarks *checkmarksMap
 
 	// zeroedBase marks the first byte of the first page in this
 	// arena which hasn't been used yet and is therefore already
@@ -715,8 +697,6 @@ func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8) 
 // Initialize the heap.
 func (h *mheap) init() {
 	lockInit(&h.lock, lockRankMheap)
-	lockInit(&h.sweepSpans[0].spineLock, lockRankSpine)
-	lockInit(&h.sweepSpans[1].spineLock, lockRankSpine)
 	lockInit(&h.speciallock, lockRankMheapSpecial)
 
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
@@ -1290,16 +1270,6 @@ HaveSpan:
 	h.setSpans(s.base(), npages, s)
 
 	if !manual {
-		if !go115NewMCentralImpl {
-			// Add to swept in-use list.
-			//
-			// This publishes the span to root marking.
-			//
-			// h.sweepgen is guaranteed to only change during STW,
-			// and preemption is disabled in the page allocator.
-			h.sweepSpans[h.sweepgen/2%2].push(s)
-		}
-
 		// Mark in-use span in arena page bitmap.
 		//
 		// This publishes the span to the page sweeper, so
@@ -1701,9 +1671,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	s.offset = uint16(offset)
 	s.next = *t
 	*t = s
-	if go115NewMarkrootSpans {
-		spanHasSpecials(span)
-	}
+	spanHasSpecials(span)
 	unlock(&span.speciallock)
 	releasem(mp)
 
@@ -1744,7 +1712,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 		}
 		t = &s.next
 	}
-	if go115NewMarkrootSpans && span.specials == nil {
+	if span.specials == nil {
 		spanHasNoSpecials(span)
 	}
 	unlock(&span.speciallock)

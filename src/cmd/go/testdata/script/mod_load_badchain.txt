@@ -28,10 +28,10 @@ cmp stderr list-expected
 # Try listing a package that imports a package
 # in a module without a requirement.
 go mod edit -droprequire example.com/badchain/a
-! go list m/use
+! go list -mod=mod m/use
 cmp stderr list-missing-expected
 
-! go list -test m/testuse
+! go list -mod=mod -test m/testuse
 cmp stderr list-missing-test-expected
 
 -- go.mod.orig --

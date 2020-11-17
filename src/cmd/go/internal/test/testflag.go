@@ -214,8 +214,12 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 
 	explicitArgs := make([]string, 0, len(args))
 	inPkgList := false
+	afterFlagWithoutValue := false
 	for len(args) > 0 {
 		f, remainingArgs, err := cmdflag.ParseOne(&CmdTest.Flag, args)
+
+		wasAfterFlagWithoutValue := afterFlagWithoutValue
+		afterFlagWithoutValue = false // provisionally
 
 		if errors.Is(err, flag.ErrHelp) {
 			exitWithUsage()
@@ -233,10 +237,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
 			if !inPkgList && packageNames != nil {
 				// We already saw the package list previously, and this argument is not
-				// a flag, so it — and everything after it — must be a literal argument
-				// to the test binary.
-				explicitArgs = append(explicitArgs, args...)
-				break
+				// a flag, so it — and everything after it — must be either a value for
+				// a preceding flag or a literal argument to the test binary.
+				if wasAfterFlagWithoutValue {
+					// This argument could syntactically be a flag value, so
+					// optimistically assume that it is and keep looking for go command
+					// flags after it.
+					//
+					// (If we're wrong, we'll at least be consistent with historical
+					// behavior; see https://golang.org/issue/40763.)
+					explicitArgs = append(explicitArgs, nf.RawArg)
+					args = remainingArgs
+					continue
+				} else {
+					// This argument syntactically cannot be a flag value, so it must be a
+					// positional argument, and so must everything after it.
+					explicitArgs = append(explicitArgs, args...)
+					break
+				}
 			}
 
 			inPkgList = true
@@ -272,6 +290,9 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 
 			explicitArgs = append(explicitArgs, nd.RawArg)
 			args = remainingArgs
+			if !nd.HasValue {
+				afterFlagWithoutValue = true
+			}
 			continue
 		}
 

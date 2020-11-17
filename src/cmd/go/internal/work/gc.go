@@ -25,6 +25,9 @@ import (
 	"crypto/sha1"
 )
 
+// The 'path' used for GOROOT_FINAL when -trimpath is specified
+const trimPathGoRootFinal = "go"
+
 // The Go toolchain.
 
 type gcToolchain struct{}
@@ -258,6 +261,15 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 				args = append(args, "-D=GOBUILDMODE_shared=1")
 			}
 		}
+	}
+	if p.ImportPath == "runtime" && objabi.Regabi_enabled != 0 {
+		// In order to make it easier to port runtime assembly
+		// to the register ABI, we introduce a macro
+		// indicating the experiment is enabled.
+		//
+		// TODO(austin): Remove this once we commit to the
+		// register ABI (#40724).
+		args = append(args, "-D=GOEXPERIMENT_REGABI=1")
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
@@ -560,7 +572,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 
 	env := []string{}
 	if cfg.BuildTrimpath {
-		env = append(env, "GOROOT_FINAL=go")
+		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
 	}
 	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
 }

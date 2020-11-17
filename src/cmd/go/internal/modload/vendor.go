@@ -133,7 +133,7 @@ func checkVendorConsistency() {
 	readVendorList()
 
 	pre114 := false
-	if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, "v1.14") < 0 {
+	if semver.Compare(index.goVersionV, "v1.14") < 0 {
 		// Go versions before 1.14 did not include enough information in
 		// vendor/modules.txt to check for consistency.
 		// If we know that we're on an earlier version, relax the consistency check.
@@ -150,6 +150,8 @@ func checkVendorConsistency() {
 		}
 	}
 
+	// Iterate over the Require directives in their original (not indexed) order
+	// so that the errors match the original file.
 	for _, r := range modFile.Require {
 		if !vendorMeta[r.Mod].Explicit {
 			if pre114 {

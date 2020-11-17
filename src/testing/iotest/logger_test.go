@@ -81,14 +81,6 @@ func TestWriteLogger_errorOnWrite(t *testing.T) {
 	}
 }
 
-type errReader struct {
-	err error
-}
-
-func (r errReader) Read([]byte) (int, error) {
-	return 0, r.err
-}
-
 func TestReadLogger(t *testing.T) {
 	olw := log.Writer()
 	olf := log.Flags()
@@ -146,14 +138,14 @@ func TestReadLogger_errorOnRead(t *testing.T) {
 	data := []byte("Hello, World!")
 	p := make([]byte, len(data))
 
-	lr := errReader{err: errors.New("Read Error!")}
+	lr := ErrReader(errors.New("io failure"))
 	rl := NewReadLogger("read", lr)
 	n, err := rl.Read(p)
 	if err == nil {
 		t.Fatalf("Unexpectedly succeeded to read: %v", err)
 	}
 
-	wantLogWithHex := fmt.Sprintf("lr: read %x: %v\n", p[:n], "Read Error!")
+	wantLogWithHex := fmt.Sprintf("lr: read %x: io failure\n", p[:n])
 	if g, w := lOut.String(), wantLogWithHex; g != w {
 		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}

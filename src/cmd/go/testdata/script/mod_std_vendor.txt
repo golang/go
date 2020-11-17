@@ -37,12 +37,10 @@ stderr 'use of vendored package'
 
 # When run within the 'std' module, 'go list -test' should report vendored
 # transitive dependencies at their original module paths.
-# TODO(golang.org/issue/30241): Make that work.
-# Today, they're standard packages as long as they exist.
 cd $GOROOT/src
 go list -test -f '{{range .Deps}}{{.}}{{"\n"}}{{end}}' net/http
-stdout ^vendor/golang.org/x/net/http2/hpack  # TODO: remove vendor/ prefix
-! stdout ^golang.org/x/net/http2/hpack
+stdout ^golang.org/x/net/http2/hpack
+! stdout ^vendor/golang.org/x/net/http2/hpack
 
 -- go.mod --
 module m

@@ -1,4 +1,5 @@
 [short] skip
+env GO111MODULE=off
 
 cd $GOPATH/src/v
 go run m.go

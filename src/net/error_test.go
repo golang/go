@@ -8,6 +8,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/poll"
 	"io"
@@ -101,7 +102,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, poll.ErrNetClosing, errMissingAddress, errNoSuitableAddress,
+	case errCanceled, ErrClosed, errMissingAddress, errNoSuitableAddress,
 		context.DeadlineExceeded, context.Canceled:
 		return nil
 	}
@@ -436,7 +437,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -478,7 +479,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, poll.ErrNetClosing, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
+	case errCanceled, ErrClosed, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -508,6 +509,10 @@ func parseCloseError(nestedErr error, isShutdown bool) error {
 		return fmt.Errorf("error string %q does not contain expected string %q", nestedErr, want)
 	}
 
+	if !isShutdown && !errors.Is(nestedErr, ErrClosed) {
+		return fmt.Errorf("errors.Is(%v, errClosed) returns false, want true", nestedErr)
+	}
+
 	switch err := nestedErr.(type) {
 	case *OpError:
 		if err := err.isValid(); err != nil {
@@ -531,7 +536,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing:
+	case ErrClosed:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -627,7 +632,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -706,7 +711,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing:
+	case ErrClosed:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)

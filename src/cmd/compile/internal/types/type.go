@@ -66,8 +66,9 @@ const (
 	TCHANARGS
 
 	// SSA backend types
-	TSSA   // internal types used by SSA backend (flags, memory, etc.)
-	TTUPLE // a pair of types, used by SSA backend
+	TSSA     // internal types used by SSA backend (flags, memory, etc.)
+	TTUPLE   // a pair of types, used by SSA backend
+	TRESULTS // multiple types; the result of calling a function or method, with a memory at the end.
 
 	NTYPE
 )
@@ -131,6 +132,7 @@ type Type struct {
 	// TPTR: Ptr
 	// TARRAY: *Array
 	// TSLICE: Slice
+	// TSSA: string
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
@@ -329,6 +331,11 @@ type Tuple struct {
 	// Any tuple with a memory type must put that memory type second.
 }
 
+// Results are the output from calls that will be late-expanded.
+type Results struct {
+	Types []*Type // Last element is memory output from call.
+}
+
 // Array contains Type fields specific to array types.
 type Array struct {
 	Elem  *Type // element type
@@ -465,6 +472,8 @@ func New(et EType) *Type {
 		t.Extra = new(Chan)
 	case TTUPLE:
 		t.Extra = new(Tuple)
+	case TRESULTS:
+		t.Extra = new(Results)
 	}
 	return t
 }
@@ -508,6 +517,12 @@ func NewTuple(t1, t2 *Type) *Type {
 	t := New(TTUPLE)
 	t.Extra.(*Tuple).first = t1
 	t.Extra.(*Tuple).second = t2
+	return t
+}
+
+func NewResults(types []*Type) *Type {
+	t := New(TRESULTS)
+	t.Extra.(*Results).Types = types
 	return t
 }
 
@@ -687,7 +702,7 @@ func (t *Type) copy() *Type {
 	case TARRAY:
 		x := *t.Extra.(*Array)
 		nt.Extra = &x
-	case TTUPLE, TSSA:
+	case TTUPLE, TSSA, TRESULTS:
 		Fatalf("ssa types cannot be copied")
 	}
 	// TODO(mdempsky): Find out why this is necessary and explain.
@@ -1026,7 +1041,7 @@ func (t *Type) cmp(x *Type) Cmp {
 
 	case TSSA:
 		tname := t.Extra.(string)
-		xname := t.Extra.(string)
+		xname := x.Extra.(string)
 		// desire fast sorting, not pretty sorting.
 		if len(tname) == len(xname) {
 			if tname == xname {
@@ -1049,6 +1064,23 @@ func (t *Type) cmp(x *Type) Cmp {
 			return c
 		}
 		return ttup.second.Compare(xtup.second)
+
+	case TRESULTS:
+		xResults := x.Extra.(*Results)
+		tResults := t.Extra.(*Results)
+		xl, tl := len(xResults.Types), len(tResults.Types)
+		if tl != xl {
+			if tl < xl {
+				return CMPlt
+			}
+			return CMPgt
+		}
+		for i := 0; i < tl; i++ {
+			if c := tResults.Types[i].Compare(xResults.Types[i]); c != CMPeq {
+				return c
+			}
+		}
+		return CMPeq
 
 	case TMAP:
 		if c := t.Key().cmp(x.Key()); c != CMPeq {
@@ -1229,6 +1261,11 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.Etype == TUNSAFEPTR
 }
 
+// IsUintptr reports whether t is an uintptr.
+func (t *Type) IsUintptr() bool {
+	return t.Etype == TUINTPTR
+}
+
 // IsPtrShaped reports whether t is represented by a single machine pointer.
 // In addition to regular Go pointer types, this includes map, channel, and
 // function types and unsafe.Pointer. It does not include array or struct types
@@ -1298,6 +1335,9 @@ func (t *Type) FieldType(i int) *Type {
 		default:
 			panic("bad tuple index")
 		}
+	}
+	if t.Etype == TRESULTS {
+		return t.Extra.(*Results).Types[i]
 	}
 	return t.Field(i).Type
 }
@@ -1376,11 +1416,20 @@ func (t *Type) ChanDir() ChanDir {
 }
 
 func (t *Type) IsMemory() bool {
-	return t == TypeMem || t.Etype == TTUPLE && t.Extra.(*Tuple).second == TypeMem
+	if t == TypeMem || t.Etype == TTUPLE && t.Extra.(*Tuple).second == TypeMem {
+		return true
+	}
+	if t.Etype == TRESULTS {
+		if types := t.Extra.(*Results).Types; len(types) > 0 && types[len(types)-1] == TypeMem {
+			return true
+		}
+	}
+	return false
 }
-func (t *Type) IsFlags() bool { return t == TypeFlags }
-func (t *Type) IsVoid() bool  { return t == TypeVoid }
-func (t *Type) IsTuple() bool { return t.Etype == TTUPLE }
+func (t *Type) IsFlags() bool   { return t == TypeFlags }
+func (t *Type) IsVoid() bool    { return t == TypeVoid }
+func (t *Type) IsTuple() bool   { return t.Etype == TTUPLE }
+func (t *Type) IsResults() bool { return t.Etype == TRESULTS }
 
 // IsUntyped reports whether t is an untyped type.
 func (t *Type) IsUntyped() bool {
@@ -1397,14 +1446,9 @@ func (t *Type) IsUntyped() bool {
 	return false
 }
 
-// TODO(austin): We probably only need HasHeapPointer. See
-// golang.org/cl/73412 for discussion.
-
-func Haspointers(t *Type) bool {
-	return Haspointers1(t, false)
-}
-
-func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+// HasPointers reports whether t contains a heap pointer.
+// Note that this function ignores pointers to go:notinheap types.
+func (t *Type) HasPointers() bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
@@ -1414,32 +1458,34 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 		if t.NumElem() == 0 { // empty array has no pointers
 			return false
 		}
-		return Haspointers1(t.Elem(), ignoreNotInHeap)
+		return t.Elem().HasPointers()
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			if Haspointers1(t1.Type, ignoreNotInHeap) {
+			if t1.Type.HasPointers() {
 				return true
 			}
 		}
 		return false
 
 	case TPTR, TSLICE:
-		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+		return !t.Elem().NotInHeap()
 
 	case TTUPLE:
 		ttup := t.Extra.(*Tuple)
-		return Haspointers1(ttup.first, ignoreNotInHeap) || Haspointers1(ttup.second, ignoreNotInHeap)
+		return ttup.first.HasPointers() || ttup.second.HasPointers()
+
+	case TRESULTS:
+		types := t.Extra.(*Results).Types
+		for _, et := range types {
+			if et.HasPointers() {
+				return true
+			}
+		}
+		return false
 	}
 
 	return true
-}
-
-// HasHeapPointer reports whether t contains a heap pointer.
-// This is used for write barrier insertion, so it ignores
-// pointers to go:notinheap types.
-func (t *Type) HasHeapPointer() bool {
-	return Haspointers1(t, true)
 }
 
 func (t *Type) Symbol() *obj.LSym {
@@ -1470,7 +1516,7 @@ func FakeRecvType() *Type {
 }
 
 var (
-	// TSSA types. Haspointers assumes these are pointer-free.
+	// TSSA types. HasPointers assumes these are pointer-free.
 	TypeInvalid = newSSA("invalid")
 	TypeMem     = newSSA("mem")
 	TypeFlags   = newSSA("flags")

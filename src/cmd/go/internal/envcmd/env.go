@@ -6,6 +6,7 @@
 package envcmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -62,9 +63,6 @@ var (
 )
 
 func MkEnv() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
-
 	envFile, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
@@ -186,7 +184,7 @@ func argKey(arg string) string {
 	return arg[:i]
 }
 
-func runEnv(cmd *base.Command, args []string) {
+func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envU {
 		base.Fatalf("go env: cannot use -json with -u")
 	}

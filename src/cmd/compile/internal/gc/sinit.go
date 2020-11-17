@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"fmt"
 )
 
@@ -277,6 +278,8 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			return Isconst(val, CTNIL)
 		}
 
+		markTypeUsedInInterface(val.Type)
+
 		var itab *Node
 		if l.Type.IsEmptyInterface() {
 			itab = typename(val.Type)
@@ -353,14 +356,22 @@ func (c initContext) String() string {
 
 var statuniqgen int // name generator for static temps
 
-// staticname returns a name backed by a static data symbol.
-// Callers should call n.MarkReadonly on the
-// returned node for readonly nodes.
+// staticname returns a name backed by a (writable) static data symbol.
+// Use readonlystaticname for read-only node.
 func staticname(t *types.Type) *Node {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
-	n := newname(lookup(fmt.Sprintf(".stmp_%d", statuniqgen)))
+	n := newname(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
 	statuniqgen++
 	addvar(n, t, PEXTERN)
+	n.Sym.Linksym().Set(obj.AttrLocal, true)
+	return n
+}
+
+// readonlystaticname returns a name backed by a (writable) static data symbol.
+func readonlystaticname(t *types.Type) *Node {
+	n := staticname(t)
+	n.MarkReadonly()
+	n.Sym.Linksym().Set(obj.AttrContentAddressable, true)
 	return n
 }
 
@@ -495,6 +506,7 @@ const (
 // fixedlit handles struct, array, and slice literals.
 // TODO: expand documentation.
 func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes) {
+	isBlank := var_ == nblank
 	var splitnode func(*Node) (a *Node, value *Node)
 	switch n.Op {
 	case OARRAYLIT, OSLICELIT:
@@ -509,6 +521,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			}
 			a := nod(OINDEX, var_, nodintconst(k))
 			k++
+			if isBlank {
+				a = nblank
+			}
 			return a, r
 		}
 	case OSTRUCTLIT:
@@ -516,7 +531,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			if r.Op != OSTRUCTKEY {
 				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
 			}
-			if r.Sym.IsBlank() {
+			if r.Sym.IsBlank() || isBlank {
 				return nblank, r.Left
 			}
 			setlineno(r)
@@ -624,9 +639,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 	mode := getdyn(n, true)
 	if mode&initConst != 0 && !isSmallSliceLit(n) {
-		vstat = staticname(t)
 		if ctxt == inInitFunction {
-			vstat.MarkReadonly()
+			vstat = readonlystaticname(t)
+		} else {
+			vstat = staticname(t)
 		}
 		fixedlit(ctxt, initKindStatic, n, vstat, init)
 	}
@@ -770,10 +786,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		dowidth(te)
 
 		// make and initialize static arrays
-		vstatk := staticname(tk)
-		vstatk.MarkReadonly()
-		vstate := staticname(te)
-		vstate.MarkReadonly()
+		vstatk := readonlystaticname(tk)
+		vstate := readonlystaticname(te)
 
 		datak := nod(OARRAYLIT, nil, nil)
 		datae := nod(OARRAYLIT, nil, nil)
@@ -894,8 +908,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
 			// lay out static data
-			vstat := staticname(t)
-			vstat.MarkReadonly()
+			vstat := readonlystaticname(t)
 
 			ctxt := inInitFunction
 			if n.Op == OARRAYLIT {

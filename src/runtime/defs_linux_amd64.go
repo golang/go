@@ -262,14 +262,3 @@ type sockaddr_un struct {
 	family uint16
 	path   [108]byte
 }
-
-const __NEW_UTS_LEN = 64
-
-type new_utsname struct {
-	sysname    [__NEW_UTS_LEN + 1]byte
-	nodename   [__NEW_UTS_LEN + 1]byte
-	release    [__NEW_UTS_LEN + 1]byte
-	version    [__NEW_UTS_LEN + 1]byte
-	machine    [__NEW_UTS_LEN + 1]byte
-	domainname [__NEW_UTS_LEN + 1]byte
-}

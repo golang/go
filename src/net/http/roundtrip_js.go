@@ -98,9 +98,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		req.Body.Close()
-		buf := uint8Array.New(len(body))
-		js.CopyBytesToJS(buf, body)
-		opt.Set("body", buf)
+		if len(body) != 0 {
+			buf := uint8Array.New(len(body))
+			js.CopyBytesToJS(buf, body)
+			opt.Set("body", buf)
+		}
 	}
 
 	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)

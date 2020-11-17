@@ -198,7 +198,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
 			return
 		}
 
-		if magics == archiveMagic {
+		if magics == archiveMagic || magics == aixbigafMagic {
 			reader, err = arExportData(reader)
 			if err != nil {
 				return

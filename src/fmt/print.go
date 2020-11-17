@@ -388,11 +388,7 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	case 'c':
 		p.fmt.fmtC(v)
 	case 'q':
-		if v <= utf8.MaxRune {
-			p.fmt.fmtQc(v)
-		} else {
-			p.badVerb(verb)
-		}
+		p.fmt.fmtQc(v)
 	case 'U':
 		p.fmt.fmtUnicode(v)
 	default:

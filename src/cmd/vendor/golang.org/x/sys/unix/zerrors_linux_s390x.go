@@ -74,8 +74,10 @@ const (
 	FLUSHO                           = 0x1000
 	FS_IOC_ENABLE_VERITY             = 0x40806685
 	FS_IOC_GETFLAGS                  = 0x80086601
+	FS_IOC_GET_ENCRYPTION_NONCE      = 0x8010661b
 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+	FS_IOC_SETFLAGS                  = 0x40086602
 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
 	F_GETLK                          = 0x5
 	F_GETLK64                        = 0x5

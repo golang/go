@@ -613,6 +613,9 @@ var optab = []Optab{
 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, 0, 0, 0},
 	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0}, // NOP operand variations added for #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, 0, 0, 0},  // to preserve previous behavior
+	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0},   // align code
@@ -722,22 +725,22 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			o = c.oplook(p)
 
 			// very large conditional branches
-			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
-				otxt = p.Pcond.Pc - pc
+			if (o.type_ == 16 || o.type_ == 17) && p.To.Target() != nil {
+				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
 					q = c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = p.Pcond
-					p.Pcond = q
+					q.To.SetTarget(p.To.Target())
+					p.To.SetTarget(q)
 					q = c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = q.Link.Link
+					q.To.SetTarget(q.Link.Link)
 
 					//addnop(p->link);
 					//addnop(p);
@@ -1581,8 +1584,9 @@ func buildop(ctxt *obj.Link) {
 		case ALXV: /* lxv */
 			opset(ALXV, r0)
 
-		case ALXVL: /* lxvl */
+		case ALXVL: /* lxvl, lxvll, lxvx */
 			opset(ALXVLL, r0)
+			opset(ALXVX, r0)
 
 		case ASTXVD2X: /* stxvd2x, stxvdsx, stxvw4x, stxvh8x, stxvb16x */
 			opset(ASTXVW4X, r0)
@@ -1592,8 +1596,9 @@ func buildop(ctxt *obj.Link) {
 		case ASTXV: /* stxv */
 			opset(ASTXV, r0)
 
-		case ASTXVL: /* stxvl, stxvll */
+		case ASTXVL: /* stxvl, stxvll, stvx */
 			opset(ASTXVLL, r0)
+			opset(ASTXVX, r0)
 
 		case ALXSDX: /* lxsdx  */
 			opset(ALXSDX, r0)
@@ -1899,6 +1904,7 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLWMICC, r0)
 			opset(ARLWNM, r0)
 			opset(ARLWNMCC, r0)
+			opset(ACLRLSLWI, r0)
 
 		case ARLDMI:
 			opset(ARLDMICC, r0)
@@ -1917,6 +1923,9 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLDICLCC, r0)
 			opset(ARLDICR, r0)
 			opset(ARLDICRCC, r0)
+			opset(ARLDIC, r0)
+			opset(ARLDICCC, r0)
+			opset(ACLRLSLDI, r0)
 
 		case AFMOVD:
 			opset(AFMOVDCC, r0)
@@ -2625,8 +2634,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 11: /* br/bl lbra */
 		v := int32(0)
 
-		if p.Pcond != nil {
-			v = int32(p.Pcond.Pc - p.Pc)
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc - p.Pc)
 			if v&03 != 0 {
 				c.ctxt.Diag("odd branch target address\n%v", p)
 				v &^= 03
@@ -2729,12 +2738,30 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case ARLDICR, ARLDICRCC:
 			me := int(d)
 			sh := c.regoff(&p.From)
+			if me < 0 || me > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
 
-		case ARLDICL, ARLDICLCC:
+		case ARLDICL, ARLDICLCC, ARLDIC, ARLDICCC:
 			mb := int(d)
 			sh := c.regoff(&p.From)
+			if mb < 0 || mb > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+
+		case ACLRLSLDI:
+			// This is an extended mnemonic defined in the ISA section C.8.1
+			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
+			// It maps onto RLDIC so is directly generated here based on the operands from
+			// the clrlsldi.
+			b := int(d)
+			n := c.regoff(&p.From)
+			if n > int32(b) || b > 63 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
+			}
+			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -2776,8 +2803,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 		v := int32(0)
-		if p.Pcond != nil {
-			v = int32(p.Pcond.Pc - p.Pc)
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc - p.Pc)
 		}
 		if v&03 != 0 {
 			c.ctxt.Diag("odd branch target address\n%v", p)
@@ -3349,18 +3376,43 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: /* rlwmi $sh,s,$mask,a */
 		v := c.regoff(&p.From)
-
-		var mask [2]uint8
-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		switch p.As {
+		case ACLRLSLWI:
+			b := c.regoff(p.GetFrom3())
+			// This is an extended mnemonic described in the ISA C.8.2
+			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// It maps onto rlwinm which is directly generated here.
+			if v < 0 || v > 32 || b > 32 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			}
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+		default:
+			var mask [2]uint8
+			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		}
 
 	case 63: /* rlwmi b,s,$mask,a */
-		var mask [2]uint8
-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		v := c.regoff(&p.From)
+		switch p.As {
+		case ACLRLSLWI:
+			b := c.regoff(p.GetFrom3())
+			if v > b || b > 32 {
+				// Message will match operands from the ISA even though in the
+				// code it uses 'v'
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			}
+			// This is an extended mnemonic described in the ISA C.8.2
+			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// It generates the rlwinm directly here.
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+		default:
+			var mask [2]uint8
+			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		}
 
 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
 		var v int32
@@ -4272,6 +4324,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case ARLDICRCC:
 		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
 
+	case ARLDIC:
+		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
+	case ARLDICCC:
+		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
+
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
 
@@ -5017,11 +5074,13 @@ func (c *ctxt9) opload(a obj.As) uint32 {
 	case AMOVW:
 		return OPVCC(58, 0, 0, 0) | 1<<1 /* lwa */
 	case ALXV:
-		return OPDQ(61, 1, 0) /* lxv - ISA v3.00 */
+		return OPDQ(61, 1, 0) /* lxv - ISA v3.0 */
 	case ALXVL:
-		return OPVXX1(31, 269, 0) /* lxvl - ISA v3.00 */
+		return OPVXX1(31, 269, 0) /* lxvl - ISA v3.0 */
 	case ALXVLL:
-		return OPVXX1(31, 301, 0) /* lxvll - ISA v3.00 */
+		return OPVXX1(31, 301, 0) /* lxvll - ISA v3.0 */
+	case ALXVX:
+		return OPVXX1(31, 268, 0) /* lxvx - ISA v3.0 */
 
 		/* no AMOVWU */
 	case AMOVB, AMOVBZ:
@@ -5119,8 +5178,6 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 309, 0, 0) /* ldmx */
 
 	/* Vector (VMX/Altivec) instructions */
-	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
-	/* are enabled starting at POWER6 (ISA 2.05). */
 	case ALVEBX:
 		return OPVCC(31, 7, 0, 0) /* lvebx - v2.03 */
 	case ALVEHX:
@@ -5138,7 +5195,8 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		/* End of vector instructions */
 
 	/* Vector scalar (VSX) instructions */
-	/* ISA 2.06 enables these for POWER7. */
+	case ALXVX:
+		return OPVXX1(31, 268, 0) /* lxvx - ISA v3.0 */
 	case ALXVD2X:
 		return OPVXX1(31, 844, 0) /* lxvd2x - v2.06 */
 	case ALXVW4X:
@@ -5205,6 +5263,8 @@ func (c *ctxt9) opstore(a obj.As) uint32 {
 		return OPVXX1(31, 397, 0) /* stxvl ISA 3.0 */
 	case ASTXVLL:
 		return OPVXX1(31, 429, 0) /* stxvll ISA 3.0 */
+	case ASTXVX:
+		return OPVXX1(31, 396, 0) /* stxvx - ISA v3.0 */
 
 	}
 
@@ -5268,8 +5328,6 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 181, 0, 0) /* stdux */
 
 	/* Vector (VMX/Altivec) instructions */
-	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
-	/* are enabled starting at POWER6 (ISA 2.05). */
 	case ASTVEBX:
 		return OPVCC(31, 135, 0, 0) /* stvebx - v2.03 */
 	case ASTVEHX:
@@ -5283,15 +5341,16 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		/* End of vector instructions */
 
 	/* Vector scalar (VSX) instructions */
-	/* ISA 2.06 enables these for POWER7. */
+	case ASTXVX:
+		return OPVXX1(31, 396, 0) /* stxvx - v3.0 */
 	case ASTXVD2X:
 		return OPVXX1(31, 972, 0) /* stxvd2x - v2.06 */
 	case ASTXVW4X:
 		return OPVXX1(31, 908, 0) /* stxvw4x - v2.06 */
 	case ASTXVH8X:
-		return OPVXX1(31, 940, 0) /* stxvh8x - v3.00 */
+		return OPVXX1(31, 940, 0) /* stxvh8x - v3.0 */
 	case ASTXVB16X:
-		return OPVXX1(31, 1004, 0) /* stxvb16x - v3.00 */
+		return OPVXX1(31, 1004, 0) /* stxvb16x - v3.0 */
 
 	case ASTXSDX:
 		return OPVXX1(31, 716, 0) /* stxsdx - v2.06 */

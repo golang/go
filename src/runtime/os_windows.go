@@ -1010,11 +1010,6 @@ func ctrlhandler1(_type uint32) uint32 {
 	if sigsend(s) {
 		return 1
 	}
-	if !islibrary && !isarchive {
-		// Only exit the program if we don't have a DLL.
-		// See https://golang.org/issues/35965.
-		exit(2) // SIGINT, SIGTERM, etc
-	}
 	return 0
 }
 

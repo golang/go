@@ -6,6 +6,7 @@
 package clean
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -105,7 +106,7 @@ func init() {
 	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
 }
 
-func runClean(cmd *base.Command, args []string) {
+func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	// golang.org/issue/29925: only load packages before cleaning if
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
@@ -116,7 +117,7 @@ func runClean(cmd *base.Command, args []string) {
 	}
 
 	if cleanPkg {
-		for _, pkg := range load.PackagesAndErrors(args) {
+		for _, pkg := range load.PackagesAndErrors(ctx, args) {
 			clean(pkg)
 		}
 	}

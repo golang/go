@@ -47,8 +47,13 @@ func TestBenchmark(t *testing.T) {
 	// We're not using testing's benchmarking mechanism directly
 	// because we want custom output.
 
-	for _, p := range []string{"types", "constant", filepath.Join("internal", "gcimporter")} {
-		path := filepath.Join("..", p)
+	for _, p := range []string{
+		"net/http",
+		"go/parser",
+		"go/constant",
+		filepath.Join("go", "internal", "gcimporter"),
+	} {
+		path := filepath.Join("..", "..", p)
 		runbench(t, path, false)
 		runbench(t, path, true)
 		fmt.Println()
@@ -64,8 +69,13 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 
 	b := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			conf := Config{IgnoreFuncBodies: ignoreFuncBodies}
-			conf.Check(path, fset, files, nil)
+			conf := Config{
+				IgnoreFuncBodies: ignoreFuncBodies,
+				Importer:         importer.Default(),
+			}
+			if _, err := conf.Check(path, fset, files, nil); err != nil {
+				t.Fatal(err)
+			}
 		}
 	})
 
@@ -77,10 +87,9 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	})
 
 	d := time.Duration(b.NsPerOp())
-	fmt.Printf(
-		"%s: %s for %d lines (%d lines/s), ignoreFuncBodies = %v\n",
-		filepath.Base(path), d, lines, int64(float64(lines)/d.Seconds()), ignoreFuncBodies,
-	)
+	fmt.Printf("%s (ignoreFuncBodies = %v):\n", filepath.Base(path), ignoreFuncBodies)
+	fmt.Printf("\t%s for %d lines (%.0f lines/s)\n", d, lines, float64(lines)/d.Seconds())
+	fmt.Printf("\t%s\n", b.MemString())
 }
 
 func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {

@@ -87,7 +87,7 @@ func debugCallCheck(pc uintptr) string {
 				pcdata = 0 // in prologue
 			}
 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_RegPointerMaps))
-			if pcdata == -2 || stkmap == nil {
+			if pcdata == _PCDATA_RegMapUnsafe || stkmap == nil {
 				// Not at a safe point.
 				ret = debugCallUnsafePoint
 				return

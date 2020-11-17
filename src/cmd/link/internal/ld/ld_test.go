@@ -134,3 +134,36 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 		t.Errorf("expected '%s' in -v output, got:\n%s\n", want, string(out))
 	}
 }
+
+func TestPPC64LargeTextSectionSplitting(t *testing.T) {
+	// The behavior we're checking for is of interest only on ppc64.
+	if !strings.HasPrefix(runtime.GOARCH, "ppc64") {
+		t.Skip("test useful only for ppc64")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	t.Parallel()
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// NB: the use of -ldflags=-debugppc64textsize=1048576 tells the linker to
+	// split text sections at a size threshold of 1M instead of the
+	// architected limit of 67M. The choice of building cmd/go is
+	// arbitrary; we just need something sufficiently large that uses
+	// external linking.
+	exe := filepath.Join(dir, "go.exe")
+	out, eerr := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugppc64textsize=1048576", "cmd/go").CombinedOutput()
+	if eerr != nil {
+		t.Fatalf("build failure: %s\n%s\n", eerr, string(out))
+	}
+
+	// Result should be runnable.
+	_, err = exec.Command(exe, "version").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
