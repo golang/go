@@ -1,9 +1,0 @@
--- .mod --
-module example.com/retract/ambiguous
-
-go 1.16
--- .info --
-{"Version":"v1.0.0"}
--- nested/nested.go --
-package nested
-
