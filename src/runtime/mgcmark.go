@@ -132,7 +132,6 @@ fail:
 	println("gp", gp, "goid", gp.goid,
 		"status", readgstatus(gp),
 		"gcscandone", gp.gcscandone)
-	unlock(&allglock) // Avoid self-deadlock with traceback.
 	throw("scan missed a g")
 }
 
