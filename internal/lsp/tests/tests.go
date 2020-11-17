@@ -490,11 +490,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			for i, e := range exp {
 				t.Run(SpanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
 					t.Helper()
-					if strings.Contains(t.Name(), "complit") || strings.Contains(t.Name(), "UnimportedCompletion") {
-						if data.mode == "MultiModule" {
-							t.Skip("Unimported completions are broken in multi-module mode")
-						}
-					}
 					if strings.Contains(t.Name(), "cgo") {
 						testenv.NeedsTool(t, "cgo")
 					}

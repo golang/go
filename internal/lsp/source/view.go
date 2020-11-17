@@ -179,8 +179,9 @@ const (
 	// modified version of the user's go.mod file, e.g. `go mod tidy` used to
 	// generate diagnostics.
 	WriteTemporaryModFile
-	// ForTypeChecking is for packages.Load.
-	ForTypeChecking
+	// LoadWorkspace is for packages.Load, and other operations that should
+	// consider the whole workspace at once.
+	LoadWorkspace
 )
 
 // View represents a single workspace.

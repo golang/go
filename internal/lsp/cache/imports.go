@@ -4,69 +4,65 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/keys"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
 )
 
 type importsState struct {
 	ctx context.Context
 
-	mu                      sync.Mutex
-	processEnv              *imports.ProcessEnv
-	cleanupProcessEnv       func()
-	cacheRefreshDuration    time.Duration
-	cacheRefreshTimer       *time.Timer
-	cachedModFileIdentifier string
-	cachedBuildFlags        []string
+	mu                   sync.Mutex
+	processEnv           *imports.ProcessEnv
+	cleanupProcessEnv    func()
+	cacheRefreshDuration time.Duration
+	cacheRefreshTimer    *time.Timer
+	cachedModFileHash    string
+	cachedBuildFlags     []string
 }
 
 func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot, fn func(*imports.Options) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Use temporary go.mod files, but always go to disk for the contents.
-	// Rebuilding the cache is expensive, and we don't want to do it for
-	// transient changes.
-	var modFH source.FileHandle
-	var gosum []byte
-	var modFileIdentifier string
-	var err error
-	// TODO(rfindley): Change the goimports logic to use a persistent workspace
-	// module for workspace module mode.
-	//
-	// Get the go.mod file that corresponds to this view's root URI. This is
-	// broken because it assumes that the view's root is a module, but this is
-	// not more broken than the previous state--it is a temporary hack that
-	// should be removed ASAP.
-	var matchURI span.URI
-	for modURI := range snapshot.workspace.activeModFiles() {
-		if dirURI(modURI) == snapshot.view.rootURI {
-			matchURI = modURI
+	// Find the hash of the active mod file, if any. Using the unsaved content
+	// is slightly wasteful, since we'll drop caches a little too often, but
+	// the mod file shouldn't be changing while people are autocompleting.
+	var modFileHash string
+	if snapshot.workspaceMode()&usesWorkspaceModule == 0 {
+		for m := range snapshot.workspace.activeModFiles() { // range to access the only element
+			modFH, err := snapshot.GetFile(ctx, m)
+			if err != nil {
+				return err
+			}
+			modFileHash = modFH.FileIdentity().Hash
 		}
-	}
-	// TODO(rFindley): should it be an error if matchURI is empty?
-	if matchURI != "" {
-		modFH, err = snapshot.GetFile(ctx, matchURI)
+	} else {
+		modFile, err := snapshot.workspace.modFile(ctx, snapshot)
 		if err != nil {
 			return err
 		}
-		modFileIdentifier = modFH.FileIdentity().Hash
-		gosum = snapshot.goSum(ctx, matchURI)
+		modBytes, err := modFile.Format()
+		if err != nil {
+			return err
+		}
+		modFileHash = hashContents(modBytes)
 	}
-	// v.goEnv is immutable -- changes make a new view. Options can change.
+
+	// view.goEnv is immutable -- changes make a new view. Options can change.
 	// We can't compare build flags directly because we may add -modfile.
 	snapshot.view.optionsMu.Lock()
 	localPrefix := snapshot.view.options.Local
 	currentBuildFlags := snapshot.view.options.BuildFlags
 	changed := !reflect.DeepEqual(currentBuildFlags, s.cachedBuildFlags) ||
 		snapshot.view.options.VerboseOutput != (s.processEnv.Logf != nil) ||
-		modFileIdentifier != s.cachedModFileIdentifier
+		modFileHash != s.cachedModFileHash
 	snapshot.view.optionsMu.Unlock()
 
 	// If anything relevant to imports has changed, clear caches and
@@ -82,9 +78,10 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 			}
 			s.cleanupProcessEnv()
 		}
-		s.cachedModFileIdentifier = modFileIdentifier
+		s.cachedModFileHash = modFileHash
 		s.cachedBuildFlags = currentBuildFlags
-		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot, modFH, gosum)
+		var err error
+		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot)
 		if err != nil {
 			return err
 		}
@@ -122,55 +119,41 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 
 // populateProcessEnv sets the dynamically configurable fields for the view's
 // process environment. Assumes that the caller is holding the s.view.importsMu.
-func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot, modFH source.FileHandle, gosum []byte) (cleanup func(), err error) {
-	cleanup = func() {}
+func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot) (cleanup func(), err error) {
 	pe := s.processEnv
 
-	snapshot.view.optionsMu.Lock()
-	pe.BuildFlags = append([]string(nil), snapshot.view.options.BuildFlags...)
-	if snapshot.view.options.VerboseOutput {
+	if snapshot.view.Options().VerboseOutput {
 		pe.Logf = func(format string, args ...interface{}) {
 			event.Log(ctx, fmt.Sprintf(format, args...))
 		}
 	} else {
 		pe.Logf = nil
 	}
-	snapshot.view.optionsMu.Unlock()
 
+	// Take an extra reference to the snapshot so that its workspace directory
+	// (if any) isn't destroyed while we're using it.
+	release := snapshot.generation.Acquire(ctx)
+	_, inv, cleanupInvocation, err := snapshot.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
+		WorkingDir: snapshot.view.rootURI.Filename(),
+	})
+	pe.WorkingDir = inv.WorkingDir
+	pe.BuildFlags = inv.BuildFlags
+	pe.WorkingDir = inv.WorkingDir
+	pe.ModFile = inv.ModFile
+	pe.ModFlag = inv.ModFlag
 	pe.Env = map[string]string{}
-	for k, v := range snapshot.view.goEnv {
-		pe.Env[k] = v
-	}
-	pe.Env["GO111MODULE"] = snapshot.view.go111module
-
-	var modURI span.URI
-	var modContent []byte
-	if modFH != nil {
-		modURI = modFH.URI()
-		modContent, err = modFH.Read()
-		if err != nil {
-			return nil, err
+	for _, kv := range inv.Env {
+		split := strings.SplitN(kv, "=", 2)
+		if len(split) != 2 {
+			continue
 		}
-	}
-	modmod, err := snapshot.needsModEqualsMod(ctx, modURI, modContent)
-	if err != nil {
-		return cleanup, err
-	}
-	if modmod {
-		pe.ModFlag = "mod"
+		pe.Env[split[0]] = split[1]
 	}
 
-	// Add -modfile to the build flags, if we are using it.
-	if snapshot.workspaceMode()&tempModfile != 0 && modFH != nil {
-		var tmpURI span.URI
-		tmpURI, cleanup, err = tempModFile(modFH, gosum)
-		if err != nil {
-			return nil, err
-		}
-		pe.ModFile = tmpURI.Filename()
-	}
-
-	return cleanup, nil
+	return func() {
+		cleanupInvocation()
+		release()
+	}, nil
 }
 
 func (s *importsState) refreshProcessEnv() {
@@ -192,5 +175,13 @@ func (s *importsState) refreshProcessEnv() {
 	s.mu.Lock()
 	s.cacheRefreshDuration = time.Since(start)
 	s.cacheRefreshTimer = nil
+	s.mu.Unlock()
+}
+
+func (s *importsState) destroy() {
+	s.mu.Lock()
+	if s.cleanupProcessEnv != nil {
+		s.cleanupProcessEnv()
+	}
 	s.mu.Unlock()
 }

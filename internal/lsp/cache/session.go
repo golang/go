@@ -201,8 +201,6 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		ctx: backgroundCtx,
 		processEnv: &imports.ProcessEnv{
 			GocmdRunner: s.gocmdRunner,
-			WorkingDir:  folder.Filename(),
-			Env:         ws.goEnv,
 		},
 	}
 	v.snapshot = &snapshot{

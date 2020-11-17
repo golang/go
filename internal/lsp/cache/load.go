@@ -93,7 +93,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
-	_, inv, cleanup, err := s.goCommandInvocation(ctx, source.ForTypeChecking, &gocommand.Invocation{
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
 		WorkingDir: s.view.rootURI.Filename(),
 	})
 	if err != nil {

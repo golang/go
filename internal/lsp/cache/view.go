@@ -426,6 +426,7 @@ func (v *View) shutdown(ctx context.Context) {
 	v.snapshotMu.Lock()
 	go v.snapshot.generation.Destroy()
 	v.snapshotMu.Unlock()
+	v.importsState.destroy()
 	if v.tempWorkspace != "" {
 		if err := os.RemoveAll(v.tempWorkspace.Filename()); err != nil {
 			event.Error(ctx, "removing temp workspace", err)

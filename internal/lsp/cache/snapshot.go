@@ -260,7 +260,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 		// If we're type checking, we need to use the workspace context, meaning
 		// the main (workspace) module. Otherwise, we should use the module for
 		// the passed-in working dir.
-		if mode == source.ForTypeChecking {
+		if mode == source.LoadWorkspace {
 			if s.workspaceMode()&usesWorkspaceModule == 0 {
 				for m := range s.workspace.activeModFiles() { // range to access the only element
 					modURI = m
