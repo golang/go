@@ -123,13 +123,13 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *ModuleRetractedError
+	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var rerr *retractedError
 	if errors.As(err, &rerr) {
-		if len(rerr.Rationale) == 0 {
+		if len(rerr.rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.Rationale
+			m.Retracted = rerr.rationale
 		}
 	} else if err != nil && m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
