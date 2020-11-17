@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 	"sync"
@@ -610,7 +611,11 @@ func Make(x interface{}) Value {
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
-		return i64toi(x).val.BitLen()
+		u := uint64(x)
+		if x < 0 {
+			u = uint64(-x)
+		}
+		return 64 - bits.LeadingZeros64(u)
 	case intVal:
 		return x.val.BitLen()
 	case unknownVal:
