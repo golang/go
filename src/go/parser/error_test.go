@@ -114,6 +114,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 // of found errors and reports discrepancies.
 //
 func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
+	t.Helper()
 	for _, error := range found {
 		// error.Pos is a token.Position, but we want
 		// a token.Pos so we can do a map lookup
@@ -149,7 +150,8 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input interface{}) {
+func checkErrors(t *testing.T, filename string, input interface{}, mode Mode) {
+	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {
 		t.Error(err)
@@ -157,7 +159,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 	}
 
 	fset := token.NewFileSet()
-	_, err = ParseFile(fset, filename, src, DeclarationErrors|AllErrors)
+	_, err = ParseFile(fset, filename, src, mode)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)
@@ -180,8 +182,12 @@ func TestErrors(t *testing.T) {
 	}
 	for _, fi := range list {
 		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
-			checkErrors(t, filepath.Join(testdata, name), nil)
+		if !fi.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+			mode := DeclarationErrors | AllErrors
+			if strings.HasSuffix(name, ".go2") {
+				mode |= ParseTypeParams
+			}
+			checkErrors(t, filepath.Join(testdata, name), nil, mode)
 		}
 	}
 }
