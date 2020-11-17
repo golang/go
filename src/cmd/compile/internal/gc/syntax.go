@@ -63,6 +63,41 @@ type Node struct {
 	aux uint8
 }
 
+func (n *Node) GetLeft() *Node        { return n.Left }
+func (n *Node) SetLeft(x *Node)       { n.Left = x }
+func (n *Node) GetRight() *Node       { return n.Right }
+func (n *Node) SetRight(x *Node)      { n.Right = x }
+func (n *Node) GetOrig() *Node        { return n.Orig }
+func (n *Node) SetOrig(x *Node)       { n.Orig = x }
+func (n *Node) GetType() *types.Type  { return n.Type }
+func (n *Node) SetType(x *types.Type) { n.Type = x }
+func (n *Node) GetFunc() *Func        { return n.Func }
+func (n *Node) SetFunc(x *Func)       { n.Func = x }
+func (n *Node) GetName() *Name        { return n.Name }
+func (n *Node) SetName(x *Name)       { n.Name = x }
+func (n *Node) GetSym() *types.Sym    { return n.Sym }
+func (n *Node) SetSym(x *types.Sym)   { n.Sym = x }
+func (n *Node) GetPos() src.XPos      { return n.Pos }
+func (n *Node) SetPos(x src.XPos)     { n.Pos = x }
+func (n *Node) GetXoffset() int64     { return n.Xoffset }
+func (n *Node) SetXoffset(x int64)    { n.Xoffset = x }
+func (n *Node) GetEsc() uint16        { return n.Esc }
+func (n *Node) SetEsc(x uint16)       { n.Esc = x }
+func (n *Node) GetOp() Op             { return n.Op }
+func (n *Node) SetOp(x Op)            { n.Op = x }
+func (n *Node) GetNinit() Nodes       { return n.Ninit }
+func (n *Node) SetNinit(x Nodes)      { n.Ninit = x }
+func (n *Node) PtrNinit() *Nodes      { return &n.Ninit }
+func (n *Node) GetNbody() Nodes       { return n.Nbody }
+func (n *Node) SetNbody(x Nodes)      { n.Nbody = x }
+func (n *Node) PtrNbody() *Nodes      { return &n.Nbody }
+func (n *Node) GetList() Nodes        { return n.List }
+func (n *Node) SetList(x Nodes)       { n.List = x }
+func (n *Node) PtrList() *Nodes       { return &n.List }
+func (n *Node) GetRlist() Nodes       { return n.Rlist }
+func (n *Node) SetRlist(x Nodes)      { n.Rlist = x }
+func (n *Node) PtrRlist() *Nodes      { return &n.Rlist }
+
 func (n *Node) ResetAux() {
 	n.aux = 0
 }
