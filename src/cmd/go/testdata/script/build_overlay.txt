@@ -95,12 +95,6 @@ go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./ca
 exec ./main_call_asm_gccgo$GOEXE
 ! stdout .
 
-go install -gccgo -overlay overlay.json ./test_cache
-go list -gccgo -overlay overlay.json -f '{{.Stale}}' ./test_cache
-stdout '^false$'
-cp overlay/test_cache_different.go overlay/test_cache.go
-go list -gccgo -overlay overlay.json -f '{{.Stale}}' ./test_cache
-stdout '^true$'
 
 -- m/go.mod --
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
@@ -128,7 +122,8 @@ the actual code is in the overlay
 		"dir2/i.go": "overlay/dir2_i.go",
 		"printpath/main.go": "overlay/printpath.go",
 		"printpath/other.go": "overlay2/printpath2.go",
-		"call_asm/asm.s": "overlay/asm_file.s",
+		"call_asm/asm_gc.s": "overlay/asm_gc.s",
+		"call_asm/asm_gccgo.s": "overlay/asm_gccgo.s",
 		"test_cache/main.go": "overlay/test_cache.go",
 		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
 		"cgo_hello_replace/hello.c": "overlay/hello.c",
@@ -242,9 +237,19 @@ void say_hello();
 #include <stdio.h>
 
 void say_hello() { puts("hello cgo\n"); fflush(stdout); }
--- m/overlay/asm_file.s --
+-- m/overlay/asm_gc.s --
+// +build !gccgo
+
 TEXT ·foo(SB),0,$0
 	RET
+
+-- m/overlay/asm_gccgo.s --
+// +build gccgo
+
+.globl main.foo
+.text
+main.foo:
+	ret
 
 -- m/overlay/test_cache.go --
 package foo
@@ -252,7 +257,7 @@ package foo
 import "fmt"
 
 func bar() {
-    fmt.Println("something")
+	fmt.Println("something")
 }
 -- m/overlay/test_cache_different.go --
 package foo
@@ -260,7 +265,7 @@ package foo
 import "fmt"
 
 func bar() {
-    fmt.Println("different")
+	fmt.Println("different")
 }
 -- m/cgo_hello_quote/hello.c --
 #include <stdio.h>
@@ -275,29 +280,29 @@ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
 package main
 
 import (
-    "fmt"
-    "io/ioutil"
-    "log"
-    "os"
-    "strings"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strings"
 )
 
 func main() {
-    compiledGoFilesArg := os.Args[1]
-    b, err := ioutil.ReadFile(compiledGoFilesArg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
-    for _, f := range compiledGoFiles {
-        b, err := ioutil.ReadFile(f)
-        if err != nil {
-            log.Fatal(err)
-        }
-        for _, line := range strings.Split(string(b), "\n") {
-            if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
-                fmt.Println(line)
-            }
-        }
-    }
+	compiledGoFilesArg := os.Args[1]
+	b, err := ioutil.ReadFile(compiledGoFilesArg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
+	for _, f := range compiledGoFiles {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
+				fmt.Println(line)
+			}
+		}
+	}
 }
