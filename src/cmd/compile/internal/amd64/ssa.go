@@ -42,10 +42,11 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
 	// Avoid partial register write
-	if !t.IsFloat() && t.Size() <= 2 {
-		if t.Size() == 1 {
+	if !t.IsFloat() {
+		switch t.Size() {
+		case 1:
 			return x86.AMOVBLZX
-		} else {
+		case 2:
 			return x86.AMOVWLZX
 		}
 	}
@@ -1070,7 +1071,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
 		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc
-		if val != 0 && val != 1 && val != 2 && val != 3 {
+		if val < 0 || val > 3 {
 			v.Fatalf("Invalid rounding mode")
 		}
 		p.From.Offset = val
@@ -1210,7 +1211,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p = s.Prog(x86.ASETEQ)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
+	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock:
 		s.Prog(x86.ALOCK)
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

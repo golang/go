@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -150,8 +152,7 @@ six
 	}
 }
 
-func TestReadDir(t *testing.T) {
-	initOverlay(t, `
+const readDirOverlay = `
 {
 	"Replace": {
 		"subdir2/file2.txt":                 "overlayfiles/subdir2_file2.txt",
@@ -208,70 +209,124 @@ x
 -- overlayfiles/this_is_a_directory/file.txt --
 -- overlayfiles/textfile_txt_file.go --
 x
-`)
+`
 
-	testCases := map[string][]struct {
+func TestReadDir(t *testing.T) {
+	initOverlay(t, readDirOverlay)
+
+	type entry struct {
 		name  string
 		size  int64
 		isDir bool
-	}{
-		".": {
-			{"other", 0, true},
-			{"overlayfiles", 0, true},
-			{"parentoverwritten", 0, true},
-			{"subdir1", 0, true},
-			{"subdir10", 0, true},
-			{"subdir11", 0, false},
-			{"subdir2", 0, true},
-			{"subdir3", 0, true},
-			{"subdir4", 2, false},
-			// no subdir5.
-			{"subdir6", 0, true},
-			{"subdir7", 0, true},
-			{"subdir8", 0, true},
-			{"subdir9", 0, true},
-			{"textfile.txt", 0, true},
-		},
-		"subdir1": {{"file1.txt", 1, false}},
-		"subdir2": {{"file2.txt", 2, false}},
-		"subdir3": {{"file3a.txt", 3, false}, {"file3b.txt", 6, false}},
-		"subdir6": {
-			{"anothersubsubdir", 0, true},
-			{"asubsubdir", 0, true},
-			{"file.txt", 0, false},
-			{"zsubsubdir", 0, true},
-		},
-		"subdir6/asubsubdir": {{"afile.txt", 0, false}, {"file.txt", 0, false}, {"zfile.txt", 0, false}},
-		"subdir8":            {{"doesntexist", 0, false}}, // entry is returned even if destination file doesn't exist
-		// check that read dir actually redirects files that already exist
-		// the original this_file_is_overlaid.txt is empty
-		"subdir9":           {{"this_file_is_overlaid.txt", 9, false}},
-		"subdir10":          {},
-		"parentoverwritten": {{"subdir1", 2, false}},
-		"textfile.txt":      {{"file.go", 2, false}},
 	}
 
-	for dir, want := range testCases {
-		fis, err := ReadDir(dir)
+	testCases := []struct {
+		dir  string
+		want []entry
+	}{
+		{
+			".", []entry{
+				{"other", 0, true},
+				{"overlayfiles", 0, true},
+				{"parentoverwritten", 0, true},
+				{"subdir1", 0, true},
+				{"subdir10", 0, true},
+				{"subdir11", 0, false},
+				{"subdir2", 0, true},
+				{"subdir3", 0, true},
+				{"subdir4", 2, false},
+				// no subdir5.
+				{"subdir6", 0, true},
+				{"subdir7", 0, true},
+				{"subdir8", 0, true},
+				{"subdir9", 0, true},
+				{"textfile.txt", 0, true},
+			},
+		},
+		{
+			"subdir1", []entry{
+				{"file1.txt", 1, false},
+			},
+		},
+		{
+			"subdir2", []entry{
+				{"file2.txt", 2, false},
+			},
+		},
+		{
+			"subdir3", []entry{
+				{"file3a.txt", 3, false},
+				{"file3b.txt", 6, false},
+			},
+		},
+		{
+			"subdir6", []entry{
+				{"anothersubsubdir", 0, true},
+				{"asubsubdir", 0, true},
+				{"file.txt", 0, false},
+				{"zsubsubdir", 0, true},
+			},
+		},
+		{
+			"subdir6/asubsubdir", []entry{
+				{"afile.txt", 0, false},
+				{"file.txt", 0, false},
+				{"zfile.txt", 0, false},
+			},
+		},
+		{
+			"subdir8", []entry{
+				{"doesntexist", 0, false}, // entry is returned even if destination file doesn't exist
+			},
+		},
+		{
+			// check that read dir actually redirects files that already exist
+			// the original this_file_is_overlaid.txt is empty
+			"subdir9", []entry{
+				{"this_file_is_overlaid.txt", 9, false},
+			},
+		},
+		{
+			"subdir10", []entry{},
+		},
+		{
+			"parentoverwritten", []entry{
+				{"subdir1", 2, false},
+			},
+		},
+		{
+			"textfile.txt", []entry{
+				{"file.go", 2, false},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		dir, want := tc.dir, tc.want
+		infos, err := ReadDir(dir)
 		if err != nil {
-			t.Fatalf("ReadDir(%q): got error %q, want no error", dir, err)
+			t.Errorf("ReadDir(%q): %v", dir, err)
+			continue
 		}
-		if len(fis) != len(want) {
-			t.Fatalf("ReadDir(%q) result: got %v entries; want %v entries", dir, len(fis), len(want))
-		}
-		for i := range fis {
-			if fis[i].Name() != want[i].name {
-				t.Fatalf("ReadDir(%q) entry %v: got Name() = %v, want %v", dir, i, fis[i].Name(), want[i].name)
-			}
-			if fis[i].IsDir() != want[i].isDir {
-				t.Fatalf("ReadDir(%q) entry %v: got IsDir() = %v, want %v", dir, i, fis[i].IsDir(), want[i].isDir)
-			}
-			if want[i].isDir {
-				// We don't try to get size right for directories
-				continue
-			}
-			if fis[i].Size() != want[i].size {
-				t.Fatalf("ReadDir(%q) entry %v: got Size() = %v, want %v", dir, i, fis[i].Size(), want[i].size)
+		// Sorted diff of want and infos.
+		for len(infos) > 0 || len(want) > 0 {
+			switch {
+			case len(want) == 0 || len(infos) > 0 && infos[0].Name() < want[0].name:
+				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v Size=%v", dir, infos[0].Name(), infos[0].IsDir(), infos[0].Size())
+				infos = infos[1:]
+			case len(infos) == 0 || len(want) > 0 && want[0].name < infos[0].Name():
+				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v Size=%v", dir, want[0].name, want[0].isDir, want[0].size)
+				want = want[1:]
+			default:
+				infoSize := infos[0].Size()
+				if want[0].isDir {
+					infoSize = 0
+				}
+				if infos[0].IsDir() != want[0].isDir || want[0].isDir && infoSize != want[0].size {
+					t.Errorf("ReadDir(%q): %s: IsDir=%v Size=%v, want IsDir=%v Size=%v", dir, want[0].name, infos[0].IsDir(), infoSize, want[0].isDir, want[0].size)
+				}
+				infos = infos[1:]
+				want = want[1:]
 			}
 		}
 	}
@@ -288,11 +343,80 @@ x
 	}
 
 	for _, dir := range errCases {
-		_, gotErr := ReadDir(dir)
-		if gotErr == nil {
-			t.Errorf("ReadDir(%q): got no error, want error", dir)
-		} else if _, ok := gotErr.(*os.PathError); !ok {
-			t.Errorf("ReadDir(%q): got error with string %q and type %T, want os.PathError", dir, gotErr.Error(), gotErr)
+		_, err := ReadDir(dir)
+		if _, ok := err.(*fs.PathError); !ok {
+			t.Errorf("ReadDir(%q): err = %T (%v), want fs.PathError", dir, err, err)
+		}
+	}
+}
+
+func TestGlob(t *testing.T) {
+	initOverlay(t, readDirOverlay)
+
+	testCases := []struct {
+		pattern string
+		match   []string
+	}{
+		{
+			"*o*",
+			[]string{
+				"other",
+				"overlayfiles",
+				"parentoverwritten",
+			},
+		},
+		{
+			"subdir2/file2.txt",
+			[]string{
+				"subdir2/file2.txt",
+			},
+		},
+		{
+			"*/*.txt",
+			[]string{
+				"overlayfiles/subdir2_file2.txt",
+				"overlayfiles/subdir3_file3b.txt",
+				"overlayfiles/subdir6_asubsubdir_afile.txt",
+				"overlayfiles/subdir6_asubsubdir_zfile.txt",
+				"overlayfiles/subdir6_zsubsubdir_file.txt",
+				"overlayfiles/subdir7_asubsubdir_file.txt",
+				"overlayfiles/subdir7_zsubsubdir_file.txt",
+				"overlayfiles/subdir9_this_file_is_overlaid.txt",
+				"subdir1/file1.txt",
+				"subdir2/file2.txt",
+				"subdir3/file3a.txt",
+				"subdir3/file3b.txt",
+				"subdir6/file.txt",
+				"subdir9/this_file_is_overlaid.txt",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		pattern := tc.pattern
+		match, err := Glob(pattern)
+		if err != nil {
+			t.Errorf("Glob(%q): %v", pattern, err)
+			continue
+		}
+		want := tc.match
+		for i, name := range want {
+			if name != tc.pattern {
+				want[i] = filepath.FromSlash(name)
+			}
+		}
+		for len(match) > 0 || len(want) > 0 {
+			switch {
+			case len(match) == 0 || len(want) > 0 && want[0] < match[0]:
+				t.Errorf("Glob(%q): missing match: %s", pattern, want[0])
+				want = want[1:]
+			case len(want) == 0 || len(match) > 0 && match[0] < want[0]:
+				t.Errorf("Glob(%q): extra match: %s", pattern, match[0])
+				match = match[1:]
+			default:
+				want = want[1:]
+				match = match[1:]
+			}
 		}
 	}
 }
@@ -417,7 +541,7 @@ this can exist because the parent directory is deleted
 			t.Errorf("Open(%q): got error %v, want nil", tc.path, err)
 			continue
 		}
-		contents, err := ioutil.ReadAll(f)
+		contents, err := io.ReadAll(f)
 		if err != nil {
 			t.Errorf("unexpected error reading contents of file: %v", err)
 		}
@@ -485,11 +609,16 @@ contents don't matter for this test
 }
 
 func TestWalk(t *testing.T) {
+	// The root of the walk must be a name with an actual basename, not just ".".
+	// Walk uses Lstat to obtain the name of the root, and Lstat on platforms
+	// other than Plan 9 reports the name "." instead of the actual base name of
+	// the directory. (See https://golang.org/issue/42115.)
+
 	type file struct {
 		path  string
 		name  string
 		size  int64
-		mode  os.FileMode
+		mode  fs.FileMode
 		isDir bool
 	}
 	testCases := []struct {
@@ -500,62 +629,62 @@ func TestWalk(t *testing.T) {
 	}{
 		{"no overlay", `
 {}
--- file.txt --
+-- dir/file.txt --
 `,
-			".",
+			"dir",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0700, true},
-				{"file.txt", "file.txt", 0, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0700, true},
+				{"dir/file.txt", "file.txt", 0, 0600, false},
 			},
 		},
 		{"overlay with different file", `
 {
 	"Replace": {
-		"file.txt": "other.txt"
+		"dir/file.txt": "dir/other.txt"
 	}
 }
--- file.txt --
--- other.txt --
+-- dir/file.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
-				{"file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+				{"dir/file.txt", "file.txt", 23, 0600, false},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
 			},
 		},
 		{"overlay with new file", `
 {
 	"Replace": {
-		"file.txt": "other.txt"
+		"dir/file.txt": "dir/other.txt"
 	}
 }
--- other.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
-				{"file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+				{"dir/file.txt", "file.txt", 23, 0600, false},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
 			},
 		},
 		{"overlay with new directory", `
 {
 	"Replace": {
-		"dir/file.txt": "other.txt"
+		"dir/subdir/file.txt": "dir/other.txt"
 	}
 }
--- other.txt --
+-- dir/other.txt --
 contents of other file
 `,
-			".",
+			"dir",
 			[]file{
-				{".", "root", 0, os.ModeDir | 0500, true},
-				{"dir", "dir", 0, os.ModeDir | 0500, true},
-				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
-				{"other.txt", "other.txt", 23, 0600, false},
+				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+				{"dir/other.txt", "other.txt", 23, 0600, false},
+				{"dir/subdir", "subdir", 0, fs.ModeDir | 0500, true},
+				{"dir/subdir/file.txt", "file.txt", 23, 0600, false},
 			},
 		},
 	}
@@ -565,7 +694,7 @@ contents of other file
 			initOverlay(t, tc.overlay)
 
 			var got []file
-			Walk(tc.root, func(path string, info os.FileInfo, err error) error {
+			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
 				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
 				return nil
 			})
@@ -574,14 +703,15 @@ contents of other file
 				t.Errorf("Walk: saw %#v in walk; want %#v", got, tc.wantFiles)
 			}
 			for i := 0; i < len(got) && i < len(tc.wantFiles); i++ {
-				if got[i].path != tc.wantFiles[i].path {
-					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, tc.wantFiles[i].path)
+				wantPath := filepath.FromSlash(tc.wantFiles[i].path)
+				if got[i].path != wantPath {
+					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, wantPath)
 				}
 				if got[i].name != tc.wantFiles[i].name {
 					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
 				}
-				if got[i].mode&(os.ModeDir|0700) != tc.wantFiles[i].mode {
-					t.Errorf("mode&(os.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(os.ModeDir|0700), tc.wantFiles[i].mode)
+				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
+					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
 				}
 				if got[i].isDir != tc.wantFiles[i].isDir {
 					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
@@ -597,28 +727,28 @@ contents of other file
 	}
 }
 
-func TestWalk_SkipDir(t *testing.T) {
+func TestWalkSkipDir(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
-		"skipthisdir/file.go": "dummy.txt",
-		"dontskip/file.go": "dummy.txt",
-		"dontskip/skip/file.go": "dummy.txt"
+		"dir/skip/file.go": "dummy.txt",
+		"dir/dontskip/file.go": "dummy.txt",
+		"dir/dontskip/skip/file.go": "dummy.txt"
 	}
 }
 -- dummy.txt --
 `)
 
 	var seen []string
-	Walk(".", func(path string, info os.FileInfo, err error) error {
-		seen = append(seen, path)
-		if path == "skipthisdir" || path == filepath.Join("dontskip", "skip") {
+	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+		seen = append(seen, filepath.ToSlash(path))
+		if info.Name() == "skip" {
 			return filepath.SkipDir
 		}
 		return nil
 	})
 
-	wantSeen := []string{".", "dontskip", filepath.Join("dontskip", "file.go"), filepath.Join("dontskip", "skip"), "dummy.txt", "skipthisdir"}
+	wantSeen := []string{"dir", "dir/dontskip", "dir/dontskip/file.go", "dir/dontskip/skip", "dir/skip"}
 
 	if len(seen) != len(wantSeen) {
 		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
@@ -631,11 +761,11 @@ func TestWalk_SkipDir(t *testing.T) {
 	}
 }
 
-func TestWalk_Error(t *testing.T) {
+func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
-	err := Walk("foo", func(path string, info os.FileInfo, err error) error {
+	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
 		if alreadyCalled {
 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
 		}
@@ -654,7 +784,7 @@ func TestWalk_Error(t *testing.T) {
 	}
 }
 
-func TestWalk_Symlink(t *testing.T) {
+func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	initOverlay(t, `{
@@ -673,8 +803,8 @@ func TestWalk_Symlink(t *testing.T) {
 		wantFiles []string
 	}{
 		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
-		// ensure Walk doesn't wolk into the directory pointed to by the symlink
-		// (because it's supposed to use Lstat instead of Stat.
+		// ensure Walk doesn't walk into the directory pointed to by the symlink
+		// (because it's supposed to use Lstat instead of Stat).
 		{"symlink_to_dir", "symlink", []string{"symlink"}},
 		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink"}},
 	}
@@ -683,7 +813,7 @@ func TestWalk_Symlink(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
 
-			err := Walk(tc.dir, func(path string, info os.FileInfo, err error) error {
+			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
 				got = append(got, path)
 				if err != nil {
 					t.Errorf("walkfn: got non nil err argument: %v, want nil err argument", err)
@@ -703,6 +833,123 @@ func TestWalk_Symlink(t *testing.T) {
 }
 
 func TestLstat(t *testing.T) {
+	type file struct {
+		name  string
+		size  int64
+		mode  fs.FileMode // mode & (fs.ModeDir|0x700): only check 'user' permissions
+		isDir bool
+	}
+
+	testCases := []struct {
+		name    string
+		overlay string
+		path    string
+
+		want    file
+		wantErr bool
+	}{
+		{
+			"regular_file",
+			`{}
+-- file.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"new_file_in_overlay",
+			`{"Replace": {"file.txt": "dummy.txt"}}
+-- dummy.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"file_replaced_in_overlay",
+			`{"Replace": {"file.txt": "dummy.txt"}}
+-- file.txt --
+-- dummy.txt --
+contents`,
+			"file.txt",
+			file{"file.txt", 9, 0600, false},
+			false,
+		},
+		{
+			"file_cant_exist",
+			`{"Replace": {"deleted": "dummy.txt"}}
+-- deleted/file.txt --
+-- dummy.txt --
+`,
+			"deleted/file.txt",
+			file{},
+			true,
+		},
+		{
+			"deleted",
+			`{"Replace": {"deleted": ""}}
+-- deleted --
+`,
+			"deleted",
+			file{},
+			true,
+		},
+		{
+			"dir_on_disk",
+			`{}
+-- dir/foo.txt --
+`,
+			"dir",
+			file{"dir", 0, 0700 | fs.ModeDir, true},
+			false,
+		},
+		{
+			"dir_in_overlay",
+			`{"Replace": {"dir/file.txt": "dummy.txt"}}
+-- dummy.txt --
+`,
+			"dir",
+			file{"dir", 0, 0500 | fs.ModeDir, true},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initOverlay(t, tc.overlay)
+			got, err := Lstat(tc.path)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("lstat(%q): got no error, want error", tc.path)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("lstat(%q): got error %v, want no error", tc.path, err)
+			}
+			if got.Name() != tc.want.name {
+				t.Errorf("lstat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
+			}
+			if got.Mode()&(fs.ModeDir|0700) != tc.want.mode {
+				t.Errorf("lstat(%q).Mode()&(fs.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(fs.ModeDir|0700), tc.want.mode)
+			}
+			if got.IsDir() != tc.want.isDir {
+				t.Errorf("lstat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
+			}
+			if tc.want.isDir {
+				return // don't check size for directories
+			}
+			if got.Size() != tc.want.size {
+				t.Errorf("lstat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
+			}
+		})
+	}
+}
+
+func TestStat(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	type file struct {
 		name  string
 		size  int64
@@ -788,31 +1035,61 @@ contents`,
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			initOverlay(t, tc.overlay)
-			got, err := lstat(tc.path)
+			got, err := Stat(tc.path)
 			if tc.wantErr {
 				if err == nil {
-					t.Errorf("lstat(%q): got no error, want error", tc.path)
+					t.Errorf("Stat(%q): got no error, want error", tc.path)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("lstat(%q): got error %v, want no error", tc.path, err)
+				t.Fatalf("Stat(%q): got error %v, want no error", tc.path, err)
 			}
 			if got.Name() != tc.want.name {
-				t.Errorf("lstat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
+				t.Errorf("Stat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
 			}
 			if got.Mode()&(os.ModeDir|0700) != tc.want.mode {
-				t.Errorf("lstat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
+				t.Errorf("Stat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
 			}
 			if got.IsDir() != tc.want.isDir {
-				t.Errorf("lstat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
+				t.Errorf("Stat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
 			}
 			if tc.want.isDir {
 				return // don't check size for directories
 			}
 			if got.Size() != tc.want.size {
-				t.Errorf("lstat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
+				t.Errorf("Stat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
 			}
 		})
+	}
+}
+
+func TestStatSymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	initOverlay(t, `{
+	"Replace": {"file.go": "symlink"}
+}
+-- to.go --
+0123456789
+`)
+
+	// Create symlink
+	if err := os.Symlink("to.go", "symlink"); err != nil {
+		t.Error(err)
+	}
+
+	f := "file.go"
+	fi, err := Stat(f)
+	if err != nil {
+		t.Errorf("Stat(%q): got error %q, want nil error", f, err)
+	}
+
+	if !fi.Mode().IsRegular() {
+		t.Errorf("Stat(%q).Mode(): got %v, want regular mode", f, fi.Mode())
+	}
+
+	if fi.Size() != 11 {
+		t.Errorf("Stat(%q).Size(): got %v, want 11", f, fi.Size())
 	}
 }

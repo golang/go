@@ -21,7 +21,7 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 func walk(fn *Node) {
 	Curfn = fn
 
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
@@ -63,14 +63,14 @@ func walk(fn *Node) {
 		return
 	}
 	walkstmtlist(Curfn.Nbody.Slice())
-	if Debug['W'] != 0 {
+	if Debug.W != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Nbody)
 	}
 
 	zeroResults()
 	heapmoves()
-	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
+	if Debug.W != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}
@@ -436,7 +436,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 
 	lno := setlineno(n)
 
-	if Debug['w'] > 1 {
+	if Debug.w > 1 {
 		Dump("before walk expr", n)
 	}
 
@@ -474,7 +474,7 @@ opswitch:
 		ODEREF, OSPTR, OITAB, OIDATA, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
-	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
+	case OEFACE, OAND, OANDNOT, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
@@ -965,14 +965,6 @@ opswitch:
 		fn := basicnames[param] + "to" + basicnames[result]
 		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left, types.Types[param])), n.Type)
 
-	case OANDNOT:
-		n.Left = walkexpr(n.Left, init)
-		n.Op = OAND
-		n.SetImplicit(true) // for walkCheckPtrArithmetic
-		n.Right = nod(OBITNOT, n.Right, nil)
-		n.Right = typecheck(n.Right, ctxExpr)
-		n.Right = walkexpr(n.Right, init)
-
 	case ODIV, OMOD:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
@@ -997,7 +989,7 @@ opswitch:
 		// runtime calls late in SSA processing.
 		if Widthreg < 8 && (et == TINT64 || et == TUINT64) {
 			if n.Right.Op == OLITERAL {
-				// Leave div/mod by constant powers of 2.
+				// Leave div/mod by constant powers of 2 or small 16-bit constants.
 				// The SSA backend will handle those.
 				switch et {
 				case TINT64:
@@ -1010,6 +1002,9 @@ opswitch:
 					}
 				case TUINT64:
 					c := uint64(n.Right.Int64Val())
+					if c < 1<<16 {
+						break opswitch
+					}
 					if c != 0 && c&(c-1) == 0 {
 						break opswitch
 					}
@@ -1049,7 +1044,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			n.SetBounded(bounded(r, t.NumElem()))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1057,7 +1052,7 @@ opswitch:
 			}
 		} else if Isconst(n.Left, CTSTR) {
 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1599,7 +1594,7 @@ opswitch:
 
 	updateHasCall(n)
 
-	if Debug['w'] != 0 && n != nil {
+	if Debug.w != 0 && n != nil {
 		Dump("after walk expr", n)
 	}
 
@@ -1965,7 +1960,17 @@ func walkprint(nn *Node, init *Nodes) *Node {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		case TPTR, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
+		case TPTR:
+			if n.Type.Elem().NotInHeap() {
+				on = syslook("printuintptr")
+				n = nod(OCONV, n, nil)
+				n.Type = types.Types[TUNSAFEPTR]
+				n = nod(OCONV, n, nil)
+				n.Type = types.Types[TUINTPTR]
+				break
+			}
+			fallthrough
+		case TCHAN, TMAP, TFUNC, TUNSAFEPTR:
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
 		case TSLICE:
@@ -2819,7 +2824,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 // isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n *Node) bool {
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return false
 	}
 
@@ -3609,14 +3614,20 @@ func bounded(n *Node, max int64) bool {
 	}
 
 	switch n.Op {
-	case OAND:
+	case OAND, OANDNOT:
 		v := int64(-1)
-		if smallintconst(n.Left) {
+		switch {
+		case smallintconst(n.Left):
 			v = n.Left.Int64Val()
-		} else if smallintconst(n.Right) {
+		case smallintconst(n.Right):
 			v = n.Right.Int64Val()
+			if n.Op == OANDNOT {
+				v = ^v
+				if !sign {
+					v &= 1<<uint(bits) - 1
+				}
+			}
 		}
-
 		if 0 <= v && v < max {
 			return true
 		}
@@ -3976,7 +3987,7 @@ func canMergeLoads() bool {
 // isRuneCount reports whether n is of the form len([]rune(string)).
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n *Node) bool {
-	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+	return Debug.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
 }
 
 func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {
@@ -4045,12 +4056,8 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 		case OADD:
 			walk(n.Left)
 			walk(n.Right)
-		case OSUB:
+		case OSUB, OANDNOT:
 			walk(n.Left)
-		case OAND:
-			if n.Implicit() { // was OANDNOT
-				walk(n.Left)
-			}
 		case OCONVNOP:
 			if n.Left.Type.IsUnsafePtr() {
 				n.Left = cheapexpr(n.Left, init)

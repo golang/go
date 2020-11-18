@@ -7,6 +7,7 @@ package modload
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
 
 	"cmd/go/internal/modfetch"
@@ -57,7 +58,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 // be chosen over other versions of the same module in the module dependency
 // graph.
 func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && semver.Compare(v1, v2) == -1 {
+	if v1 != "" && (v2 == "" || semver.Compare(v1, v2) == -1) {
 		return v2
 	}
 	return v1
@@ -74,7 +75,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
-		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
+		repo, err := lookupRepo(proxy, path)
+		if err != nil {
+			return err
+		}
+		allVersions, err := repo.Versions("")
 		if err != nil {
 			return err
 		}
@@ -94,10 +99,21 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 
 // Previous returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
+//
+// Since the version of Target is not found in the version list,
+// it has no previous version.
 func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+
+	if m == Target {
+		return module.Version{Path: m.Path, Version: "none"}, nil
+	}
+
 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return module.Version{Path: m.Path, Version: "none"}, nil
+		}
 		return module.Version{}, err
 	}
 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })

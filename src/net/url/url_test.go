@@ -1114,6 +1114,14 @@ func TestResolvePath(t *testing.T) {
 	}
 }
 
+func BenchmarkResolvePath(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		resolvePath("a/b/c", ".././d")
+	}
+}
+
 var resolveReferenceTests = []struct {
 	base, rel, expected string
 }{

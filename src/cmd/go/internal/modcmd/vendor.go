@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -232,7 +233,7 @@ var metaPrefixes = []string{
 }
 
 // matchMetadata reports whether info is a metadata file.
-func matchMetadata(dir string, info os.FileInfo) bool {
+func matchMetadata(dir string, info fs.FileInfo) bool {
 	name := info.Name()
 	for _, p := range metaPrefixes {
 		if strings.HasPrefix(name, p) {
@@ -243,7 +244,7 @@ func matchMetadata(dir string, info os.FileInfo) bool {
 }
 
 // matchPotentialSourceFile reports whether info may be relevant to a build operation.
-func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
 		return false
 	}
@@ -269,7 +270,7 @@ func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
 }
 
 // copyDir copies all regular files satisfying match(info) from src to dst.
-func copyDir(dst, src string, match func(dir string, info os.FileInfo) bool) {
+func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
 	files, err := ioutil.ReadDir(src)
 	if err != nil {
 		base.Fatalf("go mod vendor: %v", err)

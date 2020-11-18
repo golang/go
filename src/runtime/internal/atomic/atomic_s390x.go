@@ -41,6 +41,18 @@ func LoadAcq(ptr *uint32) uint32 {
 	return *ptr
 }
 
+//go:nosplit
+//go:noinline
+func LoadAcq64(ptr *uint64) uint64 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func LoadAcquintptr(ptr *uintptr) uintptr {
+	return *ptr
+}
+
 //go:noescape
 func Store(ptr *uint32, val uint32)
 
@@ -59,6 +71,18 @@ func StoreRel(ptr *uint32, val uint32) {
 	*ptr = val
 }
 
+//go:nosplit
+//go:noinline
+func StoreRel64(ptr *uint64, val uint64) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
+func StoreReluintptr(ptr *uintptr, val uintptr) {
+	*ptr = val
+}
+
 //go:noescape
 func And8(ptr *uint8, val uint8)
 
@@ -66,6 +90,12 @@ func And8(ptr *uint8, val uint8)
 func Or8(ptr *uint8, val uint8)
 
 // NOTE: Do not add atomicxor8 (XOR is not idempotent).
+
+//go:noescape
+func And(ptr *uint32, val uint32)
+
+//go:noescape
+func Or(ptr *uint32, val uint32)
 
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32

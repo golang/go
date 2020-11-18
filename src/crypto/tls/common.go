@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -294,10 +295,26 @@ func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, le
 type ClientAuthType int
 
 const (
+	// NoClientCert indicates that no client certificate should be requested
+	// during the handshake, and if any certificates are sent they will not
+	// be verified.
 	NoClientCert ClientAuthType = iota
+	// RequestClientCert indicates that a client certificate should be requested
+	// during the handshake, but does not require that the client send any
+	// certificates.
 	RequestClientCert
+	// RequireAnyClientCert indicates that a client certificate should be requested
+	// during the handshake, and that at least one certificate is required to be
+	// sent by the client, but that certificate is not required to be valid.
 	RequireAnyClientCert
+	// VerifyClientCertIfGiven indicates that a client certificate should be requested
+	// during the handshake, but does not require that the client sends a
+	// certificate. If the client does send a certificate it is required to be
+	// valid.
 	VerifyClientCertIfGiven
+	// RequireAndVerifyClientCert indicates that a client certificate should be requested
+	// during the handshake, and that at least one valid certificate is required
+	// to be sent by the client.
 	RequireAndVerifyClientCert
 )
 
@@ -428,6 +445,16 @@ type ClientHelloInfo struct {
 	// config is embedded by the GetCertificate or GetConfigForClient caller,
 	// for use with SupportsCertificate.
 	config *Config
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *ClientHelloInfo) Context() context.Context {
+	return c.ctx
 }
 
 // CertificateRequestInfo contains information from a server's
@@ -446,6 +473,16 @@ type CertificateRequestInfo struct {
 
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
+
+	// ctx is the context of the handshake that is in progress.
+	ctx context.Context
+}
+
+// Context returns the context of the handshake that is in progress.
+// This context is a child of the context passed to HandshakeContext,
+// if any, and is canceled when the handshake concludes.
+func (c *CertificateRequestInfo) Context() context.Context {
+	return c.ctx
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
@@ -1256,7 +1293,9 @@ func (c *Config) BuildNameToCertificate() {
 		if err != nil {
 			continue
 		}
-		if len(x509Cert.Subject.CommonName) > 0 {
+		// If SANs are *not* present, some clients will consider the certificate
+		// valid for the name in the Common Name.
+		if x509Cert.Subject.CommonName != "" && len(x509Cert.DNSNames) == 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
 		}
 		for _, san := range x509Cert.DNSNames {

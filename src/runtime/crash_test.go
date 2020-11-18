@@ -240,6 +240,132 @@ func TestStackOverflow(t *testing.T) {
 	}
 }
 
+func TestStackOverflowTopAndBottomTraces(t *testing.T) {
+	output := runTestProg(t, "testprog", "StackOverflowTopAndBottomTraces")
+
+	// 1. First things first, we expect to traverse from
+	//    runtime: goroutine stack exceeds 10000-byte limit
+	// and down to the very end until we see:
+	//    runtime.goexit()
+	mustHaves := []string{
+		// Top half expectations
+		"\\s*runtime: goroutine stack exceeds 10000-byte limit\n",
+		"\\s*fatal error: stack overflow\n",
+		"\\s*runtime stack:\n",
+		"\\s*runtime.throw[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+runtime\\.newstack[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+runtime.morestack[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+goroutine 1 \\[running\\]:",
+
+		// Bottom half expectations
+		"\\s*main.main\\(\\)\n",
+		"\\s*runtime.main\\(\\)\n",
+		"\\s*runtime.goexit\\(\\)\n",
+	}
+
+	for _, pat := range mustHaves {
+		reg := regexp.MustCompile(pat)
+		match := reg.FindAllString(output, -1)
+		if len(match) == 0 {
+			t.Errorf("Failed to find pattern %q", pat)
+		}
+	}
+
+	// 2. Split top and bottom halves by the "... ({n} stack frames omitted)" message
+	regHalving := regexp.MustCompile("\\.{3} \\(\\d+ stack frames omitted\\)")
+	halverMatches := regHalving.FindAllString(output, -1)
+	if len(halverMatches) != 1 {
+		t.Fatal("Failed to find the `stack frames omitted` pattern")
+	}
+	str := string(output)
+	halver := halverMatches[0]
+	midIndex := strings.Index(str, halver)
+	topHalf, bottomHalf := str[:midIndex], str[midIndex+len(halver):]
+	// 2.1. Sanity check, len(topHalf) >= halver || len(bottomHalf) >= halver
+	if len(topHalf) < len(halver) || len(bottomHalf) < len(halver) {
+		t.Fatalf("Sanity check len(topHalf) = %d len(bottomHalf) = %d; both must be >= len(halver) %d",
+			len(topHalf), len(bottomHalf), len(halver))
+	}
+
+	// 3. In each of the halves, we should have an equal number
+	// of stacktraces before and after the "omitted frames" message.
+	regStackTraces := regexp.MustCompile("\n[^\n]+\n\t.+:\\d+ .+ fp=0x.+ sp=0x.+ pc=0x.+")
+	topHalfStackTraces := regStackTraces.FindAllString(topHalf, -1)
+	bottomHalfStackTraces := regStackTraces.FindAllString(bottomHalf, -1)
+	nTopHalf, nBottomHalf := len(topHalfStackTraces), len(bottomHalfStackTraces)
+	if nTopHalf == 0 || nBottomHalf == 0 {
+		t.Fatal("Both lengths of stack-halves should be non-zero")
+	}
+	// The bottom half will always have the 50 non-runtime frames along with these 3 frames:
+	// * main.main()
+	// * "runtime.main"
+	// * "runtime.goexit"
+	// hence we need to decrement 3 counted lines.
+	if nTopHalf != nBottomHalf-3 {
+		t.Errorf("len(topHalfStackTraces)=%d len(bottomHalfStackTraces)-3=%d yet must be equal\n", nTopHalf, nBottomHalf-3)
+	}
+
+	// 4. Next, prune out the:
+	// func...
+	//    line...
+	// pairs in both of the halves.
+	prunes := []struct {
+		src     *string
+		matches []string
+	}{
+		{src: &topHalf, matches: topHalfStackTraces},
+		{src: &bottomHalf, matches: bottomHalfStackTraces},
+	}
+
+	for _, prune := range prunes {
+		str := *prune.src
+		for _, match := range prune.matches {
+			index := strings.Index(str, match)
+			str = str[:index] + str[index+len(match):]
+		}
+		*prune.src = str
+	}
+
+	// 5. Now match and prune out the remaining patterns in the top and bottom halves.
+	// We aren't touching the bottom stack since its patterns are already matched
+	// by the:
+	//    func...
+	//	 line...
+	// pairs
+	topPartPrunables := []string{
+		"^\\s*runtime: goroutine stack exceeds 10000-byte limit\n",
+		"\\s*fatal error: stack overflow\n",
+		"\\s*runtime stack:\n",
+		"\\s*runtime.throw[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+runtime\\.newstack[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+runtime.morestack[^\n]+\n\t.+:\\d+ [^\n]+",
+		"\\s+goroutine 1 \\[running\\]:",
+	}
+
+	for _, pat := range topPartPrunables {
+		reg := regexp.MustCompile(pat)
+		matches := reg.FindAllString(topHalf, -1)
+		if len(matches) == 0 {
+			t.Errorf("top stack traces do not contain pattern: %q", reg)
+		} else if len(matches) != 1 {
+			t.Errorf("inconsistent state got %d matches want only 1", len(matches))
+		} else {
+			match := matches[0]
+			idx := strings.Index(topHalf, match)
+			topHalf = topHalf[:idx] + topHalf[idx+len(match):]
+		}
+	}
+
+	// 6. At the end we should only be left with
+	// newlines in both the top and bottom halves.
+	topHalf = strings.TrimSpace(topHalf)
+	bottomHalf = strings.TrimSpace(bottomHalf)
+	if topHalf != "" && bottomHalf != "" {
+		t.Fatalf("len(topHalf)=%d len(bottomHalf)=%d\ntopHalf=\n%s\n\nbottomHalf=\n%s",
+			len(topHalf), len(bottomHalf), topHalf, bottomHalf)
+	}
+}
+
 func TestThreadExhaustion(t *testing.T) {
 	output := runTestProg(t, "testprog", "ThreadExhaustion")
 	want := "runtime: program exceeds 10-thread limit\nfatal error: thread exhaustion"

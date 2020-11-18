@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/sys"
 	"debug/macho"
 	"internal/testenv"
 	"io/ioutil"
@@ -818,5 +819,109 @@ func TestReadOnly(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("running test program did not fail. output:\n%s", out)
+	}
+}
+
+const testIssue38554Src = `
+package main
+
+type T [10<<20]byte
+
+//go:noinline
+func f() T {
+	return T{} // compiler will make a large stmp symbol, but not used.
+}
+
+func main() {
+	x := f()
+	println(x[1])
+}
+`
+
+func TestIssue38554(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue38554")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "x.go")
+	err = ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	fi, err := os.Stat(exe)
+	if err != nil {
+		t.Fatalf("failed to stat output file: %v", err)
+	}
+
+	// The test program is not much different from a helloworld, which is
+	// typically a little over 1 MB. We allow 5 MB. If the bad stmp is live,
+	// it will be over 10 MB.
+	const want = 5 << 20
+	if got := fi.Size(); got > want {
+		t.Errorf("binary too big: got %d, want < %d", got, want)
+	}
+}
+
+const testIssue42396src = `
+package main
+
+//go:noinline
+//go:nosplit
+func callee(x int) {
+}
+
+func main() {
+	callee(9)
+}
+`
+
+func TestIssue42396(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if !sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skip("no race detector support")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-race", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("build unexpectedly succeeded")
+	}
+
+	// Check to make sure that we see a reasonable error message
+	// and not a panic.
+	if strings.Contains(string(out), "panic:") {
+		t.Fatalf("build should not fail with panic:\n%s", out)
+	}
+	const want = "reference to undefined builtin"
+	if !strings.Contains(string(out), want) {
+		t.Fatalf("error message incorrect: expected it to contain %q but instead got:\n%s\n", want, out)
 	}
 }

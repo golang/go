@@ -16,6 +16,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -107,7 +108,7 @@ func testFiles(t *testing.T, filenames <-chan string, done chan<- int) {
 func genFilenames(t *testing.T, filenames chan<- string) {
 	defer close(filenames)
 
-	handleFile := func(filename string, fi os.FileInfo, err error) error {
+	handleFile := func(filename string, fi fs.FileInfo, err error) error {
 		if err != nil {
 			t.Error(err)
 			return nil

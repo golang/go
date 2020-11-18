@@ -56,32 +56,17 @@ var ARM struct {
 // The booleans in ARM64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var ARM64 struct {
-	_           CacheLinePad
-	HasFP       bool
-	HasASIMD    bool
-	HasEVTSTRM  bool
-	HasAES      bool
-	HasPMULL    bool
-	HasSHA1     bool
-	HasSHA2     bool
-	HasCRC32    bool
-	HasATOMICS  bool
-	HasFPHP     bool
-	HasASIMDHP  bool
-	HasCPUID    bool
-	HasASIMDRDM bool
-	HasJSCVT    bool
-	HasFCMA     bool
-	HasLRCPC    bool
-	HasDCPOP    bool
-	HasSHA3     bool
-	HasSM3      bool
-	HasSM4      bool
-	HasASIMDDP  bool
-	HasSHA512   bool
-	HasSVE      bool
-	HasASIMDFHM bool
-	_           CacheLinePad
+	_            CacheLinePad
+	HasAES       bool
+	HasPMULL     bool
+	HasSHA1      bool
+	HasSHA2      bool
+	HasCRC32     bool
+	HasATOMICS   bool
+	HasCPUID     bool
+	IsNeoverseN1 bool
+	IsZeus       bool
+	_            CacheLinePad
 }
 
 var MIPS64X struct {

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"mime/multipart"
 	. "net/http"
 	"net/http/httptest"
@@ -103,7 +104,7 @@ func TestParseFormUnknownContentType(t *testing.T) {
 				req := &Request{
 					Method: "POST",
 					Header: test.contentType,
-					Body:   ioutil.NopCloser(strings.NewReader("body")),
+					Body:   io.NopCloser(strings.NewReader("body")),
 				}
 				err := req.ParseForm()
 				switch {
@@ -150,7 +151,7 @@ func TestMultipartReader(t *testing.T) {
 		req := &Request{
 			Method: "POST",
 			Header: Header{"Content-Type": {test.contentType}},
-			Body:   ioutil.NopCloser(new(bytes.Buffer)),
+			Body:   io.NopCloser(new(bytes.Buffer)),
 		}
 		multipart, err := req.MultipartReader()
 		if test.shouldError {
@@ -187,7 +188,7 @@ binary data
 	req := &Request{
 		Method: "POST",
 		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
-		Body:   ioutil.NopCloser(strings.NewReader(postData)),
+		Body:   io.NopCloser(strings.NewReader(postData)),
 	}
 
 	initialFormItems := map[string]string{
@@ -231,7 +232,7 @@ func TestParseMultipartForm(t *testing.T) {
 	req := &Request{
 		Method: "POST",
 		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+		Body:   io.NopCloser(new(bytes.Buffer)),
 	}
 	err := req.ParseMultipartForm(25)
 	if err == nil {
@@ -242,6 +243,50 @@ func TestParseMultipartForm(t *testing.T) {
 	err = req.ParseMultipartForm(25)
 	if err != ErrNotMultipart {
 		t.Error("expected ErrNotMultipart for text/plain")
+	}
+}
+
+// Issue #40430: Test that if maxMemory for ParseMultipartForm when combined with
+// the payload size and the internal leeway buffer size of 10MiB overflows, that we
+// correctly return an error.
+func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
+	defer afterTest(t)
+
+	payloadSize := 1 << 10
+	cst := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		// The combination of:
+		//      MaxInt64 + payloadSize + (internal spare of 10MiB)
+		// triggers the overflow. See issue https://golang.org/issue/40430/
+		if err := req.ParseMultipartForm(math.MaxInt64); err != nil {
+			Error(rw, err.Error(), StatusBadRequest)
+			return
+		}
+	}))
+	defer cst.Close()
+	fBuf := new(bytes.Buffer)
+	mw := multipart.NewWriter(fBuf)
+	mf, err := mw.CreateFormFile("file", "myfile.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mf.Write(bytes.Repeat([]byte("abc"), payloadSize)); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := NewRequest("POST", cst.URL, fBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	res, err := cst.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if g, w := res.StatusCode, StatusBadRequest; g != w {
+		t.Fatalf("Status code mismatch: got %d, want %d", g, w)
 	}
 }
 
@@ -756,10 +801,10 @@ func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
 }
 
 func TestIssue10884_MaxBytesEOF(t *testing.T) {
-	dst := ioutil.Discard
+	dst := io.Discard
 	_, err := io.Copy(dst, MaxBytesReader(
 		responseWriterJustWriter{dst},
-		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
+		io.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
 		5))
 	if err != nil {
 		t.Fatal(err)
@@ -799,7 +844,7 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
 		2: {101, 100},
 	}
 	for i, tt := range tests {
-		rc := MaxBytesReader(nil, ioutil.NopCloser(bytes.NewReader(make([]byte, tt.readable))), tt.limit)
+		rc := MaxBytesReader(nil, io.NopCloser(bytes.NewReader(make([]byte, tt.readable))), tt.limit)
 		if err := isSticky(rc); err != nil {
 			t.Errorf("%d. error: %v", i, err)
 		}
@@ -900,7 +945,7 @@ func TestNewRequestGetBody(t *testing.T) {
 			t.Errorf("test[%d]: GetBody = nil", i)
 			continue
 		}
-		slurp1, err := ioutil.ReadAll(req.Body)
+		slurp1, err := io.ReadAll(req.Body)
 		if err != nil {
 			t.Errorf("test[%d]: ReadAll(Body) = %v", i, err)
 		}
@@ -908,7 +953,7 @@ func TestNewRequestGetBody(t *testing.T) {
 		if err != nil {
 			t.Errorf("test[%d]: GetBody = %v", i, err)
 		}
-		slurp2, err := ioutil.ReadAll(newBody)
+		slurp2, err := io.ReadAll(newBody)
 		if err != nil {
 			t.Errorf("test[%d]: ReadAll(GetBody()) = %v", i, err)
 		}
@@ -1145,7 +1190,7 @@ func benchmarkFileAndServer(b *testing.B, n int64) {
 func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int64) {
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
 		defer req.Body.Close()
-		nc, err := io.Copy(ioutil.Discard, req.Body)
+		nc, err := io.Copy(io.Discard, req.Body)
 		if err != nil {
 			panic(err)
 		}
@@ -1172,7 +1217,7 @@ func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int6
 		}
 
 		b.StartTimer()
-		req, err := NewRequest("PUT", cst.URL, ioutil.NopCloser(f))
+		req, err := NewRequest("PUT", cst.URL, io.NopCloser(f))
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -390,12 +390,7 @@ func TestARM64Errors(t *testing.T) {
 }
 
 func TestAMD64EndToEnd(t *testing.T) {
-	defer func(old string) { objabi.GOAMD64 = old }(objabi.GOAMD64)
-	for _, goamd64 := range []string{"normaljumps", "alignedjumps"} {
-		t.Logf("GOAMD64=%s", goamd64)
-		objabi.GOAMD64 = goamd64
-		testEndToEnd(t, "amd64", "amd64")
-	}
+	testEndToEnd(t, "amd64", "amd64")
 }
 
 func Test386Encoder(t *testing.T) {

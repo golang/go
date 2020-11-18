@@ -6,7 +6,7 @@ package httptest
 
 import (
 	"bufio"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"testing"
@@ -61,7 +61,7 @@ func testServer(t *testing.T, newServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -81,7 +81,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
 
 	res, err = http.Get(ts.URL)
 	if err == nil {
-		body, _ := ioutil.ReadAll(res.Body)
+		body, _ := io.ReadAll(res.Body)
 		t.Fatalf("Unexpected response after close: %v, %v, %s", res.Status, res.Header, body)
 	}
 }
@@ -152,7 +152,7 @@ func testServerClient(t *testing.T, newTLSServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)

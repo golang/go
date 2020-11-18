@@ -3,5 +3,7 @@
 
 [!net] skip
 
+env GO111MODULE=off
+
 go get -u -n .../
 ! stderr 'duplicate loads of' # make sure old packages are removed from cache

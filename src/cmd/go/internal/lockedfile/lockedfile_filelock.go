@@ -7,12 +7,13 @@
 package lockedfile
 
 import (
+	"io/fs"
 	"os"
 
 	"cmd/go/internal/lockedfile/internal/filelock"
 )
 
-func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	// On BSD systems, we could add the O_SHLOCK or O_EXLOCK flag to the OpenFile
 	// call instead of locking separately, but we have to support separate locking
 	// calls for Linux and Windows anyway, so it's simpler to use that approach

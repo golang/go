@@ -237,6 +237,9 @@ func printhex(v uint64) {
 func printpointer(p unsafe.Pointer) {
 	printhex(uint64(uintptr(p)))
 }
+func printuintptr(p uintptr) {
+	printhex(uint64(p))
+}
 
 func printstring(s string) {
 	gwrite(bytes(s))

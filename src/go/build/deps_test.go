@@ -11,12 +11,12 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -122,7 +122,7 @@ var depsRules = `
 	< context
 	< TIME;
 
-	TIME, io, sort
+	TIME, io, path, sort
 	< io/fs;
 
 	# MATH is RUNTIME plus the basic math packages.
@@ -137,6 +137,9 @@ var depsRules = `
 
 	MATH
 	< math/rand;
+
+	MATH
+	< runtime/metrics;
 
 	MATH, unicode/utf8
 	< strconv;
@@ -164,7 +167,9 @@ var depsRules = `
 
 	os/signal, STR
 	< path/filepath
-	< io/ioutil, os/exec
+	< io/ioutil, os/exec;
+
+	io/ioutil, os/exec, os/signal
 	< OS;
 
 	reflect !< OS;
@@ -469,14 +474,19 @@ var depsRules = `
 	< net/rpc
 	< net/rpc/jsonrpc;
 
+	# System Information
+	internal/cpu, sync
+	< internal/sysinfo;
+
 	# Test-only
 	log
-	< testing/iotest;
+	< testing/iotest
+	< testing/fstest;
 
 	FMT, flag, math/rand
 	< testing/quick;
 
-	FMT, flag, runtime/debug, runtime/trace
+	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
 	< testing;
 
 	internal/testlog, runtime/pprof, regexp
@@ -504,7 +514,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi os.FileInfo, err error) error {
+	walkFn := func(path string, fi fs.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() || path == src {
 			return nil
 		}
@@ -606,24 +616,22 @@ func findImports(pkg string) ([]string, error) {
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		f, err := os.Open(filepath.Join(dir, name))
+		var info fileInfo
+		info.name = filepath.Join(dir, name)
+		f, err := os.Open(info.name)
 		if err != nil {
 			return nil, err
 		}
-		var imp []string
-		data, err := readImports(f, false, &imp)
+		err = readGoInfo(f, &info)
 		f.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %v: %v", name, err)
 		}
-		if bytes.Contains(data, buildIgnore) {
+		if bytes.Contains(info.header, buildIgnore) {
 			continue
 		}
-		for _, quoted := range imp {
-			path, err := strconv.Unquote(quoted)
-			if err != nil {
-				continue
-			}
+		for _, imp := range info.imports {
+			path := imp.path
 			if !haveImport[path] {
 				haveImport[path] = true
 				imports = append(imports, path)

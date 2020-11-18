@@ -7,7 +7,6 @@ package httptest
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"testing"
 )
@@ -42,7 +41,7 @@ func TestRecorder(t *testing.T) {
 	}
 	hasResultContents := func(want string) checkFunc {
 		return func(rec *ResponseRecorder) error {
-			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
+			contentBytes, err := io.ReadAll(rec.Result().Body)
 			if err != nil {
 				return err
 			}

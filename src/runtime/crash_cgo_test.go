@@ -154,7 +154,7 @@ func TestCgoExecSignalMask(t *testing.T) {
 	case "windows", "plan9":
 		t.Skipf("skipping signal mask test on %s", runtime.GOOS)
 	}
-	got := runTestProg(t, "testprogcgo", "CgoExecSignalMask")
+	got := runTestProg(t, "testprogcgo", "CgoExecSignalMask", "GOTRACEBACK=system")
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q, got %v", want, got)
@@ -595,6 +595,19 @@ func TestEINTR(t *testing.T) {
 
 	t.Parallel()
 	output := runTestProg(t, "testprogcgo", "EINTR")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+// Issue #42207.
+func TestNeedmDeadlock(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)

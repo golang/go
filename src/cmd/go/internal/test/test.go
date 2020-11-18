@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/build"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -149,6 +150,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	-i
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
+	    The -i flag is deprecated. Compiled packages are cached automatically.
 
 	-json
 	    Convert test output to JSON suitable for automated processing.
@@ -639,6 +641,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	b.Init()
 
 	if cfg.BuildI {
+		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
 		cfg.BuildV = testV
 
 		deps := make(map[string]bool)
@@ -1598,7 +1601,7 @@ func hashStat(name string) cache.ActionID {
 	return h.Sum()
 }
 
-func hashWriteStat(h io.Writer, info os.FileInfo) {
+func hashWriteStat(h io.Writer, info fs.FileInfo) {
 	fmt.Fprintf(h, "stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
 }
 

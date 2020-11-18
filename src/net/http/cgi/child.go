@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,7 +31,7 @@ func Request() (*http.Request, error) {
 		return nil, err
 	}
 	if r.ContentLength > 0 {
-		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
+		r.Body = io.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
 	}
 	return r, nil
 }

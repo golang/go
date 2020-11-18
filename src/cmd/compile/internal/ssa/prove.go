@@ -1082,7 +1082,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 			return nil
 		}
 		pred, child := b.Preds[1].b, b
-		for ; pred != nil; pred = uniquePred(pred) {
+		for ; pred != nil; pred, child = uniquePred(pred), pred {
 			if pred.Kind != BlockIf {
 				continue
 			}

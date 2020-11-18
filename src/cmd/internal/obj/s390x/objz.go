@@ -497,8 +497,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = REGSP
 			p.From.Offset = 0
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_LR
+			p.To = obj.Addr{
+				Type: obj.TYPE_REG,
+				Reg:  REG_LR,
+			}
 
 			q = p
 

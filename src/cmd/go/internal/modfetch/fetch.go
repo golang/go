@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -67,7 +68,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if err == nil {
 		// The directory has already been completely extracted (no .partial file exists).
 		return dir, nil
-	} else if dir == "" || !errors.Is(err, os.ErrNotExist) {
+	} else if dir == "" || !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
 
@@ -314,10 +315,10 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 func makeDirsReadOnly(dir string) {
 	type pathMode struct {
 		path string
-		mode os.FileMode
+		mode fs.FileMode
 	}
 	var dirs []pathMode // in lexical order
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err == nil && info.Mode()&0222 != 0 {
 			if info.IsDir() {
 				dirs = append(dirs, pathMode{path, info.Mode()})
@@ -336,7 +337,7 @@ func makeDirsReadOnly(dir string) {
 // any permission changes needed to do so.
 func RemoveAll(dir string) error {
 	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return nil // ignore errors walking in file system
 		}
@@ -427,6 +428,28 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 	return nil
 }
 
+// HaveSum returns true if the go.sum file contains an entry for mod.
+// The entry's hash must be generated with a known hash algorithm.
+// mod.Version may have a "/go.mod" suffix to distinguish sums for
+// .mod and .zip files.
+func HaveSum(mod module.Version) bool {
+	goSum.mu.Lock()
+	defer goSum.mu.Unlock()
+	inited, err := initGoSum()
+	if err != nil || !inited {
+		return false
+	}
+	for _, h := range goSum.m[mod] {
+		if !strings.HasPrefix(h, "h1:") {
+			continue
+		}
+		if !goSum.status[modSum{mod, h}].dirty {
+			return true
+		}
+	}
+	return false
+}
+
 // checkMod checks the given module's checksum.
 func checkMod(mod module.Version) {
 	if cfg.GOMODCACHE == "" {
@@ -441,7 +464,7 @@ func checkMod(mod module.Version) {
 	}
 	data, err := renameio.ReadFile(ziphash)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
 			return
 		}
@@ -460,7 +483,7 @@ func checkMod(mod module.Version) {
 // goModSum returns the checksum for the go.mod contents.
 func goModSum(data []byte) (string, error) {
 	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 }
 
@@ -825,16 +848,16 @@ the checksum database is not consulted, and all unrecognized modules are
 accepted, at the cost of giving up the security guarantee of verified repeatable
 downloads for all modules. A better way to bypass the checksum database
 for specific modules is to use the GOPRIVATE or GONOSUMDB environment
-variables. See 'go help module-private' for details.
+variables. See 'go help private' for details.
 
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.
 `,
 }
 
-var HelpModulePrivate = &base.Command{
-	UsageLine: "module-private",
-	Short:     "module configuration for non-public modules",
+var HelpPrivate = &base.Command{
+	UsageLine: "private",
+	Short:     "configuration for downloading non-public code",
 	Long: `
 The go command defaults to downloading modules from the public Go module
 mirror at proxy.golang.org. It also defaults to validating downloaded modules,
@@ -874,6 +897,11 @@ a corp.example.com subdomain are private but that the company proxy should
 be used for downloading both public and private modules, because
 GONOPROXY has been set to a pattern that won't match any modules,
 overriding GOPRIVATE.
+
+The GOPRIVATE variable is also used to define the "public" and "private"
+patterns for the GOVCS variable; see 'go help vcs'. For that usage,
+GOPRIVATE applies even in GOPATH mode. In that case, it matches import paths
+instead of module paths.
 
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.

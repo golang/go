@@ -61,12 +61,12 @@ type Class uint8
 //go:generate stringer -type=Class
 const (
 	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
-	PEXTERN                // global variable
+	PEXTERN                // global variables
 	PAUTO                  // local variables
-	PAUTOHEAP              // local variable or parameter moved to heap
+	PAUTOHEAP              // local variables or parameters moved to heap
 	PPARAM                 // input arguments
 	PPARAMOUT              // output results
-	PFUNC                  // global function
+	PFUNC                  // global functions
 
 	// Careful: Class is stored in three bits in Node.flags.
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
@@ -116,7 +116,15 @@ var decldepth int32
 
 var nolocalimports bool
 
-var Debug [256]int
+// gc debug flags
+type DebugFlags struct {
+	P, B, C, E,
+	K, L, N, S,
+	W, e, h, j,
+	l, m, r, w int
+}
+
+var Debug DebugFlags
 
 var debugstr string
 

@@ -123,6 +123,8 @@ func (h *mheap) nextSpanForSweep() *mspan {
 //
 //go:nowritebarrier
 func finishsweep_m() {
+	assertWorldStopped()
+
 	// Sweeping must be complete before marking commences, so
 	// sweep any unswept spans. If this is a concurrent GC, there
 	// shouldn't be any spans left to sweep, so this should finish
@@ -337,8 +339,6 @@ func (s *mspan) sweep(preserve bool) bool {
 	spc := s.spanclass
 	size := s.elemsize
 
-	c := _g_.m.p.ptr().mcache
-
 	// The allocBits indicate which unmarked objects don't need to be
 	// processed since they were free at the end of the last GC cycle
 	// and were not allocated since then.
@@ -503,7 +503,9 @@ func (s *mspan) sweep(preserve bool) bool {
 			// wasn't totally filled, but then swept, still has all of its
 			// free slots zeroed.
 			s.needzero = 1
-			c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+			stats := memstats.heapStats.acquire()
+			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
+			memstats.heapStats.release()
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -548,8 +550,10 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			c.local_nlargefree++
-			c.local_largefree += size
+			stats := memstats.heapStats.acquire()
+			atomic.Xadduintptr(&stats.largeFreeCount, 1)
+			atomic.Xadduintptr(&stats.largeFree, size)
+			memstats.heapStats.release()
 			return true
 		}
 

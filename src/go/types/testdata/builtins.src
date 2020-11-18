@@ -35,9 +35,9 @@ func append1() {
 	type S []byte
 	type T string
 	var t T
-	_ = append(s, "foo" /* ERROR cannot convert */ )
+	_ = append(s, "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(s, "foo"...)
-	_ = append(S(s), "foo" /* ERROR cannot convert */ )
+	_ = append(S(s), "foo" /* ERROR cannot use .* in argument to append */ )
 	_ = append(S(s), "foo"...)
 	_ = append(s, t /* ERROR cannot use t */ )
 	_ = append(s, t...)

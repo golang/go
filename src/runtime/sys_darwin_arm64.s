@@ -197,9 +197,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
 #ifdef GOOS_ios
@@ -381,7 +378,8 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$160
 	FMOVD	F14, 144(RSP)
 	FMOVD	F15, 152(RSP)
 
-	MOVD    m_g0(R0), g
+	MOVD	m_g0(R0), g
+	BL	·save_g(SB)
 
 	BL	runtime·mstart(SB)
 
@@ -495,6 +493,18 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 sig
 	MOVD	0(R0), R0	// arg 1 thread
 	BL	libc_pthread_kill(SB)
+	RET
+
+TEXT runtime·pthread_key_create_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 destructor
+	MOVD	0(R0), R0	// arg 1 *key
+	BL	libc_pthread_key_create(SB)
+	RET
+
+TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 value
+	MOVD	0(R0), R0	// arg 1 key
+	BL	libc_pthread_setspecific(SB)
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.

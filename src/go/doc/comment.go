@@ -487,7 +487,7 @@ func (l *lineWrapper) write(text string) {
 			l.out.Write(nl)
 			l.n = 0
 			l.pendSpace = 0
-			needsPrefix = isComment
+			needsPrefix = isComment && !strings.HasPrefix(f, "//")
 		}
 		if l.n == 0 {
 			l.out.Write([]byte(l.indent))

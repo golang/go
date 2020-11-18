@@ -371,7 +371,7 @@ func getempty() *workbuf {
 		}
 		if s == nil {
 			systemstack(func() {
-				s = mheap_.allocManual(workbufAlloc/pageSize, &memstats.gc_sys)
+				s = mheap_.allocManual(workbufAlloc/pageSize, spanAllocWorkBuf)
 			})
 			if s == nil {
 				throw("out of memory")
@@ -473,7 +473,7 @@ func freeSomeWbufs(preemptible bool) bool {
 				break
 			}
 			work.wbufSpans.free.remove(span)
-			mheap_.freeManual(span, &memstats.gc_sys)
+			mheap_.freeManual(span, spanAllocWorkBuf)
 		}
 	})
 	more := !work.wbufSpans.free.isEmpty()

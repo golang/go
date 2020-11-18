@@ -7,7 +7,7 @@
 package net
 
 import (
-	"os"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -26,7 +26,7 @@ var defaultResolvConf = &dnsConfig{
 	ndots:    1,
 	timeout:  5,
 	attempts: 2,
-	err:      os.ErrNotExist,
+	err:      fs.ErrNotExist,
 }
 
 func TestConfHostLookupOrder(t *testing.T) {
@@ -106,7 +106,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "solaris_no_nsswitch",
 			c: &conf{
 				goos:   "solaris",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
@@ -170,16 +170,23 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
 		},
-		// glibc lacking an nsswitch.conf, per
-		// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
 		{
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
 				goos:   "linux",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
-			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+		},
+		{
+			name: "linux_empty_nsswitch.conf",
+			c: &conf{
+				goos:   "linux",
+				nss:    nssStr(""),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
 		},
 		{
 			name: "files_mdns_dns",

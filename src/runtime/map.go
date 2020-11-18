@@ -162,8 +162,8 @@ type bmap struct {
 // If you modify hiter, also change cmd/compile/internal/gc/reflect.go to indicate
 // the layout of this structure.
 type hiter struct {
-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
-	elem        unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
+	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
+	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/gc/range.go).
 	t           *maptype
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time

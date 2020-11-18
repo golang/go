@@ -7,7 +7,7 @@
 package tar
 
 import (
-	"os"
+	"io/fs"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -23,7 +23,7 @@ func init() {
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi os.FileInfo, h *Header) error {
+func statUnix(fi fs.FileInfo, h *Header) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil

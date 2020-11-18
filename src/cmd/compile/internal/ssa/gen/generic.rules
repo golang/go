@@ -1040,6 +1040,46 @@
           (ZeroExt32to64 x)))
       (Const64 <typ.UInt64> [32+umagic32(c).s-1])))
 
+// For unsigned 64-bit divides on 32-bit machines,
+// if the constant fits in 16 bits (so that the last term
+// fits in 32 bits), convert to three 32-bit divides by a constant.
+//
+// If 1<<32 = Q * c + R
+// and    x = hi << 32 + lo
+//
+// Then x = (hi/c*c + hi%c) << 32 + lo
+//        = hi/c*c<<32 + hi%c<<32 + lo
+//        = hi/c*c<<32 + (hi%c)*(Q*c+R) + lo/c*c + lo%c
+//        = hi/c*c<<32 + (hi%c)*Q*c + lo/c*c + (hi%c*R+lo%c)
+// and x / c = (hi/c)<<32 + (hi%c)*Q + lo/c + (hi%c*R+lo%c)/c
+(Div64u x (Const64 [c])) && c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4 && config.useHmul =>
+  (Add64
+    (Add64 <typ.UInt64>
+      (Add64 <typ.UInt64>
+        (Lsh64x64 <typ.UInt64>
+          (ZeroExt32to64
+            (Div32u <typ.UInt32>
+              (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
+              (Const32 <typ.UInt32> [int32(c)])))
+          (Const64 <typ.UInt64> [32]))
+        (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))))
+      (Mul64 <typ.UInt64>
+        (ZeroExt32to64 <typ.UInt64>
+          (Mod32u <typ.UInt32>
+            (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
+            (Const32 <typ.UInt32> [int32(c)])))
+        (Const64 <typ.UInt64> [int64((1<<32)/c)])))
+      (ZeroExt32to64
+        (Div32u <typ.UInt32>
+          (Add32 <typ.UInt32>
+            (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))
+            (Mul32 <typ.UInt32>
+              (Mod32u <typ.UInt32>
+                (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
+                (Const32 <typ.UInt32> [int32(c)]))
+              (Const32 <typ.UInt32> [int32((1<<32)%c)])))
+          (Const32 <typ.UInt32> [int32(c)]))))
+
 // For 64-bit divides on 64-bit machines
 // (64-bit divides on 32-bit machines are lowered to a runtime call by the walk pass.)
 (Div64u x (Const64 [c])) && umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul =>
@@ -1961,7 +2001,12 @@
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 
-// for late-expanded calls
+// for rewriting results of some late-expanded rewrites (below)
+(SelectN [0] (MakeResult a ___)) => a
+(SelectN [1] (MakeResult a b ___)) => b
+(SelectN [2] (MakeResult a b c ___)) => c
+
+// for late-expanded calls, recognize newobject and remove zeroing and nilchecks
 (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
@@ -1985,6 +2030,13 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
+
+// for late-expanded calls, recognize memequal applied to a single constant byte
+// TODO figure out breakeven number of bytes for this optimization.
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
 
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])

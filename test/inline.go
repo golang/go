@@ -152,8 +152,7 @@ func switchBreak(x, y int) int {
 	return n
 }
 
-// can't currently inline functions with a type switch
-func switchType(x interface{}) int { // ERROR "x does not escape"
+func switchType(x interface{}) int { // ERROR "can inline switchType" "x does not escape"
 	switch x.(type) {
 	case int:
 		return x.(int)
@@ -228,4 +227,38 @@ Loop:
 			continue Loop
 		}
 	}
+}
+
+// Issue #18493 - make sure we can do inlining of functions with a method value
+type T1 struct{}
+
+func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
+	return val + 5
+}
+
+func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
+	return t1.meth // ERROR "t1.meth escapes to heap"
+}
+
+func ii() { // ERROR "can inline ii"
+	var t1 T1
+	f := getMeth(t1) // ERROR "inlining call to getMeth" "t1.meth does not escape"
+	_ = f(3)
+}
+
+// Issue #42194 - make sure that functions evaluated in
+// go and defer statements can be inlined.
+func gd1(int) {
+	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd3()()    // ERROR "inlining call to gd3"
+	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd3()()       // ERROR "inlining call to gd3"
+}
+
+func gd2() int { // ERROR "can inline gd2"
+	return 1
+}
+
+func gd3() func() { // ERROR "can inline gd3"
+	return ii
 }

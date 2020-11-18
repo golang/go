@@ -184,7 +184,7 @@ func mpreinit(mp *m) {
 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
 }
 
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 func msigrestore(sigmask sigset) {

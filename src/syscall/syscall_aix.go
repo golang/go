@@ -45,6 +45,10 @@ func (ts *StTimespec_t) Nano() int64 {
  * Wrapped
  */
 
+func Access(path string, mode uint32) (err error) {
+	return Faccessat(_AT_FDCWD, path, mode, 0)
+}
+
 // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
 // There is no way to create a custom fcntl and to keep //sys fcntl easily,
 // because we need fcntl name for its libc symbol. This is linked with the script.

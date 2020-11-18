@@ -12,7 +12,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"io/ioutil"
 	"testing"
 )
 
@@ -169,7 +168,7 @@ func TestWriterPaletted(t *testing.T) {
 						t.Error(err)
 						return
 					}
-					n, err := io.Copy(ioutil.Discard, r)
+					n, err := io.Copy(io.Discard, r)
 					if err != nil {
 						t.Errorf("got error while reading image data: %v", err)
 					}
@@ -234,7 +233,7 @@ func BenchmarkEncodeGray(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -259,7 +258,7 @@ func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.Encode(ioutil.Discard, img)
+		e.Encode(io.Discard, img)
 	}
 }
 
@@ -279,7 +278,7 @@ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -292,7 +291,7 @@ func BenchmarkEncodeNRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -305,7 +304,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -325,7 +324,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -338,6 +337,6 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }

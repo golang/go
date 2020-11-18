@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
+	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
 	"golang.org/x/tools/go/analysis/passes/tests"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
@@ -55,6 +56,7 @@ func main() {
 		stringintconv.Analyzer,
 		structtag.Analyzer,
 		tests.Analyzer,
+		testinggoroutine.Analyzer,
 		unmarshal.Analyzer,
 		unreachable.Analyzer,
 		unsafeptr.Analyzer,

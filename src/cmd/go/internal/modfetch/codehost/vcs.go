@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -377,7 +378,7 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 
 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
 	if err != nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return out, nil
 }
@@ -567,7 +568,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 
 func fossilParseStat(rev, out string) (*RevInfo, error) {
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "uuid:") {
+		if strings.HasPrefix(line, "uuid:") || strings.HasPrefix(line, "hash:") {
 			f := strings.Fields(line)
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)

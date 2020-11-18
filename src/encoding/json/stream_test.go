@@ -7,7 +7,6 @@ package json
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -215,7 +214,7 @@ func TestDecoderBuffered(t *testing.T) {
 	if m.Name != "Gopher" {
 		t.Errorf("Name = %q; want Gopher", m.Name)
 	}
-	rest, err := ioutil.ReadAll(d.Buffered())
+	rest, err := io.ReadAll(d.Buffered())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +317,7 @@ func BenchmarkEncoderEncode(b *testing.B) {
 	v := &T{"foo", "bar"}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
+			if err := NewEncoder(io.Discard).Encode(v); err != nil {
 				b.Fatal(err)
 			}
 		}

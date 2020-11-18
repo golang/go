@@ -58,11 +58,6 @@ import (
 	"unsafe"
 )
 
-// Keep in sync with cmd/compile/internal/gc/plive.go:go115ReduceLiveness.
-const go115ReduceLiveness = true
-
-const go115RestartSeq = go115ReduceLiveness && true // enable restartable sequences
-
 type suspendGState struct {
 	g *g
 
@@ -402,24 +397,12 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// use the LR for unwinding, which will be bad.
 		return false, 0
 	}
-	var up int32
-	var startpc uintptr
-	if !go115ReduceLiveness {
-		smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
-		if smi == _PCDATA_RegMapUnsafe {
-			// Unsafe-point marked by compiler. This includes
-			// atomic sequences (e.g., write barrier) and nosplit
-			// functions (except at calls).
-			return false, 0
-		}
-	} else {
-		up, startpc = pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
-		if up != _PCDATA_UnsafePointSafe {
-			// Unsafe-point marked by compiler. This includes
-			// atomic sequences (e.g., write barrier) and nosplit
-			// functions (except at calls).
-			return false, 0
-		}
+	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
+	if up != _PCDATA_UnsafePointSafe {
+		// Unsafe-point marked by compiler. This includes
+		// atomic sequences (e.g., write barrier) and nosplit
+		// functions (except at calls).
+		return false, 0
 	}
 	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
 		// This is assembly code. Don't assume it's
@@ -455,25 +438,17 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// in incrementally.
 		return false, 0
 	}
-	if go115RestartSeq {
-		switch up {
-		case _PCDATA_Restart1, _PCDATA_Restart2:
-			// Restartable instruction sequence. Back off PC to
-			// the start PC.
-			if startpc == 0 || startpc > pc || pc-startpc > 20 {
-				throw("bad restart PC")
-			}
-			return true, startpc
-		case _PCDATA_RestartAtEntry:
-			// Restart from the function entry at resumption.
-			return true, f.entry
+	switch up {
+	case _PCDATA_Restart1, _PCDATA_Restart2:
+		// Restartable instruction sequence. Back off PC to
+		// the start PC.
+		if startpc == 0 || startpc > pc || pc-startpc > 20 {
+			throw("bad restart PC")
 		}
-	} else {
-		switch up {
-		case _PCDATA_Restart1, _PCDATA_Restart2, _PCDATA_RestartAtEntry:
-			// go115RestartSeq is not enabled. Treat it as unsafe point.
-			return false, 0
-		}
+		return true, startpc
+	case _PCDATA_RestartAtEntry:
+		// Restart from the function entry at resumption.
+		return true, f.entry
 	}
 	return true, pc
 }
