@@ -115,6 +115,8 @@ var lessOrEqTests = []struct {
 	{10, 20, 1},
 	{20, 10, 0},
 	{10, 10, 1},
+	{1, 2147483646, 1},
+	{1, 4294967295, 1},
 }
 
 func TestConstantTimeLessOrEq(t *testing.T) {
