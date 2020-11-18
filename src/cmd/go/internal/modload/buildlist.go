@@ -73,13 +73,6 @@ func Selected(path string) (version string) {
 	return ""
 }
 
-// SetBuildList sets the module build list.
-// The caller is responsible for ensuring that the list is valid.
-// SetBuildList does not retain a reference to the original list.
-func SetBuildList(list []module.Version) {
-	buildList = append([]module.Version{}, list...)
-}
-
 // EditBuildList edits the global build list by first adding every module in add
 // to the existing build list, then adjusting versions (and adding or removing
 // requirements as needed) until every module in mustSelect is selected at the
@@ -222,7 +215,7 @@ type Conflict struct {
 }
 
 // ReloadBuildList resets the state of loaded packages, then loads and returns
-// the build list set in SetBuildList.
+// the build list set by EditBuildList.
 func ReloadBuildList() []module.Version {
 	loaded = loadFromRoots(loaderParams{
 		PackageOpts: PackageOpts{

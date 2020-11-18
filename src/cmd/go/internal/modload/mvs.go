@@ -24,7 +24,7 @@ type mvsReqs struct {
 }
 
 // Reqs returns the current module requirement graph.
-// Future calls to SetBuildList do not affect the operation
+// Future calls to EditBuildList do not affect the operation
 // of the returned Reqs.
 func Reqs() mvs.Reqs {
 	r := &mvsReqs{

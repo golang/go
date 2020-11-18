@@ -789,10 +789,12 @@ func installOutsideModule(ctx context.Context, args []string) {
 		base.Fatalf(directiveFmt, args[0], installMod, "exclude")
 	}
 
-	// Initialize the build list using a dummy main module that requires the
-	// module providing the packages on the command line.
-	target := module.Version{Path: "go-install-target"}
-	modload.SetBuildList([]module.Version{target, installMod})
+	// Since we are in NoRoot mode, the build list initially contains only
+	// the dummy command-line-arguments module. Add a requirement on the
+	// module that provides the packages named on the command line.
+	if err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
+		base.Fatalf("go install %s: %v", args[0], err)
+	}
 
 	// Load packages for all arguments. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
