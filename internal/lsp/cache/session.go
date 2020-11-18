@@ -106,6 +106,10 @@ func (c *closedFile) VersionedFileIdentity() source.VersionedFileIdentity {
 	}
 }
 
+func (c *closedFile) Saved() bool {
+	return true
+}
+
 func (c *closedFile) Session() string {
 	return ""
 }

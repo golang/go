@@ -1415,7 +1415,10 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	}
 	// If a go.mod in the workspace has been changed, invalidate metadata.
 	if kind := originalFH.Kind(); kind == source.Mod {
-		return source.InDir(filepath.Dir(s.view.rootURI.Filename()), filepath.Dir(originalFH.URI().Filename()))
+		if !source.InDir(filepath.Dir(s.view.rootURI.Filename()), originalFH.URI().Filename()) {
+			return false
+		}
+		return currentFH.Saved()
 	}
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the

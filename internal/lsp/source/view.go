@@ -306,9 +306,6 @@ type Session interface {
 // Overlay is the type for a file held in memory on a session.
 type Overlay interface {
 	VersionedFileHandle
-
-	// Saved returns whether this overlay has been saved to disk.
-	Saved() bool
 }
 
 // FileModification represents a modification to a file.
@@ -438,6 +435,8 @@ type FileHandle interface {
 	// Read reads the contents of a file.
 	// If the file is not available, returns a nil slice and an error.
 	Read() ([]byte, error)
+	// Saved reports whether the file has the same content on disk.
+	Saved() bool
 }
 
 // FileIdentity uniquely identifies a file at a version from a FileSystem.
