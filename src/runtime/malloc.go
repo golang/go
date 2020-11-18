@@ -979,6 +979,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	var span *mspan
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
+	// In some cases block zeroing can profitably (for latency reduction purposes)
+	// be delayed till preemption is possible; isZeroed tracks that state.
+	isZeroed := true
 	if size <= maxSmallSize {
 		if noscan && size < maxTinySize {
 			// Tiny allocator.
@@ -1074,7 +1077,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	} else {
 		shouldhelpgc = true
-		span = c.allocLarge(size, needzero, noscan)
+		// For large allocations, keep track of zeroed state so that
+		// bulk zeroing can be happen later in a preemptible context.
+		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
 		x = unsafe.Pointer(span.base())
@@ -1133,6 +1138,12 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 0
 	releasem(mp)
 
+	// Pointerfree data can be zeroed late in a context where preemption can occur.
+	// x will keep the memory alive.
+	if !isZeroed && needzero {
+		memclrNoHeapPointersChunked(size, x)
+	}
+
 	if debug.malloc {
 		if debug.allocfreetrace != 0 {
 			tracealloc(x, size, typ)
@@ -1183,6 +1194,33 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	return x
+}
+
+// memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
+// on chunks of the buffer to be zeroed, with opportunities for preemption
+// along the way.  memclrNoHeapPointers contains no safepoints and also
+// cannot be preemptively scheduled, so this provides a still-efficient
+// block copy that can also be preempted on a reasonable granularity.
+//
+// Use this with care; if the data being cleared is tagged to contain
+// pointers, this allows the GC to run before it is all cleared.
+func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
+	v := uintptr(x)
+	// got this from benchmarking. 128k is too small, 512k is too large.
+	const chunkBytes = 256 * 1024
+	vsize := v + size
+	for voff := v; voff < vsize; voff = voff + chunkBytes {
+		if getg().preempt {
+			// may hold locks, e.g., profiling
+			goschedguarded()
+		}
+		// clear min(avail, lump) bytes
+		n := vsize - voff
+		if n > chunkBytes {
+			n = chunkBytes
+		}
+		memclrNoHeapPointers(unsafe.Pointer(voff), n)
+	}
 }
 
 // implementation of new builtin
