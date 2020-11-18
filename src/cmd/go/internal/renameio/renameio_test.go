@@ -144,10 +144,12 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
 		// As long as those are the only errors and *some* of the reads succeed, we're happy.
 		minReadSuccesses = attempts / 4
 
-	case "darwin":
-		// The filesystem on macOS 10.14 occasionally fails with "no such file or
-		// directory" errors. See https://golang.org/issue/33041. The flake rate is
-		// fairly low, so ensure that at least 75% of attempts succeed.
+	case "darwin", "ios":
+		// The filesystem on certain versions of macOS (10.14) and iOS (affected
+		// versions TBD) occasionally fail with "no such file or directory" errors.
+		// See https://golang.org/issue/33041 and https://golang.org/issue/42066.
+		// The flake rate is fairly low, so ensure that at least 75% of attempts
+		// succeed.
 		minReadSuccesses = attempts - (attempts / 4)
 	}
 

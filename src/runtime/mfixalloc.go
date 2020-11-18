@@ -32,7 +32,7 @@ type fixalloc struct {
 	chunk  uintptr // use uintptr instead of unsafe.Pointer to avoid write barriers
 	nchunk uint32
 	inuse  uintptr // in-use bytes now
-	stat   *uint64
+	stat   *sysMemStat
 	zero   bool // zero allocations
 }
 
@@ -49,7 +49,7 @@ type mlink struct {
 
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
-func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
+func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *sysMemStat) {
 	f.size = size
 	f.first = first
 	f.arg = arg

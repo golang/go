@@ -67,7 +67,7 @@ var levelLogPages = [summaryLevels]uint{
 // sysInit performs architecture-dependent initialization of fields
 // in pageAlloc. pageAlloc should be uninitialized except for sysStat
 // if any runtime statistic should be updated.
-func (s *pageAlloc) sysInit() {
+func (p *pageAlloc) sysInit() {
 	// Reserve memory for each level. This will get mapped in
 	// as R/W by setArenas.
 	for l, shift := range levelShift {
@@ -82,21 +82,21 @@ func (s *pageAlloc) sysInit() {
 
 		// Put this reservation into a slice.
 		sl := notInHeapSlice{(*notInHeap)(r), 0, entries}
-		s.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
+		p.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
 	}
 }
 
 // sysGrow performs architecture-dependent operations on heap
 // growth for the page allocator, such as mapping in new memory
 // for summaries. It also updates the length of the slices in
-// s.summary.
+// [.summary.
 //
 // base is the base of the newly-added heap memory and limit is
 // the first address past the end of the newly-added heap memory.
 // Both must be aligned to pallocChunkBytes.
 //
-// The caller must update s.start and s.end after calling sysGrow.
-func (s *pageAlloc) sysGrow(base, limit uintptr) {
+// The caller must update p.start and p.end after calling sysGrow.
+func (p *pageAlloc) sysGrow(base, limit uintptr) {
 	if base%pallocChunkBytes != 0 || limit%pallocChunkBytes != 0 {
 		print("runtime: base = ", hex(base), ", limit = ", hex(limit), "\n")
 		throw("sysGrow bounds not aligned to pallocChunkBytes")
@@ -111,12 +111,12 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 	}
 
 	// summaryRangeToSumAddrRange converts a range of indices in any
-	// level of s.summary into page-aligned addresses which cover that
+	// level of p.summary into page-aligned addresses which cover that
 	// range of indices.
 	summaryRangeToSumAddrRange := func(level, sumIdxBase, sumIdxLimit int) addrRange {
 		baseOffset := alignDown(uintptr(sumIdxBase)*pallocSumBytes, physPageSize)
 		limitOffset := alignUp(uintptr(sumIdxLimit)*pallocSumBytes, physPageSize)
-		base := unsafe.Pointer(&s.summary[level][0])
+		base := unsafe.Pointer(&p.summary[level][0])
 		return addrRange{
 			offAddr{uintptr(add(base, baseOffset))},
 			offAddr{uintptr(add(base, limitOffset))},
@@ -140,10 +140,10 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 	//
 	// This will be used to look at what memory in the summary array is already
 	// mapped before and after this new range.
-	inUseIndex := s.inUse.findSucc(base)
+	inUseIndex := p.inUse.findSucc(base)
 
 	// Walk up the radix tree and map summaries in as needed.
-	for l := range s.summary {
+	for l := range p.summary {
 		// Figure out what part of the summary array this new address space needs.
 		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, makeAddrRange(base, limit))
 
@@ -151,8 +151,8 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 		// we get tight bounds checks on at least the top bound.
 		//
 		// We must do this regardless of whether we map new memory.
-		if needIdxLimit > len(s.summary[l]) {
-			s.summary[l] = s.summary[l][:needIdxLimit]
+		if needIdxLimit > len(p.summary[l]) {
+			p.summary[l] = p.summary[l][:needIdxLimit]
 		}
 
 		// Compute the needed address range in the summary array for level l.
@@ -163,10 +163,10 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 		// for mapping. prune's invariants are guaranteed by the fact that this
 		// function will never be asked to remap the same memory twice.
 		if inUseIndex > 0 {
-			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex-1]))
+			need = need.subtract(addrRangeToSumAddrRange(l, p.inUse.ranges[inUseIndex-1]))
 		}
-		if inUseIndex < len(s.inUse.ranges) {
-			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex]))
+		if inUseIndex < len(p.inUse.ranges) {
+			need = need.subtract(addrRangeToSumAddrRange(l, p.inUse.ranges[inUseIndex]))
 		}
 		// It's possible that after our pruning above, there's nothing new to map.
 		if need.size() == 0 {
@@ -174,7 +174,7 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 		}
 
 		// Map and commit need.
-		sysMap(unsafe.Pointer(need.base.addr()), need.size(), s.sysStat)
+		sysMap(unsafe.Pointer(need.base.addr()), need.size(), p.sysStat)
 		sysUsed(unsafe.Pointer(need.base.addr()), need.size())
 	}
 }

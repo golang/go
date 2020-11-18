@@ -633,13 +633,40 @@ func (l *Loader) resolve(r *oReader, s goobj.SymRef) Sym {
 		i := int(s.SymIdx) + r.ndef + r.nhashed64def + r.nhasheddef
 		return r.syms[i]
 	case goobj.PkgIdxBuiltin:
-		return l.builtinSyms[s.SymIdx]
+		if bi := l.builtinSyms[s.SymIdx]; bi != 0 {
+			return bi
+		}
+		l.reportMissingBuiltin(int(s.SymIdx), r.unit.Lib.Pkg)
+		return 0
 	case goobj.PkgIdxSelf:
 		rr = r
 	default:
 		rr = l.objs[r.pkg[p]].r
 	}
 	return l.toGlobal(rr, s.SymIdx)
+}
+
+// reportMissingBuiltin issues an error in the case where we have a
+// relocation against a runtime builtin whose definition is not found
+// when the runtime package is built. The canonical example is
+// "runtime.racefuncenter" -- currently if you do something like
+//
+//    go build -gcflags=-race myprogram.go
+//
+// the compiler will insert calls to the builtin runtime.racefuncenter,
+// but the version of the runtime used for linkage won't actually contain
+// definitions of that symbol. See issue #42396 for details.
+//
+// As currently implemented, this is a fatal error. This has drawbacks
+// in that if there are multiple missing builtins, the error will only
+// cite the first one. On the plus side, terminating the link here has
+// advantages in that we won't run the risk of panics or crashes later
+// on in the linker due to R_CALL relocations with 0-valued target
+// symbols.
+func (l *Loader) reportMissingBuiltin(bsym int, reflib string) {
+	bname, _ := goobj.BuiltinName(bsym)
+	log.Fatalf("reference to undefined builtin %q from package %q",
+		bname, reflib)
 }
 
 // Look up a symbol by name, return global index, or 0 if not found.
@@ -2622,11 +2649,15 @@ func (l *Loader) Dump() {
 	fmt.Println("Nsyms:", len(l.objSyms))
 	fmt.Println("syms")
 	for i := Sym(1); i < Sym(len(l.objSyms)); i++ {
-		pi := interface{}("")
+		pi := ""
 		if l.IsExternal(i) {
 			pi = fmt.Sprintf("<ext %d>", l.extIndex(i))
 		}
-		fmt.Println(i, l.SymName(i), l.SymType(i), pi)
+		sect := ""
+		if l.SymSect(i) != nil {
+			sect = l.SymSect(i).Name
+		}
+		fmt.Printf("%v %v %v %v %x %v\n", i, l.SymName(i), l.SymType(i), pi, l.SymValue(i), sect)
 	}
 	fmt.Println("symsByName")
 	for name, i := range l.symsByName[0] {

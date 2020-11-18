@@ -60,7 +60,7 @@ var levelLogPages = [summaryLevels]uint{
 }
 
 // See mpagealloc_64bit.go for details.
-func (s *pageAlloc) sysInit() {
+func (p *pageAlloc) sysInit() {
 	// Calculate how much memory all our entries will take up.
 	//
 	// This should be around 12 KiB or less.
@@ -76,7 +76,7 @@ func (s *pageAlloc) sysInit() {
 		throw("failed to reserve page summary memory")
 	}
 	// There isn't much. Just map it and mark it as used immediately.
-	sysMap(reservation, totalSize, s.sysStat)
+	sysMap(reservation, totalSize, p.sysStat)
 	sysUsed(reservation, totalSize)
 
 	// Iterate over the reservation and cut it up into slices.
@@ -88,29 +88,29 @@ func (s *pageAlloc) sysInit() {
 
 		// Put this reservation into a slice.
 		sl := notInHeapSlice{(*notInHeap)(reservation), 0, entries}
-		s.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
+		p.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
 
 		reservation = add(reservation, uintptr(entries)*pallocSumBytes)
 	}
 }
 
 // See mpagealloc_64bit.go for details.
-func (s *pageAlloc) sysGrow(base, limit uintptr) {
+func (p *pageAlloc) sysGrow(base, limit uintptr) {
 	if base%pallocChunkBytes != 0 || limit%pallocChunkBytes != 0 {
 		print("runtime: base = ", hex(base), ", limit = ", hex(limit), "\n")
 		throw("sysGrow bounds not aligned to pallocChunkBytes")
 	}
 
 	// Walk up the tree and update the summary slices.
-	for l := len(s.summary) - 1; l >= 0; l-- {
+	for l := len(p.summary) - 1; l >= 0; l-- {
 		// Figure out what part of the summary array this new address space needs.
 		// Note that we need to align the ranges to the block width (1<<levelBits[l])
 		// at this level because the full block is needed to compute the summary for
 		// the next level.
 		lo, hi := addrsToSummaryRange(l, base, limit)
 		_, hi = blockAlignSummaryRange(l, lo, hi)
-		if hi > len(s.summary[l]) {
-			s.summary[l] = s.summary[l][:hi]
+		if hi > len(p.summary[l]) {
+			p.summary[l] = p.summary[l][:hi]
 		}
 	}
 }

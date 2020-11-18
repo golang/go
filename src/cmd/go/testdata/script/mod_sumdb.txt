@@ -9,7 +9,7 @@ env dbname=localhost.localdev/sumdb
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
 ! go get -d rsc.io/quote
-stderr 'go get rsc.io/quote: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
+stderr 'go get: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
 stderr 'downloaded: h1:3fEy'
 stderr 'localhost.localdev/sumdb: h1:wrong'
 stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
@@ -17,7 +17,7 @@ stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the che
 ! go get -d golang.org/x/text
 
 go mod edit -require rsc.io/quote@v1.5.2
-! go list all
+! go mod tidy
 stderr 'go: rsc.io/quote@v1.5.2: verifying go.mod: checksum mismatch'
 stderr 'SECURITY ERROR\n'
 

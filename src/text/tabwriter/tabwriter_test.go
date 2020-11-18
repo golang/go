@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"testing"
 	. "text/tabwriter"
 )
@@ -664,7 +663,7 @@ func BenchmarkTable(b *testing.B) {
 				b.Run("new", func(b *testing.B) {
 					b.ReportAllocs()
 					for i := 0; i < b.N; i++ {
-						w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+						w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 						// Write the line h times.
 						for j := 0; j < h; j++ {
 							w.Write(line)
@@ -675,7 +674,7 @@ func BenchmarkTable(b *testing.B) {
 
 				b.Run("reuse", func(b *testing.B) {
 					b.ReportAllocs()
-					w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+					w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 					for i := 0; i < b.N; i++ {
 						// Write the line h times.
 						for j := 0; j < h; j++ {
@@ -696,7 +695,7 @@ func BenchmarkPyramid(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 				// Write increasing prefixes of that line.
 				for j := 0; j < x; j++ {
 					w.Write(line[:j*2])
@@ -718,7 +717,7 @@ func BenchmarkRagged(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 				// Write the lines in turn h times.
 				for j := 0; j < h; j++ {
 					w.Write(lines[j%len(lines)])
@@ -746,7 +745,7 @@ lines
 func BenchmarkCode(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+		w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 		// The code is small, so it's reasonable for the tabwriter user
 		// to write it all at once, or buffer the writes.
 		w.Write([]byte(codeSnippet))

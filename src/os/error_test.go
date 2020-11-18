@@ -7,6 +7,7 @@ package os_test
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func TestErrIsExist(t *testing.T) {
 		t.Fatal("Open should have failed")
 		return
 	}
-	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, os.ErrExist); s != "" {
+	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, fs.ErrExist); s != "" {
 		t.Fatal(s)
 		return
 	}
@@ -39,7 +40,7 @@ func testErrNotExist(name string) string {
 		f.Close()
 		return "Open should have failed"
 	}
-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, fs.ErrNotExist); s != "" {
 		return s
 	}
 
@@ -47,7 +48,7 @@ func testErrNotExist(name string) string {
 	if err == nil {
 		return "Chdir should have failed"
 	}
-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, fs.ErrNotExist); s != "" {
 		return s
 	}
 	return ""
@@ -91,18 +92,18 @@ type isExistTest struct {
 }
 
 var isExistTests = []isExistTest{
-	{&os.PathError{Err: os.ErrInvalid}, false, false},
-	{&os.PathError{Err: os.ErrPermission}, false, false},
-	{&os.PathError{Err: os.ErrExist}, true, false},
-	{&os.PathError{Err: os.ErrNotExist}, false, true},
-	{&os.PathError{Err: os.ErrClosed}, false, false},
-	{&os.LinkError{Err: os.ErrInvalid}, false, false},
-	{&os.LinkError{Err: os.ErrPermission}, false, false},
-	{&os.LinkError{Err: os.ErrExist}, true, false},
-	{&os.LinkError{Err: os.ErrNotExist}, false, true},
-	{&os.LinkError{Err: os.ErrClosed}, false, false},
-	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
-	{&os.SyscallError{Err: os.ErrExist}, true, false},
+	{&fs.PathError{Err: fs.ErrInvalid}, false, false},
+	{&fs.PathError{Err: fs.ErrPermission}, false, false},
+	{&fs.PathError{Err: fs.ErrExist}, true, false},
+	{&fs.PathError{Err: fs.ErrNotExist}, false, true},
+	{&fs.PathError{Err: fs.ErrClosed}, false, false},
+	{&os.LinkError{Err: fs.ErrInvalid}, false, false},
+	{&os.LinkError{Err: fs.ErrPermission}, false, false},
+	{&os.LinkError{Err: fs.ErrExist}, true, false},
+	{&os.LinkError{Err: fs.ErrNotExist}, false, true},
+	{&os.LinkError{Err: fs.ErrClosed}, false, false},
+	{&os.SyscallError{Err: fs.ErrNotExist}, false, true},
+	{&os.SyscallError{Err: fs.ErrExist}, true, false},
 	{nil, false, false},
 }
 
@@ -111,14 +112,14 @@ func TestIsExist(t *testing.T) {
 		if is := os.IsExist(tt.err); is != tt.is {
 			t.Errorf("os.IsExist(%T %v) = %v, want %v", tt.err, tt.err, is, tt.is)
 		}
-		if is := errors.Is(tt.err, os.ErrExist); is != tt.is {
-			t.Errorf("errors.Is(%T %v, os.ErrExist) = %v, want %v", tt.err, tt.err, is, tt.is)
+		if is := errors.Is(tt.err, fs.ErrExist); is != tt.is {
+			t.Errorf("errors.Is(%T %v, fs.ErrExist) = %v, want %v", tt.err, tt.err, is, tt.is)
 		}
 		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
 			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
 		}
-		if isnot := errors.Is(tt.err, os.ErrNotExist); isnot != tt.isnot {
-			t.Errorf("errors.Is(%T %v, os.ErrNotExist) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+		if isnot := errors.Is(tt.err, fs.ErrNotExist); isnot != tt.isnot {
+			t.Errorf("errors.Is(%T %v, fs.ErrNotExist) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
 		}
 	}
 }
@@ -130,8 +131,8 @@ type isPermissionTest struct {
 
 var isPermissionTests = []isPermissionTest{
 	{nil, false},
-	{&os.PathError{Err: os.ErrPermission}, true},
-	{&os.SyscallError{Err: os.ErrPermission}, true},
+	{&fs.PathError{Err: fs.ErrPermission}, true},
+	{&os.SyscallError{Err: fs.ErrPermission}, true},
 }
 
 func TestIsPermission(t *testing.T) {
@@ -139,8 +140,8 @@ func TestIsPermission(t *testing.T) {
 		if got := os.IsPermission(tt.err); got != tt.want {
 			t.Errorf("os.IsPermission(%#v) = %v; want %v", tt.err, got, tt.want)
 		}
-		if got := errors.Is(tt.err, os.ErrPermission); got != tt.want {
-			t.Errorf("errors.Is(%#v, os.ErrPermission) = %v; want %v", tt.err, got, tt.want)
+		if got := errors.Is(tt.err, fs.ErrPermission); got != tt.want {
+			t.Errorf("errors.Is(%#v, fs.ErrPermission) = %v; want %v", tt.err, got, tt.want)
 		}
 	}
 }
@@ -170,8 +171,8 @@ func TestErrPathNUL(t *testing.T) {
 }
 
 func TestPathErrorUnwrap(t *testing.T) {
-	pe := &os.PathError{Err: os.ErrInvalid}
-	if !errors.Is(pe, os.ErrInvalid) {
+	pe := &fs.PathError{Err: fs.ErrInvalid}
+	if !errors.Is(pe, fs.ErrInvalid) {
 		t.Error("errors.Is failed, wanted success")
 	}
 }
@@ -181,7 +182,7 @@ type myErrorIs struct{ error }
 func (e myErrorIs) Is(target error) bool { return target == e.error }
 
 func TestErrorIsMethods(t *testing.T) {
-	if os.IsPermission(myErrorIs{os.ErrPermission}) {
-		t.Error("os.IsPermission(err) = true when err.Is(os.ErrPermission), wanted false")
+	if os.IsPermission(myErrorIs{fs.ErrPermission}) {
+		t.Error("os.IsPermission(err) = true when err.Is(fs.ErrPermission), wanted false")
 	}
 }

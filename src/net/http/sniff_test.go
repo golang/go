@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	. "net/http"
 	"reflect"
@@ -123,7 +122,7 @@ func testServerContentType(t *testing.T, h2 bool) {
 		if ct := resp.Header.Get("Content-Type"); ct != wantContentType {
 			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, wantContentType)
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Errorf("%v: reading body: %v", tt.desc, err)
 		} else if !bytes.Equal(data, tt.data) {
@@ -185,7 +184,7 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
 	if ct := resp.Header.Get("Content-Type"); ct != expected {
 		t.Errorf("Content-Type = %q, want %q", ct, expected)
 	}
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf("reading body: %v", err)
 	} else if !bytes.Equal(data, []byte(input)) {
@@ -216,7 +215,7 @@ func testSniffWriteSize(t *testing.T, h2 bool) {
 		if err != nil {
 			t.Fatalf("size %d: %v", size, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+		if _, err := io.Copy(io.Discard, res.Body); err != nil {
 			t.Fatalf("size %d: io.Copy of body = %v", size, err)
 		}
 		if err := res.Body.Close(); err != nil {

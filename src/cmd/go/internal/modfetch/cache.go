@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func CachePath(m module.Version, suffix string) (string, error) {
 
 // DownloadDir returns the directory to which m should have been downloaded.
 // An error will be returned if the module path or version cannot be escaped.
-// An error satisfying errors.Is(err, os.ErrNotExist) will be returned
+// An error satisfying errors.Is(err, fs.ErrNotExist) will be returned
 // along with the directory if the directory does not exist or if the directory
 // is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
@@ -107,14 +108,14 @@ func DownloadDir(m module.Version) (string, error) {
 // DownloadDirPartialError is returned by DownloadDir if a module directory
 // exists but was not completely populated.
 //
-// DownloadDirPartialError is equivalent to os.ErrNotExist.
+// DownloadDirPartialError is equivalent to fs.ErrNotExist.
 type DownloadDirPartialError struct {
 	Dir string
 	Err error
 }
 
 func (e *DownloadDirPartialError) Error() string     { return fmt.Sprintf("%s: %v", e.Dir, e.Err) }
-func (e *DownloadDirPartialError) Is(err error) bool { return err == os.ErrNotExist }
+func (e *DownloadDirPartialError) Is(err error) bool { return err == fs.ErrNotExist }
 
 // lockVersion locks a file within the module cache that guards the downloading
 // and extraction of the zipfile for the given module version.

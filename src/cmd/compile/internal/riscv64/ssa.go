@@ -190,7 +190,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// input args need no code
 	case ssa.OpPhi:
 		gc.CheckLoweredPhi(v)
-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert:
+	case ssa.OpCopy, ssa.OpRISCV64MOVconvert, ssa.OpRISCV64MOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -208,6 +208,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = rs
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rd
+	case ssa.OpRISCV64MOVDnop:
+		if v.Reg() != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
@@ -228,6 +233,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddrAuto(&p.To, v)
 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
+	case ssa.OpRISCV64MOVBreg, ssa.OpRISCV64MOVHreg, ssa.OpRISCV64MOVWreg,
+		ssa.OpRISCV64MOVBUreg, ssa.OpRISCV64MOVHUreg, ssa.OpRISCV64MOVWUreg:
+		a := v.Args[0]
+		for a.Op == ssa.OpCopy || a.Op == ssa.OpRISCV64MOVDreg {
+			a = a.Args[0]
+		}
+		as := v.Op.Asm()
+		rs := v.Args[0].Reg()
+		rd := v.Reg()
+		if a.Op == ssa.OpLoadReg {
+			t := a.Type
+			switch {
+			case v.Op == ssa.OpRISCV64MOVBreg && t.Size() == 1 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVHreg && t.Size() == 2 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVWreg && t.Size() == 4 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVWUreg && t.Size() == 4 && !t.IsSigned():
+				// arg is a proper-typed load and already sign/zero-extended
+				if rs == rd {
+					return
+				}
+				as = riscv.AMOV
+			default:
+			}
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = rs
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = rd
 	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
 		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
@@ -571,6 +607,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpRISCV64DUFFZERO:
+		p := s.Prog(obj.ADUFFZERO)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Duffzero
+		p.To.Offset = v.AuxInt
+
+	case ssa.OpRISCV64DUFFCOPY:
+		p := s.Prog(obj.ADUFFCOPY)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Duffcopy
+		p.To.Offset = v.AuxInt
 
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)

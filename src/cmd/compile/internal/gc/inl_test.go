@@ -51,6 +51,7 @@ func TestIntendedInlining(t *testing.T) {
 			"funcPC",
 			"getArgInfoFast",
 			"getm",
+			"getMCache",
 			"isDirectIface",
 			"itabHashFunc",
 			"noescape",

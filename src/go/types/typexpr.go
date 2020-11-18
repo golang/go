@@ -28,9 +28,9 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	scope, obj := check.scope.LookupParent(e.Name, check.pos)
 	if obj == nil {
 		if e.Name == "_" {
-			check.errorf(e.Pos(), "cannot use _ as value or type")
+			check.errorf(e, _InvalidBlank, "cannot use _ as value or type")
 		} else {
-			check.errorf(e.Pos(), "undeclared name: %s", e.Name)
+			check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Name)
 		}
 		return
 	}
@@ -61,7 +61,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 
 	switch obj := obj.(type) {
 	case *PkgName:
-		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
+		check.errorf(e, _InvalidPkgUse, "use of package %s not in selector", obj.name)
 		return
 
 	case *Const:
@@ -71,7 +71,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		if obj == universeIota {
 			if check.iota == nil {
-				check.errorf(e.Pos(), "cannot use iota outside constant declaration")
+				check.errorf(e, _InvalidIota, "cannot use iota outside constant declaration")
 				return
 			}
 			x.val = check.iota
@@ -159,11 +159,11 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		var recv *Var
 		switch len(recvList) {
 		case 0:
-			check.error(recvPar.Pos(), "method is missing receiver")
+			check.error(recvPar, _BadRecv, "method is missing receiver")
 			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1].Pos(), "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], _BadRecv, "method must have exactly one receiver")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]
@@ -194,7 +194,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				err = "basic or unnamed type"
 			}
 			if err != "" {
-				check.errorf(recv.pos, "invalid receiver %s (%s)", recv.typ, err)
+				check.errorf(recv, _InvalidRecv, "invalid receiver %s (%s)", recv.typ, err)
 				// ok to continue
 			}
 		}
@@ -227,9 +227,9 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		case invalid:
 			// ignore - error reported before
 		case novalue:
-			check.errorf(x.pos(), "%s used as type", &x)
+			check.errorf(&x, _NotAType, "%s used as type", &x)
 		default:
-			check.errorf(x.pos(), "%s is not a type", &x)
+			check.errorf(&x, _NotAType, "%s is not a type", &x)
 		}
 
 	case *ast.SelectorExpr:
@@ -244,9 +244,9 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		case invalid:
 			// ignore - error reported before
 		case novalue:
-			check.errorf(x.pos(), "%s used as type", &x)
+			check.errorf(&x, _NotAType, "%s used as type", &x)
 		default:
-			check.errorf(x.pos(), "%s is not a type", &x)
+			check.errorf(&x, _NotAType, "%s is not a type", &x)
 		}
 
 	case *ast.ParenExpr:
@@ -306,7 +306,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		// it is safe to continue in any case (was issue 6667).
 		check.atEnd(func() {
 			if !Comparable(typ.key) {
-				check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
+				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s", typ.key)
 			}
 		})
 
@@ -325,7 +325,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		case ast.RECV:
 			dir = RecvOnly
 		default:
-			check.invalidAST(e.Pos(), "unknown channel direction %d", e.Dir)
+			check.invalidAST(e, "unknown channel direction %d", e.Dir)
 			// ok to continue
 		}
 
@@ -334,7 +334,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		return typ
 
 	default:
-		check.errorf(e.Pos(), "%s is not a type", e)
+		check.errorf(e, _NotAType, "%s is not a type", e)
 	}
 
 	typ := Typ[Invalid]
@@ -353,7 +353,7 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
 	case invalid:
 		// ignore - error reported before
 	case novalue:
-		check.errorf(x.pos(), "%s used as type", &x)
+		check.errorf(&x, _NotAType, "%s used as type", &x)
 	case typexpr:
 		return x.typ
 	case value:
@@ -362,7 +362,7 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
 		}
 		fallthrough
 	default:
-		check.errorf(x.pos(), "%s is not a type", &x)
+		check.errorf(&x, _NotAType, "%s is not a type", &x)
 	}
 	return Typ[Invalid]
 }
@@ -375,7 +375,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	check.expr(&x, e)
 	if x.mode != constant_ {
 		if x.mode != invalid {
-			check.errorf(x.pos(), "array length %s must be constant", &x)
+			check.errorf(&x, _InvalidArrayLen, "array length %s must be constant", &x)
 		}
 		return -1
 	}
@@ -385,12 +385,12 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}
-				check.errorf(x.pos(), "invalid array length %s", &x)
+				check.errorf(&x, _InvalidArrayLen, "invalid array length %s", &x)
 				return -1
 			}
 		}
 	}
-	check.errorf(x.pos(), "array length %s must be integer", &x)
+	check.errorf(&x, _InvalidArrayLen, "array length %s must be integer", &x)
 	return -1
 }
 
@@ -407,7 +407,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
+				check.softErrorf(t, _MisplacedDotDotDot, "can only use ... with final parameter in list")
 				// ignore ... and continue
 			}
 		}
@@ -418,7 +418,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			// named parameter
 			for _, name := range field.Names {
 				if name.Name == "" {
-					check.invalidAST(name.Pos(), "anonymous parameter")
+					check.invalidAST(name, "anonymous parameter")
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
@@ -436,7 +436,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	if named && anonymous {
-		check.invalidAST(list.Pos(), "list contains both named and anonymous parameters")
+		check.invalidAST(list, "list contains both named and anonymous parameters")
 		// ok to continue
 	}
 
@@ -454,7 +454,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 
 func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		check.errorf(pos, "%s redeclared", obj.Name())
+		check.errorf(atPos(pos), _DuplicateDecl, "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
 		return false
 	}
@@ -469,7 +469,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// and we don't care if a constructed AST has more.)
 			name := f.Names[0]
 			if name.Name == "_" {
-				check.errorf(name.Pos(), "invalid method name _")
+				check.errorf(name, _BlankIfaceMethod, "invalid method name _")
 				continue // ignore
 			}
 
@@ -477,7 +477,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			sig, _ := typ.(*Signature)
 			if sig == nil {
 				if typ != Typ[Invalid] {
-					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
+					check.invalidAST(f.Type, "%s is not a method signature", typ)
 				}
 				continue // ignore
 			}
@@ -501,7 +501,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			utyp := check.underlying(typ)
 			if _, ok := utyp.(*Interface); !ok {
 				if utyp != Typ[Invalid] {
-					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
+					check.errorf(f.Type, _InvalidIfaceEmbed, "%s is not an interface", typ)
 				}
 				continue
 			}
@@ -575,14 +575,14 @@ func (check *Checker) completeInterface(ityp *Interface) {
 			methods = append(methods, m)
 			mpos[m] = pos
 		case explicit:
-			check.errorf(pos, "duplicate method %s", m.name)
-			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
 			// check method signatures after all types are computed (issue #33656)
 			check.atEnd(func() {
 				if !check.identical(m.typ, other.Type()) {
-					check.errorf(pos, "duplicate method %s", m.name)
-					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
 			})
 		}
@@ -641,7 +641,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
 				return val
 			}
 		}
-		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
+		check.invalidAST(t, "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }
@@ -704,7 +704,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			pos := f.Type.Pos()
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
+				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
@@ -723,19 +723,19 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 
 				// unsafe.Pointer is treated like a regular pointer
 				if t.kind == UnsafePointer {
-					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
+					check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
 					addInvalid(name, pos)
 					continue
 				}
 
 			case *Pointer:
-				check.errorf(pos, "embedded field type cannot be a pointer")
+				check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
 				addInvalid(name, pos)
 				continue
 
 			case *Interface:
 				if isPtr {
-					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
+					check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					addInvalid(name, pos)
 					continue
 				}

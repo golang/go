@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http/httptrace"
 	"net/http/internal"
 	"net/textproto"
@@ -156,7 +155,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 // servers. See Issue 18257, as one example.
 //
 // The only reason we'd send such a request is if the user set the Body to a
-// non-nil value (say, ioutil.NopCloser(bytes.NewReader(nil))) and didn't
+// non-nil value (say, io.NopCloser(bytes.NewReader(nil))) and didn't
 // set ContentLength, or NewRequest set it to -1 (unknown), so then we assume
 // there's bytes to send.
 //
@@ -370,7 +369,7 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 				return err
 			}
 			var nextra int64
-			nextra, err = t.doBodyCopy(ioutil.Discard, body)
+			nextra, err = t.doBodyCopy(io.Discard, body)
 			ncopy += nextra
 		}
 		if err != nil {
@@ -992,7 +991,7 @@ func (b *body) Close() error {
 			var n int64
 			// Consume the body, or, which will also lead to us reading
 			// the trailer headers after the body, if present.
-			n, err = io.CopyN(ioutil.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
+			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
 			if err == io.EOF {
 				err = nil
 			}
@@ -1003,7 +1002,7 @@ func (b *body) Close() error {
 	default:
 		// Fully consume the body, which will also lead to us reading
 		// the trailer headers after the body, if present.
-		_, err = io.Copy(ioutil.Discard, bodyLocked{b})
+		_, err = io.Copy(io.Discard, bodyLocked{b})
 	}
 	b.closed = true
 	return err
@@ -1075,7 +1074,7 @@ func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
 	return
 }
 
-var nopCloserType = reflect.TypeOf(ioutil.NopCloser(nil))
+var nopCloserType = reflect.TypeOf(io.NopCloser(nil))
 
 // isKnownInMemoryReader reports whether r is a type known to not
 // block on Read. Its caller uses this as an optional optimization to

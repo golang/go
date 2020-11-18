@@ -31,7 +31,7 @@ import (
 )
 
 var CmdBuild = &base.Command{
-	UsageLine: "go build [-o output] [-i] [build flags] [packages]",
+	UsageLine: "go build [-o output] [build flags] [packages]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -59,6 +59,7 @@ ends with a slash or backslash, then any resulting executables
 will be written to that directory.
 
 The -i flag installs the packages that are dependencies of the target.
+The -i flag is deprecated. Compiled packages are cached automatically.
 
 The build flags are shared by the build, clean, get, install, list, run,
 and test commands:
@@ -381,6 +382,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	depMode := ModeBuild
 	if cfg.BuildI {
 		depMode = ModeInstall
+		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
 	}
 
 	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
@@ -444,7 +446,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 var CmdInstall = &base.Command{
-	UsageLine: "go install [-i] [build flags] [packages]",
+	UsageLine: "go install [build flags] [packages]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths.
@@ -486,6 +488,7 @@ directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 other packages are built and cached but not installed.
 
 The -i flag installs the dependencies of the named packages as well.
+The -i flag is deprecated. Compiled packages are cached automatically.
 
 For more about the build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
@@ -551,14 +554,35 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 }
 
 func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+	// TODO(golang.org/issue/41696): print a deprecation message for the -i flag
+	// whenever it's set (or just remove it). For now, we don't print a message
+	// if all named packages are in GOROOT. cmd/dist (run by make.bash) uses
+	// 'go install -i' when bootstrapping, and we don't want to show deprecation
+	// messages in that case.
 	for _, arg := range args {
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+			if cfg.BuildI {
+				fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
+			}
 			installOutsideModule(ctx, args)
 			return
 		}
 	}
 	BuildInit()
-	InstallPackages(ctx, args, load.PackagesForBuild(ctx, args))
+	pkgs := load.PackagesForBuild(ctx, args)
+	if cfg.BuildI {
+		allGoroot := true
+		for _, pkg := range pkgs {
+			if !pkg.Goroot {
+				allGoroot = false
+				break
+			}
+		}
+		if !allGoroot {
+			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
+		}
+	}
+	InstallPackages(ctx, args, pkgs)
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -741,7 +765,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}
-	qrs, err := modload.QueryPattern(ctx, patterns[0], version, modload.Selected, allowed)
+	qrs, err := modload.QueryPackages(ctx, patterns[0], version, modload.Selected, allowed)
 	if err != nil {
 		base.Fatalf("go install %s: %v", args[0], err)
 	}

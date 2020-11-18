@@ -12,8 +12,8 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"io/fs"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -66,7 +66,7 @@ func indentFmt(indent, s string) string {
 	return indent + strings.ReplaceAll(s, "\n", "\n"+indent) + end
 }
 
-func isGoFile(fi os.FileInfo) bool {
+func isGoFile(fi fs.FileInfo) bool {
 	name := fi.Name()
 	return !fi.IsDir() &&
 		len(name) > 0 && name[0] != '.' && // ignore .files
@@ -86,7 +86,7 @@ func test(t *testing.T, mode Mode) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		filter = func(fi os.FileInfo) bool {
+		filter = func(fi fs.FileInfo) bool {
 			return isGoFile(fi) && rx.MatchString(fi.Name())
 		}
 	}

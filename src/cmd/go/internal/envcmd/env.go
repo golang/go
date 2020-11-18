@@ -87,6 +87,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOVCS", Value: cfg.GOVCS},
 	}
 
 	if work.GccgoBin != "" {
@@ -217,6 +218,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		needCostly = true
 	} else {
 		needCostly = false
+	checkCostly:
 		for _, arg := range args {
 			switch argKey(arg) {
 			case "CGO_CFLAGS",
@@ -227,6 +229,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 				"PKG_CONFIG",
 				"GOGCCFLAGS":
 				needCostly = true
+				break checkCostly
 			}
 		}
 	}

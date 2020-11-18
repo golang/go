@@ -125,6 +125,10 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
+
+func (d DummyFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+	return LocalSlot{N: parent.N, Type: t, Off: offset}
+}
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
 }

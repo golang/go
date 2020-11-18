@@ -235,26 +235,43 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 	if PhysHugePageSize > uintptr(PageSize) {
 		// Check hugepage preserving behavior.
 		bits := uint(PhysHugePageSize / uintptr(PageSize))
-		tests["PreserveHugePageBottom"] = test{
-			alloc: []BitRange{{bits + 2, PallocChunkPages - (bits + 2)}},
-			min:   1,
-			max:   3, // Make it so that max would have us try to break the huge page.
-			want:  BitRange{0, bits + 2},
-		}
-		if 3*bits < PallocChunkPages {
-			// We need at least 3 huge pages in a chunk for this test to make sense.
-			tests["PreserveHugePageMiddle"] = test{
-				alloc: []BitRange{{0, bits - 10}, {2*bits + 10, PallocChunkPages - (2*bits + 10)}},
+		if bits < PallocChunkPages {
+			tests["PreserveHugePageBottom"] = test{
+				alloc: []BitRange{{bits + 2, PallocChunkPages - (bits + 2)}},
 				min:   1,
-				max:   12, // Make it so that max would have us try to break the huge page.
-				want:  BitRange{bits, bits + 10},
+				max:   3, // Make it so that max would have us try to break the huge page.
+				want:  BitRange{0, bits + 2},
 			}
-		}
-		tests["PreserveHugePageTop"] = test{
-			alloc: []BitRange{{0, PallocChunkPages - bits}},
-			min:   1,
-			max:   1, // Even one page would break a huge page in this case.
-			want:  BitRange{PallocChunkPages - bits, bits},
+			if 3*bits < PallocChunkPages {
+				// We need at least 3 huge pages in a chunk for this test to make sense.
+				tests["PreserveHugePageMiddle"] = test{
+					alloc: []BitRange{{0, bits - 10}, {2*bits + 10, PallocChunkPages - (2*bits + 10)}},
+					min:   1,
+					max:   12, // Make it so that max would have us try to break the huge page.
+					want:  BitRange{bits, bits + 10},
+				}
+			}
+			tests["PreserveHugePageTop"] = test{
+				alloc: []BitRange{{0, PallocChunkPages - bits}},
+				min:   1,
+				max:   1, // Even one page would break a huge page in this case.
+				want:  BitRange{PallocChunkPages - bits, bits},
+			}
+		} else if bits == PallocChunkPages {
+			tests["PreserveHugePageAll"] = test{
+				min:  1,
+				max:  1, // Even one page would break a huge page in this case.
+				want: BitRange{0, PallocChunkPages},
+			}
+		} else {
+			// The huge page size is greater than pallocChunkPages, so it should
+			// be effectively disabled. There's no way we can possible scavenge
+			// a huge page out of this bitmap chunk.
+			tests["PreserveHugePageNone"] = test{
+				min:  1,
+				max:  1,
+				want: BitRange{PallocChunkPages - 1, 1},
+			}
 		}
 	}
 	for name, v := range tests {

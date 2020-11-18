@@ -47,5 +47,5 @@ func ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
+	return io.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
 }

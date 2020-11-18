@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -529,7 +528,7 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		slurp, _ := ioutil.ReadAll(res.Body)
+		slurp, _ := io.ReadAll(res.Body)
 		res.Body.Close()
 		if !tt.statusOk {
 			if got, want := res.StatusCode, 404; got != want {
@@ -689,7 +688,7 @@ func testServerTimeouts(timeout time.Duration) error {
 	if err != nil {
 		return fmt.Errorf("http Get #1: %v", err)
 	}
-	got, err := ioutil.ReadAll(r.Body)
+	got, err := io.ReadAll(r.Body)
 	expected := "req=1"
 	if string(got) != expected || err != nil {
 		return fmt.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
@@ -721,7 +720,7 @@ func testServerTimeouts(timeout time.Duration) error {
 	if err != nil {
 		return fmt.Errorf("http Get #2: %v", err)
 	}
-	got, err = ioutil.ReadAll(r.Body)
+	got, err = io.ReadAll(r.Body)
 	r.Body.Close()
 	expected = "req=2"
 	if string(got) != expected || err != nil {
@@ -734,7 +733,7 @@ func testServerTimeouts(timeout time.Duration) error {
 			return fmt.Errorf("long Dial: %v", err)
 		}
 		defer conn.Close()
-		go io.Copy(ioutil.Discard, conn)
+		go io.Copy(io.Discard, conn)
 		for i := 0; i < 5; i++ {
 			_, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
 			if err != nil {
@@ -954,7 +953,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 			errc <- err
 			return
 		}
-		_, err = io.Copy(ioutil.Discard, res.Body)
+		_, err = io.Copy(io.Discard, res.Body)
 		res.Body.Close()
 		errc <- err
 	}()
@@ -1058,7 +1057,7 @@ func TestIdentityResponse(t *testing.T) {
 	}
 
 	// The ReadAll will hang for a failing test.
-	got, _ := ioutil.ReadAll(conn)
+	got, _ := io.ReadAll(conn)
 	expectedSuffix := "\r\n\r\ntoo short"
 	if !strings.HasSuffix(string(got), expectedSuffix) {
 		t.Errorf("Expected output to end with %q; got response body %q",
@@ -1099,7 +1098,7 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 		}
 	}()
 
-	_, err = ioutil.ReadAll(r)
+	_, err = io.ReadAll(r)
 	if err != nil {
 		t.Fatal("read error:", err)
 	}
@@ -1129,7 +1128,7 @@ func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
 		if err != nil {
 			t.Fatalf("res %d: %v", i+1, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+		if _, err := io.Copy(io.Discard, res.Body); err != nil {
 			t.Fatalf("res %d body copy: %v", i+1, err)
 		}
 		res.Body.Close()
@@ -1235,7 +1234,7 @@ func testSetsRemoteAddr(t *testing.T, h2 bool) {
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("ReadAll error: %v", err)
 	}
@@ -1299,7 +1298,7 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 			return
 		}
 		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Errorf("Request %d: %v", num, err)
 			response <- ""
@@ -1381,7 +1380,7 @@ func testHeadResponses(t *testing.T, h2 bool) {
 	if v := res.ContentLength; v != 10 {
 		t.Errorf("Content-Length: %d; want 10", v)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1432,7 +1431,7 @@ func TestTLSServer(t *testing.T) {
 			}
 		}
 	}))
-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 	defer ts.Close()
 
 	// Connect an idle TCP connection to this server before we run
@@ -1540,7 +1539,7 @@ func TestTLSServerRejectHTTPRequests(t *testing.T) {
 	}
 	defer conn.Close()
 	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
-	slurp, err := ioutil.ReadAll(conn)
+	slurp, err := io.ReadAll(conn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1734,7 +1733,7 @@ func TestServerExpect(t *testing.T) {
 		// requests that would read from r.Body, which we only
 		// conditionally want to do.
 		if strings.Contains(r.URL.RawQuery, "readbody=true") {
-			ioutil.ReadAll(r.Body)
+			io.ReadAll(r.Body)
 			w.Write([]byte("Hi"))
 		} else {
 			w.WriteHeader(StatusUnauthorized)
@@ -1773,7 +1772,7 @@ func TestServerExpect(t *testing.T) {
 					io.Closer
 				}{
 					conn,
-					ioutil.NopCloser(nil),
+					io.NopCloser(nil),
 				}
 				if test.chunked {
 					targ = httputil.NewChunkedWriter(conn)
@@ -2072,7 +2071,7 @@ type testHandlerBodyConsumer struct {
 var testHandlerBodyConsumers = []testHandlerBodyConsumer{
 	{"nil", func(io.ReadCloser) {}},
 	{"close", func(r io.ReadCloser) { r.Close() }},
-	{"discard", func(r io.ReadCloser) { io.Copy(ioutil.Discard, r) }},
+	{"discard", func(r io.ReadCloser) { io.Copy(io.Discard, r) }},
 }
 
 func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
@@ -2298,7 +2297,7 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	if g, e := res.StatusCode, StatusOK; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	body, _ := ioutil.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 	if g, e := string(body), "hi"; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -2315,7 +2314,7 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	body, _ = ioutil.ReadAll(res.Body)
+	body, _ = io.ReadAll(res.Body)
 	if !strings.Contains(string(body), "<title>Timeout</title>") {
 		t.Errorf("expected timeout body; got %q", string(body))
 	}
@@ -2367,7 +2366,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
 			defer func() { <-gate }()
 			res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, rand.Intn(50)))
 			if err == nil {
-				io.Copy(ioutil.Discard, res.Body)
+				io.Copy(io.Discard, res.Body)
 				res.Body.Close()
 			}
 		}()
@@ -2410,7 +2409,7 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
 				return
 			}
 			defer res.Body.Close()
-			io.Copy(ioutil.Discard, res.Body)
+			io.Copy(io.Discard, res.Body)
 		}()
 	}
 	wg.Wait()
@@ -2441,7 +2440,7 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	if g, e := res.StatusCode, StatusOK; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	body, _ := ioutil.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 	if g, e := string(body), "hi"; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
@@ -2458,7 +2457,7 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
-	body, _ = ioutil.ReadAll(res.Body)
+	body, _ = io.ReadAll(res.Body)
 	if !strings.Contains(string(body), "<title>Timeout</title>") {
 		t.Errorf("expected timeout body; got %q", string(body))
 	}
@@ -2630,7 +2629,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 			t.Errorf("Redirect(%q, %#v) generated Content-Type header %q; want %q", tt.method, tt.ct, got, want)
 		}
 		resp := rec.Result()
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2657,7 +2656,7 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, r *Request) {
-		all, err := ioutil.ReadAll(r.Body)
+		all, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("handler ReadAll: %v", err)
 		}
@@ -2683,7 +2682,7 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 	}
 
 	for i := range resp {
-		all, err := ioutil.ReadAll(resp[i].Body)
+		all, err := io.ReadAll(resp[i].Body)
 		if err != nil {
 			t.Fatalf("req #%d: client ReadAll: %v", i, err)
 		}
@@ -2710,7 +2709,7 @@ func TestHandlerPanicWithHijack(t *testing.T) {
 
 func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue interface{}) {
 	defer afterTest(t)
-	// Unlike the other tests that set the log output to ioutil.Discard
+	// Unlike the other tests that set the log output to io.Discard
 	// to quiet the output, this test uses a pipe. The pipe serves three
 	// purposes:
 	//
@@ -2970,7 +2969,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
 	const limit = 1 << 20
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		r.Body = MaxBytesReader(w, r.Body, limit)
-		n, err := io.Copy(ioutil.Discard, r.Body)
+		n, err := io.Copy(io.Discard, r.Body)
 		if err == nil {
 			t.Errorf("expected error from io.Copy")
 		}
@@ -3020,7 +3019,7 @@ func TestClientWriteShutdown(t *testing.T) {
 	donec := make(chan bool)
 	go func() {
 		defer close(donec)
-		bs, err := ioutil.ReadAll(conn)
+		bs, err := io.ReadAll(conn)
 		if err != nil {
 			t.Errorf("ReadAll: %v", err)
 		}
@@ -3341,7 +3340,7 @@ func TestHijackBeforeRequestBodyRead(t *testing.T) {
 		r.Body = nil // to test that server.go doesn't use this value.
 
 		gone := w.(CloseNotifier).CloseNotify()
-		slurp, err := ioutil.ReadAll(reqBody)
+		slurp, err := io.ReadAll(reqBody)
 		if err != nil {
 			t.Errorf("Body read: %v", err)
 			return
@@ -3643,7 +3642,7 @@ func TestAcceptMaxFds(t *testing.T) {
 		}}}
 	server := &Server{
 		Handler:  HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})),
-		ErrorLog: log.New(ioutil.Discard, "", 0), // noisy otherwise
+		ErrorLog: log.New(io.Discard, "", 0), // noisy otherwise
 	}
 	err := server.Serve(ln)
 	if err != io.EOF {
@@ -3782,7 +3781,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
 			close(done)
 		}()
 		time.Sleep(25 * time.Millisecond) // give Copy a chance to break things
-		n, err := io.Copy(ioutil.Discard, req.Body)
+		n, err := io.Copy(io.Discard, req.Body)
 		if err != nil {
 			t.Errorf("handler Copy: %v", err)
 			return
@@ -3804,7 +3803,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	all, err := ioutil.ReadAll(res.Body)
+	all, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3929,7 +3928,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 			errorf("Proxy outbound request: %v", err)
 			return
 		}
-		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/2)
+		_, err = io.CopyN(io.Discard, bresp.Body, bodySize/2)
 		if err != nil {
 			errorf("Proxy copy error: %v", err)
 			return
@@ -4136,7 +4135,7 @@ func TestServerConnState(t *testing.T) {
 		ts.Close()
 	}()
 
-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
 		if c == nil {
 			t.Errorf("nil conn seen in state %s", state)
@@ -4176,7 +4175,7 @@ func TestServerConnState(t *testing.T) {
 			t.Errorf("Error fetching %s: %v", url, err)
 			return
 		}
-		_, err = ioutil.ReadAll(res.Body)
+		_, err = io.ReadAll(res.Body)
 		defer res.Body.Close()
 		if err != nil {
 			t.Errorf("Error reading %s: %v", url, err)
@@ -4233,7 +4232,7 @@ func TestServerConnState(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+		if _, err := io.Copy(io.Discard, res.Body); err != nil {
 			t.Fatal(err)
 		}
 		c.Close()
@@ -4285,7 +4284,7 @@ func testServerEmptyBodyRace(t *testing.T, h2 bool) {
 				}
 			}
 			defer res.Body.Close()
-			_, err = io.Copy(ioutil.Discard, res.Body)
+			_, err = io.Copy(io.Discard, res.Body)
 			if err != nil {
 				t.Error(err)
 				return
@@ -4311,7 +4310,7 @@ func TestServerConnStateNew(t *testing.T) {
 	srv.Serve(&oneConnListener{
 		conn: &rwTestConn{
 			Reader: strings.NewReader("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"),
-			Writer: ioutil.Discard,
+			Writer: io.Discard,
 		},
 	})
 	if !sawNew { // testing that this read isn't racy
@@ -4367,7 +4366,7 @@ func TestServerFlushAndHijack(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
-	all, err := ioutil.ReadAll(res.Body)
+	all, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4555,7 +4554,7 @@ Host: foo
 	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
 		numReq++
 		if r.URL.Path == "/readbody" {
-			ioutil.ReadAll(r.Body)
+			io.ReadAll(r.Body)
 		}
 		io.WriteString(w, "Hello world!")
 	}))
@@ -4608,7 +4607,7 @@ func testHandlerSetsBodyNil(t *testing.T, h2 bool) {
 			t.Fatal(err)
 		}
 		defer res.Body.Close()
-		slurp, err := ioutil.ReadAll(res.Body)
+		slurp, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -4724,7 +4723,7 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
 	}
 	defer c.Close()
 	io.WriteString(c, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
-	slurp, err := ioutil.ReadAll(c)
+	slurp, err := io.ReadAll(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4958,7 +4957,7 @@ func BenchmarkClientServer(b *testing.B) {
 		if err != nil {
 			b.Fatal("Get:", err)
 		}
-		all, err := ioutil.ReadAll(res.Body)
+		all, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
 			b.Fatal("ReadAll:", err)
@@ -5009,7 +5008,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, useTLS bool) {
 				b.Logf("Get: %v", err)
 				continue
 			}
-			all, err := ioutil.ReadAll(res.Body)
+			all, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			if err != nil {
 				b.Logf("ReadAll: %v", err)
@@ -5044,7 +5043,7 @@ func BenchmarkServer(b *testing.B) {
 			if err != nil {
 				log.Panicf("Get: %v", err)
 			}
-			all, err := ioutil.ReadAll(res.Body)
+			all, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			if err != nil {
 				log.Panicf("ReadAll: %v", err)
@@ -5167,7 +5166,7 @@ func BenchmarkClient(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Get: %v", err)
 		}
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
 			b.Fatalf("ReadAll: %v", err)
@@ -5257,7 +5256,7 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 
 	conn := &rwTestConn{
 		Reader: &repeatReader{content: req, count: b.N},
-		Writer: ioutil.Discard,
+		Writer: io.Discard,
 		closec: make(chan bool, 1),
 	}
 	handled := 0
@@ -5286,7 +5285,7 @@ Host: golang.org
 
 	conn := &rwTestConn{
 		Reader: &repeatReader{content: req, count: b.N},
-		Writer: ioutil.Discard,
+		Writer: io.Discard,
 		closec: make(chan bool, 1),
 	}
 	handled := 0
@@ -5346,7 +5345,7 @@ Host: golang.org
 `)
 	conn := &rwTestConn{
 		Reader: &repeatReader{content: req, count: b.N},
-		Writer: ioutil.Discard,
+		Writer: io.Discard,
 		closec: make(chan bool, 1),
 	}
 	handled := 0
@@ -5375,7 +5374,7 @@ Host: golang.org
 		conn.Close()
 	})
 	conn := &rwTestConn{
-		Writer: ioutil.Discard,
+		Writer: io.Discard,
 		closec: make(chan bool, 1),
 	}
 	ln := &oneConnListener{conn: conn}
@@ -5438,7 +5437,7 @@ func TestServerIdleTimeout(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		io.Copy(ioutil.Discard, r.Body)
+		io.Copy(io.Discard, r.Body)
 		io.WriteString(w, r.RemoteAddr)
 	}))
 	ts.Config.ReadHeaderTimeout = 1 * time.Second
@@ -5453,7 +5452,7 @@ func TestServerIdleTimeout(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer res.Body.Close()
-		slurp, err := ioutil.ReadAll(res.Body)
+		slurp, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -5478,7 +5477,7 @@ func TestServerIdleTimeout(t *testing.T) {
 	defer conn.Close()
 	conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo.com\r\n"))
 	time.Sleep(2 * time.Second)
-	if _, err := io.CopyN(ioutil.Discard, conn, 1); err == nil {
+	if _, err := io.CopyN(io.Discard, conn, 1); err == nil {
 		t.Fatal("copy byte succeeded; want err")
 	}
 }
@@ -5489,7 +5488,7 @@ func get(t *testing.T, c *Client, url string) string {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5739,7 +5738,7 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 		if err != nil {
 			return fmt.Errorf("Get: %v", err)
 		}
-		slurp, err := ioutil.ReadAll(res.Body)
+		slurp, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
 			return fmt.Errorf("Body ReadAll: %v", err)
@@ -5802,7 +5801,7 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				io.Copy(ioutil.Discard, cn)
+				io.Copy(io.Discard, cn)
 			}()
 
 			for j := 0; j < requests; j++ {
@@ -5902,7 +5901,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		slurp, err := ioutil.ReadAll(buf.Reader)
+		slurp, err := io.ReadAll(buf.Reader)
 		if err != nil {
 			t.Errorf("Copy: %v", err)
 		}
@@ -6436,13 +6435,13 @@ func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
 	if _, err := conn.Write(http1ReqBody); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(conn)
+	return io.ReadAll(conn)
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		bw := bufio.NewWriter(ioutil.Discard)
+		bw := bufio.NewWriter(io.Discard)
 		var buf3 [3]byte
 		for pb.Next() {
 			Export_writeStatusLine(bw, true, 200, buf3[:])

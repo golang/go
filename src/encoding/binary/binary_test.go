@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"reflect"
 	"strings"
@@ -524,7 +523,7 @@ func BenchmarkWriteStruct(b *testing.B) {
 	b.SetBytes(int64(Size(&s)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Write(ioutil.Discard, BigEndian, &s)
+		Write(io.Discard, BigEndian, &s)
 	}
 }
 

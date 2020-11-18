@@ -865,7 +865,7 @@ func TestReadTruncation(t *testing.T) {
 				}
 				cnt++
 				if s2 == "manual" {
-					if _, err = tr.writeTo(ioutil.Discard); err != nil {
+					if _, err = tr.writeTo(io.Discard); err != nil {
 						break
 					}
 				}

@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"debug/elf"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -287,7 +288,7 @@ func Test115PclnParsing(t *testing.T) {
 		t.Fatal(err)
 	}
 	var dat []byte
-	dat, err = ioutil.ReadAll(gzReader)
+	dat, err = io.ReadAll(gzReader)
 	if err != nil {
 		t.Fatal(err)
 	}

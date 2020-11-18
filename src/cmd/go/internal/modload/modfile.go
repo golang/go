@@ -406,8 +406,11 @@ type retraction struct {
 // taking into account any replacements for m, exclusions of its dependencies,
 // and/or vendoring.
 //
-// goModSummary cannot be used on the Target module, as its requirements
-// may change.
+// m must be a version in the module graph, reachable from the Target module.
+// In readonly mode, the go.sum file must contain an entry for m's go.mod file
+// (or its replacement). goModSummary must not be called for the Target module
+// itself, as its requirements may change. Use rawGoModSummary for other
+// module versions.
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
@@ -441,6 +444,13 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 	actual := Replacement(m)
 	if actual.Path == "" {
 		actual = m
+	}
+	if cfg.BuildMod == "readonly" && actual.Version != "" {
+		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+		if !modfetch.HaveSum(key) {
+			suggestion := fmt.Sprintf("; try 'go mod download %s' to add it", m.Path)
+			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
+		}
 	}
 	summary, err := rawGoModSummary(actual)
 	if err != nil {

@@ -70,11 +70,11 @@ type Stat_t struct {
 	Ctim    Timespec
 	Size    int64
 	Blocks  int64
-	Blksize uint32
+	_       uint32
 	Flags   uint32
 	Gen     uint32
 	Lspare  int32
-	Qspare1 int64
+	Blksize int64
 	Qspare2 int64
 }
 
@@ -91,17 +91,15 @@ type Statfs_t struct {
 	Owner       uint32
 	Type        int32
 	Flags       int32
-	_           [4]byte
 	Syncwrites  int64
 	Asyncwrites int64
-	Fstypename  [16]int8
-	Mntonname   [80]int8
+	Fstypename  [16]byte
+	Mntonname   [80]byte
 	Syncreads   int64
 	Asyncreads  int64
 	Spares1     int16
-	Mntfromname [80]int8
+	Mntfromname [80]byte
 	Spares2     int16
-	_           [4]byte
 	Spare       [2]int64
 }
 
@@ -202,10 +200,8 @@ type IPv6Mreq struct {
 type Msghdr struct {
 	Name       *byte
 	Namelen    uint32
-	_          [4]byte
 	Iov        *Iovec
 	Iovlen     int32
-	_          [4]byte
 	Control    *byte
 	Controllen uint32
 	Flags      int32
@@ -269,7 +265,7 @@ type FdSet struct {
 const (
 	SizeofIfMsghdr         = 0xb0
 	SizeofIfData           = 0xa0
-	SizeofIfaMsghdr        = 0x14
+	SizeofIfaMsghdr        = 0x18
 	SizeofIfmaMsghdr       = 0x10
 	SizeofIfAnnounceMsghdr = 0x18
 	SizeofRtMsghdr         = 0x98
@@ -280,10 +276,9 @@ type IfMsghdr struct {
 	Msglen  uint16
 	Version uint8
 	Type    uint8
-	Addrs   int32
-	Flags   int32
 	Index   uint16
-	_       [2]byte
+	Flags   int32
+	Addrs   int32
 	Data    IfData
 }
 
@@ -294,7 +289,6 @@ type IfData struct {
 	Hdrlen     uint8
 	Recvquota  uint8
 	Xmitquota  uint8
-	_          [2]byte
 	Mtu        uint64
 	Metric     uint64
 	Link_state uint64
@@ -316,24 +310,23 @@ type IfData struct {
 }
 
 type IfaMsghdr struct {
-	Msglen  uint16
-	Version uint8
-	Type    uint8
-	Addrs   int32
-	Flags   int32
-	Index   uint16
-	_       [2]byte
-	Metric  int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Index     uint16
+	Flags     int32
+	Addrs     int32
+	Addrflags int32
+	Metric    int32
 }
 
 type IfmaMsghdr struct {
 	Msglen  uint16
 	Version uint8
 	Type    uint8
-	Addrs   int32
-	Flags   int32
 	Index   uint16
-	_       [2]byte
+	Flags   int32
+	Addrs   int32
 }
 
 type IfAnnounceMsghdr struct {
@@ -350,7 +343,6 @@ type RtMsghdr struct {
 	Version uint8
 	Type    uint8
 	Index   uint16
-	_       [2]byte
 	Flags   int32
 	Addrs   int32
 	Pid     int32
@@ -374,7 +366,6 @@ type RtMetrics struct {
 	Hopcount  uint64
 	Mssopt    uint16
 	Pad       uint16
-	_         [4]byte
 	Msl       uint64
 	Iwmaxsegs uint64
 	Iwcapsegs uint64
@@ -400,7 +391,6 @@ type BpfStat struct {
 
 type BpfProgram struct {
 	Len   uint32
-	_     [4]byte
 	Insns *BpfInsn
 }
 

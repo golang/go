@@ -1,36 +1,62 @@
-# Regression test for https://golang.org/issue/41577:
-# 'go list -mod=readonly' should not resolve missing packages from
-# available replacements.
+# Check that with -mod=readonly, when we load a package in a module that is
+# replaced but not required, we emit an error with the command to add the
+# requirement.
+# Verifies golang.org/issue/41416, golang.org/issue/41577.
+cp go.mod go.mod.orig
 
-# Control case: when there is no replacement, 'go list' of a missing package
-# fails due to defaulting to '-mod=readonly'.
+# Replace all versions of a module without requiring it.
+# With -mod=mod, we'd add a requirement for a "zero" pseudo-version, but we
+# can't in readonly mode, since its go.mod may alter the build list.
+go mod edit -replace rsc.io/quote=./quote
+! go list rsc.io/quote
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote'' to add it$'
+go get -d rsc.io/quote
+cmp go.mod go.mod.latest
+go list rsc.io/quote
+cp go.mod.orig go.mod
 
-! go list example.com/x
-stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
+# Same test with a specific version.
+go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
+! go list rsc.io/quote
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.0.0-doesnotexist'' to add it$'
+go get -d rsc.io/quote@v1.0.0-doesnotexist
+cmp go.mod go.mod.specific
+go list rsc.io/quote
+cp go.mod.orig go.mod
 
-# When an unused replacement is added, 'go list' should still fail in the same way.
-# (Previously, it would resolve the missing import despite -mod=readonly.)
-
-go mod edit -replace=example.com/x@v0.1.0=./x
-go mod edit -replace=example.com/x@v0.2.0=./x
-! go list example.com/x
-stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
-
-# The command suggested by 'go list' should successfully resolve using the replacement.
-
-go get -d example.com/x
-go list example.com/x
-go list -m example.com/x
-stdout '^example.com/x v0.2.0 '
-
+# If there are multiple versions, the highest is suggested.
+go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
+go mod edit -replace rsc.io/quote@v1.1.0-doesnotexist=./quote
+! go list rsc.io/quote
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.1.0-doesnotexist'' to add it$'
 
 -- go.mod --
-module example.com
+module m
 
 go 1.16
--- x/go.mod --
-module example.com/x
+-- go.mod.latest --
+module m
 
 go 1.16
--- x/x.go --
-package x
+
+replace rsc.io/quote => ./quote
+
+require rsc.io/quote v1.5.2 // indirect
+-- go.mod.specific --
+module m
+
+go 1.16
+
+replace rsc.io/quote v1.0.0-doesnotexist => ./quote
+
+require rsc.io/quote v1.0.0-doesnotexist // indirect
+-- use.go --
+package use
+
+import _ "rsc.io/quote"
+-- quote/go.mod --
+module rsc.io/quote
+
+go 1.16
+-- quote/quote.go --
+package quote

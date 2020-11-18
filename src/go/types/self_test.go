@@ -19,7 +19,7 @@ import (
 
 func TestSelf(t *testing.T) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, ".")
+	files, err := pkgFiles(fset, ".", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func BenchmarkCheck(b *testing.B) {
 
 func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path)
+	files, err := pkgFiles(fset, path, 0)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	b.ReportMetric(float64(lines)*float64(b.N)/time.Since(start).Seconds(), "lines/s")
 }
 
-func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
+func pkgFiles(fset *token.FileSet, path string, mode parser.Mode) ([]*ast.File, error) {
 	filenames, err := pkgFilenames(path) // from stdlib_test.go
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
 
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := parser.ParseFile(fset, filename, nil, mode)
 		if err != nil {
 			return nil, err
 		}

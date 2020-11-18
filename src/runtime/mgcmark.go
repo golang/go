@@ -54,6 +54,8 @@ const (
 //
 // The world must be stopped.
 func gcMarkRootPrepare() {
+	assertWorldStopped()
+
 	work.nFlushCacheRoots = 0
 
 	// Compute how many data and BSS root blocks there are.
@@ -400,11 +402,13 @@ retry:
 	// balance positive. When the required amount of work is low,
 	// we over-assist to build up credit for future allocations
 	// and amortize the cost of assisting.
+	assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
 	debtBytes := -gp.gcAssistBytes
-	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
+	scanWork := int64(assistWorkPerByte * float64(debtBytes))
 	if scanWork < gcOverAssistWork {
 		scanWork = gcOverAssistWork
-		debtBytes = int64(gcController.assistBytesPerWork * float64(scanWork))
+		debtBytes = int64(assistBytesPerWork * float64(scanWork))
 	}
 
 	// Steal as much credit as we can from the background GC's
@@ -418,7 +422,7 @@ retry:
 	if bgScanCredit > 0 {
 		if bgScanCredit < scanWork {
 			stolen = bgScanCredit
-			gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(stolen))
+			gp.gcAssistBytes += 1 + int64(assistBytesPerWork*float64(stolen))
 		} else {
 			stolen = scanWork
 			gp.gcAssistBytes += debtBytes
@@ -543,7 +547,8 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	// this scan work counts for. The "1+" is a poor man's
 	// round-up, to ensure this adds credit even if
 	// assistBytesPerWork is very low.
-	gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(workDone))
+	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
+	gp.gcAssistBytes += 1 + int64(assistBytesPerWork*float64(workDone))
 
 	// If this is the last worker and we ran out of work,
 	// signal a completion point.
@@ -637,7 +642,8 @@ func gcFlushBgCredit(scanWork int64) {
 		return
 	}
 
-	scanBytes := int64(float64(scanWork) * gcController.assistBytesPerWork)
+	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
+	scanBytes := int64(float64(scanWork) * assistBytesPerWork)
 
 	lock(&work.assistQueue.lock)
 	for !work.assistQueue.q.empty() && scanBytes > 0 {
@@ -670,7 +676,8 @@ func gcFlushBgCredit(scanWork int64) {
 
 	if scanBytes > 0 {
 		// Convert from scan bytes back to work.
-		scanWork = int64(float64(scanBytes) * gcController.assistWorkPerByte)
+		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+		scanWork = int64(float64(scanBytes) * assistWorkPerByte)
 		atomic.Xaddint64(&gcController.bgScanCredit, scanWork)
 	}
 	unlock(&work.assistQueue.lock)
@@ -1530,6 +1537,8 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
 //
 // The world must be stopped.
 func gcMarkTinyAllocs() {
+	assertWorldStopped()
+
 	for _, p := range allp {
 		c := p.mcache
 		if c == nil || c.tiny == 0 {
