@@ -1467,18 +1467,18 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			var key operand
 			check.expr(&key, e.Index)
 			check.assignment(&key, typ.key, "map index")
-			if x.mode == invalid {
-				goto Error
-			}
+			// ok to continue even if indexing failed - map element type is known
 			x.mode = mapindex
 			x.typ = typ.elem
 			x.expr = e
 			return expression
 
 		case *Sum:
-			// A sum type can be indexed if all the sum's types
-			// support indexing and have the same element type.
-			var elem Type
+			// A sum type can be indexed if all of the sum's types
+			// support indexing and have the same index and element
+			// type. Special rules apply for maps in the sum type.
+			var tkey, telem Type // key is for map types only
+			nmaps := 0           // number of map types in sum type
 			if typ.is(func(t Type) bool {
 				var e Type
 				switch t := t.Under().(type) {
@@ -1495,21 +1495,58 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				case *Slice:
 					e = t.elem
 				case *Map:
+					// If there are multiple maps in the sum type,
+					// they must have identical key types.
+					// TODO(gri) We may be able to relax this rule
+					// but it becomes complicated very quickly.
+					if tkey != nil && !Identical(t.key, tkey) {
+						return false
+					}
+					tkey = t.key
 					e = t.elem
+					nmaps++
 				case *TypeParam:
 					check.errorf(x, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
 				case *instance:
-					unimplemented()
+					panic("unimplemented")
 				}
-				if e != nil && (e == elem || elem == nil) {
-					elem = e
-					return true
+				if e == nil || telem != nil && !Identical(e, telem) {
+					return false
 				}
-				return false
+				telem = e
+				return true
 			}) {
-				valid = true
-				x.mode = variable
-				x.typ = elem
+				// If there are maps, the index expression must be assignable
+				// to the map key type (as for simple map index expressions).
+				if nmaps > 0 {
+					var key operand
+					check.expr(&key, e.Index)
+					check.assignment(&key, tkey, "map index")
+					// ok to continue even if indexing failed - map element type is known
+
+					// If there are only maps, we are done.
+					if nmaps == len(typ.types) {
+						x.mode = mapindex
+						x.typ = telem
+						x.expr = e
+						return expression
+					}
+
+					// Otherwise we have mix of maps and other types. For
+					// now we require that the map key be an integer type.
+					// TODO(gri) This is probably not good enough.
+					valid = isInteger(tkey)
+					// avoid 2nd indexing error if indexing failed above
+					if !valid && key.mode == invalid {
+						goto Error
+					}
+					x.mode = value // map index expressions are not addressable
+				} else {
+					// no maps
+					valid = true
+					x.mode = variable
+				}
+				x.typ = telem
 			}
 		}
 
