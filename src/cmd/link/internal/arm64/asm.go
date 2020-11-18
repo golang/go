@@ -177,6 +177,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_ARM64_LDST8)
 		return true
 
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST16_ABS_LO12_NC):
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_LDST16)
+		return true
+
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST32_ABS_LO12_NC):
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
@@ -767,6 +775,14 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_ARM64_LDST8:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 		o0 := uint32(t&0xfff) << 10
+		return val | int64(o0), noExtReloc, true
+
+	case objabi.R_ARM64_LDST16:
+		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
+		if t&1 != 0 {
+			ldr.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST16_ABS_LO12_NC", t)
+		}
+		o0 := (uint32(t&0xfff) >> 1) << 10
 		return val | int64(o0), noExtReloc, true
 
 	case objabi.R_ARM64_LDST32:
