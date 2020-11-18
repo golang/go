@@ -136,6 +136,9 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 	_, inv, cleanupInvocation, err := snapshot.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
 		WorkingDir: snapshot.view.rootURI.Filename(),
 	})
+	if err != nil {
+		return nil, err
+	}
 	pe.WorkingDir = inv.WorkingDir
 	pe.BuildFlags = inv.BuildFlags
 	pe.WorkingDir = inv.WorkingDir
