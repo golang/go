@@ -3734,9 +3734,12 @@ func usefield(n *Node) {
 	if t.IsPtr() {
 		t = t.Elem()
 	}
-	field := dotField[typeSymKey{t.Orig, n.Sym}]
+	field := n.Opt().(*types.Field)
 	if field == nil {
 		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
+	}
+	if field.Sym != n.Sym || field.Offset != n.Xoffset {
+		Fatalf("field inconsistency: %v,%v != %v,%v", field.Sym, field.Offset, n.Sym, n.Xoffset)
 	}
 	if !strings.Contains(field.Note, "go:\"track\"") {
 		return

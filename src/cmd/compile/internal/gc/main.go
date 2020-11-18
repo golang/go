@@ -89,6 +89,7 @@ var debugtab = []struct {
 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
 	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
 	{"defer", "print information about defer compilation", &Debug_defer},
+	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
 }
 
 const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
