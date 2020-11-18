@@ -2016,6 +2016,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCFUNC:
 		aux := n.Left.Sym.Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+	case OMETHEXPR:
+		sym := funcsym(n.Sym).Linksym()
+		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), sym, s.sb)
 	case ONAME:
 		if n.Class() == PFUNC {
 			// "value" of a function is the address of the function's closure

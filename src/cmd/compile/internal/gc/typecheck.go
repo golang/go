@@ -2408,7 +2408,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
 		return n
 	}
 
-	n.Op = ONAME
+	n.Op = OMETHEXPR
 	if n.Name == nil {
 		n.Name = new(Name)
 	}
@@ -2668,7 +2668,7 @@ notenough:
 			// call is the expression being called, not the overall call.
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
-			if call.isMethodExpression() {
+			if call.Op == OMETHEXPR {
 				yyerror("not enough arguments in call to method expression %v%s", call, details)
 			} else {
 				yyerror("not enough arguments in call to %v%s", call, details)
@@ -4032,10 +4032,10 @@ func (n *Node) MethodName() *Node {
 
 // MethodFunc is like MethodName, but returns the types.Field instead.
 func (n *Node) MethodFunc() *types.Field {
-	switch {
-	case n.Op == ODOTMETH || n.isMethodExpression():
+	switch n.Op {
+	case ODOTMETH, OMETHEXPR:
 		return n.Opt().(*types.Field)
-	case n.Op == OCALLPART:
+	case OCALLPART:
 		return callpartMethod(n)
 	}
 	Fatalf("unexpected node: %v (%v)", n, n.Op)

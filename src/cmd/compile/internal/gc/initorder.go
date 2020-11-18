@@ -273,12 +273,11 @@ func (d *initDeps) inspectList(l Nodes) { inspectList(l, d.visit) }
 // referenced by n, if any.
 func (d *initDeps) visit(n *Node) bool {
 	switch n.Op {
-	case ONAME:
-		if n.isMethodExpression() {
-			d.foundDep(n.MethodName())
-			return false
-		}
+	case OMETHEXPR:
+		d.foundDep(n.MethodName())
+		return false
 
+	case ONAME:
 		switch n.Class() {
 		case PEXTERN, PFUNC:
 			d.foundDep(n)
