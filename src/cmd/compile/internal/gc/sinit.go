@@ -68,7 +68,7 @@ func (s *InitSchedule) tryStaticInit(n *Node) bool {
 // like staticassign but we are copying an already
 // initialized value r.
 func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
-	if r.Op != ONAME {
+	if r.Op != ONAME && r.Op != OMETHEXPR {
 		return false
 	}
 	if r.Class() == PFUNC {
@@ -95,7 +95,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	}
 
 	switch r.Op {
-	case ONAME:
+	case ONAME, OMETHEXPR:
 		if s.staticcopy(l, r) {
 			return true
 		}
@@ -171,7 +171,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 	}
 
 	switch r.Op {
-	case ONAME:
+	case ONAME, OMETHEXPR:
 		return s.staticcopy(l, r)
 
 	case ONIL:
@@ -383,7 +383,7 @@ func readonlystaticname(t *types.Type) *Node {
 }
 
 func (n *Node) isSimpleName() bool {
-	return n.Op == ONAME && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
+	return (n.Op == ONAME || n.Op == OMETHEXPR) && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
 }
 
 func litas(l *Node, r *Node, init *Nodes) {
@@ -870,7 +870,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 	default:
 		Fatalf("anylit: not lit, op=%v node=%v", n.Op, n)
 
-	case ONAME:
+	case ONAME, OMETHEXPR:
 		a := nod(OAS, var_, n)
 		a = typecheck(a, ctxStmt)
 		init.Append(a)
@@ -1007,7 +1007,7 @@ func stataddr(nam *Node, n *Node) bool {
 	}
 
 	switch n.Op {
-	case ONAME:
+	case ONAME, OMETHEXPR:
 		*nam = *n
 		return true
 
@@ -1172,7 +1172,7 @@ func genAsStatic(as *Node) {
 	switch {
 	case as.Right.Op == OLITERAL:
 		litsym(&nam, as.Right, int(as.Right.Type.Width))
-	case as.Right.Op == ONAME && as.Right.Class() == PFUNC:
+	case (as.Right.Op == ONAME || as.Right.Op == OMETHEXPR) && as.Right.Class() == PFUNC:
 		pfuncsym(&nam, as.Right)
 	default:
 		Fatalf("genAsStatic: rhs %v", as.Right)

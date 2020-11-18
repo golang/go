@@ -303,11 +303,6 @@ func (n *Node) mayBeShared() bool {
 	return false
 }
 
-// isMethodExpression reports whether n represents a method expression T.M.
-func (n *Node) isMethodExpression() bool {
-	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
-}
-
 // funcname returns the name (without the package) of the function n.
 func (n *Node) funcname() string {
 	if n == nil || n.Func == nil || n.Func.Nname == nil {
@@ -599,15 +594,10 @@ func (p *Param) SetEmbedFiles(list []string) {
 // will be the qualified method name (e.g., "T.m") and
 // f.Func.Shortname is the bare method name (e.g., "m").
 //
-// A method expression (T.M) is represented as an ONAME node
-// like a function name would be, but n.Left and n.Right point to
-// the type and method, respectively. A method expression can
-// be distinguished from a normal function ONAME by checking
-// n.IsMethodExpression. Unlike ordinary ONAME nodes, each
-// distinct mention of a method expression in the source code
-// constructs a fresh ONAME node.
-// TODO(rsc): Method expressions deserve their own opcode
-// instead of violating invariants of ONAME.
+// A method expression (T.M) is represented as an OMETHEXPR node,
+// in which n.Left and n.Right point to the type and method, respectively.
+// Each distinct mention of a method expression in the source code
+// constructs a fresh node.
 //
 // A method value (t.M) is represented by ODOTMETH/ODOTINTER
 // when it is called directly and by OCALLPART otherwise.

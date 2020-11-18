@@ -77,13 +77,17 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 		switch n.Op {
 		case ONAME:
 			if n.Class() == PFUNC {
-				if n.isMethodExpression() {
-					n = n.MethodName()
-				}
 				if n != nil && n.Name.Defn != nil {
 					if m := v.visit(n.Name.Defn); m < min {
 						min = m
 					}
+				}
+			}
+		case OMETHEXPR:
+			fn := n.MethodName()
+			if fn != nil && fn.Name.Defn != nil {
+				if m := v.visit(fn.Name.Defn); m < min {
+					min = m
 				}
 			}
 		case ODOTMETH:

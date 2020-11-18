@@ -260,15 +260,14 @@ func inlFlood(n *Node) {
 	// because after inlining they might be callable.
 	inspectList(asNodes(n.Func.Inl.Body), func(n *Node) bool {
 		switch n.Op {
+		case OMETHEXPR:
+			inlFlood(n.MethodName())
+
 		case ONAME:
 			switch n.Class() {
 			case PFUNC:
-				if n.isMethodExpression() {
-					inlFlood(n.MethodName())
-				} else {
-					inlFlood(n)
-					exportsym(n)
-				}
+				inlFlood(n)
+				exportsym(n)
 			case PEXTERN:
 				exportsym(n)
 			}
@@ -709,17 +708,16 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 func inlCallee(fn *Node) *Node {
 	fn = staticValue(fn)
 	switch {
-	case fn.Op == ONAME && fn.Class() == PFUNC:
-		if fn.isMethodExpression() {
-			n := fn.MethodName()
-			// Check that receiver type matches fn.Left.
-			// TODO(mdempsky): Handle implicit dereference
-			// of pointer receiver argument?
-			if n == nil || !types.Identical(n.Type.Recv().Type, fn.Left.Type) {
-				return nil
-			}
-			return n
+	case fn.Op == OMETHEXPR:
+		n := fn.MethodName()
+		// Check that receiver type matches fn.Left.
+		// TODO(mdempsky): Handle implicit dereference
+		// of pointer receiver argument?
+		if n == nil || !types.Identical(n.Type.Recv().Type, fn.Left.Type) {
+			return nil
 		}
+		return n
+	case fn.Op == ONAME && fn.Class() == PFUNC:
 		return fn
 	case fn.Op == OCLOSURE:
 		c := fn.Func.Decl
@@ -963,7 +961,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 			ninit.AppendNodes(&callee.Ninit)
 			callee = callee.Left
 		}
-		if callee.Op != ONAME && callee.Op != OCLOSURE {
+		if callee.Op != ONAME && callee.Op != OCLOSURE && callee.Op != OMETHEXPR {
 			Fatalf("unexpected callee expression: %v", callee)
 		}
 	}
@@ -1321,6 +1319,9 @@ func (subst *inlsubst) node(n *Node) *Node {
 		if Debug.m > 2 {
 			fmt.Printf("not substituting name %+v\n", n)
 		}
+		return n
+
+	case OMETHEXPR:
 		return n
 
 	case OLITERAL, ONIL, OTYPE:

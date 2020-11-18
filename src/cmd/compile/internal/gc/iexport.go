@@ -1218,18 +1218,16 @@ func (w *exportWriter) expr(n *Node) {
 		w.pos(n.Pos)
 		w.value(n.Type, n.Val())
 
-	case ONAME:
+	case OMETHEXPR:
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
-		if n.isMethodExpression() {
-			w.op(OXDOT)
-			w.pos(n.Pos)
-			w.expr(n.Left) // n.Left.Op == OTYPE
-			w.selector(n.Right.Sym)
-			break
-		}
+		w.op(OXDOT)
+		w.pos(n.Pos)
+		w.expr(n.Left) // n.Left.Op == OTYPE
+		w.selector(n.Right.Sym)
 
+	case ONAME:
 		// Package scope name.
 		if (n.Class() == PEXTERN || n.Class() == PFUNC) && !n.isBlank() {
 			w.op(ONONAME)

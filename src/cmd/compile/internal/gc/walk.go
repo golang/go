@@ -464,7 +464,7 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
+	case ONONAME, OEMPTY, OGETG, ONEWOBJ, OMETHEXPR:
 
 	case OTYPE, ONAME, OLITERAL, ONIL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.

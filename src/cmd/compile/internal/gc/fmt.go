@@ -1355,15 +1355,15 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			mode.Fprintf(s, ")")
 		}
 
-	// Special case: name used as local variable in export.
-	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
+		// Special case: name used as local variable in export.
+		// _ becomes ~b%d internally; print as _ for export
 		if mode == FErr && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
 			fmt.Fprint(s, "_")
 			return
 		}
 		fallthrough
-	case OPACK, ONONAME:
+	case OPACK, ONONAME, OMETHEXPR:
 		fmt.Fprint(s, smodeString(n.Sym, mode))
 
 	case OTYPE:
@@ -1695,7 +1695,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 	case OLITERAL:
 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
 
-	case ONAME, ONONAME:
+	case ONAME, ONONAME, OMETHEXPR:
 		if n.Sym != nil {
 			mode.Fprintf(s, "%v-%v%j", n.Op, n.Sym, n)
 		} else {
