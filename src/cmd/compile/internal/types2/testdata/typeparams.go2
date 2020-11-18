@@ -94,10 +94,18 @@ func _[T any] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ type int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ type string }] (x T, i int) { _ = x[i] }
 func _[T interface{ type []int }] (x T, i int) { _ = x[i] }
-func _[T interface{ type [10]int, *[20]int, map[string]int }] (x T, i int) { _ = x[i] }
+func _[T interface{ type [10]int, *[20]int, map[int]int }] (x T, i int) { _ = x[i] }
 func _[T interface{ type string, []byte }] (x T, i int) { _ = x[i] }
 func _[T interface{ type []int, [1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ type string, []rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+
+// indexing with various combinations of map types in type lists (see issue #42616)
+func _[T interface{ type []E, map[int]E }, E any](x T, i int) { _ = x[i] }
+func _[T interface{ type []E }, E any](x T, i int) { _ = &x[i] }
+func _[T interface{ type map[int]E }, E any](x T, i int) { _, _ = x[i] } // comma-ok permitted
+func _[T interface{ type []E, map[int]E }, E any](x T, i int) { _ = &x /* ERROR cannot take address */ [i] }
+func _[T interface{ type []E, map[int]E, map[uint]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // different map element types
+func _[T interface{ type []E, map[string]E }, E any](x T, i int) { _ = x[i /* ERROR cannot use i */ ] }
 
 // slicing
 // TODO(gri) implement this
