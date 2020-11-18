@@ -10,6 +10,8 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#define CLOCK_REALTIME		0
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
@@ -137,9 +139,9 @@ initialized:
 TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP			// make a frame; keep stack aligned
 	MOVQ	SP, BP
-	// DI already has *timeval
-	XORL	SI, SI // no timezone needed
-	CALL	libc_gettimeofday(SB)
+	MOVQ	DI, SI			// arg 2 timespec
+	MOVL	$CLOCK_REALTIME, DI	// arg 1 clock_id
+	CALL	libc_clock_gettime(SB)
 	POPQ	BP
 	RET
 
