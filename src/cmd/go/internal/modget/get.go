@@ -45,7 +45,9 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/work"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var CmdGet = &base.Command{
@@ -462,10 +464,19 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		// what's changing and gives more examples.
 	}
 
+	if !modload.HasModRoot() {
+		return
+	}
+
 	// Everything succeeded. Update go.mod.
+	oldReqs := reqsFromGoMod(modload.ModFile())
+
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 	modload.DisallowWriteGoMod()
+
+	newReqs := reqsFromGoMod(modload.ModFile())
+	r.reportChanges(oldReqs, newReqs)
 }
 
 // parseArgs parses command-line arguments and reports errors.
@@ -1563,63 +1574,69 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 	}
 }
 
-// reportChanges logs resolved version changes to os.Stderr.
-func (r *resolver) reportChanges(queries []*query) {
-	for _, q := range queries {
-		if q.version == "none" {
-			continue
-		}
+// reportChanges logs version changes to os.Stderr.
+//
+// reportChanges only logs changes to modules named on the command line and to
+// explicitly required modules in go.mod. Most changes to indirect requirements
+// are not relevant to the user and are not logged.
+//
+// reportChanges should be called after WriteGoMod.
+func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+	type change struct {
+		path, old, new string
+	}
+	changes := make(map[string]change)
 
-		if q.pattern == "all" {
-			// To reduce noise for "all", describe module version changes rather than
-			// package versions.
-			seen := make(map[module.Version]bool)
-			for _, m := range q.resolved {
-				if seen[m] {
-					continue
-				}
-				seen[m] = true
-
-				before := r.initialSelected(m.Path)
-				if before == m.Version {
-					continue // m was resolved, but not changed
-				}
-
-				was := ""
-				if before != "" {
-					was = fmt.Sprintf(" (was %s)", before)
-				}
-				fmt.Fprintf(os.Stderr, "go: %v added %s %s%s\n", q, m.Path, m.Version, was)
-			}
-			continue
-		}
-
-		for _, m := range q.resolved {
-			before := r.initialSelected(m.Path)
-			if before == m.Version {
-				continue // m was resolved, but not changed
-			}
-
-			was := ""
-			if before != "" {
-				was = fmt.Sprintf(" (was %s)", before)
-			}
-			switch {
-			case q.isWildcard():
-				if q.matchesPath(m.Path) {
-					fmt.Fprintf(os.Stderr, "go: matched %v as %s %s%s\n", q, m.Path, m.Version, was)
-				} else {
-					fmt.Fprintf(os.Stderr, "go: matched %v in %s %s%s\n", q, m.Path, m.Version, was)
-				}
-			case q.matchesPackages:
-				fmt.Fprintf(os.Stderr, "go: found %v in %s %s%s\n", q, m.Path, m.Version, was)
-			default:
-				fmt.Fprintf(os.Stderr, "go: found %v in %s %s%s\n", q, m.Path, m.Version, was)
-			}
+	// Collect changes in modules matched by command line arguments.
+	for path, reason := range r.resolvedVersion {
+		old := r.initialVersion[path]
+		new := reason.version
+		if old != new && (old != "" || new != "none") {
+			changes[path] = change{path, old, new}
 		}
 	}
 
-	// TODO(#33284): Also print relevant upgrades.
+	// Collect changes to explicit requirements in go.mod.
+	for _, req := range oldReqs {
+		path := req.Path
+		old := req.Version
+		new := r.buildListVersion[path]
+		if old != new {
+			changes[path] = change{path, old, new}
+		}
+	}
+	for _, req := range newReqs {
+		path := req.Path
+		old := r.initialVersion[path]
+		new := req.Version
+		if old != new {
+			changes[path] = change{path, old, new}
+		}
+	}
+
+	sortedChanges := make([]change, 0, len(changes))
+	for _, c := range changes {
+		sortedChanges = append(sortedChanges, c)
+	}
+	sort.Slice(sortedChanges, func(i, j int) bool {
+		return sortedChanges[i].path < sortedChanges[j].path
+	})
+	for _, c := range sortedChanges {
+		if c.old == "" {
+			fmt.Fprintf(os.Stderr, "go get: added %s %s\n", c.path, c.new)
+		} else if c.new == "none" || c.new == "" {
+			fmt.Fprintf(os.Stderr, "go get: removed %s %s\n", c.path, c.old)
+		} else if semver.Compare(c.new, c.old) > 0 {
+			fmt.Fprintf(os.Stderr, "go get: upgraded %s %s => %s\n", c.path, c.old, c.new)
+		} else {
+			fmt.Fprintf(os.Stderr, "go get: downgraded %s %s => %s\n", c.path, c.old, c.new)
+		}
+	}
+
+	// TODO(golang.org/issue/33284): attribute changes to command line arguments.
+	// For modules matched by command line arguments, this probably isn't
+	// necessary, but it would be useful for unmatched direct dependencies of
+	// the main module.
 }
 
 // resolve records that module m must be at its indicated version (which may be
@@ -1698,6 +1715,14 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		r.buildListVersion[m.Path] = m.Version
 	}
 	return true
+}
+
+func reqsFromGoMod(f *modfile.File) []module.Version {
+	reqs := make([]module.Version, len(f.Require))
+	for i, r := range f.Require {
+		reqs[i] = r.Mod
+	}
+	return reqs
 }
 
 // isNoSuchModuleVersion reports whether err indicates that the requested module
