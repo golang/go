@@ -75,6 +75,8 @@ const (
 	EXTPROC                          = 0x10000
 	FF1                              = 0x8000
 	FFDLY                            = 0x8000
+	FICLONE                          = 0x80049409
+	FICLONERANGE                     = 0x8020940d
 	FLUSHO                           = 0x1000
 	FS_IOC_ENABLE_VERITY             = 0x80806685
 	FS_IOC_GETFLAGS                  = 0x40086601

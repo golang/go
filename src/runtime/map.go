@@ -599,7 +599,7 @@ again:
 	if h.growing() {
 		growWork(t, h, bucket)
 	}
-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
 	top := tophash(hash)
 
 	var inserti *uint8
@@ -650,7 +650,7 @@ bucketloop:
 	}
 
 	if inserti == nil {
-		// all current buckets are full, allocate a new one.
+		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
 		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)

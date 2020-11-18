@@ -81,6 +81,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	SHA512H2	V4.D2, V3, V2           // 628464ce
 	SHA512SU0	V9.D2, V8.D2            // 2881c0ce
 	SHA512SU1	V7.D2, V6.D2, V5.D2     // c58867ce
+	VRAX1	V26.D2, V29.D2, V30.D2          // be8f7ace
+	VXAR	$63, V27.D2, V21.D2, V26.D2     // bafe9bce
 	VADDV	V0.S4, V0                       // 00b8b14e
 	VMOVI	$82, V0.B16                     // 40e6024f
 	VUADDLV	V6.B16, V6                      // c638306e
@@ -139,6 +141,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VTBL	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71400e4e
 	VTBL	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc630d4e
 	VTBL	V3.B8, [V27.B16], V8.B8                                                 // 6803030e
+	VEOR3	V2.B16, V7.B16, V12.B16, V25.B16                                        // 990907ce
+	VBCAX	V1.B16, V2.B16, V26.B16, V31.B16                                        // 5f0722ce
 	VZIP1	V16.H8, V3.H8, V19.H8           // 7338504e
 	VZIP2	V22.D2, V25.D2, V21.D2          // 357bd64e
 	VZIP1	V6.D2, V9.D2, V11.D2            // 2b39c64e
@@ -218,8 +222,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	$(28.0), F4                     // 0490671e
 
 // move a large constant to a Vd.
-	FMOVD	$0x8040201008040201, V20         // FMOVD	$-9205322385119247871, V20
-	FMOVQ	$0x8040201008040202, V29         // FMOVQ	$-9205322385119247870, V29
+	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
+	VMOVD	$0x8040201008040201, V20                              // VMOVD	$-9205322385119247871, V20
+	VMOVQ	$0x7040201008040201, $0x8040201008040201, V10         // VMOVQ	$8088500183983456769, $-9205322385119247871, V10
+	VMOVQ	$0x8040201008040202, $0x7040201008040201, V20         // VMOVQ	$-9205322385119247870, $8088500183983456769, V20
 
 	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
 	FMOVS	(R2)(R6<<2), F4                               // 447866bc

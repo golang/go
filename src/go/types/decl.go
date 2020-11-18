@@ -381,6 +381,76 @@ func firstInSrc(path []Object) int {
 	return fst
 }
 
+type (
+	decl interface {
+		node() ast.Node
+	}
+
+	importDecl struct{ spec *ast.ImportSpec }
+	constDecl  struct {
+		spec *ast.ValueSpec
+		iota int
+		typ  ast.Expr
+		init []ast.Expr
+	}
+	varDecl  struct{ spec *ast.ValueSpec }
+	typeDecl struct{ spec *ast.TypeSpec }
+	funcDecl struct{ decl *ast.FuncDecl }
+)
+
+func (d importDecl) node() ast.Node { return d.spec }
+func (d constDecl) node() ast.Node  { return d.spec }
+func (d varDecl) node() ast.Node    { return d.spec }
+func (d typeDecl) node() ast.Node   { return d.spec }
+func (d funcDecl) node() ast.Node   { return d.decl }
+
+func (check *Checker) walkDecls(decls []ast.Decl, f func(decl)) {
+	for _, d := range decls {
+		check.walkDecl(d, f)
+	}
+}
+
+func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
+	switch d := d.(type) {
+	case *ast.BadDecl:
+		// ignore
+	case *ast.GenDecl:
+		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
+		for iota, s := range d.Specs {
+			switch s := s.(type) {
+			case *ast.ImportSpec:
+				f(importDecl{s})
+			case *ast.ValueSpec:
+				switch d.Tok {
+				case token.CONST:
+					// determine which initialization expressions to use
+					switch {
+					case s.Type != nil || len(s.Values) > 0:
+						last = s
+					case last == nil:
+						last = new(ast.ValueSpec) // make sure last exists
+					}
+					check.arityMatch(s, last)
+					f(constDecl{spec: s, iota: iota, init: last.Values, typ: last.Type})
+				case token.VAR:
+					check.arityMatch(s, nil)
+					f(varDecl{s})
+				default:
+					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
+				}
+			case *ast.TypeSpec:
+				f(typeDecl{s})
+			default:
+				check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+			}
+		}
+	case *ast.FuncDecl:
+		f(funcDecl{d})
+	default:
+		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+	}
+}
+
 func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
@@ -664,133 +734,105 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	}
 }
 
-func (check *Checker) declStmt(decl ast.Decl) {
+func (check *Checker) declStmt(d ast.Decl) {
 	pkg := check.pkg
 
-	switch d := decl.(type) {
-	case *ast.BadDecl:
-		// ignore
+	check.walkDecl(d, func(d decl) {
+		switch d := d.(type) {
+		case constDecl:
+			top := len(check.delayed)
 
-	case *ast.GenDecl:
-		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
-		for iota, spec := range d.Specs {
-			switch s := spec.(type) {
-			case *ast.ValueSpec:
-				switch d.Tok {
-				case token.CONST:
-					top := len(check.delayed)
+			// declare all constants
+			lhs := make([]*Const, len(d.spec.Names))
+			for i, name := range d.spec.Names {
+				obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(d.iota)))
+				lhs[i] = obj
 
-					// determine which init exprs to use
-					switch {
-					case s.Type != nil || len(s.Values) > 0:
-						last = s
-					case last == nil:
-						last = new(ast.ValueSpec) // make sure last exists
-					}
-
-					// declare all constants
-					lhs := make([]*Const, len(s.Names))
-					for i, name := range s.Names {
-						obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
-						lhs[i] = obj
-
-						var init ast.Expr
-						if i < len(last.Values) {
-							init = last.Values[i]
-						}
-
-						check.constDecl(obj, last.Type, init)
-					}
-
-					check.arityMatch(s, last)
-
-					// process function literals in init expressions before scope changes
-					check.processDelayed(top)
-
-					// spec: "The scope of a constant or variable identifier declared
-					// inside a function begins at the end of the ConstSpec or VarSpec
-					// (ShortVarDecl for short variable declarations) and ends at the
-					// end of the innermost containing block."
-					scopePos := s.End()
-					for i, name := range s.Names {
-						check.declare(check.scope, name, lhs[i], scopePos)
-					}
-
-				case token.VAR:
-					top := len(check.delayed)
-
-					lhs0 := make([]*Var, len(s.Names))
-					for i, name := range s.Names {
-						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
-					}
-
-					// initialize all variables
-					for i, obj := range lhs0 {
-						var lhs []*Var
-						var init ast.Expr
-						switch len(s.Values) {
-						case len(s.Names):
-							// lhs and rhs match
-							init = s.Values[i]
-						case 1:
-							// rhs is expected to be a multi-valued expression
-							lhs = lhs0
-							init = s.Values[0]
-						default:
-							if i < len(s.Values) {
-								init = s.Values[i]
-							}
-						}
-						check.varDecl(obj, lhs, s.Type, init)
-						if len(s.Values) == 1 {
-							// If we have a single lhs variable we are done either way.
-							// If we have a single rhs expression, it must be a multi-
-							// valued expression, in which case handling the first lhs
-							// variable will cause all lhs variables to have a type
-							// assigned, and we are done as well.
-							if debug {
-								for _, obj := range lhs0 {
-									assert(obj.typ != nil)
-								}
-							}
-							break
-						}
-					}
-
-					check.arityMatch(s, nil)
-
-					// process function literals in init expressions before scope changes
-					check.processDelayed(top)
-
-					// declare all variables
-					// (only at this point are the variable scopes (parents) set)
-					scopePos := s.End() // see constant declarations
-					for i, name := range s.Names {
-						// see constant declarations
-						check.declare(check.scope, name, lhs0[i], scopePos)
-					}
-
-				default:
-					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
+				var init ast.Expr
+				if i < len(d.init) {
+					init = d.init[i]
 				}
 
-			case *ast.TypeSpec:
-				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				// spec: "The scope of a type identifier declared inside a function
-				// begins at the identifier in the TypeSpec and ends at the end of
-				// the innermost containing block."
-				scopePos := s.Name.Pos()
-				check.declare(check.scope, s.Name, obj, scopePos)
-				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
-				obj.setColor(grey + color(check.push(obj)))
-				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
-				check.pop().setColor(black)
-			default:
-				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
+				check.constDecl(obj, d.typ, init)
 			}
-		}
 
-	default:
-		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
-	}
+			// process function literals in init expressions before scope changes
+			check.processDelayed(top)
+
+			// spec: "The scope of a constant or variable identifier declared
+			// inside a function begins at the end of the ConstSpec or VarSpec
+			// (ShortVarDecl for short variable declarations) and ends at the
+			// end of the innermost containing block."
+			scopePos := d.spec.End()
+			for i, name := range d.spec.Names {
+				check.declare(check.scope, name, lhs[i], scopePos)
+			}
+
+		case varDecl:
+			top := len(check.delayed)
+
+			lhs0 := make([]*Var, len(d.spec.Names))
+			for i, name := range d.spec.Names {
+				lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
+			}
+
+			// initialize all variables
+			for i, obj := range lhs0 {
+				var lhs []*Var
+				var init ast.Expr
+				switch len(d.spec.Values) {
+				case len(d.spec.Names):
+					// lhs and rhs match
+					init = d.spec.Values[i]
+				case 1:
+					// rhs is expected to be a multi-valued expression
+					lhs = lhs0
+					init = d.spec.Values[0]
+				default:
+					if i < len(d.spec.Values) {
+						init = d.spec.Values[i]
+					}
+				}
+				check.varDecl(obj, lhs, d.spec.Type, init)
+				if len(d.spec.Values) == 1 {
+					// If we have a single lhs variable we are done either way.
+					// If we have a single rhs expression, it must be a multi-
+					// valued expression, in which case handling the first lhs
+					// variable will cause all lhs variables to have a type
+					// assigned, and we are done as well.
+					if debug {
+						for _, obj := range lhs0 {
+							assert(obj.typ != nil)
+						}
+					}
+					break
+				}
+			}
+
+			// process function literals in init expressions before scope changes
+			check.processDelayed(top)
+
+			// declare all variables
+			// (only at this point are the variable scopes (parents) set)
+			scopePos := d.spec.End() // see constant declarations
+			for i, name := range d.spec.Names {
+				// see constant declarations
+				check.declare(check.scope, name, lhs0[i], scopePos)
+			}
+
+		case typeDecl:
+			obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+			// spec: "The scope of a type identifier declared inside a function
+			// begins at the identifier in the TypeSpec and ends at the end of
+			// the innermost containing block."
+			scopePos := d.spec.Name.Pos()
+			check.declare(check.scope, d.spec.Name, obj, scopePos)
+			// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
+			obj.setColor(grey + color(check.push(obj)))
+			check.typeDecl(obj, d.spec.Type, nil, d.spec.Assign.IsValid())
+			check.pop().setColor(black)
+		default:
+			check.invalidAST(d.node().Pos(), "unknown ast.Decl node %T", d.node())
+		}
+	})
 }

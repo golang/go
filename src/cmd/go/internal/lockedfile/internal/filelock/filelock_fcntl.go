@@ -12,9 +12,6 @@
 // Most platforms provide some alternative API, such as an 'flock' system call
 // or an F_OFD_SETLK command for 'fcntl', that allows for better concurrency and
 // does not require per-inode bookkeeping in the application.
-//
-// TODO(golang.org/issue/35618): add a syscall.Flock binding for Illumos and
-// switch it over to use filelock_unix.go.
 
 package filelock
 

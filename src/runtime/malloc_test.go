@@ -12,8 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"runtime"
 	. "runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -166,6 +168,61 @@ func TestTinyAlloc(t *testing.T) {
 	if len(chunks) == N {
 		t.Fatal("no bytes allocated within the same 8-byte chunk")
 	}
+}
+
+var (
+	tinyByteSink   *byte
+	tinyUint32Sink *uint32
+	tinyObj12Sink  *obj12
+)
+
+type obj12 struct {
+	a uint64
+	b uint32
+}
+
+func TestTinyAllocIssue37262(t *testing.T) {
+	// Try to cause an alignment access fault
+	// by atomically accessing the first 64-bit
+	// value of a tiny-allocated object.
+	// See issue 37262 for details.
+
+	// GC twice, once to reach a stable heap state
+	// and again to make sure we finish the sweep phase.
+	runtime.GC()
+	runtime.GC()
+
+	// Make 1-byte allocations until we get a fresh tiny slot.
+	aligned := false
+	for i := 0; i < 16; i++ {
+		tinyByteSink = new(byte)
+		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
+			aligned = true
+			break
+		}
+	}
+	if !aligned {
+		t.Fatal("unable to get a fresh tiny slot")
+	}
+
+	// Create a 4-byte object so that the current
+	// tiny slot is partially filled.
+	tinyUint32Sink = new(uint32)
+
+	// Create a 12-byte object, which fits into the
+	// tiny slot. If it actually gets place there,
+	// then the field "a" will be improperly aligned
+	// for atomic access on 32-bit architectures.
+	// This won't be true if issue 36606 gets resolved.
+	tinyObj12Sink = new(obj12)
+
+	// Try to atomically access "x.a".
+	atomic.StoreUint64(&tinyObj12Sink.a, 10)
+
+	// Clear the sinks.
+	tinyByteSink = nil
+	tinyUint32Sink = nil
+	tinyObj12Sink = nil
 }
 
 func TestPageCacheLeak(t *testing.T) {

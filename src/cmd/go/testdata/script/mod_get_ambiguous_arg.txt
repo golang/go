@@ -70,7 +70,7 @@ module m
 
 go 1.16
 -- m01/README.txt --
-Module m at v0.3.0 does not yet contain package p.
+Module m at v0.1.0 does not yet contain package p.
 
 -- m02/go.mod --
 module m
@@ -107,18 +107,18 @@ module m/p
 go 1.16
 -- mp01/README.txt --
 This module is m/p.
-Package m/p no longer exists.
+Package m/p does not exist in this module.
 -- mp02/go.mod --
 module m/p
 
 go 1.16
 -- mp02/README.txt --
 This module is m/p.
-Package m/p no longer exists.
+Package m/p does not exist in this module.
 -- mp03/go.mod --
 module m/p
 
 go 1.16
 -- mp03/README.txt --
 This module is m/p.
-Package m/p no longer exists.
+Package m/p does not exist in this module.

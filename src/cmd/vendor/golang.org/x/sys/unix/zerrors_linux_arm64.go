@@ -73,6 +73,8 @@ const (
 	EXTRA_MAGIC                      = 0x45585401
 	FF1                              = 0x8000
 	FFDLY                            = 0x8000
+	FICLONE                          = 0x40049409
+	FICLONERANGE                     = 0x4020940d
 	FLUSHO                           = 0x1000
 	FPSIMD_MAGIC                     = 0x46508001
 	FS_IOC_ENABLE_VERITY             = 0x40806685

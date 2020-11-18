@@ -82,7 +82,7 @@ func testableNetwork(network string) bool {
 }
 
 func iOS() bool {
-	return (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64"
+	return runtime.GOOS == "ios"
 }
 
 // testableAddress reports whether address of network is testable on

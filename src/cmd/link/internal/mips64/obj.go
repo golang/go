@@ -60,7 +60,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		Linuxdynld:     "/lib64/ld64.so.1",
 		Freebsddynld:   "XXX",
-		Openbsddynld:   "XXX",
+		Openbsddynld:   "/usr/libexec/ld.so",
 		Netbsddynld:    "XXX",
 		Dragonflydynld: "XXX",
 		Solarisdynld:   "XXX",
@@ -84,7 +84,8 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 16 * 1024
 		}
 
-	case objabi.Hlinux: /* mips64 elf */
+	case objabi.Hlinux, /* mips64 elf */
+		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {

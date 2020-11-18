@@ -106,6 +106,17 @@ var ppcGnuNeed = []string{
 	"cmpw",
 }
 
+func mustHaveDisasm(t *testing.T) {
+	switch runtime.GOARCH {
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+	case "riscv64":
+		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
+	case "s390x":
+		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+	}
+}
+
 var target = flag.String("target", "", "test disassembly of `goos/goarch` binary")
 
 // objdump is fully cross platform: it can handle binaries
@@ -118,6 +129,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
 // can handle that one.
 
 func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool, flags ...string) {
+	mustHaveDisasm(t)
 	goarch := runtime.GOARCH
 	if *target != "" {
 		f := strings.Split(*target, "/")
@@ -227,71 +239,38 @@ func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
 	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
 	if build.Default.CgoEnabled {
 		if runtime.GOOS == "aix" {
-			t.Skipf("skipping on %s, issue 40972", runtime.GOOS)
+			return // issue 40972
 		}
 		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
 	}
 }
 
 func TestDisasm(t *testing.T) {
-	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
-	case "riscv64":
-		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
-	}
 	testGoAndCgoDisasm(t, false, false)
 }
 
 func TestDisasmCode(t *testing.T) {
-	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
-		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
-	}
 	testGoAndCgoDisasm(t, true, false)
 }
 
 func TestDisasmGnuAsm(t *testing.T) {
-	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
-		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
-	}
 	testGoAndCgoDisasm(t, false, true)
 }
 
 func TestDisasmExtld(t *testing.T) {
+	testenv.MustHaveCGO(t)
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-	switch runtime.GOARCH {
-	case "ppc64":
-		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
-	case "mips64", "mips64le", "mips", "mipsle":
-		t.Skipf("skipping on %s, issue 12559 and 12560", runtime.GOARCH)
-	case "riscv64":
-		t.Skipf("skipping on %s, no support for external linking, issue 36739", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
-	}
-	if !build.Default.CgoEnabled {
-		t.Skip("skipping because cgo is not enabled")
+	case "aix":
+		t.Skipf("skipping on AIX, see issue 40972")
 	}
 	t.Parallel()
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
 }
 
 func TestDisasmGoobj(t *testing.T) {
-	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
-	case "riscv64":
-		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
-	}
+	mustHaveDisasm(t)
 
 	hello := filepath.Join(tmp, "hello.o")
 	args := []string{"tool", "compile", "-o", hello}
@@ -331,5 +310,44 @@ func TestDisasmGoobj(t *testing.T) {
 	}
 	if !ok {
 		t.Logf("full disassembly:\n%s", text)
+	}
+}
+
+func TestGoobjFileNumber(t *testing.T) {
+	// Test that file table in Go object file is parsed correctly.
+	testenv.MustHaveGoBuild(t)
+	mustHaveDisasm(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestGoobjFileNumber")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	obj := filepath.Join(tmpdir, "p.a")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", obj)
+	cmd.Dir = filepath.Join("testdata/testfilenum")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	cmd = exec.Command(exe, obj)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("objdump failed: %v\n%s", err, out)
+	}
+
+	text := string(out)
+	for _, s := range []string{"a.go", "b.go", "c.go"} {
+		if !strings.Contains(text, s) {
+			t.Errorf("output missing '%s'", s)
+		}
+	}
+
+	if t.Failed() {
+		t.Logf("output:\n%s", text)
 	}
 }

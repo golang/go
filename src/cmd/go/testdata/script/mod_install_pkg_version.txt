@@ -26,6 +26,17 @@ rm $GOPATH/bin/a
 cd ..
 
 
+# 'go install -modfile=x.mod pkg@version' reports an error, but only if
+# -modfile is specified explicitly on the command line.
+cd m
+env GOFLAGS=-modfile=go.mod
+go install example.com/cmd/a@latest  # same as above
+env GOFLAGS=
+! go install -modfile=go.mod example.com/cmd/a@latest
+stderr '^go: -modfile cannot be used with commands that ignore the current module$'
+cd ..
+
+
 # Every test case requires linking, so we only cover the most important cases
 # when -short is set.
 [short] stop

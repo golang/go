@@ -409,19 +409,20 @@ type Package struct {
 	BinaryOnly    bool     // cannot be rebuilt from source (has //go:binary-only-package comment)
 
 	// Source files
-	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles       []string // .go source files that import "C"
-	IgnoredGoFiles []string // .go source files ignored for this build
-	InvalidGoFiles []string // .go source files with detected problems (parse error, wrong package name, and so on)
-	CFiles         []string // .c source files
-	CXXFiles       []string // .cc, .cpp and .cxx source files
-	MFiles         []string // .m (Objective-C) source files
-	HFiles         []string // .h, .hh, .hpp and .hxx source files
-	FFiles         []string // .f, .F, .for and .f90 Fortran source files
-	SFiles         []string // .s source files
-	SwigFiles      []string // .swig files
-	SwigCXXFiles   []string // .swigcxx files
-	SysoFiles      []string // .syso system object files to add to archive
+	GoFiles           []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles          []string // .go source files that import "C"
+	IgnoredGoFiles    []string // .go source files ignored for this build (including ignored _test.go files)
+	InvalidGoFiles    []string // .go source files with detected problems (parse error, wrong package name, and so on)
+	IgnoredOtherFiles []string // non-.go source files ignored for this build
+	CFiles            []string // .c source files
+	CXXFiles          []string // .cc, .cpp and .cxx source files
+	MFiles            []string // .m (Objective-C) source files
+	HFiles            []string // .h, .hh, .hpp and .hxx source files
+	FFiles            []string // .f, .F, .for and .f90 Fortran source files
+	SFiles            []string // .s source files
+	SwigFiles         []string // .swig files
+	SwigCXXFiles      []string // .swigcxx files
+	SysoFiles         []string // .syso system object files to add to archive
 
 	// Cgo directives
 	CgoCFLAGS    []string // Cgo CFLAGS directives
@@ -816,46 +817,28 @@ Found:
 			continue
 		}
 		if !match {
-			if ext == ".go" {
+			if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
+				// not due to build constraints - don't report
+			} else if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+			} else if fileListForExt(p, ext) != nil {
+				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
 			}
 			continue
 		}
 
 		// Going to save the file. For non-Go files, can stop here.
 		switch ext {
-		case ".c":
-			p.CFiles = append(p.CFiles, name)
-			continue
-		case ".cc", ".cpp", ".cxx":
-			p.CXXFiles = append(p.CXXFiles, name)
-			continue
-		case ".m":
-			p.MFiles = append(p.MFiles, name)
-			continue
-		case ".h", ".hh", ".hpp", ".hxx":
-			p.HFiles = append(p.HFiles, name)
-			continue
-		case ".f", ".F", ".for", ".f90":
-			p.FFiles = append(p.FFiles, name)
-			continue
-		case ".s":
-			p.SFiles = append(p.SFiles, name)
-			continue
+		case ".go":
+			// keep going
 		case ".S", ".sx":
+			// special case for cgo, handled at end
 			Sfiles = append(Sfiles, name)
 			continue
-		case ".swig":
-			p.SwigFiles = append(p.SwigFiles, name)
-			continue
-		case ".swigcxx":
-			p.SwigCXXFiles = append(p.SwigCXXFiles, name)
-			continue
-		case ".syso":
-			// binary objects to add to package archive
-			// Likely of the form foo_windows.syso, but
-			// the name was vetted above with goodOSArchFile.
-			p.SysoFiles = append(p.SysoFiles, name)
+		default:
+			if list := fileListForExt(p, ext); list != nil {
+				*list = append(*list, name)
+			}
 			continue
 		}
 
@@ -996,6 +979,9 @@ Found:
 	if len(p.CgoFiles) > 0 {
 		p.SFiles = append(p.SFiles, Sfiles...)
 		sort.Strings(p.SFiles)
+	} else {
+		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
+		sort.Strings(p.IgnoredOtherFiles)
 	}
 
 	if badGoError != nil {
@@ -1005,6 +991,30 @@ Found:
 		return p, &NoGoError{p.Dir}
 	}
 	return p, pkgerr
+}
+
+func fileListForExt(p *Package, ext string) *[]string {
+	switch ext {
+	case ".c":
+		return &p.CFiles
+	case ".cc", ".cpp", ".cxx":
+		return &p.CXXFiles
+	case ".m":
+		return &p.MFiles
+	case ".h", ".hh", ".hpp", ".hxx":
+		return &p.HFiles
+	case ".f", ".F", ".for", ".f90":
+		return &p.FFiles
+	case ".s", ".S", ".sx":
+		return &p.SFiles
+	case ".swig":
+		return &p.SwigFiles
+	case ".swigcxx":
+		return &p.SwigCXXFiles
+	case ".syso":
+		return &p.SysoFiles
+	}
+	return nil
 }
 
 var errNoModules = errors.New("not using modules")
@@ -1302,6 +1312,8 @@ func (ctxt *Context) MatchFile(dir, name string) (match bool, err error) {
 	return
 }
 
+var dummyPkg Package
+
 // matchFile determines whether the file with the given name in the given directory
 // should be included in the package being constructed.
 // It returns the data read from the file.
@@ -1326,15 +1338,14 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return
 	}
 
-	switch ext {
-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".sx", ".swig", ".swigcxx":
-		// tentatively okay - read to make sure
-	case ".syso":
+	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
+		// skip
+		return
+	}
+
+	if ext == ".syso" {
 		// binary, no reading
 		match = true
-		return
-	default:
-		// skip
 		return
 	}
 
@@ -1360,9 +1371,12 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 
 	// Look for +build comments to accept or reject the file.
-	var sawBinaryOnly bool
-	if !ctxt.shouldBuild(data, allTags, &sawBinaryOnly) && !ctxt.UseAllFiles {
-		return
+	ok, sawBinaryOnly, err := ctxt.shouldBuild(data, allTags)
+	if err != nil {
+		return // non-nil err
+	}
+	if !ok && !ctxt.UseAllFiles {
+		return // nil err
 	}
 
 	if binaryOnly != nil && sawBinaryOnly {
@@ -1391,7 +1405,25 @@ func ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return Default.ImportDir(dir, mode)
 }
 
-var slashslash = []byte("//")
+var (
+	bSlashSlash = []byte(slashSlash)
+	bStarSlash  = []byte(starSlash)
+	bSlashStar  = []byte(slashStar)
+
+	goBuildComment = []byte("//go:build")
+
+	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+	errMultipleGoBuild     = errors.New("multiple //go:build comments") // unused in Go 1.(N-1)
+)
+
+func isGoBuildComment(line []byte) bool {
+	if !bytes.HasPrefix(line, goBuildComment) {
+		return false
+	}
+	line = bytes.TrimSpace(line)
+	rest := line[len(goBuildComment):]
+	return len(rest) == 0 || len(bytes.TrimSpace(rest)) < len(rest)
+}
 
 // Special comment denoting a binary-only package.
 // See https://golang.org/design/2775-binary-only-packages
@@ -1411,37 +1443,24 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 //
 // marks the file as applicable only on Windows and Linux.
 //
-// If shouldBuild finds a //go:binary-only-package comment in the file,
-// it sets *binaryOnly to true. Otherwise it does not change *binaryOnly.
+// For each build tag it consults, shouldBuild sets allTags[tag] = true.
 //
-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
-	sawBinaryOnly := false
+// shouldBuild reports whether the file should be built
+// and whether a //go:binary-only-package comment was found.
+func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
 
 	// Pass 1. Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
-	end := 0
-	p := content
-	for len(p) > 0 {
-		line := p
-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
-			line, p = line[:i], p[i+1:]
-		} else {
-			p = p[len(p):]
-		}
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 { // Blank line
-			end = len(content) - len(p)
-			continue
-		}
-		if !bytes.HasPrefix(line, slashslash) { // Not comment line
-			break
-		}
+	// Also identify any //go:build comments.
+	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
+	if err != nil {
+		return false, false, err
 	}
-	content = content[:end]
 
-	// Pass 2.  Process each line in the run.
-	p = content
-	allok := true
+	// Pass 2.  Process each +build line in the run.
+	p := content
+	shouldBuild = true
+	sawBuild := false
 	for len(p) > 0 {
 		line := p
 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
@@ -1450,17 +1469,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 			p = p[len(p):]
 		}
 		line = bytes.TrimSpace(line)
-		if !bytes.HasPrefix(line, slashslash) {
+		if !bytes.HasPrefix(line, bSlashSlash) {
 			continue
 		}
-		if bytes.Equal(line, binaryOnlyComment) {
-			sawBinaryOnly = true
-		}
-		line = bytes.TrimSpace(line[len(slashslash):])
+		line = bytes.TrimSpace(line[len(bSlashSlash):])
 		if len(line) > 0 && line[0] == '+' {
 			// Looks like a comment +line.
 			f := strings.Fields(string(line))
 			if f[0] == "+build" {
+				sawBuild = true
 				ok := false
 				for _, tok := range f[1:] {
 					if ctxt.match(tok, allTags) {
@@ -1468,17 +1485,84 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 					}
 				}
 				if !ok {
-					allok = false
+					shouldBuild = false
 				}
 			}
 		}
 	}
 
-	if binaryOnly != nil && sawBinaryOnly {
-		*binaryOnly = true
+	if goBuild != nil && !sawBuild {
+		return false, false, errGoBuildWithoutBuild
 	}
 
-	return allok
+	return shouldBuild, sawBinaryOnly, nil
+}
+
+func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
+	end := 0
+	p := content
+	ended := false       // found non-blank, non-// line, so stopped accepting // +build lines
+	inSlashStar := false // in /* */ comment
+
+Lines:
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 && !ended { // Blank line
+			// Remember position of most recent blank line.
+			// When we find the first non-blank, non-// line,
+			// this "end" position marks the latest file position
+			// where a // +build line can appear.
+			// (It must appear _before_ a blank line before the non-blank, non-// line.
+			// Yes, that's confusing, which is part of why we moved to //go:build lines.)
+			// Note that ended==false here means that inSlashStar==false,
+			// since seeing a /* would have set ended==true.
+			end = len(content) - len(p)
+			continue Lines
+		}
+		if !bytes.HasPrefix(line, slashSlash) { // Not comment line
+			ended = true
+		}
+
+		if !inSlashStar && isGoBuildComment(line) {
+			if false && goBuild != nil { // enabled in Go 1.N
+				return nil, nil, false, errMultipleGoBuild
+			}
+			goBuild = line
+		}
+		if !inSlashStar && bytes.Equal(line, binaryOnlyComment) {
+			sawBinaryOnly = true
+		}
+
+	Comments:
+		for len(line) > 0 {
+			if inSlashStar {
+				if i := bytes.Index(line, starSlash); i >= 0 {
+					inSlashStar = false
+					line = bytes.TrimSpace(line[i+len(starSlash):])
+					continue Comments
+				}
+				continue Lines
+			}
+			if bytes.HasPrefix(line, bSlashSlash) {
+				continue Lines
+			}
+			if bytes.HasPrefix(line, bSlashStar) {
+				inSlashStar = true
+				line = bytes.TrimSpace(line[len(bSlashStar):])
+				continue Comments
+			}
+			// Found non-comment text.
+			break Lines
+		}
+	}
+
+	return content[:end], goBuild, sawBinaryOnly, nil
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.

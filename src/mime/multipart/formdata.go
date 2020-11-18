@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/textproto"
@@ -41,6 +42,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 
 	// Reserve an additional 10 MB for non-file parts.
 	maxValueBytes := maxMemory + int64(10<<20)
+	if maxValueBytes <= 0 {
+		return nil, fmt.Errorf("multipart: integer overflow from maxMemory(%d) + 10MiB for non-file parts", maxMemory)
+	}
 	for {
 		p, err := r.NextPart()
 		if err == io.EOF {

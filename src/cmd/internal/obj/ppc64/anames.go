@@ -329,6 +329,8 @@ var Anames = []string{
 	"SRAD",
 	"SRADCC",
 	"SRDCC",
+	"EXTSWSLI",
+	"EXTSWSLICC",
 	"STDCCC",
 	"TD",
 	"DWORD",

@@ -6,6 +6,7 @@ package hmac
 
 import (
 	"bytes"
+	"crypto/internal/boring"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -582,6 +583,20 @@ func TestHMAC(t *testing.T) {
 	}
 }
 
+func TestNonUniqueHash(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("hash.Hash provided by boringcrypto are not comparable")
+	}
+	sha := sha256.New()
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Error("expected panic when calling New with a non-unique hash generation function")
+		}
+	}()
+	New(func() hash.Hash { return sha }, []byte("bytes"))
+}
+
 // justHash implements just the hash.Hash methods and nothing else
 type justHash struct {
 	hash.Hash
@@ -649,8 +664,8 @@ func BenchmarkHMACSHA256_1K(b *testing.B) {
 	b.SetBytes(int64(len(buf)))
 	for i := 0; i < b.N; i++ {
 		h.Write(buf)
-		h.Reset()
 		mac := h.Sum(nil)
+		h.Reset()
 		buf[0] = mac[0]
 	}
 }
@@ -662,7 +677,18 @@ func BenchmarkHMACSHA256_32(b *testing.B) {
 	b.SetBytes(int64(len(buf)))
 	for i := 0; i < b.N; i++ {
 		h.Write(buf)
+		mac := h.Sum(nil)
 		h.Reset()
+		buf[0] = mac[0]
+	}
+}
+
+func BenchmarkNewWriteSum(b *testing.B) {
+	buf := make([]byte, 32)
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		h := New(sha256.New, make([]byte, 32))
+		h.Write(buf)
 		mac := h.Sum(nil)
 		buf[0] = mac[0]
 	}

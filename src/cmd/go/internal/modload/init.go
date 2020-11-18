@@ -22,6 +22,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
@@ -132,6 +133,10 @@ func Init() {
 		return
 	}
 
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
 	// Disable any prompting for passwords by Git.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
@@ -163,8 +168,9 @@ func Init() {
 		// Running 'go mod init': go.mod will be created in current directory.
 		modRoot = base.Cwd
 	} else if RootMode == NoRoot {
-		// TODO(jayconrod): report an error if -mod -modfile is explicitly set on
-		// the command line. Ignore those flags if they come from GOFLAGS.
+		if cfg.ModFile != "" && !base.InGOFLAGS("-modfile") {
+			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
+		}
 		modRoot = ""
 	} else {
 		modRoot = findModuleRoot(base.Cwd)

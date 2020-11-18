@@ -1421,7 +1421,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
 		}
 
-		for pcsp.Init(fpcsp); !pcsp.Done; pcsp.Next() {
+		for pcsp.Init(d.linkctxt.loader.Data(fpcsp)); !pcsp.Done; pcsp.Next() {
 			nextpc := pcsp.NextPC
 
 			// pciterinit goes up to the end of the function,

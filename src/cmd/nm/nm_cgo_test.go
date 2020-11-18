@@ -15,6 +15,11 @@ func canInternalLink() bool {
 	switch runtime.GOOS {
 	case "aix":
 		return false
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm64":
+			return false
+		}
 	case "dragonfly":
 		return false
 	case "freebsd":

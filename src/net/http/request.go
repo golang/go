@@ -175,6 +175,10 @@ type Request struct {
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
+	//
+	// Body must allow Read to be called concurrently with Close.
+	// In particular, calling Close should unblock a Read waiting
+	// for input.
 	Body io.ReadCloser
 
 	// GetBody defines an optional func to return a new copy of
@@ -382,7 +386,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	if s := r.TransferEncoding; s != nil {
 		s2 := make([]string, len(s))
 		copy(s2, s)
-		r2.TransferEncoding = s
+		r2.TransferEncoding = s2
 	}
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)
@@ -540,6 +544,7 @@ var errMissingHost = errors.New("http: Request.Write on Request with no Host or 
 
 // extraHeaders may be nil
 // waitForContinue may be nil
+// always closes body
 func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
 	trace := httptrace.ContextClientTrace(r.Context())
 	if trace != nil && trace.WroteRequest != nil {
@@ -549,6 +554,15 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			})
 		}()
 	}
+	closed := false
+	defer func() {
+		if closed {
+			return
+		}
+		if closeErr := r.closeBody(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	// Find the target host. Prefer the Host: header, but if that
 	// is not given, use the host from the request URL.
@@ -667,6 +681,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			trace.Wait100Continue()
 		}
 		if !waitForContinue() {
+			closed = true
 			r.closeBody()
 			return nil
 		}
@@ -679,6 +694,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	}
 
 	// Write body and trailer
+	closed = true
 	err = tw.writeBody(w)
 	if err != nil {
 		if tw.bodyReadError == err {
@@ -1383,10 +1399,11 @@ func (r *Request) wantsClose() bool {
 	return hasToken(r.Header.get("Connection"), "close")
 }
 
-func (r *Request) closeBody() {
-	if r.Body != nil {
-		r.Body.Close()
+func (r *Request) closeBody() error {
+	if r.Body == nil {
+		return nil
 	}
+	return r.Body.Close()
 }
 
 func (r *Request) isReplayable() bool {

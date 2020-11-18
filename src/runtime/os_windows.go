@@ -21,6 +21,7 @@ const (
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateWaitableTimerExW CreateWaitableTimerExW%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
@@ -68,6 +69,7 @@ var (
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
+	_CreateWaitableTimerExW,
 	_DuplicateHandle,
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
@@ -150,6 +152,8 @@ type mOS struct {
 
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
+
+	highResTimer uintptr // high resolution timer handle used in usleep
 
 	// preemptExtLock synchronizes preemptM with entry/exit from
 	// external C code.
@@ -402,15 +406,61 @@ const osRelaxMinNS = 60 * 1e6
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 //
-// On Windows, it adjusts the system-wide timer resolution. Go needs a
+// Some versions of Windows have high resolution timer. For those
+// versions osRelax is noop.
+// For Windows versions without high resolution timer, osRelax
+// adjusts the system-wide timer resolution. Go needs a
 // high resolution timer while running and there's little extra cost
 // if we're already using the CPU, but if all Ps are idle there's no
 // need to consume extra power to drive the high-res timer.
 func osRelax(relax bool) uint32 {
+	if haveHighResTimer {
+		// If the high resolution timer is available, the runtime uses the timer
+		// to sleep for short durations. This means there's no need to adjust
+		// the global clock frequency.
+		return 0
+	}
+
 	if relax {
 		return uint32(stdcall1(_timeEndPeriod, 1))
 	} else {
 		return uint32(stdcall1(_timeBeginPeriod, 1))
+	}
+}
+
+// haveHighResTimer indicates that the CreateWaitableTimerEx
+// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag is available.
+var haveHighResTimer = false
+
+// createHighResTimer calls CreateWaitableTimerEx with
+// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag to create high
+// resolution timer. createHighResTimer returns new timer
+// handle or 0, if CreateWaitableTimerEx failed.
+func createHighResTimer() uintptr {
+	const (
+		// As per @jstarks, see
+		// https://github.com/golang/go/issues/8687#issuecomment-656259353
+		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x00000002
+
+		_SYNCHRONIZE        = 0x00100000
+		_TIMER_QUERY_STATE  = 0x0001
+		_TIMER_MODIFY_STATE = 0x0002
+	)
+	return stdcall4(_CreateWaitableTimerExW, 0, 0,
+		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
+}
+
+func initHighResTimer() {
+	if GOARCH == "arm" {
+		// TODO: Not yet implemented.
+		return
+	}
+	h := createHighResTimer()
+	if h != 0 {
+		haveHighResTimer = true
+		usleep2Addr = unsafe.Pointer(funcPC(usleep2HighRes))
+		stdcall1(_CloseHandle, h)
 	}
 }
 
@@ -429,6 +479,7 @@ func osinit() {
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
 
+	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
 
 	ncpu = getproccount()
@@ -844,9 +895,20 @@ func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
 
+	// Configure usleep timer, if possible.
+	var timer uintptr
+	if haveHighResTimer {
+		timer = createHighResTimer()
+		if timer == 0 {
+			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+	}
+
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
+	mp.highResTimer = timer
 	unlock(&mp.threadLock)
 
 	// Query the true stack base from the OS. Currently we're
@@ -884,6 +946,10 @@ func unminit() {
 	lock(&mp.threadLock)
 	stdcall1(_CloseHandle, mp.thread)
 	mp.thread = 0
+	if mp.highResTimer != 0 {
+		stdcall1(_CloseHandle, mp.highResTimer)
+		mp.highResTimer = 0
+	}
 	unlock(&mp.threadLock)
 }
 
@@ -976,9 +1042,12 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	return stdcall(fn)
 }
 
-// in sys_windows_386.s and sys_windows_amd64.s
+// In sys_windows_386.s and sys_windows_amd64.s.
 func onosstack(fn unsafe.Pointer, arg uint32)
+
+// These are not callable functions. They should only be called via onosstack.
 func usleep2(usec uint32)
+func usleep2HighRes(usec uint32)
 func switchtothread()
 
 var usleep2Addr unsafe.Pointer

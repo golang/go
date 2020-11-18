@@ -189,16 +189,19 @@ func typecheckExprSwitch(n *Node) {
 				continue
 			}
 
-			switch {
-			case nilonly != "" && !n1.isNil():
+			if nilonly != "" && !n1.isNil() {
 				yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-			case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
+			} else if t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type) {
 				yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
-			case assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
-				if n.Left != nil {
-					yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
-				} else {
-					yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+			} else {
+				op1, _ := assignop(n1.Type, t)
+				op2, _ := assignop(t, n1.Type)
+				if op1 == OXXX && op2 == OXXX {
+					if n.Left != nil {
+						yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+					} else {
+						yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+					}
 				}
 			}
 
@@ -358,8 +361,8 @@ func (s *exprSwitch) flush() {
 		// all we need here is consistency. We respect this
 		// sorting below.
 		sort.Slice(cc, func(i, j int) bool {
-			si := strlit(cc[i].lo)
-			sj := strlit(cc[j].lo)
+			si := cc[i].lo.StringVal()
+			sj := cc[j].lo.StringVal()
 			if len(si) != len(sj) {
 				return len(si) < len(sj)
 			}
@@ -368,7 +371,7 @@ func (s *exprSwitch) flush() {
 
 		// runLen returns the string length associated with a
 		// particular run of exprClauses.
-		runLen := func(run []exprClause) int64 { return int64(len(strlit(run[0].lo))) }
+		runLen := func(run []exprClause) int64 { return int64(len(run[0].lo.StringVal())) }
 
 		// Collapse runs of consecutive strings with the same length.
 		var runs [][]exprClause
@@ -405,7 +408,7 @@ func (s *exprSwitch) flush() {
 		merged := cc[:1]
 		for _, c := range cc[1:] {
 			last := &merged[len(merged)-1]
-			if last.jmp == c.jmp && last.hi.Int64()+1 == c.lo.Int64() {
+			if last.jmp == c.jmp && last.hi.Int64Val()+1 == c.lo.Int64Val() {
 				last.hi = c.lo
 			} else {
 				merged = append(merged, c)
@@ -440,7 +443,7 @@ func (c *exprClause) test(exprname *Node) *Node {
 
 	// Optimize "switch true { ...}" and "switch false { ... }".
 	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
-		if exprname.Val().U.(bool) {
+		if exprname.BoolVal() {
 			return c.lo
 		} else {
 			return nodl(c.pos, ONOT, c.lo, nil)

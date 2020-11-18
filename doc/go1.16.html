@@ -31,8 +31,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
-<p>
-  TODO
+<h3 id="netbsd">NetBSD</h3>
+
+<p><!-- golang.org/issue/30824 -->
+  Go now supports the 64-bit ARM architecture on NetBSD (the
+  <code>netbsd/arm64</code> port).
+</p>
+
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->
+  As <a href="go1.15#386">announced</a> in the Go 1.15 release notes,
+  Go 1.16 drops support for x87 mode compilation (<code>GO386=387</code>).
+  Support for non-SSE2 processors is now available using soft float
+  mode (<code>GO386=softfloat</code>).
+  Users running on non-SSE2 processors should replace <code>GO386=387</code>
+  with <code>GO386=softfloat</code>.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -83,6 +97,17 @@ Do not send CLs removing the interior tags from such phrases.
   <code>os.Exit(0)</code> and thereby stops running all future tests.
   If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
   that is still considered to be a passing test.
+</p>
+
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and will be removed in a future version. This flag permits
+  fetching from repositories and resolving custom domains using insecure
+  schemes such as HTTP, and also bypassess module sum validation using the
+  checksum database. To permit the use of insecure schemes, use the
+  <code>GOINSECURE</code> environment variable instead. To bypass module
+  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code>.
+  See <code>go</code> <code>help</code> <code>environment</code> for details.
 </p>
 
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
@@ -148,10 +173,47 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
+<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
+
 <h2 id="library">Core library</h2>
 
 <p>
   TODO
+</p>
+
+<h3 id="crypto/hmac"><a href="/pkg/crypto/hmac">crypto/hmac</a></h3>
+
+<p><!-- CL 261960 -->
+  <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
+  the hash generation function fail to return new values. Previously, the
+  behavior was undefined and invalid outputs were sometimes generated.
+</p>
+
+<h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+
+<p><!-- CL 256897 -->
+  I/O operations on closing or closed TLS connections can now be detected using
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the only way to reliably detect this case was to match the string returned
+  by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
+<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
+
+<p><!-- CL 235078 -->
+  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
+  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
+  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
+  contain strings with characters within the ASCII range.
+</p>
+
+<p><!-- CL 259697 -->
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
+  verifies the generated certificate's signature using the signer's
+  public key. If the signature is invalid, an error is returned, instead
+  of a malformed certificate.
 </p>
 
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
@@ -166,6 +228,14 @@ Do not send CLs removing the interior tags from such phrases.
   with <code>"use of closed network connection"</code>.
 </p>
 
+<h3 id="reflect"><a href="/pkg/reflect/">reflect</a></h3>
+
+<p><!-- CL 259237, golang.org/issue/22075 -->
+  For interface types and values, <a href="/pkg/reflect/#Value.Method">Method</a>,
+  <a href="/pkg/reflect/#Value.MethodByName">MethodByName</a>, and
+  <a href="/pkg/reflect/#Value.NumMethod">NumMethod</a> now
+  operate on the interface's exported method set, rather than its full method set.
+</p>
 
 <h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
 
@@ -199,6 +269,25 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
+  <dd>
+    <p><!-- CL 257939 -->
+      The <a href="/pkg/crypto/dsa/"><code>crypto/dsa</code></a> package is now deprecated.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+  </dd>
+</dl><!-- crypto/dsa -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 257939 -->
+      DSA signature verification is no longer supported. Note that DSA signature
+      generation was never supported.
+      See <a href="https://golang.org/issue/40337">issue #40337</a>.
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- CL 233637 -->
@@ -220,5 +309,31 @@ Do not send CLs removing the interior tags from such phrases.
      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
     </p>
+
+    <p><!-- CL 256498, golang.org/issue/36990 -->
+    Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
+    spec (no attribute is set) instead of generating a SameSite key without a value.
+    </p>
   </dd>
 </dl><!-- net/http -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 249677 -->
+      TODO: <a href="https://golang.org/cl/249677">https://golang.org/cl/249677</a>: provide Addr method for errors from SetPanicOnFault
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
+      the <a
+      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
+      algorithm</a>, improving performance by up to a factor of 2. This can
+      also speed up decoding textual formats like <a
+      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->

@@ -46,7 +46,7 @@ func approx(x float64) {
 
 func sqrt(x float64) float64 {
 	// amd64:"SQRTSD"
-	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
+	// 386/sse2:"SQRTSD" 386/softfloat:-"SQRTD"
 	// arm64:"FSQRTD"
 	// arm/7:"SQRTD"
 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"

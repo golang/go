@@ -57,12 +57,6 @@ type wbBuf struct {
 	// on. This must be a multiple of wbBufEntryPointers because
 	// the write barrier only checks for overflow once per entry.
 	buf [wbBufEntryPointers * wbBufEntries]uintptr
-
-	// debugGen causes the write barrier buffer to flush after
-	// every write barrier if equal to gcWorkPauseGen. This is for
-	// debugging #27993. This is only set if debugCachedWork is
-	// set.
-	debugGen uint32
 }
 
 const (
@@ -86,7 +80,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if writeBarrier.cgo || (debugCachedWork && (throwOnGCWork || b.debugGen == atomic.Load(&gcWorkPauseGen))) {
+	if writeBarrier.cgo {
 		// Effectively disable the buffer by forcing a flush
 		// on every barrier.
 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
@@ -204,30 +198,8 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 	// Switch to the system stack so we don't have to worry about
 	// the untyped stack slots or safe points.
 	systemstack(func() {
-		if debugCachedWork {
-			// For debugging, include the old value of the
-			// slot and some other data in the traceback.
-			wbBuf := &getg().m.p.ptr().wbBuf
-			var old uintptr
-			if dst != nil {
-				// dst may be nil in direct calls to wbBufFlush.
-				old = *dst
-			}
-			wbBufFlush1Debug(old, wbBuf.buf[0], wbBuf.buf[1], &wbBuf.buf[0], wbBuf.next)
-		} else {
-			wbBufFlush1(getg().m.p.ptr())
-		}
+		wbBufFlush1(getg().m.p.ptr())
 	})
-}
-
-// wbBufFlush1Debug is a temporary function for debugging issue
-// #27993. It exists solely to add some context to the traceback.
-//
-//go:nowritebarrierrec
-//go:systemstack
-//go:noinline
-func wbBufFlush1Debug(old, buf1, buf2 uintptr, start *uintptr, next uintptr) {
-	wbBufFlush1(getg().m.p.ptr())
 }
 
 // wbBufFlush1 flushes p's write barrier buffer to the GC work queue.

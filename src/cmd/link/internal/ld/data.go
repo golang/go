@@ -390,6 +390,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
 		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
 			if !ldr.AttrReachable(rs) {
+				if rt == objabi.R_METHODOFF {
+					// Set it to a sentinel value. The runtime knows this is not pointing to
+					// anything valid.
+					o = -1
+					break
+				}
 				continue
 			}
 			fallthrough
@@ -698,6 +704,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	relocs := ctxt.loader.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
+		if r.IsMarker() {
+			continue // skip marker relocations
+		}
 		targ := r.Sym()
 		if targ == 0 {
 			continue
@@ -775,6 +784,9 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
+		if r.IsMarker() {
+			continue // skip marker relocations
+		}
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
@@ -1929,7 +1941,10 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
@@ -2173,7 +2188,7 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	va := uint64(*FlagTextAddr)
+	va := uint64(Rnd(*FlagTextAddr, int64(Funcalign)))
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
@@ -2199,7 +2214,7 @@ func (ctxt *Link) textaddress() {
 		// Set the address of the start/end symbols, if not already
 		// (i.e. not darwin+dynlink or AIX+external, see above).
 		ldr.SetSymValue(etext, int64(va))
-		ldr.SetSymValue(text, *FlagTextAddr)
+		ldr.SetSymValue(text, int64(Segtext.Sections[0].Vaddr))
 	}
 
 	// merge tramps into Textp, keeping Textp in address order
@@ -2513,7 +2528,10 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
 	ctxt.defineInternal("runtime.pcheader", sym.SRODATA)
 	ctxt.defineInternal("runtime.funcnametab", sym.SRODATA)
-	ctxt.defineInternal("runtime.pclntab_old", sym.SRODATA)
+	ctxt.defineInternal("runtime.cutab", sym.SRODATA)
+	ctxt.defineInternal("runtime.filetab", sym.SRODATA)
+	ctxt.defineInternal("runtime.pctab", sym.SRODATA)
+	ctxt.defineInternal("runtime.functab", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))

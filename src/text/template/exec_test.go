@@ -1295,7 +1295,7 @@ func TestUnterminatedStringError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	str := err.Error()
-	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted string") {
+	if !strings.Contains(str, "X:3: unterminated raw quoted string") {
 		t.Fatalf("unexpected error: %s", str)
 	}
 }
