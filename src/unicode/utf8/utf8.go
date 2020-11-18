@@ -393,14 +393,12 @@ func RuneCount(p []byte) int {
 			continue
 		}
 		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			size = 1
+		for j := 1; j < size; j++ {
+			if c := p[i+j]; c < accept.lo || accept.hi < c {
+				size = 1
+				break
+			}
+			accept = acceptRange[0]
 		}
 		i += size
 	}
@@ -428,14 +426,12 @@ func RuneCountInString(s string) (n int) {
 			continue
 		}
 		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			size = 1
+		for j := 1; j < size; j++ {
+			if c := s[i+j]; c < accept.lo || accept.hi < c {
+				size = 1
+				break
+			}
+			accept = acceptRange[0]
 		}
 		i += size
 	}
@@ -479,14 +475,11 @@ func Valid(p []byte) bool {
 			return false // Short or invalid.
 		}
 		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			return false
+		for j := 1; j < size; j++ {
+			if c := p[i+j]; c < accept.lo || accept.hi < c {
+				return false
+			}
+			accept = acceptRange[0]
 		}
 		i += size
 	}
@@ -525,14 +518,11 @@ func ValidString(s string) bool {
 			return false // Short or invalid.
 		}
 		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			return false
+		for j := 1; j < size; j++ {
+			if c := s[i+j]; c < accept.lo || accept.hi < c {
+				return false
+			}
+			accept = acceptRange[0]
 		}
 		i += size
 	}
