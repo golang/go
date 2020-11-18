@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -138,7 +139,7 @@ type Frontend interface {
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
-	Auto(src.XPos, *types.Type) GCNode
+	Auto(src.XPos, *types.Type) *ir.Node
 
 	// Given the name for a compound type, returns the name we should use
 	// for the parts of that compound type.
@@ -177,24 +178,6 @@ type Frontend interface {
 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
 	MyImportPath() string
 }
-
-// interface used to hold a *gc.Node (a stack variable).
-// We'd use *gc.Node directly but that would lead to an import cycle.
-type GCNode interface {
-	Typ() *types.Type
-	String() string
-	IsSynthetic() bool
-	IsAutoTmp() bool
-	StorageClass() StorageClass
-}
-
-type StorageClass uint8
-
-const (
-	ClassAuto     StorageClass = iota // local stack variable
-	ClassParam                        // argument
-	ClassParamOut                     // return value
-)
 
 const go116lateCallExpansion = true
 

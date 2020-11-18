@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
@@ -65,36 +66,13 @@ type TestFrontend struct {
 	ctxt *obj.Link
 }
 
-type TestAuto struct {
-	t *types.Type
-	s string
-}
-
-func (d *TestAuto) Typ() *types.Type {
-	return d.t
-}
-
-func (d *TestAuto) String() string {
-	return d.s
-}
-
-func (d *TestAuto) StorageClass() StorageClass {
-	return ClassAuto
-}
-
-func (d *TestAuto) IsSynthetic() bool {
-	return false
-}
-
-func (d *TestAuto) IsAutoTmp() bool {
-	return true
-}
-
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
-func (TestFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
-	return &TestAuto{t: t, s: "aTestAuto"}
+func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Node {
+	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
+	n.SetClass(ir.PAUTO)
+	return n
 }
 func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8}
