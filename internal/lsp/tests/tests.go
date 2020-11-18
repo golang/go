@@ -234,7 +234,7 @@ func DefaultOptions(o *source.Options) {
 		},
 		source.Sum: {},
 	}
-	o.ExperimentalOptions.Codelens[source.CommandTest.Name] = true
+	o.UserOptions.Codelens[source.CommandTest.Name] = true
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute

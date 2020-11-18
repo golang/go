@@ -102,13 +102,6 @@ func DefaultOptions() *Options {
 			UserOptions: UserOptions{
 				HoverKind:  FullDocumentation,
 				LinkTarget: "pkg.go.dev",
-			},
-			DebuggingOptions: DebuggingOptions{
-				CompletionBudget: 100 * time.Millisecond,
-			},
-			ExperimentalOptions: ExperimentalOptions{
-				TempModfile:             true,
-				ExpandWorkspaceToModule: true,
 				Codelens: map[string]bool{
 					CommandGenerate.Name:          true,
 					CommandRegenerateCgo.Name:     true,
@@ -117,18 +110,25 @@ func DefaultOptions() *Options {
 					CommandUpgradeDependency.Name: true,
 					CommandVendor.Name:            true,
 				},
-				LinksInHover:                true,
-				CompleteUnimported:          true,
-				CompletionDocumentation:     true,
-				DeepCompletion:              true,
-				ImportShortcut:              Both,
-				Matcher:                     Fuzzy,
-				SymbolMatcher:               SymbolFuzzy,
-				SymbolStyle:                 DynamicSymbols,
+				LinksInHover:   true,
+				ImportShortcut: Both,
+				Matcher:        Fuzzy,
+				SymbolMatcher:  SymbolFuzzy,
+				SymbolStyle:    DynamicSymbols,
+			},
+			DebuggingOptions: DebuggingOptions{
+				CompletionBudget: 100 * time.Millisecond,
+			},
+			ExperimentalOptions: ExperimentalOptions{
+				ExpandWorkspaceToModule:     true,
 				ExperimentalPackageCacheKey: true,
 			},
 			InternalOptions: InternalOptions{
-				LiteralCompletions: true,
+				LiteralCompletions:      true,
+				TempModfile:             true,
+				CompleteUnimported:      true,
+				CompletionDocumentation: true,
+				DeepCompletion:          true,
 			},
 			Hooks: Hooks{
 				ComputeEdits:         myers.ComputeEdits,
@@ -210,6 +210,62 @@ type UserOptions struct {
 
 	// Gofumpt indicates if we should run gofumpt formatting.
 	Gofumpt bool
+
+	// Analyses specify analyses that the user would like to enable or disable.
+	// A map of the names of analysis passes that should be enabled/disabled.
+	// A full list of analyzers that gopls uses can be found [here](analyzers.md)
+	//
+	// Example Usage:
+	// ```json5
+	// ...
+	// "analyses": {
+	//   "unreachable": false, // Disable the unreachable analyzer.
+	//   "unusedparams": true  // Enable the unusedparams analyzer.
+	// }
+	// ...
+	// ```
+	Analyses map[string]bool
+
+	// Codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+	// section of settings.md for the list of supported lenses.
+	//
+	// Example Usage:
+	// ```json5
+	// "gopls": {
+	// ...
+	//   "codelens": {
+	//     "generate": false,  // Don't show the `go generate` lens.
+	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
+	//   }
+	// ...
+	// }
+	// ```
+	Codelens map[string]bool
+
+	// LinksInHover toggles the presence of links to documentation in hover.
+	LinksInHover bool
+
+	// ImportShortcut specifies whether import statements should link to
+	// documentation or go to definitions.
+	ImportShortcut ImportShortcut
+
+	// Matcher sets the algorithm that is used when calculating completion candidates.
+	Matcher Matcher
+
+	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
+	SymbolMatcher SymbolMatcher
+
+	// SymbolStyle controls how symbols are qualified in symbol responses.
+	//
+	// Example Usage:
+	// ```json5
+	// "gopls": {
+	// ...
+	//   "symbolStyle": "dynamic",
+	// ...
+	// }
+	// ```
+	SymbolStyle SymbolStyle
 }
 
 // EnvSlice returns Env as a slice of k=v strings.
@@ -250,67 +306,6 @@ type Hooks struct {
 // development. WARNING: This configuration will be changed in the future. It
 // only exists while these features are under development.
 type ExperimentalOptions struct {
-	// Analyses specify analyses that the user would like to enable or disable.
-	// A map of the names of analysis passes that should be enabled/disabled.
-	// A full list of analyzers that gopls uses can be found [here](analyzers.md)
-	//
-	// Example Usage:
-	// ```json5
-	// ...
-	// "analyses": {
-	//   "unreachable": false, // Disable the unreachable analyzer.
-	//   "unusedparams": true  // Enable the unusedparams analyzer.
-	// }
-	// ...
-	// ```
-	Analyses map[string]bool
-
-	// Codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
-	// section of settings.md for the list of supported lenses.
-	//
-	// Example Usage:
-	// ```json5
-	// "gopls": {
-	// ...
-	//   "codelens": {
-	//     "generate": false,  // Don't show the `go generate` lens.
-	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
-	//   }
-	// ...
-	// }
-	// ```
-	Codelens map[string]bool
-
-	// CompletionDocumentation enables documentation with completion results.
-	CompletionDocumentation bool
-
-	// CompleteUnimported enables completion for packages that you do not currently import.
-	CompleteUnimported bool
-
-	// DeepCompletion enables the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
-	//
-	// Consider this example:
-	//
-	// ```go
-	// package main
-	//
-	// import "fmt"
-	//
-	// type wrapString struct {
-	//     str string
-	// }
-	//
-	// func main() {
-	//     x := wrapString{"hello world"}
-	//     fmt.Printf(<>)
-	// }
-	// ```
-	//
-	// At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
-	DeepCompletion bool
-
-	// Matcher sets the algorithm that is used when calculating completion candidates.
-	Matcher Matcher
 
 	// Annotations suppress various kinds of optimization diagnostics
 	// that would be reported by the gc_details command.
@@ -322,35 +317,6 @@ type ExperimentalOptions struct {
 
 	// Staticcheck enables additional analyses from staticcheck.io.
 	Staticcheck bool
-
-	// SymbolMatcher sets the algorithm that is used when finding workspace symbols.
-	SymbolMatcher SymbolMatcher
-
-	// SymbolStyle controls how symbols are qualified in symbol responses.
-	//
-	// Example Usage:
-	// ```json5
-	// "gopls": {
-	// ...
-	//   "symbolStyle": "dynamic",
-	// ...
-	// }
-	// ```
-	SymbolStyle SymbolStyle
-
-	// LinksInHover toggles the presence of links to documentation in hover.
-	LinksInHover bool
-
-	// TempModfile controls the use of the -modfile flag in Go 1.14.
-	TempModfile bool
-
-	// ImportShortcut specifies whether import statements should link to
-	// documentation or go to definitions.
-	ImportShortcut ImportShortcut
-
-	// VerboseWorkDoneProgress controls whether the LSP server should send
-	// progress reports for all work done outside the scope of an RPC.
-	VerboseWorkDoneProgress bool
 
 	// SemanticTokens controls whether the LSP server will send
 	// semantic tokens to the client.
@@ -400,13 +366,56 @@ type DebuggingOptions struct {
 	CompletionBudget time.Duration
 }
 
-// InternalOptions contains settings that are not exposed to the user for various
-// reasons, e.g. settings used by tests.
+// InternalOptions contains settings that are not intended for use by the
+// average user. These may be settings used by tests or outdated settings that
+// will soon be deprecated. Some of these settings may not even be configurable
+// by the user.
 type InternalOptions struct {
 	// LiteralCompletions controls whether literal candidates such as
 	// "&someStruct{}" are offered. Tests disable this flag to simplify
 	// their expected values.
 	LiteralCompletions bool
+
+	// VerboseWorkDoneProgress controls whether the LSP server should send
+	// progress reports for all work done outside the scope of an RPC.
+	// Used by the regression tests.
+	VerboseWorkDoneProgress bool
+
+	// The following options were previously available to users, but they
+	// really shouldn't be configured by anyone other than "power users".
+
+	// CompletionDocumentation enables documentation with completion results.
+	CompletionDocumentation bool
+
+	// CompleteUnimported enables completion for packages that you do not
+	// currently import.
+	CompleteUnimported bool
+
+	// DeepCompletion enables the ability to return completions from deep
+	// inside relevant entities, rather than just the locally accessible ones.
+	//
+	// Consider this example:
+	//
+	// ```go
+	// package main
+	//
+	// import "fmt"
+	//
+	// type wrapString struct {
+	//     str string
+	// }
+	//
+	// func main() {
+	//     x := wrapString{"hello world"}
+	//     fmt.Printf(<>)
+	// }
+	// ```
+	//
+	// At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
+	DeepCompletion bool
+
+	// TempModfile controls the use of the -modfile flag in Go 1.14.
+	TempModfile bool
 }
 
 type ImportShortcut string

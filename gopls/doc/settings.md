@@ -77,13 +77,6 @@ gofumpt indicates if we should run gofumpt formatting.
 
 
 Default: `false`.
-<!-- END User: DO NOT MANUALLY EDIT THIS SECTION -->
-
-## Experimental
-
-The below settings are considered experimental. They may be deprecated or changed in the future. They are typically used to test experimental opt-in features or to disable features.
-
-<!-- BEGIN Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 ### **analyses** *map[string]bool*
 analyses specify analyses that the user would like to enable or disable.
 A map of the names of analysis passes that should be enabled/disabled.
@@ -119,40 +112,22 @@ Example Usage:
 
 
 Default: `{"gc_details":false,"generate":true,"regenerate_cgo":true,"tidy":true,"upgrade_dependency":true,"vendor":true}`.
-### **completionDocumentation** *bool*
-completionDocumentation enables documentation with completion results.
+### **linksInHover** *bool*
+linksInHover toggles the presence of links to documentation in hover.
 
 
 Default: `true`.
-### **completeUnimported** *bool*
-completeUnimported enables completion for packages that you do not currently import.
+### **importShortcut** *enum*
+importShortcut specifies whether import statements should link to
+documentation or go to definitions.
+Must be one of:
+
+ * `"Both"`
+ * `"Definition"`
+ * `"Link"`
 
 
-Default: `true`.
-### **deepCompletion** *bool*
-deepCompletion enables the ability to return completions from deep inside relevant entities, rather than just the locally accessible ones.
-
-Consider this example:
-
-```go
-package main
-
-import "fmt"
-
-type wrapString struct {
-    str string
-}
-
-func main() {
-    x := wrapString{"hello world"}
-    fmt.Printf(<>)
-}
-```
-
-At the location of the `<>` in this program, deep completion would suggest the result `x.str`.
-
-
-Default: `true`.
+Default: `"Both"`.
 ### **matcher** *enum*
 matcher sets the algorithm that is used when calculating completion candidates.
 Must be one of:
@@ -163,21 +138,6 @@ Must be one of:
 
 
 Default: `"Fuzzy"`.
-### **annotations** *map[string]bool*
-annotations suppress various kinds of optimization diagnostics
-that would be reported by the gc_details command.
- * noNilcheck suppresses display of nilchecks.
- * noEscape suppresses escape choices.
- * noInline suppresses inlining choices.
- * noBounds suppresses bounds checking diagnostics.
-
-
-Default: `{}`.
-### **staticcheck** *bool*
-staticcheck enables additional analyses from staticcheck.io.
-
-
-Default: `false`.
 ### **symbolMatcher** *enum*
 symbolMatcher sets the algorithm that is used when finding workspace symbols.
 Must be one of:
@@ -215,30 +175,25 @@ just "Foo.Field".
 
 
 Default: `"Dynamic"`.
-### **linksInHover** *bool*
-linksInHover toggles the presence of links to documentation in hover.
+<!-- END User: DO NOT MANUALLY EDIT THIS SECTION -->
+
+## Experimental
+
+The below settings are considered experimental. They may be deprecated or changed in the future. They are typically used to test experimental opt-in features or to disable features.
+
+<!-- BEGIN Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
+### **annotations** *map[string]bool*
+annotations suppress various kinds of optimization diagnostics
+that would be reported by the gc_details command.
+ * noNilcheck suppresses display of nilchecks.
+ * noEscape suppresses escape choices.
+ * noInline suppresses inlining choices.
+ * noBounds suppresses bounds checking diagnostics.
 
 
-Default: `true`.
-### **tempModfile** *bool*
-tempModfile controls the use of the -modfile flag in Go 1.14.
-
-
-Default: `true`.
-### **importShortcut** *enum*
-importShortcut specifies whether import statements should link to
-documentation or go to definitions.
-Must be one of:
-
- * `"Both"`
- * `"Definition"`
- * `"Link"`
-
-
-Default: `"Both"`.
-### **verboseWorkDoneProgress** *bool*
-verboseWorkDoneProgress controls whether the LSP server should send
-progress reports for all work done outside the scope of an RPC.
+Default: `{}`.
+### **staticcheck** *bool*
+staticcheck enables additional analyses from staticcheck.io.
 
 
 Default: `false`.
