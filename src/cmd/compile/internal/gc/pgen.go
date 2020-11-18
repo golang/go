@@ -121,7 +121,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	for _, l := range f.RegAlloc {
 		if ls, ok := l.(ssa.LocalSlot); ok {
-			ls.N.(*ir.Node).Name.SetUsed(true)
+			ls.N.Name.SetUsed(true)
 		}
 	}
 
@@ -517,7 +517,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Node) ([]*ir.Node, []*dwarf
 	var decls []*ir.Node
 	selected := make(map[*ir.Node]bool)
 	for _, n := range apDecls {
-		if n.IsAutoTmp() {
+		if ir.IsAutoTmp(n) {
 			continue
 		}
 
@@ -580,7 +580,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Node) *dwarf.Var {
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
 func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Node, []*dwarf.Var, map[*ir.Node]bool) {
-	debugInfo := fn.DebugInfo
+	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 
 	// Produce a DWARF variable entry for each user variable.
 	var decls []*ir.Node
@@ -588,10 +588,10 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Node, []*dwarf.Var, 
 	ssaVars := make(map[*ir.Node]bool)
 
 	for varID, dvar := range debugInfo.Vars {
-		n := dvar.(*ir.Node)
+		n := dvar
 		ssaVars[n] = true
 		for _, slot := range debugInfo.VarSlots[varID] {
-			ssaVars[debugInfo.Slots[slot].N.(*ir.Node)] = true
+			ssaVars[debugInfo.Slots[slot].N] = true
 		}
 
 		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
@@ -727,7 +727,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Node {
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
 // to do with its offset in the user variable.
 func stackOffset(slot ssa.LocalSlot) int32 {
-	n := slot.N.(*ir.Node)
+	n := slot.N
 	var off int64
 	switch n.Class() {
 	case ir.PAUTO:
@@ -746,8 +746,8 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 
 // createComplexVar builds a single DWARF variable entry and location list.
 func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var {
-	debug := fn.DebugInfo
-	n := debug.Vars[varID].(*ir.Node)
+	debug := fn.DebugInfo.(*ssa.FuncDebug)
+	n := debug.Vars[varID]
 
 	var abbrev int
 	switch n.Class() {

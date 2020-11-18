@@ -195,7 +195,7 @@ func (o *Order) safeExpr(n *ir.Node) *ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n *ir.Node) bool {
-	return islvalue(n) && (n.Op != ir.ONAME || n.Class() == ir.PEXTERN || n.IsAutoTmp())
+	return islvalue(n) && (n.Op != ir.ONAME || n.Class() == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.
@@ -550,10 +550,10 @@ func (o *Order) mapAssign(n *ir.Node) {
 		for i, m := range n.List.Slice() {
 			switch {
 			case m.Op == ir.OINDEXMAP:
-				if !m.Left.IsAutoTmp() {
+				if !ir.IsAutoTmp(m.Left) {
 					m.Left = o.copyExpr(m.Left, m.Left.Type, false)
 				}
-				if !m.Right.IsAutoTmp() {
+				if !ir.IsAutoTmp(m.Right) {
 					m.Right = o.copyExpr(m.Right, m.Right.Type, false)
 				}
 				fallthrough
@@ -952,11 +952,11 @@ func (o *Order) stmt(n *ir.Node) {
 				// r->left is c, r->right is x, both are always evaluated.
 				r.Left = o.expr(r.Left, nil)
 
-				if !r.Left.IsAutoTmp() {
+				if !ir.IsAutoTmp(r.Left) {
 					r.Left = o.copyExpr(r.Left, r.Left.Type, false)
 				}
 				r.Right = o.expr(r.Right, nil)
-				if !r.Right.IsAutoTmp() {
+				if !ir.IsAutoTmp(r.Right) {
 					r.Right = o.copyExpr(r.Right, r.Right.Type, false)
 				}
 			}

@@ -13,7 +13,6 @@ import (
 	"unsafe"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -156,14 +155,14 @@ func (n *Node) SetTChanDir(dir types.ChanDir) {
 	n.aux = uint8(dir)
 }
 
-func (n *Node) IsSynthetic() bool {
+func IsSynthetic(n *Node) bool {
 	name := n.Sym.Name
 	return name[0] == '.' || name[0] == '~'
 }
 
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
 // based on the setting of the .AutoTemp flag in n's Name.
-func (n *Node) IsAutoTmp() bool {
+func IsAutoTmp(n *Node) bool {
 	if n == nil || n.Op != ONAME {
 		return false
 	}
@@ -683,7 +682,7 @@ type Func struct {
 	Closgen int
 
 	FieldTrack map[*types.Sym]struct{}
-	DebugInfo  *ssa.FuncDebug
+	DebugInfo  interface{}
 	LSym       *obj.LSym
 
 	Inl *Inline
@@ -1549,22 +1548,4 @@ func IsBlank(n *Node) bool {
 // n must be a function or a method.
 func IsMethod(n *Node) bool {
 	return n.Type.Recv() != nil
-}
-
-func (n *Node) Typ() *types.Type {
-	return n.Type
-}
-
-func (n *Node) StorageClass() ssa.StorageClass {
-	switch n.Class() {
-	case PPARAM:
-		return ssa.ClassParam
-	case PPARAMOUT:
-		return ssa.ClassParamOut
-	case PAUTO:
-		return ssa.ClassAuto
-	default:
-		base.Fatalf("untranslatable storage class for %v: %s", n, n.Class())
-		return 0
-	}
 }

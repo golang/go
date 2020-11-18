@@ -1960,7 +1960,7 @@ func typecheck1(n *ir.Node, top int) (res *ir.Node) {
 		typecheckas(n)
 
 		// Code that creates temps does not bother to set defn, so do it here.
-		if n.Left.Op == ir.ONAME && n.Left.IsAutoTmp() {
+		if n.Left.Op == ir.ONAME && ir.IsAutoTmp(n.Left) {
 			n.Left.Name.Defn = n
 		}
 

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
@@ -136,9 +137,9 @@ func dse(f *Func) {
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.
 func elimDeadAutosGeneric(f *Func) {
-	addr := make(map[*Value]GCNode) // values that the address of the auto reaches
-	elim := make(map[*Value]GCNode) // values that could be eliminated if the auto is
-	used := make(map[GCNode]bool)   // used autos that must be kept
+	addr := make(map[*Value]*ir.Node) // values that the address of the auto reaches
+	elim := make(map[*Value]*ir.Node) // values that could be eliminated if the auto is
+	used := make(map[*ir.Node]bool)   // used autos that must be kept
 
 	// visit the value and report whether any of the maps are updated
 	visit := func(v *Value) (changed bool) {
@@ -146,8 +147,8 @@ func elimDeadAutosGeneric(f *Func) {
 		switch v.Op {
 		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
-			n, ok := v.Aux.(GCNode)
-			if !ok || n.StorageClass() != ClassAuto {
+			n, ok := v.Aux.(*ir.Node)
+			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
 			if addr[v] == nil {
@@ -157,8 +158,8 @@ func elimDeadAutosGeneric(f *Func) {
 			return
 		case OpVarDef, OpVarKill:
 			// v should be eliminated if we eliminate the auto.
-			n, ok := v.Aux.(GCNode)
-			if !ok || n.StorageClass() != ClassAuto {
+			n, ok := v.Aux.(*ir.Node)
+			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
 			if elim[v] == nil {
@@ -173,8 +174,8 @@ func elimDeadAutosGeneric(f *Func) {
 			// for open-coded defers from being removed (since they
 			// may not be used by the inline code, but will be used by
 			// panic processing).
-			n, ok := v.Aux.(GCNode)
-			if !ok || n.StorageClass() != ClassAuto {
+			n, ok := v.Aux.(*ir.Node)
+			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
 			if !used[n] {
@@ -221,7 +222,7 @@ func elimDeadAutosGeneric(f *Func) {
 		}
 
 		// Propagate any auto addresses through v.
-		node := GCNode(nil)
+		var node *ir.Node
 		for _, a := range args {
 			if n, ok := addr[a]; ok && !used[n] {
 				if node == nil {
@@ -298,15 +299,15 @@ func elimUnreadAutos(f *Func) {
 	// Loop over all ops that affect autos taking note of which
 	// autos we need and also stores that we might be able to
 	// eliminate.
-	seen := make(map[GCNode]bool)
+	seen := make(map[*ir.Node]bool)
 	var stores []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			n, ok := v.Aux.(GCNode)
+			n, ok := v.Aux.(*ir.Node)
 			if !ok {
 				continue
 			}
-			if n.StorageClass() != ClassAuto {
+			if n.Class() != ir.PAUTO {
 				continue
 			}
 
@@ -334,7 +335,7 @@ func elimUnreadAutos(f *Func) {
 
 	// Eliminate stores to unread autos.
 	for _, store := range stores {
-		n, _ := store.Aux.(GCNode)
+		n, _ := store.Aux.(*ir.Node)
 		if seen[n] {
 			continue
 		}

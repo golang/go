@@ -3080,7 +3080,7 @@ func (s *state) assign(left *ir.Node, right *ssa.Value, deref bool, skip skipMas
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
 	if base := clobberBase(left); base.Op == ir.ONAME && base.Class() != ir.PEXTERN && skip == 0 {
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !base.IsAutoTmp())
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
 	}
 
 	// Left is not ssa-able. Compute its address.
@@ -3103,7 +3103,7 @@ func (s *state) assign(left *ir.Node, right *ssa.Value, deref bool, skip skipMas
 		return
 	}
 	// Treat as a store.
-	s.storeType(t, addr, right, skip, !left.IsAutoTmp())
+	s.storeType(t, addr, right, skip, !ir.IsAutoTmp(left))
 }
 
 // zeroVal returns the zero value for type t.
@@ -4860,7 +4860,7 @@ func (s *state) addr(n *ir.Node) *ssa.Value {
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case ir.PAUTO:
-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !n.IsAutoTmp())
+			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
 
 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
@@ -6063,7 +6063,7 @@ func (s *state) addNamedValue(n *ir.Node, v *ssa.Value) {
 		// Don't track our marker nodes (memVar etc.).
 		return
 	}
-	if n.IsAutoTmp() {
+	if ir.IsAutoTmp(n) {
 		// Don't track temporary variables.
 		return
 	}
@@ -6476,12 +6476,13 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	if base.Ctxt.Flag_locationlists {
-		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
+		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
+		e.curfn.Func.DebugInfo = debugInfo
 		bstart := s.bstart
 		// Note that at this moment, Prog.Pc is a sequence number; it's
 		// not a real PC until after assembly, so this mapping has to
 		// be done later.
-		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
+		debugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:
 				if b == f.Entry.ID {
@@ -6820,7 +6821,7 @@ func AutoVar(v *ssa.Value) (*ir.Node, int64) {
 	if v.Type.Size() > loc.Type.Size() {
 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
 	}
-	return loc.N.(*ir.Node), loc.Off
+	return loc.N, loc.Off
 }
 
 func AddrAuto(a *obj.Addr, v *ssa.Value) {
@@ -6975,7 +6976,7 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 	return data
 }
 
-func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
+func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Node {
 	n := tempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
 	return n
 }
@@ -6990,7 +6991,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 }
 
 func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*ir.Node)
+	n := name.N
 	u := types.Types[types.TUINTPTR]
 	t := types.NewPtr(types.Types[types.TUINT8])
 	// Split this interface up into two separate variables.
@@ -7047,7 +7048,7 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 }
 
 func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
-	n := name.N.(*ir.Node)
+	n := name.N
 	at := name.Type
 	if at.NumElem() != 1 {
 		e.Fatalf(n.Pos, "bad array size")
@@ -7062,7 +7063,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 
 // SplitSlot returns a slot representing the data of parent starting at offset.
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
-	node := parent.N.(*ir.Node)
+	node := parent.N
 
 	if node.Class() != ir.PAUTO || node.Name.Addrtaken() {
 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
@@ -7070,7 +7071,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	}
 
 	s := &types.Sym{Name: node.Sym.Name + suffix, Pkg: ir.LocalPkg}
-	n := ir.NewNameAt(parent.N.(*ir.Node).Pos, s)
+	n := ir.NewNameAt(parent.N.Pos, s)
 	s.Def = ir.AsTypesNode(n)
 	ir.AsNode(s.Def).Name.SetUsed(true)
 	n.Type = t
