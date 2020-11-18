@@ -150,7 +150,7 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input interface{}, mode Mode) {
+func checkErrors(t *testing.T, filename string, input interface{}, mode Mode, expectErrors bool) {
 	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {
@@ -167,9 +167,12 @@ func checkErrors(t *testing.T, filename string, input interface{}, mode Mode) {
 	}
 	found.RemoveMultiples()
 
-	// we are expecting the following errors
-	// (collect these after parsing a file so that it is found in the file set)
-	expected := expectedErrors(fset, filename, src)
+	expected := map[token.Pos]string{}
+	if expectErrors {
+		// we are expecting the following errors
+		// (collect these after parsing a file so that it is found in the file set)
+		expected = expectedErrors(fset, filename, src)
+	}
 
 	// verify errors returned by the parser
 	compareErrors(t, fset, expected, found)
@@ -187,7 +190,7 @@ func TestErrors(t *testing.T) {
 			if strings.HasSuffix(name, ".go2") {
 				mode |= ParseTypeParams
 			}
-			checkErrors(t, filepath.Join(testdata, name), nil, mode)
+			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 		}
 	}
 }
