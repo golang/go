@@ -200,16 +200,19 @@ func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
+// An errorContext provides context for type errors during decoding.
+type errorContext struct {
+	Struct     reflect.Type
+	FieldStack []string
+}
+
 // decodeState represents the state while decoding a JSON value.
 type decodeState struct {
-	data         []byte
-	off          int // next read offset in data
-	opcode       int // last read result
-	scan         scanner
-	errorContext struct { // provides context for type errors
-		Struct     reflect.Type
-		FieldStack []string
-	}
+	data                  []byte
+	off                   int // next read offset in data
+	opcode                int // last read result
+	scan                  scanner
+	errorContext          *errorContext
 	savedError            error
 	useNumber             bool
 	disallowUnknownFields bool
@@ -229,10 +232,11 @@ func (d *decodeState) init(data []byte) *decodeState {
 	d.data = data
 	d.off = 0
 	d.savedError = nil
-	d.errorContext.Struct = nil
-
-	// Reuse the allocated space for the FieldStack slice.
-	d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
+	if d.errorContext != nil {
+		d.errorContext.Struct = nil
+		// Reuse the allocated space for the FieldStack slice.
+		d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
+	}
 	return d
 }
 
@@ -246,12 +250,11 @@ func (d *decodeState) saveError(err error) {
 
 // addErrorContext returns a new error enhanced with information from d.errorContext
 func (d *decodeState) addErrorContext(err error) error {
-	if d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0 {
+	if d.errorContext != nil && (d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0) {
 		switch err := err.(type) {
 		case *UnmarshalTypeError:
 			err.Struct = d.errorContext.Struct.Name()
 			err.Field = strings.Join(d.errorContext.FieldStack, ".")
-			return err
 		}
 	}
 	return err
@@ -657,7 +660,10 @@ func (d *decodeState) object(v reflect.Value) error {
 	}
 
 	var mapElem reflect.Value
-	origErrorContext := d.errorContext
+	var origErrorContext errorContext
+	if d.errorContext != nil {
+		origErrorContext = *d.errorContext
+	}
 
 	for {
 		// Read opening " of string key or closing }.
@@ -731,6 +737,9 @@ func (d *decodeState) object(v reflect.Value) error {
 						subv = subv.Elem()
 					}
 					subv = subv.Field(i)
+				}
+				if d.errorContext == nil {
+					d.errorContext = new(errorContext)
 				}
 				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
 				d.errorContext.Struct = t
@@ -812,11 +821,13 @@ func (d *decodeState) object(v reflect.Value) error {
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
-		// Reset errorContext to its original state.
-		// Keep the same underlying array for FieldStack, to reuse the
-		// space and avoid unnecessary allocs.
-		d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
-		d.errorContext.Struct = origErrorContext.Struct
+		if d.errorContext != nil {
+			// Reset errorContext to its original state.
+			// Keep the same underlying array for FieldStack, to reuse the
+			// space and avoid unnecessary allocs.
+			d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
+			d.errorContext.Struct = origErrorContext.Struct
+		}
 		if d.opcode == scanEndObject {
 			break
 		}
