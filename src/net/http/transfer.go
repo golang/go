@@ -330,9 +330,18 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 	return nil
 }
 
-func (t *transferWriter) writeBody(w io.Writer) error {
-	var err error
+// always closes t.BodyCloser
+func (t *transferWriter) writeBody(w io.Writer) (err error) {
 	var ncopy int64
+	closed := false
+	defer func() {
+		if closed || t.BodyCloser == nil {
+			return
+		}
+		if closeErr := t.BodyCloser.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	// Write body. We "unwrap" the body first if it was wrapped in a
 	// nopCloser or readTrackingBody. This is to ensure that we can take advantage of
@@ -369,6 +378,7 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 		}
 	}
 	if t.BodyCloser != nil {
+		closed = true
 		if err := t.BodyCloser.Close(); err != nil {
 			return err
 		}

@@ -11,10 +11,6 @@
 // operating system paths, use the path/filepath package.
 package path
 
-import (
-	"strings"
-)
-
 // A lazybuf is a lazily constructed path buffer.
 // It supports append, reading previously appended bytes,
 // and retrieving the final string. It does not allocate a buffer
@@ -139,13 +135,22 @@ func Clean(path string) string {
 	return out.string()
 }
 
+// lastSlash(s) is strings.LastIndex(s, "/") but we can't import strings.
+func lastSlash(s string) int {
+	i := len(s) - 1
+	for i >= 0 && s[i] != '/' {
+		i--
+	}
+	return i
+}
+
 // Split splits path immediately following the final slash,
 // separating it into a directory and file name component.
 // If there is no slash in path, Split returns an empty dir and
 // file set to path.
 // The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
-	i := strings.LastIndex(path, "/")
+	i := lastSlash(path)
 	return path[:i+1], path[i+1:]
 }
 
@@ -155,12 +160,23 @@ func Split(path string) (dir, file string) {
 // empty or all its elements are empty, Join returns
 // an empty string.
 func Join(elem ...string) string {
-	for i, e := range elem {
-		if e != "" {
-			return Clean(strings.Join(elem[i:], "/"))
+	size := 0
+	for _, e := range elem {
+		size += len(e)
+	}
+	if size == 0 {
+		return ""
+	}
+	buf := make([]byte, 0, size+len(elem)-1)
+	for _, e := range elem {
+		if len(buf) > 0 || e != "" {
+			if len(buf) > 0 {
+				buf = append(buf, '/')
+			}
+			buf = append(buf, e...)
 		}
 	}
-	return ""
+	return Clean(string(buf))
 }
 
 // Ext returns the file name extension used by path.
@@ -189,7 +205,7 @@ func Base(path string) string {
 		path = path[0 : len(path)-1]
 	}
 	// Find the last element
-	if i := strings.LastIndex(path, "/"); i >= 0 {
+	if i := lastSlash(path); i >= 0 {
 		path = path[i+1:]
 	}
 	// If empty now, it had only slashes.

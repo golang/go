@@ -259,7 +259,6 @@ type Arch struct {
 
 	REGSP     int
 	MAXWIDTH  int64
-	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
 	PadFrame func(int64) int64
@@ -327,10 +326,6 @@ var (
 
 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
-
-	// GO386=387
-	ControlWord64trunc,
-	ControlWord32 *obj.LSym
 
 	// Wasm
 	WasmMove,

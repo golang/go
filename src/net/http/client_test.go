@@ -2026,3 +2026,60 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 		t.Errorf("substitute Response.Body was unexpectedly non-empty: %q", b)
 	}
 }
+
+// Issue 40382: Client calls Close multiple times on Request.Body.
+func TestClientCallsCloseOnlyOnce(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusNoContent)
+	}))
+	defer cst.close()
+
+	// Issue occurred non-deterministically: needed to occur after a successful
+	// write (into TCP buffer) but before end of body.
+	for i := 0; i < 50 && !t.Failed(); i++ {
+		body := &issue40382Body{t: t, n: 300000}
+		req, err := NewRequest(MethodPost, cst.ts.URL, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := cst.tr.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+}
+
+// issue40382Body is an io.ReadCloser for TestClientCallsCloseOnlyOnce.
+// Its Read reads n bytes before returning io.EOF.
+// Its Close returns nil but fails the test if called more than once.
+type issue40382Body struct {
+	t                *testing.T
+	n                int
+	closeCallsAtomic int32
+}
+
+func (b *issue40382Body) Read(p []byte) (int, error) {
+	switch {
+	case b.n == 0:
+		return 0, io.EOF
+	case b.n < len(p):
+		p = p[:b.n]
+		fallthrough
+	default:
+		for i := range p {
+			p[i] = 'x'
+		}
+		b.n -= len(p)
+		return len(p), nil
+	}
+}
+
+func (b *issue40382Body) Close() error {
+	if atomic.AddInt32(&b.closeCallsAtomic, 1) == 2 {
+		b.t.Error("Body closed more than once")
+	}
+	return nil
+}

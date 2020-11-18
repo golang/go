@@ -221,10 +221,8 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "darwin", "ios":
-		if runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
+	case "ios":
+		t.Skip("can't set SetGID bit with chmod on iOS")
 	case "windows", "plan9":
 		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}

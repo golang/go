@@ -130,6 +130,9 @@ func fastrandn(n uint32) uint32 {
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
 
+//go:linkname net_fastrand net.fastrand
+func net_fastrand() uint32 { return fastrand() }
+
 // in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
@@ -271,6 +274,7 @@ func return0()
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
+func call16(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(typ, fn, arg unsafe.Pointer, n, retoffset uint32)

@@ -348,6 +348,9 @@ func (v *Value) reset(op Op) {
 // It modifies v to be (Copy a).
 //go:noinline
 func (v *Value) copyOf(a *Value) {
+	if v == a {
+		return
+	}
 	if v.InCache {
 		v.Block.Func.unCache(v)
 	}

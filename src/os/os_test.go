@@ -1573,8 +1573,8 @@ func TestOpenError(t *testing.T) {
 func TestOpenNoName(t *testing.T) {
 	f, err := Open("")
 	if err == nil {
-		t.Fatal(`Open("") succeeded`)
 		f.Close()
+		t.Fatal(`Open("") succeeded`)
 	}
 }
 

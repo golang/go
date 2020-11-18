@@ -1,0 +1,38 @@
+# example.net/pkgremoved@v0.1.0 refers to a package.
+go get -d example.net/pkgremoved@v0.1.0
+
+go list example.net/pkgremoved
+stdout '^example.net/pkgremoved'
+
+# When we resolve a new dependency on example.net/other,
+# it will change the meaning of the path "example.net/pkgremoved"
+# from a package (at v0.1.0) to only a module (at v0.2.0).
+#
+# If we simultaneously 'get' that module at the query "patch", the module should
+# be upgraded to its patch release (v0.2.1) even though it no longer matches a
+# package.
+#
+# BUG(#37438): Today, the pattern is only interpreted as its initial kind
+# (a package), so the 'go get' invocation fails.
+
+! go get -d example.net/pkgremoved@patch example.net/other@v0.1.0
+
+stderr '^go get example.net/pkgremoved@patch: module example.net/pkgremoved@latest found \(v0.2.1\), but does not contain package example.net/pkgremoved$'
+
+
+-- go.mod --
+module example
+
+go 1.16
+
+replace (
+	example.net/other v0.1.0 => ./other
+)
+-- other/go.mod --
+module example.net/other
+
+go 1.16
+
+require example.net/pkgremoved v0.2.0
+-- other/other.go --
+package other

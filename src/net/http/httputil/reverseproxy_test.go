@@ -1067,7 +1067,6 @@ func TestSelectFlushInterval(t *testing.T) {
 	tests := []struct {
 		name string
 		p    *ReverseProxy
-		req  *http.Request
 		res  *http.Response
 		want time.Duration
 	}{
@@ -1097,10 +1096,26 @@ func TestSelectFlushInterval(t *testing.T) {
 			p:    &ReverseProxy{FlushInterval: 0},
 			want: -1,
 		},
+		{
+			name: "Content-Length: -1, overrides non-zero",
+			res: &http.Response{
+				ContentLength: -1,
+			},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: -1,
+		},
+		{
+			name: "Content-Length: -1, overrides zero",
+			res: &http.Response{
+				ContentLength: -1,
+			},
+			p:    &ReverseProxy{FlushInterval: 0},
+			want: -1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.p.flushInterval(tt.req, tt.res)
+			got := tt.p.flushInterval(tt.res)
 			if got != tt.want {
 				t.Errorf("flushLatency = %v; want %v", got, tt.want)
 			}

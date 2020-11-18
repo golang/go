@@ -198,7 +198,7 @@ const (
 	// mips32 only has access to the low 2GB of virtual memory, so
 	// we further limit it to 31 bits.
 	//
-	// On darwin/arm64, although 64-bit pointers are presumably
+	// On ios/arm64, although 64-bit pointers are presumably
 	// available, pointers are truncated to 33 bits. Furthermore,
 	// only the top 4 GiB of the address space are actually available
 	// to the application, but we allow the whole 33 bits anyway for
@@ -207,7 +207,7 @@ const (
 	// arenaBaseOffset to offset into the top 4 GiB.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosIos*sys.GoarchArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -514,14 +514,14 @@ func mallocinit() {
 		// However, on arm64, we ignore all this advice above and slam the
 		// allocation at 0x40 << 32 because when using 4k pages with 3-level
 		// translation buffers, the user address space is limited to 39 bits
-		// On darwin/arm64, the address space is even smaller.
+		// On ios/arm64, the address space is even smaller.
 		//
 		// On AIX, mmaps starts at 0x0A00000000000000 for 64-bit.
 		// processes.
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
-			case GOARCH == "arm64" && (GOOS == "darwin" || GOOS == "ios"):
+			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
@@ -909,27 +909,34 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
-	if debug.sbrk != 0 {
-		align := uintptr(16)
-		if typ != nil {
-			// TODO(austin): This should be just
-			//   align = uintptr(typ.align)
-			// but that's only 4 on 32-bit platforms,
-			// even if there's a uint64 field in typ (see #599).
-			// This causes 64-bit atomic accesses to panic.
-			// Hence, we use stricter alignment that matches
-			// the normal allocator better.
-			if size&7 == 0 {
-				align = 8
-			} else if size&3 == 0 {
-				align = 4
-			} else if size&1 == 0 {
-				align = 2
-			} else {
-				align = 1
+	if debug.malloc {
+		if debug.sbrk != 0 {
+			align := uintptr(16)
+			if typ != nil {
+				// TODO(austin): This should be just
+				//   align = uintptr(typ.align)
+				// but that's only 4 on 32-bit platforms,
+				// even if there's a uint64 field in typ (see #599).
+				// This causes 64-bit atomic accesses to panic.
+				// Hence, we use stricter alignment that matches
+				// the normal allocator better.
+				if size&7 == 0 {
+					align = 8
+				} else if size&3 == 0 {
+					align = 4
+				} else if size&1 == 0 {
+					align = 2
+				} else {
+					align = 1
+				}
 			}
+			return persistentalloc(size, align, &memstats.other_sys)
 		}
-		return persistentalloc(size, align, &memstats.other_sys)
+
+		if inittrace.active && inittrace.id == getg().goid {
+			// Init functions are executed sequentially in a single Go routine.
+			inittrace.allocs += 1
+		}
 	}
 
 	// assistG is the G to charge for this allocation, or nil if
@@ -1015,6 +1022,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			off := c.tinyoffset
 			// Align tiny pointer for required (conservative) alignment.
 			if size&7 == 0 {
+				off = alignUp(off, 8)
+			} else if sys.PtrSize == 4 && size == 12 {
+				// Conservatively align 12-byte objects to 8 bytes on 32-bit
+				// systems so that objects whose first field is a 64-bit
+				// value is aligned to 8 bytes and does not cause a fault on
+				// atomic access. See issue 37262.
+				// TODO(mknyszek): Remove this workaround if/when issue 36606
+				// is resolved.
 				off = alignUp(off, 8)
 			} else if size&3 == 0 {
 				off = alignUp(off, 4)
@@ -1128,8 +1143,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 0
 	releasem(mp)
 
-	if debug.allocfreetrace != 0 {
-		tracealloc(x, size, typ)
+	if debug.malloc {
+		if debug.allocfreetrace != 0 {
+			tracealloc(x, size, typ)
+		}
+
+		if inittrace.active && inittrace.id == getg().goid {
+			// Init functions are executed sequentially in a single Go routine.
+			inittrace.bytes += uint64(size)
+		}
 	}
 
 	if rate := MemProfileRate; rate > 0 {

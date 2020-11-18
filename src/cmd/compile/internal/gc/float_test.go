@@ -6,16 +6,8 @@ package gc
 
 import (
 	"math"
-	"os"
-	"runtime"
 	"testing"
 )
-
-// For GO386=387, make sure fucomi* opcodes are not used
-// for comparison operations.
-// Note that this test will fail only on a Pentium MMX
-// processor (with GOARCH=386 GO386=387), as it just runs
-// some code and looks for an unimplemented instruction fault.
 
 //go:noinline
 func compare1(a, b float64) bool {
@@ -136,9 +128,6 @@ func TestFloatCompareFolded(t *testing.T) {
 		t.Errorf("0 > sNegZero returned true")
 	}
 }
-
-// For GO386=387, make sure fucomi* opcodes are not used
-// for float->int conversions.
 
 //go:noinline
 func cvt1(a float64) uint64 {
@@ -369,14 +358,6 @@ func TestFloat32StoreToLoadConstantFold(t *testing.T) {
 	// In particular we need to be careful that signaling NaN (sNaN) values
 	// are not converted to quiet NaN (qNaN) values during compilation.
 	// See issue #27193 for more information.
-
-	// TODO: this method for detecting 387 won't work if the compiler has been
-	// built using GOARCH=386 GO386=387 and either the target is a different
-	// architecture or the GO386=387 environment variable is not set when the
-	// test is run.
-	if runtime.GOARCH == "386" && os.Getenv("GO386") == "387" {
-		t.Skip("signaling NaNs are not propagated on 387 (issue #27516)")
-	}
 
 	// signaling NaNs
 	{

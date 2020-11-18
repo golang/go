@@ -1,14 +1,6 @@
-# Issue 9737: verify that GOARM and GO386 affect the computed build ID
+# Issue 9737: verify that GOARM affects the computed build ID
 
 [short] skip
-
-# 386
-env GOOS=linux
-env GOARCH=386
-env GO386=387
-go install mycmd
-env GO386=sse2
-stale mycmd
 
 # arm
 env GOOS=linux

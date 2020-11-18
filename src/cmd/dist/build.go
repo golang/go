@@ -144,11 +144,7 @@ func xinit() {
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
+		b = "sse2"
 	}
 	go386 = b
 
@@ -1466,9 +1462,9 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
-		if gohostos != "darwin" || gohostarch != "arm64" {
-			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+	case goos == "ios":
+		if gohostos != "ios" {
+			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
 		}
 	}
 	return ""

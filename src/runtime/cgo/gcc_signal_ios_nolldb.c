@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build !lldb
-// +build darwin
+// +build ios
 // +build arm64
 
 #include <stdint.h>

@@ -52,6 +52,7 @@ func main() {
 	case "all", "ret":
 		ctxt.Retpoline = true
 	}
+	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
 
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
@@ -74,7 +75,7 @@ func main() {
 	var failedFile string
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
-		parser := asm.NewParser(ctxt, architecture, lexer)
+		parser := asm.NewParser(ctxt, architecture, lexer, compilingRuntime)
 		ctxt.DiagFunc = func(format string, args ...interface{}) {
 			diag = true
 			log.Printf(format, args...)

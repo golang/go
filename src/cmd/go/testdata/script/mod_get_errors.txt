@@ -6,11 +6,11 @@ cp go.mod go.mod.orig
 # the package in the current directory) cannot be resolved.
 
 ! go get
-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
+stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
 cmp go.mod.orig go.mod
 
 ! go get -d
-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
+stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
 cmp go.mod.orig go.mod
 
 cd importsyntax

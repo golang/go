@@ -285,18 +285,6 @@ var verifyTests = []verifyTest{
 		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
-		// The issuer name in the leaf doesn't exactly match the
-		// subject name in the root. Go does not perform
-		// canonicalization and so should reject this. See issue 14955.
-		name:        "IssuerSubjectMismatch",
-		leaf:        issuerSubjectMatchLeaf,
-		roots:       []string{issuerSubjectMatchRoot},
-		currentTime: 1475787715,
-		systemSkip:  true, // does not chain to a system root
-
-		errorCallback: expectSubjectIssuerMismatcthError,
-	},
-	{
 		// An X.509 v1 certificate should not be accepted as an
 		// intermediate.
 		name:          "X509v1Intermediate",
@@ -430,6 +418,20 @@ var verifyTests = []verifyTest{
 			{"Acme LLC", "Acme Co"},
 		},
 	},
+	{
+		// When there are two parents, one with a incorrect subject but matching SKID
+		// and one with a correct subject but missing SKID, the latter should be
+		// considered as a possible parent.
+		leaf:        leafMatchingAKIDMatchingIssuer,
+		roots:       []string{rootMatchingSKIDMismatchingSubject, rootMismatchingSKIDMatchingSubject},
+		currentTime: 1550000000,
+		dnsName:     "example",
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"Leaf", "Root B"},
+		},
+	},
 }
 
 func expectHostnameError(msg string) func(*testing.T, error) {
@@ -471,12 +473,6 @@ func expectHashError(t *testing.T, err error) {
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
 		t.Fatalf("error resulting from invalid hash didn't contain '%s', rather it was: %v", expected, err)
-	}
-}
-
-func expectSubjectIssuerMismatcthError(t *testing.T, err error) {
-	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
-		t.Fatalf("error was not a NameMismatch: %v", err)
 	}
 }
 
@@ -1613,6 +1609,36 @@ CCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUwitfkXg0JglCjW9R
 ssWvTAveakIwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNHADBEAiBk
 4LpWiWPOIl5PIhX9PDVkmjpre5oyoH/3aYwG8ABYuAIgCeSfbYueOOG2AdXuMqSU
 ZZMqeJS7JldLx91sPUArY5A=
+-----END CERTIFICATE-----`
+
+const rootMatchingSKIDMismatchingSubject = `-----BEGIN CERTIFICATE-----
+MIIBQjCB6aADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQTAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
+QTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPK4p1uXq2aAeDtKDHIokg2rTcPM
+2gq3N9Y96wiW6/7puBK1+INEW//cO9x6FpzkcsHw/TriAqy4sck/iDAvf9WjMjAw
+MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAMBgNVHQ4EBQQDAQID
+MAoGCCqGSM49BAMCA0gAMEUCIQDgtAp7iVHxMnKxZPaLQPC+Tv2r7+DJc88k2SKH
+MPs/wQIgFjjNvBoQEl7vSHTcRGCCcFMdlN4l0Dqc9YwGa9fyrQs=
+-----END CERTIFICATE-----`
+
+const rootMismatchingSKIDMatchingSubject = `-----BEGIN CERTIFICATE-----
+MIIBNDCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
+QjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABI1YRFcIlkWzm9BdEVrIsEQJ2dT6
+qiW8/WV9GoIhmDtX9SEDHospc0Cgm+TeD2QYW2iMrS5mvNe4GSw0Jezg/bOjJDAi
+MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNI
+ADBFAiEAukWOiuellx8bugRiwCS5XQ6IOJ1SZcjuZxj76WojwxkCIHqa71qNw8FM
+DtA5yoL9M2pDFF6ovFWnaCe+KlzSwAW/
+-----END CERTIFICATE-----`
+
+const leafMatchingAKIDMatchingIssuer = `-----BEGIN CERTIFICATE-----
+MIIBNTCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMA8xDTALBgNVBAMTBExlYWYw
+WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASNWERXCJZFs5vQXRFayLBECdnU+qol
+vP1lfRqCIZg7V/UhAx6LKXNAoJvk3g9kGFtojK0uZrzXuBksNCXs4P2zoyYwJDAO
+BgNVHSMEBzAFgAMBAgMwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNJ
+ADBGAiEAnV9XV7a4h0nfJB8pWv+pBUXRlRFA2uZz3mXEpee8NYACIQCWa+wL70GL
+ePBQCV1F9sE2q4ZrnsT9TZoNrSe/bMDjzA==
 -----END CERTIFICATE-----`
 
 var unknownAuthorityErrorTests = []struct {

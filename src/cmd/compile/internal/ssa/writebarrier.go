@@ -527,7 +527,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		return true
 	}
 	return false
@@ -593,7 +593,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		// Stack addresses are always safe.
 		return true
 	case OpITab, OpStringPtr, OpGetClosurePtr:
@@ -609,7 +609,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 // isVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
 func isVolatile(v *Value) bool {
-	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy || v.Op == OpSelectNAddr {
 		v = v.Args[0]
 	}
 	return v.Op == OpSP

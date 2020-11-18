@@ -199,7 +199,7 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.lsym.Func.Text = ptxt
+	fn.Func.lsym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym

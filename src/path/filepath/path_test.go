@@ -431,7 +431,7 @@ func chtmpdir(t *testing.T) (restore func()) {
 }
 
 func TestWalk(t *testing.T) {
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+	if runtime.GOOS == "ios" {
 		restore := chtmpdir(t)
 		defer restore()
 	}
@@ -1278,7 +1278,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 }
 
 func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+	if runtime.GOOS == "ios" {
 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")

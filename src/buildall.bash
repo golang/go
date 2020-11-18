@@ -3,10 +3,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# Usage: buildall.sh [-e] [pattern]
+# Usage: buildall.bash [-e] [pattern]
 #
 # buildall.bash builds the standard library for all Go-supported
-# architectures. It is used by the "all-compile" trybot builder,
+# architectures. It is used by the "misc-compile" trybot builders,
 # as a smoke test to quickly flag portability issues.
 #
 # Options:
@@ -37,12 +37,11 @@ GOROOT="$(cd .. && pwd)"
 
 gettargets() {
 	../bin/go tool dist list | sed -e 's|/|-|'
-	echo linux-386-387
 	echo linux-arm-arm5
 }
 
 selectedtargets() {
-	gettargets | egrep -v 'android-arm|darwin-arm64' | egrep "$pattern"
+	gettargets | egrep "$pattern"
 }
 
 # put linux first in the target list to get all the architectures up front.
@@ -64,14 +63,10 @@ do
 	echo "### Building $target"
 	export GOOS=$(echo $target | sed 's/-.*//')
 	export GOARCH=$(echo $target | sed 's/.*-//')
-	unset GO386 GOARM
+	unset GOARM
 	if [ "$GOARCH" = "arm5" ]; then
 		export GOARCH=arm
 		export GOARM=5
-	fi
-	if [ "$GOARCH" = "387" ]; then
-		export GOARCH=386
-		export GO386=387
 	fi
 
 	# Build and vet everything.

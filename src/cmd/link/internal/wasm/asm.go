@@ -167,6 +167,9 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 			off := int32(0)
 			for ri := 0; ri < relocs.Count(); ri++ {
 				r := relocs.At(ri)
+				if r.Siz() == 0 {
+					continue // skip marker relocations
+				}
 				wfn.Write(P[off:r.Off()])
 				off = r.Off()
 				rs := ldr.ResolveABIAlias(r.Sym())

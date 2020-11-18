@@ -49,6 +49,12 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
+func _() int { // ERROR "can inline _"
+	tmp1 := h
+	tmp2 := tmp1
+	return tmp2(0) // ERROR "inlining call to h"
+}
+
 var somethingWrong error
 
 // local closures can be inlined
@@ -58,6 +64,9 @@ func l(x, y int) (int, int, error) {
 	}
 	if x == y {
 		e(somethingWrong) // ERROR "inlining call to l.func1"
+	} else {
+		f := e
+		f(nil) // ERROR "inlining call to l.func1"
 	}
 	return y, x, nil
 }
@@ -196,4 +205,27 @@ func gg(x int) { // ERROR "can inline gg"
 }
 func hh(x int) { // ERROR "can inline hh"
 	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
+}
+
+// Issue #14768 - make sure we can inline for loops.
+func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
+	for {
+		if fn() {
+			break
+		} else {
+			continue
+		}
+	}
+}
+
+// BAD: for2 should be inlineable too.
+func for2(fn func() bool) { // ERROR "fn does not escape"
+Loop:
+	for {
+		if fn() {
+			break Loop
+		} else {
+			continue Loop
+		}
+	}
 }

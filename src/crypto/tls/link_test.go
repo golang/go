@@ -42,19 +42,6 @@ func main() {}
 			},
 		},
 		{
-			name: "only_conn",
-			program: `package main
-import "crypto/tls"
-var c = new(tls.Conn)
-func main() {}
-`,
-			want: []string{"tls.(*Conn)"},
-			bad: []string{
-				"type.crypto/tls.clientHandshakeState",
-				"type.crypto/tls.serverHandshakeState",
-			},
-		},
-		{
 			name: "client_and_server",
 			program: `package main
 import "crypto/tls"

@@ -219,6 +219,16 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// External linker will do this relocation.
 			return true
 		}
+		// Internal linking.
+		if r.Add() != 0 {
+			ldr.Errorf(s, "PLT call with non-zero addend (%v)", r.Add())
+		}
+		// Build a PLT entry and change the relocation target to that entry.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		return true
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
@@ -313,6 +323,18 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// (e.g. go version).
 			return true
 		}
+
+		if target.IsDarwin() {
+			// Mach-O relocations are a royal pain to lay out.
+			// They use a compact stateful bytecode representation.
+			// Here we record what are needed and encode them later.
+			ld.MachoAddRebase(s, int64(r.Off()))
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
+			return true
+		}
 	}
 	return false
 }
@@ -371,7 +393,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rt := r.Type
 	siz := r.Size
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 {
+	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -415,6 +437,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
+	case objabi.R_ARM64_GOTPCREL:
+		siz = 4
+		// Two relocation entries: MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 MACHO_ARM64_RELOC_GOT_LOAD_PAGE21
+		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff + 4))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(v | (ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 << 28) | (2 << 25))
+		if r.Xadd != 0 {
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
+		}
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21 << 28
 	}
 
 	switch siz {
@@ -457,7 +495,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 
 			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
-			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && xadd != 0 {
+			if target.IsDarwin() && xadd != 0 {
 				nExtReloc = 4 // need another two relocations for non-zero addend
 			}
 
@@ -796,6 +834,34 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
+	} else if target.IsDarwin() {
+		ld.AddGotSym(target, ldr, syms, s, 0)
+
+		sDynid := ldr.SymDynid(s)
+		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
+		lep.AddUint32(target.Arch, uint32(sDynid))
+
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		ldr.SetPlt(s, int32(plt.Size()))
+
+		// adrp x16, GOT
+		plt.AddUint32(target.Arch, 0x90000010)
+		r, _ := plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// ldr x17, [x16, <offset>]
+		plt.AddUint32(target.Arch, 0xf9400211)
+		r, _ = plt.AddRel(objabi.R_ARM64_GOT)
+		r.SetOff(int32(plt.Size() - 4))
+		r.SetSiz(4)
+		r.SetSym(syms.GOT)
+		r.SetAdd(int64(ldr.SymGot(s)))
+
+		// br x17
+		plt.AddUint32(target.Arch, 0xd61f0220)
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}

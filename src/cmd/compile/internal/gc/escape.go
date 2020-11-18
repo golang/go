@@ -771,10 +771,11 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		var fn *Node
 		switch call.Op {
 		case OCALLFUNC:
-			if call.Left.Op == ONAME && call.Left.Class() == PFUNC {
-				fn = call.Left
-			} else if call.Left.Op == OCLOSURE {
-				fn = call.Left.Func.Closure.Func.Nname
+			switch v := staticValue(call.Left); {
+			case v.Op == ONAME && v.Class() == PFUNC:
+				fn = v
+			case v.Op == OCLOSURE:
+				fn = v.Func.Closure.Func.Nname
 			}
 		case OCALLMETH:
 			fn = asNode(call.Left.Type.FuncType().Nname)
@@ -1051,11 +1052,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 		}
 		n.SetOpt(loc)
 
-		if mustHeapAlloc(n) {
-			why := "too large for stack"
-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
-				why = "non-constant size"
-			}
+		if why := heapAllocReason(n); why != "" {
 			e.flow(e.heapHole().addr(n, why), loc)
 		}
 	}

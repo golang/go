@@ -1009,8 +1009,14 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
 			defer wg.Done()
 			resp, err := c.Get(cst.ts.URL)
 			if err != nil {
-				t.Errorf("Get: %v", err)
-				return
+				// Try to work around spurious connection reset on loaded system.
+				// See golang.org/issue/33585 and golang.org/issue/36797.
+				time.Sleep(10 * time.Millisecond)
+				resp, err = c.Get(cst.ts.URL)
+				if err != nil {
+					t.Errorf("Get: %v", err)
+					return
+				}
 			}
 			defer resp.Body.Close()
 			slurp, err := ioutil.ReadAll(resp.Body)

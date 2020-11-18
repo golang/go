@@ -468,6 +468,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R4, R13			// Restore SP
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
+// Runs on OS stack. Duration (in 100ns units) is in R0.
+// TODO: neeeds to be implemented properly.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0
+	B	runtime·abort(SB)
+
 // Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}

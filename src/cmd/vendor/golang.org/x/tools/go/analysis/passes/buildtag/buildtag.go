@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"strings"
 	"unicode"
 
@@ -31,6 +32,20 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
 	for _, name := range pass.OtherFiles {
 		if err := checkOtherFile(pass, name); err != nil {
 			return nil, err
+		}
+	}
+	for _, name := range pass.IgnoredFiles {
+		if strings.HasSuffix(name, ".go") {
+			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
+			if err != nil {
+				// Not valid Go source code - not our job to diagnose, so ignore.
+				return nil, nil
+			}
+			checkGoFile(pass, f)
+		} else {
+			if err := checkOtherFile(pass, name); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return nil, nil
@@ -132,13 +147,6 @@ func checkLine(line string, pastCutoff bool) error {
 }
 
 func checkArguments(fields []string) error {
-	// The original version of this checker in vet could examine
-	// files with malformed build tags that would cause the file to
-	// be always ignored by "go build". However, drivers for the new
-	// analysis API will analyze only the files selected to form a
-	// package, so these checks will never fire.
-	// TODO(adonovan): rethink this.
-
 	for _, arg := range fields[1:] {
 		for _, elem := range strings.Split(arg, ",") {
 			if strings.HasPrefix(elem, "!!") {

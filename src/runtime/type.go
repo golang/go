@@ -217,7 +217,9 @@ func (t *_type) nameOff(off nameOff) name {
 }
 
 func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
-	if off == 0 {
+	if off == 0 || off == -1 {
+		// -1 is the sentinel value for unreachable code.
+		// See cmd/link/internal/ld/data.go:relocsym.
 		return nil
 	}
 	base := uintptr(ptrInModule)
@@ -257,6 +259,11 @@ func (t *_type) typeOff(off typeOff) *_type {
 }
 
 func (t *_type) textOff(off textOff) unsafe.Pointer {
+	if off == -1 {
+		// -1 is the sentinel value for unreachable code.
+		// See cmd/link/internal/ld/data.go:relocsym.
+		return unsafe.Pointer(^uintptr(0))
+	}
 	base := uintptr(unsafe.Pointer(t))
 	var md *moduledata
 	for next := &firstmoduledata; next != nil; next = next.next {
@@ -359,7 +366,19 @@ type imethod struct {
 type interfacetype struct {
 	typ     _type
 	pkgpath name
-	mhdr    []imethod
+	// expMethods contains all interface methods.
+	//
+	// - len(expMethods) returns number of exported methods.
+	// - cap(expMethods) returns all interface methods, including both exported/non-exported methods.
+	expMethods []imethod
+}
+
+func (it *interfacetype) methods() []imethod {
+	return it.expMethods[:cap(it.expMethods)]
+}
+
+func (it *interfacetype) isEmpty() bool {
+	return cap(it.expMethods) == 0
 }
 
 type maptype struct {
@@ -657,13 +676,15 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		if it.pkgpath.name() != iv.pkgpath.name() {
 			return false
 		}
-		if len(it.mhdr) != len(iv.mhdr) {
+		itmethods := it.methods()
+		ivmethods := iv.methods()
+		if len(itmethods) != len(ivmethods) {
 			return false
 		}
-		for i := range it.mhdr {
-			tm := &it.mhdr[i]
-			vm := &iv.mhdr[i]
-			// Note the mhdr array can be relocated from
+		for i := range itmethods {
+			tm := &itmethods[i]
+			vm := &ivmethods[i]
+			// Note the expMethods array can be relocated from
 			// another module. See #17724.
 			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
 			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)

@@ -34,7 +34,7 @@ func spinUnlock(state *uint32)
 func lockAndCheck(addr *uint64) {
 	// ensure 8-byte alignment
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
-		addr = nil
+		panicUnaligned()
 	}
 	// force dereference before taking lock
 	_ = *addr

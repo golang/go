@@ -50,8 +50,12 @@ import (
 // variable ::= some token
 // opcode   ::= one of the opcodes from the *Ops.go files
 
+// special rules: trailing ellipsis "..." (in the outermost sexpr?) must match on both sides of a rule.
+//                trailing three underscore "___" in the outermost match sexpr indicate the presence of
+//                   extra ignored args that need not appear in the replacement
+
 // extra conditions is just a chunk of Go that evaluates to a boolean. It may use
-// variables declared in the matching sexpr. The variable "v" is predefined to be
+// variables declared in the matching tsexpr. The variable "v" is predefined to be
 // the value matched by the entire rule.
 
 // If multiple rules match, the first one in file order is selected.
@@ -1019,6 +1023,19 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		pos = v + ".Pos"
 	}
 
+	// If the last argument is ___, it means "don't care about trailing arguments, really"
+	// The likely/intended use is for rewrites that are too tricky to express in the existing pattern language
+	// Do a length check early because long patterns fed short (ultimately not-matching) inputs will
+	// do an indexing error in pattern-matching.
+	if op.argLength == -1 {
+		l := len(args)
+		if l == 0 || args[l-1] != "___" {
+			rr.add(breakf("len(%s.Args) != %d", v, l))
+		} else if l > 1 && args[l-1] == "___" {
+			rr.add(breakf("len(%s.Args) < %d", v, l-1))
+		}
+	}
+
 	for _, e := range []struct {
 		name, field, dclType string
 	}{
@@ -1159,9 +1176,6 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		}
 	}
 
-	if op.argLength == -1 {
-		rr.add(breakf("len(%s.Args) != %d", v, len(args)))
-	}
 	return pos, checkOp
 }
 

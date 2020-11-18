@@ -115,13 +115,12 @@ require downgrading other dependencies, and 'go get' does
 this automatically as well.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
+custom domains using insecure schemes such as HTTP, and also bypassess
+module sum validation using the checksum database. Use with caution.
 This flag is deprecated and will be removed in a future version of go.
-The GOINSECURE environment variable is usually a better alternative, since
-it provides control over which modules may be retrieved using an insecure
-scheme. It should be noted that the -insecure flag also turns the module
-checksum validation off. GOINSECURE does not do that, use GONOSUMDB.
-See 'go help environment' for details.
+To permit the use of insecure schemes, use the GOINSECURE environment
+variable instead. To bypass module sum validation, use GOPRIVATE or
+GONOSUMDB. See 'go help environment' for details.
 
 The second step is to download (if needed), build, and install
 the named packages.
@@ -875,6 +874,8 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	allowed := modload.CheckAllowed
 	if modload.IsRevisionQuery(vers) {
 		allowed = modload.CheckExclusions
+	} else if vers == "upgrade" || vers == "patch" {
+		allowed = checkAllowedOrCurrent(prevM.Version)
 	}
 
 	// If the query must be a module path, try only that module path.
@@ -911,7 +912,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	// If it turns out to only exist as a module, we can detect the resulting
 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
 	// all of the configured proxies.
-	results, err := modload.QueryPattern(ctx, path, vers, allowed)
+	results, err := modload.QueryPattern(ctx, path, vers, modload.Selected, allowed)
 	if err != nil {
 		// If the path doesn't contain a wildcard, check whether it was actually a
 		// module path instead. If so, return that.
@@ -980,5 +981,20 @@ func logOncef(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
 		fmt.Fprintln(os.Stderr, msg)
+	}
+}
+
+// checkAllowedOrCurrent is like modload.CheckAllowed, but always allows the
+// current version (even if it is retracted or otherwise excluded).
+func checkAllowedOrCurrent(current string) modload.AllowedFunc {
+	if current == "" {
+		return modload.CheckAllowed
+	}
+
+	return func(ctx context.Context, m module.Version) error {
+		if m.Version == current {
+			return nil
+		}
+		return modload.CheckAllowed(ctx, m)
 	}
 }

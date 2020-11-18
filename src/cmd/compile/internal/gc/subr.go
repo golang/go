@@ -546,22 +546,19 @@ func methtype(t *types.Type) *types.Type {
 
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
-// If not, return OXXX.
-func assignop(src, dst *types.Type, why *string) Op {
-	if why != nil {
-		*why = ""
-	}
-
+// If not, return OXXX. In this case, the string return parameter may
+// hold a reason why. In all other cases, it'll be the empty string.
+func assignop(src, dst *types.Type) (Op, string) {
 	if src == dst {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 	if src == nil || dst == nil || src.Etype == TFORW || dst.Etype == TFORW || src.Orig == nil || dst.Orig == nil {
-		return OXXX
+		return OXXX, ""
 	}
 
 	// 1. src type is identical to dst.
 	if types.Identical(src, dst) {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
 	// 2. src and dst have identical underlying types
@@ -575,13 +572,13 @@ func assignop(src, dst *types.Type, why *string) Op {
 		if src.IsEmptyInterface() {
 			// Conversion between two empty interfaces
 			// requires no code.
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
 		if (src.Sym == nil || dst.Sym == nil) && !src.IsInterface() {
 			// Conversion between two types, at least one unnamed,
 			// needs no conversion. The exception is nonempty interfaces
 			// which need to have their itab updated.
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
 	}
 
@@ -590,49 +587,47 @@ func assignop(src, dst *types.Type, why *string) Op {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
-			return OCONVIFACE
+			return OCONVIFACE, ""
 		}
 
 		// we'll have complained about this method anyway, suppress spurious messages.
 		if have != nil && have.Sym == missing.Sym && (have.Type.Broke() || missing.Type.Broke()) {
-			return OCONVIFACE
+			return OCONVIFACE, ""
 		}
 
-		if why != nil {
-			if isptrto(src, TINTER) {
-				*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
-			} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
-			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
-					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else if ptr != 0 {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
-			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
-					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
-			}
+		var why string
+		if isptrto(src, TINTER) {
+			why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
+		} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
+			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+		} else if have != nil && have.Sym == missing.Sym {
+			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
+				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+		} else if ptr != 0 {
+			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+		} else if have != nil {
+			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
+				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+		} else {
+			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 		}
 
-		return OXXX
+		return OXXX, why
 	}
 
 	if isptrto(dst, TINTER) {
-		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", dst)
-		}
-		return OXXX
+		why := fmt.Sprintf(":\n\t%v is pointer to interface, not interface", dst)
+		return OXXX, why
 	}
 
 	if src.IsInterface() && dst.Etype != TBLANK {
 		var missing, have *types.Field
 		var ptr int
-		if why != nil && implements(dst, src, &missing, &have, &ptr) {
-			*why = ": need type assertion"
+		var why string
+		if implements(dst, src, &missing, &have, &ptr) {
+			why = ": need type assertion"
 		}
-		return OXXX
+		return OXXX, why
 	}
 
 	// 4. src is a bidirectional channel value, dst is a channel type,
@@ -640,7 +635,7 @@ func assignop(src, dst *types.Type, why *string) Op {
 	// either src or dst is not a named type.
 	if src.IsChan() && src.ChanDir() == types.Cboth && dst.IsChan() {
 		if types.Identical(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
 	}
 
@@ -653,7 +648,7 @@ func assignop(src, dst *types.Type, why *string) Op {
 			TCHAN,
 			TINTER,
 			TSLICE:
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
 	}
 
@@ -661,26 +656,23 @@ func assignop(src, dst *types.Type, why *string) Op {
 
 	// 7. Any typed value can be assigned to the blank identifier.
 	if dst.Etype == TBLANK {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
-	return OXXX
+	return OXXX, ""
 }
 
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
-// If not, return OXXX.
+// If not, return OXXX. In this case, the string return parameter may
+// hold a reason why. In all other cases, it'll be the empty string.
 // srcConstant indicates whether the value of type src is a constant.
-func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
-	if why != nil {
-		*why = ""
-	}
-
+func convertop(srcConstant bool, src, dst *types.Type) (Op, string) {
 	if src == dst {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 	if src == nil || dst == nil {
-		return OXXX
+		return OXXX, ""
 	}
 
 	// Conversions from regular to go:notinheap are not allowed
@@ -688,23 +680,19 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// rules.
 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
-		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
-		}
-		return OXXX
+		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
+		return OXXX, why
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
-		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
-		}
-		return OXXX
+		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
+		return OXXX, why
 	}
 
 	// 1. src can be assigned to dst.
-	op := assignop(src, dst, why)
+	op, why := assignop(src, dst)
 	if op != OXXX {
-		return op
+		return op, why
 	}
 
 	// The rules for interfaces are no different in conversions
@@ -712,60 +700,57 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// with the good message from assignop.
 	// Otherwise clear the error.
 	if src.IsInterface() || dst.IsInterface() {
-		return OXXX
-	}
-	if why != nil {
-		*why = ""
+		return OXXX, why
 	}
 
 	// 2. Ignoring struct tags, src and dst have identical underlying types.
 	if types.IdenticalIgnoreTags(src.Orig, dst.Orig) {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
 	// 3. src and dst are unnamed pointer types and, ignoring struct tags,
 	// their base types have identical underlying types.
 	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
 		if types.IdenticalIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
 	}
 
 	// 4. src and dst are both integer or floating point types.
 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
 		if simtype[src.Etype] == simtype[dst.Etype] {
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
-		return OCONV
+		return OCONV, ""
 	}
 
 	// 5. src and dst are both complex types.
 	if src.IsComplex() && dst.IsComplex() {
 		if simtype[src.Etype] == simtype[dst.Etype] {
-			return OCONVNOP
+			return OCONVNOP, ""
 		}
-		return OCONV
+		return OCONV, ""
 	}
 
 	// Special case for constant conversions: any numeric
 	// conversion is potentially okay. We'll validate further
 	// within evconst. See #38117.
 	if srcConstant && (src.IsInteger() || src.IsFloat() || src.IsComplex()) && (dst.IsInteger() || dst.IsFloat() || dst.IsComplex()) {
-		return OCONV
+		return OCONV, ""
 	}
 
 	// 6. src is an integer or has type []byte or []rune
 	// and dst is a string type.
 	if src.IsInteger() && dst.IsString() {
-		return ORUNESTR
+		return ORUNESTR, ""
 	}
 
 	if src.IsSlice() && dst.IsString() {
 		if src.Elem().Etype == types.Bytetype.Etype {
-			return OBYTES2STR
+			return OBYTES2STR, ""
 		}
 		if src.Elem().Etype == types.Runetype.Etype {
-			return ORUNES2STR
+			return ORUNES2STR, ""
 		}
 	}
 
@@ -773,21 +758,21 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// String to slice.
 	if src.IsString() && dst.IsSlice() {
 		if dst.Elem().Etype == types.Bytetype.Etype {
-			return OSTR2BYTES
+			return OSTR2BYTES, ""
 		}
 		if dst.Elem().Etype == types.Runetype.Etype {
-			return OSTR2RUNES
+			return OSTR2RUNES, ""
 		}
 	}
 
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
 	if (src.IsPtr() || src.IsUintptr()) && dst.IsUnsafePtr() {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
 	if src.IsUnsafePtr() && (dst.IsPtr() || dst.IsUintptr()) {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
 	// src is map and dst is a pointer to corresponding hmap.
@@ -795,10 +780,10 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// go gc maps are implemented as a pointer to a hmap struct.
 	if src.Etype == TMAP && dst.IsPtr() &&
 		src.MapType().Hmap == dst.Elem() {
-		return OCONVNOP
+		return OCONVNOP, ""
 	}
 
-	return OXXX
+	return OXXX, ""
 }
 
 func assignconv(n *Node, t *types.Type, context string) *Node {
@@ -825,7 +810,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == types.Idealbool && !t.IsBoolean() {
+	if n.Type == types.UntypedBool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
 			r := nod(OCONVNOP, n, nil)
 			r.Type = types.Types[TBOOL]
@@ -839,8 +824,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		return n
 	}
 
-	var why string
-	op := assignop(n.Type, t, &why)
+	op, why := assignop(n.Type, t)
 	if op == OXXX {
 		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
@@ -1040,25 +1024,24 @@ func calcHasCall(n *Node) bool {
 	return false
 }
 
-func badtype(op Op, tl *types.Type, tr *types.Type) {
-	fmt_ := ""
+func badtype(op Op, tl, tr *types.Type) {
+	var s string
 	if tl != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", tl)
+		s += fmt.Sprintf("\n\t%v", tl)
 	}
 	if tr != nil {
-		fmt_ += fmt.Sprintf("\n\t%v", tr)
+		s += fmt.Sprintf("\n\t%v", tr)
 	}
 
 	// common mistake: *struct and *interface.
 	if tl != nil && tr != nil && tl.IsPtr() && tr.IsPtr() {
 		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
-			fmt_ += "\n\t(*struct vs *interface)"
+			s += "\n\t(*struct vs *interface)"
 		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
-			fmt_ += "\n\t(*interface vs *struct)"
+			s += "\n\t(*interface vs *struct)"
 		}
 	}
 
-	s := fmt_
 	yyerror("illegal types for operand: %v%s", op, s)
 }
 
@@ -1920,4 +1903,14 @@ func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)
 	return ind
+}
+
+// typePos returns the position associated with t.
+// This is where t was declared or where it appeared as a type expression.
+func typePos(t *types.Type) src.XPos {
+	n := asNode(t.Nod)
+	if n == nil || !n.Pos.IsKnown() {
+		Fatalf("bad type: %v", t)
+	}
+	return n.Pos
 }

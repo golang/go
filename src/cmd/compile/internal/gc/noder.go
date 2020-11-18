@@ -242,6 +242,7 @@ func (p *noder) node() {
 	mkpackage(p.file.PkgName.Value)
 
 	if pragma, ok := p.file.Pragma.(*Pragma); ok {
+		pragma.Flag &^= GoBuildPragma
 		p.checkUnused(pragma)
 	}
 
@@ -773,7 +774,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 	n := p.expr(x)
 	if Isconst(n, CTSTR) && n.Sym == nil {
 		nstr = n
-		chunks = append(chunks, strlit(nstr))
+		chunks = append(chunks, nstr.StringVal())
 	}
 
 	for i := len(adds) - 1; i >= 0; i-- {
@@ -783,12 +784,12 @@ func (p *noder) sum(x syntax.Expr) *Node {
 		if Isconst(r, CTSTR) && r.Sym == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
-				chunks = append(chunks, strlit(r))
+				chunks = append(chunks, r.StringVal())
 				continue
 			}
 
 			nstr = r
-			chunks = append(chunks, strlit(nstr))
+			chunks = append(chunks, nstr.StringVal())
 		} else {
 			if len(chunks) > 1 {
 				nstr.SetVal(Val{U: strings.Join(chunks, "")})

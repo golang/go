@@ -247,11 +247,15 @@ type Arch struct {
 	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
 	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
 	Elfsetupplt    func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
-	Gentext        func(*Link, *loader.Loader)
+	Gentext        func(*Link, *loader.Loader) // Generate text before addressing has been performed.
 	Machoreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool
 	MachorelocSize uint32 // size of an Mach-O relocation record, must match Machoreloc1.
 	PEreloc1       func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool
 	Xcoffreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool
+
+	// Generate additional symbols for the native symbol table just prior to
+	// code generation.
+	GenSymsLate func(*Link, *loader.Loader)
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -543,7 +547,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// Add non-package symbols and references of externally defined symbols.
-	ctxt.loader.LoadNonpkgSyms(ctxt.Arch)
+	ctxt.loader.LoadSyms(ctxt.Arch)
 
 	// Load symbols from shared libraries, after all Go object symbols are loaded.
 	for _, lib := range ctxt.Library {
@@ -1255,7 +1259,9 @@ func (ctxt *Link) hostlink() {
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
-		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+		if ctxt.DynlinkingGo() && objabi.GOOS != "ios" {
+			// -flat_namespace is deprecated on iOS.
+			// It is useful for supporting plugins. We don't support plugins on iOS.
 			argv = append(argv, "-Wl,-flat_namespace")
 		}
 		if !combineDwarf {
@@ -1291,6 +1297,17 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-Wl,-bbigtoc")
 	}
 
+	// Enable ASLR on Windows.
+	addASLRargs := func(argv []string) []string {
+		// Enable ASLR.
+		argv = append(argv, "-Wl,--dynamicbase")
+		// enable high-entropy ASLR on 64-bit.
+		if ctxt.Arch.PtrSize >= 8 {
+			argv = append(argv, "-Wl,--high-entropy-va")
+		}
+		return argv
+	}
+
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
@@ -1303,12 +1320,7 @@ func (ctxt *Link) hostlink() {
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
-			// Enable ASLR.
-			argv = append(argv, "-Wl,--dynamicbase")
-			// enable high-entropy ASLR on 64-bit.
-			if ctxt.Arch.PtrSize >= 8 {
-				argv = append(argv, "-Wl,--high-entropy-va")
-			}
+			argv = addASLRargs(argv)
 			// Work around binutils limitation that strips relocation table for dynamicbase.
 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
 			argv = append(argv, "-Wl,--export-all-symbols")
@@ -1322,9 +1334,6 @@ func (ctxt *Link) hostlink() {
 	case BuildModeCShared:
 		if ctxt.HeadType == objabi.Hdarwin {
 			argv = append(argv, "-dynamiclib")
-			if ctxt.Arch.Family != sys.AMD64 {
-				argv = append(argv, "-Wl,-read_only_relocs,suppress")
-			}
 		} else {
 			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")
@@ -1332,7 +1341,11 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
 			argv = append(argv, "-shared")
-			if ctxt.HeadType != objabi.Hwindows {
+			if ctxt.HeadType == objabi.Hwindows {
+				if *flagAslr {
+					argv = addASLRargs(argv)
+				}
+			} else {
 				// Pass -z nodelete to mark the shared library as
 				// non-closeable: a dlclose will do nothing.
 				argv = append(argv, "-Wl,-z,nodelete")
@@ -2260,7 +2273,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 	var ch1 chain
 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	ri := 0
-	for pcsp.Init(info.Pcsp()); !pcsp.Done; pcsp.Next() {
+	for pcsp.Init(ldr.Data(info.Pcsp())); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
@@ -2518,6 +2531,12 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 	} else if target.IsDarwin() {
 		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
 		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
+		if target.IsPIE() && target.IsInternal() {
+			// Mach-O relocations are a royal pain to lay out.
+			// They use a compact stateful bytecode representation.
+			// Here we record what are needed and encode them later.
+			MachoAddBind(int64(ldr.SymGot(s)), s)
+		}
 	} else {
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}

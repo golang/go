@@ -536,7 +536,6 @@ const (
 	Op386FlagLT_UGT
 	Op386FlagGT_UGT
 	Op386FlagGT_ULT
-	Op386FCHS
 	Op386MOVSSconst1
 	Op386MOVSDconst1
 	Op386MOVSSconst2
@@ -1833,6 +1832,8 @@ const (
 	OpPPC64FSUBS
 	OpPPC64MULLD
 	OpPPC64MULLW
+	OpPPC64MULLDconst
+	OpPPC64MULLWconst
 	OpPPC64MADDLD
 	OpPPC64MULHD
 	OpPPC64MULHW
@@ -1865,6 +1866,7 @@ const (
 	OpPPC64SLWconst
 	OpPPC64ROTLconst
 	OpPPC64ROTLWconst
+	OpPPC64EXTSWSLconst
 	OpPPC64CNTLZD
 	OpPPC64CNTLZW
 	OpPPC64CNTTZD
@@ -2731,7 +2733,9 @@ const (
 	OpClosureCall
 	OpStaticCall
 	OpInterCall
+	OpClosureLECall
 	OpStaticLECall
+	OpInterLECall
 	OpSignExt8to16
 	OpSignExt8to32
 	OpSignExt8to64
@@ -6056,18 +6060,6 @@ var opcodeTable = [...]opInfo{
 		name:   "FlagGT_ULT",
 		argLen: 0,
 		reg:    regInfo{},
-	},
-	{
-		name:   "FCHS",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-			outputs: []outputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-		},
 	},
 	{
 		name:    "MOVSSconst1",
@@ -24388,6 +24380,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MULLDconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     ppc64.AMULLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "MULLWconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     ppc64.AMULLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:   "MADDLD",
 		argLen: 3,
 		asm:    ppc64.AMADDLD,
@@ -24840,6 +24860,20 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		asm:     ppc64.AROTLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "EXTSWSLconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AEXTSWSLI,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -34837,7 +34871,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ClosureLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
 		name:    "StaticLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
+		name:    "InterLECall",
 		auxType: auxCallOff,
 		argLen:  -1,
 		call:    true,

@@ -28,7 +28,7 @@ func setArch(goarch string) (*arch.Arch, *obj.Link) {
 
 func newParser(goarch string) *Parser {
 	architecture, ctxt := setArch(goarch)
-	return NewParser(ctxt, architecture, nil)
+	return NewParser(ctxt, architecture, nil, false)
 }
 
 // tryParse executes parse func in panicOnError=true context.
@@ -75,7 +75,12 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 		parser.start(lex.Tokenize(test.input))
 		addr := obj.Addr{}
 		parser.operand(&addr)
-		result := obj.Dconv(&emptyProg, &addr)
+		var result string
+		if parser.compilingRuntime {
+			result = obj.DconvWithABIDetail(&emptyProg, &addr)
+		} else {
+			result = obj.Dconv(&emptyProg, &addr)
+		}
 		if result != test.output {
 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
 		}
@@ -86,6 +91,9 @@ func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
 	testBadOperandParser(t, parser, amd64BadOperandTests)
+	parser.compilingRuntime = true
+	testOperandParser(t, parser, amd64RuntimeOperandTests)
+	testBadOperandParser(t, parser, amd64BadOperandRuntimeTests)
 }
 
 func Test386OperandParser(t *testing.T) {
@@ -141,7 +149,7 @@ func TestFuncAddress(t *testing.T) {
 			parser := newParser(sub.arch)
 			for _, test := range sub.tests {
 				parser.start(lex.Tokenize(test.input))
-				name, ok := parser.funcAddress()
+				name, _, ok := parser.funcAddress()
 
 				isFuncSym := strings.HasSuffix(test.input, "(SB)") &&
 					// Ignore static symbols.
@@ -298,6 +306,11 @@ var amd64OperandTests = []operandTest{
 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
+var amd64RuntimeOperandTests = []operandTest{
+	{"$bar<ABI0>(SB)", "$bar<ABI0>(SB)"},
+	{"$foo<ABIInternal>(SB)", "$foo<ABIInternal>(SB)"},
+}
+
 var amd64BadOperandTests = []badOperandTest{
 	{"[", "register list: expected ']', found EOF"},
 	{"[4", "register list: bad low register in `[4`"},
@@ -311,6 +324,11 @@ var amd64BadOperandTests = []badOperandTest{
 	{"[X0-X1-X2]", "register list: expected ']' after `[X0-X1`, found '-'"},
 	{"[X0,X3]", "register list: expected '-' after `[X0`, found ','"},
 	{"[X0,X1,X2,X3]", "register list: expected '-' after `[X0`, found ','"},
+	{"$foo<ABI0>", "ABI selector only permitted when compiling runtime, reference was to \"foo\""},
+}
+
+var amd64BadOperandRuntimeTests = []badOperandTest{
+	{"$foo<bletch>", "malformed ABI selector \"bletch\" in reference to \"foo\""},
 }
 
 var x86OperandTests = []operandTest{

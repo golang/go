@@ -6,7 +6,7 @@ package path
 
 import (
 	"errors"
-	"strings"
+	"internal/bytealg"
 	"unicode/utf8"
 )
 
@@ -43,7 +43,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return !strings.Contains(name, "/"), nil
+			return bytealg.IndexByteString(name, '/') < 0, nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)

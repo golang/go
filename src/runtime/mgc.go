@@ -1407,19 +1407,6 @@ func gcStart(trigger gcTrigger) {
 // This is protected by markDoneSema.
 var gcMarkDoneFlushed uint32
 
-// debugCachedWork enables extra checks for debugging premature mark
-// termination.
-//
-// For debugging issue #27993.
-const debugCachedWork = false
-
-// gcWorkPauseGen is for debugging the mark completion algorithm.
-// gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
-// Only used if debugCachedWork is true.
-//
-// For debugging issue #27993.
-var gcWorkPauseGen uint32 = 1
-
 // gcMarkDone transitions the GC from mark to mark termination if all
 // reachable objects have been marked (that is, there are no grey
 // objects and can be no more in the future). Otherwise, it flushes
@@ -1475,15 +1462,7 @@ top:
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
 			wbBufFlush1(_p_)
-			// For debugging, shrink the write barrier
-			// buffer so it flushes immediately.
-			// wbBuf.reset will keep it at this size as
-			// long as throwOnGCWork is set.
-			if debugCachedWork {
-				b := &_p_.wbBuf
-				b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
-				b.debugGen = gcWorkPauseGen
-			}
+
 			// Flush the gcWork, since this may create global work
 			// and set the flushedWork flag.
 			//
@@ -1494,29 +1473,12 @@ top:
 			if _p_.gcw.flushedWork {
 				atomic.Xadd(&gcMarkDoneFlushed, 1)
 				_p_.gcw.flushedWork = false
-			} else if debugCachedWork {
-				// For debugging, freeze the gcWork
-				// until we know whether we've reached
-				// completion or not. If we think
-				// we've reached completion, but
-				// there's a paused gcWork, then
-				// that's a bug.
-				_p_.gcw.pauseGen = gcWorkPauseGen
-				// Capture the G's stack.
-				for i := range _p_.gcw.pauseStack {
-					_p_.gcw.pauseStack[i] = 0
-				}
-				callers(1, _p_.gcw.pauseStack[:])
 			}
 		})
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
 
 	if gcMarkDoneFlushed != 0 {
-		if debugCachedWork {
-			// Release paused gcWorks.
-			atomic.Xadd(&gcWorkPauseGen, 1)
-		}
 		// More grey objects were discovered since the
 		// previous termination check, so there may be more
 		// work to do. Keep going. It's possible the
@@ -1524,13 +1486,6 @@ top:
 		// ragged barrier, so re-check it.
 		semrelease(&worldsema)
 		goto top
-	}
-
-	if debugCachedWork {
-		throwOnGCWork = true
-		// Release paused gcWorks. If there are any, they
-		// should now observe throwOnGCWork and panic.
-		atomic.Xadd(&gcWorkPauseGen, 1)
 	}
 
 	// There was no global work, no local work, and no Ps
@@ -1549,59 +1504,33 @@ top:
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
 
-	if debugCachedWork {
-		// For debugging, double check that no work was added after we
-		// went around above and disable write barrier buffering.
+	// There is sometimes work left over when we enter mark termination due
+	// to write barriers performed after the completion barrier above.
+	// Detect this and resume concurrent mark. This is obviously
+	// unfortunate.
+	//
+	// See issue #27993 for details.
+	//
+	// Switch to the system stack to call wbBufFlush1, though in this case
+	// it doesn't matter because we're non-preemptible anyway.
+	restart := false
+	systemstack(func() {
 		for _, p := range allp {
-			gcw := &p.gcw
-			if !gcw.empty() {
-				printlock()
-				print("runtime: P ", p.id, " flushedWork ", gcw.flushedWork)
-				if gcw.wbuf1 == nil {
-					print(" wbuf1=<nil>")
-				} else {
-					print(" wbuf1.n=", gcw.wbuf1.nobj)
-				}
-				if gcw.wbuf2 == nil {
-					print(" wbuf2=<nil>")
-				} else {
-					print(" wbuf2.n=", gcw.wbuf2.nobj)
-				}
-				print("\n")
-				if gcw.pauseGen == gcw.putGen {
-					println("runtime: checkPut already failed at this generation")
-				}
-				throw("throwOnGCWork")
+			wbBufFlush1(p)
+			if !p.gcw.empty() {
+				restart = true
+				break
 			}
 		}
-	} else {
-		// For unknown reasons (see issue #27993), there is
-		// sometimes work left over when we enter mark
-		// termination. Detect this and resume concurrent
-		// mark. This is obviously unfortunate.
-		//
-		// Switch to the system stack to call wbBufFlush1,
-		// though in this case it doesn't matter because we're
-		// non-preemptible anyway.
-		restart := false
+	})
+	if restart {
+		getg().m.preemptoff = ""
 		systemstack(func() {
-			for _, p := range allp {
-				wbBufFlush1(p)
-				if !p.gcw.empty() {
-					restart = true
-					break
-				}
-			}
+			now := startTheWorldWithSema(true)
+			work.pauseNS += now - work.pauseStart
 		})
-		if restart {
-			getg().m.preemptoff = ""
-			systemstack(func() {
-				now := startTheWorldWithSema(true)
-				work.pauseNS += now - work.pauseStart
-			})
-			semrelease(&worldsema)
-			goto top
-		}
+		semrelease(&worldsema)
+		goto top
 	}
 
 	// Disable assists and background workers. We must do
@@ -2085,7 +2014,7 @@ func gcMark(start_time int64) {
 		// ensured all reachable objects were marked, all of
 		// these must be pointers to black objects. Hence we
 		// can just discard the write barrier buffer.
-		if debug.gccheckmark > 0 || throwOnGCWork {
+		if debug.gccheckmark > 0 {
 			// For debugging, flush the buffer and make
 			// sure it really was all marked.
 			wbBufFlush1(p)
@@ -2116,8 +2045,6 @@ func gcMark(start_time int64) {
 		// black after the gcMarkDone barrier.
 		gcw.dispose()
 	}
-
-	throwOnGCWork = false
 
 	cachestats()
 

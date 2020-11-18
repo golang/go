@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+	"unicode"
 
 	"golang.org/x/crypto/cryptobyte"
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
@@ -159,10 +159,6 @@ type dsaAlgorithmParameters struct {
 	P, Q, G *big.Int
 }
 
-type dsaSignature struct {
-	R, S *big.Int
-}
-
 type validity struct {
 	NotBefore, NotAfter time.Time
 }
@@ -182,14 +178,15 @@ type SignatureAlgorithm int
 
 const (
 	UnknownSignatureAlgorithm SignatureAlgorithm = iota
-	MD2WithRSA
-	MD5WithRSA
+
+	MD2WithRSA // Unsupported.
+	MD5WithRSA // Only supported for signing, not verification.
 	SHA1WithRSA
 	SHA256WithRSA
 	SHA384WithRSA
 	SHA512WithRSA
-	DSAWithSHA1
-	DSAWithSHA256
+	DSAWithSHA1   // Unsupported.
+	DSAWithSHA256 // Unsupported.
 	ECDSAWithSHA1
 	ECDSAWithSHA256
 	ECDSAWithSHA384
@@ -223,7 +220,7 @@ type PublicKeyAlgorithm int
 const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
-	DSA
+	DSA // Unsupported.
 	ECDSA
 	Ed25519
 )
@@ -351,6 +348,19 @@ var signatureAlgorithmDetails = []struct {
 	{PureEd25519, "Ed25519", oidSignatureEd25519, Ed25519, crypto.Hash(0) /* no pre-hashing */},
 }
 
+// hashToPSSParameters contains the DER encoded RSA PSS parameters for the
+// SHA256, SHA384, and SHA512 hashes as defined in RFC 3447, Appendix A.2.3.
+// The parameters contain the following values:
+//   * hashAlgorithm contains the associated hash identifier with NULL parameters
+//   * maskGenAlgorithm always contains the default mgf1SHA1 identifier
+//   * saltLength contains the length of the associated hash
+//   * trailerField always contains the default trailerFieldBC value
+var hashToPSSParameters = map[crypto.Hash]asn1.RawValue{
+	crypto.SHA256: asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 162, 3, 2, 1, 32}},
+	crypto.SHA384: asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2, 5, 0, 162, 3, 2, 1, 48}},
+	crypto.SHA512: asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3, 5, 0, 162, 3, 2, 1, 64}},
+}
+
 // pssParameters reflects the parameters in an AlgorithmIdentifier that
 // specifies RSA PSS. See RFC 3447, Appendix A.2.3.
 type pssParameters struct {
@@ -361,51 +371,6 @@ type pssParameters struct {
 	MGF          pkix.AlgorithmIdentifier `asn1:"explicit,tag:1"`
 	SaltLength   int                      `asn1:"explicit,tag:2"`
 	TrailerField int                      `asn1:"optional,explicit,tag:3,default:1"`
-}
-
-// rsaPSSParameters returns an asn1.RawValue suitable for use as the Parameters
-// in an AlgorithmIdentifier that specifies RSA PSS.
-func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
-	var hashOID asn1.ObjectIdentifier
-
-	switch hashFunc {
-	case crypto.SHA256:
-		hashOID = oidSHA256
-	case crypto.SHA384:
-		hashOID = oidSHA384
-	case crypto.SHA512:
-		hashOID = oidSHA512
-	}
-
-	params := pssParameters{
-		Hash: pkix.AlgorithmIdentifier{
-			Algorithm:  hashOID,
-			Parameters: asn1.NullRawValue,
-		},
-		MGF: pkix.AlgorithmIdentifier{
-			Algorithm: oidMGF1,
-		},
-		SaltLength:   hashFunc.Size(),
-		TrailerField: 1,
-	}
-
-	mgf1Params := pkix.AlgorithmIdentifier{
-		Algorithm:  hashOID,
-		Parameters: asn1.NullRawValue,
-	}
-
-	var err error
-	params.MGF.Parameters.FullBytes, err = asn1.Marshal(mgf1Params)
-	if err != nil {
-		panic(err)
-	}
-
-	serialized, err := asn1.Marshal(params)
-	if err != nil {
-		panic(err)
-	}
-
-	return asn1.RawValue{FullBytes: serialized}
 }
 
 func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm {
@@ -877,28 +842,6 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		} else {
 			return rsa.VerifyPKCS1v15(pub, hashType, signed, signature)
 		}
-	case *dsa.PublicKey:
-		if pubKeyAlgo != DSA {
-			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
-		}
-		dsaSig := new(dsaSignature)
-		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
-			return err
-		} else if len(rest) != 0 {
-			return errors.New("x509: trailing data after DSA signature")
-		}
-		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
-			return errors.New("x509: DSA signature contained zero or negative values")
-		}
-		// According to FIPS 186-3, section 4.6, the hash must be truncated if it is longer
-		// than the key length, but crypto/dsa doesn't do it automatically.
-		if maxHashLen := pub.Q.BitLen() / 8; maxHashLen < len(signed) {
-			signed = signed[:maxHashLen]
-		}
-		if !dsa.Verify(pub, signed, dsaSig.R, dsaSig.S) {
-			return errors.New("x509: DSA verification failure")
-		}
-		return
 	case *ecdsa.PublicKey:
 		if pubKeyAlgo != ECDSA {
 			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
@@ -1117,17 +1060,29 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 	err = forEachSAN(value, func(tag int, data []byte) error {
 		switch tag {
 		case nameTypeEmail:
-			emailAddresses = append(emailAddresses, string(data))
+			email := string(data)
+			if err := isIA5String(email); err != nil {
+				return errors.New("x509: SAN rfc822Name is malformed")
+			}
+			emailAddresses = append(emailAddresses, email)
 		case nameTypeDNS:
-			dnsNames = append(dnsNames, string(data))
+			name := string(data)
+			if err := isIA5String(name); err != nil {
+				return errors.New("x509: SAN dNSName is malformed")
+			}
+			dnsNames = append(dnsNames, string(name))
 		case nameTypeURI:
-			uri, err := url.Parse(string(data))
+			uriStr := string(data)
+			if err := isIA5String(uriStr); err != nil {
+				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
+			}
+			uri, err := url.Parse(uriStr)
 			if err != nil {
-				return fmt.Errorf("x509: cannot parse URI %q: %s", string(data), err)
+				return fmt.Errorf("x509: cannot parse URI %q: %s", uriStr, err)
 			}
 			if len(uri.Host) > 0 {
 				if _, ok := domainToReverseLabels(uri.Host); !ok {
-					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", string(data))
+					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", uriStr)
 				}
 			}
 			uris = append(uris, uri)
@@ -1657,9 +1612,15 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
 	var rawValues []asn1.RawValue
 	for _, name := range dnsNames {
+		if err := isIA5String(name); err != nil {
+			return nil, err
+		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
 	}
 	for _, email := range emailAddresses {
+		if err := isIA5String(email); err != nil {
+			return nil, err
+		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeEmail, Class: 2, Bytes: []byte(email)})
 	}
 	for _, rawIP := range ipAddresses {
@@ -1671,14 +1632,19 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris [
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeIP, Class: 2, Bytes: ip})
 	}
 	for _, uri := range uris {
-		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uri.String())})
+		uriStr := uri.String()
+		if err := isIA5String(uriStr); err != nil {
+			return nil, err
+		}
+		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uriStr)})
 	}
 	return asn1.Marshal(rawValues)
 }
 
 func isIA5String(s string) error {
 	for _, r := range s {
-		if r >= utf8.RuneSelf {
+		// Per RFC5280 "IA5String is limited to the set of ASCII characters"
+		if r > unicode.MaxASCII {
 			return fmt.Errorf("x509: %q cannot be encoded as an IA5String", s)
 		}
 	}
@@ -1721,7 +1687,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 			if oid, ok := oidFromExtKeyUsage(u); ok {
 				oids = append(oids, oid)
 			} else {
-				panic("internal error")
+				err = errors.New("x509: unknown extended key usage")
+				return
 			}
 		}
 
@@ -2015,7 +1982,7 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 				return
 			}
 			if requestedSigAlgo.isRSAPSS() {
-				sigAlgo.Parameters = rsaPSSParameters(hashFunc)
+				sigAlgo.Parameters = hashToPSSParameters[hashFunc]
 			}
 			found = true
 			break
@@ -2178,12 +2145,22 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
-	return asn1.Marshal(certificate{
+	signedCert, err := asn1.Marshal(certificate{
 		nil,
 		c,
 		signatureAlgorithm,
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the signature to ensure the crypto.Signer behaved correctly.
+	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public()); err != nil {
+		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+	}
+
+	return signedCert, nil
 }
 
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded

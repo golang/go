@@ -96,7 +96,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 	return n
 }
 
-// pkgtype returns the named type declared by symbol s.
+// importtype returns the named type declared by symbol s.
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {

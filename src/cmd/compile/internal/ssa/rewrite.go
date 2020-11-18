@@ -395,7 +395,8 @@ func canMergeLoad(target, load *Value) bool {
 
 // isSameCall reports whether sym is the same as the given named symbol
 func isSameCall(sym interface{}, name string) bool {
-	return sym.(*AuxCall).Fn.String() == name
+	fn := sym.(*AuxCall).Fn
+	return fn != nil && fn.String() == name
 }
 
 // nlz returns the number of leading zeros.
@@ -762,6 +763,36 @@ func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
 	}
 	va := aux.(*AuxCall)
 	return StaticAuxCall(lsym, va.args, va.results)
+}
+
+// de-virtualize an InterLECall
+// 'sym' is the symbol for the itab
+func devirtLESym(v *Value, aux interface{}, sym Sym, offset int64) *obj.LSym {
+	n, ok := sym.(*obj.LSym)
+	if !ok {
+		return nil
+	}
+
+	f := v.Block.Func
+	lsym := f.fe.DerefItab(n, offset)
+	if f.pass.debug > 0 {
+		if lsym != nil {
+			f.Warnl(v.Pos, "de-virtualizing call")
+		} else {
+			f.Warnl(v.Pos, "couldn't de-virtualize call")
+		}
+	}
+	if lsym == nil {
+		return nil
+	}
+	return lsym
+}
+
+func devirtLECall(v *Value, sym *obj.LSym) *Value {
+	v.Op = OpStaticLECall
+	v.Aux.(*AuxCall).Fn = sym
+	v.RemoveArg(0)
+	return v
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.
@@ -1350,8 +1381,8 @@ func GetPPC64Shiftme(auxint int64) int64 {
 	return int64(int8(auxint))
 }
 
-// Catch the simple ones first
-// TODO: Later catch more cases
+// This verifies that the mask occupies the
+// rightmost bits.
 func isPPC64ValidShiftMask(v int64) bool {
 	if ((v + 1) & v) == 0 {
 		return true

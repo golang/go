@@ -189,7 +189,6 @@ func (l *layout) restore() {
 
 func gen386() {
 	p("PUSHFL")
-
 	// Save general purpose registers.
 	var l = layout{sp: "SP"}
 	for _, reg := range regNames386 {
@@ -198,12 +197,6 @@ func gen386() {
 		}
 		l.add("MOVL", reg, 4)
 	}
-
-	// Save the 387 state.
-	l.addSpecial(
-		"FSAVE %d(SP)\nFLDCW runtime·controlWord64(SB)",
-		"FRSTOR %d(SP)",
-		108)
 
 	// Save SSE state only if supported.
 	lSSE := layout{stack: l.stack, sp: "SP"}
@@ -355,12 +348,9 @@ func genARM64() {
 	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
 	p("SUB $8, RSP, R29")  // set up new frame pointer
 	p("#endif")
-	// On darwin, save the LR again after decrementing SP. We run the
-	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
+	// On iOS, save the LR again after decrementing SP. We run the
+	// signal handler on the G stack (as it doesn't support sigaltstack),
 	// so any writes below SP may be clobbered.
-	p("#ifdef GOOS_darwin")
-	p("MOVD R30, (RSP)")
-	p("#endif")
 	p("#ifdef GOOS_ios")
 	p("MOVD R30, (RSP)")
 	p("#endif")

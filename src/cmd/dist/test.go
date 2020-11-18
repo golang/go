@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
+	return goos == "ios"
 }
 
 func (t *tester) out(v string) {
@@ -921,7 +921,7 @@ func (t *tester) extLink() bool {
 		"darwin-amd64", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-riscv64", "linux-s390x",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
@@ -964,10 +964,10 @@ func (t *tester) internalLink() bool {
 
 func (t *tester) internalLinkPIE() bool {
 	switch goos + "-" + goarch {
-	case "linux-amd64", "linux-arm64",
-		"android-arm64":
-		return true
-	case "windows-amd64", "windows-386", "windows-arm":
+	case "darwin-amd64",
+		"linux-amd64", "linux-arm64",
+		"android-arm64",
+		"windows-amd64", "windows-386", "windows-arm":
 		return true
 	}
 	return false
@@ -982,7 +982,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "aix-ppc64",
-			"darwin-amd64", "darwin-arm64",
+			"darwin-amd64", "darwin-arm64", "ios-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
 			"freebsd-amd64",
 			"windows-amd64", "windows-386":
@@ -992,7 +992,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
-			"darwin-amd64",
+			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
@@ -1011,7 +1011,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "freebsd-amd64":
 			return true
@@ -1023,7 +1023,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
-		case "darwin-amd64":
+		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "windows-amd64", "windows-386", "windows-arm":
 			return true
@@ -1100,6 +1100,13 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 		cmd = t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
 
+		if t.supportedBuildmode("pie") {
+			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+			if t.internalLink() && t.internalLinkPIE() {
+				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
+			}
+		}
+
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
 		"dragonfly-amd64",
@@ -1151,7 +1158,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
 				if t.internalLink() && t.internalLinkPIE() {
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal")
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
 				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie")

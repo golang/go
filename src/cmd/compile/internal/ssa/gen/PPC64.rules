@@ -821,6 +821,8 @@
 
 (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
 
+(MULL(W|D) x (MOVDconst [c])) && is16Bit(c) => (MULL(W|D)const [int32(c)] x)
+
 // Subtract from (with carry, but ignored) constant.
 // Note, these clobber the carry bit.
 (SUB (MOVDconst [c]) x) && is32Bit(c) => (SUBFCconst [c] x)
@@ -1018,13 +1020,14 @@
 (SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
 (SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
 
-(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
-(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
 (SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
 (SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
-(SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
-(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
-(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+// special case for power9
+(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
 
 // Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)
