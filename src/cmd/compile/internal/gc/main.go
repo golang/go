@@ -877,11 +877,14 @@ func writebench(filename string) error {
 }
 
 var (
-	importMap   = map[string]string{}
+	importMap   map[string]string
 	packageFile map[string]string // nil means not in use
 )
 
 func addImportMap(s string) {
+	if importMap == nil {
+		importMap = make(map[string]string)
+	}
 	if strings.Count(s, "=") != 1 {
 		log.Fatal("-importmap argument must be of the form source=actual")
 	}
@@ -894,6 +897,9 @@ func addImportMap(s string) {
 }
 
 func readImportCfg(file string) {
+	if importMap == nil {
+		importMap = make(map[string]string)
+	}
 	packageFile = map[string]string{}
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
