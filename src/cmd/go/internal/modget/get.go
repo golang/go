@@ -466,21 +466,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 	modload.DisallowWriteGoMod()
-
-	// Ensure .info files are cached for each module in the build list.
-	// This ensures 'go list -m all' can succeed later if offline.
-	// 'go get' only loads .info files for queried versions. 'go list -m' needs
-	// them to add timestamps to the output.
-	//
-	// This is best effort since build commands don't need .info files to load
-	// the build list.
-	//
-	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
-	// contains information about direct dependencies that WriteGoMod uses.
-	// Refactor to avoid these kinds of global side effects.
-	if modload.HasModRoot() {
-		modload.ListModules(ctx, []string{"all"}, false, false, false)
-	}
 }
 
 // parseArgs parses command-line arguments and reports errors.
