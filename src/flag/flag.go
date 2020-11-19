@@ -857,6 +857,17 @@ func Func(name, usage string, fn func(string) error) {
 // of strings by giving the slice the methods of Value; in particular, Set would
 // decompose the comma-separated string into the slice.
 func (f *FlagSet) Var(value Value, name string, usage string) {
+	// Panic if flag name begins with "-" or contains "="
+	if strings.HasPrefix(name, "-") {
+		msg := fmt.Sprintf("flag name begins with \"-\": %s", name)
+		fmt.Fprintln(f.Output(), msg)
+		panic(msg)
+	} else if strings.Contains(name, "=") {
+		msg := fmt.Sprintf("flag name contains \"=\": %s", name)
+		fmt.Fprintln(f.Output(), msg)
+		panic(msg)
+	}
+
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{name, usage, value, value.String()}
 	_, alreadythere := f.formal[name]
