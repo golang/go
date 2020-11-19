@@ -49,15 +49,6 @@ func LoadAllModules(ctx context.Context) []module.Version {
 	return capVersionSlice(buildList)
 }
 
-// LoadedModules returns the list of module requirements loaded or set by a
-// previous call (typically LoadAllModules or LoadPackages), starting with the
-// Target module and in a deterministic (stable) order.
-//
-// The caller must not modify the returned list, but may append to it.
-func LoadedModules() []module.Version {
-	return capVersionSlice(buildList)
-}
-
 // Selected returns the selected version of the module with the given path, or
 // the empty string if the given module has no selected version
 // (either because it is not required or because it is the Target module).
