@@ -116,14 +116,15 @@ func DefaultOptions() *Options {
 					CommandUpgradeDependency.Name: true,
 					CommandVendor.Name:            true,
 				},
-				LinksInHover:            true,
-				CompleteUnimported:      true,
-				CompletionDocumentation: true,
-				DeepCompletion:          true,
-				ImportShortcut:          Both,
-				Matcher:                 Fuzzy,
-				SymbolMatcher:           SymbolFuzzy,
-				SymbolStyle:             PackageQualifiedSymbols,
+				LinksInHover:                true,
+				CompleteUnimported:          true,
+				CompletionDocumentation:     true,
+				DeepCompletion:              true,
+				ImportShortcut:              Both,
+				Matcher:                     Fuzzy,
+				SymbolMatcher:               SymbolFuzzy,
+				SymbolStyle:                 PackageQualifiedSymbols,
+				ExperimentalPackageCacheKey: true,
 			},
 			InternalOptions: InternalOptions{
 				LiteralCompletions: true,
@@ -607,7 +608,6 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 // enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
-	o.ExperimentalPackageCacheKey = true
 	o.SymbolStyle = DynamicSymbols
 }
 

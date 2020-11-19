@@ -281,7 +281,7 @@ by an experiment because caching behavior is subtle and difficult to
 comprehensively test.
 
 
-Default: `false`.
+Default: `true`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Debugging
