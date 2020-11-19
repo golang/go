@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/tests"
 )
 
@@ -174,6 +175,7 @@ func Hi() {
 `
 		crlf := strings.ReplaceAll(want, "\n", "\r\n")
 		env.CreateBuffer("main.go", crlf)
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 		env.SaveBuffer("main.go")
 		got := env.Editor.BufferText("main.go")
 		if want != got {
@@ -212,6 +214,7 @@ func main() {
 `
 		crlf := strings.ReplaceAll(want, "\n", "\r\n")
 		env.CreateBuffer("main.go", crlf)
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 		env.OrganizeImports("main.go")
 		got := env.Editor.BufferText("main.go")
 		got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
