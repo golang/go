@@ -228,7 +228,7 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 	return cfg
 }
 
-func (s *snapshot) RunGoCommandDirect(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation) (*bytes.Buffer, error) {
+func (s *snapshot) RunGoCommandDirect(ctx context.Context, mode source.InvocationFlags, inv *gocommand.Invocation) (*bytes.Buffer, error) {
 	_, inv, cleanup, err := s.goCommandInvocation(ctx, mode, inv)
 	if err != nil {
 		return nil, err
@@ -238,7 +238,7 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, mode source.Invocatio
 	return s.view.session.gocmdRunner.Run(ctx, *inv)
 }
 
-func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.InvocationFlags, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
 	_, inv, cleanup, err := s.goCommandInvocation(ctx, mode, inv)
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.Invocation
 	return s.view.session.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
-func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.InvocationMode, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
+func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
 	inv.Env = append(append(append(os.Environ(), s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.go111module)
 	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
@@ -257,6 +257,11 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 	// All logic below is for module mode.
 	if s.workspaceMode()&moduleMode == 0 {
 		return "", inv, cleanup, nil
+	}
+
+	mode, allowNetwork := flags.Mode(), flags.AllowNetwork()
+	if !allowNetwork {
+		inv.Env = append(inv.Env, "GOPROXY=off")
 	}
 
 	var modURI span.URI
@@ -453,7 +458,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 		// calls to packages.Load. Determine what we should do instead.
 	}
 	if reload {
-		if err := s.load(ctx, fileURI(uri)); err != nil {
+		if err := s.load(ctx, false, fileURI(uri)); err != nil {
 			return nil, err
 		}
 	}
@@ -1008,7 +1013,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// If the view's build configuration is invalid, we cannot reload by
 	// package path. Just reload the directory instead.
 	if missingMetadata && !s.ValidBuildConfiguration() {
-		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
+		return s.load(ctx, false, viewLoadScope("LOAD_INVALID_VIEW"))
 	}
 
 	if len(pkgPathSet) == 0 {
@@ -1019,7 +1024,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	for pkgPath := range pkgPathSet {
 		pkgPaths = append(pkgPaths, pkgPath)
 	}
-	return s.load(ctx, pkgPaths...)
+	return s.load(ctx, false, pkgPaths...)
 }
 
 func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
@@ -1032,7 +1037,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		return nil
 	}
 
-	err := s.load(ctx, scopes...)
+	err := s.load(ctx, false, scopes...)
 
 	// If we failed to load some files, i.e. they have no metadata,
 	// mark the failures so we don't bother retrying until the file's

@@ -203,7 +203,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if command == source.CommandVendor {
 			action = "vendor"
 		}
-		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "mod", []string{action})
+		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{action})
 	case source.CommandUpdateGoSum:
 		var uri protocol.DocumentURI
 		if err := source.UnmarshalArgs(args, &uri); err != nil {
@@ -214,7 +214,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		if !ok {
 			return err
 		}
-		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri.SpanURI(), "list", []string{"all"})
+		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "list", []string{"all"})
 	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
@@ -397,10 +397,10 @@ func (s *Server) runGoGetModule(ctx context.Context, snapshot source.Snapshot, u
 			return err
 		}
 	}
-	return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile, uri, "get", append([]string{"-d"}, args...))
+	return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri, "get", append([]string{"-d"}, args...))
 }
 
-func runSimpleGoCommand(ctx context.Context, snapshot source.Snapshot, mode source.InvocationMode, uri span.URI, verb string, args []string) error {
+func runSimpleGoCommand(ctx context.Context, snapshot source.Snapshot, mode source.InvocationFlags, uri span.URI, verb string, args []string) error {
 	_, err := snapshot.RunGoCommandDirect(ctx, mode, &gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,

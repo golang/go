@@ -47,7 +47,7 @@ type metadata struct {
 
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
-func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
+func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) error {
 	var query []string
 	var containsDir bool // for logging
 	for _, scope := range scopes {
@@ -94,7 +94,11 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
-	_, inv, cleanup, err := s.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
+	flags := source.LoadWorkspace
+	if allowNetwork {
+		flags |= source.AllowNetwork
+	}
+	_, inv, cleanup, err := s.goCommandInvocation(ctx, flags, &gocommand.Invocation{
 		WorkingDir: s.view.rootURI.Filename(),
 	})
 	if err != nil {

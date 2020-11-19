@@ -548,7 +548,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		if len(scopes) == 0 {
 			scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
 		}
-		err := s.load(ctx, append(scopes, packagePath("builtin"))...)
+		err := s.load(ctx, firstAttempt, append(scopes, packagePath("builtin"))...)
 		if ctx.Err() != nil {
 			return
 		}

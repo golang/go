@@ -290,7 +290,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 			// (see golang/go#38711).
 			inv.ModFlag = "readonly"
 		}
-		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal, inv)
+		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal|source.AllowNetwork, inv)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}
@@ -386,6 +386,26 @@ func (s *snapshot) extractGoCommandError(ctx context.Context, snapshot source.Sn
 		rng, err := rangeFromPositions(pm.Mapper, line.Start, line.End)
 		if err != nil {
 			return nil
+		}
+		if v.Path != "" && strings.Contains(goCmdError, "disabled by GOPROXY=off") {
+			args, err := source.MarshalArgs(fh.URI(), false, []string{fmt.Sprintf("%v@%v", v.Path, v.Version)})
+			if err != nil {
+				return nil
+			}
+			return &source.Error{
+				Message: fmt.Sprintf("%v@%v has not been downloaded", v.Path, v.Version),
+				Kind:    source.ListError,
+				Range:   rng,
+				URI:     fh.URI(),
+				SuggestedFixes: []source.SuggestedFix{{
+					Title: fmt.Sprintf("Download %v@%v", v.Path, v.Version),
+					Command: &protocol.Command{
+						Title:     source.CommandAddDependency.Title,
+						Command:   source.CommandAddDependency.ID(),
+						Arguments: args,
+					},
+				}},
+			}
 		}
 		return &source.Error{
 			Message: goCmdError,

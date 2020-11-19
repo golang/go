@@ -444,18 +444,14 @@ func main() {
 			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
 			env.Editor.SaveBuffer(env.Ctx, "go.mod") // go.mod changes must be on disk
 
-			// Bring the go.sum file back into sync. Multi-module workspace
-			// mode currently doesn't set -mod=readonly, so won't need to.
-			if !strings.Contains(t.Name(), "experimental") {
-				d := protocol.PublishDiagnosticsParams{}
-				env.Await(
-					OnceMet(
-						env.DiagnosticAtRegexp("go.mod", "module"),
-						ReadDiagnostics("go.mod", &d),
-					),
-				)
-				env.ApplyQuickFixes("go.mod", d.Diagnostics)
-			}
+			d := protocol.PublishDiagnosticsParams{}
+			env.Await(
+				OnceMet(
+					env.DiagnosticAtRegexpWithMessage("go.mod", "example.com v1.2.3", "example.com@v1.2.3"),
+					ReadDiagnostics("go.mod", &d),
+				),
+			)
+			env.ApplyQuickFixes("go.mod", d.Diagnostics)
 
 			env.Await(
 				EmptyDiagnostics("go.mod"),

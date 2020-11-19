@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	errors "golang.org/x/xerrors"
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
@@ -36,7 +37,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 				Range:   e.Range,
 				Source:  e.Category,
 			}
-			if e.Category == "syntax" {
+			if e.Category == "syntax" || e.Kind == source.ListError {
 				d.Severity = protocol.SeverityError
 			} else {
 				d.Severity = protocol.SeverityWarning
@@ -65,6 +66,12 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 		return nil, nil
 	}
 	if err != nil {
+		// Some error messages can also be displayed as diagnostics.
+		if criticalErr := (*source.CriticalError)(nil); errors.As(err, &criticalErr) {
+			return criticalErr.ErrorList, nil
+		} else if srcErrList := (source.ErrorList)(nil); errors.As(err, &srcErrList) {
+			return srcErrList, nil
+		}
 		return nil, err
 	}
 	return tidied.Errors, nil

@@ -105,7 +105,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 			Args:       []string{"tidy"},
 			WorkingDir: filepath.Dir(fh.URI().Filename()),
 		}
-		tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, source.WriteTemporaryModFile, inv)
+		tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, source.WriteTemporaryModFile|source.AllowNetwork, inv)
 		if err != nil {
 			return &modTidyData{err: err}
 		}

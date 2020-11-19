@@ -84,11 +84,11 @@ type Snapshot interface {
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
-	RunGoCommandPiped(ctx context.Context, mode InvocationMode, inv *gocommand.Invocation, stdout, stderr io.Writer) error
+	RunGoCommandPiped(ctx context.Context, mode InvocationFlags, inv *gocommand.Invocation, stdout, stderr io.Writer) error
 
 	// RunGoCommandDirect runs the given `go` command. Verb, Args, and
 	// WorkingDir must be specified.
-	RunGoCommandDirect(ctx context.Context, mode InvocationMode, inv *gocommand.Invocation) (*bytes.Buffer, error)
+	RunGoCommandDirect(ctx context.Context, mode InvocationFlags, inv *gocommand.Invocation) (*bytes.Buffer, error)
 
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
@@ -161,13 +161,14 @@ const (
 	WidestPackage
 )
 
-// InvocationMode represents the goal of a particular go command invocation.
-type InvocationMode int
+// InvocationFlags represents the settings of a particular go command invocation.
+// It is a mode, plus a set of flag bits.
+type InvocationFlags int
 
 const (
 	// Normal is appropriate for commands that might be run by a user and don't
 	// deliberately modify go.mod files, e.g. `go test`.
-	Normal InvocationMode = iota
+	Normal InvocationFlags = iota
 	// UpdateUserModFile is for commands that intend to update the user's real
 	// go.mod file, e.g. `go mod tidy` in response to a user's request to tidy.
 	UpdateUserModFile
@@ -178,7 +179,19 @@ const (
 	// LoadWorkspace is for packages.Load, and other operations that should
 	// consider the whole workspace at once.
 	LoadWorkspace
+
+	// AllowNetwork is a flag bit that indicates the invocation should be
+	// allowed to access the network.
+	AllowNetwork = 1 << 10
 )
+
+func (m InvocationFlags) Mode() InvocationFlags {
+	return m & (AllowNetwork - 1)
+}
+
+func (m InvocationFlags) AllowNetwork() bool {
+	return m&AllowNetwork != 0
+}
 
 // View represents a single workspace.
 // This is the level at which we maintain configuration like working directory

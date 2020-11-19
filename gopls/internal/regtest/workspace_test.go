@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -272,6 +273,18 @@ func Hello() int {
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
 		)
+		if testenv.Go1Point() < 14 {
+			// On 1.14 and above, the go mod tidy diagnostics accidentally
+			// download for us. This is the behavior we actually want.
+			d := protocol.PublishDiagnosticsParams{}
+			env.Await(
+				OnceMet(
+					env.DiagnosticAtRegexpWithMessage("moda/a/go.mod", "require b.com v1.2.3", "b.com@v1.2.3"),
+					ReadDiagnostics("moda/a/go.mod", &d),
+				),
+			)
+			env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
+		}
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)
@@ -448,16 +461,20 @@ require (
 replace a.com => %s/moda/a
 replace b.com => %s/modb
 `, workdir, workdir))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+		// Check that go.mod diagnostics picked up the newly active mod file.
+		// The local version of modb has an extra dependency we need to download.
+		env.OpenFile("modb/go.mod")
+		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
-				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+				env.DiagnosticAtRegexp("modb/go.mod", `require example.com v1.2.3`),
+				ReadDiagnostics("modb/go.mod", &d),
 			),
 		)
-		env.OpenFile("modb/go.mod")
-		// Check that go.mod diagnostics picked up the newly active mod file.
-		env.Await(env.DiagnosticAtRegexp("modb/go.mod", `require example.com v1.2.3`))
-		// ...and that jumping to definition now goes to b.com in the workspace.
+		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
+		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+		// Jumping to definition should now go to b.com in the workspace.
 		location, _ = env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "modb/b/b.go"; !strings.HasSuffix(location, want) {
 			t.Errorf("expected %s, got %v", want, location)
@@ -474,9 +491,8 @@ require (
 
 replace a.com => %s/moda/a
 `, workdir))
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
 		env.Await(OnceMet(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
 			EmptyDiagnostics("modb/go.mod"),
 		))
 
