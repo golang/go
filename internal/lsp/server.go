@@ -25,7 +25,7 @@ func NewServer(session source.Session, client protocol.Client) *Server {
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[span.URI]struct{}),
-		watchedDirectories:    make(map[span.URI]struct{}),
+		watchedGlobPatterns:   make(map[string]struct{}),
 		changedFiles:          make(map[span.URI]struct{}),
 		session:               session,
 		client:                client,
@@ -79,12 +79,12 @@ type Server struct {
 	// set of folders to build views for when we are ready
 	pendingFolders []protocol.WorkspaceFolder
 
-	// watchedDirectories is the set of directories that we have requested that
+	// watchedGlobPatterns is the set of glob patterns that we have requested
 	// the client watch on disk. It will be updated as the set of directories
 	// that the server should watch changes.
-	watchedDirectoriesMu   sync.Mutex
-	watchedDirectories     map[span.URI]struct{}
-	watchRegistrationCount uint64
+	watchedGlobPatternsMu  sync.Mutex
+	watchedGlobPatterns    map[string]struct{}
+	watchRegistrationCount int
 
 	diagnosticsMu sync.Mutex
 	diagnostics   map[span.URI]*fileReports

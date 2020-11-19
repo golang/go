@@ -239,10 +239,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	// After any file modifications, we need to update our watched files,
 	// in case something changed. Compute the new set of directories to watch,
 	// and if it differs from the current set, send updated registrations.
-	if err := s.updateWatchedDirectories(ctx, snapshots); err != nil {
-		return err
-	}
-	return nil
+	return s.updateWatchedDirectories(ctx)
 }
 
 // DiagnosticWorkTitle returns the title of the diagnostic work resulting from a

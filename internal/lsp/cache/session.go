@@ -688,3 +688,15 @@ func (s *Session) Overlays() []source.Overlay {
 	}
 	return overlays
 }
+
+func (s *Session) FileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
+	patterns := map[string]struct{}{}
+	for _, view := range s.views {
+		snapshot, release := view.getSnapshot(ctx)
+		for k, v := range snapshot.fileWatchingGlobPatterns(ctx) {
+			patterns[k] = v
+		}
+		release()
+	}
+	return patterns
+}

@@ -604,19 +604,46 @@ func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 	return ids
 }
 
-func (s *snapshot) WorkspaceDirectories(ctx context.Context) []span.URI {
-	return s.workspace.dirs(ctx, s)
+func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
+	// Work-around microsoft/vscode#100870 by making sure that we are,
+	// at least, watching the user's entire workspace. This will still be
+	// applied to every folder in the workspace.
+	patterns := map[string]struct{}{
+		"**/*.{go,mod,sum}": {},
+	}
+	dirs := s.workspace.dirs(ctx, s)
+	for _, dir := range dirs {
+		dirName := dir.Filename()
+
+		// If the directory is within the view's folder, we're already watching
+		// it with the pattern above.
+		if source.InDirLex(s.view.folder.Filename(), dirName) {
+			continue
+		}
+		// TODO(rstambler): If microsoft/vscode#3025 is resolved before
+		// microsoft/vscode#101042, we will need a work-around for Windows
+		// drive letter casing.
+		patterns[fmt.Sprintf("%s/**/*.{go,mod,sum}", dirName)] = struct{}{}
+	}
+
+	// Some clients do not send notifications for changes to directories that
+	// contain Go code (golang/go#42348). To handle this, explicitly watch all
+	// of the directories in the workspace. We find them by adding the
+	// directories of every file in the snapshot's workspace directories.
+	var dirNames []string
+	for uri := range s.allKnownSubdirs(ctx) {
+		dirNames = append(dirNames, uri.Filename())
+	}
+	sort.Strings(dirNames)
+	if len(dirNames) > 0 {
+		patterns[fmt.Sprintf("{%s}", strings.Join(dirNames, ","))] = struct{}{}
+	}
+	return patterns
 }
 
 // allKnownSubdirs returns all of the subdirectories within the snapshot's
 // workspace directories. None of the workspace directories are included.
 func (s *snapshot) allKnownSubdirs(ctx context.Context) map[span.URI]struct{} {
-	// Don't return results until the snapshot is loaded, otherwise it may not
-	// yet "know" its files.
-	if err := s.awaitLoaded(ctx); err != nil {
-		return nil
-	}
-
 	dirs := s.workspace.dirs(ctx, s)
 
 	s.mu.Lock()
