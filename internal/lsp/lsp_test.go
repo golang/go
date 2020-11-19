@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/cache"
@@ -1014,20 +1015,14 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 	}
 }
 
-func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolCaseInsensitive, dirs, expectedSymbols)
+func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
+	r.callWorkspaceSymbols(t, uri, query, typ)
 }
 
-func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolFuzzy, dirs, expectedSymbols)
-}
-
-func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolCaseSensitive, dirs, expectedSymbols)
-}
-
-func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.SymbolMatcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
+func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
 	t.Helper()
+
+	matcher := tests.WorkspaceSymbolsTestTypeToMatcher(typ)
 
 	original := r.server.session.Options()
 	modified := original
@@ -1038,12 +1033,19 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source
 	params := &protocol.WorkspaceSymbolParams{
 		Query: query,
 	}
-	got, err := r.server.Symbol(r.ctx, params)
+	gotSymbols, err := r.server.Symbol(r.ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
+	got, err := tests.WorkspaceSymbolsString(r.ctx, r.data, uri, gotSymbols)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
+	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if diff := tests.Diff(want, got); diff != "" {
 		t.Error(diff)
 	}
 }

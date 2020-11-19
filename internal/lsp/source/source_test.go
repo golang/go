@@ -63,6 +63,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 	// TODO(golang/go#38212): Delete this once they are enabled by default.
 	tests.EnableAllAnalyzers(view, options)
 	view.SetOptions(ctx, options)
+
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {
 		kind := source.DetectLanguage("", filename)
@@ -864,26 +865,27 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 	}
 }
 
-func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolCaseInsensitive, dirs, expectedSymbols)
+func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
+	r.callWorkspaceSymbols(t, uri, query, typ)
 }
 
-func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolFuzzy, dirs, expectedSymbols)
-}
-
-func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.SymbolCaseSensitive, dirs, expectedSymbols)
-}
-
-func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.SymbolMatcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
+func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
 	t.Helper()
-	got, err := source.WorkspaceSymbols(r.ctx, matcher, source.PackageQualifiedSymbols, []source.View{r.view}, query)
+
+	matcher := tests.WorkspaceSymbolsTestTypeToMatcher(typ)
+	gotSymbols, err := source.WorkspaceSymbols(r.ctx, matcher, r.view.Options().SymbolStyle, []source.View{r.view}, query)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
+	got, err := tests.WorkspaceSymbolsString(r.ctx, r.data, uri, gotSymbols)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
+	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if diff := tests.Diff(want, got); diff != "" {
 		t.Error(diff)
 	}
 }

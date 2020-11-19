@@ -5,74 +5,49 @@
 package cmdtest
 
 import (
-	"path"
+	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.runWorkspaceSymbols(t, "caseInsensitive", query, dirs)
+func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
+	var matcher string
+	switch typ {
+	case tests.WorkspaceSymbolsFuzzy:
+		matcher = "fuzzy"
+	case tests.WorkspaceSymbolsCaseSensitive:
+		matcher = "caseSensitive"
+	case tests.WorkspaceSymbolsDefault:
+		matcher = "caseInsensitive"
+	}
+	r.runWorkspaceSymbols(t, uri, matcher, query)
 }
 
-func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.runWorkspaceSymbols(t, "fuzzy", query, dirs)
-}
-
-func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.runWorkspaceSymbols(t, "caseSensitive", query, dirs)
-}
-
-func (r *runner) runWorkspaceSymbols(t *testing.T, matcher, query string, dirs map[string]struct{}) {
+func (r *runner) runWorkspaceSymbols(t *testing.T, uri span.URI, matcher, query string) {
 	t.Helper()
 
 	out, _ := r.runGoplsCmd(t, "workspace_symbol", "-matcher", matcher, query)
 	var filtered []string
+	dir := filepath.Dir(uri.Filename())
 	for _, line := range strings.Split(out, "\n") {
-		for dir := range dirs {
-			if strings.HasPrefix(line, dir) {
-				filtered = append(filtered, line)
-				break
-			}
+		if source.InDir(dir, line) {
+			filtered = append(filtered, filepath.ToSlash(line))
 		}
 	}
 	sort.Strings(filtered)
-	got := r.Normalize(strings.Join(filtered, "\n"))
+	got := r.Normalize(strings.Join(filtered, "\n") + "\n")
 
-	expect := string(r.data.Golden("workspace_symbol", workspaceSymbolsGolden(matcher, query), func() ([]byte, error) {
+	expect := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 
 	if expect != got {
 		t.Errorf("workspace_symbol failed for %s:\n%s", query, tests.Diff(expect, got))
 	}
-}
-
-var workspaceSymbolsDir = map[string]string{
-	// TODO: make caseInsensitive test cases consistent with
-	// other matcher.
-	"caseInsensitive": "",
-	"fuzzy":           "fuzzy",
-	"caseSensitive":   "casesensitive",
-}
-
-func workspaceSymbolsGolden(matcher, query string) string {
-	dir := []string{"workspacesymbol", workspaceSymbolsDir[matcher]}
-	if query == "" {
-		return path.Join(append(dir, "EmptyQuery")...)
-	}
-
-	var name []rune
-	for _, r := range query {
-		if 'A' <= r && r <= 'Z' {
-			// Escape uppercase to '!' + lowercase for case insensitive file systems.
-			name = append(name, '!', r+'a'-'A')
-		} else {
-			name = append(name, r)
-		}
-	}
-	return path.Join(append(dir, string(name))...)
 }

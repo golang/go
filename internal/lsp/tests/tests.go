@@ -70,44 +70,42 @@ type PrepareRenames map[span.Span]*source.PrepareItem
 type Symbols map[span.URI][]protocol.DocumentSymbol
 type SymbolsChildren map[string][]protocol.DocumentSymbol
 type SymbolInformation map[span.Span]protocol.SymbolInformation
-type WorkspaceSymbols map[string][]protocol.SymbolInformation
+type WorkspaceSymbols map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
 
 type Data struct {
-	Config                        packages.Config
-	Exported                      *packagestest.Exported
-	CallHierarchy                 CallHierarchy
-	CodeLens                      CodeLens
-	Diagnostics                   Diagnostics
-	CompletionItems               CompletionItems
-	Completions                   Completions
-	CompletionSnippets            CompletionSnippets
-	UnimportedCompletions         UnimportedCompletions
-	DeepCompletions               DeepCompletions
-	FuzzyCompletions              FuzzyCompletions
-	CaseSensitiveCompletions      CaseSensitiveCompletions
-	RankCompletions               RankCompletions
-	FoldingRanges                 FoldingRanges
-	Formats                       Formats
-	Imports                       Imports
-	SemanticTokens                SemanticTokens
-	SuggestedFixes                SuggestedFixes
-	FunctionExtractions           FunctionExtractions
-	Definitions                   Definitions
-	Implementations               Implementations
-	Highlights                    Highlights
-	References                    References
-	Renames                       Renames
-	PrepareRenames                PrepareRenames
-	Symbols                       Symbols
-	symbolsChildren               SymbolsChildren
-	symbolInformation             SymbolInformation
-	WorkspaceSymbols              WorkspaceSymbols
-	FuzzyWorkspaceSymbols         WorkspaceSymbols
-	CaseSensitiveWorkspaceSymbols WorkspaceSymbols
-	Signatures                    Signatures
-	Links                         Links
+	Config                   packages.Config
+	Exported                 *packagestest.Exported
+	CallHierarchy            CallHierarchy
+	CodeLens                 CodeLens
+	Diagnostics              Diagnostics
+	CompletionItems          CompletionItems
+	Completions              Completions
+	CompletionSnippets       CompletionSnippets
+	UnimportedCompletions    UnimportedCompletions
+	DeepCompletions          DeepCompletions
+	FuzzyCompletions         FuzzyCompletions
+	CaseSensitiveCompletions CaseSensitiveCompletions
+	RankCompletions          RankCompletions
+	FoldingRanges            FoldingRanges
+	Formats                  Formats
+	Imports                  Imports
+	SemanticTokens           SemanticTokens
+	SuggestedFixes           SuggestedFixes
+	FunctionExtractions      FunctionExtractions
+	Definitions              Definitions
+	Implementations          Implementations
+	Highlights               Highlights
+	References               References
+	Renames                  Renames
+	PrepareRenames           PrepareRenames
+	Symbols                  Symbols
+	symbolsChildren          SymbolsChildren
+	symbolInformation        SymbolInformation
+	WorkspaceSymbols         WorkspaceSymbols
+	Signatures               Signatures
+	Links                    Links
 
 	t         testing.TB
 	fragments map[string]string
@@ -145,9 +143,7 @@ type Tests interface {
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
-	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
-	FuzzyWorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
-	CaseSensitiveWorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
+	WorkspaceSymbols(*testing.T, span.URI, string, WorkspaceSymbolsTestType)
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -270,33 +266,31 @@ func load(t testing.TB, mode string, dir string) *Data {
 	t.Helper()
 
 	datum := &Data{
-		CallHierarchy:                 make(CallHierarchy),
-		CodeLens:                      make(CodeLens),
-		Diagnostics:                   make(Diagnostics),
-		CompletionItems:               make(CompletionItems),
-		Completions:                   make(Completions),
-		CompletionSnippets:            make(CompletionSnippets),
-		UnimportedCompletions:         make(UnimportedCompletions),
-		DeepCompletions:               make(DeepCompletions),
-		FuzzyCompletions:              make(FuzzyCompletions),
-		RankCompletions:               make(RankCompletions),
-		CaseSensitiveCompletions:      make(CaseSensitiveCompletions),
-		Definitions:                   make(Definitions),
-		Implementations:               make(Implementations),
-		Highlights:                    make(Highlights),
-		References:                    make(References),
-		Renames:                       make(Renames),
-		PrepareRenames:                make(PrepareRenames),
-		SuggestedFixes:                make(SuggestedFixes),
-		FunctionExtractions:           make(FunctionExtractions),
-		Symbols:                       make(Symbols),
-		symbolsChildren:               make(SymbolsChildren),
-		symbolInformation:             make(SymbolInformation),
-		WorkspaceSymbols:              make(WorkspaceSymbols),
-		FuzzyWorkspaceSymbols:         make(WorkspaceSymbols),
-		CaseSensitiveWorkspaceSymbols: make(WorkspaceSymbols),
-		Signatures:                    make(Signatures),
-		Links:                         make(Links),
+		CallHierarchy:            make(CallHierarchy),
+		CodeLens:                 make(CodeLens),
+		Diagnostics:              make(Diagnostics),
+		CompletionItems:          make(CompletionItems),
+		Completions:              make(Completions),
+		CompletionSnippets:       make(CompletionSnippets),
+		UnimportedCompletions:    make(UnimportedCompletions),
+		DeepCompletions:          make(DeepCompletions),
+		FuzzyCompletions:         make(FuzzyCompletions),
+		RankCompletions:          make(RankCompletions),
+		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
+		Definitions:              make(Definitions),
+		Implementations:          make(Implementations),
+		Highlights:               make(Highlights),
+		References:               make(References),
+		Renames:                  make(Renames),
+		PrepareRenames:           make(PrepareRenames),
+		SuggestedFixes:           make(SuggestedFixes),
+		FunctionExtractions:      make(FunctionExtractions),
+		Symbols:                  make(Symbols),
+		symbolsChildren:          make(SymbolsChildren),
+		symbolInformation:        make(SymbolInformation),
+		WorkspaceSymbols:         make(WorkspaceSymbols),
+		Signatures:               make(Signatures),
+		Links:                    make(Links),
 
 		t:         t,
 		dir:       dir,
@@ -500,28 +494,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				})
 			}
 
-		}
-	}
-
-	eachWorkspaceSymbols := func(t *testing.T, cases map[string][]protocol.SymbolInformation, test func(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})) {
-		t.Helper()
-
-		for query, expectedSymbols := range cases {
-			name := query
-			if name == "" {
-				name = "EmptyQuery"
-			}
-			t.Run(name, func(t *testing.T) {
-				t.Helper()
-				dirs := make(map[string]struct{})
-				for _, si := range expectedSymbols {
-					d := filepath.Dir(si.Location.URI.SpanURI().Filename())
-					if _, ok := dirs[d]; !ok {
-						dirs[d] = struct{}{}
-					}
-				}
-				test(t, query, expectedSymbols, dirs)
-			})
 		}
 	}
 
@@ -758,17 +730,26 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("WorkspaceSymbols", func(t *testing.T) {
 		t.Helper()
-		eachWorkspaceSymbols(t, data.WorkspaceSymbols, tests.WorkspaceSymbols)
-	})
 
-	t.Run("FuzzyWorkspaceSymbols", func(t *testing.T) {
-		t.Helper()
-		eachWorkspaceSymbols(t, data.FuzzyWorkspaceSymbols, tests.FuzzyWorkspaceSymbols)
-	})
+		for _, typ := range []WorkspaceSymbolsTestType{
+			WorkspaceSymbolsDefault,
+			WorkspaceSymbolsCaseSensitive,
+			WorkspaceSymbolsFuzzy,
+		} {
+			for uri, cases := range data.WorkspaceSymbols[typ] {
+				for _, query := range cases {
+					name := query
+					if name == "" {
+						name = "EmptyQuery"
+					}
+					t.Run(name, func(t *testing.T) {
+						t.Helper()
+						tests.WorkspaceSymbols(t, uri, query, typ)
+					})
+				}
+			}
+		}
 
-	t.Run("CaseSensitiveWorkspaceSymbols", func(t *testing.T) {
-		t.Helper()
-		eachWorkspaceSymbols(t, data.CaseSensitiveWorkspaceSymbols, tests.CaseSensitiveWorkspaceSymbols)
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
@@ -857,6 +838,15 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
+	countWorkspaceSymbols := func(c map[WorkspaceSymbolsTestType]map[span.URI][]string) (count int) {
+		for _, typs := range c {
+			for _, queries := range typs {
+				count += len(queries)
+			}
+		}
+		return count
+	}
+
 	fmt.Fprintf(buf, "CallHierarchyCount = %v\n", len(data.CallHierarchy))
 	fmt.Fprintf(buf, "CodeLensCount = %v\n", countCodeLens(data.CodeLens))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
@@ -880,9 +870,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
 	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
-	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", len(data.WorkspaceSymbols))
-	fmt.Fprintf(buf, "FuzzyWorkspaceSymbolsCount = %v\n", len(data.FuzzyWorkspaceSymbols))
-	fmt.Fprintf(buf, "CaseSensitiveWorkspaceSymbolsCount = %v\n", len(data.CaseSensitiveWorkspaceSymbols))
+	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", countWorkspaceSymbols(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
@@ -929,12 +917,8 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 		if !*UpdateGolden {
 			data.t.Fatalf("could not find golden file %v: %v", fragment, tag)
 		}
-		var subdir string
-		if fragment != summaryFile {
-			subdir = "primarymod"
-		}
 		golden = &Golden{
-			Filename: filepath.Join(data.dir, subdir, fragment+goldenFileSuffix),
+			Filename: filepath.Join(data.dir, fragment+goldenFileSuffix),
 			Archive:  &txtar.Archive{},
 			Modified: true,
 		}
@@ -1261,29 +1245,14 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 	data.symbolInformation[spn] = si
 }
 
-func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(string, []span.Span) {
-	switch typ {
-	case WorkspaceSymbolsFuzzy:
-		return func(query string, targets []span.Span) {
-			data.FuzzyWorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
-			for _, target := range targets {
-				data.FuzzyWorkspaceSymbols[query] = append(data.FuzzyWorkspaceSymbols[query], data.symbolInformation[target])
-			}
+func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(*expect.Note, string) {
+	return func(note *expect.Note, query string) {
+		if data.WorkspaceSymbols[typ] == nil {
+			data.WorkspaceSymbols[typ] = make(map[span.URI][]string)
 		}
-	case WorkspaceSymbolsCaseSensitive:
-		return func(query string, targets []span.Span) {
-			data.CaseSensitiveWorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
-			for _, target := range targets {
-				data.CaseSensitiveWorkspaceSymbols[query] = append(data.CaseSensitiveWorkspaceSymbols[query], data.symbolInformation[target])
-			}
-		}
-	default:
-		return func(query string, targets []span.Span) {
-			data.WorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
-			for _, target := range targets {
-				data.WorkspaceSymbols[query] = append(data.WorkspaceSymbols[query], data.symbolInformation[target])
-			}
-		}
+		pos := data.Exported.ExpectFileSet.Position(note.Pos)
+		uri := span.URIFromPath(pos.Filename)
+		data.WorkspaceSymbols[typ][uri] = append(data.WorkspaceSymbols[typ][uri], query)
 	}
 }
 

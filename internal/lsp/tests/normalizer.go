@@ -109,8 +109,17 @@ func Normalize(s string, normalizers []Normalizer) string {
 		b.WriteString(s[last:n.index])
 		// skip over the filename
 		last = n.index + len(n.path)
+
+		// Hack: In multi-module mode, we add a "testmodule/" prefix, so trim
+		// it from the fragment.
+		fragment := n.fragment
+		if strings.HasPrefix(fragment, "testmodule") {
+			split := strings.Split(filepath.ToSlash(fragment), "/")
+			fragment = filepath.FromSlash(strings.Join(split[1:], "/"))
+		}
+
 		// add in the fragment instead
-		b.WriteString(n.fragment)
+		b.WriteString(fragment)
 		// see what the next match for this path is
 		n.index = strings.Index(s[last:], n.path)
 		if n.index >= 0 {

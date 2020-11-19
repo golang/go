@@ -1,9 +1,0 @@
--- workspace_symbol --
-workspacesymbol/a/a.go:3:5-26 a.RandomGopherVariableA Variable
-workspacesymbol/a/a.go:5:7-28 a.RandomGopherConstantA Constant
-workspacesymbol/a/a.go:8:2-24 a.randomgopherinvariable Constant
-workspacesymbol/a/a_test.go:3:5-30 a.RandomGopherTestVariableA Variable
-workspacesymbol/a/a_x_test.go:3:5-31 a_test.RandomGopherXTestVariableA Variable
-workspacesymbol/b/b.go:3:5-26 b.RandomGopherVariableB Variable
-workspacesymbol/b/b.go:5:6-25 b.RandomGopherStructB Struct
-workspacesymbol/b/b.go:6:2-5 b.RandomGopherStructB.Bar Field
