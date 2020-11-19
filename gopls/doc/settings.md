@@ -154,6 +154,17 @@ be removed.
 
 Default: `false`.
 
+#### **experimentalUseInvalidMetadata** *bool*
+
+**This setting is experimental and may be deleted.**
+
+experimentalUseInvalidMetadata enables gopls to fall back on outdated
+package metadata to provide editor features if the go command fails to
+load packages for some reason (like an invalid go.mod file). This will
+eventually be the default behavior, and this setting will be removed.
+
+Default: `false`.
+
 ### Formatting
 
 #### **local** *string*

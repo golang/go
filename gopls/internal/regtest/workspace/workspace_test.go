@@ -339,12 +339,15 @@ func Hello() int {
 		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
+		env.Await(env.DoneWithOpen())
 
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "modb/b/b.go"; !strings.HasSuffix(original, want) {
 			t.Errorf("expected %s, got %v", want, original)
 		}
 		env.CloseBuffer(original)
+		env.Await(env.DoneWithClose())
+
 		env.RemoveWorkspaceFile("modb/b/b.go")
 		env.RemoveWorkspaceFile("modb/go.mod")
 		env.Await(
@@ -359,6 +362,8 @@ func Hello() int {
 			),
 		)
 		env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
+		env.Await(env.DoneWithChangeWatchedFiles())
+
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)

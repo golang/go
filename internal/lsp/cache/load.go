@@ -420,7 +420,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 			m.missingDeps[importPkgPath] = struct{}{}
 			continue
 		}
-		if s.getMetadata(importID) == nil {
+		if s.noValidMetadataForID(importID) {
 			if _, err := s.setMetadata(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
 				event.Error(ctx, "error in dependency", err)
 			}
@@ -434,10 +434,13 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	// TODO: We should make sure not to set duplicate metadata,
 	// and instead panic here. This can be done by making sure not to
 	// reset metadata information for packages we've already seen.
-	if original, ok := s.metadata[m.id]; ok {
-		m = original
+	if original, ok := s.metadata[m.id]; ok && original.valid {
+		m = original.metadata
 	} else {
-		s.metadata[m.id] = m
+		s.metadata[m.id] = &knownMetadata{
+			metadata: m,
+			valid:    true,
+		}
 	}
 
 	// Set the workspace packages. If any of the package's files belong to the

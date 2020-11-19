@@ -44,7 +44,7 @@ const (
 	// SeparateProcess forwards connection to a shared separate gopls process.
 	SeparateProcess
 	// Experimental enables all of the experimental configurations that are
-	// being developed. Currently, it enables the workspace module.
+	// being developed.
 	Experimental
 )
 
@@ -240,7 +240,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 		{"singleton", Singleton, singletonServer},
 		{"forwarded", Forwarded, r.forwardedServer},
 		{"separate_process", SeparateProcess, r.separateProcessServer},
-		{"experimental_workspace_module", Experimental, experimentalWorkspaceModule},
+		{"experimental", Experimental, experimentalServer},
 	}
 
 	for _, tc := range tests {
@@ -395,9 +395,12 @@ func singletonServer(ctx context.Context, t *testing.T, optsHook func(*source.Op
 	return lsprpc.NewStreamServer(cache.New(optsHook), false)
 }
 
-func experimentalWorkspaceModule(_ context.Context, _ *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func experimentalServer(_ context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
 		optsHook(o)
+		o.EnableAllExperiments()
+		// ExperimentalWorkspaceModule is not (as of writing) enabled by
+		// source.Options.EnableAllExperiments, but we want to test it.
 		o.ExperimentalWorkspaceModule = true
 	}
 	return lsprpc.NewStreamServer(cache.New(options), false)

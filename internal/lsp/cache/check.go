@@ -41,7 +41,7 @@ type packageHandle struct {
 	mode source.ParseMode
 
 	// m is the metadata associated with the package.
-	m *metadata
+	m *knownMetadata
 
 	// key is the hashed key for the package.
 	key packageHandleKey
@@ -117,7 +117,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 		}
 
 		data := &packageData{}
-		data.pkg, data.err = typeCheck(ctx, snapshot, m, mode, deps)
+		data.pkg, data.err = typeCheck(ctx, snapshot, m.metadata, mode, deps)
 		// Make sure that the workers above have finished before we return,
 		// especially in case of cancellation.
 		wg.Wait()
@@ -167,7 +167,10 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	var depKeys []packageHandleKey
 	for _, depID := range depList {
 		depHandle, err := s.buildPackageHandle(ctx, depID, s.workspaceParseMode(depID))
-		if err != nil {
+		// Don't use invalid metadata for dependencies if the top-level
+		// metadata is valid. We only load top-level packages, so if the
+		// top-level is valid, all of its dependencies should be as well.
+		if err != nil || m.valid && !depHandle.m.valid {
 			event.Error(ctx, fmt.Sprintf("%s: no dep handle for %s", id, depID), err, tag.Snapshot.Of(s.id))
 			if ctx.Err() != nil {
 				return nil, nil, ctx.Err()
