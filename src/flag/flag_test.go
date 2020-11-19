@@ -655,3 +655,66 @@ func TestExitCode(t *testing.T) {
 		}
 	}
 }
+
+func TestInvalidFlagDefinitions(t *testing.T) {
+	mustPanic := func(t *testing.T, expected string) {
+		switch msg := recover().(type) {
+		case nil:
+			t.Fatal("did not panic")
+		case string:
+			if msg != expected {
+				t.Fatalf("expected %q, bug got %q", expected, msg)
+			}
+		default:
+			t.Fatalf("unexpected panic value: %T(%v)", msg, msg)
+		}
+	}
+
+	t.Run("flag name begins with \"-\"", func(t *testing.T) {
+		fs := NewFlagSet("", ContinueOnError)
+		var buf bytes.Buffer
+		fs.SetOutput(&buf)
+
+		defer mustPanic(t, "flag name begins with \"-\": -foo")
+
+		var v flagVar
+		fs.Var(&v, "-foo", "")
+	})
+
+	t.Run("flag name contains \"=\"", func(t *testing.T) {
+		fs := NewFlagSet("", ContinueOnError)
+		var buf bytes.Buffer
+		fs.SetOutput(&buf)
+
+		defer mustPanic(t, "flag name contains \"=\": foo=bar")
+
+		var v flagVar
+		fs.Var(&v, "foo=bar", "")
+	})
+
+	t.Run("flag redefined", func(t *testing.T) {
+		fs := NewFlagSet("", ContinueOnError)
+		var buf bytes.Buffer
+		fs.SetOutput(&buf)
+
+		var v flagVar
+		fs.Var(&v, "foo", "")
+
+		defer mustPanic(t, "flag redefined: foo")
+
+		fs.Var(&v, "foo", "")
+	})
+
+	t.Run("flag redefined with named flag set", func(t *testing.T) {
+		fs := NewFlagSet("fs", ContinueOnError)
+		var buf bytes.Buffer
+		fs.SetOutput(&buf)
+
+		var v flagVar
+		fs.Var(&v, "foo", "")
+
+		defer mustPanic(t, "fs flag redefined: foo")
+
+		fs.Var(&v, "foo", "")
+	})
+}
