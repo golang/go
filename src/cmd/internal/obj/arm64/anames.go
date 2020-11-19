@@ -515,6 +515,8 @@ var Anames = []string{
 	"VEXT",
 	"VRBIT",
 	"VRAX1",
+	"VUMAX",
+	"VUMIN",
 	"VUSHR",
 	"VUSHLL",
 	"VUSHLL2",

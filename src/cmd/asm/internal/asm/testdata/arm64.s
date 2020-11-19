@@ -207,6 +207,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VUADDW2	V9.B16, V12.H8, V14.H8          // 8e11296e
 	VUADDW2	V13.H8, V20.S4, V30.S4          // 9e126d6e
 	VUADDW2	V21.S4, V24.D2, V29.D2          // 1d13b56e
+	VUMAX	V3.B8, V2.B8, V1.B8             // 4164232e
+	VUMAX	V3.B16, V2.B16, V1.B16          // 4164236e
+	VUMAX	V3.H4, V2.H4, V1.H4             // 4164632e
+	VUMAX	V3.H8, V2.H8, V1.H8             // 4164636e
+	VUMAX	V3.S2, V2.S2, V1.S2             // 4164a32e
+	VUMAX	V3.S4, V2.S4, V1.S4             // 4164a36e
+	VUMIN	V3.B8, V2.B8, V1.B8             // 416c232e
+	VUMIN	V3.B16, V2.B16, V1.B16          // 416c236e
+	VUMIN	V3.H4, V2.H4, V1.H4             // 416c632e
+	VUMIN	V3.H8, V2.H8, V1.H8             // 416c636e
+	VUMIN	V3.S2, V2.S2, V1.S2             // 416ca32e
+	VUMIN	V3.S4, V2.S4, V1.S4             // 416ca36e
 	FCCMPS	LT, F1, F2, $1	                // 41b4211e
 	FMADDS	F1, F3, F2, F4                  // 440c011f
 	FMADDD	F4, F5, F4, F4                  // 8414441f
