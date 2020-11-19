@@ -397,9 +397,9 @@ func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 
 func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) error {
 	e.mu.Lock()
+	defer e.mu.Unlock()
 	buf, ok := e.buffers[path]
 	if !ok {
-		e.mu.Unlock()
 		return fmt.Errorf(fmt.Sprintf("unknown buffer: %q", path))
 	}
 	content := buf.text()
@@ -408,7 +408,6 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 	if ok {
 		includeText = syncOptions.Save.IncludeText
 	}
-	e.mu.Unlock()
 
 	docID := e.textDocumentIdentifier(buf.path)
 	if e.Server != nil {
@@ -423,10 +422,8 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 		return errors.Errorf("writing %q: %w", path, err)
 	}
 
-	e.mu.Lock()
 	buf.dirty = false
 	e.buffers[path] = buf
-	e.mu.Unlock()
 
 	if e.Server != nil {
 		params := &protocol.DidSaveTextDocumentParams{
@@ -812,6 +809,9 @@ func (e *Editor) FormatBuffer(ctx context.Context, path string) error {
 		return fmt.Errorf("before receipt of formatting edits, buffer version changed from %d to %d", version, versionAfter)
 	}
 	edits := convertEdits(resp)
+	if len(edits) == 0 {
+		return nil
+	}
 	return e.editBufferLocked(ctx, path, edits)
 }
 
