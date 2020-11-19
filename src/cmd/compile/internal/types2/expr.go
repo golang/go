@@ -1168,7 +1168,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 	case *syntax.BasicLit:
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
-			check.invalidASTf(e, "invalid literal %v", e.Value)
+			// The parser already establishes syntactic correctness.
+			// If we reach here it's because of number under-/overflow.
+			// TODO(gri) setConst (and in turn the go/constant package)
+			// should return an error describing the issue.
+			check.errorf(e, "malformed constant: %s", e.Value)
 			goto Error
 		}
 
