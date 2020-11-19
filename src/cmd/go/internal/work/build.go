@@ -840,11 +840,6 @@ func installOutsideModule(ctx context.Context, args []string) {
 	}
 
 	// Check that named packages are all provided by the same module.
-	for _, mod := range modload.LoadedModules() {
-		if mod.Path == installMod.Path && mod.Version != installMod.Version {
-			base.Fatalf("go install: %s: module requires a higher version of itself (%s)", installMod, mod.Version)
-		}
-	}
 	for _, pkg := range mainPkgs {
 		if pkg.Module == nil {
 			// Packages in std, cmd, and their vendored dependencies
