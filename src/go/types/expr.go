@@ -1073,7 +1073,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.BasicLit:
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
-			check.invalidAST(e, "invalid literal %v", e.Value)
+			// The parser already establishes syntactic correctness.
+			// If we reach here it's because of number under-/overflow.
+			// TODO(gri) setConst (and in turn the go/constant package)
+			// should return an error describing the issue.
+			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
 
