@@ -111,7 +111,7 @@ type Snapshot interface {
 
 	// ModTidy returns the results of `go mod tidy` for the module specified by
 	// the given go.mod file.
-	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
+	ModTidy(ctx context.Context, pm *ParsedModule) (*TidiedModule, error)
 
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(ctx context.Context, uri span.URI) span.URI
@@ -249,6 +249,7 @@ type ParsedGoFile struct {
 
 // A ParsedModule contains the results of parsing a go.mod file.
 type ParsedModule struct {
+	URI         span.URI
 	File        *modfile.File
 	Mapper      *protocol.ColumnMapper
 	ParseErrors []Error
@@ -256,8 +257,6 @@ type ParsedModule struct {
 
 // A TidiedModule contains the results of running `go mod tidy` on a module.
 type TidiedModule struct {
-	// The parsed module, which is guaranteed to have parsed successfully.
-	Parsed *ParsedModule
 	// Diagnostics representing changes made by `go mod tidy`.
 	Errors []Error
 	// The bytes of the go.mod file after it was tidied.

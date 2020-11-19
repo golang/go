@@ -53,12 +53,16 @@ func (mth *modTidyHandle) tidy(ctx context.Context, snapshot *snapshot) (*source
 	return data.tidied, data.err
 }
 
-func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.TidiedModule, error) {
-	if fh.Kind() != source.Mod {
-		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
+func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*source.TidiedModule, error) {
+	if pm.File == nil {
+		return nil, fmt.Errorf("cannot tidy unparseable go.mod file: %v", pm.URI)
 	}
-	if handle := s.getModTidyHandle(fh.URI()); handle != nil {
+	if handle := s.getModTidyHandle(pm.URI); handle != nil {
 		return handle.tidy(ctx, s)
+	}
+	fh, err := s.GetFile(ctx, pm.URI)
+	if err != nil {
+		return nil, err
 	}
 	// If the file handle is an overlay, it may not be written to disk.
 	// The go.mod file has to be on disk for `go mod tidy` to work.
@@ -96,23 +100,6 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 		defer done()
 
 		snapshot := arg.(*snapshot)
-		pm, err := snapshot.ParseMod(ctx, fh)
-		if err != nil || len(pm.ParseErrors) > 0 {
-			if err == nil {
-				err = fmt.Errorf("could not parse module to tidy: %v", pm.ParseErrors)
-			}
-			var errors []source.Error
-			if pm != nil {
-				errors = pm.ParseErrors
-			}
-			return &modTidyData{
-				tidied: &source.TidiedModule{
-					Parsed: pm,
-					Errors: errors,
-				},
-				err: err,
-			}
-		}
 		inv := &gocommand.Invocation{
 			Verb:       "mod",
 			Args:       []string{"tidy"},
@@ -149,7 +136,6 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 		return &modTidyData{
 			tidied: &source.TidiedModule{
 				Errors:        errors,
-				Parsed:        pm,
 				TidiedContent: tempContents,
 			},
 		}
@@ -187,7 +173,6 @@ func (s *snapshot) parseModErrors(ctx context.Context, fh source.FileHandle, err
 			return nil, false
 		}
 		return &source.TidiedModule{
-			Parsed: pmf,
 			Errors: []source.Error{{
 				URI:   fh.URI(),
 				Range: rng,

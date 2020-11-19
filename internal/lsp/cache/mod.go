@@ -69,25 +69,24 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 			Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
 			Content:   contents,
 		}
-		data := &parseModData{
+		file, err := modfile.Parse(modFH.URI().Filename(), contents, nil)
+
+		// Attempt to convert the error to a standardized parse error.
+		var parseErrors []source.Error
+		if err != nil {
+			if parseErr, extractErr := extractModParseErrors(modFH.URI(), m, err, contents); extractErr == nil {
+				parseErrors = []source.Error{*parseErr}
+			}
+		}
+		return &parseModData{
 			parsed: &source.ParsedModule{
-				Mapper: m,
+				URI:         modFH.URI(),
+				Mapper:      m,
+				File:        file,
+				ParseErrors: parseErrors,
 			},
+			err: err,
 		}
-		data.parsed.File, data.err = modfile.Parse(modFH.URI().Filename(), contents, nil)
-		if data.err != nil {
-			// Attempt to convert the error to a standardized parse error.
-			if parseErr, extractErr := extractModParseErrors(modFH.URI(), m, data.err, contents); extractErr == nil {
-				data.parsed.ParseErrors = []source.Error{*parseErr}
-			}
-			// If the file was still parsed, we don't want to treat this as a
-			// fatal error. Note: This currently cannot happen as modfile.Parse
-			// always returns an error when the file is nil.
-			if data.parsed.File != nil {
-				data.err = nil
-			}
-		}
-		return data
 	}, nil)
 
 	pmh := &parseModHandle{handle: h}

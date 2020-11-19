@@ -52,7 +52,14 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 }
 
 func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]source.Error, error) {
-	tidied, err := snapshot.ModTidy(ctx, fh)
+	pm, err := snapshot.ParseMod(ctx, fh)
+	if err != nil {
+		if pm == nil || len(pm.ParseErrors) == 0 {
+			return nil, err
+		}
+		return pm.ParseErrors, nil
+	}
+	tidied, err := snapshot.ModTidy(ctx, pm)
 
 	if source.IsNonFatalGoModError(err) {
 		return nil, nil
