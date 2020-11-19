@@ -58,7 +58,7 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/gc/cycles/forced:gc-cycles",
-		Description: "Count of completed forced GC cycles.",
+		Description: "Count of completed GC cycles forced by the application.",
 		Kind:        KindUint64,
 		Cumulative:  true,
 	},
@@ -94,28 +94,33 @@ var allDesc = []Description{
 		Kind:        KindFloat64Histogram,
 	},
 	{
-		Name:        "/memory/classes/heap/free:bytes",
-		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/free:bytes",
+		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
+			"but has not been. This metric is the runtime's estimate of free address space that is backed by " +
+			"physical memory.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/objects:bytes",
-		Description: "Memory occupied by live objects and dead objects that have not yet been collected.",
+		Description: "Memory occupied by live objects and dead objects that have not yet been marked free by the garbage collector.",
 		Kind:        KindUint64,
 	},
 	{
-		Name:        "/memory/classes/heap/released:bytes",
-		Description: "Memory that has been returned to the underlying system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/released:bytes",
+		Description: "Memory that is completely free and has been returned to the underlying system. This " +
+			"metric is the runtime's estimate of free address space that is still mapped into the process, " +
+			"but is not backed by physical memory.",
+		Kind: KindUint64,
 	},
 	{
-		Name:        "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is occupied by stacks.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/stacks:bytes",
+		Description: "Memory allocated from the heap that is reserved for stack space. Not all of it is necessarily " +
+			"simultaneously in use, but it may not be used for any other purpose.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/unused:bytes",
-		Description: "Memory that is unavailable for allocation, but cannot be returned to the underlying system.",
+		Description: "Memory that is reserved for heap objects but is otherwise not currently used to hold heap objects.",
 		Kind:        KindUint64,
 	},
 	{
