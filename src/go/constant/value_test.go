@@ -82,6 +82,11 @@ var floatTests = []string{
 	`1_2_3.123 = 123.123`,
 	`0123.01_23 = 123.0123`,
 
+	`1e-1000000000 = 0`,
+	`1e+1000000000 = ?`,
+	`6e5518446744 = ?`,
+	`-6e5518446744 = ?`,
+
 	// hexadecimal floats
 	`0x0.p+0 = 0.`,
 	`0Xdeadcafe.p-10 = 0xdeadcafe/1024`,
@@ -117,6 +122,11 @@ var imagTests = []string{
 	`0.e+1i = 0i`,
 	`123.E-1_0i = 123e-10i`,
 	`01_23.e123i = 123e123i`,
+
+	`1e-1000000000i = 0i`,
+	`1e+1000000000i = ?`,
+	`6e5518446744i = ?`,
+	`-6e5518446744i = ?`,
 }
 
 func testNumbers(t *testing.T, kind token.Token, tests []string) {
@@ -129,18 +139,29 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
 
 		x := MakeFromLiteral(a[0], kind, 0)
 		var y Value
-		if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
-			n := MakeFromLiteral(a[1][:i], token.INT, 0)
-			d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
-			y = BinaryOp(n, token.QUO, d)
+		if a[1] == "?" {
+			y = MakeUnknown()
 		} else {
-			y = MakeFromLiteral(a[1], kind, 0)
+			if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
+				n := MakeFromLiteral(a[1][:i], token.INT, 0)
+				d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
+				y = BinaryOp(n, token.QUO, d)
+			} else {
+				y = MakeFromLiteral(a[1], kind, 0)
+			}
+			if y.Kind() == Unknown {
+				panic(fmt.Sprintf("invalid test case: %s %d", test, y.Kind()))
+			}
 		}
 
 		xk := x.Kind()
 		yk := y.Kind()
-		if xk != yk || xk == Unknown {
+		if xk != yk {
 			t.Errorf("%s: got kind %d != %d", test, xk, yk)
+			continue
+		}
+
+		if yk == Unknown {
 			continue
 		}
 
@@ -200,6 +221,7 @@ var opTests = []string{
 	`1i * 1i = -1`,
 	`? * 0 = ?`,
 	`0 * ? = ?`,
+	`0 * 1e+1000000000 = ?`,
 
 	`0 / 0 = "division_by_zero"`,
 	`10 / 2 = 5`,
@@ -207,6 +229,7 @@ var opTests = []string{
 	`5i / 3i = 5/3`,
 	`? / 0 = ?`,
 	`0 / ? = ?`,
+	`0 * 1e+1000000000i = ?`,
 
 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
 	`10 % 3 = 1`,
