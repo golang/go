@@ -547,29 +547,53 @@ func compareStatus(filter, expect string) error {
 	if err != nil {
 		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
 	}
+	expectedProc := fmt.Sprintf("Pid:\t%d", pid)
+	foundAThread := false
 	for _, f := range fs {
 		tf := fmt.Sprintf("/proc/%s/status", f.Name())
 		d, err := ioutil.ReadFile(tf)
-		if os.IsNotExist(err) {
-			// We are racing against threads dying, which
-			// is out of our control, so ignore the
-			// missing file and skip to the next one.
-			continue
-		}
 		if err != nil {
-			return fmt.Errorf("unable to read %q: %v", tf, err)
+			// There are a surprising number of ways this
+			// can error out on linux.  We've seen all of
+			// the following, so treat any error here as
+			// equivalent to the "process is gone":
+			//    os.IsNotExist(err),
+			//    "... : no such process",
+			//    "... : bad file descriptor.
+			continue
 		}
 		lines := strings.Split(string(d), "\n")
 		for _, line := range lines {
 			// Different kernel vintages pad differently.
 			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "Pid:\t") {
+				// On loaded systems, it is possible
+				// for a TID to be reused really
+				// quickly. As such, we need to
+				// validate that the thread status
+				// info we just read is a task of the
+				// same process PID as we are
+				// currently running, and not a
+				// recently terminated thread
+				// resurfaced in a different process.
+				if line != expectedProc {
+					break
+				}
+				// Fall through in the unlikely case
+				// that filter at some point is
+				// "Pid:\t".
+			}
 			if strings.HasPrefix(line, filter) {
 				if line != expected {
-					return fmt.Errorf("%q got:%q want:%q (bad)\n", tf, line, expected)
+					return fmt.Errorf("%q got:%q want:%q (bad) [pid=%d file:'%s' %v]\n", tf, line, expected, pid, string(d), expectedProc)
 				}
+				foundAThread = true
 				break
 			}
 		}
+	}
+	if !foundAThread {
+		return fmt.Errorf("found no thread /proc/<TID>/status files for process %q", expectedProc)
 	}
 	return nil
 }

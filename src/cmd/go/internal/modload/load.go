@@ -141,6 +141,15 @@ type PackageOpts struct {
 	// if the flag is set to "readonly" (the default) or "vendor".
 	ResolveMissingImports bool
 
+	// AllowPackage, if non-nil, is called after identifying the module providing
+	// each package. If AllowPackage returns a non-nil error, that error is set
+	// for the package, and the imports and test of that package will not be
+	// loaded.
+	//
+	// AllowPackage may be invoked concurrently by multiple goroutines,
+	// and may be invoked multiple times for a given package path.
+	AllowPackage func(ctx context.Context, path string, mod module.Version) error
+
 	// LoadTests loads the test dependencies of each package matching a requested
 	// pattern. If ResolveMissingImports is also true, test dependencies will be
 	// resolved if missing.
@@ -550,6 +559,7 @@ func DirImportPath(dir string) string {
 func TargetPackages(ctx context.Context, pattern string) *search.Match {
 	// TargetPackages is relative to the main module, so ensure that the main
 	// module is a thing that can contain packages.
+	LoadModFile(ctx)
 	ModRoot()
 
 	m := search.NewMatch(pattern)
@@ -1042,7 +1052,7 @@ func (ld *loader) load(pkg *loadPkg) {
 		return
 	}
 
-	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path)
+	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path, buildList)
 	if pkg.dir == "" {
 		return
 	}
@@ -1057,6 +1067,11 @@ func (ld *loader) load(pkg *loadPkg) {
 		// essentially nothing (these atomic flag ops are essentially free compared
 		// to scanning source code for imports).
 		ld.applyPkgFlags(pkg, pkgInAll)
+	}
+	if ld.AllowPackage != nil {
+		if err := ld.AllowPackage(context.TODO(), pkg.path, pkg.mod); err != nil {
+			pkg.err = err
+		}
 	}
 
 	imports, testImports, err := scanDir(pkg.dir, ld.Tags)

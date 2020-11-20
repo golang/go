@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var compareTests = [][]reflect.Value{
@@ -32,6 +33,7 @@ var compareTests = [][]reflect.Value{
 	ct(reflect.TypeOf(complex128(0+1i)), -1-1i, -1+0i, -1+1i, 0-1i, 0+0i, 0+1i, 1-1i, 1+0i, 1+1i),
 	ct(reflect.TypeOf(false), false, true),
 	ct(reflect.TypeOf(&ints[0]), &ints[0], &ints[1], &ints[2]),
+	ct(reflect.TypeOf(unsafe.Pointer(&ints[0])), unsafe.Pointer(&ints[0]), unsafe.Pointer(&ints[1]), unsafe.Pointer(&ints[2])),
 	ct(reflect.TypeOf(chans[0]), chans[0], chans[1], chans[2]),
 	ct(reflect.TypeOf(toy{}), toy{0, 1}, toy{0, 2}, toy{1, -1}, toy{1, 1}),
 	ct(reflect.TypeOf([2]int{}), [2]int{1, 1}, [2]int{1, 2}, [2]int{2, 0}),
@@ -119,6 +121,10 @@ var sortTests = []sortTest{
 		"PTR0:0 PTR1:1 PTR2:2",
 	},
 	{
+		unsafePointerMap(),
+		"UNSAFEPTR0:0 UNSAFEPTR1:1 UNSAFEPTR2:2",
+	},
+	{
 		map[toy]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
 		"{3 4}:34 {7 1}:71 {7 2}:72",
 	},
@@ -159,6 +165,14 @@ func sprintKey(key reflect.Value) string {
 			}
 		}
 		return "PTR???"
+	case "unsafe.Pointer":
+		ptr := key.Interface().(unsafe.Pointer)
+		for i := range ints {
+			if ptr == unsafe.Pointer(&ints[i]) {
+				return fmt.Sprintf("UNSAFEPTR%d", i)
+			}
+		}
+		return "UNSAFEPTR???"
 	case "chan int":
 		c := key.Interface().(chan int)
 		for i := range chans {
@@ -181,6 +195,14 @@ func pointerMap() map[*int]string {
 	m := make(map[*int]string)
 	for i := 2; i >= 0; i-- {
 		m[&ints[i]] = fmt.Sprint(i)
+	}
+	return m
+}
+
+func unsafePointerMap() map[unsafe.Pointer]string {
+	m := make(map[unsafe.Pointer]string)
+	for i := 2; i >= 0; i-- {
+		m[unsafe.Pointer(&ints[i])] = fmt.Sprint(i)
 	}
 	return m
 }

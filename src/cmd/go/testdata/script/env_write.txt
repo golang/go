@@ -69,6 +69,8 @@ go env -u GOPATH
 stderr 'unknown go command variable GODEBUG'
 ! go env -w GOEXE=.bat
 stderr 'GOEXE cannot be modified'
+! go env -w GOVERSION=customversion
+stderr 'GOVERSION cannot be modified'
 ! go env -w GOENV=/env
 stderr 'GOENV can only be set using the OS environment'
 

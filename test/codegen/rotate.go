@@ -17,21 +17,21 @@ func rot64(x uint64) uint64 {
 
 	// amd64:"ROLQ\t[$]7"
 	// arm64:"ROR\t[$]57"
-	// s390x:"RLLG\t[$]7"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
 	// ppc64:"ROTL\t[$]7"
 	// ppc64le:"ROTL\t[$]7"
 	a += x<<7 | x>>57
 
 	// amd64:"ROLQ\t[$]8"
 	// arm64:"ROR\t[$]56"
-	// s390x:"RLLG\t[$]8"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]8, "
 	// ppc64:"ROTL\t[$]8"
 	// ppc64le:"ROTL\t[$]8"
 	a += x<<8 + x>>56
 
 	// amd64:"ROLQ\t[$]9"
 	// arm64:"ROR\t[$]55"
-	// s390x:"RLLG\t[$]9"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]9, "
 	// ppc64:"ROTL\t[$]9"
 	// ppc64le:"ROTL\t[$]9"
 	a += x<<9 ^ x>>55

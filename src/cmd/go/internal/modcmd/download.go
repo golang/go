@@ -88,12 +88,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		args = []string{"all"}
 	} else if modload.HasModRoot() {
 		modload.LoadModFile(ctx) // to fill Target
-		targetAtLatest := modload.Target.Path + "@latest"
 		targetAtUpgrade := modload.Target.Path + "@upgrade"
 		targetAtPatch := modload.Target.Path + "@patch"
 		for _, arg := range args {
 			switch arg {
-			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
+			case modload.Target.Path, targetAtUpgrade, targetAtPatch:
 				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
 			}
 		}
@@ -170,7 +169,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("%v", err)
+				base.Fatalf("go mod download: %v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -180,7 +179,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("%s", m.Error)
+				base.Errorf("go mod download: %v", m.Error)
 			}
 		}
 		base.ExitIfErrors()

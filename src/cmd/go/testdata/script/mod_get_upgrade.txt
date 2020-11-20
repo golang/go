@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-go get rsc.io/quote@v1.5.1
+go get -d rsc.io/quote@v1.5.1
 go list -m all
 stdout 'rsc.io/quote v1.5.1'
 grep 'rsc.io/quote v1.5.1$' go.mod

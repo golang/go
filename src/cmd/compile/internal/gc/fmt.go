@@ -419,13 +419,15 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
-	// Useful to see which nodes in an AST printout are actually identical
-	fmt.Fprintf(s, " p(%p)", n)
+	// Useful to see which nodes in a Node Dump/dumplist are actually identical
+	if Debug_dumpptrs != 0 {
+		fmt.Fprintf(s, " p(%p)", n)
+	}
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
 
-	if c == 0 && n.Name != nil && n.Name.Defn != nil {
+	if Debug_dumpptrs != 0 && c == 0 && n.Name != nil && n.Name.Defn != nil {
 		// Useful to see where Defn is set and what node it points to
 		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
 	}

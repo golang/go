@@ -31,6 +31,29 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="darwin">Darwin</h3>
+
+<p><!-- golang.org/issue/38485, golang.org/issue/41385, many CLs -->
+  Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
+  Apple Silicon) with <code>GOOS=darwin</code>, <code>GOARCH=arm64</code>.
+  Like the <code>darwin/amd64</code> port, the <code>darwin/arm64</code>
+  port supports cgo, internal and external linking, <code>c-archive</code>,
+  <code>c-shared</code>, and <code>pie</code> build modes, and the race
+  detector.
+</p>
+
+<p>
+  The iOS port, which was previously <code>darwin/arm64</code>, is now
+  moved to <code>ios/arm64</code>. <code>GOOS=ios</code> implies the
+  <code>darwin</code> build tag, just as <code>GOOS=android</code>
+  implies the <code>linux</code> build tag.
+</p>
+
+<p><!-- golang.org/issue/42100, CL 263798 -->
+  The <code>ios/amd64</code> port is added, targetting the iOS simulator
+  running on AMD64-based macOS.
+</p>
+
 <h3 id="netbsd">NetBSD</h3>
 
 <p><!-- golang.org/issue/30824 -->
@@ -59,6 +82,15 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h4 id="modules">Modules</h4>
 
+<p><!-- golang.org/issue/40728 -->
+  Build commands like <code>go</code> <code>build</code> and <code>go</code>
+  <code>test</code> no longer modify <code>go.mod</code> and <code>go.sum</code>
+  by default. Instead, they report an error if a module requirement or checksum
+  needs to be added or updated (as if the <code>-mod=readonly</code> flag were
+  used). Module requirements and sums may be adjusted with <code>go</code>
+  <code>mod</code> <code>tidy</code> or <code>go</code> <code>get</code>.
+</p>
+
 <p><!-- golang.org/issue/40276 -->
   <code>go</code> <code>install</code> now accepts arguments with
   version suffixes (for example, <code>go</code> <code>install</code>
@@ -69,6 +101,16 @@ Do not send CLs removing the interior tags from such phrases.
   affecting the dependencies of the main module.<br>
   TODO: write and link to section in golang.org/ref/mod<br>
   TODO: write and link to blog post
+</p>
+
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code>, with or without a version suffix (as
+  described above), is now the recommended way to build and install packages in
+  module mode. <code>go</code> <code>get</code> should be used with the
+  <code>-d</code> flag to adjust the current module's dependencies without
+  building packages, and use of <code>go</code> <code>get</code> to build and
+  install packages is deprecated. In a future release, the <code>-d</code> flag
+  will always be enabled.
 </p>
 
 <p><!-- golang.org/issue/24031 -->
@@ -110,6 +152,16 @@ Do not send CLs removing the interior tags from such phrases.
   See <code>go</code> <code>help</code> <code>environment</code> for details.
 </p>
 
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
+<p><!-- golang.org/cl/263267 -->
+  <code>go</code> <code>get</code> <code>example.com/mod@patch</code> now
+  requires that some version of <code>example.com/mod</code> already be
+  required by the main module.
+  (However, <code>go</code> <code>get</code> <code>-u=patch</code> continues
+  to patch even newly-added dependencies.)
+</p>
+
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
 
 <p><!-- golang.org/cl/240623 -->
@@ -129,6 +181,18 @@ Do not send CLs removing the interior tags from such phrases.
   invoking toolchain programs like compile or asm, the environment variable
   <code>TOOLEXEC_IMPORTPATH</code> is now set to the import path of the package
   being built.
+</p>
+
+<h4 id="i-flag">The <code>-i</code> build flag</h4>
+
+<p><!-- golang.org/issue/41696 -->
+  The <code>-i</code> flag accepted by <code>go</code> <code>build</code>,
+  <code>go</code> <code>install</code>, and <code>go</code> <code>test</code> is
+  now deprecated. The <code>-i</code> flag instructs the <code>go</code> command
+  to install packages imported by packages named on the command line. Since
+  the build cache was introduced in Go 1.10, the <code>-i</code> flag no longer
+  has a significant effect on build times, and it causes errors when the install
+  directory is not writable.
 </p>
 
 <h4 id="list-buildid">The <code>list</code> command</h4>
@@ -227,10 +291,50 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- CL 256897 -->
   I/O operations on closing or closed TLS connections can now be detected using
-  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
-  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
   the only way to reliably detect this case was to match the string returned
   by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
+<p><!-- CL 266037 -->
+  A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
+  before sending the close notify alert, in order to prevent blocking
+  indefinitely.
+</p>
+
+<p><!-- CL 246338 -->
+  <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
+  allow the user to control cancellation of an in-progress TLS Handshake.
+  The context provided is propagated into the
+  <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
+  and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
+  structs and accessible through the new
+  <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
+  and
+  <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
+    (*CertificateRequestInfo).Context
+  </a> methods respectively. Canceling the context after the handshake has finished
+  has no effect.
+</p>
+
+<p><!-- CL 239748 -->
+  Clients now ensure that the server selects
+  <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
+  an ALPN protocol</a> from
+  <a href="/pkg/crypto/tls/#Config.NextProtos">
+  the list advertised by the client</a>.
+</p>
+
+<p><!-- CL 262857 -->
+  TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
+  over AES-GCM cipher suites if either the client or server doesn't have AES hardware
+  support, unless the application set both
+  <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+  and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
+  or there are no other AEAD cipher suites supported.
+  The client is assumed not to have AES hardware support if it does not signal a
+  preference for AES-GCM cipher suites.
 </p>
 
 <h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
@@ -248,6 +352,13 @@ Do not send CLs removing the interior tags from such phrases.
   verifies the generated certificate's signature using the signer's
   public key. If the signature is invalid, an error is returned, instead
   of a malformed certificate.
+</p>
+
+<p><!-- CL 233163 -->
+  A number of additional fields have been added to the
+  <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
+  These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
+  and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
 </p>
 
 <h3 id="encoding/json"><a href="/pkg/encoding/json">encoding/json</a></h3>
@@ -367,6 +478,13 @@ Do not send CLs removing the interior tags from such phrases.
     Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
     spec (no attribute is set) instead of generating a SameSite key without a value.
     </p>
+
+    <p><!-- CL 246338 -->
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
+      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
+      with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
+      when performing TLS handshakes in the client or server.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
@@ -377,6 +495,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/debug -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 261917 -->
+      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+    </p>
+  </dd>
+</dl><!-- syscall -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>

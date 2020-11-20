@@ -1427,10 +1427,11 @@ func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {
 	return
 }
 
-// This verifies that the mask occupies the
-// rightmost bits.
+// This verifies that the mask is a set of
+// consecutive bits including the least
+// significant bit.
 func isPPC64ValidShiftMask(v int64) bool {
-	if ((v + 1) & v) == 0 {
+	if (v != 0) && ((v+1)&v) == 0 {
 		return true
 	}
 	return false

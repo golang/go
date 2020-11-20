@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/sys"
 	"debug/macho"
 	"internal/testenv"
 	"io/ioutil"
@@ -871,5 +872,56 @@ func TestIssue38554(t *testing.T) {
 	const want = 5 << 20
 	if got := fi.Size(); got > want {
 		t.Errorf("binary too big: got %d, want < %d", got, want)
+	}
+}
+
+const testIssue42396src = `
+package main
+
+//go:noinline
+//go:nosplit
+func callee(x int) {
+}
+
+func main() {
+	callee(9)
+}
+`
+
+func TestIssue42396(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if !sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skip("no race detector support")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-race", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("build unexpectedly succeeded")
+	}
+
+	// Check to make sure that we see a reasonable error message
+	// and not a panic.
+	if strings.Contains(string(out), "panic:") {
+		t.Fatalf("build should not fail with panic:\n%s", out)
+	}
+	const want = "reference to undefined builtin"
+	if !strings.Contains(string(out), want) {
+		t.Fatalf("error message incorrect: expected it to contain %q but instead got:\n%s\n", want, out)
 	}
 }

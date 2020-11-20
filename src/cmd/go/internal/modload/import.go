@@ -188,9 +188,9 @@ func (e *invalidImportError) Unwrap() error {
 // importFromBuildList can return an empty directory string, for fake packages
 // like "C" and "unsafe".
 //
-// If the package cannot be found in the current build list,
+// If the package cannot be found in buildList,
 // importFromBuildList returns an *ImportMissingError.
-func importFromBuildList(ctx context.Context, path string) (m module.Version, dir string, err error) {
+func importFromBuildList(ctx context.Context, path string, buildList []module.Version) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
 	}
@@ -383,7 +383,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
+	candidates, err := QueryPackages(ctx, path, "latest", Selected, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever

@@ -93,19 +93,19 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
 
 # download reports errors encountered when locating modules
 ! go mod download bad/path
-stderr '^module bad/path: not a known dependency$'
+stderr '^go mod download: module bad/path: not a known dependency$'
 ! go mod download bad/path@latest
-stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+stderr '^go mod download: bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
 ! go mod download rsc.io/quote@v1.999.999
-stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+stderr '^go mod download: rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
 ! go mod download -json bad/path
 stdout '^\t"Error": "module bad/path: not a known dependency"'
 
-# download main module returns an error
+# download main module produces a warning or error
 go mod download m
 stderr '^go mod download: skipping argument m that resolves to the main module\n'
-go mod download m@latest
-stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
+! go mod download m@latest
+stderr '^go mod download: m@latest: malformed module path "m": missing dot in first path element$'
 
 # download updates go.mod and populates go.sum
 cd update

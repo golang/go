@@ -1781,6 +1781,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		pp := s.Call(v)
 		pp.To.Reg = ppc64.REG_LR
 
+		// Insert a hint this is not a subroutine return.
+		pp.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 1})
+
 		if gc.Ctxt.Flag_shared {
 			// When compiling Go into PIC, the function we just
 			// called via pointer might have been implemented in

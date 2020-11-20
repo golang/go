@@ -688,9 +688,6 @@ func atof64(s string) (f float64, n int, err error) {
 // ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
 // as their respective special floating point values. It ignores case when matching.
 func ParseFloat(s string, bitSize int) (float64, error) {
-	if bitSize != 32 && bitSize != 64 {
-		return 0, bitSizeError(fnParseFloat, s, bitSize)
-	}
 	f, n, err := parseFloatPrefix(s, bitSize)
 	if err == nil && n != len(s) {
 		return 0, syntaxError(fnParseFloat, s)

@@ -784,6 +784,28 @@ func (r *importReader) stmtList() []*Node {
 	return list
 }
 
+func (r *importReader) caseList(sw *Node) []*Node {
+	namedTypeSwitch := sw.Op == OSWITCH && sw.Left != nil && sw.Left.Op == OTYPESW && sw.Left.Left != nil
+
+	cases := make([]*Node, r.uint64())
+	for i := range cases {
+		cas := nodl(r.pos(), OCASE, nil, nil)
+		cas.List.Set(r.stmtList())
+		if namedTypeSwitch {
+			// Note: per-case variables will have distinct, dotted
+			// names after import. That's okay: swt.go only needs
+			// Sym for diagnostics anyway.
+			caseVar := newnamel(cas.Pos, r.ident())
+			declare(caseVar, dclcontext)
+			cas.Rlist.Set1(caseVar)
+			caseVar.Name.Defn = sw.Left
+		}
+		cas.Nbody.Set(r.stmtList())
+		cases[i] = cas
+	}
+	return cases
+}
+
 func (r *importReader) exprList() []*Node {
 	var list []*Node
 	for {
@@ -830,6 +852,14 @@ func (r *importReader) node() *Node {
 
 	case OTYPE:
 		return typenod(r.typ())
+
+	case OTYPESW:
+		n := nodl(r.pos(), OTYPESW, nil, nil)
+		if s := r.ident(); s != nil {
+			n.Left = npos(n.Pos, newnoname(s))
+		}
+		n.Right, _ = r.exprsOrNil()
+		return n
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
@@ -1025,16 +1055,11 @@ func (r *importReader) node() *Node {
 		n := nodl(r.pos(), op, nil, nil)
 		n.Ninit.Set(r.stmtList())
 		n.Left, _ = r.exprsOrNil()
-		n.List.Set(r.stmtList())
+		n.List.Set(r.caseList(n))
 		return n
 
-	case OCASE:
-		n := nodl(r.pos(), OCASE, nil, nil)
-		n.List.Set(r.exprList())
-		// TODO(gri) eventually we must declare variables for type switch
-		// statements (type switch statements are not yet exported)
-		n.Nbody.Set(r.stmtList())
-		return n
+	// case OCASE:
+	//	handled by caseList
 
 	case OFALL:
 		n := nodl(r.pos(), OFALL, nil, nil)

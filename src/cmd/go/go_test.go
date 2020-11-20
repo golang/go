@@ -35,6 +35,14 @@ import (
 	"cmd/internal/sys"
 )
 
+func init() {
+	// GOVCS defaults to public:git|hg,private:all,
+	// which breaks many tests here - they can't use non-git, non-hg VCS at all!
+	// Change to fully permissive.
+	// The tests of the GOVCS setting itself are in ../../testdata/script/govcs.txt.
+	os.Setenv("GOVCS", "*:all")
+}
+
 var (
 	canRace = false // whether we can run the race detector
 	canCgo  = false // whether we can use cgo
@@ -1878,6 +1886,18 @@ func TestGoEnv(t *testing.T) {
 	tg.grepStdout("gcc", "CC not found")
 	tg.run("env", "GOGCCFLAGS")
 	tg.grepStdout("-ffaster", "CC arguments not found")
+
+	tg.run("env", "GOVERSION")
+	envVersion := strings.TrimSpace(tg.stdout.String())
+
+	tg.run("version")
+	cmdVersion := strings.TrimSpace(tg.stdout.String())
+
+	// If 'go version' is "go version <version> <goos>/<goarch>", then
+	// 'go env GOVERSION' is just "<version>".
+	if cmdVersion == envVersion || !strings.Contains(cmdVersion, envVersion) {
+		t.Fatalf("'go env GOVERSION' %q should be a shorter substring of 'go version' %q", envVersion, cmdVersion)
+	}
 }
 
 const (
@@ -2022,7 +2042,7 @@ func TestBuildmodePIE(t *testing.T) {
 
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 	switch platform {
-	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 		"android/amd64", "android/arm", "android/arm64", "android/386",
 		"freebsd/amd64",
 		"windows/386", "windows/amd64", "windows/arm":

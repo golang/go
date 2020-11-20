@@ -87,6 +87,8 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOVCS", Value: cfg.GOVCS},
+		{Name: "GOVERSION", Value: runtime.Version()},
 	}
 
 	if work.GccgoBin != "" {
@@ -398,7 +400,7 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
+	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV":
 		return fmt.Errorf("%s can only be set using the OS environment", key)

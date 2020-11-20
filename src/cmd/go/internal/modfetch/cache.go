@@ -483,7 +483,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
 	for _, name := range names {
 		if strings.HasSuffix(name, suffix) {
 			v := strings.TrimSuffix(name, ".info")
-			if IsPseudoVersion(v) && semver.Max(maxVersion, v) == v {
+			if IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
 				maxVersion = v
 				file, info, err = readDiskStat(path, strings.TrimSuffix(name, ".info"))
 			}

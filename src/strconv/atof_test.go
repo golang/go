@@ -634,14 +634,20 @@ func TestRoundTrip32(t *testing.T) {
 	t.Logf("tested %d float32's", count)
 }
 
-func TestParseFloatInvalidBitSize(t *testing.T) {
-	_, err := ParseFloat("3.14", 100)
-	const want = `strconv.ParseFloat: parsing "3.14": invalid bit size 100`
-	if err == nil {
-		t.Fatalf("got nil error, want %q", want)
-	}
-	if err.Error() != want {
-		t.Fatalf("got error %q, want %q", err, want)
+// Issue 42297: a lot of code in the wild accidentally calls ParseFloat(s, 10)
+// or ParseFloat(s, 0), so allow bitSize values other than 32 and 64.
+func TestParseFloatIncorrectBitSize(t *testing.T) {
+	const s = "1.5e308"
+	const want = 1.5e308
+
+	for _, bitSize := range []int{0, 10, 100, 128} {
+		f, err := ParseFloat(s, bitSize)
+		if err != nil {
+			t.Fatalf("ParseFloat(%q, %d) gave error %s", s, bitSize, err)
+		}
+		if f != want {
+			t.Fatalf("ParseFloat(%q, %d) = %g (expected %g)", s, bitSize, f, want)
+		}
 	}
 }
 

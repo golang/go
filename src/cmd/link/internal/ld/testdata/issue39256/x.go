@@ -13,6 +13,8 @@ import (
 //go:cgo_import_dynamic libc_close close "libc.so"
 //go:cgo_import_dynamic libc_open open "libc.so"
 
+//go:cgo_import_dynamic _ _ "libc.so"
+
 func trampoline()
 
 func main() {

@@ -196,6 +196,9 @@ func expandCalls(f *Func) {
 			}
 			if leaf.Op == OpIData {
 				leafType = removeTrivialWrapperTypes(leaf.Type)
+				if leafType.IsEmptyInterface() {
+					leafType = typ.BytePtr
+				}
 			}
 			aux := selector.Aux
 			auxInt := selector.AuxInt + offset

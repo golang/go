@@ -27,11 +27,11 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
 // Read populates each Value field in the given slice of metric samples.
 //
 // Desired metrics should be present in the slice with the appropriate name.
-// The user of this API is encouraged to re-use the same slice between calls.
+// The user of this API is encouraged to re-use the same slice between calls for
+// efficiency, but is not required to do so.
 //
-// Metric values with names not appearing in the value returned by Descriptions
-// will have the value populated as KindBad to indicate that the name is
-// unknown.
+// Sample values with names not appearing in All will have their Value populated
+// as KindBad to indicate that the name is unknown.
 func Read(m []Sample) {
 	runtime_readMetrics(unsafe.Pointer(&m[0]), len(m), cap(m))
 }

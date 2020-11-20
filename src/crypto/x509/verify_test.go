@@ -550,34 +550,55 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 		}
 	}
 
-	if len(chains) != len(test.expectedChains) {
-		t.Errorf("wanted %d chains, got %d", len(test.expectedChains), len(chains))
+	doesMatch := func(expectedChain []string, chain []*Certificate) bool {
+		if len(chain) != len(expectedChain) {
+			return false
+		}
+
+		for k, cert := range chain {
+			if !strings.Contains(nameToKey(&cert.Subject), expectedChain[k]) {
+				return false
+			}
+		}
+		return true
 	}
 
-	// We check that each returned chain matches a chain from
-	// expectedChains but an entry in expectedChains can't match
-	// two chains.
-	seenChains := make([]bool, len(chains))
-NextOutputChain:
-	for _, chain := range chains {
-	TryNextExpected:
-		for j, expectedChain := range test.expectedChains {
-			if seenChains[j] {
-				continue
+	// Every expected chain should match 1 returned chain
+	for _, expectedChain := range test.expectedChains {
+		nChainMatched := 0
+		for _, chain := range chains {
+			if doesMatch(expectedChain, chain) {
+				nChainMatched++
 			}
-			if len(chain) != len(expectedChain) {
-				continue
-			}
-			for k, cert := range chain {
-				if !strings.Contains(nameToKey(&cert.Subject), expectedChain[k]) {
-					continue TryNextExpected
+		}
+
+		if nChainMatched != 1 {
+			t.Errorf("Got %v matches instead of %v for expected chain %v", nChainMatched, 1, expectedChain)
+			for _, chain := range chains {
+				if doesMatch(expectedChain, chain) {
+					t.Errorf("\t matched %v", chainToDebugString(chain))
 				}
 			}
-			// we matched
-			seenChains[j] = true
-			continue NextOutputChain
 		}
-		t.Errorf("no expected chain matched %s", chainToDebugString(chain))
+	}
+
+	// Every returned chain should match 1 expected chain (or <2 if testing against the system)
+	for _, chain := range chains {
+		nMatched := 0
+		for _, expectedChain := range test.expectedChains {
+			if doesMatch(expectedChain, chain) {
+				nMatched++
+			}
+		}
+		// Allow additional unknown chains if systemLax is set
+		if nMatched == 0 && test.systemLax == false || nMatched > 1 {
+			t.Errorf("Got %v matches for chain %v", nMatched, chainToDebugString(chain))
+			for _, expectedChain := range test.expectedChains {
+				if doesMatch(expectedChain, chain) {
+					t.Errorf("\t matched %v", expectedChain)
+				}
+			}
+		}
 	}
 }
 
@@ -2003,5 +2024,13 @@ func TestSystemRootsError(t *testing.T) {
 	_, err = leaf.Verify(opts)
 	if _, ok := err.(SystemRootsError); !ok {
 		t.Errorf("error was not SystemRootsError: %v", err)
+	}
+}
+
+func TestSystemRootsErrorUnwrap(t *testing.T) {
+	var err1 = errors.New("err1")
+	err := SystemRootsError{Err: err1}
+	if !errors.Is(err, err1) {
+		t.Error("errors.Is failed, wanted success")
 	}
 }
