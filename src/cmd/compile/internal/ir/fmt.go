@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package ir
 
 import (
 	"bytes"
-	"cmd/compile/internal/base"
-	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"go/constant"
 	"io"
@@ -16,6 +13,10 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // A FmtFlag value is a set of flags (or 0).
@@ -98,7 +99,7 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
 
 // *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
 const (
-	FErr fmtMode = iota
+	FErr FmtMode = iota
 	FDbg
 	FTypeId
 	FTypeIdName // same as FTypeId, but use package name instead of prefix
@@ -131,7 +132,7 @@ const (
 //   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
 
 // update returns the results of applying f to mode.
-func (f FmtFlag) update(mode fmtMode) (FmtFlag, fmtMode) {
+func (f FmtFlag) update(mode FmtMode) (FmtFlag, FmtMode) {
 	switch {
 	case f&FmtSign != 0:
 		mode = FDbg
@@ -147,7 +148,7 @@ func (f FmtFlag) update(mode fmtMode) (FmtFlag, fmtMode) {
 	return f, mode
 }
 
-var goopnames = []string{
+var OpNames = []string{
 	OADDR:     "&",
 	OADD:      "+",
 	OADDSTR:   "+",
@@ -217,7 +218,7 @@ func (o Op) GoString() string {
 	return fmt.Sprintf("%#v", o)
 }
 
-func (o Op) format(s fmt.State, verb rune, mode fmtMode) {
+func (o Op) format(s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v':
 		o.oconv(s, fmtFlag(s, verb), mode)
@@ -227,10 +228,10 @@ func (o Op) format(s fmt.State, verb rune, mode fmtMode) {
 	}
 }
 
-func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
+func (o Op) oconv(s fmt.State, flag FmtFlag, mode FmtMode) {
 	if flag&FmtSharp != 0 || mode != FDbg {
-		if int(o) < len(goopnames) && goopnames[o] != "" {
-			fmt.Fprint(s, goopnames[o])
+		if int(o) < len(OpNames) && OpNames[o] != "" {
+			fmt.Fprint(s, OpNames[o])
 			return
 		}
 	}
@@ -239,66 +240,73 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	fmt.Fprint(s, o.String())
 }
 
-type fmtMode int
+type FmtMode int
 
 type fmtNode struct {
 	x *Node
-	m fmtMode
+	m FmtMode
 }
 
 func (f *fmtNode) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
 
 type fmtOp struct {
 	x Op
-	m fmtMode
+	m FmtMode
 }
 
 func (f *fmtOp) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
 
 type fmtType struct {
 	x *types.Type
-	m fmtMode
+	m FmtMode
 }
 
 func (f *fmtType) Format(s fmt.State, verb rune) { typeFormat(f.x, s, verb, f.m) }
 
 type fmtSym struct {
 	x *types.Sym
-	m fmtMode
+	m FmtMode
 }
 
 func (f *fmtSym) Format(s fmt.State, verb rune) { symFormat(f.x, s, verb, f.m) }
 
 type fmtNodes struct {
 	x Nodes
-	m fmtMode
+	m FmtMode
 }
 
 func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
 
-func (n *Node) Format(s fmt.State, verb rune) { n.format(s, verb, FErr) }
-func (o Op) Format(s fmt.State, verb rune)    { o.format(s, verb, FErr) }
+func (n *Node) Format(s fmt.State, verb rune) {
+	FmtNode(n, s, verb)
+}
+
+func FmtNode(n *Node, s fmt.State, verb rune) {
+	n.format(s, verb, FErr)
+}
+
+func (o Op) Format(s fmt.State, verb rune) { o.format(s, verb, FErr) }
 
 // func (t *types.Type) Format(s fmt.State, verb rune)     // in package types
 // func (y *types.Sym) Format(s fmt.State, verb rune)            // in package types  { y.format(s, verb, FErr) }
 func (n Nodes) Format(s fmt.State, verb rune) { n.format(s, verb, FErr) }
 
-func (m fmtMode) Fprintf(s fmt.State, format string, args ...interface{}) {
+func (m FmtMode) Fprintf(s fmt.State, format string, args ...interface{}) {
 	m.prepareArgs(args)
 	fmt.Fprintf(s, format, args...)
 }
 
-func (m fmtMode) Sprintf(format string, args ...interface{}) string {
+func (m FmtMode) Sprintf(format string, args ...interface{}) string {
 	m.prepareArgs(args)
 	return fmt.Sprintf(format, args...)
 }
 
-func (m fmtMode) Sprint(args ...interface{}) string {
+func (m FmtMode) Sprint(args ...interface{}) string {
 	m.prepareArgs(args)
 	return fmt.Sprint(args...)
 }
 
-func (m fmtMode) prepareArgs(args []interface{}) {
+func (m FmtMode) prepareArgs(args []interface{}) {
 	for i, arg := range args {
 		switch arg := arg.(type) {
 		case Op:
@@ -319,13 +327,13 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 	}
 }
 
-func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
+func (n *Node) format(s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
-		n.nconv(s, fmtFlag(s, verb), mode)
+		nconvFmt(n, s, fmtFlag(s, verb), mode)
 
 	case 'j':
-		n.jconv(s, fmtFlag(s, verb))
+		jconvFmt(n, s, fmtFlag(s, verb))
 
 	default:
 		fmt.Fprintf(s, "%%!%c(*Node=%p)", verb, n)
@@ -336,7 +344,7 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 var EscFmt func(n *Node, short bool) string
 
 // *Node details
-func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+func jconvFmt(n *Node, s fmt.State, flag FmtFlag) {
 	short := flag&FmtShort != 0
 
 	// Useful to see which nodes in an AST printout are actually identical
@@ -363,7 +371,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos.Line())
 	}
 
-	if !short && n.Xoffset != BADWIDTH {
+	if !short && n.Xoffset != types.BADWIDTH {
 		fmt.Fprintf(s, " x(%d)", n.Xoffset)
 	}
 
@@ -430,7 +438,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 }
 
-func vconv(v constant.Value, flag FmtFlag) string {
+func FmtConst(v constant.Value, flag FmtFlag) string {
 	if flag&FmtSharp == 0 && v.Kind() == constant.Complex {
 		real, imag := constant.Real(v), constant.Imag(v)
 
@@ -473,17 +481,17 @@ s%^	........*\]%&~%g
 s%~	%%g
 */
 
-func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
+func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode FmtMode) {
 	if flag&FmtShort == 0 {
 		switch mode {
 		case FErr: // This is for the user
-			if s.Pkg == builtinpkg || s.Pkg == localpkg {
+			if s.Pkg == BuiltinPkg || s.Pkg == LocalPkg {
 				b.WriteString(s.Name)
 				return
 			}
 
 			// If the name was used by multiple packages, display the full path,
-			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
+			if s.Pkg.Name != "" && NumImport[s.Pkg.Name] > 1 {
 				fmt.Fprintf(b, "%q.%s", s.Pkg.Path, s.Name)
 				return
 			}
@@ -534,28 +542,28 @@ func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
 	b.WriteString(s.Name)
 }
 
-var basicnames = []string{
-	TINT:        "int",
-	TUINT:       "uint",
-	TINT8:       "int8",
-	TUINT8:      "uint8",
-	TINT16:      "int16",
-	TUINT16:     "uint16",
-	TINT32:      "int32",
-	TUINT32:     "uint32",
-	TINT64:      "int64",
-	TUINT64:     "uint64",
-	TUINTPTR:    "uintptr",
-	TFLOAT32:    "float32",
-	TFLOAT64:    "float64",
-	TCOMPLEX64:  "complex64",
-	TCOMPLEX128: "complex128",
-	TBOOL:       "bool",
-	TANY:        "any",
-	TSTRING:     "string",
-	TNIL:        "nil",
-	TIDEAL:      "untyped number",
-	TBLANK:      "blank",
+var BasicTypeNames = []string{
+	types.TINT:        "int",
+	types.TUINT:       "uint",
+	types.TINT8:       "int8",
+	types.TUINT8:      "uint8",
+	types.TINT16:      "int16",
+	types.TUINT16:     "uint16",
+	types.TINT32:      "int32",
+	types.TUINT32:     "uint32",
+	types.TINT64:      "int64",
+	types.TUINT64:     "uint64",
+	types.TUINTPTR:    "uintptr",
+	types.TFLOAT32:    "float32",
+	types.TFLOAT64:    "float64",
+	types.TCOMPLEX64:  "complex64",
+	types.TCOMPLEX128: "complex128",
+	types.TBOOL:       "bool",
+	types.TANY:        "any",
+	types.TSTRING:     "string",
+	types.TNIL:        "nil",
+	types.TIDEAL:      "untyped number",
+	types.TBLANK:      "blank",
 }
 
 var fmtBufferPool = sync.Pool{
@@ -564,7 +572,7 @@ var fmtBufferPool = sync.Pool{
 	},
 }
 
-func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
+func tconv(t *types.Type, flag FmtFlag, mode FmtMode) string {
 	buf := fmtBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer fmtBufferPool.Put(buf)
@@ -577,7 +585,7 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
 // flag and mode control exactly what is printed.
 // Any types x that are already in the visited map get printed as @%d where %d=visited[x].
 // See #16897 before changing the implementation of tconv.
-func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited map[*types.Type]int) {
+func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited map[*types.Type]int) {
 	if off, ok := visited[t]; ok {
 		// We've seen this type before, so we're trying to print it recursively.
 		// Print a reference to it instead.
@@ -648,7 +656,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 				return
 			}
 
-			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
+			if t.Sym.Pkg == LocalPkg && t.Vargen != 0 {
 				b.WriteString(mode.Sprintf("%v·%d", t.Sym, t.Vargen))
 				return
 			}
@@ -658,7 +666,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		return
 	}
 
-	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
+	if int(t.Etype) < len(BasicTypeNames) && BasicTypeNames[t.Etype] != "" {
 		var name string
 		switch t {
 		case types.UntypedBool:
@@ -674,7 +682,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		case types.UntypedComplex:
 			name = "untyped complex"
 		default:
-			name = basicnames[t.Etype]
+			name = BasicTypeNames[t.Etype]
 		}
 		b.WriteString(name)
 		return
@@ -701,7 +709,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 	defer delete(visited, t)
 
 	switch t.Etype {
-	case TPTR:
+	case types.TPTR:
 		b.WriteByte('*')
 		switch mode {
 		case FTypeId, FTypeIdName:
@@ -712,17 +720,17 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		}
 		tconv2(b, t.Elem(), 0, mode, visited)
 
-	case TARRAY:
+	case types.TARRAY:
 		b.WriteByte('[')
 		b.WriteString(strconv.FormatInt(t.NumElem(), 10))
 		b.WriteByte(']')
 		tconv2(b, t.Elem(), 0, mode, visited)
 
-	case TSLICE:
+	case types.TSLICE:
 		b.WriteString("[]")
 		tconv2(b, t.Elem(), 0, mode, visited)
 
-	case TCHAN:
+	case types.TCHAN:
 		switch t.ChanDir() {
 		case types.Crecv:
 			b.WriteString("<-chan ")
@@ -741,13 +749,13 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 			}
 		}
 
-	case TMAP:
+	case types.TMAP:
 		b.WriteString("map[")
 		tconv2(b, t.Key(), 0, mode, visited)
 		b.WriteByte(']')
 		tconv2(b, t.Elem(), 0, mode, visited)
 
-	case TINTER:
+	case types.TINTER:
 		if t.IsEmptyInterface() {
 			b.WriteString("interface {}")
 			break
@@ -779,7 +787,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		}
 		b.WriteByte('}')
 
-	case TFUNC:
+	case types.TFUNC:
 		if flag&FmtShort != 0 {
 			// no leading func
 		} else {
@@ -805,7 +813,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 			tconv2(b, t.Results(), 0, mode, visited)
 		}
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		if m := t.StructType().Map; m != nil {
 			mt := m.MapType()
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
@@ -856,17 +864,17 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 			b.WriteByte('}')
 		}
 
-	case TFORW:
+	case types.TFORW:
 		b.WriteString("undefined")
 		if t.Sym != nil {
 			b.WriteByte(' ')
 			sconv2(b, t.Sym, 0, mode)
 		}
 
-	case TUNSAFEPTR:
+	case types.TUNSAFEPTR:
 		b.WriteString("unsafe.Pointer")
 
-	case Txxx:
+	case types.Txxx:
 		b.WriteString("Txxx")
 	default:
 		// Don't know how to handle - fall back to detailed prints.
@@ -875,7 +883,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 }
 
 // Statements which may be rendered with a simplestmt as init.
-func stmtwithinit(op Op) bool {
+func StmtWithInit(op Op) bool {
 	switch op {
 	case OIF, OFOR, OFORUNTIL, OSWITCH:
 		return true
@@ -884,20 +892,20 @@ func stmtwithinit(op Op) bool {
 	return false
 }
 
-func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+func stmtFmt(n *Node, s fmt.State, mode FmtMode) {
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
 	// and inlining. If it doesn't fit the syntax, emit an enclosing
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so
-	simpleinit := n.Ninit.Len() == 1 && n.Ninit.First().Ninit.Len() == 0 && stmtwithinit(n.Op)
+	simpleinit := n.Ninit.Len() == 1 && n.Ninit.First().Ninit.Len() == 0 && StmtWithInit(n.Op)
 
 	// otherwise, print the inits as separate statements
 	complexinit := n.Ninit.Len() != 0 && !simpleinit && (mode != FErr)
 
 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
-	extrablock := complexinit && stmtwithinit(n.Op)
+	extrablock := complexinit && StmtWithInit(n.Op)
 
 	if extrablock {
 		fmt.Fprint(s, "{")
@@ -1064,7 +1072,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 	}
 }
 
-var opprec = []int{
+var OpPrec = []int{
 	OALIGNOF:       8,
 	OAPPEND:        8,
 	OBYTES2STR:     8,
@@ -1184,7 +1192,7 @@ var opprec = []int{
 	OEND: 0,
 }
 
-func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+func exprFmt(n *Node, s fmt.State, prec int, mode FmtMode) {
 	for n != nil && n.Implicit() && (n.Op == ODEREF || n.Op == OADDR) {
 		n = n.Left
 	}
@@ -1194,7 +1202,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		return
 	}
 
-	nprec := opprec[n.Op]
+	nprec := OpPrec[n.Op]
 	if n.Op == OTYPE && n.Sym != nil {
 		nprec = 8
 	}
@@ -1214,7 +1222,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 	case OLITERAL: // this is a bit of a mess
 		if mode == FErr {
 			if n.Orig != nil && n.Orig != n {
-				n.Orig.exprfmt(s, prec, mode)
+				exprFmt(n.Orig, s, prec, mode)
 				return
 			}
 			if n.Sym != nil {
@@ -1252,7 +1260,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
 			}
 		} else {
-			fmt.Fprint(s, vconv(n.Val(), fmtFlag(s, 'v')))
+			fmt.Fprint(s, FmtConst(n.Val(), fmtFlag(s, 'v')))
 		}
 
 		if needUnparen {
@@ -1369,7 +1377,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, "%v:%v", n.Sym, n.Left)
 
 	case OCALLPART:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		if n.Right == nil || n.Right.Sym == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
@@ -1377,7 +1385,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, ".%0S", n.Right.Sym)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		if n.Sym == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
@@ -1385,7 +1393,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, ".%0S", n.Sym)
 
 	case ODOTTYPE, ODOTTYPE2:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		if n.Right != nil {
 			mode.Fprintf(s, ".(%v)", n.Right)
 			return
@@ -1393,24 +1401,24 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, ".(%v)", n.Type)
 
 	case OINDEX, OINDEXMAP:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		mode.Fprintf(s, "[%v]", n.Right)
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		fmt.Fprint(s, "[")
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			fmt.Fprint(s, low.modeString(mode))
+			fmt.Fprint(s, modeString(low, mode))
 		}
 		fmt.Fprint(s, ":")
 		if high != nil {
-			fmt.Fprint(s, high.modeString(mode))
+			fmt.Fprint(s, modeString(high, mode))
 		}
 		if n.Op.IsSlice3() {
 			fmt.Fprint(s, ":")
 			if max != nil {
-				fmt.Fprint(s, max.modeString(mode))
+				fmt.Fprint(s, modeString(max, mode))
 			}
 		}
 		fmt.Fprint(s, "]")
@@ -1474,7 +1482,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, "%#v(%.v)", n.Op, n.List)
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		if n.IsDDD() {
 			mode.Fprintf(s, "(%.v...)", n.List)
 			return
@@ -1505,7 +1513,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		if n.Left != nil && n.Left.Op == n.Op {
 			fmt.Fprint(s, " ")
 		}
-		n.Left.exprfmt(s, nprec+1, mode)
+		exprFmt(n.Left, s, nprec+1, mode)
 
 		// Binary
 	case OADD,
@@ -1528,16 +1536,16 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		OSEND,
 		OSUB,
 		OXOR:
-		n.Left.exprfmt(s, nprec, mode)
+		exprFmt(n.Left, s, nprec, mode)
 		mode.Fprintf(s, " %#v ", n.Op)
-		n.Right.exprfmt(s, nprec+1, mode)
+		exprFmt(n.Right, s, nprec+1, mode)
 
 	case OADDSTR:
 		for i, n1 := range n.List.Slice() {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
 			}
-			n1.exprfmt(s, nprec, mode)
+			exprFmt(n1, s, nprec, mode)
 		}
 	case ODDD:
 		mode.Fprintf(s, "...")
@@ -1546,7 +1554,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 	}
 }
 
-func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
+func nodeFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	t := n.Type
 
 	// We almost always want the original.
@@ -1556,7 +1564,7 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
 	}
 
 	if flag&FmtLong != 0 && t != nil {
-		if t.Etype == TNIL {
+		if t.Etype == types.TNIL {
 			fmt.Fprint(s, "nil")
 		} else if n.Op == ONAME && n.Name.AutoTemp() {
 			mode.Fprintf(s, "%v value", t)
@@ -1568,15 +1576,15 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
 
 	// TODO inlining produces expressions with ninits. we can't print these yet.
 
-	if opprec[n.Op] < 0 {
-		n.stmtfmt(s, mode)
+	if OpPrec[n.Op] < 0 {
+		stmtFmt(n, s, mode)
 		return
 	}
 
-	n.exprfmt(s, 0, mode)
+	exprFmt(n, s, 0, mode)
 }
 
-func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+func nodeDumpFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	recur := flag&FmtShort == 0
 
 	if recur {
@@ -1647,7 +1655,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 		if n.Op == ODCLFUNC && n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
 			indent(s)
 			// The dcls for a func or closure
-			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
+			mode.Fprintf(s, "%v-dcl%v", n.Op, AsNodes(n.Func.Dcl))
 		}
 		if n.List.Len() != 0 {
 			indent(s)
@@ -1667,7 +1675,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 }
 
 // "%S" suppresses qualifying with package
-func symFormat(s *types.Sym, f fmt.State, verb rune, mode fmtMode) {
+func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S':
 		fmt.Fprint(f, sconv(s, fmtFlag(f, verb), mode))
@@ -1677,10 +1685,10 @@ func symFormat(s *types.Sym, f fmt.State, verb rune, mode fmtMode) {
 	}
 }
 
-func smodeString(s *types.Sym, mode fmtMode) string { return sconv(s, 0, mode) }
+func smodeString(s *types.Sym, mode FmtMode) string { return sconv(s, 0, mode) }
 
 // See #16897 before changing the implementation of sconv.
-func sconv(s *types.Sym, flag FmtFlag, mode fmtMode) string {
+func sconv(s *types.Sym, flag FmtFlag, mode FmtMode) string {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
@@ -1701,7 +1709,7 @@ func sconv(s *types.Sym, flag FmtFlag, mode fmtMode) string {
 	return types.InternString(buf.Bytes())
 }
 
-func sconv2(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
+func sconv2(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode FmtMode) {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
@@ -1718,7 +1726,7 @@ func sconv2(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
 	symfmt(b, s, flag, mode)
 }
 
-func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode fmtMode, visited map[*types.Type]int, funarg types.Funarg) {
+func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode FmtMode, visited map[*types.Type]int, funarg types.Funarg) {
 	if f == nil {
 		b.WriteString("<T>")
 		return
@@ -1734,12 +1742,12 @@ func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode fmtMode, visite
 
 		// Take the name from the original.
 		if mode == FErr {
-			s = origSym(s)
+			s = OrigSym(s)
 		}
 
 		if s != nil && f.Embedded == 0 {
 			if funarg != types.FunargNone {
-				name = asNode(f.Nname).modeString(mode)
+				name = modeString(AsNode(f.Nname), mode)
 			} else if flag&FmtLong != 0 {
 				name = mode.Sprintf("%0S", s)
 				if !types.IsExported(name) && flag&FmtUnsigned == 0 {
@@ -1775,7 +1783,7 @@ func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode fmtMode, visite
 
 // "%L"  print definition, not name
 // "%S"  omit 'func' and receiver from function types, short type names
-func typeFormat(t *types.Type, s fmt.State, verb rune, mode fmtMode) {
+func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
 		fmt.Fprint(s, tconv(t, fmtFlag(s, verb), mode))
@@ -1784,12 +1792,12 @@ func typeFormat(t *types.Type, s fmt.State, verb rune, mode fmtMode) {
 	}
 }
 
-func (n *Node) String() string                 { return fmt.Sprint(n) }
-func (n *Node) modeString(mode fmtMode) string { return mode.Sprint(n) }
+func (n *Node) String() string                { return fmt.Sprint(n) }
+func modeString(n *Node, mode FmtMode) string { return mode.Sprint(n) }
 
 // "%L"  suffix with "(type %T)" where possible
 // "%+S" in debug mode, don't recurse, no multiline output
-func (n *Node) nconv(s fmt.State, flag FmtFlag, mode fmtMode) {
+func nconvFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
 		return
@@ -1799,11 +1807,11 @@ func (n *Node) nconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 
 	switch mode {
 	case FErr:
-		n.nodefmt(s, flag, mode)
+		nodeFmt(n, s, flag, mode)
 
 	case FDbg:
 		dumpdepth++
-		n.nodedump(s, flag, mode)
+		nodeDumpFmt(n, s, flag, mode)
 		dumpdepth--
 
 	default:
@@ -1811,7 +1819,7 @@ func (n *Node) nconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	}
 }
 
-func (l Nodes) format(s fmt.State, verb rune, mode fmtMode) {
+func (l Nodes) format(s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v':
 		l.hconv(s, fmtFlag(s, verb), mode)
@@ -1826,7 +1834,7 @@ func (n Nodes) String() string {
 }
 
 // Flags: all those of %N plus '.': separate with comma's instead of semicolons.
-func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode fmtMode) {
+func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode FmtMode) {
 	if l.Len() == 0 && mode == FDbg {
 		fmt.Fprint(s, "<nil>")
 		return
@@ -1841,18 +1849,18 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	}
 
 	for i, n := range l.Slice() {
-		fmt.Fprint(s, n.modeString(mode))
+		fmt.Fprint(s, modeString(n, mode))
 		if i+1 < l.Len() {
 			fmt.Fprint(s, sep)
 		}
 	}
 }
 
-func dumplist(s string, l Nodes) {
+func DumpList(s string, l Nodes) {
 	fmt.Printf("%s%+v\n", s, l)
 }
 
-func fdumplist(w io.Writer, s string, l Nodes) {
+func FDumpList(w io.Writer, s string, l Nodes) {
 	fmt.Fprintf(w, "%s%+v\n", s, l)
 }
 
@@ -1876,4 +1884,31 @@ func ellipsisIf(b bool) string {
 		return "..."
 	}
 	return ""
+}
+
+// numImport tracks how often a package with a given name is imported.
+// It is used to provide a better error message (by using the package
+// path to disambiguate) if a package that appears multiple times with
+// the same name appears in an error message.
+var NumImport = make(map[string]int)
+
+func InstallTypeFormats() {
+	types.Sconv = func(s *types.Sym, flag, mode int) string {
+		return sconv(s, FmtFlag(flag), FmtMode(mode))
+	}
+	types.Tconv = func(t *types.Type, flag, mode int) string {
+		return tconv(t, FmtFlag(flag), FmtMode(mode))
+	}
+	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
+		symFormat(sym, s, verb, FmtMode(mode))
+	}
+	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+		typeFormat(t, s, verb, FmtMode(mode))
+	}
+}
+
+// Line returns n's position as a string. If n has been inlined,
+// it uses the outermost position where n has been inlined.
+func Line(n *Node) string {
+	return base.FmtPos(n.Pos)
 }

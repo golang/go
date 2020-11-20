@@ -4,12 +4,15 @@
 
 package gc
 
-import "cmd/compile/internal/base"
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+)
 
 // evalunsafe evaluates a package unsafe operation and returns the result.
-func evalunsafe(n *Node) int64 {
+func evalunsafe(n *ir.Node) int64 {
 	switch n.Op {
-	case OALIGNOF, OSIZEOF:
+	case ir.OALIGNOF, ir.OSIZEOF:
 		n.Left = typecheck(n.Left, ctxExpr)
 		n.Left = defaultlit(n.Left, nil)
 		tr := n.Left.Type
@@ -17,14 +20,14 @@ func evalunsafe(n *Node) int64 {
 			return 0
 		}
 		dowidth(tr)
-		if n.Op == OALIGNOF {
+		if n.Op == ir.OALIGNOF {
 			return int64(tr.Align)
 		}
 		return tr.Width
 
-	case OOFFSETOF:
+	case ir.OOFFSETOF:
 		// must be a selector.
-		if n.Left.Op != OXDOT {
+		if n.Left.Op != ir.OXDOT {
 			base.Errorf("invalid expression %v", n)
 			return 0
 		}
@@ -40,9 +43,9 @@ func evalunsafe(n *Node) int64 {
 			return 0
 		}
 		switch n.Left.Op {
-		case ODOT, ODOTPTR:
+		case ir.ODOT, ir.ODOTPTR:
 			break
-		case OCALLPART:
+		case ir.OCALLPART:
 			base.Errorf("invalid expression %v: argument is a method value", n)
 			return 0
 		default:
@@ -54,7 +57,7 @@ func evalunsafe(n *Node) int64 {
 		var v int64
 		for r := n.Left; r != sbase; r = r.Left {
 			switch r.Op {
-			case ODOTPTR:
+			case ir.ODOTPTR:
 				// For Offsetof(s.f), s may itself be a pointer,
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
@@ -63,10 +66,10 @@ func evalunsafe(n *Node) int64 {
 					return 0
 				}
 				fallthrough
-			case ODOT:
+			case ir.ODOT:
 				v += r.Xoffset
 			default:
-				Dump("unsafenmagic", n.Left)
+				ir.Dump("unsafenmagic", n.Left)
 				base.Fatalf("impossible %#v node after dot insertion", r.Op)
 			}
 		}

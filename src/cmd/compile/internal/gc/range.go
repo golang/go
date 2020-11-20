@@ -6,13 +6,14 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 	"unicode/utf8"
 )
 
 // range
-func typecheckrange(n *Node) {
+func typecheckrange(n *ir.Node) {
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
 	//	it is evaluated only once and so logically it is not part of the loop.
@@ -38,7 +39,7 @@ func typecheckrange(n *Node) {
 	decldepth--
 }
 
-func typecheckrangeExpr(n *Node) {
+func typecheckrangeExpr(n *ir.Node) {
 	n.Right = typecheck(n.Right, ctxExpr)
 
 	t := n.Right.Type
@@ -65,15 +66,15 @@ func typecheckrangeExpr(n *Node) {
 		base.ErrorfAt(n.Pos, "cannot range over %L", n.Right)
 		return
 
-	case TARRAY, TSLICE:
-		t1 = types.Types[TINT]
+	case types.TARRAY, types.TSLICE:
+		t1 = types.Types[types.TINT]
 		t2 = t.Elem()
 
-	case TMAP:
+	case types.TMAP:
 		t1 = t.Key()
 		t2 = t.Elem()
 
-	case TCHAN:
+	case types.TCHAN:
 		if !t.ChanDir().CanRecv() {
 			base.ErrorfAt(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
 			return
@@ -85,8 +86,8 @@ func typecheckrangeExpr(n *Node) {
 			toomany = true
 		}
 
-	case TSTRING:
-		t1 = types.Types[TINT]
+	case types.TSTRING:
+		t1 = types.Types[types.TINT]
 		t2 = types.Runetype
 	}
 
@@ -94,7 +95,7 @@ func typecheckrangeExpr(n *Node) {
 		base.ErrorfAt(n.Pos, "too many variables in range")
 	}
 
-	var v1, v2 *Node
+	var v1, v2 *ir.Node
 	if n.List.Len() != 0 {
 		v1 = n.List.First()
 	}
@@ -106,7 +107,7 @@ func typecheckrangeExpr(n *Node) {
 	// "if the second iteration variable is the blank identifier, the range
 	// clause is equivalent to the same clause with only the first variable
 	// present."
-	if v2.isBlank() {
+	if ir.IsBlank(v2) {
 		if v1 != nil {
 			n.List.Set1(v1)
 		}
@@ -117,7 +118,7 @@ func typecheckrangeExpr(n *Node) {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil {
-			if op, why := assignop(t1, v1.Type); op == OXXX {
+			if op, why := assignop(t1, v1.Type); op == ir.OXXX {
 				base.ErrorfAt(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
 			}
 		}
@@ -128,7 +129,7 @@ func typecheckrangeExpr(n *Node) {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil {
-			if op, why := assignop(t2, v2.Type); op == OXXX {
+			if op, why := assignop(t2, v2.Type); op == ir.OXXX {
 				base.ErrorfAt(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
 			}
 		}
@@ -156,7 +157,7 @@ func cheapComputableIndex(width int64) bool {
 // simpler forms.  The result must be assigned back to n.
 // Node n may also be modified in place, and may also be
 // the returned node.
-func walkrange(n *Node) *Node {
+func walkrange(n *ir.Node) *ir.Node {
 	if isMapClear(n) {
 		m := n.Right
 		lno := setlineno(m)
@@ -178,7 +179,7 @@ func walkrange(n *Node) *Node {
 	lno := setlineno(a)
 	n.Right = nil
 
-	var v1, v2 *Node
+	var v1, v2 *ir.Node
 	l := n.List.Len()
 	if l > 0 {
 		v1 = n.List.First()
@@ -188,11 +189,11 @@ func walkrange(n *Node) *Node {
 		v2 = n.List.Second()
 	}
 
-	if v2.isBlank() {
+	if ir.IsBlank(v2) {
 		v2 = nil
 	}
 
-	if v1.isBlank() && v2 == nil {
+	if ir.IsBlank(v1) && v2 == nil {
 		v1 = nil
 	}
 
@@ -204,17 +205,17 @@ func walkrange(n *Node) *Node {
 	// to avoid erroneous processing by racewalk.
 	n.List.Set(nil)
 
-	var ifGuard *Node
+	var ifGuard *ir.Node
 
-	translatedLoopOp := OFOR
+	translatedLoopOp := ir.OFOR
 
-	var body []*Node
-	var init []*Node
+	var body []*ir.Node
+	var init []*ir.Node
 	switch t.Etype {
 	default:
 		base.Fatalf("walkrange")
 
-	case TARRAY, TSLICE:
+	case types.TARRAY, types.TSLICE:
 		if arrayClear(n, v1, v2, a) {
 			base.Pos = lno
 			return n
@@ -223,14 +224,14 @@ func walkrange(n *Node) *Node {
 		// order.stmt arranged for a copy of the array/slice variable if needed.
 		ha := a
 
-		hv1 := temp(types.Types[TINT])
-		hn := temp(types.Types[TINT])
+		hv1 := temp(types.Types[types.TINT])
+		hn := temp(types.Types[types.TINT])
 
-		init = append(init, nod(OAS, hv1, nil))
-		init = append(init, nod(OAS, hn, nod(OLEN, ha, nil)))
+		init = append(init, ir.Nod(ir.OAS, hv1, nil))
+		init = append(init, ir.Nod(ir.OAS, hn, ir.Nod(ir.OLEN, ha, nil)))
 
-		n.Left = nod(OLT, hv1, hn)
-		n.Right = nod(OAS, hv1, nod(OADD, hv1, nodintconst(1)))
+		n.Left = ir.Nod(ir.OLT, hv1, hn)
+		n.Right = ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1)))
 
 		// for range ha { body }
 		if v1 == nil {
@@ -239,21 +240,21 @@ func walkrange(n *Node) *Node {
 
 		// for v1 := range ha { body }
 		if v2 == nil {
-			body = []*Node{nod(OAS, v1, hv1)}
+			body = []*ir.Node{ir.Nod(ir.OAS, v1, hv1)}
 			break
 		}
 
 		// for v1, v2 := range ha { body }
 		if cheapComputableIndex(n.Type.Elem().Width) {
 			// v1, v2 = hv1, ha[hv1]
-			tmp := nod(OINDEX, ha, hv1)
+			tmp := ir.Nod(ir.OINDEX, ha, hv1)
 			tmp.SetBounded(true)
 			// Use OAS2 to correctly handle assignments
 			// of the form "v1, a[v1] := range".
-			a := nod(OAS2, nil, nil)
+			a := ir.Nod(ir.OAS2, nil, nil)
 			a.List.Set2(v1, v2)
 			a.Rlist.Set2(hv1, tmp)
-			body = []*Node{a}
+			body = []*ir.Node{a}
 			break
 		}
 
@@ -269,20 +270,20 @@ func walkrange(n *Node) *Node {
 		// TODO(austin): OFORUNTIL inhibits bounds-check
 		// elimination on the index variable (see #20711).
 		// Enhance the prove pass to understand this.
-		ifGuard = nod(OIF, nil, nil)
-		ifGuard.Left = nod(OLT, hv1, hn)
-		translatedLoopOp = OFORUNTIL
+		ifGuard = ir.Nod(ir.OIF, nil, nil)
+		ifGuard.Left = ir.Nod(ir.OLT, hv1, hn)
+		translatedLoopOp = ir.OFORUNTIL
 
 		hp := temp(types.NewPtr(n.Type.Elem()))
-		tmp := nod(OINDEX, ha, nodintconst(0))
+		tmp := ir.Nod(ir.OINDEX, ha, nodintconst(0))
 		tmp.SetBounded(true)
-		init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))
+		init = append(init, ir.Nod(ir.OAS, hp, ir.Nod(ir.OADDR, tmp, nil)))
 
 		// Use OAS2 to correctly handle assignments
 		// of the form "v1, a[v1] := range".
-		a := nod(OAS2, nil, nil)
+		a := ir.Nod(ir.OAS2, nil, nil)
 		a.List.Set2(v1, v2)
-		a.Rlist.Set2(hv1, nod(ODEREF, hp, nil))
+		a.Rlist.Set2(hv1, ir.Nod(ir.ODEREF, hp, nil))
 		body = append(body, a)
 
 		// Advance pointer as part of the late increment.
@@ -290,11 +291,11 @@ func walkrange(n *Node) *Node {
 		// This runs *after* the condition check, so we know
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
-		a = nod(OAS, hp, addptr(hp, t.Elem().Width))
+		a = ir.Nod(ir.OAS, hp, addptr(hp, t.Elem().Width))
 		a = typecheck(a, ctxStmt)
 		n.List.Set1(a)
 
-	case TMAP:
+	case types.TMAP:
 		// order.stmt allocated the iterator for us.
 		// we only use a once, so no copy needed.
 		ha := a
@@ -308,29 +309,29 @@ func walkrange(n *Node) *Node {
 		fn := syslook("mapiterinit")
 
 		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
-		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, nod(OADDR, hit, nil)))
-		n.Left = nod(ONE, nodSym(ODOT, hit, keysym), nodnil())
+		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, ir.Nod(ir.OADDR, hit, nil)))
+		n.Left = ir.Nod(ir.ONE, nodSym(ir.ODOT, hit, keysym), nodnil())
 
 		fn = syslook("mapiternext")
 		fn = substArgTypes(fn, th)
-		n.Right = mkcall1(fn, nil, nil, nod(OADDR, hit, nil))
+		n.Right = mkcall1(fn, nil, nil, ir.Nod(ir.OADDR, hit, nil))
 
-		key := nodSym(ODOT, hit, keysym)
-		key = nod(ODEREF, key, nil)
+		key := nodSym(ir.ODOT, hit, keysym)
+		key = ir.Nod(ir.ODEREF, key, nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
-			body = []*Node{nod(OAS, v1, key)}
+			body = []*ir.Node{ir.Nod(ir.OAS, v1, key)}
 		} else {
-			elem := nodSym(ODOT, hit, elemsym)
-			elem = nod(ODEREF, elem, nil)
-			a := nod(OAS2, nil, nil)
+			elem := nodSym(ir.ODOT, hit, elemsym)
+			elem = ir.Nod(ir.ODEREF, elem, nil)
+			a := ir.Nod(ir.OAS2, nil, nil)
 			a.List.Set2(v1, v2)
 			a.Rlist.Set2(key, elem)
-			body = []*Node{a}
+			body = []*ir.Node{a}
 		}
 
-	case TCHAN:
+	case types.TCHAN:
 		// order.stmt arranged for a copy of the channel variable.
 		ha := a
 
@@ -339,27 +340,27 @@ func walkrange(n *Node) *Node {
 		hv1 := temp(t.Elem())
 		hv1.SetTypecheck(1)
 		if t.Elem().HasPointers() {
-			init = append(init, nod(OAS, hv1, nil))
+			init = append(init, ir.Nod(ir.OAS, hv1, nil))
 		}
-		hb := temp(types.Types[TBOOL])
+		hb := temp(types.Types[types.TBOOL])
 
-		n.Left = nod(ONE, hb, nodbool(false))
-		a := nod(OAS2RECV, nil, nil)
+		n.Left = ir.Nod(ir.ONE, hb, nodbool(false))
+		a := ir.Nod(ir.OAS2RECV, nil, nil)
 		a.SetTypecheck(1)
 		a.List.Set2(hv1, hb)
-		a.Right = nod(ORECV, ha, nil)
+		a.Right = ir.Nod(ir.ORECV, ha, nil)
 		n.Left.Ninit.Set1(a)
 		if v1 == nil {
 			body = nil
 		} else {
-			body = []*Node{nod(OAS, v1, hv1)}
+			body = []*ir.Node{ir.Nod(ir.OAS, v1, hv1)}
 		}
 		// Zero hv1. This prevents hv1 from being the sole, inaccessible
 		// reference to an otherwise GC-able value during the next channel receive.
 		// See issue 15281.
-		body = append(body, nod(OAS, hv1, nil))
+		body = append(body, ir.Nod(ir.OAS, hv1, nil))
 
-	case TSTRING:
+	case types.TSTRING:
 		// Transform string range statements like "for v1, v2 = range a" into
 		//
 		// ha := a
@@ -378,35 +379,35 @@ func walkrange(n *Node) *Node {
 		// order.stmt arranged for a copy of the string variable.
 		ha := a
 
-		hv1 := temp(types.Types[TINT])
-		hv1t := temp(types.Types[TINT])
+		hv1 := temp(types.Types[types.TINT])
+		hv1t := temp(types.Types[types.TINT])
 		hv2 := temp(types.Runetype)
 
 		// hv1 := 0
-		init = append(init, nod(OAS, hv1, nil))
+		init = append(init, ir.Nod(ir.OAS, hv1, nil))
 
 		// hv1 < len(ha)
-		n.Left = nod(OLT, hv1, nod(OLEN, ha, nil))
+		n.Left = ir.Nod(ir.OLT, hv1, ir.Nod(ir.OLEN, ha, nil))
 
 		if v1 != nil {
 			// hv1t = hv1
-			body = append(body, nod(OAS, hv1t, hv1))
+			body = append(body, ir.Nod(ir.OAS, hv1t, hv1))
 		}
 
 		// hv2 := rune(ha[hv1])
-		nind := nod(OINDEX, ha, hv1)
+		nind := ir.Nod(ir.OINDEX, ha, hv1)
 		nind.SetBounded(true)
-		body = append(body, nod(OAS, hv2, conv(nind, types.Runetype)))
+		body = append(body, ir.Nod(ir.OAS, hv2, conv(nind, types.Runetype)))
 
 		// if hv2 < utf8.RuneSelf
-		nif := nod(OIF, nil, nil)
-		nif.Left = nod(OLT, hv2, nodintconst(utf8.RuneSelf))
+		nif := ir.Nod(ir.OIF, nil, nil)
+		nif.Left = ir.Nod(ir.OLT, hv2, nodintconst(utf8.RuneSelf))
 
 		// hv1++
-		nif.Nbody.Set1(nod(OAS, hv1, nod(OADD, hv1, nodintconst(1))))
+		nif.Nbody.Set1(ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1))))
 
 		// } else {
-		eif := nod(OAS2, nil, nil)
+		eif := ir.Nod(ir.OAS2, nil, nil)
 		nif.Rlist.Set1(eif)
 
 		// hv2, hv1 = decoderune(ha, hv1)
@@ -419,13 +420,13 @@ func walkrange(n *Node) *Node {
 		if v1 != nil {
 			if v2 != nil {
 				// v1, v2 = hv1t, hv2
-				a := nod(OAS2, nil, nil)
+				a := ir.Nod(ir.OAS2, nil, nil)
 				a.List.Set2(v1, v2)
 				a.Rlist.Set2(hv1t, hv2)
 				body = append(body, a)
 			} else {
 				// v1 = hv1t
-				body = append(body, nod(OAS, v1, hv1t))
+				body = append(body, ir.Nod(ir.OAS, v1, hv1t))
 			}
 		}
 	}
@@ -466,17 +467,17 @@ func walkrange(n *Node) *Node {
 // }
 //
 // where == for keys of map m is reflexive.
-func isMapClear(n *Node) bool {
+func isMapClear(n *ir.Node) bool {
 	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
 
-	if n.Op != ORANGE || n.Type.Etype != TMAP || n.List.Len() != 1 {
+	if n.Op != ir.ORANGE || n.Type.Etype != types.TMAP || n.List.Len() != 1 {
 		return false
 	}
 
 	k := n.List.First()
-	if k == nil || k.isBlank() {
+	if k == nil || ir.IsBlank(k) {
 		return false
 	}
 
@@ -490,7 +491,7 @@ func isMapClear(n *Node) bool {
 	}
 
 	stmt := n.Nbody.First() // only stmt in body
-	if stmt == nil || stmt.Op != ODELETE {
+	if stmt == nil || stmt.Op != ir.ODELETE {
 		return false
 	}
 
@@ -508,7 +509,7 @@ func isMapClear(n *Node) bool {
 }
 
 // mapClear constructs a call to runtime.mapclear for the map m.
-func mapClear(m *Node) *Node {
+func mapClear(m *ir.Node) *ir.Node {
 	t := m.Type
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
@@ -533,7 +534,7 @@ func mapClear(m *Node) *Node {
 // in which the evaluation of a is side-effect-free.
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
-func arrayClear(n, v1, v2, a *Node) bool {
+func arrayClear(n, v1, v2, a *ir.Node) bool {
 	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
@@ -547,7 +548,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	}
 
 	stmt := n.Nbody.First() // only stmt in body
-	if stmt.Op != OAS || stmt.Left.Op != OINDEX {
+	if stmt.Op != ir.OAS || stmt.Left.Op != ir.OINDEX {
 		return false
 	}
 
@@ -567,32 +568,32 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	// 	memclr{NoHeap,Has}Pointers(hp, hn)
 	// 	i = len(a) - 1
 	// }
-	n.Op = OIF
+	n.Op = ir.OIF
 
 	n.Nbody.Set(nil)
-	n.Left = nod(ONE, nod(OLEN, a, nil), nodintconst(0))
+	n.Left = ir.Nod(ir.ONE, ir.Nod(ir.OLEN, a, nil), nodintconst(0))
 
 	// hp = &a[0]
-	hp := temp(types.Types[TUNSAFEPTR])
+	hp := temp(types.Types[types.TUNSAFEPTR])
 
-	tmp := nod(OINDEX, a, nodintconst(0))
+	tmp := ir.Nod(ir.OINDEX, a, nodintconst(0))
 	tmp.SetBounded(true)
-	tmp = nod(OADDR, tmp, nil)
-	tmp = convnop(tmp, types.Types[TUNSAFEPTR])
-	n.Nbody.Append(nod(OAS, hp, tmp))
+	tmp = ir.Nod(ir.OADDR, tmp, nil)
+	tmp = convnop(tmp, types.Types[types.TUNSAFEPTR])
+	n.Nbody.Append(ir.Nod(ir.OAS, hp, tmp))
 
 	// hn = len(a) * sizeof(elem(a))
-	hn := temp(types.Types[TUINTPTR])
+	hn := temp(types.Types[types.TUINTPTR])
 
-	tmp = nod(OLEN, a, nil)
-	tmp = nod(OMUL, tmp, nodintconst(elemsize))
-	tmp = conv(tmp, types.Types[TUINTPTR])
-	n.Nbody.Append(nod(OAS, hn, tmp))
+	tmp = ir.Nod(ir.OLEN, a, nil)
+	tmp = ir.Nod(ir.OMUL, tmp, nodintconst(elemsize))
+	tmp = conv(tmp, types.Types[types.TUINTPTR])
+	n.Nbody.Append(ir.Nod(ir.OAS, hn, tmp))
 
-	var fn *Node
+	var fn *ir.Node
 	if a.Type.Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
-		Curfn.Func.setWBPos(stmt.Pos)
+		Curfn.Func.SetWBPos(stmt.Pos)
 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
 	} else {
 		// memclrNoHeapPointers(hp, hn)
@@ -602,7 +603,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(fn)
 
 	// i = len(a) - 1
-	v1 = nod(OAS, v1, nod(OSUB, nod(OLEN, a, nil), nodintconst(1)))
+	v1 = ir.Nod(ir.OAS, v1, ir.Nod(ir.OSUB, ir.Nod(ir.OLEN, a, nil), nodintconst(1)))
 
 	n.Nbody.Append(v1)
 
@@ -614,15 +615,15 @@ func arrayClear(n, v1, v2, a *Node) bool {
 }
 
 // addptr returns (*T)(uintptr(p) + n).
-func addptr(p *Node, n int64) *Node {
+func addptr(p *ir.Node, n int64) *ir.Node {
 	t := p.Type
 
-	p = nod(OCONVNOP, p, nil)
-	p.Type = types.Types[TUINTPTR]
+	p = ir.Nod(ir.OCONVNOP, p, nil)
+	p.Type = types.Types[types.TUINTPTR]
 
-	p = nod(OADD, p, nodintconst(n))
+	p = ir.Nod(ir.OADD, p, nodintconst(n))
 
-	p = nod(OCONVNOP, p, nil)
+	p = ir.Nod(ir.OCONVNOP, p, nil)
 	p.Type = t
 
 	return p

@@ -35,7 +35,10 @@ func main() {
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "package gc")
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, `import "cmd/compile/internal/types"`)
+	fmt.Fprintln(&b, `import (`)
+	fmt.Fprintln(&b, `      "cmd/compile/internal/ir"`)
+	fmt.Fprintln(&b, `      "cmd/compile/internal/types"`)
+	fmt.Fprintln(&b, `)`)
 
 	mkbuiltin(&b, "runtime")
 
@@ -144,12 +147,12 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 		case "rune":
 			return "types.Runetype"
 		}
-		return fmt.Sprintf("types.Types[T%s]", strings.ToUpper(t.Name))
+		return fmt.Sprintf("types.Types[types.T%s]", strings.ToUpper(t.Name))
 	case *ast.SelectorExpr:
 		if t.X.(*ast.Ident).Name != "unsafe" || t.Sel.Name != "Pointer" {
 			log.Fatalf("unhandled type: %#v", t)
 		}
-		return "types.Types[TUNSAFEPTR]"
+		return "types.Types[types.TUNSAFEPTR]"
 
 	case *ast.ArrayType:
 		if t.Len == nil {
@@ -171,7 +174,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 		if len(t.Methods.List) != 0 {
 			log.Fatal("non-empty interfaces unsupported")
 		}
-		return "types.Types[TINTER]"
+		return "types.Types[types.TINTER]"
 	case *ast.MapType:
 		return fmt.Sprintf("types.NewMap(%s, %s)", i.subtype(t.Key), i.subtype(t.Value))
 	case *ast.StarExpr:
@@ -204,7 +207,7 @@ func (i *typeInterner) fields(fl *ast.FieldList, keepNames bool) string {
 			}
 		}
 	}
-	return fmt.Sprintf("[]*Node{%s}", strings.Join(res, ", "))
+	return fmt.Sprintf("[]*ir.Node{%s}", strings.Join(res, ", "))
 }
 
 func intconst(e ast.Expr) int64 {

@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -59,8 +60,8 @@ func ispkgin(pkgs []string) bool {
 	return false
 }
 
-func instrument(fn *Node) {
-	if fn.Func.Pragma&Norace != 0 {
+func instrument(fn *ir.Node) {
+	if fn.Func.Pragma&ir.Norace != 0 {
 		return
 	}
 
@@ -82,8 +83,8 @@ func instrument(fn *Node) {
 			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
-			nodpc := nodfp.copy()
-			nodpc.Type = types.Types[TUINTPTR]
+			nodpc := ir.Copy(nodfp)
+			nodpc.Type = types.Types[types.TUINTPTR]
 			nodpc.Xoffset = int64(-Widthptr)
 			fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
 			fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))

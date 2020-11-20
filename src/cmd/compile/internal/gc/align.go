@@ -7,6 +7,7 @@ package gc
 import (
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"fmt"
 	"sort"
@@ -117,7 +118,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
 		f.Offset = o
-		if n := asNode(f.Nname); n != nil {
+		if n := ir.AsNode(f.Nname); n != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -197,7 +198,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if p := asNode(t.Nod).Name.Param; p != nil && findTypeLoop(p.Ntype.Type, path) {
+		if p := ir.AsNode(t.Nod).Name.Param; p != nil && findTypeLoop(p.Ntype.Type, path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -205,17 +206,17 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Anonymous type. Recurse on contained types.
 
 		switch t.Etype {
-		case TARRAY:
+		case types.TARRAY:
 			if findTypeLoop(t.Elem(), path) {
 				return true
 			}
-		case TSTRUCT:
+		case types.TSTRUCT:
 			for _, f := range t.Fields().Slice() {
 				if findTypeLoop(f.Type, path) {
 					return true
 				}
 			}
-		case TINTER:
+		case types.TINTER:
 			for _, m := range t.Methods().Slice() {
 				if m.Type.IsInterface() { // embedded interface
 					if findTypeLoop(m.Type, path) {
@@ -306,8 +307,8 @@ func dowidth(t *types.Type) {
 	defercheckwidth()
 
 	lno := base.Pos
-	if asNode(t.Nod) != nil {
-		base.Pos = asNode(t.Nod).Pos
+	if ir.AsNode(t.Nod) != nil {
+		base.Pos = ir.AsNode(t.Nod).Pos
 	}
 
 	t.Width = -2
@@ -315,7 +316,7 @@ func dowidth(t *types.Type) {
 
 	et := t.Etype
 	switch et {
-	case TFUNC, TCHAN, TMAP, TSTRING:
+	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
 		break
 
 	// simtype == 0 during bootstrap
@@ -331,41 +332,41 @@ func dowidth(t *types.Type) {
 		base.Fatalf("dowidth: unknown type: %v", t)
 
 	// compiler-specific stuff
-	case TINT8, TUINT8, TBOOL:
+	case types.TINT8, types.TUINT8, types.TBOOL:
 		// bool is int8
 		w = 1
 
-	case TINT16, TUINT16:
+	case types.TINT16, types.TUINT16:
 		w = 2
 
-	case TINT32, TUINT32, TFLOAT32:
+	case types.TINT32, types.TUINT32, types.TFLOAT32:
 		w = 4
 
-	case TINT64, TUINT64, TFLOAT64:
+	case types.TINT64, types.TUINT64, types.TFLOAT64:
 		w = 8
 		t.Align = uint8(Widthreg)
 
-	case TCOMPLEX64:
+	case types.TCOMPLEX64:
 		w = 8
 		t.Align = 4
 
-	case TCOMPLEX128:
+	case types.TCOMPLEX128:
 		w = 16
 		t.Align = uint8(Widthreg)
 
-	case TPTR:
+	case types.TPTR:
 		w = int64(Widthptr)
 		checkwidth(t.Elem())
 
-	case TUNSAFEPTR:
+	case types.TUNSAFEPTR:
 		w = int64(Widthptr)
 
-	case TINTER: // implemented as 2 pointers
+	case types.TINTER: // implemented as 2 pointers
 		w = 2 * int64(Widthptr)
 		t.Align = uint8(Widthptr)
 		expandiface(t)
 
-	case TCHAN: // implemented as pointer
+	case types.TCHAN: // implemented as pointer
 		w = int64(Widthptr)
 
 		checkwidth(t.Elem())
@@ -375,7 +376,7 @@ func dowidth(t *types.Type) {
 		t1 := types.NewChanArgs(t)
 		checkwidth(t1)
 
-	case TCHANARGS:
+	case types.TCHANARGS:
 		t1 := t.ChanArgs()
 		dowidth(t1) // just in case
 		if t1.Elem().Width >= 1<<16 {
@@ -383,27 +384,27 @@ func dowidth(t *types.Type) {
 		}
 		w = 1 // anything will do
 
-	case TMAP: // implemented as pointer
+	case types.TMAP: // implemented as pointer
 		w = int64(Widthptr)
 		checkwidth(t.Elem())
 		checkwidth(t.Key())
 
-	case TFORW: // should have been filled in
+	case types.TFORW: // should have been filled in
 		reportTypeLoop(t)
 		w = 1 // anything will do
 
-	case TANY:
+	case types.TANY:
 		// not a real type; should be replaced before use.
 		base.Fatalf("dowidth any")
 
-	case TSTRING:
+	case types.TSTRING:
 		if sizeofString == 0 {
 			base.Fatalf("early dowidth string")
 		}
 		w = sizeofString
 		t.Align = uint8(Widthptr)
 
-	case TARRAY:
+	case types.TARRAY:
 		if t.Elem() == nil {
 			break
 		}
@@ -418,7 +419,7 @@ func dowidth(t *types.Type) {
 		w = t.NumElem() * t.Elem().Width
 		t.Align = t.Elem().Align
 
-	case TSLICE:
+	case types.TSLICE:
 		if t.Elem() == nil {
 			break
 		}
@@ -426,7 +427,7 @@ func dowidth(t *types.Type) {
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		if t.IsFuncArgStruct() {
 			base.Fatalf("dowidth fn struct %v", t)
 		}
@@ -434,14 +435,14 @@ func dowidth(t *types.Type) {
 
 	// make fake type to check later to
 	// trigger function argument computation.
-	case TFUNC:
+	case types.TFUNC:
 		t1 := types.NewFuncArgs(t)
 		checkwidth(t1)
 		w = int64(Widthptr) // width of func type is pointer
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
-	case TFUNCARGS:
+	case types.TFUNCARGS:
 		t1 := t.FuncArgs()
 		w = widstruct(t1, t1.Recvs(), 0, 0)
 		w = widstruct(t1, t1.Params(), w, Widthreg)

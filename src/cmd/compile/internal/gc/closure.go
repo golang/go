@@ -6,24 +6,25 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
 )
 
-func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+func (p *noder) funcLit(expr *syntax.FuncLit) *ir.Node {
 	xtype := p.typeExpr(expr.Type)
 	ntype := p.typeExpr(expr.Type)
 
-	dcl := p.nod(expr, ODCLFUNC, nil, nil)
+	dcl := p.nod(expr, ir.ODCLFUNC, nil, nil)
 	fn := dcl.Func
 	fn.SetIsHiddenClosure(Curfn != nil)
-	fn.Nname = newfuncnamel(p.pos(expr), nblank.Sym, fn) // filled in by typecheckclosure
+	fn.Nname = newfuncnamel(p.pos(expr), ir.BlankNode.Sym, fn) // filled in by typecheckclosure
 	fn.Nname.Name.Param.Ntype = xtype
 	fn.Nname.Name.Defn = dcl
 
-	clo := p.nod(expr, OCLOSURE, nil, nil)
+	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
 	clo.Func = fn
 	fn.ClosureType = ntype
 	fn.OClosure = clo
@@ -77,7 +78,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a
 // separate pass from type-checking.
-func typecheckclosure(clo *Node, top int) {
+func typecheckclosure(clo *ir.Node, top int) {
 	fn := clo.Func
 	dcl := fn.Decl
 	// Set current associated iota value, so iota can be used inside
@@ -139,7 +140,7 @@ var globClosgen int
 
 // closurename generates a new unique name for a closure within
 // outerfunc.
-func closurename(outerfunc *Node) *types.Sym {
+func closurename(outerfunc *ir.Node) *types.Sym {
 	outer := "glob."
 	prefix := "func"
 	gen := &globClosgen
@@ -149,12 +150,12 @@ func closurename(outerfunc *Node) *types.Sym {
 			prefix = ""
 		}
 
-		outer = outerfunc.funcname()
+		outer = ir.FuncName(outerfunc)
 
 		// There may be multiple functions named "_". In those
 		// cases, we can't use their individual Closgens as it
 		// would lead to name clashes.
-		if !outerfunc.Func.Nname.isBlank() {
+		if !ir.IsBlank(outerfunc.Func.Nname) {
 			gen = &outerfunc.Func.Closgen
 		}
 	}
@@ -171,7 +172,7 @@ var capturevarscomplete bool
 // by value or by reference.
 // We use value capturing for values <= 128 bytes that are never reassigned
 // after capturing (effectively constant).
-func capturevars(dcl *Node) {
+func capturevars(dcl *ir.Node) {
 	lno := base.Pos
 	base.Pos = dcl.Pos
 	fn := dcl.Func
@@ -197,11 +198,11 @@ func capturevars(dcl *Node) {
 		outermost := v.Name.Defn
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class() != PPARAMOUT && !outermost.Name.Addrtaken() && !outermost.Name.Assigned() && v.Type.Width <= 128 {
+		if outermost.Class() != ir.PPARAMOUT && !outermost.Name.Addrtaken() && !outermost.Name.Assigned() && v.Type.Width <= 128 {
 			v.Name.SetByval(true)
 		} else {
 			outermost.Name.SetAddrtaken(true)
-			outer = nod(OADDR, outer, nil)
+			outer = ir.Nod(ir.OADDR, outer, nil)
 		}
 
 		if base.Flag.LowerM > 1 {
@@ -226,7 +227,7 @@ func capturevars(dcl *Node) {
 
 // transformclosure is called in a separate phase after escape analysis.
 // It transform closure bodies to properly reference captured variables.
-func transformclosure(dcl *Node) {
+func transformclosure(dcl *ir.Node) {
 	lno := base.Pos
 	base.Pos = dcl.Pos
 	fn := dcl.Func
@@ -252,24 +253,24 @@ func transformclosure(dcl *Node) {
 
 		// We are going to insert captured variables before input args.
 		var params []*types.Field
-		var decls []*Node
+		var decls []*ir.Node
 		for _, v := range fn.ClosureVars.Slice() {
 			if !v.Name.Byval() {
 				// If v of type T is captured by reference,
 				// we introduce function param &v *T
 				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
-				addr := newname(lookup("&" + v.Sym.Name))
+				addr := NewName(lookup("&" + v.Sym.Name))
 				addr.Type = types.NewPtr(v.Type)
 				v.Name.Param.Heapaddr = addr
 				v = addr
 			}
 
-			v.SetClass(PPARAM)
+			v.SetClass(ir.PPARAM)
 			decls = append(decls, v)
 
 			fld := types.NewField(src.NoXPos, v.Sym, v.Type)
-			fld.Nname = asTypesNode(v)
+			fld.Nname = ir.AsTypesNode(v)
 			params = append(params, fld)
 		}
 
@@ -283,11 +284,11 @@ func transformclosure(dcl *Node) {
 		dcl.Type = f.Type // update type of ODCLFUNC
 	} else {
 		// The closure is not called, so it is going to stay as closure.
-		var body []*Node
+		var body []*ir.Node
 		offset := int64(Widthptr)
 		for _, v := range fn.ClosureVars.Slice() {
 			// cv refers to the field inside of closure OSTRUCTLIT.
-			cv := nod(OCLOSUREVAR, nil, nil)
+			cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
 
 			cv.Type = v.Type
 			if !v.Name.Byval() {
@@ -299,23 +300,23 @@ func transformclosure(dcl *Node) {
 
 			if v.Name.Byval() && v.Type.Width <= int64(2*Widthptr) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
-				v.SetClass(PAUTO)
+				v.SetClass(ir.PAUTO)
 				fn.Dcl = append(fn.Dcl, v)
-				body = append(body, nod(OAS, v, cv))
+				body = append(body, ir.Nod(ir.OAS, v, cv))
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
-				addr := newname(lookup("&" + v.Sym.Name))
+				addr := NewName(lookup("&" + v.Sym.Name))
 				addr.Type = types.NewPtr(v.Type)
-				addr.SetClass(PAUTO)
+				addr.SetClass(ir.PAUTO)
 				addr.Name.SetUsed(true)
 				addr.Name.Curfn = dcl
 				fn.Dcl = append(fn.Dcl, addr)
 				v.Name.Param.Heapaddr = addr
 				if v.Name.Byval() {
-					cv = nod(OADDR, cv, nil)
+					cv = ir.Nod(ir.OADDR, cv, nil)
 				}
-				body = append(body, nod(OAS, addr, cv))
+				body = append(body, ir.Nod(ir.OAS, addr, cv))
 			}
 		}
 
@@ -331,13 +332,13 @@ func transformclosure(dcl *Node) {
 
 // hasemptycvars reports whether closure clo has an
 // empty list of captured vars.
-func hasemptycvars(clo *Node) bool {
+func hasemptycvars(clo *ir.Node) bool {
 	return clo.Func.ClosureVars.Len() == 0
 }
 
 // closuredebugruntimecheck applies boilerplate checks for debug flags
 // and compiling runtime
-func closuredebugruntimecheck(clo *Node) {
+func closuredebugruntimecheck(clo *ir.Node) {
 	if base.Debug.Closure > 0 {
 		if clo.Esc == EscHeap {
 			base.WarnfAt(clo.Pos, "heap closure, captured vars = %v", clo.Func.ClosureVars)
@@ -353,7 +354,7 @@ func closuredebugruntimecheck(clo *Node) {
 // closureType returns the struct type used to hold all the information
 // needed in the closure for clo (clo must be a OCLOSURE node).
 // The address of a variable of the returned type can be cast to a func.
-func closureType(clo *Node) *types.Type {
+func closureType(clo *ir.Node) *types.Type {
 	// Create closure in the form of a composite literal.
 	// supposing the closure captures an int i and a string s
 	// and has one float64 argument and no results,
@@ -367,8 +368,8 @@ func closureType(clo *Node) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
-	fields := []*Node{
-		namedfield(".F", types.Types[TUINTPTR]),
+	fields := []*ir.Node{
+		namedfield(".F", types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars.Slice() {
 		typ := v.Type
@@ -382,7 +383,7 @@ func closureType(clo *Node) *types.Type {
 	return typ
 }
 
-func walkclosure(clo *Node, init *Nodes) *Node {
+func walkclosure(clo *ir.Node, init *ir.Nodes) *ir.Node {
 	fn := clo.Func
 
 	// If no closure vars, don't bother wrapping.
@@ -396,11 +397,11 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	typ := closureType(clo)
 
-	clos := nod(OCOMPLIT, nil, typenod(typ))
+	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
 	clos.Esc = clo.Esc
-	clos.List.Set(append([]*Node{nod(OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
+	clos.List.Set(append([]*ir.Node{ir.Nod(ir.OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
 
-	clos = nod(OADDR, clos, nil)
+	clos = ir.Nod(ir.OADDR, clos, nil)
 	clos.Esc = clo.Esc
 
 	// Force type conversion from *struct to the func type.
@@ -418,9 +419,9 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 	return walkexpr(clos, init)
 }
 
-func typecheckpartialcall(dot *Node, sym *types.Sym) {
+func typecheckpartialcall(dot *ir.Node, sym *types.Sym) {
 	switch dot.Op {
-	case ODOTINTER, ODOTMETH:
+	case ir.ODOTINTER, ir.ODOTMETH:
 		break
 
 	default:
@@ -430,8 +431,8 @@ func typecheckpartialcall(dot *Node, sym *types.Sym) {
 	// Create top-level function.
 	dcl := makepartialcall(dot, dot.Type, sym)
 	dcl.Func.SetWrapper(true)
-	dot.Op = OCALLPART
-	dot.Right = newname(sym)
+	dot.Op = ir.OCALLPART
+	dot.Right = NewName(sym)
 	dot.Type = dcl.Type
 	dot.Func = dcl.Func
 	dot.SetOpt(nil) // clear types.Field from ODOTMETH
@@ -439,12 +440,12 @@ func typecheckpartialcall(dot *Node, sym *types.Sym) {
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
 // for partial calls.
-func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
+func makepartialcall(dot *ir.Node, t0 *types.Type, meth *types.Sym) *ir.Node {
 	rcvrtype := dot.Left.Type
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
-		return asNode(sym.Def)
+		return ir.AsNode(sym.Def)
 	}
 	sym.SetUniq(true)
 
@@ -463,7 +464,7 @@ func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
 	// number at the use of the method expression in this
 	// case. See issue 29389.
 
-	tfn := nod(OTFUNC, nil, nil)
+	tfn := ir.Nod(ir.OTFUNC, nil, nil)
 	tfn.List.Set(structargs(t0.Params(), true))
 	tfn.Rlist.Set(structargs(t0.Results(), false))
 
@@ -476,27 +477,27 @@ func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
 
 	// Declare and initialize variable holding receiver.
 
-	cv := nod(OCLOSUREVAR, nil, nil)
+	cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
 	cv.Type = rcvrtype
 	cv.Xoffset = Rnd(int64(Widthptr), int64(cv.Type.Align))
 
-	ptr := newname(lookup(".this"))
-	declare(ptr, PAUTO)
+	ptr := NewName(lookup(".this"))
+	declare(ptr, ir.PAUTO)
 	ptr.Name.SetUsed(true)
-	var body []*Node
+	var body []*ir.Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
 		ptr.Type = rcvrtype
-		body = append(body, nod(OAS, ptr, cv))
+		body = append(body, ir.Nod(ir.OAS, ptr, cv))
 	} else {
 		ptr.Type = types.NewPtr(rcvrtype)
-		body = append(body, nod(OAS, ptr, nod(OADDR, cv, nil)))
+		body = append(body, ir.Nod(ir.OAS, ptr, ir.Nod(ir.OADDR, cv, nil)))
 	}
 
-	call := nod(OCALL, nodSym(OXDOT, ptr, meth), nil)
+	call := ir.Nod(ir.OCALL, nodSym(ir.OXDOT, ptr, meth), nil)
 	call.List.Set(paramNnames(tfn.Type))
 	call.SetIsDDD(tfn.Type.IsVariadic())
 	if t0.NumResults() != 0 {
-		n := nod(ORETURN, nil, nil)
+		n := ir.Nod(ir.ORETURN, nil, nil)
 		n.List.Set1(call)
 		call = n
 	}
@@ -510,7 +511,7 @@ func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
 	Curfn = dcl
 	typecheckslice(dcl.Nbody.Slice(), ctxStmt)
-	sym.Def = asTypesNode(dcl)
+	sym.Def = ir.AsTypesNode(dcl)
 	xtop = append(xtop, dcl)
 	Curfn = savecurfn
 	base.Pos = saveLineNo
@@ -521,16 +522,16 @@ func makepartialcall(dot *Node, t0 *types.Type, meth *types.Sym) *Node {
 // partialCallType returns the struct type used to hold all the information
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
-func partialCallType(n *Node) *types.Type {
-	t := tostruct([]*Node{
-		namedfield("F", types.Types[TUINTPTR]),
+func partialCallType(n *ir.Node) *types.Type {
+	t := tostruct([]*ir.Node{
+		namedfield("F", types.Types[types.TUINTPTR]),
 		namedfield("R", n.Left.Type),
 	})
 	t.SetNoalg(true)
 	return t
 }
 
-func walkpartialcall(n *Node, init *Nodes) *Node {
+func walkpartialcall(n *ir.Node, init *ir.Nodes) *ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -544,21 +545,21 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		n.Left = cheapexpr(n.Left, init)
 		n.Left = walkexpr(n.Left, nil)
 
-		tab := nod(OITAB, n.Left, nil)
+		tab := ir.Nod(ir.OITAB, n.Left, nil)
 		tab = typecheck(tab, ctxExpr)
 
-		c := nod(OCHECKNIL, tab, nil)
+		c := ir.Nod(ir.OCHECKNIL, tab, nil)
 		c.SetTypecheck(1)
 		init.Append(c)
 	}
 
 	typ := partialCallType(n)
 
-	clos := nod(OCOMPLIT, nil, typenod(typ))
+	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
 	clos.Esc = n.Esc
-	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
+	clos.List.Set2(ir.Nod(ir.OCFUNC, n.Func.Nname, nil), n.Left)
 
-	clos = nod(OADDR, clos, nil)
+	clos = ir.Nod(ir.OADDR, clos, nil)
 	clos.Esc = n.Esc
 
 	// Force type conversion from *struct to the func type.
@@ -578,8 +579,8 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 // callpartMethod returns the *types.Field representing the method
 // referenced by method value n.
-func callpartMethod(n *Node) *types.Field {
-	if n.Op != OCALLPART {
+func callpartMethod(n *ir.Node) *types.Field {
+	if n.Op != ir.OCALLPART {
 		base.Fatalf("expected OCALLPART, got %v", n)
 	}
 

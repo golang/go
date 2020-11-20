@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -40,11 +41,11 @@ func (s *state) insertPhis() {
 }
 
 type phiState struct {
-	s       *state                 // SSA state
-	f       *ssa.Func              // function to work on
-	defvars []map[*Node]*ssa.Value // defined variables at end of each block
+	s       *state                    // SSA state
+	f       *ssa.Func                 // function to work on
+	defvars []map[*ir.Node]*ssa.Value // defined variables at end of each block
 
-	varnum map[*Node]int32 // variable numbering
+	varnum map[*ir.Node]int32 // variable numbering
 
 	// properties of the dominator tree
 	idom  []*ssa.Block // dominator parents
@@ -70,15 +71,15 @@ func (s *phiState) insertPhis() {
 	// Find all the variables for which we need to match up reads & writes.
 	// This step prunes any basic-block-only variables from consideration.
 	// Generate a numbering for these variables.
-	s.varnum = map[*Node]int32{}
-	var vars []*Node
+	s.varnum = map[*ir.Node]int32{}
+	var vars []*ir.Node
 	var vartypes []*types.Type
 	for _, b := range s.f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			var_ := v.Aux.(*Node)
+			var_ := v.Aux.(*ir.Node)
 
 			// Optimization: look back 1 block for the definition.
 			if len(b.Preds) == 1 {
@@ -183,7 +184,7 @@ levels:
 	}
 }
 
-func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ *types.Type) {
+func (s *phiState) insertVarPhis(n int, var_ *ir.Node, defs []*ssa.Block, typ *types.Type) {
 	priq := &s.priq
 	q := s.q
 	queued := s.queued
@@ -318,7 +319,7 @@ func (s *phiState) resolveFwdRefs() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			n := s.varnum[v.Aux.(*Node)]
+			n := s.varnum[v.Aux.(*ir.Node)]
 			v.Op = ssa.OpCopy
 			v.Aux = nil
 			v.AddArg(values[n])
@@ -432,11 +433,11 @@ func (s *sparseSet) clear() {
 
 // Variant to use for small functions.
 type simplePhiState struct {
-	s         *state                 // SSA state
-	f         *ssa.Func              // function to work on
-	fwdrefs   []*ssa.Value           // list of FwdRefs to be processed
-	defvars   []map[*Node]*ssa.Value // defined variables at end of each block
-	reachable []bool                 // which blocks are reachable
+	s         *state                    // SSA state
+	f         *ssa.Func                 // function to work on
+	fwdrefs   []*ssa.Value              // list of FwdRefs to be processed
+	defvars   []map[*ir.Node]*ssa.Value // defined variables at end of each block
+	reachable []bool                    // which blocks are reachable
 }
 
 func (s *simplePhiState) insertPhis() {
@@ -449,7 +450,7 @@ func (s *simplePhiState) insertPhis() {
 				continue
 			}
 			s.fwdrefs = append(s.fwdrefs, v)
-			var_ := v.Aux.(*Node)
+			var_ := v.Aux.(*ir.Node)
 			if _, ok := s.defvars[b.ID][var_]; !ok {
 				s.defvars[b.ID][var_] = v // treat FwdDefs as definitions.
 			}
@@ -463,7 +464,7 @@ loop:
 		v := s.fwdrefs[len(s.fwdrefs)-1]
 		s.fwdrefs = s.fwdrefs[:len(s.fwdrefs)-1]
 		b := v.Block
-		var_ := v.Aux.(*Node)
+		var_ := v.Aux.(*ir.Node)
 		if b == s.f.Entry {
 			// No variable should be live at entry.
 			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
@@ -511,7 +512,7 @@ loop:
 }
 
 // lookupVarOutgoing finds the variable's value at the end of block b.
-func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ *Node, line src.XPos) *ssa.Value {
+func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ *ir.Node, line src.XPos) *ssa.Value {
 	for {
 		if v := s.defvars[b.ID][var_]; v != nil {
 			return v

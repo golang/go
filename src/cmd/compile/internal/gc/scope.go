@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -17,7 +18,7 @@ func xposBefore(p, q src.XPos) bool {
 	return base.Ctxt.PosTable.Pos(p).Before(base.Ctxt.PosTable.Pos(q))
 }
 
-func findScope(marks []Mark, pos src.XPos) ScopeID {
+func findScope(marks []ir.Mark, pos src.XPos) ir.ScopeID {
 	i := sort.Search(len(marks), func(i int) bool {
 		return xposBefore(pos, marks[i].Pos)
 	})
@@ -27,7 +28,7 @@ func findScope(marks []Mark, pos src.XPos) ScopeID {
 	return marks[i-1].Scope
 }
 
-func assembleScopes(fnsym *obj.LSym, fn *Node, dwarfVars []*dwarf.Var, varScopes []ScopeID) []dwarf.Scope {
+func assembleScopes(fnsym *obj.LSym, fn *ir.Node, dwarfVars []*dwarf.Var, varScopes []ir.ScopeID) []dwarf.Scope {
 	// Initialize the DWARF scope tree based on lexical scopes.
 	dwarfScopes := make([]dwarf.Scope, 1+len(fn.Func.Parents))
 	for i, parent := range fn.Func.Parents {
@@ -40,7 +41,7 @@ func assembleScopes(fnsym *obj.LSym, fn *Node, dwarfVars []*dwarf.Var, varScopes
 }
 
 // scopeVariables assigns DWARF variable records to their scopes.
-func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ScopeID, dwarfScopes []dwarf.Scope) {
+func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ir.ScopeID, dwarfScopes []dwarf.Scope) {
 	sort.Stable(varsByScopeAndOffset{dwarfVars, varScopes})
 
 	i0 := 0
@@ -57,7 +58,7 @@ func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ScopeID, dwarfScopes []d
 }
 
 // scopePCs assigns PC ranges to their scopes.
-func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+func scopePCs(fnsym *obj.LSym, marks []ir.Mark, dwarfScopes []dwarf.Scope) {
 	// If there aren't any child scopes (in particular, when scope
 	// tracking is disabled), we can skip a whole lot of work.
 	if len(marks) == 0 {
@@ -90,7 +91,7 @@ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
 
 type varsByScopeAndOffset struct {
 	vars   []*dwarf.Var
-	scopes []ScopeID
+	scopes []ir.ScopeID
 }
 
 func (v varsByScopeAndOffset) Len() int {
