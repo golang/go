@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The C definitions for traceback.go.
+// The C definitions for traceback.go. That file uses //export so
+// it can't put function definitions in the "C" import comment.
 
 #include <stdint.h>
 
 char *p;
 
+int crashInGo;
+extern void h1(void);
+
 int tracebackF3(void) {
-	*p = 0;
+	if (crashInGo)
+		h1();
+	else
+		*p = 0;
 	return 0;
 }
 
