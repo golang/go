@@ -142,7 +142,7 @@ func extractModParseErrors(uri span.URI, m *protocol.ColumnMapper, parseErr erro
 	// The error returned from the modfile package only returns a line number,
 	// so we assume that the diagnostic should be for the entire line.
 	endOfLine := len(lines[line-1])
-	sOffset, err := m.Converter.ToOffset(line, 0)
+	sOffset, err := m.Converter.ToOffset(line, 1)
 	if err != nil {
 		return nil, err
 	}

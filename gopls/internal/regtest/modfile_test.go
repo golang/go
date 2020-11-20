@@ -630,3 +630,23 @@ func main() {
 		)
 	})
 }
+
+func TestModTypoDiagnostic(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func main() {}
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.RegexpReplace("go.mod", "module", "modul")
+		env.Await(
+			env.DiagnosticAtRegexp("go.mod", "modul"),
+		)
+	})
+}
