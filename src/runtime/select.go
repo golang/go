@@ -415,7 +415,7 @@ bufrecv:
 		if cas.elem != nil {
 			raceWriteObjectPC(c.elemtype, cas.elem, casePC(casi), chanrecvpc)
 		}
-		racereleaseacquire(chanbuf(c, c.recvx))
+		racenotify(c, c.recvx, nil)
 	}
 	if msanenabled && cas.elem != nil {
 		msanwrite(cas.elem, c.elemtype.size)
@@ -437,7 +437,7 @@ bufrecv:
 bufsend:
 	// can send to buffer
 	if raceenabled {
-		racereleaseacquire(chanbuf(c, c.sendx))
+		racenotify(c, c.sendx, nil)
 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
 	if msanenabled {
