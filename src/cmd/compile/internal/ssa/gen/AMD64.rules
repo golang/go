@@ -1429,11 +1429,11 @@
 (NOTQ (MOVQconst [c])) -> (MOVQconst [^c])
 (NOTL (MOVLconst [c])) -> (MOVLconst [^c])
 (BTSQconst [c] (MOVQconst [d])) -> (MOVQconst [d|(1<<uint32(c))])
-(BTSLconst [c] (MOVLconst [d])) -> (MOVLconst [d|(1<<uint32(c))])
+(BTSLconst [c] (MOVLconst [d])) => (MOVLconst [d|(1<<uint32(c))])
 (BTRQconst [c] (MOVQconst [d])) -> (MOVQconst [d&^(1<<uint32(c))])
-(BTRLconst [c] (MOVLconst [d])) -> (MOVLconst [d&^(1<<uint32(c))])
+(BTRLconst [c] (MOVLconst [d])) => (MOVLconst [d&^(1<<uint32(c))])
 (BTCQconst [c] (MOVQconst [d])) -> (MOVQconst [d^(1<<uint32(c))])
-(BTCLconst [c] (MOVLconst [d])) -> (MOVLconst [d^(1<<uint32(c))])
+(BTCLconst [c] (MOVLconst [d])) => (MOVLconst [d^(1<<uint32(c))])
 
 // If c or d doesn't fit into 32 bits, then we can't construct ORQconst,
 // but we can still constant-fold.
