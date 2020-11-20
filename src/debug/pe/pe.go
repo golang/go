@@ -86,6 +86,9 @@ type OptionalHeader64 struct {
 	DataDirectory               [16]DataDirectory
 }
 
+// OptionalHeader64Size OptionalHeader64 struct size
+const OptionalHeader64Size = 240
+
 const (
 	IMAGE_FILE_MACHINE_UNKNOWN   = 0x0
 	IMAGE_FILE_MACHINE_AM33      = 0x1d3
