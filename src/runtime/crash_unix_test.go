@@ -244,7 +244,7 @@ func TestPanicSystemstack(t *testing.T) {
 	// we don't have a way to know when it is fully blocked, sleep a bit to
 	// make us less likely to lose the race and signal before the child
 	// blocks.
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// Send SIGQUIT.
 	if err := cmd.Process.Signal(syscall.SIGQUIT); err != nil {
