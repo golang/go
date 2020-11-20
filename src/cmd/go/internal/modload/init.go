@@ -853,7 +853,7 @@ func MinReqs() mvs.Reqs {
 			retain = append(retain, m.Path)
 		}
 	}
-	min, err := mvs.Req(Target, retain, Reqs())
+	min, err := mvs.Req(Target, retain, &mvsReqs{buildList: buildList})
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -985,7 +985,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
 	keep := make(map[module.Version]bool)
 	var mu sync.Mutex
 	reqs := &keepSumReqs{
-		Reqs: Reqs(),
+		Reqs: &mvsReqs{buildList: buildList},
 		visit: func(m module.Version) {
 			// If we build using a replacement module, keep the sum for the replacement,
 			// since that's the code we'll actually use during a build.
