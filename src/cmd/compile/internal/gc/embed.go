@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -16,7 +17,7 @@ import (
 	"strings"
 )
 
-var embedlist []*Node
+var embedlist []*ir.Node
 
 const (
 	embedUnknown = iota
@@ -27,7 +28,7 @@ const (
 
 var numLocalEmbed int
 
-func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []PragmaEmbed) (newExprs []*Node) {
+func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds []PragmaEmbed) (newExprs []*ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -110,14 +111,14 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 	}
 
 	v := names[0]
-	if dclcontext != PEXTERN {
+	if dclcontext != ir.PEXTERN {
 		numLocalEmbed++
-		v = newnamel(v.Pos, lookupN("embed.", numLocalEmbed))
-		v.Sym.Def = asTypesNode(v)
+		v = ir.NewNameAt(v.Pos, lookupN("embed.", numLocalEmbed))
+		v.Sym.Def = ir.AsTypesNode(v)
 		v.Name.Param.Ntype = typ
-		v.SetClass(PEXTERN)
+		v.SetClass(ir.PEXTERN)
 		externdcl = append(externdcl, v)
-		exprs = []*Node{v}
+		exprs = []*ir.Node{v}
 	}
 
 	v.Name.Param.SetEmbedFiles(list)
@@ -129,18 +130,18 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
 // The match is approximate because we haven't done scope resolution yet and
 // can't tell whether "string" and "byte" really mean "string" and "byte".
 // The result must be confirmed later, after type checking, using embedKind.
-func embedKindApprox(typ *Node) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && base.Ctxt.Pkgpath == "embed")) {
+func embedKindApprox(typ *ir.Node) int {
+	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	// These are not guaranteed to match only string and []byte -
 	// maybe the local package has redefined one of those words.
 	// But it's the best we can do now during the noder.
 	// The stricter check happens later, in initEmbed calling embedKind.
-	if typ.Sym != nil && typ.Sym.Name == "string" && typ.Sym.Pkg == localpkg {
+	if typ.Sym != nil && typ.Sym.Name == "string" && typ.Sym.Pkg == ir.LocalPkg {
 		return embedString
 	}
-	if typ.Op == OTARRAY && typ.Left == nil && typ.Right.Sym != nil && typ.Right.Sym.Name == "byte" && typ.Right.Sym.Pkg == localpkg {
+	if typ.Op == ir.OTARRAY && typ.Left == nil && typ.Right.Sym != nil && typ.Right.Sym.Name == "byte" && typ.Right.Sym.Pkg == ir.LocalPkg {
 		return embedBytes
 	}
 	return embedUnknown
@@ -148,10 +149,10 @@ func embedKindApprox(typ *Node) int {
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
-	if typ == types.Types[TSTRING] {
+	if typ == types.Types[types.TSTRING] {
 		return embedString
 	}
 	if typ.Sym == nil && typ.IsSlice() && typ.Elem() == types.Bytetype {
@@ -191,7 +192,7 @@ func dumpembeds() {
 
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
-func initEmbed(v *Node) {
+func initEmbed(v *ir.Node) {
 	files := v.Name.Param.EmbedFiles()
 	switch kind := embedKind(v.Type); kind {
 	case embedUnknown:

@@ -7,6 +7,7 @@ package wasm
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -236,7 +237,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		switch v.Aux.(type) {
 		case *obj.LSym:
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case *ir.Node:
 			p.From.Reg = v.Args[0].Reg()
 			gc.AddAux(&p.From, v)
 		default:

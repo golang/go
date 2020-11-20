@@ -7,6 +7,7 @@ package riscv64
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -323,7 +324,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case *ir.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:

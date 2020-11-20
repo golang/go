@@ -4,17 +4,20 @@
 
 // “Abstract” syntax representation.
 
-package gc
+package ir
 
 import (
+	"go/constant"
+	"sort"
+	"strings"
+	"unsafe"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"go/constant"
-	"sort"
 )
 
 // A Node is a single node in the syntax tree.
@@ -290,7 +293,7 @@ func (n *Node) SetVal(v constant.Value) {
 		base.Fatalf("have Opt")
 	}
 	if n.Op == OLITERAL {
-		assertRepresents(n.Type, v)
+		AssertValidTypeForConst(n.Type, v)
 	}
 	n.SetHasVal(true)
 	n.E = &v
@@ -333,7 +336,7 @@ func (n *Node) SetIota(x int64) {
 
 // mayBeShared reports whether n may occur in multiple places in the AST.
 // Extra care must be taken when mutating such a node.
-func (n *Node) mayBeShared() bool {
+func MayBeShared(n *Node) bool {
 	switch n.Op {
 	case ONAME, OLITERAL, ONIL, OTYPE:
 		return true
@@ -342,7 +345,7 @@ func (n *Node) mayBeShared() bool {
 }
 
 // funcname returns the name (without the package) of the function n.
-func (n *Node) funcname() string {
+func FuncName(n *Node) string {
 	if n == nil || n.Func == nil || n.Func.Nname == nil {
 		return "<nil>"
 	}
@@ -353,7 +356,7 @@ func (n *Node) funcname() string {
 // This differs from the compiler's internal convention where local functions lack a package
 // because the ultimate consumer of this is a human looking at an IDE; package is only empty
 // if the compilation package is actually the empty string.
-func (n *Node) pkgFuncName() string {
+func PkgFuncName(n *Node) string {
 	var s *types.Sym
 	if n == nil {
 		return "<nil>"
@@ -681,7 +684,7 @@ type Func struct {
 
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  *ssa.FuncDebug
-	lsym       *obj.LSym
+	LSym       *obj.LSym
 
 	Inl *Inline
 
@@ -693,13 +696,13 @@ type Func struct {
 	Pragma PragmaFlag // go:xxx function annotations
 
 	flags      bitset16
-	numDefers  int // number of defer calls in the function
-	numReturns int // number of explicit returns in the function
+	NumDefers  int // number of defer calls in the function
+	NumReturns int // number of explicit returns in the function
 
 	// nwbrCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
-	nwbrCalls *[]nowritebarrierrecCallSym
+	NWBRCalls *[]SymAndPos
 }
 
 // An Inline holds fields used for function bodies that can be inlined.
@@ -764,7 +767,7 @@ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInlin
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 
-func (f *Func) setWBPos(pos src.XPos) {
+func (f *Func) SetWBPos(pos src.XPos) {
 	if base.Debug.WB != 0 {
 		base.WarnfAt(pos, "write barrier")
 	}
@@ -996,7 +999,7 @@ const (
 type Nodes struct{ slice *[]*Node }
 
 // asNodes returns a slice of *Node as a Nodes value.
-func asNodes(s []*Node) Nodes {
+func AsNodes(s []*Node) Nodes {
 	return Nodes{&s}
 }
 
@@ -1136,38 +1139,38 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 
 // inspect invokes f on each node in an AST in depth-first order.
 // If f(n) returns false, inspect skips visiting n's children.
-func inspect(n *Node, f func(*Node) bool) {
+func Inspect(n *Node, f func(*Node) bool) {
 	if n == nil || !f(n) {
 		return
 	}
-	inspectList(n.Ninit, f)
-	inspect(n.Left, f)
-	inspect(n.Right, f)
-	inspectList(n.List, f)
-	inspectList(n.Nbody, f)
-	inspectList(n.Rlist, f)
+	InspectList(n.Ninit, f)
+	Inspect(n.Left, f)
+	Inspect(n.Right, f)
+	InspectList(n.List, f)
+	InspectList(n.Nbody, f)
+	InspectList(n.Rlist, f)
 }
 
-func inspectList(l Nodes, f func(*Node) bool) {
+func InspectList(l Nodes, f func(*Node) bool) {
 	for _, n := range l.Slice() {
-		inspect(n, f)
+		Inspect(n, f)
 	}
 }
 
 // nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
 // a ready-to-use empty queue.
-type nodeQueue struct {
+type NodeQueue struct {
 	ring       []*Node
 	head, tail int
 }
 
 // empty reports whether q contains no Nodes.
-func (q *nodeQueue) empty() bool {
+func (q *NodeQueue) Empty() bool {
 	return q.head == q.tail
 }
 
 // pushRight appends n to the right of the queue.
-func (q *nodeQueue) pushRight(n *Node) {
+func (q *NodeQueue) PushRight(n *Node) {
 	if len(q.ring) == 0 {
 		q.ring = make([]*Node, 16)
 	} else if q.head+len(q.ring) == q.tail {
@@ -1191,8 +1194,8 @@ func (q *nodeQueue) pushRight(n *Node) {
 
 // popLeft pops a node from the left of the queue. It panics if q is
 // empty.
-func (q *nodeQueue) popLeft() *Node {
-	if q.empty() {
+func (q *NodeQueue) PopLeft() *Node {
+	if q.Empty() {
 		panic("dequeue empty")
 	}
 	n := q.ring[q.head%len(q.ring)]
@@ -1225,4 +1228,343 @@ func (s NodeSet) Sorted(less func(*Node, *Node) bool) []*Node {
 	}
 	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
 	return res
+}
+
+func Nod(op Op, nleft, nright *Node) *Node {
+	return NodAt(base.Pos, op, nleft, nright)
+}
+
+func NodAt(pos src.XPos, op Op, nleft, nright *Node) *Node {
+	var n *Node
+	switch op {
+	case ODCLFUNC:
+		var x struct {
+			n Node
+			f Func
+		}
+		n = &x.n
+		n.Func = &x.f
+		n.Func.Decl = n
+	case ONAME:
+		base.Fatalf("use newname instead")
+	case OLABEL, OPACK:
+		var x struct {
+			n Node
+			m Name
+		}
+		n = &x.n
+		n.Name = &x.m
+	default:
+		n = new(Node)
+	}
+	n.Op = op
+	n.Left = nleft
+	n.Right = nright
+	n.Pos = pos
+	n.Xoffset = types.BADWIDTH
+	n.Orig = n
+	return n
+}
+
+// newnamel returns a new ONAME Node associated with symbol s at position pos.
+// The caller is responsible for setting n.Name.Curfn.
+func NewNameAt(pos src.XPos, s *types.Sym) *Node {
+	if s == nil {
+		base.Fatalf("newnamel nil")
+	}
+
+	var x struct {
+		n Node
+		m Name
+		p Param
+	}
+	n := &x.n
+	n.Name = &x.m
+	n.Name.Param = &x.p
+
+	n.Op = ONAME
+	n.Pos = pos
+	n.Orig = n
+
+	n.Sym = s
+	return n
+}
+
+// The Class of a variable/function describes the "storage class"
+// of a variable or function. During parsing, storage classes are
+// called declaration contexts.
+type Class uint8
+
+//go:generate stringer -type=Class
+const (
+	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
+	PEXTERN                // global variables
+	PAUTO                  // local variables
+	PAUTOHEAP              // local variables or parameters moved to heap
+	PPARAM                 // input arguments
+	PPARAMOUT              // output results
+	PFUNC                  // global functions
+
+	// Careful: Class is stored in three bits in Node.flags.
+	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
+)
+
+type PragmaFlag int16
+
+const (
+	// Func pragmas.
+	Nointerface    PragmaFlag = 1 << iota
+	Noescape                  // func parameters don't escape
+	Norace                    // func must not have race detector annotations
+	Nosplit                   // func should not execute on separate stack
+	Noinline                  // func should not be inlined
+	NoCheckPtr                // func should not be instrumented by checkptr
+	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
+	UintptrEscapes            // pointers converted to uintptr escape
+
+	// Runtime-only func pragmas.
+	// See ../../../../runtime/README.md for detailed descriptions.
+	Systemstack        // func must run on system stack
+	Nowritebarrier     // emit compiler error instead of write barrier
+	Nowritebarrierrec  // error on write barrier in this or recursive callees
+	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+
+	// Runtime and cgo type pragmas
+	NotInHeap // values of this type must not be heap allocated
+
+	// Go command pragmas
+	GoBuildPragma
+)
+
+type SymAndPos struct {
+	Sym *obj.LSym // LSym of callee
+	Pos src.XPos  // line of call
+}
+
+func AsNode(n *types.Node) *Node { return (*Node)(unsafe.Pointer(n)) }
+
+func AsTypesNode(n *Node) *types.Node { return (*types.Node)(unsafe.Pointer(n)) }
+
+var BlankNode *Node
+
+// origSym returns the original symbol written by the user.
+func OrigSym(s *types.Sym) *types.Sym {
+	if s == nil {
+		return nil
+	}
+
+	if len(s.Name) > 1 && s.Name[0] == '~' {
+		switch s.Name[1] {
+		case 'r': // originally an unnamed result
+			return nil
+		case 'b': // originally the blank identifier _
+			// TODO(mdempsky): Does s.Pkg matter here?
+			return BlankNode.Sym
+		}
+		return s
+	}
+
+	if strings.HasPrefix(s.Name, ".anon") {
+		// originally an unnamed or _ name (see subr.go: structargs)
+		return nil
+	}
+
+	return s
+}
+
+// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+// n must be a slice expression. max is nil if n is a simple slice expression.
+func (n *Node) SliceBounds() (low, high, max *Node) {
+	if n.List.Len() == 0 {
+		return nil, nil, nil
+	}
+
+	switch n.Op {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		s := n.List.Slice()
+		return s[0], s[1], nil
+	case OSLICE3, OSLICE3ARR:
+		s := n.List.Slice()
+		return s[0], s[1], s[2]
+	}
+	base.Fatalf("SliceBounds op %v: %v", n.Op, n)
+	return nil, nil, nil
+}
+
+// SetSliceBounds sets n's slice bounds, where n is a slice expression.
+// n must be a slice expression. If max is non-nil, n must be a full slice expression.
+func (n *Node) SetSliceBounds(low, high, max *Node) {
+	switch n.Op {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		if max != nil {
+			base.Fatalf("SetSliceBounds %v given three bounds", n.Op)
+		}
+		s := n.List.Slice()
+		if s == nil {
+			if low == nil && high == nil {
+				return
+			}
+			n.List.Set2(low, high)
+			return
+		}
+		s[0] = low
+		s[1] = high
+		return
+	case OSLICE3, OSLICE3ARR:
+		s := n.List.Slice()
+		if s == nil {
+			if low == nil && high == nil && max == nil {
+				return
+			}
+			n.List.Set3(low, high, max)
+			return
+		}
+		s[0] = low
+		s[1] = high
+		s[2] = max
+		return
+	}
+	base.Fatalf("SetSliceBounds op %v: %v", n.Op, n)
+}
+
+// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+// o must be a slicing op.
+func (o Op) IsSlice3() bool {
+	switch o {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		return false
+	case OSLICE3, OSLICE3ARR:
+		return true
+	}
+	base.Fatalf("IsSlice3 op %v", o)
+	return false
+}
+
+func IsConst(n *Node, ct constant.Kind) bool {
+	return ConstType(n) == ct
+}
+
+// Int64Val returns n as an int64.
+// n must be an integer or rune constant.
+func (n *Node) Int64Val() int64 {
+	if !IsConst(n, constant.Int) {
+		base.Fatalf("Int64Val(%v)", n)
+	}
+	x, ok := constant.Int64Val(n.Val())
+	if !ok {
+		base.Fatalf("Int64Val(%v)", n)
+	}
+	return x
+}
+
+// CanInt64 reports whether it is safe to call Int64Val() on n.
+func (n *Node) CanInt64() bool {
+	if !IsConst(n, constant.Int) {
+		return false
+	}
+
+	// if the value inside n cannot be represented as an int64, the
+	// return value of Int64 is undefined
+	_, ok := constant.Int64Val(n.Val())
+	return ok
+}
+
+// Uint64Val returns n as an uint64.
+// n must be an integer or rune constant.
+func (n *Node) Uint64Val() uint64 {
+	if !IsConst(n, constant.Int) {
+		base.Fatalf("Uint64Val(%v)", n)
+	}
+	x, ok := constant.Uint64Val(n.Val())
+	if !ok {
+		base.Fatalf("Uint64Val(%v)", n)
+	}
+	return x
+}
+
+// BoolVal returns n as a bool.
+// n must be a boolean constant.
+func (n *Node) BoolVal() bool {
+	if !IsConst(n, constant.Bool) {
+		base.Fatalf("BoolVal(%v)", n)
+	}
+	return constant.BoolVal(n.Val())
+}
+
+// StringVal returns the value of a literal string Node as a string.
+// n must be a string constant.
+func (n *Node) StringVal() string {
+	if !IsConst(n, constant.String) {
+		base.Fatalf("StringVal(%v)", n)
+	}
+	return constant.StringVal(n.Val())
+}
+
+// rawcopy returns a shallow copy of n.
+// Note: copy or sepcopy (rather than rawcopy) is usually the
+//       correct choice (see comment with Node.copy, below).
+func (n *Node) RawCopy() *Node {
+	copy := *n
+	return &copy
+}
+
+// sepcopy returns a separate shallow copy of n, with the copy's
+// Orig pointing to itself.
+func SepCopy(n *Node) *Node {
+	copy := *n
+	copy.Orig = &copy
+	return &copy
+}
+
+// copy returns shallow copy of n and adjusts the copy's Orig if
+// necessary: In general, if n.Orig points to itself, the copy's
+// Orig should point to itself as well. Otherwise, if n is modified,
+// the copy's Orig node appears modified, too, and then doesn't
+// represent the original node anymore.
+// (This caused the wrong complit Op to be used when printing error
+// messages; see issues #26855, #27765).
+func Copy(n *Node) *Node {
+	copy := *n
+	if n.Orig == n {
+		copy.Orig = &copy
+	}
+	return &copy
+}
+
+// isNil reports whether n represents the universal untyped zero value "nil".
+func IsNil(n *Node) bool {
+	// Check n.Orig because constant propagation may produce typed nil constants,
+	// which don't exist in the Go spec.
+	return n.Orig.Op == ONIL
+}
+
+func IsBlank(n *Node) bool {
+	if n == nil {
+		return false
+	}
+	return n.Sym.IsBlank()
+}
+
+// IsMethod reports whether n is a method.
+// n must be a function or a method.
+func IsMethod(n *Node) bool {
+	return n.Type.Recv() != nil
+}
+
+func (n *Node) Typ() *types.Type {
+	return n.Type
+}
+
+func (n *Node) StorageClass() ssa.StorageClass {
+	switch n.Class() {
+	case PPARAM:
+		return ssa.ClassParam
+	case PPARAMOUT:
+		return ssa.ClassParamOut
+	case PAUTO:
+		return ssa.ClassAuto
+	default:
+		base.Fatalf("untranslatable storage class for %v: %s", n, n.Class())
+		return 0
+	}
 }

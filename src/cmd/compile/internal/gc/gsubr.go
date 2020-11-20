@@ -32,6 +32,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -46,7 +47,7 @@ type Progs struct {
 	next      *obj.Prog  // next Prog
 	pc        int64      // virtual PC; count of Progs
 	pos       src.XPos   // position to use for new Progs
-	curfn     *Node      // fn these Progs are for
+	curfn     *ir.Node   // fn these Progs are for
 	progcache []obj.Prog // local progcache
 	cacheidx  int        // first free element of progcache
 
@@ -56,7 +57,7 @@ type Progs struct {
 
 // newProgs returns a new Progs for fn.
 // worker indicates which of the backend workers will use the Progs.
-func newProgs(fn *Node, worker int) *Progs {
+func newProgs(fn *ir.Node, worker int) *Progs {
 	pp := new(Progs)
 	if base.Ctxt.CanReuseProgs() {
 		sz := len(sharedProgArray) / base.Flag.LowerC
@@ -173,17 +174,17 @@ func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16
 	return q
 }
 
-func (pp *Progs) settext(fn *Node) {
+func (pp *Progs) settext(fn *ir.Node) {
 	if pp.Text != nil {
 		base.Fatalf("Progs.settext called twice")
 	}
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.lsym.Func().Text = ptxt
+	fn.Func.LSym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
-	ptxt.From.Sym = fn.Func.lsym
+	ptxt.From.Sym = fn.Func.LSym
 }
 
 // initLSym defines f's obj.LSym and initializes it based on the
@@ -192,36 +193,36 @@ func (pp *Progs) settext(fn *Node) {
 //
 // initLSym must be called exactly once per function and must be
 // called for both functions with bodies and functions without bodies.
-func (f *Func) initLSym(hasBody bool) {
-	if f.lsym != nil {
+func initLSym(f *ir.Func, hasBody bool) {
+	if f.LSym != nil {
 		base.Fatalf("Func.initLSym called twice")
 	}
 
-	if nam := f.Nname; !nam.isBlank() {
-		f.lsym = nam.Sym.Linksym()
-		if f.Pragma&Systemstack != 0 {
-			f.lsym.Set(obj.AttrCFunc, true)
+	if nam := f.Nname; !ir.IsBlank(nam) {
+		f.LSym = nam.Sym.Linksym()
+		if f.Pragma&ir.Systemstack != 0 {
+			f.LSym.Set(obj.AttrCFunc, true)
 		}
 
 		var aliasABI obj.ABI
 		needABIAlias := false
-		defABI, hasDefABI := symabiDefs[f.lsym.Name]
+		defABI, hasDefABI := symabiDefs[f.LSym.Name]
 		if hasDefABI && defABI == obj.ABI0 {
 			// Symbol is defined as ABI0. Create an
 			// Internal -> ABI0 wrapper.
-			f.lsym.SetABI(obj.ABI0)
+			f.LSym.SetABI(obj.ABI0)
 			needABIAlias, aliasABI = true, obj.ABIInternal
 		} else {
 			// No ABI override. Check that the symbol is
 			// using the expected ABI.
 			want := obj.ABIInternal
-			if f.lsym.ABI() != want {
-				base.Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym.Name, f.lsym.ABI(), want)
+			if f.LSym.ABI() != want {
+				base.Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.LSym.Name, f.LSym.ABI(), want)
 			}
 		}
 
 		isLinknameExported := nam.Sym.Linkname != "" && (hasBody || hasDefABI)
-		if abi, ok := symabiRefs[f.lsym.Name]; (ok && abi == obj.ABI0) || isLinknameExported {
+		if abi, ok := symabiRefs[f.LSym.Name]; (ok && abi == obj.ABI0) || isLinknameExported {
 			// Either 1) this symbol is definitely
 			// referenced as ABI0 from this package; or 2)
 			// this symbol is defined in this package but
@@ -233,7 +234,7 @@ func (f *Func) initLSym(hasBody bool) {
 			// since other packages may "pull" symbols
 			// using linkname and we don't want to create
 			// duplicate ABI wrappers.
-			if f.lsym.ABI() != obj.ABI0 {
+			if f.LSym.ABI() != obj.ABI0 {
 				needABIAlias, aliasABI = true, obj.ABI0
 			}
 		}
@@ -244,9 +245,9 @@ func (f *Func) initLSym(hasBody bool) {
 			// rather than looking them up. The uniqueness
 			// of f.lsym ensures uniqueness of asym.
 			asym := &obj.LSym{
-				Name: f.lsym.Name,
+				Name: f.LSym.Name,
 				Type: objabi.SABIALIAS,
-				R:    []obj.Reloc{{Sym: f.lsym}}, // 0 size, so "informational"
+				R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
 			}
 			asym.SetABI(aliasABI)
 			asym.Set(obj.AttrDuplicateOK, true)
@@ -269,7 +270,7 @@ func (f *Func) initLSym(hasBody bool) {
 	if f.Needctxt() {
 		flag |= obj.NEEDCTXT
 	}
-	if f.Pragma&Nosplit != 0 {
+	if f.Pragma&ir.Nosplit != 0 {
 		flag |= obj.NOSPLIT
 	}
 	if f.ReflectMethod() {
@@ -286,10 +287,10 @@ func (f *Func) initLSym(hasBody bool) {
 		}
 	}
 
-	base.Ctxt.InitTextSym(f.lsym, flag)
+	base.Ctxt.InitTextSym(f.LSym, flag)
 }
 
-func ggloblnod(nam *Node) {
+func ggloblnod(nam *ir.Node) {
 	s := nam.Sym.Linksym()
 	s.Gotype = ngotype(nam).Linksym()
 	flags := 0

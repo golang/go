@@ -7,6 +7,7 @@ package ppc64
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -751,7 +752,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Reg = v.Reg()
 			}
 
-		case *obj.LSym, *gc.Node:
+		case *obj.LSym, *ir.Node:
 			p := s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_ADDR
 			p.From.Reg = v.Args[0].Reg()

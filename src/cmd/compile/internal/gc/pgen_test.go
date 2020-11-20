@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"reflect"
 	"sort"
@@ -12,133 +13,133 @@ import (
 )
 
 func typeWithoutPointers() *types.Type {
-	t := types.New(TSTRUCT)
-	f := &types.Field{Type: types.New(TINT)}
+	t := types.New(types.TSTRUCT)
+	f := &types.Field{Type: types.New(types.TINT)}
 	t.SetFields([]*types.Field{f})
 	return t
 }
 
 func typeWithPointers() *types.Type {
-	t := types.New(TSTRUCT)
-	f := &types.Field{Type: types.NewPtr(types.New(TINT))}
+	t := types.New(types.TSTRUCT)
+	f := &types.Field{Type: types.NewPtr(types.New(types.TINT))}
 	t.SetFields([]*types.Field{f})
 	return t
 }
 
-func markUsed(n *Node) *Node {
+func markUsed(n *ir.Node) *ir.Node {
 	n.Name.SetUsed(true)
 	return n
 }
 
-func markNeedZero(n *Node) *Node {
+func markNeedZero(n *ir.Node) *ir.Node {
 	n.Name.SetNeedzero(true)
 	return n
 }
 
 // Test all code paths for cmpstackvarlt.
 func TestCmpstackvar(t *testing.T) {
-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl Class) *Node {
+	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Node {
 		if s == nil {
 			s = &types.Sym{Name: "."}
 		}
-		n := newname(s)
+		n := NewName(s)
 		n.Type = t
 		n.Xoffset = xoffset
 		n.SetClass(cl)
 		return n
 	}
 	testdata := []struct {
-		a, b *Node
+		a, b *ir.Node
 		lt   bool
 	}{
 		{
-			nod(0, nil, nil, PAUTO),
-			nod(0, nil, nil, PFUNC),
+			nod(0, nil, nil, ir.PAUTO),
+			nod(0, nil, nil, ir.PFUNC),
 			false,
 		},
 		{
-			nod(0, nil, nil, PFUNC),
-			nod(0, nil, nil, PAUTO),
+			nod(0, nil, nil, ir.PFUNC),
+			nod(0, nil, nil, ir.PAUTO),
 			true,
 		},
 		{
-			nod(0, nil, nil, PFUNC),
-			nod(10, nil, nil, PFUNC),
+			nod(0, nil, nil, ir.PFUNC),
+			nod(10, nil, nil, ir.PFUNC),
 			true,
 		},
 		{
-			nod(20, nil, nil, PFUNC),
-			nod(10, nil, nil, PFUNC),
+			nod(20, nil, nil, ir.PFUNC),
+			nod(10, nil, nil, ir.PFUNC),
 			false,
 		},
 		{
-			nod(10, nil, nil, PFUNC),
-			nod(10, nil, nil, PFUNC),
+			nod(10, nil, nil, ir.PFUNC),
+			nod(10, nil, nil, ir.PFUNC),
 			false,
 		},
 		{
-			nod(10, nil, nil, PPARAM),
-			nod(20, nil, nil, PPARAMOUT),
+			nod(10, nil, nil, ir.PPARAM),
+			nod(20, nil, nil, ir.PPARAMOUT),
 			true,
 		},
 		{
-			nod(10, nil, nil, PPARAMOUT),
-			nod(20, nil, nil, PPARAM),
+			nod(10, nil, nil, ir.PPARAMOUT),
+			nod(20, nil, nil, ir.PPARAM),
 			true,
 		},
 		{
-			markUsed(nod(0, nil, nil, PAUTO)),
-			nod(0, nil, nil, PAUTO),
+			markUsed(nod(0, nil, nil, ir.PAUTO)),
+			nod(0, nil, nil, ir.PAUTO),
 			true,
 		},
 		{
-			nod(0, nil, nil, PAUTO),
-			markUsed(nod(0, nil, nil, PAUTO)),
+			nod(0, nil, nil, ir.PAUTO),
+			markUsed(nod(0, nil, nil, ir.PAUTO)),
 			false,
 		},
 		{
-			nod(0, typeWithoutPointers(), nil, PAUTO),
-			nod(0, typeWithPointers(), nil, PAUTO),
+			nod(0, typeWithoutPointers(), nil, ir.PAUTO),
+			nod(0, typeWithPointers(), nil, ir.PAUTO),
 			false,
 		},
 		{
-			nod(0, typeWithPointers(), nil, PAUTO),
-			nod(0, typeWithoutPointers(), nil, PAUTO),
+			nod(0, typeWithPointers(), nil, ir.PAUTO),
+			nod(0, typeWithoutPointers(), nil, ir.PAUTO),
 			true,
 		},
 		{
-			markNeedZero(nod(0, &types.Type{}, nil, PAUTO)),
-			nod(0, &types.Type{}, nil, PAUTO),
+			markNeedZero(nod(0, &types.Type{}, nil, ir.PAUTO)),
+			nod(0, &types.Type{}, nil, ir.PAUTO),
 			true,
 		},
 		{
-			nod(0, &types.Type{}, nil, PAUTO),
-			markNeedZero(nod(0, &types.Type{}, nil, PAUTO)),
+			nod(0, &types.Type{}, nil, ir.PAUTO),
+			markNeedZero(nod(0, &types.Type{}, nil, ir.PAUTO)),
 			false,
 		},
 		{
-			nod(0, &types.Type{Width: 1}, nil, PAUTO),
-			nod(0, &types.Type{Width: 2}, nil, PAUTO),
+			nod(0, &types.Type{Width: 1}, nil, ir.PAUTO),
+			nod(0, &types.Type{Width: 2}, nil, ir.PAUTO),
 			false,
 		},
 		{
-			nod(0, &types.Type{Width: 2}, nil, PAUTO),
-			nod(0, &types.Type{Width: 1}, nil, PAUTO),
+			nod(0, &types.Type{Width: 2}, nil, ir.PAUTO),
+			nod(0, &types.Type{Width: 1}, nil, ir.PAUTO),
 			true,
 		},
 		{
-			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
-			nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
 			true,
 		},
 		{
-			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
-			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
 			false,
 		},
 		{
-			nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, PAUTO),
-			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
+			nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
 			false,
 		},
 	}
@@ -155,42 +156,42 @@ func TestCmpstackvar(t *testing.T) {
 }
 
 func TestStackvarSort(t *testing.T) {
-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl Class) *Node {
-		n := newname(s)
+	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Node {
+		n := NewName(s)
 		n.Type = t
 		n.Xoffset = xoffset
 		n.SetClass(cl)
 		return n
 	}
-	inp := []*Node{
-		nod(0, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(0, &types.Type{}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(10, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(20, &types.Type{}, &types.Sym{}, PFUNC),
-		markUsed(nod(0, &types.Type{}, &types.Sym{}, PAUTO)),
-		nod(0, typeWithoutPointers(), &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{}, PAUTO),
-		markNeedZero(nod(0, &types.Type{}, &types.Sym{}, PAUTO)),
-		nod(0, &types.Type{Width: 1}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{Width: 2}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, PAUTO),
+	inp := []*ir.Node{
+		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(10, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(20, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		markUsed(nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO)),
+		nod(0, typeWithoutPointers(), &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
+		markNeedZero(nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO)),
+		nod(0, &types.Type{Width: 1}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{Width: 2}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
 	}
-	want := []*Node{
-		nod(0, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(0, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(10, &types.Type{}, &types.Sym{}, PFUNC),
-		nod(20, &types.Type{}, &types.Sym{}, PFUNC),
-		markUsed(nod(0, &types.Type{}, &types.Sym{}, PAUTO)),
-		markNeedZero(nod(0, &types.Type{}, &types.Sym{}, PAUTO)),
-		nod(0, &types.Type{Width: 2}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{Width: 1}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, PAUTO),
-		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, PAUTO),
-		nod(0, typeWithoutPointers(), &types.Sym{}, PAUTO),
+	want := []*ir.Node{
+		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(10, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		nod(20, &types.Type{}, &types.Sym{}, ir.PFUNC),
+		markUsed(nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO)),
+		markNeedZero(nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO)),
+		nod(0, &types.Type{Width: 2}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{Width: 1}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
+		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
+		nod(0, typeWithoutPointers(), &types.Sym{}, ir.PAUTO),
 	}
 	sort.Sort(byStackVar(inp))
 	if !reflect.DeepEqual(want, inp) {

@@ -42,6 +42,7 @@ var bootstrapDirs = []string{
 	"cmd/compile/internal/arm",
 	"cmd/compile/internal/arm64",
 	"cmd/compile/internal/gc",
+	"cmd/compile/internal/ir",
 	"cmd/compile/internal/logopt",
 	"cmd/compile/internal/mips",
 	"cmd/compile/internal/mips64",

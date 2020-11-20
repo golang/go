@@ -11,6 +11,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -545,7 +546,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case *ir.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
