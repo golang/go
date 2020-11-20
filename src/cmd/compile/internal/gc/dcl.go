@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -20,7 +21,7 @@ var externdcl []*Node
 
 func testdclstack() {
 	if !types.IsDclstackValid() {
-		Fatalf("mark left on the dclstack")
+		base.Fatalf("mark left on the dclstack")
 	}
 }
 
@@ -31,7 +32,7 @@ func redeclare(pos src.XPos, s *types.Sym, where string) {
 		if pkg == nil {
 			pkg = s.Pkg
 		}
-		yyerrorl(pos, "%v redeclared %s\n"+
+		base.ErrorfAt(pos, "%v redeclared %s\n"+
 			"\tprevious declaration during import %q", s, where, pkg.Path)
 	} else {
 		prevPos := s.Lastlineno
@@ -44,8 +45,8 @@ func redeclare(pos src.XPos, s *types.Sym, where string) {
 			pos, prevPos = prevPos, pos
 		}
 
-		yyerrorl(pos, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, linestr(prevPos))
+		base.ErrorfAt(pos, "%v redeclared %s\n"+
+			"\tprevious declaration at %v", s, where, base.FmtPos(prevPos))
 	}
 }
 
@@ -71,22 +72,22 @@ func declare(n *Node, ctxt Class) {
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if !inimport && !typecheckok && s.Pkg != localpkg {
-		yyerrorl(n.Pos, "cannot declare name %v", s)
+		base.ErrorfAt(n.Pos, "cannot declare name %v", s)
 	}
 
 	gen := 0
 	if ctxt == PEXTERN {
 		if s.Name == "init" {
-			yyerrorl(n.Pos, "cannot declare init - must be func")
+			base.ErrorfAt(n.Pos, "cannot declare init - must be func")
 		}
 		if s.Name == "main" && s.Pkg.Name == "main" {
-			yyerrorl(n.Pos, "cannot declare main - must be func")
+			base.ErrorfAt(n.Pos, "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
-			lineno = n.Pos
-			Fatalf("automatic outside function")
+			base.Pos = n.Pos
+			base.Fatalf("automatic outside function")
 		}
 		if Curfn != nil && ctxt != PFUNC {
 			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
@@ -115,7 +116,7 @@ func declare(n *Node, ctxt Class) {
 	}
 
 	s.Block = types.Block
-	s.Lastlineno = lineno
+	s.Lastlineno = base.Pos
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
 	n.SetClass(ctxt)
@@ -128,7 +129,7 @@ func declare(n *Node, ctxt Class) {
 
 func addvar(n *Node, t *types.Type, ctxt Class) {
 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
-		Fatalf("addvar: n=%v t=%v nil", n, t)
+		base.Fatalf("addvar: n=%v t=%v nil", n, t)
 	}
 
 	n.Op = ONAME
@@ -165,7 +166,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		var e *Node
 		if doexpr {
 			if len(el) == 0 {
-				yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
+				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
 				break
 			}
 			e = el[0]
@@ -189,7 +190,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 	}
 
 	if len(el) != 0 {
-		yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
+		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
 	}
 	return init
 }
@@ -197,7 +198,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 // newnoname returns a new ONONAME Node associated with symbol s.
 func newnoname(s *types.Sym) *Node {
 	if s == nil {
-		Fatalf("newnoname nil")
+		base.Fatalf("newnoname nil")
 	}
 	n := nod(ONONAME, nil, nil)
 	n.Sym = s
@@ -208,7 +209,7 @@ func newnoname(s *types.Sym) *Node {
 // newfuncnamel generates a new name node for a function or method.
 func newfuncnamel(pos src.XPos, s *types.Sym, fn *Func) *Node {
 	if fn.Nname != nil {
-		Fatalf("newfuncnamel - already have name")
+		base.Fatalf("newfuncnamel - already have name")
 	}
 	n := newnamel(pos, s)
 	n.Func = fn
@@ -304,7 +305,7 @@ func importName(sym *types.Sym) *Node {
 	n := oldname(sym)
 	if !types.IsExported(sym.Name) && sym.Pkg != localpkg {
 		n.SetDiag(true)
-		yyerror("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+		base.Errorf("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
 	}
 	return n
 }
@@ -336,13 +337,13 @@ func colasdefn(left []*Node, defn *Node) {
 			continue
 		}
 		if !colasname(n) {
-			yyerrorl(defn.Pos, "non-name %v on left side of :=", n)
+			base.ErrorfAt(defn.Pos, "non-name %v on left side of :=", n)
 			nerr++
 			continue
 		}
 
 		if !n.Sym.Uniq() {
-			yyerrorl(defn.Pos, "%v repeated on left side of :=", n.Sym)
+			base.ErrorfAt(defn.Pos, "%v repeated on left side of :=", n.Sym)
 			n.SetDiag(true)
 			nerr++
 			continue
@@ -362,7 +363,7 @@ func colasdefn(left []*Node, defn *Node) {
 	}
 
 	if nnew == 0 && nerr == 0 {
-		yyerrorl(defn.Pos, "no new variables on left side of :=")
+		base.ErrorfAt(defn.Pos, "no new variables on left side of :=")
 	}
 }
 
@@ -370,11 +371,11 @@ func colasdefn(left []*Node, defn *Node) {
 // interface field declaration.
 func ifacedcl(n *Node) {
 	if n.Op != ODCLFIELD || n.Left == nil {
-		Fatalf("ifacedcl")
+		base.Fatalf("ifacedcl")
 	}
 
 	if n.Sym.IsBlank() {
-		yyerror("methods must have a unique non-blank name")
+		base.Errorf("methods must have a unique non-blank name")
 	}
 }
 
@@ -399,7 +400,7 @@ func funchdr(n *Node) {
 
 func funcargs(nt *Node) {
 	if nt.Op != OTFUNC {
-		Fatalf("funcargs %v", nt.Op)
+		base.Fatalf("funcargs %v", nt.Op)
 	}
 
 	// re-start the variable generation number
@@ -449,7 +450,7 @@ func funcargs(nt *Node) {
 
 func funcarg(n *Node, ctxt Class) {
 	if n.Op != ODCLFIELD {
-		Fatalf("funcarg %v", n.Op)
+		base.Fatalf("funcarg %v", n.Op)
 	}
 	if n.Sym == nil {
 		return
@@ -469,7 +470,7 @@ func funcarg(n *Node, ctxt Class) {
 // used functype directly to parse the function's type.
 func funcargs2(t *types.Type) {
 	if t.Etype != TFUNC {
-		Fatalf("funcargs2 %v", t)
+		base.Fatalf("funcargs2 %v", t)
 	}
 
 	for _, f := range t.Recvs().Fields().Slice() {
@@ -522,23 +523,23 @@ func checkembeddedtype(t *types.Type) {
 	if t.Sym == nil && t.IsPtr() {
 		t = t.Elem()
 		if t.IsInterface() {
-			yyerror("embedded type cannot be a pointer to interface")
+			base.Errorf("embedded type cannot be a pointer to interface")
 		}
 	}
 
 	if t.IsPtr() || t.IsUnsafePtr() {
-		yyerror("embedded type cannot be a pointer")
+		base.Errorf("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && !t.ForwardType().Embedlineno.IsKnown() {
-		t.ForwardType().Embedlineno = lineno
+		t.ForwardType().Embedlineno = base.Pos
 	}
 }
 
 func structfield(n *Node) *types.Field {
-	lno := lineno
-	lineno = n.Pos
+	lno := base.Pos
+	base.Pos = n.Pos
 
 	if n.Op != ODCLFIELD {
-		Fatalf("structfield: oops %v\n", n)
+		base.Fatalf("structfield: oops %v\n", n)
 	}
 
 	if n.Left != nil {
@@ -556,7 +557,7 @@ func structfield(n *Node) *types.Field {
 		f.Note = constant.StringVal(n.Val())
 	}
 
-	lineno = lno
+	base.Pos = lno
 	return f
 }
 
@@ -570,7 +571,7 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 				continue
 			}
 			if seen[f.Sym] {
-				yyerrorl(f.Pos, "duplicate %s %s", what, f.Sym.Name)
+				base.ErrorfAt(f.Pos, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
@@ -631,15 +632,15 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 }
 
 func interfacefield(n *Node) *types.Field {
-	lno := lineno
-	lineno = n.Pos
+	lno := base.Pos
+	base.Pos = n.Pos
 
 	if n.Op != ODCLFIELD {
-		Fatalf("interfacefield: oops %v\n", n)
+		base.Fatalf("interfacefield: oops %v\n", n)
 	}
 
 	if n.HasVal() {
-		yyerror("interface method cannot have annotation")
+		base.Errorf("interface method cannot have annotation")
 	}
 
 	// MethodSpec = MethodName Signature | InterfaceTypeName .
@@ -655,7 +656,7 @@ func interfacefield(n *Node) *types.Field {
 
 	f := types.NewField(n.Pos, n.Sym, n.Type)
 
-	lineno = lno
+	base.Pos = lno
 	return f
 }
 
@@ -774,13 +775,13 @@ func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
 // start with a letter, number, or period.
 func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
 	if msym.IsBlank() {
-		Fatalf("blank method name")
+		base.Fatalf("blank method name")
 	}
 
 	rsym := recv.Sym
 	if recv.IsPtr() {
 		if rsym != nil {
-			Fatalf("declared pointer receiver type: %v", recv)
+			base.Fatalf("declared pointer receiver type: %v", recv)
 		}
 		rsym = recv.Elem().Sym
 	}
@@ -824,13 +825,13 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 // Returns a pointer to the existing or added Field; or nil if there's an error.
 func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
 	if msym == nil {
-		Fatalf("no method symbol")
+		base.Fatalf("no method symbol")
 	}
 
 	// get parent type sym
 	rf := t.Recv() // ptr to this structure
 	if rf == nil {
-		yyerror("missing receiver")
+		base.Errorf("missing receiver")
 		return nil
 	}
 
@@ -840,7 +841,7 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
 		t := pa
 		if t != nil && t.IsPtr() {
 			if t.Sym != nil {
-				yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+				base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return nil
 			}
 			t = t.Elem()
@@ -850,21 +851,21 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
 		case t == nil || t.Broke():
 			// rely on typecheck having complained before
 		case t.Sym == nil:
-			yyerror("invalid receiver type %v (%v is not a defined type)", pa, t)
+			base.Errorf("invalid receiver type %v (%v is not a defined type)", pa, t)
 		case t.IsPtr():
-			yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+			base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
 		case t.IsInterface():
-			yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
+			base.Errorf("invalid receiver type %v (%v is an interface type)", pa, t)
 		default:
 			// Should have picked off all the reasons above,
 			// but just in case, fall back to generic error.
-			yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
+			base.Errorf("invalid receiver type %v (%L / %L)", pa, pa, t)
 		}
 		return nil
 	}
 
 	if local && mt.Sym.Pkg != localpkg {
-		yyerror("cannot define new methods on non-local type %v", mt)
+		base.Errorf("cannot define new methods on non-local type %v", mt)
 		return nil
 	}
 
@@ -875,7 +876,7 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
 	if mt.IsStruct() {
 		for _, f := range mt.Fields().Slice() {
 			if f.Sym == msym {
-				yyerror("type %v has both field and method named %v", mt, msym)
+				base.Errorf("type %v has both field and method named %v", mt, msym)
 				f.SetBroke(true)
 				return nil
 			}
@@ -889,12 +890,12 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
 		// types.Identical only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
 		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
-			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
+			base.Errorf("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
 		}
 		return f
 	}
 
-	f := types.NewField(lineno, msym, t)
+	f := types.NewField(base.Pos, msym, t)
 	f.Nname = asTypesNode(n.Func.Nname)
 	f.SetNointerface(nointerface)
 
@@ -923,7 +924,7 @@ func funcsym(s *types.Sym) *types.Sym {
 	// When dynamically linking, the necessary function
 	// symbols will be created explicitly with makefuncsym.
 	// See the makefuncsym comment for details.
-	if !Ctxt.Flag_dynlink && !existed {
+	if !base.Ctxt.Flag_dynlink && !existed {
 		funcsyms = append(funcsyms, s)
 	}
 	funcsymsmu.Unlock()
@@ -940,13 +941,13 @@ func funcsym(s *types.Sym) *types.Sym {
 // So instead, when dynamic linking, we only create
 // the s·f stubs in s's package.
 func makefuncsym(s *types.Sym) {
-	if !Ctxt.Flag_dynlink {
-		Fatalf("makefuncsym dynlink")
+	if !base.Ctxt.Flag_dynlink {
+		base.Fatalf("makefuncsym dynlink")
 	}
 	if s.IsBlank() {
 		return
 	}
-	if Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
+	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
 		// runtime.getg(), getclosureptr(), getcallerpc(), and
 		// getcallersp() are not real functions and so do not
 		// get funcsyms.
@@ -960,7 +961,7 @@ func makefuncsym(s *types.Sym) {
 // setNodeNameFunc marks a node as a function.
 func setNodeNameFunc(n *Node) {
 	if n.Op != ONAME || n.Class() != Pxxx {
-		Fatalf("expected ONAME/Pxxx node, got %v", n)
+		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
 
 	n.SetClass(PFUNC)
@@ -969,11 +970,11 @@ func setNodeNameFunc(n *Node) {
 
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	if tfn.Op != OTFUNC {
-		Fatalf("expected OTFUNC node, got %v", tfn)
+		base.Fatalf("expected OTFUNC node, got %v", tfn)
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newfuncnamel(lineno, sym, fn.Func)
+	fn.Func.Nname = newfuncnamel(base.Pos, sym, fn.Func)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	setNodeNameFunc(fn.Func.Nname)
@@ -1045,10 +1046,10 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n *Node) bool {
 	case OCLOSURE:
 		callee = arg.Func.Decl
 	default:
-		Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
+		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
 	if callee.Op != ODCLFUNC {
-		Fatalf("expected ODCLFUNC node, got %+v", callee)
+		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
 	}
 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos})
 	return true
@@ -1064,7 +1065,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n *Node) bool {
 // This can be called concurrently for different from Nodes.
 func (c *nowritebarrierrecChecker) recordCall(from *Node, to *obj.LSym, pos src.XPos) {
 	if from.Op != ODCLFUNC {
-		Fatalf("expected ODCLFUNC, got %v", from)
+		base.Fatalf("expected ODCLFUNC, got %v", from)
 	}
 	// We record this information on the *Func so this is
 	// concurrent-safe.
@@ -1105,7 +1106,7 @@ func (c *nowritebarrierrecChecker) check() {
 		}
 		// Check go:nowritebarrier functions.
 		if n.Func.Pragma&Nowritebarrier != 0 && n.Func.WBPos.IsKnown() {
-			yyerrorl(n.Func.WBPos, "write barrier prohibited")
+			base.ErrorfAt(n.Func.WBPos, "write barrier prohibited")
 		}
 	}
 
@@ -1133,10 +1134,10 @@ func (c *nowritebarrierrecChecker) check() {
 			var err bytes.Buffer
 			call := funcs[fn]
 			for call.target != nil {
-				fmt.Fprintf(&err, "\n\t%v: called by %v", linestr(call.lineno), call.target.Func.Nname)
+				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Func.Nname)
 				call = funcs[call.target]
 			}
-			yyerrorl(fn.Func.WBPos, "write barrier prohibited by caller; %v%s", fn.Func.Nname, err.String())
+			base.ErrorfAt(fn.Func.WBPos, "write barrier prohibited by caller; %v%s", fn.Func.Nname, err.String())
 			continue
 		}
 

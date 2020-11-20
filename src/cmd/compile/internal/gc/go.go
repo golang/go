@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -39,7 +40,7 @@ var (
 
 // isRuntimePkg reports whether p is package runtime.
 func isRuntimePkg(p *types.Pkg) bool {
-	if Flag.CompilingRuntime && p == localpkg {
+	if base.Flag.CompilingRuntime && p == localpkg {
 		return true
 	}
 	return p.Path == "runtime"
@@ -48,7 +49,7 @@ func isRuntimePkg(p *types.Pkg) bool {
 // isReflectPkg reports whether p is package reflect.
 func isReflectPkg(p *types.Pkg) bool {
 	if p == localpkg {
-		return Ctxt.Pkgpath == "reflect"
+		return base.Ctxt.Pkgpath == "reflect"
 	}
 	return p.Path == "reflect"
 }
@@ -181,8 +182,6 @@ var instrumenting bool
 
 // Whether we are tracking lexical scopes for DWARF.
 var trackScopes bool
-
-var Ctxt *obj.Link
 
 var nodfp *Node
 

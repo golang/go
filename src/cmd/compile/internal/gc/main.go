@@ -9,6 +9,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -35,13 +36,13 @@ import (
 )
 
 func hidePanic() {
-	if Debug.Panic == 0 && Errors() > 0 {
+	if base.Debug.Panic == 0 && base.Errors() > 0 {
 		// If we've already complained about things
 		// in the program, don't bother complaining
 		// about a panic too; let the user clean up
 		// the code and try again.
 		if err := recover(); err != nil {
-			errorexit()
+			base.ErrorExit()
 		}
 	}
 }
@@ -61,16 +62,16 @@ func Main(archInit func(*Arch)) {
 
 	archInit(&thearch)
 
-	Ctxt = obj.Linknew(thearch.LinkArch)
-	Ctxt.DiagFunc = yyerror
-	Ctxt.DiagFlush = flusherrors
-	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+	base.Ctxt = obj.Linknew(thearch.LinkArch)
+	base.Ctxt.DiagFunc = base.Errorf
+	base.Ctxt.DiagFlush = base.FlushErrors
+	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	// UseBASEntries is preferred because it shaves about 2% off build time, but LLDB, dsymutil, and dwarfdump
 	// on Darwin don't support it properly, especially since macOS 10.14 (Mojave).  This is exposed as a flag
 	// to allow testing with LLVM tools on Linux, and to help with reporting this bug to the LLVM project.
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
-	Ctxt.UseBASEntries = Ctxt.Headtype != objabi.Hdarwin
+	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
 	localpkg = types.NewPkg("", "")
 	localpkg.Prefix = "\"\""
@@ -112,15 +113,15 @@ func Main(archInit func(*Arch)) {
 	// pseudo-package used for methods with anonymous receivers
 	gopkg = types.NewPkg("go", "")
 
-	DebugSSA = ssa.PhaseOption
-	ParseFlags()
+	base.DebugSSA = ssa.PhaseOption
+	base.ParseFlags()
 
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
 	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
-	if !enableTrace && Flag.LowerT {
+	if !enableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
 	}
 
@@ -128,59 +129,59 @@ func Main(archInit func(*Arch)) {
 	//	default: inlining on.  (Flag.LowerL == 1)
 	//	-l: inlining off  (Flag.LowerL == 0)
 	//	-l=2, -l=3: inlining on again, with extra debugging (Flag.LowerL > 1)
-	if Flag.LowerL <= 1 {
-		Flag.LowerL = 1 - Flag.LowerL
+	if base.Flag.LowerL <= 1 {
+		base.Flag.LowerL = 1 - base.Flag.LowerL
 	}
 
-	if Flag.SmallFrames {
+	if base.Flag.SmallFrames {
 		maxStackVarSize = 128 * 1024
 		maxImplicitStackVarSize = 16 * 1024
 	}
 
-	if Flag.Dwarf {
-		Ctxt.DebugInfo = debuginfo
-		Ctxt.GenAbstractFunc = genAbstractFunc
-		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
+	if base.Flag.Dwarf {
+		base.Ctxt.DebugInfo = debuginfo
+		base.Ctxt.GenAbstractFunc = genAbstractFunc
+		base.Ctxt.DwFixups = obj.NewDwarfFixupTable(base.Ctxt)
 	} else {
 		// turn off inline generation if no dwarf at all
-		Flag.GenDwarfInl = 0
-		Ctxt.Flag_locationlists = false
+		base.Flag.GenDwarfInl = 0
+		base.Ctxt.Flag_locationlists = false
 	}
-	if Ctxt.Flag_locationlists && len(Ctxt.Arch.DWARFRegisters) == 0 {
-		log.Fatalf("location lists requested but register mapping not available on %v", Ctxt.Arch.Name)
+	if base.Ctxt.Flag_locationlists && len(base.Ctxt.Arch.DWARFRegisters) == 0 {
+		log.Fatalf("location lists requested but register mapping not available on %v", base.Ctxt.Arch.Name)
 	}
 
 	checkLang()
 
-	if Flag.SymABIs != "" {
-		readSymABIs(Flag.SymABIs, Ctxt.Pkgpath)
+	if base.Flag.SymABIs != "" {
+		readSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
 	}
 
 	if ispkgin(omit_pkgs) {
-		Flag.Race = false
-		Flag.MSan = false
+		base.Flag.Race = false
+		base.Flag.MSan = false
 	}
 
-	thearch.LinkArch.Init(Ctxt)
+	thearch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if Flag.Race {
+	if base.Flag.Race {
 		racepkg = types.NewPkg("runtime/race", "")
 	}
-	if Flag.MSan {
+	if base.Flag.MSan {
 		msanpkg = types.NewPkg("runtime/msan", "")
 	}
-	if Flag.Race || Flag.MSan {
+	if base.Flag.Race || base.Flag.MSan {
 		instrumenting = true
 	}
-	if Flag.Dwarf {
-		dwarf.EnableLogging(Debug.DwarfInl != 0)
+	if base.Flag.Dwarf {
+		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
 	}
-	if Debug.SoftFloat != 0 {
+	if base.Debug.SoftFloat != 0 {
 		thearch.SoftFloat = true
 	}
 
-	if Flag.JSON != "" { // parse version,destination from json logging optimization.
-		logopt.LogJsonOption(Flag.JSON)
+	if base.Flag.JSON != "" { // parse version,destination from json logging optimization.
+		logopt.LogJsonOption(base.Flag.JSON)
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
@@ -197,7 +198,7 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	trackScopes = Flag.Dwarf
+	trackScopes = base.Flag.Dwarf
 
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
@@ -207,7 +208,7 @@ func Main(archInit func(*Arch)) {
 	// would lead to import cycles)
 	types.Widthptr = Widthptr
 	types.Dowidth = dowidth
-	types.Fatalf = Fatalf
+	types.Fatalf = base.Fatalf
 	types.Sconv = func(s *types.Sym, flag, mode int) string {
 		return sconv(s, FmtFlag(flag), fmtMode(mode))
 	}
@@ -226,7 +227,7 @@ func Main(archInit func(*Arch)) {
 	types.FmtLeft = int(FmtLeft)
 	types.FmtUnsigned = int(FmtUnsigned)
 	types.FErr = int(FErr)
-	types.Ctxt = Ctxt
+	types.Ctxt = base.Ctxt
 
 	initUniverse()
 
@@ -288,10 +289,10 @@ func Main(archInit func(*Arch)) {
 		if n.Op == ODCLFUNC {
 			Curfn = n
 			decldepth = 1
-			errorsBefore := Errors()
+			errorsBefore := base.Errors()
 			typecheckslice(Curfn.Nbody.Slice(), ctxStmt)
 			checkreturn(Curfn)
-			if Errors() > errorsBefore {
+			if base.Errors() > errorsBefore {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
 			}
 			// Now that we've checked whether n terminates,
@@ -304,7 +305,7 @@ func Main(archInit func(*Arch)) {
 	// check past phase 9 isn't sufficient, as we may exit with other errors
 	// before then, thus skipping map key errors.
 	checkMapKeys()
-	ExitIfErrors()
+	base.ExitIfErrors()
 
 	timings.AddEvent(fcount, "funcs")
 
@@ -322,11 +323,11 @@ func Main(archInit func(*Arch)) {
 	}
 	capturevarscomplete = true
 	Curfn = nil
-	ExitIfErrors()
+	base.ExitIfErrors()
 
 	// Phase 5: Inlining
 	timings.Start("fe", "inlining")
-	if Debug.TypecheckInl != 0 {
+	if base.Debug.TypecheckInl != 0 {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
@@ -334,10 +335,10 @@ func Main(archInit func(*Arch)) {
 				typecheckinl(n)
 			}
 		}
-		ExitIfErrors()
+		base.ExitIfErrors()
 	}
 
-	if Flag.LowerL != 0 {
+	if base.Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
 			numfns := numNonClosures(list)
@@ -348,7 +349,7 @@ func Main(archInit func(*Arch)) {
 					// across more than one function.
 					caninl(n)
 				} else {
-					if Flag.LowerM > 1 {
+					if base.Flag.LowerM > 1 {
 						fmt.Printf("%v: cannot inline %v: recursive\n", n.Line(), n.Func.Nname)
 					}
 				}
@@ -379,7 +380,7 @@ func Main(archInit func(*Arch)) {
 	// checking. This must happen before transformclosure.
 	// We'll do the final check after write barriers are
 	// inserted.
-	if Flag.CompilingRuntime {
+	if base.Flag.CompilingRuntime {
 		nowritebarrierrecCheck = newNowritebarrierrecChecker()
 	}
 
@@ -430,10 +431,10 @@ func Main(archInit func(*Arch)) {
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
 	// DWARF inlining gen so as to avoid problems with generated
 	// method wrappers.
-	if Ctxt.DwFixups != nil {
-		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug.DwarfInl != 0)
-		Ctxt.DwFixups = nil
-		Flag.GenDwarfInl = 0
+	if base.Ctxt.DwFixups != nil {
+		base.Ctxt.DwFixups.Finalize(base.Ctxt.Pkgpath, base.Debug.DwarfInl != 0)
+		base.Ctxt.DwFixups = nil
+		base.Flag.GenDwarfInl = 0
 	}
 
 	// Phase 9: Check external declarations.
@@ -446,14 +447,14 @@ func Main(archInit func(*Arch)) {
 	// Check the map keys again, since we typechecked the external
 	// declarations.
 	checkMapKeys()
-	ExitIfErrors()
+	base.ExitIfErrors()
 
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpdata()
-	Ctxt.NumberSyms()
+	base.Ctxt.NumberSyms()
 	dumpobj()
-	if Flag.AsmHdr != "" {
+	if base.Flag.AsmHdr != "" {
 		dumpasmhdr()
 	}
 
@@ -463,27 +464,27 @@ func Main(archInit func(*Arch)) {
 	})
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {
-			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
 		} else {
-			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
 		}
 	}
 
 	if len(funcStack) != 0 {
-		Fatalf("funcStack is non-empty: %v", len(funcStack))
+		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
 	}
 	if len(compilequeue) != 0 {
-		Fatalf("%d uncompiled functions", len(compilequeue))
+		base.Fatalf("%d uncompiled functions", len(compilequeue))
 	}
 
-	logopt.FlushLoggedOpts(Ctxt, Ctxt.Pkgpath)
-	ExitIfErrors()
+	logopt.FlushLoggedOpts(base.Ctxt, base.Ctxt.Pkgpath)
+	base.ExitIfErrors()
 
-	flusherrors()
+	base.FlushErrors()
 	timings.Stop()
 
-	if Flag.Bench != "" {
-		if err := writebench(Flag.Bench); err != nil {
+	if base.Flag.Bench != "" {
+		if err := writebench(base.Flag.Bench); err != nil {
 			log.Fatalf("cannot write benchmark data: %v", err)
 		}
 	}
@@ -510,7 +511,7 @@ func writebench(filename string) error {
 	fmt.Fprintln(&buf, "commit:", objabi.Version)
 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
-	timings.Write(&buf, "BenchmarkCompile:"+Ctxt.Pkgpath+":")
+	timings.Write(&buf, "BenchmarkCompile:"+base.Ctxt.Pkgpath+":")
 
 	n, err := f.Write(buf.Bytes())
 	if err != nil {
@@ -622,12 +623,12 @@ func islocalname(name string) bool {
 
 func findpkg(name string) (file string, ok bool) {
 	if islocalname(name) {
-		if Flag.NoLocalImports {
+		if base.Flag.NoLocalImports {
 			return "", false
 		}
 
-		if Flag.Cfg.PackageFile != nil {
-			file, ok = Flag.Cfg.PackageFile[name]
+		if base.Flag.Cfg.PackageFile != nil {
+			file, ok = base.Flag.Cfg.PackageFile[name]
 			return file, ok
 		}
 
@@ -649,16 +650,16 @@ func findpkg(name string) (file string, ok bool) {
 	// don't want to see "encoding/../encoding/base64"
 	// as different from "encoding/base64".
 	if q := path.Clean(name); q != name {
-		yyerror("non-canonical import path %q (should be %q)", name, q)
+		base.Errorf("non-canonical import path %q (should be %q)", name, q)
 		return "", false
 	}
 
-	if Flag.Cfg.PackageFile != nil {
-		file, ok = Flag.Cfg.PackageFile[name]
+	if base.Flag.Cfg.PackageFile != nil {
+		file, ok = base.Flag.Cfg.PackageFile[name]
 		return file, ok
 	}
 
-	for _, dir := range Flag.Cfg.ImportDirs {
+	for _, dir := range base.Flag.Cfg.ImportDirs {
 		file = fmt.Sprintf("%s/%s.a", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
@@ -672,13 +673,13 @@ func findpkg(name string) (file string, ok bool) {
 	if objabi.GOROOT != "" {
 		suffix := ""
 		suffixsep := ""
-		if Flag.InstallSuffix != "" {
+		if base.Flag.InstallSuffix != "" {
 			suffixsep = "_"
-			suffix = Flag.InstallSuffix
-		} else if Flag.Race {
+			suffix = base.Flag.InstallSuffix
+		} else if base.Flag.Race {
 			suffixsep = "_"
 			suffix = "race"
-		} else if Flag.MSan {
+		} else if base.Flag.MSan {
 			suffixsep = "_"
 			suffix = "msan"
 		}
@@ -715,7 +716,7 @@ func loadsys() {
 		case varTag:
 			importvar(Runtimepkg, src.NoXPos, sym, typ)
 		default:
-			Fatalf("unhandled declaration tag %v", d.tag)
+			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
 	}
 
@@ -729,13 +730,13 @@ var myheight int
 
 func importfile(f constant.Value) *types.Pkg {
 	if f.Kind() != constant.String {
-		yyerror("import path must be a string")
+		base.Errorf("import path must be a string")
 		return nil
 	}
 
 	path_ := constant.StringVal(f)
 	if len(path_) == 0 {
-		yyerror("import path is empty")
+		base.Errorf("import path is empty")
 		return nil
 	}
 
@@ -748,16 +749,16 @@ func importfile(f constant.Value) *types.Pkg {
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
 	if path_ == "main" {
-		yyerror("cannot import \"main\"")
-		errorexit()
+		base.Errorf("cannot import \"main\"")
+		base.ErrorExit()
 	}
 
-	if Ctxt.Pkgpath != "" && path_ == Ctxt.Pkgpath {
-		yyerror("import %q while compiling that package (import cycle)", path_)
-		errorexit()
+	if base.Ctxt.Pkgpath != "" && path_ == base.Ctxt.Pkgpath {
+		base.Errorf("import %q while compiling that package (import cycle)", path_)
+		base.ErrorExit()
 	}
 
-	if mapped, ok := Flag.Cfg.ImportMap[path_]; ok {
+	if mapped, ok := base.Flag.Cfg.ImportMap[path_]; ok {
 		path_ = mapped
 	}
 
@@ -767,13 +768,13 @@ func importfile(f constant.Value) *types.Pkg {
 
 	if islocalname(path_) {
 		if path_[0] == '/' {
-			yyerror("import path cannot be absolute path")
+			base.Errorf("import path cannot be absolute path")
 			return nil
 		}
 
-		prefix := Ctxt.Pathname
-		if Flag.D != "" {
-			prefix = Flag.D
+		prefix := base.Ctxt.Pathname
+		if base.Flag.D != "" {
+			prefix = base.Flag.D
 		}
 		path_ = path.Join(prefix, path_)
 
@@ -784,8 +785,8 @@ func importfile(f constant.Value) *types.Pkg {
 
 	file, found := findpkg(path_)
 	if !found {
-		yyerror("can't find import: %q", path_)
-		errorexit()
+		base.Errorf("can't find import: %q", path_)
+		base.ErrorExit()
 	}
 
 	importpkg := types.NewPkg(path_, "")
@@ -797,48 +798,48 @@ func importfile(f constant.Value) *types.Pkg {
 
 	imp, err := bio.Open(file)
 	if err != nil {
-		yyerror("can't open import: %q: %v", path_, err)
-		errorexit()
+		base.Errorf("can't open import: %q: %v", path_, err)
+		base.ErrorExit()
 	}
 	defer imp.Close()
 
 	// check object header
 	p, err := imp.ReadString('\n')
 	if err != nil {
-		yyerror("import %s: reading input: %v", file, err)
-		errorexit()
+		base.Errorf("import %s: reading input: %v", file, err)
+		base.ErrorExit()
 	}
 
 	if p == "!<arch>\n" { // package archive
 		// package export block should be first
 		sz := arsize(imp.Reader, "__.PKGDEF")
 		if sz <= 0 {
-			yyerror("import %s: not a package file", file)
-			errorexit()
+			base.Errorf("import %s: not a package file", file)
+			base.ErrorExit()
 		}
 		p, err = imp.ReadString('\n')
 		if err != nil {
-			yyerror("import %s: reading input: %v", file, err)
-			errorexit()
+			base.Errorf("import %s: reading input: %v", file, err)
+			base.ErrorExit()
 		}
 	}
 
 	if !strings.HasPrefix(p, "go object ") {
-		yyerror("import %s: not a go object file: %s", file, p)
-		errorexit()
+		base.Errorf("import %s: not a go object file: %s", file, p)
+		base.ErrorExit()
 	}
 	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
 	if p[10:] != q {
-		yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
-		errorexit()
+		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
+		base.ErrorExit()
 	}
 
 	// process header lines
 	for {
 		p, err = imp.ReadString('\n')
 		if err != nil {
-			yyerror("import %s: reading input: %v", file, err)
-			errorexit()
+			base.Errorf("import %s: reading input: %v", file, err)
+			base.ErrorExit()
 		}
 		if p == "\n" {
 			break // header ends with blank line
@@ -870,41 +871,41 @@ func importfile(f constant.Value) *types.Pkg {
 	var fingerprint goobj.FingerprintType
 	switch c {
 	case '\n':
-		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
+		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path_)
 		return nil
 
 	case 'B':
-		if Debug.Export != 0 {
+		if base.Debug.Export != 0 {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
 
 		c, err = imp.ReadByte()
 		if err != nil {
-			yyerror("import %s: reading input: %v", file, err)
-			errorexit()
+			base.Errorf("import %s: reading input: %v", file, err)
+			base.ErrorExit()
 		}
 
 		// Indexed format is distinguished by an 'i' byte,
 		// whereas previous export formats started with 'c', 'd', or 'v'.
 		if c != 'i' {
-			yyerror("import %s: unexpected package format byte: %v", file, c)
-			errorexit()
+			base.Errorf("import %s: unexpected package format byte: %v", file, c)
+			base.ErrorExit()
 		}
 		fingerprint = iimport(importpkg, imp)
 
 	default:
-		yyerror("no import in %q", path_)
-		errorexit()
+		base.Errorf("no import in %q", path_)
+		base.ErrorExit()
 	}
 
 	// assume files move (get installed) so don't record the full path
-	if Flag.Cfg.PackageFile != nil {
+	if base.Flag.Cfg.PackageFile != nil {
 		// If using a packageFile map, assume path_ can be recorded directly.
-		Ctxt.AddImport(path_, fingerprint)
+		base.Ctxt.AddImport(path_, fingerprint)
 	} else {
 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
-		Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
+		base.Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
 	}
 
 	if importpkg.Height >= myheight {
@@ -926,21 +927,21 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {
-		yyerrorl(lineno, "imported and not used: %q", path)
+		base.ErrorfAt(lineno, "imported and not used: %q", path)
 	} else {
-		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
+		base.ErrorfAt(lineno, "imported and not used: %q as %s", path, name)
 	}
 }
 
 func mkpackage(pkgname string) {
 	if localpkg.Name == "" {
 		if pkgname == "_" {
-			yyerror("invalid package name _")
+			base.Errorf("invalid package name _")
 		}
 		localpkg.Name = pkgname
 	} else {
 		if pkgname != localpkg.Name {
-			yyerror("package %s; expected %s", pkgname, localpkg.Name)
+			base.Errorf("package %s; expected %s", pkgname, localpkg.Name)
 		}
 	}
 }
@@ -964,7 +965,7 @@ func clearImports() {
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !n.Name.Used() && SyntaxErrors() == 0 {
+			if !n.Name.Used() && base.SyntaxErrors() == 0 {
 				unused = append(unused, importedPkg{n.Pos, n.Name.Pkg.Path, s.Name})
 			}
 			s.Def = nil
@@ -973,7 +974,7 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if n.Name != nil && n.Name.Pack != nil && !n.Name.Pack.Name.Used() && SyntaxErrors() == 0 {
+			if n.Name != nil && n.Name.Pack != nil && !n.Name.Pack.Name.Used() && base.SyntaxErrors() == 0 {
 				unused = append(unused, importedPkg{n.Name.Pack.Pos, n.Name.Pack.Name.Pkg.Path, ""})
 				n.Name.Pack.Name.SetUsed(true)
 			}
@@ -995,7 +996,7 @@ func IsAlias(sym *types.Sym) bool {
 // recordFlags records the specified command-line flags to be placed
 // in the DWARF info.
 func recordFlags(flags ...string) {
-	if Ctxt.Pkgpath == "" {
+	if base.Ctxt.Pkgpath == "" {
 		// We can't record the flags if we don't know what the
 		// package name is.
 		return
@@ -1038,24 +1039,24 @@ func recordFlags(flags ...string) {
 	if cmd.Len() == 0 {
 		return
 	}
-	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + Ctxt.Pkgpath)
+	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + base.Ctxt.Pkgpath)
 	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
-	Ctxt.Data = append(Ctxt.Data, s)
+	base.Ctxt.Data = append(base.Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
 }
 
 // recordPackageName records the name of the package being
 // compiled, so that the linker can save it in the compile unit's DIE.
 func recordPackageName() {
-	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + Ctxt.Pkgpath)
+	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + base.Ctxt.Pkgpath)
 	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
-	Ctxt.Data = append(Ctxt.Data, s)
+	base.Ctxt.Data = append(base.Ctxt.Data, s)
 	s.P = []byte(localpkg.Name)
 }
 
@@ -1099,23 +1100,23 @@ func langSupported(major, minor int, pkg *types.Pkg) bool {
 // checkLang verifies that the -lang flag holds a valid value, and
 // exits if not. It initializes data used by langSupported.
 func checkLang() {
-	if Flag.Lang == "" {
+	if base.Flag.Lang == "" {
 		return
 	}
 
 	var err error
-	langWant, err = parseLang(Flag.Lang)
+	langWant, err = parseLang(base.Flag.Lang)
 	if err != nil {
-		log.Fatalf("invalid value %q for -lang: %v", Flag.Lang, err)
+		log.Fatalf("invalid value %q for -lang: %v", base.Flag.Lang, err)
 	}
 
-	if def := currentLang(); Flag.Lang != def {
+	if def := currentLang(); base.Flag.Lang != def {
 		defVers, err := parseLang(def)
 		if err != nil {
 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
 		}
 		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
-			log.Fatalf("invalid value %q for -lang: max known version is %q", Flag.Lang, def)
+			log.Fatalf("invalid value %q for -lang: max known version is %q", base.Flag.Lang, def)
 		}
 	}
 }

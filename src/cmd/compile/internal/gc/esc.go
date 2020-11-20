@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -263,11 +264,11 @@ func addrescapes(n *Node) {
 			Curfn = Curfn.Func.Decl
 			panic("can't happen")
 		}
-		ln := lineno
-		lineno = Curfn.Pos
+		ln := base.Pos
+		base.Pos = Curfn.Pos
 		moveToHeap(n)
 		Curfn = oldfn
-		lineno = ln
+		base.Pos = ln
 
 	// ODOTPTR has already been introduced,
 	// so these are the non-pointer ODOT and OINDEX.
@@ -283,15 +284,15 @@ func addrescapes(n *Node) {
 
 // moveToHeap records the parameter or local variable n as moved to the heap.
 func moveToHeap(n *Node) {
-	if Flag.LowerR != 0 {
+	if base.Flag.LowerR != 0 {
 		Dump("MOVE", n)
 	}
-	if Flag.CompilingRuntime {
-		yyerror("%v escapes to heap, not allowed in runtime", n)
+	if base.Flag.CompilingRuntime {
+		base.Errorf("%v escapes to heap, not allowed in runtime", n)
 	}
 	if n.Class() == PAUTOHEAP {
 		Dump("n", n)
-		Fatalf("double move to heap")
+		base.Fatalf("double move to heap")
 	}
 
 	// Allocate a local stack variable to hold the pointer to the heap copy.
@@ -311,7 +312,7 @@ func moveToHeap(n *Node) {
 	// the function.
 	if n.Class() == PPARAM || n.Class() == PPARAMOUT {
 		if n.Xoffset == BADWIDTH {
-			Fatalf("addrescapes before param assignment")
+			base.Fatalf("addrescapes before param assignment")
 		}
 
 		// We rewrite n below to be a heap variable (indirection of heapaddr).
@@ -350,7 +351,7 @@ func moveToHeap(n *Node) {
 			}
 		}
 		if !found {
-			Fatalf("cannot find %v in local variable list", n)
+			base.Fatalf("cannot find %v in local variable list", n)
 		}
 		Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	}
@@ -360,8 +361,8 @@ func moveToHeap(n *Node) {
 	n.Xoffset = 0
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
-	if Flag.LowerM != 0 {
-		Warnl(n.Pos, "moved to heap: %v", n)
+	if base.Flag.LowerM != 0 {
+		base.WarnfAt(n.Pos, "moved to heap: %v", n)
 	}
 }
 
@@ -390,8 +391,8 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
 		if f.Type.IsUintptr() {
-			if Flag.LowerM != 0 {
-				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
+			if base.Flag.LowerM != 0 {
+				base.WarnfAt(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
 			return unsafeUintptrTag
 		}
@@ -405,12 +406,12 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
 		if fn.Func.Pragma&Noescape != 0 {
-			if Flag.LowerM != 0 && f.Sym != nil {
-				Warnl(f.Pos, "%v does not escape", name())
+			if base.Flag.LowerM != 0 && f.Sym != nil {
+				base.WarnfAt(f.Pos, "%v does not escape", name())
 			}
 		} else {
-			if Flag.LowerM != 0 && f.Sym != nil {
-				Warnl(f.Pos, "leaking param: %v", name())
+			if base.Flag.LowerM != 0 && f.Sym != nil {
+				base.WarnfAt(f.Pos, "leaking param: %v", name())
 			}
 			esc.AddHeap(0)
 		}
@@ -420,15 +421,15 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 
 	if fn.Func.Pragma&UintptrEscapes != 0 {
 		if f.Type.IsUintptr() {
-			if Flag.LowerM != 0 {
-				Warnl(f.Pos, "marking %v as escaping uintptr", name())
+			if base.Flag.LowerM != 0 {
+				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
 			// final argument is ...uintptr.
-			if Flag.LowerM != 0 {
-				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
+			if base.Flag.LowerM != 0 {
+				base.WarnfAt(f.Pos, "marking %v as escaping ...uintptr", name())
 			}
 			return uintptrEscapesTag
 		}
@@ -449,22 +450,22 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
 	esc := loc.paramEsc
 	esc.Optimize()
 
-	if Flag.LowerM != 0 && !loc.escapes {
+	if base.Flag.LowerM != 0 && !loc.escapes {
 		if esc.Empty() {
-			Warnl(f.Pos, "%v does not escape", name())
+			base.WarnfAt(f.Pos, "%v does not escape", name())
 		}
 		if x := esc.Heap(); x >= 0 {
 			if x == 0 {
-				Warnl(f.Pos, "leaking param: %v", name())
+				base.WarnfAt(f.Pos, "leaking param: %v", name())
 			} else {
 				// TODO(mdempsky): Mention level=x like below?
-				Warnl(f.Pos, "leaking param content: %v", name())
+				base.WarnfAt(f.Pos, "leaking param content: %v", name())
 			}
 		}
 		for i := 0; i < numEscResults; i++ {
 			if x := esc.Result(i); x >= 0 {
 				res := fn.Type.Results().Field(i).Sym
-				Warnl(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
+				base.WarnfAt(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
 			}
 		}
 	}

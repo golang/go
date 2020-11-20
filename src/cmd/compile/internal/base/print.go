@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package base
 
 import (
-	"cmd/internal/objabi"
-	"cmd/internal/src"
 	"fmt"
 	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
+
+	"cmd/internal/objabi"
+	"cmd/internal/src"
 )
 
 // An errorMsg is a queued error message, waiting to be printed.
@@ -22,7 +23,7 @@ type errorMsg struct {
 
 // Pos is the current source position being processed,
 // printed by Errorf, ErrorfLang, Fatalf, and Warnf.
-var lineno src.XPos
+var Pos src.XPos
 
 var (
 	errorMsgs       []errorMsg
@@ -46,7 +47,7 @@ func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
 	// Only add the position if know the position.
 	// See issue golang.org/issue/11361.
 	if pos.IsKnown() {
-		msg = fmt.Sprintf("%v: %s", linestr(pos), msg)
+		msg = fmt.Sprintf("%v: %s", FmtPos(pos), msg)
 	}
 	errorMsgs = append(errorMsgs, errorMsg{
 		pos: pos,
@@ -55,7 +56,7 @@ func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
 }
 
 // FmtPos formats pos as a file:line string.
-func linestr(pos src.XPos) string {
+func FmtPos(pos src.XPos) string {
 	if Ctxt == nil {
 		return "???"
 	}
@@ -71,7 +72,7 @@ func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 // FlushErrors sorts errors seen so far by line number, prints them to stdout,
 // and empties the errors array.
-func flusherrors() {
+func FlushErrors() {
 	Ctxt.Bso.Flush()
 	if len(errorMsgs) == 0 {
 		return
@@ -101,12 +102,12 @@ func sameline(a, b src.XPos) bool {
 }
 
 // Errorf reports a formatted error at the current line.
-func yyerror(format string, args ...interface{}) {
-	yyerrorl(lineno, format, args...)
+func Errorf(format string, args ...interface{}) {
+	ErrorfAt(Pos, format, args...)
 }
 
 // ErrorfAt reports a formatted error message at pos.
-func yyerrorl(pos src.XPos, format string, args ...interface{}) {
+func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 
 	if strings.HasPrefix(msg, "syntax error") {
@@ -134,15 +135,15 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 
 	hcrash()
 	if numErrors >= 10 && Flag.LowerE == 0 {
-		flusherrors()
-		fmt.Printf("%v: too many errors\n", linestr(pos))
-		errorexit()
+		FlushErrors()
+		fmt.Printf("%v: too many errors\n", FmtPos(pos))
+		ErrorExit()
 	}
 }
 
 // ErrorfVers reports that a language feature (format, args) requires a later version of Go.
-func yyerrorv(lang string, format string, args ...interface{}) {
-	yyerror("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, Flag.Lang)
+func ErrorfVers(lang string, format string, args ...interface{}) {
+	Errorf("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, Flag.Lang)
 }
 
 // UpdateErrorDot is a clumsy hack that rewrites the last error,
@@ -163,17 +164,17 @@ func UpdateErrorDot(line string, name, expr string) {
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
 func Warn(format string, args ...interface{}) {
-	Warnl(lineno, format, args...)
+	WarnfAt(Pos, format, args...)
 }
 
 // WarnfAt reports a formatted warning at pos.
 // In general the Go compiler does NOT generate warnings,
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
-func Warnl(pos src.XPos, format string, args ...interface{}) {
+func WarnfAt(pos src.XPos, format string, args ...interface{}) {
 	addErrorMsg(pos, format, args...)
 	if Flag.LowerM != 0 {
-		flusherrors()
+		FlushErrors()
 	}
 }
 
@@ -190,7 +191,7 @@ func Warnl(pos src.XPos, format string, args ...interface{}) {
 //
 // If -h has been specified, Fatalf panics to force the usual runtime info dump.
 func Fatalf(format string, args ...interface{}) {
-	FatalfAt(lineno, format, args...)
+	FatalfAt(Pos, format, args...)
 }
 
 // FatalfAt reports a fatal error - an internal problem - at pos and exits.
@@ -206,10 +207,10 @@ func Fatalf(format string, args ...interface{}) {
 //
 // If -h has been specified, FatalfAt panics to force the usual runtime info dump.
 func FatalfAt(pos src.XPos, format string, args ...interface{}) {
-	flusherrors()
+	FlushErrors()
 
 	if Debug.Panic != 0 || numErrors == 0 {
-		fmt.Printf("%v: internal compiler error: ", linestr(pos))
+		fmt.Printf("%v: internal compiler error: ", FmtPos(pos))
 		fmt.Printf(format, args...)
 		fmt.Printf("\n")
 
@@ -227,13 +228,13 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 	}
 
 	hcrash()
-	errorexit()
+	ErrorExit()
 }
 
 // hcrash crashes the compiler when -h is set, to find out where a message is generated.
 func hcrash() {
 	if Flag.LowerH != 0 {
-		flusherrors()
+		FlushErrors()
 		if Flag.LowerO != "" {
 			os.Remove(Flag.LowerO)
 		}
@@ -243,8 +244,8 @@ func hcrash() {
 
 // ErrorExit handles an error-status exit.
 // It flushes any pending errors, removes the output file, and exits.
-func errorexit() {
-	flusherrors()
+func ErrorExit() {
+	FlushErrors()
 	if Flag.LowerO != "" {
 		os.Remove(Flag.LowerO)
 	}
@@ -254,6 +255,6 @@ func errorexit() {
 // ExitIfErrors calls ErrorExit if any errors have been reported.
 func ExitIfErrors() {
 	if Errors() > 0 {
-		errorexit()
+		ErrorExit()
 	}
 }

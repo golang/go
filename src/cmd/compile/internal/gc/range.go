@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 	"unicode/utf8"
@@ -61,7 +62,7 @@ func typecheckrangeExpr(n *Node) {
 	toomany := false
 	switch t.Etype {
 	default:
-		yyerrorl(n.Pos, "cannot range over %L", n.Right)
+		base.ErrorfAt(n.Pos, "cannot range over %L", n.Right)
 		return
 
 	case TARRAY, TSLICE:
@@ -74,7 +75,7 @@ func typecheckrangeExpr(n *Node) {
 
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
-			yyerrorl(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+			base.ErrorfAt(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
 			return
 		}
 
@@ -90,7 +91,7 @@ func typecheckrangeExpr(n *Node) {
 	}
 
 	if n.List.Len() > 2 || toomany {
-		yyerrorl(n.Pos, "too many variables in range")
+		base.ErrorfAt(n.Pos, "too many variables in range")
 	}
 
 	var v1, v2 *Node
@@ -117,7 +118,7 @@ func typecheckrangeExpr(n *Node) {
 			v1.Type = t1
 		} else if v1.Type != nil {
 			if op, why := assignop(t1, v1.Type); op == OXXX {
-				yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
+				base.ErrorfAt(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
 			}
 		}
 		checkassign(n, v1)
@@ -128,7 +129,7 @@ func typecheckrangeExpr(n *Node) {
 			v2.Type = t2
 		} else if v2.Type != nil {
 			if op, why := assignop(t2, v2.Type); op == OXXX {
-				yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
+				base.ErrorfAt(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
 			}
 		}
 		checkassign(n, v2)
@@ -160,7 +161,7 @@ func walkrange(n *Node) *Node {
 		m := n.Right
 		lno := setlineno(m)
 		n = mapClear(m)
-		lineno = lno
+		base.Pos = lno
 		return n
 	}
 
@@ -196,7 +197,7 @@ func walkrange(n *Node) *Node {
 	}
 
 	if v1 == nil && v2 != nil {
-		Fatalf("walkrange: v2 != nil while v1 == nil")
+		base.Fatalf("walkrange: v2 != nil while v1 == nil")
 	}
 
 	// n.List has no meaning anymore, clear it
@@ -211,11 +212,11 @@ func walkrange(n *Node) *Node {
 	var init []*Node
 	switch t.Etype {
 	default:
-		Fatalf("walkrange")
+		base.Fatalf("walkrange")
 
 	case TARRAY, TSLICE:
 		if arrayClear(n, v1, v2, a) {
-			lineno = lno
+			base.Pos = lno
 			return n
 		}
 
@@ -454,7 +455,7 @@ func walkrange(n *Node) *Node {
 
 	n = walkstmt(n)
 
-	lineno = lno
+	base.Pos = lno
 	return n
 }
 
@@ -466,7 +467,7 @@ func walkrange(n *Node) *Node {
 //
 // where == for keys of map m is reflexive.
 func isMapClear(n *Node) bool {
-	if Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
 
@@ -533,7 +534,7 @@ func mapClear(m *Node) *Node {
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
 func arrayClear(n, v1, v2, a *Node) bool {
-	if Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
 

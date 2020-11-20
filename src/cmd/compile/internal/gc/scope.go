@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -13,7 +14,7 @@ import (
 
 // See golang.org/issue/20390.
 func xposBefore(p, q src.XPos) bool {
-	return Ctxt.PosTable.Pos(p).Before(Ctxt.PosTable.Pos(q))
+	return base.Ctxt.PosTable.Pos(p).Before(base.Ctxt.PosTable.Pos(q))
 }
 
 func findScope(marks []Mark, pos src.XPos) ScopeID {

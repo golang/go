@@ -5,6 +5,7 @@
 package ppc64
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
@@ -16,17 +17,17 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	}
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, gc.Ctxt.FixedFrameSize()+off+i)
+			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, base.Ctxt.FixedFrameSize()+off+i)
 		}
 	} else if cnt <= int64(128*gc.Widthptr) {
-		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
 		p.Reg = ppc64.REGSP
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Duffzero
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {
-		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
 		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
 		p.Reg = ppc64.REGSP
 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
@@ -66,7 +67,7 @@ func ginsnopdefer(pp *gc.Progs) *obj.Prog {
 	// on ppc64 in both shared and non-shared modes.
 
 	ginsnop(pp)
-	if gc.Ctxt.Flag_shared {
+	if base.Ctxt.Flag_shared {
 		p := pp.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Offset = 24

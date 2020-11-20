@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
@@ -47,20 +48,20 @@ const (
 )
 
 func dumpobj() {
-	if Flag.LinkObj == "" {
-		dumpobj1(Flag.LowerO, modeCompilerObj|modeLinkerObj)
+	if base.Flag.LinkObj == "" {
+		dumpobj1(base.Flag.LowerO, modeCompilerObj|modeLinkerObj)
 		return
 	}
-	dumpobj1(Flag.LowerO, modeCompilerObj)
-	dumpobj1(Flag.LinkObj, modeLinkerObj)
+	dumpobj1(base.Flag.LowerO, modeCompilerObj)
+	dumpobj1(base.Flag.LinkObj, modeLinkerObj)
 }
 
 func dumpobj1(outfile string, mode int) {
 	bout, err := bio.Create(outfile)
 	if err != nil {
-		flusherrors()
+		base.FlushErrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
-		errorexit()
+		base.ErrorExit()
 	}
 	defer bout.Close()
 	bout.WriteString("!<arch>\n")
@@ -79,8 +80,8 @@ func dumpobj1(outfile string, mode int) {
 
 func printObjHeader(bout *bio.Writer) {
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-	if Flag.BuildID != "" {
-		fmt.Fprintf(bout, "build id %q\n", Flag.BuildID)
+	if base.Flag.BuildID != "" {
+		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
 	}
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
@@ -169,13 +170,13 @@ func dumpdata() {
 	addGCLocals()
 
 	if exportlistLen != len(exportlist) {
-		Fatalf("exportlist changed after compile functions loop")
+		base.Fatalf("exportlist changed after compile functions loop")
 	}
 	if ptabsLen != len(ptabs) {
-		Fatalf("ptabs changed after compile functions loop")
+		base.Fatalf("ptabs changed after compile functions loop")
 	}
 	if itabsLen != len(itabs) {
-		Fatalf("itabs changed after compile functions loop")
+		base.Fatalf("itabs changed after compile functions loop")
 	}
 }
 
@@ -187,18 +188,18 @@ func dumpLinkerObj(bout *bio.Writer) {
 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
 		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
-			Fatalf("serializing pragcgobuf: %v", err)
+			base.Fatalf("serializing pragcgobuf: %v", err)
 		}
 		fmt.Fprintf(bout, "\n$$\n\n")
 	}
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	obj.WriteObjFile(Ctxt, bout)
+	obj.WriteObjFile(base.Ctxt, bout)
 }
 
 func addptabs() {
-	if !Ctxt.Flag_dynlink || localpkg.Name != "main" {
+	if !base.Ctxt.Flag_dynlink || localpkg.Name != "main" {
 		return
 	}
 	for _, exportn := range exportlist {
@@ -228,7 +229,7 @@ func addptabs() {
 
 func dumpGlobal(n *Node) {
 	if n.Type == nil {
-		Fatalf("external %v nil type\n", n)
+		base.Fatalf("external %v nil type\n", n)
 	}
 	if n.Class() == PFUNC {
 		return
@@ -261,7 +262,7 @@ func dumpGlobalConst(n *Node) {
 			return
 		}
 	}
-	Ctxt.DwarfIntConst(Ctxt.Pkgpath, n.Sym.Name, typesymname(t), int64Val(t, v))
+	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym.Name, typesymname(t), int64Val(t, v))
 }
 
 func dumpglobls() {
@@ -293,7 +294,7 @@ func dumpglobls() {
 // This is done during the sequential phase after compilation, since
 // global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	for _, s := range Ctxt.Text {
+	for _, s := range base.Ctxt.Text {
 		fn := s.Func()
 		if fn == nil {
 			continue
@@ -316,9 +317,9 @@ func addGCLocals() {
 
 func duintxx(s *obj.LSym, off int, v uint64, wid int) int {
 	if off&(wid-1) != 0 {
-		Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
+		base.Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
 	}
-	s.WriteInt(Ctxt, int64(off), wid, int64(v))
+	s.WriteInt(base.Ctxt, int64(off), wid, int64(v))
 	return off + wid
 }
 
@@ -369,7 +370,7 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 		symname = strconv.Quote(s)
 	}
 
-	symdata := Ctxt.Lookup(stringSymPrefix + symname)
+	symdata := base.Ctxt.Lookup(stringSymPrefix + symname)
 	if !symdata.OnList() {
 		off := dstringdata(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
@@ -447,7 +448,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	var symdata *obj.LSym
 	if readonly {
 		symname := fmt.Sprintf(stringSymPattern, size, sum)
-		symdata = Ctxt.Lookup(stringSymPrefix + symname)
+		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
 		if !symdata.OnList() {
 			info := symdata.NewFileInfo()
 			info.Name = file
@@ -489,7 +490,7 @@ func slicedata(pos src.XPos, s string) *Node {
 
 func slicebytes(nam *Node, s string) {
 	if nam.Op != ONAME {
-		Fatalf("slicebytes %v", nam)
+		base.Fatalf("slicebytes %v", nam)
 	}
 	slicesym(nam, slicedata(nam.Pos, s), int64(len(s)))
 }
@@ -499,29 +500,29 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int 
 	// causing a cryptic error message by the linker. Check for oversize objects here
 	// and provide a useful error message instead.
 	if int64(len(t)) > 2e9 {
-		yyerrorl(pos, "%v with length %v is too big", what, len(t))
+		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
 		return 0
 	}
 
-	s.WriteString(Ctxt, int64(off), len(t), t)
+	s.WriteString(base.Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
 
 func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	off = int(Rnd(int64(off), int64(Widthptr)))
-	s.WriteAddr(Ctxt, int64(off), Widthptr, x, int64(xoff))
+	s.WriteAddr(base.Ctxt, int64(off), Widthptr, x, int64(xoff))
 	off += Widthptr
 	return off
 }
 
 func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
-	s.WriteOff(Ctxt, int64(off), x, 0)
+	s.WriteOff(base.Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }
 
 func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
-	s.WriteWeakOff(Ctxt, int64(off), x, 0)
+	s.WriteWeakOff(base.Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }
@@ -532,79 +533,79 @@ func slicesym(n, arr *Node, lencap int64) {
 	s := n.Sym.Linksym()
 	off := n.Xoffset
 	if arr.Op != ONAME {
-		Fatalf("slicesym non-name arr %v", arr)
+		base.Fatalf("slicesym non-name arr %v", arr)
 	}
-	s.WriteAddr(Ctxt, off, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
-	s.WriteInt(Ctxt, off+sliceLenOffset, Widthptr, lencap)
-	s.WriteInt(Ctxt, off+sliceCapOffset, Widthptr, lencap)
+	s.WriteAddr(base.Ctxt, off, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
+	s.WriteInt(base.Ctxt, off+sliceLenOffset, Widthptr, lencap)
+	s.WriteInt(base.Ctxt, off+sliceCapOffset, Widthptr, lencap)
 }
 
 // addrsym writes the static address of a to n. a must be an ONAME.
 // Neither n nor a is modified.
 func addrsym(n, a *Node) {
 	if n.Op != ONAME {
-		Fatalf("addrsym n op %v", n.Op)
+		base.Fatalf("addrsym n op %v", n.Op)
 	}
 	if n.Sym == nil {
-		Fatalf("addrsym nil n sym")
+		base.Fatalf("addrsym nil n sym")
 	}
 	if a.Op != ONAME {
-		Fatalf("addrsym a op %v", a.Op)
+		base.Fatalf("addrsym a op %v", a.Op)
 	}
 	s := n.Sym.Linksym()
-	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, a.Sym.Linksym(), a.Xoffset)
+	s.WriteAddr(base.Ctxt, n.Xoffset, Widthptr, a.Sym.Linksym(), a.Xoffset)
 }
 
 // pfuncsym writes the static address of f to n. f must be a global function.
 // Neither n nor f is modified.
 func pfuncsym(n, f *Node) {
 	if n.Op != ONAME {
-		Fatalf("pfuncsym n op %v", n.Op)
+		base.Fatalf("pfuncsym n op %v", n.Op)
 	}
 	if n.Sym == nil {
-		Fatalf("pfuncsym nil n sym")
+		base.Fatalf("pfuncsym nil n sym")
 	}
 	if f.Class() != PFUNC {
-		Fatalf("pfuncsym class not PFUNC %d", f.Class())
+		base.Fatalf("pfuncsym class not PFUNC %d", f.Class())
 	}
 	s := n.Sym.Linksym()
-	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, funcsym(f.Sym).Linksym(), f.Xoffset)
+	s.WriteAddr(base.Ctxt, n.Xoffset, Widthptr, funcsym(f.Sym).Linksym(), f.Xoffset)
 }
 
 // litsym writes the static literal c to n.
 // Neither n nor c is modified.
 func litsym(n, c *Node, wid int) {
 	if n.Op != ONAME {
-		Fatalf("litsym n op %v", n.Op)
+		base.Fatalf("litsym n op %v", n.Op)
 	}
 	if n.Sym == nil {
-		Fatalf("litsym nil n sym")
+		base.Fatalf("litsym nil n sym")
 	}
 	if !types.Identical(n.Type, c.Type) {
-		Fatalf("litsym: type mismatch: %v has type %v, but %v has type %v", n, n.Type, c, c.Type)
+		base.Fatalf("litsym: type mismatch: %v has type %v, but %v has type %v", n, n.Type, c, c.Type)
 	}
 	if c.Op == ONIL {
 		return
 	}
 	if c.Op != OLITERAL {
-		Fatalf("litsym c op %v", c.Op)
+		base.Fatalf("litsym c op %v", c.Op)
 	}
 	s := n.Sym.Linksym()
 	switch u := c.Val(); u.Kind() {
 	case constant.Bool:
 		i := int64(obj.Bool2int(constant.BoolVal(u)))
-		s.WriteInt(Ctxt, n.Xoffset, wid, i)
+		s.WriteInt(base.Ctxt, n.Xoffset, wid, i)
 
 	case constant.Int:
-		s.WriteInt(Ctxt, n.Xoffset, wid, int64Val(n.Type, u))
+		s.WriteInt(base.Ctxt, n.Xoffset, wid, int64Val(n.Type, u))
 
 	case constant.Float:
 		f, _ := constant.Float64Val(u)
 		switch n.Type.Etype {
 		case TFLOAT32:
-			s.WriteFloat32(Ctxt, n.Xoffset, float32(f))
+			s.WriteFloat32(base.Ctxt, n.Xoffset, float32(f))
 		case TFLOAT64:
-			s.WriteFloat64(Ctxt, n.Xoffset, f)
+			s.WriteFloat64(base.Ctxt, n.Xoffset, f)
 		}
 
 	case constant.Complex:
@@ -612,20 +613,20 @@ func litsym(n, c *Node, wid int) {
 		im, _ := constant.Float64Val(constant.Imag(u))
 		switch n.Type.Etype {
 		case TCOMPLEX64:
-			s.WriteFloat32(Ctxt, n.Xoffset, float32(re))
-			s.WriteFloat32(Ctxt, n.Xoffset+4, float32(im))
+			s.WriteFloat32(base.Ctxt, n.Xoffset, float32(re))
+			s.WriteFloat32(base.Ctxt, n.Xoffset+4, float32(im))
 		case TCOMPLEX128:
-			s.WriteFloat64(Ctxt, n.Xoffset, re)
-			s.WriteFloat64(Ctxt, n.Xoffset+8, im)
+			s.WriteFloat64(base.Ctxt, n.Xoffset, re)
+			s.WriteFloat64(base.Ctxt, n.Xoffset+8, im)
 		}
 
 	case constant.String:
 		i := constant.StringVal(u)
 		symdata := stringsym(n.Pos, i)
-		s.WriteAddr(Ctxt, n.Xoffset, Widthptr, symdata, 0)
-		s.WriteInt(Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(i)))
+		s.WriteAddr(base.Ctxt, n.Xoffset, Widthptr, symdata, 0)
+		s.WriteInt(base.Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(i)))
 
 	default:
-		Fatalf("litsym unhandled OLITERAL %v", c)
+		base.Fatalf("litsym unhandled OLITERAL %v", c)
 	}
 }

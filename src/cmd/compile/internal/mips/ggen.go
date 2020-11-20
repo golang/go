@@ -5,6 +5,7 @@
 package mips
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
@@ -18,7 +19,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	}
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, gc.Ctxt.FixedFrameSize()+off+i)
+			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.FixedFrameSize()+off+i)
 		}
 	} else {
 		//fmt.Printf("zerorange frame:%v, lo: %v, hi:%v \n", frame ,lo, hi)
@@ -28,7 +29,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 		//	MOVW	R0, (Widthptr)r1
 		//	ADD 	$Widthptr, r1
 		//	BNE		r1, r2, loop
-		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-4, obj.TYPE_REG, mips.REGRT1, 0)
+		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-4, obj.TYPE_REG, mips.REGRT1, 0)
 		p.Reg = mips.REGSP
 		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
 		p.Reg = mips.REGRT1

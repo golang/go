@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -50,7 +51,7 @@ type Order struct {
 // Order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *Node) {
-	if Flag.W > 1 {
+	if base.Flag.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
@@ -181,7 +182,7 @@ func (o *Order) safeExpr(n *Node) *Node {
 		return typecheck(a, ctxExpr)
 
 	default:
-		Fatalf("order.safeExpr %v", n.Op)
+		base.Fatalf("order.safeExpr %v", n.Op)
 		return nil // not reached
 	}
 }
@@ -210,7 +211,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		var s InitSchedule
 		s.staticassign(vstat, n)
 		if s.out != nil {
-			Fatalf("staticassign of const generated code: %+v", n)
+			base.Fatalf("staticassign of const generated code: %+v", n)
 		}
 		vstat = typecheck(vstat, ctxExpr)
 		return vstat
@@ -323,7 +324,7 @@ func (o *Order) stmtList(l Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []*Node) {
-	if Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || instrumenting {
 		return
 	}
 
@@ -384,7 +385,7 @@ func orderMakeSliceCopy(s []*Node) {
 
 // edge inserts coverage instrumentation for libfuzzer.
 func (o *Order) edge() {
-	if Debug.Libfuzzer == 0 {
+	if base.Debug.Libfuzzer == 0 {
 		return
 	}
 
@@ -450,7 +451,7 @@ func (o *Order) init(n *Node) {
 		// For concurrency safety, don't mutate potentially shared nodes.
 		// First, ensure that no work is required here.
 		if n.Ninit.Len() > 0 {
-			Fatalf("order.init shared node with ninit")
+			base.Fatalf("order.init shared node with ninit")
 		}
 		return
 	}
@@ -463,7 +464,7 @@ func (o *Order) init(n *Node) {
 func (o *Order) call(n *Node) {
 	if n.Ninit.Len() > 0 {
 		// Caller should have already called o.init(n).
-		Fatalf("%v with unexpected ninit", n.Op)
+		base.Fatalf("%v with unexpected ninit", n.Op)
 	}
 
 	// Builtin functions.
@@ -526,7 +527,7 @@ func (o *Order) call(n *Node) {
 func (o *Order) mapAssign(n *Node) {
 	switch n.Op {
 	default:
-		Fatalf("order.mapAssign %v", n.Op)
+		base.Fatalf("order.mapAssign %v", n.Op)
 
 	case OAS, OASOP:
 		if n.Left.Op == OINDEXMAP {
@@ -582,7 +583,7 @@ func (o *Order) stmt(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("order.stmt %v", n.Op)
+		base.Fatalf("order.stmt %v", n.Op)
 
 	case OVARKILL, OVARLIVE, OINLMARK:
 		o.out = append(o.out, n)
@@ -659,7 +660,7 @@ func (o *Order) stmt(n *Node) {
 			_ = mapKeyReplaceStrConv(r.Right)
 			r.Right = o.mapKeyTemp(r.Left.Type, r.Right)
 		default:
-			Fatalf("order.stmt: %v", r.Op)
+			base.Fatalf("order.stmt: %v", r.Op)
 		}
 
 		o.okAs2(n)
@@ -776,7 +777,7 @@ func (o *Order) stmt(n *Node) {
 		orderBody := true
 		switch n.Type.Etype {
 		default:
-			Fatalf("order.stmt range %v", n.Type)
+			base.Fatalf("order.stmt range %v", n.Type)
 
 		case TARRAY, TSLICE:
 			if n.List.Len() < 2 || n.List.Second().isBlank() {
@@ -843,7 +844,7 @@ func (o *Order) stmt(n *Node) {
 
 		for _, n2 := range n.List.Slice() {
 			if n2.Op != OCASE {
-				Fatalf("order select case %v", n2.Op)
+				base.Fatalf("order select case %v", n2.Op)
 			}
 			r := n2.Left
 			setlineno(n2)
@@ -851,7 +852,7 @@ func (o *Order) stmt(n *Node) {
 			// Append any new body prologue to ninit.
 			// The next loop will insert ninit into nbody.
 			if n2.Ninit.Len() != 0 {
-				Fatalf("order select ninit")
+				base.Fatalf("order select ninit")
 			}
 			if r == nil {
 				continue
@@ -859,7 +860,7 @@ func (o *Order) stmt(n *Node) {
 			switch r.Op {
 			default:
 				Dump("select case", r)
-				Fatalf("unknown op in select %v", r.Op)
+				base.Fatalf("unknown op in select %v", r.Op)
 
 			// If this is case x := <-ch or case x, y := <-ch, the case has
 			// the ODCL nodes to declare x and y. We want to delay that
@@ -881,7 +882,7 @@ func (o *Order) stmt(n *Node) {
 
 				if r.Ninit.Len() != 0 {
 					dumplist("ninit", r.Ninit)
-					Fatalf("ninit on select recv")
+					base.Fatalf("ninit on select recv")
 				}
 
 				// case x = <-c
@@ -943,7 +944,7 @@ func (o *Order) stmt(n *Node) {
 			case OSEND:
 				if r.Ninit.Len() != 0 {
 					dumplist("ninit", r.Ninit)
-					Fatalf("ninit on select send")
+					base.Fatalf("ninit on select send")
 				}
 
 				// case c <- x
@@ -998,7 +999,7 @@ func (o *Order) stmt(n *Node) {
 	// For now just clean all the temporaries at the end.
 	// In practice that's fine.
 	case OSWITCH:
-		if Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
+		if base.Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
 			// Add empty "default:" case for instrumentation.
 			n.List.Append(nod(OCASE, nil, nil))
 		}
@@ -1007,7 +1008,7 @@ func (o *Order) stmt(n *Node) {
 		n.Left = o.expr(n.Left, nil)
 		for _, ncas := range n.List.Slice() {
 			if ncas.Op != OCASE {
-				Fatalf("order switch case %v", ncas.Op)
+				base.Fatalf("order switch case %v", ncas.Op)
 			}
 			o.exprListInPlace(ncas.List)
 			orderBlock(&ncas.Nbody, o.free)
@@ -1017,13 +1018,13 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 	}
 
-	lineno = lno
+	base.Pos = lno
 }
 
 func hasDefaultCase(n *Node) bool {
 	for _, ncas := range n.List.Slice() {
 		if ncas.Op != OCASE {
-			Fatalf("expected case, found %v", ncas.Op)
+			base.Fatalf("expected case, found %v", ncas.Op)
 		}
 		if ncas.List.Len() == 0 {
 			return true
@@ -1330,7 +1331,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		var dynamics []*Node
 		for _, r := range entries {
 			if r.Op != OKEY {
-				Fatalf("OMAPLIT entry not OKEY: %v\n", r)
+				base.Fatalf("OMAPLIT entry not OKEY: %v\n", r)
 			}
 
 			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
@@ -1369,7 +1370,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 	}
 
-	lineno = lno
+	base.Pos = lno
 	return n
 }
 

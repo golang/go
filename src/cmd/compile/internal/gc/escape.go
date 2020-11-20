@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -180,7 +181,7 @@ func escFmt(n *Node, short bool) string {
 func escapeFuncs(fns []*Node, recursive bool) {
 	for _, fn := range fns {
 		if fn.Op != ODCLFUNC {
-			Fatalf("unexpected node: %v", fn)
+			base.Fatalf("unexpected node: %v", fn)
 		}
 	}
 
@@ -202,10 +203,10 @@ func escapeFuncs(fns []*Node, recursive bool) {
 
 func (e *Escape) initFunc(fn *Node) {
 	if fn.Op != ODCLFUNC || fn.Esc != EscFuncUnknown {
-		Fatalf("unexpected node: %v", fn)
+		base.Fatalf("unexpected node: %v", fn)
 	}
 	fn.Esc = EscFuncPlanned
-	if Flag.LowerM > 3 {
+	if base.Flag.LowerM > 3 {
 		Dump("escAnalyze", fn)
 	}
 
@@ -279,18 +280,18 @@ func (e *Escape) stmt(n *Node) {
 
 	lno := setlineno(n)
 	defer func() {
-		lineno = lno
+		base.Pos = lno
 	}()
 
-	if Flag.LowerM > 2 {
-		fmt.Printf("%v:[%d] %v stmt: %v\n", linestr(lineno), e.loopDepth, funcSym(e.curfn), n)
+	if base.Flag.LowerM > 2 {
+		fmt.Printf("%v:[%d] %v stmt: %v\n", base.FmtPos(base.Pos), e.loopDepth, funcSym(e.curfn), n)
 	}
 
 	e.stmts(n.Ninit)
 
 	switch n.Op {
 	default:
-		Fatalf("unexpected stmt: %v", n)
+		base.Fatalf("unexpected stmt: %v", n)
 
 	case ODCLCONST, ODCLTYPE, OEMPTY, OFALL, OINLMARK:
 		// nop
@@ -310,16 +311,16 @@ func (e *Escape) stmt(n *Node) {
 	case OLABEL:
 		switch asNode(n.Sym.Label) {
 		case nonlooping:
-			if Flag.LowerM > 2 {
-				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
+			if base.Flag.LowerM > 2 {
+				fmt.Printf("%v:%v non-looping label\n", base.FmtPos(base.Pos), n)
 			}
 		case looping:
-			if Flag.LowerM > 2 {
-				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
+			if base.Flag.LowerM > 2 {
+				fmt.Printf("%v: %v looping label\n", base.FmtPos(base.Pos), n)
 			}
 			e.loopDepth++
 		default:
-			Fatalf("label missing tag")
+			base.Fatalf("label missing tag")
 		}
 		n.Sym.Label = nil
 
@@ -460,7 +461,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 
 	lno := setlineno(n)
 	defer func() {
-		lineno = lno
+		base.Pos = lno
 	}()
 
 	uintptrEscapesHack := k.uintptrEscapesHack
@@ -474,7 +475,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("unexpected expr: %v", n)
+		base.Fatalf("unexpected expr: %v", n)
 
 	case OLITERAL, ONIL, OGETG, OCLOSUREVAR, OTYPE, OMETHEXPR:
 		// nop
@@ -653,7 +654,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 // for conversions from an unsafe.Pointer.
 func (e *Escape) unsafeValue(k EscHole, n *Node) {
 	if n.Type.Etype != TUINTPTR {
-		Fatalf("unexpected type %v for %v", n.Type, n)
+		base.Fatalf("unexpected type %v for %v", n.Type, n)
 	}
 
 	e.stmts(n.Ninit)
@@ -711,7 +712,7 @@ func (e *Escape) addr(n *Node) EscHole {
 
 	switch n.Op {
 	default:
-		Fatalf("unexpected addr: %v", n)
+		base.Fatalf("unexpected addr: %v", n)
 	case ONAME:
 		if n.Class() == PEXTERN {
 			break
@@ -752,8 +753,8 @@ func (e *Escape) addrs(l Nodes) []EscHole {
 func (e *Escape) assign(dst, src *Node, why string, where *Node) {
 	// Filter out some no-op assignments for escape analysis.
 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
-	if ignore && Flag.LowerM != 0 {
-		Warnl(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
+	if ignore && base.Flag.LowerM != 0 {
+		base.WarnfAt(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
 	}
 
 	k := e.addr(dst)
@@ -797,7 +798,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 
 	switch call.Op {
 	default:
-		Fatalf("unexpected call op: %v", call.Op)
+		base.Fatalf("unexpected call op: %v", call.Op)
 
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		fixVariadicCall(call)
@@ -936,7 +937,7 @@ func (e *Escape) tagHole(ks []EscHole, fn *Node, param *types.Field) EscHole {
 func (e *Escape) inMutualBatch(fn *Node) bool {
 	if fn.Name.Defn != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if fn.Name.Defn.Esc == EscFuncUnknown {
-			Fatalf("graph inconsistency")
+			base.Fatalf("graph inconsistency")
 		}
 		return true
 	}
@@ -964,9 +965,9 @@ type EscNote struct {
 
 func (k EscHole) note(where *Node, why string) EscHole {
 	if where == nil || why == "" {
-		Fatalf("note: missing where/why")
+		base.Fatalf("note: missing where/why")
 	}
-	if Flag.LowerM >= 2 || logopt.Enabled() {
+	if base.Flag.LowerM >= 2 || logopt.Enabled() {
 		k.notes = &EscNote{
 			next:  k.notes,
 			where: where,
@@ -979,7 +980,7 @@ func (k EscHole) note(where *Node, why string) EscHole {
 func (k EscHole) shift(delta int) EscHole {
 	k.derefs += delta
 	if k.derefs < -1 {
-		Fatalf("derefs underflow: %v", k.derefs)
+		base.Fatalf("derefs underflow: %v", k.derefs)
 	}
 	return k
 }
@@ -1016,7 +1017,7 @@ func (e *Escape) teeHole(ks ...EscHole) EscHole {
 		// *ltmp" and "l2 = ltmp" and return "ltmp = &_"
 		// instead.
 		if k.derefs < 0 {
-			Fatalf("teeHole: negative derefs")
+			base.Fatalf("teeHole: negative derefs")
 		}
 
 		e.flow(k, loc)
@@ -1054,7 +1055,7 @@ func canonicalNode(n *Node) *Node {
 	if n != nil && n.Op == ONAME && n.Name.IsClosureVar() {
 		n = n.Name.Defn
 		if n.Name.IsClosureVar() {
-			Fatalf("still closure var")
+			base.Fatalf("still closure var")
 		}
 	}
 
@@ -1063,10 +1064,10 @@ func canonicalNode(n *Node) *Node {
 
 func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 	if e.curfn == nil {
-		Fatalf("e.curfn isn't set")
+		base.Fatalf("e.curfn isn't set")
 	}
 	if n != nil && n.Type != nil && n.Type.NotInHeap() {
-		yyerrorl(n.Pos, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type)
+		base.ErrorfAt(n.Pos, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type)
 	}
 
 	n = canonicalNode(n)
@@ -1079,11 +1080,11 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {
 		if n.Op == ONAME && n.Name.Curfn != e.curfn {
-			Fatalf("curfn mismatch: %v != %v", n.Name.Curfn, e.curfn)
+			base.Fatalf("curfn mismatch: %v != %v", n.Name.Curfn, e.curfn)
 		}
 
 		if n.HasOpt() {
-			Fatalf("%v already has a location", n)
+			base.Fatalf("%v already has a location", n)
 		}
 		n.SetOpt(loc)
 
@@ -1112,9 +1113,9 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
 		return
 	}
 	if dst.escapes && k.derefs < 0 { // dst = &src
-		if Flag.LowerM >= 2 || logopt.Enabled() {
-			pos := linestr(src.n.Pos)
-			if Flag.LowerM >= 2 {
+		if base.Flag.LowerM >= 2 || logopt.Enabled() {
+			pos := base.FmtPos(src.n.Pos)
+			if base.Flag.LowerM >= 2 {
 				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
 			}
 			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
@@ -1214,9 +1215,9 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// that value flow for tagging the function
 			// later.
 			if l.isName(PPARAM) {
-				if (logopt.Enabled() || Flag.LowerM >= 2) && !l.escapes {
-					if Flag.LowerM >= 2 {
-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), derefs)
+				if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.escapes {
+					if base.Flag.LowerM >= 2 {
+						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos), l.n, e.explainLoc(root), derefs)
 					}
 					explanation := e.explainPath(root, l)
 					if logopt.Enabled() {
@@ -1231,9 +1232,9 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 			// outlives it, then l needs to be heap
 			// allocated.
 			if addressOf && !l.escapes {
-				if logopt.Enabled() || Flag.LowerM >= 2 {
-					if Flag.LowerM >= 2 {
-						fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
+				if logopt.Enabled() || base.Flag.LowerM >= 2 {
+					if base.Flag.LowerM >= 2 {
+						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos), l.n)
 					}
 					explanation := e.explainPath(root, l)
 					if logopt.Enabled() {
@@ -1265,12 +1266,12 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
 // explainPath prints an explanation of how src flows to the walk root.
 func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
 	visited := make(map[*EscLocation]bool)
-	pos := linestr(src.n.Pos)
+	pos := base.FmtPos(src.n.Pos)
 	var explanation []*logopt.LoggedOpt
 	for {
 		// Prevent infinite loop.
 		if visited[src] {
-			if Flag.LowerM >= 2 {
+			if base.Flag.LowerM >= 2 {
 				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
 			}
 			break
@@ -1279,7 +1280,7 @@ func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
 		dst := src.dst
 		edge := &dst.edges[src.dstEdgeIdx]
 		if edge.src != src {
-			Fatalf("path inconsistency: %v != %v", edge.src, src)
+			base.Fatalf("path inconsistency: %v != %v", edge.src, src)
 		}
 
 		explanation = e.explainFlow(pos, dst, src, edge.derefs, edge.notes, explanation)
@@ -1298,7 +1299,7 @@ func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, n
 	if derefs >= 0 {
 		ops = strings.Repeat("*", derefs)
 	}
-	print := Flag.LowerM >= 2
+	print := base.Flag.LowerM >= 2
 
 	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
 	if print {
@@ -1316,7 +1317,7 @@ func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, n
 
 	for note := notes; note != nil; note = note.next {
 		if print {
-			fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, linestr(note.where.Pos))
+			fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, base.FmtPos(note.where.Pos))
 		}
 		if logopt.Enabled() {
 			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos, "escflow", "escape", e.curfn.funcname(),
@@ -1394,7 +1395,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
 // containsClosure reports whether c is a closure contained within f.
 func containsClosure(f, c *Node) bool {
 	if f.Op != ODCLFUNC || c.Op != ODCLFUNC {
-		Fatalf("bad containsClosure: %v, %v", f, c)
+		base.Fatalf("bad containsClosure: %v, %v", f, c)
 	}
 
 	// Common case.
@@ -1452,8 +1453,8 @@ func (e *Escape) finish(fns []*Node) {
 
 		if loc.escapes {
 			if n.Op != ONAME {
-				if Flag.LowerM != 0 {
-					Warnl(n.Pos, "%S escapes to heap", n)
+				if base.Flag.LowerM != 0 {
+					base.WarnfAt(n.Pos, "%S escapes to heap", n)
 				}
 				if logopt.Enabled() {
 					logopt.LogOpt(n.Pos, "escape", "escape", e.curfn.funcname())
@@ -1462,8 +1463,8 @@ func (e *Escape) finish(fns []*Node) {
 			n.Esc = EscHeap
 			addrescapes(n)
 		} else {
-			if Flag.LowerM != 0 && n.Op != ONAME {
-				Warnl(n.Pos, "%S does not escape", n)
+			if base.Flag.LowerM != 0 && n.Op != ONAME {
+				base.WarnfAt(n.Pos, "%S does not escape", n)
 			}
 			n.Esc = EscNone
 			if loc.transient {
@@ -1516,7 +1517,7 @@ func (l *EscLeaks) add(i, derefs int) {
 func (l *EscLeaks) set(i, derefs int) {
 	v := derefs + 1
 	if v < 0 {
-		Fatalf("invalid derefs count: %v", derefs)
+		base.Fatalf("invalid derefs count: %v", derefs)
 	}
 	if v > math.MaxUint8 {
 		v = math.MaxUint8

@@ -6,8 +6,11 @@
 
 package gc
 
-import "runtime"
+import (
+	"cmd/compile/internal/base"
+	"runtime"
+)
 
 func startMutexProfiling() {
-	Fatalf("mutex profiling unavailable in version %v", runtime.Version())
+	base.Fatalf("mutex profiling unavailable in version %v", runtime.Version())
 }

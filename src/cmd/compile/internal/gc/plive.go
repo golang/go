@@ -15,6 +15,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -226,7 +227,7 @@ func getvariables(fn *Node) ([]*Node, map[*Node]int32) {
 
 func (lv *Liveness) initcache() {
 	if lv.cache.initialized {
-		Fatalf("liveness cache initialized twice")
+		base.Fatalf("liveness cache initialized twice")
 		return
 	}
 	lv.cache.initialized = true
@@ -341,7 +342,7 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 	case *Node:
 		return a, e
 	default:
-		Fatalf("weird aux: %s", v.LongString())
+		base.Fatalf("weird aux: %s", v.LongString())
 		return nil, e
 	}
 }
@@ -406,7 +407,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // on future calls with the same type t.
 func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
+		base.Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
 	if !t.HasPointers() {
 		// Note: this case ensures that pointers to go:notinheap types
@@ -417,14 +418,14 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	switch t.Etype {
 	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		if off&int64(Widthptr-1) != 0 {
-			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(Widthptr))) // pointer
 
 	case TSTRING:
 		// struct { byte *str; intgo len; }
 		if off&int64(Widthptr-1) != 0 {
-			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(Widthptr))) //pointer in first slot
 
@@ -433,7 +434,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
 		if off&int64(Widthptr-1) != 0 {
-			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
 		// The first word of an interface is a pointer, but we don't
 		// treat it as such.
@@ -452,7 +453,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	case TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
 		if off&int64(Widthptr-1) != 0 {
-			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+			base.Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
 		}
 		bv.Set(int32(off / int64(Widthptr))) // pointer in first slot (BitsPointer)
 
@@ -473,7 +474,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		}
 
 	default:
-		Fatalf("onebitwalktype1: unexpected type, %v", t)
+		base.Fatalf("onebitwalktype1: unexpected type, %v", t)
 	}
 }
 
@@ -509,7 +510,7 @@ func allUnsafe(f *ssa.Func) bool {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	return Flag.CompilingRuntime || f.NoSplit
+	return base.Flag.CompilingRuntime || f.NoSplit
 }
 
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
@@ -791,7 +792,7 @@ func (lv *Liveness) epilogue() {
 			if n.Class() == PPARAMOUT {
 				if n.Name.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
-					Fatalf("variable %v both output param and heap output param", n)
+					base.Fatalf("variable %v both output param and heap output param", n)
 				}
 				if n.Name.Param.Heapaddr != nil {
 					// If this variable moved to the heap, then
@@ -816,7 +817,7 @@ func (lv *Liveness) epilogue() {
 				livedefer.Set(int32(i))
 				// It was already marked as Needzero when created.
 				if !n.Name.Needzero() {
-					Fatalf("all pointer-containing defer arg slots should have Needzero set")
+					base.Fatalf("all pointer-containing defer arg slots should have Needzero set")
 				}
 			}
 		}
@@ -878,7 +879,7 @@ func (lv *Liveness) epilogue() {
 
 		if b == lv.f.Entry {
 			if index != 0 {
-				Fatalf("bad index for entry point: %v", index)
+				base.Fatalf("bad index for entry point: %v", index)
 			}
 
 			// Check to make sure only input variables are live.
@@ -889,7 +890,7 @@ func (lv *Liveness) epilogue() {
 				if n.Class() == PPARAM {
 					continue // ok
 				}
-				Fatalf("bad live variable at entry of %v: %L", lv.fn.Func.Nname, n)
+				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func.Nname, n)
 			}
 
 			// Record live variables.
@@ -966,7 +967,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
-	if Flag.Live == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
+	if base.Flag.Live == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
 		return
 	}
 	if !(v == nil || v.Op.IsCall()) {
@@ -1002,7 +1003,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 		}
 	}
 
-	Warnl(pos, s)
+	base.WarnfAt(pos, s)
 }
 
 func (lv *Liveness) printbvec(printed bool, name string, live bvec) bool {
@@ -1088,7 +1089,7 @@ func (lv *Liveness) printDebug() {
 
 		if b == lv.f.Entry {
 			live := lv.stackMaps[0]
-			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
+			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func.Nname.Pos))
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1105,7 +1106,7 @@ func (lv *Liveness) printDebug() {
 		}
 
 		for _, v := range b.Values {
-			fmt.Printf("(%s) %v\n", linestr(v.Pos), v.LongString())
+			fmt.Printf("(%s) %v\n", base.FmtPos(v.Pos), v.LongString())
 
 			pcdata := lv.livenessMap.Get(v)
 
@@ -1214,7 +1215,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// These symbols will be added to Ctxt.Data by addGCLocals
 	// after parallel compilation is done.
 	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
-		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
+		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
 			lsym.P = tmpSym.P
 			lsym.Set(obj.AttrContentAddressable, true)
 		})
@@ -1235,7 +1236,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	lv.prologue()
 	lv.solve()
 	lv.epilogue()
-	if Flag.Live > 0 {
+	if base.Flag.Live > 0 {
 		lv.showlive(nil, lv.stackMaps[0])
 		for _, b := range f.Blocks {
 			for _, val := range b.Values {
@@ -1245,7 +1246,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 			}
 		}
 	}
-	if Flag.Live >= 2 {
+	if base.Flag.Live >= 2 {
 		lv.printDebug()
 	}
 
