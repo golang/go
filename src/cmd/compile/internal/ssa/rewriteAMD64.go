@@ -4326,7 +4326,7 @@ func rewriteValueAMD64_OpAMD64BTCLconst_0(v *Value) bool {
 		return true
 	}
 	// match: (BTCLconst [c] (MOVLconst [d]))
-	// result: (MOVLconst [d^(1<<uint32(c))])
+	// result: (MOVLconst [int64(int32(d^(1<<uint32(c))))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -4335,7 +4335,7 @@ func rewriteValueAMD64_OpAMD64BTCLconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = d ^ (1 << uint32(c))
+		v.AuxInt = int64(int32(d ^ (1 << uint32(c))))
 		return true
 	}
 	return false
@@ -4825,7 +4825,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
 		return true
 	}
 	// match: (BTRLconst [c] (MOVLconst [d]))
-	// result: (MOVLconst [d&^(1<<uint32(c))])
+	// result: (MOVLconst [int64(int32(d&^(1<<uint32(c))))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -4834,7 +4834,7 @@ func rewriteValueAMD64_OpAMD64BTRLconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = d &^ (1 << uint32(c))
+		v.AuxInt = int64(int32(d &^ (1 << uint32(c))))
 		return true
 	}
 	return false
@@ -5181,7 +5181,7 @@ func rewriteValueAMD64_OpAMD64BTSLconst_0(v *Value) bool {
 		return true
 	}
 	// match: (BTSLconst [c] (MOVLconst [d]))
-	// result: (MOVLconst [d|(1<<uint32(c))])
+	// result: (MOVLconst [int64(int32(d|(1<<uint32(c))))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -5190,7 +5190,7 @@ func rewriteValueAMD64_OpAMD64BTSLconst_0(v *Value) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = d | (1 << uint32(c))
+		v.AuxInt = int64(int32(d | (1 << uint32(c))))
 		return true
 	}
 	return false

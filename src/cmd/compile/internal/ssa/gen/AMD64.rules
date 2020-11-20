@@ -1465,11 +1465,11 @@
 (NOTQ (MOVQconst [c])) -> (MOVQconst [^c])
 (NOTL (MOVLconst [c])) -> (MOVLconst [^c])
 (BTSQconst [c] (MOVQconst [d])) -> (MOVQconst [d|(1<<uint32(c))])
-(BTSLconst [c] (MOVLconst [d])) -> (MOVLconst [d|(1<<uint32(c))])
+(BTSLconst [c] (MOVLconst [d])) -> (MOVLconst [int64(int32(d|(1<<uint32(c))))])
 (BTRQconst [c] (MOVQconst [d])) -> (MOVQconst [d&^(1<<uint32(c))])
-(BTRLconst [c] (MOVLconst [d])) -> (MOVLconst [d&^(1<<uint32(c))])
+(BTRLconst [c] (MOVLconst [d])) -> (MOVLconst [int64(int32(d&^(1<<uint32(c))))])
 (BTCQconst [c] (MOVQconst [d])) -> (MOVQconst [d^(1<<uint32(c))])
-(BTCLconst [c] (MOVLconst [d])) -> (MOVLconst [d^(1<<uint32(c))])
+(BTCLconst [c] (MOVLconst [d])) -> (MOVLconst [int64(int32(d^(1<<uint32(c))))])
 
 // generic simplifications
 // TODO: more of this
