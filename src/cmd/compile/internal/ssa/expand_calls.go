@@ -247,7 +247,7 @@ func expandCalls(f *Func) {
 			// i.e., the struct select is generated and remains in because it is not applied to an actual structure.
 			// The OpLoad was created to load the single field of the IData
 			// This case removes that StructSelect.
-			if leafType != selector.Type {
+			if leafType != selector.Type && !selector.Type.IsEmptyInterface() { // empty interface for #42727
 				f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
 			}
 			leaf.copyOf(selector)
