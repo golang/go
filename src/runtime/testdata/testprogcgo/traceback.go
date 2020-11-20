@@ -12,6 +12,7 @@ package main
 #cgo CFLAGS: -g -O0
 
 // Defined in traceback_c.c.
+extern int crashInGo;
 int tracebackF1(void);
 void cgoTraceback(void* parg);
 void cgoSymbolizer(void* parg);
@@ -25,9 +26,29 @@ import (
 
 func init() {
 	register("CrashTraceback", CrashTraceback)
+	register("CrashTracebackGo", CrashTracebackGo)
 }
 
 func CrashTraceback() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.cgoTraceback), nil, unsafe.Pointer(C.cgoSymbolizer))
 	C.tracebackF1()
+}
+
+func CrashTracebackGo() {
+	C.crashInGo = 1
+	CrashTraceback()
+}
+
+//export h1
+func h1() {
+	h2()
+}
+
+func h2() {
+	h3()
+}
+
+func h3() {
+	var x *int
+	*x = 0
 }
