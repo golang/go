@@ -267,6 +267,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	}
 	if mask&OmitModCommonFlags == 0 {
 		base.AddModCommonFlags(&cmd.Flag)
+	} else {
+		// Add the overlay flag even when we don't add the rest of the mod common flags.
+		// This only affects 'go get' in GOPATH mode, but add the flag anyway for
+		// consistency.
+		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
@@ -278,8 +283,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-
-	cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")

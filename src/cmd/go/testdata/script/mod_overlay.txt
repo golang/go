@@ -32,12 +32,18 @@ cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
 cd $WORK/gopath/src/overlay-sum-used
 ! go get -d .
 stderr 'SECURITY ERROR'
+! go mod verify
+stderr 'SECURITY ERROR'
 go get -d -overlay overlay.json .
+go mod verify -overlay overlay.json
 # Overlaid go.sum is not rewritten.
 # Copy an incomplete file to the overlay file, and expect an error
 # attempting to update the file
 cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
 ! go get -d -overlay overlay.json .
+stderr 'overlaid files can''t be opened for write'
+cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+! go mod tidy -overlay overlay.json
 stderr 'overlaid files can''t be opened for write'
 cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
 
