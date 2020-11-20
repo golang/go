@@ -188,6 +188,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			{Type: obj.TYPE_REG, Reg: r2},
 		})
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+	case ssa.OpS390XRISBGZ:
+		r1 := v.Reg()
+		r2 := v.Args[0].Reg()
+		i := v.Aux.(s390x.RotateParams)
+		p := s.Prog(v.Op.Asm())
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
+		p.SetRestArgs([]obj.Addr{
+			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
+			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
+			{Type: obj.TYPE_REG, Reg: r2},
+		})
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
 	case ssa.OpS390XADD, ssa.OpS390XADDW,
 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
 		ssa.OpS390XAND, ssa.OpS390XANDW,
@@ -360,7 +372,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XSLDconst, ssa.OpS390XSLWconst,
 		ssa.OpS390XSRDconst, ssa.OpS390XSRWconst,
 		ssa.OpS390XSRADconst, ssa.OpS390XSRAWconst,
-		ssa.OpS390XRLLGconst, ssa.OpS390XRLLconst:
+		ssa.OpS390XRLLconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt

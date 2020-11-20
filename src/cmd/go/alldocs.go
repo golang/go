@@ -49,10 +49,11 @@
 // 	modules         modules, module versions, and more
 // 	module-get      module-aware go get
 // 	module-auth     module authentication using go.sum
-// 	module-private  module configuration for non-public modules
 // 	packages        package lists and patterns
+// 	private         configuration for downloading non-public code
 // 	testflag        testing flags
 // 	testfunc        testing functions
+// 	vcs             controlling version control with GOVCS
 //
 // Use "go help <topic>" for more information about that topic.
 //
@@ -71,7 +72,7 @@
 //
 // Usage:
 //
-// 	go build [-o output] [-i] [build flags] [packages]
+// 	go build [-o output] [build flags] [packages]
 //
 // Build compiles the packages named by the import paths,
 // along with their dependencies, but it does not install the results.
@@ -98,6 +99,7 @@
 // will be written to that directory.
 //
 // The -i flag installs the packages that are dependencies of the target.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
@@ -617,15 +619,15 @@
 // dependency should be removed entirely, downgrading or removing modules
 // depending on it as needed.
 //
-// The version suffix @latest explicitly requests the latest minor release of the
-// module named by the given path. The suffix @upgrade is like @latest but
+// The version suffix @latest explicitly requests the latest minor release of
+// the module named by the given path. The suffix @upgrade is like @latest but
 // will not downgrade a module if it is already required at a revision or
 // pre-release version newer than the latest released version. The suffix
 // @patch requests the latest patch release: the latest released version
 // with the same major and minor version numbers as the currently required
 // version. Like @upgrade, @patch will not downgrade a module already required
-// at a newer version. If the path is not already required, @upgrade and @patch
-// are equivalent to @latest.
+// at a newer version. If the path is not already required, @upgrade is
+// equivalent to @latest, and @patch is disallowed.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's
@@ -672,6 +674,17 @@
 // The second step is to download (if needed), build, and install
 // the named packages.
 //
+// The -d flag instructs get to skip this step, downloading source code
+// needed to build the named packages and their dependencies, but not
+// building or installing.
+//
+// Building and installing packages with get is deprecated. In a future release,
+// the -d flag will be enabled by default, and 'go get' will be only be used to
+// adjust dependencies of the current module. To install a package using
+// dependencies from the current module, use 'go install'. To install a package
+// ignoring the current module, use 'go install' with an @version suffix like
+// "@latest" after each argument.
+//
 // If an argument names a module but not a package (because there is no
 // Go source code in the module's root directory), then the install step
 // is skipped for that argument, instead of causing a build failure.
@@ -682,10 +695,6 @@
 // the module versions. For example, 'go get golang.org/x/perf/cmd/...'
 // adds the latest golang.org/x/perf and then installs the commands in that
 // latest version.
-//
-// The -d flag instructs get to download the source code needed to build
-// the named packages, including downloading necessary dependencies,
-// but not to build and install them.
 //
 // With no package arguments, 'go get' applies to Go package in the
 // current directory, if any. In particular, 'go get -u' and
@@ -709,7 +718,7 @@
 //
 // Usage:
 //
-// 	go install [-i] [build flags] [packages]
+// 	go install [build flags] [packages]
 //
 // Install compiles and installs the packages named by the import paths.
 //
@@ -750,6 +759,7 @@
 // other packages are built and cached but not installed.
 //
 // The -i flag installs the dependencies of the named packages as well.
+// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -1145,7 +1155,7 @@
 //
 // The -retract=version and -dropretract=version flags add and drop a
 // retraction on the given version. The version may be a single version
-// like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+// like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 // -retract=version is a no-op if that retraction already exists.
 //
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
@@ -1220,12 +1230,17 @@
 //
 // 	go mod init [module]
 //
-// Init initializes and writes a new go.mod to the current directory,
-// in effect creating a new module rooted at the current directory.
-// The file go.mod must not already exist.
-// If possible, init will guess the module path from import comments
-// (see 'go help importpath') or from version control configuration.
-// To override this guess, supply the module path as an argument.
+// Init initializes and writes a new go.mod file in the current directory, in
+// effect creating a new module rooted at the current directory. The go.mod file
+// must not already exist.
+//
+// Init accepts one optional argument, the module path for the new module. If the
+// module path argument is omitted, init will attempt to infer the module path
+// using import comments in .go files, vendoring tool configuration files (like
+// Gopkg.lock), and the current directory (if in GOPATH).
+//
+// If a configuration file for a vendoring tool is present, init will attempt to
+// import module requirements from it.
 //
 //
 // Add missing and remove unused modules
@@ -1451,6 +1466,7 @@
 // 	-i
 // 	    Install packages that are dependencies of the test.
 // 	    Do not run the test.
+// 	    The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // 	-json
 // 	    Convert test output to JSON suitable for automated processing.
@@ -1799,7 +1815,7 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched directly
 // 		or that should not be compared against the checksum database.
-// 		See 'go help module-private'.
+// 		See 'go help private'.
 // 	GOROOT
 // 		The root of the go tree.
 // 	GOSUMDB
@@ -1905,6 +1921,8 @@
 // 		If module-aware mode is disabled, GOMOD will be the empty string.
 // 	GOTOOLDIR
 // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+// 	GOVERSION
+// 		The version of the installed Go tree, as reported by runtime.Version.
 //
 //
 // File types
@@ -1976,7 +1994,7 @@
 // like in Go imports:
 //
 // 	require (
-// 		new/thing v2.3.4
+// 		new/thing/v2 v2.3.4
 // 		old/thing v1.2.3
 // 	)
 //
@@ -2869,7 +2887,7 @@
 // followed by a pipe character, indicating it is safe to fall back on any error.
 //
 // The GOPRIVATE and GONOPROXY environment variables allow bypassing
-// the proxy for selected modules. See 'go help module-private' for details.
+// the proxy for selected modules. See 'go help private' for details.
 //
 // No matter the source of the modules, the go command checks downloads against
 // known checksums, to detect unexpected changes in the content of any specific
@@ -2989,52 +3007,7 @@
 // accepted, at the cost of giving up the security guarantee of verified repeatable
 // downloads for all modules. A better way to bypass the checksum database
 // for specific modules is to use the GOPRIVATE or GONOSUMDB environment
-// variables. See 'go help module-private' for details.
-//
-// The 'go env -w' command (see 'go help env') can be used to set these variables
-// for future go command invocations.
-//
-//
-// Module configuration for non-public modules
-//
-// The go command defaults to downloading modules from the public Go module
-// mirror at proxy.golang.org. It also defaults to validating downloaded modules,
-// regardless of source, against the public Go checksum database at sum.golang.org.
-// These defaults work well for publicly available source code.
-//
-// The GOPRIVATE environment variable controls which modules the go command
-// considers to be private (not available publicly) and should therefore not use the
-// proxy or checksum database. The variable is a comma-separated list of
-// glob patterns (in the syntax of Go's path.Match) of module path prefixes.
-// For example,
-//
-// 	GOPRIVATE=*.corp.example.com,rsc.io/private
-//
-// causes the go command to treat as private any module with a path prefix
-// matching either pattern, including git.corp.example.com/xyzzy, rsc.io/private,
-// and rsc.io/private/quux.
-//
-// The GOPRIVATE environment variable may be used by other tools as well to
-// identify non-public modules. For example, an editor could use GOPRIVATE
-// to decide whether to hyperlink a package import to a godoc.org page.
-//
-// For fine-grained control over module download and validation, the GONOPROXY
-// and GONOSUMDB environment variables accept the same kind of glob list
-// and override GOPRIVATE for the specific decision of whether to use the proxy
-// and checksum database, respectively.
-//
-// For example, if a company ran a module proxy serving private modules,
-// users would configure go using:
-//
-// 	GOPRIVATE=*.corp.example.com
-// 	GOPROXY=proxy.example.com
-// 	GONOPROXY=none
-//
-// This would tell the go command and other tools that modules beginning with
-// a corp.example.com subdomain are private but that the company proxy should
-// be used for downloading both public and private modules, because
-// GONOPROXY has been set to a pattern that won't match any modules,
-// overriding GOPRIVATE.
+// variables. See 'go help private' for details.
 //
 // The 'go env -w' command (see 'go help env') can be used to set these variables
 // for future go command invocations.
@@ -3122,6 +3095,56 @@
 //
 // Directory and file names that begin with "." or "_" are ignored
 // by the go tool, as are directories named "testdata".
+//
+//
+// Configuration for downloading non-public code
+//
+// The go command defaults to downloading modules from the public Go module
+// mirror at proxy.golang.org. It also defaults to validating downloaded modules,
+// regardless of source, against the public Go checksum database at sum.golang.org.
+// These defaults work well for publicly available source code.
+//
+// The GOPRIVATE environment variable controls which modules the go command
+// considers to be private (not available publicly) and should therefore not use the
+// proxy or checksum database. The variable is a comma-separated list of
+// glob patterns (in the syntax of Go's path.Match) of module path prefixes.
+// For example,
+//
+// 	GOPRIVATE=*.corp.example.com,rsc.io/private
+//
+// causes the go command to treat as private any module with a path prefix
+// matching either pattern, including git.corp.example.com/xyzzy, rsc.io/private,
+// and rsc.io/private/quux.
+//
+// The GOPRIVATE environment variable may be used by other tools as well to
+// identify non-public modules. For example, an editor could use GOPRIVATE
+// to decide whether to hyperlink a package import to a godoc.org page.
+//
+// For fine-grained control over module download and validation, the GONOPROXY
+// and GONOSUMDB environment variables accept the same kind of glob list
+// and override GOPRIVATE for the specific decision of whether to use the proxy
+// and checksum database, respectively.
+//
+// For example, if a company ran a module proxy serving private modules,
+// users would configure go using:
+//
+// 	GOPRIVATE=*.corp.example.com
+// 	GOPROXY=proxy.example.com
+// 	GONOPROXY=none
+//
+// This would tell the go command and other tools that modules beginning with
+// a corp.example.com subdomain are private but that the company proxy should
+// be used for downloading both public and private modules, because
+// GONOPROXY has been set to a pattern that won't match any modules,
+// overriding GOPRIVATE.
+//
+// The GOPRIVATE variable is also used to define the "public" and "private"
+// patterns for the GOVCS variable; see 'go help vcs'. For that usage,
+// GOPRIVATE applies even in GOPATH mode. In that case, it matches import paths
+// instead of module paths.
+//
+// The 'go env -w' command (see 'go help env') can be used to set these variables
+// for future go command invocations.
 //
 //
 // Testing flags
@@ -3414,6 +3437,79 @@
 // declaration, and no test or benchmark functions.
 //
 // See the documentation of the testing package for more information.
+//
+//
+// Controlling version control with GOVCS
+//
+// The 'go get' command can run version control commands like git
+// to download imported code. This functionality is critical to the decentralized
+// Go package ecosystem, in which code can be imported from any server,
+// but it is also a potential security problem, if a malicious server finds a
+// way to cause the invoked version control command to run unintended code.
+//
+// To balance the functionality and security concerns, the 'go get' command
+// by default will only use git and hg to download code from public servers.
+// But it will use any known version control system (bzr, fossil, git, hg, svn)
+// to download code from private servers, defined as those hosting packages
+// matching the GOPRIVATE variable (see 'go help private'). The rationale behind
+// allowing only Git and Mercurial is that these two systems have had the most
+// attention to issues of being run as clients of untrusted servers. In contrast,
+// Bazaar, Fossil, and Subversion have primarily been used in trusted,
+// authenticated environments and are not as well scrutinized as attack surfaces.
+//
+// The version control command restrictions only apply when using direct version
+// control access to download code. When downloading modules from a proxy,
+// 'go get' uses the proxy protocol instead, which is always permitted.
+// By default, the 'go get' command uses the Go module mirror (proxy.golang.org)
+// for public packages and only falls back to version control for private
+// packages or when the mirror refuses to serve a public package (typically for
+// legal reasons). Therefore, clients can still access public code served from
+// Bazaar, Fossil, or Subversion repositories by default, because those downloads
+// use the Go module mirror, which takes on the security risk of running the
+// version control commands, using a custom sandbox.
+//
+// The GOVCS variable can be used to change the allowed version control systems
+// for specific packages (identified by a module or import path).
+// The GOVCS variable applies both when using modules and when using GOPATH.
+// When using modules, the patterns match against the module path.
+// When using GOPATH, the patterns match against the import path
+// corresponding to the root of the version control repository.
+//
+// The general form of the GOVCS setting is a comma-separated list of
+// pattern:vcslist rules. The pattern is a glob pattern that must match
+// one or more leading elements of the module or import path. The vcslist
+// is a pipe-separated list of allowed version control commands, or "all"
+// to allow use of any known command, or "off" to allow nothing.
+// The earliest matching pattern in the list applies, even if later patterns
+// might also match.
+//
+// For example, consider:
+//
+// 	GOVCS=github.com:git,evil.com:off,*:git|hg
+//
+// With this setting, code with an module or import path beginning with
+// github.com/ can only use git; paths on evil.com cannot use any version
+// control command, and all other paths (* matches everything) can use
+// only git or hg.
+//
+// The special patterns "public" and "private" match public and private
+// module or import paths. A path is private if it matches the GOPRIVATE
+// variable; otherwise it is public.
+//
+// If no rules in the GOVCS variable match a particular module or import path,
+// the 'go get' command applies its default rule, which can now be summarized
+// in GOVCS notation as 'public:git|hg,private:all'.
+//
+// To allow unfettered use of any version control system for any package, use:
+//
+// 	GOVCS=*:all
+//
+// To disable all use of version control, use:
+//
+// 	GOVCS=*:off
+//
+// The 'go env -w' command (see 'go help env') can be used to set the GOVCS
+// variable for future go command invocations.
 //
 //
 package main

@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # By default, 'go get' should ignore tests
 cp go.mod.empty go.mod
-go get m/a
+go get -d m/a
 ! grep rsc.io/quote go.mod
 
 # 'go get -t' should consider test dependencies of the named package.

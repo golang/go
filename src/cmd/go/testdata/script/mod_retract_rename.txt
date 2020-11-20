@@ -10,7 +10,7 @@ go list -m -u -f '{{with .Retracted}}retracted{{end}}' example.com/retract/renam
 
 # 'go get' should warn about the retracted version.
 go get -d
-stderr '^go: warning: example.com/retract/rename@v1.0.0-bad is retracted: bad$'
+stderr '^go: warning: example.com/retract/rename@v1.0.0-bad: retracted by module author: bad$'
 
 # We can't upgrade, since this latest version has a different module path.
 ! go get -d example.com/retract/rename

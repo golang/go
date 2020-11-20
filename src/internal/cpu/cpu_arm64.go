@@ -29,6 +29,7 @@ func doinit() {
 		{Name: "sha2", Feature: &ARM64.HasSHA2},
 		{Name: "crc32", Feature: &ARM64.HasCRC32},
 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
+		{Name: "cpuid", Feature: &ARM64.HasCPUID},
 		{Name: "isNeoverseN1", Feature: &ARM64.IsNeoverseN1},
 		{Name: "isZeus", Feature: &ARM64.IsZeus},
 	}

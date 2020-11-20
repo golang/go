@@ -71,6 +71,10 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	return clo
 }
 
+// typecheckclosure typechecks an OCLOSURE node. It also creates the named
+// function associated with the closure.
+// TODO: This creation of the named function should probably really be done in a
+// separate pass from type-checking.
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
 	// Set current associated iota value, so iota can be used inside

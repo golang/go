@@ -1665,7 +1665,12 @@ func allocm(_p_ *p, fn func(), id int64) *m {
 				freem = next
 				continue
 			}
-			stackfree(freem.g0.stack)
+			// stackfree must be on the system stack, but allocm is
+			// reachable off the system stack transitively from
+			// startm.
+			systemstack(func() {
+				stackfree(freem.g0.stack)
+			})
 			freem = freem.freelink
 		}
 		sched.freem = newList
@@ -2192,8 +2197,30 @@ func mspinning() {
 // May run with m.p==nil, so write barriers are not allowed.
 // If spinning is set, the caller has incremented nmspinning and startm will
 // either decrement nmspinning or set m.spinning in the newly started M.
+//
+// Callers passing a non-nil P must call from a non-preemptible context. See
+// comment on acquirem below.
+//
+// Must not have write barriers because this may be called without a P.
 //go:nowritebarrierrec
 func startm(_p_ *p, spinning bool) {
+	// Disable preemption.
+	//
+	// Every owned P must have an owner that will eventually stop it in the
+	// event of a GC stop request. startm takes transient ownership of a P
+	// (either from argument or pidleget below) and transfers ownership to
+	// a started M, which will be responsible for performing the stop.
+	//
+	// Preemption must be disabled during this transient ownership,
+	// otherwise the P this is running on may enter GC stop while still
+	// holding the transient P, leaving that P in limbo and deadlocking the
+	// STW.
+	//
+	// Callers passing a non-nil P must already be in non-preemptible
+	// context, otherwise such preemption could occur on function entry to
+	// startm. Callers passing a nil P may be preemptible, so we must
+	// disable preemption before acquiring a P from pidleget below.
+	mp := acquirem()
 	lock(&sched.lock)
 	if _p_ == nil {
 		_p_ = pidleget()
@@ -2206,11 +2233,12 @@ func startm(_p_ *p, spinning bool) {
 					throw("startm: negative nmspinning")
 				}
 			}
+			releasem(mp)
 			return
 		}
 	}
-	mp := mget()
-	if mp == nil {
+	nmp := mget()
+	if nmp == nil {
 		// No M is available, we must drop sched.lock and call newm.
 		// However, we already own a P to assign to the M.
 		//
@@ -2232,22 +2260,28 @@ func startm(_p_ *p, spinning bool) {
 			fn = mspinning
 		}
 		newm(fn, _p_, id)
+		// Ownership transfer of _p_ committed by start in newm.
+		// Preemption is now safe.
+		releasem(mp)
 		return
 	}
 	unlock(&sched.lock)
-	if mp.spinning {
+	if nmp.spinning {
 		throw("startm: m is spinning")
 	}
-	if mp.nextp != 0 {
+	if nmp.nextp != 0 {
 		throw("startm: m has p")
 	}
 	if spinning && !runqempty(_p_) {
 		throw("startm: p has runnable gs")
 	}
 	// The caller incremented nmspinning, so set m.spinning in the new M.
-	mp.spinning = spinning
-	mp.nextp.set(_p_)
-	notewakeup(&mp.park)
+	nmp.spinning = spinning
+	nmp.nextp.set(_p_)
+	notewakeup(&nmp.park)
+	// Ownership transfer of _p_ committed by wakeup. Preemption is now
+	// safe.
+	releasem(mp)
 }
 
 // Hands off P from syscall or locked M.

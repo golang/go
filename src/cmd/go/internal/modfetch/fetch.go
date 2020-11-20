@@ -848,16 +848,16 @@ the checksum database is not consulted, and all unrecognized modules are
 accepted, at the cost of giving up the security guarantee of verified repeatable
 downloads for all modules. A better way to bypass the checksum database
 for specific modules is to use the GOPRIVATE or GONOSUMDB environment
-variables. See 'go help module-private' for details.
+variables. See 'go help private' for details.
 
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.
 `,
 }
 
-var HelpModulePrivate = &base.Command{
-	UsageLine: "module-private",
-	Short:     "module configuration for non-public modules",
+var HelpPrivate = &base.Command{
+	UsageLine: "private",
+	Short:     "configuration for downloading non-public code",
 	Long: `
 The go command defaults to downloading modules from the public Go module
 mirror at proxy.golang.org. It also defaults to validating downloaded modules,
@@ -897,6 +897,11 @@ a corp.example.com subdomain are private but that the company proxy should
 be used for downloading both public and private modules, because
 GONOPROXY has been set to a pattern that won't match any modules,
 overriding GOPRIVATE.
+
+The GOPRIVATE variable is also used to define the "public" and "private"
+patterns for the GOVCS variable; see 'go help vcs'. For that usage,
+GOPRIVATE applies even in GOPATH mode. In that case, it matches import paths
+instead of module paths.
 
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.

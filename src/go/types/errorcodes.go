@@ -135,8 +135,11 @@ const (
 	// _InvalidConstVal occurs when a const value cannot be converted to its
 	// target type.
 	//
+	// TODO(findleyr): this error code and example are not very clear. Consider
+	// removing it.
+	//
 	// Example:
-	//  var x string = 1
+	//  const _ = 1 << "hello"
 	_InvalidConstVal
 
 	// _InvalidConstType occurs when the underlying type in a const declaration

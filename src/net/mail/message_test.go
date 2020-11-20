@@ -102,6 +102,18 @@ func TestDateParsing(t *testing.T) {
 			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 		},
+		{
+			"Thu, 20 Nov 1997 09:55:06 -0600 (MDT)",
+			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+		},
+		{
+			"Thu, 20 Nov 1997 09:55:06 MDT (MDT)",
+			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
+		},
+		{
+			"Fri, 21 Nov 1997 09:55:06 +1300 (TOT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", +13*60*60)),
+		},
 	}
 	for _, test := range tests {
 		hdr := Header{
@@ -242,6 +254,33 @@ func TestDateParsingCFWS(t *testing.T) {
 			"Fri, 21  1997 09:55:06 GT",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 			false,
+		},
+		// Ensure that the presence of "T" in the date
+		// doesn't trip out ParseDate, as per issue 39260.
+		{
+			"Tue, 26 May 2020 14:04:40 GMT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Tue, 26 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 UTC",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Fri, 21 Nov 1997 09:55:06 MDT (MDT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
+			true,
 		},
 	}
 	for _, test := range tests {

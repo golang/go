@@ -56,7 +56,7 @@ func main() {
 			switch runtime.GOOS {
 			case "plan9":
 				args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
-			case "aix":
+			case "aix", "solaris", "illumos":
 				args = []string{fmt.Sprint(os.Getpid())}
 			default:
 				args = []string{"-p", fmt.Sprint(os.Getpid())}
@@ -71,6 +71,8 @@ func main() {
 				ofcmd = "/bin/cat"
 			case "aix":
 				ofcmd = "procfiles"
+			case "solaris", "illumos":
+				ofcmd = "pfiles"
 			}
 
 			cmd := exec.Command(ofcmd, args...)

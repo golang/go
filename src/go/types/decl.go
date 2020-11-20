@@ -15,7 +15,7 @@ func (check *Checker) reportAltDecl(obj Object) {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		check.errorf(pos, _DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, _DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
 	}
 }
 
@@ -26,7 +26,7 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			check.errorf(obj.Pos(), _DuplicateDecl, "%s redeclared in this block", obj.Name())
+			check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 			check.reportAltDecl(alt)
 			return
 		}
@@ -357,16 +357,16 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
-	check.errorf(obj.Pos(), _InvalidDeclCycle, "illegal cycle in declaration of %s", obj.Name())
+	check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", obj.Name())
 	for range cycle {
-		check.errorf(obj.Pos(), _InvalidDeclCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
 	}
-	check.errorf(obj.Pos(), _InvalidDeclCycle, "\t%s", obj.Name())
+	check.errorf(obj, _InvalidDeclCycle, "\t%s", obj.Name())
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -436,18 +436,18 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
 					check.arityMatch(s, nil)
 					f(varDecl{s})
 				default:
-					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
+					check.invalidAST(s, "invalid token %s", d.Tok)
 				}
 			case *ast.TypeSpec:
 				f(typeDecl{s})
 			default:
-				check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+				check.invalidAST(s, "unknown ast.Spec node %T", s)
 			}
 		}
 	case *ast.FuncDecl:
 		f(funcDecl{d})
 	default:
-		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+		check.invalidAST(d, "unknown ast.Decl node %T", d)
 	}
 }
 
@@ -468,7 +468,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
 			if t.Underlying() != Typ[Invalid] {
-				check.errorf(typ.Pos(), _InvalidConstType, "invalid constant type %s", t)
+				check.errorf(typ, _InvalidConstType, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
 			return
@@ -694,9 +694,9 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		if alt := mset.insert(m); alt != nil {
 			switch alt.(type) {
 			case *Var:
-				check.errorf(m.pos, _DuplicateFieldAndMethod, "field and method with the same name %s", m.name)
+				check.errorf(m, _DuplicateFieldAndMethod, "field and method with the same name %s", m.name)
 			case *Func:
-				check.errorf(m.pos, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
+				check.errorf(m, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
 			default:
 				unreachable()
 			}
@@ -721,7 +721,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
-		check.errorf(fdecl.Pos(), _InvalidInitSig, "func init must have no arguments and no return values")
+		check.errorf(fdecl, _InvalidInitSig, "func init must have no arguments and no return values")
 		// ok to continue
 	}
 
@@ -832,7 +832,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 			check.typeDecl(obj, d.spec.Type, nil, d.spec.Assign.IsValid())
 			check.pop().setColor(black)
 		default:
-			check.invalidAST(d.node().Pos(), "unknown ast.Decl node %T", d.node())
+			check.invalidAST(d.node(), "unknown ast.Decl node %T", d.node())
 		}
 	})
 }

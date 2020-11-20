@@ -107,22 +107,22 @@ var atomicLDADD = map[obj.As]uint32{
 	ALDADDLW:  2<<30 | 0x1c3<<21 | 0x00<<10,
 	ALDADDLH:  1<<30 | 0x1c3<<21 | 0x00<<10,
 	ALDADDLB:  0<<30 | 0x1c3<<21 | 0x00<<10,
-	ALDANDAD:  3<<30 | 0x1c5<<21 | 0x04<<10,
-	ALDANDAW:  2<<30 | 0x1c5<<21 | 0x04<<10,
-	ALDANDAH:  1<<30 | 0x1c5<<21 | 0x04<<10,
-	ALDANDAB:  0<<30 | 0x1c5<<21 | 0x04<<10,
-	ALDANDALD: 3<<30 | 0x1c7<<21 | 0x04<<10,
-	ALDANDALW: 2<<30 | 0x1c7<<21 | 0x04<<10,
-	ALDANDALH: 1<<30 | 0x1c7<<21 | 0x04<<10,
-	ALDANDALB: 0<<30 | 0x1c7<<21 | 0x04<<10,
-	ALDANDD:   3<<30 | 0x1c1<<21 | 0x04<<10,
-	ALDANDW:   2<<30 | 0x1c1<<21 | 0x04<<10,
-	ALDANDH:   1<<30 | 0x1c1<<21 | 0x04<<10,
-	ALDANDB:   0<<30 | 0x1c1<<21 | 0x04<<10,
-	ALDANDLD:  3<<30 | 0x1c3<<21 | 0x04<<10,
-	ALDANDLW:  2<<30 | 0x1c3<<21 | 0x04<<10,
-	ALDANDLH:  1<<30 | 0x1c3<<21 | 0x04<<10,
-	ALDANDLB:  0<<30 | 0x1c3<<21 | 0x04<<10,
+	ALDCLRAD:  3<<30 | 0x1c5<<21 | 0x04<<10,
+	ALDCLRAW:  2<<30 | 0x1c5<<21 | 0x04<<10,
+	ALDCLRAH:  1<<30 | 0x1c5<<21 | 0x04<<10,
+	ALDCLRAB:  0<<30 | 0x1c5<<21 | 0x04<<10,
+	ALDCLRALD: 3<<30 | 0x1c7<<21 | 0x04<<10,
+	ALDCLRALW: 2<<30 | 0x1c7<<21 | 0x04<<10,
+	ALDCLRALH: 1<<30 | 0x1c7<<21 | 0x04<<10,
+	ALDCLRALB: 0<<30 | 0x1c7<<21 | 0x04<<10,
+	ALDCLRD:   3<<30 | 0x1c1<<21 | 0x04<<10,
+	ALDCLRW:   2<<30 | 0x1c1<<21 | 0x04<<10,
+	ALDCLRH:   1<<30 | 0x1c1<<21 | 0x04<<10,
+	ALDCLRB:   0<<30 | 0x1c1<<21 | 0x04<<10,
+	ALDCLRLD:  3<<30 | 0x1c3<<21 | 0x04<<10,
+	ALDCLRLW:  2<<30 | 0x1c3<<21 | 0x04<<10,
+	ALDCLRLH:  1<<30 | 0x1c3<<21 | 0x04<<10,
+	ALDCLRLB:  0<<30 | 0x1c3<<21 | 0x04<<10,
 	ALDEORAD:  3<<30 | 0x1c5<<21 | 0x08<<10,
 	ALDEORAW:  2<<30 | 0x1c5<<21 | 0x08<<10,
 	ALDEORAH:  1<<30 | 0x1c5<<21 | 0x08<<10,
@@ -4028,7 +4028,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Reg&31) << 5
 		o1 |= uint32(p.To.Reg & 31)
 
-	case 47: // SWPx/LDADDx/LDANDx/LDEORx/LDORx/CASx Rs, (Rb), Rt
+	case 47: // SWPx/LDADDx/LDCLRx/LDEORx/LDORx/CASx Rs, (Rb), Rt
 		rs := p.From.Reg
 		rt := p.RegTo2
 		rb := p.To.Reg

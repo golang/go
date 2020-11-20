@@ -70,6 +70,10 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
 
+	if runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64" {
+		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
+	}
+
 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
 		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
 	}
@@ -228,12 +232,19 @@ func TestPanicSystemstack(t *testing.T) {
 	}
 	defer pr.Close()
 
-	// Wait for "x\nx\n" to indicate readiness.
+	// Wait for "x\nx\n" to indicate almost-readiness.
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(pr, buf)
 	if err != nil || string(buf) != "x\nx\n" {
 		t.Fatal("subprocess failed; output:\n", string(buf))
 	}
+
+	// The child blockers print "x\n" and then block on a lock. Receiving
+	// those bytes only indicates that the child is _about to block_. Since
+	// we don't have a way to know when it is fully blocked, sleep a bit to
+	// make us less likely to lose the race and signal before the child
+	// blocks.
+	time.Sleep(100*time.Millisecond)
 
 	// Send SIGQUIT.
 	if err := cmd.Process.Signal(syscall.SIGQUIT); err != nil {

@@ -66,6 +66,11 @@ type Value interface {
 // The spec requires at least 256 bits; typical implementations use 512 bits.
 const prec = 512
 
+// TODO(gri) Consider storing "error" information in an unknownVal so clients
+//           can provide better error messages. For instance, if a number is
+//           too large (incl. infinity), that could be recorded in unknownVal.
+//           See also #20583 and #42695 for use cases.
+
 type (
 	unknownVal struct{}
 	boolVal    bool
@@ -297,10 +302,16 @@ func makeFloat(x *big.Float) Value {
 	if x.Sign() == 0 {
 		return floatVal0
 	}
+	if x.IsInf() {
+		return unknownVal{}
+	}
 	return floatVal{x}
 }
 
 func makeComplex(re, im Value) Value {
+	if re.Kind() == Unknown || im.Kind() == Unknown {
+		return unknownVal{}
+	}
 	return complexVal{re, im}
 }
 

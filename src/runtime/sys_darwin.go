@@ -303,9 +303,9 @@ func nanotime_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func walltime1() (int64, int32) {
-	var t timeval
+	var t timespec
 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
-	return int64(t.tv_sec), 1000 * t.tv_usec
+	return t.tv_sec, int32(t.tv_nsec)
 }
 func walltime_trampoline()
 
@@ -470,7 +470,7 @@ func setNonblock(fd int32) {
 
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"

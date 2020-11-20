@@ -212,13 +212,18 @@ func TestParseComplex(t *testing.T) {
 	}
 }
 
-func TestParseComplexInvalidBitSize(t *testing.T) {
-	_, err := ParseComplex("1+2i", 100)
-	const want = `strconv.ParseComplex: parsing "1+2i": invalid bit size 100`
-	if err == nil {
-		t.Fatalf("got nil error, want %q", want)
-	}
-	if err.Error() != want {
-		t.Fatalf("got error %q, want %q", err, want)
+// Issue 42297: allow ParseComplex(s, not_32_or_64) for legacy reasons
+func TestParseComplexIncorrectBitSize(t *testing.T) {
+	const s = "1.5e308+1.0e307i"
+	const want = 1.5e308 + 1.0e307i
+
+	for _, bitSize := range []int{0, 10, 100, 256} {
+		c, err := ParseComplex(s, bitSize)
+		if err != nil {
+			t.Fatalf("ParseComplex(%q, %d) gave error %s", s, bitSize, err)
+		}
+		if c != want {
+			t.Fatalf("ParseComplex(%q, %d) = %g (expected %g)", s, bitSize, c, want)
+		}
 	}
 }
