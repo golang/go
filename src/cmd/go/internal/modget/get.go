@@ -1567,10 +1567,19 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns 
 		})
 	}
 	<-r.work.Idle()
+	var retractPath string
 	for _, r := range retractions {
 		if r.err != nil {
 			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
+			if retractPath == "" {
+				retractPath = r.m.Path
+			} else {
+				retractPath = "<module>"
+			}
 		}
+	}
+	if retractPath != "" {
+		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
 	}
 }
 
