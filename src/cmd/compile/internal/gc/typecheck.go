@@ -3624,8 +3624,8 @@ func typecheckdef(n *Node) {
 			e = convlit(e, t)
 		}
 
-		n.SetVal(e.Val())
 		n.Type = e.Type
+		n.SetVal(e.Val())
 
 	case ONAME:
 		if n.Name.Param.Ntype != nil {

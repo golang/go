@@ -275,8 +275,8 @@ func convlit1(n *Node, t *types.Type, explicit bool, context func() string) *Nod
 		if v.U == nil {
 			break
 		}
-		n.SetVal(v)
 		n.Type = t
+		n.SetVal(v)
 		return n
 
 	case OPLUS, ONEG, OBITNOT, ONOT, OREAL, OIMAG:
@@ -979,9 +979,6 @@ func setconst(n *Node, v Val) {
 		Xoffset: BADWIDTH,
 	}
 	n.SetVal(v)
-	if vt := idealType(v.Ctype()); n.Type.IsUntyped() && n.Type != vt {
-		Fatalf("untyped type mismatch, have: %v, want: %v", n.Type, vt)
-	}
 
 	// Check range.
 	lno := setlineno(n)
@@ -1000,6 +997,22 @@ func setconst(n *Node, v Val) {
 	}
 }
 
+func assertRepresents(t *types.Type, v Val) {
+	if !represents(t, v) {
+		Fatalf("%v does not represent %v", t, v)
+	}
+}
+
+func represents(t *types.Type, v Val) bool {
+	if !t.IsUntyped() {
+		// TODO(mdempsky): Stricter handling of typed types.
+		return true
+	}
+
+	vt := idealType(v.Ctype())
+	return t == vt
+}
+
 func setboolconst(n *Node, v bool) {
 	setconst(n, Val{U: v})
 }
@@ -1013,8 +1026,8 @@ func setintconst(n *Node, v int64) {
 // nodlit returns a new untyped constant with value v.
 func nodlit(v Val) *Node {
 	n := nod(OLITERAL, nil, nil)
-	n.SetVal(v)
 	n.Type = idealType(v.Ctype())
+	n.SetVal(v)
 	return n
 }
 

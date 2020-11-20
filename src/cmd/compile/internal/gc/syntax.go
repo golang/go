@@ -251,6 +251,9 @@ func (n *Node) SetVal(v Val) {
 		Dump("have Opt", n)
 		Fatalf("have Opt")
 	}
+	if n.Op == OLITERAL {
+		assertRepresents(n.Type, v)
+	}
 	n.SetHasVal(true)
 	n.E = v.U
 }
