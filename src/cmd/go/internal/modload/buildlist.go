@@ -73,9 +73,6 @@ func Selected(path string) (version string) {
 // build list: they could be lower than existing requirements or conflict with
 // versions in mustSelect.)
 //
-// After performing the requested edits, EditBuildList returns the updated build
-// list.
-//
 // If the versions listed in mustSelect are mutually incompatible (due to one of
 // the listed modules requiring a higher version of another), EditBuildList
 // returns a *ConstraintError and leaves the build list in its previous state.
