@@ -63,9 +63,9 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			source.CommandRemoveDependency.ID(),
 			source.CommandVendor.ID():
 			// TODO(PJW): for Toggle, not an error if it is being disabled
-			err := errors.New("all files must be saved first")
+			err := errors.New("All files must be saved first")
 			s.showCommandError(ctx, command.Title, err)
-			return nil, err
+			return nil, nil
 		}
 	}
 	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
@@ -79,15 +79,31 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		// convenient for assertions.
 		work = s.progress.start(ctx, command.Title, "Running...", params.WorkDoneToken, cancel)
 	}
-	if command.Async {
-		go func() {
-			defer cancel()
-			s.runCommand(ctx, work, command, params.Arguments)
-		}()
-		return nil, nil
+
+	run := func() {
+		defer cancel()
+		err := s.runCommand(ctx, work, command, params.Arguments)
+		switch {
+		case errors.Is(err, context.Canceled):
+			work.end(command.Title + ": canceled")
+		case err != nil:
+			event.Error(ctx, fmt.Sprintf("%s: command error", command.Title), err)
+			work.end(command.Title + ": failed")
+			// Show a message when work completes with error, because the progress end
+			// message is typically dismissed immediately by LSP clients.
+			s.showCommandError(ctx, command.Title, err)
+		default:
+			work.end(command.ID() + ": completed")
+		}
 	}
-	defer cancel()
-	return nil, s.runCommand(ctx, work, command, params.Arguments)
+	if command.Async {
+		go run()
+	} else {
+		run()
+	}
+	// Errors running the command are displayed to the user above, so don't
+	// return them.
+	return nil, nil
 }
 
 func (s *Server) runSuggestedFixCommand(ctx context.Context, command *source.Command, args []json.RawMessage) error {
@@ -131,20 +147,6 @@ func (s *Server) showCommandError(ctx context.Context, title string, err error) 
 }
 
 func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) (err error) {
-	defer func() {
-		switch {
-		case errors.Is(err, context.Canceled):
-			work.end(command.Title + ": canceled")
-		case err != nil:
-			event.Error(ctx, fmt.Sprintf("%s: command error", command.Title), err)
-			work.end(command.Title + ": failed")
-			// Show a message when work completes with error, because the progress end
-			// message is typically dismissed immediately by LSP clients.
-			s.showCommandError(ctx, command.Title, err)
-		default:
-			work.end(command.ID() + ": completed")
-		}
-	}()
 	// If the command has a suggested fix function available, use it and apply
 	// the edits to the workspace.
 	if command.IsSuggestedFix() {
