@@ -890,7 +890,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 			// TODO(gri) We should report exactly what went wrong. At the
 			//           moment we don't have the (go/constant) API for that.
 			//           See also TODO in go/constant/value.go.
-			check.errorf(atPos(e.OpPos), _InvalidConstVal, "constant result is not representable")
+			check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
 			// TODO(gri) Should we mark operands with unknown values as invalid?
 		}
 		// Typed constants must be representable in
