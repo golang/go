@@ -528,7 +528,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 	return quickFixes, nil
 }
 
-func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
+func sameDiagnostic(d protocol.Diagnostic, e *source.Error) bool {
 	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
 }
 

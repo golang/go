@@ -72,10 +72,10 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		file, err := modfile.Parse(modFH.URI().Filename(), contents, nil)
 
 		// Attempt to convert the error to a standardized parse error.
-		var parseErrors []source.Error
+		var parseErrors []*source.Error
 		if err != nil {
 			if parseErr, extractErr := extractModParseErrors(modFH.URI(), m, err, contents); extractErr == nil {
-				parseErrors = []source.Error{*parseErr}
+				parseErrors = []*source.Error{parseErr}
 			}
 		}
 		return &parseModData{

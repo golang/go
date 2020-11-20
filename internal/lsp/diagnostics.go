@@ -193,8 +193,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	if err != nil {
 		// Some error messages can also be displayed as diagnostics.
-		if errList := (*source.ErrorList)(nil); errors.As(err, &errList) {
-			_ = errorsToDiagnostic(ctx, snapshot, *errList, reports)
+		if errList := (source.ErrorList)(nil); errors.As(err, &errList) {
+			_ = errorsToDiagnostic(ctx, snapshot, errList, reports)
 		}
 		event.Error(ctx, "errors diagnosing workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
 		return reports, nil

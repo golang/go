@@ -51,7 +51,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 	return reports, nil
 }
 
-func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]source.Error, error) {
+func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]*source.Error, error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		if pm == nil || len(pm.ParseErrors) == 0 {

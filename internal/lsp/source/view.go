@@ -252,13 +252,13 @@ type ParsedModule struct {
 	URI         span.URI
 	File        *modfile.File
 	Mapper      *protocol.ColumnMapper
-	ParseErrors []Error
+	ParseErrors []*Error
 }
 
 // A TidiedModule contains the results of running `go mod tidy` on a module.
 type TidiedModule struct {
 	// Diagnostics representing changes made by `go mod tidy`.
-	Errors []Error
+	Errors []*Error
 	// The bytes of the go.mod file after it was tidied.
 	TidiedContent []byte
 }
@@ -532,10 +532,10 @@ type Package interface {
 
 type ErrorList []*Error
 
-func (err *ErrorList) Error() string {
+func (err ErrorList) Error() string {
 	var b strings.Builder
 	b.WriteString("source error list:")
-	for _, e := range *err {
+	for _, e := range err {
 		b.WriteString(fmt.Sprintf("\n\t%s", e))
 	}
 	return b.String()
