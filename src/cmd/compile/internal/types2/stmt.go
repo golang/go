@@ -396,7 +396,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			}
 
 			var x operand
-			check.binary(&x, nil, lhs[0], rhs[0], s.Op)
+			check.binary(&x, nil, lhs[0], rhs[0], s.Op, rhs[0].Pos()) // TODO(gri) should have TokPos here (like in go/types)
 			if x.mode == invalid {
 				return
 			}
