@@ -35,6 +35,7 @@ func kernelVersion() (major int, minor int) {
 			if vi >= len(values) {
 				break
 			}
+			value = 0
 		}
 	}
 	switch vi {
