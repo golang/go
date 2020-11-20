@@ -4,6 +4,8 @@
 
 package gc
 
+import "cmd/compile/internal/base"
+
 // evalunsafe evaluates a package unsafe operation and returns the result.
 func evalunsafe(n *Node) int64 {
 	switch n.Op {
@@ -23,7 +25,7 @@ func evalunsafe(n *Node) int64 {
 	case OOFFSETOF:
 		// must be a selector.
 		if n.Left.Op != OXDOT {
-			yyerror("invalid expression %v", n)
+			base.Errorf("invalid expression %v", n)
 			return 0
 		}
 
@@ -41,10 +43,10 @@ func evalunsafe(n *Node) int64 {
 		case ODOT, ODOTPTR:
 			break
 		case OCALLPART:
-			yyerror("invalid expression %v: argument is a method value", n)
+			base.Errorf("invalid expression %v: argument is a method value", n)
 			return 0
 		default:
-			yyerror("invalid expression %v", n)
+			base.Errorf("invalid expression %v", n)
 			return 0
 		}
 
@@ -57,7 +59,7 @@ func evalunsafe(n *Node) int64 {
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
 				if r.Left != sbase {
-					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
+					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
 					return 0
 				}
 				fallthrough
@@ -65,12 +67,12 @@ func evalunsafe(n *Node) int64 {
 				v += r.Xoffset
 			default:
 				Dump("unsafenmagic", n.Left)
-				Fatalf("impossible %#v node after dot insertion", r.Op)
+				base.Fatalf("impossible %#v node after dot insertion", r.Op)
 			}
 		}
 		return v
 	}
 
-	Fatalf("unexpected op %v", n.Op)
+	base.Fatalf("unexpected op %v", n.Op)
 	return 0
 }

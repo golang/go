@@ -9,6 +9,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -146,7 +147,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		x = reflect.ValueOf(v.Slice())
 
 	case src.XPos:
-		p.printf("%s", linestr(v))
+		p.printf("%s", base.FmtPos(v))
 		return
 
 	case *types.Node:

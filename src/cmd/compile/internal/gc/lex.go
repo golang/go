@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -13,7 +14,7 @@ import (
 )
 
 func makePos(b *src.PosBase, line, col uint) src.XPos {
-	return Ctxt.PosTable.XPos(src.MakePos(b, line, col))
+	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
 }
 
 func isSpace(c rune) bool {

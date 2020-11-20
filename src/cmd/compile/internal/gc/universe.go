@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
@@ -98,7 +99,7 @@ func lexinit() {
 	for _, s := range &basicTypes {
 		etype := s.etype
 		if int(etype) >= len(types.Types) {
-			Fatalf("lexinit: %s bad etype", s.name)
+			base.Fatalf("lexinit: %s bad etype", s.name)
 		}
 		s2 := builtinpkg.Lookup(s.name)
 		t := types.Types[etype]
@@ -169,7 +170,7 @@ func lexinit() {
 
 func typeinit() {
 	if Widthptr == 0 {
-		Fatalf("typeinit before betypeinit")
+		base.Fatalf("typeinit before betypeinit")
 	}
 
 	for et := types.EType(0); et < NTYPE; et++ {

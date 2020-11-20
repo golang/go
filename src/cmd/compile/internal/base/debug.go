@@ -4,7 +4,7 @@
 
 // Debug arguments, set by -d flag.
 
-package gc
+package base
 
 import (
 	"fmt"

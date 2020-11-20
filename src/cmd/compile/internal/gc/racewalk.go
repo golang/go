@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -47,9 +48,9 @@ var omit_pkgs = []string{
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
-	if Ctxt.Pkgpath != "" {
+	if base.Ctxt.Pkgpath != "" {
 		for _, p := range pkgs {
-			if Ctxt.Pkgpath == p {
+			if base.Ctxt.Pkgpath == p {
 				return true
 			}
 		}
@@ -63,13 +64,13 @@ func instrument(fn *Node) {
 		return
 	}
 
-	if !Flag.Race || !ispkgin(norace_inst_pkgs) {
+	if !base.Flag.Race || !ispkgin(norace_inst_pkgs) {
 		fn.Func.SetInstrumentBody(true)
 	}
 
-	if Flag.Race {
-		lno := lineno
-		lineno = src.NoXPos
+	if base.Flag.Race {
+		lno := base.Pos
+		base.Pos = src.NoXPos
 
 		if thearch.LinkArch.Arch.Family != sys.AMD64 {
 			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
@@ -88,6 +89,6 @@ func instrument(fn *Node) {
 			fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
 			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
 		}
-		lineno = lno
+		base.Pos = lno
 	}
 }

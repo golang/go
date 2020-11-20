@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -47,7 +48,7 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
 		flag |= FmtSign
 	}
 	if s.Flag(' ') {
-		Fatalf("FmtUnsigned in format string")
+		base.Fatalf("FmtUnsigned in format string")
 	}
 	if _, ok := s.Precision(); ok {
 		flag |= FmtComma
@@ -313,7 +314,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 		case int32, int64, string, types.EType, constant.Value:
 			// OK: printing these types doesn't depend on mode
 		default:
-			Fatalf("mode.prepareArgs type %T", arg)
+			base.Fatalf("mode.prepareArgs type %T", arg)
 		}
 	}
 }
@@ -339,14 +340,14 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	short := flag&FmtShort != 0
 
 	// Useful to see which nodes in an AST printout are actually identical
-	if Debug.DumpPtrs != 0 {
+	if base.Debug.DumpPtrs != 0 {
 		fmt.Fprintf(s, " p(%p)", n)
 	}
 	if !short && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
 
-	if Debug.DumpPtrs != 0 && !short && n.Name != nil && n.Name.Defn != nil {
+	if base.Debug.DumpPtrs != 0 && !short && n.Name != nil && n.Name.Defn != nil {
 		// Useful to see where Defn is set and what node it points to
 		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
 	}
@@ -817,7 +818,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 			case mt.Hiter:
 				b.WriteString("map.iter[")
 			default:
-				Fatalf("unknown internal map type")
+				base.Fatalf("unknown internal map type")
 			}
 			tconv2(b, m.Key(), 0, mode, visited)
 			b.WriteByte(']')
@@ -1416,7 +1417,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OSLICEHEADER:
 		if n.List.Len() != 2 {
-			Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
+			base.Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
 		}
 		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
 
@@ -1806,7 +1807,7 @@ func (n *Node) nconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 		dumpdepth--
 
 	default:
-		Fatalf("unhandled %%N mode: %d", mode)
+		base.Fatalf("unhandled %%N mode: %d", mode)
 	}
 }
 

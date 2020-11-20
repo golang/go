@@ -5,6 +5,7 @@
 package amd64
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
@@ -64,7 +65,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 	if cnt%int64(gc.Widthreg) != 0 {
 		// should only happen with nacl
 		if cnt%int64(gc.Widthptr) != 0 {
-			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+			base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 		}
 		if *state&ax == 0 {
 			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)

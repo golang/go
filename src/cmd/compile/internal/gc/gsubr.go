@@ -31,6 +31,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -57,8 +58,8 @@ type Progs struct {
 // worker indicates which of the backend workers will use the Progs.
 func newProgs(fn *Node, worker int) *Progs {
 	pp := new(Progs)
-	if Ctxt.CanReuseProgs() {
-		sz := len(sharedProgArray) / Flag.LowerC
+	if base.Ctxt.CanReuseProgs() {
+		sz := len(sharedProgArray) / base.Flag.LowerC
 		pp.progcache = sharedProgArray[sz*worker : sz*(worker+1)]
 	}
 	pp.curfn = fn
@@ -83,19 +84,19 @@ func (pp *Progs) NewProg() *obj.Prog {
 	} else {
 		p = new(obj.Prog)
 	}
-	p.Ctxt = Ctxt
+	p.Ctxt = base.Ctxt
 	return p
 }
 
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
-	obj.Flushplist(Ctxt, plist, pp.NewProg, Ctxt.Pkgpath)
+	obj.Flushplist(base.Ctxt, plist, pp.NewProg, base.Ctxt.Pkgpath)
 }
 
 // Free clears pp and any associated resources.
 func (pp *Progs) Free() {
-	if Ctxt.CanReuseProgs() {
+	if base.Ctxt.CanReuseProgs() {
 		// Clear progs to enable GC and avoid abuse.
 		s := pp.progcache[:pp.cacheidx]
 		for i := range s {
@@ -133,8 +134,8 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
-	if !pp.pos.IsKnown() && Flag.K != 0 {
-		Warn("prog: unknown position (line 0)")
+	if !pp.pos.IsKnown() && base.Flag.K != 0 {
+		base.Warn("prog: unknown position (line 0)")
 	}
 
 	p.As = as
@@ -174,7 +175,7 @@ func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16
 
 func (pp *Progs) settext(fn *Node) {
 	if pp.Text != nil {
-		Fatalf("Progs.settext called twice")
+		base.Fatalf("Progs.settext called twice")
 	}
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
@@ -193,7 +194,7 @@ func (pp *Progs) settext(fn *Node) {
 // called for both functions with bodies and functions without bodies.
 func (f *Func) initLSym(hasBody bool) {
 	if f.lsym != nil {
-		Fatalf("Func.initLSym called twice")
+		base.Fatalf("Func.initLSym called twice")
 	}
 
 	if nam := f.Nname; !nam.isBlank() {
@@ -215,7 +216,7 @@ func (f *Func) initLSym(hasBody bool) {
 			// using the expected ABI.
 			want := obj.ABIInternal
 			if f.lsym.ABI() != want {
-				Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym.Name, f.lsym.ABI(), want)
+				base.Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym.Name, f.lsym.ABI(), want)
 			}
 		}
 
@@ -249,7 +250,7 @@ func (f *Func) initLSym(hasBody bool) {
 			}
 			asym.SetABI(aliasABI)
 			asym.Set(obj.AttrDuplicateOK, true)
-			Ctxt.ABIAliases = append(Ctxt.ABIAliases, asym)
+			base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
 		}
 	}
 
@@ -278,14 +279,14 @@ func (f *Func) initLSym(hasBody bool) {
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
-	if Ctxt.Pkgpath == "reflect" {
+	if base.Ctxt.Pkgpath == "reflect" {
 		switch f.Nname.Sym.Name {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER
 		}
 	}
 
-	Ctxt.InitTextSym(f.lsym, flag)
+	base.Ctxt.InitTextSym(f.lsym, flag)
 }
 
 func ggloblnod(nam *Node) {
@@ -298,7 +299,7 @@ func ggloblnod(nam *Node) {
 	if nam.Type != nil && !nam.Type.HasPointers() {
 		flags |= obj.NOPTR
 	}
-	Ctxt.Globl(s, nam.Type.Width, flags)
+	base.Ctxt.Globl(s, nam.Type.Width, flags)
 	if nam.Name.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
@@ -315,7 +316,7 @@ func ggloblsym(s *obj.LSym, width int32, flags int16) {
 		s.Set(obj.AttrLocal, true)
 		flags &^= obj.LOCAL
 	}
-	Ctxt.Globl(s, int64(width), int(flags))
+	base.Ctxt.Globl(s, int64(width), int(flags))
 }
 
 func Addrconst(a *obj.Addr, v int64) {
@@ -326,7 +327,7 @@ func Addrconst(a *obj.Addr, v int64) {
 
 func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
-		Fatalf("patch: not a branch")
+		base.Fatalf("patch: not a branch")
 	}
 	p.To.SetTarget(to)
 	p.To.Offset = to.Pc

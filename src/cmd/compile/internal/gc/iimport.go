@@ -8,6 +8,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
@@ -60,7 +61,7 @@ func expandInline(fn *Node) {
 
 	r := importReaderFor(fn, inlineImporter)
 	if r == nil {
-		Fatalf("missing import reader for %v", fn)
+		base.Fatalf("missing import reader for %v", fn)
 	}
 
 	r.doInline(fn)
@@ -83,8 +84,8 @@ type intReader struct {
 func (r *intReader) int64() int64 {
 	i, err := binary.ReadVarint(r.Reader)
 	if err != nil {
-		yyerror("import %q: read error: %v", r.pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: read error: %v", r.pkg.Path, err)
+		base.ErrorExit()
 	}
 	return i
 }
@@ -92,8 +93,8 @@ func (r *intReader) int64() int64 {
 func (r *intReader) uint64() uint64 {
 	i, err := binary.ReadUvarint(r.Reader)
 	if err != nil {
-		yyerror("import %q: read error: %v", r.pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: read error: %v", r.pkg.Path, err)
+		base.ErrorExit()
 	}
 	return i
 }
@@ -103,8 +104,8 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 
 	version := ird.uint64()
 	if version != iexportVersion {
-		yyerror("import %q: unknown export format version %d", pkg.Path, version)
-		errorexit()
+		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+		base.ErrorExit()
 	}
 
 	sLen := ird.uint64()
@@ -115,8 +116,8 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	// returning individual substrings very efficiently.
 	data, err := mapFile(in.File(), in.Offset(), int64(sLen+dLen))
 	if err != nil {
-		yyerror("import %q: mapping input: %v", pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: mapping input: %v", pkg.Path, err)
+		base.ErrorExit()
 	}
 	stringData := data[:sLen]
 	declData := data[sLen:]
@@ -152,10 +153,10 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			pkg.Lookup("_").Def = asTypesNode(nblank)
 		} else {
 			if pkg.Name != pkgName {
-				Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
+				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
 			}
 			if pkg.Height != pkgHeight {
-				Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
+				base.Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
 			}
 		}
 
@@ -171,7 +172,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			// Create stub declaration. If used, this will
 			// be overwritten by expandDecl.
 			if s.Def != nil {
-				Fatalf("unexpected definition for %v: %v", s, asNode(s.Def))
+				base.Fatalf("unexpected definition for %v: %v", s, asNode(s.Def))
 			}
 			s.Def = asTypesNode(npos(src.NoXPos, dclname(s)))
 		}
@@ -195,8 +196,8 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	// Fingerprint.
 	_, err = io.ReadFull(in, fingerprint[:])
 	if err != nil {
-		yyerror("import %s: error reading fingerprint", pkg.Path)
-		errorexit()
+		base.Errorf("import %s: error reading fingerprint", pkg.Path)
+		base.ErrorExit()
 	}
 	return fingerprint
 }
@@ -218,7 +219,7 @@ func (p *iimporter) stringAt(off uint64) string {
 
 	slen, n := binary.Uvarint(x[:n])
 	if n <= 0 {
-		Fatalf("varint failed")
+		base.Fatalf("varint failed")
 	}
 	spos := off + uint64(n)
 	return p.stringData[spos : spos+slen]
@@ -281,7 +282,7 @@ func (r *importReader) setPkg() {
 
 func (r *importReader) doDecl(n *Node) {
 	if n.Op != ONONAME {
-		Fatalf("doDecl: unexpected Op for %v: %v", n.Sym, n.Op)
+		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym, n.Op)
 	}
 
 	tag := r.byte()
@@ -352,7 +353,7 @@ func (r *importReader) doDecl(n *Node) {
 		r.varExt(n)
 
 	default:
-		Fatalf("unexpected tag: %v", tag)
+		base.Fatalf("unexpected tag: %v", tag)
 	}
 }
 
@@ -372,7 +373,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
 		return makeComplex(p.float(typ), p.float(typ))
 	}
 
-	Fatalf("unexpected value type: %v", typ)
+	base.Fatalf("unexpected value type: %v", typ)
 	panic("unreachable")
 }
 
@@ -405,7 +406,7 @@ func (p *importReader) mpint(x *big.Int, typ *types.Type) {
 		v = -(n &^ 1) >> 1
 	}
 	if v < 1 || uint(v) > maxBytes {
-		Fatalf("weird decoding: %v, %v => %v", n, signed, v)
+		base.Fatalf("weird decoding: %v, %v => %v", n, signed, v)
 	}
 	b := make([]byte, v)
 	p.Read(b)
@@ -462,10 +463,10 @@ func (r *importReader) pos() src.XPos {
 	}
 
 	if r.prevBase == nil {
-		Fatalf("missing posbase")
+		base.Fatalf("missing posbase")
 	}
 	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
-	return Ctxt.PosTable.XPos(pos)
+	return base.Ctxt.PosTable.XPos(pos)
 }
 
 func (r *importReader) typ() *types.Type {
@@ -476,7 +477,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 	t, ok := p.typCache[off]
 	if !ok {
 		if off < predeclReserved {
-			Fatalf("predeclared type missing from cache: %d", off)
+			base.Fatalf("predeclared type missing from cache: %d", off)
 		}
 		t = p.newReader(off-predeclReserved, nil).typ1()
 		p.typCache[off] = t
@@ -487,7 +488,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 func (r *importReader) typ1() *types.Type {
 	switch k := r.kind(); k {
 	default:
-		Fatalf("unexpected kind tag in %q: %v", r.p.ipkg.Path, k)
+		base.Fatalf("unexpected kind tag in %q: %v", r.p.ipkg.Path, k)
 		return nil
 
 	case definedType:
@@ -502,7 +503,7 @@ func (r *importReader) typ1() *types.Type {
 			expandDecl(n)
 		}
 		if n.Op != OTYPE {
-			Fatalf("expected OTYPE, got %v: %v, %v", n.Op, n.Sym, n)
+			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op, n.Sym, n)
 		}
 		return n.Type
 	case pointerType:
@@ -610,7 +611,7 @@ func (r *importReader) bool() bool {
 func (r *importReader) int64() int64 {
 	n, err := binary.ReadVarint(r)
 	if err != nil {
-		Fatalf("readVarint: %v", err)
+		base.Fatalf("readVarint: %v", err)
 	}
 	return n
 }
@@ -618,7 +619,7 @@ func (r *importReader) int64() int64 {
 func (r *importReader) uint64() uint64 {
 	n, err := binary.ReadUvarint(r)
 	if err != nil {
-		Fatalf("readVarint: %v", err)
+		base.Fatalf("readVarint: %v", err)
 	}
 	return n
 }
@@ -626,7 +627,7 @@ func (r *importReader) uint64() uint64 {
 func (r *importReader) byte() byte {
 	x, err := r.ReadByte()
 	if err != nil {
-		Fatalf("declReader.ReadByte: %v", err)
+		base.Fatalf("declReader.ReadByte: %v", err)
 	}
 	return x
 }
@@ -674,7 +675,7 @@ func (r *importReader) symIdx(s *types.Sym) {
 	idx := int32(r.int64())
 	if idx != -1 {
 		if s.Linkname != "" {
-			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+			base.Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
 		lsym.SymIdx = idx
 		lsym.Set(obj.AttrIndexed, true)
@@ -695,7 +696,7 @@ var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *Node) {
 	if len(n.Func.Inl.Body) != 0 {
-		Fatalf("%v already has inline body", n)
+		base.Fatalf("%v already has inline body", n)
 	}
 
 	funchdr(n)
@@ -714,8 +715,8 @@ func (r *importReader) doInline(n *Node) {
 
 	importlist = append(importlist, n)
 
-	if Flag.E > 0 && Flag.LowerM > 2 {
-		if Flag.LowerM > 3 {
+	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
+		if base.Flag.LowerM > 3 {
 			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
 		} else {
 			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
@@ -793,7 +794,7 @@ func (r *importReader) exprList() []*Node {
 func (r *importReader) expr() *Node {
 	n := r.node()
 	if n != nil && n.Op == OBLOCK {
-		Fatalf("unexpected block node: %v", n)
+		base.Fatalf("unexpected block node: %v", n)
 	}
 	return n
 }
@@ -854,11 +855,11 @@ func (r *importReader) node() *Node {
 
 	case OSTRUCTLIT:
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
-		savedlineno := lineno
-		lineno = r.pos()
-		n := nodl(lineno, OCOMPLIT, nil, typenod(r.typ()))
+		savedlineno := base.Pos
+		base.Pos = r.pos()
+		n := nodl(base.Pos, OCOMPLIT, nil, typenod(r.typ()))
 		n.List.Set(r.elemList()) // special handling of field names
-		lineno = savedlineno
+		base.Pos = savedlineno
 		return n
 
 	// case OARRAYLIT, OSLICELIT, OMAPLIT:
@@ -1070,7 +1071,7 @@ func (r *importReader) node() *Node {
 		return nil
 
 	default:
-		Fatalf("cannot import %v (%d) node\n"+
+		base.Fatalf("cannot import %v (%d) node\n"+
 			"\t==> please file an issue and assign to gri@", op, int(op))
 		panic("unreachable") // satisfy compiler
 	}

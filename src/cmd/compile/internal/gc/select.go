@@ -4,7 +4,10 @@
 
 package gc
 
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/types"
+)
 
 // select
 func typecheckselect(sel *Node) {
@@ -14,18 +17,18 @@ func typecheckselect(sel *Node) {
 	for _, ncase := range sel.List.Slice() {
 		if ncase.Op != OCASE {
 			setlineno(ncase)
-			Fatalf("typecheckselect %v", ncase.Op)
+			base.Fatalf("typecheckselect %v", ncase.Op)
 		}
 
 		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
-				yyerrorl(ncase.Pos, "multiple defaults in select (first at %v)", def.Line())
+				base.ErrorfAt(ncase.Pos, "multiple defaults in select (first at %v)", def.Line())
 			} else {
 				def = ncase
 			}
 		} else if ncase.List.Len() > 1 {
-			yyerrorl(ncase.Pos, "select cases cannot be lists")
+			base.ErrorfAt(ncase.Pos, "select cases cannot be lists")
 		} else {
 			ncase.List.SetFirst(typecheck(ncase.List.First(), ctxStmt))
 			n := ncase.List.First()
@@ -41,7 +44,7 @@ func typecheckselect(sel *Node) {
 					// on the same line). This matches the approach before 1.10.
 					pos = ncase.Pos
 				}
-				yyerrorl(pos, "select case must be receive, send or assign recv")
+				base.ErrorfAt(pos, "select case must be receive, send or assign recv")
 
 			// convert x = <-c into OSELRECV(x, <-c).
 			// remove implicit conversions; the eventual assignment
@@ -52,7 +55,7 @@ func typecheckselect(sel *Node) {
 				}
 
 				if n.Right.Op != ORECV {
-					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
+					base.ErrorfAt(n.Pos, "select assignment must have receive on right hand side")
 					break
 				}
 
@@ -61,7 +64,7 @@ func typecheckselect(sel *Node) {
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
 			case OAS2RECV:
 				if n.Right.Op != ORECV {
-					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
+					base.ErrorfAt(n.Pos, "select assignment must have receive on right hand side")
 					break
 				}
 
@@ -84,13 +87,13 @@ func typecheckselect(sel *Node) {
 		typecheckslice(ncase.Nbody.Slice(), ctxStmt)
 	}
 
-	lineno = lno
+	base.Pos = lno
 }
 
 func walkselect(sel *Node) {
 	lno := setlineno(sel)
 	if sel.Nbody.Len() != 0 {
-		Fatalf("double walkselect")
+		base.Fatalf("double walkselect")
 	}
 
 	init := sel.Ninit.Slice()
@@ -102,12 +105,12 @@ func walkselect(sel *Node) {
 	sel.Nbody.Set(init)
 	walkstmtlist(sel.Nbody.Slice())
 
-	lineno = lno
+	base.Pos = lno
 }
 
 func walkselectcases(cases *Nodes) []*Node {
 	ncas := cases.Len()
-	sellineno := lineno
+	sellineno := base.Pos
 
 	// optimization: zero-case select
 	if ncas == 0 {
@@ -125,7 +128,7 @@ func walkselectcases(cases *Nodes) []*Node {
 			n.Ninit.Set(nil)
 			switch n.Op {
 			default:
-				Fatalf("select %v", n.Op)
+				base.Fatalf("select %v", n.Op)
 
 			case OSEND:
 				// already ok
@@ -202,7 +205,7 @@ func walkselectcases(cases *Nodes) []*Node {
 		r.Ninit.Set(cas.Ninit.Slice())
 		switch n.Op {
 		default:
-			Fatalf("select %v", n.Op)
+			base.Fatalf("select %v", n.Op)
 
 		case OSEND:
 			// if selectnbsend(c, v) { body } else { default body }
@@ -245,7 +248,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	var init []*Node
 
 	// generate sel-struct
-	lineno = sellineno
+	base.Pos = sellineno
 	selv := temp(types.NewArray(scasetype(), int64(ncas)))
 	r := nod(OAS, selv, nil)
 	r = typecheck(r, ctxStmt)
@@ -255,7 +258,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(ncas)))
 
 	var pc0, pcs *Node
-	if Flag.Race {
+	if base.Flag.Race {
 		pcs = temp(types.NewArray(types.Types[TUINTPTR], int64(ncas)))
 		pc0 = typecheck(nod(OADDR, nod(OINDEX, pcs, nodintconst(0)), nil), ctxExpr)
 	} else {
@@ -278,7 +281,7 @@ func walkselectcases(cases *Nodes) []*Node {
 		var c, elem *Node
 		switch n.Op {
 		default:
-			Fatalf("select %v", n.Op)
+			base.Fatalf("select %v", n.Op)
 		case OSEND:
 			i = nsends
 			nsends++
@@ -308,17 +311,17 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
-		if Flag.Race {
+		if base.Flag.Race {
 			r = mkcall("selectsetpc", nil, nil, nod(OADDR, nod(OINDEX, pcs, nodintconst(int64(i))), nil))
 			init = append(init, r)
 		}
 	}
 	if nsends+nrecvs != ncas {
-		Fatalf("walkselectcases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
+		base.Fatalf("walkselectcases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
 	}
 
 	// run the select
-	lineno = sellineno
+	base.Pos = sellineno
 	chosen := temp(types.Types[TINT])
 	recvOK := temp(types.Types[TBOOL])
 	r = nod(OAS2, nil, nil)
@@ -331,7 +334,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	// selv and order are no longer alive after selectgo.
 	init = append(init, nod(OVARKILL, selv, nil))
 	init = append(init, nod(OVARKILL, order, nil))
-	if Flag.Race {
+	if base.Flag.Race {
 		init = append(init, nod(OVARKILL, pcs, nil))
 	}
 

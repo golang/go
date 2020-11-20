@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
@@ -480,9 +481,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Name = obj.NAME_EXTERN
 		f := math.Float64frombits(uint64(v.AuxInt))
 		if v.Op == ssa.Op386MOVSDconst1 {
-			p.From.Sym = gc.Ctxt.Float64Sym(f)
+			p.From.Sym = base.Ctxt.Float64Sym(f)
 		} else {
-			p.From.Sym = gc.Ctxt.Float32Sym(float32(f))
+			p.From.Sym = base.Ctxt.Float32Sym(float32(f))
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -713,7 +714,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r := v.Reg()
 		// See the comments in cmd/internal/obj/x86/obj6.go
 		// near CanUse1InsnTLS for a detailed explanation of these instructions.
-		if x86.CanUse1InsnTLS(gc.Ctxt) {
+		if x86.CanUse1InsnTLS(base.Ctxt) {
 			// MOVL (TLS), r
 			p := s.Prog(x86.AMOVL)
 			p.From.Type = obj.TYPE_MEM
@@ -749,7 +750,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// caller's SP is the address of the first arg
 		p := s.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize() // 0 on 386, just to be consistent with other architectures
+		p.From.Offset = -base.Ctxt.FixedFrameSize() // 0 on 386, just to be consistent with other architectures
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -850,8 +851,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 	case ssa.OpClobber:
 		p := s.Prog(x86.AMOVL)

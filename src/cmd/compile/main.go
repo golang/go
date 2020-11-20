@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/amd64"
 	"cmd/compile/internal/arm"
 	"cmd/compile/internal/arm64"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/mips"
 	"cmd/compile/internal/mips64"
@@ -50,5 +51,5 @@ func main() {
 	}
 
 	gc.Main(archInit)
-	gc.Exit(0)
+	base.Exit(0)
 }

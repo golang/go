@@ -204,6 +204,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/goobj"
 	"cmd/internal/src"
@@ -266,7 +267,7 @@ func iexport(out *bufio.Writer) {
 		p.typIndex[pt] = uint64(i)
 	}
 	if len(p.typIndex) > predeclReserved {
-		Fatalf("too many predeclared types: %d > %d", len(p.typIndex), predeclReserved)
+		base.Fatalf("too many predeclared types: %d > %d", len(p.typIndex), predeclReserved)
 	}
 
 	// Initialize work queue with exported declarations.
@@ -304,8 +305,8 @@ func iexport(out *bufio.Writer) {
 
 	// Add fingerprint (used by linker object file).
 	// Attach this to the end, so tools (e.g. gcimporter) don't care.
-	copy(Ctxt.Fingerprint[:], h.Sum(nil)[:])
-	out.Write(Ctxt.Fingerprint[:])
+	copy(base.Ctxt.Fingerprint[:], h.Sum(nil)[:])
+	out.Write(base.Ctxt.Fingerprint[:])
 }
 
 // writeIndex writes out an object index. mainIndex indicates whether
@@ -394,7 +395,7 @@ func (p *iexporter) stringOff(s string) uint64 {
 // pushDecl adds n to the declaration work queue, if not already present.
 func (p *iexporter) pushDecl(n *Node) {
 	if n.Sym == nil || asNode(n.Sym.Def) != n && n.Op != OTYPE {
-		Fatalf("weird Sym: %v, %v", n, n.Sym)
+		base.Fatalf("weird Sym: %v, %v", n, n.Sym)
 	}
 
 	// Don't export predeclared declarations.
@@ -437,7 +438,7 @@ func (p *iexporter) doDecl(n *Node) {
 
 		case PFUNC:
 			if n.IsMethod() {
-				Fatalf("unexpected method: %v", n)
+				base.Fatalf("unexpected method: %v", n)
 			}
 
 			// Function.
@@ -447,7 +448,7 @@ func (p *iexporter) doDecl(n *Node) {
 			w.funcExt(n)
 
 		default:
-			Fatalf("unexpected class: %v, %v", n, n.Class())
+			base.Fatalf("unexpected class: %v, %v", n, n.Class())
 		}
 
 	case OLITERAL:
@@ -503,7 +504,7 @@ func (p *iexporter) doDecl(n *Node) {
 		}
 
 	default:
-		Fatalf("unexpected node: %v", n)
+		base.Fatalf("unexpected node: %v", n)
 	}
 
 	p.declIndex[n] = w.flush()
@@ -523,7 +524,7 @@ func (p *iexporter) doInline(f *Node) {
 }
 
 func (w *exportWriter) pos(pos src.XPos) {
-	p := Ctxt.PosTable.Pos(pos)
+	p := base.Ctxt.PosTable.Pos(pos)
 	file := p.Base().AbsFilename()
 	line := int64(p.RelLine())
 	column := int64(p.RelCol())
@@ -579,7 +580,7 @@ func (w *exportWriter) qualifiedIdent(n *Node) {
 
 func (w *exportWriter) selector(s *types.Sym) {
 	if w.currPkg == nil {
-		Fatalf("missing currPkg")
+		base.Fatalf("missing currPkg")
 	}
 
 	// Method selectors are rewritten into method symbols (of the
@@ -594,7 +595,7 @@ func (w *exportWriter) selector(s *types.Sym) {
 			pkg = localpkg
 		}
 		if s.Pkg != pkg {
-			Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
+			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
 		}
 	}
 
@@ -633,7 +634,7 @@ func (w *exportWriter) startType(k itag) {
 func (w *exportWriter) doTyp(t *types.Type) {
 	if t.Sym != nil {
 		if t.Sym.Pkg == builtinpkg || t.Sym.Pkg == unsafepkg {
-			Fatalf("builtin type missing from typIndex: %v", t)
+			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
 		w.startType(definedType)
@@ -710,7 +711,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 	default:
-		Fatalf("unexpected type: %v", t)
+		base.Fatalf("unexpected type: %v", t)
 	}
 }
 
@@ -773,7 +774,7 @@ func constTypeOf(typ *types.Type) constant.Kind {
 		return constant.Complex
 	}
 
-	Fatalf("unexpected constant type: %v", typ)
+	base.Fatalf("unexpected constant type: %v", typ)
 	return 0
 }
 
@@ -851,7 +852,7 @@ func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 
 	negative := constant.Sign(x) < 0
 	if !signed && negative {
-		Fatalf("negative unsigned integer; type %v, value %v", typ, x)
+		base.Fatalf("negative unsigned integer; type %v, value %v", typ, x)
 	}
 
 	b := constant.Bytes(x) // little endian
@@ -860,10 +861,10 @@ func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 	}
 
 	if len(b) > 0 && b[0] == 0 {
-		Fatalf("leading zeros")
+		base.Fatalf("leading zeros")
 	}
 	if uint(len(b)) > maxBytes {
-		Fatalf("bad mpint length: %d > %d (type %v, value %v)", len(b), maxBytes, typ, x)
+		base.Fatalf("bad mpint length: %d > %d (type %v, value %v)", len(b), maxBytes, typ, x)
 	}
 
 	maxSmall := 256 - maxBytes
@@ -900,7 +901,7 @@ func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 		}
 	}
 	if n < maxSmall || n >= 256 {
-		Fatalf("encoding mistake: %d, %v, %v => %d", len(b), signed, negative, n)
+		base.Fatalf("encoding mistake: %d, %v, %v => %d", len(b), signed, negative, n)
 	}
 
 	w.data.WriteByte(byte(n))
@@ -916,7 +917,7 @@ func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
 	f := bigFloatVal(v)
 	if f.IsInf() {
-		Fatalf("infinite constant")
+		base.Fatalf("infinite constant")
 	}
 
 	// Break into f = mant × 2**exp, with 0.5 <= mant < 1.
@@ -930,7 +931,7 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
 
 	manti, acc := mant.Int(nil)
 	if acc != big.Exact {
-		Fatalf("mantissa scaling failed for %f (%s)", f, acc)
+		base.Fatalf("mantissa scaling failed for %f (%s)", f, acc)
 	}
 	w.mpint(makeInt(manti), typ)
 	if manti.Sign() != 0 {
@@ -1158,7 +1159,7 @@ func (w *exportWriter) stmt(n *Node) {
 		w.string(n.Sym.Name)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
+		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
 	}
 }
 
@@ -1169,7 +1170,7 @@ func (w *exportWriter) caseList(sw *Node) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
 		if cas.Op != OCASE {
-			Fatalf("expected OCASE, got %v", cas)
+			base.Fatalf("expected OCASE, got %v", cas)
 		}
 		w.pos(cas.Pos)
 		w.stmtList(cas.List)
@@ -1207,7 +1208,7 @@ func (w *exportWriter) expr(n *Node) {
 	// (somewhat closely following the structure of exprfmt in fmt.go)
 	case ONIL:
 		if !n.Type.HasNil() {
-			Fatalf("unexpected type for nil: %v", n.Type)
+			base.Fatalf("unexpected type for nil: %v", n.Type)
 		}
 		if n.Orig != nil && n.Orig != n {
 			w.expr(n.Orig)
@@ -1256,7 +1257,7 @@ func (w *exportWriter) expr(n *Node) {
 		var s *types.Sym
 		if n.Left != nil {
 			if n.Left.Op != ONONAME {
-				Fatalf("expected ONONAME, got %v", n.Left)
+				base.Fatalf("expected ONONAME, got %v", n.Left)
 			}
 			s = n.Left.Sym
 		}
@@ -1365,7 +1366,7 @@ func (w *exportWriter) expr(n *Node) {
 		if op == OAPPEND {
 			w.bool(n.IsDDD())
 		} else if n.IsDDD() {
-			Fatalf("exporter: unexpected '...' with %v call", op)
+			base.Fatalf("exporter: unexpected '...' with %v call", op)
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
@@ -1419,7 +1420,7 @@ func (w *exportWriter) expr(n *Node) {
 		// has already been replaced with literals
 
 	default:
-		Fatalf("cannot export %v (%d) node\n"+
+		base.Fatalf("cannot export %v (%d) node\n"+
 			"\t==> please file an issue and assign to gri@", n.Op, int(n.Op))
 	}
 }
@@ -1484,18 +1485,18 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 
 	// TODO(mdempsky): Fix autotmp hack.
 	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
-		Fatalf("unexpected dot in identifier: %v", name)
+		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
 	if v > 0 {
 		if strings.Contains(name, "·") {
-			Fatalf("exporter: unexpected · in symbol name")
+			base.Fatalf("exporter: unexpected · in symbol name")
 		}
 		name = fmt.Sprintf("%s·%d", name, v)
 	}
 
 	if !types.IsExported(name) && s.Pkg != w.currPkg {
-		Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
+		base.Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
 	}
 
 	w.string(name)

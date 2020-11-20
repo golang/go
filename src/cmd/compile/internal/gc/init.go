@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
@@ -44,7 +45,7 @@ func fninit(n []*Node) {
 
 	// Make a function that contains all the initialization statements.
 	if len(nf) > 0 {
-		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
+		base.Pos = nf[0].Pos // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
 		for _, dcl := range initTodo.Func.Dcl {
@@ -67,7 +68,7 @@ func fninit(n []*Node) {
 		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
-		Fatalf("initTodo still has declarations")
+		base.Fatalf("initTodo still has declarations")
 	}
 	initTodo = nil
 

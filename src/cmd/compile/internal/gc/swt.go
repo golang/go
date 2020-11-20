@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"go/constant"
@@ -26,7 +27,7 @@ func typecheckTypeSwitch(n *Node) {
 	n.Left.Right = typecheck(n.Left.Right, ctxExpr)
 	t := n.Left.Right.Type
 	if t != nil && !t.IsInterface() {
-		yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
+		base.ErrorfAt(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
 		t = nil
 	}
 
@@ -34,7 +35,7 @@ func typecheckTypeSwitch(n *Node) {
 	// declaration itself. So if there are no cases, we won't
 	// notice that it went unused.
 	if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
-		yyerrorl(v.Pos, "%v declared but not used", v.Sym)
+		base.ErrorfAt(v.Pos, "%v declared but not used", v.Sym)
 	}
 
 	var defCase, nilCase *Node
@@ -43,7 +44,7 @@ func typecheckTypeSwitch(n *Node) {
 		ls := ncase.List.Slice()
 		if len(ls) == 0 { // default:
 			if defCase != nil {
-				yyerrorl(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
+				base.ErrorfAt(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
 			} else {
 				defCase = ncase
 			}
@@ -61,21 +62,21 @@ func typecheckTypeSwitch(n *Node) {
 			switch {
 			case n1.isNil(): // case nil:
 				if nilCase != nil {
-					yyerrorl(ncase.Pos, "multiple nil cases in type switch (first at %v)", nilCase.Line())
+					base.ErrorfAt(ncase.Pos, "multiple nil cases in type switch (first at %v)", nilCase.Line())
 				} else {
 					nilCase = ncase
 				}
 			case n1.Op != OTYPE:
-				yyerrorl(ncase.Pos, "%L is not a type", n1)
+				base.ErrorfAt(ncase.Pos, "%L is not a type", n1)
 			case !n1.Type.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr) && !missing.Broke():
 				if have != nil && !have.Broke() {
-					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+					base.ErrorfAt(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
 						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
-					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+					base.ErrorfAt(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
 						" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
 				} else {
-					yyerrorl(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
+					base.ErrorfAt(ncase.Pos, "impossible type switch case: %L cannot have dynamic type %v"+
 						" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
 				}
 			}
@@ -135,7 +136,7 @@ func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	prevs := s.m[ls]
 	for _, prev := range prevs {
 		if types.Identical(typ, prev.typ) {
-			yyerrorl(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, linestr(prev.pos))
+			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
 			return
 		}
 	}
@@ -162,9 +163,9 @@ func typecheckExprSwitch(n *Node) {
 
 		case !IsComparable(t):
 			if t.IsStruct() {
-				yyerrorl(n.Pos, "cannot switch on %L (struct containing %v cannot be compared)", n.Left, IncomparableField(t).Type)
+				base.ErrorfAt(n.Pos, "cannot switch on %L (struct containing %v cannot be compared)", n.Left, IncomparableField(t).Type)
 			} else {
-				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
+				base.ErrorfAt(n.Pos, "cannot switch on %L", n.Left)
 			}
 			t = nil
 		}
@@ -176,7 +177,7 @@ func typecheckExprSwitch(n *Node) {
 		ls := ncase.List.Slice()
 		if len(ls) == 0 { // default:
 			if defCase != nil {
-				yyerrorl(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
+				base.ErrorfAt(ncase.Pos, "multiple defaults in switch (first at %v)", defCase.Line())
 			} else {
 				defCase = ncase
 			}
@@ -192,17 +193,17 @@ func typecheckExprSwitch(n *Node) {
 			}
 
 			if nilonly != "" && !n1.isNil() {
-				yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+				base.ErrorfAt(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 			} else if t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type) {
-				yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
+				base.ErrorfAt(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
 			} else {
 				op1, _ := assignop(n1.Type, t)
 				op2, _ := assignop(t, n1.Type)
 				if op1 == OXXX && op2 == OXXX {
 					if n.Left != nil {
-						yyerrorl(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+						base.ErrorfAt(ncase.Pos, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
 					} else {
-						yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+						base.ErrorfAt(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
 					}
 				}
 			}
@@ -267,7 +268,7 @@ func walkExprSwitch(sw *Node) {
 		cond = copyexpr(cond, cond.Type, &sw.Nbody)
 	}
 
-	lineno = lno
+	base.Pos = lno
 
 	s := exprSwitch{
 		exprname: cond,
@@ -282,7 +283,7 @@ func walkExprSwitch(sw *Node) {
 		// Process case dispatch.
 		if ncase.List.Len() == 0 {
 			if defaultGoto != nil {
-				Fatalf("duplicate default case not detected during typechecking")
+				base.Fatalf("duplicate default case not detected during typechecking")
 			}
 			defaultGoto = jmp
 		}
@@ -464,7 +465,7 @@ func allCaseExprsAreSideEffectFree(sw *Node) bool {
 
 	for _, ncase := range sw.List.Slice() {
 		if ncase.Op != OCASE {
-			Fatalf("switch string(byteslice) bad op: %v", ncase.Op)
+			base.Fatalf("switch string(byteslice) bad op: %v", ncase.Op)
 		}
 		for _, v := range ncase.List.Slice() {
 			if v.Op != OLITERAL {
@@ -517,7 +518,7 @@ func walkTypeSwitch(sw *Node) {
 	// Use a similar strategy for non-empty interfaces.
 	ifNil := nod(OIF, nil, nil)
 	ifNil.Left = nod(OEQ, itab, nodnil())
-	lineno = lineno.WithNotStmt() // disable statement marks after the first check.
+	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
 	ifNil.Left = typecheck(ifNil.Left, ctxExpr)
 	ifNil.Left = defaultlit(ifNil.Left, nil)
 	// ifNil.Nbody assigned at end.
@@ -558,7 +559,7 @@ func walkTypeSwitch(sw *Node) {
 
 		if ncase.List.Len() == 0 { // default:
 			if defaultGoto != nil {
-				Fatalf("duplicate default case not detected during typechecking")
+				base.Fatalf("duplicate default case not detected during typechecking")
 			}
 			defaultGoto = jmp
 		}
@@ -566,7 +567,7 @@ func walkTypeSwitch(sw *Node) {
 		for _, n1 := range ncase.List.Slice() {
 			if n1.isNil() { // case nil:
 				if nilGoto != nil {
-					Fatalf("duplicate nil case not detected during typechecking")
+					base.Fatalf("duplicate nil case not detected during typechecking")
 				}
 				nilGoto = jmp
 				continue
@@ -586,7 +587,7 @@ func walkTypeSwitch(sw *Node) {
 			if singleType != nil {
 				// We have a single concrete type. Extract the data.
 				if singleType.IsInterface() {
-					Fatalf("singleType interface should have been handled in Add")
+					base.Fatalf("singleType interface should have been handled in Add")
 				}
 				val = ifaceData(ncase.Pos, s.facename, singleType)
 			}
@@ -733,7 +734,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, leaf func(i int, ni
 			for i := lo; i < hi; i++ {
 				nif := nod(OIF, nil, nil)
 				leaf(i, nif)
-				lineno = lineno.WithNotStmt()
+				base.Pos = base.Pos.WithNotStmt()
 				nif.Left = typecheck(nif.Left, ctxExpr)
 				nif.Left = defaultlit(nif.Left, nil)
 				out.Append(nif)
@@ -745,7 +746,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, leaf func(i int, ni
 		half := lo + n/2
 		nif := nod(OIF, nil, nil)
 		nif.Left = less(half)
-		lineno = lineno.WithNotStmt()
+		base.Pos = base.Pos.WithNotStmt()
 		nif.Left = typecheck(nif.Left, ctxExpr)
 		nif.Left = defaultlit(nif.Left, nil)
 		do(lo, half, &nif.Nbody)

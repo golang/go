@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"container/heap"
 	"fmt"
+
+	"cmd/compile/internal/base"
 )
 
 // Package initialization
@@ -89,7 +91,7 @@ func initOrder(l []*Node) []*Node {
 		case ODCLCONST, ODCLFUNC, ODCLTYPE:
 			// nop
 		default:
-			Fatalf("unexpected package-level statement: %v", n)
+			base.Fatalf("unexpected package-level statement: %v", n)
 		}
 	}
 
@@ -104,10 +106,10 @@ func initOrder(l []*Node) []*Node {
 				// confused us and there might not be
 				// a loop. Let the user fix those
 				// first.
-				ExitIfErrors()
+				base.ExitIfErrors()
 
 				findInitLoopAndExit(firstLHS(n), new([]*Node))
-				Fatalf("initialization unfinished, but failed to identify loop")
+				base.Fatalf("initialization unfinished, but failed to identify loop")
 			}
 		}
 	}
@@ -115,7 +117,7 @@ func initOrder(l []*Node) []*Node {
 	// Invariant consistency check. If this is non-zero, then we
 	// should have found a cycle above.
 	if len(o.blocking) != 0 {
-		Fatalf("expected empty map: %v", o.blocking)
+		base.Fatalf("expected empty map: %v", o.blocking)
 	}
 
 	return s.out
@@ -123,7 +125,7 @@ func initOrder(l []*Node) []*Node {
 
 func (o *InitOrder) processAssign(n *Node) {
 	if n.Initorder() != InitNotStarted || n.Xoffset != BADWIDTH {
-		Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
+		base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
 	}
 
 	n.SetInitorder(InitPending)
@@ -154,7 +156,7 @@ func (o *InitOrder) flushReady(initialize func(*Node)) {
 	for o.ready.Len() != 0 {
 		n := heap.Pop(&o.ready).(*Node)
 		if n.Initorder() != InitPending || n.Xoffset != 0 {
-			Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
+			base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
 		}
 
 		initialize(n)
@@ -238,8 +240,8 @@ func reportInitLoopAndExit(l []*Node) {
 	}
 	fmt.Fprintf(&msg, "\t%v: %v", l[0].Line(), l[0])
 
-	yyerrorl(l[0].Pos, msg.String())
-	errorexit()
+	base.ErrorfAt(l[0].Pos, msg.String())
+	base.ErrorExit()
 }
 
 // collectDeps returns all of the package-level functions and
@@ -256,7 +258,7 @@ func collectDeps(n *Node, transitive bool) NodeSet {
 	case ODCLFUNC:
 		d.inspectList(n.Nbody)
 	default:
-		Fatalf("unexpected Op: %v", n.Op)
+		base.Fatalf("unexpected Op: %v", n.Op)
 	}
 	return d.seen
 }
@@ -347,6 +349,6 @@ func firstLHS(n *Node) *Node {
 		return n.List.First()
 	}
 
-	Fatalf("unexpected Op: %v", n.Op)
+	base.Fatalf("unexpected Op: %v", n.Op)
 	return nil
 }
