@@ -43,33 +43,34 @@ func TestBranchCondition(t *testing.T) {
 		{"BGEU", 0, -1, testBGEU, false},
 		{"BGEU", -1, 0, testBGEU, true},
 		{"BGEU", 1, 0, testBGEU, true},
-		{"BGT", 0, 1, testBGT, true},
+		{"BGT", 0, 1, testBGT, false},
 		{"BGT", 0, 0, testBGT, false},
-		{"BGT", 0, -1, testBGT, false},
-		{"BGT", -1, 0, testBGT, true},
-		{"BGT", 1, 0, testBGT, false},
-		{"BGTU", 0, 1, testBGTU, true},
-		{"BGTU", 0, -1, testBGTU, true},
-		{"BGTU", -1, 0, testBGTU, false},
-		{"BGTU", 1, 0, testBGTU, false},
-		{"BLE", 0, 1, testBLE, false},
-		{"BLE", 0, -1, testBLE, true},
+		{"BGT", 0, -1, testBGT, true},
+		{"BGT", -1, 0, testBGT, false},
+		{"BGT", 1, 0, testBGT, true},
+		{"BGTU", 0, 1, testBGTU, false},
+		{"BGTU", 0, 0, testBGTU, false},
+		{"BGTU", 0, -1, testBGTU, false},
+		{"BGTU", -1, 0, testBGTU, true},
+		{"BGTU", 1, 0, testBGTU, true},
+		{"BLE", 0, 1, testBLE, true},
 		{"BLE", 0, 0, testBLE, true},
-		{"BLE", -1, 0, testBLE, false},
-		{"BLE", 1, 0, testBLE, true},
-		{"BLEU", 0, 1, testBLEU, false},
-		{"BLEU", 0, -1, testBLEU, false},
+		{"BLE", 0, -1, testBLE, false},
+		{"BLE", -1, 0, testBLE, true},
+		{"BLE", 1, 0, testBLE, false},
+		{"BLEU", 0, 1, testBLEU, true},
 		{"BLEU", 0, 0, testBLEU, true},
-		{"BLEU", -1, 0, testBLEU, true},
-		{"BLEU", 1, 0, testBLEU, true},
+		{"BLEU", 0, -1, testBLEU, true},
+		{"BLEU", -1, 0, testBLEU, false},
+		{"BLEU", 1, 0, testBLEU, false},
 		{"BLT", 0, 1, testBLT, true},
-		{"BLT", 0, -1, testBLT, false},
 		{"BLT", 0, 0, testBLT, false},
+		{"BLT", 0, -1, testBLT, false},
 		{"BLT", -1, 0, testBLT, true},
 		{"BLT", 1, 0, testBLT, false},
 		{"BLTU", 0, 1, testBLTU, true},
-		{"BLTU", 0, -1, testBLTU, true},
 		{"BLTU", 0, 0, testBLTU, false},
+		{"BLTU", 0, -1, testBLTU, true},
 		{"BLTU", -1, 0, testBLTU, false},
 		{"BLTU", 1, 0, testBLTU, false},
 	}
@@ -82,17 +83,13 @@ func TestBranchCondition(t *testing.T) {
 			case "BGEU":
 				fn = func(a, b int64) bool { return uint64(a) >= uint64(b) }
 			case "BGT":
-				// TODO: Currently reversed.
-				fn = func(a, b int64) bool { return b > a }
+				fn = func(a, b int64) bool { return a > b }
 			case "BGTU":
-				// TODO: Currently reversed.
-				fn = func(a, b int64) bool { return uint64(b) > uint64(a) }
+				fn = func(a, b int64) bool { return uint64(a) > uint64(b) }
 			case "BLE":
-				// TODO: Currently reversed.
-				fn = func(a, b int64) bool { return b <= a }
+				fn = func(a, b int64) bool { return a <= b }
 			case "BLEU":
-				// TODO: Currently reversed.
-				fn = func(a, b int64) bool { return uint64(b) <= uint64(a) }
+				fn = func(a, b int64) bool { return uint64(a) <= uint64(b) }
 			case "BLT":
 				fn = func(a, b int64) bool { return a < b }
 			case "BLTU":
