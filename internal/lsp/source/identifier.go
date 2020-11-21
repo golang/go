@@ -157,14 +157,6 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		enclosing: searchForEnclosing(pkg.GetTypesInfo(), path),
 	}
 
-	var wasEmbeddedField bool
-	for _, n := range path[1:] {
-		if field, ok := n.(*ast.Field); ok {
-			wasEmbeddedField = len(field.Names) == 0
-			break
-		}
-	}
-
 	result.Name = result.ident.Name
 	var err error
 	if result.MappedRange, err = posToMappedRange(snapshot, pkg, result.ident.Pos(), result.ident.End()); err != nil {
@@ -253,13 +245,12 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		}
 	}
 
-	if wasEmbeddedField {
-		// The original position was on the embedded field declaration, so we
-		// try to dig out the type and jump to that instead.
-		if v, ok := result.Declaration.obj.(*types.Var); ok {
-			if typObj := typeToObject(v.Type()); typObj != nil {
-				result.Declaration.obj = typObj
-			}
+	// If the original position was an embedded field, we want to jump
+	// to the field's type definition, not the field's definition.
+	if v, ok := result.Declaration.obj.(*types.Var); ok && v.Embedded() {
+		// types.Info.Uses contains the embedded field's *types.TypeName.
+		if typeName := pkg.GetTypesInfo().Uses[ident]; typeName != nil {
+			result.Declaration.obj = typeName
 		}
 	}
 

@@ -74,10 +74,6 @@ func Random2(y int) int
 ```
 
 [`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)
--- a-hover --
-```go
-
-```
 -- aPackage-hover --
 Package a is a package for testing go to definition\.
 -- err-definition --

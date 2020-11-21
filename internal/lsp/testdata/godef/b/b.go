@@ -22,10 +22,13 @@ func _() {
 	e.Goodbye() //@hover("Goodbye", AGoodbye)
 }
 
+type aAlias = a.A //@mark(aAlias, "aAlias")
+
 type S1 struct { //@S1
-	F1  int //@mark(S1F1, "F1")
-	S2      //@godef("S2", S2),mark(S1S2, "S2")
-	a.A     //@godef("A", AString)
+	F1     int //@mark(S1F1, "F1")
+	S2         //@godef("S2", S2),mark(S1S2, "S2")
+	a.A        //@godef("A", AString)
+	aAlias     //@godef("a", aAlias)
 }
 
 type S2 struct { //@S2
