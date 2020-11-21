@@ -130,6 +130,18 @@ func osinit() {
 	physPageSize = getPageSize()
 }
 
+func sysctlbynameInt32(name []byte) (int32, int32) {
+	out := int32(0)
+	nout := unsafe.Sizeof(out)
+	ret := sysctlbyname(&name[0], (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	return ret, out
+}
+
+//go:linkname internal_cpu_getsysctlbyname internal/cpu.getsysctlbyname
+func internal_cpu_getsysctlbyname(name []byte) (int32, int32) {
+	return sysctlbynameInt32(name)
+}
+
 const (
 	_CTL_HW      = 6
 	_HW_NCPU     = 3

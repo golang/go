@@ -360,10 +360,17 @@ func setitimer_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+func sysctl(mib *uint32, miblen uint32, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
 	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
 }
 func sysctl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sysctlbyname(name *byte, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+}
+func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -486,6 +493,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sysctlbyname sysctlbyname "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
