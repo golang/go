@@ -119,7 +119,7 @@ type workspaceInformation struct {
 }
 
 type environmentVariables struct {
-	gocache, gopath, goprivate, gomodcache string
+	gocache, gopath, goroot, goprivate, gomodcache string
 }
 
 type workspaceMode int
@@ -784,6 +784,7 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, configEnv []strin
 	vars := map[string]*string{
 		"GOCACHE":    &envVars.gocache,
 		"GOPATH":     &envVars.gopath,
+		"GOROOT":     &envVars.goroot,
 		"GOPRIVATE":  &envVars.goprivate,
 		"GOMODCACHE": &envVars.gomodcache,
 	}
