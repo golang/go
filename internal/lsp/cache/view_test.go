@@ -8,9 +8,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -97,6 +101,88 @@ module fg
 		}
 		if gotf, wantf := filepath.Clean(got.Filename()), rel.AbsPath(test.want); gotf != wantf {
 			t.Errorf("findWorkspaceRoot(%q, %t) = %q, want %q", test.folder, test.experimental, gotf, wantf)
+		}
+	}
+}
+
+// This tests the logic used to extract positions from parse and other Go
+// command errors.
+func TestExtractPositionFromError(t *testing.T) {
+	workspace := `
+-- a/go.mod --
+modul a.com
+-- b/go.mod --
+module b.com
+
+go 1.12.hello
+-- c/go.mod --
+module c.com
+
+require a.com master
+`
+	dir, err := fake.Tempdir(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	tests := []struct {
+		filename string
+		wantRng  protocol.Range
+	}{
+		{
+			filename: "a/go.mod",
+			wantRng:  protocol.Range{},
+		},
+		{
+			filename: "b/go.mod",
+			wantRng: protocol.Range{
+				Start: protocol.Position{Line: 2},
+				End:   protocol.Position{Line: 2},
+			},
+		},
+		{
+			filename: "c/go.mod",
+			wantRng: protocol.Range{
+				Start: protocol.Position{Line: 2},
+				End:   protocol.Position{Line: 2},
+			},
+		},
+	}
+	for _, test := range tests {
+		ctx := context.Background()
+		rel := fake.RelativeTo(dir)
+		uri := span.URIFromPath(rel.AbsPath(test.filename))
+		if source.DetectLanguage("", uri.Filename()) != source.Mod {
+			t.Fatalf("expected only go.mod files")
+		}
+		// Try directly parsing the given, invalid go.mod file. Then, extract a
+		// position from the error message.
+		src := osFileSource{}
+		modFH, err := src.GetFile(ctx, uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, err := modFH.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, parseErr := modfile.Parse(uri.Filename(), content, nil)
+		if parseErr == nil {
+			t.Fatalf("%s: expected an unparseable go.mod file", uri.Filename())
+		}
+		srcErr, err := extractErrorWithPosition(ctx, parseErr.Error(), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if srcErr.URI != uri {
+			t.Errorf("unexpected URI: got %s, wanted %s", srcErr.URI, uri)
+		}
+		if protocol.CompareRange(test.wantRng, srcErr.Range) != 0 {
+			t.Errorf("unexpected range: got %s, wanted %s", srcErr.Range, test.wantRng)
+		}
+		if !strings.HasSuffix(parseErr.Error(), srcErr.Message) {
+			t.Errorf("unexpected message: got %s, wanted %s", srcErr.Message, parseErr)
 		}
 	}
 }

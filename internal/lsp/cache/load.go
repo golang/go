@@ -174,7 +174,7 @@ func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) source.Err
 		if err != nil {
 			continue
 		}
-		srcErr := extractGoCommandError(ctx, s, fh, loadErr)
+		srcErr := s.extractGoCommandError(ctx, s, fh, loadErr.Error())
 		if srcErr == nil {
 			continue
 		}
