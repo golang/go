@@ -6,7 +6,9 @@ package buildid
 
 import (
 	"bytes"
+	"cmd/internal/codesign"
 	"crypto/sha256"
+	"debug/macho"
 	"fmt"
 	"io"
 )
@@ -25,6 +27,11 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
 	}
 	zeros := make([]byte, len(id))
 	idBytes := []byte(id)
+
+	// For Mach-O files, we want to exclude the code signature.
+	// The code signature contains hashes of the whole file (except the signature
+	// itself), including the buildid. So the buildid cannot contain the signature.
+	r = excludeMachoCodeSignature(r)
 
 	// The strategy is to read the file through buf, looking for id,
 	// but we need to worry about what happens if id is broken up
@@ -88,4 +95,47 @@ func Rewrite(w io.WriterAt, pos []int64, id string) error {
 		}
 	}
 	return nil
+}
+
+func excludeMachoCodeSignature(r io.Reader) io.Reader {
+	ra, ok := r.(io.ReaderAt)
+	if !ok {
+		return r
+	}
+	f, err := macho.NewFile(ra)
+	if err != nil {
+		return r
+	}
+	cmd, ok := codesign.FindCodeSigCmd(f)
+	if !ok {
+		return r
+	}
+	return &excludedReader{r, 0, int64(cmd.Dataoff), int64(cmd.Dataoff + cmd.Datasize)}
+}
+
+// excludedReader wraps an io.Reader. Reading from it returns the bytes from
+// the underlying reader, except that when the byte offset is within the
+// range between start and end, it returns zero bytes.
+type excludedReader struct {
+	r          io.Reader
+	off        int64 // current offset
+	start, end int64 // the range to be excluded (read as zero)
+}
+
+func (r *excludedReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if n > 0 && r.off+int64(n) > r.start && r.off < r.end {
+		cstart := r.start - r.off
+		if cstart < 0 {
+			cstart = 0
+		}
+		cend := r.end - r.off
+		if cend > int64(n) {
+			cend = int64(n)
+		}
+		zeros := make([]byte, cend-cstart)
+		copy(p[cstart:cend], zeros)
+	}
+	r.off += int64(n)
+	return n, err
 }
