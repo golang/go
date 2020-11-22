@@ -53,8 +53,8 @@ func funcSym(fn *Node) *types.Sym {
 // Walk hasn't generated (goto|label).Left.Sym.Label yet, so we'll cheat
 // and set it to one of the following two. Then in esc we'll clear it again.
 var (
-	looping    Node
-	nonlooping Node
+	looping    = nod(OXXX, nil, nil)
+	nonlooping = nod(OXXX, nil, nil)
 )
 
 func isSliceSelfAssign(dst, src *Node) bool {

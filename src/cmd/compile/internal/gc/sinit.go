@@ -186,9 +186,8 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		return true
 
 	case OADDR:
-		var nam Node
-		if stataddr(&nam, r.Left) {
-			addrsym(l, &nam)
+		if nam := stataddr(r.Left); nam != nil {
+			addrsym(l, nam)
 			return true
 		}
 		fallthrough
@@ -609,11 +608,11 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 		// copy static to slice
 		var_ = typecheck(var_, ctxExpr|ctxAssign)
-		var nam Node
-		if !stataddr(&nam, var_) || nam.Class() != PEXTERN {
+		nam := stataddr(var_)
+		if nam == nil || nam.Class() != PEXTERN {
 			Fatalf("slicelit: %v", var_)
 		}
-		slicesym(&nam, vstat, t.NumElem())
+		slicesym(nam, vstat, t.NumElem())
 		return
 	}
 
@@ -1001,30 +1000,31 @@ func getlit(lit *Node) int {
 	return -1
 }
 
-// stataddr sets nam to the static address of n and reports whether it succeeded.
-func stataddr(nam *Node, n *Node) bool {
+// stataddr returns the static address of n, if n has one, or else nil.
+func stataddr(n *Node) *Node {
 	if n == nil {
-		return false
+		return nil
 	}
 
 	switch n.Op {
 	case ONAME, OMETHEXPR:
-		*nam = *n
-		return true
+		return n.sepcopy()
 
 	case ODOT:
-		if !stataddr(nam, n.Left) {
+		nam := stataddr(n.Left)
+		if nam == nil {
 			break
 		}
 		nam.Xoffset += n.Xoffset
 		nam.Type = n.Type
-		return true
+		return nam
 
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
 			break
 		}
-		if !stataddr(nam, n.Left) {
+		nam := stataddr(n.Left)
+		if nam == nil {
 			break
 		}
 		l := getlit(n.Right)
@@ -1038,10 +1038,10 @@ func stataddr(nam *Node, n *Node) bool {
 		}
 		nam.Xoffset += int64(l) * n.Type.Width
 		nam.Type = n.Type
-		return true
+		return nam
 	}
 
-	return false
+	return nil
 }
 
 func (s *InitSchedule) initplan(n *Node) {
@@ -1158,16 +1158,16 @@ func genAsStatic(as *Node) {
 		Fatalf("genAsStatic as.Left not typechecked")
 	}
 
-	var nam Node
-	if !stataddr(&nam, as.Left) || (nam.Class() != PEXTERN && as.Left != nblank) {
+	nam := stataddr(as.Left)
+	if nam == nil || (nam.Class() != PEXTERN && as.Left != nblank) {
 		Fatalf("genAsStatic: lhs %v", as.Left)
 	}
 
 	switch {
 	case as.Right.Op == OLITERAL:
-		litsym(&nam, as.Right, int(as.Right.Type.Width))
+		litsym(nam, as.Right, int(as.Right.Type.Width))
 	case (as.Right.Op == ONAME || as.Right.Op == OMETHEXPR) && as.Right.Class() == PFUNC:
-		pfuncsym(&nam, as.Right)
+		pfuncsym(nam, as.Right)
 	default:
 		Fatalf("genAsStatic: rhs %v", as.Right)
 	}

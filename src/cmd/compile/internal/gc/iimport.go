@@ -839,7 +839,8 @@ func (r *importReader) node() *Node {
 		if s := r.ident(); s != nil {
 			n.Left = npos(n.Pos, newnoname(s))
 		}
-		n.Right, _ = r.exprsOrNil()
+		right, _ := r.exprsOrNil()
+		n.Right = right
 		return n
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
@@ -1021,7 +1022,9 @@ func (r *importReader) node() *Node {
 	case OFOR:
 		n := nodl(r.pos(), OFOR, nil, nil)
 		n.Ninit.Set(r.stmtList())
-		n.Left, n.Right = r.exprsOrNil()
+		left, right := r.exprsOrNil()
+		n.Left = left
+		n.Right = right
 		n.Nbody.Set(r.stmtList())
 		return n
 
@@ -1035,7 +1038,8 @@ func (r *importReader) node() *Node {
 	case OSELECT, OSWITCH:
 		n := nodl(r.pos(), op, nil, nil)
 		n.Ninit.Set(r.stmtList())
-		n.Left, _ = r.exprsOrNil()
+		left, _ := r.exprsOrNil()
+		n.Left = left
 		n.List.Set(r.caseList(n))
 		return n
 
