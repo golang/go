@@ -152,7 +152,12 @@ func markLine(m mark, lines [][]byte) {
 		insert = fmt.Sprintf("%s%d,namespace,[]*/", SemanticLeft, length)
 		splitAt = m.offset + m.len
 	} else {
-		insert = fmt.Sprintf("%s%d,%s,%v*/", SemanticRight, length, m.typ, m.mods)
+		// be careful not to generate //*
+		spacer := ""
+		if splitAt-1 >= 0 && l[splitAt-1] == '/' {
+			spacer = " "
+		}
+		insert = fmt.Sprintf("%s%s%d,%s,%v*/", spacer, SemanticRight, length, m.typ, m.mods)
 	}
 	x := append([]byte(insert), l[splitAt:]...)
 	l = append(l[:splitAt], x...)

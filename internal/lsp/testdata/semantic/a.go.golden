@@ -1,5 +1,5 @@
 -- semantic --
-/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens
+/*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens //@ semantic("")
 
 /*⇒6,keyword,[]*/import (
 	_ "encoding/utf8"/*⇐4,namespace,[]*/
@@ -20,10 +20,10 @@
 )
 
 /*⇒5,keyword,[]*/const (
-	/*⇒2,variable,[definition readonly]*/xx /*⇒1,type,[]*/F = /*⇒4,keyword,[]*/iota
+	/*⇒2,variable,[definition readonly]*/xx /*⇒1,type,[]*/F = /*⇒4,variable,[readonly]*/iota
 	/*⇒2,variable,[definition readonly]*/yy   = /*⇒2,variable,[readonly]*/xx /*⇒1,operator,[]*/+ /*⇒1,number,[]*/3
 	/*⇒2,variable,[definition readonly]*/zz   = /*⇒2,string,[]*/""
-	/*⇒2,variable,[definition readonly]*/ww   = /*⇒6,string,[]*/"not " /*⇒1,operator,[]*/+ /*⇒2,string,[readonly]*/zz
+	/*⇒2,variable,[definition readonly]*/ww   = /*⇒6,string,[]*/"not " /*⇒1,operator,[]*/+ /*⇒2,variable,[readonly]*/zz
 )
 
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/A /*⇒6,keyword,[]*/struct {
@@ -50,13 +50,13 @@
 	/*⇒7,keyword,[]*/default:
 	}
 	/*⇒3,keyword,[]*/for /*⇒1,variable,[definition]*/k, /*⇒1,variable,[definition]*/v := /*⇒5,keyword,[]*/range /*⇒1,variable,[]*/m {
-		/*⇒6,keyword,[]*/return (/*⇒1,operator,[]*/!/*⇒1,variable,[]*/k) /*⇒2,operator,[]*/&& /*⇒1,variable,[]*/v[/*⇒1,number,[]*/0] /*⇒2,operator,[]*/== /*⇒3,keyword,[readonly]*/nil
+		/*⇒6,keyword,[]*/return (/*⇒1,operator,[]*/!/*⇒1,variable,[]*/k) /*⇒2,operator,[]*/&& /*⇒1,variable,[]*/v[/*⇒1,number,[]*/0] /*⇒2,operator,[]*/== /*⇒3,variable,[readonly]*/nil
 	}
 	/*⇒2,variable,[]*/c2 /*⇒2,operator,[]*/<- /*⇒1,type,[]*/A./*⇒1,variable,[definition]*/X
 	/*⇒1,variable,[definition]*/w /*⇒2,operator,[]*/:= /*⇒1,variable,[]*/b[/*⇒1,number,[]*/4:]
 	/*⇒1,variable,[definition]*/j /*⇒2,operator,[]*/:= /*⇒3,function,[defaultLibrary]*/len(/*⇒1,variable,[]*/x)
 	/*⇒1,variable,[]*/j/*⇒2,operator,[]*/--
-	/*⇒6,keyword,[]*/return /*⇒4,keyword,[]*/true
+	/*⇒6,keyword,[]*/return /*⇒4,variable,[readonly]*/true
 }
 
 /*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/g(/*⇒2,parameter,[definition]*/vv /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
@@ -64,7 +64,7 @@
 	/*⇒5,keyword,[]*/defer /*⇒2,variable,[]*/ff()
 	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,variable,[definition]*/RuneCount(/*⇒2,string,[]*/"")
 	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,variable,[]*/vv.(/*⇒6,variable,[definition]*/string))
-	/*⇒2,keyword,[]*/if /*⇒4,keyword,[]*/true {
+	/*⇒2,keyword,[]*/if /*⇒4,variable,[readonly]*/true {
 	} /*⇒4,keyword,[]*/else {
 	}
 /*⇒5,parameter,[definition]*/Never:

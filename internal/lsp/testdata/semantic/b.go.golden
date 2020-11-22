@@ -1,12 +1,21 @@
 -- semantic --
 /*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens //@ semantic("")
 
+/*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/f(/*⇒1,parameter,[definition]*/x /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
+}
+
 /*⇒4,keyword,[]*/func /*⇒6,function,[definition]*/weirⰀd() {
 	/*⇒5,keyword,[]*/const (
-		/*⇒4,variable,[definition readonly]*/snil  = /*⇒3,keyword,[readonly]*/nil
-		/*⇒3,variable,[definition readonly]*/nil   = /*⇒4,keyword,[]*/true
-		/*⇒4,variable,[definition readonly]*/true  = /*⇒5,keyword,[]*/false
-		/*⇒5,variable,[definition readonly]*/false = /*⇒4,variable,[readonly]*/snil
+		/*⇒4,variable,[definition readonly]*/snil   = /*⇒3,variable,[readonly]*/nil
+		/*⇒3,variable,[definition readonly]*/nil    = /*⇒4,variable,[readonly]*/true
+		/*⇒4,variable,[definition readonly]*/true   = /*⇒5,variable,[readonly]*/false
+		/*⇒5,variable,[definition readonly]*/false  = /*⇒4,variable,[readonly]*/snil
+		/*⇒3,variable,[definition readonly]*/cmd    = /*⇒6,string,[]*/`foof`
+		/*⇒6,variable,[definition readonly]*/double = /*⇒4,variable,[readonly]*/iota
+		/*⇒4,variable,[definition readonly]*/iota   = /*⇒4,function,[defaultLibrary]*/copy
+		/*⇒4,variable,[definition readonly]*/four   = (/*⇒3,function,[defaultLibrary]*/len(/*⇒3,variable,[readonly]*/cmd)/*⇒1,operator,[]*// /*⇒1,number,[]*/2 /*⇒1,operator,[]*/< /*⇒1,number,[]*/5)
+		/*⇒4,variable,[definition readonly]*/five   = /*⇒4,variable,[readonly]*/four
 	)
+	/*⇒1,function,[]*/f(/*⇒3,variable,[readonly]*/cmd, /*⇒3,variable,[readonly]*/nil, /*⇒6,variable,[readonly]*/double, /*⇒4,variable,[readonly]*/iota)
 }
 

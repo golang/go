@@ -1,4 +1,4 @@
-package semantictokens
+package semantictokens //@ semantic("")
 
 import (
 	_ "encoding/utf8"
