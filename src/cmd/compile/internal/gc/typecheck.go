@@ -3412,7 +3412,7 @@ func typecheckfunc(n *Node) {
 	t.FuncType().Nname = asTypesNode(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
-		m := addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+		m := addmethod(n, n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
 		if m == nil {
 			return
 		}
