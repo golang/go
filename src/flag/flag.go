@@ -897,13 +897,19 @@ func Var(value Value, name string, usage string) {
 	CommandLine.Var(value, name, usage)
 }
 
+// sprintf formats the message, prints it to output, and returns it.
+func (f *FlagSet) sprintf(format string, a ...interface{}) string {
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintln(f.Output(), msg)
+	return msg
+}
+
 // failf prints to standard error a formatted error and usage message and
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface{}) error {
-	err := fmt.Errorf(format, a...)
-	fmt.Fprintln(f.Output(), err)
+	msg := f.sprintf(format, a...)
 	f.usage()
-	return err
+	return errors.New(msg)
 }
 
 // usage calls the Usage method for the flag set if one is specified,
