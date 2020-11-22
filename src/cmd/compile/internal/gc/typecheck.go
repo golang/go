@@ -1692,8 +1692,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Type = nil
 			return n
 		}
-		var why string
-		n.Op, why = convertop(n.Left.Op == OLITERAL, t, n.Type)
+		op, why := convertop(n.Left.Op == OLITERAL, t, n.Type)
+		n.Op = op
 		if n.Op == OXXX {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
@@ -3021,7 +3021,8 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx stri
 	var key, length int64
 	for i, elt := range elts {
 		setlineno(elt)
-		vp := &elts[i]
+		r := elts[i]
+		var kv *Node
 		if elt.Op == OKEY {
 			elt.Left = typecheck(elt.Left, ctxExpr)
 			key = indexconst(elt.Left)
@@ -3036,13 +3037,18 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx stri
 				}
 				key = -(1 << 30) // stay negative for a while
 			}
-			vp = &elt.Right
+			kv = elt
+			r = elt.Right
 		}
 
-		r := *vp
 		r = pushtype(r, elemType)
 		r = typecheck(r, ctxExpr)
-		*vp = assignconv(r, elemType, ctx)
+		r = assignconv(r, elemType, ctx)
+		if kv != nil {
+			kv.Right = r
+		} else {
+			elts[i] = r
+		}
 
 		if key >= 0 {
 			if indices != nil {

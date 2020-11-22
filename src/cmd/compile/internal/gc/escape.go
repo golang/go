@@ -227,13 +227,13 @@ func (e *Escape) walkFunc(fn *Node) {
 	inspectList(fn.Nbody, func(n *Node) bool {
 		switch n.Op {
 		case OLABEL:
-			n.Sym.Label = asTypesNode(&nonlooping)
+			n.Sym.Label = asTypesNode(nonlooping)
 
 		case OGOTO:
 			// If we visited the label before the goto,
 			// then this is a looping label.
-			if n.Sym.Label == asTypesNode(&nonlooping) {
-				n.Sym.Label = asTypesNode(&looping)
+			if n.Sym.Label == asTypesNode(nonlooping) {
+				n.Sym.Label = asTypesNode(looping)
 			}
 		}
 
@@ -309,11 +309,11 @@ func (e *Escape) stmt(n *Node) {
 
 	case OLABEL:
 		switch asNode(n.Sym.Label) {
-		case &nonlooping:
+		case nonlooping:
 			if Debug.m > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
-		case &looping:
+		case looping:
 			if Debug.m > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
