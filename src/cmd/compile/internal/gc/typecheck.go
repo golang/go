@@ -2416,6 +2416,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
 	n.Type = methodfunc(m.Type, n.Left.Type)
 	n.Xoffset = 0
 	n.SetClass(PFUNC)
+	n.SetOpt(m)
 	// methodSym already marked n.Sym as a function.
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
@@ -2538,6 +2539,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		n.Xoffset = f2.Offset
 		n.Type = f2.Type
 		n.Op = ODOTMETH
+		n.SetOpt(f2)
 
 		return f2
 	}
@@ -4016,4 +4018,23 @@ func curpkg() *types.Pkg {
 	}
 
 	return fnpkg(fn)
+}
+
+// MethodName returns the ONAME representing the method
+// referenced by expression n, which must be a method selector,
+// method expression, or method value.
+func (n *Node) MethodName() *Node {
+	return asNode(n.MethodFunc().Type.Nname())
+}
+
+// MethodFunc is like MethodName, but returns the types.Field instead.
+func (n *Node) MethodFunc() *types.Field {
+	switch {
+	case n.Op == ODOTMETH || n.isMethodExpression():
+		return n.Opt().(*types.Field)
+	case n.Op == OCALLPART:
+		return callpartMethod(n)
+	}
+	Fatalf("unexpected node: %v (%v)", n, n.Op)
+	panic("unreachable")
 }

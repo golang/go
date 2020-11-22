@@ -266,7 +266,11 @@ func (n *Node) Opt() interface{} {
 // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
 // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
 func (n *Node) SetOpt(x interface{}) {
-	if x == nil && n.HasVal() {
+	if x == nil {
+		if n.HasOpt() {
+			n.SetHasOpt(false)
+			n.E = nil
+		}
 		return
 	}
 	if n.HasVal() {
