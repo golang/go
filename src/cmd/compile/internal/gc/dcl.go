@@ -824,7 +824,7 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 // - msym is the method symbol
 // - t is function type (with receiver)
 // Returns a pointer to the existing or added Field; or nil if there's an error.
-func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
+func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
 	if msym == nil {
 		Fatalf("no method symbol")
 	}
@@ -897,6 +897,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 	}
 
 	f := types.NewField(lineno, msym, t)
+	f.Type.SetNname(asTypesNode(n.Func.Nname))
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)

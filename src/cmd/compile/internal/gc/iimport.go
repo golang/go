@@ -327,19 +327,14 @@ func (r *importReader) doDecl(n *Node) {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			ms[i] = types.NewField(mpos, msym, mtyp)
-
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
 			m.Type = mtyp
 			m.SetClass(PFUNC)
 			// methodSym already marked m.Sym as a function.
 
-			// (comment from parser.go)
-			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
-			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
-			// out by typecheck's lookdot as this $$.ttype. So by providing
-			// this back link here we avoid special casing there.
-			mtyp.SetNname(asTypesNode(m))
+			f := types.NewField(mpos, msym, mtyp)
+			f.Type.SetNname(asTypesNode(m))
+			ms[i] = f
 		}
 		t.Methods().Set(ms)
 

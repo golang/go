@@ -12,6 +12,15 @@ type exporter struct {
 	marked map[*types.Type]bool // types already seen by markType
 }
 
+// markObject visits a reachable object.
+func (p *exporter) markObject(n *Node) {
+	if n.Op == ONAME && n.Class() == PFUNC {
+		inlFlood(n)
+	}
+
+	p.markType(n.Type)
+}
+
 // markType recursively visits types reachable from t to identify
 // functions whose inline bodies may be needed.
 func (p *exporter) markType(t *types.Type) {
@@ -28,7 +37,7 @@ func (p *exporter) markType(t *types.Type) {
 	if t.Sym != nil && t.Etype != TINTER {
 		for _, m := range t.Methods().Slice() {
 			if types.IsExported(m.Sym.Name) {
-				p.markType(m.Type)
+				p.markObject(asNode(m.Type.Nname()))
 			}
 		}
 	}
@@ -63,11 +72,6 @@ func (p *exporter) markType(t *types.Type) {
 		}
 
 	case TFUNC:
-		// If t is the type of a function or method, then
-		// t.Nname() is its ONAME. Mark its inline body and
-		// any recursively called functions for export.
-		inlFlood(asNode(t.Nname()))
-
 		for _, f := range t.Results().FieldSlice() {
 			p.markType(f.Type)
 		}
