@@ -207,14 +207,14 @@ type progeffectscache struct {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func livenessShouldTrack(n *ir.Node) bool {
-	return n.Op == ir.ONAME && (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type.HasPointers()
+	return n.Op() == ir.ONAME && (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
 // and a map for looking up indices by *Node.
 func getvariables(fn *ir.Node) ([]*ir.Node, map[*ir.Node]int32) {
 	var vars []*ir.Node
-	for _, n := range fn.Func.Dcl {
+	for _, n := range fn.Func().Dcl {
 		if livenessShouldTrack(n) {
 			vars = append(vars, n)
 		}
@@ -272,7 +272,7 @@ const (
 // If v does not affect any tracked variables, it returns -1, 0.
 func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	n, e := affectedNode(v)
-	if e == 0 || n == nil || n.Op != ir.ONAME { // cheapest checks first
+	if e == 0 || n == nil || n.Op() != ir.ONAME { // cheapest checks first
 		return -1, 0
 	}
 
@@ -282,7 +282,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !n.Name.Used() {
+		if !n.Name().Used() {
 			return -1, 0
 		}
 	}
@@ -297,7 +297,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
 		effect |= uevar
 	}
-	if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
+	if e&ssa.SymWrite != 0 && (!isfat(n.Type()) || v.Op == ssa.OpVarDef) {
 		effect |= varkill
 	}
 
@@ -491,10 +491,10 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Node, args, locals bvec)
 		node := vars[i]
 		switch node.Class() {
 		case ir.PAUTO:
-			onebitwalktype1(node.Type, node.Xoffset+lv.stkptrsize, locals)
+			onebitwalktype1(node.Type(), node.Offset()+lv.stkptrsize, locals)
 
 		case ir.PPARAM, ir.PPARAMOUT:
-			onebitwalktype1(node.Type, node.Xoffset, args)
+			onebitwalktype1(node.Type(), node.Offset(), args)
 		}
 	}
 }
@@ -788,14 +788,14 @@ func (lv *Liveness) epilogue() {
 	// pointers to copy values back to the stack).
 	// TODO: if the output parameter is heap-allocated, then we
 	// don't need to keep the stack copy live?
-	if lv.fn.Func.HasDefer() {
+	if lv.fn.Func().HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == ir.PPARAMOUT {
-				if n.Name.IsOutputParamHeapAddr() {
+				if n.Name().IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					base.Fatalf("variable %v both output param and heap output param", n)
 				}
-				if n.Name.Param.Heapaddr != nil {
+				if n.Name().Param.Heapaddr != nil {
 					// If this variable moved to the heap, then
 					// its stack copy is not live.
 					continue
@@ -803,21 +803,21 @@ func (lv *Liveness) epilogue() {
 				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
-			if n.Name.IsOutputParamHeapAddr() {
+			if n.Name().IsOutputParamHeapAddr() {
 				// This variable will be overwritten early in the function
 				// prologue (from the result of a mallocgc) but we need to
 				// zero it in case that malloc causes a stack scan.
-				n.Name.SetNeedzero(true)
+				n.Name().SetNeedzero(true)
 				livedefer.Set(int32(i))
 			}
-			if n.Name.OpenDeferSlot() {
+			if n.Name().OpenDeferSlot() {
 				// Open-coded defer args slots must be live
 				// everywhere in a function, since a panic can
 				// occur (almost) anywhere. Because it is live
 				// everywhere, it must be zeroed on entry.
 				livedefer.Set(int32(i))
 				// It was already marked as Needzero when created.
-				if !n.Name.Needzero() {
+				if !n.Name().Needzero() {
 					base.Fatalf("all pointer-containing defer arg slots should have Needzero set")
 				}
 			}
@@ -891,7 +891,7 @@ func (lv *Liveness) epilogue() {
 				if n.Class() == ir.PPARAM {
 					continue // ok
 				}
-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func.Nname, n)
+				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func().Nname, n)
 			}
 
 			// Record live variables.
@@ -904,7 +904,7 @@ func (lv *Liveness) epilogue() {
 	}
 
 	// If we have an open-coded deferreturn call, make a liveness map for it.
-	if lv.fn.Func.OpenCodedDeferDisallowed() {
+	if lv.fn.Func().OpenCodedDeferDisallowed() {
 		lv.livenessMap.deferreturn = LivenessDontCare
 	} else {
 		lv.livenessMap.deferreturn = LivenessIndex{
@@ -922,7 +922,7 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func().Nname, n)
 		}
 	}
 }
@@ -980,7 +980,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 		return
 	}
 
-	pos := lv.fn.Func.Nname.Pos
+	pos := lv.fn.Func().Nname.Pos()
 	if v != nil {
 		pos = v.Pos
 	}
@@ -1024,7 +1024,7 @@ func (lv *Liveness) printbvec(printed bool, name string, live bvec) bool {
 		if !live.Get(int32(i)) {
 			continue
 		}
-		fmt.Printf("%s%s", comma, n.Sym.Name)
+		fmt.Printf("%s%s", comma, n.Sym().Name)
 		comma = ","
 	}
 	return true
@@ -1042,7 +1042,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
 	}
 	fmt.Printf("%s=", name)
 	if x {
-		fmt.Printf("%s", lv.vars[pos].Sym.Name)
+		fmt.Printf("%s", lv.vars[pos].Sym().Name)
 	}
 
 	return true
@@ -1090,7 +1090,7 @@ func (lv *Liveness) printDebug() {
 
 		if b == lv.f.Entry {
 			live := lv.stackMaps[0]
-			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func.Nname.Pos))
+			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func().Nname.Pos()))
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1168,7 +1168,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	for _, n := range lv.vars {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT:
-			if maxArgNode == nil || n.Xoffset > maxArgNode.Xoffset {
+			if maxArgNode == nil || n.Offset() > maxArgNode.Offset() {
 				maxArgNode = n
 			}
 		}
@@ -1176,7 +1176,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Next, find the offset of the largest pointer in the largest node.
 	var maxArgs int64
 	if maxArgNode != nil {
-		maxArgs = maxArgNode.Xoffset + typeptrdata(maxArgNode.Type)
+		maxArgs = maxArgNode.Offset() + typeptrdata(maxArgNode.Type())
 	}
 
 	// Size locals bitmaps to be stkptrsize sized.
@@ -1266,7 +1266,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	}
 
 	// Emit the live pointer map data structures
-	ls := e.curfn.Func.LSym
+	ls := e.curfn.Func().LSym
 	fninfo := ls.Func()
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 

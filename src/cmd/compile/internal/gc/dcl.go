@@ -64,78 +64,78 @@ func declare(n *ir.Node, ctxt ir.Class) {
 		return
 	}
 
-	if n.Name == nil {
+	if n.Name() == nil {
 		// named OLITERAL needs Name; most OLITERALs don't.
-		n.Name = new(ir.Name)
+		n.SetName(new(ir.Name))
 	}
 
-	s := n.Sym
+	s := n.Sym()
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if !inimport && !typecheckok && s.Pkg != ir.LocalPkg {
-		base.ErrorfAt(n.Pos, "cannot declare name %v", s)
+		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
 	}
 
 	gen := 0
 	if ctxt == ir.PEXTERN {
 		if s.Name == "init" {
-			base.ErrorfAt(n.Pos, "cannot declare init - must be func")
+			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
 		}
 		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos, "cannot declare main - must be func")
+			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == ir.PAUTO {
-			base.Pos = n.Pos
+			base.Pos = n.Pos()
 			base.Fatalf("automatic outside function")
 		}
 		if Curfn != nil && ctxt != ir.PFUNC {
-			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+			Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
 		}
-		if n.Op == ir.OTYPE {
+		if n.Op() == ir.OTYPE {
 			declare_typegen++
 			gen = declare_typegen
-		} else if n.Op == ir.ONAME && ctxt == ir.PAUTO && !strings.Contains(s.Name, "·") {
+		} else if n.Op() == ir.ONAME && ctxt == ir.PAUTO && !strings.Contains(s.Name, "·") {
 			vargen++
 			gen = vargen
 		}
 		types.Pushdcl(s)
-		n.Name.Curfn = Curfn
+		n.Name().Curfn = Curfn
 	}
 
 	if ctxt == ir.PAUTO {
-		n.Xoffset = 0
+		n.SetOffset(0)
 	}
 
 	if s.Block == types.Block {
 		// functype will print errors about duplicate function arguments.
 		// Don't repeat the error here.
 		if ctxt != ir.PPARAM && ctxt != ir.PPARAMOUT {
-			redeclare(n.Pos, s, "in this block")
+			redeclare(n.Pos(), s, "in this block")
 		}
 	}
 
 	s.Block = types.Block
 	s.Lastlineno = base.Pos
 	s.Def = ir.AsTypesNode(n)
-	n.Name.Vargen = int32(gen)
+	n.Name().Vargen = int32(gen)
 	n.SetClass(ctxt)
 	if ctxt == ir.PFUNC {
-		n.Sym.SetFunc(true)
+		n.Sym().SetFunc(true)
 	}
 
 	autoexport(n, ctxt)
 }
 
 func addvar(n *ir.Node, t *types.Type, ctxt ir.Class) {
-	if n == nil || n.Sym == nil || (n.Op != ir.ONAME && n.Op != ir.ONONAME) || t == nil {
+	if n == nil || n.Sym() == nil || (n.Op() != ir.ONAME && n.Op() != ir.ONONAME) || t == nil {
 		base.Fatalf("addvar: n=%v t=%v nil", n, t)
 	}
 
-	n.Op = ir.ONAME
+	n.SetOp(ir.ONAME)
 	declare(n, ctxt)
-	n.Type = t
+	n.SetType(t)
 }
 
 // declare variables from grammar
@@ -147,13 +147,13 @@ func variter(vl []*ir.Node, t *ir.Node, el []*ir.Node) []*ir.Node {
 	if len(el) == 1 && len(vl) > 1 {
 		e := el[0]
 		as2 := ir.Nod(ir.OAS2, nil, nil)
-		as2.List.Set(vl)
-		as2.Rlist.Set1(e)
+		as2.PtrList().Set(vl)
+		as2.PtrRlist().Set1(e)
 		for _, v := range vl {
-			v.Op = ir.ONAME
+			v.SetOp(ir.ONAME)
 			declare(v, dclcontext)
-			v.Name.Param.Ntype = t
-			v.Name.Defn = as2
+			v.Name().Param.Ntype = t
+			v.Name().Defn = as2
 			if Curfn != nil {
 				init = append(init, ir.Nod(ir.ODCL, v, nil))
 			}
@@ -174,9 +174,9 @@ func variter(vl []*ir.Node, t *ir.Node, el []*ir.Node) []*ir.Node {
 			el = el[1:]
 		}
 
-		v.Op = ir.ONAME
+		v.SetOp(ir.ONAME)
 		declare(v, dclcontext)
-		v.Name.Param.Ntype = t
+		v.Name().Param.Ntype = t
 
 		if e != nil || Curfn != nil || ir.IsBlank(v) {
 			if Curfn != nil {
@@ -184,8 +184,8 @@ func variter(vl []*ir.Node, t *ir.Node, el []*ir.Node) []*ir.Node {
 			}
 			e = ir.Nod(ir.OAS, v, e)
 			init = append(init, e)
-			if e.Right != nil {
-				v.Name.Defn = e
+			if e.Right() != nil {
+				v.Name().Defn = e
 			}
 		}
 	}
@@ -202,8 +202,8 @@ func newnoname(s *types.Sym) *ir.Node {
 		base.Fatalf("newnoname nil")
 	}
 	n := ir.Nod(ir.ONONAME, nil, nil)
-	n.Sym = s
-	n.Xoffset = 0
+	n.SetSym(s)
+	n.SetOffset(0)
 	return n
 }
 
@@ -213,7 +213,7 @@ func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Node {
 		base.Fatalf("newfuncnamel - already have name")
 	}
 	n := ir.NewNameAt(pos, s)
-	n.Func = fn
+	n.SetFunc(fn)
 	fn.Nname = n
 	return n
 }
@@ -222,7 +222,7 @@ func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Node {
 // being declared.
 func dclname(s *types.Sym) *ir.Node {
 	n := NewName(s)
-	n.Op = ir.ONONAME // caller will correct it
+	n.SetOp(ir.ONONAME) // caller will correct it
 	return n
 }
 
@@ -234,10 +234,10 @@ func typenodl(pos src.XPos, t *types.Type) *ir.Node {
 	// if we copied another type with *t = *u
 	// then t->nod might be out of date, so
 	// check t->nod->type too
-	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type != t {
+	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type() != t {
 		t.Nod = ir.AsTypesNode(ir.NodAt(pos, ir.OTYPE, nil, nil))
-		ir.AsNode(t.Nod).Type = t
-		ir.AsNode(t.Nod).Sym = t.Sym
+		ir.AsNode(t.Nod).SetType(t)
+		ir.AsNode(t.Nod).SetSym(t.Sym)
 	}
 
 	return ir.AsNode(t.Nod)
@@ -253,7 +253,7 @@ func namedfield(s string, typ *types.Type) *ir.Node {
 
 func symfield(s *types.Sym, typ *types.Type) *ir.Node {
 	n := nodSym(ir.ODCLFIELD, nil, s)
-	n.Type = typ
+	n.SetType(typ)
 	return n
 }
 
@@ -270,28 +270,28 @@ func oldname(s *types.Sym) *ir.Node {
 		return newnoname(s)
 	}
 
-	if Curfn != nil && n.Op == ir.ONAME && n.Name.Curfn != nil && n.Name.Curfn != Curfn {
+	if Curfn != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != Curfn {
 		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		c := n.Name.Param.Innermost
-		if c == nil || c.Name.Curfn != Curfn {
+		c := n.Name().Param.Innermost
+		if c == nil || c.Name().Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = NewName(s)
 			c.SetClass(ir.PAUTOHEAP)
-			c.Name.SetIsClosureVar(true)
+			c.Name().SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
-			c.Name.Defn = n
+			c.Name().Defn = n
 
 			// Link into list of active closure variables.
 			// Popped from list in func funcLit.
-			c.Name.Param.Outer = n.Name.Param.Innermost
-			n.Name.Param.Innermost = c
+			c.Name().Param.Outer = n.Name().Param.Innermost
+			n.Name().Param.Innermost = c
 
-			Curfn.Func.ClosureVars.Append(c)
+			Curfn.Func().ClosureVars.Append(c)
 		}
 
 		// return ref to closure var, not original
@@ -313,13 +313,13 @@ func importName(sym *types.Sym) *ir.Node {
 
 // := declarations
 func colasname(n *ir.Node) bool {
-	switch n.Op {
+	switch n.Op() {
 	case ir.ONAME,
 		ir.ONONAME,
 		ir.OPACK,
 		ir.OTYPE,
 		ir.OLITERAL:
-		return n.Sym != nil
+		return n.Sym() != nil
 	}
 
 	return false
@@ -327,8 +327,8 @@ func colasname(n *ir.Node) bool {
 
 func colasdefn(left []*ir.Node, defn *ir.Node) {
 	for _, n := range left {
-		if n.Sym != nil {
-			n.Sym.SetUniq(true)
+		if n.Sym() != nil {
+			n.Sym().SetUniq(true)
 		}
 	}
 
@@ -338,44 +338,44 @@ func colasdefn(left []*ir.Node, defn *ir.Node) {
 			continue
 		}
 		if !colasname(n) {
-			base.ErrorfAt(defn.Pos, "non-name %v on left side of :=", n)
+			base.ErrorfAt(defn.Pos(), "non-name %v on left side of :=", n)
 			nerr++
 			continue
 		}
 
-		if !n.Sym.Uniq() {
-			base.ErrorfAt(defn.Pos, "%v repeated on left side of :=", n.Sym)
+		if !n.Sym().Uniq() {
+			base.ErrorfAt(defn.Pos(), "%v repeated on left side of :=", n.Sym())
 			n.SetDiag(true)
 			nerr++
 			continue
 		}
 
-		n.Sym.SetUniq(false)
-		if n.Sym.Block == types.Block {
+		n.Sym().SetUniq(false)
+		if n.Sym().Block == types.Block {
 			continue
 		}
 
 		nnew++
-		n = NewName(n.Sym)
+		n = NewName(n.Sym())
 		declare(n, dclcontext)
-		n.Name.Defn = defn
-		defn.Ninit.Append(ir.Nod(ir.ODCL, n, nil))
+		n.Name().Defn = defn
+		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
 		left[i] = n
 	}
 
 	if nnew == 0 && nerr == 0 {
-		base.ErrorfAt(defn.Pos, "no new variables on left side of :=")
+		base.ErrorfAt(defn.Pos(), "no new variables on left side of :=")
 	}
 }
 
 // declare the arguments in an
 // interface field declaration.
 func ifacedcl(n *ir.Node) {
-	if n.Op != ir.ODCLFIELD || n.Left == nil {
+	if n.Op() != ir.ODCLFIELD || n.Left() == nil {
 		base.Fatalf("ifacedcl")
 	}
 
-	if n.Sym.IsBlank() {
+	if n.Sym().IsBlank() {
 		base.Errorf("methods must have a unique non-blank name")
 	}
 }
@@ -392,16 +392,16 @@ func funchdr(n *ir.Node) {
 
 	types.Markdcl()
 
-	if n.Func.Nname != nil && n.Func.Nname.Name.Param.Ntype != nil {
-		funcargs(n.Func.Nname.Name.Param.Ntype)
+	if n.Func().Nname != nil && n.Func().Nname.Name().Param.Ntype != nil {
+		funcargs(n.Func().Nname.Name().Param.Ntype)
 	} else {
-		funcargs2(n.Type)
+		funcargs2(n.Type())
 	}
 }
 
 func funcargs(nt *ir.Node) {
-	if nt.Op != ir.OTFUNC {
-		base.Fatalf("funcargs %v", nt.Op)
+	if nt.Op() != ir.OTFUNC {
+		base.Fatalf("funcargs %v", nt.Op())
 	}
 
 	// re-start the variable generation number
@@ -411,13 +411,13 @@ func funcargs(nt *ir.Node) {
 	// TODO(mdempsky): This is ugly, and only necessary because
 	// esc.go uses Vargen to figure out result parameters' index
 	// within the result tuple.
-	vargen = nt.Rlist.Len()
+	vargen = nt.Rlist().Len()
 
 	// declare the receiver and in arguments.
-	if nt.Left != nil {
-		funcarg(nt.Left, ir.PPARAM)
+	if nt.Left() != nil {
+		funcarg(nt.Left(), ir.PPARAM)
 	}
-	for _, n := range nt.List.Slice() {
+	for _, n := range nt.List().Slice() {
 		funcarg(n, ir.PPARAM)
 	}
 
@@ -425,21 +425,21 @@ func funcargs(nt *ir.Node) {
 	vargen = 0
 
 	// declare the out arguments.
-	gen := nt.List.Len()
-	for _, n := range nt.Rlist.Slice() {
-		if n.Sym == nil {
+	gen := nt.List().Len()
+	for _, n := range nt.Rlist().Slice() {
+		if n.Sym() == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = lookupN("~r", gen)
+			n.SetSym(lookupN("~r", gen))
 			gen++
 		}
-		if n.Sym.IsBlank() {
+		if n.Sym().IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = lookupN("~b", gen)
+			n.SetSym(lookupN("~b", gen))
 			gen++
 		}
 
@@ -450,20 +450,20 @@ func funcargs(nt *ir.Node) {
 }
 
 func funcarg(n *ir.Node, ctxt ir.Class) {
-	if n.Op != ir.ODCLFIELD {
-		base.Fatalf("funcarg %v", n.Op)
+	if n.Op() != ir.ODCLFIELD {
+		base.Fatalf("funcarg %v", n.Op())
 	}
-	if n.Sym == nil {
+	if n.Sym() == nil {
 		return
 	}
 
-	n.Right = ir.NewNameAt(n.Pos, n.Sym)
-	n.Right.Name.Param.Ntype = n.Left
-	n.Right.SetIsDDD(n.IsDDD())
-	declare(n.Right, ctxt)
+	n.SetRight(ir.NewNameAt(n.Pos(), n.Sym()))
+	n.Right().Name().Param.Ntype = n.Left()
+	n.Right().SetIsDDD(n.IsDDD())
+	declare(n.Right(), ctxt)
 
 	vargen++
-	n.Right.Name.Vargen = int32(vargen)
+	n.Right().Name().Vargen = int32(vargen)
 }
 
 // Same as funcargs, except run over an already constructed TFUNC.
@@ -491,7 +491,7 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
 	}
 	n := ir.NewNameAt(f.Pos, f.Sym)
 	f.Nname = ir.AsTypesNode(n)
-	n.Type = f.Type
+	n.SetType(f.Type)
 	n.SetIsDDD(f.IsDDD())
 	declare(n, ctxt)
 }
@@ -537,21 +537,21 @@ func checkembeddedtype(t *types.Type) {
 
 func structfield(n *ir.Node) *types.Field {
 	lno := base.Pos
-	base.Pos = n.Pos
+	base.Pos = n.Pos()
 
-	if n.Op != ir.ODCLFIELD {
+	if n.Op() != ir.ODCLFIELD {
 		base.Fatalf("structfield: oops %v\n", n)
 	}
 
-	if n.Left != nil {
-		n.Left = typecheck(n.Left, ctxType)
-		n.Type = n.Left.Type
-		n.Left = nil
+	if n.Left() != nil {
+		n.SetLeft(typecheck(n.Left(), ctxType))
+		n.SetType(n.Left().Type())
+		n.SetLeft(nil)
 	}
 
-	f := types.NewField(n.Pos, n.Sym, n.Type)
+	f := types.NewField(n.Pos(), n.Sym(), n.Type())
 	if n.Embedded() {
-		checkembeddedtype(n.Type)
+		checkembeddedtype(n.Type())
 		f.Embedded = 1
 	}
 	if n.HasVal() {
@@ -612,9 +612,9 @@ func tofunargs(l []*ir.Node, funarg types.Funarg) *types.Type {
 	for i, n := range l {
 		f := structfield(n)
 		f.SetIsDDD(n.IsDDD())
-		if n.Right != nil {
-			n.Right.Type = f.Type
-			f.Nname = ir.AsTypesNode(n.Right)
+		if n.Right() != nil {
+			n.Right().SetType(f.Type)
+			f.Nname = ir.AsTypesNode(n.Right())
 		}
 		if f.Broke() {
 			t.SetBroke(true)
@@ -634,9 +634,9 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 
 func interfacefield(n *ir.Node) *types.Field {
 	lno := base.Pos
-	base.Pos = n.Pos
+	base.Pos = n.Pos()
 
-	if n.Op != ir.ODCLFIELD {
+	if n.Op() != ir.ODCLFIELD {
 		base.Fatalf("interfacefield: oops %v\n", n)
 	}
 
@@ -649,13 +649,13 @@ func interfacefield(n *ir.Node) *types.Field {
 	// If Sym != nil, then Sym is MethodName and Left is Signature.
 	// Otherwise, Left is InterfaceTypeName.
 
-	if n.Left != nil {
-		n.Left = typecheck(n.Left, ctxType)
-		n.Type = n.Left.Type
-		n.Left = nil
+	if n.Left() != nil {
+		n.SetLeft(typecheck(n.Left(), ctxType))
+		n.SetType(n.Left().Type())
+		n.SetLeft(nil)
 	}
 
-	f := types.NewField(n.Pos, n.Sym, n.Type)
+	f := types.NewField(n.Pos(), n.Sym(), n.Type())
 
 	base.Pos = lno
 	return f
@@ -872,7 +872,7 @@ func addmethod(n *ir.Node, msym *types.Sym, t *types.Type, local, nointerface bo
 	}
 
 	f := types.NewField(base.Pos, msym, t)
-	f.Nname = ir.AsTypesNode(n.Func.Nname)
+	f.Nname = ir.AsTypesNode(n.Func().Nname)
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)
@@ -936,26 +936,26 @@ func makefuncsym(s *types.Sym) {
 
 // setNodeNameFunc marks a node as a function.
 func setNodeNameFunc(n *ir.Node) {
-	if n.Op != ir.ONAME || n.Class() != ir.Pxxx {
+	if n.Op() != ir.ONAME || n.Class() != ir.Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
 
 	n.SetClass(ir.PFUNC)
-	n.Sym.SetFunc(true)
+	n.Sym().SetFunc(true)
 }
 
 func dclfunc(sym *types.Sym, tfn *ir.Node) *ir.Node {
-	if tfn.Op != ir.OTFUNC {
+	if tfn.Op() != ir.OTFUNC {
 		base.Fatalf("expected OTFUNC node, got %v", tfn)
 	}
 
 	fn := ir.Nod(ir.ODCLFUNC, nil, nil)
-	fn.Func.Nname = newfuncnamel(base.Pos, sym, fn.Func)
-	fn.Func.Nname.Name.Defn = fn
-	fn.Func.Nname.Name.Param.Ntype = tfn
-	setNodeNameFunc(fn.Func.Nname)
+	fn.Func().Nname = newfuncnamel(base.Pos, sym, fn.Func())
+	fn.Func().Nname.Name().Defn = fn
+	fn.Func().Nname.Name().Param.Ntype = tfn
+	setNodeNameFunc(fn.Func().Nname)
 	funchdr(fn)
-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
+	fn.Func().Nname.Name().Param.Ntype = typecheck(fn.Func().Nname.Name().Param.Ntype, ctxType)
 	return fn
 }
 
@@ -987,7 +987,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// directly. This has to happen before transformclosure since
 	// it's a lot harder to work out the argument after.
 	for _, n := range xtop {
-		if n.Op != ir.ODCLFUNC {
+		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
 		c.curfn = n
@@ -998,31 +998,31 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 }
 
 func (c *nowritebarrierrecChecker) findExtraCalls(n *ir.Node) bool {
-	if n.Op != ir.OCALLFUNC {
+	if n.Op() != ir.OCALLFUNC {
 		return true
 	}
-	fn := n.Left
-	if fn == nil || fn.Op != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name.Defn == nil {
+	fn := n.Left()
+	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
 		return true
 	}
-	if !isRuntimePkg(fn.Sym.Pkg) || fn.Sym.Name != "systemstack" {
+	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
 		return true
 	}
 
 	var callee *ir.Node
-	arg := n.List.First()
-	switch arg.Op {
+	arg := n.List().First()
+	switch arg.Op() {
 	case ir.ONAME:
-		callee = arg.Name.Defn
+		callee = arg.Name().Defn
 	case ir.OCLOSURE:
-		callee = arg.Func.Decl
+		callee = arg.Func().Decl
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
-	if callee.Op != ir.ODCLFUNC {
+	if callee.Op() != ir.ODCLFUNC {
 		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
 	}
-	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos})
+	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
 	return true
 }
 
@@ -1035,12 +1035,12 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n *ir.Node) bool {
 //
 // This can be called concurrently for different from Nodes.
 func (c *nowritebarrierrecChecker) recordCall(from *ir.Node, to *obj.LSym, pos src.XPos) {
-	if from.Op != ir.ODCLFUNC {
+	if from.Op() != ir.ODCLFUNC {
 		base.Fatalf("expected ODCLFUNC, got %v", from)
 	}
 	// We record this information on the *Func so this is
 	// concurrent-safe.
-	fn := from.Func
+	fn := from.Func()
 	if fn.NWBRCalls == nil {
 		fn.NWBRCalls = new([]ir.SymAndPos)
 	}
@@ -1064,27 +1064,27 @@ func (c *nowritebarrierrecChecker) check() {
 	var q ir.NodeQueue
 
 	for _, n := range xtop {
-		if n.Op != ir.ODCLFUNC {
+		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
 
-		symToFunc[n.Func.LSym] = n
+		symToFunc[n.Func().LSym] = n
 
 		// Make nowritebarrierrec functions BFS roots.
-		if n.Func.Pragma&ir.Nowritebarrierrec != 0 {
+		if n.Func().Pragma&ir.Nowritebarrierrec != 0 {
 			funcs[n] = nowritebarrierrecCall{}
 			q.PushRight(n)
 		}
 		// Check go:nowritebarrier functions.
-		if n.Func.Pragma&ir.Nowritebarrier != 0 && n.Func.WBPos.IsKnown() {
-			base.ErrorfAt(n.Func.WBPos, "write barrier prohibited")
+		if n.Func().Pragma&ir.Nowritebarrier != 0 && n.Func().WBPos.IsKnown() {
+			base.ErrorfAt(n.Func().WBPos, "write barrier prohibited")
 		}
 	}
 
 	// Perform a BFS of the call graph from all
 	// go:nowritebarrierrec functions.
 	enqueue := func(src, target *ir.Node, pos src.XPos) {
-		if target.Func.Pragma&ir.Yeswritebarrierrec != 0 {
+		if target.Func().Pragma&ir.Yeswritebarrierrec != 0 {
 			// Don't flow into this function.
 			return
 		}
@@ -1101,14 +1101,14 @@ func (c *nowritebarrierrecChecker) check() {
 		fn := q.PopLeft()
 
 		// Check fn.
-		if fn.Func.WBPos.IsKnown() {
+		if fn.Func().WBPos.IsKnown() {
 			var err bytes.Buffer
 			call := funcs[fn]
 			for call.target != nil {
-				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Func.Nname)
+				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Func().Nname)
 				call = funcs[call.target]
 			}
-			base.ErrorfAt(fn.Func.WBPos, "write barrier prohibited by caller; %v%s", fn.Func.Nname, err.String())
+			base.ErrorfAt(fn.Func().WBPos, "write barrier prohibited by caller; %v%s", fn.Func().Nname, err.String())
 			continue
 		}
 
@@ -1116,10 +1116,10 @@ func (c *nowritebarrierrecChecker) check() {
 		for _, callee := range c.extraCalls[fn] {
 			enqueue(fn, callee.target, callee.lineno)
 		}
-		if fn.Func.NWBRCalls == nil {
+		if fn.Func().NWBRCalls == nil {
 			continue
 		}
-		for _, callee := range *fn.Func.NWBRCalls {
+		for _, callee := range *fn.Func().NWBRCalls {
 			target := symToFunc[callee.Sym]
 			if target != nil {
 				enqueue(fn, target, callee.Pos)

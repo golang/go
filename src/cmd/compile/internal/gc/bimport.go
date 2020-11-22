@@ -10,7 +10,7 @@ import (
 )
 
 func npos(pos src.XPos, n *ir.Node) *ir.Node {
-	n.Pos = pos
+	n.SetPos(pos)
 	return n
 }
 

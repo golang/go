@@ -42,7 +42,7 @@ var (
 )
 
 func expandDecl(n *ir.Node) {
-	if n.Op != ir.ONONAME {
+	if n.Op() != ir.ONONAME {
 		return
 	}
 
@@ -56,7 +56,7 @@ func expandDecl(n *ir.Node) {
 }
 
 func expandInline(fn *ir.Node) {
-	if fn.Func.Inl.Body != nil {
+	if fn.Func().Inl.Body != nil {
 		return
 	}
 
@@ -69,12 +69,12 @@ func expandInline(fn *ir.Node) {
 }
 
 func importReaderFor(n *ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
-	x, ok := importers[n.Sym]
+	x, ok := importers[n.Sym()]
 	if !ok {
 		return nil
 	}
 
-	return x.p.newReader(x.off, n.Sym.Pkg)
+	return x.p.newReader(x.off, n.Sym().Pkg)
 }
 
 type intReader struct {
@@ -282,8 +282,8 @@ func (r *importReader) setPkg() {
 }
 
 func (r *importReader) doDecl(n *ir.Node) {
-	if n.Op != ir.ONONAME {
-		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym, n.Op)
+	if n.Op() != ir.ONONAME {
+		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym(), n.Op())
 	}
 
 	tag := r.byte()
@@ -293,24 +293,24 @@ func (r *importReader) doDecl(n *ir.Node) {
 	case 'A':
 		typ := r.typ()
 
-		importalias(r.p.ipkg, pos, n.Sym, typ)
+		importalias(r.p.ipkg, pos, n.Sym(), typ)
 
 	case 'C':
 		typ := r.typ()
 		val := r.value(typ)
 
-		importconst(r.p.ipkg, pos, n.Sym, typ, val)
+		importconst(r.p.ipkg, pos, n.Sym(), typ, val)
 
 	case 'F':
 		typ := r.signature(nil)
 
-		importfunc(r.p.ipkg, pos, n.Sym, typ)
+		importfunc(r.p.ipkg, pos, n.Sym(), typ)
 		r.funcExt(n)
 
 	case 'T':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
-		t := importtype(r.p.ipkg, pos, n.Sym)
+		t := importtype(r.p.ipkg, pos, n.Sym())
 
 		// We also need to defer width calculations until
 		// after the underlying type has been assigned.
@@ -332,7 +332,7 @@ func (r *importReader) doDecl(n *ir.Node) {
 			mtyp := r.signature(recv)
 
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(ir.Func))
-			m.Type = mtyp
+			m.SetType(mtyp)
 			m.SetClass(ir.PFUNC)
 			// methodSym already marked m.Sym as a function.
 
@@ -350,7 +350,7 @@ func (r *importReader) doDecl(n *ir.Node) {
 	case 'V':
 		typ := r.typ()
 
-		importvar(r.p.ipkg, pos, n.Sym, typ)
+		importvar(r.p.ipkg, pos, n.Sym(), typ)
 		r.varExt(n)
 
 	default:
@@ -500,13 +500,13 @@ func (r *importReader) typ1() *types.Type {
 		// types. Therefore, this must be a package-scope
 		// type.
 		n := ir.AsNode(r.qualifiedIdent().PkgDef())
-		if n.Op == ir.ONONAME {
+		if n.Op() == ir.ONONAME {
 			expandDecl(n)
 		}
-		if n.Op != ir.OTYPE {
-			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op, n.Sym, n)
+		if n.Op() != ir.OTYPE {
+			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
 		}
-		return n.Type
+		return n.Type()
 	case pointerType:
 		return types.NewPtr(r.typ())
 	case sliceType:
@@ -636,27 +636,27 @@ func (r *importReader) byte() byte {
 // Compiler-specific extensions.
 
 func (r *importReader) varExt(n *ir.Node) {
-	r.linkname(n.Sym)
-	r.symIdx(n.Sym)
+	r.linkname(n.Sym())
+	r.symIdx(n.Sym())
 }
 
 func (r *importReader) funcExt(n *ir.Node) {
-	r.linkname(n.Sym)
-	r.symIdx(n.Sym)
+	r.linkname(n.Sym())
+	r.symIdx(n.Sym())
 
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
-		for _, f := range fs(n.Type).FieldSlice() {
+		for _, f := range fs(n.Type()).FieldSlice() {
 			f.Note = r.string()
 		}
 	}
 
 	// Inline body.
 	if u := r.uint64(); u > 0 {
-		n.Func.Inl = &ir.Inline{
+		n.Func().Inl = &ir.Inline{
 			Cost: int32(u - 1),
 		}
-		n.Func.Endlineno = r.pos()
+		n.Func().Endlineno = r.pos()
 	}
 }
 
@@ -696,7 +696,7 @@ func (r *importReader) typeExt(t *types.Type) {
 var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *ir.Node) {
-	if len(n.Func.Inl.Body) != 0 {
+	if len(n.Func().Inl.Body) != 0 {
 		base.Fatalf("%v already has inline body", n)
 	}
 
@@ -712,15 +712,15 @@ func (r *importReader) doInline(n *ir.Node) {
 		// functions).
 		body = []*ir.Node{}
 	}
-	n.Func.Inl.Body = body
+	n.Func().Inl.Body = body
 
 	importlist = append(importlist, n)
 
 	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, ir.AsNodes(n.Func.Inl.Body))
+			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
 		} else {
-			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, ir.AsNodes(n.Func.Inl.Body))
+			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
 		}
 	}
 }
@@ -748,8 +748,8 @@ func (r *importReader) stmtList() []*ir.Node {
 			break
 		}
 		// OBLOCK nodes may be created when importing ODCL nodes - unpack them
-		if n.Op == ir.OBLOCK {
-			list = append(list, n.List.Slice()...)
+		if n.Op() == ir.OBLOCK {
+			list = append(list, n.List().Slice()...)
 		} else {
 			list = append(list, n)
 		}
@@ -759,22 +759,22 @@ func (r *importReader) stmtList() []*ir.Node {
 }
 
 func (r *importReader) caseList(sw *ir.Node) []*ir.Node {
-	namedTypeSwitch := sw.Op == ir.OSWITCH && sw.Left != nil && sw.Left.Op == ir.OTYPESW && sw.Left.Left != nil
+	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
 
 	cases := make([]*ir.Node, r.uint64())
 	for i := range cases {
 		cas := ir.NodAt(r.pos(), ir.OCASE, nil, nil)
-		cas.List.Set(r.stmtList())
+		cas.PtrList().Set(r.stmtList())
 		if namedTypeSwitch {
 			// Note: per-case variables will have distinct, dotted
 			// names after import. That's okay: swt.go only needs
 			// Sym for diagnostics anyway.
-			caseVar := ir.NewNameAt(cas.Pos, r.ident())
+			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			declare(caseVar, dclcontext)
-			cas.Rlist.Set1(caseVar)
-			caseVar.Name.Defn = sw.Left
+			cas.PtrRlist().Set1(caseVar)
+			caseVar.Name().Defn = sw.Left()
 		}
-		cas.Nbody.Set(r.stmtList())
+		cas.PtrBody().Set(r.stmtList())
 		cases[i] = cas
 	}
 	return cases
@@ -794,7 +794,7 @@ func (r *importReader) exprList() []*ir.Node {
 
 func (r *importReader) expr() *ir.Node {
 	n := r.node()
-	if n != nil && n.Op == ir.OBLOCK {
+	if n != nil && n.Op() == ir.OBLOCK {
 		base.Fatalf("unexpected block node: %v", n)
 	}
 	return n
@@ -821,7 +821,7 @@ func (r *importReader) node() *ir.Node {
 			n = ir.NewLiteral(r.value(typ))
 		}
 		n = npos(pos, n)
-		n.Type = typ
+		n.SetType(typ)
 		return n
 
 	case ir.ONONAME:
@@ -839,10 +839,10 @@ func (r *importReader) node() *ir.Node {
 	case ir.OTYPESW:
 		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
 		if s := r.ident(); s != nil {
-			n.Left = npos(n.Pos, newnoname(s))
+			n.SetLeft(npos(n.Pos(), newnoname(s)))
 		}
 		right, _ := r.exprsOrNil()
-		n.Right = right
+		n.SetRight(right)
 		return n
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
@@ -859,7 +859,7 @@ func (r *importReader) node() *ir.Node {
 		savedlineno := base.Pos
 		base.Pos = r.pos()
 		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, typenod(r.typ()))
-		n.List.Set(r.elemList()) // special handling of field names
+		n.PtrList().Set(r.elemList()) // special handling of field names
 		base.Pos = savedlineno
 		return n
 
@@ -868,7 +868,7 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OCOMPLIT:
 		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, typenod(r.typ()))
-		n.List.Set(r.exprList())
+		n.PtrList().Set(r.exprList())
 		return n
 
 	case ir.OKEY:
@@ -894,7 +894,7 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.ODOTTYPE:
 		n := ir.NodAt(r.pos(), ir.ODOTTYPE, r.expr(), nil)
-		n.Type = r.typ()
+		n.SetType(r.typ())
 		return n
 
 	// case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
@@ -907,7 +907,7 @@ func (r *importReader) node() *ir.Node {
 		n := ir.NodAt(r.pos(), op, r.expr(), nil)
 		low, high := r.exprsOrNil()
 		var max *ir.Node
-		if n.Op.IsSlice3() {
+		if n.Op().IsSlice3() {
 			max = r.expr()
 		}
 		n.SetSliceBounds(low, high, max)
@@ -918,12 +918,12 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OCONV:
 		n := ir.NodAt(r.pos(), ir.OCONV, r.expr(), nil)
-		n.Type = r.typ()
+		n.SetType(r.typ())
 		return n
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := npos(r.pos(), builtinCall(op))
-		n.List.Set(r.exprList())
+		n.PtrList().Set(r.exprList())
 		if op == ir.OAPPEND {
 			n.SetIsDDD(r.bool())
 		}
@@ -934,16 +934,16 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OCALL:
 		n := ir.NodAt(r.pos(), ir.OCALL, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left = r.expr()
-		n.List.Set(r.exprList())
+		n.PtrInit().Set(r.stmtList())
+		n.SetLeft(r.expr())
+		n.PtrList().Set(r.exprList())
 		n.SetIsDDD(r.bool())
 		return n
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
 		n := npos(r.pos(), builtinCall(ir.OMAKE))
-		n.List.Append(typenod(r.typ()))
-		n.List.Append(r.exprList()...)
+		n.PtrList().Append(typenod(r.typ()))
+		n.PtrList().Append(r.exprList()...)
 		return n
 
 	// unary expressions
@@ -984,12 +984,12 @@ func (r *importReader) node() *ir.Node {
 	case ir.OASOP:
 		n := ir.NodAt(r.pos(), ir.OASOP, nil, nil)
 		n.SetSubOp(r.op())
-		n.Left = r.expr()
+		n.SetLeft(r.expr())
 		if !r.bool() {
-			n.Right = nodintconst(1)
+			n.SetRight(nodintconst(1))
 			n.SetImplicit(true)
 		} else {
-			n.Right = r.expr()
+			n.SetRight(r.expr())
 		}
 		return n
 
@@ -998,13 +998,13 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OAS2:
 		n := ir.NodAt(r.pos(), ir.OAS2, nil, nil)
-		n.List.Set(r.exprList())
-		n.Rlist.Set(r.exprList())
+		n.PtrList().Set(r.exprList())
+		n.PtrRlist().Set(r.exprList())
 		return n
 
 	case ir.ORETURN:
 		n := ir.NodAt(r.pos(), ir.ORETURN, nil, nil)
-		n.List.Set(r.exprList())
+		n.PtrList().Set(r.exprList())
 		return n
 
 	// case ORETJMP:
@@ -1015,34 +1015,34 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OIF:
 		n := ir.NodAt(r.pos(), ir.OIF, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left = r.expr()
-		n.Nbody.Set(r.stmtList())
-		n.Rlist.Set(r.stmtList())
+		n.PtrInit().Set(r.stmtList())
+		n.SetLeft(r.expr())
+		n.PtrBody().Set(r.stmtList())
+		n.PtrRlist().Set(r.stmtList())
 		return n
 
 	case ir.OFOR:
 		n := ir.NodAt(r.pos(), ir.OFOR, nil, nil)
-		n.Ninit.Set(r.stmtList())
+		n.PtrInit().Set(r.stmtList())
 		left, right := r.exprsOrNil()
-		n.Left = left
-		n.Right = right
-		n.Nbody.Set(r.stmtList())
+		n.SetLeft(left)
+		n.SetRight(right)
+		n.PtrBody().Set(r.stmtList())
 		return n
 
 	case ir.ORANGE:
 		n := ir.NodAt(r.pos(), ir.ORANGE, nil, nil)
-		n.List.Set(r.stmtList())
-		n.Right = r.expr()
-		n.Nbody.Set(r.stmtList())
+		n.PtrList().Set(r.stmtList())
+		n.SetRight(r.expr())
+		n.PtrBody().Set(r.stmtList())
 		return n
 
 	case ir.OSELECT, ir.OSWITCH:
 		n := ir.NodAt(r.pos(), op, nil, nil)
-		n.Ninit.Set(r.stmtList())
+		n.PtrInit().Set(r.stmtList())
 		left, _ := r.exprsOrNil()
-		n.Left = left
-		n.List.Set(r.caseList(n))
+		n.SetLeft(left)
+		n.PtrList().Set(r.caseList(n))
 		return n
 
 	// case OCASE:
@@ -1056,7 +1056,7 @@ func (r *importReader) node() *ir.Node {
 		pos := r.pos()
 		left, _ := r.exprsOrNil()
 		if left != nil {
-			left = NewName(left.Sym)
+			left = NewName(left.Sym())
 		}
 		return ir.NodAt(pos, op, left, nil)
 
@@ -1065,7 +1065,7 @@ func (r *importReader) node() *ir.Node {
 
 	case ir.OGOTO, ir.OLABEL:
 		n := ir.NodAt(r.pos(), op, nil, nil)
-		n.Sym = lookup(r.string())
+		n.SetSym(lookup(r.string()))
 		return n
 
 	case ir.OEND:

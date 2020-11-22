@@ -253,7 +253,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left.Name.Param.Alias()) {
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Param.Alias()) {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -265,7 +265,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left.Name.Param.Alias() {
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Param.Alias() {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -276,14 +276,14 @@ func Main(archInit func(*Arch)) {
 	var fcount int64
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if n.Op == ir.ODCLFUNC {
+		if n.Op() == ir.ODCLFUNC {
 			Curfn = n
 			decldepth = 1
 			errorsBefore := base.Errors()
-			typecheckslice(Curfn.Nbody.Slice(), ctxStmt)
+			typecheckslice(Curfn.Body().Slice(), ctxStmt)
 			checkreturn(Curfn)
 			if base.Errors() > errorsBefore {
-				Curfn.Nbody.Set(nil) // type errors; do not compile
+				Curfn.PtrBody().Set(nil) // type errors; do not compile
 			}
 			// Now that we've checked whether n terminates,
 			// we can eliminate some obviously dead code.
@@ -306,7 +306,7 @@ func Main(archInit func(*Arch)) {
 	// because variables captured by value do not escape.
 	timings.Start("fe", "capturevars")
 	for _, n := range xtop {
-		if n.Op == ir.ODCLFUNC && n.Func.OClosure != nil {
+		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
 			Curfn = n
 			capturevars(n)
 		}
@@ -321,7 +321,7 @@ func Main(archInit func(*Arch)) {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func.Inl != nil {
+			if n.Func().Inl != nil {
 				typecheckinl(n)
 			}
 		}
@@ -340,7 +340,7 @@ func Main(archInit func(*Arch)) {
 					caninl(n)
 				} else {
 					if base.Flag.LowerM > 1 {
-						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Func.Nname)
+						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Func().Nname)
 					}
 				}
 				inlcalls(n)
@@ -349,7 +349,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	for _, n := range xtop {
-		if n.Op == ir.ODCLFUNC {
+		if n.Op() == ir.ODCLFUNC {
 			devirtualize(n)
 		}
 	}
@@ -379,7 +379,7 @@ func Main(archInit func(*Arch)) {
 	// before walk reaches a call of a closure.
 	timings.Start("fe", "xclosures")
 	for _, n := range xtop {
-		if n.Op == ir.ODCLFUNC && n.Func.OClosure != nil {
+		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
 			Curfn = n
 			transformclosure(n)
 		}
@@ -402,7 +402,7 @@ func Main(archInit func(*Arch)) {
 	fcount = 0
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if n.Op == ir.ODCLFUNC {
+		if n.Op() == ir.ODCLFUNC {
 			funccompile(n)
 			fcount++
 		}
@@ -430,7 +430,7 @@ func Main(archInit func(*Arch)) {
 	// Phase 9: Check external declarations.
 	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
-		if n.Op == ir.ONAME {
+		if n.Op() == ir.ONAME {
 			externdcl[i] = typecheck(externdcl[i], ctxExpr)
 		}
 	}
@@ -484,7 +484,7 @@ func Main(archInit func(*Arch)) {
 func numNonClosures(list []*ir.Node) int {
 	count := 0
 	for _, n := range list {
-		if n.Func.OClosure == nil {
+		if n.Func().OClosure == nil {
 			count++
 		}
 	}
@@ -949,14 +949,14 @@ func clearImports() {
 		if n == nil {
 			continue
 		}
-		if n.Op == ir.OPACK {
+		if n.Op() == ir.OPACK {
 			// throw away top-level package name left over
 			// from previous file.
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !n.Name.Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Pos, n.Name.Pkg.Path, s.Name})
+			if !n.Name().Used() && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{n.Pos(), n.Name().Pkg.Path, s.Name})
 			}
 			s.Def = nil
 			continue
@@ -964,9 +964,9 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if n.Name != nil && n.Name.Pack != nil && !n.Name.Pack.Name.Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Name.Pack.Pos, n.Name.Pack.Name.Pkg.Path, ""})
-				n.Name.Pack.Name.SetUsed(true)
+			if n.Name() != nil && n.Name().Pack != nil && !n.Name().Pack.Name().Used() && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{n.Name().Pack.Pos(), n.Name().Pack.Name().Pkg.Path, ""})
+				n.Name().Pack.Name().SetUsed(true)
 			}
 			s.Def = nil
 			continue
@@ -980,7 +980,7 @@ func clearImports() {
 }
 
 func IsAlias(sym *types.Sym) bool {
-	return sym.Def != nil && ir.AsNode(sym.Def).Sym != sym
+	return sym.Def != nil && ir.AsNode(sym.Def).Sym() != sym
 }
 
 // recordFlags records the specified command-line flags to be placed

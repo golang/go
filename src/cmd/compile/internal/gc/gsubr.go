@@ -69,7 +69,7 @@ func newProgs(fn *ir.Node, worker int) *Progs {
 	pp.next = pp.NewProg()
 	pp.clearp(pp.next)
 
-	pp.pos = fn.Pos
+	pp.pos = fn.Pos()
 	pp.settext(fn)
 	// PCDATA tables implicitly start with index -1.
 	pp.prevLive = LivenessIndex{-1, false}
@@ -181,10 +181,10 @@ func (pp *Progs) settext(fn *ir.Node) {
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func.LSym.Func().Text = ptxt
+	fn.Func().LSym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
-	ptxt.From.Sym = fn.Func.LSym
+	ptxt.From.Sym = fn.Func().LSym
 }
 
 // initLSym defines f's obj.LSym and initializes it based on the
@@ -199,7 +199,7 @@ func initLSym(f *ir.Func, hasBody bool) {
 	}
 
 	if nam := f.Nname; !ir.IsBlank(nam) {
-		f.LSym = nam.Sym.Linksym()
+		f.LSym = nam.Sym().Linksym()
 		if f.Pragma&ir.Systemstack != 0 {
 			f.LSym.Set(obj.AttrCFunc, true)
 		}
@@ -221,7 +221,7 @@ func initLSym(f *ir.Func, hasBody bool) {
 			}
 		}
 
-		isLinknameExported := nam.Sym.Linkname != "" && (hasBody || hasDefABI)
+		isLinknameExported := nam.Sym().Linkname != "" && (hasBody || hasDefABI)
 		if abi, ok := symabiRefs[f.LSym.Name]; (ok && abi == obj.ABI0) || isLinknameExported {
 			// Either 1) this symbol is definitely
 			// referenced as ABI0 from this package; or 2)
@@ -281,7 +281,7 @@ func initLSym(f *ir.Func, hasBody bool) {
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if base.Ctxt.Pkgpath == "reflect" {
-		switch f.Nname.Sym.Name {
+		switch f.Nname.Sym().Name {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER
 		}
@@ -291,20 +291,20 @@ func initLSym(f *ir.Func, hasBody bool) {
 }
 
 func ggloblnod(nam *ir.Node) {
-	s := nam.Sym.Linksym()
+	s := nam.Sym().Linksym()
 	s.Gotype = ngotype(nam).Linksym()
 	flags := 0
-	if nam.Name.Readonly() {
+	if nam.Name().Readonly() {
 		flags = obj.RODATA
 	}
-	if nam.Type != nil && !nam.Type.HasPointers() {
+	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type.Width, flags)
-	if nam.Name.LibfuzzerExtraCounter() {
+	base.Ctxt.Globl(s, nam.Type().Width, flags)
+	if nam.Name().LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}
-	if nam.Sym.Linkname != "" {
+	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is
 		// both imported and linkname'd, s.Pkg may not set to "_" in
 		// types.Sym.Linksym because LSym already exists. Set it here.

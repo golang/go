@@ -41,16 +41,16 @@ var (
 // whose Pos will point back to their declaration position rather than
 // their usage position.
 func hasUniquePos(n *ir.Node) bool {
-	switch n.Op {
+	switch n.Op() {
 	case ir.ONAME, ir.OPACK:
 		return false
 	case ir.OLITERAL, ir.ONIL, ir.OTYPE:
-		if n.Sym != nil {
+		if n.Sym() != nil {
 			return false
 		}
 	}
 
-	if !n.Pos.IsKnown() {
+	if !n.Pos().IsKnown() {
 		if base.Flag.K != 0 {
 			base.Warn("setlineno: unknown position (line 0)")
 		}
@@ -63,7 +63,7 @@ func hasUniquePos(n *ir.Node) bool {
 func setlineno(n *ir.Node) src.XPos {
 	lno := base.Pos
 	if n != nil && hasUniquePos(n) {
-		base.Pos = n.Pos
+		base.Pos = n.Pos()
 	}
 	return lno
 }
@@ -95,8 +95,8 @@ func autolabel(prefix string) *types.Sym {
 	if Curfn == nil {
 		base.Fatalf("autolabel outside function")
 	}
-	n := fn.Func.Label
-	fn.Func.Label++
+	n := fn.Func().Label
+	fn.Func().Label++
 	return lookupN(prefix, int(n))
 }
 
@@ -120,25 +120,25 @@ func importdot(opkg *types.Pkg, pack *ir.Node) {
 
 		s1.Def = s.Def
 		s1.Block = s.Block
-		if ir.AsNode(s1.Def).Name == nil {
+		if ir.AsNode(s1.Def).Name() == nil {
 			ir.Dump("s1def", ir.AsNode(s1.Def))
 			base.Fatalf("missing Name")
 		}
-		ir.AsNode(s1.Def).Name.Pack = pack
+		ir.AsNode(s1.Def).Name().Pack = pack
 		s1.Origpkg = opkg
 		n++
 	}
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		base.ErrorfAt(pack.Pos, "imported and not used: %q", opkg.Path)
+		base.ErrorfAt(pack.Pos(), "imported and not used: %q", opkg.Path)
 	}
 }
 
 // newname returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Node {
 	n := ir.NewNameAt(base.Pos, s)
-	n.Name.Curfn = Curfn
+	n.Name().Curfn = Curfn
 	return n
 }
 
@@ -152,7 +152,7 @@ func nodSym(op ir.Op, left *ir.Node, sym *types.Sym) *ir.Node {
 // and the Sym field set to sym. This is for ODOT and friends.
 func nodlSym(pos src.XPos, op ir.Op, left *ir.Node, sym *types.Sym) *ir.Node {
 	n := ir.NodAt(pos, op, left, nil)
-	n.Sym = sym
+	n.SetSym(sym)
 	return n
 }
 
@@ -169,7 +169,7 @@ func nodintconst(v int64) *ir.Node {
 
 func nodnil() *ir.Node {
 	n := ir.Nod(ir.ONIL, nil, nil)
-	n.Type = types.Types[types.TNIL]
+	n.SetType(types.Types[types.TNIL])
 	return n
 }
 
@@ -190,16 +190,16 @@ func treecopy(n *ir.Node, pos src.XPos) *ir.Node {
 		return nil
 	}
 
-	switch n.Op {
+	switch n.Op() {
 	default:
 		m := ir.SepCopy(n)
-		m.Left = treecopy(n.Left, pos)
-		m.Right = treecopy(n.Right, pos)
-		m.List.Set(listtreecopy(n.List.Slice(), pos))
+		m.SetLeft(treecopy(n.Left(), pos))
+		m.SetRight(treecopy(n.Right(), pos))
+		m.PtrList().Set(listtreecopy(n.List().Slice(), pos))
 		if pos.IsKnown() {
-			m.Pos = pos
+			m.SetPos(pos)
 		}
-		if m.Name != nil && n.Op != ir.ODCLFIELD {
+		if m.Name() != nil && n.Op() != ir.ODCLFIELD {
 			ir.Dump("treecopy", n)
 			base.Fatalf("treecopy Name")
 		}
@@ -517,16 +517,16 @@ func assignconv(n *ir.Node, t *types.Type, context string) *ir.Node {
 
 // Convert node n for assignment to type t.
 func assignconvfn(n *ir.Node, t *types.Type, context func() string) *ir.Node {
-	if n == nil || n.Type == nil || n.Type.Broke() {
+	if n == nil || n.Type() == nil || n.Type().Broke() {
 		return n
 	}
 
-	if t.Etype == types.TBLANK && n.Type.Etype == types.TNIL {
+	if t.Etype == types.TBLANK && n.Type().Etype == types.TNIL {
 		base.Errorf("use of untyped nil")
 	}
 
 	n = convlit1(n, t, false, context)
-	if n.Type == nil {
+	if n.Type() == nil {
 		return n
 	}
 	if t.Etype == types.TBLANK {
@@ -535,31 +535,31 @@ func assignconvfn(n *ir.Node, t *types.Type, context func() string) *ir.Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == types.UntypedBool && !t.IsBoolean() {
-		if n.Op == ir.ONAME || n.Op == ir.OLITERAL {
+	if n.Type() == types.UntypedBool && !t.IsBoolean() {
+		if n.Op() == ir.ONAME || n.Op() == ir.OLITERAL {
 			r := ir.Nod(ir.OCONVNOP, n, nil)
-			r.Type = types.Types[types.TBOOL]
+			r.SetType(types.Types[types.TBOOL])
 			r.SetTypecheck(1)
 			r.SetImplicit(true)
 			n = r
 		}
 	}
 
-	if types.Identical(n.Type, t) {
+	if types.Identical(n.Type(), t) {
 		return n
 	}
 
-	op, why := assignop(n.Type, t)
+	op, why := assignop(n.Type(), t)
 	if op == ir.OXXX {
 		base.Errorf("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = ir.OCONV
 	}
 
 	r := ir.Nod(op, n, nil)
-	r.Type = t
+	r.SetType(t)
 	r.SetTypecheck(1)
 	r.SetImplicit(true)
-	r.Orig = n.Orig
+	r.SetOrig(n.Orig())
 	return r
 }
 
@@ -572,27 +572,27 @@ func backingArrayPtrLen(n *ir.Node) (ptr, len *ir.Node) {
 		base.Fatalf("backingArrayPtrLen not cheap: %v", n)
 	}
 	ptr = ir.Nod(ir.OSPTR, n, nil)
-	if n.Type.IsString() {
-		ptr.Type = types.Types[types.TUINT8].PtrTo()
+	if n.Type().IsString() {
+		ptr.SetType(types.Types[types.TUINT8].PtrTo())
 	} else {
-		ptr.Type = n.Type.Elem().PtrTo()
+		ptr.SetType(n.Type().Elem().PtrTo())
 	}
 	len = ir.Nod(ir.OLEN, n, nil)
-	len.Type = types.Types[types.TINT]
+	len.SetType(types.Types[types.TINT])
 	return ptr, len
 }
 
 // labeledControl returns the control flow Node (for, switch, select)
 // associated with the label n, if any.
 func labeledControl(n *ir.Node) *ir.Node {
-	if n.Op != ir.OLABEL {
-		base.Fatalf("labeledControl %v", n.Op)
+	if n.Op() != ir.OLABEL {
+		base.Fatalf("labeledControl %v", n.Op())
 	}
-	ctl := n.Name.Defn
+	ctl := n.Name().Defn
 	if ctl == nil {
 		return nil
 	}
-	switch ctl.Op {
+	switch ctl.Op() {
 	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT:
 		return ctl
 	}
@@ -626,12 +626,12 @@ func updateHasCall(n *ir.Node) {
 }
 
 func calcHasCall(n *ir.Node) bool {
-	if n.Ninit.Len() != 0 {
+	if n.Init().Len() != 0 {
 		// TODO(mdempsky): This seems overly conservative.
 		return true
 	}
 
-	switch n.Op {
+	switch n.Op() {
 	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE:
 		if n.HasCall() {
 			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
@@ -653,23 +653,23 @@ func calcHasCall(n *ir.Node) bool {
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
 	case ir.OADD, ir.OSUB, ir.ONEG, ir.OMUL:
-		if thearch.SoftFloat && (isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) {
+		if thearch.SoftFloat && (isFloat[n.Type().Etype] || isComplex[n.Type().Etype]) {
 			return true
 		}
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
-		if thearch.SoftFloat && (isFloat[n.Left.Type.Etype] || isComplex[n.Left.Type.Etype]) {
+		if thearch.SoftFloat && (isFloat[n.Left().Type().Etype] || isComplex[n.Left().Type().Etype]) {
 			return true
 		}
 	case ir.OCONV:
-		if thearch.SoftFloat && ((isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) || (isFloat[n.Left.Type.Etype] || isComplex[n.Left.Type.Etype])) {
+		if thearch.SoftFloat && ((isFloat[n.Type().Etype] || isComplex[n.Type().Etype]) || (isFloat[n.Left().Type().Etype] || isComplex[n.Left().Type().Etype])) {
 			return true
 		}
 	}
 
-	if n.Left != nil && n.Left.HasCall() {
+	if n.Left() != nil && n.Left().HasCall() {
 		return true
 	}
-	if n.Right != nil && n.Right.HasCall() {
+	if n.Right() != nil && n.Right().HasCall() {
 		return true
 	}
 	return false
@@ -745,45 +745,45 @@ func safeexpr(n *ir.Node, init *ir.Nodes) *ir.Node {
 		return nil
 	}
 
-	if n.Ninit.Len() != 0 {
-		walkstmtlist(n.Ninit.Slice())
-		init.AppendNodes(&n.Ninit)
+	if n.Init().Len() != 0 {
+		walkstmtlist(n.Init().Slice())
+		init.AppendNodes(n.PtrInit())
 	}
 
-	switch n.Op {
+	switch n.Op() {
 	case ir.ONAME, ir.OLITERAL, ir.ONIL:
 		return n
 
 	case ir.ODOT, ir.OLEN, ir.OCAP:
-		l := safeexpr(n.Left, init)
-		if l == n.Left {
+		l := safeexpr(n.Left(), init)
+		if l == n.Left() {
 			return n
 		}
 		r := ir.Copy(n)
-		r.Left = l
+		r.SetLeft(l)
 		r = typecheck(r, ctxExpr)
 		r = walkexpr(r, init)
 		return r
 
 	case ir.ODOTPTR, ir.ODEREF:
-		l := safeexpr(n.Left, init)
-		if l == n.Left {
+		l := safeexpr(n.Left(), init)
+		if l == n.Left() {
 			return n
 		}
 		a := ir.Copy(n)
-		a.Left = l
+		a.SetLeft(l)
 		a = walkexpr(a, init)
 		return a
 
 	case ir.OINDEX, ir.OINDEXMAP:
-		l := safeexpr(n.Left, init)
-		r := safeexpr(n.Right, init)
-		if l == n.Left && r == n.Right {
+		l := safeexpr(n.Left(), init)
+		r := safeexpr(n.Right(), init)
+		if l == n.Left() && r == n.Right() {
 			return n
 		}
 		a := ir.Copy(n)
-		a.Left = l
-		a.Right = r
+		a.SetLeft(l)
+		a.SetRight(r)
 		a = walkexpr(a, init)
 		return a
 
@@ -812,12 +812,12 @@ func copyexpr(n *ir.Node, t *types.Type, init *ir.Nodes) *ir.Node {
 // return side-effect free and cheap n, appending side effects to init.
 // result may not be assignable.
 func cheapexpr(n *ir.Node, init *ir.Nodes) *ir.Node {
-	switch n.Op {
+	switch n.Op() {
 	case ir.ONAME, ir.OLITERAL, ir.ONIL:
 		return n
 	}
 
-	return copyexpr(n, n.Type, init)
+	return copyexpr(n, n.Type(), init)
 }
 
 // Code to resolve elided DOTs in embedded types.
@@ -958,20 +958,20 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *ir.Node) *ir.Node {
-	n.Left = typecheck(n.Left, ctxType|ctxExpr)
-	if n.Left.Diag() {
+	n.SetLeft(typecheck(n.Left(), ctxType|ctxExpr))
+	if n.Left().Diag() {
 		n.SetDiag(true)
 	}
-	t := n.Left.Type
+	t := n.Left().Type()
 	if t == nil {
 		return n
 	}
 
-	if n.Left.Op == ir.OTYPE {
+	if n.Left().Op() == ir.OTYPE {
 		return n
 	}
 
-	s := n.Sym
+	s := n.Sym()
 	if s == nil {
 		return n
 	}
@@ -980,12 +980,12 @@ func adddot(n *ir.Node) *ir.Node {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			n.Left = nodSym(ir.ODOT, n.Left, path[c].field.Sym)
-			n.Left.SetImplicit(true)
+			n.SetLeft(nodSym(ir.ODOT, n.Left(), path[c].field.Sym))
+			n.Left().SetImplicit(true)
 		}
 	case ambig:
 		base.Errorf("ambiguous selector %v", n)
-		n.Left = nil
+		n.SetLeft(nil)
 	}
 
 	return n
@@ -1127,7 +1127,7 @@ func structargs(tl *types.Type, mustname bool) []*ir.Node {
 			gen++
 		}
 		a := symfield(s, t.Type)
-		a.Pos = t.Pos
+		a.SetPos(t.Pos)
 		a.SetIsDDD(t.IsDDD())
 		args = append(args, a)
 	}
@@ -1177,14 +1177,14 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	dclcontext = ir.PEXTERN
 
 	tfn := ir.Nod(ir.OTFUNC, nil, nil)
-	tfn.Left = namedfield(".this", rcvr)
-	tfn.List.Set(structargs(method.Type.Params(), true))
-	tfn.Rlist.Set(structargs(method.Type.Results(), false))
+	tfn.SetLeft(namedfield(".this", rcvr))
+	tfn.PtrList().Set(structargs(method.Type.Params(), true))
+	tfn.PtrRlist().Set(structargs(method.Type.Results(), false))
 
 	fn := dclfunc(newnam, tfn)
-	fn.Func.SetDupok(true)
+	fn.Func().SetDupok(true)
 
-	nthis := ir.AsNode(tfn.Type.Recv().Nname)
+	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
 	methodrcvr := method.Type.Recv().Type
 
@@ -1192,10 +1192,10 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := ir.Nod(ir.OIF, nil, nil)
-		n.Left = ir.Nod(ir.OEQ, nthis, nodnil())
+		n.SetLeft(ir.Nod(ir.OEQ, nthis, nodnil()))
 		call := ir.Nod(ir.OCALL, syslook("panicwrap"), nil)
-		n.Nbody.Set1(call)
-		fn.Nbody.Append(n)
+		n.PtrBody().Set1(call)
+		fn.PtrBody().Append(n)
 	}
 
 	dot := adddot(nodSym(ir.OXDOT, nthis, method.Sym))
@@ -1209,29 +1209,29 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// value for that function.
 	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
-		dot = dot.Left // skip final .M
+		dot = dot.Left() // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
 		if !dotlist[0].field.Type.IsPtr() {
 			dot = ir.Nod(ir.OADDR, dot, nil)
 		}
 		as := ir.Nod(ir.OAS, nthis, convnop(dot, rcvr))
-		fn.Nbody.Append(as)
-		fn.Nbody.Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
+		fn.PtrBody().Append(as)
+		fn.PtrBody().Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
-		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
+		fn.Func().SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.Nod(ir.OCALL, dot, nil)
-		call.List.Set(paramNnames(tfn.Type))
-		call.SetIsDDD(tfn.Type.IsVariadic())
+		call.PtrList().Set(paramNnames(tfn.Type()))
+		call.SetIsDDD(tfn.Type().IsVariadic())
 		if method.Type.NumResults() > 0 {
 			n := ir.Nod(ir.ORETURN, nil, nil)
-			n.List.Set1(call)
+			n.PtrList().Set1(call)
 			call = n
 		}
-		fn.Nbody.Append(call)
+		fn.PtrBody().Append(call)
 	}
 
 	if false && base.Flag.LowerR != 0 {
-		ir.DumpList("genwrapper body", fn.Nbody)
+		ir.DumpList("genwrapper body", fn.Body())
 	}
 
 	funcbody()
@@ -1242,7 +1242,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), ctxStmt)
+	typecheckslice(fn.Body().Slice(), ctxStmt)
 
 	// Inline calls within (*T).M wrappers. This is safe because we only
 	// generate those wrappers within the same compilation unit as (T).M.
@@ -1269,13 +1269,13 @@ func hashmem(t *types.Type) *ir.Node {
 
 	n := NewName(sym)
 	setNodeNameFunc(n)
-	n.Type = functype(nil, []*ir.Node{
+	n.SetType(functype(nil, []*ir.Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[types.TUINTPTR]),
 		anonfield(types.Types[types.TUINTPTR]),
 	}, []*ir.Node{
 		anonfield(types.Types[types.TUINTPTR]),
-	})
+	}))
 	return n
 }
 
@@ -1403,16 +1403,16 @@ func listtreecopy(l []*ir.Node, pos src.XPos) []*ir.Node {
 
 func liststmt(l []*ir.Node) *ir.Node {
 	n := ir.Nod(ir.OBLOCK, nil, nil)
-	n.List.Set(l)
+	n.PtrList().Set(l)
 	if len(l) != 0 {
-		n.Pos = l[0].Pos
+		n.SetPos(l[0].Pos())
 	}
 	return n
 }
 
 func ngotype(n *ir.Node) *types.Sym {
-	if n.Type != nil {
-		return typenamesym(n.Type)
+	if n.Type() != nil {
+		return typenamesym(n.Type())
 	}
 	return nil
 }
@@ -1426,11 +1426,11 @@ func addinit(n *ir.Node, init []*ir.Node) *ir.Node {
 	if ir.MayBeShared(n) {
 		// Introduce OCONVNOP to hold init list.
 		n = ir.Nod(ir.OCONVNOP, n, nil)
-		n.Type = n.Left.Type
+		n.SetType(n.Left().Type())
 		n.SetTypecheck(1)
 	}
 
-	n.Ninit.Prepend(init...)
+	n.PtrInit().Prepend(init...)
 	n.SetHasCall(true)
 	return n
 }
@@ -1520,10 +1520,10 @@ func isdirectiface(t *types.Type) bool {
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab *ir.Node) *ir.Node {
 	typ := nodSym(ir.ODOTPTR, itab, nil)
-	typ.Type = types.NewPtr(types.Types[types.TUINT8])
+	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	typ.SetTypecheck(1)
-	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
-	typ.SetBounded(true)          // guaranteed not to fault
+	typ.SetOffset(int64(Widthptr)) // offset of _type in runtime.itab
+	typ.SetBounded(true)           // guaranteed not to fault
 	return typ
 }
 
@@ -1536,14 +1536,14 @@ func ifaceData(pos src.XPos, n *ir.Node, t *types.Type) *ir.Node {
 	}
 	ptr := nodlSym(pos, ir.OIDATA, n, nil)
 	if isdirectiface(t) {
-		ptr.Type = t
+		ptr.SetType(t)
 		ptr.SetTypecheck(1)
 		return ptr
 	}
-	ptr.Type = types.NewPtr(t)
+	ptr.SetType(types.NewPtr(t))
 	ptr.SetTypecheck(1)
 	ind := ir.NodAt(pos, ir.ODEREF, ptr, nil)
-	ind.Type = t
+	ind.SetType(t)
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)
 	return ind
@@ -1553,8 +1553,8 @@ func ifaceData(pos src.XPos, n *ir.Node, t *types.Type) *ir.Node {
 // This is where t was declared or where it appeared as a type expression.
 func typePos(t *types.Type) src.XPos {
 	n := ir.AsNode(t.Nod)
-	if n == nil || !n.Pos.IsKnown() {
+	if n == nil || !n.Pos().IsKnown() {
 		base.Fatalf("bad type: %v", t)
 	}
-	return n.Pos
+	return n.Pos()
 }

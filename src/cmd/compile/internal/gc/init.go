@@ -46,16 +46,16 @@ func fninit(n []*ir.Node) {
 
 	// Make a function that contains all the initialization statements.
 	if len(nf) > 0 {
-		base.Pos = nf[0].Pos // prolog/epilog gets line number of first init stmt
+		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
 		fn := dclfunc(initializers, ir.Nod(ir.OTFUNC, nil, nil))
-		for _, dcl := range initTodo.Func.Dcl {
-			dcl.Name.Curfn = fn
+		for _, dcl := range initTodo.Func().Dcl {
+			dcl.Name().Curfn = fn
 		}
-		fn.Func.Dcl = append(fn.Func.Dcl, initTodo.Func.Dcl...)
-		initTodo.Func.Dcl = nil
+		fn.Func().Dcl = append(fn.Func().Dcl, initTodo.Func().Dcl...)
+		initTodo.Func().Dcl = nil
 
-		fn.Nbody.Set(nf)
+		fn.PtrBody().Set(nf)
 		funcbody()
 
 		fn = typecheck(fn, ctxStmt)
@@ -65,7 +65,7 @@ func fninit(n []*ir.Node) {
 		xtop = append(xtop, fn)
 		fns = append(fns, initializers.Linksym())
 	}
-	if initTodo.Func.Dcl != nil {
+	if initTodo.Func().Dcl != nil {
 		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
@@ -76,9 +76,9 @@ func fninit(n []*ir.Node) {
 	// Record user init functions.
 	for i := 0; i < renameinitgen; i++ {
 		s := lookupN("init.", i)
-		fn := ir.AsNode(s.Def).Name.Defn
+		fn := ir.AsNode(s.Def).Name().Defn
 		// Skip init functions with empty bodies.
-		if fn.Nbody.Len() == 1 && fn.Nbody.First().Op == ir.OEMPTY {
+		if fn.Body().Len() == 1 && fn.Body().First().Op() == ir.OEMPTY {
 			continue
 		}
 		fns = append(fns, s.Linksym())
@@ -91,7 +91,7 @@ func fninit(n []*ir.Node) {
 	// Make an .inittask structure.
 	sym := lookup(".inittask")
 	nn := NewName(sym)
-	nn.Type = types.Types[types.TUINT8] // fake type
+	nn.SetType(types.Types[types.TUINT8]) // fake type
 	nn.SetClass(ir.PEXTERN)
 	sym.Def = ir.AsTypesNode(nn)
 	exportsym(nn)

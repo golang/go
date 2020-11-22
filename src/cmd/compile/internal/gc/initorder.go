@@ -86,7 +86,7 @@ func initOrder(l []*ir.Node) []*ir.Node {
 
 	// Process all package-level assignment in declaration order.
 	for _, n := range l {
-		switch n.Op {
+		switch n.Op() {
 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 			o.processAssign(n)
 			o.flushReady(s.staticInit)
@@ -100,7 +100,7 @@ func initOrder(l []*ir.Node) []*ir.Node {
 	// Check that all assignments are now Done; if not, there must
 	// have been a dependency cycle.
 	for _, n := range l {
-		switch n.Op {
+		switch n.Op() {
 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 			if n.Initorder() != InitDone {
 				// If there have already been errors
@@ -126,27 +126,27 @@ func initOrder(l []*ir.Node) []*ir.Node {
 }
 
 func (o *InitOrder) processAssign(n *ir.Node) {
-	if n.Initorder() != InitNotStarted || n.Xoffset != types.BADWIDTH {
-		base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
+	if n.Initorder() != InitNotStarted || n.Offset() != types.BADWIDTH {
+		base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Offset())
 	}
 
 	n.SetInitorder(InitPending)
-	n.Xoffset = 0
+	n.SetOffset(0)
 
 	// Compute number of variable dependencies and build the
 	// inverse dependency ("blocking") graph.
 	for dep := range collectDeps(n, true) {
-		defn := dep.Name.Defn
+		defn := dep.Name().Defn
 		// Skip dependencies on functions (PFUNC) and
 		// variables already initialized (InitDone).
 		if dep.Class() != ir.PEXTERN || defn.Initorder() == InitDone {
 			continue
 		}
-		n.Xoffset = n.Xoffset + 1
+		n.SetOffset(n.Offset() + 1)
 		o.blocking[defn] = append(o.blocking[defn], n)
 	}
 
-	if n.Xoffset == 0 {
+	if n.Offset() == 0 {
 		heap.Push(&o.ready, n)
 	}
 }
@@ -157,20 +157,20 @@ func (o *InitOrder) processAssign(n *ir.Node) {
 func (o *InitOrder) flushReady(initialize func(*ir.Node)) {
 	for o.ready.Len() != 0 {
 		n := heap.Pop(&o.ready).(*ir.Node)
-		if n.Initorder() != InitPending || n.Xoffset != 0 {
-			base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
+		if n.Initorder() != InitPending || n.Offset() != 0 {
+			base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Offset())
 		}
 
 		initialize(n)
 		n.SetInitorder(InitDone)
-		n.Xoffset = types.BADWIDTH
+		n.SetOffset(types.BADWIDTH)
 
 		blocked := o.blocking[n]
 		delete(o.blocking, n)
 
 		for _, m := range blocked {
-			m.Xoffset = m.Xoffset - 1
-			if m.Xoffset == 0 {
+			m.SetOffset(m.Offset() - 1)
+			if m.Offset() == 0 {
 				heap.Push(&o.ready, m)
 			}
 		}
@@ -196,14 +196,14 @@ func findInitLoopAndExit(n *ir.Node, path *[]*ir.Node) {
 
 	// There might be multiple loops involving n; by sorting
 	// references, we deterministically pick the one reported.
-	refers := collectDeps(n.Name.Defn, false).Sorted(func(ni, nj *ir.Node) bool {
-		return ni.Pos.Before(nj.Pos)
+	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj *ir.Node) bool {
+		return ni.Pos().Before(nj.Pos())
 	})
 
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class() == ir.PEXTERN && ref.Name.Defn.Initorder() == InitDone {
+		if ref.Class() == ir.PEXTERN && ref.Name().Defn.Initorder() == InitDone {
 			continue
 		}
 
@@ -220,7 +220,7 @@ func reportInitLoopAndExit(l []*ir.Node) {
 	// the start.
 	i := -1
 	for j, n := range l {
-		if n.Class() == ir.PEXTERN && (i == -1 || n.Pos.Before(l[i].Pos)) {
+		if n.Class() == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
 			i = j
 		}
 	}
@@ -242,7 +242,7 @@ func reportInitLoopAndExit(l []*ir.Node) {
 	}
 	fmt.Fprintf(&msg, "\t%v: %v", ir.Line(l[0]), l[0])
 
-	base.ErrorfAt(l[0].Pos, msg.String())
+	base.ErrorfAt(l[0].Pos(), msg.String())
 	base.ErrorExit()
 }
 
@@ -252,15 +252,15 @@ func reportInitLoopAndExit(l []*ir.Node) {
 // upon functions (but not variables).
 func collectDeps(n *ir.Node, transitive bool) ir.NodeSet {
 	d := initDeps{transitive: transitive}
-	switch n.Op {
+	switch n.Op() {
 	case ir.OAS:
-		d.inspect(n.Right)
+		d.inspect(n.Right())
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		d.inspect(n.Right)
+		d.inspect(n.Right())
 	case ir.ODCLFUNC:
-		d.inspectList(n.Nbody)
+		d.inspectList(n.Body())
 	default:
-		base.Fatalf("unexpected Op: %v", n.Op)
+		base.Fatalf("unexpected Op: %v", n.Op())
 	}
 	return d.seen
 }
@@ -276,7 +276,7 @@ func (d *initDeps) inspectList(l ir.Nodes) { ir.InspectList(l, d.visit) }
 // visit calls foundDep on any package-level functions or variables
 // referenced by n, if any.
 func (d *initDeps) visit(n *ir.Node) bool {
-	switch n.Op {
+	switch n.Op() {
 	case ir.OMETHEXPR:
 		d.foundDep(methodExprName(n))
 		return false
@@ -288,7 +288,7 @@ func (d *initDeps) visit(n *ir.Node) bool {
 		}
 
 	case ir.OCLOSURE:
-		d.inspectList(n.Func.Decl.Nbody)
+		d.inspectList(n.Func().Decl.Body())
 
 	case ir.ODOTMETH, ir.OCALLPART:
 		d.foundDep(methodExprName(n))
@@ -308,7 +308,7 @@ func (d *initDeps) foundDep(n *ir.Node) {
 
 	// Names without definitions aren't interesting as far as
 	// initialization ordering goes.
-	if n.Name.Defn == nil {
+	if n.Name().Defn == nil {
 		return
 	}
 
@@ -317,7 +317,7 @@ func (d *initDeps) foundDep(n *ir.Node) {
 	}
 	d.seen.Add(n)
 	if d.transitive && n.Class() == ir.PFUNC {
-		d.inspectList(n.Name.Defn.Nbody)
+		d.inspectList(n.Name().Defn.Body())
 	}
 }
 
@@ -330,9 +330,11 @@ func (d *initDeps) foundDep(n *ir.Node) {
 // but both OAS nodes use the "=" token's position as their Pos.
 type declOrder []*ir.Node
 
-func (s declOrder) Len() int           { return len(s) }
-func (s declOrder) Less(i, j int) bool { return firstLHS(s[i]).Pos.Before(firstLHS(s[j]).Pos) }
-func (s declOrder) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s declOrder) Len() int { return len(s) }
+func (s declOrder) Less(i, j int) bool {
+	return firstLHS(s[i]).Pos().Before(firstLHS(s[j]).Pos())
+}
+func (s declOrder) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s *declOrder) Push(x interface{}) { *s = append(*s, x.(*ir.Node)) }
 func (s *declOrder) Pop() interface{} {
@@ -344,13 +346,13 @@ func (s *declOrder) Pop() interface{} {
 // firstLHS returns the first expression on the left-hand side of
 // assignment n.
 func firstLHS(n *ir.Node) *ir.Node {
-	switch n.Op {
+	switch n.Op() {
 	case ir.OAS:
-		return n.Left
+		return n.Left()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2RECV, ir.OAS2MAPR:
-		return n.List.First()
+		return n.List().First()
 	}
 
-	base.Fatalf("unexpected Op: %v", n.Op)
+	base.Fatalf("unexpected Op: %v", n.Op())
 	return nil
 }

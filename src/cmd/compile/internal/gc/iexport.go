@@ -329,7 +329,7 @@ func (w *exportWriter) writeIndex(index map[*ir.Node]uint64, mainIndex bool) {
 	}
 
 	for n := range index {
-		pkgObjs[n.Sym.Pkg] = append(pkgObjs[n.Sym.Pkg], n)
+		pkgObjs[n.Sym().Pkg] = append(pkgObjs[n.Sym().Pkg], n)
 	}
 
 	var pkgs []*types.Pkg
@@ -337,7 +337,7 @@ func (w *exportWriter) writeIndex(index map[*ir.Node]uint64, mainIndex bool) {
 		pkgs = append(pkgs, pkg)
 
 		sort.Slice(objs, func(i, j int) bool {
-			return objs[i].Sym.Name < objs[j].Sym.Name
+			return objs[i].Sym().Name < objs[j].Sym().Name
 		})
 	}
 
@@ -356,7 +356,7 @@ func (w *exportWriter) writeIndex(index map[*ir.Node]uint64, mainIndex bool) {
 		objs := pkgObjs[pkg]
 		w.uint64(uint64(len(objs)))
 		for _, n := range objs {
-			w.string(n.Sym.Name)
+			w.string(n.Sym().Name)
 			w.uint64(index[n])
 		}
 	}
@@ -395,12 +395,12 @@ func (p *iexporter) stringOff(s string) uint64 {
 
 // pushDecl adds n to the declaration work queue, if not already present.
 func (p *iexporter) pushDecl(n *ir.Node) {
-	if n.Sym == nil || ir.AsNode(n.Sym.Def) != n && n.Op != ir.OTYPE {
-		base.Fatalf("weird Sym: %v, %v", n, n.Sym)
+	if n.Sym() == nil || ir.AsNode(n.Sym().Def) != n && n.Op() != ir.OTYPE {
+		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym.Pkg == ir.BuiltinPkg || n.Sym.Pkg == unsafepkg {
+	if n.Sym().Pkg == ir.BuiltinPkg || n.Sym().Pkg == unsafepkg {
 		return
 	}
 
@@ -425,16 +425,16 @@ type exportWriter struct {
 
 func (p *iexporter) doDecl(n *ir.Node) {
 	w := p.newWriter()
-	w.setPkg(n.Sym.Pkg, false)
+	w.setPkg(n.Sym().Pkg, false)
 
-	switch n.Op {
+	switch n.Op() {
 	case ir.ONAME:
 		switch n.Class() {
 		case ir.PEXTERN:
 			// Variable.
 			w.tag('V')
-			w.pos(n.Pos)
-			w.typ(n.Type)
+			w.pos(n.Pos())
+			w.typ(n.Type())
 			w.varExt(n)
 
 		case ir.PFUNC:
@@ -444,8 +444,8 @@ func (p *iexporter) doDecl(n *ir.Node) {
 
 			// Function.
 			w.tag('F')
-			w.pos(n.Pos)
-			w.signature(n.Type)
+			w.pos(n.Pos())
+			w.signature(n.Type())
 			w.funcExt(n)
 
 		default:
@@ -456,23 +456,23 @@ func (p *iexporter) doDecl(n *ir.Node) {
 		// Constant.
 		n = typecheck(n, ctxExpr)
 		w.tag('C')
-		w.pos(n.Pos)
-		w.value(n.Type, n.Val())
+		w.pos(n.Pos())
+		w.value(n.Type(), n.Val())
 
 	case ir.OTYPE:
-		if IsAlias(n.Sym) {
+		if IsAlias(n.Sym()) {
 			// Alias.
 			w.tag('A')
-			w.pos(n.Pos)
-			w.typ(n.Type)
+			w.pos(n.Pos())
+			w.typ(n.Type())
 			break
 		}
 
 		// Defined type.
 		w.tag('T')
-		w.pos(n.Pos)
+		w.pos(n.Pos())
 
-		underlying := n.Type.Orig
+		underlying := n.Type().Orig
 		if underlying == types.Errortype.Orig {
 			// For "type T error", use error as the
 			// underlying type instead of error's own
@@ -484,7 +484,7 @@ func (p *iexporter) doDecl(n *ir.Node) {
 		}
 		w.typ(underlying)
 
-		t := n.Type
+		t := n.Type()
 		if t.IsInterface() {
 			w.typeExt(t)
 			break
@@ -519,7 +519,7 @@ func (p *iexporter) doInline(f *ir.Node) {
 	w := p.newWriter()
 	w.setPkg(fnpkg(f), false)
 
-	w.stmtList(ir.AsNodes(f.Func.Inl.Body))
+	w.stmtList(ir.AsNodes(f.Func().Inl.Body))
 
 	p.inlineIndex[f] = w.flush()
 }
@@ -574,7 +574,7 @@ func (w *exportWriter) qualifiedIdent(n *ir.Node) {
 	// Ensure any referenced declarations are written out too.
 	w.p.pushDecl(n)
 
-	s := n.Sym
+	s := n.Sym()
 	w.string(s.Name)
 	w.pkg(s.Pkg)
 }
@@ -956,36 +956,36 @@ func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
 // Compiler-specific extensions.
 
 func (w *exportWriter) varExt(n *ir.Node) {
-	w.linkname(n.Sym)
-	w.symIdx(n.Sym)
+	w.linkname(n.Sym())
+	w.symIdx(n.Sym())
 }
 
 func (w *exportWriter) funcExt(n *ir.Node) {
-	w.linkname(n.Sym)
-	w.symIdx(n.Sym)
+	w.linkname(n.Sym())
+	w.symIdx(n.Sym())
 
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
-		for _, f := range fs(n.Type).FieldSlice() {
+		for _, f := range fs(n.Type()).FieldSlice() {
 			w.string(f.Note)
 		}
 	}
 
 	// Inline body.
-	if n.Func.Inl != nil {
-		w.uint64(1 + uint64(n.Func.Inl.Cost))
-		if n.Func.ExportInline() {
+	if n.Func().Inl != nil {
+		w.uint64(1 + uint64(n.Func().Inl.Cost))
+		if n.Func().ExportInline() {
 			w.p.doInline(n)
 		}
 
 		// Endlineno for inlined function.
-		if n.Name.Defn != nil {
-			w.pos(n.Name.Defn.Func.Endlineno)
+		if n.Name().Defn != nil {
+			w.pos(n.Name().Defn.Func().Endlineno)
 		} else {
 			// When the exported node was defined externally,
 			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
 			// Keep it as we don't distinguish this case in iimport.go.
-			w.pos(n.Func.Endlineno)
+			w.pos(n.Func().Endlineno)
 		}
 	} else {
 		w.uint64(0)
@@ -1038,7 +1038,7 @@ func (w *exportWriter) stmtList(list ir.Nodes) {
 }
 
 func (w *exportWriter) node(n *ir.Node) {
-	if ir.OpPrec[n.Op] < 0 {
+	if ir.OpPrec[n.Op()] < 0 {
 		w.stmt(n)
 	} else {
 		w.expr(n)
@@ -1048,19 +1048,19 @@ func (w *exportWriter) node(n *ir.Node) {
 // Caution: stmt will emit more than one node for statement nodes n that have a non-empty
 // n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
 func (w *exportWriter) stmt(n *ir.Node) {
-	if n.Ninit.Len() > 0 && !ir.StmtWithInit(n.Op) {
+	if n.Init().Len() > 0 && !ir.StmtWithInit(n.Op()) {
 		// can't use stmtList here since we don't want the final OEND
-		for _, n := range n.Ninit.Slice() {
+		for _, n := range n.Init().Slice() {
 			w.stmt(n)
 		}
 	}
 
-	switch op := n.Op; op {
+	switch op := n.Op(); op {
 	case ir.ODCL:
 		w.op(ir.ODCL)
-		w.pos(n.Left.Pos)
-		w.localName(n.Left)
-		w.typ(n.Left.Type)
+		w.pos(n.Left().Pos())
+		w.localName(n.Left())
+		w.typ(n.Left().Type())
 
 	// case ODCLFIELD:
 	//	unimplemented - handled by default case
@@ -1069,74 +1069,74 @@ func (w *exportWriter) stmt(n *ir.Node) {
 		// Don't export "v = <N>" initializing statements, hope they're always
 		// preceded by the DCL which will be re-parsed and typecheck to reproduce
 		// the "v = <N>" again.
-		if n.Right != nil {
+		if n.Right() != nil {
 			w.op(ir.OAS)
-			w.pos(n.Pos)
-			w.expr(n.Left)
-			w.expr(n.Right)
+			w.pos(n.Pos())
+			w.expr(n.Left())
+			w.expr(n.Right())
 		}
 
 	case ir.OASOP:
 		w.op(ir.OASOP)
-		w.pos(n.Pos)
+		w.pos(n.Pos())
 		w.op(n.SubOp())
-		w.expr(n.Left)
+		w.expr(n.Left())
 		if w.bool(!n.Implicit()) {
-			w.expr(n.Right)
+			w.expr(n.Right())
 		}
 
 	case ir.OAS2:
 		w.op(ir.OAS2)
-		w.pos(n.Pos)
-		w.exprList(n.List)
-		w.exprList(n.Rlist)
+		w.pos(n.Pos())
+		w.exprList(n.List())
+		w.exprList(n.Rlist())
 
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		w.op(ir.OAS2)
-		w.pos(n.Pos)
-		w.exprList(n.List)
-		w.exprList(ir.AsNodes([]*ir.Node{n.Right}))
+		w.pos(n.Pos())
+		w.exprList(n.List())
+		w.exprList(ir.AsNodes([]*ir.Node{n.Right()}))
 
 	case ir.ORETURN:
 		w.op(ir.ORETURN)
-		w.pos(n.Pos)
-		w.exprList(n.List)
+		w.pos(n.Pos())
+		w.exprList(n.List())
 
 	// case ORETJMP:
 	// 	unreachable - generated by compiler for trampolin routines
 
 	case ir.OGO, ir.ODEFER:
 		w.op(op)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 
 	case ir.OIF:
 		w.op(ir.OIF)
-		w.pos(n.Pos)
-		w.stmtList(n.Ninit)
-		w.expr(n.Left)
-		w.stmtList(n.Nbody)
-		w.stmtList(n.Rlist)
+		w.pos(n.Pos())
+		w.stmtList(n.Init())
+		w.expr(n.Left())
+		w.stmtList(n.Body())
+		w.stmtList(n.Rlist())
 
 	case ir.OFOR:
 		w.op(ir.OFOR)
-		w.pos(n.Pos)
-		w.stmtList(n.Ninit)
-		w.exprsOrNil(n.Left, n.Right)
-		w.stmtList(n.Nbody)
+		w.pos(n.Pos())
+		w.stmtList(n.Init())
+		w.exprsOrNil(n.Left(), n.Right())
+		w.stmtList(n.Body())
 
 	case ir.ORANGE:
 		w.op(ir.ORANGE)
-		w.pos(n.Pos)
-		w.stmtList(n.List)
-		w.expr(n.Right)
-		w.stmtList(n.Nbody)
+		w.pos(n.Pos())
+		w.stmtList(n.List())
+		w.expr(n.Right())
+		w.stmtList(n.Body())
 
 	case ir.OSELECT, ir.OSWITCH:
 		w.op(op)
-		w.pos(n.Pos)
-		w.stmtList(n.Ninit)
-		w.exprsOrNil(n.Left, nil)
+		w.pos(n.Pos())
+		w.stmtList(n.Init())
+		w.exprsOrNil(n.Left(), nil)
 		w.caseList(n)
 
 	// case OCASE:
@@ -1144,41 +1144,41 @@ func (w *exportWriter) stmt(n *ir.Node) {
 
 	case ir.OFALL:
 		w.op(ir.OFALL)
-		w.pos(n.Pos)
+		w.pos(n.Pos())
 
 	case ir.OBREAK, ir.OCONTINUE:
 		w.op(op)
-		w.pos(n.Pos)
-		w.exprsOrNil(n.Left, nil)
+		w.pos(n.Pos())
+		w.exprsOrNil(n.Left(), nil)
 
 	case ir.OEMPTY:
 		// nothing to emit
 
 	case ir.OGOTO, ir.OLABEL:
 		w.op(op)
-		w.pos(n.Pos)
-		w.string(n.Sym.Name)
+		w.pos(n.Pos())
+		w.string(n.Sym().Name)
 
 	default:
-		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
+		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op())
 	}
 }
 
 func (w *exportWriter) caseList(sw *ir.Node) {
-	namedTypeSwitch := sw.Op == ir.OSWITCH && sw.Left != nil && sw.Left.Op == ir.OTYPESW && sw.Left.Left != nil
+	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
 
-	cases := sw.List.Slice()
+	cases := sw.List().Slice()
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
-		if cas.Op != ir.OCASE {
+		if cas.Op() != ir.OCASE {
 			base.Fatalf("expected OCASE, got %v", cas)
 		}
-		w.pos(cas.Pos)
-		w.stmtList(cas.List)
+		w.pos(cas.Pos())
+		w.stmtList(cas.List())
 		if namedTypeSwitch {
-			w.localName(cas.Rlist.First())
+			w.localName(cas.Rlist().First())
 		}
-		w.stmtList(cas.Nbody)
+		w.stmtList(cas.Body())
 	}
 }
 
@@ -1200,38 +1200,38 @@ func (w *exportWriter) expr(n *ir.Node) {
 	// }
 
 	// from exprfmt (fmt.go)
-	for n.Op == ir.OPAREN || n.Implicit() && (n.Op == ir.ODEREF || n.Op == ir.OADDR || n.Op == ir.ODOT || n.Op == ir.ODOTPTR) {
-		n = n.Left
+	for n.Op() == ir.OPAREN || n.Implicit() && (n.Op() == ir.ODEREF || n.Op() == ir.OADDR || n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR) {
+		n = n.Left()
 	}
 
-	switch op := n.Op; op {
+	switch op := n.Op(); op {
 	// expressions
 	// (somewhat closely following the structure of exprfmt in fmt.go)
 	case ir.ONIL:
-		if !n.Type.HasNil() {
-			base.Fatalf("unexpected type for nil: %v", n.Type)
+		if !n.Type().HasNil() {
+			base.Fatalf("unexpected type for nil: %v", n.Type())
 		}
-		if n.Orig != nil && n.Orig != n {
-			w.expr(n.Orig)
+		if n.Orig() != nil && n.Orig() != n {
+			w.expr(n.Orig())
 			break
 		}
 		w.op(ir.OLITERAL)
-		w.pos(n.Pos)
-		w.typ(n.Type)
+		w.pos(n.Pos())
+		w.typ(n.Type())
 
 	case ir.OLITERAL:
 		w.op(ir.OLITERAL)
-		w.pos(n.Pos)
-		w.value(n.Type, n.Val())
+		w.pos(n.Pos())
+		w.value(n.Type(), n.Val())
 
 	case ir.OMETHEXPR:
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		w.op(ir.OXDOT)
-		w.pos(n.Pos)
-		w.expr(n.Left) // n.Left.Op == OTYPE
-		w.selector(n.Right.Sym)
+		w.pos(n.Pos())
+		w.expr(n.Left()) // n.Left.Op == OTYPE
+		w.selector(n.Right().Sym())
 
 	case ir.ONAME:
 		// Package scope name.
@@ -1250,20 +1250,20 @@ func (w *exportWriter) expr(n *ir.Node) {
 
 	case ir.OTYPE:
 		w.op(ir.OTYPE)
-		w.typ(n.Type)
+		w.typ(n.Type())
 
 	case ir.OTYPESW:
 		w.op(ir.OTYPESW)
-		w.pos(n.Pos)
+		w.pos(n.Pos())
 		var s *types.Sym
-		if n.Left != nil {
-			if n.Left.Op != ir.ONONAME {
-				base.Fatalf("expected ONONAME, got %v", n.Left)
+		if n.Left() != nil {
+			if n.Left().Op() != ir.ONONAME {
+				base.Fatalf("expected ONONAME, got %v", n.Left())
 			}
-			s = n.Left.Sym
+			s = n.Left().Sym()
 		}
 		w.localIdent(s, 0) // declared pseudo-variable, if any
-		w.exprsOrNil(n.Right, nil)
+		w.exprsOrNil(n.Right(), nil)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	// 	should have been resolved by typechecking - handled by default case
@@ -1276,25 +1276,25 @@ func (w *exportWriter) expr(n *ir.Node) {
 
 	case ir.OPTRLIT:
 		w.op(ir.OADDR)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 
 	case ir.OSTRUCTLIT:
 		w.op(ir.OSTRUCTLIT)
-		w.pos(n.Pos)
-		w.typ(n.Type)
-		w.elemList(n.List) // special handling of field names
+		w.pos(n.Pos())
+		w.typ(n.Type())
+		w.elemList(n.List()) // special handling of field names
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		w.op(ir.OCOMPLIT)
-		w.pos(n.Pos)
-		w.typ(n.Type)
-		w.exprList(n.List)
+		w.pos(n.Pos())
+		w.typ(n.Type())
+		w.exprList(n.List())
 
 	case ir.OKEY:
 		w.op(ir.OKEY)
-		w.pos(n.Pos)
-		w.exprsOrNil(n.Left, n.Right)
+		w.pos(n.Pos())
+		w.exprsOrNil(n.Left(), n.Right())
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -1302,40 +1302,40 @@ func (w *exportWriter) expr(n *ir.Node) {
 	case ir.OCALLPART:
 		// An OCALLPART is an OXDOT before type checking.
 		w.op(ir.OXDOT)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 		// Right node should be ONAME
-		w.selector(n.Right.Sym)
+		w.selector(n.Right().Sym())
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
 		w.op(ir.OXDOT)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.selector(n.Sym)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.selector(n.Sym())
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		w.op(ir.ODOTTYPE)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.typ(n.Type)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.typ(n.Type())
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		w.op(ir.OINDEX)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.expr(n.Right)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.expr(n.Right())
 
 	case ir.OSLICE, ir.OSLICESTR, ir.OSLICEARR:
 		w.op(ir.OSLICE)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 		low, high, _ := n.SliceBounds()
 		w.exprsOrNil(low, high)
 
 	case ir.OSLICE3, ir.OSLICE3ARR:
 		w.op(ir.OSLICE3)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 		low, high, max := n.SliceBounds()
 		w.exprsOrNil(low, high)
 		w.expr(max)
@@ -1343,25 +1343,25 @@ func (w *exportWriter) expr(n *ir.Node) {
 	case ir.OCOPY, ir.OCOMPLEX:
 		// treated like other builtin calls (see e.g., OREAL)
 		w.op(op)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.expr(n.Right)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.expr(n.Right())
 		w.op(ir.OEND)
 
 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR:
 		w.op(ir.OCONV)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.typ(n.Type)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.typ(n.Type())
 
 	case ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		w.op(op)
-		w.pos(n.Pos)
-		if n.Left != nil {
-			w.expr(n.Left)
+		w.pos(n.Pos())
+		if n.Left() != nil {
+			w.expr(n.Left())
 			w.op(ir.OEND)
 		} else {
-			w.exprList(n.List) // emits terminating OEND
+			w.exprList(n.List()) // emits terminating OEND
 		}
 		// only append() calls may contain '...' arguments
 		if op == ir.OAPPEND {
@@ -1372,49 +1372,49 @@ func (w *exportWriter) expr(n *ir.Node) {
 
 	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OGETG:
 		w.op(ir.OCALL)
-		w.pos(n.Pos)
-		w.stmtList(n.Ninit)
-		w.expr(n.Left)
-		w.exprList(n.List)
+		w.pos(n.Pos())
+		w.stmtList(n.Init())
+		w.expr(n.Left())
+		w.exprList(n.List())
 		w.bool(n.IsDDD())
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
 		w.op(op) // must keep separate from OMAKE for importer
-		w.pos(n.Pos)
-		w.typ(n.Type)
+		w.pos(n.Pos())
+		w.typ(n.Type())
 		switch {
 		default:
 			// empty list
 			w.op(ir.OEND)
-		case n.List.Len() != 0: // pre-typecheck
-			w.exprList(n.List) // emits terminating OEND
-		case n.Right != nil:
-			w.expr(n.Left)
-			w.expr(n.Right)
+		case n.List().Len() != 0: // pre-typecheck
+			w.exprList(n.List()) // emits terminating OEND
+		case n.Right() != nil:
+			w.expr(n.Left())
+			w.expr(n.Right())
 			w.op(ir.OEND)
-		case n.Left != nil && (n.Op == ir.OMAKESLICE || !n.Left.Type.IsUntyped()):
-			w.expr(n.Left)
+		case n.Left() != nil && (n.Op() == ir.OMAKESLICE || !n.Left().Type().IsUntyped()):
+			w.expr(n.Left())
 			w.op(ir.OEND)
 		}
 
 	// unary expressions
 	case ir.OPLUS, ir.ONEG, ir.OADDR, ir.OBITNOT, ir.ODEREF, ir.ONOT, ir.ORECV:
 		w.op(op)
-		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.pos(n.Pos())
+		w.expr(n.Left())
 
 	// binary expressions
 	case ir.OADD, ir.OAND, ir.OANDAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
 		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.OOROR, ir.ORSH, ir.OSEND, ir.OSUB, ir.OXOR:
 		w.op(op)
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.expr(n.Right)
+		w.pos(n.Pos())
+		w.expr(n.Left())
+		w.expr(n.Right())
 
 	case ir.OADDSTR:
 		w.op(ir.OADDSTR)
-		w.pos(n.Pos)
-		w.exprList(n.List)
+		w.pos(n.Pos())
+		w.exprList(n.List())
 
 	case ir.ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
@@ -1422,7 +1422,7 @@ func (w *exportWriter) expr(n *ir.Node) {
 
 	default:
 		base.Fatalf("cannot export %v (%d) node\n"+
-			"\t==> please file an issue and assign to gri@", n.Op, int(n.Op))
+			"\t==> please file an issue and assign to gri@", n.Op(), int(n.Op()))
 	}
 }
 
@@ -1450,8 +1450,8 @@ func (w *exportWriter) exprsOrNil(a, b *ir.Node) {
 func (w *exportWriter) elemList(list ir.Nodes) {
 	w.uint64(uint64(list.Len()))
 	for _, n := range list.Slice() {
-		w.selector(n.Sym)
-		w.expr(n.Left)
+		w.selector(n.Sym())
+		w.expr(n.Left())
 	}
 }
 
@@ -1464,11 +1464,11 @@ func (w *exportWriter) localName(n *ir.Node) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name.Param.Stackcopy == nil) {
-		v = n.Name.Vargen
+	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy == nil) {
+		v = n.Name().Vargen
 	}
 
-	w.localIdent(n.Sym, v)
+	w.localIdent(n.Sym(), v)
 }
 
 func (w *exportWriter) localIdent(s *types.Sym, v int32) {
