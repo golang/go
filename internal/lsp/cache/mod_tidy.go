@@ -180,6 +180,7 @@ func (s *snapshot) parseModErrors(ctx context.Context, fh source.FileHandle, err
 				Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
 See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 				SuggestedFixes: []source.SuggestedFix{{
+					Title: source.CommandVendor.Title,
 					Command: &protocol.Command{
 						Command:   source.CommandVendor.ID(),
 						Title:     source.CommandVendor.Title,

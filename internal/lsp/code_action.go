@@ -515,13 +515,6 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 					Edits: edits,
 				})
 			}
-			if fix.Command != nil {
-				action.Command = &protocol.Command{
-					Command:   fix.Command.Command,
-					Title:     fix.Command.Title,
-					Arguments: fix.Command.Arguments,
-				}
-			}
 			quickFixes = append(quickFixes, action)
 		}
 	}
