@@ -656,17 +656,18 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
-func mustPanic(t *testing.T, expected string, f func()) {
+func mustPanic(t *testing.T, testName string, expected string, f func()) {
+	t.Helper()
 	defer func() {
 		switch msg := recover().(type) {
 		case nil:
-			t.Error("did not panic")
+			t.Errorf("%s\n: expected panic(%q), but did not panic", testName, expected)
 		case string:
 			if msg != expected {
-				t.Errorf("expected %q, bug got %q", expected, msg)
+				t.Errorf("%s\n: expected panic(%q), but got panic(%q)", testName, expected, msg)
 			}
 		default:
-			t.Errorf("unexpected panic value: %T(%v)", msg, msg)
+			t.Errorf("%s\n: expected panic(%q), but got panic(%T%v)", testName, expected, msg, msg)
 		}
 	}()
 	f()
@@ -688,16 +689,18 @@ func TestInvalidFlags(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fs := NewFlagSet("", ContinueOnError)
-		var buf bytes.Buffer
-		fs.SetOutput(&buf)
+		testName := fmt.Sprintf("FlagSet.Var(&v, %q, \"\")", test.flag)
 
-		mustPanic(t, test.errorMsg, func() {
+		fs := NewFlagSet("", ContinueOnError)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
+
+		mustPanic(t, testName, test.errorMsg, func() {
 			var v flagVar
 			fs.Var(&v, test.flag, "")
 		})
 		if msg := test.errorMsg + "\n"; msg != buf.String() {
-			t.Errorf("expected %q, bug got %q", msg, buf.String())
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
 		}
 	}
 }
@@ -718,18 +721,20 @@ func TestRedefinedFlags(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		testName := fmt.Sprintf("flag redefined in FlagSet(%q)", test.flagSetName)
+
 		fs := NewFlagSet(test.flagSetName, ContinueOnError)
-		var buf bytes.Buffer
-		fs.SetOutput(&buf)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
 
 		var v flagVar
 		fs.Var(&v, "foo", "")
 
-		mustPanic(t, test.errorMsg, func() {
+		mustPanic(t, testName, test.errorMsg, func() {
 			fs.Var(&v, "foo", "")
 		})
 		if msg := test.errorMsg + "\n"; msg != buf.String() {
-			t.Errorf("expected %q, bug got %q", msg, buf.String())
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
 		}
 	}
 }
