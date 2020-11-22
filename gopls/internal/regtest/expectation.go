@@ -504,6 +504,14 @@ func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true}
 }
 
+// DiagnosticAtRegexpWithMessage is like DiagnosticAtRegexp, but it also
+// checks for the content of the diagnostic message,
+func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpectation {
+	e.T.Helper()
+	pos := e.RegexpSearch(name, re)
+	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, message: msg}
+}
+
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workdir-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {

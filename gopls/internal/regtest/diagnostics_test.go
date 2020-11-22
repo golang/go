@@ -1515,3 +1515,45 @@ func main() {
 		)
 	})
 }
+
+// Confirms that circular imports are tested and reported.
+func TestCircularImports(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- self/self.go --
+package self
+
+import _ "mod.com/self"
+func Hello() {}
+-- double/a/a.go --
+package a
+
+import _ "mod.com/double/b"
+-- double/b/b.go --
+package b
+
+import _ "mod.com/double/a"
+-- triple/a/a.go --
+package a
+
+import _ "mod.com/triple/b"
+-- triple/b/b.go --
+package b
+
+import _ "mod.com/triple/c"
+-- triple/c/c.go --
+package c
+
+import _ "mod.com/triple/a"
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexpWithMessage("self/self.go", `_ "mod.com/self"`, "import cycle not allowed"),
+			env.DiagnosticAtRegexpWithMessage("double/a/a.go", `_ "mod.com/double/b"`, "import cycle not allowed"),
+			env.DiagnosticAtRegexpWithMessage("triple/a/a.go", `_ "mod.com/triple/b"`, "import cycle not allowed"),
+		)
+	})
+}
