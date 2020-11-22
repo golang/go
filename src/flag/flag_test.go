@@ -656,65 +656,80 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
-func TestInvalidFlagDefinitions(t *testing.T) {
-	mustPanic := func(t *testing.T, expected string) {
+func mustPanic(t *testing.T, expected string, f func()) {
+	defer func() {
 		switch msg := recover().(type) {
 		case nil:
-			t.Fatal("did not panic")
+			t.Error("did not panic")
 		case string:
 			if msg != expected {
-				t.Fatalf("expected %q, bug got %q", expected, msg)
+				t.Errorf("expected %q, bug got %q", expected, msg)
 			}
 		default:
-			t.Fatalf("unexpected panic value: %T(%v)", msg, msg)
+			t.Errorf("unexpected panic value: %T(%v)", msg, msg)
 		}
+	}()
+	f()
+}
+
+func TestInvalidFlags(t *testing.T) {
+	tests := []struct {
+		flag     string
+		errorMsg string
+	}{
+		{
+			flag:     "-foo",
+			errorMsg: "flag \"-foo\" begins with -",
+		},
+		{
+			flag:     "foo=bar",
+			errorMsg: "flag \"foo=bar\" contains =",
+		},
 	}
 
-	t.Run("flag name begins with \"-\"", func(t *testing.T) {
+	for _, test := range tests {
 		fs := NewFlagSet("", ContinueOnError)
 		var buf bytes.Buffer
 		fs.SetOutput(&buf)
 
-		defer mustPanic(t, "flag name begins with \"-\": -foo")
+		mustPanic(t, test.errorMsg, func() {
+			var v flagVar
+			fs.Var(&v, test.flag, "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("expected %q, bug got %q", msg, buf.String())
+		}
+	}
+}
 
-		var v flagVar
-		fs.Var(&v, "-foo", "")
-	})
+func TestRedefinedFlags(t *testing.T) {
+	tests := []struct {
+		flagSetName string
+		errorMsg    string
+	}{
+		{
+			flagSetName: "",
+			errorMsg:    "flag redefined: foo",
+		},
+		{
+			flagSetName: "fs",
+			errorMsg:    "fs flag redefined: foo",
+		},
+	}
 
-	t.Run("flag name contains \"=\"", func(t *testing.T) {
-		fs := NewFlagSet("", ContinueOnError)
-		var buf bytes.Buffer
-		fs.SetOutput(&buf)
-
-		defer mustPanic(t, "flag name contains \"=\": foo=bar")
-
-		var v flagVar
-		fs.Var(&v, "foo=bar", "")
-	})
-
-	t.Run("flag redefined", func(t *testing.T) {
-		fs := NewFlagSet("", ContinueOnError)
-		var buf bytes.Buffer
-		fs.SetOutput(&buf)
-
-		var v flagVar
-		fs.Var(&v, "foo", "")
-
-		defer mustPanic(t, "flag redefined: foo")
-
-		fs.Var(&v, "foo", "")
-	})
-
-	t.Run("flag redefined with named flag set", func(t *testing.T) {
-		fs := NewFlagSet("fs", ContinueOnError)
+	for _, test := range tests {
+		fs := NewFlagSet(test.flagSetName, ContinueOnError)
 		var buf bytes.Buffer
 		fs.SetOutput(&buf)
 
 		var v flagVar
 		fs.Var(&v, "foo", "")
 
-		defer mustPanic(t, "fs flag redefined: foo")
-
-		fs.Var(&v, "foo", "")
-	})
+		mustPanic(t, test.errorMsg, func() {
+			fs.Var(&v, "foo", "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("expected %q, bug got %q", msg, buf.String())
+		}
+	}
 }
