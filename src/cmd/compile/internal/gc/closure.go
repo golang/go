@@ -435,6 +435,7 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	fn.Right = newname(sym)
 	fn.Op = OCALLPART
 	fn.Type = xfunc.Type
+	fn.SetOpt(nil) // clear types.Field from ODOTMETH
 }
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed

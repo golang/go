@@ -358,9 +358,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		if t == nil {
 			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
 		}
-		if t.Nname() == nil {
-			Fatalf("no function definition for [%p] %+v\n", t, t)
-		}
 		if isRuntimePkg(n.Left.Sym.Pkg) {
 			fn := n.Left.Sym.Name
 			if fn == "heapBits.nextArena" {
@@ -372,7 +369,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 				break
 			}
 		}
-		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl != nil {
+		if inlfn := n.Left.MethodName().Func; inlfn.Inl != nil {
 			v.budget -= inlfn.Inl.Cost
 			break
 		}
@@ -703,11 +700,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
 		}
 
-		if n.Left.Type.Nname() == nil {
-			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
-		}
-
-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), maxCost, inlMap)
+		n = mkinlcall(n, n.Left.MethodName(), maxCost, inlMap)
 	}
 
 	lineno = lno
