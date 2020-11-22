@@ -56,7 +56,7 @@ func visitBottomUp(list []*ir.Node, analyze func(list []*ir.Node, recursive bool
 	v.analyze = analyze
 	v.nodeID = make(map[*ir.Node]uint32)
 	for _, n := range list {
-		if n.Op == ir.ODCLFUNC && !n.Func.IsHiddenClosure() {
+		if n.Op() == ir.ODCLFUNC && !n.Func().IsHiddenClosure() {
 			v.visit(n)
 		}
 	}
@@ -75,46 +75,46 @@ func (v *bottomUpVisitor) visit(n *ir.Node) uint32 {
 	min := v.visitgen
 	v.stack = append(v.stack, n)
 
-	ir.InspectList(n.Nbody, func(n *ir.Node) bool {
-		switch n.Op {
+	ir.InspectList(n.Body(), func(n *ir.Node) bool {
+		switch n.Op() {
 		case ir.ONAME:
 			if n.Class() == ir.PFUNC {
-				if n != nil && n.Name.Defn != nil {
-					if m := v.visit(n.Name.Defn); m < min {
+				if n != nil && n.Name().Defn != nil {
+					if m := v.visit(n.Name().Defn); m < min {
 						min = m
 					}
 				}
 			}
 		case ir.OMETHEXPR:
 			fn := methodExprName(n)
-			if fn != nil && fn.Name.Defn != nil {
-				if m := v.visit(fn.Name.Defn); m < min {
+			if fn != nil && fn.Name().Defn != nil {
+				if m := v.visit(fn.Name().Defn); m < min {
 					min = m
 				}
 			}
 		case ir.ODOTMETH:
 			fn := methodExprName(n)
-			if fn != nil && fn.Op == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name.Defn != nil {
-				if m := v.visit(fn.Name.Defn); m < min {
+			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+				if m := v.visit(fn.Name().Defn); m < min {
 					min = m
 				}
 			}
 		case ir.OCALLPART:
 			fn := ir.AsNode(callpartMethod(n).Nname)
-			if fn != nil && fn.Op == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name.Defn != nil {
-				if m := v.visit(fn.Name.Defn); m < min {
+			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+				if m := v.visit(fn.Name().Defn); m < min {
 					min = m
 				}
 			}
 		case ir.OCLOSURE:
-			if m := v.visit(n.Func.Decl); m < min {
+			if m := v.visit(n.Func().Decl); m < min {
 				min = m
 			}
 		}
 		return true
 	})
 
-	if (min == id || min == id+1) && !n.Func.IsHiddenClosure() {
+	if (min == id || min == id+1) && !n.Func().IsHiddenClosure() {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was v.nodeID[n]+1.

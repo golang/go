@@ -113,15 +113,15 @@ func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds
 	v := names[0]
 	if dclcontext != ir.PEXTERN {
 		numLocalEmbed++
-		v = ir.NewNameAt(v.Pos, lookupN("embed.", numLocalEmbed))
-		v.Sym.Def = ir.AsTypesNode(v)
-		v.Name.Param.Ntype = typ
+		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
+		v.Sym().Def = ir.AsTypesNode(v)
+		v.Name().Param.Ntype = typ
 		v.SetClass(ir.PEXTERN)
 		externdcl = append(externdcl, v)
 		exprs = []*ir.Node{v}
 	}
 
-	v.Name.Param.SetEmbedFiles(list)
+	v.Name().Param.SetEmbedFiles(list)
 	embedlist = append(embedlist, v)
 	return exprs
 }
@@ -131,17 +131,17 @@ func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds
 // can't tell whether "string" and "byte" really mean "string" and "byte".
 // The result must be confirmed later, after type checking, using embedKind.
 func embedKindApprox(typ *ir.Node) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	// These are not guaranteed to match only string and []byte -
 	// maybe the local package has redefined one of those words.
 	// But it's the best we can do now during the noder.
 	// The stricter check happens later, in initEmbed calling embedKind.
-	if typ.Sym != nil && typ.Sym.Name == "string" && typ.Sym.Pkg == ir.LocalPkg {
+	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == ir.LocalPkg {
 		return embedString
 	}
-	if typ.Op == ir.OTARRAY && typ.Left == nil && typ.Right.Sym != nil && typ.Right.Sym.Name == "byte" && typ.Right.Sym.Pkg == ir.LocalPkg {
+	if typ.Op() == ir.OTARRAY && typ.Left() == nil && typ.Right().Sym() != nil && typ.Right().Sym().Name == "byte" && typ.Right().Sym().Pkg == ir.LocalPkg {
 		return embedBytes
 	}
 	return embedUnknown
@@ -193,18 +193,18 @@ func dumpembeds() {
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
 func initEmbed(v *ir.Node) {
-	files := v.Name.Param.EmbedFiles()
-	switch kind := embedKind(v.Type); kind {
+	files := v.Name().Param.EmbedFiles()
+	switch kind := embedKind(v.Type()); kind {
 	case embedUnknown:
-		base.ErrorfAt(v.Pos, "go:embed cannot apply to var of type %v", v.Type)
+		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
 
 	case embedString, embedBytes:
 		file := files[0]
-		fsym, size, err := fileStringSym(v.Pos, base.Flag.Cfg.Embed.Files[file], kind == embedString, nil)
+		fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], kind == embedString, nil)
 		if err != nil {
-			base.ErrorfAt(v.Pos, "embed %s: %v", file, err)
+			base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
 		}
-		sym := v.Sym.Linksym()
+		sym := v.Sym().Linksym()
 		off := 0
 		off = dsymptr(sym, off, fsym, 0)       // data string
 		off = duintptr(sym, off, uint64(size)) // len
@@ -213,7 +213,7 @@ func initEmbed(v *ir.Node) {
 		}
 
 	case embedFiles:
-		slicedata := base.Ctxt.Lookup(`"".` + v.Sym.Name + `.files`)
+		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
 		off := 0
 		// []files pointed at by Files
 		off = dsymptr(slicedata, off, slicedata, 3*Widthptr) // []file, pointing just past slice
@@ -228,7 +228,7 @@ func initEmbed(v *ir.Node) {
 		const hashSize = 16
 		hash := make([]byte, hashSize)
 		for _, file := range files {
-			off = dsymptr(slicedata, off, stringsym(v.Pos, file), 0) // file string
+			off = dsymptr(slicedata, off, stringsym(v.Pos(), file), 0) // file string
 			off = duintptr(slicedata, off, uint64(len(file)))
 			if strings.HasSuffix(file, "/") {
 				// entry for directory - no data
@@ -236,9 +236,9 @@ func initEmbed(v *ir.Node) {
 				off = duintptr(slicedata, off, 0)
 				off += hashSize
 			} else {
-				fsym, size, err := fileStringSym(v.Pos, base.Flag.Cfg.Embed.Files[file], true, hash)
+				fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], true, hash)
 				if err != nil {
-					base.ErrorfAt(v.Pos, "embed %s: %v", file, err)
+					base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
 				}
 				off = dsymptr(slicedata, off, fsym, 0) // data string
 				off = duintptr(slicedata, off, uint64(size))
@@ -246,7 +246,7 @@ func initEmbed(v *ir.Node) {
 			}
 		}
 		ggloblsym(slicedata, int32(off), obj.RODATA|obj.LOCAL)
-		sym := v.Sym.Linksym()
+		sym := v.Sym().Linksym()
 		dsymptr(sym, 0, slicedata, 0)
 	}
 }

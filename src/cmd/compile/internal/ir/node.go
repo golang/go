@@ -26,25 +26,25 @@ import (
 type Node struct {
 	// Tree structure.
 	// Generic recursive walks should follow these fields.
-	Left  *Node
-	Right *Node
-	Ninit Nodes
-	Nbody Nodes
-	List  Nodes
-	Rlist Nodes
+	left  *Node
+	right *Node
+	init  Nodes
+	body  Nodes
+	list  Nodes
+	rlist Nodes
 
 	// most nodes
-	Type *types.Type
-	Orig *Node // original form, for printing, and tracking copies of ONAMEs
+	typ  *types.Type
+	orig *Node // original form, for printing, and tracking copies of ONAMEs
 
 	// func
-	Func *Func
+	fn *Func
 
 	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
-	Name *Name
+	name *Name
 
-	Sym *types.Sym  // various
-	E   interface{} // Opt or Val, see methods below
+	sym *types.Sym  // various
+	e   interface{} // Opt or Val, see methods below
 
 	// Various. Usually an offset into a struct. For example:
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
@@ -54,85 +54,85 @@ type Node struct {
 	// - OINLMARK stores an index into the inlTree data structure.
 	// - OCLOSURE uses it to store ambient iota value, if any.
 	// Possibly still more uses. If you find any, document them.
-	Xoffset int64
+	offset int64
 
-	Pos src.XPos
+	pos src.XPos
 
 	flags bitset32
 
-	Esc uint16 // EscXXX
+	esc uint16 // EscXXX
 
-	Op  Op
+	op  Op
 	aux uint8
 }
 
-func (n *Node) GetLeft() *Node        { return n.Left }
-func (n *Node) SetLeft(x *Node)       { n.Left = x }
-func (n *Node) GetRight() *Node       { return n.Right }
-func (n *Node) SetRight(x *Node)      { n.Right = x }
-func (n *Node) GetOrig() *Node        { return n.Orig }
-func (n *Node) SetOrig(x *Node)       { n.Orig = x }
-func (n *Node) GetType() *types.Type  { return n.Type }
-func (n *Node) SetType(x *types.Type) { n.Type = x }
-func (n *Node) GetFunc() *Func        { return n.Func }
-func (n *Node) SetFunc(x *Func)       { n.Func = x }
-func (n *Node) GetName() *Name        { return n.Name }
-func (n *Node) SetName(x *Name)       { n.Name = x }
-func (n *Node) GetSym() *types.Sym    { return n.Sym }
-func (n *Node) SetSym(x *types.Sym)   { n.Sym = x }
-func (n *Node) GetPos() src.XPos      { return n.Pos }
-func (n *Node) SetPos(x src.XPos)     { n.Pos = x }
-func (n *Node) GetXoffset() int64     { return n.Xoffset }
-func (n *Node) SetXoffset(x int64)    { n.Xoffset = x }
-func (n *Node) GetEsc() uint16        { return n.Esc }
-func (n *Node) SetEsc(x uint16)       { n.Esc = x }
-func (n *Node) GetOp() Op             { return n.Op }
-func (n *Node) SetOp(x Op)            { n.Op = x }
-func (n *Node) GetNinit() Nodes       { return n.Ninit }
-func (n *Node) SetNinit(x Nodes)      { n.Ninit = x }
-func (n *Node) PtrNinit() *Nodes      { return &n.Ninit }
-func (n *Node) GetNbody() Nodes       { return n.Nbody }
-func (n *Node) SetNbody(x Nodes)      { n.Nbody = x }
-func (n *Node) PtrNbody() *Nodes      { return &n.Nbody }
-func (n *Node) GetList() Nodes        { return n.List }
-func (n *Node) SetList(x Nodes)       { n.List = x }
-func (n *Node) PtrList() *Nodes       { return &n.List }
-func (n *Node) GetRlist() Nodes       { return n.Rlist }
-func (n *Node) SetRlist(x Nodes)      { n.Rlist = x }
-func (n *Node) PtrRlist() *Nodes      { return &n.Rlist }
+func (n *Node) Left() *Node           { return n.left }
+func (n *Node) SetLeft(x *Node)       { n.left = x }
+func (n *Node) Right() *Node          { return n.right }
+func (n *Node) SetRight(x *Node)      { n.right = x }
+func (n *Node) Orig() *Node           { return n.orig }
+func (n *Node) SetOrig(x *Node)       { n.orig = x }
+func (n *Node) Type() *types.Type     { return n.typ }
+func (n *Node) SetType(x *types.Type) { n.typ = x }
+func (n *Node) Func() *Func           { return n.fn }
+func (n *Node) SetFunc(x *Func)       { n.fn = x }
+func (n *Node) Name() *Name           { return n.name }
+func (n *Node) SetName(x *Name)       { n.name = x }
+func (n *Node) Sym() *types.Sym       { return n.sym }
+func (n *Node) SetSym(x *types.Sym)   { n.sym = x }
+func (n *Node) Pos() src.XPos         { return n.pos }
+func (n *Node) SetPos(x src.XPos)     { n.pos = x }
+func (n *Node) Offset() int64         { return n.offset }
+func (n *Node) SetOffset(x int64)     { n.offset = x }
+func (n *Node) Esc() uint16           { return n.esc }
+func (n *Node) SetEsc(x uint16)       { n.esc = x }
+func (n *Node) Op() Op                { return n.op }
+func (n *Node) SetOp(x Op)            { n.op = x }
+func (n *Node) Init() Nodes           { return n.init }
+func (n *Node) SetInit(x Nodes)       { n.init = x }
+func (n *Node) PtrInit() *Nodes       { return &n.init }
+func (n *Node) Body() Nodes           { return n.body }
+func (n *Node) SetBody(x Nodes)       { n.body = x }
+func (n *Node) PtrBody() *Nodes       { return &n.body }
+func (n *Node) List() Nodes           { return n.list }
+func (n *Node) SetList(x Nodes)       { n.list = x }
+func (n *Node) PtrList() *Nodes       { return &n.list }
+func (n *Node) Rlist() Nodes          { return n.rlist }
+func (n *Node) SetRlist(x Nodes)      { n.rlist = x }
+func (n *Node) PtrRlist() *Nodes      { return &n.rlist }
 
 func (n *Node) ResetAux() {
 	n.aux = 0
 }
 
 func (n *Node) SubOp() Op {
-	switch n.Op {
+	switch n.Op() {
 	case OASOP, ONAME:
 	default:
-		base.Fatalf("unexpected op: %v", n.Op)
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return Op(n.aux)
 }
 
 func (n *Node) SetSubOp(op Op) {
-	switch n.Op {
+	switch n.Op() {
 	case OASOP, ONAME:
 	default:
-		base.Fatalf("unexpected op: %v", n.Op)
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	n.aux = uint8(op)
 }
 
 func (n *Node) IndexMapLValue() bool {
-	if n.Op != OINDEXMAP {
-		base.Fatalf("unexpected op: %v", n.Op)
+	if n.Op() != OINDEXMAP {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return n.aux != 0
 }
 
 func (n *Node) SetIndexMapLValue(b bool) {
-	if n.Op != OINDEXMAP {
-		base.Fatalf("unexpected op: %v", n.Op)
+	if n.Op() != OINDEXMAP {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	if b {
 		n.aux = 1
@@ -142,31 +142,31 @@ func (n *Node) SetIndexMapLValue(b bool) {
 }
 
 func (n *Node) TChanDir() types.ChanDir {
-	if n.Op != OTCHAN {
-		base.Fatalf("unexpected op: %v", n.Op)
+	if n.Op() != OTCHAN {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return types.ChanDir(n.aux)
 }
 
 func (n *Node) SetTChanDir(dir types.ChanDir) {
-	if n.Op != OTCHAN {
-		base.Fatalf("unexpected op: %v", n.Op)
+	if n.Op() != OTCHAN {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	n.aux = uint8(dir)
 }
 
 func IsSynthetic(n *Node) bool {
-	name := n.Sym.Name
+	name := n.Sym().Name
 	return name[0] == '.' || name[0] == '~'
 }
 
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
 // based on the setting of the .AutoTemp flag in n's Name.
 func IsAutoTmp(n *Node) bool {
-	if n == nil || n.Op != ONAME {
+	if n == nil || n.Op() != ONAME {
 		return false
 	}
-	return n.Name.AutoTemp()
+	return n.Name().AutoTemp()
 }
 
 const (
@@ -229,8 +229,8 @@ func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
 func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
 func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
-func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
-func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+func (n *Node) setHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+func (n *Node) setHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // MarkNonNil marks a pointer n as being guaranteed non-nil,
@@ -238,8 +238,8 @@ func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 // During conversion to SSA, non-nil pointers won't have nil checks
 // inserted before dereferencing. See state.exprPtr.
 func (n *Node) MarkNonNil() {
-	if !n.Type.IsPtr() && !n.Type.IsUnsafePtr() {
-		base.Fatalf("MarkNonNil(%v), type %v", n, n.Type)
+	if !n.Type().IsPtr() && !n.Type().IsUnsafePtr() {
+		base.Fatalf("MarkNonNil(%v), type %v", n, n.Type())
 	}
 	n.flags.set(nodeNonNil, true)
 }
@@ -249,7 +249,7 @@ func (n *Node) MarkNonNil() {
 // When n is a dereferencing operation, n does not need nil checks.
 // When n is a makeslice+copy operation, n does not need length and cap checks.
 func (n *Node) SetBounded(b bool) {
-	switch n.Op {
+	switch n.Op() {
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		// No bounds checks needed.
 	case ODOTPTR, ODEREF:
@@ -265,14 +265,14 @@ func (n *Node) SetBounded(b bool) {
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
 func (n *Node) MarkReadonly() {
-	if n.Op != ONAME {
-		base.Fatalf("Node.MarkReadonly %v", n.Op)
+	if n.Op() != ONAME {
+		base.Fatalf("Node.MarkReadonly %v", n.Op())
 	}
-	n.Name.SetReadonly(true)
+	n.Name().SetReadonly(true)
 	// Mark the linksym as readonly immediately
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
-	n.Sym.Linksym().Type = objabi.SRODATA
+	n.Sym().Linksym().Type = objabi.SRODATA
 }
 
 // Val returns the constant.Value for the node.
@@ -280,7 +280,7 @@ func (n *Node) Val() constant.Value {
 	if !n.HasVal() {
 		return constant.MakeUnknown()
 	}
-	return *n.E.(*constant.Value)
+	return *n.e.(*constant.Value)
 }
 
 // SetVal sets the constant.Value for the node,
@@ -291,11 +291,11 @@ func (n *Node) SetVal(v constant.Value) {
 		Dump("have Opt", n)
 		base.Fatalf("have Opt")
 	}
-	if n.Op == OLITERAL {
-		AssertValidTypeForConst(n.Type, v)
+	if n.Op() == OLITERAL {
+		AssertValidTypeForConst(n.Type(), v)
 	}
-	n.SetHasVal(true)
-	n.E = &v
+	n.setHasVal(true)
+	n.e = &v
 }
 
 // Opt returns the optimizer data for the node.
@@ -303,7 +303,7 @@ func (n *Node) Opt() interface{} {
 	if !n.HasOpt() {
 		return nil
 	}
-	return n.E
+	return n.e
 }
 
 // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
@@ -311,8 +311,8 @@ func (n *Node) Opt() interface{} {
 func (n *Node) SetOpt(x interface{}) {
 	if x == nil {
 		if n.HasOpt() {
-			n.SetHasOpt(false)
-			n.E = nil
+			n.setHasOpt(false)
+			n.e = nil
 		}
 		return
 	}
@@ -321,22 +321,22 @@ func (n *Node) SetOpt(x interface{}) {
 		Dump("have Val", n)
 		base.Fatalf("have Val")
 	}
-	n.SetHasOpt(true)
-	n.E = x
+	n.setHasOpt(true)
+	n.e = x
 }
 
 func (n *Node) Iota() int64 {
-	return n.Xoffset
+	return n.Offset()
 }
 
 func (n *Node) SetIota(x int64) {
-	n.Xoffset = x
+	n.SetOffset(x)
 }
 
 // mayBeShared reports whether n may occur in multiple places in the AST.
 // Extra care must be taken when mutating such a node.
 func MayBeShared(n *Node) bool {
-	switch n.Op {
+	switch n.Op() {
 	case ONAME, OLITERAL, ONIL, OTYPE:
 		return true
 	}
@@ -345,10 +345,10 @@ func MayBeShared(n *Node) bool {
 
 // funcname returns the name (without the package) of the function n.
 func FuncName(n *Node) string {
-	if n == nil || n.Func == nil || n.Func.Nname == nil {
+	if n == nil || n.Func() == nil || n.Func().Nname == nil {
 		return "<nil>"
 	}
-	return n.Func.Nname.Sym.Name
+	return n.Func().Nname.Sym().Name
 }
 
 // pkgFuncName returns the name of the function referenced by n, with package prepended.
@@ -360,13 +360,13 @@ func PkgFuncName(n *Node) string {
 	if n == nil {
 		return "<nil>"
 	}
-	if n.Op == ONAME {
-		s = n.Sym
+	if n.Op() == ONAME {
+		s = n.Sym()
 	} else {
-		if n.Func == nil || n.Func.Nname == nil {
+		if n.Func() == nil || n.Func().Nname == nil {
 			return "<nil>"
 		}
-		s = n.Func.Nname.Sym
+		s = n.Func().Nname.Sym()
 	}
 	pkg := s.Pkg
 
@@ -1142,12 +1142,12 @@ func Inspect(n *Node, f func(*Node) bool) {
 	if n == nil || !f(n) {
 		return
 	}
-	InspectList(n.Ninit, f)
-	Inspect(n.Left, f)
-	Inspect(n.Right, f)
-	InspectList(n.List, f)
-	InspectList(n.Nbody, f)
-	InspectList(n.Rlist, f)
+	InspectList(n.Init(), f)
+	Inspect(n.Left(), f)
+	Inspect(n.Right(), f)
+	InspectList(n.List(), f)
+	InspectList(n.Body(), f)
+	InspectList(n.Rlist(), f)
 }
 
 func InspectList(l Nodes, f func(*Node) bool) {
@@ -1242,8 +1242,8 @@ func NodAt(pos src.XPos, op Op, nleft, nright *Node) *Node {
 			f Func
 		}
 		n = &x.n
-		n.Func = &x.f
-		n.Func.Decl = n
+		n.SetFunc(&x.f)
+		n.Func().Decl = n
 	case ONAME:
 		base.Fatalf("use newname instead")
 	case OLABEL, OPACK:
@@ -1252,16 +1252,16 @@ func NodAt(pos src.XPos, op Op, nleft, nright *Node) *Node {
 			m Name
 		}
 		n = &x.n
-		n.Name = &x.m
+		n.SetName(&x.m)
 	default:
 		n = new(Node)
 	}
-	n.Op = op
-	n.Left = nleft
-	n.Right = nright
-	n.Pos = pos
-	n.Xoffset = types.BADWIDTH
-	n.Orig = n
+	n.SetOp(op)
+	n.SetLeft(nleft)
+	n.SetRight(nright)
+	n.SetPos(pos)
+	n.SetOffset(types.BADWIDTH)
+	n.SetOrig(n)
 	return n
 }
 
@@ -1278,14 +1278,14 @@ func NewNameAt(pos src.XPos, s *types.Sym) *Node {
 		p Param
 	}
 	n := &x.n
-	n.Name = &x.m
-	n.Name.Param = &x.p
+	n.SetName(&x.m)
+	n.Name().Param = &x.p
 
-	n.Op = ONAME
-	n.Pos = pos
-	n.Orig = n
+	n.SetOp(ONAME)
+	n.SetPos(pos)
+	n.SetOrig(n)
 
-	n.Sym = s
+	n.SetSym(s)
 	return n
 }
 
@@ -1358,7 +1358,7 @@ func OrigSym(s *types.Sym) *types.Sym {
 			return nil
 		case 'b': // originally the blank identifier _
 			// TODO(mdempsky): Does s.Pkg matter here?
-			return BlankNode.Sym
+			return BlankNode.Sym()
 		}
 		return s
 	}
@@ -1374,48 +1374,48 @@ func OrigSym(s *types.Sym) *types.Sym {
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *Node) SliceBounds() (low, high, max *Node) {
-	if n.List.Len() == 0 {
+	if n.List().Len() == 0 {
 		return nil, nil, nil
 	}
 
-	switch n.Op {
+	switch n.Op() {
 	case OSLICE, OSLICEARR, OSLICESTR:
-		s := n.List.Slice()
+		s := n.List().Slice()
 		return s[0], s[1], nil
 	case OSLICE3, OSLICE3ARR:
-		s := n.List.Slice()
+		s := n.List().Slice()
 		return s[0], s[1], s[2]
 	}
-	base.Fatalf("SliceBounds op %v: %v", n.Op, n)
+	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
 	return nil, nil, nil
 }
 
 // SetSliceBounds sets n's slice bounds, where n is a slice expression.
 // n must be a slice expression. If max is non-nil, n must be a full slice expression.
 func (n *Node) SetSliceBounds(low, high, max *Node) {
-	switch n.Op {
+	switch n.Op() {
 	case OSLICE, OSLICEARR, OSLICESTR:
 		if max != nil {
-			base.Fatalf("SetSliceBounds %v given three bounds", n.Op)
+			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
 		}
-		s := n.List.Slice()
+		s := n.List().Slice()
 		if s == nil {
 			if low == nil && high == nil {
 				return
 			}
-			n.List.Set2(low, high)
+			n.PtrList().Set2(low, high)
 			return
 		}
 		s[0] = low
 		s[1] = high
 		return
 	case OSLICE3, OSLICE3ARR:
-		s := n.List.Slice()
+		s := n.List().Slice()
 		if s == nil {
 			if low == nil && high == nil && max == nil {
 				return
 			}
-			n.List.Set3(low, high, max)
+			n.PtrList().Set3(low, high, max)
 			return
 		}
 		s[0] = low
@@ -1423,7 +1423,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 		s[2] = max
 		return
 	}
-	base.Fatalf("SetSliceBounds op %v: %v", n.Op, n)
+	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
 }
 
 // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
@@ -1511,7 +1511,7 @@ func (n *Node) RawCopy() *Node {
 // Orig pointing to itself.
 func SepCopy(n *Node) *Node {
 	copy := *n
-	copy.Orig = &copy
+	copy.orig = &copy
 	return &copy
 }
 
@@ -1524,8 +1524,8 @@ func SepCopy(n *Node) *Node {
 // messages; see issues #26855, #27765).
 func Copy(n *Node) *Node {
 	copy := *n
-	if n.Orig == n {
-		copy.Orig = &copy
+	if n.Orig() == n {
+		copy.orig = &copy
 	}
 	return &copy
 }
@@ -1534,18 +1534,18 @@ func Copy(n *Node) *Node {
 func IsNil(n *Node) bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
-	return n.Orig.Op == ONIL
+	return n.Orig().Op() == ONIL
 }
 
 func IsBlank(n *Node) bool {
 	if n == nil {
 		return false
 	}
-	return n.Sym.IsBlank()
+	return n.Sym().IsBlank()
 }
 
 // IsMethod reports whether n is a method.
 // n must be a function or a method.
 func IsMethod(n *Node) bool {
-	return n.Type.Recv() != nil
+	return n.Type().Recv() != nil
 }

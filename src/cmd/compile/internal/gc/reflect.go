@@ -994,14 +994,14 @@ func typename(t *types.Type) *ir.Node {
 	s := typenamesym(t)
 	if s.Def == nil {
 		n := ir.NewNameAt(src.NoXPos, s)
-		n.Type = types.Types[types.TUINT8]
+		n.SetType(types.Types[types.TUINT8])
 		n.SetClass(ir.PEXTERN)
 		n.SetTypecheck(1)
 		s.Def = ir.AsTypesNode(n)
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.Type = types.NewPtr(ir.AsNode(s.Def).Type)
+	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1013,7 +1013,7 @@ func itabname(t, itype *types.Type) *ir.Node {
 	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
 		n := NewName(s)
-		n.Type = types.Types[types.TUINT8]
+		n.SetType(types.Types[types.TUINT8])
 		n.SetClass(ir.PEXTERN)
 		n.SetTypecheck(1)
 		s.Def = ir.AsTypesNode(n)
@@ -1021,7 +1021,7 @@ func itabname(t, itype *types.Type) *ir.Node {
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.Type = types.NewPtr(ir.AsNode(s.Def).Type)
+	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1519,8 +1519,8 @@ func addsignat(t *types.Type) {
 func addsignats(dcls []*ir.Node) {
 	// copy types from dcl list to signatset
 	for _, n := range dcls {
-		if n.Op == ir.OTYPE {
-			addsignat(n.Type)
+		if n.Op() == ir.OTYPE {
+			addsignat(n.Type())
 		}
 	}
 }
@@ -1879,13 +1879,13 @@ func zeroaddr(size int64) *ir.Node {
 	s := mappkg.Lookup("zero")
 	if s.Def == nil {
 		x := NewName(s)
-		x.Type = types.Types[types.TUINT8]
+		x.SetType(types.Types[types.TUINT8])
 		x.SetClass(ir.PEXTERN)
 		x.SetTypecheck(1)
 		s.Def = ir.AsTypesNode(x)
 	}
 	z := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	z.Type = types.NewPtr(types.Types[types.TUINT8])
+	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	z.SetTypecheck(1)
 	return z
 }

@@ -27,12 +27,12 @@ func typeWithPointers() *types.Type {
 }
 
 func markUsed(n *ir.Node) *ir.Node {
-	n.Name.SetUsed(true)
+	n.Name().SetUsed(true)
 	return n
 }
 
 func markNeedZero(n *ir.Node) *ir.Node {
-	n.Name.SetNeedzero(true)
+	n.Name().SetNeedzero(true)
 	return n
 }
 
@@ -43,8 +43,8 @@ func TestCmpstackvar(t *testing.T) {
 			s = &types.Sym{Name: "."}
 		}
 		n := NewName(s)
-		n.Type = t
-		n.Xoffset = xoffset
+		n.SetType(t)
+		n.SetOffset(xoffset)
 		n.SetClass(cl)
 		return n
 	}
@@ -158,8 +158,8 @@ func TestCmpstackvar(t *testing.T) {
 func TestStackvarSort(t *testing.T) {
 	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Node {
 		n := NewName(s)
-		n.Type = t
-		n.Xoffset = xoffset
+		n.SetType(t)
+		n.SetOffset(xoffset)
 		n.SetClass(cl)
 		return n
 	}
