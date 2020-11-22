@@ -113,6 +113,7 @@ func (out *OutBuf) Close() error {
 	}
 	if out.isMmapped() {
 		out.copyHeap()
+		out.purgeSignatureCache()
 		out.munmap()
 	}
 	if out.f == nil {
