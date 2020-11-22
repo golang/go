@@ -857,15 +857,11 @@ func Func(name, usage string, fn func(string) error) {
 // of strings by giving the slice the methods of Value; in particular, Set would
 // decompose the comma-separated string into the slice.
 func (f *FlagSet) Var(value Value, name string, usage string) {
-	// Panic if flag name begins with "-" or contains "="
+	// Flag must not begin "-" or contain "=".
 	if strings.HasPrefix(name, "-") {
-		msg := fmt.Sprintf("flag name begins with \"-\": %s", name)
-		fmt.Fprintln(f.Output(), msg)
-		panic(msg)
+		panic(f.sprintf("flag %q begins with -", name))
 	} else if strings.Contains(name, "=") {
-		msg := fmt.Sprintf("flag name contains \"=\": %s", name)
-		fmt.Fprintln(f.Output(), msg)
-		panic(msg)
+		panic(f.sprintf("flag %q contains =", name))
 	}
 
 	// Remember the default value as a string; it won't change.
@@ -874,11 +870,10 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
 	if alreadythere {
 		var msg string
 		if f.name == "" {
-			msg = fmt.Sprintf("flag redefined: %s", name)
+			msg = f.sprintf("flag redefined: %s", name)
 		} else {
-			msg = fmt.Sprintf("%s flag redefined: %s", f.name, name)
+			msg = f.sprintf("%s flag redefined: %s", f.name, name)
 		}
-		fmt.Fprintln(f.Output(), msg)
 		panic(msg) // Happens only if flags are declared with identical names
 	}
 	if f.formal == nil {
