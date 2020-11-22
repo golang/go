@@ -37,10 +37,11 @@ func TestSource(t *testing.T) {
 }
 
 type runner struct {
-	snapshot source.Snapshot
-	view     source.View
-	data     *tests.Data
-	ctx      context.Context
+	snapshot    source.Snapshot
+	view        source.View
+	data        *tests.Data
+	ctx         context.Context
+	normalizers []tests.Normalizer
 }
 
 func testSource(t *testing.T, datum *tests.Data) {
@@ -82,10 +83,11 @@ func testSource(t *testing.T, datum *tests.Data) {
 	snapshot, release := view.Snapshot(ctx)
 	defer release()
 	r := &runner{
-		view:     view,
-		snapshot: snapshot,
-		data:     datum,
-		ctx:      ctx,
+		view:        view,
+		snapshot:    snapshot,
+		data:        datum,
+		ctx:         ctx,
+		normalizers: tests.CollectNormalizers(datum.Exported),
 	}
 	tests.Run(t, r, datum)
 }

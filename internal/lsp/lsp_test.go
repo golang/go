@@ -38,6 +38,7 @@ type runner struct {
 	data        *tests.Data
 	diagnostics map[span.URI][]*source.Diagnostic
 	ctx         context.Context
+	normalizers []tests.Normalizer
 }
 
 func testLSP(t *testing.T, datum *tests.Data) {
@@ -83,9 +84,10 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		t.Fatal(err)
 	}
 	r := &runner{
-		server: NewServer(session, testClient{}),
-		data:   datum,
-		ctx:    ctx,
+		server:      NewServer(session, testClient{}),
+		data:        datum,
+		ctx:         ctx,
+		normalizers: tests.CollectNormalizers(datum.Exported),
 	}
 	tests.Run(t, r, datum)
 }
