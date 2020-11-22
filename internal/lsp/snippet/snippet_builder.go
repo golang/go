@@ -39,6 +39,13 @@ func (b *Builder) WriteText(s string) {
 	replacer.WriteString(&b.sb, s)
 }
 
+func (b *Builder) PrependText(s string) {
+	rawSnip := b.String()
+	b.sb.Reset()
+	b.WriteText(s)
+	b.sb.WriteString(rawSnip)
+}
+
 // WritePlaceholder writes a tab stop and placeholder value to the Builder.
 // The callback style allows for creating nested placeholders. To write an
 // empty tab stop, provide a nil callback.

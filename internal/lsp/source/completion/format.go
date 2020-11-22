@@ -123,37 +123,60 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 	}
 
+	var prefix, suffix string
+
 	// Prepend "&" or "*" operator as appropriate.
-	var prefixOp string
 	if cand.takeAddress {
-		prefixOp = "&"
+		prefix = "&"
 	} else if cand.makePointer {
-		prefixOp = "*"
+		prefix = "*"
 	} else if cand.dereference > 0 {
-		prefixOp = strings.Repeat("*", cand.dereference)
+		prefix = strings.Repeat("*", cand.dereference)
 	}
 
-	if prefixOp != "" {
+	// Include "*" and "&" prefixes in the label.
+	label = prefix + label
+
+	if cand.convertTo != nil {
+		typeName := types.TypeString(cand.convertTo, c.qf)
+
+		switch cand.convertTo.(type) {
+		// We need extra parens when casting to these types. For example,
+		// we need "(*int)(foo)", not "*int(foo)".
+		case *types.Pointer, *types.Signature:
+			typeName = "(" + typeName + ")"
+		}
+
+		prefix = typeName + "(" + prefix
+		suffix = ")"
+	}
+
+	// Add variadic "..." if we are filling in a variadic param.
+	if cand.variadic {
+		suffix += "..."
+	}
+
+	if prefix != "" {
 		// If we are in a selector, add an edit to place prefix before selector.
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
-			edits, err := prependEdit(c.snapshot.FileSet(), c.mapper, sel, prefixOp)
+			edits, err := prependEdit(c.snapshot.FileSet(), c.mapper, sel, prefix)
 			if err != nil {
 				return CompletionItem{}, err
 			}
 			protocolEdits = append(protocolEdits, edits...)
 		} else {
 			// If there is no selector, just stick the prefix at the start.
-			insert = prefixOp + insert
+			insert = prefix + insert
+			if snip != nil {
+				snip.PrependText(prefix)
+			}
 		}
-
-		label = prefixOp + label
 	}
 
-	// Add variadic "..." if we are filling in a variadic param.
-	if cand.variadic {
-		insert += "..."
+	if suffix != "" {
+		insert += suffix
 		if snip != nil {
-			snip.WriteText("...")
+			snip.WriteText(suffix)
 		}
 	}
 

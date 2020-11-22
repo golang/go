@@ -53,4 +53,10 @@ func TestSnippetBuilder(t *testing.T) {
 		b.WriteFinalTabstop()
 		b.WriteText(" hello")
 	})
+
+	expect(`prepended \$5 ${1:} hello`, func(b *Builder) {
+		b.WritePlaceholder(nil)
+		b.WriteText(" hello")
+		b.PrependText("prepended $5 ")
+	})
 }

@@ -388,6 +388,11 @@ type candidate struct {
 	// needs "..." appended.
 	variadic bool
 
+	// convertTo is a type that this candidate should be cast to. For
+	// example, if convertTo is float64, "foo" should be formatted as
+	// "float64(foo)".
+	convertTo types.Type
+
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
@@ -431,7 +436,6 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		if innerErr != nil {
 			// return the error for GetParsedFile since it's more relevant in this situation.
 			return nil, nil, errors.Errorf("getting file for Completion: %w (package completions: %v)", err, innerErr)
-
 		}
 		return items, surrounding, nil
 	}
@@ -2492,6 +2496,16 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 
 			matches, untyped := ci.typeMatches(expType, candType)
 			if !matches {
+				// If candType doesn't otherwise match, consider if we can
+				// convert candType directly to expType.
+				if considerTypeConversion(candType, expType, cand.path) {
+					cand.convertTo = expType
+					// Give a major score penalty so we always prefer directly
+					// assignable candidates, all else equal.
+					cand.score *= 0.5
+					return true
+				}
+
 				continue
 			}
 
@@ -2503,7 +2517,14 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			// ranking untyped constants above candidates with an exact type
 			// match. Don't lower score of builtin constants, e.g. "true".
 			if untyped && !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
-				cand.score /= 2
+				// Bigger penalty for deep completions into other packages to
+				// avoid random constants from other packages popping up all
+				// the time.
+				if len(cand.path) > 0 && isPkgName(cand.path[0]) {
+					cand.score *= 0.5
+				} else {
+					cand.score *= 0.75
+				}
 			}
 
 			return true
@@ -2536,6 +2557,29 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 
 		return false
 	})
+}
+
+// considerTypeConversion returns true if we should offer a completion
+// automatically converting "from" to "to".
+func considerTypeConversion(from, to types.Type, path []types.Object) bool {
+	// Don't offer to convert deep completions from other packages.
+	// Otherwise there are many random package level consts/vars that
+	// pop up as candidates all the time.
+	if len(path) > 0 && isPkgName(path[0]) {
+		return false
+	}
+
+	if !types.ConvertibleTo(from, to) {
+		return false
+	}
+
+	// Don't offer to convert ints to strings since that probably
+	// doesn't do what the user wants.
+	if isBasicKind(from, types.IsInteger) && isBasicKind(to, types.IsString) {
+		return false
+	}
+
+	return true
 }
 
 // typeMatches reports whether an object of candType makes a good

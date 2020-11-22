@@ -293,3 +293,9 @@ func formatZeroValue(T types.Type, qf types.Qualifier) string {
 		return types.TypeString(T, qf) + "{}"
 	}
 }
+
+// isBasicKind returns whether t is a basic type of kind k.
+func isBasicKind(t types.Type, k types.BasicInfo) bool {
+	b, _ := t.Underlying().(*types.Basic)
+	return b != nil && b.Info()&k > 0
+}
