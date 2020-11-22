@@ -647,7 +647,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	}
 
 	if rewrite {
-		w, err := os.OpenFile(target, os.O_WRONLY, 0)
+		w, err := os.OpenFile(target, os.O_RDWR, 0)
 		if err != nil {
 			return err
 		}
