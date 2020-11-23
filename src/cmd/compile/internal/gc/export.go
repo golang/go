@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 )
 
 var (
@@ -208,8 +209,8 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
-			t := n.Val().Ctype()
-			if t == CTFLT || t == CTCPLX {
+			t := n.Val().Kind()
+			if t == constant.Float || t == constant.Complex {
 				break
 			}
 			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())

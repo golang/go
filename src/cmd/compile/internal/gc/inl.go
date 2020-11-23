@@ -32,6 +32,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 	"strings"
 )
 
@@ -417,7 +418,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 
 	case OIF:
-		if Isconst(n.Left, CTBOOL) {
+		if Isconst(n.Left, constant.Bool) {
 			// This if and the condition cost nothing.
 			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
 				v.visitList(n.Rlist)

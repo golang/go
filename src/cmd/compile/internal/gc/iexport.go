@@ -210,6 +210,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"io"
 	"math/big"
 	"sort"
@@ -748,28 +749,28 @@ func (w *exportWriter) param(f *types.Field) {
 	w.typ(f.Type)
 }
 
-func constTypeOf(typ *types.Type) Ctype {
+func constTypeOf(typ *types.Type) constant.Kind {
 	switch typ {
 	case types.UntypedInt, types.UntypedRune:
-		return CTINT
+		return constant.Int
 	case types.UntypedFloat:
-		return CTFLT
+		return constant.Float
 	case types.UntypedComplex:
-		return CTCPLX
+		return constant.Complex
 	}
 
 	switch typ.Etype {
 	case TBOOL:
-		return CTBOOL
+		return constant.Bool
 	case TSTRING:
-		return CTSTR
+		return constant.String
 	case TINT, TINT8, TINT16, TINT32, TINT64,
 		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR:
-		return CTINT
+		return constant.Int
 	case TFLOAT32, TFLOAT64:
-		return CTFLT
+		return constant.Float
 	case TCOMPLEX64, TCOMPLEX128:
-		return CTCPLX
+		return constant.Complex
 	}
 
 	Fatalf("unexpected constant type: %v", typ)
@@ -786,15 +787,15 @@ func (w *exportWriter) value(typ *types.Type, v Val) {
 	// and provides a useful consistency check.
 
 	switch constTypeOf(typ) {
-	case CTBOOL:
+	case constant.Bool:
 		w.bool(v.U.(bool))
-	case CTSTR:
+	case constant.String:
 		w.string(v.U.(string))
-	case CTINT:
+	case constant.Int:
 		w.mpint(&v.U.(*Mpint).Val, typ)
-	case CTFLT:
+	case constant.Float:
 		w.mpfloat(&v.U.(*Mpflt).Val, typ)
-	case CTCPLX:
+	case constant.Complex:
 		x := v.U.(*Mpcplx)
 		w.mpfloat(&x.Real.Val, typ)
 		w.mpfloat(&x.Imag.Val, typ)

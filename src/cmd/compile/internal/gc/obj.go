@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"go/constant"
 	"io"
 	"io/ioutil"
 	"os"
@@ -263,7 +264,7 @@ func dumpGlobalConst(n *Node) {
 	case TUINTPTR:
 		// ok
 	case TIDEAL:
-		if !Isconst(n, CTINT) {
+		if !Isconst(n, constant.Int) {
 			return
 		}
 		x := n.Val().U.(*Mpint)

@@ -10,6 +10,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 	"strings"
 )
 
@@ -637,7 +638,7 @@ func interfacefield(n *Node) *types.Field {
 		Fatalf("interfacefield: oops %v\n", n)
 	}
 
-	if n.Val().Ctype() != CTxxx {
+	if n.Val().Kind() != constant.Unknown {
 		yyerror("interface method cannot have annotation")
 	}
 
