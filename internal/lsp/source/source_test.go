@@ -177,9 +177,8 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		opts.DeepCompletion = false
 		opts.CompleteUnimported = false
 		opts.InsertTextFormat = protocol.SnippetTextFormat
-		if !strings.Contains(string(src.URI()), "literal") {
-			opts.LiteralCompletions = false
-		}
+		opts.LiteralCompletions = strings.Contains(string(src.URI()), "literal")
+		opts.PostfixCompletions = strings.Contains(string(src.URI()), "postfix")
 	})
 	got = tests.FilterBuiltins(src, got)
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
@@ -278,6 +277,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	_, got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
+		opts.PostfixCompletions = true
 	})
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {
 		t.Errorf("%s: %s", src, msg)

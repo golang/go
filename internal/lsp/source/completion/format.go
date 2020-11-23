@@ -158,7 +158,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if prefix != "" {
 		// If we are in a selector, add an edit to place prefix before selector.
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
-			edits, err := prependEdit(c.snapshot.FileSet(), c.mapper, sel, prefix)
+			edits, err := c.editText(sel.Pos(), sel.Pos(), prefix)
 			if err != nil {
 				return CompletionItem{}, err
 			}

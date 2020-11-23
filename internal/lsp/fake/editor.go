@@ -275,6 +275,8 @@ func (e *Editor) initialize(ctx context.Context, workspaceFolders []string) erro
 		params.ProcessID = int32(os.Getpid())
 	}
 
+	params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport = true
+
 	// This is a bit of a hack, since the fake editor doesn't actually support
 	// watching changed files that match a specific glob pattern. However, the
 	// editor does send didChangeWatchedFiles notifications, so set this to

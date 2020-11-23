@@ -9,6 +9,8 @@ import (
 	"go/token"
 	"go/types"
 
+	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
 
@@ -309,4 +311,16 @@ func formatZeroValue(T types.Type, qf types.Qualifier) string {
 func isBasicKind(t types.Type, k types.BasicInfo) bool {
 	b, _ := t.Underlying().(*types.Basic)
 	return b != nil && b.Info()&k > 0
+}
+
+func (c *completer) editText(from, to token.Pos, newText string) ([]protocol.TextEdit, error) {
+	rng := source.NewMappedRange(c.snapshot.FileSet(), c.mapper, from, to)
+	spn, err := rng.Span()
+	if err != nil {
+		return nil, err
+	}
+	return source.ToProtocolEdits(c.mapper, []diff.TextEdit{{
+		Span:    spn,
+		NewText: newText,
+	}})
 }

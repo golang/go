@@ -96,6 +96,7 @@ type completionOptions struct {
 	placeholders      bool
 	literal           bool
 	snippets          bool
+	postfix           bool
 	matcher           source.Matcher
 	budget            time.Duration
 }
@@ -521,6 +522,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
 			snippets:          opts.InsertTextFormat == protocol.SnippetTextFormat,
+			postfix:           opts.PostfixCompletions,
 		},
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),
@@ -1104,6 +1106,9 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		for _, cand := range candidates {
 			c.deepState.enqueue(cand)
 		}
+
+		c.addPostfixSnippetCandidates(ctx, sel)
+
 		return nil
 	}
 

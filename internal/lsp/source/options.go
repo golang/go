@@ -144,6 +144,7 @@ func DefaultOptions() *Options {
 			},
 			InternalOptions: InternalOptions{
 				LiteralCompletions:      true,
+				PostfixCompletions:      true,
 				TempModfile:             true,
 				CompleteUnimported:      true,
 				CompletionDocumentation: true,
@@ -435,6 +436,11 @@ type InternalOptions struct {
 	// "&someStruct{}" are offered. Tests disable this flag to simplify
 	// their expected values.
 	LiteralCompletions bool
+
+	// PostfixCompletions enables pseudo method snippets such as
+	// "someSlice.sort!". Tests disable this flag to simplify their
+	// expected values.
+	PostfixCompletions bool
 
 	// VerboseWorkDoneProgress controls whether the LSP server should send
 	// progress reports for all work done outside the scope of an RPC.

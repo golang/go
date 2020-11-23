@@ -7,14 +7,11 @@ package completion
 import (
 	"context"
 	"fmt"
-	"go/ast"
-	"go/token"
 	"go/types"
 	"strings"
 	"unicode"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/source"
@@ -111,7 +108,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 				// If we are in a selector we must place the "&" before the selector.
 				// For example, "foo.B<>" must complete to "&foo.Bar{}", not
 				// "foo.&Bar{}".
-				edits, err := prependEdit(c.snapshot.FileSet(), c.mapper, sel, "&")
+				edits, err := c.editText(sel.Pos(), sel.Pos(), "&")
 				if err != nil {
 					event.Error(ctx, "error making edit for literal pointer completion", err)
 					return
@@ -166,20 +163,6 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 			c.functionLiteral(ctx, t, float64(score))
 		}
 	}
-}
-
-// prependEdit produces text edits that preprend the specified prefix
-// to the specified node.
-func prependEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node, prefix string) ([]protocol.TextEdit, error) {
-	rng := source.NewMappedRange(fset, m, node.Pos(), node.Pos())
-	spn, err := rng.Span()
-	if err != nil {
-		return nil, err
-	}
-	return source.ToProtocolEdits(m, []diff.TextEdit{{
-		Span:    spn,
-		NewText: prefix,
-	}})
 }
 
 // literalCandidateScore is the base score for literal candidates.
