@@ -15,6 +15,7 @@ import (
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"io"
 	"math/big"
 	"os"
@@ -357,19 +358,19 @@ func (r *importReader) doDecl(n *Node) {
 
 func (p *importReader) value(typ *types.Type) (v Val) {
 	switch constTypeOf(typ) {
-	case CTBOOL:
+	case constant.Bool:
 		v.U = p.bool()
-	case CTSTR:
+	case constant.String:
 		v.U = p.string()
-	case CTINT:
+	case constant.Int:
 		x := new(Mpint)
 		p.mpint(&x.Val, typ)
 		v.U = x
-	case CTFLT:
+	case constant.Float:
 		x := newMpflt()
 		p.float(x, typ)
 		v.U = x
-	case CTCPLX:
+	case constant.Complex:
 		x := newMpcmplx()
 		p.float(&x.Real, typ)
 		p.float(&x.Imag, typ)

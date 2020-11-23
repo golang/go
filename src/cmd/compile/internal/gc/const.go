@@ -8,21 +8,9 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 	"math/big"
 	"strings"
-)
-
-// Ctype describes the constant kind of an "ideal" (untyped) constant.
-type Ctype uint8
-
-const (
-	CTxxx Ctype = iota
-
-	CTINT
-	CTFLT
-	CTCPLX
-	CTSTR
-	CTBOOL
 )
 
 type Val struct {
@@ -35,28 +23,28 @@ type Val struct {
 	U interface{}
 }
 
-func (v Val) Ctype() Ctype {
+func (v Val) Kind() constant.Kind {
 	switch v.U.(type) {
 	default:
 		Fatalf("unexpected Ctype for %T", v.U)
 		panic("unreachable")
 	case nil:
-		return CTxxx
+		return constant.Unknown
 	case bool:
-		return CTBOOL
+		return constant.Bool
 	case *Mpint:
-		return CTINT
+		return constant.Int
 	case *Mpflt:
-		return CTFLT
+		return constant.Float
 	case *Mpcplx:
-		return CTCPLX
+		return constant.Complex
 	case string:
-		return CTSTR
+		return constant.String
 	}
 }
 
 func eqval(a, b Val) bool {
-	if a.Ctype() != b.Ctype() {
+	if a.Kind() != b.Kind() {
 		return false
 	}
 	switch x := a.U.(type) {
@@ -103,7 +91,7 @@ func (v Val) Interface() interface{} {
 // Int64Val returns n as an int64.
 // n must be an integer or rune constant.
 func (n *Node) Int64Val() int64 {
-	if !Isconst(n, CTINT) {
+	if !Isconst(n, constant.Int) {
 		Fatalf("Int64Val(%v)", n)
 	}
 	return n.Val().U.(*Mpint).Int64()
@@ -111,7 +99,7 @@ func (n *Node) Int64Val() int64 {
 
 // CanInt64 reports whether it is safe to call Int64Val() on n.
 func (n *Node) CanInt64() bool {
-	if !Isconst(n, CTINT) {
+	if !Isconst(n, constant.Int) {
 		return false
 	}
 
@@ -123,7 +111,7 @@ func (n *Node) CanInt64() bool {
 // BoolVal returns n as a bool.
 // n must be a boolean constant.
 func (n *Node) BoolVal() bool {
-	if !Isconst(n, CTBOOL) {
+	if !Isconst(n, constant.Bool) {
 		Fatalf("BoolVal(%v)", n)
 	}
 	return n.Val().U.(bool)
@@ -132,7 +120,7 @@ func (n *Node) BoolVal() bool {
 // StringVal returns the value of a literal string Node as a string.
 // n must be a string constant.
 func (n *Node) StringVal() string {
-	if !Isconst(n, CTSTR) {
+	if !Isconst(n, constant.String) {
 		Fatalf("StringVal(%v)", n)
 	}
 	return n.Val().U.(string)
@@ -369,23 +357,23 @@ func operandType(op Op, t *types.Type) *types.Type {
 // If explicit is true, then conversions from integer to string are
 // also allowed.
 func convertVal(v Val, t *types.Type, explicit bool) Val {
-	switch ct := v.Ctype(); ct {
-	case CTBOOL:
+	switch ct := v.Kind(); ct {
+	case constant.Bool:
 		if t.IsBoolean() {
 			return v
 		}
 
-	case CTSTR:
+	case constant.String:
 		if t.IsString() {
 			return v
 		}
 
-	case CTINT:
+	case constant.Int:
 		if explicit && t.IsString() {
 			return tostr(v)
 		}
 		fallthrough
-	case CTFLT, CTCPLX:
+	case constant.Float, constant.Complex:
 		switch {
 		case t.IsInteger():
 			v = toint(v)
@@ -543,14 +531,14 @@ func tostr(v Val) Val {
 	return v
 }
 
-func consttype(n *Node) Ctype {
+func consttype(n *Node) constant.Kind {
 	if n == nil || n.Op != OLITERAL {
-		return CTxxx
+		return constant.Unknown
 	}
-	return n.Val().Ctype()
+	return n.Val().Kind()
 }
 
-func Isconst(n *Node, ct Ctype) bool {
+func Isconst(n *Node, ct constant.Kind) bool {
 	return consttype(n) == ct
 }
 
@@ -596,11 +584,11 @@ func evconst(n *Node) {
 		// Merge adjacent constants in the argument list.
 		s := n.List.Slice()
 		for i1 := 0; i1 < len(s); i1++ {
-			if Isconst(s[i1], CTSTR) && i1+1 < len(s) && Isconst(s[i1+1], CTSTR) {
+			if Isconst(s[i1], constant.String) && i1+1 < len(s) && Isconst(s[i1+1], constant.String) {
 				// merge from i1 up to but not including i2
 				var strs []string
 				i2 := i1
-				for i2 < len(s) && Isconst(s[i2], CTSTR) {
+				for i2 < len(s) && Isconst(s[i2], constant.String) {
 					strs = append(strs, s[i2].StringVal())
 					i2++
 				}
@@ -613,7 +601,7 @@ func evconst(n *Node) {
 			}
 		}
 
-		if len(s) == 1 && Isconst(s[0], CTSTR) {
+		if len(s) == 1 && Isconst(s[0], constant.String) {
 			n.Op = OLITERAL
 			n.SetVal(s[0].Val())
 		} else {
@@ -623,7 +611,7 @@ func evconst(n *Node) {
 	case OCAP, OLEN:
 		switch nl.Type.Etype {
 		case TSTRING:
-			if Isconst(nl, CTSTR) {
+			if Isconst(nl, constant.String) {
 				setintconst(n, int64(len(nl.StringVal())))
 			}
 		case TARRAY:
@@ -674,9 +662,9 @@ func evconst(n *Node) {
 
 func match(x, y Val) (Val, Val) {
 	switch {
-	case x.Ctype() == CTCPLX || y.Ctype() == CTCPLX:
+	case x.Kind() == constant.Complex || y.Kind() == constant.Complex:
 		return tocplx(x), tocplx(y)
-	case x.Ctype() == CTFLT || y.Ctype() == CTFLT:
+	case x.Kind() == constant.Float || y.Kind() == constant.Float:
 		return toflt(x), toflt(y)
 	}
 
@@ -687,8 +675,8 @@ func match(x, y Val) (Val, Val) {
 func compareOp(x Val, op Op, y Val) bool {
 	x, y = match(x, y)
 
-	switch x.Ctype() {
-	case CTBOOL:
+	switch x.Kind() {
+	case constant.Bool:
 		x, y := x.U.(bool), y.U.(bool)
 		switch op {
 		case OEQ:
@@ -697,15 +685,15 @@ func compareOp(x Val, op Op, y Val) bool {
 			return x != y
 		}
 
-	case CTINT:
+	case constant.Int:
 		x, y := x.U.(*Mpint), y.U.(*Mpint)
 		return cmpZero(x.Cmp(y), op)
 
-	case CTFLT:
+	case constant.Float:
 		x, y := x.U.(*Mpflt), y.U.(*Mpflt)
 		return cmpZero(x.Cmp(y), op)
 
-	case CTCPLX:
+	case constant.Complex:
 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
 		eq := x.Real.Cmp(&y.Real) == 0 && x.Imag.Cmp(&y.Imag) == 0
 		switch op {
@@ -715,7 +703,7 @@ func compareOp(x Val, op Op, y Val) bool {
 			return !eq
 		}
 
-	case CTSTR:
+	case constant.String:
 		x, y := x.U.(string), y.U.(string)
 		switch op {
 		case OEQ:
@@ -761,8 +749,8 @@ func binaryOp(x Val, op Op, y Val) Val {
 	x, y = match(x, y)
 
 Outer:
-	switch x.Ctype() {
-	case CTBOOL:
+	switch x.Kind() {
+	case constant.Bool:
 		x, y := x.U.(bool), y.U.(bool)
 		switch op {
 		case OANDAND:
@@ -771,7 +759,7 @@ Outer:
 			return Val{U: x || y}
 		}
 
-	case CTINT:
+	case constant.Int:
 		x, y := x.U.(*Mpint), y.U.(*Mpint)
 
 		u := new(Mpint)
@@ -808,7 +796,7 @@ Outer:
 		}
 		return Val{U: u}
 
-	case CTFLT:
+	case constant.Float:
 		x, y := x.U.(*Mpflt), y.U.(*Mpflt)
 
 		u := newMpflt()
@@ -831,7 +819,7 @@ Outer:
 		}
 		return Val{U: u}
 
-	case CTCPLX:
+	case constant.Complex:
 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
 
 		u := newMpcmplx()
@@ -864,28 +852,28 @@ Outer:
 func unaryOp(op Op, x Val, t *types.Type) Val {
 	switch op {
 	case OPLUS:
-		switch x.Ctype() {
-		case CTINT, CTFLT, CTCPLX:
+		switch x.Kind() {
+		case constant.Int, constant.Float, constant.Complex:
 			return x
 		}
 
 	case ONEG:
-		switch x.Ctype() {
-		case CTINT:
+		switch x.Kind() {
+		case constant.Int:
 			x := x.U.(*Mpint)
 			u := new(Mpint)
 			u.Set(x)
 			u.Neg()
 			return Val{U: u}
 
-		case CTFLT:
+		case constant.Float:
 			x := x.U.(*Mpflt)
 			u := newMpflt()
 			u.Set(x)
 			u.Neg()
 			return Val{U: u}
 
-		case CTCPLX:
+		case constant.Complex:
 			x := x.U.(*Mpcplx)
 			u := newMpcmplx()
 			u.Real.Set(&x.Real)
@@ -896,8 +884,8 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 		}
 
 	case OBITNOT:
-		switch x.Ctype() {
-		case CTINT:
+		switch x.Kind() {
+		case constant.Int:
 			x := x.U.(*Mpint)
 
 			u := new(Mpint)
@@ -967,12 +955,12 @@ func setconst(n *Node, v Val) {
 	lineno = lno
 
 	if !n.Type.IsUntyped() {
-		switch v.Ctype() {
+		switch v.Kind() {
 		// Truncate precision for non-ideal float.
-		case CTFLT:
+		case constant.Float:
 			n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
 		// Truncate precision for non-ideal complex.
-		case CTCPLX:
+		case constant.Complex:
 			n.SetVal(Val{trunccmplxlit(v.U.(*Mpcplx), n.Type)})
 		}
 	}
@@ -990,7 +978,7 @@ func represents(t *types.Type, v Val) bool {
 		return true
 	}
 
-	vt := idealType(v.Ctype())
+	vt := idealType(v.Kind())
 	return t == vt || (t == types.UntypedRune && vt == types.UntypedInt)
 }
 
@@ -1007,22 +995,22 @@ func setintconst(n *Node, v int64) {
 // nodlit returns a new untyped constant with value v.
 func nodlit(v Val) *Node {
 	n := nod(OLITERAL, nil, nil)
-	n.Type = idealType(v.Ctype())
+	n.Type = idealType(v.Kind())
 	n.SetVal(v)
 	return n
 }
 
-func idealType(ct Ctype) *types.Type {
+func idealType(ct constant.Kind) *types.Type {
 	switch ct {
-	case CTSTR:
+	case constant.String:
 		return types.UntypedString
-	case CTBOOL:
+	case constant.Bool:
 		return types.UntypedBool
-	case CTINT:
+	case constant.Int:
 		return types.UntypedInt
-	case CTFLT:
+	case constant.Float:
 		return types.UntypedFloat
-	case CTCPLX:
+	case constant.Complex:
 		return types.UntypedComplex
 	}
 	Fatalf("unexpected Ctype: %v", ct)
@@ -1121,7 +1109,7 @@ func defaultType(t *types.Type) *types.Type {
 }
 
 func smallintconst(n *Node) bool {
-	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
+	if n.Op == OLITERAL && Isconst(n, constant.Int) && n.Type != nil {
 		switch simtype[n.Type.Etype] {
 		case TINT8,
 			TUINT8,

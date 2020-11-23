@@ -6,6 +6,7 @@ package gc
 
 import (
 	"fmt"
+	"go/constant"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -803,7 +804,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 	chunks := make([]string, 0, 1)
 
 	n := p.expr(x)
-	if Isconst(n, CTSTR) && n.Sym == nil {
+	if Isconst(n, constant.String) && n.Sym == nil {
 		nstr = n
 		chunks = append(chunks, nstr.StringVal())
 	}
@@ -812,7 +813,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 		add := adds[i]
 
 		r := p.expr(add.Y)
-		if Isconst(r, CTSTR) && r.Sym == nil {
+		if Isconst(r, constant.String) && r.Sym == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
 				chunks = append(chunks, r.StringVal())

@@ -556,7 +556,7 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprint(s, u)
 
 	default:
-		fmt.Fprintf(s, "<ctype=%d>", v.Ctype())
+		fmt.Fprintf(s, "<ctype=%d>", v.Kind())
 	}
 }
 

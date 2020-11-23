@@ -7,6 +7,7 @@ package gc
 import (
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"html"
 	"os"
 	"path/filepath"
@@ -1277,7 +1278,7 @@ func (s *state) stmt(n *Node) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
 			i, j, k := rhs.SliceBounds()
-			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int64Val() == 0) {
+			if i != nil && (i.Op == OLITERAL && i.Val().Kind() == constant.Int && i.Int64Val() == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
 			}
@@ -1305,7 +1306,7 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
-		if Isconst(n.Left, CTBOOL) {
+		if Isconst(n.Left, constant.Bool) {
 			s.stmtList(n.Left.Ninit)
 			if n.Left.BoolVal() {
 				s.stmtList(n.Nbody)
@@ -2093,7 +2094,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 
 		default:
-			s.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
+			s.Fatalf("unhandled OLITERAL %v", n.Val().Kind())
 			return nil
 		}
 	case OCONVNOP:
@@ -2617,7 +2618,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OINDEX:
 		switch {
 		case n.Left.Type.IsString():
-			if n.Bounded() && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
+			if n.Bounded() && Isconst(n.Left, constant.String) && Isconst(n.Right, constant.Int) {
 				// Replace "abc"[1] with 'b'.
 				// Delayed until now because "abc"[1] is not an ideal constant.
 				// See test/fixedbugs/issue11370.go.
@@ -2629,7 +2630,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			ptrtyp := s.f.Config.Types.BytePtr
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
-			if Isconst(n.Right, CTINT) {
+			if Isconst(n.Right, constant.Int) {
 				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int64Val(), ptr)
 			} else {
 				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)

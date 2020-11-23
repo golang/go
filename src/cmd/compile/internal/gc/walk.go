@@ -11,6 +11,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"strings"
 )
 
@@ -1045,15 +1046,15 @@ opswitch:
 		}
 		if t.IsArray() {
 			n.SetBounded(bounded(r, t.NumElem()))
-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
 				yyerror("index out of bounds")
 			}
-		} else if Isconst(n.Left, CTSTR) {
+		} else if Isconst(n.Left, constant.String) {
 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded() {
@@ -1061,8 +1062,8 @@ opswitch:
 			}
 		}
 
-		if Isconst(n.Right, CTINT) {
-			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+		if Isconst(n.Right, constant.Int) {
+			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || doesoverflow(n.Right.Val(), types.Types[TINT]) {
 				yyerror("index out of bounds")
 			}
 		}
@@ -1192,7 +1193,7 @@ opswitch:
 		// Type checking guarantees that TIDEAL size is positive and fits in an int.
 		// The case of size overflow when converting TUINT or TUINTPTR to TINT
 		// will be handled by the negative range checks in makechan during runtime.
-		if size.Type.IsKind(TIDEAL) || maxintval[size.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+		if size.Type.IsKind(TIDEAL) || size.Type.Size() <= types.Types[TUINT].Size() {
 			fnname = "makechan"
 			argtype = types.Types[TINT]
 		}
@@ -1222,7 +1223,7 @@ opswitch:
 			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
 			// Maximum key and elem size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
-			if !Isconst(hint, CTINT) ||
+			if !Isconst(hint, constant.Int) ||
 				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
 
 				// In case hint is larger than BUCKETSIZE runtime.makemap
@@ -1256,7 +1257,7 @@ opswitch:
 			}
 		}
 
-		if Isconst(hint, CTINT) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+		if Isconst(hint, constant.Int) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
 			// Handling make(map[any]any) and
 			// make(map[any]any, hint) where hint <= BUCKETSIZE
 			// special allows for faster map initialization and
@@ -1300,7 +1301,7 @@ opswitch:
 			// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
 			// The case of hint overflow when converting TUINT or TUINTPTR to TINT
 			// will be handled by the negative range checks in makemap during runtime.
-			if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+			if hint.Type.IsKind(TIDEAL) || hint.Type.Size() <= types.Types[TUINT].Size() {
 				fnname = "makemap"
 				argtype = types.Types[TINT]
 			}
@@ -1370,8 +1371,8 @@ opswitch:
 			// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
 			// will be handled by the negative range checks in makeslice during runtime.
-			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
-				(cap.Type.IsKind(TIDEAL) || maxintval[cap.Type.Etype].Cmp(maxintval[TUINT]) <= 0) {
+			if (len.Type.IsKind(TIDEAL) || len.Type.Size() <= types.Types[TUINT].Size()) &&
+				(cap.Type.IsKind(TIDEAL) || cap.Type.Size() <= types.Types[TUINT].Size()) {
 				fnname = "makeslice"
 				argtype = types.Types[TINT]
 			}
@@ -1486,7 +1487,7 @@ opswitch:
 
 	case OSTR2BYTES:
 		s := n.Left
-		if Isconst(s, CTSTR) {
+		if Isconst(s, constant.String) {
 			sc := s.StringVal()
 
 			// Allocate a [n]byte of the right size.
@@ -1914,7 +1915,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	t := make([]*Node, 0, len(s))
 	for i := 0; i < len(s); {
 		var strs []string
-		for i < len(s) && Isconst(s[i], CTSTR) {
+		for i < len(s) && Isconst(s[i], constant.String) {
 			strs = append(strs, s[i].StringVal())
 			i++
 		}
@@ -1935,11 +1936,11 @@ func walkprint(nn *Node, init *Nodes) *Node {
 				n = defaultlit(n, types.Runetype)
 			}
 
-			switch n.Val().Ctype() {
-			case CTINT:
+			switch n.Val().Kind() {
+			case constant.Int:
 				n = defaultlit(n, types.Types[TINT64])
 
-			case CTFLT:
+			case constant.Float:
 				n = defaultlit(n, types.Types[TFLOAT64])
 			}
 		}
@@ -1994,7 +1995,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			on = syslook("printbool")
 		case TSTRING:
 			cs := ""
-			if Isconst(n, CTSTR) {
+			if Isconst(n, constant.String) {
 				cs = n.StringVal()
 			}
 			switch cs {
@@ -2850,7 +2851,7 @@ func isAppendOfMake(n *Node) bool {
 
 	// The care of overflow of the len argument to make will be handled by an explicit check of int(len) < 0 during runtime.
 	y := second.Left
-	if !Isconst(y, CTINT) && maxintval[y.Type.Etype].Cmp(maxintval[TUINT]) > 0 {
+	if !Isconst(y, constant.Int) && y.Type.Size() > types.Types[TUINT].Size() {
 		return false
 	}
 
@@ -3471,12 +3472,12 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
 	var cs, ncs *Node // const string, non-const string
 	switch {
-	case Isconst(n.Left, CTSTR) && Isconst(n.Right, CTSTR):
+	case Isconst(n.Left, constant.String) && Isconst(n.Right, constant.String):
 		// ignore; will be constant evaluated
-	case Isconst(n.Left, CTSTR):
+	case Isconst(n.Left, constant.String):
 		cs = n.Left
 		ncs = n.Right
-	case Isconst(n.Right, CTSTR):
+	case Isconst(n.Right, constant.String):
 		cs = n.Right
 		ncs = n.Left
 	}
@@ -3485,7 +3486,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 		// Our comparison below assumes that the non-constant string
 		// is on the left hand side, so rewrite "" cmp x to x cmp "".
 		// See issue 24817.
-		if Isconst(n.Left, CTSTR) {
+		if Isconst(n.Left, constant.String) {
 			cmp = brrev(cmp)
 		}
 
@@ -3841,17 +3842,17 @@ func candiscard(n *Node) bool {
 
 		// Discardable as long as we know it's not division by zero.
 	case ODIV, OMOD:
-		if Isconst(n.Right, CTINT) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
+		if Isconst(n.Right, constant.Int) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
 			break
 		}
-		if Isconst(n.Right, CTFLT) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
+		if Isconst(n.Right, constant.Float) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
 			break
 		}
 		return false
 
 		// Discardable as long as we know it won't fail because of a bad size.
 	case OMAKECHAN, OMAKEMAP:
-		if Isconst(n.Left, CTINT) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
+		if Isconst(n.Left, constant.Int) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
 			break
 		}
 		return false

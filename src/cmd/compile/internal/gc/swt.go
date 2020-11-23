@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"go/constant"
 	"sort"
 )
 
@@ -442,7 +443,7 @@ func (c *exprClause) test(exprname *Node) *Node {
 	}
 
 	// Optimize "switch true { ...}" and "switch false { ... }".
-	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
+	if Isconst(exprname, constant.Bool) && !c.lo.Type.IsInterface() {
 		if exprname.BoolVal() {
 			return c.lo
 		} else {
