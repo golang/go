@@ -982,6 +982,54 @@ again:
 	FSTPS	(F3, F4), x(SB)
 	FSTPS	(F3, F4), x+8(SB)
 
+// FLDPQ/FSTPQ
+	FLDPQ   -4000(R0), (F1, F2)  // 1b803ed1610b40ad
+	FLDPQ	-1024(R0), (F1, F2)  // 010860ad
+	FLDPQ	(R0), (F1, F2)       // 010840ad
+	FLDPQ	16(R0), (F1, F2)     // 018840ad
+	FLDPQ	-16(R0), (F1, F2)    // 01887fad
+	FLDPQ.W	32(R0), (F1, F2)     // 0108c1ad
+	FLDPQ.P	32(R0), (F1, F2)     // 0108c1ac
+	FLDPQ	11(R0), (F1, F2)     // 1b2c0091610b40ad
+	FLDPQ	1024(R0), (F1, F2)   // 1b001091610b40ad
+	FLDPQ   4104(R0), (F1, F2)
+	FLDPQ   -4000(RSP), (F1, F2) // fb833ed1610b40ad
+	FLDPQ	-1024(RSP), (F1, F2) // e10b60ad
+	FLDPQ	(RSP), (F1, F2)      // e10b40ad
+	FLDPQ	16(RSP), (F1, F2)    // e18b40ad
+	FLDPQ	-16(RSP), (F1, F2)   // e18b7fad
+	FLDPQ.W	32(RSP), (F1, F2)    // e10bc1ad
+	FLDPQ.P	32(RSP), (F1, F2)    // e10bc1ac
+	FLDPQ	11(RSP), (F1, F2)    // fb2f0091610b40ad
+	FLDPQ	1024(RSP), (F1, F2)  // fb031091610b40ad
+	FLDPQ   4104(RSP), (F1, F2)
+	FLDPQ	-31(R0), (F1, F2)    // 1b7c00d1610b40ad
+	FLDPQ	-4(R0), (F1, F2)     // 1b1000d1610b40ad
+	FLDPQ	x(SB), (F1, F2)
+	FLDPQ	x+8(SB), (F1, F2)
+	FSTPQ	(F3, F4), -4000(R5)  // bb803ed1631300ad
+	FSTPQ	(F3, F4), -1024(R5)  // a31020ad
+	FSTPQ	(F3, F4), (R5)       // a31000ad
+	FSTPQ	(F3, F4), 16(R5)     // a39000ad
+	FSTPQ	(F3, F4), -16(R5)    // a3903fad
+	FSTPQ.W	(F3, F4), 32(R5)     // a31081ad
+	FSTPQ.P	(F3, F4), 32(R5)     // a31081ac
+	FSTPQ	(F3, F4), 11(R5)     // bb2c0091631300ad
+	FSTPQ	(F3, F4), 1024(R5)   // bb001091631300ad
+	FSTPQ	(F3, F4), 4104(R5)
+	FSTPQ	(F3, F4), -4000(RSP) // fb833ed1631300ad
+	FSTPQ	(F3, F4), -1024(RSP) // e31320ad
+	FSTPQ	(F3, F4), (RSP)      // e31300ad
+	FSTPQ	(F3, F4), 16(RSP)    // e39300ad
+	FSTPQ	(F3, F4), -16(RSP)   // e3933fad
+	FSTPQ.W	(F3, F4), 32(RSP)    // e31381ad
+	FSTPQ.P	(F3, F4), 32(RSP)    // e31381ac
+	FSTPQ	(F3, F4), 11(RSP)    // fb2f0091631300ad
+	FSTPQ	(F3, F4), 1024(RSP)  // fb031091631300ad
+	FSTPQ	(F3, F4), 4104(RSP)
+	FSTPQ	(F3, F4), x(SB)
+	FSTPQ	(F3, F4), x+8(SB)
+
 // System Register
 	MSR	$1, SPSel                          // bf4100d5
 	MSR	$9, DAIFSet                        // df4903d5
