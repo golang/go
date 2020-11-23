@@ -1594,3 +1594,36 @@ import (
 		})
 	})
 }
+
+func TestMultipleModules_GO111MODULE_on(t *testing.T) {
+	const modules = `
+-- a/go.mod --
+module a.com
+
+go 1.12
+-- a/a.go --
+package a
+-- b/go.mod --
+module b.com
+
+go 1.12
+-- b/b.go --
+package b
+`
+	withOptions(
+		WithModes(WithoutExperiments),
+		EditorConfig{
+			Env: map[string]string{
+				"GO111MODULE": "on",
+			},
+		},
+	).run(t, modules, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.OpenFile("b/go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("a/a.go", "package a"),
+			env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+			OutstandingWork("Error loading workspace", "gopls requires a module at the root of your workspace."),
+		)
+	})
+}

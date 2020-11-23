@@ -536,15 +536,26 @@ type Package interface {
 	Version() *module.Version
 }
 
+type CriticalError struct {
+	MainError error
+	ErrorList
+}
+
+func (err *CriticalError) Error() string {
+	if err.MainError == nil {
+		return ""
+	}
+	return err.MainError.Error()
+}
+
 type ErrorList []*Error
 
 func (err ErrorList) Error() string {
-	var b strings.Builder
-	b.WriteString("source error list:")
+	var list []string
 	for _, e := range err {
-		b.WriteString(fmt.Sprintf("\n\t%s", e))
+		list = append(list, e.Error())
 	}
-	return b.String()
+	return strings.Join(list, "\n\t")
 }
 
 // An Error corresponds to an LSP Diagnostic.
@@ -577,6 +588,9 @@ const (
 )
 
 func (e *Error) Error() string {
+	if e.URI == "" {
+		return e.Message
+	}
 	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
 }
 

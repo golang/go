@@ -923,7 +923,11 @@ func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.Versi
 func (s *snapshot) IsOpen(uri span.URI) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.isOpenLocked(uri)
 
+}
+
+func (s *snapshot) isOpenLocked(uri span.URI) bool {
 	_, open := s.files[uri].(*overlay)
 	return open
 }

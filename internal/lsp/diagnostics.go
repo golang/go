@@ -176,17 +176,14 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	if s.shouldIgnoreError(ctx, snapshot, err) {
 		return false
 	}
+
 	// Show the error as a progress error report so that it appears in the
 	// status bar. If a client doesn't support progress reports, the error
 	// will still be shown as a ShowMessage. If there is no error, any running
 	// error progress reports will be closed.
-	s.showCriticalErrorStatus(ctx, err)
+	s.showCriticalErrorStatus(ctx, snapshot, err)
 
 	if err != nil {
-		// Some error messages can also be displayed as diagnostics.
-		if errList := (source.ErrorList)(nil); errors.As(err, &errList) {
-			s.storeErrorDiagnostics(ctx, snapshot, typeCheckSource, errList)
-		}
 		event.Error(ctx, "errors diagnosing workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
 		return false
 	}
@@ -361,7 +358,7 @@ func hasUndeclaredErrors(pkg source.Package) bool {
 
 // showCriticalErrorStatus shows the error as a progress report.
 // If the error is nil, it clears any existing error progress report.
-func (s *Server) showCriticalErrorStatus(ctx context.Context, err error) {
+func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Snapshot, err error) {
 	s.criticalErrorStatusMu.Lock()
 	defer s.criticalErrorStatusMu.Unlock()
 
@@ -369,6 +366,15 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, err error) {
 	// status bar.
 	var errMsg string
 	if err != nil {
+		// Some error messages can also be displayed as diagnostics. But don't
+		// show source.ErrorLists as critical errors--only CriticalErrors
+		// should be shown.
+		if criticalErr := (*source.CriticalError)(nil); errors.As(err, &criticalErr) {
+			s.storeErrorDiagnostics(ctx, snapshot, typeCheckSource, criticalErr.ErrorList)
+		} else if srcErrList := (source.ErrorList)(nil); errors.As(err, &srcErrList) {
+			s.storeErrorDiagnostics(ctx, snapshot, typeCheckSource, srcErrList)
+			return
+		}
 		errMsg = strings.Replace(err.Error(), "\n", " ", -1)
 	}
 
