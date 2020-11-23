@@ -994,7 +994,7 @@ func (w *exportWriter) funcExt(n *Node) {
 
 func (w *exportWriter) methExt(m *types.Field) {
 	w.bool(m.Nointerface())
-	w.funcExt(asNode(m.Type.Nname()))
+	w.funcExt(asNode(m.Nname))
 }
 
 func (w *exportWriter) linkname(s *types.Sym) {

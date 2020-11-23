@@ -4024,7 +4024,7 @@ func curpkg() *types.Pkg {
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.
 func (n *Node) MethodName() *Node {
-	return asNode(n.MethodFunc().Type.Nname())
+	return asNode(n.MethodFunc().Nname)
 }
 
 // MethodFunc is like MethodName, but returns the types.Field instead.

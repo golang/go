@@ -37,7 +37,7 @@ func (p *exporter) markType(t *types.Type) {
 	if t.Sym != nil && t.Etype != TINTER {
 		for _, m := range t.Methods().Slice() {
 			if types.IsExported(m.Sym.Name) {
-				p.markObject(asNode(m.Type.Nname()))
+				p.markObject(asNode(m.Nname))
 			}
 		}
 	}

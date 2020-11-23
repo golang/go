@@ -277,7 +277,7 @@ func (d *initDeps) visit(n *Node) bool {
 	switch n.Op {
 	case ONAME:
 		if n.isMethodExpression() {
-			d.foundDep(asNode(n.Type.FuncType().Nname))
+			d.foundDep(n.MethodName())
 			return false
 		}
 
@@ -290,7 +290,7 @@ func (d *initDeps) visit(n *Node) bool {
 		d.inspectList(n.Func.Closure.Nbody)
 
 	case ODOTMETH, OCALLPART:
-		d.foundDep(asNode(n.Type.FuncType().Nname))
+		d.foundDep(n.MethodName())
 	}
 
 	return true

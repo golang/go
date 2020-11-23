@@ -897,7 +897,7 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
 	}
 
 	f := types.NewField(lineno, msym, t)
-	f.Type.SetNname(asTypesNode(n.Func.Nname))
+	f.Nname = asTypesNode(n.Func.Nname)
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)
