@@ -365,13 +365,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 		out = append(out, d)
 	}
 
-	t := functype(nil, in, out)
-	if f.Nname() != nil {
-		// Link to name of original method function.
-		t.SetNname(f.Nname())
-	}
-
-	return t
+	return functype(nil, in, out)
 }
 
 // methods returns the methods of the non-interface type t, sorted by name.
