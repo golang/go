@@ -4170,17 +4170,25 @@ func gfput(_p_ *p, gp *g) {
 	_p_.gFree.push(gp)
 	_p_.gFree.n++
 	if _p_.gFree.n >= 64 {
-		lock(&sched.gFree.lock)
+		var (
+			inc      int32
+			stackQ   gQueue
+			noStackQ gQueue
+		)
 		for _p_.gFree.n >= 32 {
-			_p_.gFree.n--
 			gp = _p_.gFree.pop()
+			_p_.gFree.n--
 			if gp.stack.lo == 0 {
-				sched.gFree.noStack.push(gp)
+				noStackQ.push(gp)
 			} else {
-				sched.gFree.stack.push(gp)
+				stackQ.push(gp)
 			}
-			sched.gFree.n++
+			inc++
 		}
+		lock(&sched.gFree.lock)
+		sched.gFree.noStack.pushAll(noStackQ)
+		sched.gFree.stack.pushAll(stackQ)
+		sched.gFree.n += inc
 		unlock(&sched.gFree.lock)
 	}
 }
@@ -4232,17 +4240,25 @@ retry:
 
 // Purge all cached G's from gfree list to the global list.
 func gfpurge(_p_ *p) {
-	lock(&sched.gFree.lock)
+	var (
+		inc      int32
+		stackQ   gQueue
+		noStackQ gQueue
+	)
 	for !_p_.gFree.empty() {
 		gp := _p_.gFree.pop()
 		_p_.gFree.n--
 		if gp.stack.lo == 0 {
-			sched.gFree.noStack.push(gp)
+			noStackQ.push(gp)
 		} else {
-			sched.gFree.stack.push(gp)
+			stackQ.push(gp)
 		}
-		sched.gFree.n++
+		inc++
 	}
+	lock(&sched.gFree.lock)
+	sched.gFree.noStack.pushAll(noStackQ)
+	sched.gFree.stack.pushAll(stackQ)
+	sched.gFree.n += inc
 	unlock(&sched.gFree.lock)
 }
 
