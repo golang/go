@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 		case ONAME:
 			if n.Class() == PFUNC {
 				if n.isMethodExpression() {
-					n = asNode(n.Type.Nname())
+					n = n.MethodName()
 				}
 				if n != nil && n.Name.Defn != nil {
 					if m := v.visit(n.Name.Defn); m < min {
@@ -87,14 +87,14 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 				}
 			}
 		case ODOTMETH:
-			fn := asNode(n.Type.Nname())
+			fn := n.MethodName()
 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 				if m := v.visit(fn.Name.Defn); m < min {
 					min = m
 				}
 			}
 		case OCALLPART:
-			fn := asNode(callpartMethod(n).Type.Nname())
+			fn := asNode(callpartMethod(n).Nname)
 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 				if m := v.visit(fn.Name.Defn); m < min {
 					min = m

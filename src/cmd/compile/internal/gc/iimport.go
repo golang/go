@@ -333,7 +333,7 @@ func (r *importReader) doDecl(n *Node) {
 			// methodSym already marked m.Sym as a function.
 
 			f := types.NewField(mpos, msym, mtyp)
-			f.Type.SetNname(asTypesNode(m))
+			f.Nname = asTypesNode(m)
 			ms[i] = f
 		}
 		t.Methods().Set(ms)
@@ -667,7 +667,7 @@ func (r *importReader) methExt(m *types.Field) {
 	if r.bool() {
 		m.SetNointerface(true)
 	}
-	r.funcExt(asNode(m.Type.Nname()))
+	r.funcExt(asNode(m.Nname))
 }
 
 func (r *importReader) linkname(s *types.Sym) {

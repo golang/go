@@ -544,7 +544,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		for i := m.Type.NumResults(); i > 0; i-- {
 			ks = append(ks, e.heapHole())
 		}
-		paramK := e.tagHole(ks, asNode(m.Type.Nname()), m.Type.Recv())
+		paramK := e.tagHole(ks, asNode(m.Nname), m.Type.Recv())
 
 		e.expr(e.teeHole(paramK, closureK), n.Left)
 
@@ -778,7 +778,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 				fn = v.Func.Closure.Func.Nname
 			}
 		case OCALLMETH:
-			fn = asNode(call.Left.Type.FuncType().Nname)
+			fn = call.Left.MethodName()
 		}
 
 		fntype := call.Left.Type

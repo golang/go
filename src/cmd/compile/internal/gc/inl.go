@@ -267,7 +267,7 @@ func inlFlood(n *Node) {
 			switch n.Class() {
 			case PFUNC:
 				if n.isMethodExpression() {
-					inlFlood(asNode(n.Type.Nname()))
+					inlFlood(n.MethodName())
 				} else {
 					inlFlood(n)
 					exportsym(n)
@@ -277,7 +277,7 @@ func inlFlood(n *Node) {
 			}
 
 		case ODOTMETH:
-			fn := asNode(n.Type.Nname())
+			fn := n.MethodName()
 			inlFlood(fn)
 
 		case OCALLPART:
@@ -714,7 +714,7 @@ func inlCallee(fn *Node) *Node {
 	switch {
 	case fn.Op == ONAME && fn.Class() == PFUNC:
 		if fn.isMethodExpression() {
-			n := asNode(fn.Type.Nname())
+			n := fn.MethodName()
 			// Check that receiver type matches fn.Left.
 			// TODO(mdempsky): Handle implicit dereference
 			// of pointer receiver argument?
