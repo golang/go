@@ -74,11 +74,8 @@ func expandiface(t *types.Type) {
 		// (including broken ones, if any) and add to t's
 		// method set.
 		for _, t1 := range m.Type.Fields().Slice() {
-			f := types.NewField()
-			f.Pos = m.Pos // preserve embedding position
-			f.Sym = t1.Sym
-			f.Type = t1.Type
-			f.SetBroke(t1.Broke())
+			// Use m.Pos rather than t1.Pos to preserve embedding position.
+			f := types.NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
 		}
 	}

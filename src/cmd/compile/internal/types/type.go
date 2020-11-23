@@ -583,10 +583,17 @@ func NewFuncArgs(f *Type) *Type {
 	return t
 }
 
-func NewField() *Field {
-	return &Field{
+func NewField(pos src.XPos, sym *Sym, typ *Type) *Field {
+	f := &Field{
+		Pos:    pos,
+		Sym:    sym,
+		Type:   typ,
 		Offset: BADWIDTH,
 	}
+	if typ == nil {
+		f.SetBroke(true)
+	}
+	return f
 }
 
 // SubstAny walks t, replacing instances of "any" with successive

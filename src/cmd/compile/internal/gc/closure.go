@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 )
 
@@ -266,10 +267,8 @@ func transformclosure(xfunc *Node) {
 			v.SetClass(PPARAM)
 			decls = append(decls, v)
 
-			fld := types.NewField()
+			fld := types.NewField(src.NoXPos, v.Sym, v.Type)
 			fld.Nname = asTypesNode(v)
-			fld.Type = v.Type
-			fld.Sym = v.Sym
 			params = append(params, fld)
 		}
 

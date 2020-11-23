@@ -73,10 +73,8 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 }
 
 func makefield(name string, t *types.Type) *types.Field {
-	f := types.NewField()
-	f.Type = t
-	f.Sym = (*types.Pkg)(nil).Lookup(name)
-	return f
+	sym := (*types.Pkg)(nil).Lookup(name)
+	return types.NewField(src.NoXPos, sym, t)
 }
 
 // bmap makes the map bucket type given the type of the map.
@@ -301,13 +299,11 @@ func hiter(t *types.Type) *types.Type {
 // stksize bytes of args.
 func deferstruct(stksize int64) *types.Type {
 	makefield := func(name string, typ *types.Type) *types.Field {
-		f := types.NewField()
-		f.Type = typ
 		// Unlike the global makefield function, this one needs to set Pkg
 		// because these types might be compared (in SSA CSE sorting).
 		// TODO: unify this makefield and the global one above.
-		f.Sym = &types.Sym{Name: name, Pkg: localpkg}
-		return f
+		sym := &types.Sym{Name: name, Pkg: localpkg}
+		return types.NewField(src.NoXPos, sym, typ)
 	}
 	argtype := types.NewArray(types.Types[TUINT8], stksize)
 	argtype.Width = stksize
