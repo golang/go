@@ -6,7 +6,10 @@
 
 package gc
 
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+)
 
 // builtinpkg is a fake package that declares the universe block.
 var builtinpkg *types.Pkg
@@ -355,16 +358,14 @@ func typeinit() {
 }
 
 func makeErrorInterface() *types.Type {
-	field := types.NewField()
-	field.Type = types.Types[TSTRING]
-	f := functypefield(fakeRecvField(), nil, []*types.Field{field})
+	sig := functypefield(fakeRecvField(), nil, []*types.Field{
+		types.NewField(src.NoXPos, nil, types.Types[TSTRING]),
+	})
 
-	field = types.NewField()
-	field.Sym = lookup("Error")
-	field.Type = f
+	method := types.NewField(src.NoXPos, lookup("Error"), sig)
 
 	t := types.New(TINTER)
-	t.SetInterface([]*types.Field{field})
+	t.SetInterface([]*types.Field{method})
 	return t
 }
 

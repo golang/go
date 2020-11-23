@@ -543,35 +543,19 @@ func structfield(n *Node) *types.Field {
 		Fatalf("structfield: oops %v\n", n)
 	}
 
-	f := types.NewField()
-	f.Pos = n.Pos
-	f.Sym = n.Sym
-
 	if n.Left != nil {
 		n.Left = typecheck(n.Left, ctxType)
 		n.Type = n.Left.Type
 		n.Left = nil
 	}
 
-	f.Type = n.Type
-	if f.Type == nil {
-		f.SetBroke(true)
-	}
-
+	f := types.NewField(n.Pos, n.Sym, n.Type)
 	if n.Embedded() {
 		checkembeddedtype(n.Type)
 		f.Embedded = 1
-	} else {
-		f.Embedded = 0
 	}
-
-	switch u := n.Val().U.(type) {
-	case string:
-		f.Note = u
-	default:
-		yyerror("field tag must be a string")
-	case nil:
-		// no-op
+	if n.HasVal() {
+		f.Note = n.Val().U.(string)
 	}
 
 	lineno = lno
@@ -671,13 +655,7 @@ func interfacefield(n *Node) *types.Field {
 		n.Left = nil
 	}
 
-	f := types.NewField()
-	f.Pos = n.Pos
-	f.Sym = n.Sym
-	f.Type = n.Type
-	if f.Type == nil {
-		f.SetBroke(true)
-	}
+	f := types.NewField(n.Pos, n.Sym, n.Type)
 
 	lineno = lno
 	return f
@@ -705,9 +683,7 @@ func fakeRecv() *Node {
 }
 
 func fakeRecvField() *types.Field {
-	f := types.NewField()
-	f.Type = types.FakeRecvType()
-	return f
+	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
 }
 
 // isifacemethod reports whether (field) m is
@@ -920,10 +896,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		return f
 	}
 
-	f := types.NewField()
-	f.Pos = lineno
-	f.Sym = msym
-	f.Type = t
+	f := types.NewField(lineno, msym, t)
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)

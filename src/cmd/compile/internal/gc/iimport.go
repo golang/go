@@ -327,11 +327,7 @@ func (r *importReader) doDecl(n *Node) {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			f := types.NewField()
-			f.Pos = mpos
-			f.Sym = msym
-			f.Type = mtyp
-			ms[i] = f
+			ms[i] = types.NewField(mpos, msym, mtyp)
 
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
 			m.Type = mtyp
@@ -547,10 +543,7 @@ func (r *importReader) typ1() *types.Type {
 			emb := r.bool()
 			note := r.string()
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Sym = sym
-			f.Type = typ
+			f := types.NewField(pos, sym, typ)
 			if emb {
 				f.Embedded = 1
 			}
@@ -571,10 +564,7 @@ func (r *importReader) typ1() *types.Type {
 			pos := r.pos()
 			typ := r.typ()
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Type = typ
-			embeddeds[i] = f
+			embeddeds[i] = types.NewField(pos, nil, typ)
 		}
 
 		methods := make([]*types.Field, r.uint64())
@@ -583,11 +573,7 @@ func (r *importReader) typ1() *types.Type {
 			sym := r.ident()
 			typ := r.signature(fakeRecvField())
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Sym = sym
-			f.Type = typ
-			methods[i] = f
+			methods[i] = types.NewField(pos, sym, typ)
 		}
 
 		t := types.New(TINTER)
@@ -624,11 +610,7 @@ func (r *importReader) paramList() []*types.Field {
 }
 
 func (r *importReader) param() *types.Field {
-	f := types.NewField()
-	f.Pos = r.pos()
-	f.Sym = r.ident()
-	f.Type = r.typ()
-	return f
+	return types.NewField(r.pos(), r.ident(), r.typ())
 }
 
 func (r *importReader) bool() bool {
