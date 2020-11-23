@@ -221,10 +221,6 @@ func caninl(fn *Node) {
 		Body: inlcopylist(fn.Nbody.Slice()),
 	}
 
-	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
-	// this is so export can find the body of a method
-	fn.Type.FuncType().Nname = asTypesNode(n)
-
 	if Debug.m > 1 {
 		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", fn.Line(), n, inlineMaxBudget-visitor.budget, fn.Type, asNodes(n.Func.Inl.Body))
 	} else if Debug.m != 0 {

@@ -247,8 +247,7 @@ type Func struct {
 	Results  *Type // function results
 	Params   *Type // function params
 
-	Nname *Node
-	pkg   *Pkg
+	pkg *Pkg
 
 	// Argwid is the total width of the function receiver, params, and results.
 	// It gets calculated via a temporary TFUNCARGS type.
@@ -805,26 +804,6 @@ func (t *Type) ChanArgs() *Type {
 func (t *Type) FuncArgs() *Type {
 	t.wantEtype(TFUNCARGS)
 	return t.Extra.(FuncArgs).T
-}
-
-// Nname returns the associated function's nname.
-func (t *Type) Nname() *Node {
-	switch t.Etype {
-	case TFUNC:
-		return t.Extra.(*Func).Nname
-	}
-	Fatalf("Type.Nname %v %v", t.Etype, t)
-	return nil
-}
-
-// Nname sets the associated function's nname.
-func (t *Type) SetNname(n *Node) {
-	switch t.Etype {
-	case TFUNC:
-		t.Extra.(*Func).Nname = n
-	default:
-		Fatalf("Type.SetNname %v %v", t.Etype, t)
-	}
 }
 
 // IsFuncArgStruct reports whether t is a struct representing function parameters.

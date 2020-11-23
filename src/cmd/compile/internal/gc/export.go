@@ -164,7 +164,6 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 	}
 
 	n.Func = new(Func)
-	t.SetNname(asTypesNode(n))
 
 	if Debug.E != 0 {
 		fmt.Printf("import func %v%S\n", s, t)
