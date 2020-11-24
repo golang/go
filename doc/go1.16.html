@@ -33,7 +33,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="darwin">Darwin</h3>
 
-<p><!-- golang.org/issue/38485, golang.org/issue/41385, many CLs -->
+<p><!-- golang.org/issue/38485, golang.org/issue/41385, CL 266373, more CLs -->
   Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
   Apple Silicon) with <code>GOOS=darwin</code>, <code>GOARCH=arm64</code>.
   Like the <code>darwin/amd64</code> port, the <code>darwin/arm64</code>
@@ -42,7 +42,7 @@ Do not send CLs removing the interior tags from such phrases.
   detector.
 </p>
 
-<p>
+<p><!-- CL 254740 -->
   The iOS port, which was previously <code>darwin/arm64</code>, is now
   moved to <code>ios/arm64</code>. <code>GOOS=ios</code> implies the
   <code>darwin</code> build tag, just as <code>GOOS=android</code>
@@ -79,6 +79,15 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h3 id="go-command">Go command</h3>
+
+<p>
+  TODO
+
+  <!-- CL 237697: https://golang.org/cl/237697: cmd/go: error when -c or -i are used with unknown flags -->
+  <!-- CL 255052: https://golang.org/cl/255052: cmd/go: default to GO111MODULE=on -->
+  <!-- CL 266420: https://golang.org/cl/266420: yes (mention go help vcs): cmd/go: add GOVCS setting to control version control usage -->
+  <!-- CL 244773: https://golang.org/cl/244773: cmd/go/internal/modload: drop requirements on excluded versions -->
+</p>
 
 <h4 id="modules">Modules</h4>
 
@@ -215,8 +224,12 @@ Do not send CLs removing the interior tags from such phrases.
   results that were silently incorrect.
 </p>
 
+<h3 id="vet">Vet</h3>
+
 <p>
   TODO
+
+  <!-- CL 235677: https://golang.org/cl/235677: cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines -->
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -245,7 +258,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
-<p>
+<p><!-- CL 248197 -->
   This release includes additional improvements to the Go linker,
   reducing linker resource usage (both time and memory) and improving
   code robustness/maintainability. These changes form the second half
@@ -428,6 +441,14 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/dsa -->
 
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 246637 -->
+      TODO: <a href="https://golang.org/cl/246637">https://golang.org/cl/246637</a>: make config.Clone return nil if the source is nil
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- CL 257939 -->
@@ -435,8 +456,24 @@ Do not send CLs removing the interior tags from such phrases.
       generation was never supported.
       See <a href="https://golang.org/issue/40337">issue #40337</a>.
     </p>
+
+    <p><!-- CL 257257 -->
+      TODO: <a href="https://golang.org/cl/257257">https://golang.org/cl/257257</a>: return additional chains from Verify on Windows
+    </p>
+
+    <p><!-- CL 262343 -->
+      TODO: <a href="https://golang.org/cl/262343">https://golang.org/cl/262343</a>: add Unwrap to SystemRootsError
+    </p>
   </dd>
 </dl><!-- crypto/x509 -->
+
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 234818 -->
+      TODO: <a href="https://golang.org/cl/234818">https://golang.org/cl/234818</a>: allow semicolon in field key / struct tag
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
 
 <dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
   <dd>
@@ -451,6 +488,54 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- encoding/xml -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 240014 -->
+      TODO: <a href="https://golang.org/cl/240014">https://golang.org/cl/240014</a>: add Func
+    </p>
+  </dd>
+</dl><!-- flag -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- CL 261577 -->
+      TODO: <a href="https://golang.org/cl/261577">https://golang.org/cl/261577</a>: add a new ReadSeekCloser interface
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+  <dd>
+    <p><!-- CL 264460 -->
+      TODO: <a href="https://golang.org/cl/264460">https://golang.org/cl/264460</a>: expose std via new Default function
+    </p>
+  </dd>
+</dl><!-- log -->
+
+<dl id="log/syslog"><dt><a href="/pkg/log/syslog/">log/syslog</a></dt>
+  <dd>
+    <p><!-- CL 264297 -->
+      TODO: <a href="https://golang.org/cl/264297">https://golang.org/cl/264297</a>: set local to true if network is any of &#34;unix&#34;, or &#34;unixgram&#34;
+    </p>
+  </dd>
+</dl><!-- log/syslog -->
+
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 247477 -->
+      TODO: <a href="https://golang.org/cl/247477">https://golang.org/cl/247477</a>: return overflow errors in Reader.ReadForm
+    </p>
+  </dd>
+</dl><!-- mime/multipart -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 238629 -->
+      TODO: <a href="https://golang.org/cl/238629">https://golang.org/cl/238629</a>: prefer /etc/hosts over DNS when no /etc/nsswitch.conf is present
+    </p>
+  </dd>
+</dl><!-- net -->
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
@@ -485,8 +570,88 @@ Do not send CLs removing the interior tags from such phrases.
       with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
       when performing TLS handshakes in the client or server.
     </p>
+
+    <p><!-- CL 250039 -->
+      TODO: <a href="https://golang.org/cl/250039">https://golang.org/cl/250039</a>: set Content-Length:0 for empty PATCH requests as with POST, PATCH
+    </p>
+
+    <p><!-- CL 249440 -->
+      TODO: <a href="https://golang.org/cl/249440">https://golang.org/cl/249440</a>: match http scheme when selecting http_proxy
+    </p>
   </dd>
 </dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 260637 -->
+      TODO: <a href="https://golang.org/cl/260637">https://golang.org/cl/260637</a>: flush ReverseProxy immediately if Content-Length is -1
+    </p>
+  </dd>
+</dl><!-- net/http/httputil -->
+
+<dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
+  <dd>
+    <p><!-- CL 247257 -->
+      TODO: <a href="https://golang.org/cl/247257">https://golang.org/cl/247257</a>: adds support for the SMTPUTF8 extension
+    </p>
+  </dd>
+</dl><!-- net/smtp -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 242998 -->
+      TODO: <a href="https://golang.org/cl/242998">https://golang.org/cl/242998</a>: export errFinished as ErrProcessDone
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 219640 -->
+      TODO: <a href="https://golang.org/cl/219640">https://golang.org/cl/219640</a>: add NotifyContext to cancel context using system signals
+    </p>
+  </dd>
+</dl><!-- os/signal -->
+
+<dl id="path"><dt><a href="/pkg/path/">path</a></dt>
+  <dd>
+    <p><!-- CL 264397 -->
+      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    </p>
+  </dd>
+</dl><!-- path -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 264397 -->
+      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    </p>
+  </dd>
+</dl><!-- path/filepath -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 248341 -->
+      TODO: <a href="https://golang.org/cl/248341">https://golang.org/cl/248341</a>: support multiple keys in struct tags
+    </p>
+  </dd>
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 37222 -->
+      TODO: <a href="https://golang.org/cl/37222">https://golang.org/cl/37222</a>: make stack traces of endless recursion print only top and bottom 50
+    </p>
+
+    <p><!-- CL 242258 -->
+      TODO: <a href="https://golang.org/cl/242258">https://golang.org/cl/242258</a>: add 24 byte allocation size class
+    </p>
+
+    <p><!-- CL 254659 -->
+      TODO: <a href="https://golang.org/cl/254659">https://golang.org/cl/254659</a>: implement GODEBUG=inittrace=1 support
+    </p>
+  </dd>
+</dl><!-- runtime -->
 
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
@@ -505,6 +670,10 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 269761, golang.org/issue/42584 -->
       <a href="/pkg/syscall/#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
     </p>
+
+    <p><!-- CL 210639 -->
+      TODO: <a href="https://golang.org/cl/210639">https://golang.org/cl/210639</a>: support POSIX semantics for Linux syscalls
+    </p>
   </dd>
 </dl><!-- syscall -->
 
@@ -520,3 +689,19 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- strconv -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 254257 -->
+      TODO: <a href="https://golang.org/cl/254257">https://golang.org/cl/254257</a>: allow newlines inside action delimiters
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
+<dl id="time/tzdata"><dt><a href="/pkg/time/tzdata/">time/tzdata</a></dt>
+  <dd>
+    <p><!-- CL 261877 -->
+      TODO: <a href="https://golang.org/cl/261877">https://golang.org/cl/261877</a>: use slim tz data format
+    </p>
+  </dd>
+</dl><!-- time/tzdata -->
