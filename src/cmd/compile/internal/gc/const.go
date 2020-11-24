@@ -604,6 +604,7 @@ func evconst(n *Node) {
 		if len(s) == 1 && Isconst(s[0], constant.String) {
 			n.Op = OLITERAL
 			n.SetVal(s[0].Val())
+			n.List.Set(nil)
 		} else {
 			n.List.Set(s)
 		}
