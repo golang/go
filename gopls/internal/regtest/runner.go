@@ -232,6 +232,10 @@ type TestFunc func(t *testing.T, env *Env)
 func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOption) {
 	t.Helper()
 
+	if os.Getenv("GO_BUILDER_NAME") == "openbsd-amd64-64" && testing.Short() {
+		t.Skip("Skipping openbsd-amd64-64 due to golang.org/issues/42789.")
+	}
+
 	tests := []struct {
 		name      string
 		mode      Mode
