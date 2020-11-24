@@ -36,6 +36,7 @@ var knownFormats = map[string]string{
 	"*math/big.Int %s":                             "",
 	"[]cmd/compile/internal/syntax.token %s":       "",
 	"cmd/compile/internal/arm.shift %d":            "",
+	"cmd/compile/internal/gc.RegIndex %d":          "",
 	"cmd/compile/internal/gc.initKind %d":          "",
 	"cmd/compile/internal/ir.Class %d":             "",
 	"cmd/compile/internal/ir.Node %+v":             "",
