@@ -605,20 +605,22 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 }
 
 func copyWorkspace(dst span.URI, src span.URI) error {
-	srcMod := filepath.Join(src.Filename(), "go.mod")
-	srcf, err := os.Open(srcMod)
-	if err != nil {
-		return errors.Errorf("opening snapshot mod file: %w", err)
-	}
-	defer srcf.Close()
-	dstMod := filepath.Join(dst.Filename(), "go.mod")
-	dstf, err := os.Create(dstMod)
-	if err != nil {
-		return errors.Errorf("truncating view mod file: %w", err)
-	}
-	defer dstf.Close()
-	if _, err := io.Copy(dstf, srcf); err != nil {
-		return errors.Errorf("copying modfiles: %w", err)
+	for _, name := range []string{"go.mod", "go.sum"} {
+		srcname := filepath.Join(src.Filename(), name)
+		srcf, err := os.Open(srcname)
+		if err != nil {
+			return errors.Errorf("opening snapshot %s: %w", name, err)
+		}
+		defer srcf.Close()
+		dstname := filepath.Join(dst.Filename(), name)
+		dstf, err := os.Create(dstname)
+		if err != nil {
+			return errors.Errorf("truncating view %s: %w", name, err)
+		}
+		defer dstf.Close()
+		if _, err := io.Copy(dstf, srcf); err != nil {
+			return errors.Errorf("copying %s: %w", name, err)
+		}
 	}
 	return nil
 }

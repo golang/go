@@ -1723,3 +1723,72 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 	}
 	return file, nil
 }
+
+func buildWorkspaceSumFile(ctx context.Context, modFiles map[span.URI]struct{}, fs source.FileSource) ([]byte, error) {
+	allSums := map[module.Version][]string{}
+	for modURI := range modFiles {
+		// TODO(rfindley): factor out this pattern into a uripath package.
+		sumURI := span.URIFromPath(filepath.Join(filepath.Dir(modURI.Filename()), "go.sum"))
+		fh, err := fs.GetFile(ctx, sumURI)
+		if err != nil {
+			continue
+		}
+		data, err := fh.Read()
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, errors.Errorf("reading go sum: %w", err)
+		}
+		if err := readGoSum(allSums, sumURI.Filename(), data); err != nil {
+			return nil, err
+		}
+	}
+	// This logic to write go.sum is copied (with minor modifications) from
+	// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/modfetch/fetch.go;l=631;drc=762eda346a9f4062feaa8a9fc0d17d72b11586f0
+	var mods []module.Version
+	for m := range allSums {
+		mods = append(mods, m)
+	}
+	module.Sort(mods)
+
+	var buf bytes.Buffer
+	for _, m := range mods {
+		list := allSums[m]
+		sort.Strings(list)
+		// Note (rfindley): here we add all sum lines without verification, because
+		// the assumption is that if they come from a go.sum file, they are
+		// trusted.
+		for _, h := range list {
+			fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// readGoSum is copied (with minor modifications) from
+// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/modfetch/fetch.go;l=398;drc=762eda346a9f4062feaa8a9fc0d17d72b11586f0
+func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
+	lineno := 0
+	for len(data) > 0 {
+		var line []byte
+		lineno++
+		i := bytes.IndexByte(data, '\n')
+		if i < 0 {
+			line, data = data, nil
+		} else {
+			line, data = data[:i], data[i+1:]
+		}
+		f := strings.Fields(string(line))
+		if len(f) == 0 {
+			// blank line; skip it
+			continue
+		}
+		if len(f) != 3 {
+			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
+		}
+		mod := module.Version{Path: f[0], Version: f[1]}
+		dst[mod] = append(dst[mod], f[2])
+	}
+	return nil
+}

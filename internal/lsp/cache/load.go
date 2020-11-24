@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"go/types"
 	"io/ioutil"
@@ -291,22 +292,36 @@ func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
 	if err != nil {
 		return "", err
 	}
-	content, err := file.Format()
+	hash := sha256.New()
+	modContent, err := file.Format()
 	if err != nil {
 		return "", err
 	}
-	key := workspaceDirKey(hashContents(content))
+	sumContent, err := s.workspace.sumFile(ctx, s)
+	if err != nil {
+		return "", err
+	}
+	hash.Write(modContent)
+	hash.Write(sumContent)
+	key := workspaceDirKey(hash.Sum(nil))
 	s.mu.Lock()
 	h = s.generation.Bind(key, func(context.Context, memoize.Arg) interface{} {
 		tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
 		if err != nil {
 			return &workspaceDirData{err: err}
 		}
-		filename := filepath.Join(tmpdir, "go.mod")
-		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
-			os.RemoveAll(tmpdir)
-			return &workspaceDirData{err: err}
+
+		for name, content := range map[string][]byte{
+			"go.mod": modContent,
+			"go.sum": sumContent,
+		} {
+			filename := filepath.Join(tmpdir, name)
+			if err := ioutil.WriteFile(filename, content, 0644); err != nil {
+				os.RemoveAll(tmpdir)
+				return &workspaceDirData{err: err}
+			}
 		}
+
 		return &workspaceDirData{dir: tmpdir}
 	}, func(v interface{}) {
 		d := v.(*workspaceDirData)

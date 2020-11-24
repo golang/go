@@ -40,22 +40,27 @@ func TestWorkspaceModule(t *testing.T) {
 		initialSource  workspaceSource
 		initialModules []string
 		initialDirs    []string
+		initialSum     string
 		updates        map[string]string
 		finalSource    workspaceSource
 		finalModules   []string
 		finalDirs      []string
+		finalSum       string
 	}{
 		{
 			desc: "legacy mode",
 			initial: `
 -- go.mod --
 module mod.com
+-- go.sum --
+golang.org/x/mod v0.3.0 h1:deadbeef
 -- a/go.mod --
 module moda.com`,
 			legacyMode:     true,
 			initialModules: []string{"./go.mod"},
 			initialSource:  legacyWorkspace,
 			initialDirs:    []string{"."},
+			initialSum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
 		},
 		{
 			desc: "nested module",
@@ -73,11 +78,16 @@ module moda.com`,
 			initial: `
 -- a/go.mod --
 module moda.com
+-- a/go.sum --
+golang.org/x/mod v0.3.0 h1:deadbeef
 -- b/go.mod --
-module modb.com`,
+module modb.com
+-- b/go.sum --
+golang.org/x/mod v0.3.0 h1:beefdead`,
 			initialModules: []string{"a/go.mod", "b/go.mod"},
 			initialSource:  fileSystemWorkspace,
 			initialDirs:    []string{".", "a", "b"},
+			initialSum:     "golang.org/x/mod v0.3.0 h1:beefdead\ngolang.org/x/mod v0.3.0 h1:deadbeef\n",
 			updates: map[string]string{
 				"gopls.mod": `module gopls-workspace
 
@@ -87,6 +97,7 @@ replace moda.com => $SANDBOX_WORKDIR/a`,
 			finalModules: []string{"a/go.mod"},
 			finalSource:  goplsModWorkspace,
 			finalDirs:    []string{".", "a"},
+			finalSum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
 		},
 		{
 			desc: "adding module",
@@ -174,14 +185,25 @@ replace gopls.test => ../../gopls.test2`,
 			root := span.URIFromPath(dir)
 
 			fs := osFileSource{}
-			wm, err := newWorkspace(ctx, root, fs, false, !test.legacyMode)
+			w, err := newWorkspace(ctx, root, fs, false, !test.legacyMode)
 			if err != nil {
 				t.Fatal(err)
 			}
 			rel := fake.RelativeTo(dir)
-			checkWorkspaceModule(t, rel, wm, test.initialSource, test.initialModules)
-			gotDirs := wm.dirs(ctx, fs)
+			checkWorkspaceModule(t, rel, w, test.initialSource, test.initialModules)
+			gotDirs := w.dirs(ctx, fs)
 			checkWorkspaceDirs(t, rel, gotDirs, test.initialDirs)
+
+			// Verify the initial sum.
+			gotSumBytes, err := w.sumFile(ctx, fs)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotSum := string(gotSumBytes); gotSum != test.initialSum {
+				t.Errorf("got initial sum %q, want %q", gotSum, test.initialSum)
+			}
+
+			// Apply updates.
 			if test.updates != nil {
 				changes := make(map[span.URI]*fileChange)
 				for k, v := range test.updates {
@@ -206,10 +228,20 @@ replace gopls.test => ../../gopls.test2`,
 						fileHandle: &closedFile{fh},
 					}
 				}
-				wm, _ := wm.invalidate(ctx, changes)
-				checkWorkspaceModule(t, rel, wm, test.finalSource, test.finalModules)
-				gotDirs := wm.dirs(ctx, fs)
+				w, _ := w.invalidate(ctx, changes)
+				checkWorkspaceModule(t, rel, w, test.finalSource, test.finalModules)
+				gotDirs := w.dirs(ctx, fs)
 				checkWorkspaceDirs(t, rel, gotDirs, test.finalDirs)
+
+				// Verify that the final sumfile reflects any changes (for example,
+				// that modules may have gone out of scope).
+				gotSumBytes, err := w.sumFile(ctx, fs)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if gotSum := string(gotSumBytes); gotSum != test.finalSum {
+					t.Errorf("got final sum %q, want %q", gotSum, test.finalSum)
+				}
 			}
 		})
 	}
