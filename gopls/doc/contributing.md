@@ -14,6 +14,25 @@ Before you begin working on an issue, please leave a comment that you are claimi
 Provide information to get contributors up and running here
 --->
 
+## Testing
+
+To run tests for just `gopls/`, run,
+
+```
+cd /path/to/tools/gopls
+go test ./...
+```
+
+But, much of the gopls work involves `internal/lsp` too, so you might want to
+run both:
+
+```
+cd /path/to/tools
+cd gopls && go test ./...
+cd ..
+go test ./internal/lsp/...
+```
+
 ## Debugging
 
 <!--- TODO: debugging
