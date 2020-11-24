@@ -246,7 +246,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 				}
 				for id, diags := range gcReports {
 					fh := snapshot.FindFile(id.URI)
-					if fh == nil {
+					// Don't publish gc details for unsaved buffers, since the underlying
+					// logic operates on the file on disk.
+					if fh == nil || !fh.Saved() {
 						continue
 					}
 					s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)

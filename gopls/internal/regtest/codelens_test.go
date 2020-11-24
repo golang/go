@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -264,6 +265,17 @@ func main() {
 		if !found {
 			t.Fatalf(`expected to find diagnostic with message "escape(x escapes to heap)", found none`)
 		}
+
+		// Editing a buffer should cause gc_details diagnostics to disappear, since
+		// they only apply to saved buffers.
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, "\n\n"))
+		env.Await(EmptyDiagnostics("main.go"))
+
+		// Saving a buffer should re-format back to the original state, and
+		// re-enable the gc_details diagnostics.
+		env.SaveBuffer("main.go")
+		env.Await(DiagnosticAt("main.go", 6, 12))
+
 		// Toggle the GC details code lens again so now it should be off.
 		env.ExecuteCodeLensCommand("main.go", source.CommandToggleDetails)
 		env.Await(
