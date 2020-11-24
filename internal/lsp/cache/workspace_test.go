@@ -221,7 +221,7 @@ func checkWorkspaceModule(t *testing.T, rel fake.RelativeTo, got *workspace, wan
 		t.Errorf("module source = %v, want %v", got.moduleSource, wantSource)
 	}
 	modules := make(map[span.URI]struct{})
-	for k := range got.activeModFiles() {
+	for k := range got.getActiveModFiles() {
 		modules[k] = struct{}{}
 	}
 	for _, modPath := range want {

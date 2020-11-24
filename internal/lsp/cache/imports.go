@@ -36,7 +36,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	// the mod file shouldn't be changing while people are autocompleting.
 	var modFileHash string
 	if snapshot.workspaceMode()&usesWorkspaceModule == 0 {
-		for m := range snapshot.workspace.activeModFiles() { // range to access the only element
+		for m := range snapshot.workspace.getActiveModFiles() { // range to access the only element
 			modFH, err := snapshot.GetFile(ctx, m)
 			if err != nil {
 				return err

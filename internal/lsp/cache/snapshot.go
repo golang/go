@@ -131,14 +131,14 @@ func (s *snapshot) FileSet() *token.FileSet {
 
 func (s *snapshot) ModFiles() []span.URI {
 	var uris []span.URI
-	for modURI := range s.workspace.activeModFiles() {
+	for modURI := range s.workspace.getActiveModFiles() {
 		uris = append(uris, modURI)
 	}
 	return uris
 }
 
 func (s *snapshot) ValidBuildConfiguration() bool {
-	return validBuildConfiguration(s.view.rootURI, &s.view.workspaceInformation, s.workspace.activeModFiles())
+	return validBuildConfiguration(s.view.rootURI, &s.view.workspaceInformation, s.workspace.getActiveModFiles())
 }
 
 // workspaceMode describes the way in which the snapshot's workspace should
@@ -155,7 +155,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 	// If the view is not in a module and contains no modules, but still has a
 	// valid workspace configuration, do not create the workspace module.
 	// It could be using GOPATH or a different build system entirely.
-	if len(s.workspace.activeModFiles()) == 0 && validBuildConfiguration {
+	if len(s.workspace.getActiveModFiles()) == 0 && validBuildConfiguration {
 		return mode
 	}
 	mode |= moduleMode
@@ -262,7 +262,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, mode source.Invocati
 		// the passed-in working dir.
 		if mode == source.LoadWorkspace {
 			if s.workspaceMode()&usesWorkspaceModule == 0 {
-				for m := range s.workspace.activeModFiles() { // range to access the only element
+				for m := range s.workspace.getActiveModFiles() { // range to access the only element
 					modURI = m
 				}
 			} else {
@@ -762,7 +762,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 
 func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) span.URI {
 	var match span.URI
-	for modURI := range s.workspace.activeModFiles() {
+	for modURI := range s.workspace.getActiveModFiles() {
 		if !source.InDir(dirURI(modURI).Filename(), uri.Filename()) {
 			continue
 		}
@@ -1234,7 +1234,7 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 			// If the view's go.mod file's contents have changed, invalidate
 			// the metadata for every known package in the snapshot.
 			delete(result.parseModHandles, uri)
-			if _, ok := result.workspace.activeModFiles()[uri]; ok {
+			if _, ok := result.workspace.getActiveModFiles()[uri]; ok {
 				modulesChanged = true
 			}
 		}

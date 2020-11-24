@@ -448,13 +448,13 @@ func (v *View) BackgroundContext() context.Context {
 func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
-	if len(s.workspace.activeModFiles()) == 0 {
+	if len(s.workspace.getActiveModFiles()) == 0 {
 		for _, entry := range filepath.SplitList(s.view.gopath) {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
 		prefixes = append(prefixes, s.view.gomodcache)
-		for m := range s.workspace.activeModFiles() {
+		for m := range s.workspace.getActiveModFiles() {
 			prefixes = append(prefixes, dirURI(m).Filename())
 		}
 	}
@@ -524,7 +524,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 				Message:  err.Error(),
 			})
 		}
-		for modURI := range s.workspace.activeModFiles() {
+		for modURI := range s.workspace.getActiveModFiles() {
 			fh, err := s.GetFile(ctx, modURI)
 			if err != nil {
 				addError(modURI, err)
