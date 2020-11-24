@@ -386,14 +386,13 @@ func (s *exprSwitch) flush() {
 		runs = append(runs, cc[start:])
 
 		// Perform two-level binary search.
-		nlen := nod(OLEN, s.exprname, nil)
 		binarySearch(len(runs), &s.done,
 			func(i int) *Node {
-				return nod(OLE, nlen, nodintconst(runLen(runs[i-1])))
+				return nod(OLE, nod(OLEN, s.exprname, nil), nodintconst(runLen(runs[i-1])))
 			},
 			func(i int, nif *Node) {
 				run := runs[i]
-				nif.Left = nod(OEQ, nlen, nodintconst(runLen(run)))
+				nif.Left = nod(OEQ, nod(OLEN, s.exprname, nil), nodintconst(runLen(run)))
 				s.search(run, &nif.Nbody)
 			},
 		)

@@ -776,7 +776,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if iscmp[n.Op] {
-			evconst(n)
+			n = evalConst(n)
 			t = types.UntypedBool
 			if n.Op != OLITERAL {
 				l, r = defaultlit2(l, r, true)
@@ -786,12 +786,13 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		if et == TSTRING && n.Op == OADD {
-			// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
-			n.Op = OADDSTR
-
+			// create or update OADDSTR node with list of strings in x + y + z + (w + v) + ...
 			if l.Op == OADDSTR {
-				n.List.Set(l.List.Slice())
+				orig := n
+				n = l
+				n.Pos = orig.Pos
 			} else {
+				n = nodl(n.Pos, OADDSTR, nil, nil)
 				n.List.Set1(l)
 			}
 			if r.Op == OADDSTR {
@@ -799,8 +800,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 			} else {
 				n.List.Append(r)
 			}
-			n.Left = nil
-			n.Right = nil
 		}
 
 		if (op == ODIV || op == OMOD) && Isconst(r, constant.Int) {
@@ -2091,7 +2090,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 	}
 
-	evconst(n)
+	n = evalConst(n)
 	if n.Op == OTYPE && top&ctxType == 0 {
 		if !n.Type.Broke() {
 			yyerror("type %v is not an expression", n.Type)
