@@ -18,7 +18,7 @@ func TestDeps(t *testing.T) {
 	}
 	for _, dep := range strings.Fields(strings.Trim(string(out), "[]")) {
 		switch dep {
-		case "go/build", "go/token":
+		case "go/build", "go/scanner":
 			t.Errorf("undesired dependency on %q", dep)
 		}
 	}

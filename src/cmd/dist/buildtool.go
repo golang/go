@@ -96,6 +96,7 @@ var bootstrapDirs = []string{
 	"debug/elf",
 	"debug/macho",
 	"debug/pe",
+	"go/constant",
 	"internal/goversion",
 	"internal/race",
 	"internal/unsafeheader",
@@ -103,6 +104,7 @@ var bootstrapDirs = []string{
 	"math/big",
 	"math/bits",
 	"sort",
+	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
