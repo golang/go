@@ -891,6 +891,7 @@ const (
 	OALIGNOF     // unsafe.Alignof(Left)
 	OOFFSETOF    // unsafe.Offsetof(Left)
 	OSIZEOF      // unsafe.Sizeof(Left)
+	OMETHEXPR    // method expression
 
 	// statements
 	OBLOCK // { List } (block of code)
