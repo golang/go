@@ -123,7 +123,7 @@ func DefaultOptions() *Options {
 				ImportShortcut:              Both,
 				Matcher:                     Fuzzy,
 				SymbolMatcher:               SymbolFuzzy,
-				SymbolStyle:                 PackageQualifiedSymbols,
+				SymbolStyle:                 DynamicSymbols,
 				ExperimentalPackageCacheKey: true,
 			},
 			InternalOptions: InternalOptions{
@@ -611,7 +611,6 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 // enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
 	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
-	o.SymbolStyle = DynamicSymbols
 }
 
 func (o *Options) enableAllExperimentMaps() {

@@ -214,7 +214,7 @@ just "Foo.Field".
 
 
 
-Default: `"Package"`.
+Default: `"Dynamic"`.
 ### **linksInHover** *bool*
 linksInHover toggles the presence of links to documentation in hover.
 
