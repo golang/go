@@ -271,8 +271,7 @@ func (c comboMatcher) match(s string) float64 {
 
 // walk walks views, gathers symbols, and returns the results.
 func (sc *symbolCollector) walk(ctx context.Context, views []View) (_ []protocol.SymbolInformation, err error) {
-	toWalk, release, err := sc.collectPackages(ctx, views)
-	defer release()
+	toWalk, err := sc.collectPackages(ctx, views)
 	if err != nil {
 		return nil, err
 	}
@@ -304,79 +303,29 @@ func (sc *symbolCollector) results() []protocol.SymbolInformation {
 	return res
 }
 
-// collectPackages gathers the packages we are going to inspect for symbols.
-// This pre-step is required in order to filter out any "duplicate"
-// *types.Package. The duplicates arise for packages that have test variants.
-// For example, if package mod.com/p has test files, then we will visit two
-// packages that have the PkgPath() mod.com/p: the first is the actual package
-// mod.com/p, the second is a special version that includes the non-XTest
-// _test.go files. If we were to walk both of of these packages, then we would
-// get duplicate matching symbols and we would waste effort. Therefore where
-// test variants exist we walk those (because they include any symbols defined
-// in non-XTest _test.go files).
-//
-// One further complication is that even after this filtering, packages between
-// views might not be "identical" because they can be built using different
-// build constraints (via the "env" config option).
-//
-// Therefore on a per view basis we first build up a map of package path ->
-// *types.Package preferring the test variants if they exist. Then we merge the
-// results between views, de-duping by *types.Package.
-func (sc *symbolCollector) collectPackages(ctx context.Context, views []View) ([]*pkgView, func(), error) {
-	gathered := make(map[string]map[*types.Package]*pkgView)
-	var releaseFuncs []func()
-	release := func() {
-		for _, releaseFunc := range releaseFuncs {
-			releaseFunc()
-		}
-	}
+// collectPackages gathers all known packages and sorts for stability.
+func (sc *symbolCollector) collectPackages(ctx context.Context, views []View) ([]*pkgView, error) {
 	var toWalk []*pkgView
 	for _, v := range views {
-		seen := make(map[string]*pkgView)
 		snapshot, release := v.Snapshot(ctx)
-		releaseFuncs = append(releaseFuncs, release)
+		defer release()
 		knownPkgs, err := snapshot.KnownPackages(ctx)
 		if err != nil {
-			return nil, release, err
+			return nil, err
 		}
 		workspacePackages, err := snapshot.WorkspacePackages(ctx)
 		if err != nil {
-			return nil, release, err
+			return nil, err
 		}
 		isWorkspacePkg := make(map[Package]bool)
 		for _, wp := range workspacePackages {
 			isWorkspacePkg[wp] = true
 		}
-		var forTests []*pkgView
 		for _, pkg := range knownPkgs {
-			toAdd := &pkgView{
+			toWalk = append(toWalk, &pkgView{
 				pkg:         pkg,
-				snapshot:    snapshot,
 				isWorkspace: isWorkspacePkg[pkg],
-			}
-			// Defer test packages, so that they overwrite seen for this package
-			// path.
-			if pkg.ForTest() != "" {
-				forTests = append(forTests, toAdd)
-			} else {
-				seen[pkg.PkgPath()] = toAdd
-			}
-		}
-		for _, pkg := range forTests {
-			seen[pkg.pkg.PkgPath()] = pkg
-		}
-		for _, pkg := range seen {
-			pm, ok := gathered[pkg.pkg.PkgPath()]
-			if !ok {
-				pm = make(map[*types.Package]*pkgView)
-				gathered[pkg.pkg.PkgPath()] = pm
-			}
-			pm[pkg.pkg.GetTypes()] = pkg
-		}
-	}
-	for _, pm := range gathered {
-		for _, pkg := range pm {
-			toWalk = append(toWalk, pkg)
+			})
 		}
 	}
 	// Now sort for stability of results. We order by
@@ -393,7 +342,7 @@ func (sc *symbolCollector) collectPackages(ctx context.Context, views []View) ([
 			return false
 		}
 	})
-	return toWalk, release, nil
+	return toWalk, nil
 }
 
 func (sc *symbolCollector) walkFilesDecls(decls []ast.Decl) {
@@ -559,8 +508,7 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		return
 	}
 
-	mrng := NewMappedRange(sc.current.snapshot.FileSet(), sc.curFile.Mapper, node.Pos(), node.End())
-	rng, err := mrng.Range()
+	rng, err := fileRange(sc.curFile, node.Pos(), node.End())
 	if err != nil {
 		return
 	}
@@ -571,7 +519,7 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		container: sc.current.pkg.PkgPath(),
 		kind:      kind,
 		location: protocol.Location{
-			URI:   protocol.URIFromSpanURI(mrng.URI()),
+			URI:   protocol.URIFromSpanURI(sc.curFile.URI),
 			Range: rng,
 		},
 	}
@@ -582,6 +530,14 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		copy(sc.res[insertAt+1:], sc.res[insertAt:len(sc.res)-1])
 	}
 	sc.res[insertAt] = si
+}
+
+func fileRange(pgf *ParsedGoFile, start, end token.Pos) (protocol.Range, error) {
+	s, err := span.FileSpan(pgf.Tok, pgf.Mapper.Converter, start, end)
+	if err != nil {
+		return protocol.Range{}, nil
+	}
+	return pgf.Mapper.Range(s)
 }
 
 // isExported reports if a token is exported. Copied from
@@ -597,7 +553,6 @@ func isExported(name string) bool {
 // pkgView holds information related to a package that we are going to walk.
 type pkgView struct {
 	pkg         Package
-	snapshot    Snapshot
 	isWorkspace bool
 }
 
