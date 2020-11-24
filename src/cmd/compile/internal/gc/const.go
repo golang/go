@@ -542,87 +542,105 @@ func Isconst(n *Node, ct constant.Kind) bool {
 	return consttype(n) == ct
 }
 
-// evconst rewrites constant expressions into OLITERAL nodes.
-func evconst(n *Node) {
+// evalConst returns a constant-evaluated expression equivalent to n.
+// If n is not a constant, evalConst returns n.
+// Otherwise, evalConst returns a new OLITERAL with the same value as n,
+// and with .Orig pointing back to n.
+func evalConst(n *Node) *Node {
 	nl, nr := n.Left, n.Right
 
 	// Pick off just the opcodes that can be constant evaluated.
 	switch op := n.Op; op {
 	case OPLUS, ONEG, OBITNOT, ONOT:
 		if nl.Op == OLITERAL {
-			setconst(n, unaryOp(op, nl.Val(), n.Type))
+			return origConst(n, unaryOp(op, nl.Val(), n.Type))
 		}
 
 	case OADD, OSUB, OMUL, ODIV, OMOD, OOR, OXOR, OAND, OANDNOT, OOROR, OANDAND:
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
-			setconst(n, binaryOp(nl.Val(), op, nr.Val()))
+			return origConst(n, binaryOp(nl.Val(), op, nr.Val()))
 		}
 
 	case OEQ, ONE, OLT, OLE, OGT, OGE:
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
-			setboolconst(n, compareOp(nl.Val(), op, nr.Val()))
+			return origBoolConst(n, compareOp(nl.Val(), op, nr.Val()))
 		}
 
 	case OLSH, ORSH:
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
-			setconst(n, shiftOp(nl.Val(), op, nr.Val()))
+			return origConst(n, shiftOp(nl.Val(), op, nr.Val()))
 		}
 
 	case OCONV, ORUNESTR:
 		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
-			setconst(n, convertVal(nl.Val(), n.Type, true))
+			return origConst(n, convertVal(nl.Val(), n.Type, true))
 		}
 
 	case OCONVNOP:
 		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
 			// set so n.Orig gets OCONV instead of OCONVNOP
 			n.Op = OCONV
-			setconst(n, nl.Val())
+			return origConst(n, nl.Val())
 		}
 
 	case OADDSTR:
 		// Merge adjacent constants in the argument list.
 		s := n.List.Slice()
-		for i1 := 0; i1 < len(s); i1++ {
-			if Isconst(s[i1], constant.String) && i1+1 < len(s) && Isconst(s[i1+1], constant.String) {
-				// merge from i1 up to but not including i2
+		need := 0
+		for i := 0; i < len(s); i++ {
+			if i == 0 || !Isconst(s[i-1], constant.String) || !Isconst(s[i], constant.String) {
+				// Can't merge s[i] into s[i-1]; need a slot in the list.
+				need++
+			}
+		}
+		if need == len(s) {
+			return n
+		}
+		if need == 1 {
+			var strs []string
+			for _, c := range s {
+				strs = append(strs, c.StringVal())
+			}
+			return origConst(n, Val{U: strings.Join(strs, "")})
+		}
+		newList := make([]*Node, 0, need)
+		for i := 0; i < len(s); i++ {
+			if Isconst(s[i], constant.String) && i+1 < len(s) && Isconst(s[i+1], constant.String) {
+				// merge from i up to but not including i2
 				var strs []string
-				i2 := i1
+				i2 := i
 				for i2 < len(s) && Isconst(s[i2], constant.String) {
 					strs = append(strs, s[i2].StringVal())
 					i2++
 				}
 
-				nl := *s[i1]
-				nl.Orig = &nl
-				nl.SetVal(Val{strings.Join(strs, "")})
-				s[i1] = &nl
-				s = append(s[:i1+1], s[i2:]...)
+				nl := origConst(s[i], Val{U: strings.Join(strs, "")})
+				nl.Orig = nl // it's bigger than just s[i]
+				newList = append(newList, nl)
+				i = i2 - 1
+			} else {
+				newList = append(newList, s[i])
 			}
 		}
 
-		if len(s) == 1 && Isconst(s[0], constant.String) {
-			n.Op = OLITERAL
-			n.SetVal(s[0].Val())
-			n.List.Set(nil)
-		} else {
-			n.List.Set(s)
-		}
+		n = n.copy()
+		n.List.Set(newList)
+		return n
 
 	case OCAP, OLEN:
 		switch nl.Type.Etype {
 		case TSTRING:
 			if Isconst(nl, constant.String) {
-				setintconst(n, int64(len(nl.StringVal())))
+				return origIntConst(n, int64(len(nl.StringVal())))
 			}
 		case TARRAY:
 			if !hascallchan(nl) {
-				setintconst(n, nl.Type.NumElem())
+				return origIntConst(n, nl.Type.NumElem())
 			}
 		}
 
 	case OALIGNOF, OOFFSETOF, OSIZEOF:
-		setintconst(n, evalunsafe(n))
+		return origIntConst(n, evalunsafe(n))
 
 	case OREAL, OIMAG:
 		if nl.Op == OLITERAL {
@@ -647,7 +665,7 @@ func evconst(n *Node) {
 				}
 				re = im
 			}
-			setconst(n, Val{re})
+			return origConst(n, Val{re})
 		}
 
 	case OCOMPLEX:
@@ -656,9 +674,11 @@ func evconst(n *Node) {
 			c := newMpcmplx()
 			c.Real.Set(toflt(nl.Val()).U.(*Mpflt))
 			c.Imag.Set(toflt(nr.Val()).U.(*Mpflt))
-			setconst(n, Val{c})
+			return origConst(n, Val{c})
 		}
 	}
+
+	return n
 }
 
 func match(x, y Val) (Val, Val) {
@@ -927,27 +947,21 @@ func shiftOp(x Val, op Op, y Val) Val {
 	return Val{U: u}
 }
 
-// setconst rewrites n as an OLITERAL with value v.
-func setconst(n *Node, v Val) {
-	// If constant folding failed, mark n as broken and give up.
+// origConst returns an OLITERAL with orig n and value v.
+func origConst(n *Node, v Val) *Node {
+	// If constant folding was attempted (we were called)
+	// but it produced an invalid constant value,
+	// mark n as broken and give up.
 	if v.U == nil {
 		n.Type = nil
-		return
+		return n
 	}
 
-	// Ensure n.Orig still points to a semantically-equivalent
-	// expression after we rewrite n into a constant.
-	if n.Orig == n {
-		n.Orig = n.sepcopy()
-	}
-
-	*n = Node{
-		Op:      OLITERAL,
-		Pos:     n.Pos,
-		Orig:    n.Orig,
-		Type:    n.Type,
-		Xoffset: BADWIDTH,
-	}
+	orig := n
+	n = nod(OLITERAL, nil, nil)
+	n.Orig = orig
+	n.Pos = orig.Pos
+	n.Type = orig.Type
 	n.SetVal(v)
 
 	// Check range.
@@ -965,6 +979,7 @@ func setconst(n *Node, v Val) {
 			n.SetVal(Val{trunccmplxlit(v.U.(*Mpcplx), n.Type)})
 		}
 	}
+	return n
 }
 
 func assertRepresents(t *types.Type, v Val) {
@@ -983,14 +998,14 @@ func represents(t *types.Type, v Val) bool {
 	return t == vt || (t == types.UntypedRune && vt == types.UntypedInt)
 }
 
-func setboolconst(n *Node, v bool) {
-	setconst(n, Val{U: v})
+func origBoolConst(n *Node, v bool) *Node {
+	return origConst(n, Val{U: v})
 }
 
-func setintconst(n *Node, v int64) {
+func origIntConst(n *Node, v int64) *Node {
 	u := new(Mpint)
 	u.SetInt64(v)
-	setconst(n, Val{u})
+	return origConst(n, Val{u})
 }
 
 // nodlit returns a new untyped constant with value v.
