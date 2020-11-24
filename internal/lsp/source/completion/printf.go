@@ -71,7 +71,7 @@ func formatOperandKind(format string, operandIdx int) objKind {
 				if kind == kindAny {
 					kind = v.kind
 				} else if v.kind != kindAny {
-					// If mulitple verbs refer to the same operand, take the
+					// If multiple verbs refer to the same operand, take the
 					// intersection of their kinds.
 					kind &= v.kind
 				}

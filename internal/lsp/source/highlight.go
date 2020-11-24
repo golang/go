@@ -333,13 +333,13 @@ Outer:
 		return
 	}
 
-	// Find labeled branch statements in any loop
+	// Find labeled branch statements in any loop.
 	ast.Inspect(loop, func(n ast.Node) bool {
 		b, ok := n.(*ast.BranchStmt)
 		if !ok {
 			return true
 		}
-		// Statment with labels that matches the loop.
+		// statement with labels that matches the loop
 		if b.Label != nil && labelDecl(b.Label) == loopLabel {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}

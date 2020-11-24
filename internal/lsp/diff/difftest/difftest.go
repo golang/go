@@ -178,7 +178,7 @@ var TestCases = []struct {
 		LineEdits: []diff.TextEdit{{Span: newSpan(2, 4), NewText: "C\n\n"}},
 	},
 	{
-		Name: "mulitple_replace",
+		Name: "multiple_replace",
 		In:   "A\nB\nC\nD\nE\nF\nG\n",
 		Out:  "A\nH\nI\nJ\nE\nF\nK\n",
 		Unified: UnifiedPrefix + `

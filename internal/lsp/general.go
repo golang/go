@@ -141,7 +141,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.stateMu.Lock()
 	if s.state >= serverInitialized {
 		defer s.stateMu.Unlock()
-		return errors.Errorf("%w: initalized called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
+		return errors.Errorf("%w: initialized called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
 	}
 	s.state = serverInitialized
 	s.stateMu.Unlock()

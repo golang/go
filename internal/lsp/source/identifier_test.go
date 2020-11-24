@@ -16,7 +16,7 @@ import (
 func TestSearchForEnclosing(t *testing.T) {
 	tests := []struct {
 		desc string
-		// For convenience, consider the first occurence of the identifier "X" in
+		// For convenience, consider the first occurrence of the identifier "X" in
 		// src.
 		src string
 		// By convention, "" means no type found.

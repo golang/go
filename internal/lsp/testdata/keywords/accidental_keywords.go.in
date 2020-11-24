@@ -4,7 +4,7 @@ package keywords
 var apple = "apple"
 
 func _() {
-	foo.bar() // insert some extra statements to excercise our AST surgery
+	foo.bar() // insert some extra statements to exercise our AST surgery
 	variance := 123 //@item(kwVariance, "variance", "int", "var")
 	foo.bar()
 	println(var) //@complete(")", kwVariance)

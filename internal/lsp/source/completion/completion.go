@@ -699,7 +699,7 @@ func (c *completer) sortItems() {
 		}
 
 		// Then sort by label so order stays consistent. This also has the
-		// effect of prefering shorter candidates.
+		// effect of preferring shorter candidates.
 		return c.items[i].Label < c.items[j].Label
 	})
 }
@@ -1003,8 +1003,8 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
 }
 
-// isValidIdentifierChar returns true if a byte is a valid go identifier character
-// i.e unicode letter or digit or undescore
+// isValidIdentifierChar returns true if a byte is a valid go identifier
+// character, i.e. unicode letter or digit or underscore.
 func isValidIdentifierChar(char byte) bool {
 	charRune := rune(char)
 	return unicode.In(charRune, unicode.Letter, unicode.Digit) || char == '_'

@@ -302,7 +302,7 @@ func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, r
 		// the user.
 		event.Error(ctx, "unable to check daemon socket owner, failing open", err)
 	} else if !ok {
-		// We succesfully checked that the socket is not owned by us, we fail
+		// We successfully checked that the socket is not owned by us, we fail
 		// closed.
 		return nil, fmt.Errorf("socket %q is owned by a different user", address)
 	}

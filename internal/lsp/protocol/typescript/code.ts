@@ -769,7 +769,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
 // some of the intersection types A&B are ok as struct{A;B;} and some
 // could be expanded, and ClientCapabilites has to be expanded,
 // at least for workspace. It's possible to check algorithmically,
-// but much simpler just to check explicity.
+// but much simpler just to check explicitly.
 function goIntersectionType(n: ts.IntersectionTypeNode, nm: string): string {
   if (nm == 'ClientCapabilities') return expandIntersection(n);
   if (nm == 'ServerCapabilities') return expandIntersection(n);

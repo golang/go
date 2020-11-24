@@ -175,7 +175,7 @@ type returnVariable struct {
 // It also replaces the selected block of code with a call to the extracted
 // function. First, we manually adjust the selection range. We remove trailing
 // and leading whitespace characters to ensure the range is precisely bounded
-// by AST nodes. Next, we determine the variables that will be the paramters
+// by AST nodes. Next, we determine the variables that will be the parameters
 // and return values of the extracted function. Lastly, we construct the call
 // of the function and insert this call as well as the extracted function into
 // their proper locations.
@@ -197,7 +197,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 
 	// TODO: Support non-nested return statements.
 	// A return statement is non-nested if its parent node is equal to the parent node
-	// of the first node in the selection. These cases must be handled seperately because
+	// of the first node in the selection. These cases must be handled separately because
 	// non-nested return statements are guaranteed to execute. Our control flow does not
 	// properly consider these situations yet.
 	var retStmts []*ast.ReturnStmt
@@ -248,7 +248,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	// Some variables on the left-hand side of our assignment statement may be free. If our
 	// selection begins in the same scope in which the free variable is defined, we can
 	// redefine it in our assignment statement. See the following example, where 'b' and
-	// 'err' (both free variables) can be redefined in the second funcCall() while maintaing
+	// 'err' (both free variables) can be redefined in the second funcCall() while maintaining
 	// correctness.
 	//
 	//
@@ -404,7 +404,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 			pkg, extractedBlock); err != nil {
 			return nil, err
 		}
-		// Collect the additional return values and types needed to accomodate return
+		// Collect the additional return values and types needed to accommodate return
 		// statements in the selection. Update the type signature of the extracted
 		// function and construct the if statement that will be inserted in the enclosing
 		// function.
@@ -854,8 +854,8 @@ func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 	}, true, nil
 }
 
-// objUsed checks if the object is used within the range. It returns the first occurence of
-// the object in the range, if it exists.
+// objUsed checks if the object is used within the range. It returns the first
+// occurrence of the object in the range, if it exists.
 func objUsed(info *types.Info, rng span.Range, obj types.Object) (bool, *ast.Ident) {
 	var firstUse *ast.Ident
 	for id, objUse := range info.Uses {
