@@ -177,23 +177,39 @@ func Warnl(pos src.XPos, format string, args ...interface{}) {
 	}
 }
 
-// Fatal reports a fatal error - an internal problem - at the current line and exits.
-// If other errors have already been printed, then Fatal just quietly exits.
+// Fatalf reports a fatal error - an internal problem - at the current line and exits.
+// If other errors have already been printed, then Fatalf just quietly exits.
 // (The internal problem may have been caused by incomplete information
 // after the already-reported errors, so best to let users fix those and
 // try again without being bothered about a spurious internal error.)
 //
 // But if no errors have been printed, or if -d panic has been specified,
-// Fatal prints the error as an "internal compiler error". In a released build,
+// Fatalf prints the error as an "internal compiler error". In a released build,
 // it prints an error asking to file a bug report. In development builds, it
 // prints a stack trace.
 //
-// If -h has been specified, Fatal panics to force the usual runtime info dump.
+// If -h has been specified, Fatalf panics to force the usual runtime info dump.
 func Fatalf(format string, args ...interface{}) {
+	FatalfAt(lineno, format, args...)
+}
+
+// FatalfAt reports a fatal error - an internal problem - at pos and exits.
+// If other errors have already been printed, then FatalfAt just quietly exits.
+// (The internal problem may have been caused by incomplete information
+// after the already-reported errors, so best to let users fix those and
+// try again without being bothered about a spurious internal error.)
+//
+// But if no errors have been printed, or if -d panic has been specified,
+// FatalfAt prints the error as an "internal compiler error". In a released build,
+// it prints an error asking to file a bug report. In development builds, it
+// prints a stack trace.
+//
+// If -h has been specified, FatalfAt panics to force the usual runtime info dump.
+func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 	flusherrors()
 
 	if Debug_panic != 0 || numErrors == 0 {
-		fmt.Printf("%v: internal compiler error: ", linestr(lineno))
+		fmt.Printf("%v: internal compiler error: ", linestr(pos))
 		fmt.Printf(format, args...)
 		fmt.Printf("\n")
 
