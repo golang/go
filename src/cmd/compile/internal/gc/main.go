@@ -210,13 +210,7 @@ func Main(archInit func(*Arch)) {
 	// initialize types package
 	// (we need to do this to break dependencies that otherwise
 	// would lead to import cycles)
-	types.Widthptr = Widthptr
-	types.Dowidth = dowidth
-	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
-	}
-
-	initUniverse()
+	initializeTypesPackage()
 
 	dclcontext = ir.PEXTERN
 
@@ -1124,4 +1118,14 @@ func parseLang(s string) (lang, error) {
 		return lang{}, err
 	}
 	return lang{major: major, minor: minor}, nil
+}
+
+func initializeTypesPackage() {
+	types.Widthptr = Widthptr
+	types.Dowidth = dowidth
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+
+	initUniverse()
 }
