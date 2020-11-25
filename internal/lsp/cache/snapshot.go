@@ -617,7 +617,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 
 		// If the directory is within the view's folder, we're already watching
 		// it with the pattern above.
-		if source.InDirLex(s.view.folder.Filename(), dirName) {
+		if source.InDir(s.view.folder.Filename(), dirName) {
 			continue
 		}
 		// TODO(rstambler): If microsoft/vscode#3025 is resolved before
@@ -653,9 +653,7 @@ func (s *snapshot) allKnownSubdirs(ctx context.Context) map[span.URI]struct{} {
 		dir := filepath.Dir(uri.Filename())
 		var matched span.URI
 		for _, wsDir := range dirs {
-			// Note: InDir handles symlinks, but InDirLex does not--it's too
-			// expensive to call InDir on every file in the snapshot.
-			if source.InDirLex(wsDir.Filename(), dir) {
+			if source.InDir(wsDir.Filename(), dir) {
 				matched = wsDir
 				break
 			}
@@ -684,7 +682,7 @@ func (s *snapshot) allKnownSubdirs(ctx context.Context) map[span.URI]struct{} {
 func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI {
 	var files []span.URI
 	for uri := range s.files {
-		if source.InDirLex(dir.Filename(), uri.Filename()) {
+		if source.InDir(dir.Filename(), uri.Filename()) {
 			files = append(files, uri)
 		}
 	}

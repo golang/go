@@ -185,7 +185,7 @@ func (wm *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI 
 		dirs = append(dirs, d)
 	}
 	sort.Slice(dirs, func(i, j int) bool {
-		return span.CompareURI(dirs[i], dirs[j]) < 0
+		return source.CompareURI(dirs[i], dirs[j]) < 0
 	})
 	return dirs
 }
@@ -254,7 +254,7 @@ func (wm *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileC
 			if !isGoMod(uri) {
 				continue
 			}
-			if wm.moduleSource == legacyWorkspace && !equalURI(modURI(wm.root), uri) {
+			if wm.moduleSource == legacyWorkspace && source.CompareURI(modURI(wm.root), uri) != 0 {
 				// Legacy mode only considers a module a workspace root.
 				continue
 			}
@@ -287,10 +287,6 @@ func (wm *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileC
 	}
 	// No change. Just return wm, since it is immutable.
 	return wm, false
-}
-
-func equalURI(left, right span.URI) bool {
-	return span.CompareURI(left, right) == 0
 }
 
 // goplsModURI returns the URI for the gopls.mod file contained in root.

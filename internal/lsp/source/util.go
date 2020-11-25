@@ -442,30 +442,50 @@ func isDirective(c string) bool {
 	return true
 }
 
+// honorSymlinks toggles whether or not we consider symlinks when comparing
+// file or directory URIs.
+const honorSymlinks = false
+
+func CompareURI(left, right span.URI) int {
+	if honorSymlinks {
+		return span.CompareURI(left, right)
+	}
+	if left == right {
+		return 0
+	}
+	if left < right {
+		return -1
+	}
+	return 1
+}
+
 // InDir checks whether path is in the file tree rooted at dir.
 // InDir makes some effort to succeed even in the presence of symbolic links.
 //
 // Copied and slightly adjusted from go/src/cmd/go/internal/search/search.go.
 func InDir(dir, path string) bool {
-	if InDirLex(dir, path) {
+	if inDirLex(dir, path) {
 		return true
+	}
+	if !honorSymlinks {
+		return false
 	}
 	xpath, err := filepath.EvalSymlinks(path)
 	if err != nil || xpath == path {
 		xpath = ""
 	} else {
-		if InDirLex(dir, xpath) {
+		if inDirLex(dir, xpath) {
 			return true
 		}
 	}
 
 	xdir, err := filepath.EvalSymlinks(dir)
 	if err == nil && xdir != dir {
-		if InDirLex(xdir, path) {
+		if inDirLex(xdir, path) {
 			return true
 		}
 		if xpath != "" {
-			if InDirLex(xdir, xpath) {
+			if inDirLex(xdir, xpath) {
 				return true
 			}
 		}
@@ -473,11 +493,11 @@ func InDir(dir, path string) bool {
 	return false
 }
 
-// InDirLex is like inDir but only checks the lexical form of the file names.
+// inDirLex is like inDir but only checks the lexical form of the file names.
 // It does not consider symbolic links.
 //
 // Copied from go/src/cmd/go/internal/search/search.go.
-func InDirLex(dir, path string) bool {
+func inDirLex(dir, path string) bool {
 	pv := strings.ToUpper(filepath.VolumeName(path))
 	dv := strings.ToUpper(filepath.VolumeName(dir))
 	path = path[len(pv):]
