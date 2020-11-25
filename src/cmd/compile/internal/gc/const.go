@@ -84,8 +84,8 @@ func trunccmplxlit(v constant.Value, t *types.Type) constant.Value {
 }
 
 // TODO(mdempsky): Replace these with better APIs.
-func convlit(n *ir.Node, t *types.Type) *ir.Node    { return convlit1(n, t, false, nil) }
-func defaultlit(n *ir.Node, t *types.Type) *ir.Node { return convlit1(n, t, false, nil) }
+func convlit(n ir.Node, t *types.Type) ir.Node    { return convlit1(n, t, false, nil) }
+func defaultlit(n ir.Node, t *types.Type) ir.Node { return convlit1(n, t, false, nil) }
 
 // convlit1 converts an untyped expression n to type t. If n already
 // has a type, convlit1 has no effect.
@@ -98,7 +98,7 @@ func defaultlit(n *ir.Node, t *types.Type) *ir.Node { return convlit1(n, t, fals
 //
 // If there's an error converting n to t, context is used in the error
 // message.
-func convlit1(n *ir.Node, t *types.Type, explicit bool, context func() string) *ir.Node {
+func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir.Node {
 	if explicit && t == nil {
 		base.Fatalf("explicit conversion missing type")
 	}
@@ -438,7 +438,7 @@ var tokenForOp = [...]token.Token{
 // If n is not a constant, evalConst returns n.
 // Otherwise, evalConst returns a new OLITERAL with the same value as n,
 // and with .Orig pointing back to n.
-func evalConst(n *ir.Node) *ir.Node {
+func evalConst(n ir.Node) ir.Node {
 	nl, nr := n.Left(), n.Right()
 
 	// Pick off just the opcodes that can be constant evaluated.
@@ -525,7 +525,7 @@ func evalConst(n *ir.Node) *ir.Node {
 			}
 			return origConst(n, constant.MakeString(strings.Join(strs, "")))
 		}
-		newList := make([]*ir.Node, 0, need)
+		newList := make([]ir.Node, 0, need)
 		for i := 0; i < len(s); i++ {
 			if ir.IsConst(s[i], constant.String) && i+1 < len(s) && ir.IsConst(s[i+1], constant.String) {
 				// merge from i up to but not including i2
@@ -619,7 +619,7 @@ var overflowNames = [...]string{
 }
 
 // origConst returns an OLITERAL with orig n and value v.
-func origConst(n *ir.Node, v constant.Value) *ir.Node {
+func origConst(n ir.Node, v constant.Value) ir.Node {
 	lno := setlineno(n)
 	v = convertVal(v, n.Type(), false)
 	base.Pos = lno
@@ -648,11 +648,11 @@ func origConst(n *ir.Node, v constant.Value) *ir.Node {
 	return n
 }
 
-func origBoolConst(n *ir.Node, v bool) *ir.Node {
+func origBoolConst(n ir.Node, v bool) ir.Node {
 	return origConst(n, constant.MakeBool(v))
 }
 
-func origIntConst(n *ir.Node, v int64) *ir.Node {
+func origIntConst(n ir.Node, v int64) ir.Node {
 	return origConst(n, constant.MakeInt64(v))
 }
 
@@ -662,7 +662,7 @@ func origIntConst(n *ir.Node, v int64) *ir.Node {
 // force means must assign concrete (non-ideal) type.
 // The results of defaultlit2 MUST be assigned back to l and r, e.g.
 // 	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
-func defaultlit2(l *ir.Node, r *ir.Node, force bool) (*ir.Node, *ir.Node) {
+func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
 	if l.Type() == nil || r.Type() == nil {
 		return l, r
 	}
@@ -747,7 +747,7 @@ func defaultType(t *types.Type) *types.Type {
 	return nil
 }
 
-func smallintconst(n *ir.Node) bool {
+func smallintconst(n ir.Node) bool {
 	if n.Op() == ir.OLITERAL {
 		v, ok := constant.Int64Val(n.Val())
 		return ok && int64(int32(v)) == v
@@ -760,7 +760,7 @@ func smallintconst(n *ir.Node) bool {
 // If n is not a constant expression, not representable as an
 // integer, or negative, it returns -1. If n is too large, it
 // returns -2.
-func indexconst(n *ir.Node) int64 {
+func indexconst(n ir.Node) int64 {
 	if n.Op() != ir.OLITERAL {
 		return -1
 	}
@@ -783,11 +783,11 @@ func indexconst(n *ir.Node) int64 {
 //
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
-func isGoConst(n *ir.Node) bool {
+func isGoConst(n ir.Node) bool {
 	return n.Op() == ir.OLITERAL
 }
 
-func hascallchan(n *ir.Node) bool {
+func hascallchan(n ir.Node) bool {
 	if n == nil {
 		return false
 	}
@@ -851,7 +851,7 @@ type constSetKey struct {
 // where are used in the error message.
 //
 // n must not be an untyped constant.
-func (s *constSet) add(pos src.XPos, n *ir.Node, what, where string) {
+func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 	if n.Op() == ir.OCONVIFACE && n.Implicit() {
 		n = n.Left()
 	}
@@ -908,7 +908,7 @@ func (s *constSet) add(pos src.XPos, n *ir.Node, what, where string) {
 // the latter is non-obvious.
 //
 // TODO(mdempsky): This could probably be a fmt.go flag.
-func nodeAndVal(n *ir.Node) string {
+func nodeAndVal(n ir.Node) string {
 	show := n.String()
 	val := ir.ConstValue(n)
 	if s := fmt.Sprintf("%#v", val); show != s {

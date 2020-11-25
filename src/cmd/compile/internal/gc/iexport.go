@@ -259,8 +259,8 @@ func iexport(out *bufio.Writer) {
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
 		stringIndex: map[string]uint64{},
-		declIndex:   map[*ir.Node]uint64{},
-		inlineIndex: map[*ir.Node]uint64{},
+		declIndex:   map[ir.Node]uint64{},
+		inlineIndex: map[ir.Node]uint64{},
 		typIndex:    map[*types.Type]uint64{},
 	}
 
@@ -314,9 +314,9 @@ func iexport(out *bufio.Writer) {
 // we're writing out the main index, which is also read by
 // non-compiler tools and includes a complete package description
 // (i.e., name and height).
-func (w *exportWriter) writeIndex(index map[*ir.Node]uint64, mainIndex bool) {
+func (w *exportWriter) writeIndex(index map[ir.Node]uint64, mainIndex bool) {
 	// Build a map from packages to objects from that package.
-	pkgObjs := map[*types.Pkg][]*ir.Node{}
+	pkgObjs := map[*types.Pkg][]ir.Node{}
 
 	// For the main index, make sure to include every package that
 	// we reference, even if we're not exporting (or reexporting)
@@ -374,8 +374,8 @@ type iexporter struct {
 	stringIndex map[string]uint64
 
 	data0       intWriter
-	declIndex   map[*ir.Node]uint64
-	inlineIndex map[*ir.Node]uint64
+	declIndex   map[ir.Node]uint64
+	inlineIndex map[ir.Node]uint64
 	typIndex    map[*types.Type]uint64
 }
 
@@ -394,7 +394,7 @@ func (p *iexporter) stringOff(s string) uint64 {
 }
 
 // pushDecl adds n to the declaration work queue, if not already present.
-func (p *iexporter) pushDecl(n *ir.Node) {
+func (p *iexporter) pushDecl(n ir.Node) {
 	if n.Sym() == nil || ir.AsNode(n.Sym().Def) != n && n.Op() != ir.OTYPE {
 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
 	}
@@ -423,7 +423,7 @@ type exportWriter struct {
 	prevColumn int64
 }
 
-func (p *iexporter) doDecl(n *ir.Node) {
+func (p *iexporter) doDecl(n ir.Node) {
 	w := p.newWriter()
 	w.setPkg(n.Sym().Pkg, false)
 
@@ -515,7 +515,7 @@ func (w *exportWriter) tag(tag byte) {
 	w.data.WriteByte(tag)
 }
 
-func (p *iexporter) doInline(f *ir.Node) {
+func (p *iexporter) doInline(f ir.Node) {
 	w := p.newWriter()
 	w.setPkg(fnpkg(f), false)
 
@@ -570,7 +570,7 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
 	w.string(pkg.Path)
 }
 
-func (w *exportWriter) qualifiedIdent(n *ir.Node) {
+func (w *exportWriter) qualifiedIdent(n ir.Node) {
 	// Ensure any referenced declarations are written out too.
 	w.p.pushDecl(n)
 
@@ -955,12 +955,12 @@ func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
 
 // Compiler-specific extensions.
 
-func (w *exportWriter) varExt(n *ir.Node) {
+func (w *exportWriter) varExt(n ir.Node) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 }
 
-func (w *exportWriter) funcExt(n *ir.Node) {
+func (w *exportWriter) funcExt(n ir.Node) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
@@ -1037,7 +1037,7 @@ func (w *exportWriter) stmtList(list ir.Nodes) {
 	w.op(ir.OEND)
 }
 
-func (w *exportWriter) node(n *ir.Node) {
+func (w *exportWriter) node(n ir.Node) {
 	if ir.OpPrec[n.Op()] < 0 {
 		w.stmt(n)
 	} else {
@@ -1047,7 +1047,7 @@ func (w *exportWriter) node(n *ir.Node) {
 
 // Caution: stmt will emit more than one node for statement nodes n that have a non-empty
 // n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
-func (w *exportWriter) stmt(n *ir.Node) {
+func (w *exportWriter) stmt(n ir.Node) {
 	if n.Init().Len() > 0 && !ir.StmtWithInit(n.Op()) {
 		// can't use stmtList here since we don't want the final OEND
 		for _, n := range n.Init().Slice() {
@@ -1095,7 +1095,7 @@ func (w *exportWriter) stmt(n *ir.Node) {
 		w.op(ir.OAS2)
 		w.pos(n.Pos())
 		w.exprList(n.List())
-		w.exprList(ir.AsNodes([]*ir.Node{n.Right()}))
+		w.exprList(ir.AsNodes([]ir.Node{n.Right()}))
 
 	case ir.ORETURN:
 		w.op(ir.ORETURN)
@@ -1164,7 +1164,7 @@ func (w *exportWriter) stmt(n *ir.Node) {
 	}
 }
 
-func (w *exportWriter) caseList(sw *ir.Node) {
+func (w *exportWriter) caseList(sw ir.Node) {
 	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
 
 	cases := sw.List().Slice()
@@ -1189,7 +1189,7 @@ func (w *exportWriter) exprList(list ir.Nodes) {
 	w.op(ir.OEND)
 }
 
-func (w *exportWriter) expr(n *ir.Node) {
+func (w *exportWriter) expr(n ir.Node) {
 	// from nodefmt (fmt.go)
 	//
 	// nodefmt reverts nodes back to their original - we don't need to do
@@ -1430,7 +1430,7 @@ func (w *exportWriter) op(op ir.Op) {
 	w.uint64(uint64(op))
 }
 
-func (w *exportWriter) exprsOrNil(a, b *ir.Node) {
+func (w *exportWriter) exprsOrNil(a, b ir.Node) {
 	ab := 0
 	if a != nil {
 		ab |= 1
@@ -1455,7 +1455,7 @@ func (w *exportWriter) elemList(list ir.Nodes) {
 	}
 }
 
-func (w *exportWriter) localName(n *ir.Node) {
+func (w *exportWriter) localName(n ir.Node) {
 	// Escape analysis happens after inline bodies are saved, but
 	// we're using the same ONAME nodes, so we might still see
 	// PAUTOHEAP here.

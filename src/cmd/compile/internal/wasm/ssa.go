@@ -237,7 +237,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		switch v.Aux.(type) {
 		case *obj.LSym:
 			gc.AddAux(&p.From, v)
-		case *ir.Node:
+		case ir.Node:
 			p.From.Reg = v.Args[0].Reg()
 			gc.AddAux(&p.From, v)
 		default:

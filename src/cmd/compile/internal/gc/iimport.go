@@ -41,7 +41,7 @@ var (
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
 
-func expandDecl(n *ir.Node) {
+func expandDecl(n ir.Node) {
 	if n.Op() != ir.ONONAME {
 		return
 	}
@@ -55,7 +55,7 @@ func expandDecl(n *ir.Node) {
 	r.doDecl(n)
 }
 
-func expandInline(fn *ir.Node) {
+func expandInline(fn ir.Node) {
 	if fn.Func().Inl.Body != nil {
 		return
 	}
@@ -68,7 +68,7 @@ func expandInline(fn *ir.Node) {
 	r.doInline(fn)
 }
 
-func importReaderFor(n *ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
+func importReaderFor(n ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
 	x, ok := importers[n.Sym()]
 	if !ok {
 		return nil
@@ -281,7 +281,7 @@ func (r *importReader) setPkg() {
 	r.currPkg = r.pkg()
 }
 
-func (r *importReader) doDecl(n *ir.Node) {
+func (r *importReader) doDecl(n ir.Node) {
 	if n.Op() != ir.ONONAME {
 		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym(), n.Op())
 	}
@@ -635,12 +635,12 @@ func (r *importReader) byte() byte {
 
 // Compiler-specific extensions.
 
-func (r *importReader) varExt(n *ir.Node) {
+func (r *importReader) varExt(n ir.Node) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 }
 
-func (r *importReader) funcExt(n *ir.Node) {
+func (r *importReader) funcExt(n ir.Node) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
@@ -695,7 +695,7 @@ func (r *importReader) typeExt(t *types.Type) {
 // so we can use index to reference the symbol.
 var typeSymIdx = make(map[*types.Type][2]int64)
 
-func (r *importReader) doInline(n *ir.Node) {
+func (r *importReader) doInline(n ir.Node) {
 	if len(n.Func().Inl.Body) != 0 {
 		base.Fatalf("%v already has inline body", n)
 	}
@@ -710,7 +710,7 @@ func (r *importReader) doInline(n *ir.Node) {
 		// (not doing so can cause significant performance
 		// degradation due to unnecessary calls to empty
 		// functions).
-		body = []*ir.Node{}
+		body = []ir.Node{}
 	}
 	n.Func().Inl.Body = body
 
@@ -740,8 +740,8 @@ func (r *importReader) doInline(n *ir.Node) {
 // unrefined nodes (since this is what the importer uses). The respective case
 // entries are unreachable in the importer.
 
-func (r *importReader) stmtList() []*ir.Node {
-	var list []*ir.Node
+func (r *importReader) stmtList() []ir.Node {
+	var list []ir.Node
 	for {
 		n := r.node()
 		if n == nil {
@@ -758,10 +758,10 @@ func (r *importReader) stmtList() []*ir.Node {
 	return list
 }
 
-func (r *importReader) caseList(sw *ir.Node) []*ir.Node {
+func (r *importReader) caseList(sw ir.Node) []ir.Node {
 	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
 
-	cases := make([]*ir.Node, r.uint64())
+	cases := make([]ir.Node, r.uint64())
 	for i := range cases {
 		cas := ir.NodAt(r.pos(), ir.OCASE, nil, nil)
 		cas.PtrList().Set(r.stmtList())
@@ -780,8 +780,8 @@ func (r *importReader) caseList(sw *ir.Node) []*ir.Node {
 	return cases
 }
 
-func (r *importReader) exprList() []*ir.Node {
-	var list []*ir.Node
+func (r *importReader) exprList() []ir.Node {
+	var list []ir.Node
 	for {
 		n := r.expr()
 		if n == nil {
@@ -792,7 +792,7 @@ func (r *importReader) exprList() []*ir.Node {
 	return list
 }
 
-func (r *importReader) expr() *ir.Node {
+func (r *importReader) expr() ir.Node {
 	n := r.node()
 	if n != nil && n.Op() == ir.OBLOCK {
 		base.Fatalf("unexpected block node: %v", n)
@@ -801,7 +801,7 @@ func (r *importReader) expr() *ir.Node {
 }
 
 // TODO(gri) split into expr and stmt
-func (r *importReader) node() *ir.Node {
+func (r *importReader) node() ir.Node {
 	switch op := r.op(); op {
 	// expressions
 	// case OPAREN:
@@ -814,7 +814,7 @@ func (r *importReader) node() *ir.Node {
 		pos := r.pos()
 		typ := r.typ()
 
-		var n *ir.Node
+		var n ir.Node
 		if typ.HasNil() {
 			n = nodnil()
 		} else {
@@ -906,7 +906,7 @@ func (r *importReader) node() *ir.Node {
 	case ir.OSLICE, ir.OSLICE3:
 		n := ir.NodAt(r.pos(), op, r.expr(), nil)
 		low, high := r.exprsOrNil()
-		var max *ir.Node
+		var max ir.Node
 		if n.Op().IsSlice3() {
 			max = r.expr()
 		}
@@ -970,7 +970,7 @@ func (r *importReader) node() *ir.Node {
 		pos := r.pos()
 		lhs := npos(pos, dclname(r.ident()))
 		typ := typenod(r.typ())
-		return npos(pos, liststmt(variter([]*ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 
 	// case ODCLFIELD:
 	//	unimplemented
@@ -1082,9 +1082,9 @@ func (r *importReader) op() ir.Op {
 	return ir.Op(r.uint64())
 }
 
-func (r *importReader) elemList() []*ir.Node {
+func (r *importReader) elemList() []ir.Node {
 	c := r.uint64()
-	list := make([]*ir.Node, c)
+	list := make([]ir.Node, c)
 	for i := range list {
 		s := r.ident()
 		list[i] = nodSym(ir.OSTRUCTKEY, r.expr(), s)
@@ -1092,7 +1092,7 @@ func (r *importReader) elemList() []*ir.Node {
 	return list
 }
 
-func (r *importReader) exprsOrNil() (a, b *ir.Node) {
+func (r *importReader) exprsOrNil() (a, b ir.Node) {
 	ab := r.uint64()
 	if ab&1 != 0 {
 		a = r.expr()

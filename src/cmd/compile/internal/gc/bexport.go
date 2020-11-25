@@ -14,7 +14,7 @@ type exporter struct {
 }
 
 // markObject visits a reachable object.
-func (p *exporter) markObject(n *ir.Node) {
+func (p *exporter) markObject(n ir.Node) {
 	if n.Op() == ir.ONAME && n.Class() == ir.PFUNC {
 		inlFlood(n)
 	}

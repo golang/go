@@ -13,7 +13,7 @@ import (
 )
 
 // range
-func typecheckrange(n *ir.Node) {
+func typecheckrange(n ir.Node) {
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
 	//	it is evaluated only once and so logically it is not part of the loop.
@@ -39,7 +39,7 @@ func typecheckrange(n *ir.Node) {
 	decldepth--
 }
 
-func typecheckrangeExpr(n *ir.Node) {
+func typecheckrangeExpr(n ir.Node) {
 	n.SetRight(typecheck(n.Right(), ctxExpr))
 
 	t := n.Right().Type()
@@ -95,7 +95,7 @@ func typecheckrangeExpr(n *ir.Node) {
 		base.ErrorfAt(n.Pos(), "too many variables in range")
 	}
 
-	var v1, v2 *ir.Node
+	var v1, v2 ir.Node
 	if n.List().Len() != 0 {
 		v1 = n.List().First()
 	}
@@ -157,7 +157,7 @@ func cheapComputableIndex(width int64) bool {
 // simpler forms.  The result must be assigned back to n.
 // Node n may also be modified in place, and may also be
 // the returned node.
-func walkrange(n *ir.Node) *ir.Node {
+func walkrange(n ir.Node) ir.Node {
 	if isMapClear(n) {
 		m := n.Right()
 		lno := setlineno(m)
@@ -179,7 +179,7 @@ func walkrange(n *ir.Node) *ir.Node {
 	lno := setlineno(a)
 	n.SetRight(nil)
 
-	var v1, v2 *ir.Node
+	var v1, v2 ir.Node
 	l := n.List().Len()
 	if l > 0 {
 		v1 = n.List().First()
@@ -205,12 +205,12 @@ func walkrange(n *ir.Node) *ir.Node {
 	// to avoid erroneous processing by racewalk.
 	n.PtrList().Set(nil)
 
-	var ifGuard *ir.Node
+	var ifGuard ir.Node
 
 	translatedLoopOp := ir.OFOR
 
-	var body []*ir.Node
-	var init []*ir.Node
+	var body []ir.Node
+	var init []ir.Node
 	switch t.Etype {
 	default:
 		base.Fatalf("walkrange")
@@ -240,7 +240,7 @@ func walkrange(n *ir.Node) *ir.Node {
 
 		// for v1 := range ha { body }
 		if v2 == nil {
-			body = []*ir.Node{ir.Nod(ir.OAS, v1, hv1)}
+			body = []ir.Node{ir.Nod(ir.OAS, v1, hv1)}
 			break
 		}
 
@@ -254,7 +254,7 @@ func walkrange(n *ir.Node) *ir.Node {
 			a := ir.Nod(ir.OAS2, nil, nil)
 			a.PtrList().Set2(v1, v2)
 			a.PtrRlist().Set2(hv1, tmp)
-			body = []*ir.Node{a}
+			body = []ir.Node{a}
 			break
 		}
 
@@ -321,14 +321,14 @@ func walkrange(n *ir.Node) *ir.Node {
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
-			body = []*ir.Node{ir.Nod(ir.OAS, v1, key)}
+			body = []ir.Node{ir.Nod(ir.OAS, v1, key)}
 		} else {
 			elem := nodSym(ir.ODOT, hit, elemsym)
 			elem = ir.Nod(ir.ODEREF, elem, nil)
 			a := ir.Nod(ir.OAS2, nil, nil)
 			a.PtrList().Set2(v1, v2)
 			a.PtrRlist().Set2(key, elem)
-			body = []*ir.Node{a}
+			body = []ir.Node{a}
 		}
 
 	case types.TCHAN:
@@ -353,7 +353,7 @@ func walkrange(n *ir.Node) *ir.Node {
 		if v1 == nil {
 			body = nil
 		} else {
-			body = []*ir.Node{ir.Nod(ir.OAS, v1, hv1)}
+			body = []ir.Node{ir.Nod(ir.OAS, v1, hv1)}
 		}
 		// Zero hv1. This prevents hv1 from being the sole, inaccessible
 		// reference to an otherwise GC-able value during the next channel receive.
@@ -467,7 +467,7 @@ func walkrange(n *ir.Node) *ir.Node {
 // }
 //
 // where == for keys of map m is reflexive.
-func isMapClear(n *ir.Node) bool {
+func isMapClear(n ir.Node) bool {
 	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
@@ -509,7 +509,7 @@ func isMapClear(n *ir.Node) bool {
 }
 
 // mapClear constructs a call to runtime.mapclear for the map m.
-func mapClear(m *ir.Node) *ir.Node {
+func mapClear(m ir.Node) ir.Node {
 	t := m.Type()
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
@@ -534,7 +534,7 @@ func mapClear(m *ir.Node) *ir.Node {
 // in which the evaluation of a is side-effect-free.
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
-func arrayClear(n, v1, v2, a *ir.Node) bool {
+func arrayClear(n, v1, v2, a ir.Node) bool {
 	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
@@ -590,7 +590,7 @@ func arrayClear(n, v1, v2, a *ir.Node) bool {
 	tmp = conv(tmp, types.Types[types.TUINTPTR])
 	n.PtrBody().Append(ir.Nod(ir.OAS, hn, tmp))
 
-	var fn *ir.Node
+	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
 		Curfn.Func().SetWBPos(stmt.Pos())
@@ -615,7 +615,7 @@ func arrayClear(n, v1, v2, a *ir.Node) bool {
 }
 
 // addptr returns (*T)(uintptr(p) + n).
-func addptr(p *ir.Node, n int64) *ir.Node {
+func addptr(p ir.Node, n int64) ir.Node {
 	t := p.Type()
 
 	p = ir.Nod(ir.OCONVNOP, p, nil)

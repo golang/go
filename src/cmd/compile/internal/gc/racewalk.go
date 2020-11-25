@@ -60,7 +60,7 @@ func ispkgin(pkgs []string) bool {
 	return false
 }
 
-func instrument(fn *ir.Node) {
+func instrument(fn ir.Node) {
 	if fn.Func().Pragma&ir.Norace != 0 {
 		return
 	}

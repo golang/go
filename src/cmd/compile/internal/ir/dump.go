@@ -200,7 +200,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		typ := x.Type()
 
 		isNode := false
-		if n, ok := x.Interface().(Node); ok {
+		if n, ok := x.Interface().(node); ok {
 			isNode = true
 			p.printf("%s %s {", n.op.String(), p.addr(x))
 		} else {

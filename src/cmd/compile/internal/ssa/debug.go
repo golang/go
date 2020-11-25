@@ -25,7 +25,7 @@ type FuncDebug struct {
 	// Slots is all the slots used in the debug info, indexed by their SlotID.
 	Slots []LocalSlot
 	// The user variables, indexed by VarID.
-	Vars []*ir.Node
+	Vars []ir.Node
 	// The slots that make up each variable, indexed by VarID.
 	VarSlots [][]SlotID
 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
@@ -166,7 +166,7 @@ func (s *debugState) logf(msg string, args ...interface{}) {
 type debugState struct {
 	// See FuncDebug.
 	slots    []LocalSlot
-	vars     []*ir.Node
+	vars     []ir.Node
 	varSlots [][]SlotID
 	lists    [][]byte
 
@@ -190,7 +190,7 @@ type debugState struct {
 	// The pending location list entry for each user variable, indexed by VarID.
 	pendingEntries []pendingEntry
 
-	varParts           map[*ir.Node][]SlotID
+	varParts           map[ir.Node][]SlotID
 	blockDebug         []BlockDebug
 	pendingSlotLocs    []VarLoc
 	liveSlots          []liveSlot
@@ -347,7 +347,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	}
 
 	if state.varParts == nil {
-		state.varParts = make(map[*ir.Node][]SlotID)
+		state.varParts = make(map[ir.Node][]SlotID)
 	} else {
 		for n := range state.varParts {
 			delete(state.varParts, n)
@@ -380,7 +380,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpVarDef || v.Op == OpVarKill {
-				n := v.Aux.(*ir.Node)
+				n := v.Aux.(ir.Node)
 				if ir.IsSynthetic(n) {
 					continue
 				}
@@ -718,7 +718,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 	switch {
 	case v.Op == OpVarDef, v.Op == OpVarKill:
-		n := v.Aux.(*ir.Node)
+		n := v.Aux.(ir.Node)
 		if ir.IsSynthetic(n) {
 			break
 		}

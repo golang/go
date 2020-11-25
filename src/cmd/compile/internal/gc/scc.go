@@ -32,10 +32,10 @@ import "cmd/compile/internal/ir"
 // when analyzing a set of mutually recursive functions.
 
 type bottomUpVisitor struct {
-	analyze  func([]*ir.Node, bool)
+	analyze  func([]ir.Node, bool)
 	visitgen uint32
-	nodeID   map[*ir.Node]uint32
-	stack    []*ir.Node
+	nodeID   map[ir.Node]uint32
+	stack    []ir.Node
 }
 
 // visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
@@ -51,10 +51,10 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func visitBottomUp(list []*ir.Node, analyze func(list []*ir.Node, recursive bool)) {
+func visitBottomUp(list []ir.Node, analyze func(list []ir.Node, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
-	v.nodeID = make(map[*ir.Node]uint32)
+	v.nodeID = make(map[ir.Node]uint32)
 	for _, n := range list {
 		if n.Op() == ir.ODCLFUNC && !n.Func().IsHiddenClosure() {
 			v.visit(n)
@@ -62,7 +62,7 @@ func visitBottomUp(list []*ir.Node, analyze func(list []*ir.Node, recursive bool
 	}
 }
 
-func (v *bottomUpVisitor) visit(n *ir.Node) uint32 {
+func (v *bottomUpVisitor) visit(n ir.Node) uint32 {
 	if id := v.nodeID[n]; id > 0 {
 		// already visited
 		return id
@@ -75,7 +75,7 @@ func (v *bottomUpVisitor) visit(n *ir.Node) uint32 {
 	min := v.visitgen
 	v.stack = append(v.stack, n)
 
-	ir.InspectList(n.Body(), func(n *ir.Node) bool {
+	ir.InspectList(n.Body(), func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.ONAME:
 			if n.Class() == ir.PFUNC {

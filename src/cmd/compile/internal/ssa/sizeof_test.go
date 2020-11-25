@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
 	}{
 		{Value{}, 72, 112},
 		{Block{}, 164, 304},
-		{LocalSlot{}, 28, 40},
+		{LocalSlot{}, 32, 48},
 		{valState{}, 28, 40},
 	}
 

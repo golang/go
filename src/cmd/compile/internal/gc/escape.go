@@ -86,7 +86,7 @@ import (
 type Escape struct {
 	allLocs []*EscLocation
 
-	curfn *ir.Node
+	curfn ir.Node
 
 	// loopDepth counts the current loop nesting depth within
 	// curfn. It increments within each "for" loop and at each
@@ -101,8 +101,8 @@ type Escape struct {
 // An EscLocation represents an abstract location that stores a Go
 // variable.
 type EscLocation struct {
-	n         *ir.Node  // represented variable or expression, if any
-	curfn     *ir.Node  // enclosing function
+	n         ir.Node   // represented variable or expression, if any
+	curfn     ir.Node   // enclosing function
 	edges     []EscEdge // incoming edges
 	loopDepth int       // loopDepth at declaration
 
@@ -147,7 +147,7 @@ func init() {
 }
 
 // escFmt is called from node printing to print information about escape analysis results.
-func escFmt(n *ir.Node, short bool) string {
+func escFmt(n ir.Node, short bool) string {
 	text := ""
 	switch n.Esc() {
 	case EscUnknown:
@@ -179,7 +179,7 @@ func escFmt(n *ir.Node, short bool) string {
 
 // escapeFuncs performs escape analysis on a minimal batch of
 // functions.
-func escapeFuncs(fns []*ir.Node, recursive bool) {
+func escapeFuncs(fns []ir.Node, recursive bool) {
 	for _, fn := range fns {
 		if fn.Op() != ir.ODCLFUNC {
 			base.Fatalf("unexpected node: %v", fn)
@@ -202,7 +202,7 @@ func escapeFuncs(fns []*ir.Node, recursive bool) {
 	e.finish(fns)
 }
 
-func (e *Escape) initFunc(fn *ir.Node) {
+func (e *Escape) initFunc(fn ir.Node) {
 	if fn.Op() != ir.ODCLFUNC || fn.Esc() != EscFuncUnknown {
 		base.Fatalf("unexpected node: %v", fn)
 	}
@@ -222,11 +222,11 @@ func (e *Escape) initFunc(fn *ir.Node) {
 	}
 }
 
-func (e *Escape) walkFunc(fn *ir.Node) {
+func (e *Escape) walkFunc(fn ir.Node) {
 	fn.SetEsc(EscFuncStarted)
 
 	// Identify labels that mark the head of an unstructured loop.
-	ir.InspectList(fn.Body(), func(n *ir.Node) bool {
+	ir.InspectList(fn.Body(), func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OLABEL:
 			n.Sym().Label = nonlooping
@@ -274,7 +274,7 @@ func (e *Escape) walkFunc(fn *ir.Node) {
 //    }
 
 // stmt evaluates a single Go statement.
-func (e *Escape) stmt(n *ir.Node) {
+func (e *Escape) stmt(n ir.Node) {
 	if n == nil {
 		return
 	}
@@ -447,7 +447,7 @@ func (e *Escape) block(l ir.Nodes) {
 
 // expr models evaluating an expression n and flowing the result into
 // hole k.
-func (e *Escape) expr(k EscHole, n *ir.Node) {
+func (e *Escape) expr(k EscHole, n ir.Node) {
 	if n == nil {
 		return
 	}
@@ -455,7 +455,7 @@ func (e *Escape) expr(k EscHole, n *ir.Node) {
 	e.exprSkipInit(k, n)
 }
 
-func (e *Escape) exprSkipInit(k EscHole, n *ir.Node) {
+func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 	if n == nil {
 		return
 	}
@@ -653,7 +653,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *ir.Node) {
 
 // unsafeValue evaluates a uintptr-typed arithmetic expression looking
 // for conversions from an unsafe.Pointer.
-func (e *Escape) unsafeValue(k EscHole, n *ir.Node) {
+func (e *Escape) unsafeValue(k EscHole, n ir.Node) {
 	if n.Type().Etype != types.TUINTPTR {
 		base.Fatalf("unexpected type %v for %v", n.Type(), n)
 	}
@@ -690,7 +690,7 @@ func (e *Escape) unsafeValue(k EscHole, n *ir.Node) {
 
 // discard evaluates an expression n for side-effects, but discards
 // its value.
-func (e *Escape) discard(n *ir.Node) {
+func (e *Escape) discard(n ir.Node) {
 	e.expr(e.discardHole(), n)
 }
 
@@ -702,7 +702,7 @@ func (e *Escape) discards(l ir.Nodes) {
 
 // addr evaluates an addressable expression n and returns an EscHole
 // that represents storing into the represented location.
-func (e *Escape) addr(n *ir.Node) EscHole {
+func (e *Escape) addr(n ir.Node) EscHole {
 	if n == nil || ir.IsBlank(n) {
 		// Can happen at least in OSELRECV.
 		// TODO(mdempsky): Anywhere else?
@@ -751,7 +751,7 @@ func (e *Escape) addrs(l ir.Nodes) []EscHole {
 }
 
 // assign evaluates the assignment dst = src.
-func (e *Escape) assign(dst, src *ir.Node, why string, where *ir.Node) {
+func (e *Escape) assign(dst, src ir.Node, why string, where ir.Node) {
 	// Filter out some no-op assignments for escape analysis.
 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
 	if ignore && base.Flag.LowerM != 0 {
@@ -769,14 +769,14 @@ func (e *Escape) assign(dst, src *ir.Node, why string, where *ir.Node) {
 	}
 }
 
-func (e *Escape) assignHeap(src *ir.Node, why string, where *ir.Node) {
+func (e *Escape) assignHeap(src ir.Node, why string, where ir.Node) {
 	e.expr(e.heapHole().note(where, why), src)
 }
 
 // call evaluates a call expressions, including builtin calls. ks
 // should contain the holes representing where the function callee's
 // results flows; where is the OGO/ODEFER context of the call, if any.
-func (e *Escape) call(ks []EscHole, call, where *ir.Node) {
+func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 	topLevelDefer := where != nil && where.Op() == ir.ODEFER && e.loopDepth == 1
 	if topLevelDefer {
 		// force stack allocation of defer record, unless
@@ -784,7 +784,7 @@ func (e *Escape) call(ks []EscHole, call, where *ir.Node) {
 		where.SetEsc(EscNever)
 	}
 
-	argument := func(k EscHole, arg *ir.Node) {
+	argument := func(k EscHole, arg ir.Node) {
 		if topLevelDefer {
 			// Top level defers arguments don't escape to
 			// heap, but they do need to last until end of
@@ -805,7 +805,7 @@ func (e *Escape) call(ks []EscHole, call, where *ir.Node) {
 		fixVariadicCall(call)
 
 		// Pick out the function callee, if statically known.
-		var fn *ir.Node
+		var fn ir.Node
 		switch call.Op() {
 		case ir.OCALLFUNC:
 			switch v := staticValue(call.Left()); {
@@ -894,7 +894,7 @@ func (e *Escape) call(ks []EscHole, call, where *ir.Node) {
 // ks should contain the holes representing where the function
 // callee's results flows. fn is the statically-known callee function,
 // if any.
-func (e *Escape) tagHole(ks []EscHole, fn *ir.Node, param *types.Field) EscHole {
+func (e *Escape) tagHole(ks []EscHole, fn ir.Node, param *types.Field) EscHole {
 	// If this is a dynamic call, we can't rely on param.Note.
 	if fn == nil {
 		return e.heapHole()
@@ -935,7 +935,7 @@ func (e *Escape) tagHole(ks []EscHole, fn *ir.Node, param *types.Field) EscHole 
 // fn has not yet been analyzed, so its parameters and results
 // should be incorporated directly into the flow graph instead of
 // relying on its escape analysis tagging.
-func (e *Escape) inMutualBatch(fn *ir.Node) bool {
+func (e *Escape) inMutualBatch(fn ir.Node) bool {
 	if fn.Name().Defn != nil && fn.Name().Defn.Esc() < EscFuncTagged {
 		if fn.Name().Defn.Esc() == EscFuncUnknown {
 			base.Fatalf("graph inconsistency")
@@ -960,11 +960,11 @@ type EscHole struct {
 
 type EscNote struct {
 	next  *EscNote
-	where *ir.Node
+	where ir.Node
 	why   string
 }
 
-func (k EscHole) note(where *ir.Node, why string) EscHole {
+func (k EscHole) note(where ir.Node, why string) EscHole {
 	if where == nil || why == "" {
 		base.Fatalf("note: missing where/why")
 	}
@@ -986,10 +986,10 @@ func (k EscHole) shift(delta int) EscHole {
 	return k
 }
 
-func (k EscHole) deref(where *ir.Node, why string) EscHole { return k.shift(1).note(where, why) }
-func (k EscHole) addr(where *ir.Node, why string) EscHole  { return k.shift(-1).note(where, why) }
+func (k EscHole) deref(where ir.Node, why string) EscHole { return k.shift(1).note(where, why) }
+func (k EscHole) addr(where ir.Node, why string) EscHole  { return k.shift(-1).note(where, why) }
 
-func (k EscHole) dotType(t *types.Type, where *ir.Node, why string) EscHole {
+func (k EscHole) dotType(t *types.Type, where ir.Node, why string) EscHole {
 	if !t.IsInterface() && !isdirectiface(t) {
 		k = k.shift(1)
 	}
@@ -1026,7 +1026,7 @@ func (e *Escape) teeHole(ks ...EscHole) EscHole {
 	return loc.asHole()
 }
 
-func (e *Escape) dcl(n *ir.Node) EscHole {
+func (e *Escape) dcl(n ir.Node) EscHole {
 	loc := e.oldLoc(n)
 	loc.loopDepth = e.loopDepth
 	return loc.asHole()
@@ -1035,7 +1035,7 @@ func (e *Escape) dcl(n *ir.Node) EscHole {
 // spill allocates a new location associated with expression n, flows
 // its address to k, and returns a hole that flows values to it. It's
 // intended for use with most expressions that allocate storage.
-func (e *Escape) spill(k EscHole, n *ir.Node) EscHole {
+func (e *Escape) spill(k EscHole, n ir.Node) EscHole {
 	loc := e.newLoc(n, true)
 	e.flow(k.addr(n, "spill"), loc)
 	return loc.asHole()
@@ -1052,7 +1052,7 @@ func (e *Escape) later(k EscHole) EscHole {
 
 // canonicalNode returns the canonical *Node that n logically
 // represents.
-func canonicalNode(n *ir.Node) *ir.Node {
+func canonicalNode(n ir.Node) ir.Node {
 	if n != nil && n.Op() == ir.ONAME && n.Name().IsClosureVar() {
 		n = n.Name().Defn
 		if n.Name().IsClosureVar() {
@@ -1063,7 +1063,7 @@ func canonicalNode(n *ir.Node) *ir.Node {
 	return n
 }
 
-func (e *Escape) newLoc(n *ir.Node, transient bool) *EscLocation {
+func (e *Escape) newLoc(n ir.Node, transient bool) *EscLocation {
 	if e.curfn == nil {
 		base.Fatalf("e.curfn isn't set")
 	}
@@ -1096,7 +1096,7 @@ func (e *Escape) newLoc(n *ir.Node, transient bool) *EscLocation {
 	return loc
 }
 
-func (e *Escape) oldLoc(n *ir.Node) *EscLocation {
+func (e *Escape) oldLoc(n ir.Node) *EscLocation {
 	n = canonicalNode(n)
 	return n.Opt().(*EscLocation)
 }
@@ -1394,7 +1394,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
 }
 
 // containsClosure reports whether c is a closure contained within f.
-func containsClosure(f, c *ir.Node) bool {
+func containsClosure(f, c ir.Node) bool {
 	if f.Op() != ir.ODCLFUNC || c.Op() != ir.ODCLFUNC {
 		base.Fatalf("bad containsClosure: %v, %v", f, c)
 	}
@@ -1429,7 +1429,7 @@ func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
 	l.paramEsc.AddHeap(derefs)
 }
 
-func (e *Escape) finish(fns []*ir.Node) {
+func (e *Escape) finish(fns []ir.Node) {
 	// Record parameter tags for package export data.
 	for _, fn := range fns {
 		fn.SetEsc(EscFuncTagged)
@@ -1574,7 +1574,7 @@ func ParseLeaks(s string) EscLeaks {
 	return l
 }
 
-func escapes(all []*ir.Node) {
+func escapes(all []ir.Node) {
 	visitBottomUp(all, escapeFuncs)
 }
 
@@ -1607,7 +1607,7 @@ const (
 )
 
 // funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
-func funcSym(fn *ir.Node) *types.Sym {
+func funcSym(fn ir.Node) *types.Sym {
 	if fn == nil || fn.Func().Nname == nil {
 		return nil
 	}
@@ -1622,7 +1622,7 @@ var (
 	nonlooping = ir.Nod(ir.OXXX, nil, nil)
 )
 
-func isSliceSelfAssign(dst, src *ir.Node) bool {
+func isSliceSelfAssign(dst, src ir.Node) bool {
 	// Detect the following special case.
 	//
 	//	func (b *Buffer) Foo() {
@@ -1672,7 +1672,7 @@ func isSliceSelfAssign(dst, src *ir.Node) bool {
 
 // isSelfAssign reports whether assignment from src to dst can
 // be ignored by the escape analysis as it's effectively a self-assignment.
-func isSelfAssign(dst, src *ir.Node) bool {
+func isSelfAssign(dst, src ir.Node) bool {
 	if isSliceSelfAssign(dst, src) {
 		return true
 	}
@@ -1709,7 +1709,7 @@ func isSelfAssign(dst, src *ir.Node) bool {
 // mayAffectMemory reports whether evaluation of n may affect the program's
 // memory state. If the expression can't affect memory state, then it can be
 // safely ignored by the escape analysis.
-func mayAffectMemory(n *ir.Node) bool {
+func mayAffectMemory(n ir.Node) bool {
 	// We may want to use a list of "memory safe" ops instead of generally
 	// "side-effect free", which would include all calls and other ops that can
 	// allocate or change global state. For now, it's safer to start with the latter.
@@ -1736,7 +1736,7 @@ func mayAffectMemory(n *ir.Node) bool {
 
 // heapAllocReason returns the reason the given Node must be heap
 // allocated, or the empty string if it doesn't.
-func heapAllocReason(n *ir.Node) string {
+func heapAllocReason(n ir.Node) string {
 	if n.Type() == nil {
 		return ""
 	}
@@ -1781,7 +1781,7 @@ func heapAllocReason(n *ir.Node) string {
 // by "increasing" the "value" of n.Esc to EscHeap.
 // Storage is allocated as necessary to allow the address
 // to be taken.
-func addrescapes(n *ir.Node) {
+func addrescapes(n ir.Node) {
 	switch n.Op() {
 	default:
 		// Unexpected Op, probably due to a previous type error. Ignore.
@@ -1847,7 +1847,7 @@ func addrescapes(n *ir.Node) {
 }
 
 // moveToHeap records the parameter or local variable n as moved to the heap.
-func moveToHeap(n *ir.Node) {
+func moveToHeap(n ir.Node) {
 	if base.Flag.LowerR != 0 {
 		ir.Dump("MOVE", n)
 	}
@@ -1939,7 +1939,7 @@ const unsafeUintptrTag = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const uintptrEscapesTag = "uintptr-escapes"
 
-func (e *Escape) paramTag(fn *ir.Node, narg int, f *types.Field) string {
+func (e *Escape) paramTag(fn ir.Node, narg int, f *types.Field) string {
 	name := func() string {
 		if f.Sym != nil {
 			return f.Sym.Name

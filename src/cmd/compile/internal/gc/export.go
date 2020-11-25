@@ -21,10 +21,10 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 	}
 }
 
-var asmlist []*ir.Node
+var asmlist []ir.Node
 
 // exportsym marks n for export (or reexport).
-func exportsym(n *ir.Node) {
+func exportsym(n ir.Node) {
 	if n.Sym().OnExportList() {
 		return
 	}
@@ -41,7 +41,7 @@ func initname(s string) bool {
 	return s == "init"
 }
 
-func autoexport(n *ir.Node, ctxt ir.Class) {
+func autoexport(n ir.Node, ctxt ir.Class) {
 	if n.Sym().Pkg != ir.LocalPkg {
 		return
 	}
@@ -74,7 +74,7 @@ func dumpexport(bout *bio.Writer) {
 	}
 }
 
-func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Node {
+func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
 	n := ir.AsNode(s.PkgDef())
 	if n == nil {
 		// iimport should have created a stub ONONAME
@@ -120,7 +120,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 
 // importobj declares symbol s as an imported object representable by op.
 // ipkg is the package being imported
-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) *ir.Node {
+func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) ir.Node {
 	n := importsym(ipkg, s, op)
 	if n.Op() != ir.ONONAME {
 		if n.Op() == op && (n.Class() != ctxt || !types.Identical(n.Type(), t)) {

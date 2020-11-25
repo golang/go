@@ -330,7 +330,7 @@ func Main(archInit func(*Arch)) {
 
 	if base.Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list []*ir.Node, recursive bool) {
+		visitBottomUp(xtop, func(list []ir.Node, recursive bool) {
 			numfns := numNonClosures(list)
 			for _, n := range list {
 				if !recursive || numfns > 1 {
@@ -481,7 +481,7 @@ func Main(archInit func(*Arch)) {
 }
 
 // numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []*ir.Node) int {
+func numNonClosures(list []ir.Node) int {
 	count := 0
 	for _, n := range list {
 		if n.Func().OClosure == nil {
