@@ -718,11 +718,14 @@ func square(x constant.Value) constant.Value {
 }
 
 // For matching historical "constant OP overflow" error messages.
+// TODO(mdempsky): Replace with error messages like go/types uses.
 var overflowNames = [...]string{
-	OADD: "addition",
-	OSUB: "subtraction",
-	OMUL: "multiplication",
-	OLSH: "shift",
+	OADD:    "addition",
+	OSUB:    "subtraction",
+	OMUL:    "multiplication",
+	OLSH:    "shift",
+	OXOR:    "bitwise XOR",
+	OBITNOT: "bitwise complement",
 }
 
 // origConst returns an OLITERAL with orig n and value v.
@@ -732,32 +735,24 @@ func origConst(n *Node, v constant.Value) *Node {
 	lineno = lno
 
 	switch v.Kind() {
-	case constant.Unknown:
-		// If constant folding was attempted (we were called)
-		// but it produced an invalid constant value,
-		// mark n as broken and give up.
-		if Errors() == 0 {
-			Fatalf("should have reported an error")
+	case constant.Int:
+		if constant.BitLen(v) <= Mpprec {
+			break
 		}
+		fallthrough
+	case constant.Unknown:
+		what := overflowNames[n.Op]
+		if what == "" {
+			Fatalf("unexpected overflow: %v", n.Op)
+		}
+		yyerrorl(n.Pos, "constant %v overflow", what)
 		n.Type = nil
 		return n
-
-	case constant.Int:
-		if constant.BitLen(v) > Mpprec {
-			what := overflowNames[n.Op]
-			if what == "" {
-				Fatalf("unexpected overflow: %v", n.Op)
-			}
-			yyerror("constant %v overflow", what)
-			n.Type = nil
-			return n
-		}
 	}
 
 	orig := n
-	n = nod(OLITERAL, nil, nil)
+	n = nodl(orig.Pos, OLITERAL, nil, nil)
 	n.Orig = orig
-	n.Pos = orig.Pos
 	n.Type = orig.Type
 	n.SetVal(v)
 	return n
@@ -800,8 +795,10 @@ func origIntConst(n *Node, v int64) *Node {
 // nodlit returns a new untyped constant with value v.
 func nodlit(v constant.Value) *Node {
 	n := nod(OLITERAL, nil, nil)
-	n.Type = idealType(v.Kind())
-	n.SetVal(v)
+	if k := v.Kind(); k != constant.Unknown {
+		n.Type = idealType(k)
+		n.SetVal(v)
+	}
 	return n
 }
 
