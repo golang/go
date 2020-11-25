@@ -710,12 +710,11 @@ func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSourc
 	}
 
 	// ...else we should check if there's exactly one nested module.
-	const filesToSearch = 10000
-	all, err := findModules(ctx, folder, 2, filesToSearch)
+	all, err := findModules(ctx, folder, 2)
 	if err == errExhausted {
 		// Fall-back behavior: if we don't find any modules after searching 10000
 		// files, assume there are none.
-		event.Log(ctx, fmt.Sprintf("stopped searching for modules after %d files", filesToSearch))
+		event.Log(ctx, fmt.Sprintf("stopped searching for modules after %d files", fileLimit))
 		return folder, nil
 	}
 	if err != nil {
