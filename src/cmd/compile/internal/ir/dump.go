@@ -150,9 +150,6 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 	case src.XPos:
 		p.printf("%s", base.FmtPos(v))
 		return
-
-	case *types.Node:
-		x = reflect.ValueOf(AsNode(v))
 	}
 
 	switch x.Kind() {

@@ -10,7 +10,6 @@ import (
 	"go/constant"
 	"sort"
 	"strings"
-	"unsafe"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
@@ -1340,9 +1339,12 @@ type SymAndPos struct {
 	Pos src.XPos  // line of call
 }
 
-func AsNode(n *types.Node) *Node { return (*Node)(unsafe.Pointer(n)) }
-
-func AsTypesNode(n *Node) *types.Node { return (*types.Node)(unsafe.Pointer(n)) }
+func AsNode(n types.IRNode) *Node {
+	if n == nil {
+		return nil
+	}
+	return n.(*Node)
+}
 
 var BlankNode *Node
 

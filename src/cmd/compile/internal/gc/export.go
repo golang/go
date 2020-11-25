@@ -86,7 +86,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Node {
 		}
 
 		n = dclname(s)
-		s.SetPkgDef(ir.AsTypesNode(n))
+		s.SetPkgDef(n)
 		s.Importdef = ipkg
 	}
 	if n.Op() != ir.ONONAME && n.Op() != op {
@@ -103,7 +103,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 	if n.Op() != ir.OTYPE {
 		t := types.New(types.TFORW)
 		t.Sym = s
-		t.Nod = ir.AsTypesNode(n)
+		t.Nod = n
 
 		n.SetOp(ir.OTYPE)
 		n.SetPos(pos)

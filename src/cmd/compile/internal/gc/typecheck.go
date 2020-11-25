@@ -3486,7 +3486,7 @@ func setUnderlying(t, underlying *types.Type) {
 	*t = *underlying
 
 	// Restore unnecessarily clobbered attributes.
-	t.Nod = ir.AsTypesNode(n)
+	t.Nod = n
 	t.Sym = n.Sym()
 	if n.Name() != nil {
 		t.Vargen = n.Name().Vargen
@@ -3691,7 +3691,7 @@ func typecheckdef(n *ir.Node) {
 				// For package-level type aliases, set n.Sym.Def so we can identify
 				// it as a type alias during export. See also #31959.
 				if n.Name().Curfn == nil {
-					n.Sym().Def = ir.AsTypesNode(p.Ntype)
+					n.Sym().Def = p.Ntype
 				}
 			}
 			break
@@ -3799,7 +3799,7 @@ func markbreaklist(l ir.Nodes, implicit *ir.Node) {
 		if n.Op() == ir.OLABEL && i+1 < len(s) && n.Name().Defn == s[i+1] {
 			switch n.Name().Defn.Op() {
 			case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
-				n.Sym().Label = ir.AsTypesNode(n.Name().Defn)
+				n.Sym().Label = n.Name().Defn
 				markbreak(n.Name().Defn, n.Name().Defn)
 				n.Sym().Label = nil
 				i++
@@ -3998,7 +3998,7 @@ func deadcodeexpr(n *ir.Node) *ir.Node {
 func setTypeNode(n *ir.Node, t *types.Type) {
 	n.SetOp(ir.OTYPE)
 	n.SetType(t)
-	n.Type().Nod = ir.AsTypesNode(n)
+	n.Type().Nod = n
 }
 
 // getIotaValue returns the current value for "iota",

@@ -118,7 +118,7 @@ func declare(n *ir.Node, ctxt ir.Class) {
 
 	s.Block = types.Block
 	s.Lastlineno = base.Pos
-	s.Def = ir.AsTypesNode(n)
+	s.Def = n
 	n.Name().Vargen = int32(gen)
 	n.SetClass(ctxt)
 	if ctxt == ir.PFUNC {
@@ -235,7 +235,7 @@ func typenodl(pos src.XPos, t *types.Type) *ir.Node {
 	// then t->nod might be out of date, so
 	// check t->nod->type too
 	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type() != t {
-		t.Nod = ir.AsTypesNode(ir.NodAt(pos, ir.OTYPE, nil, nil))
+		t.Nod = ir.NodAt(pos, ir.OTYPE, nil, nil)
 		ir.AsNode(t.Nod).SetType(t)
 		ir.AsNode(t.Nod).SetSym(t.Sym)
 	}
@@ -490,7 +490,7 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
 		return
 	}
 	n := ir.NewNameAt(f.Pos, f.Sym)
-	f.Nname = ir.AsTypesNode(n)
+	f.Nname = n
 	n.SetType(f.Type)
 	n.SetIsDDD(f.IsDDD())
 	declare(n, ctxt)
@@ -614,7 +614,7 @@ func tofunargs(l []*ir.Node, funarg types.Funarg) *types.Type {
 		f.SetIsDDD(n.IsDDD())
 		if n.Right() != nil {
 			n.Right().SetType(f.Type)
-			f.Nname = ir.AsTypesNode(n.Right())
+			f.Nname = n.Right()
 		}
 		if f.Broke() {
 			t.SetBroke(true)
@@ -872,7 +872,7 @@ func addmethod(n *ir.Node, msym *types.Sym, t *types.Type, local, nointerface bo
 	}
 
 	f := types.NewField(base.Pos, msym, t)
-	f.Nname = ir.AsTypesNode(n.Func().Nname)
+	f.Nname = n.Func().Nname
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)

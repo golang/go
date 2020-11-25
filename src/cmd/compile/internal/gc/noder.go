@@ -373,7 +373,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	if my.Def != nil {
 		redeclare(pack.Pos(), my, "as imported package name")
 	}
-	my.Def = ir.AsTypesNode(pack)
+	my.Def = pack
 	my.Lastlineno = pack.Pos()
 	my.Block = 1 // at top level
 }

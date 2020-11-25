@@ -151,7 +151,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			ir.NumImport[pkgName]++
 
 			// TODO(mdempsky): This belongs somewhere else.
-			pkg.Lookup("_").Def = ir.AsTypesNode(ir.BlankNode)
+			pkg.Lookup("_").Def = ir.BlankNode
 		} else {
 			if pkg.Name != pkgName {
 				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
@@ -175,7 +175,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			if s.Def != nil {
 				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
 			}
-			s.Def = ir.AsTypesNode(npos(src.NoXPos, dclname(s)))
+			s.Def = npos(src.NoXPos, dclname(s))
 		}
 	}
 
@@ -337,7 +337,7 @@ func (r *importReader) doDecl(n *ir.Node) {
 			// methodSym already marked m.Sym as a function.
 
 			f := types.NewField(mpos, msym, mtyp)
-			f.Nname = ir.AsTypesNode(m)
+			f.Nname = m
 			ms[i] = f
 		}
 		t.Methods().Set(ms)
