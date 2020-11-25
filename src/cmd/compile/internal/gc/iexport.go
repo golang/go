@@ -1146,18 +1146,17 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.op(ir.OFALL)
 		w.pos(n.Pos())
 
-	case ir.OBREAK, ir.OCONTINUE:
-		w.op(op)
-		w.pos(n.Pos())
-		w.exprsOrNil(n.Left(), nil)
-
 	case ir.OEMPTY:
 		// nothing to emit
 
-	case ir.OGOTO, ir.OLABEL:
+	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
 		w.op(op)
 		w.pos(n.Pos())
-		w.string(n.Sym().Name)
+		label := ""
+		if sym := n.Sym(); sym != nil {
+			label = sym.Name
+		}
+		w.string(label)
 
 	default:
 		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op())

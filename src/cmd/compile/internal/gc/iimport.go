@@ -1052,20 +1052,14 @@ func (r *importReader) node() ir.Node {
 		n := ir.NodAt(r.pos(), ir.OFALL, nil, nil)
 		return n
 
-	case ir.OBREAK, ir.OCONTINUE:
-		pos := r.pos()
-		left, _ := r.exprsOrNil()
-		if left != nil {
-			left = NewName(left.Sym())
-		}
-		return ir.NodAt(pos, op, left, nil)
-
 	// case OEMPTY:
 	// 	unreachable - not emitted by exporter
 
-	case ir.OGOTO, ir.OLABEL:
+	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
 		n := ir.NodAt(r.pos(), op, nil, nil)
-		n.SetSym(lookup(r.string()))
+		if label := r.string(); label != "" {
+			n.SetSym(lookup(label))
+		}
 		return n
 
 	case ir.OEND:
