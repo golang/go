@@ -7,6 +7,7 @@
 package ir
 
 import (
+	"fmt"
 	"go/constant"
 	"sort"
 	"strings"
@@ -17,6 +18,119 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
+
+// A Node is the abstract interface to an IR node.
+type INode interface {
+	// Formatting
+	Format(s fmt.State, verb rune)
+	String() string
+
+	// Source position.
+	Pos() src.XPos
+	SetPos(x src.XPos)
+
+	// For making copies. Mainly used by Copy and SepCopy.
+	RawCopy() *Node
+
+	// Abstract graph structure, for generic traversals.
+	Op() Op
+	SetOp(x Op)
+	Orig() *Node
+	SetOrig(x *Node)
+	SubOp() Op
+	SetSubOp(x Op)
+	Left() *Node
+	SetLeft(x *Node)
+	Right() *Node
+	SetRight(x *Node)
+	Init() Nodes
+	PtrInit() *Nodes
+	SetInit(x Nodes)
+	Body() Nodes
+	PtrBody() *Nodes
+	SetBody(x Nodes)
+	List() Nodes
+	SetList(x Nodes)
+	PtrList() *Nodes
+	Rlist() Nodes
+	SetRlist(x Nodes)
+	PtrRlist() *Nodes
+
+	// Fields specific to certain Ops only.
+	Type() *types.Type
+	SetType(t *types.Type)
+	Func() *Func
+	SetFunc(x *Func)
+	Name() *Name
+	SetName(x *Name)
+	Sym() *types.Sym
+	SetSym(x *types.Sym)
+	Offset() int64
+	SetOffset(x int64)
+	Class() Class
+	SetClass(x Class)
+	Likely() bool
+	SetLikely(x bool)
+	SliceBounds() (low, high, max *Node)
+	SetSliceBounds(low, high, max *Node)
+	Iota() int64
+	SetIota(x int64)
+	Colas() bool
+	SetColas(x bool)
+	NoInline() bool
+	SetNoInline(x bool)
+	Transient() bool
+	SetTransient(x bool)
+	Implicit() bool
+	SetImplicit(x bool)
+	IsDDD() bool
+	SetIsDDD(x bool)
+	Embedded() bool
+	SetEmbedded(x bool)
+	IndexMapLValue() bool
+	SetIndexMapLValue(x bool)
+	TChanDir() types.ChanDir
+	SetTChanDir(x types.ChanDir)
+	ResetAux()
+	HasBreak() bool
+	SetHasBreak(x bool)
+	MarkReadonly()
+	Val() constant.Value
+	HasVal() bool
+	SetVal(v constant.Value)
+	Int64Val() int64
+	Uint64Val() uint64
+	CanInt64() bool
+	BoolVal() bool
+	StringVal() string
+
+	// Storage for analysis passes.
+	Esc() uint16
+	SetEsc(x uint16)
+	Walkdef() uint8
+	SetWalkdef(x uint8)
+	Opt() interface{}
+	SetOpt(x interface{})
+	HasOpt() bool
+	Diag() bool
+	SetDiag(x bool)
+	Bounded() bool
+	SetBounded(x bool)
+	Typecheck() uint8
+	SetTypecheck(x uint8)
+	Initorder() uint8
+	SetInitorder(x uint8)
+	NonNil() bool
+	MarkNonNil()
+	HasCall() bool
+	SetHasCall(x bool)
+
+	// Only for SSA and should be removed when SSA starts
+	// using a more specific type than Node.
+	CanBeAnSSASym()
+}
+
+var _ INode = (*Node)(nil)
 
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
@@ -1512,9 +1626,9 @@ func (n *Node) RawCopy() *Node {
 // sepcopy returns a separate shallow copy of n, with the copy's
 // Orig pointing to itself.
 func SepCopy(n *Node) *Node {
-	copy := *n
-	copy.orig = &copy
-	return &copy
+	n = n.RawCopy()
+	n.SetOrig(n)
+	return n
 }
 
 // copy returns shallow copy of n and adjusts the copy's Orig if
@@ -1525,11 +1639,11 @@ func SepCopy(n *Node) *Node {
 // (This caused the wrong complit Op to be used when printing error
 // messages; see issues #26855, #27765).
 func Copy(n *Node) *Node {
-	copy := *n
+	copy := n.RawCopy()
 	if n.Orig() == n {
-		copy.orig = &copy
+		copy.SetOrig(copy)
 	}
-	return &copy
+	return copy
 }
 
 // isNil reports whether n represents the universal untyped zero value "nil".
