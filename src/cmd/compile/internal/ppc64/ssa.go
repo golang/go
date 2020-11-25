@@ -752,7 +752,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Reg = v.Reg()
 			}
 
-		case *obj.LSym, *ir.Node:
+		case *obj.LSym, ir.Node:
 			p := s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_ADDR
 			p.From.Reg = v.Args[0].Reg()

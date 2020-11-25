@@ -10,7 +10,7 @@ import (
 )
 
 // evalunsafe evaluates a package unsafe operation and returns the result.
-func evalunsafe(n *ir.Node) int64 {
+func evalunsafe(n ir.Node) int64 {
 	switch n.Op() {
 	case ir.OALIGNOF, ir.OSIZEOF:
 		n.SetLeft(typecheck(n.Left(), ctxExpr))

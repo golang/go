@@ -101,10 +101,10 @@ type BlockEffects struct {
 
 // A collection of global state used by liveness analysis.
 type Liveness struct {
-	fn         *ir.Node
+	fn         ir.Node
 	f          *ssa.Func
-	vars       []*ir.Node
-	idx        map[*ir.Node]int32
+	vars       []ir.Node
+	idx        map[ir.Node]int32
 	stkptrsize int64
 
 	be []BlockEffects
@@ -206,20 +206,20 @@ type progeffectscache struct {
 // nor do we care about non-local variables,
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
-func livenessShouldTrack(n *ir.Node) bool {
+func livenessShouldTrack(n ir.Node) bool {
 	return n.Op() == ir.ONAME && (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
 // and a map for looking up indices by *Node.
-func getvariables(fn *ir.Node) ([]*ir.Node, map[*ir.Node]int32) {
-	var vars []*ir.Node
+func getvariables(fn ir.Node) ([]ir.Node, map[ir.Node]int32) {
+	var vars []ir.Node
 	for _, n := range fn.Func().Dcl {
 		if livenessShouldTrack(n) {
 			vars = append(vars, n)
 		}
 	}
-	idx := make(map[*ir.Node]int32, len(vars))
+	idx := make(map[ir.Node]int32, len(vars))
 	for i, n := range vars {
 		idx[n] = int32(i)
 	}
@@ -312,7 +312,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 }
 
 // affectedNode returns the *Node affected by v
-func affectedNode(v *ssa.Value) (*ir.Node, ssa.SymEffect) {
+func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
 	// Special cases.
 	switch v.Op {
 	case ssa.OpLoadReg:
@@ -323,9 +323,9 @@ func affectedNode(v *ssa.Value) (*ir.Node, ssa.SymEffect) {
 		return n, ssa.SymWrite
 
 	case ssa.OpVarLive:
-		return v.Aux.(*ir.Node), ssa.SymRead
+		return v.Aux.(ir.Node), ssa.SymRead
 	case ssa.OpVarDef, ssa.OpVarKill:
-		return v.Aux.(*ir.Node), ssa.SymWrite
+		return v.Aux.(ir.Node), ssa.SymWrite
 	case ssa.OpKeepAlive:
 		n, _ := AutoVar(v.Args[0])
 		return n, ssa.SymRead
@@ -340,7 +340,7 @@ func affectedNode(v *ssa.Value) (*ir.Node, ssa.SymEffect) {
 	case nil, *obj.LSym:
 		// ok, but no node
 		return nil, e
-	case *ir.Node:
+	case ir.Node:
 		return a, e
 	default:
 		base.Fatalf("weird aux: %s", v.LongString())
@@ -356,7 +356,7 @@ type livenessFuncCache struct {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *ir.Node, f *ssa.Func, vars []*ir.Node, idx map[*ir.Node]int32, stkptrsize int64) *Liveness {
+func newliveness(fn ir.Node, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
@@ -482,7 +482,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Node, args, locals bvec) {
+func (lv *Liveness) pointerMap(liveout bvec, vars []ir.Node, args, locals bvec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -1164,7 +1164,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
-	var maxArgNode *ir.Node
+	var maxArgNode ir.Node
 	for _, n := range lv.vars {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT:

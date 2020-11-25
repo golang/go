@@ -324,7 +324,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *ir.Node:
+		case ir.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:

@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-var embedlist []*ir.Node
+var embedlist []ir.Node
 
 const (
 	embedUnknown = iota
@@ -28,7 +28,7 @@ const (
 
 var numLocalEmbed int
 
-func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds []PragmaEmbed) (newExprs []*ir.Node) {
+func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -118,7 +118,7 @@ func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds
 		v.Name().Param.Ntype = typ
 		v.SetClass(ir.PEXTERN)
 		externdcl = append(externdcl, v)
-		exprs = []*ir.Node{v}
+		exprs = []ir.Node{v}
 	}
 
 	v.Name().Param.SetEmbedFiles(list)
@@ -130,7 +130,7 @@ func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds
 // The match is approximate because we haven't done scope resolution yet and
 // can't tell whether "string" and "byte" really mean "string" and "byte".
 // The result must be confirmed later, after type checking, using embedKind.
-func embedKindApprox(typ *ir.Node) int {
+func embedKindApprox(typ ir.Node) int {
 	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
@@ -192,7 +192,7 @@ func dumpembeds() {
 
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
-func initEmbed(v *ir.Node) {
+func initEmbed(v ir.Node) {
 	files := v.Name().Param.EmbedFiles()
 	switch kind := embedKind(v.Type()); kind {
 	case embedUnknown:

@@ -69,7 +69,7 @@ type TestFrontend struct {
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
-func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Node {
+func (TestFrontend) Auto(pos src.XPos, t *types.Type) ir.Node {
 	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
 	n.SetClass(ir.PAUTO)
 	return n

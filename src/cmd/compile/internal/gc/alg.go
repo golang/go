@@ -404,7 +404,7 @@ func genhash(t *types.Type) *obj.LSym {
 	return closure
 }
 
-func hashfor(t *types.Type) *ir.Node {
+func hashfor(t *types.Type) ir.Node {
 	var sym *types.Sym
 
 	switch a, _ := algtype1(t); a {
@@ -432,10 +432,10 @@ func hashfor(t *types.Type) *ir.Node {
 
 	n := NewName(sym)
 	setNodeNameFunc(n)
-	n.SetType(functype(nil, []*ir.Node{
+	n.SetType(functype(nil, []ir.Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[types.TUINTPTR]),
-	}, []*ir.Node{
+	}, []ir.Node{
 		anonfield(types.Types[types.TUINTPTR]),
 	}))
 	return n
@@ -567,9 +567,9 @@ func geneq(t *types.Type) *obj.LSym {
 		//
 		// TODO(josharian): consider doing some loop unrolling
 		// for larger nelem as well, processing a few elements at a time in a loop.
-		checkAll := func(unroll int64, last bool, eq func(pi, qi *ir.Node) *ir.Node) {
+		checkAll := func(unroll int64, last bool, eq func(pi, qi ir.Node) ir.Node) {
 			// checkIdx generates a node to check for equality at index i.
-			checkIdx := func(i *ir.Node) *ir.Node {
+			checkIdx := func(i ir.Node) ir.Node {
 				// pi := p[i]
 				pi := ir.Nod(ir.OINDEX, np, i)
 				pi.SetBounded(true)
@@ -621,24 +621,24 @@ func geneq(t *types.Type) *obj.LSym {
 			// Do two loops. First, check that all the lengths match (cheap).
 			// Second, check that all the contents match (expensive).
 			// TODO: when the array size is small, unroll the length match checks.
-			checkAll(3, false, func(pi, qi *ir.Node) *ir.Node {
+			checkAll(3, false, func(pi, qi ir.Node) ir.Node {
 				// Compare lengths.
 				eqlen, _ := eqstring(pi, qi)
 				return eqlen
 			})
-			checkAll(1, true, func(pi, qi *ir.Node) *ir.Node {
+			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// Compare contents.
 				_, eqmem := eqstring(pi, qi)
 				return eqmem
 			})
 		case types.TFLOAT32, types.TFLOAT64:
-			checkAll(2, true, func(pi, qi *ir.Node) *ir.Node {
+			checkAll(2, true, func(pi, qi ir.Node) ir.Node {
 				// p[i] == q[i]
 				return ir.Nod(ir.OEQ, pi, qi)
 			})
 		// TODO: pick apart structs, do them piecemeal too
 		default:
-			checkAll(1, true, func(pi, qi *ir.Node) *ir.Node {
+			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// p[i] == q[i]
 				return ir.Nod(ir.OEQ, pi, qi)
 			})
@@ -648,9 +648,9 @@ func geneq(t *types.Type) *obj.LSym {
 		// Build a list of conditions to satisfy.
 		// The conditions are a list-of-lists. Conditions are reorderable
 		// within each inner list. The outer lists must be evaluated in order.
-		var conds [][]*ir.Node
-		conds = append(conds, []*ir.Node{})
-		and := func(n *ir.Node) {
+		var conds [][]ir.Node
+		conds = append(conds, []ir.Node{})
+		and := func(n ir.Node) {
 			i := len(conds) - 1
 			conds[i] = append(conds[i], n)
 		}
@@ -670,7 +670,7 @@ func geneq(t *types.Type) *obj.LSym {
 			if !IsRegularMemory(f.Type) {
 				if EqCanPanic(f.Type) {
 					// Enforce ordering by starting a new set of reorderable conditions.
-					conds = append(conds, []*ir.Node{})
+					conds = append(conds, []ir.Node{})
 				}
 				p := nodSym(ir.OXDOT, np, f.Sym)
 				q := nodSym(ir.OXDOT, nq, f.Sym)
@@ -684,7 +684,7 @@ func geneq(t *types.Type) *obj.LSym {
 				}
 				if EqCanPanic(f.Type) {
 					// Also enforce ordering after something that can panic.
-					conds = append(conds, []*ir.Node{})
+					conds = append(conds, []ir.Node{})
 				}
 				i++
 				continue
@@ -709,9 +709,9 @@ func geneq(t *types.Type) *obj.LSym {
 
 		// Sort conditions to put runtime calls last.
 		// Preserve the rest of the ordering.
-		var flatConds []*ir.Node
+		var flatConds []ir.Node
 		for _, c := range conds {
-			isCall := func(n *ir.Node) bool {
+			isCall := func(n ir.Node) bool {
 				return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
 			}
 			sort.SliceStable(c, func(i, j int) bool {
@@ -785,7 +785,7 @@ func geneq(t *types.Type) *obj.LSym {
 	return closure
 }
 
-func hasCall(n *ir.Node) bool {
+func hasCall(n ir.Node) bool {
 	if n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC {
 		return true
 	}
@@ -820,7 +820,7 @@ func hasCall(n *ir.Node) bool {
 
 // eqfield returns the node
 // 	p.field == q.field
-func eqfield(p *ir.Node, q *ir.Node, field *types.Sym) *ir.Node {
+func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 	nx := nodSym(ir.OXDOT, p, field)
 	ny := nodSym(ir.OXDOT, q, field)
 	ne := ir.Nod(ir.OEQ, nx, ny)
@@ -833,7 +833,7 @@ func eqfield(p *ir.Node, q *ir.Node, field *types.Sym) *ir.Node {
 //   memequal(s.ptr, t.ptr, len(s))
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
-func eqstring(s, t *ir.Node) (eqlen, eqmem *ir.Node) {
+func eqstring(s, t ir.Node) (eqlen, eqmem ir.Node) {
 	s = conv(s, types.Types[types.TSTRING])
 	t = conv(t, types.Types[types.TSTRING])
 	sptr := ir.Nod(ir.OSPTR, s, nil)
@@ -859,13 +859,13 @@ func eqstring(s, t *ir.Node) (eqlen, eqmem *ir.Node) {
 //   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
 // which can be used to construct interface equality comparison.
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
-func eqinterface(s, t *ir.Node) (eqtab, eqdata *ir.Node) {
+func eqinterface(s, t ir.Node) (eqtab, eqdata ir.Node) {
 	if !types.Identical(s.Type(), t.Type()) {
 		base.Fatalf("eqinterface %v %v", s.Type(), t.Type())
 	}
 	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
-	var fn *ir.Node
+	var fn ir.Node
 	if s.Type().IsEmptyInterface() {
 		fn = syslook("efaceeq")
 	} else {
@@ -893,7 +893,7 @@ func eqinterface(s, t *ir.Node) (eqtab, eqdata *ir.Node) {
 
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
-func eqmem(p *ir.Node, q *ir.Node, field *types.Sym, size int64) *ir.Node {
+func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	nx := ir.Nod(ir.OADDR, nodSym(ir.OXDOT, p, field), nil)
 	ny := ir.Nod(ir.OADDR, nodSym(ir.OXDOT, q, field), nil)
 	nx = typecheck(nx, ctxExpr)
@@ -910,7 +910,7 @@ func eqmem(p *ir.Node, q *ir.Node, field *types.Sym, size int64) *ir.Node {
 	return call
 }
 
-func eqmemfunc(size int64, t *types.Type) (fn *ir.Node, needsize bool) {
+func eqmemfunc(size int64, t *types.Type) (fn ir.Node, needsize bool) {
 	switch size {
 	default:
 		fn = syslook("memequal")

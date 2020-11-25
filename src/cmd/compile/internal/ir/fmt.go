@@ -243,7 +243,7 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode FmtMode) {
 type FmtMode int
 
 type fmtNode struct {
-	x *Node
+	x Node
 	m FmtMode
 }
 
@@ -277,11 +277,11 @@ type fmtNodes struct {
 
 func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
 
-func (n *Node) Format(s fmt.State, verb rune) {
+func (n *node) Format(s fmt.State, verb rune) {
 	FmtNode(n, s, verb)
 }
 
-func FmtNode(n *Node, s fmt.State, verb rune) {
+func FmtNode(n Node, s fmt.State, verb rune) {
 	nodeFormat(n, s, verb, FErr)
 }
 
@@ -311,7 +311,7 @@ func (m FmtMode) prepareArgs(args []interface{}) {
 		switch arg := arg.(type) {
 		case Op:
 			args[i] = &fmtOp{arg, m}
-		case *Node:
+		case Node:
 			args[i] = &fmtNode{arg, m}
 		case nil:
 			args[i] = &fmtNode{nil, m} // assume this was a node interface
@@ -329,7 +329,7 @@ func (m FmtMode) prepareArgs(args []interface{}) {
 	}
 }
 
-func nodeFormat(n *Node, s fmt.State, verb rune, mode FmtMode) {
+func nodeFormat(n Node, s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
 		nconvFmt(n, s, fmtFlag(s, verb), mode)
@@ -343,10 +343,10 @@ func nodeFormat(n *Node, s fmt.State, verb rune, mode FmtMode) {
 }
 
 // EscFmt is set by the escape analysis code to add escape analysis details to the node print.
-var EscFmt func(n *Node, short bool) string
+var EscFmt func(n Node, short bool) string
 
 // *Node details
-func jconvFmt(n *Node, s fmt.State, flag FmtFlag) {
+func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 	short := flag&FmtShort != 0
 
 	// Useful to see which nodes in an AST printout are actually identical
@@ -894,7 +894,7 @@ func StmtWithInit(op Op) bool {
 	return false
 }
 
-func stmtFmt(n *Node, s fmt.State, mode FmtMode) {
+func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
 	// and inlining. If it doesn't fit the syntax, emit an enclosing
@@ -1194,7 +1194,7 @@ var OpPrec = []int{
 	OEND: 0,
 }
 
-func exprFmt(n *Node, s fmt.State, prec int, mode FmtMode) {
+func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 	for n != nil && n.Implicit() && (n.Op() == ODEREF || n.Op() == OADDR) {
 		n = n.Left()
 	}
@@ -1556,7 +1556,7 @@ func exprFmt(n *Node, s fmt.State, prec int, mode FmtMode) {
 	}
 }
 
-func nodeFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	t := n.Type()
 
 	// We almost always want the original.
@@ -1586,7 +1586,7 @@ func nodeFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	exprFmt(n, s, 0, mode)
 }
 
-func nodeDumpFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	recur := flag&FmtShort == 0
 
 	if recur {
@@ -1794,12 +1794,12 @@ func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
 	}
 }
 
-func (n *Node) String() string                { return fmt.Sprint(n) }
-func modeString(n *Node, mode FmtMode) string { return mode.Sprint(n) }
+func (n *node) String() string               { return fmt.Sprint(n) }
+func modeString(n Node, mode FmtMode) string { return mode.Sprint(n) }
 
 // "%L"  suffix with "(type %T)" where possible
 // "%+S" in debug mode, don't recurse, no multiline output
-func nconvFmt(n *Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+func nconvFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
 		return
@@ -1866,7 +1866,7 @@ func FDumpList(w io.Writer, s string, l Nodes) {
 	fmt.Fprintf(w, "%s%+v\n", s, l)
 }
 
-func Dump(s string, n *Node) {
+func Dump(s string, n Node) {
 	fmt.Printf("%s [%p]%+v\n", s, n, n)
 }
 
@@ -1911,6 +1911,6 @@ func InstallTypeFormats() {
 
 // Line returns n's position as a string. If n has been inlined,
 // it uses the outermost position where n has been inlined.
-func Line(n *Node) string {
+func Line(n Node) string {
 	return base.FmtPos(n.Pos())
 }

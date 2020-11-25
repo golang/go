@@ -12,7 +12,7 @@ import (
 	"cmd/compile/internal/types"
 )
 
-func ConstType(n *Node) constant.Kind {
+func ConstType(n Node) constant.Kind {
 	if n == nil || n.Op() != OLITERAL {
 		return constant.Unknown
 	}
@@ -22,7 +22,7 @@ func ConstType(n *Node) constant.Kind {
 // ValueInterface returns the constant value stored in n as an interface{}.
 // It returns int64s for ints and runes, float64s for floats,
 // and complex128s for complex values.
-func ConstValue(n *Node) interface{} {
+func ConstValue(n Node) interface{} {
 	switch v := n.Val(); v.Kind() {
 	default:
 		base.Fatalf("unexpected constant: %v", v)
@@ -91,7 +91,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 }
 
 // nodlit returns a new untyped constant with value v.
-func NewLiteral(v constant.Value) *Node {
+func NewLiteral(v constant.Value) Node {
 	n := Nod(OLITERAL, nil, nil)
 	if k := v.Kind(); k != constant.Unknown {
 		n.SetType(idealType(k))

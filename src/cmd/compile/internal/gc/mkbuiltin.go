@@ -207,7 +207,7 @@ func (i *typeInterner) fields(fl *ast.FieldList, keepNames bool) string {
 			}
 		}
 	}
-	return fmt.Sprintf("[]*ir.Node{%s}", strings.Join(res, ", "))
+	return fmt.Sprintf("[]ir.Node{%s}", strings.Join(res, ", "))
 }
 
 func intconst(e ast.Expr) int64 {
