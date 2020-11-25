@@ -145,8 +145,9 @@ var (
 	okforcap   [NTYPE]bool
 	okforlen   [NTYPE]bool
 	okforarith [NTYPE]bool
-	okforconst [NTYPE]bool
 )
+
+var okforconst [NTYPE]bool
 
 var (
 	okfor [OEND][]bool
