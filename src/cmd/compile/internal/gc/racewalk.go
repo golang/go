@@ -5,6 +5,8 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -47,9 +49,9 @@ var omit_pkgs = []string{
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
-	if myimportpath != "" {
+	if base.Ctxt.Pkgpath != "" {
 		for _, p := range pkgs {
-			if myimportpath == p {
+			if base.Ctxt.Pkgpath == p {
 				return true
 			}
 		}
@@ -58,22 +60,22 @@ func ispkgin(pkgs []string) bool {
 	return false
 }
 
-func instrument(fn *Node) {
-	if fn.Func.Pragma&Norace != 0 {
+func instrument(fn ir.Node) {
+	if fn.Func().Pragma&ir.Norace != 0 {
 		return
 	}
 
-	if !flag_race || !ispkgin(norace_inst_pkgs) {
-		fn.Func.SetInstrumentBody(true)
+	if !base.Flag.Race || !ispkgin(norace_inst_pkgs) {
+		fn.Func().SetInstrumentBody(true)
 	}
 
-	if flag_race {
-		lno := lineno
-		lineno = src.NoXPos
+	if base.Flag.Race {
+		lno := base.Pos
+		base.Pos = src.NoXPos
 
 		if thearch.LinkArch.Arch.Family != sys.AMD64 {
-			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
-			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+			fn.Func().Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
+			fn.Func().Exit.Append(mkcall("racefuncexit", nil, nil))
 		} else {
 
 			// nodpc is the PC of the caller as extracted by
@@ -81,13 +83,13 @@ func instrument(fn *Node) {
 			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
-			nodpc := nodfp.copy()
-			nodpc.Type = types.Types[TUINTPTR]
-			nodpc.Xoffset = int64(-Widthptr)
-			fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
-			fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
-			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+			nodpc := ir.Copy(nodfp)
+			nodpc.SetType(types.Types[types.TUINTPTR])
+			nodpc.SetOffset(int64(-Widthptr))
+			fn.Func().Dcl = append(fn.Func().Dcl, nodpc)
+			fn.Func().Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+			fn.Func().Exit.Append(mkcall("racefuncexit", nil, nil))
 		}
-		lineno = lno
+		base.Pos = lno
 	}
 }

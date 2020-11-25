@@ -5,15 +5,13 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"sync"
-)
-
-const (
-	BADWIDTH = types.BADWIDTH
 )
 
 var (
@@ -39,7 +37,7 @@ var (
 
 // isRuntimePkg reports whether p is package runtime.
 func isRuntimePkg(p *types.Pkg) bool {
-	if compiling_runtime && p == localpkg {
+	if base.Flag.CompilingRuntime && p == ir.LocalPkg {
 		return true
 	}
 	return p.Path == "runtime"
@@ -47,30 +45,11 @@ func isRuntimePkg(p *types.Pkg) bool {
 
 // isReflectPkg reports whether p is package reflect.
 func isReflectPkg(p *types.Pkg) bool {
-	if p == localpkg {
-		return myimportpath == "reflect"
+	if p == ir.LocalPkg {
+		return base.Ctxt.Pkgpath == "reflect"
 	}
 	return p.Path == "reflect"
 }
-
-// The Class of a variable/function describes the "storage class"
-// of a variable or function. During parsing, storage classes are
-// called declaration contexts.
-type Class uint8
-
-//go:generate stringer -type=Class
-const (
-	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
-	PEXTERN                // global variables
-	PAUTO                  // local variables
-	PAUTOHEAP              // local variables or parameters moved to heap
-	PPARAM                 // input arguments
-	PPARAMOUT              // output results
-	PFUNC                  // global functions
-
-	// Careful: Class is stored in three bits in Node.flags.
-	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
-)
 
 // Slices in the runtime are represented by three components:
 //
@@ -99,39 +78,9 @@ var (
 
 var pragcgobuf [][]string
 
-var outfile string
-var linkobj string
-
-// nerrors is the number of compiler errors reported
-// since the last call to saveerrors.
-var nerrors int
-
-// nsavederrors is the total number of compiler errors
-// reported before the last call to saveerrors.
-var nsavederrors int
-
-var nsyntaxerrors int
-
 var decldepth int32
 
 var nolocalimports bool
-
-// gc debug flags
-type DebugFlags struct {
-	P, B, C, E, G,
-	K, L, N, S,
-	W, e, h, j,
-	l, m, r, w int
-}
-
-var Debug DebugFlags
-
-var debugstr string
-
-var Debug_checknil int
-var Debug_typeassert int
-
-var localpkg *types.Pkg // package being compiled
 
 var inimport bool // set during import
 
@@ -155,86 +104,52 @@ var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver 
 
 var zerosize int64
 
-var myimportpath string
-
-var localimport string
-
-var asmhdr string
-
-var simtype [NTYPE]types.EType
+var simtype [types.NTYPE]types.EType
 
 var (
-	isInt     [NTYPE]bool
-	isFloat   [NTYPE]bool
-	isComplex [NTYPE]bool
-	issimple  [NTYPE]bool
+	isInt     [types.NTYPE]bool
+	isFloat   [types.NTYPE]bool
+	isComplex [types.NTYPE]bool
+	issimple  [types.NTYPE]bool
 )
 
 var (
-	okforeq    [NTYPE]bool
-	okforadd   [NTYPE]bool
-	okforand   [NTYPE]bool
-	okfornone  [NTYPE]bool
-	okforcmp   [NTYPE]bool
-	okforbool  [NTYPE]bool
-	okforcap   [NTYPE]bool
-	okforlen   [NTYPE]bool
-	okforarith [NTYPE]bool
-	okforconst [NTYPE]bool
+	okforeq    [types.NTYPE]bool
+	okforadd   [types.NTYPE]bool
+	okforand   [types.NTYPE]bool
+	okfornone  [types.NTYPE]bool
+	okforcmp   [types.NTYPE]bool
+	okforbool  [types.NTYPE]bool
+	okforcap   [types.NTYPE]bool
+	okforlen   [types.NTYPE]bool
+	okforarith [types.NTYPE]bool
 )
 
 var (
-	okfor [OEND][]bool
-	iscmp [OEND]bool
+	okfor [ir.OEND][]bool
+	iscmp [ir.OEND]bool
 )
 
-var minintval [NTYPE]*Mpint
+var xtop []ir.Node
 
-var maxintval [NTYPE]*Mpint
+var exportlist []ir.Node
 
-var minfltval [NTYPE]*Mpflt
-
-var maxfltval [NTYPE]*Mpflt
-
-var xtop []*Node
-
-var exportlist []*Node
-
-var importlist []*Node // imported functions and methods with inlinable bodies
+var importlist []ir.Node // imported functions and methods with inlinable bodies
 
 var (
 	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
 	funcsyms   []*types.Sym
 )
 
-var dclcontext Class // PEXTERN/PAUTO
+var dclcontext ir.Class // PEXTERN/PAUTO
 
-var Curfn *Node
+var Curfn ir.Node
 
 var Widthptr int
 
 var Widthreg int
 
-var nblank *Node
-
 var typecheckok bool
-
-var compiling_runtime bool
-
-// Compiling the standard library
-var compiling_std bool
-
-var use_writebarrier bool
-
-var pure_go bool
-
-var flag_installsuffix string
-
-var flag_race bool
-
-var flag_msan bool
-
-var flagDWARF bool
 
 // Whether we are adding any sort of code instrumentation, such as
 // when the race detector is enabled.
@@ -243,20 +158,7 @@ var instrumenting bool
 // Whether we are tracking lexical scopes for DWARF.
 var trackScopes bool
 
-// Controls generation of DWARF inlined instance records. Zero
-// disables, 1 emits inlined routines but suppresses var info,
-// and 2 emits inlined routines with tracking of formals/locals.
-var genDwarfInline int
-
-var debuglive int
-
-var Ctxt *obj.Link
-
-var writearchive bool
-
-var nodfp *Node
-
-var disable_checknil int
+var nodfp ir.Node
 
 var autogeneratedPos src.XPos
 
@@ -293,7 +195,7 @@ var thearch Arch
 
 var (
 	staticuint64s,
-	zerobase *Node
+	zerobase ir.Node
 
 	assertE2I,
 	assertE2I2,

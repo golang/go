@@ -75,7 +75,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return moduleInfo(ctx, m, fromBuildList, listRetracted)
 	}
 
-	for _, m := range LoadedModules() {
+	for _, m := range buildList {
 		if m.Path == path {
 			fromBuildList := true
 			return moduleInfo(ctx, m, fromBuildList, listRetracted)

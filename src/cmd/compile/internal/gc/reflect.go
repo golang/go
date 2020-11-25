@@ -5,6 +5,8 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
@@ -73,10 +75,8 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 }
 
 func makefield(name string, t *types.Type) *types.Field {
-	f := types.NewField()
-	f.Type = t
-	f.Sym = (*types.Pkg)(nil).Lookup(name)
-	return f
+	sym := (*types.Pkg)(nil).Lookup(name)
+	return types.NewField(src.NoXPos, sym, t)
 }
 
 // bmap makes the map bucket type given the type of the map.
@@ -85,7 +85,7 @@ func bmap(t *types.Type) *types.Type {
 		return t.MapType().Bucket
 	}
 
-	bucket := types.New(TSTRUCT)
+	bucket := types.New(types.TSTRUCT)
 	keytype := t.Key()
 	elemtype := t.Elem()
 	dowidth(keytype)
@@ -100,7 +100,7 @@ func bmap(t *types.Type) *types.Type {
 	field := make([]*types.Field, 0, 5)
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := types.NewArray(types.Types[TUINT8], BUCKETSIZE)
+	arr := types.NewArray(types.Types[types.TUINT8], BUCKETSIZE)
 	field = append(field, makefield("topbits", arr))
 
 	arr = types.NewArray(keytype, BUCKETSIZE)
@@ -121,7 +121,7 @@ func bmap(t *types.Type) *types.Type {
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
 	if !elemtype.HasPointers() && !keytype.HasPointers() {
-		otyp = types.Types[TUINTPTR]
+		otyp = types.Types[types.TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
 	field = append(field, overflow)
@@ -133,52 +133,52 @@ func bmap(t *types.Type) *types.Type {
 
 	// Check invariants that map code depends on.
 	if !IsComparable(t.Key()) {
-		Fatalf("unsupported map key type for %v", t)
+		base.Fatalf("unsupported map key type for %v", t)
 	}
 	if BUCKETSIZE < 8 {
-		Fatalf("bucket size too small for proper alignment")
+		base.Fatalf("bucket size too small for proper alignment")
 	}
 	if keytype.Align > BUCKETSIZE {
-		Fatalf("key align too big for %v", t)
+		base.Fatalf("key align too big for %v", t)
 	}
 	if elemtype.Align > BUCKETSIZE {
-		Fatalf("elem align too big for %v", t)
+		base.Fatalf("elem align too big for %v", t)
 	}
 	if keytype.Width > MAXKEYSIZE {
-		Fatalf("key size to large for %v", t)
+		base.Fatalf("key size to large for %v", t)
 	}
 	if elemtype.Width > MAXELEMSIZE {
-		Fatalf("elem size to large for %v", t)
+		base.Fatalf("elem size to large for %v", t)
 	}
 	if t.Key().Width > MAXKEYSIZE && !keytype.IsPtr() {
-		Fatalf("key indirect incorrect for %v", t)
+		base.Fatalf("key indirect incorrect for %v", t)
 	}
 	if t.Elem().Width > MAXELEMSIZE && !elemtype.IsPtr() {
-		Fatalf("elem indirect incorrect for %v", t)
+		base.Fatalf("elem indirect incorrect for %v", t)
 	}
 	if keytype.Width%int64(keytype.Align) != 0 {
-		Fatalf("key size not a multiple of key align for %v", t)
+		base.Fatalf("key size not a multiple of key align for %v", t)
 	}
 	if elemtype.Width%int64(elemtype.Align) != 0 {
-		Fatalf("elem size not a multiple of elem align for %v", t)
+		base.Fatalf("elem size not a multiple of elem align for %v", t)
 	}
 	if bucket.Align%keytype.Align != 0 {
-		Fatalf("bucket align not multiple of key align %v", t)
+		base.Fatalf("bucket align not multiple of key align %v", t)
 	}
 	if bucket.Align%elemtype.Align != 0 {
-		Fatalf("bucket align not multiple of elem align %v", t)
+		base.Fatalf("bucket align not multiple of elem align %v", t)
 	}
 	if keys.Offset%int64(keytype.Align) != 0 {
-		Fatalf("bad alignment of keys in bmap for %v", t)
+		base.Fatalf("bad alignment of keys in bmap for %v", t)
 	}
 	if elems.Offset%int64(elemtype.Align) != 0 {
-		Fatalf("bad alignment of elems in bmap for %v", t)
+		base.Fatalf("bad alignment of elems in bmap for %v", t)
 	}
 
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end.
 	if overflow.Offset != bucket.Width-int64(Widthptr) {
-		Fatalf("bad offset of overflow in bmap for %v", t)
+		base.Fatalf("bad offset of overflow in bmap for %v", t)
 	}
 
 	t.MapType().Bucket = bucket
@@ -210,18 +210,18 @@ func hmap(t *types.Type) *types.Type {
 	// }
 	// must match runtime/map.go:hmap.
 	fields := []*types.Field{
-		makefield("count", types.Types[TINT]),
-		makefield("flags", types.Types[TUINT8]),
-		makefield("B", types.Types[TUINT8]),
-		makefield("noverflow", types.Types[TUINT16]),
-		makefield("hash0", types.Types[TUINT32]), // Used in walk.go for OMAKEMAP.
-		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for OMAKEMAP.
+		makefield("count", types.Types[types.TINT]),
+		makefield("flags", types.Types[types.TUINT8]),
+		makefield("B", types.Types[types.TUINT8]),
+		makefield("noverflow", types.Types[types.TUINT16]),
+		makefield("hash0", types.Types[types.TUINT32]), // Used in walk.go for OMAKEMAP.
+		makefield("buckets", types.NewPtr(bmap)),       // Used in walk.go for OMAKEMAP.
 		makefield("oldbuckets", types.NewPtr(bmap)),
-		makefield("nevacuate", types.Types[TUINTPTR]),
-		makefield("extra", types.Types[TUNSAFEPTR]),
+		makefield("nevacuate", types.Types[types.TUINTPTR]),
+		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.New(TSTRUCT)
+	hmap := types.New(types.TSTRUCT)
 	hmap.SetNoalg(true)
 	hmap.SetFields(fields)
 	dowidth(hmap)
@@ -229,7 +229,7 @@ func hmap(t *types.Type) *types.Type {
 	// The size of hmap should be 48 bytes on 64 bit
 	// and 28 bytes on 32 bit platforms.
 	if size := int64(8 + 5*Widthptr); hmap.Width != size {
-		Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
+		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
 	}
 
 	t.MapType().Hmap = hmap
@@ -269,28 +269,28 @@ func hiter(t *types.Type) *types.Type {
 	fields := []*types.Field{
 		makefield("key", types.NewPtr(t.Key())),   // Used in range.go for TMAP.
 		makefield("elem", types.NewPtr(t.Elem())), // Used in range.go for TMAP.
-		makefield("t", types.Types[TUNSAFEPTR]),
+		makefield("t", types.Types[types.TUNSAFEPTR]),
 		makefield("h", types.NewPtr(hmap)),
 		makefield("buckets", types.NewPtr(bmap)),
 		makefield("bptr", types.NewPtr(bmap)),
-		makefield("overflow", types.Types[TUNSAFEPTR]),
-		makefield("oldoverflow", types.Types[TUNSAFEPTR]),
-		makefield("startBucket", types.Types[TUINTPTR]),
-		makefield("offset", types.Types[TUINT8]),
-		makefield("wrapped", types.Types[TBOOL]),
-		makefield("B", types.Types[TUINT8]),
-		makefield("i", types.Types[TUINT8]),
-		makefield("bucket", types.Types[TUINTPTR]),
-		makefield("checkBucket", types.Types[TUINTPTR]),
+		makefield("overflow", types.Types[types.TUNSAFEPTR]),
+		makefield("oldoverflow", types.Types[types.TUNSAFEPTR]),
+		makefield("startBucket", types.Types[types.TUINTPTR]),
+		makefield("offset", types.Types[types.TUINT8]),
+		makefield("wrapped", types.Types[types.TBOOL]),
+		makefield("B", types.Types[types.TUINT8]),
+		makefield("i", types.Types[types.TUINT8]),
+		makefield("bucket", types.Types[types.TUINTPTR]),
+		makefield("checkBucket", types.Types[types.TUINTPTR]),
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.New(TSTRUCT)
+	hiter := types.New(types.TSTRUCT)
 	hiter.SetNoalg(true)
 	hiter.SetFields(fields)
 	dowidth(hiter)
 	if hiter.Width != int64(12*Widthptr) {
-		Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
+		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
 	}
 	t.MapType().Hiter = hiter
 	hiter.StructType().Map = t
@@ -301,40 +301,38 @@ func hiter(t *types.Type) *types.Type {
 // stksize bytes of args.
 func deferstruct(stksize int64) *types.Type {
 	makefield := func(name string, typ *types.Type) *types.Field {
-		f := types.NewField()
-		f.Type = typ
 		// Unlike the global makefield function, this one needs to set Pkg
 		// because these types might be compared (in SSA CSE sorting).
 		// TODO: unify this makefield and the global one above.
-		f.Sym = &types.Sym{Name: name, Pkg: localpkg}
-		return f
+		sym := &types.Sym{Name: name, Pkg: ir.LocalPkg}
+		return types.NewField(src.NoXPos, sym, typ)
 	}
-	argtype := types.NewArray(types.Types[TUINT8], stksize)
+	argtype := types.NewArray(types.Types[types.TUINT8], stksize)
 	argtype.Width = stksize
 	argtype.Align = 1
 	// These fields must match the ones in runtime/runtime2.go:_defer and
 	// cmd/compile/internal/gc/ssa.go:(*state).call.
 	fields := []*types.Field{
-		makefield("siz", types.Types[TUINT32]),
-		makefield("started", types.Types[TBOOL]),
-		makefield("heap", types.Types[TBOOL]),
-		makefield("openDefer", types.Types[TBOOL]),
-		makefield("sp", types.Types[TUINTPTR]),
-		makefield("pc", types.Types[TUINTPTR]),
+		makefield("siz", types.Types[types.TUINT32]),
+		makefield("started", types.Types[types.TBOOL]),
+		makefield("heap", types.Types[types.TBOOL]),
+		makefield("openDefer", types.Types[types.TBOOL]),
+		makefield("sp", types.Types[types.TUINTPTR]),
+		makefield("pc", types.Types[types.TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures
 		// are always scanned explicitly during stack copying and GC,
 		// so we make them uintptr type even though they are real pointers.
-		makefield("fn", types.Types[TUINTPTR]),
-		makefield("_panic", types.Types[TUINTPTR]),
-		makefield("link", types.Types[TUINTPTR]),
-		makefield("framepc", types.Types[TUINTPTR]),
-		makefield("varp", types.Types[TUINTPTR]),
-		makefield("fd", types.Types[TUINTPTR]),
+		makefield("fn", types.Types[types.TUINTPTR]),
+		makefield("_panic", types.Types[types.TUINTPTR]),
+		makefield("link", types.Types[types.TUINTPTR]),
+		makefield("framepc", types.Types[types.TUINTPTR]),
+		makefield("varp", types.Types[types.TUINTPTR]),
+		makefield("fd", types.Types[types.TUINTPTR]),
 		makefield("args", argtype),
 	}
 
 	// build struct holding the above fields
-	s := types.New(TSTRUCT)
+	s := types.New(types.TSTRUCT)
 	s.SetNoalg(true)
 	s.SetFields(fields)
 	s.Width = widstruct(s, s, 0, 1)
@@ -349,7 +347,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	if receiver != nil {
 		inLen++
 	}
-	in := make([]*Node, 0, inLen)
+	in := make([]ir.Node, 0, inLen)
 
 	if receiver != nil {
 		d := anonfield(receiver)
@@ -363,19 +361,13 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	}
 
 	outLen := f.Results().Fields().Len()
-	out := make([]*Node, 0, outLen)
+	out := make([]ir.Node, 0, outLen)
 	for _, t := range f.Results().Fields().Slice() {
 		d := anonfield(t.Type)
 		out = append(out, d)
 	}
 
-	t := functype(nil, in, out)
-	if f.Nname() != nil {
-		// Link to name of original method function.
-		t.SetNname(f.Nname())
-	}
-
-	return t
+	return functype(nil, in, out)
 }
 
 // methods returns the methods of the non-interface type t, sorted by name.
@@ -401,10 +393,10 @@ func methods(t *types.Type) []*Sig {
 	var ms []*Sig
 	for _, f := range mt.AllMethods().Slice() {
 		if !f.IsMethod() {
-			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+			base.Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Type.Recv() == nil {
-			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
+			base.Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface() {
 			continue
@@ -456,16 +448,16 @@ func methods(t *types.Type) []*Sig {
 func imethods(t *types.Type) []*Sig {
 	var methods []*Sig
 	for _, f := range t.Fields().Slice() {
-		if f.Type.Etype != TFUNC || f.Sym == nil {
+		if f.Type.Etype != types.TFUNC || f.Sym == nil {
 			continue
 		}
 		if f.Sym.IsBlank() {
-			Fatalf("unexpected blank symbol in interface method set")
+			base.Fatalf("unexpected blank symbol in interface method set")
 		}
 		if n := len(methods); n > 0 {
 			last := methods[n-1]
 			if !last.name.Less(f.Sym) {
-				Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
+				base.Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
 			}
 		}
 
@@ -498,17 +490,17 @@ func dimportpath(p *types.Pkg) {
 	// If we are compiling the runtime package, there are two runtime packages around
 	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
-	if myimportpath == "runtime" && p == Runtimepkg {
+	if base.Ctxt.Pkgpath == "runtime" && p == Runtimepkg {
 		return
 	}
 
 	str := p.Path
-	if p == localpkg {
+	if p == ir.LocalPkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		str = myimportpath
+		str = base.Ctxt.Pkgpath
 	}
 
-	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
+	s := base.Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
@@ -520,13 +512,13 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return duintptr(s, ot, 0)
 	}
 
-	if pkg == localpkg && myimportpath == "" {
+	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := Ctxt.Lookup(`type..importpath."".`)
+		ns := base.Ctxt.Lookup(`type..importpath."".`)
 		return dsymptr(s, ot, ns, 0)
 	}
 
@@ -539,13 +531,13 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duint32(s, ot, 0)
 	}
-	if pkg == localpkg && myimportpath == "" {
+	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := Ctxt.Lookup(`type..importpath."".`)
+		ns := base.Ctxt.Lookup(`type..importpath."".`)
 		return dsymptrOff(s, ot, ns)
 	}
 
@@ -556,7 +548,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 // dnameField dumps a reflect.name for a struct field.
 func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 	if !types.IsExported(ft.Sym.Name) && ft.Sym.Pkg != spkg {
-		Fatalf("package mismatch for %v", ft.Sym)
+		base.Fatalf("package mismatch for %v", ft.Sym)
 	}
 	nsym := dname(ft.Sym.Name, ft.Note, nil, types.IsExported(ft.Sym.Name))
 	return dsymptr(lsym, ot, nsym, 0)
@@ -565,10 +557,10 @@ func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 // dnameData writes the contents of a reflect.name into s at offset ot.
 func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported bool) int {
 	if len(name) > 1<<16-1 {
-		Fatalf("name too long: %s", name)
+		base.Fatalf("name too long: %s", name)
 	}
 	if len(tag) > 1<<16-1 {
-		Fatalf("tag too long: %s", tag)
+		base.Fatalf("tag too long: %s", tag)
 	}
 
 	// Encode name and tag. See reflect/type.go for details.
@@ -596,7 +588,7 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 		copy(tb[2:], tag)
 	}
 
-	ot = int(s.WriteBytes(Ctxt, int64(ot), b))
+	ot = int(s.WriteBytes(base.Ctxt, int64(ot), b))
 
 	if pkg != nil {
 		ot = dgopkgpathOff(s, ot, pkg)
@@ -633,7 +625,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
 		dnameCount++
 	}
-	s := Ctxt.Lookup(sname)
+	s := base.Ctxt.Lookup(sname)
 	if len(s.P) > 0 {
 		return s
 	}
@@ -653,7 +645,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	}
 	noff := int(Rnd(int64(ot), int64(Widthptr)))
 	if noff != ot {
-		Fatalf("unexpected alignment in dextratype for %v", t)
+		base.Fatalf("unexpected alignment in dextratype for %v", t)
 	}
 
 	for _, a := range m {
@@ -665,11 +657,11 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	dataAdd += uncommonSize(t)
 	mcount := len(m)
 	if mcount != int(uint16(mcount)) {
-		Fatalf("too many methods on %v: %d", t, mcount)
+		base.Fatalf("too many methods on %v: %d", t, mcount)
 	}
 	xcount := sort.Search(mcount, func(i int) bool { return !types.IsExported(m[i].name.Name) })
 	if dataAdd != int(uint32(dataAdd)) {
-		Fatalf("methods are too far away on %v: %d", t, dataAdd)
+		base.Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
 
 	ot = duint16(lsym, ot, uint16(mcount))
@@ -683,7 +675,7 @@ func typePkg(t *types.Type) *types.Pkg {
 	tsym := t.Sym
 	if tsym == nil {
 		switch t.Etype {
-		case TARRAY, TSLICE, TPTR, TCHAN:
+		case types.TARRAY, types.TSLICE, types.TPTR, types.TCHAN:
 			if t.Elem() != nil {
 				tsym = t.Elem().Sym
 			}
@@ -726,32 +718,32 @@ func dmethodptrOff(s *obj.LSym, ot int, x *obj.LSym) int {
 }
 
 var kinds = []int{
-	TINT:        objabi.KindInt,
-	TUINT:       objabi.KindUint,
-	TINT8:       objabi.KindInt8,
-	TUINT8:      objabi.KindUint8,
-	TINT16:      objabi.KindInt16,
-	TUINT16:     objabi.KindUint16,
-	TINT32:      objabi.KindInt32,
-	TUINT32:     objabi.KindUint32,
-	TINT64:      objabi.KindInt64,
-	TUINT64:     objabi.KindUint64,
-	TUINTPTR:    objabi.KindUintptr,
-	TFLOAT32:    objabi.KindFloat32,
-	TFLOAT64:    objabi.KindFloat64,
-	TBOOL:       objabi.KindBool,
-	TSTRING:     objabi.KindString,
-	TPTR:        objabi.KindPtr,
-	TSTRUCT:     objabi.KindStruct,
-	TINTER:      objabi.KindInterface,
-	TCHAN:       objabi.KindChan,
-	TMAP:        objabi.KindMap,
-	TARRAY:      objabi.KindArray,
-	TSLICE:      objabi.KindSlice,
-	TFUNC:       objabi.KindFunc,
-	TCOMPLEX64:  objabi.KindComplex64,
-	TCOMPLEX128: objabi.KindComplex128,
-	TUNSAFEPTR:  objabi.KindUnsafePointer,
+	types.TINT:        objabi.KindInt,
+	types.TUINT:       objabi.KindUint,
+	types.TINT8:       objabi.KindInt8,
+	types.TUINT8:      objabi.KindUint8,
+	types.TINT16:      objabi.KindInt16,
+	types.TUINT16:     objabi.KindUint16,
+	types.TINT32:      objabi.KindInt32,
+	types.TUINT32:     objabi.KindUint32,
+	types.TINT64:      objabi.KindInt64,
+	types.TUINT64:     objabi.KindUint64,
+	types.TUINTPTR:    objabi.KindUintptr,
+	types.TFLOAT32:    objabi.KindFloat32,
+	types.TFLOAT64:    objabi.KindFloat64,
+	types.TBOOL:       objabi.KindBool,
+	types.TSTRING:     objabi.KindString,
+	types.TPTR:        objabi.KindPtr,
+	types.TSTRUCT:     objabi.KindStruct,
+	types.TINTER:      objabi.KindInterface,
+	types.TCHAN:       objabi.KindChan,
+	types.TMAP:        objabi.KindMap,
+	types.TARRAY:      objabi.KindArray,
+	types.TSLICE:      objabi.KindSlice,
+	types.TFUNC:       objabi.KindFunc,
+	types.TCOMPLEX64:  objabi.KindComplex64,
+	types.TCOMPLEX128: objabi.KindComplex128,
+	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
 // typeptrdata returns the length in bytes of the prefix of t
@@ -762,32 +754,32 @@ func typeptrdata(t *types.Type) int64 {
 	}
 
 	switch t.Etype {
-	case TPTR,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
+	case types.TPTR,
+		types.TUNSAFEPTR,
+		types.TFUNC,
+		types.TCHAN,
+		types.TMAP:
 		return int64(Widthptr)
 
-	case TSTRING:
+	case types.TSTRING:
 		// struct { byte *str; intgo len; }
 		return int64(Widthptr)
 
-	case TINTER:
+	case types.TINTER:
 		// struct { Itab *tab;	void *data; } or
 		// struct { Type *type; void *data; }
 		// Note: see comment in plive.go:onebitwalktype1.
 		return 2 * int64(Widthptr)
 
-	case TSLICE:
+	case types.TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
 		return int64(Widthptr)
 
-	case TARRAY:
+	case types.TARRAY:
 		// haspointers already eliminated t.NumElem() == 0.
 		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		// Find the last field that has pointers.
 		var lastPtrField *types.Field
 		for _, t1 := range t.Fields().Slice() {
@@ -798,7 +790,7 @@ func typeptrdata(t *types.Type) int64 {
 		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
 
 	default:
-		Fatalf("typeptrdata: unexpected type, %v", t)
+		base.Fatalf("typeptrdata: unexpected type, %v", t)
 		return 0
 	}
 }
@@ -898,7 +890,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		i = 1
 	}
 	if i&(i-1) != 0 {
-		Fatalf("invalid alignment %d for %v", t.Align, t)
+		base.Fatalf("invalid alignment %d for %v", t.Align, t)
 	}
 	ot = duint8(lsym, ot, t.Align) // align
 	ot = duint8(lsym, ot, t.Align) // fieldAlign
@@ -989,7 +981,7 @@ func typesymprefix(prefix string, t *types.Type) *types.Sym {
 
 func typenamesym(t *types.Type) *types.Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
-		Fatalf("typenamesym %v", t)
+		base.Fatalf("typenamesym %v", t)
 	}
 	s := typesym(t)
 	signatmu.Lock()
@@ -998,38 +990,38 @@ func typenamesym(t *types.Type) *types.Sym {
 	return s
 }
 
-func typename(t *types.Type) *Node {
+func typename(t *types.Type) ir.Node {
 	s := typenamesym(t)
 	if s.Def == nil {
-		n := newnamel(src.NoXPos, s)
-		n.Type = types.Types[TUINT8]
-		n.SetClass(PEXTERN)
+		n := ir.NewNameAt(src.NoXPos, s)
+		n.SetType(types.Types[types.TUINT8])
+		n.SetClass(ir.PEXTERN)
 		n.SetTypecheck(1)
-		s.Def = asTypesNode(n)
+		s.Def = n
 	}
 
-	n := nod(OADDR, asNode(s.Def), nil)
-	n.Type = types.NewPtr(asNode(s.Def).Type)
+	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
 	n.SetTypecheck(1)
 	return n
 }
 
-func itabname(t, itype *types.Type) *Node {
+func itabname(t, itype *types.Type) ir.Node {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
-		Fatalf("itabname(%v, %v)", t, itype)
+		base.Fatalf("itabname(%v, %v)", t, itype)
 	}
 	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
-		n := newname(s)
-		n.Type = types.Types[TUINT8]
-		n.SetClass(PEXTERN)
+		n := NewName(s)
+		n.SetType(types.Types[types.TUINT8])
+		n.SetClass(ir.PEXTERN)
 		n.SetTypecheck(1)
-		s.Def = asTypesNode(n)
+		s.Def = n
 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
 	}
 
-	n := nod(OADDR, asNode(s.Def), nil)
-	n.Type = types.NewPtr(asNode(s.Def).Type)
+	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1038,35 +1030,35 @@ func itabname(t, itype *types.Type) *Node {
 // That is, if x==x for all x of type t.
 func isreflexive(t *types.Type) bool {
 	switch t.Etype {
-	case TBOOL,
-		TINT,
-		TUINT,
-		TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TUINTPTR,
-		TPTR,
-		TUNSAFEPTR,
-		TSTRING,
-		TCHAN:
+	case types.TBOOL,
+		types.TINT,
+		types.TUINT,
+		types.TINT8,
+		types.TUINT8,
+		types.TINT16,
+		types.TUINT16,
+		types.TINT32,
+		types.TUINT32,
+		types.TINT64,
+		types.TUINT64,
+		types.TUINTPTR,
+		types.TPTR,
+		types.TUNSAFEPTR,
+		types.TSTRING,
+		types.TCHAN:
 		return true
 
-	case TFLOAT32,
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128,
-		TINTER:
+	case types.TFLOAT32,
+		types.TFLOAT64,
+		types.TCOMPLEX64,
+		types.TCOMPLEX128,
+		types.TINTER:
 		return false
 
-	case TARRAY:
+	case types.TARRAY:
 		return isreflexive(t.Elem())
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
 			if !isreflexive(t1.Type) {
 				return false
@@ -1075,7 +1067,7 @@ func isreflexive(t *types.Type) bool {
 		return true
 
 	default:
-		Fatalf("bad type for map key: %v", t)
+		base.Fatalf("bad type for map key: %v", t)
 		return false
 	}
 }
@@ -1084,19 +1076,19 @@ func isreflexive(t *types.Type) bool {
 // need the key to be updated.
 func needkeyupdate(t *types.Type) bool {
 	switch t.Etype {
-	case TBOOL, TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32,
-		TINT64, TUINT64, TUINTPTR, TPTR, TUNSAFEPTR, TCHAN:
+	case types.TBOOL, types.TINT, types.TUINT, types.TINT8, types.TUINT8, types.TINT16, types.TUINT16, types.TINT32, types.TUINT32,
+		types.TINT64, types.TUINT64, types.TUINTPTR, types.TPTR, types.TUNSAFEPTR, types.TCHAN:
 		return false
 
-	case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, // floats and complex can be +0/-0
-		TINTER,
-		TSTRING: // strings might have smaller backing stores
+	case types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128, // floats and complex can be +0/-0
+		types.TINTER,
+		types.TSTRING: // strings might have smaller backing stores
 		return true
 
-	case TARRAY:
+	case types.TARRAY:
 		return needkeyupdate(t.Elem())
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
 			if needkeyupdate(t1.Type) {
 				return true
@@ -1105,7 +1097,7 @@ func needkeyupdate(t *types.Type) bool {
 		return false
 
 	default:
-		Fatalf("bad type for map key: %v", t)
+		base.Fatalf("bad type for map key: %v", t)
 		return true
 	}
 }
@@ -1113,13 +1105,13 @@ func needkeyupdate(t *types.Type) bool {
 // hashMightPanic reports whether the hash of a map key of type t might panic.
 func hashMightPanic(t *types.Type) bool {
 	switch t.Etype {
-	case TINTER:
+	case types.TINTER:
 		return true
 
-	case TARRAY:
+	case types.TARRAY:
 		return hashMightPanic(t.Elem())
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
 			if hashMightPanic(t1.Type) {
 				return true
@@ -1145,7 +1137,7 @@ func formalType(t *types.Type) *types.Type {
 func dtypesym(t *types.Type) *obj.LSym {
 	t = formalType(t)
 	if t.IsUntyped() {
-		Fatalf("dtypesym %v", t)
+		base.Fatalf("dtypesym %v", t)
 	}
 
 	s := typesym(t)
@@ -1168,9 +1160,9 @@ func dtypesym(t *types.Type) *obj.LSym {
 		dupok = obj.DUPOK
 	}
 
-	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
+	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
-		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
+		if tbase.Sym != nil && tbase.Sym.Pkg != ir.LocalPkg {
 			if i, ok := typeSymIdx[tbase]; ok {
 				lsym.Pkg = tbase.Sym.Pkg.Prefix
 				if t != tbase {
@@ -1183,7 +1175,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.
-		if tbase.Etype == TFORW {
+		if tbase.Etype == types.TFORW {
 			return lsym
 		}
 	}
@@ -1194,7 +1186,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = dcommontype(lsym, t)
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TARRAY:
+	case types.TARRAY:
 		// ../../../../runtime/type.go:/arrayType
 		s1 := dtypesym(t.Elem())
 		t2 := types.NewSlice(t.Elem())
@@ -1205,14 +1197,14 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = duintptr(lsym, ot, uint64(t.NumElem()))
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TSLICE:
+	case types.TSLICE:
 		// ../../../../runtime/type.go:/sliceType
 		s1 := dtypesym(t.Elem())
 		ot = dcommontype(lsym, t)
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TCHAN:
+	case types.TCHAN:
 		// ../../../../runtime/type.go:/chanType
 		s1 := dtypesym(t.Elem())
 		ot = dcommontype(lsym, t)
@@ -1220,7 +1212,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = duintptr(lsym, ot, uint64(t.ChanDir()))
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TFUNC:
+	case types.TFUNC:
 		for _, t1 := range t.Recvs().Fields().Slice() {
 			dtypesym(t1.Type)
 		}
@@ -1259,7 +1251,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			ot = dsymptr(lsym, ot, dtypesym(t1.Type), 0)
 		}
 
-	case TINTER:
+	case types.TINTER:
 		m := imethods(t)
 		n := len(m)
 		for _, a := range m {
@@ -1295,7 +1287,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 
 	// ../../../../runtime/type.go:/mapType
-	case TMAP:
+	case types.TMAP:
 		s1 := dtypesym(t.Key())
 		s2 := dtypesym(t.Elem())
 		s3 := dtypesym(bmap(t))
@@ -1335,8 +1327,8 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = duint32(lsym, ot, flags)
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TPTR:
-		if t.Elem().Etype == TANY {
+	case types.TPTR:
+		if t.Elem().Etype == types.TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(lsym, t)
 			ot = dextratype(lsym, ot, t, 0)
@@ -1353,7 +1345,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
-	case TSTRUCT:
+	case types.TSTRUCT:
 		fields := t.Fields().Slice()
 		for _, t1 := range fields {
 			dtypesym(t1.Type)
@@ -1387,7 +1379,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			ot = dsymptr(lsym, ot, dtypesym(f.Type), 0)
 			offsetAnon := uint64(f.Offset) << 1
 			if offsetAnon>>1 != uint64(f.Offset) {
-				Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
+				base.Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
 			}
 			if f.Embedded != 0 {
 				offsetAnon |= 1
@@ -1404,7 +1396,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 	//
 	// When buildmode=shared, all types are in typelinks so the
 	// runtime can deduplicate type pointers.
-	keep := Ctxt.Flag_dynlink
+	keep := base.Ctxt.Flag_dynlink
 	if !keep && t.Sym == nil {
 		// For an unnamed type, we only need the link if the type can
 		// be created at run time by reflect.PtrTo and similar
@@ -1412,7 +1404,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// functions must return the existing type structure rather
 		// than creating a new one.
 		switch t.Etype {
-		case TPTR, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
+		case types.TPTR, types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRUCT:
 			keep = true
 		}
 	}
@@ -1481,7 +1473,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	}
 
 	if len(sigs) != 0 {
-		Fatalf("incomplete itab")
+		base.Fatalf("incomplete itab")
 	}
 
 	return out
@@ -1524,11 +1516,11 @@ func addsignat(t *types.Type) {
 	}
 }
 
-func addsignats(dcls []*Node) {
+func addsignats(dcls []ir.Node) {
 	// copy types from dcl list to signatset
 	for _, n := range dcls {
-		if n.Op == OTYPE {
-			addsignat(n.Type)
+		if n.Op() == ir.OTYPE {
+			addsignat(n.Type())
 		}
 	}
 }
@@ -1580,9 +1572,9 @@ func dumptabs() {
 	}
 
 	// process ptabs
-	if localpkg.Name == "main" && len(ptabs) > 0 {
+	if ir.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
-		s := Ctxt.Lookup("go.plugin.tabs")
+		s := base.Ctxt.Lookup("go.plugin.tabs")
 		for _, p := range ptabs {
 			// Dump ptab symbol into go.pluginsym package.
 			//
@@ -1601,7 +1593,7 @@ func dumptabs() {
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
-		s = Ctxt.Lookup("go.plugin.exports")
+		s = base.Ctxt.Lookup("go.plugin.exports")
 		for _, p := range ptabs {
 			ot = dsymptr(s, ot, p.s.Linksym(), 0)
 		}
@@ -1623,26 +1615,26 @@ func dumpbasictypes() {
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in object files.
-	if myimportpath == "runtime" {
-		for i := types.EType(1); i <= TBOOL; i++ {
+	if base.Ctxt.Pkgpath == "runtime" {
+		for i := types.EType(1); i <= types.TBOOL; i++ {
 			dtypesym(types.NewPtr(types.Types[i]))
 		}
-		dtypesym(types.NewPtr(types.Types[TSTRING]))
-		dtypesym(types.NewPtr(types.Types[TUNSAFEPTR]))
+		dtypesym(types.NewPtr(types.Types[types.TSTRING]))
+		dtypesym(types.NewPtr(types.Types[types.TUNSAFEPTR]))
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(types.NewPtr(types.Errortype))
 
-		dtypesym(functype(nil, []*Node{anonfield(types.Errortype)}, []*Node{anonfield(types.Types[TSTRING])}))
+		dtypesym(functype(nil, []ir.Node{anonfield(types.Errortype)}, []ir.Node{anonfield(types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
 
-		if flag_race {
+		if base.Flag.Race {
 			dimportpath(racepkg)
 		}
-		if flag_msan {
+		if base.Flag.MSan {
 			dimportpath(msanpkg)
 		}
 		dimportpath(types.NewPkg("main", ""))
@@ -1776,8 +1768,8 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 // For non-trivial arrays, the program describes the full t.Width size.
 func dgcprog(t *types.Type) (*obj.LSym, int64) {
 	dowidth(t)
-	if t.Width == BADWIDTH {
-		Fatalf("dgcprog: %v badwidth", t)
+	if t.Width == types.BADWIDTH {
+		base.Fatalf("dgcprog: %v badwidth", t)
 	}
 	lsym := typesymprefix(".gcprog", t).Linksym()
 	var p GCProg
@@ -1786,7 +1778,7 @@ func dgcprog(t *types.Type) (*obj.LSym, int64) {
 	offset := p.w.BitIndex() * int64(Widthptr)
 	p.end()
 	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
-		Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
+		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
 	}
 	return lsym, offset
 }
@@ -1797,13 +1789,11 @@ type GCProg struct {
 	w      gcprog.Writer
 }
 
-var Debug_gcprog int // set by -d gcprog
-
 func (p *GCProg) init(lsym *obj.LSym) {
 	p.lsym = lsym
 	p.symoff = 4 // first 4 bytes hold program length
 	p.w.Init(p.writeByte)
-	if Debug_gcprog > 0 {
+	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
 		p.w.Debug(os.Stderr)
 	}
@@ -1817,7 +1807,7 @@ func (p *GCProg) end() {
 	p.w.End()
 	duint32(p.lsym, 0, uint32(p.symoff-4))
 	ggloblsym(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
-	if Debug_gcprog > 0 {
+	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
 	}
 }
@@ -1833,22 +1823,22 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 	}
 	switch t.Etype {
 	default:
-		Fatalf("GCProg.emit: unexpected type %v", t)
+		base.Fatalf("GCProg.emit: unexpected type %v", t)
 
-	case TSTRING:
+	case types.TSTRING:
 		p.w.Ptr(offset / int64(Widthptr))
 
-	case TINTER:
+	case types.TINTER:
 		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
 		p.w.Ptr(offset/int64(Widthptr) + 1)
 
-	case TSLICE:
+	case types.TSLICE:
 		p.w.Ptr(offset / int64(Widthptr))
 
-	case TARRAY:
+	case types.TARRAY:
 		if t.NumElem() == 0 {
 			// should have been handled by haspointers check above
-			Fatalf("GCProg.emit: empty array")
+			base.Fatalf("GCProg.emit: empty array")
 		}
 
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
@@ -1870,7 +1860,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 		p.w.ZeroUntil((offset + elem.Width) / int64(Widthptr))
 		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
 			p.emit(t1.Type, offset+t1.Offset)
 		}
@@ -1879,23 +1869,23 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 
 // zeroaddr returns the address of a symbol with at least
 // size bytes of zeros.
-func zeroaddr(size int64) *Node {
+func zeroaddr(size int64) ir.Node {
 	if size >= 1<<31 {
-		Fatalf("map elem too big %d", size)
+		base.Fatalf("map elem too big %d", size)
 	}
 	if zerosize < size {
 		zerosize = size
 	}
 	s := mappkg.Lookup("zero")
 	if s.Def == nil {
-		x := newname(s)
-		x.Type = types.Types[TUINT8]
-		x.SetClass(PEXTERN)
+		x := NewName(s)
+		x.SetType(types.Types[types.TUINT8])
+		x.SetClass(ir.PEXTERN)
 		x.SetTypecheck(1)
-		s.Def = asTypesNode(x)
+		s.Def = x
 	}
-	z := nod(OADDR, asNode(s.Def), nil)
-	z.Type = types.NewPtr(types.Types[TUINT8])
+	z := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	z.SetTypecheck(1)
 	return z
 }

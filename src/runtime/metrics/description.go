@@ -113,14 +113,13 @@ var allDesc = []Description{
 		Kind: KindUint64,
 	},
 	{
-		Name: "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is reserved for stack space. Not all of it is necessarily " +
-			"simultaneously in use, but it may not be used for any other purpose.",
-		Kind: KindUint64,
+		Name:        "/memory/classes/heap/stacks:bytes",
+		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
+		Kind:        KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/unused:bytes",
-		Description: "Memory that is reserved for heap objects but is otherwise not currently used to hold heap objects.",
+		Description: "Memory that is reserved for heap objects but is not currently used to hold heap objects.",
 		Kind:        KindUint64,
 	},
 	{

@@ -18,7 +18,7 @@ func TestDeps(t *testing.T) {
 	}
 	for _, dep := range strings.Fields(strings.Trim(string(out), "[]")) {
 		switch dep {
-		case "go/build", "go/token":
+		case "go/build", "go/scanner":
 			// cmd/compile/internal/importer introduces a dependency
 			// on go/build and go/token; cmd/compile/internal/ uses
 			// go/constant which uses go/token in its API. Once we

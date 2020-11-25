@@ -5,11 +5,21 @@
 package gc
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 )
 
 type exporter struct {
 	marked map[*types.Type]bool // types already seen by markType
+}
+
+// markObject visits a reachable object.
+func (p *exporter) markObject(n ir.Node) {
+	if n.Op() == ir.ONAME && n.Class() == ir.PFUNC {
+		inlFlood(n)
+	}
+
+	p.markType(n.Type())
 }
 
 // markType recursively visits types reachable from t to identify
@@ -25,10 +35,10 @@ func (p *exporter) markType(t *types.Type) {
 	// only their unexpanded method set (i.e., exclusive of
 	// interface embeddings), and the switch statement below
 	// handles their full method set.
-	if t.Sym != nil && t.Etype != TINTER {
+	if t.Sym != nil && t.Etype != types.TINTER {
 		for _, m := range t.Methods().Slice() {
 			if types.IsExported(m.Sym.Name) {
-				p.markType(m.Type)
+				p.markObject(ir.AsNode(m.Nname))
 			}
 		}
 	}
@@ -43,36 +53,31 @@ func (p *exporter) markType(t *types.Type) {
 	// the user already needs some way to construct values of
 	// those types.
 	switch t.Etype {
-	case TPTR, TARRAY, TSLICE:
+	case types.TPTR, types.TARRAY, types.TSLICE:
 		p.markType(t.Elem())
 
-	case TCHAN:
+	case types.TCHAN:
 		if t.ChanDir().CanRecv() {
 			p.markType(t.Elem())
 		}
 
-	case TMAP:
+	case types.TMAP:
 		p.markType(t.Key())
 		p.markType(t.Elem())
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		for _, f := range t.FieldSlice() {
 			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
 				p.markType(f.Type)
 			}
 		}
 
-	case TFUNC:
-		// If t is the type of a function or method, then
-		// t.Nname() is its ONAME. Mark its inline body and
-		// any recursively called functions for export.
-		inlFlood(asNode(t.Nname()))
-
+	case types.TFUNC:
 		for _, f := range t.Results().FieldSlice() {
 			p.markType(f.Type)
 		}
 
-	case TINTER:
+	case types.TINTER:
 		for _, f := range t.FieldSlice() {
 			if types.IsExported(f.Sym.Name) {
 				p.markType(f.Type)
@@ -129,23 +134,23 @@ func predeclared() []*types.Type {
 		// elements have been initialized before
 		predecl = []*types.Type{
 			// basic types
-			types.Types[TBOOL],
-			types.Types[TINT],
-			types.Types[TINT8],
-			types.Types[TINT16],
-			types.Types[TINT32],
-			types.Types[TINT64],
-			types.Types[TUINT],
-			types.Types[TUINT8],
-			types.Types[TUINT16],
-			types.Types[TUINT32],
-			types.Types[TUINT64],
-			types.Types[TUINTPTR],
-			types.Types[TFLOAT32],
-			types.Types[TFLOAT64],
-			types.Types[TCOMPLEX64],
-			types.Types[TCOMPLEX128],
-			types.Types[TSTRING],
+			types.Types[types.TBOOL],
+			types.Types[types.TINT],
+			types.Types[types.TINT8],
+			types.Types[types.TINT16],
+			types.Types[types.TINT32],
+			types.Types[types.TINT64],
+			types.Types[types.TUINT],
+			types.Types[types.TUINT8],
+			types.Types[types.TUINT16],
+			types.Types[types.TUINT32],
+			types.Types[types.TUINT64],
+			types.Types[types.TUINTPTR],
+			types.Types[types.TFLOAT32],
+			types.Types[types.TFLOAT64],
+			types.Types[types.TCOMPLEX64],
+			types.Types[types.TCOMPLEX128],
+			types.Types[types.TSTRING],
 
 			// basic type aliases
 			types.Bytetype,
@@ -161,16 +166,16 @@ func predeclared() []*types.Type {
 			types.UntypedFloat,
 			types.UntypedComplex,
 			types.UntypedString,
-			types.Types[TNIL],
+			types.Types[types.TNIL],
 
 			// package unsafe
-			types.Types[TUNSAFEPTR],
+			types.Types[types.TUNSAFEPTR],
 
 			// invalid type (package contains errors)
-			types.Types[Txxx],
+			types.Types[types.Txxx],
 
 			// any type, for builtin export data
-			types.Types[TANY],
+			types.Types[types.TANY],
 		}
 	}
 	return predecl

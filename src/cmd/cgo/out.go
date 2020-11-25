@@ -186,7 +186,7 @@ func (p *Package) writeDefs() {
 			panic(fmt.Errorf("invalid var kind %q", n.Kind))
 		}
 		if *gccgo {
-			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
+			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, gccgoToSymbol(n.Mangle))
 			fmt.Fprintf(&gccgoInit, "\t%s = &%s;\n", n.Mangle, n.C)
 			fmt.Fprintf(fc, "\n")
 		}
@@ -1148,7 +1148,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// will not be able to link against it from the C
 		// code.
 		goName := "Cgoexp_" + exp.ExpName
-		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, goName)
+		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, gccgoToSymbol(goName))
 		fmt.Fprint(fgcc, "\n")
 
 		fmt.Fprint(fgcc, "\nCGO_NO_SANITIZE_THREAD\n")
@@ -1182,7 +1182,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprint(fgcc, "}\n")
 
 		// Dummy declaration for _cgo_main.c
-		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, goName)
+		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, gccgoToSymbol(goName))
 		fmt.Fprint(fm, "\n")
 
 		// For gccgo we use a wrapper function in Go, in order
@@ -1266,9 +1266,8 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// gccgoPkgpathToSymbol converts a package path to a mangled packagepath
-// symbol.
-func gccgoPkgpathToSymbol(ppath string) string {
+// gccgoToSymbol converts a name to a mangled symbol for gccgo.
+func gccgoToSymbol(ppath string) string {
 	if gccgoMangler == nil {
 		var err error
 		cmd := os.Getenv("GCCGO")
@@ -1293,12 +1292,12 @@ func (p *Package) gccgoSymbolPrefix() string {
 	}
 
 	if *gccgopkgpath != "" {
-		return gccgoPkgpathToSymbol(*gccgopkgpath)
+		return gccgoToSymbol(*gccgopkgpath)
 	}
 	if *gccgoprefix == "" && p.PackageName == "main" {
 		return "main"
 	}
-	prefix := gccgoPkgpathToSymbol(*gccgoprefix)
+	prefix := gccgoToSymbol(*gccgoprefix)
 	if prefix == "" {
 		prefix = "go"
 	}
@@ -1687,8 +1686,12 @@ void _cgoPREFIX_Cfunc__Cmalloc(void *v) {
 `
 
 func (p *Package) cPrologGccgo() string {
-	return strings.Replace(strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1),
-		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(), -1)
+	r := strings.NewReplacer(
+		"PREFIX", cPrefix,
+		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(),
+		"_cgoCheckPointer", gccgoToSymbol("_cgoCheckPointer"),
+		"_cgoCheckResult", gccgoToSymbol("_cgoCheckResult"))
+	return r.Replace(cPrologGccgo)
 }
 
 const cPrologGccgo = `

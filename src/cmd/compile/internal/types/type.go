@@ -10,10 +10,10 @@ import (
 	"fmt"
 )
 
-// Dummy Node so we can refer to *Node without actually
-// having a gc.Node. Necessary to break import cycles.
-// TODO(gri) try to eliminate soon
-type Node struct{ _ int }
+// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+// which would cause an import cycle. The uses in other packages must type assert
+// values of type IRNode to ir.Node or a more specific type.
+type IRNode interface{ Type() *Type }
 
 //go:generate stringer -type EType -trimprefix T
 
@@ -141,8 +141,8 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	Nod  *Node // canonical OTYPE node
-	Orig *Type // original type (type literal or predefined type)
+	Nod  IRNode // canonical OTYPE node
+	Orig *Type  // original type (type literal or predefined type)
 
 	// Cache of composite types, with this type being the element type.
 	Cache struct {
@@ -247,8 +247,7 @@ type Func struct {
 	Results  *Type // function results
 	Params   *Type // function params
 
-	Nname *Node
-	pkg   *Pkg
+	pkg *Pkg
 
 	// Argwid is the total width of the function receiver, params, and results.
 	// It gets calculated via a temporary TFUNCARGS type.
@@ -361,7 +360,7 @@ type Field struct {
 
 	// For fields that represent function parameters, Nname points
 	// to the associated ONAME Node.
-	Nname *Node
+	Nname IRNode
 
 	// Offset in bytes of this field or method within its enclosing struct
 	// or interface Type.
@@ -583,10 +582,17 @@ func NewFuncArgs(f *Type) *Type {
 	return t
 }
 
-func NewField() *Field {
-	return &Field{
+func NewField(pos src.XPos, sym *Sym, typ *Type) *Field {
+	f := &Field{
+		Pos:    pos,
+		Sym:    sym,
+		Type:   typ,
 		Offset: BADWIDTH,
 	}
+	if typ == nil {
+		f.SetBroke(true)
+	}
+	return f
 }
 
 // SubstAny walks t, replacing instances of "any" with successive
@@ -798,26 +804,6 @@ func (t *Type) ChanArgs() *Type {
 func (t *Type) FuncArgs() *Type {
 	t.wantEtype(TFUNCARGS)
 	return t.Extra.(FuncArgs).T
-}
-
-// Nname returns the associated function's nname.
-func (t *Type) Nname() *Node {
-	switch t.Etype {
-	case TFUNC:
-		return t.Extra.(*Func).Nname
-	}
-	Fatalf("Type.Nname %v %v", t.Etype, t)
-	return nil
-}
-
-// Nname sets the associated function's nname.
-func (t *Type) SetNname(n *Node) {
-	switch t.Etype {
-	case TFUNC:
-		t.Extra.(*Func).Nname = n
-	default:
-		Fatalf("Type.SetNname %v %v", t.Etype, t)
-	}
 }
 
 // IsFuncArgStruct reports whether t is a struct representing function parameters.
@@ -1226,7 +1212,7 @@ func (t *Type) IsInteger() bool {
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR:
 		return true
 	}
-	return false
+	return t == UntypedInt || t == UntypedRune
 }
 
 func (t *Type) IsSigned() bool {
@@ -1237,12 +1223,20 @@ func (t *Type) IsSigned() bool {
 	return false
 }
 
+func (t *Type) IsUnsigned() bool {
+	switch t.Etype {
+	case TUINT8, TUINT16, TUINT32, TUINT64, TUINT, TUINTPTR:
+		return true
+	}
+	return false
+}
+
 func (t *Type) IsFloat() bool {
-	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64
+	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64 || t == UntypedFloat
 }
 
 func (t *Type) IsComplex() bool {
-	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
+	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128 || t == UntypedComplex
 }
 
 // IsPtr reports whether t is a regular Go pointer type.
@@ -1279,7 +1273,7 @@ func (t *Type) IsPtrShaped() bool {
 // HasNil reports whether the set of values determined by t includes nil.
 func (t *Type) HasNil() bool {
 	switch t.Etype {
-	case TCHAN, TFUNC, TINTER, TMAP, TPTR, TSLICE, TUNSAFEPTR:
+	case TCHAN, TFUNC, TINTER, TMAP, TNIL, TPTR, TSLICE, TUNSAFEPTR:
 		return true
 	}
 	return false

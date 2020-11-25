@@ -8,6 +8,8 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
@@ -15,6 +17,7 @@ import (
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"go/constant"
 	"io"
 	"math/big"
 	"os"
@@ -38,8 +41,8 @@ var (
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
 
-func expandDecl(n *Node) {
-	if n.Op != ONONAME {
+func expandDecl(n ir.Node) {
+	if n.Op() != ir.ONONAME {
 		return
 	}
 
@@ -52,26 +55,26 @@ func expandDecl(n *Node) {
 	r.doDecl(n)
 }
 
-func expandInline(fn *Node) {
-	if fn.Func.Inl.Body != nil {
+func expandInline(fn ir.Node) {
+	if fn.Func().Inl.Body != nil {
 		return
 	}
 
 	r := importReaderFor(fn, inlineImporter)
 	if r == nil {
-		Fatalf("missing import reader for %v", fn)
+		base.Fatalf("missing import reader for %v", fn)
 	}
 
 	r.doInline(fn)
 }
 
-func importReaderFor(n *Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
-	x, ok := importers[n.Sym]
+func importReaderFor(n ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
+	x, ok := importers[n.Sym()]
 	if !ok {
 		return nil
 	}
 
-	return x.p.newReader(x.off, n.Sym.Pkg)
+	return x.p.newReader(x.off, n.Sym().Pkg)
 }
 
 type intReader struct {
@@ -82,8 +85,8 @@ type intReader struct {
 func (r *intReader) int64() int64 {
 	i, err := binary.ReadVarint(r.Reader)
 	if err != nil {
-		yyerror("import %q: read error: %v", r.pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: read error: %v", r.pkg.Path, err)
+		base.ErrorExit()
 	}
 	return i
 }
@@ -91,31 +94,31 @@ func (r *intReader) int64() int64 {
 func (r *intReader) uint64() uint64 {
 	i, err := binary.ReadUvarint(r.Reader)
 	if err != nil {
-		yyerror("import %q: read error: %v", r.pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: read error: %v", r.pkg.Path, err)
+		base.ErrorExit()
 	}
 	return i
 }
 
 func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
-	ir := &intReader{in, pkg}
+	ird := &intReader{in, pkg}
 
-	version := ir.uint64()
+	version := ird.uint64()
 	if version != iexportVersion {
-		yyerror("import %q: unknown export format version %d", pkg.Path, version)
-		errorexit()
+		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+		base.ErrorExit()
 	}
 
-	sLen := ir.uint64()
-	dLen := ir.uint64()
+	sLen := ird.uint64()
+	dLen := ird.uint64()
 
 	// Map string (and data) section into memory as a single large
 	// string. This reduces heap fragmentation and allows
 	// returning individual substrings very efficiently.
 	data, err := mapFile(in.File(), in.Offset(), int64(sLen+dLen))
 	if err != nil {
-		yyerror("import %q: mapping input: %v", pkg.Path, err)
-		errorexit()
+		base.Errorf("import %q: mapping input: %v", pkg.Path, err)
+		base.ErrorExit()
 	}
 	stringData := data[:sLen]
 	declData := data[sLen:]
@@ -138,29 +141,29 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	}
 
 	// Declaration index.
-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
-		pkg := p.pkgAt(ir.uint64())
-		pkgName := p.stringAt(ir.uint64())
-		pkgHeight := int(ir.uint64())
+	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+		pkg := p.pkgAt(ird.uint64())
+		pkgName := p.stringAt(ird.uint64())
+		pkgHeight := int(ird.uint64())
 		if pkg.Name == "" {
 			pkg.Name = pkgName
 			pkg.Height = pkgHeight
-			numImport[pkgName]++
+			ir.NumImport[pkgName]++
 
 			// TODO(mdempsky): This belongs somewhere else.
-			pkg.Lookup("_").Def = asTypesNode(nblank)
+			pkg.Lookup("_").Def = ir.BlankNode
 		} else {
 			if pkg.Name != pkgName {
-				Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
+				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
 			}
 			if pkg.Height != pkgHeight {
-				Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
+				base.Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
 			}
 		}
 
-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ir.uint64()))
-			off := ir.uint64()
+		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			off := ird.uint64()
 
 			if _, ok := declImporter[s]; ok {
 				continue
@@ -170,19 +173,19 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			// Create stub declaration. If used, this will
 			// be overwritten by expandDecl.
 			if s.Def != nil {
-				Fatalf("unexpected definition for %v: %v", s, asNode(s.Def))
+				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
 			}
-			s.Def = asTypesNode(npos(src.NoXPos, dclname(s)))
+			s.Def = npos(src.NoXPos, dclname(s))
 		}
 	}
 
 	// Inline body index.
-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
-		pkg := p.pkgAt(ir.uint64())
+	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+		pkg := p.pkgAt(ird.uint64())
 
-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ir.uint64()))
-			off := ir.uint64()
+		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			off := ird.uint64()
 
 			if _, ok := inlineImporter[s]; ok {
 				continue
@@ -194,8 +197,8 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 	// Fingerprint.
 	_, err = io.ReadFull(in, fingerprint[:])
 	if err != nil {
-		yyerror("import %s: error reading fingerprint", pkg.Path)
-		errorexit()
+		base.Errorf("import %s: error reading fingerprint", pkg.Path)
+		base.ErrorExit()
 	}
 	return fingerprint
 }
@@ -217,7 +220,7 @@ func (p *iimporter) stringAt(off uint64) string {
 
 	slen, n := binary.Uvarint(x[:n])
 	if n <= 0 {
-		Fatalf("varint failed")
+		base.Fatalf("varint failed")
 	}
 	spos := off + uint64(n)
 	return p.stringData[spos : spos+slen]
@@ -278,9 +281,9 @@ func (r *importReader) setPkg() {
 	r.currPkg = r.pkg()
 }
 
-func (r *importReader) doDecl(n *Node) {
-	if n.Op != ONONAME {
-		Fatalf("doDecl: unexpected Op for %v: %v", n.Sym, n.Op)
+func (r *importReader) doDecl(n ir.Node) {
+	if n.Op() != ir.ONONAME {
+		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym(), n.Op())
 	}
 
 	tag := r.byte()
@@ -290,23 +293,24 @@ func (r *importReader) doDecl(n *Node) {
 	case 'A':
 		typ := r.typ()
 
-		importalias(r.p.ipkg, pos, n.Sym, typ)
+		importalias(r.p.ipkg, pos, n.Sym(), typ)
 
 	case 'C':
-		typ, val := r.value()
+		typ := r.typ()
+		val := r.value(typ)
 
-		importconst(r.p.ipkg, pos, n.Sym, typ, val)
+		importconst(r.p.ipkg, pos, n.Sym(), typ, val)
 
 	case 'F':
 		typ := r.signature(nil)
 
-		importfunc(r.p.ipkg, pos, n.Sym, typ)
+		importfunc(r.p.ipkg, pos, n.Sym(), typ)
 		r.funcExt(n)
 
 	case 'T':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
-		t := importtype(r.p.ipkg, pos, n.Sym)
+		t := importtype(r.p.ipkg, pos, n.Sym())
 
 		// We also need to defer width calculations until
 		// after the underlying type has been assigned.
@@ -327,23 +331,14 @@ func (r *importReader) doDecl(n *Node) {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			f := types.NewField()
-			f.Pos = mpos
-			f.Sym = msym
-			f.Type = mtyp
-			ms[i] = f
-
-			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
-			m.Type = mtyp
-			m.SetClass(PFUNC)
+			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(ir.Func))
+			m.SetType(mtyp)
+			m.SetClass(ir.PFUNC)
 			// methodSym already marked m.Sym as a function.
 
-			// (comment from parser.go)
-			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
-			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
-			// out by typecheck's lookdot as this $$.ttype. So by providing
-			// this back link here we avoid special casing there.
-			mtyp.SetNname(asTypesNode(m))
+			f := types.NewField(mpos, msym, mtyp)
+			f.Nname = m
+			ms[i] = f
 		}
 		t.Methods().Set(ms)
 
@@ -355,40 +350,32 @@ func (r *importReader) doDecl(n *Node) {
 	case 'V':
 		typ := r.typ()
 
-		importvar(r.p.ipkg, pos, n.Sym, typ)
+		importvar(r.p.ipkg, pos, n.Sym(), typ)
 		r.varExt(n)
 
 	default:
-		Fatalf("unexpected tag: %v", tag)
+		base.Fatalf("unexpected tag: %v", tag)
 	}
 }
 
-func (p *importReader) value() (typ *types.Type, v Val) {
-	typ = p.typ()
-
+func (p *importReader) value(typ *types.Type) constant.Value {
 	switch constTypeOf(typ) {
-	case CTNIL:
-		v.U = &NilVal{}
-	case CTBOOL:
-		v.U = p.bool()
-	case CTSTR:
-		v.U = p.string()
-	case CTINT:
-		x := new(Mpint)
-		x.Rune = typ == types.UntypedRune
-		p.mpint(&x.Val, typ)
-		v.U = x
-	case CTFLT:
-		x := newMpflt()
-		p.float(x, typ)
-		v.U = x
-	case CTCPLX:
-		x := newMpcmplx()
-		p.float(&x.Real, typ)
-		p.float(&x.Imag, typ)
-		v.U = x
+	case constant.Bool:
+		return constant.MakeBool(p.bool())
+	case constant.String:
+		return constant.MakeString(p.string())
+	case constant.Int:
+		var i big.Int
+		p.mpint(&i, typ)
+		return makeInt(&i)
+	case constant.Float:
+		return p.float(typ)
+	case constant.Complex:
+		return makeComplex(p.float(typ), p.float(typ))
 	}
-	return
+
+	base.Fatalf("unexpected value type: %v", typ)
+	panic("unreachable")
 }
 
 func (p *importReader) mpint(x *big.Int, typ *types.Type) {
@@ -420,7 +407,7 @@ func (p *importReader) mpint(x *big.Int, typ *types.Type) {
 		v = -(n &^ 1) >> 1
 	}
 	if v < 1 || uint(v) > maxBytes {
-		Fatalf("weird decoding: %v, %v => %v", n, signed, v)
+		base.Fatalf("weird decoding: %v, %v => %v", n, signed, v)
 	}
 	b := make([]byte, v)
 	p.Read(b)
@@ -430,14 +417,15 @@ func (p *importReader) mpint(x *big.Int, typ *types.Type) {
 	}
 }
 
-func (p *importReader) float(x *Mpflt, typ *types.Type) {
+func (p *importReader) float(typ *types.Type) constant.Value {
 	var mant big.Int
 	p.mpint(&mant, typ)
-	m := x.Val.SetInt(&mant)
-	if m.Sign() == 0 {
-		return
+	var f big.Float
+	f.SetInt(&mant)
+	if f.Sign() != 0 {
+		f.SetMantExp(&f, int(p.int64()))
 	}
-	m.SetMantExp(m, int(p.int64()))
+	return constant.Make(&f)
 }
 
 func (r *importReader) ident() *types.Sym {
@@ -447,7 +435,7 @@ func (r *importReader) ident() *types.Sym {
 	}
 	pkg := r.currPkg
 	if types.IsExported(name) {
-		pkg = localpkg
+		pkg = ir.LocalPkg
 	}
 	return pkg.Lookup(name)
 }
@@ -476,10 +464,10 @@ func (r *importReader) pos() src.XPos {
 	}
 
 	if r.prevBase == nil {
-		Fatalf("missing posbase")
+		base.Fatalf("missing posbase")
 	}
 	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
-	return Ctxt.PosTable.XPos(pos)
+	return base.Ctxt.PosTable.XPos(pos)
 }
 
 func (r *importReader) typ() *types.Type {
@@ -490,7 +478,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 	t, ok := p.typCache[off]
 	if !ok {
 		if off < predeclReserved {
-			Fatalf("predeclared type missing from cache: %d", off)
+			base.Fatalf("predeclared type missing from cache: %d", off)
 		}
 		t = p.newReader(off-predeclReserved, nil).typ1()
 		p.typCache[off] = t
@@ -501,7 +489,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 func (r *importReader) typ1() *types.Type {
 	switch k := r.kind(); k {
 	default:
-		Fatalf("unexpected kind tag in %q: %v", r.p.ipkg.Path, k)
+		base.Fatalf("unexpected kind tag in %q: %v", r.p.ipkg.Path, k)
 		return nil
 
 	case definedType:
@@ -511,14 +499,14 @@ func (r *importReader) typ1() *types.Type {
 		// support inlining functions with local defined
 		// types. Therefore, this must be a package-scope
 		// type.
-		n := asNode(r.qualifiedIdent().PkgDef())
-		if n.Op == ONONAME {
+		n := ir.AsNode(r.qualifiedIdent().PkgDef())
+		if n.Op() == ir.ONONAME {
 			expandDecl(n)
 		}
-		if n.Op != OTYPE {
-			Fatalf("expected OTYPE, got %v: %v, %v", n.Op, n.Sym, n)
+		if n.Op() != ir.OTYPE {
+			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
 		}
-		return n.Type
+		return n.Type()
 	case pointerType:
 		return types.NewPtr(r.typ())
 	case sliceType:
@@ -547,10 +535,7 @@ func (r *importReader) typ1() *types.Type {
 			emb := r.bool()
 			note := r.string()
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Sym = sym
-			f.Type = typ
+			f := types.NewField(pos, sym, typ)
 			if emb {
 				f.Embedded = 1
 			}
@@ -558,7 +543,7 @@ func (r *importReader) typ1() *types.Type {
 			fs[i] = f
 		}
 
-		t := types.New(TSTRUCT)
+		t := types.New(types.TSTRUCT)
 		t.SetPkg(r.currPkg)
 		t.SetFields(fs)
 		return t
@@ -571,10 +556,7 @@ func (r *importReader) typ1() *types.Type {
 			pos := r.pos()
 			typ := r.typ()
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Type = typ
-			embeddeds[i] = f
+			embeddeds[i] = types.NewField(pos, nil, typ)
 		}
 
 		methods := make([]*types.Field, r.uint64())
@@ -583,14 +565,10 @@ func (r *importReader) typ1() *types.Type {
 			sym := r.ident()
 			typ := r.signature(fakeRecvField())
 
-			f := types.NewField()
-			f.Pos = pos
-			f.Sym = sym
-			f.Type = typ
-			methods[i] = f
+			methods[i] = types.NewField(pos, sym, typ)
 		}
 
-		t := types.New(TINTER)
+		t := types.New(types.TINTER)
 		t.SetPkg(r.currPkg)
 		t.SetInterface(append(embeddeds, methods...))
 
@@ -624,11 +602,7 @@ func (r *importReader) paramList() []*types.Field {
 }
 
 func (r *importReader) param() *types.Field {
-	f := types.NewField()
-	f.Pos = r.pos()
-	f.Sym = r.ident()
-	f.Type = r.typ()
-	return f
+	return types.NewField(r.pos(), r.ident(), r.typ())
 }
 
 func (r *importReader) bool() bool {
@@ -638,7 +612,7 @@ func (r *importReader) bool() bool {
 func (r *importReader) int64() int64 {
 	n, err := binary.ReadVarint(r)
 	if err != nil {
-		Fatalf("readVarint: %v", err)
+		base.Fatalf("readVarint: %v", err)
 	}
 	return n
 }
@@ -646,7 +620,7 @@ func (r *importReader) int64() int64 {
 func (r *importReader) uint64() uint64 {
 	n, err := binary.ReadUvarint(r)
 	if err != nil {
-		Fatalf("readVarint: %v", err)
+		base.Fatalf("readVarint: %v", err)
 	}
 	return n
 }
@@ -654,35 +628,35 @@ func (r *importReader) uint64() uint64 {
 func (r *importReader) byte() byte {
 	x, err := r.ReadByte()
 	if err != nil {
-		Fatalf("declReader.ReadByte: %v", err)
+		base.Fatalf("declReader.ReadByte: %v", err)
 	}
 	return x
 }
 
 // Compiler-specific extensions.
 
-func (r *importReader) varExt(n *Node) {
-	r.linkname(n.Sym)
-	r.symIdx(n.Sym)
+func (r *importReader) varExt(n ir.Node) {
+	r.linkname(n.Sym())
+	r.symIdx(n.Sym())
 }
 
-func (r *importReader) funcExt(n *Node) {
-	r.linkname(n.Sym)
-	r.symIdx(n.Sym)
+func (r *importReader) funcExt(n ir.Node) {
+	r.linkname(n.Sym())
+	r.symIdx(n.Sym())
 
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
-		for _, f := range fs(n.Type).FieldSlice() {
+		for _, f := range fs(n.Type()).FieldSlice() {
 			f.Note = r.string()
 		}
 	}
 
 	// Inline body.
 	if u := r.uint64(); u > 0 {
-		n.Func.Inl = &Inline{
+		n.Func().Inl = &ir.Inline{
 			Cost: int32(u - 1),
 		}
-		n.Func.Endlineno = r.pos()
+		n.Func().Endlineno = r.pos()
 	}
 }
 
@@ -690,7 +664,7 @@ func (r *importReader) methExt(m *types.Field) {
 	if r.bool() {
 		m.SetNointerface(true)
 	}
-	r.funcExt(asNode(m.Type.Nname()))
+	r.funcExt(ir.AsNode(m.Nname))
 }
 
 func (r *importReader) linkname(s *types.Sym) {
@@ -702,7 +676,7 @@ func (r *importReader) symIdx(s *types.Sym) {
 	idx := int32(r.int64())
 	if idx != -1 {
 		if s.Linkname != "" {
-			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+			base.Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
 		lsym.SymIdx = idx
 		lsym.Set(obj.AttrIndexed, true)
@@ -721,9 +695,9 @@ func (r *importReader) typeExt(t *types.Type) {
 // so we can use index to reference the symbol.
 var typeSymIdx = make(map[*types.Type][2]int64)
 
-func (r *importReader) doInline(n *Node) {
-	if len(n.Func.Inl.Body) != 0 {
-		Fatalf("%v already has inline body", n)
+func (r *importReader) doInline(n ir.Node) {
+	if len(n.Func().Inl.Body) != 0 {
+		base.Fatalf("%v already has inline body", n)
 	}
 
 	funchdr(n)
@@ -736,17 +710,17 @@ func (r *importReader) doInline(n *Node) {
 		// (not doing so can cause significant performance
 		// degradation due to unnecessary calls to empty
 		// functions).
-		body = []*Node{}
+		body = []ir.Node{}
 	}
-	n.Func.Inl.Body = body
+	n.Func().Inl.Body = body
 
 	importlist = append(importlist, n)
 
-	if Debug.E > 0 && Debug.m > 2 {
-		if Debug.m > 3 {
-			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
+	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
+		if base.Flag.LowerM > 3 {
+			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
 		} else {
-			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
+			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
 		}
 	}
 }
@@ -766,16 +740,16 @@ func (r *importReader) doInline(n *Node) {
 // unrefined nodes (since this is what the importer uses). The respective case
 // entries are unreachable in the importer.
 
-func (r *importReader) stmtList() []*Node {
-	var list []*Node
+func (r *importReader) stmtList() []ir.Node {
+	var list []ir.Node
 	for {
 		n := r.node()
 		if n == nil {
 			break
 		}
 		// OBLOCK nodes may be created when importing ODCL nodes - unpack them
-		if n.Op == OBLOCK {
-			list = append(list, n.List.Slice()...)
+		if n.Op() == ir.OBLOCK {
+			list = append(list, n.List().Slice()...)
 		} else {
 			list = append(list, n)
 		}
@@ -784,30 +758,30 @@ func (r *importReader) stmtList() []*Node {
 	return list
 }
 
-func (r *importReader) caseList(sw *Node) []*Node {
-	namedTypeSwitch := sw.Op == OSWITCH && sw.Left != nil && sw.Left.Op == OTYPESW && sw.Left.Left != nil
+func (r *importReader) caseList(sw ir.Node) []ir.Node {
+	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
 
-	cases := make([]*Node, r.uint64())
+	cases := make([]ir.Node, r.uint64())
 	for i := range cases {
-		cas := nodl(r.pos(), OCASE, nil, nil)
-		cas.List.Set(r.stmtList())
+		cas := ir.NodAt(r.pos(), ir.OCASE, nil, nil)
+		cas.PtrList().Set(r.stmtList())
 		if namedTypeSwitch {
 			// Note: per-case variables will have distinct, dotted
 			// names after import. That's okay: swt.go only needs
 			// Sym for diagnostics anyway.
-			caseVar := newnamel(cas.Pos, r.ident())
+			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			declare(caseVar, dclcontext)
-			cas.Rlist.Set1(caseVar)
-			caseVar.Name.Defn = sw.Left
+			cas.PtrRlist().Set1(caseVar)
+			caseVar.Name().Defn = sw.Left()
 		}
-		cas.Nbody.Set(r.stmtList())
+		cas.PtrBody().Set(r.stmtList())
 		cases[i] = cas
 	}
 	return cases
 }
 
-func (r *importReader) exprList() []*Node {
-	var list []*Node
+func (r *importReader) exprList() []ir.Node {
+	var list []ir.Node
 	for {
 		n := r.expr()
 		if n == nil {
@@ -818,47 +792,57 @@ func (r *importReader) exprList() []*Node {
 	return list
 }
 
-func (r *importReader) expr() *Node {
+func (r *importReader) expr() ir.Node {
 	n := r.node()
-	if n != nil && n.Op == OBLOCK {
-		Fatalf("unexpected block node: %v", n)
+	if n != nil && n.Op() == ir.OBLOCK {
+		base.Fatalf("unexpected block node: %v", n)
 	}
 	return n
 }
 
 // TODO(gri) split into expr and stmt
-func (r *importReader) node() *Node {
+func (r *importReader) node() ir.Node {
 	switch op := r.op(); op {
 	// expressions
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
 
-	case OLITERAL:
-		pos := r.pos()
-		typ, val := r.value()
+	// case ONIL:
+	//	unreachable - mapped to OLITERAL
 
-		n := npos(pos, nodlit(val))
-		n.Type = typ
+	case ir.OLITERAL:
+		pos := r.pos()
+		typ := r.typ()
+
+		var n ir.Node
+		if typ.HasNil() {
+			n = nodnil()
+		} else {
+			n = ir.NewLiteral(r.value(typ))
+		}
+		n = npos(pos, n)
+		n.SetType(typ)
 		return n
 
-	case ONONAME:
+	case ir.ONONAME:
 		return mkname(r.qualifiedIdent())
 
-	case ONAME:
+	case ir.ONAME:
 		return mkname(r.ident())
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking
 
-	case OTYPE:
+	case ir.OTYPE:
 		return typenod(r.typ())
 
-	case OTYPESW:
-		n := nodl(r.pos(), OTYPESW, nil, nil)
+	case ir.OTYPESW:
+		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
 		if s := r.ident(); s != nil {
-			n.Left = npos(n.Pos, newnoname(s))
+			n.SetLeft(npos(n.Pos(), newnoname(s)))
 		}
-		n.Right, _ = r.exprsOrNil()
+		right, _ := r.exprsOrNil()
+		n.SetRight(right)
 		return n
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
@@ -870,27 +854,27 @@ func (r *importReader) node() *Node {
 	// case OPTRLIT:
 	//	unreachable - mapped to case OADDR below by exporter
 
-	case OSTRUCTLIT:
+	case ir.OSTRUCTLIT:
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
-		savedlineno := lineno
-		lineno = r.pos()
-		n := nodl(lineno, OCOMPLIT, nil, typenod(r.typ()))
-		n.List.Set(r.elemList()) // special handling of field names
-		lineno = savedlineno
+		savedlineno := base.Pos
+		base.Pos = r.pos()
+		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, typenod(r.typ()))
+		n.PtrList().Set(r.elemList()) // special handling of field names
+		base.Pos = savedlineno
 		return n
 
 	// case OARRAYLIT, OSLICELIT, OMAPLIT:
 	// 	unreachable - mapped to case OCOMPLIT below by exporter
 
-	case OCOMPLIT:
-		n := nodl(r.pos(), OCOMPLIT, nil, typenod(r.typ()))
-		n.List.Set(r.exprList())
+	case ir.OCOMPLIT:
+		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, typenod(r.typ()))
+		n.PtrList().Set(r.exprList())
 		return n
 
-	case OKEY:
+	case ir.OKEY:
 		pos := r.pos()
 		left, right := r.exprsOrNil()
-		return nodl(pos, OKEY, left, right)
+		return ir.NodAt(pos, ir.OKEY, left, right)
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -901,29 +885,29 @@ func (r *importReader) node() *Node {
 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 	// 	unreachable - mapped to case OXDOT below by exporter
 
-	case OXDOT:
+	case ir.OXDOT:
 		// see parser.new_dotname
-		return npos(r.pos(), nodSym(OXDOT, r.expr(), r.ident()))
+		return npos(r.pos(), nodSym(ir.OXDOT, r.expr(), r.ident()))
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
 
-	case ODOTTYPE:
-		n := nodl(r.pos(), ODOTTYPE, r.expr(), nil)
-		n.Type = r.typ()
+	case ir.ODOTTYPE:
+		n := ir.NodAt(r.pos(), ir.ODOTTYPE, r.expr(), nil)
+		n.SetType(r.typ())
 		return n
 
 	// case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
 	// 	unreachable - mapped to cases below by exporter
 
-	case OINDEX:
-		return nodl(r.pos(), op, r.expr(), r.expr())
+	case ir.OINDEX:
+		return ir.NodAt(r.pos(), op, r.expr(), r.expr())
 
-	case OSLICE, OSLICE3:
-		n := nodl(r.pos(), op, r.expr(), nil)
+	case ir.OSLICE, ir.OSLICE3:
+		n := ir.NodAt(r.pos(), op, r.expr(), nil)
 		low, high := r.exprsOrNil()
-		var max *Node
-		if n.Op.IsSlice3() {
+		var max ir.Node
+		if n.Op().IsSlice3() {
 			max = r.expr()
 		}
 		n.SetSliceBounds(low, high, max)
@@ -932,15 +916,15 @@ func (r *importReader) node() *Node {
 	// case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, ORUNES2STR, OSTR2BYTES, OSTR2RUNES, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter
 
-	case OCONV:
-		n := nodl(r.pos(), OCONV, r.expr(), nil)
-		n.Type = r.typ()
+	case ir.OCONV:
+		n := ir.NodAt(r.pos(), ir.OCONV, r.expr(), nil)
+		n.SetType(r.typ())
 		return n
 
-	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := npos(r.pos(), builtinCall(op))
-		n.List.Set(r.exprList())
-		if op == OAPPEND {
+		n.PtrList().Set(r.exprList())
+		if op == ir.OAPPEND {
 			n.SetIsDDD(r.bool())
 		}
 		return n
@@ -948,45 +932,45 @@ func (r *importReader) node() *Node {
 	// case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 	// 	unreachable - mapped to OCALL case below by exporter
 
-	case OCALL:
-		n := nodl(r.pos(), OCALL, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left = r.expr()
-		n.List.Set(r.exprList())
+	case ir.OCALL:
+		n := ir.NodAt(r.pos(), ir.OCALL, nil, nil)
+		n.PtrInit().Set(r.stmtList())
+		n.SetLeft(r.expr())
+		n.PtrList().Set(r.exprList())
 		n.SetIsDDD(r.bool())
 		return n
 
-	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
-		n := npos(r.pos(), builtinCall(OMAKE))
-		n.List.Append(typenod(r.typ()))
-		n.List.Append(r.exprList()...)
+	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
+		n := npos(r.pos(), builtinCall(ir.OMAKE))
+		n.PtrList().Append(typenod(r.typ()))
+		n.PtrList().Append(r.exprList()...)
 		return n
 
 	// unary expressions
-	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
-		return nodl(r.pos(), op, r.expr(), nil)
+	case ir.OPLUS, ir.ONEG, ir.OADDR, ir.OBITNOT, ir.ODEREF, ir.ONOT, ir.ORECV:
+		return ir.NodAt(r.pos(), op, r.expr(), nil)
 
 	// binary expressions
-	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
-		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
-		return nodl(r.pos(), op, r.expr(), r.expr())
+	case ir.OADD, ir.OAND, ir.OANDAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
+		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.OOROR, ir.ORSH, ir.OSEND, ir.OSUB, ir.OXOR:
+		return ir.NodAt(r.pos(), op, r.expr(), r.expr())
 
-	case OADDSTR:
+	case ir.OADDSTR:
 		pos := r.pos()
 		list := r.exprList()
 		x := npos(pos, list[0])
 		for _, y := range list[1:] {
-			x = nodl(pos, OADD, x, y)
+			x = ir.NodAt(pos, ir.OADD, x, y)
 		}
 		return x
 
 	// --------------------------------------------------------------------
 	// statements
-	case ODCL:
+	case ir.ODCL:
 		pos := r.pos()
 		lhs := npos(pos, dclname(r.ident()))
 		typ := typenod(r.typ())
-		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 
 	// case ODCLFIELD:
 	//	unimplemented
@@ -994,118 +978,121 @@ func (r *importReader) node() *Node {
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter
 
-	case OAS:
-		return nodl(r.pos(), OAS, r.expr(), r.expr())
+	case ir.OAS:
+		return ir.NodAt(r.pos(), ir.OAS, r.expr(), r.expr())
 
-	case OASOP:
-		n := nodl(r.pos(), OASOP, nil, nil)
+	case ir.OASOP:
+		n := ir.NodAt(r.pos(), ir.OASOP, nil, nil)
 		n.SetSubOp(r.op())
-		n.Left = r.expr()
+		n.SetLeft(r.expr())
 		if !r.bool() {
-			n.Right = nodintconst(1)
+			n.SetRight(nodintconst(1))
 			n.SetImplicit(true)
 		} else {
-			n.Right = r.expr()
+			n.SetRight(r.expr())
 		}
 		return n
 
 	// case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 	// 	unreachable - mapped to OAS2 case below by exporter
 
-	case OAS2:
-		n := nodl(r.pos(), OAS2, nil, nil)
-		n.List.Set(r.exprList())
-		n.Rlist.Set(r.exprList())
+	case ir.OAS2:
+		n := ir.NodAt(r.pos(), ir.OAS2, nil, nil)
+		n.PtrList().Set(r.exprList())
+		n.PtrRlist().Set(r.exprList())
 		return n
 
-	case ORETURN:
-		n := nodl(r.pos(), ORETURN, nil, nil)
-		n.List.Set(r.exprList())
+	case ir.ORETURN:
+		n := ir.NodAt(r.pos(), ir.ORETURN, nil, nil)
+		n.PtrList().Set(r.exprList())
 		return n
 
 	// case ORETJMP:
 	// 	unreachable - generated by compiler for trampolin routines (not exported)
 
-	case OGO, ODEFER:
-		return nodl(r.pos(), op, r.expr(), nil)
+	case ir.OGO, ir.ODEFER:
+		return ir.NodAt(r.pos(), op, r.expr(), nil)
 
-	case OIF:
-		n := nodl(r.pos(), OIF, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left = r.expr()
-		n.Nbody.Set(r.stmtList())
-		n.Rlist.Set(r.stmtList())
+	case ir.OIF:
+		n := ir.NodAt(r.pos(), ir.OIF, nil, nil)
+		n.PtrInit().Set(r.stmtList())
+		n.SetLeft(r.expr())
+		n.PtrBody().Set(r.stmtList())
+		n.PtrRlist().Set(r.stmtList())
 		return n
 
-	case OFOR:
-		n := nodl(r.pos(), OFOR, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left, n.Right = r.exprsOrNil()
-		n.Nbody.Set(r.stmtList())
+	case ir.OFOR:
+		n := ir.NodAt(r.pos(), ir.OFOR, nil, nil)
+		n.PtrInit().Set(r.stmtList())
+		left, right := r.exprsOrNil()
+		n.SetLeft(left)
+		n.SetRight(right)
+		n.PtrBody().Set(r.stmtList())
 		return n
 
-	case ORANGE:
-		n := nodl(r.pos(), ORANGE, nil, nil)
-		n.List.Set(r.stmtList())
-		n.Right = r.expr()
-		n.Nbody.Set(r.stmtList())
+	case ir.ORANGE:
+		n := ir.NodAt(r.pos(), ir.ORANGE, nil, nil)
+		n.PtrList().Set(r.stmtList())
+		n.SetRight(r.expr())
+		n.PtrBody().Set(r.stmtList())
 		return n
 
-	case OSELECT, OSWITCH:
-		n := nodl(r.pos(), op, nil, nil)
-		n.Ninit.Set(r.stmtList())
-		n.Left, _ = r.exprsOrNil()
-		n.List.Set(r.caseList(n))
+	case ir.OSELECT, ir.OSWITCH:
+		n := ir.NodAt(r.pos(), op, nil, nil)
+		n.PtrInit().Set(r.stmtList())
+		left, _ := r.exprsOrNil()
+		n.SetLeft(left)
+		n.PtrList().Set(r.caseList(n))
 		return n
 
 	// case OCASE:
 	//	handled by caseList
 
-	case OFALL:
-		n := nodl(r.pos(), OFALL, nil, nil)
+	case ir.OFALL:
+		n := ir.NodAt(r.pos(), ir.OFALL, nil, nil)
 		return n
 
-	case OBREAK, OCONTINUE:
+	case ir.OBREAK, ir.OCONTINUE:
 		pos := r.pos()
 		left, _ := r.exprsOrNil()
 		if left != nil {
-			left = newname(left.Sym)
+			left = NewName(left.Sym())
 		}
-		return nodl(pos, op, left, nil)
+		return ir.NodAt(pos, op, left, nil)
 
 	// case OEMPTY:
 	// 	unreachable - not emitted by exporter
 
-	case OGOTO, OLABEL:
-		n := nodl(r.pos(), op, nil, nil)
-		n.Sym = lookup(r.string())
+	case ir.OGOTO, ir.OLABEL:
+		n := ir.NodAt(r.pos(), op, nil, nil)
+		n.SetSym(lookup(r.string()))
 		return n
 
-	case OEND:
+	case ir.OEND:
 		return nil
 
 	default:
-		Fatalf("cannot import %v (%d) node\n"+
+		base.Fatalf("cannot import %v (%d) node\n"+
 			"\t==> please file an issue and assign to gri@", op, int(op))
 		panic("unreachable") // satisfy compiler
 	}
 }
 
-func (r *importReader) op() Op {
-	return Op(r.uint64())
+func (r *importReader) op() ir.Op {
+	return ir.Op(r.uint64())
 }
 
-func (r *importReader) elemList() []*Node {
+func (r *importReader) elemList() []ir.Node {
 	c := r.uint64()
-	list := make([]*Node, c)
+	list := make([]ir.Node, c)
 	for i := range list {
 		s := r.ident()
-		list[i] = nodSym(OSTRUCTKEY, r.expr(), s)
+		list[i] = nodSym(ir.OSTRUCTKEY, r.expr(), s)
 	}
 	return list
 }
 
-func (r *importReader) exprsOrNil() (a, b *Node) {
+func (r *importReader) exprsOrNil() (a, b ir.Node) {
 	ab := r.uint64()
 	if ab&1 != 0 {
 		a = r.expr()

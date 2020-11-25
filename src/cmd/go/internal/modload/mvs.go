@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/mvs"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -21,16 +20,6 @@ import (
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-}
-
-// Reqs returns the current module requirement graph.
-// Future calls to EditBuildList do not affect the operation
-// of the returned Reqs.
-func Reqs() mvs.Reqs {
-	r := &mvsReqs{
-		buildList: buildList,
-	}
-	return r
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {

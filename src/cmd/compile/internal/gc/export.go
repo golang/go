@@ -5,34 +5,33 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/src"
 	"fmt"
-)
-
-var (
-	Debug_export int // if set, print debugging information about export data
+	"go/constant"
 )
 
 func exportf(bout *bio.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(bout, format, args...)
-	if Debug_export != 0 {
+	if base.Debug.Export != 0 {
 		fmt.Printf(format, args...)
 	}
 }
 
-var asmlist []*Node
+var asmlist []ir.Node
 
 // exportsym marks n for export (or reexport).
-func exportsym(n *Node) {
-	if n.Sym.OnExportList() {
+func exportsym(n ir.Node) {
+	if n.Sym().OnExportList() {
 		return
 	}
-	n.Sym.SetOnExportList(true)
+	n.Sym().SetOnExportList(true)
 
-	if Debug.E != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym)
+	if base.Flag.E != 0 {
+		fmt.Printf("export symbol %v\n", n.Sym())
 	}
 
 	exportlist = append(exportlist, n)
@@ -42,22 +41,22 @@ func initname(s string) bool {
 	return s == "init"
 }
 
-func autoexport(n *Node, ctxt Class) {
-	if n.Sym.Pkg != localpkg {
+func autoexport(n ir.Node, ctxt ir.Class) {
+	if n.Sym().Pkg != ir.LocalPkg {
 		return
 	}
-	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
+	if (ctxt != ir.PEXTERN && ctxt != ir.PFUNC) || dclcontext != ir.PEXTERN {
 		return
 	}
-	if n.Type != nil && n.Type.IsKind(TFUNC) && n.IsMethod() {
+	if n.Type() != nil && n.Type().IsKind(types.TFUNC) && ir.IsMethod(n) {
 		return
 	}
 
-	if types.IsExported(n.Sym.Name) || initname(n.Sym.Name) {
+	if types.IsExported(n.Sym().Name) || initname(n.Sym().Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && !n.Sym.Asm() {
-		n.Sym.SetAsm(true)
+	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
+		n.Sym().SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
 }
@@ -70,28 +69,28 @@ func dumpexport(bout *bio.Writer) {
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
-	if Debug_export != 0 {
-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
+	if base.Debug.Export != 0 {
+		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, size)
 	}
 }
 
-func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
-	n := asNode(s.PkgDef())
+func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
+	n := ir.AsNode(s.PkgDef())
 	if n == nil {
 		// iimport should have created a stub ONONAME
 		// declaration for all imported symbols. The exception
 		// is declarations for Runtimepkg, which are populated
 		// by loadsys instead.
 		if s.Pkg != Runtimepkg {
-			Fatalf("missing ONONAME for %v\n", s)
+			base.Fatalf("missing ONONAME for %v\n", s)
 		}
 
 		n = dclname(s)
-		s.SetPkgDef(asTypesNode(n))
+		s.SetPkgDef(n)
 		s.Importdef = ipkg
 	}
-	if n.Op != ONONAME && n.Op != op {
-		redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
+	if n.Op() != ir.ONONAME && n.Op() != op {
+		redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
 	}
 	return n
 }
@@ -100,57 +99,57 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
-	n := importsym(ipkg, s, OTYPE)
-	if n.Op != OTYPE {
-		t := types.New(TFORW)
+	n := importsym(ipkg, s, ir.OTYPE)
+	if n.Op() != ir.OTYPE {
+		t := types.New(types.TFORW)
 		t.Sym = s
-		t.Nod = asTypesNode(n)
+		t.Nod = n
 
-		n.Op = OTYPE
-		n.Pos = pos
-		n.Type = t
-		n.SetClass(PEXTERN)
+		n.SetOp(ir.OTYPE)
+		n.SetPos(pos)
+		n.SetType(t)
+		n.SetClass(ir.PEXTERN)
 	}
 
-	t := n.Type
+	t := n.Type()
 	if t == nil {
-		Fatalf("importtype %v", s)
+		base.Fatalf("importtype %v", s)
 	}
 	return t
 }
 
 // importobj declares symbol s as an imported object representable by op.
 // ipkg is the package being imported
-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
+func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) ir.Node {
 	n := importsym(ipkg, s, op)
-	if n.Op != ONONAME {
-		if n.Op == op && (n.Class() != ctxt || !types.Identical(n.Type, t)) {
-			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
+	if n.Op() != ir.ONONAME {
+		if n.Op() == op && (n.Class() != ctxt || !types.Identical(n.Type(), t)) {
+			redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
 		}
 		return nil
 	}
 
-	n.Op = op
-	n.Pos = pos
+	n.SetOp(op)
+	n.SetPos(pos)
 	n.SetClass(ctxt)
-	if ctxt == PFUNC {
-		n.Sym.SetFunc(true)
+	if ctxt == ir.PFUNC {
+		n.Sym().SetFunc(true)
 	}
-	n.Type = t
+	n.SetType(t)
 	return n
 }
 
 // importconst declares symbol s as an imported constant with type t and value val.
 // ipkg is the package being imported
-func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val Val) {
-	n := importobj(ipkg, pos, s, OLITERAL, PEXTERN, t)
+func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) {
+	n := importobj(ipkg, pos, s, ir.OLITERAL, ir.PEXTERN, t)
 	if n == nil { // TODO: Check that value matches.
 		return
 	}
 
 	n.SetVal(val)
 
-	if Debug.E != 0 {
+	if base.Flag.E != 0 {
 		fmt.Printf("import const %v %L = %v\n", s, t, val)
 	}
 }
@@ -158,15 +157,14 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
 // importfunc declares symbol s as an imported function with type t.
 // ipkg is the package being imported
 func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ONAME, PFUNC, t)
+	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
 	if n == nil {
 		return
 	}
 
-	n.Func = new(Func)
-	t.SetNname(asTypesNode(n))
+	n.SetFunc(new(ir.Func))
 
-	if Debug.E != 0 {
+	if base.Flag.E != 0 {
 		fmt.Printf("import func %v%S\n", s, t)
 	}
 }
@@ -174,12 +172,12 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 // importvar declares symbol s as an imported variable with type t.
 // ipkg is the package being imported
 func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ONAME, PEXTERN, t)
+	n := importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
 	if n == nil {
 		return
 	}
 
-	if Debug.E != 0 {
+	if base.Flag.E != 0 {
 		fmt.Printf("import var %v %L\n", s, t)
 	}
 }
@@ -187,43 +185,43 @@ func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 // importalias declares symbol s as an imported type alias with type t.
 // ipkg is the package being imported
 func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, OTYPE, PEXTERN, t)
+	n := importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
 	if n == nil {
 		return
 	}
 
-	if Debug.E != 0 {
+	if base.Flag.E != 0 {
 		fmt.Printf("import type %v = %L\n", s, t)
 	}
 }
 
 func dumpasmhdr() {
-	b, err := bio.Create(asmhdr)
+	b, err := bio.Create(base.Flag.AsmHdr)
 	if err != nil {
-		Fatalf("%v", err)
+		base.Fatalf("%v", err)
 	}
-	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", localpkg.Name)
+	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", ir.LocalPkg.Name)
 	for _, n := range asmlist {
-		if n.Sym.IsBlank() {
+		if n.Sym().IsBlank() {
 			continue
 		}
-		switch n.Op {
-		case OLITERAL:
-			t := n.Val().Ctype()
-			if t == CTFLT || t == CTCPLX {
+		switch n.Op() {
+		case ir.OLITERAL:
+			t := n.Val().Kind()
+			if t == constant.Float || t == constant.Complex {
 				break
 			}
-			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
+			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym().Name, n.Val())
 
-		case OTYPE:
-			t := n.Type
+		case ir.OTYPE:
+			t := n.Type()
 			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
 				break
 			}
-			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym.Name, int(t.Width))
+			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Width))
 			for _, f := range t.Fields().Slice() {
 				if !f.Sym.IsBlank() {
-					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, f.Sym.Name, int(f.Offset))
+					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym().Name, f.Sym.Name, int(f.Offset))
 				}
 			}
 		}

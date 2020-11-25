@@ -7,7 +7,6 @@
 package strconv
 
 import (
-	"internal/bytealg"
 	"unicode/utf8"
 )
 
@@ -434,11 +433,6 @@ func Unquote(s string) (string, error) {
 		}
 	}
 	return string(buf), nil
-}
-
-// contains reports whether the string contains the byte c.
-func contains(s string, c byte) bool {
-	return bytealg.IndexByteString(s, c) != -1
 }
 
 // bsearch16 returns the smallest i such that a[i] >= x.

@@ -4,73 +4,78 @@
 
 package gc
 
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+)
+
 // evalunsafe evaluates a package unsafe operation and returns the result.
-func evalunsafe(n *Node) int64 {
-	switch n.Op {
-	case OALIGNOF, OSIZEOF:
-		n.Left = typecheck(n.Left, ctxExpr)
-		n.Left = defaultlit(n.Left, nil)
-		tr := n.Left.Type
+func evalunsafe(n ir.Node) int64 {
+	switch n.Op() {
+	case ir.OALIGNOF, ir.OSIZEOF:
+		n.SetLeft(typecheck(n.Left(), ctxExpr))
+		n.SetLeft(defaultlit(n.Left(), nil))
+		tr := n.Left().Type()
 		if tr == nil {
 			return 0
 		}
 		dowidth(tr)
-		if n.Op == OALIGNOF {
+		if n.Op() == ir.OALIGNOF {
 			return int64(tr.Align)
 		}
 		return tr.Width
 
-	case OOFFSETOF:
+	case ir.OOFFSETOF:
 		// must be a selector.
-		if n.Left.Op != OXDOT {
-			yyerror("invalid expression %v", n)
+		if n.Left().Op() != ir.OXDOT {
+			base.Errorf("invalid expression %v", n)
 			return 0
 		}
 
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		n.Left.Left = typecheck(n.Left.Left, ctxExpr)
-		base := n.Left.Left
+		n.Left().SetLeft(typecheck(n.Left().Left(), ctxExpr))
+		sbase := n.Left().Left()
 
-		n.Left = typecheck(n.Left, ctxExpr)
-		if n.Left.Type == nil {
+		n.SetLeft(typecheck(n.Left(), ctxExpr))
+		if n.Left().Type() == nil {
 			return 0
 		}
-		switch n.Left.Op {
-		case ODOT, ODOTPTR:
+		switch n.Left().Op() {
+		case ir.ODOT, ir.ODOTPTR:
 			break
-		case OCALLPART:
-			yyerror("invalid expression %v: argument is a method value", n)
+		case ir.OCALLPART:
+			base.Errorf("invalid expression %v: argument is a method value", n)
 			return 0
 		default:
-			yyerror("invalid expression %v", n)
+			base.Errorf("invalid expression %v", n)
 			return 0
 		}
 
-		// Sum offsets for dots until we reach base.
+		// Sum offsets for dots until we reach sbase.
 		var v int64
-		for r := n.Left; r != base; r = r.Left {
-			switch r.Op {
-			case ODOTPTR:
+		for r := n.Left(); r != sbase; r = r.Left() {
+			switch r.Op() {
+			case ir.ODOTPTR:
 				// For Offsetof(s.f), s may itself be a pointer,
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
-				if r.Left != base {
-					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
+				if r.Left() != sbase {
+					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.Left())
 					return 0
 				}
 				fallthrough
-			case ODOT:
-				v += r.Xoffset
+			case ir.ODOT:
+				v += r.Offset()
 			default:
-				Dump("unsafenmagic", n.Left)
-				Fatalf("impossible %#v node after dot insertion", r.Op)
+				ir.Dump("unsafenmagic", n.Left())
+				base.Fatalf("impossible %#v node after dot insertion", r.Op())
 			}
 		}
 		return v
 	}
 
-	Fatalf("unexpected op %v", n.Op)
+	base.Fatalf("unexpected op %v", n.Op())
 	return 0
 }

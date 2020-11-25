@@ -86,12 +86,11 @@ Supported metrics
 
 	/memory/classes/heap/stacks:bytes
 		Memory allocated from the heap that is reserved for stack
-		space. Not all of it is necessarily simultaneously in use, but
-		it may not be used for any other purpose.
+		space, whether or not it is currently in-use.
 
 	/memory/classes/heap/unused:bytes
-		Memory that is reserved for heap objects but is otherwise not
-		currently used to hold heap objects.
+		Memory that is reserved for heap objects but is not currently
+		used to hold heap objects.
 
 	/memory/classes/metadata/mcache/free:bytes
 		Memory that is reserved for runtime mcache structures, but

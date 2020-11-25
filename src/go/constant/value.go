@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 	"sync"
@@ -610,7 +611,11 @@ func Make(x interface{}) Value {
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
-		return i64toi(x).val.BitLen()
+		u := uint64(x)
+		if x < 0 {
+			u = uint64(-x)
+		}
+		return 64 - bits.LeadingZeros64(u)
 	case intVal:
 		return x.val.BitLen()
 	case unknownVal:
@@ -1018,52 +1023,55 @@ func match(x, y Value) (_, _ Value) {
 	}
 	// ord(x) <= ord(y)
 
-	switch x := x.(type) {
+	// Prefer to return the original x and y arguments when possible,
+	// to avoid unnecessary heap allocations.
+
+	switch x1 := x.(type) {
 	case boolVal, *stringVal, complexVal:
 		return x, y
 
 	case int64Val:
-		switch y := y.(type) {
+		switch y.(type) {
 		case int64Val:
 			return x, y
 		case intVal:
-			return i64toi(x), y
+			return i64toi(x1), y
 		case ratVal:
-			return i64tor(x), y
+			return i64tor(x1), y
 		case floatVal:
-			return i64tof(x), y
+			return i64tof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case intVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case intVal:
 			return x, y
 		case ratVal:
-			return itor(x), y
+			return itor(x1), y
 		case floatVal:
-			return itof(x), y
+			return itof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case ratVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case ratVal:
 			return x, y
 		case floatVal:
-			return rtof(x), y
+			return rtof(x1), y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 
 	case floatVal:
-		switch y := y.(type) {
+		switch y.(type) {
 		case floatVal:
 			return x, y
 		case complexVal:
-			return vtoc(x), y
+			return vtoc(x1), y
 		}
 	}
 

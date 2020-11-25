@@ -5,7 +5,9 @@
 package wasm
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -33,7 +35,7 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		return p
 	}
 	if cnt%8 != 0 {
-		gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+		base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 	}
 
 	for i := int64(0); i < cnt; i += 8 {
@@ -165,8 +167,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 
 	case ssa.OpWasmLoweredWB:
@@ -235,7 +237,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		switch v.Aux.(type) {
 		case *obj.LSym:
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case ir.Node:
 			p.From.Reg = v.Args[0].Reg()
 			gc.AddAux(&p.From, v)
 		default:

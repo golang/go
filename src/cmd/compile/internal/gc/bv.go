@@ -6,6 +6,8 @@ package gc
 
 import (
 	"math/bits"
+
+	"cmd/compile/internal/base"
 )
 
 const (
@@ -35,7 +37,7 @@ func bvbulkalloc(nbit int32, count int32) bulkBvec {
 	nword := (nbit + wordBits - 1) / wordBits
 	size := int64(nword) * int64(count)
 	if int64(int32(size*4)) != size*4 {
-		Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
+		base.Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
 	}
 	return bulkBvec{
 		words: make([]uint32, size),
@@ -52,7 +54,7 @@ func (b *bulkBvec) next() bvec {
 
 func (bv1 bvec) Eq(bv2 bvec) bool {
 	if bv1.n != bv2.n {
-		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
+		base.Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
 	}
 	for i, x := range bv1.b {
 		if x != bv2.b[i] {
@@ -68,7 +70,7 @@ func (dst bvec) Copy(src bvec) {
 
 func (bv bvec) Get(i int32) bool {
 	if i < 0 || i >= bv.n {
-		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
+		base.Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	mask := uint32(1 << uint(i%wordBits))
 	return bv.b[i>>wordShift]&mask != 0
@@ -76,7 +78,7 @@ func (bv bvec) Get(i int32) bool {
 
 func (bv bvec) Set(i int32) {
 	if i < 0 || i >= bv.n {
-		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
+		base.Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	mask := uint32(1 << uint(i%wordBits))
 	bv.b[i/wordBits] |= mask
@@ -84,7 +86,7 @@ func (bv bvec) Set(i int32) {
 
 func (bv bvec) Unset(i int32) {
 	if i < 0 || i >= bv.n {
-		Fatalf("bvunset: index %d is out of bounds with length %d\n", i, bv.n)
+		base.Fatalf("bvunset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	mask := uint32(1 << uint(i%wordBits))
 	bv.b[i/wordBits] &^= mask
