@@ -734,15 +734,9 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 }
 
 func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
-	var ptr bool
-	nstr := name.Value
-	if len(nstr) > 0 && nstr[0] == '*' {
-		ptr = true
-		nstr = nstr[1:]
-	}
-	tpar := NewTypeName(name.Pos(), check.pkg, nstr, nil)
-	check.NewTypeParam(ptr, tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos)      // TODO(gri) check scope position
+	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 	tparams = append(tparams, tpar)
 
 	if check.conf.Trace {

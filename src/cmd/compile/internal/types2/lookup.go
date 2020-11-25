@@ -222,7 +222,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && ptrRecv(f) || tpar != nil && tpar.ptr
+				hasPtrRecv := tpar == nil && ptrRecv(f)
 				if hasPtrRecv && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
