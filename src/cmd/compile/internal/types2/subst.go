@@ -143,27 +143,14 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 		// - check only if we have methods
 		check.completeInterface(nopos, iface)
 		if len(iface.allMethods) > 0 {
-			// If the type argument is a type parameter itself, its pointer designation
-			// must match the pointer designation of the callee's type parameter.
 			// If the type argument is a pointer to a type parameter, the type argument's
 			// method set is empty.
 			// TODO(gri) is this what we want? (spec question)
-			if tparg := targ.TypeParam(); tparg != nil {
-				if tparg.ptr != tpar.ptr {
-					check.errorf(pos, "pointer designation mismatch")
-					break
-				}
-			} else if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
+			if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
 				check.errorf(pos, "%s has no methods", targ)
 				break
 			}
-			// If a type parameter is marked as a pointer type, the type bound applies
-			// to a pointer of the type argument.
-			actual := targ
-			if tpar.ptr {
-				actual = NewPointer(targ)
-			}
-			if m, wrong := check.missingMethod(actual, iface, true); m != nil {
+			if m, wrong := check.missingMethod(targ, iface, true); m != nil {
 				// TODO(gri) needs to print updated name to avoid major confusion in error message!
 				//           (print warning for now)
 				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)

@@ -307,12 +307,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
 			if len(sig.rparams) == len(recvTParams) {
 				// We have a list of *TypeNames but we need a list of Types.
-				// While creating this list, also update type parameter pointer designation
-				// for each (*TypeParam) list entry, by copying the information from the
-				// receiver base type's type parameters.
 				list := make([]Type, len(sig.rparams))
 				for i, t := range sig.rparams {
-					t.typ.(*TypeParam).ptr = recvTParams[i].typ.(*TypeParam).ptr
 					list[i] = t.typ
 				}
 				for i, tname := range sig.rparams {

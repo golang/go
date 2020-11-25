@@ -832,7 +832,6 @@ func (t *Named) AddMethod(m *Func) {
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
-	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
@@ -840,9 +839,9 @@ type TypeParam struct {
 }
 
 // NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
