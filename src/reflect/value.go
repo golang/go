@@ -2681,12 +2681,20 @@ func cvtComplex(v Value, t Type) Value {
 
 // convertOp: intXX -> string
 func cvtIntString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(rune(v.Int())), t)
+	s := "\uFFFD"
+	if x := v.Int(); int64(rune(x)) == x {
+		s = string(rune(x))
+	}
+	return makeString(v.flag.ro(), s, t)
 }
 
 // convertOp: uintXX -> string
 func cvtUintString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(rune(v.Uint())), t)
+	s := "\uFFFD"
+	if x := v.Uint(); uint64(rune(x)) == x {
+		s = string(rune(x))
+	}
+	return makeString(v.flag.ro(), s, t)
 }
 
 // convertOp: []byte -> string
