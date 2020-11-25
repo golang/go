@@ -251,8 +251,13 @@ func (c *child) handleRecord(rec *record) error {
 			// TODO(eds): This blocks until the handler reads from the pipe.
 			// If the handler takes a long time, it might be a problem.
 			req.pw.Write(content)
-		} else if req.pw != nil {
-			req.pw.Close()
+		} else {
+			c.mu.Lock()
+			delete(c.requests, req.reqId)
+			c.mu.Unlock()
+			if req.pw != nil {
+				req.pw.Close()
+			}
 		}
 		return nil
 	case typeGetValues:
@@ -312,9 +317,6 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	// Make sure we serve something even if nothing was written to r
 	r.Write(nil)
 	r.Close()
-	c.mu.Lock()
-	delete(c.requests, req.reqId)
-	c.mu.Unlock()
 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
 
 	// Consume the entire body, so the host isn't still writing to
