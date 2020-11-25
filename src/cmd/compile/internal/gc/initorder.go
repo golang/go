@@ -142,7 +142,7 @@ func (o *InitOrder) processAssign(n *ir.Node) {
 		if dep.Class() != ir.PEXTERN || defn.Initorder() == InitDone {
 			continue
 		}
-		n.Xoffset++
+		n.Xoffset = n.Xoffset + 1
 		o.blocking[defn] = append(o.blocking[defn], n)
 	}
 
@@ -169,7 +169,7 @@ func (o *InitOrder) flushReady(initialize func(*ir.Node)) {
 		delete(o.blocking, n)
 
 		for _, m := range blocked {
-			m.Xoffset--
+			m.Xoffset = m.Xoffset - 1
 			if m.Xoffset == 0 {
 				heap.Push(&o.ready, m)
 			}

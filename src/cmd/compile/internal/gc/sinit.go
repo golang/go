@@ -157,7 +157,7 @@ func (s *InitSchedule) staticcopy(l *ir.Node, r *ir.Node) bool {
 			// copying someone else's computation.
 			rr := ir.SepCopy(orig)
 			rr.Type = ll.Type
-			rr.Xoffset += e.Xoffset
+			rr.Xoffset = rr.Xoffset + e.Xoffset
 			setlineno(rr)
 			s.append(ir.Nod(ir.OAS, ll, rr))
 		}
@@ -301,7 +301,7 @@ func (s *InitSchedule) staticassign(l *ir.Node, r *ir.Node) bool {
 
 		// Emit itab, advance offset.
 		addrsym(n, itab.Left) // itab is an OADDR node
-		n.Xoffset += int64(Widthptr)
+		n.Xoffset = n.Xoffset + int64(Widthptr)
 
 		// Emit data.
 		if isdirectiface(val.Type) {
@@ -1017,7 +1017,7 @@ func stataddr(n *ir.Node) *ir.Node {
 		if nam == nil {
 			break
 		}
-		nam.Xoffset += n.Xoffset
+		nam.Xoffset = nam.Xoffset + n.Xoffset
 		nam.Type = n.Type
 		return nam
 
@@ -1038,7 +1038,7 @@ func stataddr(n *ir.Node) *ir.Node {
 		if n.Type.Width != 0 && thearch.MAXWIDTH/n.Type.Width <= int64(l) {
 			break
 		}
-		nam.Xoffset += int64(l) * n.Type.Width
+		nam.Xoffset = nam.Xoffset + int64(l)*n.Type.Width
 		nam.Type = n.Type
 		return nam
 	}
