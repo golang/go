@@ -216,7 +216,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="cgo">Cgo</h3>
 
-<p> <!-- CL 252378 -->
+<p><!-- CL 252378 -->
   The <a href="/cmd/cgo">cgo</a> tool will no longer try to translate
   C struct bitfields into Go struct fields, even if their size can be
   represented in Go. The order in which C bitfields appear in memory
@@ -281,7 +281,7 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: update with final numbers later in the release.
 </p>
 
-<p> <!-- CL 255259 -->
+<p><!-- CL 255259 -->
   On Windows, <code>go build -buildmode=c-shared</code> now generates Windows
   ASLR DLLs by default. ASLR can be disabled with <code>--ldflags=-aslr=false</code>.
 </p>
@@ -289,135 +289,13 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="library">Core library</h2>
 
 <p>
-  TODO
+  TODO: mention significant additions like new packages (<code>io/fs</code>),
+  new proposal-scoped features (<code>//go:embed</code>), and so on
 </p>
 
-<h3 id="crypto/hmac"><a href="/pkg/crypto/hmac">crypto/hmac</a></h3>
-
-<p><!-- CL 261960 -->
-  <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
-  the hash generation function fail to return new values. Previously, the
-  behavior was undefined and invalid outputs were sometimes generated.
-</p>
-
-<h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
-
-<p><!-- CL 256897 -->
-  I/O operations on closing or closed TLS connections can now be detected using
-  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
-  would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
-  the only way to reliably detect this case was to match the string returned
-  by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
-</p>
-
-<p><!-- CL 266037 -->
-  A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
-  before sending the close notify alert, in order to prevent blocking
-  indefinitely.
-</p>
-
-<p><!-- CL 246338 -->
-  <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
-  allow the user to control cancellation of an in-progress TLS Handshake.
-  The context provided is propagated into the
-  <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
-  and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
-  structs and accessible through the new
-  <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
-  and
-  <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-    (*CertificateRequestInfo).Context
-  </a> methods respectively. Canceling the context after the handshake has finished
-  has no effect.
-</p>
-
-<p><!-- CL 239748 -->
-  Clients now ensure that the server selects
-  <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
-  an ALPN protocol</a> from
-  <a href="/pkg/crypto/tls/#Config.NextProtos">
-  the list advertised by the client</a>.
-</p>
-
-<p><!-- CL 262857 -->
-  TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
-  over AES-GCM cipher suites if either the client or server doesn't have AES hardware
-  support, unless the application set both
-  <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
-  and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
-  or there are no other AEAD cipher suites supported.
-  The client is assumed not to have AES hardware support if it does not signal a
-  preference for AES-GCM cipher suites.
-</p>
-
-<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
-
-<p><!-- CL 235078 -->
-  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
-  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
-  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
-  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
-  contain strings with characters within the ASCII range.
-</p>
-
-<p><!-- CL 259697 -->
-  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
-  verifies the generated certificate's signature using the signer's
-  public key. If the signature is invalid, an error is returned, instead
-  of a malformed certificate.
-</p>
-
-<p><!-- CL 233163 -->
-  A number of additional fields have been added to the
-  <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
-  These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
-  and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
-</p>
-
-<h3 id="encoding/json"><a href="/pkg/encoding/json">encoding/json</a></h3>
-
-<p><!-- CL 263619 -->
-  The error message for
-  <a href="/pkg/encoding/json/#SyntaxError">SyntaxError</a>
-  now begins with "json: ", matching the other errors in the package.
-</p>
-
-<h3 id="net"><a href="/pkg/net/">net</a></h3>
-
-<p><!-- CL 250357 -->
-  The case of I/O on a closed network connection, or I/O on a network
-  connection that is closed before any of the I/O completes, can now
-  be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
-  A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
-  In earlier releases the only way to reliably detect this case was to
-  match the string returned by the <code>Error</code> method
-  with <code>"use of closed network connection"</code>.
-</p>
-
-<p><!-- CL 255898 -->
-  In previous Go releases the default TCP listener backlog size on Linux systems,
-  set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
-  On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
-</p>
-
-<h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
-
-<p><!-- CL 229398, golang.org/issue/34652 -->
-  A new <a href="/pkg/text/template/parse/#CommentNode"><code>CommentNode</code></a>
-  was added to the parse tree. The <a href="/pkg/text/template/parse/#Mode"><code>Mode</code></a>
-  field in the <code>parse.Tree</code> enables access to it.
-</p>
-<!-- text/template/parse -->
-
-<h3 id="unicode"><a href="/pkg/unicode/">unicode</a></h3>
-
-<p><!-- CL 248765 -->
-  The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
-  support throughout the system has been upgraded from Unicode 12.0.0 to
-  <a href="https://www.unicode.org/versions/Unicode13.0.0/">Unicode 13.0.0</a>,
-  which adds 5,930 new characters, including four new scripts, and 55 new emoji.
-  Unicode 13.0.0 also designates plane 3 (U+30000-U+3FFFF) as the tertiary
-  ideographic plane.
+<p>
+  TODO: when the "Minor changes to the library" section is close to completion,
+  decide if any changes are worth factoring out and highlighting in "Core library"
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -429,7 +307,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
-  TODO
+  TODO: complete this section, resolve TODOs below, add missing entries
 </p>
 
 <dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
@@ -441,8 +319,66 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/dsa -->
 
+<dl id="crypto/hmac"><dt><a href="/pkg/crypto/hmac/">crypto/hmac</a></dt>
+  <dd>
+    <p><!-- CL 261960 -->
+      <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
+      the hash generation function fail to return new values. Previously, the
+      behavior was undefined and invalid outputs were sometimes generated.
+    </p>
+  </dd>
+</dl><!-- crypto/hmac -->
+
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p><!-- CL 256897 -->
+      I/O operations on closing or closed TLS connections can now be detected using
+      the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
+      would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
+      the only way to reliably detect this case was to match the string returned
+      by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+    </p>
+
+    <p><!-- CL 266037 -->
+      A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
+      before sending the close notify alert, in order to prevent blocking
+      indefinitely.
+    </p>
+
+    <p><!-- CL 246338 -->
+      <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
+      allow the user to control cancellation of an in-progress TLS Handshake.
+      The context provided is propagated into the
+      <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
+      and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
+      structs and accessible through the new
+      <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
+      and
+      <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
+        (*CertificateRequestInfo).Context
+      </a> methods respectively. Canceling the context after the handshake has finished
+      has no effect.
+    </p>
+
+    <p><!-- CL 239748 -->
+      Clients now ensure that the server selects
+      <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
+      an ALPN protocol</a> from
+      <a href="/pkg/crypto/tls/#Config.NextProtos">
+      the list advertised by the client</a>.
+    </p>
+
+    <p><!-- CL 262857 -->
+      TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
+      over AES-GCM cipher suites if either the client or server doesn't have AES hardware
+      support, unless the application set both
+      <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+      and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
+      or there are no other AEAD cipher suites supported.
+      The client is assumed not to have AES hardware support if it does not signal a
+      preference for AES-GCM cipher suites.
+    </p>
+
     <p><!-- CL 246637 -->
       TODO: <a href="https://golang.org/cl/246637">https://golang.org/cl/246637</a>: make config.Clone return nil if the source is nil
     </p>
@@ -451,6 +387,28 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
+    <p><!-- CL 235078 -->
+      <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
+      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
+      now enforce string encoding restrictions for the fields <code>DNSNames</code>,
+      <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
+      contain strings with characters within the ASCII range.
+    </p>
+
+    <p><!-- CL 259697 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
+      verifies the generated certificate's signature using the signer's
+      public key. If the signature is invalid, an error is returned, instead
+      of a malformed certificate.
+    </p>
+
+    <p><!-- CL 233163 -->
+      A number of additional fields have been added to the
+      <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
+      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
+      and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
+    </p>
+
     <p><!-- CL 257939 -->
       DSA signature verification is no longer supported. Note that DSA signature
       generation was never supported.
@@ -469,6 +427,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
+    <p><!-- CL 263619 -->
+      The error message for
+      <a href="/pkg/encoding/json/#SyntaxError">SyntaxError</a>
+      now begins with "json: ", matching the other errors in the package.
+    </p>
+
     <p><!-- CL 234818 -->
       TODO: <a href="https://golang.org/cl/234818">https://golang.org/cl/234818</a>: allow semicolon in field key / struct tag
     </p>
@@ -531,6 +495,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
+    <p><!-- CL 250357 -->
+      The case of I/O on a closed network connection, or I/O on a network
+      connection that is closed before any of the I/O completes, can now
+      be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
+      A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+      In earlier releases the only way to reliably detect this case was to
+      match the string returned by the <code>Error</code> method
+      with <code>"use of closed network connection"</code>.
+    </p>
+
+    <p><!-- CL 255898 -->
+      In previous Go releases the default TCP listener backlog size on Linux systems,
+      set by <code>/proc/sys/net/core/somaxconn</code>, was limited to a maximum of <code>65535</code>.
+      On Linux kernel version 4.1 and above, the maximum is now <code>4294967295</code>.
+    </p>
+
     <p><!-- CL 238629 -->
       TODO: <a href="https://golang.org/cl/238629">https://golang.org/cl/238629</a>: prefer /etc/hosts over DNS when no /etc/nsswitch.conf is present
     </p>
@@ -554,14 +534,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 252497 -->
-     The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
-     of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
-     example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
+      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
+      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
     </p>
 
     <p><!-- CL 256498, golang.org/issue/36990 -->
-    Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
-    spec (no attribute is set) instead of generating a SameSite key without a value.
+      Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
+      spec (no attribute is set) instead of generating a SameSite key without a value.
     </p>
 
     <p><!-- CL 246338 -->
@@ -661,6 +641,19 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime/debug -->
 
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 260858 -->
+      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
+      the <a
+      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
+      algorithm</a>, improving performance by up to a factor of 2. This can
+      also speed up decoding textual formats like <a
+      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 261917 -->
@@ -677,19 +670,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- syscall -->
 
-<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
-  <dd>
-    <p><!-- CL 260858 -->
-      <a href="/pkg/strconv/#ParseFloat"><code>ParseFloat</code></a> now uses
-      the <a
-      href="https://nigeltao.github.io/blog/2020/eisel-lemire.html">Eisel-Lemire
-      algorithm</a>, improving performance by up to a factor of 2. This can
-      also speed up decoding textual formats like <a
-      href="/pkg/encoding/json/"><code>encoding/json</code></a>.
-    </p>
-  </dd>
-</dl><!-- strconv -->
-
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 254257 -->
@@ -698,12 +678,35 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- text/template -->
 
+<dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
+  <dd>
+    <p><!-- CL 229398, golang.org/issue/34652 -->
+      A new <a href="/pkg/text/template/parse/#CommentNode"><code>CommentNode</code></a>
+      was added to the parse tree. The <a href="/pkg/text/template/parse/#Mode"><code>Mode</code></a>
+      field in the <code>parse.Tree</code> enables access to it.
+    </p>
+  </dd>
+</dl><!-- text/template/parse -->
+
 <dl id="time/tzdata"><dt><a href="/pkg/time/tzdata/">time/tzdata</a></dt>
   <dd>
     <p><!-- CL 261877 -->
-      The slim timezone data format is now used for the time zone database in
+      The slim timezone data format is now used for the timezone database in
       <code>$GOROOT/lib/time/zoneinfo.zip</code> and the embedded copy in this
-      package. This reduces the size of the time zone database by about 350 KB.
+      package. This reduces the size of the timezone database by about 350 KB.
     </p>
   </dd>
 </dl><!-- time/tzdata -->
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+  <dd>
+    <p><!-- CL 248765 -->
+      The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+      support throughout the system has been upgraded from Unicode 12.0.0 to
+      <a href="https://www.unicode.org/versions/Unicode13.0.0/">Unicode 13.0.0</a>,
+      which adds 5,930 new characters, including four new scripts, and 55 new emoji.
+      Unicode 13.0.0 also designates plane 3 (U+30000-U+3FFFF) as the tertiary
+      ideographic plane.
+    </p>
+  </dd>
+</dl><!-- unicode -->
