@@ -4007,9 +4007,12 @@ var convertTests = []struct {
 	{V(int16(-3)), V(string("\uFFFD"))},
 	{V(int32(-4)), V(string("\uFFFD"))},
 	{V(int64(-5)), V(string("\uFFFD"))},
+	{V(int64(-1 << 32)), V(string("\uFFFD"))},
+	{V(int64(1 << 32)), V(string("\uFFFD"))},
 	{V(uint(0x110001)), V(string("\uFFFD"))},
 	{V(uint32(0x110002)), V(string("\uFFFD"))},
 	{V(uint64(0x110003)), V(string("\uFFFD"))},
+	{V(uint64(1 << 32)), V(string("\uFFFD"))},
 	{V(uintptr(0x110004)), V(string("\uFFFD"))},
 
 	// named string
