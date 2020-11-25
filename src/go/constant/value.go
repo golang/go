@@ -594,11 +594,11 @@ func Make(x interface{}) Value {
 	case int64:
 		return int64Val(x)
 	case *big.Int:
-		return intVal{x}
+		return makeInt(x)
 	case *big.Rat:
-		return ratVal{x}
+		return makeRat(x)
 	case *big.Float:
-		return floatVal{x}
+		return makeFloat(x)
 	default:
 		return unknownVal{}
 	}
