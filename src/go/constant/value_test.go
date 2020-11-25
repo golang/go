@@ -7,6 +7,7 @@ package constant
 import (
 	"fmt"
 	"go/token"
+	"math"
 	"math/big"
 	"strings"
 	"testing"
@@ -616,6 +617,42 @@ func TestUnknown(t *testing.T) {
 			if got := Compare(x, token.EQL, y); got {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
+		}
+	}
+}
+
+func TestMakeFloat64(t *testing.T) {
+	var zero float64
+	for _, arg := range []float64{
+		-math.MaxFloat32,
+		-10,
+		-0.5,
+		-zero,
+		zero,
+		1,
+		10,
+		123456789.87654321e-23,
+		1e10,
+		math.MaxFloat64,
+	} {
+		val := MakeFloat64(arg)
+		if val.Kind() != Float {
+			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Float)
+		}
+
+		// -0.0 is mapped to 0.0
+		got, exact := Float64Val(val)
+		if !exact || math.Float64bits(got) != math.Float64bits(arg+0) {
+			t.Errorf("%v: got %v (exact = %v)", arg, got, exact)
+		}
+	}
+
+	// infinity
+	for sign := range []int{-1, 1} {
+		arg := math.Inf(sign)
+		val := MakeFloat64(arg)
+		if val.Kind() != Unknown {
+			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Unknown)
 		}
 	}
 }

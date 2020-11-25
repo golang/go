@@ -370,16 +370,13 @@ func MakeUint64(x uint64) Value {
 }
 
 // MakeFloat64 returns the Float value for x.
+// If x is -0.0, the result is 0.0.
 // If x is not finite, the result is an Unknown.
 func MakeFloat64(x float64) Value {
 	if math.IsInf(x, 0) || math.IsNaN(x) {
 		return unknownVal{}
 	}
-	// convert -0 to 0
-	if x == 0 {
-		return int64Val(0)
-	}
-	return ratVal{newRat().SetFloat64(x)}
+	return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
