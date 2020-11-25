@@ -602,7 +602,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 
-		// rhs must be of the form: expr.(type) and expr must be an interface or generic type
+		// rhs must be of the form: expr.(type) and expr must be an ordinary interface
 		expr, _ := rhs.(*ast.TypeAssertExpr)
 		if expr == nil || expr.Type != nil {
 			check.invalidAST(s.Pos(), "incorrect form of type switch guard")
@@ -613,19 +613,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		var xtyp *Interface
-		var strict bool
-		switch t := optype(x.typ.Under()).(type) {
-		case *Interface:
-			xtyp = t
-		// Disabled for now. See comment in the implementation of type assertions (expr.go).
-		// case *TypeParam:
-		// 	xtyp = t.Bound()
-		// 	strict = true
-		default:
+		xtyp, _ := x.typ.Under().(*Interface)
+		if xtyp == nil {
 			check.errorf(x.pos(), "%s is not an interface type", &x)
 			return
 		}
+		check.ordinaryType(x.pos(), xtyp)
 
 		check.multipleDefaults(s.Body.List)
 
@@ -638,7 +631,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				continue
 			}
 			// Check each type in this type switch case.
-			T := check.caseTypes(&x, xtyp, clause.List, seen, strict)
+			T := check.caseTypes(&x, xtyp, clause.List, seen, false)
 			check.openScope(clause, "case")
 			// If lhs exists, declare a corresponding variable in the case-local scope.
 			if lhs != nil {
