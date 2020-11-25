@@ -250,6 +250,9 @@ func expandCalls(f *Func) {
 			if leafType != selector.Type && !selector.Type.IsEmptyInterface() { // empty interface for #42727
 				f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
 			}
+			if selector.Type.IsEmptyInterface() {
+				selector.Type = typ.BytePtr
+			}
 			leaf.copyOf(selector)
 			for _, s := range namedSelects[selector] {
 				locs = append(locs, f.Names[s.locIndex])

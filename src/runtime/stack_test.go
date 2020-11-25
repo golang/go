@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "unsafe" // for go:linkname
 )
 
 // TestStackMem measures per-thread stack segment cache behavior.
@@ -851,3 +852,43 @@ func deferHeapAndStack(n int) (r int) {
 
 // Pass a value to escapeMe to force it to escape.
 var escapeMe = func(x interface{}) {}
+
+// Test that when F -> G is inlined and F is excluded from stack
+// traces, G still appears.
+func TestTracebackInlineExcluded(t *testing.T) {
+	defer func() {
+		recover()
+		buf := make([]byte, 4<<10)
+		stk := string(buf[:Stack(buf, false)])
+
+		t.Log(stk)
+
+		if not := "tracebackExcluded"; strings.Contains(stk, not) {
+			t.Errorf("found but did not expect %q", not)
+		}
+		if want := "tracebackNotExcluded"; !strings.Contains(stk, want) {
+			t.Errorf("expected %q in stack", want)
+		}
+	}()
+	tracebackExcluded()
+}
+
+// tracebackExcluded should be excluded from tracebacks. There are
+// various ways this could come up. Linking it to a "runtime." name is
+// rather synthetic, but it's easy and reliable. See issue #42754 for
+// one way this happened in real code.
+//
+//go:linkname tracebackExcluded runtime.tracebackExcluded
+//go:noinline
+func tracebackExcluded() {
+	// Call an inlined function that should not itself be excluded
+	// from tracebacks.
+	tracebackNotExcluded()
+}
+
+// tracebackNotExcluded should be inlined into tracebackExcluded, but
+// should not itself be excluded from the traceback.
+func tracebackNotExcluded() {
+	var x *int
+	*x = 0
+}
