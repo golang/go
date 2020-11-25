@@ -254,6 +254,24 @@ func TestCgoCrashTraceback(t *testing.T) {
 	}
 }
 
+func TestCgoCrashTracebackGo(t *testing.T) {
+	t.Parallel()
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "linux/amd64":
+	case "linux/ppc64le":
+	default:
+		t.Skipf("not yet supported on %s", platform)
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTracebackGo")
+	for i := 1; i <= 3; i++ {
+		want := fmt.Sprintf("main.h%d", i)
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+}
+
 func TestCgoTracebackContext(t *testing.T) {
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackContext")

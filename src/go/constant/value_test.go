@@ -7,6 +7,7 @@ package constant
 import (
 	"fmt"
 	"go/token"
+	"math"
 	"math/big"
 	"strings"
 	"testing"
@@ -620,18 +621,68 @@ func TestUnknown(t *testing.T) {
 	}
 }
 
-func TestMake(t *testing.T) {
-	for _, want := range []interface{}{
-		false,
-		"hello",
-		int64(1),
-		big.NewInt(10),
-		big.NewFloat(2.0),
-		big.NewRat(1, 3),
+func TestMakeFloat64(t *testing.T) {
+	var zero float64
+	for _, arg := range []float64{
+		-math.MaxFloat32,
+		-10,
+		-0.5,
+		-zero,
+		zero,
+		1,
+		10,
+		123456789.87654321e-23,
+		1e10,
+		math.MaxFloat64,
 	} {
-		got := Val(Make(want))
-		if got != want {
-			t.Errorf("got %v; want %v", got, want)
+		val := MakeFloat64(arg)
+		if val.Kind() != Float {
+			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Float)
+		}
+
+		// -0.0 is mapped to 0.0
+		got, exact := Float64Val(val)
+		if !exact || math.Float64bits(got) != math.Float64bits(arg+0) {
+			t.Errorf("%v: got %v (exact = %v)", arg, got, exact)
+		}
+	}
+
+	// infinity
+	for sign := range []int{-1, 1} {
+		arg := math.Inf(sign)
+		val := MakeFloat64(arg)
+		if val.Kind() != Unknown {
+			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Unknown)
+		}
+	}
+}
+
+type makeTestCase struct {
+	kind      Kind
+	arg, want interface{}
+}
+
+func dup(k Kind, x interface{}) makeTestCase { return makeTestCase{k, x, x} }
+
+func TestMake(t *testing.T) {
+	for _, test := range []makeTestCase{
+		{Bool, false, false},
+		{String, "hello", "hello"},
+
+		{Int, int64(1), int64(1)},
+		{Int, big.NewInt(10), int64(10)},
+		{Int, new(big.Int).Lsh(big.NewInt(1), 62), int64(1 << 62)},
+		dup(Int, new(big.Int).Lsh(big.NewInt(1), 63)),
+
+		{Float, big.NewFloat(0), floatVal0.val},
+		dup(Float, big.NewFloat(2.0)),
+		dup(Float, big.NewRat(1, 3)),
+	} {
+		val := Make(test.arg)
+		got := Val(val)
+		if val.Kind() != test.kind || got != test.want {
+			t.Errorf("got %v (%T, kind = %d); want %v (%T, kind = %d)",
+				got, got, val.Kind(), test.want, test.want, test.kind)
 		}
 	}
 }
