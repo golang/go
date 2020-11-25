@@ -701,7 +701,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="time/tzdata"><dt><a href="/pkg/time/tzdata/">time/tzdata</a></dt>
   <dd>
     <p><!-- CL 261877 -->
-      TODO: <a href="https://golang.org/cl/261877">https://golang.org/cl/261877</a>: use slim tz data format
+      The slim timezone data format is now used for the time zone database in
+      <code>$GOROOT/lib/time/zoneinfo.zip</code> and the embedded copy in this
+      package. This reduces the size of the time zone database by about 350 KB.
     </p>
   </dd>
 </dl><!-- time/tzdata -->
