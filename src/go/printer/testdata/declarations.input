@@ -955,6 +955,11 @@ r string,
 		x ...int)
 }
 
+// properly format one-line type lists
+type _ interface { type a }
+
+type _ interface { type a,b,c }
+
 // omit superfluous parentheses in parameter lists
 func _((int))
 func _((((((int))))))
@@ -1004,6 +1009,10 @@ func _(struct {
 	x int
 	y int
 }) // no extra comma between } and )
+
+// type parameters
+func _[A, B any](a A, b B) int {}
+func _[T any](x, y T) T
 
 // alias declarations
 
