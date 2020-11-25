@@ -102,7 +102,7 @@ func DefaultOptions() *Options {
 			UserOptions: UserOptions{
 				HoverKind:  FullDocumentation,
 				LinkTarget: "pkg.go.dev",
-				Codelens: map[string]bool{
+				Codelenses: map[string]bool{
 					CommandGenerate.Name:          true,
 					CommandRegenerateCgo.Name:     true,
 					CommandTidy.Name:              true,
@@ -226,7 +226,7 @@ type UserOptions struct {
 	// ```
 	Analyses map[string]bool
 
-	// Codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+	// Codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
 	// section of settings.md for the list of supported lenses.
 	//
 	// Example Usage:
@@ -240,7 +240,7 @@ type UserOptions struct {
 	// ...
 	// }
 	// ```
-	Codelens map[string]bool
+	Codelenses map[string]bool
 
 	// LinksInHover toggles the presence of links to documentation in hover.
 	LinksInHover bool
@@ -587,7 +587,7 @@ func (o *Options) Clone() *Options {
 	}
 	result.Analyses = copyStringMap(o.Analyses)
 	result.Annotations = copyStringMap(o.Annotations)
-	result.Codelens = copyStringMap(o.Codelens)
+	result.Codelenses = copyStringMap(o.Codelenses)
 
 	copySlice := func(src []string) []string {
 		dst := make([]string, len(src))
@@ -624,8 +624,8 @@ func (o *Options) enableAllExperiments() {
 }
 
 func (o *Options) enableAllExperimentMaps() {
-	if _, ok := o.Codelens[CommandToggleDetails.Name]; !ok {
-		o.Codelens[CommandToggleDetails.Name] = true
+	if _, ok := o.Codelenses[CommandToggleDetails.Name]; !ok {
+		o.Codelenses[CommandToggleDetails.Name] = true
 	}
 	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
 		o.Analyses[unusedparams.Analyzer.Name] = true
@@ -731,16 +731,23 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			}
 		}
 
-	case "codelens":
+	case "codelenses", "codelens":
 		var lensOverrides map[string]bool
 		result.setBoolMap(&lensOverrides)
 		if result.Error == nil {
-			if o.Codelens == nil {
-				o.Codelens = make(map[string]bool)
+			if o.Codelenses == nil {
+				o.Codelenses = make(map[string]bool)
 			}
 			for lens, enabled := range lensOverrides {
-				o.Codelens[lens] = enabled
+				o.Codelenses[lens] = enabled
 			}
+		}
+
+		// codelens is deprecated, but still works for now.
+		// TODO(rstambler): Remove this for the gopls/v0.7.0 release.
+		if name == "codelens" {
+			result.State = OptionDeprecated
+			result.Replacement = "codelenses"
 		}
 
 	case "staticcheck":

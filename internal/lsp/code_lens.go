@@ -33,7 +33,7 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	}
 	var result []protocol.CodeLens
 	for lens, lf := range lensFuncs {
-		if !snapshot.View().Options().Codelens[lens] {
+		if !snapshot.View().Options().Codelenses[lens] {
 			continue
 		}
 		added, err := lf(ctx, snapshot, fh)

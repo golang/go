@@ -94,8 +94,8 @@ Example Usage:
 
 
 Default: `{}`.
-### **codelens** *map[string]bool*
-codelens overrides the enabled/disabled state of code lenses. See the "Code Lenses"
+### **codelenses** *map[string]bool*
+codelenses overrides the enabled/disabled state of code lenses. See the "Code Lenses"
 section of settings.md for the list of supported lenses.
 
 Example Usage:

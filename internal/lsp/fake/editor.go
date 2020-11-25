@@ -63,10 +63,10 @@ type EditorConfig struct {
 	Env        map[string]string
 	BuildFlags []string
 
-	// CodeLens is a map defining whether codelens are enabled, keyed by the
-	// codeLens command. CodeLens which are not present in this map are left in
+	// CodeLenses is a map defining whether codelens are enabled, keyed by the
+	// codeLens command. CodeLenses which are not present in this map are left in
 	// their default state.
-	CodeLens map[string]bool
+	CodeLenses map[string]bool
 
 	// SymbolMatcher is the config associated with the "symbolMatcher" gopls
 	// config option.
@@ -198,8 +198,8 @@ func (e *Editor) configuration() map[string]interface{} {
 		config["buildFlags"] = e.Config.BuildFlags
 	}
 
-	if e.Config.CodeLens != nil {
-		config["codelens"] = e.Config.CodeLens
+	if e.Config.CodeLenses != nil {
+		config["codelenses"] = e.Config.CodeLenses
 	}
 	if e.Config.SymbolMatcher != nil {
 		config["symbolMatcher"] = *e.Config.SymbolMatcher

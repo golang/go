@@ -49,9 +49,9 @@ func TestSetOption(t *testing.T) {
 			check: func(o Options) bool { return o.Staticcheck == true },
 		},
 		{
-			name:  "codelens",
+			name:  "codelenses",
 			value: map[string]interface{}{"generate": true},
-			check: func(o Options) bool { return o.Codelens["generate"] },
+			check: func(o Options) bool { return o.Codelenses["generate"] },
 		},
 		{
 			name:  "allExperiments",
