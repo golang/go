@@ -31,3 +31,10 @@ type PointerSortaBad struct { // want "struct with 16 pointer bytes could be 12"
 		q uintptr
 	}
 }
+
+type MultiField struct { // want "struct of size 20 could be 12"
+	b      bool
+	i1, i2 int
+	a3     [3]bool
+	_      [0]func()
+}

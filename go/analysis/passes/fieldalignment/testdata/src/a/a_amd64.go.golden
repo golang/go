@@ -31,3 +31,11 @@ type PointerSortaBad struct {
 		q [2]uintptr
 	}
 }
+
+type MultiField struct {
+	_  [0]func()
+	i1 int
+	i2 int
+	a3 [3]bool
+	b  bool
+}

@@ -71,22 +71,27 @@ func fieldalignment(pass *analysis.Pass, node *ast.StructType, typ *types.Struct
 		return
 	}
 
-	// TODO: The ast node could contain multiple field names per list item while "indexes"
-	// based on *types.struct contain one item per field. Until this case is handled we
-	// do not provide any suggested fix for it.
-	if len(indexes) != len(node.Fields.List) {
-		pass.Report(analysis.Diagnostic{
-			Pos:     node.Pos(),
-			End:     node.Pos() + token.Pos(len("struct")),
-			Message: message,
-		})
-		return
+	// Flatten the ast node since it could have multiple field names per list item while
+	// *types.Struct only have one item per field.
+	// TODO: Preserve multi-named fields instead of flattening.
+	var flat []*ast.Field
+	for _, f := range node.Fields.List {
+		if len(f.Names) == 1 {
+			flat = append(flat, f)
+			continue
+		}
+		for _, name := range f.Names {
+			flat = append(flat, &ast.Field{
+				Names: []*ast.Ident{name},
+				Type:  f.Type,
+			})
+		}
 	}
 
 	// Sort fields according to the optimal order.
 	var reordered []*ast.Field
 	for _, index := range indexes {
-		reordered = append(reordered, node.Fields.List[index])
+		reordered = append(reordered, flat[index])
 	}
 
 	newStr := &ast.StructType{
