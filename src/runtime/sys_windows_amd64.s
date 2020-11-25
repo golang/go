@@ -454,11 +454,14 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
 
 // Runs on OS stack. duration (in 100ns units) is in BX.
 TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+	get_tls(CX)
+	CMPQ	CX, $0
+	JE	gisnotset
+
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
 	MOVQ	AX, 64(SP)
 
-	get_tls(CX)
 	MOVQ	g(CX), CX
 	MOVQ	g_m(CX), CX
 	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
@@ -482,6 +485,12 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
 	CALL	AX
 
 	MOVQ	64(SP), SP
+	RET
+
+gisnotset:
+	// TLS is not configured. Call usleep2 instead.
+	MOVQ	$runtime·usleep2(SB), AX
+	CALL	AX
 	RET
 
 // Runs on OS stack.
