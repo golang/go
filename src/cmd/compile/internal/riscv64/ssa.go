@@ -5,7 +5,9 @@
 package riscv64
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -91,7 +93,7 @@ func loadByType(t *types.Type) obj.As {
 		case 8:
 			return riscv.AMOVD
 		default:
-			gc.Fatalf("unknown float width for load %d in type %v", width, t)
+			base.Fatalf("unknown float width for load %d in type %v", width, t)
 			return 0
 		}
 	}
@@ -118,7 +120,7 @@ func loadByType(t *types.Type) obj.As {
 	case 8:
 		return riscv.AMOV
 	default:
-		gc.Fatalf("unknown width for load %d in type %v", width, t)
+		base.Fatalf("unknown width for load %d in type %v", width, t)
 		return 0
 	}
 }
@@ -134,7 +136,7 @@ func storeByType(t *types.Type) obj.As {
 		case 8:
 			return riscv.AMOVD
 		default:
-			gc.Fatalf("unknown float width for store %d in type %v", width, t)
+			base.Fatalf("unknown float width for store %d in type %v", width, t)
 			return 0
 		}
 	}
@@ -149,7 +151,7 @@ func storeByType(t *types.Type) obj.As {
 	case 8:
 		return riscv.AMOV
 	default:
-		gc.Fatalf("unknown width for store %d in type %v", width, t)
+		base.Fatalf("unknown width for store %d in type %v", width, t)
 		return 0
 	}
 }
@@ -322,7 +324,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case ir.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -586,8 +588,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = riscv.REG_ZERO
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 
 	case ssa.OpRISCV64LoweredGetClosurePtr:
@@ -598,7 +600,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(riscv.AMOV)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.FixedFrameSize()
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()

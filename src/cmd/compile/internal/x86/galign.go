@@ -5,6 +5,7 @@
 package x86
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
@@ -24,10 +25,10 @@ func Init(arch *gc.Arch) {
 		arch.SoftFloat = true
 	case "387":
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=387. Consider using GO386=softfloat instead.\n")
-		gc.Exit(1)
+		base.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
-		gc.Exit(1)
+		base.Exit(1)
 
 	}
 

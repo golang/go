@@ -4,43 +4,160 @@
 
 // “Abstract” syntax representation.
 
-package gc
+package ir
 
 import (
-	"cmd/compile/internal/ssa"
+	"fmt"
+	"go/constant"
+	"sort"
+	"strings"
+
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"sort"
 )
+
+// A Node is the abstract interface to an IR node.
+type Node interface {
+	// Formatting
+	Format(s fmt.State, verb rune)
+	String() string
+
+	// Source position.
+	Pos() src.XPos
+	SetPos(x src.XPos)
+
+	// For making copies. Mainly used by Copy and SepCopy.
+	RawCopy() Node
+
+	// Abstract graph structure, for generic traversals.
+	Op() Op
+	SetOp(x Op)
+	Orig() Node
+	SetOrig(x Node)
+	SubOp() Op
+	SetSubOp(x Op)
+	Left() Node
+	SetLeft(x Node)
+	Right() Node
+	SetRight(x Node)
+	Init() Nodes
+	PtrInit() *Nodes
+	SetInit(x Nodes)
+	Body() Nodes
+	PtrBody() *Nodes
+	SetBody(x Nodes)
+	List() Nodes
+	SetList(x Nodes)
+	PtrList() *Nodes
+	Rlist() Nodes
+	SetRlist(x Nodes)
+	PtrRlist() *Nodes
+
+	// Fields specific to certain Ops only.
+	Type() *types.Type
+	SetType(t *types.Type)
+	Func() *Func
+	SetFunc(x *Func)
+	Name() *Name
+	SetName(x *Name)
+	Sym() *types.Sym
+	SetSym(x *types.Sym)
+	Offset() int64
+	SetOffset(x int64)
+	Class() Class
+	SetClass(x Class)
+	Likely() bool
+	SetLikely(x bool)
+	SliceBounds() (low, high, max Node)
+	SetSliceBounds(low, high, max Node)
+	Iota() int64
+	SetIota(x int64)
+	Colas() bool
+	SetColas(x bool)
+	NoInline() bool
+	SetNoInline(x bool)
+	Transient() bool
+	SetTransient(x bool)
+	Implicit() bool
+	SetImplicit(x bool)
+	IsDDD() bool
+	SetIsDDD(x bool)
+	Embedded() bool
+	SetEmbedded(x bool)
+	IndexMapLValue() bool
+	SetIndexMapLValue(x bool)
+	TChanDir() types.ChanDir
+	SetTChanDir(x types.ChanDir)
+	ResetAux()
+	HasBreak() bool
+	SetHasBreak(x bool)
+	MarkReadonly()
+	Val() constant.Value
+	HasVal() bool
+	SetVal(v constant.Value)
+	Int64Val() int64
+	Uint64Val() uint64
+	CanInt64() bool
+	BoolVal() bool
+	StringVal() string
+
+	// Storage for analysis passes.
+	Esc() uint16
+	SetEsc(x uint16)
+	Walkdef() uint8
+	SetWalkdef(x uint8)
+	Opt() interface{}
+	SetOpt(x interface{})
+	HasOpt() bool
+	Diag() bool
+	SetDiag(x bool)
+	Bounded() bool
+	SetBounded(x bool)
+	Typecheck() uint8
+	SetTypecheck(x uint8)
+	Initorder() uint8
+	SetInitorder(x uint8)
+	NonNil() bool
+	MarkNonNil()
+	HasCall() bool
+	SetHasCall(x bool)
+
+	// Only for SSA and should be removed when SSA starts
+	// using a more specific type than Node.
+	CanBeAnSSASym()
+}
+
+var _ Node = (*node)(nil)
 
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
 // node with Op=ONAME for a given instance of a variable x.
 // The same is true for Op=OTYPE and Op=OLITERAL. See Node.mayBeShared.
-type Node struct {
+type node struct {
 	// Tree structure.
 	// Generic recursive walks should follow these fields.
-	Left  *Node
-	Right *Node
-	Ninit Nodes
-	Nbody Nodes
-	List  Nodes
-	Rlist Nodes
+	left  Node
+	right Node
+	init  Nodes
+	body  Nodes
+	list  Nodes
+	rlist Nodes
 
 	// most nodes
-	Type *types.Type
-	Orig *Node // original form, for printing, and tracking copies of ONAMEs
+	typ  *types.Type
+	orig Node // original form, for printing, and tracking copies of ONAMEs
 
 	// func
-	Func *Func
+	fn *Func
 
 	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
-	Name *Name
+	name *Name
 
-	Sym *types.Sym  // various
-	E   interface{} // Opt or Val, see methods below
+	sym *types.Sym  // various
+	e   interface{} // Opt or Val, see methods below
 
 	// Various. Usually an offset into a struct. For example:
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
@@ -50,50 +167,85 @@ type Node struct {
 	// - OINLMARK stores an index into the inlTree data structure.
 	// - OCLOSURE uses it to store ambient iota value, if any.
 	// Possibly still more uses. If you find any, document them.
-	Xoffset int64
+	offset int64
 
-	Pos src.XPos
+	pos src.XPos
 
 	flags bitset32
 
-	Esc uint16 // EscXXX
+	esc uint16 // EscXXX
 
-	Op  Op
+	op  Op
 	aux uint8
 }
 
-func (n *Node) ResetAux() {
+func (n *node) Left() Node            { return n.left }
+func (n *node) SetLeft(x Node)        { n.left = x }
+func (n *node) Right() Node           { return n.right }
+func (n *node) SetRight(x Node)       { n.right = x }
+func (n *node) Orig() Node            { return n.orig }
+func (n *node) SetOrig(x Node)        { n.orig = x }
+func (n *node) Type() *types.Type     { return n.typ }
+func (n *node) SetType(x *types.Type) { n.typ = x }
+func (n *node) Func() *Func           { return n.fn }
+func (n *node) SetFunc(x *Func)       { n.fn = x }
+func (n *node) Name() *Name           { return n.name }
+func (n *node) SetName(x *Name)       { n.name = x }
+func (n *node) Sym() *types.Sym       { return n.sym }
+func (n *node) SetSym(x *types.Sym)   { n.sym = x }
+func (n *node) Pos() src.XPos         { return n.pos }
+func (n *node) SetPos(x src.XPos)     { n.pos = x }
+func (n *node) Offset() int64         { return n.offset }
+func (n *node) SetOffset(x int64)     { n.offset = x }
+func (n *node) Esc() uint16           { return n.esc }
+func (n *node) SetEsc(x uint16)       { n.esc = x }
+func (n *node) Op() Op                { return n.op }
+func (n *node) SetOp(x Op)            { n.op = x }
+func (n *node) Init() Nodes           { return n.init }
+func (n *node) SetInit(x Nodes)       { n.init = x }
+func (n *node) PtrInit() *Nodes       { return &n.init }
+func (n *node) Body() Nodes           { return n.body }
+func (n *node) SetBody(x Nodes)       { n.body = x }
+func (n *node) PtrBody() *Nodes       { return &n.body }
+func (n *node) List() Nodes           { return n.list }
+func (n *node) SetList(x Nodes)       { n.list = x }
+func (n *node) PtrList() *Nodes       { return &n.list }
+func (n *node) Rlist() Nodes          { return n.rlist }
+func (n *node) SetRlist(x Nodes)      { n.rlist = x }
+func (n *node) PtrRlist() *Nodes      { return &n.rlist }
+
+func (n *node) ResetAux() {
 	n.aux = 0
 }
 
-func (n *Node) SubOp() Op {
-	switch n.Op {
+func (n *node) SubOp() Op {
+	switch n.Op() {
 	case OASOP, ONAME:
 	default:
-		Fatalf("unexpected op: %v", n.Op)
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return Op(n.aux)
 }
 
-func (n *Node) SetSubOp(op Op) {
-	switch n.Op {
+func (n *node) SetSubOp(op Op) {
+	switch n.Op() {
 	case OASOP, ONAME:
 	default:
-		Fatalf("unexpected op: %v", n.Op)
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	n.aux = uint8(op)
 }
 
-func (n *Node) IndexMapLValue() bool {
-	if n.Op != OINDEXMAP {
-		Fatalf("unexpected op: %v", n.Op)
+func (n *node) IndexMapLValue() bool {
+	if n.Op() != OINDEXMAP {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return n.aux != 0
 }
 
-func (n *Node) SetIndexMapLValue(b bool) {
-	if n.Op != OINDEXMAP {
-		Fatalf("unexpected op: %v", n.Op)
+func (n *node) SetIndexMapLValue(b bool) {
+	if n.Op() != OINDEXMAP {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	if b {
 		n.aux = 1
@@ -102,32 +254,32 @@ func (n *Node) SetIndexMapLValue(b bool) {
 	}
 }
 
-func (n *Node) TChanDir() types.ChanDir {
-	if n.Op != OTCHAN {
-		Fatalf("unexpected op: %v", n.Op)
+func (n *node) TChanDir() types.ChanDir {
+	if n.Op() != OTCHAN {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	return types.ChanDir(n.aux)
 }
 
-func (n *Node) SetTChanDir(dir types.ChanDir) {
-	if n.Op != OTCHAN {
-		Fatalf("unexpected op: %v", n.Op)
+func (n *node) SetTChanDir(dir types.ChanDir) {
+	if n.Op() != OTCHAN {
+		base.Fatalf("unexpected op: %v", n.Op())
 	}
 	n.aux = uint8(dir)
 }
 
-func (n *Node) IsSynthetic() bool {
-	name := n.Sym.Name
+func IsSynthetic(n Node) bool {
+	name := n.Sym().Name
 	return name[0] == '.' || name[0] == '~'
 }
 
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
 // based on the setting of the .AutoTemp flag in n's Name.
-func (n *Node) IsAutoTmp() bool {
-	if n == nil || n.Op != ONAME {
+func IsAutoTmp(n Node) bool {
+	if n == nil || n.Op() != ONAME {
 		return false
 	}
-	return n.Name.AutoTemp()
+	return n.Name().AutoTemp()
 }
 
 const (
@@ -156,51 +308,51 @@ const (
 	_, nodeEmbedded  // ODCLFIELD embedded type
 )
 
-func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
-func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
-func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
-func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
+func (n *node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
+func (n *node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
+func (n *node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
+func (n *node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
 
-func (n *Node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
-func (n *Node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
-func (n *Node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
-func (n *Node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
-func (n *Node) Diag() bool      { return n.flags&nodeDiag != 0 }
-func (n *Node) Colas() bool     { return n.flags&nodeColas != 0 }
-func (n *Node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
-func (n *Node) Transient() bool { return n.flags&nodeTransient != 0 }
-func (n *Node) Bounded() bool   { return n.flags&nodeBounded != 0 }
-func (n *Node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
-func (n *Node) Likely() bool    { return n.flags&nodeLikely != 0 }
-func (n *Node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
-func (n *Node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
-func (n *Node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
+func (n *node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
+func (n *node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
+func (n *node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
+func (n *node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
+func (n *node) Diag() bool      { return n.flags&nodeDiag != 0 }
+func (n *node) Colas() bool     { return n.flags&nodeColas != 0 }
+func (n *node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
+func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
+func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
+func (n *node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
+func (n *node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
-func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
-func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
-func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
-func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
+func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+func (n *node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+func (n *node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
+func (n *node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
 
-func (n *Node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
-func (n *Node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
-func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
-func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
-func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
-func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
-func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
-func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
-func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
-func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
-func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
-func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+func (n *node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
+func (n *node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
+func (n *node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
+func (n *node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
+func (n *node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
+func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+func (n *node) setHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+func (n *node) setHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+func (n *node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // MarkNonNil marks a pointer n as being guaranteed non-nil,
 // on all code paths, at all times.
 // During conversion to SSA, non-nil pointers won't have nil checks
 // inserted before dereferencing. See state.exprPtr.
-func (n *Node) MarkNonNil() {
-	if !n.Type.IsPtr() && !n.Type.IsUnsafePtr() {
-		Fatalf("MarkNonNil(%v), type %v", n, n.Type)
+func (n *node) MarkNonNil() {
+	if !n.Type().IsPtr() && !n.Type().IsUnsafePtr() {
+		base.Fatalf("MarkNonNil(%v), type %v", n, n.Type())
 	}
 	n.flags.set(nodeNonNil, true)
 }
@@ -209,8 +361,8 @@ func (n *Node) MarkNonNil() {
 // When n is an index or slice operation, n does not need bounds checks.
 // When n is a dereferencing operation, n does not need nil checks.
 // When n is a makeslice+copy operation, n does not need length and cap checks.
-func (n *Node) SetBounded(b bool) {
-	switch n.Op {
+func (n *node) SetBounded(b bool) {
+	switch n.Op() {
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		// No bounds checks needed.
 	case ODOTPTR, ODEREF:
@@ -219,116 +371,119 @@ func (n *Node) SetBounded(b bool) {
 		// No length and cap checks needed
 		// since new slice and copied over slice data have same length.
 	default:
-		Fatalf("SetBounded(%v)", n)
+		base.Fatalf("SetBounded(%v)", n)
 	}
 	n.flags.set(nodeBounded, b)
 }
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
-func (n *Node) MarkReadonly() {
-	if n.Op != ONAME {
-		Fatalf("Node.MarkReadonly %v", n.Op)
+func (n *node) MarkReadonly() {
+	if n.Op() != ONAME {
+		base.Fatalf("Node.MarkReadonly %v", n.Op())
 	}
-	n.Name.SetReadonly(true)
+	n.Name().SetReadonly(true)
 	// Mark the linksym as readonly immediately
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
-	n.Sym.Linksym().Type = objabi.SRODATA
+	n.Sym().Linksym().Type = objabi.SRODATA
 }
 
-// Val returns the Val for the node.
-func (n *Node) Val() Val {
+// Val returns the constant.Value for the node.
+func (n *node) Val() constant.Value {
 	if !n.HasVal() {
-		return Val{}
+		return constant.MakeUnknown()
 	}
-	return Val{n.E}
+	return *n.e.(*constant.Value)
 }
 
-// SetVal sets the Val for the node, which must not have been used with SetOpt.
-func (n *Node) SetVal(v Val) {
+// SetVal sets the constant.Value for the node,
+// which must not have been used with SetOpt.
+func (n *node) SetVal(v constant.Value) {
 	if n.HasOpt() {
-		Debug.h = 1
+		base.Flag.LowerH = 1
 		Dump("have Opt", n)
-		Fatalf("have Opt")
+		base.Fatalf("have Opt")
 	}
-	n.SetHasVal(true)
-	n.E = v.U
+	if n.Op() == OLITERAL {
+		AssertValidTypeForConst(n.Type(), v)
+	}
+	n.setHasVal(true)
+	n.e = &v
 }
 
 // Opt returns the optimizer data for the node.
-func (n *Node) Opt() interface{} {
+func (n *node) Opt() interface{} {
 	if !n.HasOpt() {
 		return nil
 	}
-	return n.E
+	return n.e
 }
 
 // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
 // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
-func (n *Node) SetOpt(x interface{}) {
-	if x == nil && n.HasVal() {
+func (n *node) SetOpt(x interface{}) {
+	if x == nil {
+		if n.HasOpt() {
+			n.setHasOpt(false)
+			n.e = nil
+		}
 		return
 	}
 	if n.HasVal() {
-		Debug.h = 1
+		base.Flag.LowerH = 1
 		Dump("have Val", n)
-		Fatalf("have Val")
+		base.Fatalf("have Val")
 	}
-	n.SetHasOpt(true)
-	n.E = x
+	n.setHasOpt(true)
+	n.e = x
 }
 
-func (n *Node) Iota() int64 {
-	return n.Xoffset
+func (n *node) Iota() int64 {
+	return n.Offset()
 }
 
-func (n *Node) SetIota(x int64) {
-	n.Xoffset = x
+func (n *node) SetIota(x int64) {
+	n.SetOffset(x)
 }
 
 // mayBeShared reports whether n may occur in multiple places in the AST.
 // Extra care must be taken when mutating such a node.
-func (n *Node) mayBeShared() bool {
-	switch n.Op {
-	case ONAME, OLITERAL, OTYPE:
+func MayBeShared(n Node) bool {
+	switch n.Op() {
+	case ONAME, OLITERAL, ONIL, OTYPE:
 		return true
 	}
 	return false
 }
 
-// isMethodExpression reports whether n represents a method expression T.M.
-func (n *Node) isMethodExpression() bool {
-	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
-}
-
 // funcname returns the name (without the package) of the function n.
-func (n *Node) funcname() string {
-	if n == nil || n.Func == nil || n.Func.Nname == nil {
+func FuncName(n Node) string {
+	if n == nil || n.Func() == nil || n.Func().Nname == nil {
 		return "<nil>"
 	}
-	return n.Func.Nname.Sym.Name
+	return n.Func().Nname.Sym().Name
 }
 
 // pkgFuncName returns the name of the function referenced by n, with package prepended.
 // This differs from the compiler's internal convention where local functions lack a package
 // because the ultimate consumer of this is a human looking at an IDE; package is only empty
 // if the compilation package is actually the empty string.
-func (n *Node) pkgFuncName() string {
+func PkgFuncName(n Node) string {
 	var s *types.Sym
 	if n == nil {
 		return "<nil>"
 	}
-	if n.Op == ONAME {
-		s = n.Sym
+	if n.Op() == ONAME {
+		s = n.Sym()
 	} else {
-		if n.Func == nil || n.Func.Nname == nil {
+		if n.Func() == nil || n.Func().Nname == nil {
 			return "<nil>"
 		}
-		s = n.Func.Nname.Sym
+		s = n.Func().Nname.Sym()
 	}
 	pkg := s.Pkg
 
-	p := myimportpath
+	p := base.Ctxt.Pkgpath
 	if pkg != nil && pkg.Path != "" {
 		p = pkg.Path
 	}
@@ -339,19 +494,19 @@ func (n *Node) pkgFuncName() string {
 }
 
 // The compiler needs *Node to be assignable to cmd/compile/internal/ssa.Sym.
-func (n *Node) CanBeAnSSASym() {
+func (n *node) CanBeAnSSASym() {
 }
 
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
-	Pack *Node      // real package for import . names
+	Pack Node       // real package for import . names
 	Pkg  *types.Pkg // pkg for OPACK nodes
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable
-	Defn *Node
+	Defn Node
 	// The ODCLFUNC node (for a static function/method or a closure) in which
 	// local variable or param is declared.
-	Curfn     *Node
+	Curfn     Node
 	Param     *Param // additional fields for ONAME, OTYPE
 	Decldepth int32  // declaration loop depth, increased for every loop or label
 	// Unique number for ONAME nodes within a function. Function outputs
@@ -410,11 +565,11 @@ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot,
 func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
 
 type Param struct {
-	Ntype    *Node
-	Heapaddr *Node // temp holding heap address of param
+	Ntype    Node
+	Heapaddr Node // temp holding heap address of param
 
 	// ONAME PAUTOHEAP
-	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+	Stackcopy Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
 	// ONAME closure linkage
 	// Consider:
@@ -485,8 +640,8 @@ type Param struct {
 	//
 	// Because of the sharding of pieces of the node, x.Defn means x.Name.Defn
 	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
-	Innermost *Node
-	Outer     *Node
+	Innermost Node
+	Outer     Node
 
 	// OTYPE & ONAME //go:embed info,
 	// sharing storage to reduce gc.Param size.
@@ -571,61 +726,60 @@ func (p *Param) SetEmbedFiles(list []string) {
 	*(*p.Extra).(*embedFileList) = list
 }
 
-// Functions
+// A Func corresponds to a single function in a Go program
+// (and vice versa: each function is denoted by exactly one *Func).
 //
-// A simple function declaration is represented as an ODCLFUNC node f
-// and an ONAME node n. They're linked to one another through
-// f.Func.Nname == n and n.Name.Defn == f. When functions are
-// referenced by name in an expression, the function's ONAME node is
-// used directly.
+// There are multiple nodes that represent a Func in the IR.
 //
-// Function names have n.Class() == PFUNC. This distinguishes them
-// from variables of function type.
+// The ONAME node (Func.Name) is used for plain references to it.
+// The ODCLFUNC node (Func.Decl) is used for its declaration code.
+// The OCLOSURE node (Func.Closure) is used for a reference to a
+// function literal.
 //
-// Confusingly, n.Func and f.Func both exist, but commonly point to
-// different Funcs. (Exception: an OCALLPART's Func does point to its
-// ODCLFUNC's Func.)
+// A Func for an imported function will have only an ONAME node.
+// A declared function or method has an ONAME and an ODCLFUNC.
+// A function literal is represented directly by an OCLOSURE, but it also
+// has an ODCLFUNC (and a matching ONAME) representing the compiled
+// underlying form of the closure, which accesses the captured variables
+// using a special data structure passed in a register.
 //
-// A method declaration is represented like functions, except n.Sym
+// A method declaration is represented like functions, except f.Sym
 // will be the qualified method name (e.g., "T.m") and
 // f.Func.Shortname is the bare method name (e.g., "m").
 //
-// Method expressions are represented as ONAME/PFUNC nodes like
-// function names, but their Left and Right fields still point to the
-// type and method, respectively. They can be distinguished from
-// normal functions with isMethodExpression. Also, unlike function
-// name nodes, method expression nodes exist for each method
-// expression. The declaration ONAME can be accessed with
-// x.Type.Nname(), where x is the method expression ONAME node.
+// A method expression (T.M) is represented as an OMETHEXPR node,
+// in which n.Left and n.Right point to the type and method, respectively.
+// Each distinct mention of a method expression in the source code
+// constructs a fresh node.
 //
-// Method values are represented by ODOTMETH/ODOTINTER when called
-// immediately, and OCALLPART otherwise. They are like method
-// expressions, except that for ODOTMETH/ODOTINTER the method name is
-// stored in Sym instead of Right.
-//
-// Closures are represented by OCLOSURE node c. They link back and
-// forth with the ODCLFUNC via Func.Closure; that is, c.Func.Closure
-// == f and f.Func.Closure == c.
-//
-// Function bodies are stored in f.Nbody, and inline function bodies
-// are stored in n.Func.Inl. Pragmas are stored in f.Func.Pragma.
-//
-// Imported functions skip the ODCLFUNC, so n.Name.Defn is nil. They
-// also use Dcl instead of Inldcl.
-
-// Func holds Node fields used only with function-like nodes.
+// A method value (t.M) is represented by ODOTMETH/ODOTINTER
+// when it is called directly and by OCALLPART otherwise.
+// These are like method expressions, except that for ODOTMETH/ODOTINTER,
+// the method name is stored in Sym instead of Right.
+// Each OCALLPART ends up being implemented as a new
+// function, a bit like a closure, with its own ODCLFUNC.
+// The OCALLPART has uses n.Func to record the linkage to
+// the generated ODCLFUNC (as n.Func.Decl), but there is no
+// pointer from the Func back to the OCALLPART.
 type Func struct {
+	Nname    Node // ONAME node
+	Decl     Node // ODCLFUNC node
+	OClosure Node // OCLOSURE node
+
 	Shortname *types.Sym
+
 	// Extra entry code for the function. For example, allocate and initialize
-	// memory for escaping parameters. However, just for OCLOSURE, Enter is a
-	// list of ONAME nodes of captured variables
+	// memory for escaping parameters.
 	Enter Nodes
 	Exit  Nodes
-	// ONAME nodes for closure params, each should have closurevar set
-	Cvars Nodes
 	// ONAME nodes for all params/locals for this func/closure, does NOT
 	// include closurevars until transformclosure runs.
-	Dcl []*Node
+	Dcl []Node
+
+	ClosureEnter  Nodes // list of ONAME nodes of captured variables
+	ClosureType   Node  // closure representation type
+	ClosureCalled bool  // closure is only immediately called
+	ClosureVars   Nodes // closure params; each has closurevar set
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -641,12 +795,8 @@ type Func struct {
 	Closgen int
 
 	FieldTrack map[*types.Sym]struct{}
-	DebugInfo  *ssa.FuncDebug
-	Ntype      *Node // signature
-	Top        int   // top context (ctxCallee, etc)
-	Closure    *Node // OCLOSURE <-> ODCLFUNC (see header comment above)
-	Nname      *Node // The ONAME node associated with an ODCLFUNC (both have same Type)
-	lsym       *obj.LSym
+	DebugInfo  interface{}
+	LSym       *obj.LSym
 
 	Inl *Inline
 
@@ -658,13 +808,13 @@ type Func struct {
 	Pragma PragmaFlag // go:xxx function annotations
 
 	flags      bitset16
-	numDefers  int // number of defer calls in the function
-	numReturns int // number of explicit returns in the function
+	NumDefers  int // number of defer calls in the function
+	NumReturns int // number of explicit returns in the function
 
 	// nwbrCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
-	nwbrCalls *[]nowritebarrierrecCallSym
+	NWBRCalls *[]SymAndPos
 }
 
 // An Inline holds fields used for function bodies that can be inlined.
@@ -672,8 +822,8 @@ type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
 	// Copies of Func.Dcl and Nbody for use during inlining.
-	Dcl  []*Node
-	Body []*Node
+	Dcl  []Node
+	Body []Node
 }
 
 // A Mark represents a scope boundary.
@@ -729,9 +879,9 @@ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInlin
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 
-func (f *Func) setWBPos(pos src.XPos) {
-	if Debug_wb != 0 {
-		Warnl(pos, "write barrier")
+func (f *Func) SetWBPos(pos src.XPos) {
+	if base.Debug.WB != 0 {
+		base.WarnfAt(pos, "write barrier")
 	}
 	if !f.WBPos.IsKnown() {
 		f.WBPos = pos
@@ -754,6 +904,7 @@ const (
 	OTYPE    // type name
 	OPACK    // import
 	OLITERAL // literal
+	ONIL     // nil
 
 	// expressions
 	OADD          // Left + Right
@@ -883,6 +1034,7 @@ const (
 	OALIGNOF     // unsafe.Alignof(Left)
 	OOFFSETOF    // unsafe.Offsetof(Left)
 	OSIZEOF      // unsafe.Sizeof(Left)
+	OMETHEXPR    // method expression
 
 	// statements
 	OBLOCK // { List } (block of code)
@@ -956,17 +1108,17 @@ const (
 // Nodes is a pointer to a slice of *Node.
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
-type Nodes struct{ slice *[]*Node }
+type Nodes struct{ slice *[]Node }
 
 // asNodes returns a slice of *Node as a Nodes value.
-func asNodes(s []*Node) Nodes {
+func AsNodes(s []Node) Nodes {
 	return Nodes{&s}
 }
 
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in
 // the Nodes.
-func (n Nodes) Slice() []*Node {
+func (n Nodes) Slice() []Node {
 	if n.slice == nil {
 		return nil
 	}
@@ -983,25 +1135,25 @@ func (n Nodes) Len() int {
 
 // Index returns the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
-func (n Nodes) Index(i int) *Node {
+func (n Nodes) Index(i int) Node {
 	return (*n.slice)[i]
 }
 
 // First returns the first element of Nodes (same as n.Index(0)).
 // It panics if n has no elements.
-func (n Nodes) First() *Node {
+func (n Nodes) First() Node {
 	return (*n.slice)[0]
 }
 
 // Second returns the second element of Nodes (same as n.Index(1)).
 // It panics if n has fewer than two elements.
-func (n Nodes) Second() *Node {
+func (n Nodes) Second() Node {
 	return (*n.slice)[1]
 }
 
 // Set sets n to a slice.
 // This takes ownership of the slice.
-func (n *Nodes) Set(s []*Node) {
+func (n *Nodes) Set(s []Node) {
 	if len(s) == 0 {
 		n.slice = nil
 	} else {
@@ -1014,18 +1166,18 @@ func (n *Nodes) Set(s []*Node) {
 }
 
 // Set1 sets n to a slice containing a single node.
-func (n *Nodes) Set1(n1 *Node) {
-	n.slice = &[]*Node{n1}
+func (n *Nodes) Set1(n1 Node) {
+	n.slice = &[]Node{n1}
 }
 
 // Set2 sets n to a slice containing two nodes.
-func (n *Nodes) Set2(n1, n2 *Node) {
-	n.slice = &[]*Node{n1, n2}
+func (n *Nodes) Set2(n1, n2 Node) {
+	n.slice = &[]Node{n1, n2}
 }
 
 // Set3 sets n to a slice containing three nodes.
-func (n *Nodes) Set3(n1, n2, n3 *Node) {
-	n.slice = &[]*Node{n1, n2, n3}
+func (n *Nodes) Set3(n1, n2, n3 Node) {
+	n.slice = &[]Node{n1, n2, n3}
 }
 
 // MoveNodes sets n to the contents of n2, then clears n2.
@@ -1036,35 +1188,35 @@ func (n *Nodes) MoveNodes(n2 *Nodes) {
 
 // SetIndex sets the i'th element of Nodes to node.
 // It panics if n does not have at least i+1 elements.
-func (n Nodes) SetIndex(i int, node *Node) {
+func (n Nodes) SetIndex(i int, node Node) {
 	(*n.slice)[i] = node
 }
 
 // SetFirst sets the first element of Nodes to node.
 // It panics if n does not have at least one elements.
-func (n Nodes) SetFirst(node *Node) {
+func (n Nodes) SetFirst(node Node) {
 	(*n.slice)[0] = node
 }
 
 // SetSecond sets the second element of Nodes to node.
 // It panics if n does not have at least two elements.
-func (n Nodes) SetSecond(node *Node) {
+func (n Nodes) SetSecond(node Node) {
 	(*n.slice)[1] = node
 }
 
 // Addr returns the address of the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
-func (n Nodes) Addr(i int) **Node {
+func (n Nodes) Addr(i int) *Node {
 	return &(*n.slice)[i]
 }
 
 // Append appends entries to Nodes.
-func (n *Nodes) Append(a ...*Node) {
+func (n *Nodes) Append(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
 	if n.slice == nil {
-		s := make([]*Node, len(a))
+		s := make([]Node, len(a))
 		copy(s, a)
 		n.slice = &s
 		return
@@ -1074,7 +1226,7 @@ func (n *Nodes) Append(a ...*Node) {
 
 // Prepend prepends entries to Nodes.
 // If a slice is passed in, this will take ownership of it.
-func (n *Nodes) Prepend(a ...*Node) {
+func (n *Nodes) Prepend(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
@@ -1099,43 +1251,43 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 
 // inspect invokes f on each node in an AST in depth-first order.
 // If f(n) returns false, inspect skips visiting n's children.
-func inspect(n *Node, f func(*Node) bool) {
+func Inspect(n Node, f func(Node) bool) {
 	if n == nil || !f(n) {
 		return
 	}
-	inspectList(n.Ninit, f)
-	inspect(n.Left, f)
-	inspect(n.Right, f)
-	inspectList(n.List, f)
-	inspectList(n.Nbody, f)
-	inspectList(n.Rlist, f)
+	InspectList(n.Init(), f)
+	Inspect(n.Left(), f)
+	Inspect(n.Right(), f)
+	InspectList(n.List(), f)
+	InspectList(n.Body(), f)
+	InspectList(n.Rlist(), f)
 }
 
-func inspectList(l Nodes, f func(*Node) bool) {
+func InspectList(l Nodes, f func(Node) bool) {
 	for _, n := range l.Slice() {
-		inspect(n, f)
+		Inspect(n, f)
 	}
 }
 
 // nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
 // a ready-to-use empty queue.
-type nodeQueue struct {
-	ring       []*Node
+type NodeQueue struct {
+	ring       []Node
 	head, tail int
 }
 
 // empty reports whether q contains no Nodes.
-func (q *nodeQueue) empty() bool {
+func (q *NodeQueue) Empty() bool {
 	return q.head == q.tail
 }
 
 // pushRight appends n to the right of the queue.
-func (q *nodeQueue) pushRight(n *Node) {
+func (q *NodeQueue) PushRight(n Node) {
 	if len(q.ring) == 0 {
-		q.ring = make([]*Node, 16)
+		q.ring = make([]Node, 16)
 	} else if q.head+len(q.ring) == q.tail {
 		// Grow the ring.
-		nring := make([]*Node, len(q.ring)*2)
+		nring := make([]Node, len(q.ring)*2)
 		// Copy the old elements.
 		part := q.ring[q.head%len(q.ring):]
 		if q.tail-q.head <= len(part) {
@@ -1154,8 +1306,8 @@ func (q *nodeQueue) pushRight(n *Node) {
 
 // popLeft pops a node from the left of the queue. It panics if q is
 // empty.
-func (q *nodeQueue) popLeft() *Node {
-	if q.empty() {
+func (q *NodeQueue) PopLeft() Node {
+	if q.Empty() {
 		panic("dequeue empty")
 	}
 	n := q.ring[q.head%len(q.ring)]
@@ -1164,28 +1316,352 @@ func (q *nodeQueue) popLeft() *Node {
 }
 
 // NodeSet is a set of Nodes.
-type NodeSet map[*Node]struct{}
+type NodeSet map[Node]struct{}
 
 // Has reports whether s contains n.
-func (s NodeSet) Has(n *Node) bool {
+func (s NodeSet) Has(n Node) bool {
 	_, isPresent := s[n]
 	return isPresent
 }
 
 // Add adds n to s.
-func (s *NodeSet) Add(n *Node) {
+func (s *NodeSet) Add(n Node) {
 	if *s == nil {
-		*s = make(map[*Node]struct{})
+		*s = make(map[Node]struct{})
 	}
 	(*s)[n] = struct{}{}
 }
 
 // Sorted returns s sorted according to less.
-func (s NodeSet) Sorted(less func(*Node, *Node) bool) []*Node {
-	var res []*Node
+func (s NodeSet) Sorted(less func(Node, Node) bool) []Node {
+	var res []Node
 	for n := range s {
 		res = append(res, n)
 	}
 	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
 	return res
+}
+
+func Nod(op Op, nleft, nright Node) Node {
+	return NodAt(base.Pos, op, nleft, nright)
+}
+
+func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+	var n Node
+	switch op {
+	case ODCLFUNC:
+		var x struct {
+			n node
+			f Func
+		}
+		n = &x.n
+		n.SetFunc(&x.f)
+		n.Func().Decl = n
+	case ONAME:
+		base.Fatalf("use newname instead")
+	case OLABEL, OPACK:
+		var x struct {
+			n node
+			m Name
+		}
+		n = &x.n
+		n.SetName(&x.m)
+	default:
+		n = new(node)
+	}
+	n.SetOp(op)
+	n.SetLeft(nleft)
+	n.SetRight(nright)
+	n.SetPos(pos)
+	n.SetOffset(types.BADWIDTH)
+	n.SetOrig(n)
+	return n
+}
+
+// newnamel returns a new ONAME Node associated with symbol s at position pos.
+// The caller is responsible for setting n.Name.Curfn.
+func NewNameAt(pos src.XPos, s *types.Sym) Node {
+	if s == nil {
+		base.Fatalf("newnamel nil")
+	}
+
+	var x struct {
+		n node
+		m Name
+		p Param
+	}
+	n := &x.n
+	n.SetName(&x.m)
+	n.Name().Param = &x.p
+
+	n.SetOp(ONAME)
+	n.SetPos(pos)
+	n.SetOrig(n)
+
+	n.SetSym(s)
+	return n
+}
+
+// The Class of a variable/function describes the "storage class"
+// of a variable or function. During parsing, storage classes are
+// called declaration contexts.
+type Class uint8
+
+//go:generate stringer -type=Class
+const (
+	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
+	PEXTERN                // global variables
+	PAUTO                  // local variables
+	PAUTOHEAP              // local variables or parameters moved to heap
+	PPARAM                 // input arguments
+	PPARAMOUT              // output results
+	PFUNC                  // global functions
+
+	// Careful: Class is stored in three bits in Node.flags.
+	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
+)
+
+type PragmaFlag int16
+
+const (
+	// Func pragmas.
+	Nointerface    PragmaFlag = 1 << iota
+	Noescape                  // func parameters don't escape
+	Norace                    // func must not have race detector annotations
+	Nosplit                   // func should not execute on separate stack
+	Noinline                  // func should not be inlined
+	NoCheckPtr                // func should not be instrumented by checkptr
+	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
+	UintptrEscapes            // pointers converted to uintptr escape
+
+	// Runtime-only func pragmas.
+	// See ../../../../runtime/README.md for detailed descriptions.
+	Systemstack        // func must run on system stack
+	Nowritebarrier     // emit compiler error instead of write barrier
+	Nowritebarrierrec  // error on write barrier in this or recursive callees
+	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+
+	// Runtime and cgo type pragmas
+	NotInHeap // values of this type must not be heap allocated
+
+	// Go command pragmas
+	GoBuildPragma
+)
+
+type SymAndPos struct {
+	Sym *obj.LSym // LSym of callee
+	Pos src.XPos  // line of call
+}
+
+func AsNode(n types.IRNode) Node {
+	if n == nil {
+		return nil
+	}
+	return n.(Node)
+}
+
+var BlankNode Node
+
+// origSym returns the original symbol written by the user.
+func OrigSym(s *types.Sym) *types.Sym {
+	if s == nil {
+		return nil
+	}
+
+	if len(s.Name) > 1 && s.Name[0] == '~' {
+		switch s.Name[1] {
+		case 'r': // originally an unnamed result
+			return nil
+		case 'b': // originally the blank identifier _
+			// TODO(mdempsky): Does s.Pkg matter here?
+			return BlankNode.Sym()
+		}
+		return s
+	}
+
+	if strings.HasPrefix(s.Name, ".anon") {
+		// originally an unnamed or _ name (see subr.go: structargs)
+		return nil
+	}
+
+	return s
+}
+
+// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+// n must be a slice expression. max is nil if n is a simple slice expression.
+func (n *node) SliceBounds() (low, high, max Node) {
+	if n.List().Len() == 0 {
+		return nil, nil, nil
+	}
+
+	switch n.Op() {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		s := n.List().Slice()
+		return s[0], s[1], nil
+	case OSLICE3, OSLICE3ARR:
+		s := n.List().Slice()
+		return s[0], s[1], s[2]
+	}
+	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
+	return nil, nil, nil
+}
+
+// SetSliceBounds sets n's slice bounds, where n is a slice expression.
+// n must be a slice expression. If max is non-nil, n must be a full slice expression.
+func (n *node) SetSliceBounds(low, high, max Node) {
+	switch n.Op() {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		if max != nil {
+			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
+		}
+		s := n.List().Slice()
+		if s == nil {
+			if low == nil && high == nil {
+				return
+			}
+			n.PtrList().Set2(low, high)
+			return
+		}
+		s[0] = low
+		s[1] = high
+		return
+	case OSLICE3, OSLICE3ARR:
+		s := n.List().Slice()
+		if s == nil {
+			if low == nil && high == nil && max == nil {
+				return
+			}
+			n.PtrList().Set3(low, high, max)
+			return
+		}
+		s[0] = low
+		s[1] = high
+		s[2] = max
+		return
+	}
+	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
+}
+
+// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+// o must be a slicing op.
+func (o Op) IsSlice3() bool {
+	switch o {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		return false
+	case OSLICE3, OSLICE3ARR:
+		return true
+	}
+	base.Fatalf("IsSlice3 op %v", o)
+	return false
+}
+
+func IsConst(n Node, ct constant.Kind) bool {
+	return ConstType(n) == ct
+}
+
+// Int64Val returns n as an int64.
+// n must be an integer or rune constant.
+func (n *node) Int64Val() int64 {
+	if !IsConst(n, constant.Int) {
+		base.Fatalf("Int64Val(%v)", n)
+	}
+	x, ok := constant.Int64Val(n.Val())
+	if !ok {
+		base.Fatalf("Int64Val(%v)", n)
+	}
+	return x
+}
+
+// CanInt64 reports whether it is safe to call Int64Val() on n.
+func (n *node) CanInt64() bool {
+	if !IsConst(n, constant.Int) {
+		return false
+	}
+
+	// if the value inside n cannot be represented as an int64, the
+	// return value of Int64 is undefined
+	_, ok := constant.Int64Val(n.Val())
+	return ok
+}
+
+// Uint64Val returns n as an uint64.
+// n must be an integer or rune constant.
+func (n *node) Uint64Val() uint64 {
+	if !IsConst(n, constant.Int) {
+		base.Fatalf("Uint64Val(%v)", n)
+	}
+	x, ok := constant.Uint64Val(n.Val())
+	if !ok {
+		base.Fatalf("Uint64Val(%v)", n)
+	}
+	return x
+}
+
+// BoolVal returns n as a bool.
+// n must be a boolean constant.
+func (n *node) BoolVal() bool {
+	if !IsConst(n, constant.Bool) {
+		base.Fatalf("BoolVal(%v)", n)
+	}
+	return constant.BoolVal(n.Val())
+}
+
+// StringVal returns the value of a literal string Node as a string.
+// n must be a string constant.
+func (n *node) StringVal() string {
+	if !IsConst(n, constant.String) {
+		base.Fatalf("StringVal(%v)", n)
+	}
+	return constant.StringVal(n.Val())
+}
+
+// rawcopy returns a shallow copy of n.
+// Note: copy or sepcopy (rather than rawcopy) is usually the
+//       correct choice (see comment with Node.copy, below).
+func (n *node) RawCopy() Node {
+	copy := *n
+	return &copy
+}
+
+// sepcopy returns a separate shallow copy of n, with the copy's
+// Orig pointing to itself.
+func SepCopy(n Node) Node {
+	n = n.RawCopy()
+	n.SetOrig(n)
+	return n
+}
+
+// copy returns shallow copy of n and adjusts the copy's Orig if
+// necessary: In general, if n.Orig points to itself, the copy's
+// Orig should point to itself as well. Otherwise, if n is modified,
+// the copy's Orig node appears modified, too, and then doesn't
+// represent the original node anymore.
+// (This caused the wrong complit Op to be used when printing error
+// messages; see issues #26855, #27765).
+func Copy(n Node) Node {
+	copy := n.RawCopy()
+	if n.Orig() == n {
+		copy.SetOrig(copy)
+	}
+	return copy
+}
+
+// isNil reports whether n represents the universal untyped zero value "nil".
+func IsNil(n Node) bool {
+	// Check n.Orig because constant propagation may produce typed nil constants,
+	// which don't exist in the Go spec.
+	return n.Orig().Op() == ONIL
+}
+
+func IsBlank(n Node) bool {
+	if n == nil {
+		return false
+	}
+	return n.Sym().IsBlank()
+}
+
+// IsMethod reports whether n is a method.
+// n must be a function or a method.
+func IsMethod(n Node) bool {
+	return n.Type().Recv() != nil
 }

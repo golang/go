@@ -5,6 +5,7 @@
 package s390x
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -23,7 +24,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	}
 
 	// Adjust the frame to account for LR.
-	off += gc.Ctxt.FixedFrameSize()
+	off += base.Ctxt.FixedFrameSize()
 	reg := int16(s390x.REGSP)
 
 	// If the off cannot fit in a 12-bit unsigned displacement then we

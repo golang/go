@@ -6,6 +6,8 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"fmt"
 	"sort"
@@ -21,7 +23,7 @@ var defercalc int
 
 func Rnd(o int64, r int64) int64 {
 	if r < 1 || r > 8 || r&(r-1) != 0 {
-		Fatalf("rnd %d", r)
+		base.Fatalf("rnd %d", r)
 	}
 	return (o + r - 1) &^ (r - 1)
 }
@@ -39,7 +41,7 @@ func expandiface(t *types.Type) {
 		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
 			return
 		default:
-			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
+			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
 		}
 		methods = append(methods, m)
 	}
@@ -59,7 +61,7 @@ func expandiface(t *types.Type) {
 		}
 
 		if !m.Type.IsInterface() {
-			yyerrorl(m.Pos, "interface contains embedded non-interface %v", m.Type)
+			base.ErrorfAt(m.Pos, "interface contains embedded non-interface %v", m.Type)
 			m.SetBroke(true)
 			t.SetBroke(true)
 			// Add to fields so that error messages
@@ -74,11 +76,8 @@ func expandiface(t *types.Type) {
 		// (including broken ones, if any) and add to t's
 		// method set.
 		for _, t1 := range m.Type.Fields().Slice() {
-			f := types.NewField()
-			f.Pos = m.Pos // preserve embedding position
-			f.Sym = t1.Sym
-			f.Type = t1.Type
-			f.SetBroke(t1.Broke())
+			// Use m.Pos rather than t1.Pos to preserve embedding position.
+			f := types.NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
 		}
 	}
@@ -86,7 +85,7 @@ func expandiface(t *types.Type) {
 	sort.Sort(methcmp(methods))
 
 	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
-		yyerrorl(typePos(t), "interface too large")
+		base.ErrorfAt(typePos(t), "interface too large")
 	}
 	for i, m := range methods {
 		m.Offset = int64(i) * int64(Widthptr)
@@ -119,7 +118,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
 		f.Offset = o
-		if n := asNode(f.Nname); n != nil {
+		if n := ir.AsNode(f.Nname); n != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -127,17 +126,17 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if n.Name.Param.Stackcopy != nil {
-				n.Name.Param.Stackcopy.Xoffset = o
-				n.Xoffset = 0
+			if n.Name().Param.Stackcopy != nil {
+				n.Name().Param.Stackcopy.SetOffset(o)
+				n.SetOffset(0)
 			} else {
-				n.Xoffset = o
+				n.SetOffset(o)
 			}
 		}
 
 		w := f.Type.Width
 		if w < 0 {
-			Fatalf("invalid width %d", f.Type.Width)
+			base.Fatalf("invalid width %d", f.Type.Width)
 		}
 		if w == 0 {
 			lastzero = o
@@ -150,7 +149,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			maxwidth = 1<<31 - 1
 		}
 		if o >= maxwidth {
-			yyerrorl(typePos(errtype), "type %L too large", errtype)
+			base.ErrorfAt(typePos(errtype), "type %L too large", errtype)
 			o = 8 // small but nonzero
 		}
 	}
@@ -199,7 +198,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if p := asNode(t.Nod).Name.Param; p != nil && findTypeLoop(p.Ntype.Type, path) {
+		if p := ir.AsNode(t.Nod).Name().Param; p != nil && findTypeLoop(p.Ntype.Type(), path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -207,17 +206,17 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Anonymous type. Recurse on contained types.
 
 		switch t.Etype {
-		case TARRAY:
+		case types.TARRAY:
 			if findTypeLoop(t.Elem(), path) {
 				return true
 			}
-		case TSTRUCT:
+		case types.TSTRUCT:
 			for _, f := range t.Fields().Slice() {
 				if findTypeLoop(f.Type, path) {
 					return true
 				}
 			}
-		case TINTER:
+		case types.TINTER:
 			for _, m := range t.Methods().Slice() {
 				if m.Type.IsInterface() { // embedded interface
 					if findTypeLoop(m.Type, path) {
@@ -238,7 +237,7 @@ func reportTypeLoop(t *types.Type) {
 
 	var l []*types.Type
 	if !findTypeLoop(t, &l) {
-		Fatalf("failed to find type loop for: %v", t)
+		base.Fatalf("failed to find type loop for: %v", t)
 	}
 
 	// Rotate loop so that the earliest type declaration is first.
@@ -253,11 +252,11 @@ func reportTypeLoop(t *types.Type) {
 	var msg bytes.Buffer
 	fmt.Fprintf(&msg, "invalid recursive type %v\n", l[0])
 	for _, t := range l {
-		fmt.Fprintf(&msg, "\t%v: %v refers to\n", linestr(typePos(t)), t)
+		fmt.Fprintf(&msg, "\t%v: %v refers to\n", base.FmtPos(typePos(t)), t)
 		t.SetBroke(true)
 	}
-	fmt.Fprintf(&msg, "\t%v: %v", linestr(typePos(l[0])), l[0])
-	yyerrorl(typePos(l[0]), msg.String())
+	fmt.Fprintf(&msg, "\t%v: %v", base.FmtPos(typePos(l[0])), l[0])
+	base.ErrorfAt(typePos(l[0]), msg.String())
 }
 
 // dowidth calculates and stores the size and alignment for t.
@@ -271,7 +270,7 @@ func dowidth(t *types.Type) {
 		return
 	}
 	if Widthptr == 0 {
-		Fatalf("dowidth without betypeinit")
+		base.Fatalf("dowidth without betypeinit")
 	}
 
 	if t == nil {
@@ -295,7 +294,7 @@ func dowidth(t *types.Type) {
 			return
 		}
 		t.SetBroke(true)
-		Fatalf("width not calculated: %v", t)
+		base.Fatalf("width not calculated: %v", t)
 	}
 
 	// break infinite recursion if the broken recursive type
@@ -307,9 +306,9 @@ func dowidth(t *types.Type) {
 	// defer checkwidth calls until after we're done
 	defercheckwidth()
 
-	lno := lineno
-	if asNode(t.Nod) != nil {
-		lineno = asNode(t.Nod).Pos
+	lno := base.Pos
+	if ir.AsNode(t.Nod) != nil {
+		base.Pos = ir.AsNode(t.Nod).Pos()
 	}
 
 	t.Width = -2
@@ -317,7 +316,7 @@ func dowidth(t *types.Type) {
 
 	et := t.Etype
 	switch et {
-	case TFUNC, TCHAN, TMAP, TSTRING:
+	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
 		break
 
 	// simtype == 0 during bootstrap
@@ -330,44 +329,44 @@ func dowidth(t *types.Type) {
 	var w int64
 	switch et {
 	default:
-		Fatalf("dowidth: unknown type: %v", t)
+		base.Fatalf("dowidth: unknown type: %v", t)
 
 	// compiler-specific stuff
-	case TINT8, TUINT8, TBOOL:
+	case types.TINT8, types.TUINT8, types.TBOOL:
 		// bool is int8
 		w = 1
 
-	case TINT16, TUINT16:
+	case types.TINT16, types.TUINT16:
 		w = 2
 
-	case TINT32, TUINT32, TFLOAT32:
+	case types.TINT32, types.TUINT32, types.TFLOAT32:
 		w = 4
 
-	case TINT64, TUINT64, TFLOAT64:
+	case types.TINT64, types.TUINT64, types.TFLOAT64:
 		w = 8
 		t.Align = uint8(Widthreg)
 
-	case TCOMPLEX64:
+	case types.TCOMPLEX64:
 		w = 8
 		t.Align = 4
 
-	case TCOMPLEX128:
+	case types.TCOMPLEX128:
 		w = 16
 		t.Align = uint8(Widthreg)
 
-	case TPTR:
+	case types.TPTR:
 		w = int64(Widthptr)
 		checkwidth(t.Elem())
 
-	case TUNSAFEPTR:
+	case types.TUNSAFEPTR:
 		w = int64(Widthptr)
 
-	case TINTER: // implemented as 2 pointers
+	case types.TINTER: // implemented as 2 pointers
 		w = 2 * int64(Widthptr)
 		t.Align = uint8(Widthptr)
 		expandiface(t)
 
-	case TCHAN: // implemented as pointer
+	case types.TCHAN: // implemented as pointer
 		w = int64(Widthptr)
 
 		checkwidth(t.Elem())
@@ -377,35 +376,35 @@ func dowidth(t *types.Type) {
 		t1 := types.NewChanArgs(t)
 		checkwidth(t1)
 
-	case TCHANARGS:
+	case types.TCHANARGS:
 		t1 := t.ChanArgs()
 		dowidth(t1) // just in case
 		if t1.Elem().Width >= 1<<16 {
-			yyerrorl(typePos(t1), "channel element type too large (>64kB)")
+			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
 		}
 		w = 1 // anything will do
 
-	case TMAP: // implemented as pointer
+	case types.TMAP: // implemented as pointer
 		w = int64(Widthptr)
 		checkwidth(t.Elem())
 		checkwidth(t.Key())
 
-	case TFORW: // should have been filled in
+	case types.TFORW: // should have been filled in
 		reportTypeLoop(t)
 		w = 1 // anything will do
 
-	case TANY:
-		// dummy type; should be replaced before use.
-		Fatalf("dowidth any")
+	case types.TANY:
+		// not a real type; should be replaced before use.
+		base.Fatalf("dowidth any")
 
-	case TSTRING:
+	case types.TSTRING:
 		if sizeofString == 0 {
-			Fatalf("early dowidth string")
+			base.Fatalf("early dowidth string")
 		}
 		w = sizeofString
 		t.Align = uint8(Widthptr)
 
-	case TARRAY:
+	case types.TARRAY:
 		if t.Elem() == nil {
 			break
 		}
@@ -414,13 +413,13 @@ func dowidth(t *types.Type) {
 		if t.Elem().Width != 0 {
 			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
-				yyerrorl(typePos(t), "type %L larger than address space", t)
+				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
 			}
 		}
 		w = t.NumElem() * t.Elem().Width
 		t.Align = t.Elem().Align
 
-	case TSLICE:
+	case types.TSLICE:
 		if t.Elem() == nil {
 			break
 		}
@@ -428,46 +427,46 @@ func dowidth(t *types.Type) {
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		if t.IsFuncArgStruct() {
-			Fatalf("dowidth fn struct %v", t)
+			base.Fatalf("dowidth fn struct %v", t)
 		}
 		w = widstruct(t, t, 0, 1)
 
 	// make fake type to check later to
 	// trigger function argument computation.
-	case TFUNC:
+	case types.TFUNC:
 		t1 := types.NewFuncArgs(t)
 		checkwidth(t1)
 		w = int64(Widthptr) // width of func type is pointer
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
-	case TFUNCARGS:
+	case types.TFUNCARGS:
 		t1 := t.FuncArgs()
 		w = widstruct(t1, t1.Recvs(), 0, 0)
 		w = widstruct(t1, t1.Params(), w, Widthreg)
 		w = widstruct(t1, t1.Results(), w, Widthreg)
 		t1.Extra.(*types.Func).Argwid = w
 		if w%int64(Widthreg) != 0 {
-			Warn("bad type %v %d\n", t1, w)
+			base.Warn("bad type %v %d\n", t1, w)
 		}
 		t.Align = 1
 	}
 
 	if Widthptr == 4 && w != int64(int32(w)) {
-		yyerrorl(typePos(t), "type %v too large", t)
+		base.ErrorfAt(typePos(t), "type %v too large", t)
 	}
 
 	t.Width = w
 	if t.Align == 0 {
 		if w == 0 || w > 8 || w&(w-1) != 0 {
-			Fatalf("invalid alignment for %v", t)
+			base.Fatalf("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)
 	}
 
-	lineno = lno
+	base.Pos = lno
 
 	resumecheckwidth()
 }
@@ -498,7 +497,7 @@ func checkwidth(t *types.Type) {
 	// function arg structs should not be checked
 	// outside of the enclosing function.
 	if t.IsFuncArgStruct() {
-		Fatalf("checkwidth %v", t)
+		base.Fatalf("checkwidth %v", t)
 	}
 
 	if defercalc == 0 {

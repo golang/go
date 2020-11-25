@@ -6,21 +6,23 @@
 // for debugging purposes. The code is customized for Node graphs
 // and may be used for an alternative view of the node structure.
 
-package gc
+package ir
 
 import (
-	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"regexp"
+
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // dump is like fdump but prints to stderr.
-func dump(root interface{}, filter string, depth int) {
-	fdump(os.Stderr, root, filter, depth)
+func DumpAny(root interface{}, filter string, depth int) {
+	FDumpAny(os.Stderr, root, filter, depth)
 }
 
 // fdump prints the structure of a rooted data structure
@@ -40,7 +42,7 @@ func dump(root interface{}, filter string, depth int) {
 // rather than their type; struct fields with zero values or
 // non-matching field names are omitted, and "…" means recursion
 // depth has been reached or struct fields have been omitted.
-func fdump(w io.Writer, root interface{}, filter string, depth int) {
+func FDumpAny(w io.Writer, root interface{}, filter string, depth int) {
 	if root == nil {
 		fmt.Fprintln(w, "nil")
 		return
@@ -146,11 +148,8 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		x = reflect.ValueOf(v.Slice())
 
 	case src.XPos:
-		p.printf("%s", linestr(v))
+		p.printf("%s", base.FmtPos(v))
 		return
-
-	case *types.Node:
-		x = reflect.ValueOf(asNode(v))
 	}
 
 	switch x.Kind() {
@@ -201,9 +200,9 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		typ := x.Type()
 
 		isNode := false
-		if n, ok := x.Interface().(Node); ok {
+		if n, ok := x.Interface().(node); ok {
 			isNode = true
-			p.printf("%s %s {", n.Op.String(), p.addr(x))
+			p.printf("%s %s {", n.op.String(), p.addr(x))
 		} else {
 			p.printf("%s {", typ)
 		}

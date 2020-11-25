@@ -7,7 +7,9 @@ package mips64
 import (
 	"math"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -261,7 +263,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *gc.Node:
+		case ir.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -724,8 +726,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 	case ssa.OpMIPS64FPFlagTrue,
 		ssa.OpMIPS64FPFlagFalse:
@@ -757,7 +759,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.FixedFrameSize()
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()

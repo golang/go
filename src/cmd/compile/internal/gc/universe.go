@@ -6,29 +6,31 @@
 
 package gc
 
-import "cmd/compile/internal/types"
-
-// builtinpkg is a fake package that declares the universe block.
-var builtinpkg *types.Pkg
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+)
 
 var basicTypes = [...]struct {
 	name  string
 	etype types.EType
 }{
-	{"int8", TINT8},
-	{"int16", TINT16},
-	{"int32", TINT32},
-	{"int64", TINT64},
-	{"uint8", TUINT8},
-	{"uint16", TUINT16},
-	{"uint32", TUINT32},
-	{"uint64", TUINT64},
-	{"float32", TFLOAT32},
-	{"float64", TFLOAT64},
-	{"complex64", TCOMPLEX64},
-	{"complex128", TCOMPLEX128},
-	{"bool", TBOOL},
-	{"string", TSTRING},
+	{"int8", types.TINT8},
+	{"int16", types.TINT16},
+	{"int32", types.TINT32},
+	{"int64", types.TINT64},
+	{"uint8", types.TUINT8},
+	{"uint16", types.TUINT16},
+	{"uint32", types.TUINT32},
+	{"uint64", types.TUINT64},
+	{"float32", types.TFLOAT32},
+	{"float64", types.TFLOAT64},
+	{"complex64", types.TCOMPLEX64},
+	{"complex128", types.TCOMPLEX128},
+	{"bool", types.TBOOL},
+	{"string", types.TSTRING},
 }
 
 var typedefs = [...]struct {
@@ -37,30 +39,30 @@ var typedefs = [...]struct {
 	sameas32 types.EType
 	sameas64 types.EType
 }{
-	{"int", TINT, TINT32, TINT64},
-	{"uint", TUINT, TUINT32, TUINT64},
-	{"uintptr", TUINTPTR, TUINT32, TUINT64},
+	{"int", types.TINT, types.TINT32, types.TINT64},
+	{"uint", types.TUINT, types.TUINT32, types.TUINT64},
+	{"uintptr", types.TUINTPTR, types.TUINT32, types.TUINT64},
 }
 
 var builtinFuncs = [...]struct {
 	name string
-	op   Op
+	op   ir.Op
 }{
-	{"append", OAPPEND},
-	{"cap", OCAP},
-	{"close", OCLOSE},
-	{"complex", OCOMPLEX},
-	{"copy", OCOPY},
-	{"delete", ODELETE},
-	{"imag", OIMAG},
-	{"len", OLEN},
-	{"make", OMAKE},
-	{"new", ONEW},
-	{"panic", OPANIC},
-	{"print", OPRINT},
-	{"println", OPRINTN},
-	{"real", OREAL},
-	{"recover", ORECOVER},
+	{"append", ir.OAPPEND},
+	{"cap", ir.OCAP},
+	{"close", ir.OCLOSE},
+	{"complex", ir.OCOMPLEX},
+	{"copy", ir.OCOPY},
+	{"delete", ir.ODELETE},
+	{"imag", ir.OIMAG},
+	{"len", ir.OLEN},
+	{"make", ir.OMAKE},
+	{"new", ir.ONEW},
+	{"panic", ir.OPANIC},
+	{"print", ir.OPRINT},
+	{"println", ir.OPRINTN},
+	{"real", ir.OREAL},
+	{"recover", ir.ORECOVER},
 }
 
 // isBuiltinFuncName reports whether name matches a builtin function
@@ -76,11 +78,11 @@ func isBuiltinFuncName(name string) bool {
 
 var unsafeFuncs = [...]struct {
 	name string
-	op   Op
+	op   ir.Op
 }{
-	{"Alignof", OALIGNOF},
-	{"Offsetof", OOFFSETOF},
-	{"Sizeof", OSIZEOF},
+	{"Alignof", ir.OALIGNOF},
+	{"Offsetof", ir.OOFFSETOF},
+	{"Sizeof", ir.OSIZEOF},
 }
 
 // initUniverse initializes the universe block.
@@ -95,121 +97,117 @@ func lexinit() {
 	for _, s := range &basicTypes {
 		etype := s.etype
 		if int(etype) >= len(types.Types) {
-			Fatalf("lexinit: %s bad etype", s.name)
+			base.Fatalf("lexinit: %s bad etype", s.name)
 		}
-		s2 := builtinpkg.Lookup(s.name)
+		s2 := ir.BuiltinPkg.Lookup(s.name)
 		t := types.Types[etype]
 		if t == nil {
 			t = types.New(etype)
 			t.Sym = s2
-			if etype != TANY && etype != TSTRING {
+			if etype != types.TANY && etype != types.TSTRING {
 				dowidth(t)
 			}
 			types.Types[etype] = t
 		}
-		s2.Def = asTypesNode(typenod(t))
-		asNode(s2.Def).Name = new(Name)
+		s2.Def = typenod(t)
+		ir.AsNode(s2.Def).SetName(new(ir.Name))
 	}
 
 	for _, s := range &builtinFuncs {
-		s2 := builtinpkg.Lookup(s.name)
-		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).SetSubOp(s.op)
+		s2 := ir.BuiltinPkg.Lookup(s.name)
+		s2.Def = NewName(s2)
+		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
 	for _, s := range &unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
-		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).SetSubOp(s.op)
+		s2.Def = NewName(s2)
+		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
-	types.UntypedString = types.New(TSTRING)
-	types.UntypedBool = types.New(TBOOL)
-	types.Types[TANY] = types.New(TANY)
+	types.UntypedString = types.New(types.TSTRING)
+	types.UntypedBool = types.New(types.TBOOL)
+	types.Types[types.TANY] = types.New(types.TANY)
 
-	s := builtinpkg.Lookup("true")
-	s.Def = asTypesNode(nodbool(true))
-	asNode(s.Def).Sym = lookup("true")
-	asNode(s.Def).Name = new(Name)
-	asNode(s.Def).Type = types.UntypedBool
+	s := ir.BuiltinPkg.Lookup("true")
+	s.Def = nodbool(true)
+	ir.AsNode(s.Def).SetSym(lookup("true"))
+	ir.AsNode(s.Def).SetName(new(ir.Name))
+	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
-	s = builtinpkg.Lookup("false")
-	s.Def = asTypesNode(nodbool(false))
-	asNode(s.Def).Sym = lookup("false")
-	asNode(s.Def).Name = new(Name)
-	asNode(s.Def).Type = types.UntypedBool
+	s = ir.BuiltinPkg.Lookup("false")
+	s.Def = nodbool(false)
+	ir.AsNode(s.Def).SetSym(lookup("false"))
+	ir.AsNode(s.Def).SetName(new(ir.Name))
+	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = lookup("_")
 	s.Block = -100
-	s.Def = asTypesNode(newname(s))
-	types.Types[TBLANK] = types.New(TBLANK)
-	asNode(s.Def).Type = types.Types[TBLANK]
-	nblank = asNode(s.Def)
+	s.Def = NewName(s)
+	types.Types[types.TBLANK] = types.New(types.TBLANK)
+	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+	ir.BlankNode = ir.AsNode(s.Def)
 
-	s = builtinpkg.Lookup("_")
+	s = ir.BuiltinPkg.Lookup("_")
 	s.Block = -100
-	s.Def = asTypesNode(newname(s))
-	types.Types[TBLANK] = types.New(TBLANK)
-	asNode(s.Def).Type = types.Types[TBLANK]
+	s.Def = NewName(s)
+	types.Types[types.TBLANK] = types.New(types.TBLANK)
+	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
-	types.Types[TNIL] = types.New(TNIL)
-	s = builtinpkg.Lookup("nil")
-	var v Val
-	v.U = new(NilVal)
-	s.Def = asTypesNode(nodlit(v))
-	asNode(s.Def).Sym = s
-	asNode(s.Def).Name = new(Name)
+	types.Types[types.TNIL] = types.New(types.TNIL)
+	s = ir.BuiltinPkg.Lookup("nil")
+	s.Def = nodnil()
+	ir.AsNode(s.Def).SetSym(s)
+	ir.AsNode(s.Def).SetName(new(ir.Name))
 
-	s = builtinpkg.Lookup("iota")
-	s.Def = asTypesNode(nod(OIOTA, nil, nil))
-	asNode(s.Def).Sym = s
-	asNode(s.Def).Name = new(Name)
+	s = ir.BuiltinPkg.Lookup("iota")
+	s.Def = ir.Nod(ir.OIOTA, nil, nil)
+	ir.AsNode(s.Def).SetSym(s)
+	ir.AsNode(s.Def).SetName(new(ir.Name))
 }
 
 func typeinit() {
 	if Widthptr == 0 {
-		Fatalf("typeinit before betypeinit")
+		base.Fatalf("typeinit before betypeinit")
 	}
 
-	for et := types.EType(0); et < NTYPE; et++ {
+	for et := types.EType(0); et < types.NTYPE; et++ {
 		simtype[et] = et
 	}
 
-	types.Types[TPTR] = types.New(TPTR)
-	dowidth(types.Types[TPTR])
+	types.Types[types.TPTR] = types.New(types.TPTR)
+	dowidth(types.Types[types.TPTR])
 
-	t := types.New(TUNSAFEPTR)
-	types.Types[TUNSAFEPTR] = t
+	t := types.New(types.TUNSAFEPTR)
+	types.Types[types.TUNSAFEPTR] = t
 	t.Sym = unsafepkg.Lookup("Pointer")
-	t.Sym.Def = asTypesNode(typenod(t))
-	asNode(t.Sym.Def).Name = new(Name)
-	dowidth(types.Types[TUNSAFEPTR])
+	t.Sym.Def = typenod(t)
+	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
+	dowidth(types.Types[types.TUNSAFEPTR])
 
-	for et := TINT8; et <= TUINT64; et++ {
+	for et := types.TINT8; et <= types.TUINT64; et++ {
 		isInt[et] = true
 	}
-	isInt[TINT] = true
-	isInt[TUINT] = true
-	isInt[TUINTPTR] = true
+	isInt[types.TINT] = true
+	isInt[types.TUINT] = true
+	isInt[types.TUINTPTR] = true
 
-	isFloat[TFLOAT32] = true
-	isFloat[TFLOAT64] = true
+	isFloat[types.TFLOAT32] = true
+	isFloat[types.TFLOAT64] = true
 
-	isComplex[TCOMPLEX64] = true
-	isComplex[TCOMPLEX128] = true
+	isComplex[types.TCOMPLEX64] = true
+	isComplex[types.TCOMPLEX128] = true
 
 	// initialize okfor
-	for et := types.EType(0); et < NTYPE; et++ {
-		if isInt[et] || et == TIDEAL {
+	for et := types.EType(0); et < types.NTYPE; et++ {
+		if isInt[et] || et == types.TIDEAL {
 			okforeq[et] = true
 			okforcmp[et] = true
 			okforarith[et] = true
 			okforadd[et] = true
 			okforand[et] = true
-			okforconst[et] = true
+			ir.OKForConst[et] = true
 			issimple[et] = true
-			minintval[et] = new(Mpint)
-			maxintval[et] = new(Mpint)
 		}
 
 		if isFloat[et] {
@@ -217,53 +215,51 @@ func typeinit() {
 			okforcmp[et] = true
 			okforadd[et] = true
 			okforarith[et] = true
-			okforconst[et] = true
+			ir.OKForConst[et] = true
 			issimple[et] = true
-			minfltval[et] = newMpflt()
-			maxfltval[et] = newMpflt()
 		}
 
 		if isComplex[et] {
 			okforeq[et] = true
 			okforadd[et] = true
 			okforarith[et] = true
-			okforconst[et] = true
+			ir.OKForConst[et] = true
 			issimple[et] = true
 		}
 	}
 
-	issimple[TBOOL] = true
+	issimple[types.TBOOL] = true
 
-	okforadd[TSTRING] = true
+	okforadd[types.TSTRING] = true
 
-	okforbool[TBOOL] = true
+	okforbool[types.TBOOL] = true
 
-	okforcap[TARRAY] = true
-	okforcap[TCHAN] = true
-	okforcap[TSLICE] = true
+	okforcap[types.TARRAY] = true
+	okforcap[types.TCHAN] = true
+	okforcap[types.TSLICE] = true
 
-	okforconst[TBOOL] = true
-	okforconst[TSTRING] = true
+	ir.OKForConst[types.TBOOL] = true
+	ir.OKForConst[types.TSTRING] = true
 
-	okforlen[TARRAY] = true
-	okforlen[TCHAN] = true
-	okforlen[TMAP] = true
-	okforlen[TSLICE] = true
-	okforlen[TSTRING] = true
+	okforlen[types.TARRAY] = true
+	okforlen[types.TCHAN] = true
+	okforlen[types.TMAP] = true
+	okforlen[types.TSLICE] = true
+	okforlen[types.TSTRING] = true
 
-	okforeq[TPTR] = true
-	okforeq[TUNSAFEPTR] = true
-	okforeq[TINTER] = true
-	okforeq[TCHAN] = true
-	okforeq[TSTRING] = true
-	okforeq[TBOOL] = true
-	okforeq[TMAP] = true    // nil only; refined in typecheck
-	okforeq[TFUNC] = true   // nil only; refined in typecheck
-	okforeq[TSLICE] = true  // nil only; refined in typecheck
-	okforeq[TARRAY] = true  // only if element type is comparable; refined in typecheck
-	okforeq[TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
+	okforeq[types.TPTR] = true
+	okforeq[types.TUNSAFEPTR] = true
+	okforeq[types.TINTER] = true
+	okforeq[types.TCHAN] = true
+	okforeq[types.TSTRING] = true
+	okforeq[types.TBOOL] = true
+	okforeq[types.TMAP] = true    // nil only; refined in typecheck
+	okforeq[types.TFUNC] = true   // nil only; refined in typecheck
+	okforeq[types.TSLICE] = true  // nil only; refined in typecheck
+	okforeq[types.TARRAY] = true  // only if element type is comparable; refined in typecheck
+	okforeq[types.TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
 
-	okforcmp[TSTRING] = true
+	okforcmp[types.TSTRING] = true
 
 	var i int
 	for i = 0; i < len(okfor); i++ {
@@ -271,76 +267,51 @@ func typeinit() {
 	}
 
 	// binary
-	okfor[OADD] = okforadd[:]
-	okfor[OAND] = okforand[:]
-	okfor[OANDAND] = okforbool[:]
-	okfor[OANDNOT] = okforand[:]
-	okfor[ODIV] = okforarith[:]
-	okfor[OEQ] = okforeq[:]
-	okfor[OGE] = okforcmp[:]
-	okfor[OGT] = okforcmp[:]
-	okfor[OLE] = okforcmp[:]
-	okfor[OLT] = okforcmp[:]
-	okfor[OMOD] = okforand[:]
-	okfor[OMUL] = okforarith[:]
-	okfor[ONE] = okforeq[:]
-	okfor[OOR] = okforand[:]
-	okfor[OOROR] = okforbool[:]
-	okfor[OSUB] = okforarith[:]
-	okfor[OXOR] = okforand[:]
-	okfor[OLSH] = okforand[:]
-	okfor[ORSH] = okforand[:]
+	okfor[ir.OADD] = okforadd[:]
+	okfor[ir.OAND] = okforand[:]
+	okfor[ir.OANDAND] = okforbool[:]
+	okfor[ir.OANDNOT] = okforand[:]
+	okfor[ir.ODIV] = okforarith[:]
+	okfor[ir.OEQ] = okforeq[:]
+	okfor[ir.OGE] = okforcmp[:]
+	okfor[ir.OGT] = okforcmp[:]
+	okfor[ir.OLE] = okforcmp[:]
+	okfor[ir.OLT] = okforcmp[:]
+	okfor[ir.OMOD] = okforand[:]
+	okfor[ir.OMUL] = okforarith[:]
+	okfor[ir.ONE] = okforeq[:]
+	okfor[ir.OOR] = okforand[:]
+	okfor[ir.OOROR] = okforbool[:]
+	okfor[ir.OSUB] = okforarith[:]
+	okfor[ir.OXOR] = okforand[:]
+	okfor[ir.OLSH] = okforand[:]
+	okfor[ir.ORSH] = okforand[:]
 
 	// unary
-	okfor[OBITNOT] = okforand[:]
-	okfor[ONEG] = okforarith[:]
-	okfor[ONOT] = okforbool[:]
-	okfor[OPLUS] = okforarith[:]
+	okfor[ir.OBITNOT] = okforand[:]
+	okfor[ir.ONEG] = okforarith[:]
+	okfor[ir.ONOT] = okforbool[:]
+	okfor[ir.OPLUS] = okforarith[:]
 
 	// special
-	okfor[OCAP] = okforcap[:]
-	okfor[OLEN] = okforlen[:]
+	okfor[ir.OCAP] = okforcap[:]
+	okfor[ir.OLEN] = okforlen[:]
 
 	// comparison
-	iscmp[OLT] = true
-	iscmp[OGT] = true
-	iscmp[OGE] = true
-	iscmp[OLE] = true
-	iscmp[OEQ] = true
-	iscmp[ONE] = true
+	iscmp[ir.OLT] = true
+	iscmp[ir.OGT] = true
+	iscmp[ir.OGE] = true
+	iscmp[ir.OLE] = true
+	iscmp[ir.OEQ] = true
+	iscmp[ir.ONE] = true
 
-	maxintval[TINT8].SetString("0x7f")
-	minintval[TINT8].SetString("-0x80")
-	maxintval[TINT16].SetString("0x7fff")
-	minintval[TINT16].SetString("-0x8000")
-	maxintval[TINT32].SetString("0x7fffffff")
-	minintval[TINT32].SetString("-0x80000000")
-	maxintval[TINT64].SetString("0x7fffffffffffffff")
-	minintval[TINT64].SetString("-0x8000000000000000")
-
-	maxintval[TUINT8].SetString("0xff")
-	maxintval[TUINT16].SetString("0xffff")
-	maxintval[TUINT32].SetString("0xffffffff")
-	maxintval[TUINT64].SetString("0xffffffffffffffff")
-
-	// f is valid float if min < f < max.  (min and max are not themselves valid.)
-	maxfltval[TFLOAT32].SetString("33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
-	minfltval[TFLOAT32].SetString("-33554431p103")
-	maxfltval[TFLOAT64].SetString("18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
-	minfltval[TFLOAT64].SetString("-18014398509481983p970")
-
-	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32]
-	minfltval[TCOMPLEX64] = minfltval[TFLOAT32]
-	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
-	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
-
-	types.Types[TINTER] = types.New(TINTER) // empty interface
+	types.Types[types.TINTER] = types.New(types.TINTER) // empty interface
 
 	// simple aliases
-	simtype[TMAP] = TPTR
-	simtype[TCHAN] = TPTR
-	simtype[TFUNC] = TPTR
-	simtype[TUNSAFEPTR] = TPTR
+	simtype[types.TMAP] = types.TPTR
+	simtype[types.TCHAN] = types.TPTR
+	simtype[types.TFUNC] = types.TPTR
+	simtype[types.TUNSAFEPTR] = types.TPTR
 
 	slicePtrOffset = 0
 	sliceLenOffset = Rnd(slicePtrOffset+int64(Widthptr), int64(Widthptr))
@@ -350,31 +321,29 @@ func typeinit() {
 	// string is same as slice wo the cap
 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
 
-	dowidth(types.Types[TSTRING])
+	dowidth(types.Types[types.TSTRING])
 	dowidth(types.UntypedString)
 }
 
 func makeErrorInterface() *types.Type {
-	field := types.NewField()
-	field.Type = types.Types[TSTRING]
-	f := functypefield(fakeRecvField(), nil, []*types.Field{field})
+	sig := functypefield(fakeRecvField(), nil, []*types.Field{
+		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
+	})
 
-	field = types.NewField()
-	field.Sym = lookup("Error")
-	field.Type = f
+	method := types.NewField(src.NoXPos, lookup("Error"), sig)
 
-	t := types.New(TINTER)
-	t.SetInterface([]*types.Field{field})
+	t := types.New(types.TINTER)
+	t.SetInterface([]*types.Field{method})
 	return t
 }
 
 func lexinit1() {
 	// error type
-	s := builtinpkg.Lookup("error")
+	s := ir.BuiltinPkg.Lookup("error")
 	types.Errortype = makeErrorInterface()
 	types.Errortype.Sym = s
 	types.Errortype.Orig = makeErrorInterface()
-	s.Def = asTypesNode(typenod(types.Errortype))
+	s.Def = typenod(types.Errortype)
 	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
@@ -386,24 +355,24 @@ func lexinit1() {
 	// type aliases, albeit at the cost of having to deal with it everywhere).
 
 	// byte alias
-	s = builtinpkg.Lookup("byte")
-	types.Bytetype = types.New(TUINT8)
+	s = ir.BuiltinPkg.Lookup("byte")
+	types.Bytetype = types.New(types.TUINT8)
 	types.Bytetype.Sym = s
-	s.Def = asTypesNode(typenod(types.Bytetype))
-	asNode(s.Def).Name = new(Name)
+	s.Def = typenod(types.Bytetype)
+	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Bytetype)
 
 	// rune alias
-	s = builtinpkg.Lookup("rune")
-	types.Runetype = types.New(TINT32)
+	s = ir.BuiltinPkg.Lookup("rune")
+	types.Runetype = types.New(types.TINT32)
 	types.Runetype.Sym = s
-	s.Def = asTypesNode(typenod(types.Runetype))
-	asNode(s.Def).Name = new(Name)
+	s.Def = typenod(types.Runetype)
+	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
 	for _, s := range &typedefs {
-		s1 := builtinpkg.Lookup(s.name)
+		s1 := ir.BuiltinPkg.Lookup(s.name)
 
 		sameas := s.sameas32
 		if Widthptr == 8 {
@@ -411,17 +380,13 @@ func lexinit1() {
 		}
 
 		simtype[s.etype] = sameas
-		minfltval[s.etype] = minfltval[sameas]
-		maxfltval[s.etype] = maxfltval[sameas]
-		minintval[s.etype] = minintval[sameas]
-		maxintval[s.etype] = maxintval[sameas]
 
 		t := types.New(s.etype)
 		t.Sym = s1
 		types.Types[s.etype] = t
-		s1.Def = asTypesNode(typenod(t))
-		asNode(s1.Def).Name = new(Name)
-		s1.Origpkg = builtinpkg
+		s1.Def = typenod(t)
+		ir.AsNode(s1.Def).SetName(new(ir.Name))
+		s1.Origpkg = ir.BuiltinPkg
 
 		dowidth(t)
 	}
@@ -433,7 +398,7 @@ func finishUniverse() {
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
 
-	for _, s := range builtinpkg.Syms {
+	for _, s := range ir.BuiltinPkg.Syms {
 		if s.Def == nil {
 			continue
 		}
@@ -446,8 +411,8 @@ func finishUniverse() {
 		s1.Block = s.Block
 	}
 
-	nodfp = newname(lookup(".fp"))
-	nodfp.Type = types.Types[TINT32]
-	nodfp.SetClass(PPARAM)
-	nodfp.Name.SetUsed(true)
+	nodfp = NewName(lookup(".fp"))
+	nodfp.SetType(types.Types[types.TINT32])
+	nodfp.SetClass(ir.PPARAM)
+	nodfp.Name().SetUsed(true)
 }

@@ -267,6 +267,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	}
 	if mask&OmitModCommonFlags == 0 {
 		base.AddModCommonFlags(&cmd.Flag)
+	} else {
+		// Add the overlay flag even when we don't add the rest of the mod common flags.
+		// This only affects 'go get' in GOPATH mode, but add the flag anyway for
+		// consistency.
+		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
@@ -278,8 +283,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-
-	cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -840,11 +843,6 @@ func installOutsideModule(ctx context.Context, args []string) {
 	}
 
 	// Check that named packages are all provided by the same module.
-	for _, mod := range modload.LoadedModules() {
-		if mod.Path == installMod.Path && mod.Version != installMod.Version {
-			base.Fatalf("go install: %s: module requires a higher version of itself (%s)", installMod, mod.Version)
-		}
-	}
 	for _, pkg := range mainPkgs {
 		if pkg.Module == nil {
 			// Packages in std, cmd, and their vendored dependencies

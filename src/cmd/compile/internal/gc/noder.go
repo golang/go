@@ -6,6 +6,8 @@ package gc
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,7 +17,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/importer"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -66,15 +70,15 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 		var files []*syntax.File
 		for _, p := range noders {
 			for e := range p.err {
-				p.yyerrorpos(e.Pos, "%s", e.Msg)
+				p.errorAt(e.Pos, "%s", e.Msg)
 			}
 
 			nodersmap[p.file.Pos().RelFilename()] = p
 			files = append(files, p.file)
 			lines += p.file.EOF.Line()
 
-			if nsyntaxerrors != 0 {
-				errorexit()
+			if base.SyntaxErrors() != 0 {
+				base.ErrorExit()
 			}
 		}
 
@@ -91,7 +95,7 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 					return
 				}
 				p := nodersmap[terr.Pos.RelFilename()]
-				yyerrorl(p.makeXPos(terr.Pos), "%s", terr.Msg)
+				base.ErrorfAt(p.makeXPos(terr.Pos), "%s", terr.Msg)
 			},
 			Importer: &gcimports{
 				packages: make(map[string]*types2.Package),
@@ -104,27 +108,27 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 				},
 			},
 		}
-		conf.Check(Ctxt.Pkgpath, files, nil)
+		conf.Check(base.Ctxt.Pkgpath, files, nil)
 		return
 	}
 
 	for _, p := range noders {
 		for e := range p.err {
-			p.yyerrorpos(e.Pos, "%s", e.Msg)
+			p.errorAt(e.Pos, "%s", e.Msg)
 		}
 
 		p.node()
 		lines += p.file.EOF.Line()
 		p.file = nil // release memory
 
-		if nsyntaxerrors != 0 {
-			errorexit()
+		if base.SyntaxErrors() != 0 {
+			base.ErrorExit()
 		}
 		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
 		testdclstack()
 	}
 
-	localpkg.Height = myheight
+	ir.LocalPkg.Height = myheight
 	return
 }
 
@@ -178,22 +182,20 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 }
 
 func (p *noder) makeXPos(pos syntax.Pos) (_ src.XPos) {
-	return Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
+	return base.Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
 }
 
-func (p *noder) yyerrorpos(pos syntax.Pos, format string, args ...interface{}) {
-	yyerrorl(p.makeXPos(pos), format, args...)
+func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+	base.ErrorfAt(p.makeXPos(pos), format, args...)
 }
-
-var pathPrefix string
 
 // TODO(gri) Can we eliminate fileh in favor of absFilename?
 func fileh(name string) string {
-	return objabi.AbsFile("", name, pathPrefix)
+	return objabi.AbsFile("", name, base.Flag.TrimPath)
 }
 
 func absFilename(name string) string {
-	return objabi.AbsFile(Ctxt.Pathname, name, pathPrefix)
+	return objabi.AbsFile(base.Ctxt.Pathname, name, base.Flag.TrimPath)
 }
 
 // noder transforms package syntax's AST into a Node tree.
@@ -208,7 +210,7 @@ type noder struct {
 	linknames      []linkname
 	pragcgobuf     [][]string
 	err            chan syntax.Error
-	scope          ScopeID
+	scope          ir.ScopeID
 	importedUnsafe bool
 	importedEmbed  bool
 
@@ -219,7 +221,7 @@ type noder struct {
 	lastCloseScopePos syntax.Pos
 }
 
-func (p *noder) funcBody(fn *Node, block *syntax.BlockStmt) {
+func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
 	oldScope := p.scope
 	p.scope = 0
 	funchdr(fn)
@@ -227,12 +229,12 @@ func (p *noder) funcBody(fn *Node, block *syntax.BlockStmt) {
 	if block != nil {
 		body := p.stmts(block.List)
 		if body == nil {
-			body = []*Node{nod(OEMPTY, nil, nil)}
+			body = []ir.Node{ir.Nod(ir.OEMPTY, nil, nil)}
 		}
-		fn.Nbody.Set(body)
+		fn.PtrBody().Set(body)
 
-		lineno = p.makeXPos(block.Rbrace)
-		fn.Func.Endlineno = lineno
+		base.Pos = p.makeXPos(block.Rbrace)
+		fn.Func().Endlineno = base.Pos
 	}
 
 	funcbody()
@@ -243,9 +245,9 @@ func (p *noder) openScope(pos syntax.Pos) {
 	types.Markdcl()
 
 	if trackScopes {
-		Curfn.Func.Parents = append(Curfn.Func.Parents, p.scope)
-		p.scopeVars = append(p.scopeVars, len(Curfn.Func.Dcl))
-		p.scope = ScopeID(len(Curfn.Func.Parents))
+		Curfn.Func().Parents = append(Curfn.Func().Parents, p.scope)
+		p.scopeVars = append(p.scopeVars, len(Curfn.Func().Dcl))
+		p.scope = ir.ScopeID(len(Curfn.Func().Parents))
 
 		p.markScope(pos)
 	}
@@ -258,29 +260,29 @@ func (p *noder) closeScope(pos syntax.Pos) {
 	if trackScopes {
 		scopeVars := p.scopeVars[len(p.scopeVars)-1]
 		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
-		if scopeVars == len(Curfn.Func.Dcl) {
+		if scopeVars == len(Curfn.Func().Dcl) {
 			// no variables were declared in this scope, so we can retract it.
 
-			if int(p.scope) != len(Curfn.Func.Parents) {
-				Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
+			if int(p.scope) != len(Curfn.Func().Parents) {
+				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
 			}
 
-			p.scope = Curfn.Func.Parents[p.scope-1]
-			Curfn.Func.Parents = Curfn.Func.Parents[:len(Curfn.Func.Parents)-1]
+			p.scope = Curfn.Func().Parents[p.scope-1]
+			Curfn.Func().Parents = Curfn.Func().Parents[:len(Curfn.Func().Parents)-1]
 
-			nmarks := len(Curfn.Func.Marks)
-			Curfn.Func.Marks[nmarks-1].Scope = p.scope
-			prevScope := ScopeID(0)
+			nmarks := len(Curfn.Func().Marks)
+			Curfn.Func().Marks[nmarks-1].Scope = p.scope
+			prevScope := ir.ScopeID(0)
 			if nmarks >= 2 {
-				prevScope = Curfn.Func.Marks[nmarks-2].Scope
+				prevScope = Curfn.Func().Marks[nmarks-2].Scope
 			}
-			if Curfn.Func.Marks[nmarks-1].Scope == prevScope {
-				Curfn.Func.Marks = Curfn.Func.Marks[:nmarks-1]
+			if Curfn.Func().Marks[nmarks-1].Scope == prevScope {
+				Curfn.Func().Marks = Curfn.Func().Marks[:nmarks-1]
 			}
 			return
 		}
 
-		p.scope = Curfn.Func.Parents[p.scope-1]
+		p.scope = Curfn.Func().Parents[p.scope-1]
 
 		p.markScope(pos)
 	}
@@ -288,10 +290,10 @@ func (p *noder) closeScope(pos syntax.Pos) {
 
 func (p *noder) markScope(pos syntax.Pos) {
 	xpos := p.makeXPos(pos)
-	if i := len(Curfn.Func.Marks); i > 0 && Curfn.Func.Marks[i-1].Pos == xpos {
-		Curfn.Func.Marks[i-1].Scope = p.scope
+	if i := len(Curfn.Func().Marks); i > 0 && Curfn.Func().Marks[i-1].Pos == xpos {
+		Curfn.Func().Marks[i-1].Scope = p.scope
 	} else {
-		Curfn.Func.Marks = append(Curfn.Func.Marks, Mark{xpos, p.scope})
+		Curfn.Func().Marks = append(Curfn.Func().Marks, ir.Mark{Pos: xpos, Scope: p.scope})
 	}
 }
 
@@ -319,7 +321,7 @@ func (p *noder) node() {
 	mkpackage(p.file.PkgName.Value)
 
 	if pragma, ok := p.file.Pragma.(*Pragma); ok {
-		pragma.Flag &^= GoBuildPragma
+		pragma.Flag &^= ir.GoBuildPragma
 		p.checkUnused(pragma)
 	}
 
@@ -327,7 +329,7 @@ func (p *noder) node() {
 
 	for _, n := range p.linknames {
 		if !p.importedUnsafe {
-			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+			p.errorAt(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 			continue
 		}
 		s := lookup(n.local)
@@ -336,10 +338,10 @@ func (p *noder) node() {
 		} else {
 			// Use the default object symbol name if the
 			// user didn't provide one.
-			if myimportpath == "" {
-				p.yyerrorpos(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
+			if base.Ctxt.Pkgpath == "" {
+				p.errorAt(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
 			} else {
-				s.Linkname = objabi.PathToPrefix(myimportpath) + "." + n.local
+				s.Linkname = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + n.local
 			}
 		}
 	}
@@ -357,11 +359,11 @@ func (p *noder) node() {
 	}
 
 	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
-	lineno = src.NoXPos
+	base.Pos = src.NoXPos
 	clearImports()
 }
 
-func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
 	var cs constState
 
 	for _, decl := range decls {
@@ -399,11 +401,10 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		p.checkUnused(pragma)
 	}
 
-	val := p.basicLit(imp.Path)
-	ipkg := importfile(&val)
+	ipkg := importfile(p.basicLit(imp.Path))
 	if ipkg == nil {
-		if nerrors == 0 {
-			Fatalf("phase error in import")
+		if base.Errors() == 0 {
+			base.Fatalf("phase error in import")
 		}
 		return
 	}
@@ -424,33 +425,33 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		my = lookup(ipkg.Name)
 	}
 
-	pack := p.nod(imp, OPACK, nil, nil)
-	pack.Sym = my
-	pack.Name.Pkg = ipkg
+	pack := p.nod(imp, ir.OPACK, nil, nil)
+	pack.SetSym(my)
+	pack.Name().Pkg = ipkg
 
 	switch my.Name {
 	case ".":
 		importdot(ipkg, pack)
 		return
 	case "init":
-		yyerrorl(pack.Pos, "cannot import package as init - init must be a func")
+		base.ErrorfAt(pack.Pos(), "cannot import package as init - init must be a func")
 		return
 	case "_":
 		return
 	}
 	if my.Def != nil {
-		redeclare(pack.Pos, my, "as imported package name")
+		redeclare(pack.Pos(), my, "as imported package name")
 	}
-	my.Def = asTypesNode(pack)
-	my.Lastlineno = pack.Pos
+	my.Def = pack
+	my.Lastlineno = pack.Pos()
 	my.Block = 1 // at top level
 }
 
-func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 	names := p.declNames(decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
-	var exprs []*Node
+	var exprs []ir.Node
 	if decl.Values != nil {
 		exprs = p.exprList(decl.Values)
 	}
@@ -463,7 +464,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 				// so at that point it hasn't seen the imports.
 				// We're left to check now, just before applying the //go:embed lines.
 				for _, e := range pragma.Embeds {
-					p.yyerrorpos(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
+					p.errorAt(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
 				}
 			} else {
 				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
@@ -482,12 +483,12 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 // constant declarations are handled correctly (e.g., issue 15550).
 type constState struct {
 	group  *syntax.Group
-	typ    *Node
-	values []*Node
+	typ    ir.Node
+	values []ir.Node
 	iota   int64
 }
 
-func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
+func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 	if decl.Group == nil || decl.Group != cs.group {
 		*cs = constState{
 			group: decl.Group,
@@ -501,40 +502,40 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 	names := p.declNames(decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
-	var values []*Node
+	var values []ir.Node
 	if decl.Values != nil {
 		values = p.exprList(decl.Values)
 		cs.typ, cs.values = typ, values
 	} else {
 		if typ != nil {
-			yyerror("const declaration cannot have type without expression")
+			base.Errorf("const declaration cannot have type without expression")
 		}
 		typ, values = cs.typ, cs.values
 	}
 
-	nn := make([]*Node, 0, len(names))
+	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
 		if i >= len(values) {
-			yyerror("missing value in const declaration")
+			base.Errorf("missing value in const declaration")
 			break
 		}
 		v := values[i]
 		if decl.Values == nil {
-			v = treecopy(v, n.Pos)
+			v = treecopy(v, n.Pos())
 		}
 
-		n.Op = OLITERAL
+		n.SetOp(ir.OLITERAL)
 		declare(n, dclcontext)
 
-		n.Name.Param.Ntype = typ
-		n.Name.Defn = v
+		n.Name().Param.Ntype = typ
+		n.Name().Defn = v
 		n.SetIota(cs.iota)
 
-		nn = append(nn, p.nod(decl, ODCLCONST, n, nil))
+		nn = append(nn, p.nod(decl, ir.ODCLCONST, n, nil))
 	}
 
 	if len(values) > len(names) {
-		yyerror("extra expression in const declaration")
+		base.Errorf("extra expression in const declaration")
 	}
 
 	cs.iota++
@@ -542,15 +543,15 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 	return nn
 }
 
-func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	n := p.declName(decl.Name)
-	n.Op = OTYPE
+	n.SetOp(ir.OTYPE)
 	declare(n, dclcontext)
 
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
 
-	param := n.Name.Param
+	param := n.Name().Param
 	param.Ntype = typ
 	param.SetAlias(decl.Alias)
 	if pragma, ok := decl.Pragma.(*Pragma); ok {
@@ -561,86 +562,86 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 		p.checkUnused(pragma)
 	}
 
-	nod := p.nod(decl, ODCLTYPE, n, nil)
-	if param.Alias() && !langSupported(1, 9, localpkg) {
-		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
+	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
+	if param.Alias() && !langSupported(1, 9, ir.LocalPkg) {
+		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
 }
 
-func (p *noder) declNames(names []*syntax.Name) []*Node {
-	nodes := make([]*Node, 0, len(names))
+func (p *noder) declNames(names []*syntax.Name) []ir.Node {
+	nodes := make([]ir.Node, 0, len(names))
 	for _, name := range names {
 		nodes = append(nodes, p.declName(name))
 	}
 	return nodes
 }
 
-func (p *noder) declName(name *syntax.Name) *Node {
+func (p *noder) declName(name *syntax.Name) ir.Node {
 	n := dclname(p.name(name))
-	n.Pos = p.pos(name)
+	n.SetPos(p.pos(name))
 	return n
 }
 
-func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	name := p.name(fun.Name)
 	t := p.signature(fun.Recv, fun.Type)
-	f := p.nod(fun, ODCLFUNC, nil, nil)
+	f := p.nod(fun, ir.ODCLFUNC, nil, nil)
 
 	if fun.Recv == nil {
 		if name.Name == "init" {
 			name = renameinit()
-			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				yyerrorl(f.Pos, "func init must have no arguments and no return values")
+			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
+				base.ErrorfAt(f.Pos(), "func init must have no arguments and no return values")
 			}
 		}
 
-		if localpkg.Name == "main" && name.Name == "main" {
-			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				yyerrorl(f.Pos, "func main must have no arguments and no return values")
+		if ir.LocalPkg.Name == "main" && name.Name == "main" {
+			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
+				base.ErrorfAt(f.Pos(), "func main must have no arguments and no return values")
 			}
 		}
 	} else {
-		f.Func.Shortname = name
-		name = nblank.Sym // filled in by typecheckfunc
+		f.Func().Shortname = name
+		name = ir.BlankNode.Sym() // filled in by typecheckfunc
 	}
 
-	f.Func.Nname = newfuncnamel(p.pos(fun.Name), name)
-	f.Func.Nname.Name.Defn = f
-	f.Func.Nname.Name.Param.Ntype = t
+	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
+	f.Func().Nname.Name().Defn = f
+	f.Func().Nname.Name().Param.Ntype = t
 
 	if pragma, ok := fun.Pragma.(*Pragma); ok {
-		f.Func.Pragma = pragma.Flag & FuncPragmas
-		if pragma.Flag&Systemstack != 0 && pragma.Flag&Nosplit != 0 {
-			yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+		f.Func().Pragma = pragma.Flag & FuncPragmas
+		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
+			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
 		}
 		pragma.Flag &^= FuncPragmas
 		p.checkUnused(pragma)
 	}
 
 	if fun.Recv == nil {
-		declare(f.Func.Nname, PFUNC)
+		declare(f.Func().Nname, ir.PFUNC)
 	}
 
 	p.funcBody(f, fun.Body)
 
 	if fun.Body != nil {
-		if f.Func.Pragma&Noescape != 0 {
-			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
+		if f.Func().Pragma&ir.Noescape != 0 {
+			base.ErrorfAt(f.Pos(), "can only use //go:noescape with external func implementations")
 		}
 	} else {
-		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+		if base.Flag.Complete || strings.HasPrefix(ir.FuncName(f), "init.") {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
 			isLinknamed := false
 			for _, n := range p.linknames {
-				if f.funcname() == n.local {
+				if ir.FuncName(f) == n.local {
 					isLinknamed = true
 					break
 				}
 			}
 			if !isLinknamed {
-				yyerrorl(f.Pos, "missing function body")
+				base.ErrorfAt(f.Pos(), "missing function body")
 			}
 		}
 	}
@@ -648,18 +649,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	return f
 }
 
-func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) *Node {
-	n := p.nod(typ, OTFUNC, nil, nil)
+func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) ir.Node {
+	n := p.nod(typ, ir.OTFUNC, nil, nil)
 	if recv != nil {
-		n.Left = p.param(recv, false, false)
+		n.SetLeft(p.param(recv, false, false))
 	}
-	n.List.Set(p.params(typ.ParamList, true))
-	n.Rlist.Set(p.params(typ.ResultList, false))
+	n.PtrList().Set(p.params(typ.ParamList, true))
+	n.PtrRlist().Set(p.params(typ.ResultList, false))
 	return n
 }
 
-func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
-	nodes := make([]*Node, 0, len(params))
+func (p *noder) params(params []*syntax.Field, dddOk bool) []ir.Node {
+	nodes := make([]ir.Node, 0, len(params))
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
@@ -667,56 +668,56 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
 	return nodes
 }
 
-func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
+func (p *noder) param(param *syntax.Field, dddOk, final bool) ir.Node {
 	var name *types.Sym
 	if param.Name != nil {
 		name = p.name(param.Name)
 	}
 
 	typ := p.typeExpr(param.Type)
-	n := p.nodSym(param, ODCLFIELD, typ, name)
+	n := p.nodSym(param, ir.ODCLFIELD, typ, name)
 
 	// rewrite ...T parameter
-	if typ.Op == ODDD {
+	if typ.Op() == ir.ODDD {
 		if !dddOk {
 			// We mark these as syntax errors to get automatic elimination
-			// of multiple such errors per line (see yyerrorl in subr.go).
-			yyerror("syntax error: cannot use ... in receiver or result parameter list")
+			// of multiple such errors per line (see ErrorfAt in subr.go).
+			base.Errorf("syntax error: cannot use ... in receiver or result parameter list")
 		} else if !final {
 			if param.Name == nil {
-				yyerror("syntax error: cannot use ... with non-final parameter")
+				base.Errorf("syntax error: cannot use ... with non-final parameter")
 			} else {
-				p.yyerrorpos(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
+				p.errorAt(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
 			}
 		}
-		typ.Op = OTARRAY
-		typ.Right = typ.Left
-		typ.Left = nil
+		typ.SetOp(ir.OTARRAY)
+		typ.SetRight(typ.Left())
+		typ.SetLeft(nil)
 		n.SetIsDDD(true)
-		if n.Left != nil {
-			n.Left.SetIsDDD(true)
+		if n.Left() != nil {
+			n.Left().SetIsDDD(true)
 		}
 	}
 
 	return n
 }
 
-func (p *noder) exprList(expr syntax.Expr) []*Node {
+func (p *noder) exprList(expr syntax.Expr) []ir.Node {
 	if list, ok := expr.(*syntax.ListExpr); ok {
 		return p.exprs(list.ElemList)
 	}
-	return []*Node{p.expr(expr)}
+	return []ir.Node{p.expr(expr)}
 }
 
-func (p *noder) exprs(exprs []syntax.Expr) []*Node {
-	nodes := make([]*Node, 0, len(exprs))
+func (p *noder) exprs(exprs []syntax.Expr) []ir.Node {
+	nodes := make([]ir.Node, 0, len(exprs))
 	for _, expr := range exprs {
 		nodes = append(nodes, p.expr(expr))
 	}
 	return nodes
 }
 
-func (p *noder) expr(expr syntax.Expr) *Node {
+func (p *noder) expr(expr syntax.Expr) ir.Node {
 	p.setlineno(expr)
 	switch expr := expr.(type) {
 	case nil, *syntax.BadExpr:
@@ -724,47 +725,50 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.Name:
 		return p.mkname(expr)
 	case *syntax.BasicLit:
-		n := nodlit(p.basicLit(expr))
+		n := ir.NewLiteral(p.basicLit(expr))
+		if expr.Kind == syntax.RuneLit {
+			n.SetType(types.UntypedRune)
+		}
 		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
-		n := p.nod(expr, OCOMPLIT, nil, nil)
+		n := p.nod(expr, ir.OCOMPLIT, nil, nil)
 		if expr.Type != nil {
-			n.Right = p.expr(expr.Type)
+			n.SetRight(p.expr(expr.Type))
 		}
 		l := p.exprs(expr.ElemList)
 		for i, e := range l {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
-		n.List.Set(l)
-		lineno = p.makeXPos(expr.Rbrace)
+		n.PtrList().Set(l)
+		base.Pos = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
 		// use position of expr.Key rather than of expr (which has position of ':')
-		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+		return p.nod(expr.Key, ir.OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
 	case *syntax.ParenExpr:
-		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+		return p.nod(expr, ir.OPAREN, p.expr(expr.X), nil)
 	case *syntax.SelectorExpr:
 		// parser.new_dotname
 		obj := p.expr(expr.X)
-		if obj.Op == OPACK {
-			obj.Name.SetUsed(true)
-			return importName(obj.Name.Pkg.Lookup(expr.Sel.Value))
+		if obj.Op() == ir.OPACK {
+			obj.Name().SetUsed(true)
+			return importName(obj.Name().Pkg.Lookup(expr.Sel.Value))
 		}
-		n := nodSym(OXDOT, obj, p.name(expr.Sel))
-		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
+		n := nodSym(ir.OXDOT, obj, p.name(expr.Sel))
+		n.SetPos(p.pos(expr)) // lineno may have been changed by p.expr(expr.X)
 		return n
 	case *syntax.IndexExpr:
-		return p.nod(expr, OINDEX, p.expr(expr.X), p.expr(expr.Index))
+		return p.nod(expr, ir.OINDEX, p.expr(expr.X), p.expr(expr.Index))
 	case *syntax.SliceExpr:
-		op := OSLICE
+		op := ir.OSLICE
 		if expr.Full {
-			op = OSLICE3
+			op = ir.OSLICE3
 		}
 		n := p.nod(expr, op, p.expr(expr.X), nil)
-		var index [3]*Node
+		var index [3]ir.Node
 		for i, x := range &expr.Index {
 			if x != nil {
 				index[i] = p.expr(x)
@@ -773,7 +777,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		n.SetSliceBounds(index[0], index[1], index[2])
 		return n
 	case *syntax.AssertExpr:
-		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
+		return p.nod(expr, ir.ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
 	case *syntax.Operation:
 		if expr.Op == syntax.Add && expr.Y != nil {
 			return p.sum(expr)
@@ -784,23 +788,23 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		}
 		return p.nod(expr, p.binOp(expr.Op), x, p.expr(expr.Y))
 	case *syntax.CallExpr:
-		n := p.nod(expr, OCALL, p.expr(expr.Fun), nil)
-		n.List.Set(p.exprs(expr.ArgList))
+		n := p.nod(expr, ir.OCALL, p.expr(expr.Fun), nil)
+		n.PtrList().Set(p.exprs(expr.ArgList))
 		n.SetIsDDD(expr.HasDots)
 		return n
 
 	case *syntax.ArrayType:
-		var len *Node
+		var len ir.Node
 		if expr.Len != nil {
 			len = p.expr(expr.Len)
 		} else {
-			len = p.nod(expr, ODDD, nil, nil)
+			len = p.nod(expr, ir.ODDD, nil, nil)
 		}
-		return p.nod(expr, OTARRAY, len, p.typeExpr(expr.Elem))
+		return p.nod(expr, ir.OTARRAY, len, p.typeExpr(expr.Elem))
 	case *syntax.SliceType:
-		return p.nod(expr, OTARRAY, nil, p.typeExpr(expr.Elem))
+		return p.nod(expr, ir.OTARRAY, nil, p.typeExpr(expr.Elem))
 	case *syntax.DotsType:
-		return p.nod(expr, ODDD, p.typeExpr(expr.Elem), nil)
+		return p.nod(expr, ir.ODDD, p.typeExpr(expr.Elem), nil)
 	case *syntax.StructType:
 		return p.structType(expr)
 	case *syntax.InterfaceType:
@@ -808,18 +812,18 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.FuncType:
 		return p.signature(nil, expr)
 	case *syntax.MapType:
-		return p.nod(expr, OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
+		return p.nod(expr, ir.OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
 	case *syntax.ChanType:
-		n := p.nod(expr, OTCHAN, p.typeExpr(expr.Elem), nil)
+		n := p.nod(expr, ir.OTCHAN, p.typeExpr(expr.Elem), nil)
 		n.SetTChanDir(p.chanDir(expr.Dir))
 		return n
 
 	case *syntax.TypeSwitchGuard:
-		n := p.nod(expr, OTYPESW, nil, p.expr(expr.X))
+		n := p.nod(expr, ir.OTYPESW, nil, p.expr(expr.X))
 		if expr.Lhs != nil {
-			n.Left = p.declName(expr.Lhs)
-			if n.Left.isBlank() {
-				yyerror("invalid variable name %v in type switch", n.Left)
+			n.SetLeft(p.declName(expr.Lhs))
+			if ir.IsBlank(n.Left()) {
+				base.Errorf("invalid variable name %v in type switch", n.Left())
 			}
 		}
 		return n
@@ -830,7 +834,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 // sum efficiently handles very large summation expressions (such as
 // in issue #16394). In particular, it avoids left recursion and
 // collapses string literals.
-func (p *noder) sum(x syntax.Expr) *Node {
+func (p *noder) sum(x syntax.Expr) ir.Node {
 	// While we need to handle long sums with asymptotic
 	// efficiency, the vast majority of sums are very small: ~95%
 	// have only 2 or 3 operands, and ~99% of string literals are
@@ -865,11 +869,11 @@ func (p *noder) sum(x syntax.Expr) *Node {
 	// handle correctly. For now, we avoid these problems by
 	// treating named string constants the same as non-constant
 	// operands.
-	var nstr *Node
+	var nstr ir.Node
 	chunks := make([]string, 0, 1)
 
 	n := p.expr(x)
-	if Isconst(n, CTSTR) && n.Sym == nil {
+	if ir.IsConst(n, constant.String) && n.Sym() == nil {
 		nstr = n
 		chunks = append(chunks, nstr.StringVal())
 	}
@@ -878,7 +882,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
 		add := adds[i]
 
 		r := p.expr(add.Y)
-		if Isconst(r, CTSTR) && r.Sym == nil {
+		if ir.IsConst(r, constant.String) && r.Sym() == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
 				chunks = append(chunks, r.StringVal())
@@ -889,26 +893,26 @@ func (p *noder) sum(x syntax.Expr) *Node {
 			chunks = append(chunks, nstr.StringVal())
 		} else {
 			if len(chunks) > 1 {
-				nstr.SetVal(Val{U: strings.Join(chunks, "")})
+				nstr.SetVal(constant.MakeString(strings.Join(chunks, "")))
 			}
 			nstr = nil
 			chunks = chunks[:0]
 		}
-		n = p.nod(add, OADD, n, r)
+		n = p.nod(add, ir.OADD, n, r)
 	}
 	if len(chunks) > 1 {
-		nstr.SetVal(Val{U: strings.Join(chunks, "")})
+		nstr.SetVal(constant.MakeString(strings.Join(chunks, "")))
 	}
 
 	return n
 }
 
-func (p *noder) typeExpr(typ syntax.Expr) *Node {
+func (p *noder) typeExpr(typ syntax.Expr) ir.Node {
 	// TODO(mdempsky): Be stricter? typecheck should handle errors anyway.
 	return p.expr(typ)
 }
 
-func (p *noder) typeExprOrNil(typ syntax.Expr) *Node {
+func (p *noder) typeExprOrNil(typ syntax.Expr) ir.Node {
 	if typ != nil {
 		return p.expr(typ)
 	}
@@ -927,15 +931,15 @@ func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 	panic("unhandled ChanDir")
 }
 
-func (p *noder) structType(expr *syntax.StructType) *Node {
-	l := make([]*Node, 0, len(expr.FieldList))
+func (p *noder) structType(expr *syntax.StructType) ir.Node {
+	l := make([]ir.Node, 0, len(expr.FieldList))
 	for i, field := range expr.FieldList {
 		p.setlineno(field)
-		var n *Node
+		var n ir.Node
 		if field.Name == nil {
 			n = p.embedded(field.Type)
 		} else {
-			n = p.nodSym(field, ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
+			n = p.nodSym(field, ir.ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
 			n.SetVal(p.basicLit(expr.TagList[i]))
@@ -944,30 +948,30 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 	}
 
 	p.setlineno(expr)
-	n := p.nod(expr, OTSTRUCT, nil, nil)
-	n.List.Set(l)
+	n := p.nod(expr, ir.OTSTRUCT, nil, nil)
+	n.PtrList().Set(l)
 	return n
 }
 
-func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
-	l := make([]*Node, 0, len(expr.MethodList))
+func (p *noder) interfaceType(expr *syntax.InterfaceType) ir.Node {
+	l := make([]ir.Node, 0, len(expr.MethodList))
 	for _, method := range expr.MethodList {
 		p.setlineno(method)
-		var n *Node
+		var n ir.Node
 		if method.Name == nil {
-			n = p.nodSym(method, ODCLFIELD, importName(p.packname(method.Type)), nil)
+			n = p.nodSym(method, ir.ODCLFIELD, importName(p.packname(method.Type)), nil)
 		} else {
 			mname := p.name(method.Name)
 			sig := p.typeExpr(method.Type)
-			sig.Left = fakeRecv()
-			n = p.nodSym(method, ODCLFIELD, sig, mname)
+			sig.SetLeft(fakeRecv())
+			n = p.nodSym(method, ir.ODCLFIELD, sig, mname)
 			ifacedcl(n)
 		}
 		l = append(l, n)
 	}
 
-	n := p.nod(expr, OTINTER, nil, nil)
-	n.List.Set(l)
+	n := p.nod(expr, ir.OTINTER, nil, nil)
+	n.PtrList().Set(l)
 	return n
 }
 
@@ -975,31 +979,31 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	switch expr := expr.(type) {
 	case *syntax.Name:
 		name := p.name(expr)
-		if n := oldname(name); n.Name != nil && n.Name.Pack != nil {
-			n.Name.Pack.Name.SetUsed(true)
+		if n := oldname(name); n.Name() != nil && n.Name().Pack != nil {
+			n.Name().Pack.Name().SetUsed(true)
 		}
 		return name
 	case *syntax.SelectorExpr:
 		name := p.name(expr.X.(*syntax.Name))
-		def := asNode(name.Def)
+		def := ir.AsNode(name.Def)
 		if def == nil {
-			yyerror("undefined: %v", name)
+			base.Errorf("undefined: %v", name)
 			return name
 		}
 		var pkg *types.Pkg
-		if def.Op != OPACK {
-			yyerror("%v is not a package", name)
-			pkg = localpkg
+		if def.Op() != ir.OPACK {
+			base.Errorf("%v is not a package", name)
+			pkg = ir.LocalPkg
 		} else {
-			def.Name.SetUsed(true)
-			pkg = def.Name.Pkg
+			def.Name().SetUsed(true)
+			pkg = def.Name().Pkg
 		}
 		return pkg.Lookup(expr.Sel.Value)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
 
-func (p *noder) embedded(typ syntax.Expr) *Node {
+func (p *noder) embedded(typ syntax.Expr) ir.Node {
 	op, isStar := typ.(*syntax.Operation)
 	if isStar {
 		if op.Op != syntax.Mul || op.Y != nil {
@@ -1009,26 +1013,26 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ODCLFIELD, importName(sym), lookup(sym.Name))
+	n := p.nodSym(typ, ir.ODCLFIELD, importName(sym), lookup(sym.Name))
 	n.SetEmbedded(true)
 
 	if isStar {
-		n.Left = p.nod(op, ODEREF, n.Left, nil)
+		n.SetLeft(p.nod(op, ir.ODEREF, n.Left(), nil))
 	}
 	return n
 }
 
-func (p *noder) stmts(stmts []syntax.Stmt) []*Node {
+func (p *noder) stmts(stmts []syntax.Stmt) []ir.Node {
 	return p.stmtsFall(stmts, false)
 }
 
-func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []*Node {
-	var nodes []*Node
+func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
+	var nodes []ir.Node
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op == OBLOCK && s.Ninit.Len() == 0 {
-			nodes = append(nodes, s.List.Slice()...)
+		} else if s.Op() == ir.OBLOCK && s.Init().Len() == 0 {
+			nodes = append(nodes, s.List().Slice()...)
 		} else {
 			nodes = append(nodes, s)
 		}
@@ -1036,11 +1040,11 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []*Node {
 	return nodes
 }
 
-func (p *noder) stmt(stmt syntax.Stmt) *Node {
+func (p *noder) stmt(stmt syntax.Stmt) ir.Node {
 	return p.stmtFall(stmt, false)
 }
 
-func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
+func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	p.setlineno(stmt)
 	switch stmt := stmt.(type) {
 	case *syntax.EmptyStmt:
@@ -1051,89 +1055,89 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		l := p.blockStmt(stmt)
 		if len(l) == 0 {
 			// TODO(mdempsky): Line number?
-			return nod(OEMPTY, nil, nil)
+			return ir.Nod(ir.OEMPTY, nil, nil)
 		}
 		return liststmt(l)
 	case *syntax.ExprStmt:
 		return p.wrapname(stmt, p.expr(stmt.X))
 	case *syntax.SendStmt:
-		return p.nod(stmt, OSEND, p.expr(stmt.Chan), p.expr(stmt.Value))
+		return p.nod(stmt, ir.OSEND, p.expr(stmt.Chan), p.expr(stmt.Value))
 	case *syntax.DeclStmt:
 		return liststmt(p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
-			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
+			n := p.nod(stmt, ir.OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
 			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
 			n.SetSubOp(p.binOp(stmt.Op))
 			return n
 		}
 
-		n := p.nod(stmt, OAS, nil, nil) // assume common case
+		n := p.nod(stmt, ir.OAS, nil, nil) // assume common case
 
 		rhs := p.exprList(stmt.Rhs)
 		lhs := p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)
 
 		if len(lhs) == 1 && len(rhs) == 1 {
 			// common case
-			n.Left = lhs[0]
-			n.Right = rhs[0]
+			n.SetLeft(lhs[0])
+			n.SetRight(rhs[0])
 		} else {
-			n.Op = OAS2
-			n.List.Set(lhs)
-			n.Rlist.Set(rhs)
+			n.SetOp(ir.OAS2)
+			n.PtrList().Set(lhs)
+			n.PtrRlist().Set(rhs)
 		}
 		return n
 
 	case *syntax.BranchStmt:
-		var op Op
+		var op ir.Op
 		switch stmt.Tok {
 		case syntax.Break:
-			op = OBREAK
+			op = ir.OBREAK
 		case syntax.Continue:
-			op = OCONTINUE
+			op = ir.OCONTINUE
 		case syntax.Fallthrough:
 			if !fallOK {
-				yyerror("fallthrough statement out of place")
+				base.Errorf("fallthrough statement out of place")
 			}
-			op = OFALL
+			op = ir.OFALL
 		case syntax.Goto:
-			op = OGOTO
+			op = ir.OGOTO
 		default:
 			panic("unhandled BranchStmt")
 		}
 		n := p.nod(stmt, op, nil, nil)
 		if stmt.Label != nil {
-			n.Sym = p.name(stmt.Label)
+			n.SetSym(p.name(stmt.Label))
 		}
 		return n
 	case *syntax.CallStmt:
-		var op Op
+		var op ir.Op
 		switch stmt.Tok {
 		case syntax.Defer:
-			op = ODEFER
+			op = ir.ODEFER
 		case syntax.Go:
-			op = OGO
+			op = ir.OGO
 		default:
 			panic("unhandled CallStmt")
 		}
 		return p.nod(stmt, op, p.expr(stmt.Call), nil)
 	case *syntax.ReturnStmt:
-		var results []*Node
+		var results []ir.Node
 		if stmt.Results != nil {
 			results = p.exprList(stmt.Results)
 		}
-		n := p.nod(stmt, ORETURN, nil, nil)
-		n.List.Set(results)
-		if n.List.Len() == 0 && Curfn != nil {
-			for _, ln := range Curfn.Func.Dcl {
-				if ln.Class() == PPARAM {
+		n := p.nod(stmt, ir.ORETURN, nil, nil)
+		n.PtrList().Set(results)
+		if n.List().Len() == 0 && Curfn != nil {
+			for _, ln := range Curfn.Func().Dcl {
+				if ln.Class() == ir.PPARAM {
 					continue
 				}
-				if ln.Class() != PPARAMOUT {
+				if ln.Class() != ir.PPARAMOUT {
 					break
 				}
-				if asNode(ln.Sym.Def) != ln {
-					yyerror("%s is shadowed during return", ln.Sym.Name)
+				if ir.AsNode(ln.Sym().Def) != ln {
+					base.Errorf("%s is shadowed during return", ln.Sym().Name)
 				}
 			}
 		}
@@ -1150,7 +1154,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 	panic("unhandled Stmt")
 }
 
-func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
+func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node {
 	if !colas {
 		return p.exprList(expr)
 	}
@@ -1164,17 +1168,17 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
 		exprs = []syntax.Expr{expr}
 	}
 
-	res := make([]*Node, len(exprs))
+	res := make([]ir.Node, len(exprs))
 	seen := make(map[*types.Sym]bool, len(exprs))
 
 	newOrErr := false
 	for i, expr := range exprs {
 		p.setlineno(expr)
-		res[i] = nblank
+		res[i] = ir.BlankNode
 
 		name, ok := expr.(*syntax.Name)
 		if !ok {
-			p.yyerrorpos(expr.Pos(), "non-name %v on left side of :=", p.expr(expr))
+			p.errorAt(expr.Pos(), "non-name %v on left side of :=", p.expr(expr))
 			newOrErr = true
 			continue
 		}
@@ -1185,7 +1189,7 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
 		}
 
 		if seen[sym] {
-			p.yyerrorpos(expr.Pos(), "%v repeated on left side of :=", sym)
+			p.errorAt(expr.Pos(), "%v repeated on left side of :=", sym)
 			newOrErr = true
 			continue
 		}
@@ -1197,99 +1201,99 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
 		}
 
 		newOrErr = true
-		n := newname(sym)
+		n := NewName(sym)
 		declare(n, dclcontext)
-		n.Name.Defn = defn
-		defn.Ninit.Append(nod(ODCL, n, nil))
+		n.Name().Defn = defn
+		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
 		res[i] = n
 	}
 
 	if !newOrErr {
-		yyerrorl(defn.Pos, "no new variables on left side of :=")
+		base.ErrorfAt(defn.Pos(), "no new variables on left side of :=")
 	}
 	return res
 }
 
-func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
+func (p *noder) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
 	p.openScope(stmt.Pos())
 	nodes := p.stmts(stmt.List)
 	p.closeScope(stmt.Rbrace)
 	return nodes
 }
 
-func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
+func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := p.nod(stmt, OIF, nil, nil)
+	n := p.nod(stmt, ir.OIF, nil, nil)
 	if stmt.Init != nil {
-		n.Ninit.Set1(p.stmt(stmt.Init))
+		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
 	if stmt.Cond != nil {
-		n.Left = p.expr(stmt.Cond)
+		n.SetLeft(p.expr(stmt.Cond))
 	}
-	n.Nbody.Set(p.blockStmt(stmt.Then))
+	n.PtrBody().Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
-		if e.Op == OBLOCK && e.Ninit.Len() == 0 {
-			n.Rlist.Set(e.List.Slice())
+		if e.Op() == ir.OBLOCK && e.Init().Len() == 0 {
+			n.PtrRlist().Set(e.List().Slice())
 		} else {
-			n.Rlist.Set1(e)
+			n.PtrRlist().Set1(e)
 		}
 	}
 	p.closeAnotherScope()
 	return n
 }
 
-func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
+func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	var n *Node
+	var n ir.Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
 			panic("unexpected RangeClause")
 		}
 
-		n = p.nod(r, ORANGE, nil, p.expr(r.X))
+		n = p.nod(r, ir.ORANGE, nil, p.expr(r.X))
 		if r.Lhs != nil {
-			n.List.Set(p.assignList(r.Lhs, n, r.Def))
+			n.PtrList().Set(p.assignList(r.Lhs, n, r.Def))
 		}
 	} else {
-		n = p.nod(stmt, OFOR, nil, nil)
+		n = p.nod(stmt, ir.OFOR, nil, nil)
 		if stmt.Init != nil {
-			n.Ninit.Set1(p.stmt(stmt.Init))
+			n.PtrInit().Set1(p.stmt(stmt.Init))
 		}
 		if stmt.Cond != nil {
-			n.Left = p.expr(stmt.Cond)
+			n.SetLeft(p.expr(stmt.Cond))
 		}
 		if stmt.Post != nil {
-			n.Right = p.stmt(stmt.Post)
+			n.SetRight(p.stmt(stmt.Post))
 		}
 	}
-	n.Nbody.Set(p.blockStmt(stmt.Body))
+	n.PtrBody().Set(p.blockStmt(stmt.Body))
 	p.closeAnotherScope()
 	return n
 }
 
-func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
+func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := p.nod(stmt, OSWITCH, nil, nil)
+	n := p.nod(stmt, ir.OSWITCH, nil, nil)
 	if stmt.Init != nil {
-		n.Ninit.Set1(p.stmt(stmt.Init))
+		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
 	if stmt.Tag != nil {
-		n.Left = p.expr(stmt.Tag)
+		n.SetLeft(p.expr(stmt.Tag))
 	}
 
-	tswitch := n.Left
-	if tswitch != nil && tswitch.Op != OTYPESW {
+	tswitch := n.Left()
+	if tswitch != nil && tswitch.Op() != ir.OTYPESW {
 		tswitch = nil
 	}
-	n.List.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+	n.PtrList().Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
 
 	p.closeScope(stmt.Rbrace)
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace syntax.Pos) []*Node {
-	nodes := make([]*Node, 0, len(clauses))
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch ir.Node, rbrace syntax.Pos) []ir.Node {
+	nodes := make([]ir.Node, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1297,16 +1301,16 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, OCASE, nil, nil)
+		n := p.nod(clause, ir.OCASE, nil, nil)
 		if clause.Cases != nil {
-			n.List.Set(p.exprList(clause.Cases))
+			n.PtrList().Set(p.exprList(clause.Cases))
 		}
-		if tswitch != nil && tswitch.Left != nil {
-			nn := newname(tswitch.Left.Sym)
+		if tswitch != nil && tswitch.Left() != nil {
+			nn := NewName(tswitch.Left().Sym())
 			declare(nn, dclcontext)
-			n.Rlist.Set1(nn)
+			n.PtrRlist().Set1(nn)
 			// keep track of the instances for reporting unused
-			nn.Name.Defn = tswitch
+			nn.Name().Defn = tswitch
 		}
 
 		// Trim trailing empty statements. We omit them from
@@ -1320,13 +1324,13 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 			body = body[:len(body)-1]
 		}
 
-		n.Nbody.Set(p.stmtsFall(body, true))
-		if l := n.Nbody.Len(); l > 0 && n.Nbody.Index(l-1).Op == OFALL {
+		n.PtrBody().Set(p.stmtsFall(body, true))
+		if l := n.Body().Len(); l > 0 && n.Body().Index(l-1).Op() == ir.OFALL {
 			if tswitch != nil {
-				yyerror("cannot fallthrough in type switch")
+				base.Errorf("cannot fallthrough in type switch")
 			}
 			if i+1 == len(clauses) {
-				yyerror("cannot fallthrough final case in switch")
+				base.Errorf("cannot fallthrough final case in switch")
 			}
 		}
 
@@ -1338,14 +1342,14 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 	return nodes
 }
 
-func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
-	n := p.nod(stmt, OSELECT, nil, nil)
-	n.List.Set(p.commClauses(stmt.Body, stmt.Rbrace))
+func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
+	n := p.nod(stmt, ir.OSELECT, nil, nil)
+	n.PtrList().Set(p.commClauses(stmt.Body, stmt.Rbrace))
 	return n
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*Node {
-	nodes := make([]*Node, 0, len(clauses))
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []ir.Node {
+	nodes := make([]ir.Node, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
 		if i > 0 {
@@ -1353,11 +1357,11 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, OCASE, nil, nil)
+		n := p.nod(clause, ir.OCASE, nil, nil)
 		if clause.Comm != nil {
-			n.List.Set1(p.stmt(clause.Comm))
+			n.PtrList().Set1(p.stmt(clause.Comm))
 		}
-		n.Nbody.Set(p.stmts(clause.Body))
+		n.PtrBody().Set(p.stmts(clause.Body))
 		nodes = append(nodes, n)
 	}
 	if len(clauses) > 0 {
@@ -1366,19 +1370,19 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 	return nodes
 }
 
-func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
-	lhs := p.nodSym(label, OLABEL, nil, p.name(label.Label))
+func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
+	lhs := p.nodSym(label, ir.OLABEL, nil, p.name(label.Label))
 
-	var ls *Node
+	var ls ir.Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
 		ls = p.stmtFall(label.Stmt, fallOK)
 	}
 
-	lhs.Name.Defn = ls
-	l := []*Node{lhs}
+	lhs.Name().Defn = ls
+	l := []ir.Node{lhs}
 	if ls != nil {
-		if ls.Op == OBLOCK && ls.Ninit.Len() == 0 {
-			l = append(l, ls.List.Slice()...)
+		if ls.Op() == ir.OBLOCK && ls.Init().Len() == 0 {
+			l = append(l, ls.List().Slice()...)
 		} else {
 			l = append(l, ls)
 		}
@@ -1386,50 +1390,50 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
 	return liststmt(l)
 }
 
-var unOps = [...]Op{
-	syntax.Recv: ORECV,
-	syntax.Mul:  ODEREF,
-	syntax.And:  OADDR,
+var unOps = [...]ir.Op{
+	syntax.Recv: ir.ORECV,
+	syntax.Mul:  ir.ODEREF,
+	syntax.And:  ir.OADDR,
 
-	syntax.Not: ONOT,
-	syntax.Xor: OBITNOT,
-	syntax.Add: OPLUS,
-	syntax.Sub: ONEG,
+	syntax.Not: ir.ONOT,
+	syntax.Xor: ir.OBITNOT,
+	syntax.Add: ir.OPLUS,
+	syntax.Sub: ir.ONEG,
 }
 
-func (p *noder) unOp(op syntax.Operator) Op {
+func (p *noder) unOp(op syntax.Operator) ir.Op {
 	if uint64(op) >= uint64(len(unOps)) || unOps[op] == 0 {
 		panic("invalid Operator")
 	}
 	return unOps[op]
 }
 
-var binOps = [...]Op{
-	syntax.OrOr:   OOROR,
-	syntax.AndAnd: OANDAND,
+var binOps = [...]ir.Op{
+	syntax.OrOr:   ir.OOROR,
+	syntax.AndAnd: ir.OANDAND,
 
-	syntax.Eql: OEQ,
-	syntax.Neq: ONE,
-	syntax.Lss: OLT,
-	syntax.Leq: OLE,
-	syntax.Gtr: OGT,
-	syntax.Geq: OGE,
+	syntax.Eql: ir.OEQ,
+	syntax.Neq: ir.ONE,
+	syntax.Lss: ir.OLT,
+	syntax.Leq: ir.OLE,
+	syntax.Gtr: ir.OGT,
+	syntax.Geq: ir.OGE,
 
-	syntax.Add: OADD,
-	syntax.Sub: OSUB,
-	syntax.Or:  OOR,
-	syntax.Xor: OXOR,
+	syntax.Add: ir.OADD,
+	syntax.Sub: ir.OSUB,
+	syntax.Or:  ir.OOR,
+	syntax.Xor: ir.OXOR,
 
-	syntax.Mul:    OMUL,
-	syntax.Div:    ODIV,
-	syntax.Rem:    OMOD,
-	syntax.And:    OAND,
-	syntax.AndNot: OANDNOT,
-	syntax.Shl:    OLSH,
-	syntax.Shr:    ORSH,
+	syntax.Mul:    ir.OMUL,
+	syntax.Div:    ir.ODIV,
+	syntax.Rem:    ir.OMOD,
+	syntax.And:    ir.OAND,
+	syntax.AndNot: ir.OANDNOT,
+	syntax.Shl:    ir.OLSH,
+	syntax.Shr:    ir.ORSH,
 }
 
-func (p *noder) binOp(op syntax.Operator) Op {
+func (p *noder) binOp(op syntax.Operator) ir.Op {
 	if uint64(op) >= uint64(len(binOps)) || binOps[op] == 0 {
 		panic("invalid Operator")
 	}
@@ -1440,130 +1444,108 @@ func (p *noder) binOp(op syntax.Operator) Op {
 // literal is not compatible with the current language version.
 func checkLangCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || langSupported(1, 13, localpkg) {
+	if len(s) <= 2 || langSupported(1, 13, ir.LocalPkg) {
 		return
 	}
 	// len(s) > 2
 	if strings.Contains(s, "_") {
-		yyerrorv("go1.13", "underscores in numeric literals")
+		base.ErrorfVers("go1.13", "underscores in numeric literals")
 		return
 	}
 	if s[0] != '0' {
 		return
 	}
-	base := s[1]
-	if base == 'b' || base == 'B' {
-		yyerrorv("go1.13", "binary literals")
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
+		base.ErrorfVers("go1.13", "binary literals")
 		return
 	}
-	if base == 'o' || base == 'O' {
-		yyerrorv("go1.13", "0o/0O-style octal literals")
+	if radix == 'o' || radix == 'O' {
+		base.ErrorfVers("go1.13", "0o/0O-style octal literals")
 		return
 	}
-	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
-		yyerrorv("go1.13", "hexadecimal floating-point literals")
+	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
+		base.ErrorfVers("go1.13", "hexadecimal floating-point literals")
 	}
 }
 
-func (p *noder) basicLit(lit *syntax.BasicLit) Val {
+func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
 	// We don't use the errors of the conversion routines to determine
 	// if a literal string is valid because the conversion routines may
 	// accept a wider syntax than the language permits. Rely on lit.Bad
 	// instead.
-	switch s := lit.Value; lit.Kind {
-	case syntax.IntLit:
-		checkLangCompat(lit)
-		x := new(Mpint)
-		if !lit.Bad {
-			x.SetString(s)
-		}
-		return Val{U: x}
-
-	case syntax.FloatLit:
-		checkLangCompat(lit)
-		x := newMpflt()
-		if !lit.Bad {
-			x.SetString(s)
-		}
-		return Val{U: x}
-
-	case syntax.ImagLit:
-		checkLangCompat(lit)
-		x := newMpcmplx()
-		if !lit.Bad {
-			x.Imag.SetString(strings.TrimSuffix(s, "i"))
-		}
-		return Val{U: x}
-
-	case syntax.RuneLit:
-		x := new(Mpint)
-		x.Rune = true
-		if !lit.Bad {
-			u, _ := strconv.Unquote(s)
-			var r rune
-			if len(u) == 1 {
-				r = rune(u[0])
-			} else {
-				r, _ = utf8.DecodeRuneInString(u)
-			}
-			x.SetInt64(int64(r))
-		}
-		return Val{U: x}
-
-	case syntax.StringLit:
-		var x string
-		if !lit.Bad {
-			if len(s) > 0 && s[0] == '`' {
-				// strip carriage returns from raw string
-				s = strings.Replace(s, "\r", "", -1)
-			}
-			x, _ = strconv.Unquote(s)
-		}
-		return Val{U: x}
-
-	default:
-		panic("unhandled BasicLit kind")
+	if lit.Bad {
+		return constant.MakeUnknown()
 	}
+
+	switch lit.Kind {
+	case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
+		checkLangCompat(lit)
+	}
+
+	v := constant.MakeFromLiteral(lit.Value, tokenForLitKind[lit.Kind], 0)
+	if v.Kind() == constant.Unknown {
+		// TODO(mdempsky): Better error message?
+		p.errorAt(lit.Pos(), "malformed constant: %s", lit.Value)
+	}
+
+	// go/constant uses big.Rat by default, which is more precise, but
+	// causes toolstash -cmp and some tests to fail. For now, convert
+	// to big.Float to match cmd/compile's historical precision.
+	// TODO(mdempsky): Remove.
+	if v.Kind() == constant.Float {
+		v = constant.Make(bigFloatVal(v))
+	}
+
+	return v
+}
+
+var tokenForLitKind = [...]token.Token{
+	syntax.IntLit:    token.INT,
+	syntax.RuneLit:   token.CHAR,
+	syntax.FloatLit:  token.FLOAT,
+	syntax.ImagLit:   token.IMAG,
+	syntax.StringLit: token.STRING,
 }
 
 func (p *noder) name(name *syntax.Name) *types.Sym {
 	return lookup(name.Value)
 }
 
-func (p *noder) mkname(name *syntax.Name) *Node {
+func (p *noder) mkname(name *syntax.Name) ir.Node {
 	// TODO(mdempsky): Set line number?
 	return mkname(p.name(name))
 }
 
-func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
+func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
-	switch x.Op {
-	case OTYPE, OLITERAL:
-		if x.Sym == nil {
+	switch x.Op() {
+	case ir.OTYPE, ir.OLITERAL:
+		if x.Sym() == nil {
 			break
 		}
 		fallthrough
-	case ONAME, ONONAME, OPACK:
-		x = p.nod(n, OPAREN, x, nil)
+	case ir.ONAME, ir.ONONAME, ir.OPACK:
+		x = p.nod(n, ir.OPAREN, x, nil)
 		x.SetImplicit(true)
 	}
 	return x
 }
 
-func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
-	return nodl(p.pos(orig), op, left, right)
+func (p *noder) nod(orig syntax.Node, op ir.Op, left, right ir.Node) ir.Node {
+	return ir.NodAt(p.pos(orig), op, left, right)
 }
 
-func (p *noder) nodSym(orig syntax.Node, op Op, left *Node, sym *types.Sym) *Node {
+func (p *noder) nodSym(orig syntax.Node, op ir.Op, left ir.Node, sym *types.Sym) ir.Node {
 	n := nodSym(op, left, sym)
-	n.Pos = p.pos(orig)
+	n.SetPos(p.pos(orig))
 	return n
 }
 
 func (p *noder) pos(n syntax.Node) src.XPos {
 	// TODO(gri): orig.Pos() should always be known - fix package syntax
-	xpos := lineno
+	xpos := base.Pos
 	if pos := n.Pos(); pos.IsKnown() {
 		xpos = p.makeXPos(pos)
 	}
@@ -1572,7 +1554,7 @@ func (p *noder) pos(n syntax.Node) src.XPos {
 
 func (p *noder) setlineno(n syntax.Node) {
 	if n != nil {
-		lineno = p.pos(n)
+		base.Pos = p.pos(n)
 	}
 }
 
@@ -1596,13 +1578,13 @@ var allowedStdPragmas = map[string]bool{
 
 // *Pragma is the value stored in a syntax.Pragma during parsing.
 type Pragma struct {
-	Flag   PragmaFlag  // collected bits
-	Pos    []PragmaPos // position of each individual flag
+	Flag   ir.PragmaFlag // collected bits
+	Pos    []PragmaPos   // position of each individual flag
 	Embeds []PragmaEmbed
 }
 
 type PragmaPos struct {
-	Flag PragmaFlag
+	Flag ir.PragmaFlag
 	Pos  syntax.Pos
 }
 
@@ -1614,12 +1596,12 @@ type PragmaEmbed struct {
 func (p *noder) checkUnused(pragma *Pragma) {
 	for _, pos := range pragma.Pos {
 		if pos.Flag&pragma.Flag != 0 {
-			p.yyerrorpos(pos.Pos, "misplaced compiler directive")
+			p.errorAt(pos.Pos, "misplaced compiler directive")
 		}
 	}
 	if len(pragma.Embeds) > 0 {
 		for _, e := range pragma.Embeds {
-			p.yyerrorpos(e.Pos, "misplaced go:embed directive")
+			p.errorAt(e.Pos, "misplaced go:embed directive")
 		}
 	}
 }
@@ -1708,7 +1690,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		// For security, we disallow //go:cgo_* directives other
 		// than cgo_import_dynamic outside cgo-generated files.
 		// Exception: they are allowed in the standard library, for runtime and syscall.
-		if !isCgoGeneratedFile(pos) && !compiling_std {
+		if !isCgoGeneratedFile(pos) && !base.Flag.Std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
 		}
 		p.pragcgo(pos, text)
@@ -1719,11 +1701,11 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 			verb = verb[:i]
 		}
 		flag := pragmaFlag(verb)
-		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
-		if !compiling_runtime && flag&runtimePragmas != 0 {
+		const runtimePragmas = ir.Systemstack | ir.Nowritebarrier | ir.Nowritebarrierrec | ir.Yeswritebarrierrec
+		if !base.Flag.CompilingRuntime && flag&runtimePragmas != 0 {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
 		}
-		if flag == 0 && !allowedStdPragmas[verb] && compiling_std {
+		if flag == 0 && !allowedStdPragmas[verb] && base.Flag.Std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
 		pragma.Flag |= flag
@@ -1755,10 +1737,10 @@ func safeArg(name string) bool {
 	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || c == '.' || c == '_' || c == '/' || c >= utf8.RuneSelf
 }
 
-func mkname(sym *types.Sym) *Node {
+func mkname(sym *types.Sym) ir.Node {
 	n := oldname(sym)
-	if n.Name != nil && n.Name.Pack != nil {
-		n.Name.Pack.Name.SetUsed(true)
+	if n.Name() != nil && n.Name().Pack != nil {
+		n.Name().Pack.Name().SetUsed(true)
 	}
 	return n
 }

@@ -5,6 +5,7 @@
 package riscv64
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
@@ -16,7 +17,7 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	}
 
 	// Adjust the frame to account for LR.
-	off += gc.Ctxt.FixedFrameSize()
+	off += base.Ctxt.FixedFrameSize()
 
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {

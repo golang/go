@@ -800,7 +800,7 @@ func loadFromRoots(params loaderParams) *loader {
 	}
 
 	var err error
-	reqs := Reqs()
+	reqs := &mvsReqs{buildList: buildList}
 	buildList, err = mvs.BuildList(Target, reqs)
 	if err != nil {
 		base.Fatalf("go: %v", err)
@@ -842,7 +842,7 @@ func loadFromRoots(params loaderParams) *loader {
 		}
 
 		// Recompute buildList with all our additions.
-		reqs = Reqs()
+		reqs = &mvsReqs{buildList: buildList}
 		buildList, err = mvs.BuildList(Target, reqs)
 		if err != nil {
 			// If an error was found in a newly added module, report the package

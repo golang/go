@@ -5,6 +5,8 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -28,14 +30,14 @@ func sysvar(name string) *obj.LSym {
 
 // isParamStackCopy reports whether this is the on-stack copy of a
 // function parameter that moved to the heap.
-func (n *Node) isParamStackCopy() bool {
-	return n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Name.Param.Heapaddr != nil
+func isParamStackCopy(n ir.Node) bool {
+	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Param.Heapaddr != nil
 }
 
 // isParamHeapCopy reports whether this is the on-heap copy of
 // a function parameter that moved to the heap.
-func (n *Node) isParamHeapCopy() bool {
-	return n.Op == ONAME && n.Class() == PAUTOHEAP && n.Name.Param.Stackcopy != nil
+func isParamHeapCopy(n ir.Node) bool {
+	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy != nil
 }
 
 // autotmpname returns the name for an autotmp variable numbered n.
@@ -50,37 +52,37 @@ func autotmpname(n int) string {
 }
 
 // make a new Node off the books
-func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
+func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
 	if curfn == nil {
-		Fatalf("no curfn for tempAt")
+		base.Fatalf("no curfn for tempAt")
 	}
-	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
-		Dump("tempAt", curfn)
-		Fatalf("adding tempAt to wrong closure function")
+	if curfn.Op() == ir.OCLOSURE {
+		ir.Dump("tempAt", curfn)
+		base.Fatalf("adding tempAt to wrong closure function")
 	}
 	if t == nil {
-		Fatalf("tempAt called with nil type")
+		base.Fatalf("tempAt called with nil type")
 	}
 
 	s := &types.Sym{
-		Name: autotmpname(len(curfn.Func.Dcl)),
-		Pkg:  localpkg,
+		Name: autotmpname(len(curfn.Func().Dcl)),
+		Pkg:  ir.LocalPkg,
 	}
-	n := newnamel(pos, s)
-	s.Def = asTypesNode(n)
-	n.Type = t
-	n.SetClass(PAUTO)
-	n.Esc = EscNever
-	n.Name.Curfn = curfn
-	n.Name.SetUsed(true)
-	n.Name.SetAutoTemp(true)
-	curfn.Func.Dcl = append(curfn.Func.Dcl, n)
+	n := ir.NewNameAt(pos, s)
+	s.Def = n
+	n.SetType(t)
+	n.SetClass(ir.PAUTO)
+	n.SetEsc(EscNever)
+	n.Name().Curfn = curfn
+	n.Name().SetUsed(true)
+	n.Name().SetAutoTemp(true)
+	curfn.Func().Dcl = append(curfn.Func().Dcl, n)
 
 	dowidth(t)
 
-	return n.Orig
+	return n.Orig()
 }
 
-func temp(t *types.Type) *Node {
-	return tempAt(lineno, Curfn, t)
+func temp(t *types.Type) ir.Node {
+	return tempAt(base.Pos, Curfn, t)
 }

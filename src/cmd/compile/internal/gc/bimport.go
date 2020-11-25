@@ -5,20 +5,15 @@
 package gc
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/internal/src"
 )
 
-// numImport tracks how often a package with a given name is imported.
-// It is used to provide a better error message (by using the package
-// path to disambiguate) if a package that appears multiple times with
-// the same name appears in an error message.
-var numImport = make(map[string]int)
-
-func npos(pos src.XPos, n *Node) *Node {
-	n.Pos = pos
+func npos(pos src.XPos, n ir.Node) ir.Node {
+	n.SetPos(pos)
 	return n
 }
 
-func builtinCall(op Op) *Node {
-	return nod(OCALL, mkname(builtinpkg.Lookup(goopnames[op])), nil)
+func builtinCall(op ir.Op) ir.Node {
+	return ir.Nod(ir.OCALL, mkname(ir.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }

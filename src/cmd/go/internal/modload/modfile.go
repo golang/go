@@ -114,9 +114,9 @@ func CheckRetractions(ctx context.Context, m module.Version) error {
 
 		// Find the latest version of the module.
 		// Ignore exclusions from the main module's go.mod.
-		// We may need to account for the current version: for example,
-		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
-		rev, err := Query(ctx, path, "latest", Selected(path), nil)
+		const ignoreSelected = ""
+		var allowAll AllowedFunc
+		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
 		if err != nil {
 			return &entry{nil, err}
 		}

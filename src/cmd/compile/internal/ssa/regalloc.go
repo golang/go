@@ -104,7 +104,7 @@
 // If b3 is the primary predecessor of b2, then we use x3 in b2 and
 // add a x4:CX->BX copy at the end of b4.
 // But the definition of x3 doesn't dominate b2.  We should really
-// insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
+// insert an extra phi at the start of b2 (x5=phi(x3,x4):BX) to keep
 // SSA form. For now, we ignore this problem as remaining in strict
 // SSA form isn't needed after regalloc. We'll just leave the use
 // of x3 not dominated by the definition of x3, and the CX->BX copy
@@ -114,6 +114,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -1248,7 +1249,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
-				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
+				} else if _, ok := a.Aux.(ir.Node); ok && vi.rematerializeable {
 					// Rematerializeable value with a gc.Node. This is the address of
 					// a stack object (e.g. an LEAQ). Keep the object live.
 					// Change it to VarLive, which is what plive expects for locals.
