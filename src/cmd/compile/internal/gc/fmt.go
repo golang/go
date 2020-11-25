@@ -238,72 +238,49 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 	fmt.Fprint(s, o.String())
 }
 
-type (
-	fmtMode int
+type fmtMode int
 
-	fmtNodeErr        Node
-	fmtNodeDbg        Node
-	fmtNodeTypeId     Node
-	fmtNodeTypeIdName Node
-
-	fmtOpErr        Op
-	fmtOpDbg        Op
-	fmtOpTypeId     Op
-	fmtOpTypeIdName Op
-
-	fmtTypeErr        types.Type
-	fmtTypeDbg        types.Type
-	fmtTypeTypeId     types.Type
-	fmtTypeTypeIdName types.Type
-
-	fmtSymErr        types.Sym
-	fmtSymDbg        types.Sym
-	fmtSymTypeId     types.Sym
-	fmtSymTypeIdName types.Sym
-
-	fmtNodesErr        Nodes
-	fmtNodesDbg        Nodes
-	fmtNodesTypeId     Nodes
-	fmtNodesTypeIdName Nodes
-)
-
-func (n *fmtNodeErr) Format(s fmt.State, verb rune)        { (*Node)(n).format(s, verb, FErr) }
-func (n *fmtNodeDbg) Format(s fmt.State, verb rune)        { (*Node)(n).format(s, verb, FDbg) }
-func (n *fmtNodeTypeId) Format(s fmt.State, verb rune)     { (*Node)(n).format(s, verb, FTypeId) }
-func (n *fmtNodeTypeIdName) Format(s fmt.State, verb rune) { (*Node)(n).format(s, verb, FTypeIdName) }
-func (n *Node) Format(s fmt.State, verb rune)              { n.format(s, verb, FErr) }
-
-func (o fmtOpErr) Format(s fmt.State, verb rune)        { Op(o).format(s, verb, FErr) }
-func (o fmtOpDbg) Format(s fmt.State, verb rune)        { Op(o).format(s, verb, FDbg) }
-func (o fmtOpTypeId) Format(s fmt.State, verb rune)     { Op(o).format(s, verb, FTypeId) }
-func (o fmtOpTypeIdName) Format(s fmt.State, verb rune) { Op(o).format(s, verb, FTypeIdName) }
-func (o Op) Format(s fmt.State, verb rune)              { o.format(s, verb, FErr) }
-
-func (t *fmtTypeErr) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FErr) }
-func (t *fmtTypeDbg) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FDbg) }
-func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) {
-	typeFormat((*types.Type)(t), s, verb, FTypeId)
+type fmtNode struct {
+	x *Node
+	m fmtMode
 }
-func (t *fmtTypeTypeIdName) Format(s fmt.State, verb rune) {
-	typeFormat((*types.Type)(t), s, verb, FTypeIdName)
+
+func (f *fmtNode) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+
+type fmtOp struct {
+	x Op
+	m fmtMode
 }
+
+func (f *fmtOp) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+
+type fmtType struct {
+	x *types.Type
+	m fmtMode
+}
+
+func (f *fmtType) Format(s fmt.State, verb rune) { typeFormat(f.x, s, verb, f.m) }
+
+type fmtSym struct {
+	x *types.Sym
+	m fmtMode
+}
+
+func (f *fmtSym) Format(s fmt.State, verb rune) { symFormat(f.x, s, verb, f.m) }
+
+type fmtNodes struct {
+	x Nodes
+	m fmtMode
+}
+
+func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+
+func (n *Node) Format(s fmt.State, verb rune) { n.format(s, verb, FErr) }
+func (o Op) Format(s fmt.State, verb rune)    { o.format(s, verb, FErr) }
 
 // func (t *types.Type) Format(s fmt.State, verb rune)     // in package types
-
-func (y *fmtSymErr) Format(s fmt.State, verb rune)    { symFormat((*types.Sym)(y), s, verb, FErr) }
-func (y *fmtSymDbg) Format(s fmt.State, verb rune)    { symFormat((*types.Sym)(y), s, verb, FDbg) }
-func (y *fmtSymTypeId) Format(s fmt.State, verb rune) { symFormat((*types.Sym)(y), s, verb, FTypeId) }
-func (y *fmtSymTypeIdName) Format(s fmt.State, verb rune) {
-	symFormat((*types.Sym)(y), s, verb, FTypeIdName)
-}
-
 // func (y *types.Sym) Format(s fmt.State, verb rune)            // in package types  { y.format(s, verb, FErr) }
-
-func (n fmtNodesErr) Format(s fmt.State, verb rune)        { (Nodes)(n).format(s, verb, FErr) }
-func (n fmtNodesDbg) Format(s fmt.State, verb rune)        { (Nodes)(n).format(s, verb, FDbg) }
-func (n fmtNodesTypeId) Format(s fmt.State, verb rune)     { (Nodes)(n).format(s, verb, FTypeId) }
-func (n fmtNodesTypeIdName) Format(s fmt.State, verb rune) { (Nodes)(n).format(s, verb, FTypeIdName) }
-func (n Nodes) Format(s fmt.State, verb rune)              { n.format(s, verb, FErr) }
+func (n Nodes) Format(s fmt.State, verb rune) { n.format(s, verb, FErr) }
 
 func (m fmtMode) Fprintf(s fmt.State, format string, args ...interface{}) {
 	m.prepareArgs(args)
@@ -321,85 +298,23 @@ func (m fmtMode) Sprint(args ...interface{}) string {
 }
 
 func (m fmtMode) prepareArgs(args []interface{}) {
-	switch m {
-	case FErr:
-		for i, arg := range args {
-			switch arg := arg.(type) {
-			case Op:
-				args[i] = fmtOpErr(arg)
-			case *Node:
-				args[i] = (*fmtNodeErr)(arg)
-			case *types.Type:
-				args[i] = (*fmtTypeErr)(arg)
-			case *types.Sym:
-				args[i] = (*fmtSymErr)(arg)
-			case Nodes:
-				args[i] = fmtNodesErr(arg)
-			case int32, int64, string, types.EType, constant.Value:
-				// OK: printing these types doesn't depend on mode
-			default:
-				Fatalf("mode.prepareArgs type %T", arg)
-			}
+	for i, arg := range args {
+		switch arg := arg.(type) {
+		case Op:
+			args[i] = &fmtOp{arg, m}
+		case *Node:
+			args[i] = &fmtNode{arg, m}
+		case *types.Type:
+			args[i] = &fmtType{arg, m}
+		case *types.Sym:
+			args[i] = &fmtSym{arg, m}
+		case Nodes:
+			args[i] = &fmtNodes{arg, m}
+		case int32, int64, string, types.EType, constant.Value:
+			// OK: printing these types doesn't depend on mode
+		default:
+			Fatalf("mode.prepareArgs type %T", arg)
 		}
-	case FDbg:
-		for i, arg := range args {
-			switch arg := arg.(type) {
-			case Op:
-				args[i] = fmtOpDbg(arg)
-			case *Node:
-				args[i] = (*fmtNodeDbg)(arg)
-			case *types.Type:
-				args[i] = (*fmtTypeDbg)(arg)
-			case *types.Sym:
-				args[i] = (*fmtSymDbg)(arg)
-			case Nodes:
-				args[i] = fmtNodesDbg(arg)
-			case int32, int64, string, types.EType, constant.Value:
-				// OK: printing these types doesn't depend on mode
-			default:
-				Fatalf("mode.prepareArgs type %T", arg)
-			}
-		}
-	case FTypeId:
-		for i, arg := range args {
-			switch arg := arg.(type) {
-			case Op:
-				args[i] = fmtOpTypeId(arg)
-			case *Node:
-				args[i] = (*fmtNodeTypeId)(arg)
-			case *types.Type:
-				args[i] = (*fmtTypeTypeId)(arg)
-			case *types.Sym:
-				args[i] = (*fmtSymTypeId)(arg)
-			case Nodes:
-				args[i] = fmtNodesTypeId(arg)
-			case int32, int64, string, types.EType, constant.Value:
-				// OK: printing these types doesn't depend on mode
-			default:
-				Fatalf("mode.prepareArgs type %T", arg)
-			}
-		}
-	case FTypeIdName:
-		for i, arg := range args {
-			switch arg := arg.(type) {
-			case Op:
-				args[i] = fmtOpTypeIdName(arg)
-			case *Node:
-				args[i] = (*fmtNodeTypeIdName)(arg)
-			case *types.Type:
-				args[i] = (*fmtTypeTypeIdName)(arg)
-			case *types.Sym:
-				args[i] = (*fmtSymTypeIdName)(arg)
-			case Nodes:
-				args[i] = fmtNodesTypeIdName(arg)
-			case int32, int64, string, types.EType, constant.Value:
-				// OK: printing these types doesn't depend on mode
-			default:
-				Fatalf("mode.prepareArgs type %T", arg)
-			}
-		}
-	default:
-		Fatalf("mode.prepareArgs mode %d", m)
 	}
 }
 
