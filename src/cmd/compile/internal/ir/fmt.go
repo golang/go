@@ -247,7 +247,7 @@ type fmtNode struct {
 	m FmtMode
 }
 
-func (f *fmtNode) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+func (f *fmtNode) Format(s fmt.State, verb rune) { nodeFormat(f.x, s, verb, f.m) }
 
 type fmtOp struct {
 	x Op
@@ -282,7 +282,7 @@ func (n *Node) Format(s fmt.State, verb rune) {
 }
 
 func FmtNode(n *Node, s fmt.State, verb rune) {
-	n.format(s, verb, FErr)
+	nodeFormat(n, s, verb, FErr)
 }
 
 func (o Op) Format(s fmt.State, verb rune) { o.format(s, verb, FErr) }
@@ -313,6 +313,8 @@ func (m FmtMode) prepareArgs(args []interface{}) {
 			args[i] = &fmtOp{arg, m}
 		case *Node:
 			args[i] = &fmtNode{arg, m}
+		case nil:
+			args[i] = &fmtNode{nil, m} // assume this was a node interface
 		case *types.Type:
 			args[i] = &fmtType{arg, m}
 		case *types.Sym:
@@ -327,7 +329,7 @@ func (m FmtMode) prepareArgs(args []interface{}) {
 	}
 }
 
-func (n *Node) format(s fmt.State, verb rune, mode FmtMode) {
+func nodeFormat(n *Node, s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
 		nconvFmt(n, s, fmtFlag(s, verb), mode)
