@@ -40,7 +40,12 @@ const (
 )
 
 func goarm() int {
-	switch v := envOr("GOARM", defaultGOARM); v {
+	def := defaultGOARM
+	if GOOS == "android" && GOARCH == "arm" {
+		// Android arm devices always support GOARM=7.
+		def = "7"
+	}
+	switch v := envOr("GOARM", def); v {
 	case "5":
 		return 5
 	case "6":
