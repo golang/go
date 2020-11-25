@@ -692,10 +692,10 @@ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl
 func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
 
 var (
-	// dummy node for the memory variable
+	// marker node for the memory variable
 	memVar = Node{Op: ONAME, Sym: &types.Sym{Name: "mem"}}
 
-	// dummy nodes for temporary variables
+	// marker nodes for temporary variables
 	ptrVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "ptr"}}
 	lenVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "len"}}
 	newlenVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "newlen"}}
@@ -4793,7 +4793,7 @@ func (s *state) getMethodClosure(fn *Node) *ssa.Value {
 	n2.SetClass(PFUNC)
 	// n2.Sym already existed, so it's already marked as a function.
 	n2.Pos = fn.Pos
-	n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+	n2.Type = types.Types[TUINT8] // fake type for a static closure. Could use runtime.funcval if we had it.
 	return s.expr(n2)
 }
 
@@ -6054,7 +6054,7 @@ func (s *state) mem() *ssa.Value {
 
 func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 	if n.Class() == Pxxx {
-		// Don't track our dummy nodes (&memVar etc.).
+		// Don't track our marker nodes (&memVar etc.).
 		return
 	}
 	if n.IsAutoTmp() {

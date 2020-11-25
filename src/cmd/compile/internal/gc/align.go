@@ -392,7 +392,7 @@ func dowidth(t *types.Type) {
 		w = 1 // anything will do
 
 	case TANY:
-		// dummy type; should be replaced before use.
+		// not a real type; should be replaced before use.
 		Fatalf("dowidth any")
 
 	case TSTRING:

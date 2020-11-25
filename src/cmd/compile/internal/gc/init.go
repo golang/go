@@ -15,8 +15,9 @@ import (
 // the name, normally "pkg.init", is altered to "pkg.init.0".
 var renameinitgen int
 
-// Dummy function for autotmps generated during typechecking.
-var dummyInitFn = nod(ODCLFUNC, nil, nil)
+// Function collecting autotmps generated during typechecking,
+// to be included in the package-level init function.
+var initTodo = nod(ODCLFUNC, nil, nil)
 
 func renameinit() *types.Sym {
 	s := lookupN("init.", renameinitgen)
@@ -46,11 +47,11 @@ func fninit(n []*Node) {
 		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
-		for _, dcl := range dummyInitFn.Func.Dcl {
+		for _, dcl := range initTodo.Func.Dcl {
 			dcl.Name.Curfn = fn
 		}
-		fn.Func.Dcl = append(fn.Func.Dcl, dummyInitFn.Func.Dcl...)
-		dummyInitFn.Func.Dcl = nil
+		fn.Func.Dcl = append(fn.Func.Dcl, initTodo.Func.Dcl...)
+		initTodo.Func.Dcl = nil
 
 		fn.Nbody.Set(nf)
 		funcbody()
@@ -62,13 +63,13 @@ func fninit(n []*Node) {
 		xtop = append(xtop, fn)
 		fns = append(fns, initializers.Linksym())
 	}
-	if dummyInitFn.Func.Dcl != nil {
-		// We only generate temps using dummyInitFn if there
+	if initTodo.Func.Dcl != nil {
+		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
-		Fatalf("dummyInitFn still has declarations")
+		Fatalf("initTodo still has declarations")
 	}
-	dummyInitFn = nil
+	initTodo = nil
 
 	// Record user init functions.
 	for i := 0; i < renameinitgen; i++ {
@@ -88,7 +89,7 @@ func fninit(n []*Node) {
 	// Make an .inittask structure.
 	sym := lookup(".inittask")
 	nn := newname(sym)
-	nn.Type = types.Types[TUINT8] // dummy type
+	nn.Type = types.Types[TUINT8] // fake type
 	nn.SetClass(PEXTERN)
 	sym.Def = asTypesNode(nn)
 	exportsym(nn)
