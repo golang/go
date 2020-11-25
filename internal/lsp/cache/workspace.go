@@ -59,6 +59,10 @@ type workspace struct {
 	// modFiles holds the active go.mod files.
 	modFiles map[span.URI]struct{}
 
+	// go111moduleOff indicates whether GO111MODULE=off has been configured in
+	// the environment.
+	go111moduleOff bool
+
 	// The workspace module is lazily re-built once after being invalidated.
 	// buildMu+built guards this reconstruction.
 	//
@@ -72,7 +76,14 @@ type workspace struct {
 	wsDirs   map[span.URI]struct{}
 }
 
-func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, experimental bool) (*workspace, error) {
+func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go111module string, experimental bool) (*workspace, error) {
+	if go111module == "off" {
+		return &workspace{
+			root:           root,
+			moduleSource:   legacyWorkspace,
+			go111moduleOff: true,
+		}, nil
+	}
 	if !experimental {
 		modFiles, err := getLegacyModules(ctx, root, fs)
 		if err != nil {
@@ -276,6 +287,10 @@ func (wm *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileC
 		}
 	}
 	if modFiles != nil {
+		// If GO111MODULE=off, don't update the set of active go.mod files.
+		if wm.go111moduleOff {
+			modFiles = wm.modFiles
+		}
 		// Any change to modules triggers a new version.
 		return &workspace{
 			root:         wm.root,
