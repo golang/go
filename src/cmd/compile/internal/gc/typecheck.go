@@ -2153,11 +2153,11 @@ func typecheckargs(n *Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
-	// temporary variables with dummyInitFn for now, and init.go
+	// temporary variables with initTodo for now, and init.go
 	// will reassociate them later when it's appropriate.
 	static := Curfn == nil
 	if static {
-		Curfn = dummyInitFn
+		Curfn = initTodo
 	}
 	for _, f := range t.FieldSlice() {
 		t := temp(f.Type)

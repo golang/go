@@ -1254,9 +1254,7 @@ func importfile(f constant.Value) *types.Pkg {
 		}
 	}
 
-	// In the importfile, if we find:
-	// $$\n  (textual format): not supported anymore
-	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
+	// Expect $$B\n to signal binary import format.
 
 	// look for $$
 	var c byte

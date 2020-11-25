@@ -574,7 +574,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		// parameters all flow to the heap.
 		//
 		// TODO(mdempsky): Change ks into a callback, so that
-		// we don't have to create this dummy slice?
+		// we don't have to create this slice?
 		var ks []EscHole
 		for i := m.Type.NumResults(); i > 0; i-- {
 			ks = append(ks, e.heapHole())

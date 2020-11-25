@@ -459,7 +459,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func, apdecls)
 
 	// For each type referenced by the functions auto vars but not
-	// already referenced by a dwarf var, attach a dummy relocation to
+	// already referenced by a dwarf var, attach an R_USETYPE relocation to
 	// the function symbol to insure that the type included in DWARF
 	// processing during linking.
 	typesyms := []*obj.LSym{}

@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-// Dummy Node so we can refer to *Node without actually
+// Our own “Node” so we can refer to *gc.Node without actually
 // having a gc.Node. Necessary to break import cycles.
 // TODO(gri) try to eliminate soon
 type Node struct{ _ int }

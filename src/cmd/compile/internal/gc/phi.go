@@ -59,7 +59,7 @@ type phiState struct {
 	hasDef *sparseSet   // has a write of the variable we're processing
 
 	// miscellaneous
-	placeholder *ssa.Value // dummy value to use as a "not set yet" placeholder.
+	placeholder *ssa.Value // value to use as a "not set yet" placeholder.
 }
 
 func (s *phiState) insertPhis() {
