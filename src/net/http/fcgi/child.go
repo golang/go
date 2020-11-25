@@ -16,7 +16,6 @@ import (
 	"net/http/cgi"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -154,7 +153,6 @@ type child struct {
 	conn    *conn
 	handler http.Handler
 
-	mu       sync.Mutex          // protects requests:
 	requests map[uint16]*request // keyed by request ID
 }
 
@@ -196,9 +194,7 @@ var ErrRequestAborted = errors.New("fcgi: request aborted by web server")
 var ErrConnClosed = errors.New("fcgi: connection to web server closed")
 
 func (c *child) handleRecord(rec *record) error {
-	c.mu.Lock()
 	req, ok := c.requests[rec.h.Id]
-	c.mu.Unlock()
 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
 		// The spec says to ignore unknown request IDs.
 		return nil
@@ -221,9 +217,7 @@ func (c *child) handleRecord(rec *record) error {
 			return nil
 		}
 		req = newRequest(rec.h.Id, br.flags)
-		c.mu.Lock()
 		c.requests[rec.h.Id] = req
-		c.mu.Unlock()
 		return nil
 	case typeParams:
 		// NOTE(eds): Technically a key-value pair can straddle the boundary
@@ -252,9 +246,7 @@ func (c *child) handleRecord(rec *record) error {
 			// If the handler takes a long time, it might be a problem.
 			req.pw.Write(content)
 		} else {
-			c.mu.Lock()
 			delete(c.requests, req.reqId)
-			c.mu.Unlock()
 			if req.pw != nil {
 				req.pw.Close()
 			}
@@ -268,9 +260,7 @@ func (c *child) handleRecord(rec *record) error {
 		// If the filter role is implemented, read the data stream here.
 		return nil
 	case typeAbortRequest:
-		c.mu.Lock()
 		delete(c.requests, rec.h.Id)
-		c.mu.Unlock()
 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
 		if req.pw != nil {
 			req.pw.CloseWithError(ErrRequestAborted)
@@ -335,8 +325,6 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 }
 
 func (c *child) cleanUp() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	for _, req := range c.requests {
 		if req.pw != nil {
 			// race with call to Close in c.serveRequest doesn't matter because
