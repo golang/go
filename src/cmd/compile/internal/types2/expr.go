@@ -1703,22 +1703,12 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if x.mode == invalid {
 			goto Error
 		}
-		var xtyp *Interface
-		var strict bool
-		switch t := optype(x.typ.Under()).(type) {
-		case *Interface:
-			xtyp = t
-		// Disabled for now. It is not clear what the right approach is
-		// here. Also, the implementation below is inconsistent because
-		// the underlying type of a type parameter is either itself or
-		// a sum type if the corresponding type bound contains a type list.
-		// case *TypeParam:
-		// 	xtyp = t.Bound()
-		// 	strict = true
-		default:
-			check.invalidOpf(x, "%s is not an interface type", x)
+		xtyp, _ := x.typ.Under().(*Interface)
+		if xtyp == nil {
+			check.errorf(x, "%s is not an interface type", x)
 			goto Error
 		}
+		check.ordinaryType(x.Pos(), xtyp)
 		// x.(type) expressions are encoded via TypeSwitchGuards
 		if e.Type == nil {
 			check.invalidASTf(e, "invalid use of AssertExpr")
@@ -1728,7 +1718,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if T == Typ[Invalid] {
 			goto Error
 		}
-		check.typeAssertion(posFor(x), x, xtyp, T, strict)
+		check.typeAssertion(posFor(x), x, xtyp, T, false)
 		x.mode = commaok
 		x.typ = T
 
