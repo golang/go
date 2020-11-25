@@ -1516,10 +1516,11 @@ func Asmbpe(ctxt *Link) {
 	}
 
 	if rsrcsym != 0 {
-		// rsrc.P resides in mmap'd memory, which could be munmap'd
-		// underneath us before it comes time to actually use it.
-		// To avoid any issues we copy the data to the heap to ensure
-		// we don't segfault later when trying to access it.
+		// The resource symbol may have been copied to the mmap'd
+		// output buffer. If so, certain conditions can cause that
+		// mmap'd output buffer to be munmap'd before we get a chance
+		// to use it. To avoid any issues we copy the data to the heap
+		// when the resource symbol exists.
 		rsrc := ctxt.loader.Syms[rsrcsym]
 		data := make([]byte, len(rsrc.P))
 		copy(data, rsrc.P)
