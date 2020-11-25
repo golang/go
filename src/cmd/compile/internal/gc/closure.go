@@ -270,7 +270,7 @@ func transformclosure(dcl *ir.Node) {
 			decls = append(decls, v)
 
 			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
-			fld.Nname = ir.AsTypesNode(v)
+			fld.Nname = v
 			params = append(params, fld)
 		}
 
@@ -511,7 +511,7 @@ func makepartialcall(dot *ir.Node, t0 *types.Type, meth *types.Sym) *ir.Node {
 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
 	Curfn = dcl
 	typecheckslice(dcl.Body().Slice(), ctxStmt)
-	sym.Def = ir.AsTypesNode(dcl)
+	sym.Def = dcl
 	xtop = append(xtop, dcl)
 	Curfn = savecurfn
 	base.Pos = saveLineNo

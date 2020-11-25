@@ -109,19 +109,19 @@ func lexinit() {
 			}
 			types.Types[etype] = t
 		}
-		s2.Def = ir.AsTypesNode(typenod(t))
+		s2.Def = typenod(t)
 		ir.AsNode(s2.Def).SetName(new(ir.Name))
 	}
 
 	for _, s := range &builtinFuncs {
 		s2 := ir.BuiltinPkg.Lookup(s.name)
-		s2.Def = ir.AsTypesNode(NewName(s2))
+		s2.Def = NewName(s2)
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
 	for _, s := range &unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
-		s2.Def = ir.AsTypesNode(NewName(s2))
+		s2.Def = NewName(s2)
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
@@ -130,38 +130,38 @@ func lexinit() {
 	types.Types[types.TANY] = types.New(types.TANY)
 
 	s := ir.BuiltinPkg.Lookup("true")
-	s.Def = ir.AsTypesNode(nodbool(true))
+	s.Def = nodbool(true)
 	ir.AsNode(s.Def).SetSym(lookup("true"))
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = ir.BuiltinPkg.Lookup("false")
-	s.Def = ir.AsTypesNode(nodbool(false))
+	s.Def = nodbool(false)
 	ir.AsNode(s.Def).SetSym(lookup("false"))
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = lookup("_")
 	s.Block = -100
-	s.Def = ir.AsTypesNode(NewName(s))
+	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
 
 	s = ir.BuiltinPkg.Lookup("_")
 	s.Block = -100
-	s.Def = ir.AsTypesNode(NewName(s))
+	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
 	types.Types[types.TNIL] = types.New(types.TNIL)
 	s = ir.BuiltinPkg.Lookup("nil")
-	s.Def = ir.AsTypesNode(nodnil())
+	s.Def = nodnil()
 	ir.AsNode(s.Def).SetSym(s)
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 
 	s = ir.BuiltinPkg.Lookup("iota")
-	s.Def = ir.AsTypesNode(ir.Nod(ir.OIOTA, nil, nil))
+	s.Def = ir.Nod(ir.OIOTA, nil, nil)
 	ir.AsNode(s.Def).SetSym(s)
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 }
@@ -181,7 +181,7 @@ func typeinit() {
 	t := types.New(types.TUNSAFEPTR)
 	types.Types[types.TUNSAFEPTR] = t
 	t.Sym = unsafepkg.Lookup("Pointer")
-	t.Sym.Def = ir.AsTypesNode(typenod(t))
+	t.Sym.Def = typenod(t)
 	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
 	dowidth(types.Types[types.TUNSAFEPTR])
 
@@ -343,7 +343,7 @@ func lexinit1() {
 	types.Errortype = makeErrorInterface()
 	types.Errortype.Sym = s
 	types.Errortype.Orig = makeErrorInterface()
-	s.Def = ir.AsTypesNode(typenod(types.Errortype))
+	s.Def = typenod(types.Errortype)
 	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
@@ -358,7 +358,7 @@ func lexinit1() {
 	s = ir.BuiltinPkg.Lookup("byte")
 	types.Bytetype = types.New(types.TUINT8)
 	types.Bytetype.Sym = s
-	s.Def = ir.AsTypesNode(typenod(types.Bytetype))
+	s.Def = typenod(types.Bytetype)
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Bytetype)
 
@@ -366,7 +366,7 @@ func lexinit1() {
 	s = ir.BuiltinPkg.Lookup("rune")
 	types.Runetype = types.New(types.TINT32)
 	types.Runetype.Sym = s
-	s.Def = ir.AsTypesNode(typenod(types.Runetype))
+	s.Def = typenod(types.Runetype)
 	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Runetype)
 
@@ -384,7 +384,7 @@ func lexinit1() {
 		t := types.New(s.etype)
 		t.Sym = s1
 		types.Types[s.etype] = t
-		s1.Def = ir.AsTypesNode(typenod(t))
+		s1.Def = typenod(t)
 		ir.AsNode(s1.Def).SetName(new(ir.Name))
 		s1.Origpkg = ir.BuiltinPkg
 

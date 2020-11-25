@@ -93,7 +93,7 @@ func fninit(n []*ir.Node) {
 	nn := NewName(sym)
 	nn.SetType(types.Types[types.TUINT8]) // fake type
 	nn.SetClass(ir.PEXTERN)
-	sym.Def = ir.AsTypesNode(nn)
+	sym.Def = nn
 	exportsym(nn)
 	lsym := sym.Linksym()
 	ot := 0

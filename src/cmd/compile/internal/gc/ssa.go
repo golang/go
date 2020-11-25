@@ -7072,7 +7072,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 
 	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: ir.LocalPkg}
 	n := ir.NewNameAt(parent.N.Pos(), s)
-	s.Def = ir.AsTypesNode(n)
+	s.Def = n
 	ir.AsNode(s.Def).Name().SetUsed(true)
 	n.SetType(t)
 	n.SetClass(ir.PAUTO)

@@ -10,10 +10,10 @@ import (
 	"fmt"
 )
 
-// Our own “Node” so we can refer to *gc.Node without actually
-// having a gc.Node. Necessary to break import cycles.
-// TODO(gri) try to eliminate soon
-type Node struct{ _ int }
+// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+// which would cause an import cycle. The uses in other packages must type assert
+// values of type IRNode to ir.Node or a more specific type.
+type IRNode interface{ Type() *Type }
 
 //go:generate stringer -type EType -trimprefix T
 
@@ -141,8 +141,8 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	Nod  *Node // canonical OTYPE node
-	Orig *Type // original type (type literal or predefined type)
+	Nod  IRNode // canonical OTYPE node
+	Orig *Type  // original type (type literal or predefined type)
 
 	// Cache of composite types, with this type being the element type.
 	Cache struct {
@@ -360,7 +360,7 @@ type Field struct {
 
 	// For fields that represent function parameters, Nname points
 	// to the associated ONAME Node.
-	Nname *Node
+	Nname IRNode
 
 	// Offset in bytes of this field or method within its enclosing struct
 	// or interface Type.

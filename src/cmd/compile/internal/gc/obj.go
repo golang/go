@@ -480,7 +480,7 @@ func slicedata(pos src.XPos, s string) *ir.Node {
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
 	sym := ir.LocalPkg.Lookup(symname)
 	symnode := NewName(sym)
-	sym.Def = ir.AsTypesNode(symnode)
+	sym.Def = symnode
 
 	lsym := sym.Linksym()
 	off := dstringdata(lsym, 0, s, pos, "slice")

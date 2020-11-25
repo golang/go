@@ -229,13 +229,13 @@ func (e *Escape) walkFunc(fn *ir.Node) {
 	ir.InspectList(fn.Body(), func(n *ir.Node) bool {
 		switch n.Op() {
 		case ir.OLABEL:
-			n.Sym().Label = ir.AsTypesNode(nonlooping)
+			n.Sym().Label = nonlooping
 
 		case ir.OGOTO:
 			// If we visited the label before the goto,
 			// then this is a looping label.
-			if n.Sym().Label == ir.AsTypesNode(nonlooping) {
-				n.Sym().Label = ir.AsTypesNode(looping)
+			if n.Sym().Label == nonlooping {
+				n.Sym().Label = looping
 			}
 		}
 
