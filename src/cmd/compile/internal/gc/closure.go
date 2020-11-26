@@ -23,8 +23,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn
 
-	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
-	clo.SetFunc(fn)
+	clo := ir.NewClosureExpr(p.pos(expr), fn)
 	fn.ClosureType = ntype
 	fn.OClosure = clo
 
@@ -285,21 +284,19 @@ func transformclosure(fn *ir.Func) {
 		offset := int64(Widthptr)
 		for _, v := range fn.ClosureVars {
 			// cv refers to the field inside of closure OSTRUCTLIT.
-			cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
-
-			cv.SetType(v.Type())
+			typ := v.Type()
 			if !v.Byval() {
-				cv.SetType(types.NewPtr(v.Type()))
+				typ = types.NewPtr(typ)
 			}
-			offset = Rnd(offset, int64(cv.Type().Align))
-			cv.SetOffset(offset)
-			offset += cv.Type().Width
+			offset = Rnd(offset, int64(typ.Align))
+			cr := ir.NewClosureRead(typ, offset)
+			offset += typ.Width
 
 			if v.Byval() && v.Type().Width <= int64(2*Widthptr) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.SetClass(ir.PAUTO)
 				fn.Dcl = append(fn.Dcl, v)
-				body = append(body, ir.Nod(ir.OAS, v, cv))
+				body = append(body, ir.Nod(ir.OAS, v, cr))
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
@@ -310,10 +307,11 @@ func transformclosure(fn *ir.Func) {
 				addr.Curfn = fn
 				fn.Dcl = append(fn.Dcl, addr)
 				v.Heapaddr = addr
+				var src ir.Node = cr
 				if v.Byval() {
-					cv = ir.Nod(ir.OADDR, cv, nil)
+					src = ir.Nod(ir.OADDR, cr, nil)
 				}
-				body = append(body, ir.Nod(ir.OAS, addr, cv))
+				body = append(body, ir.Nod(ir.OAS, addr, src))
 			}
 		}
 
@@ -473,21 +471,17 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 	tfn.Type().SetPkg(t0.Pkg())
 
 	// Declare and initialize variable holding receiver.
-
-	cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
-	cv.SetType(rcvrtype)
-	cv.SetOffset(Rnd(int64(Widthptr), int64(cv.Type().Align)))
-
+	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
 	ptr := NewName(lookup(".this"))
 	declare(ptr, ir.PAUTO)
 	ptr.SetUsed(true)
 	var body []ir.Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
 		ptr.SetType(rcvrtype)
-		body = append(body, ir.Nod(ir.OAS, ptr, cv))
+		body = append(body, ir.Nod(ir.OAS, ptr, cr))
 	} else {
 		ptr.SetType(types.NewPtr(rcvrtype))
-		body = append(body, ir.Nod(ir.OAS, ptr, ir.Nod(ir.OADDR, cv, nil)))
+		body = append(body, ir.Nod(ir.OAS, ptr, ir.Nod(ir.OADDR, cr, nil)))
 	}
 
 	call := ir.Nod(ir.OCALL, nodSym(ir.OXDOT, ptr, meth), nil)

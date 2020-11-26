@@ -555,7 +555,7 @@ opswitch:
 	case ir.ORECOVER:
 		n = mkcall("gorecover", n.Type(), init, ir.Nod(ir.OADDR, nodfp, nil))
 
-	case ir.OCLOSUREVAR, ir.OCFUNC:
+	case ir.OCLOSUREREAD, ir.OCFUNC:
 
 	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
 		if n.Op() == ir.OCALLINTER {

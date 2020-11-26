@@ -486,7 +486,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 	default:
 		base.Fatalf("unexpected expr: %v", n)
 
-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREVAR, ir.OTYPE, ir.OMETHEXPR:
+	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREREAD, ir.OTYPE, ir.OMETHEXPR:
 		// nop
 
 	case ir.ONAME:
@@ -1718,7 +1718,7 @@ func mayAffectMemory(n ir.Node) bool {
 	// We're ignoring things like division by zero, index out of range,
 	// and nil pointer dereference here.
 	switch n.Op() {
-	case ir.ONAME, ir.OCLOSUREVAR, ir.OLITERAL, ir.ONIL:
+	case ir.ONAME, ir.OCLOSUREREAD, ir.OLITERAL, ir.ONIL:
 		return false
 
 	// Left+Right group.

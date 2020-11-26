@@ -601,20 +601,20 @@ const (
 	OTARRAY // []int, [8]int, [N]int or [...]int
 
 	// misc
-	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
-	OINLCALL    // intermediary representation of an inlined call.
-	OEFACE      // itable and data words of an empty-interface value.
-	OITAB       // itable word of an interface value.
-	OIDATA      // data word of an interface value in Left
-	OSPTR       // base pointer of a slice or string.
-	OCLOSUREVAR // variable reference at beginning of closure function
-	OCFUNC      // reference to c function pointer (not go func value)
-	OCHECKNIL   // emit code to ensure pointer/interface not nil
-	OVARDEF     // variable is about to be fully initialized
-	OVARKILL    // variable is dead
-	OVARLIVE    // variable is alive
-	ORESULT     // result of a function call; Xoffset is stack offset
-	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+	ODDD         // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+	OINLCALL     // intermediary representation of an inlined call.
+	OEFACE       // itable and data words of an empty-interface value.
+	OITAB        // itable word of an interface value.
+	OIDATA       // data word of an interface value in Left
+	OSPTR        // base pointer of a slice or string.
+	OCLOSUREREAD // read from inside closure struct at beginning of closure function
+	OCFUNC       // reference to c function pointer (not go func value)
+	OCHECKNIL    // emit code to ensure pointer/interface not nil
+	OVARDEF      // variable is about to be fully initialized
+	OVARKILL     // variable is dead
+	OVARLIVE     // variable is alive
+	ORESULT      // result of a function call; Xoffset is stack offset
+	OINLMARK     // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 
 	// arch-specific opcodes
 	ORETJMP // return to other function
@@ -1162,8 +1162,6 @@ var okForNod = [OEND]bool{
 	OCFUNC:         true,
 	OCHECKNIL:      true,
 	OCLOSE:         true,
-	OCLOSURE:       true,
-	OCLOSUREVAR:    true,
 	OCOMPLEX:       true,
 	OCOMPLIT:       true,
 	OCONV:          true,

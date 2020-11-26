@@ -6,6 +6,8 @@ package ir
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
+	"fmt"
 )
 
 // A miniStmt is a miniNode with extra fields common to expressions.
@@ -45,3 +47,40 @@ func (n *miniExpr) SetBounded(b bool)     { n.flags.set(miniExprBounded, b) }
 func (n *miniExpr) Init() Nodes           { return n.init }
 func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
 func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
+
+// A ClosureExpr is a function literal expression.
+type ClosureExpr struct {
+	miniExpr
+	fn *Func
+}
+
+func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
+	n := &ClosureExpr{fn: fn}
+	n.op = OCLOSURE
+	n.pos = pos
+	return n
+}
+
+func (n *ClosureExpr) String() string                { return fmt.Sprint(n) }
+func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureExpr) RawCopy() Node                 { c := *n; return &c }
+func (n *ClosureExpr) Func() *Func                   { return n.fn }
+
+// A ClosureRead denotes reading a variable stored within a closure struct.
+type ClosureRead struct {
+	miniExpr
+	offset int64
+}
+
+func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
+	n := &ClosureRead{offset: offset}
+	n.typ = typ
+	n.op = OCLOSUREREAD
+	return n
+}
+
+func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
+func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureRead) RawCopy() Node                 { c := *n; return &c }
+func (n *ClosureRead) Type() *types.Type             { return n.typ }
+func (n *ClosureRead) Offset() int64                 { return n.offset }

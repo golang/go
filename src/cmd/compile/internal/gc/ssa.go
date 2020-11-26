@@ -2025,7 +2025,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		addr := s.addr(n)
 		return s.load(n.Type(), addr)
-	case ir.OCLOSUREVAR:
+	case ir.OCLOSUREREAD:
 		addr := s.addr(n)
 		return s.load(n.Type(), addr)
 	case ir.ONIL:
@@ -4895,7 +4895,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.ODOTPTR:
 		p := s.exprPtr(n.Left(), n.Bounded(), n.Pos())
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
-	case ir.OCLOSUREVAR:
+	case ir.OCLOSUREREAD:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(),
 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case ir.OCONVNOP:

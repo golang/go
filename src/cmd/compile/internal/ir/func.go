@@ -53,8 +53,8 @@ type Func struct {
 	body Nodes
 	iota int64
 
-	Nname    *Name // ONAME node
-	OClosure Node  // OCLOSURE node
+	Nname    *Name        // ONAME node
+	OClosure *ClosureExpr // OCLOSURE node
 
 	Shortname *types.Sym
 
