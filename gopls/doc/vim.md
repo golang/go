@@ -114,7 +114,7 @@ You can add custom configuration using Lua.  Here is an example of enabling the
 
 ```vim
 lua <<EOF
-  nvim_lsp = require "nvim_lsp"
+  nvim_lsp = require "lspconfig"
   nvim_lsp.gopls.setup {
     cmd = {"gopls", "serve"},
     settings = {
