@@ -347,7 +347,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	if receiver != nil {
 		inLen++
 	}
-	in := make([]ir.Node, 0, inLen)
+	in := make([]*ir.Field, 0, inLen)
 
 	if receiver != nil {
 		d := anonfield(receiver)
@@ -356,12 +356,12 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 
 	for _, t := range f.Params().Fields().Slice() {
 		d := anonfield(t.Type)
-		d.SetIsDDD(t.IsDDD())
+		d.IsDDD = t.IsDDD()
 		in = append(in, d)
 	}
 
 	outLen := f.Results().Fields().Len()
-	out := make([]ir.Node, 0, outLen)
+	out := make([]*ir.Field, 0, outLen)
 	for _, t := range f.Results().Fields().Slice() {
 		d := anonfield(t.Type)
 		out = append(out, d)
@@ -1626,7 +1626,7 @@ func dumpbasictypes() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(types.NewPtr(types.Errortype))
 
-		dtypesym(functype(nil, []ir.Node{anonfield(types.Errortype)}, []ir.Node{anonfield(types.Types[types.TSTRING])}))
+		dtypesym(functype(nil, []*ir.Field{anonfield(types.Errortype)}, []*ir.Field{anonfield(types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)

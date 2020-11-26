@@ -110,3 +110,47 @@ func (n *CallPartExpr) Left() Node                    { return n.X }
 func (n *CallPartExpr) Right() Node                   { return n.Method }
 func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
 func (n *CallPartExpr) SetRight(x Node)               { n.Method = x.(*Name) }
+
+// A StarExpr is a dereference expression *X.
+// It may end up being a value or a type.
+type StarExpr struct {
+	miniExpr
+	X Node
+}
+
+func NewStarExpr(pos src.XPos, x Node) *StarExpr {
+	n := &StarExpr{X: x}
+	n.op = ODEREF
+	n.pos = pos
+	return n
+}
+
+func (n *StarExpr) String() string                { return fmt.Sprint(n) }
+func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StarExpr) RawCopy() Node                 { c := *n; return &c }
+func (n *StarExpr) Left() Node                    { return n.X }
+func (n *StarExpr) SetLeft(x Node)                { n.X = x }
+
+func (*StarExpr) CanBeNtype() {}
+
+// SetOTYPE changes n to be an OTYPE node returning t,
+// like all the type nodes in type.go.
+func (n *StarExpr) SetOTYPE(t *types.Type) {
+	n.op = OTYPE
+	n.X = nil
+	n.typ = t
+	if t.Nod == nil {
+		t.Nod = n
+	}
+}
+
+func (n *StarExpr) DeepCopy(pos src.XPos) Node {
+	if n.op == OTYPE {
+		// Can't change types and no node references left.
+		return n
+	}
+	c := SepCopy(n).(*StarExpr)
+	c.pos = n.posOr(pos)
+	c.X = DeepCopy(pos, n.X)
+	return c
+}

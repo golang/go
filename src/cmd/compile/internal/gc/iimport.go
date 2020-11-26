@@ -974,9 +974,6 @@ func (r *importReader) node() ir.Node {
 		typ := ir.TypeNode(r.typ())
 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 
-	// case ODCLFIELD:
-	//	unimplemented
-
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter
 

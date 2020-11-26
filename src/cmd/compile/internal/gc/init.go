@@ -48,7 +48,7 @@ func fninit(n []ir.Node) {
 	if len(nf) > 0 {
 		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
-		fn := dclfunc(initializers, ir.Nod(ir.OTFUNC, nil, nil))
+		fn := dclfunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
 		for _, dcl := range initTodo.Dcl {
 			dcl.Name().Curfn = fn
 		}

@@ -292,12 +292,12 @@ func genhash(t *types.Type) *obj.LSym {
 	dclcontext = ir.PEXTERN
 
 	// func sym(p *T, h uintptr) uintptr
-	tfn := ir.Nod(ir.OTFUNC, nil, nil)
-	tfn.PtrList().Set2(
+	args := []*ir.Field{
 		namedfield("p", types.NewPtr(t)),
 		namedfield("h", types.Types[types.TUINTPTR]),
-	)
-	tfn.PtrRlist().Set1(anonfield(types.Types[types.TUINTPTR]))
+	}
+	results := []*ir.Field{anonfield(types.Types[types.TUINTPTR])}
+	tfn := ir.NewFuncType(base.Pos, nil, args, results)
 
 	fn := dclfunc(sym, tfn)
 	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
@@ -432,10 +432,10 @@ func hashfor(t *types.Type) ir.Node {
 
 	n := NewName(sym)
 	setNodeNameFunc(n)
-	n.SetType(functype(nil, []ir.Node{
+	n.SetType(functype(nil, []*ir.Field{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[types.TUINTPTR]),
-	}, []ir.Node{
+	}, []*ir.Field{
 		anonfield(types.Types[types.TUINTPTR]),
 	}))
 	return n
@@ -521,12 +521,9 @@ func geneq(t *types.Type) *obj.LSym {
 	dclcontext = ir.PEXTERN
 
 	// func sym(p, q *T) bool
-	tfn := ir.Nod(ir.OTFUNC, nil, nil)
-	tfn.PtrList().Set2(
-		namedfield("p", types.NewPtr(t)),
-		namedfield("q", types.NewPtr(t)),
-	)
-	tfn.PtrRlist().Set1(namedfield("r", types.Types[types.TBOOL]))
+	tfn := ir.NewFuncType(base.Pos, nil,
+		[]*ir.Field{namedfield("p", types.NewPtr(t)), namedfield("q", types.NewPtr(t))},
+		[]*ir.Field{namedfield("r", types.Types[types.TBOOL])})
 
 	fn := dclfunc(sym, tfn)
 	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)

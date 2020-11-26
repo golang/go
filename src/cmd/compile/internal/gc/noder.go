@@ -412,7 +412,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 // constant declarations are handled correctly (e.g., issue 15550).
 type constState struct {
 	group  *syntax.Group
-	typ    ir.Node
+	typ    ir.Ntype
 	values []ir.Node
 	iota   int64
 }
@@ -578,18 +578,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	return f
 }
 
-func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) ir.Node {
-	n := p.nod(typ, ir.OTFUNC, nil, nil)
+func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) *ir.FuncType {
+	var rcvr *ir.Field
 	if recv != nil {
-		n.SetLeft(p.param(recv, false, false))
+		rcvr = p.param(recv, false, false)
 	}
-	n.PtrList().Set(p.params(typ.ParamList, true))
-	n.PtrRlist().Set(p.params(typ.ResultList, false))
-	return n
+	return ir.NewFuncType(p.pos(typ), rcvr,
+		p.params(typ.ParamList, true),
+		p.params(typ.ResultList, false))
 }
 
-func (p *noder) params(params []*syntax.Field, dddOk bool) []ir.Node {
-	nodes := make([]ir.Node, 0, len(params))
+func (p *noder) params(params []*syntax.Field, dddOk bool) []*ir.Field {
+	nodes := make([]*ir.Field, 0, len(params))
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
@@ -597,17 +597,17 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []ir.Node {
 	return nodes
 }
 
-func (p *noder) param(param *syntax.Field, dddOk, final bool) ir.Node {
+func (p *noder) param(param *syntax.Field, dddOk, final bool) *ir.Field {
 	var name *types.Sym
 	if param.Name != nil {
 		name = p.name(param.Name)
 	}
 
 	typ := p.typeExpr(param.Type)
-	n := p.nodSym(param, ir.ODCLFIELD, typ, name)
+	n := ir.NewField(p.pos(param), name, typ, nil)
 
 	// rewrite ...T parameter
-	if typ.Op() == ir.ODDD {
+	if typ, ok := typ.(*ir.SliceType); ok && typ.DDD {
 		if !dddOk {
 			// We mark these as syntax errors to get automatic elimination
 			// of multiple such errors per line (see ErrorfAt in subr.go).
@@ -619,13 +619,8 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) ir.Node {
 				p.errorAt(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
 			}
 		}
-		typ.SetOp(ir.OTARRAY)
-		typ.SetRight(typ.Left())
-		typ.SetLeft(nil)
-		n.SetIsDDD(true)
-		if n.Left() != nil {
-			n.Left().SetIsDDD(true)
-		}
+		typ.DDD = false
+		n.IsDDD = true
 	}
 
 	return n
@@ -727,14 +722,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		var len ir.Node
 		if expr.Len != nil {
 			len = p.expr(expr.Len)
-		} else {
-			len = p.nod(expr, ir.ODDD, nil, nil)
 		}
-		return p.nod(expr, ir.OTARRAY, len, p.typeExpr(expr.Elem))
+		return ir.NewArrayType(p.pos(expr), len, p.typeExpr(expr.Elem))
 	case *syntax.SliceType:
-		return p.nod(expr, ir.OTARRAY, nil, p.typeExpr(expr.Elem))
+		return ir.NewSliceType(p.pos(expr), p.typeExpr(expr.Elem))
 	case *syntax.DotsType:
-		return p.nod(expr, ir.ODDD, p.typeExpr(expr.Elem), nil)
+		t := ir.NewSliceType(p.pos(expr), p.typeExpr(expr.Elem))
+		t.DDD = true
+		return t
 	case *syntax.StructType:
 		return p.structType(expr)
 	case *syntax.InterfaceType:
@@ -742,11 +737,11 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.FuncType:
 		return p.signature(nil, expr)
 	case *syntax.MapType:
-		return p.nod(expr, ir.OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
+		return ir.NewMapType(p.pos(expr),
+			p.typeExpr(expr.Key), p.typeExpr(expr.Value))
 	case *syntax.ChanType:
-		n := p.nod(expr, ir.OTCHAN, p.typeExpr(expr.Elem), nil)
-		n.SetTChanDir(p.chanDir(expr.Dir))
-		return n
+		return ir.NewChanType(p.pos(expr),
+			p.typeExpr(expr.Elem), p.chanDir(expr.Dir))
 
 	case *syntax.TypeSwitchGuard:
 		n := p.nod(expr, ir.OTYPESW, nil, p.expr(expr.X))
@@ -837,14 +832,21 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 	return n
 }
 
-func (p *noder) typeExpr(typ syntax.Expr) ir.Node {
+func (p *noder) typeExpr(typ syntax.Expr) ir.Ntype {
 	// TODO(mdempsky): Be stricter? typecheck should handle errors anyway.
-	return p.expr(typ)
+	n := p.expr(typ)
+	if n == nil {
+		return nil
+	}
+	if _, ok := n.(ir.Ntype); !ok {
+		ir.Dump("NOT NTYPE", n)
+	}
+	return n.(ir.Ntype)
 }
 
-func (p *noder) typeExprOrNil(typ syntax.Expr) ir.Node {
+func (p *noder) typeExprOrNil(typ syntax.Expr) ir.Ntype {
 	if typ != nil {
-		return p.expr(typ)
+		return p.typeExpr(typ)
 	}
 	return nil
 }
@@ -862,47 +864,43 @@ func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 }
 
 func (p *noder) structType(expr *syntax.StructType) ir.Node {
-	l := make([]ir.Node, 0, len(expr.FieldList))
+	l := make([]*ir.Field, 0, len(expr.FieldList))
 	for i, field := range expr.FieldList {
 		p.setlineno(field)
-		var n ir.Node
+		var n *ir.Field
 		if field.Name == nil {
 			n = p.embedded(field.Type)
 		} else {
-			n = p.nodSym(field, ir.ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
+			n = ir.NewField(p.pos(field), p.name(field.Name), p.typeExpr(field.Type), nil)
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
-			n.SetOpt(constant.StringVal(p.basicLit(expr.TagList[i])))
+			n.Note = constant.StringVal(p.basicLit(expr.TagList[i]))
 		}
 		l = append(l, n)
 	}
 
 	p.setlineno(expr)
-	n := p.nod(expr, ir.OTSTRUCT, nil, nil)
-	n.PtrList().Set(l)
-	return n
+	return ir.NewStructType(p.pos(expr), l)
 }
 
 func (p *noder) interfaceType(expr *syntax.InterfaceType) ir.Node {
-	l := make([]ir.Node, 0, len(expr.MethodList))
+	l := make([]*ir.Field, 0, len(expr.MethodList))
 	for _, method := range expr.MethodList {
 		p.setlineno(method)
-		var n ir.Node
+		var n *ir.Field
 		if method.Name == nil {
-			n = p.nodSym(method, ir.ODCLFIELD, importName(p.packname(method.Type)), nil)
+			n = ir.NewField(p.pos(method), nil, importName(p.packname(method.Type)).(ir.Ntype), nil)
 		} else {
 			mname := p.name(method.Name)
-			sig := p.typeExpr(method.Type)
-			sig.SetLeft(fakeRecv())
-			n = p.nodSym(method, ir.ODCLFIELD, sig, mname)
+			sig := p.typeExpr(method.Type).(*ir.FuncType)
+			sig.Recv = fakeRecv()
+			n = ir.NewField(p.pos(method), mname, sig, nil)
 			ifacedcl(n)
 		}
 		l = append(l, n)
 	}
 
-	n := p.nod(expr, ir.OTINTER, nil, nil)
-	n.PtrList().Set(l)
-	return n
+	return ir.NewInterfaceType(p.pos(expr), l)
 }
 
 func (p *noder) packname(expr syntax.Expr) *types.Sym {
@@ -934,7 +932,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
 
-func (p *noder) embedded(typ syntax.Expr) ir.Node {
+func (p *noder) embedded(typ syntax.Expr) *ir.Field {
 	op, isStar := typ.(*syntax.Operation)
 	if isStar {
 		if op.Op != syntax.Mul || op.Y != nil {
@@ -944,11 +942,11 @@ func (p *noder) embedded(typ syntax.Expr) ir.Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ir.ODCLFIELD, importName(sym), lookup(sym.Name))
-	n.SetEmbedded(true)
+	n := ir.NewField(p.pos(typ), lookup(sym.Name), importName(sym).(ir.Ntype), nil)
+	n.Embedded = true
 
 	if isStar {
-		n.SetLeft(p.nod(op, ir.ODEREF, n.Left(), nil))
+		n.Ntype = ir.NewStarExpr(p.pos(op), n.Ntype)
 	}
 	return n
 }

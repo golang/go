@@ -28,7 +28,7 @@ const (
 
 var numLocalEmbed int
 
-func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
+func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -141,8 +141,10 @@ func embedKindApprox(typ ir.Node) int {
 	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == ir.LocalPkg {
 		return embedString
 	}
-	if typ.Op() == ir.OTARRAY && typ.Left() == nil && typ.Right().Sym() != nil && typ.Right().Sym().Name == "byte" && typ.Right().Sym().Pkg == ir.LocalPkg {
-		return embedBytes
+	if typ, ok := typ.(*ir.SliceType); ok {
+		if sym := typ.Elem.Sym(); sym != nil && sym.Name == "byte" && sym.Pkg == ir.LocalPkg {
+			return embedBytes
+		}
 	}
 	return embedUnknown
 }
