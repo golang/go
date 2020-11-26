@@ -964,7 +964,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			if top&ctxCallee != 0 {
 				ok |= ctxCallee
 			} else {
-				typecheckpartialcall(n, s)
+				n = typecheckpartialcall(n, s)
 				ok |= ctxExpr
 			}
 

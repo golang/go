@@ -84,3 +84,29 @@ func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ClosureRead) RawCopy() Node                 { c := *n; return &c }
 func (n *ClosureRead) Type() *types.Type             { return n.typ }
 func (n *ClosureRead) Offset() int64                 { return n.offset }
+
+// A CallPartExpr is a method expression X.Method (uncalled).
+type CallPartExpr struct {
+	miniExpr
+	fn     *Func
+	X      Node
+	Method *Name
+}
+
+func NewCallPartExpr(pos src.XPos, x Node, method *Name, fn *Func) *CallPartExpr {
+	n := &CallPartExpr{fn: fn, X: x, Method: method}
+	n.op = OCALLPART
+	n.pos = pos
+	n.typ = fn.Type()
+	n.fn = fn
+	return n
+}
+
+func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
+func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *CallPartExpr) RawCopy() Node                 { c := *n; return &c }
+func (n *CallPartExpr) Func() *Func                   { return n.fn }
+func (n *CallPartExpr) Left() Node                    { return n.X }
+func (n *CallPartExpr) Right() Node                   { return n.Method }
+func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
+func (n *CallPartExpr) SetRight(x Node)               { n.Method = x.(*Name) }

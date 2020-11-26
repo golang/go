@@ -56,7 +56,6 @@ type Node interface {
 	Type() *types.Type
 	SetType(t *types.Type)
 	Func() *Func
-	SetFunc(x *Func)
 	Name() *Name
 	Sym() *types.Sym
 	SetSym(x *types.Sym)
@@ -143,9 +142,6 @@ type node struct {
 	typ  *types.Type
 	orig Node // original form, for printing, and tracking copies of ONAMEs
 
-	// func
-	fn *Func
-
 	sym *types.Sym // various
 	opt interface{}
 
@@ -177,8 +173,7 @@ func (n *node) Orig() Node            { return n.orig }
 func (n *node) SetOrig(x Node)        { n.orig = x }
 func (n *node) Type() *types.Type     { return n.typ }
 func (n *node) SetType(x *types.Type) { n.typ = x }
-func (n *node) Func() *Func           { return n.fn }
-func (n *node) SetFunc(x *Func)       { n.fn = x }
+func (n *node) Func() *Func           { return nil }
 func (n *node) Name() *Name           { return nil }
 func (n *node) Sym() *types.Sym       { return n.sym }
 func (n *node) SetSym(x *types.Sym)   { n.sym = x }
@@ -1156,7 +1151,6 @@ var okForNod = [OEND]bool{
 	OCALLFUNC:      true,
 	OCALLINTER:     true,
 	OCALLMETH:      true,
-	OCALLPART:      true,
 	OCAP:           true,
 	OCASE:          true,
 	OCFUNC:         true,

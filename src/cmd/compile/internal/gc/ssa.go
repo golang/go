@@ -4146,10 +4146,14 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 }
 
 func isIntrinsicCall(n ir.Node) bool {
-	if n == nil || n.Left() == nil {
+	if n == nil {
 		return false
 	}
-	return findIntrinsic(n.Left().Sym()) != nil
+	name, ok := n.Left().(*ir.Name)
+	if !ok {
+		return false
+	}
+	return findIntrinsic(name.Sym()) != nil
 }
 
 // intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.

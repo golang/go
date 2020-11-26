@@ -414,7 +414,7 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
 	return walkexpr(clos, init)
 }
 
-func typecheckpartialcall(dot ir.Node, sym *types.Sym) {
+func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
 	switch dot.Op() {
 	case ir.ODOTINTER, ir.ODOTMETH:
 		break
@@ -427,11 +427,7 @@ func typecheckpartialcall(dot ir.Node, sym *types.Sym) {
 	fn := makepartialcall(dot, dot.Type(), sym)
 	fn.SetWrapper(true)
 
-	dot.SetOp(ir.OCALLPART)
-	dot.SetRight(NewName(sym))
-	dot.SetType(fn.Type())
-	dot.SetFunc(fn)
-	dot.SetOpt(nil) // clear types.Field from ODOTMETH
+	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), NewName(sym), fn)
 }
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
@@ -522,7 +518,7 @@ func partialCallType(n ir.Node) *types.Type {
 	return t
 }
 
-func walkpartialcall(n ir.Node, init *ir.Nodes) ir.Node {
+func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
