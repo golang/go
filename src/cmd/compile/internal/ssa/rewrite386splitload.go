@@ -155,8 +155,3 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 		return true
 	}
 }
-func rewriteBlock386splitload(b *Block) bool {
-	switch b.Kind {
-	}
-	return false
-}
