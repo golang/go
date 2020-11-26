@@ -128,7 +128,6 @@ func (n *miniNode) SetSubOp(Op)         { panic(n.no("SetSubOp")) }
 func (n *miniNode) Type() *types.Type   { return nil }
 func (n *miniNode) SetType(*types.Type) { panic(n.no("SetType")) }
 func (n *miniNode) Func() *Func         { return nil }
-func (n *miniNode) SetFunc(*Func)       { panic(n.no("SetFunc")) }
 func (n *miniNode) Name() *Name         { return nil }
 func (n *miniNode) Sym() *types.Sym     { return nil }
 func (n *miniNode) SetSym(*types.Sym)   { panic(n.no("SetSym")) }
