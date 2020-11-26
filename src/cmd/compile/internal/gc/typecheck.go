@@ -1948,7 +1948,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(types.NewPtr(t.Elem()))
 		}
 
-	case ir.OCLOSUREVAR:
+	case ir.OCLOSUREREAD:
 		ok |= ctxExpr
 
 	case ir.OCFUNC:
@@ -3099,7 +3099,7 @@ func islvalue(n ir.Node) bool {
 			return false
 		}
 		fallthrough
-	case ir.ODEREF, ir.ODOTPTR, ir.OCLOSUREVAR:
+	case ir.ODEREF, ir.ODOTPTR, ir.OCLOSUREREAD:
 		return true
 
 	case ir.ODOT:
@@ -3186,7 +3186,7 @@ func samesafeexpr(l ir.Node, r ir.Node) bool {
 	}
 
 	switch l.Op() {
-	case ir.ONAME, ir.OCLOSUREVAR:
+	case ir.ONAME, ir.OCLOSUREREAD:
 		return l == r
 
 	case ir.ODOT, ir.ODOTPTR:

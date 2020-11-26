@@ -963,7 +963,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 
 	// Handle captured variables when inlining closures.
 	if c := fn.OClosure; c != nil {
-		for _, v := range c.Func().ClosureVars {
+		for _, v := range fn.ClosureVars {
 			if v.Op() == ir.OXXX {
 				continue
 			}
@@ -973,7 +973,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 			// NB: if we enabled inlining of functions containing OCLOSURE or refined
 			// the reassigned check via some sort of copy propagation this would most
 			// likely need to be changed to a loop to walk up to the correct Param
-			if o == nil || (o.Curfn != Curfn && o.Curfn.OClosure != Curfn) {
+			if o == nil || o.Curfn != Curfn {
 				base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
 			}
 
