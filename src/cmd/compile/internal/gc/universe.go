@@ -176,7 +176,10 @@ func typeinit() {
 	t := types.New(types.TUNSAFEPTR)
 	types.Types[types.TUNSAFEPTR] = t
 	t.Sym = unsafepkg.Lookup("Pointer")
-	t.Sym.Def = ir.TypeNode(t)
+	n := ir.NewNameAt(src.NoXPos, t.Sym) // NewNameAt to get a package for use tracking
+	n.SetOp(ir.OTYPE)
+	n.SetType(t)
+	t.Sym.Def = n
 	dowidth(types.Types[types.TUNSAFEPTR])
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {

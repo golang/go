@@ -95,6 +95,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ir.Nodes %+v":               "",
 	"cmd/compile/internal/ir.Nodes %.v":               "",
 	"cmd/compile/internal/ir.Nodes %v":                "",
+	"cmd/compile/internal/ir.Ntype %v":                "",
 	"cmd/compile/internal/ir.Op %#v":                  "",
 	"cmd/compile/internal/ir.Op %v":                   "",
 	"cmd/compile/internal/ssa.BranchPrediction %d":    "",

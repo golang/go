@@ -363,7 +363,7 @@ func closureType(clo ir.Node) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
-	fields := []ir.Node{
+	fields := []*ir.Field{
 		namedfield(".F", types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func().ClosureVars {
@@ -456,9 +456,9 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 	// number at the use of the method expression in this
 	// case. See issue 29389.
 
-	tfn := ir.Nod(ir.OTFUNC, nil, nil)
-	tfn.PtrList().Set(structargs(t0.Params(), true))
-	tfn.PtrRlist().Set(structargs(t0.Results(), false))
+	tfn := ir.NewFuncType(base.Pos, nil,
+		structargs(t0.Params(), true),
+		structargs(t0.Results(), false))
 
 	fn := dclfunc(sym, tfn)
 	fn.SetDupok(true)
@@ -510,7 +510,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
 func partialCallType(n ir.Node) *types.Type {
-	t := tostruct([]ir.Node{
+	t := tostruct([]*ir.Field{
 		namedfield("F", types.Types[types.TUINTPTR]),
 		namedfield("R", n.Left().Type()),
 	})

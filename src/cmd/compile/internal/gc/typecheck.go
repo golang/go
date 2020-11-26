@@ -206,6 +206,10 @@ func typecheckFunc(fn *ir.Func) {
 	}
 }
 
+func typecheckNtype(n ir.Ntype) ir.Ntype {
+	return typecheck(n, ctxType).(ir.Ntype)
+}
+
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
 // 	n.Left = typecheck(n.Left, top)
@@ -403,9 +407,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		n.SetType(nil)
 		return n
 
-	case ir.ODDD:
-		break
-
 	// types (ODEREF is with exprs)
 	case ir.OTYPE:
 		ok |= ctxType
@@ -414,70 +415,69 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 
-	case ir.OTARRAY:
+	case ir.OTSLICE:
 		ok |= ctxType
-		r := typecheck(n.Right(), ctxType)
-		if r.Type() == nil {
-			n.SetType(nil)
+		n := n.(*ir.SliceType)
+		n.Elem = typecheck(n.Elem, ctxType)
+		if n.Elem.Type() == nil {
 			return n
 		}
+		t := types.NewSlice(n.Elem.Type())
+		n.SetOTYPE(t)
+		checkwidth(t)
 
-		var t *types.Type
-		if n.Left() == nil {
-			t = types.NewSlice(r.Type())
-		} else if n.Left().Op() == ir.ODDD {
+	case ir.OTARRAY:
+		ok |= ctxType
+		n := n.(*ir.ArrayType)
+		n.Elem = typecheck(n.Elem, ctxType)
+		if n.Elem.Type() == nil {
+			return n
+		}
+		if n.Len == nil { // [...]T
 			if !n.Diag() {
 				n.SetDiag(true)
 				base.Errorf("use of [...] array outside of array literal")
 			}
-			n.SetType(nil)
 			return n
-		} else {
-			n.SetLeft(indexlit(typecheck(n.Left(), ctxExpr)))
-			l := n.Left()
-			if ir.ConstType(l) != constant.Int {
-				switch {
-				case l.Type() == nil:
-					// Error already reported elsewhere.
-				case l.Type().IsInteger() && l.Op() != ir.OLITERAL:
-					base.Errorf("non-constant array bound %v", l)
-				default:
-					base.Errorf("invalid array bound %v", l)
-				}
-				n.SetType(nil)
-				return n
+		}
+		n.Len = indexlit(typecheck(n.Len, ctxExpr))
+		size := n.Len
+		if ir.ConstType(size) != constant.Int {
+			switch {
+			case size.Type() == nil:
+				// Error already reported elsewhere.
+			case size.Type().IsInteger() && size.Op() != ir.OLITERAL:
+				base.Errorf("non-constant array bound %v", size)
+			default:
+				base.Errorf("invalid array bound %v", size)
 			}
-
-			v := l.Val()
-			if doesoverflow(v, types.Types[types.TINT]) {
-				base.Errorf("array bound is too large")
-				n.SetType(nil)
-				return n
-			}
-
-			if constant.Sign(v) < 0 {
-				base.Errorf("array bound must be non-negative")
-				n.SetType(nil)
-				return n
-			}
-
-			bound, _ := constant.Int64Val(v)
-			t = types.NewArray(r.Type(), bound)
+			return n
 		}
 
-		setTypeNode(n, t)
-		n.SetLeft(nil)
-		n.SetRight(nil)
+		v := size.Val()
+		if doesoverflow(v, types.Types[types.TINT]) {
+			base.Errorf("array bound is too large")
+			return n
+		}
+
+		if constant.Sign(v) < 0 {
+			base.Errorf("array bound must be non-negative")
+			return n
+		}
+
+		bound, _ := constant.Int64Val(v)
+		t := types.NewArray(n.Elem.Type(), bound)
+		n.SetOTYPE(t)
 		checkwidth(t)
 
 	case ir.OTMAP:
 		ok |= ctxType
-		n.SetLeft(typecheck(n.Left(), ctxType))
-		n.SetRight(typecheck(n.Right(), ctxType))
-		l := n.Left()
-		r := n.Right()
+		n := n.(*ir.MapType)
+		n.Key = typecheck(n.Key, ctxType)
+		n.Elem = typecheck(n.Elem, ctxType)
+		l := n.Key
+		r := n.Elem
 		if l.Type() == nil || r.Type() == nil {
-			n.SetType(nil)
 			return n
 		}
 		if l.Type().NotInHeap() {
@@ -486,48 +486,42 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		if r.Type().NotInHeap() {
 			base.Errorf("incomplete (or unallocatable) map value not allowed")
 		}
-
-		setTypeNode(n, types.NewMap(l.Type(), r.Type()))
+		n.SetOTYPE(types.NewMap(l.Type(), r.Type()))
 		mapqueue = append(mapqueue, n) // check map keys when all types are settled
-		n.SetLeft(nil)
-		n.SetRight(nil)
 
 	case ir.OTCHAN:
 		ok |= ctxType
-		n.SetLeft(typecheck(n.Left(), ctxType))
-		l := n.Left()
+		n := n.(*ir.ChanType)
+		n.Elem = typecheck(n.Elem, ctxType)
+		l := n.Elem
 		if l.Type() == nil {
-			n.SetType(nil)
 			return n
 		}
 		if l.Type().NotInHeap() {
 			base.Errorf("chan of incomplete (or unallocatable) type not allowed")
 		}
-
-		setTypeNode(n, types.NewChan(l.Type(), n.TChanDir()))
-		n.SetLeft(nil)
-		n.ResetAux()
+		n.SetOTYPE(types.NewChan(l.Type(), n.Dir))
 
 	case ir.OTSTRUCT:
 		ok |= ctxType
-		setTypeNode(n, tostruct(n.List().Slice()))
-		n.PtrList().Set(nil)
+		n := n.(*ir.StructType)
+		n.SetOTYPE(tostruct(n.Fields))
 
 	case ir.OTINTER:
 		ok |= ctxType
-		setTypeNode(n, tointerface(n.List().Slice()))
+		n := n.(*ir.InterfaceType)
+		n.SetOTYPE(tointerface(n.Methods))
 
 	case ir.OTFUNC:
 		ok |= ctxType
-		setTypeNode(n, functype(n.Left(), n.List().Slice(), n.Rlist().Slice()))
-		n.SetLeft(nil)
-		n.PtrList().Set(nil)
-		n.PtrRlist().Set(nil)
+		n := n.(*ir.FuncType)
+		n.SetOTYPE(functype(n.Recv, n.Params, n.Results))
 
 	// type or expr
 	case ir.ODEREF:
-		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxType))
-		l := n.Left()
+		n := n.(*ir.StarExpr)
+		n.X = typecheck(n.X, ctxExpr|ctxType)
+		l := n.X
 		t := l.Type()
 		if t == nil {
 			n.SetType(nil)
@@ -535,8 +529,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		if l.Op() == ir.OTYPE {
 			ok |= ctxType
-			setTypeNode(n, types.NewPtr(l.Type()))
-			n.SetLeft(nil)
+			n.SetOTYPE(types.NewPtr(l.Type()))
 			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
 			checkwidth(l.Type())
 			break
@@ -2822,16 +2815,14 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 	setlineno(n.Right())
 
 	// Need to handle [...]T arrays specially.
-	if n.Right().Op() == ir.OTARRAY && n.Right().Left() != nil && n.Right().Left().Op() == ir.ODDD {
-		n.Right().SetRight(typecheck(n.Right().Right(), ctxType))
-		if n.Right().Right().Type() == nil {
+	if array, ok := n.Right().(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
+		array.Elem = typecheck(array.Elem, ctxType)
+		elemType := array.Elem.Type()
+		if elemType == nil {
 			n.SetType(nil)
 			return n
 		}
-		elemType := n.Right().Right().Type()
-
 		length := typecheckarraylit(elemType, -1, n.List().Slice(), "array literal")
-
 		n.SetOp(ir.OARRAYLIT)
 		n.SetType(types.NewArray(elemType, length))
 		n.SetRight(nil)
@@ -3464,7 +3455,7 @@ func stringtoruneslit(n ir.Node) ir.Node {
 	return nn
 }
 
-var mapqueue []ir.Node
+var mapqueue []*ir.MapType
 
 func checkMapKeys() {
 	for _, n := range mapqueue {
@@ -3531,7 +3522,7 @@ func typecheckdeftype(n ir.Node) {
 	}
 
 	n.SetTypecheck(1)
-	n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+	n.Name().Ntype = typecheckNtype(n.Name().Ntype)
 	t := n.Name().Ntype.Type()
 	if t == nil {
 		n.SetDiag(true)
@@ -3593,7 +3584,7 @@ func typecheckdef(n ir.Node) {
 
 	case ir.OLITERAL:
 		if n.Name().Ntype != nil {
-			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+			n.Name().Ntype = typecheckNtype(n.Name().Ntype)
 			n.SetType(n.Name().Ntype.Type())
 			n.Name().Ntype = nil
 			if n.Type() == nil {
@@ -3647,7 +3638,7 @@ func typecheckdef(n ir.Node) {
 
 	case ir.ONAME:
 		if n.Name().Ntype != nil {
-			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+			n.Name().Ntype = typecheckNtype(n.Name().Ntype)
 			n.SetType(n.Name().Ntype.Type())
 			if n.Type() == nil {
 				n.SetDiag(true)
@@ -3686,9 +3677,9 @@ func typecheckdef(n ir.Node) {
 		if n.Alias() {
 			// Type alias declaration: Simply use the rhs type - no need
 			// to create a new type.
-			// If we have a syntax error, p.Ntype may be nil.
+			// If we have a syntax error, name.Ntype may be nil.
 			if n.Ntype != nil {
-				n.Ntype = typecheck(n.Ntype, ctxType)
+				n.Ntype = typecheckNtype(n.Ntype)
 				n.SetType(n.Ntype.Type())
 				if n.Type() == nil {
 					n.SetDiag(true)
@@ -3706,8 +3697,10 @@ func typecheckdef(n ir.Node) {
 		// regular type declaration
 		defercheckwidth()
 		n.SetWalkdef(1)
-		setTypeNode(n, types.New(types.TFORW))
-		n.Type().Sym = n.Sym()
+		t := types.New(types.TFORW)
+		t.Nod = n
+		t.Sym = n.Sym()
+		n.SetType(t)
 		errorsBefore := base.Errors()
 		typecheckdeftype(n)
 		if n.Type().Etype == types.TFORW && base.Errors() > errorsBefore {
@@ -3990,11 +3983,12 @@ func deadcodeexpr(n ir.Node) ir.Node {
 	return n
 }
 
-// setTypeNode sets n to an OTYPE node representing t.
-func setTypeNode(n ir.Node, t *types.Type) {
-	n.SetOp(ir.OTYPE)
+func toTypeNode(orig ir.Node, t *types.Type) ir.Node {
+	n := ir.Nod(ir.OTYPE, nil, nil)
+	n.SetPos(orig.Pos())
 	n.SetType(t)
-	n.Type().Nod = n
+	t.Nod = n
+	return n
 }
 
 // getIotaValue returns the current value for "iota",

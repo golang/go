@@ -381,7 +381,7 @@ var scase *types.Type
 // Keep in sync with src/runtime/select.go.
 func scasetype() *types.Type {
 	if scase == nil {
-		scase = tostruct([]ir.Node{
+		scase = tostruct([]*ir.Field{
 			namedfield("c", types.Types[types.TUNSAFEPTR]),
 			namedfield("elem", types.Types[types.TUNSAFEPTR]),
 		})

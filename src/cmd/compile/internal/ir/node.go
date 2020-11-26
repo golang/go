@@ -79,12 +79,8 @@ type Node interface {
 	SetImplicit(x bool)
 	IsDDD() bool
 	SetIsDDD(x bool)
-	Embedded() bool
-	SetEmbedded(x bool)
 	IndexMapLValue() bool
 	SetIndexMapLValue(x bool)
-	TChanDir() types.ChanDir
-	SetTChanDir(x types.ChanDir)
 	ResetAux()
 	HasBreak() bool
 	SetHasBreak(x bool)
@@ -205,6 +201,10 @@ func (n *node) Uint64Val() uint64     { panic("node.Uint64Val") }
 func (n *node) BoolVal() bool         { panic("node.BoolVal") }
 func (n *node) StringVal() string     { panic("node.StringVal") }
 
+// node can be Ntype only because of OXDOT of undefined name.
+// When that moves into its own syntax, can drop this.
+func (n *node) CanBeNtype() {}
+
 func (n *node) SetOp(op Op) {
 	if !okForNod[op] {
 		panic("cannot node.SetOp " + op.String())
@@ -252,20 +252,6 @@ func (n *node) SetIndexMapLValue(b bool) {
 	}
 }
 
-func (n *node) TChanDir() types.ChanDir {
-	if n.Op() != OTCHAN {
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	return types.ChanDir(n.aux)
-}
-
-func (n *node) SetTChanDir(dir types.ChanDir) {
-	if n.Op() != OTCHAN {
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	n.aux = uint8(dir)
-}
-
 func IsSynthetic(n Node) bool {
 	name := n.Sym().Name
 	return name[0] == '.' || name[0] == '~'
@@ -301,7 +287,6 @@ const (
 	_, nodeBounded   // bounds check unnecessary
 	_, nodeHasCall   // expression contains a function call
 	_, nodeLikely    // if statement condition likely
-	_, nodeEmbedded  // ODCLFIELD embedded type
 )
 
 func (n *node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -320,7 +305,6 @@ func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
 func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
 func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
 func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
-func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
 func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
@@ -336,7 +320,6 @@ func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
 func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
 func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
 func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
-func (n *node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // MarkNonNil marks a pointer n as being guaranteed non-nil,
 // on all code paths, at all times.
@@ -474,7 +457,7 @@ const (
 
 	// Used during parsing but don't last.
 	ODCLFUNC  // func f() or func (r) f()
-	ODCLFIELD // struct field, interface field, or func/method argument/return value.
+	ODCLFIELD // UNUSED: TODO(rsc): Delete.
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
@@ -593,11 +576,11 @@ const (
 	// OTFUNC: func() - Left is receiver field, List is list of param fields, Rlist is
 	// list of result fields.
 	OTFUNC
-	OTARRAY // []int, [8]int, [N]int or [...]int
-	OTSLICE // to be used in future CL
+	OTARRAY // [8]int or [...]int
+	OTSLICE // []int
 
 	// misc
-	ODDD         // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+	ODDD         // UNUSED; TODO(rsc): Delete.
 	OINLCALL     // intermediary representation of an inlined call.
 	OEFACE       // itable and data words of an empty-interface value.
 	OITAB        // itable word of an interface value.
@@ -1050,6 +1033,8 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	switch op {
 	case ODCLFUNC:
 		return NewFunc(pos)
+	case ODEREF:
+		return NewStarExpr(pos, nleft)
 	case OPACK:
 		return NewPkgName(pos, nil, nil)
 	case OEMPTY:
@@ -1112,12 +1097,9 @@ var okForNod = [OEND]bool{
 	OCOPY:          true,
 	ODCL:           true,
 	ODCLCONST:      true,
-	ODCLFIELD:      true,
 	ODCLTYPE:       true,
-	ODDD:           true,
 	ODEFER:         true,
 	ODELETE:        true,
-	ODEREF:         true,
 	ODIV:           true,
 	ODOT:           true,
 	ODOTINTER:      true,
@@ -1201,13 +1183,6 @@ var okForNod = [OEND]bool{
 	OSTRUCTLIT:     true,
 	OSUB:           true,
 	OSWITCH:        true,
-	OTARRAY:        true,
-	OTCHAN:         true,
-	OTFUNC:         true,
-	OTINTER:        true,
-	OTMAP:          true,
-	OTSTRUCT:       true,
-	OTYPE:          true, // TODO: Remove once setTypeNode is gone.
 	OTYPESW:        true,
 	OVARDEF:        true,
 	OVARKILL:       true,

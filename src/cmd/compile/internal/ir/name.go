@@ -43,7 +43,7 @@ type Name struct {
 	Vargen    int32
 	Decldepth int32 // declaration loop depth, increased for every loop or label
 
-	Ntype    Node
+	Ntype    Ntype
 	Heapaddr *Name // temp holding heap address of param
 
 	// ONAME PAUTOHEAP
@@ -159,6 +159,8 @@ func (n *Name) Offset() int64                 { return n.offset }
 func (n *Name) SetOffset(x int64)             { n.offset = x }
 func (n *Name) Iota() int64                   { return n.offset }
 func (n *Name) SetIota(x int64)               { n.offset = x }
+
+func (*Name) CanBeNtype() {}
 
 func (n *Name) SetOp(op Op) {
 	switch op {
@@ -370,6 +372,8 @@ func (p *PkgName) String() string                { return fmt.Sprint(p) }
 func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
 func (p *PkgName) RawCopy() Node                 { c := *p; return &c }
 func (p *PkgName) Sym() *types.Sym               { return p.sym }
+
+func (*PkgName) CanBeNtype() {}
 
 func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p := &PkgName{sym: sym, Pkg: pkg}

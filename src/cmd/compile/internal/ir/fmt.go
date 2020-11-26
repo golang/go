@@ -403,10 +403,6 @@ func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " implicit(%v)", n.Implicit())
 	}
 
-	if n.Embedded() {
-		fmt.Fprintf(s, " embedded")
-	}
-
 	if n.Op() == ONAME {
 		if n.Name().Addrtaken() {
 			fmt.Fprint(s, " addrtaken")
@@ -921,13 +917,6 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 	case ODCL:
 		mode.Fprintf(s, "var %v %v", n.Left().Sym(), n.Left().Type())
 
-	case ODCLFIELD:
-		if n.Sym() != nil {
-			mode.Fprintf(s, "%v %v", n.Sym(), n.Left())
-		} else {
-			mode.Fprintf(s, "%v", n.Left())
-		}
-
 	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
@@ -1115,6 +1104,7 @@ var OpPrec = []int{
 	OSTR2RUNES:     8,
 	OSTRUCTLIT:     8,
 	OTARRAY:        8,
+	OTSLICE:        8,
 	OTCHAN:         8,
 	OTFUNC:         8,
 	OTINTER:        8,
@@ -1176,7 +1166,6 @@ var OpPrec = []int{
 	OCASE:       -1,
 	OCONTINUE:   -1,
 	ODCL:        -1,
-	ODCLFIELD:   -1,
 	ODEFER:      -1,
 	OEMPTY:      -1,
 	OFALL:       -1,
@@ -1294,29 +1283,40 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		}
 		mode.Fprintf(s, "%v", n.Type())
 
-	case OTARRAY:
-		if n.Left() != nil {
-			mode.Fprintf(s, "[%v]%v", n.Left(), n.Right())
-			return
+	case OTSLICE:
+		n := n.(*SliceType)
+		if n.DDD {
+			mode.Fprintf(s, "...%v", n.Elem)
+		} else {
+			mode.Fprintf(s, "[]%v", n.Elem) // happens before typecheck
 		}
-		mode.Fprintf(s, "[]%v", n.Right()) // happens before typecheck
+
+	case OTARRAY:
+		n := n.(*ArrayType)
+		if n.Len == nil {
+			mode.Fprintf(s, "[...]%v", n.Elem)
+		} else {
+			mode.Fprintf(s, "[%v]%v", n.Len, n.Elem)
+		}
 
 	case OTMAP:
-		mode.Fprintf(s, "map[%v]%v", n.Left(), n.Right())
+		n := n.(*MapType)
+		mode.Fprintf(s, "map[%v]%v", n.Key, n.Elem)
 
 	case OTCHAN:
-		switch n.TChanDir() {
+		n := n.(*ChanType)
+		switch n.Dir {
 		case types.Crecv:
-			mode.Fprintf(s, "<-chan %v", n.Left())
+			mode.Fprintf(s, "<-chan %v", n.Elem)
 
 		case types.Csend:
-			mode.Fprintf(s, "chan<- %v", n.Left())
+			mode.Fprintf(s, "chan<- %v", n.Elem)
 
 		default:
-			if n.Left() != nil && n.Left().Op() == OTCHAN && n.Left().Sym() == nil && n.Left().TChanDir() == types.Crecv {
-				mode.Fprintf(s, "chan (%v)", n.Left())
+			if n.Elem != nil && n.Elem.Op() == OTCHAN && n.Elem.(*ChanType).Dir == types.Crecv {
+				mode.Fprintf(s, "chan (%v)", n.Elem)
 			} else {
-				mode.Fprintf(s, "chan %v", n.Left())
+				mode.Fprintf(s, "chan %v", n.Elem)
 			}
 		}
 
@@ -1556,8 +1556,6 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 			}
 			exprFmt(n1, s, nprec, mode)
 		}
-	case ODDD:
-		mode.Fprintf(s, "...")
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op())
 	}

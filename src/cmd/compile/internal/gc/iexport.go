@@ -1056,9 +1056,6 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.localName(n.Left())
 		w.typ(n.Left().Type())
 
-	// case ODCLFIELD:
-	//	unimplemented - handled by default case
-
 	case ir.OAS:
 		// Don't export "v = <N>" initializing statements, hope they're always
 		// preceded by the DCL which will be re-parsed and typecheck to reproduce

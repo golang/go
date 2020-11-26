@@ -853,7 +853,7 @@ opswitch:
 			}
 			value = ir.Nod(ir.OINDEX, staticuint64s, index)
 			value.SetBounded(true)
-		case n.Left().Class() == ir.PEXTERN && n.Left().Name() != nil && n.Left().Name().Readonly():
+		case n.Left().Name() != nil && n.Left().Class() == ir.PEXTERN && n.Left().Name().Readonly():
 			// n.Left is a readonly global; use it directly.
 			value = n.Left()
 		case !fromType.IsInterface() && n.Esc() == EscNone && fromType.Width <= 1024:
@@ -3183,10 +3183,10 @@ func eqfor(t *types.Type) (n ir.Node, needsize bool) {
 		sym := typesymprefix(".eq", t)
 		n := NewName(sym)
 		setNodeNameFunc(n)
-		n.SetType(functype(nil, []ir.Node{
+		n.SetType(functype(nil, []*ir.Field{
 			anonfield(types.NewPtr(t)),
 			anonfield(types.NewPtr(t)),
-		}, []ir.Node{
+		}, []*ir.Field{
 			anonfield(types.Types[types.TBOOL]),
 		}))
 		return n, false
@@ -3914,7 +3914,7 @@ func wrapCall(n ir.Node, init *ir.Nodes) ir.Node {
 
 	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
 	origArgs := make([]ir.Node, n.List().Len())
-	t := ir.Nod(ir.OTFUNC, nil, nil)
+	var funcArgs []*ir.Field
 	for i, arg := range n.List().Slice() {
 		s := lookupN("a", i)
 		if !isBuiltinCall && arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() && arg.Left().Type().IsUnsafePtr() {
@@ -3922,8 +3922,9 @@ func wrapCall(n ir.Node, init *ir.Nodes) ir.Node {
 			arg = arg.Left()
 			n.List().SetIndex(i, arg)
 		}
-		t.PtrList().Append(symfield(s, arg.Type()))
+		funcArgs = append(funcArgs, symfield(s, arg.Type()))
 	}
+	t := ir.NewFuncType(base.Pos, nil, funcArgs, nil)
 
 	wrapCall_prgen++
 	sym := lookupN("wrap·", wrapCall_prgen)
