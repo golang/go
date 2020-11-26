@@ -75,7 +75,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 var std = New(os.Stderr, "", LstdFlags)
 
-// Default returns the *Logger used by the package-level output functions.
+// Default returns the standard logger used by the package-level output functions.
 func Default() *Logger { return std }
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
