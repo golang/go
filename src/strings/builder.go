@@ -123,3 +123,27 @@ func (b *Builder) WriteString(s string) (int, error) {
 	b.buf = append(b.buf, s...)
 	return len(s), nil
 }
+
+// AppendJoin joins the elements with the separator just like Join.
+// But instead of creating a new string result, it appends to the current Builder.
+// It returns the length of the joined string and a nil error.
+func (b *Builder) AppendJoin(elems []string, sep string) (int, error) {
+	switch len(elems) {
+	case 0:
+		return 0, nil
+	case 1:
+		return b.WriteString(elems[0])
+	}
+	n := len(sep) * (len(elems) - 1)
+	for _, e := range elems {
+		n += len(e)
+	}
+
+	b.Grow(n)
+	b.WriteString(elems[0])
+	for _, s := range elems[1:] {
+		b.WriteString(sep)
+		b.WriteString(s)
+	}
+	return n, nil
+}

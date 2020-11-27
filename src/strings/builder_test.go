@@ -177,6 +177,18 @@ func TestBuilderWriteByte(t *testing.T) {
 	check(t, &b, "a\x00")
 }
 
+func TestBuilderAppendJoin(t *testing.T) {
+	var b Builder
+	if n, err := b.AppendJoin([]string{"123", "Go", "GoGo"}, "-"); err != nil {
+		t.Error(err)
+	} else {
+		if n != 11 {
+			t.Errorf("Got n=%d; want %d", n, 11)
+		}
+		check(t, &b, "123-Go-GoGo")
+	}
+}
+
 func TestBuilderAllocs(t *testing.T) {
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
