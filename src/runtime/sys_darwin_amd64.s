@@ -105,6 +105,9 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
 	POPQ	BP
 	RET
 
+TEXT runtime·mlock_trampoline(SB), NOSPLIT, $0
+	UNDEF // unimplemented
+
 GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
 
 TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
