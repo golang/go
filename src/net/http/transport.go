@@ -245,7 +245,6 @@ func (tr *transportRequest) extraHeaders() Header {
 // For higher-level HTTP client support (such as handling of cookies
 // and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
-	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
@@ -254,6 +253,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
+	//req.Method&req . URL.Host&req . URL.Scheme Can I put it in front? This method supports HTTP?
+	//Code line number：289，273，276
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+
 	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
 	t.altMu.RLock()
 	altRT := t.altProto[req.URL.Scheme]
