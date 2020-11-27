@@ -2,69 +2,60 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-	Package flag implements command-line flag parsing.
-
-	Usage
-
-	Define flags using flag.String(), Bool(), Int(), etc.
-
-	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
-		import "flag"
-		var nFlag = flag.Int("n", 1234, "help message for flag n")
-	If you like, you can bind the flag to a variable using the Var() functions.
-		var flagvar int
-		func init() {
-			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
-		}
-	Or you can create custom flags that satisfy the Value interface (with
-	pointer receivers) and couple them to flag parsing by
-		flag.Var(&flagVal, "name", "help message for flagname")
-	For such flags, the default value is just the initial value of the variable.
-
-	After all flags are defined, call
-		flag.Parse()
-	to parse the command line into the defined flags.
-
-	Flags may then be used directly. If you're using the flags themselves,
-	they are all pointers; if you bind to variables, they're values.
-		fmt.Println("ip has value ", *ip)
-		fmt.Println("flagvar has value ", flagvar)
-
-	After parsing, the arguments following the flags are available as the
-	slice flag.Args() or individually as flag.Arg(i).
-	The arguments are indexed from 0 through flag.NArg()-1.
-
-	Command line flag syntax
-
-	The following forms are permitted:
-
-		-flag
-		-flag=x
-		-flag x  // non-boolean flags only
-	One or two minus signs may be used; they are equivalent.
-	The last form is not permitted for boolean flags because the
-	meaning of the command
-		cmd -x *
-	where * is a Unix shell wildcard, will change if there is a file
-	called 0, false, etc. You must use the -flag=false form to turn
-	off a boolean flag.
-
-	Flag parsing stops just before the first non-flag argument
-	("-" is a non-flag argument) or after the terminator "--".
-
-	Integer flags accept 1234, 0664, 0x1234 and may be negative.
-	Boolean flags may be:
-		1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
-	Duration flags accept any input valid for time.ParseDuration.
-
-	The default set of command-line flags is controlled by
-	top-level functions.  The FlagSet type allows one to define
-	independent sets of flags, such as to implement subcommands
-	in a command-line interface. The methods of FlagSet are
-	analogous to the top-level functions for the command-line
-	flag set.
-*/
+//flag包实现了命令行参数的解析。
+//
+//Usage
+//
+//使用flag.String(), Bool(), Int()等函数定义flags。
+//
+//下例声明了一个整数flag， -n，解析结果保存在*int类型的指针nFlag中：
+//
+//	import "flag"
+//	var nFlag = flag.Int("n", 1234, "help message for flag n")
+//
+//如果你喜欢，你可以使用Var系列函数将flag绑定到一个变量。
+// //	var flagvar int
+//	func init() {
+//		flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+//	}
+//
+//或者你可以创建满足Value接口（使用指针接收）的自定义flag，并且使用如下方式将其进行flag解析：
+//	flag.Var(&flagVal, "name", "help message for flagname")
+//对于这种flag，默认值就是该变量的初始值。
+//
+//在所有的flag都定义后，调用
+//	flag.Parse()
+//来解析命令行参数写入注册到已经定义的flag。
+//
+//解析之后，flag就可以直接使用了。如果你使用flag本身，它们是指针；如果你绑定到变量，它们是值。
+//	fmt.Println("ip has value ", *ip)
+//	fmt.Println("flagvar has value ", flagvar)
+//
+//解析之后，flag后面的参数可以从flag.Args()获取或用flag.Arg(i)单独获取。
+//这些参数的索引是从0到flag.NArg()-1。
+//
+//Command line flag syntax
+//
+//允许以下格式：
+//
+//	-flag
+//	-flag=x
+//	-flag x  // 只有非bool类型的flag可以
+//可以使用1个或者2个'-'号，效果是一样的。
+//最后一种格式不能用于boolean类型的flag，原因是如果有文件名为0、false等，如下命令：
+//	cmd -x *
+//其含义会改变(*是Unix shell通配符)。你必须使用-flag=false格式来关闭一个boolean类型flag。
+//
+//Flag解析在第一个非flag参数（"-"是非flag参数）前或者在终止符"--"后停止
+//
+//整数类型flag接受1234、0664、0x1234，当然也可以是负数。
+//Boolean类型flag可以是：
+//	1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
+//Duration类型的flag接受任何对time.ParseDuration有效的输入。
+//
+//命令行flag的默认集合是由顶层函数控制的。
+//FlagSet类型允许程序员定义独立的flag集合，例如实现命令行界面下的子命令。
+//FlagSet的方法类似于命令行flag集合的顶层函数
 package flag
 
 import (
@@ -79,8 +70,7 @@ import (
 	"time"
 )
 
-// ErrHelp is the error returned if the -help or -h flag is invoked
-// but no such flag is defined.
+// 如果调用了-help或者-h标签，但是未定义此类标签，则返回ErrHelp错误
 var ErrHelp = errors.New("flag: help requested")
 
 // errParse is returned by Set if a flag's value fails to parse, such as with an invalid integer for Int.
@@ -278,12 +268,9 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
-// Value is the interface to the dynamic value stored in a flag.
-// (The default value is represented as a string.)
+// Value接口用于将动态的值保存在一个flag里（默认值被表示为一个字符串）。
 //
-// If a Value has an IsBoolFlag() bool method returning true,
-// the command-line parser makes -name equivalent to -name=true
-// rather than using the next command-line argument.
+// 如果Value接口具有IsBoolFlag()方法，且返回真，命令行解析会将-name等价于-name=true，而不是使用下一个命令行参数
 //
 // Set is called once, in command line order, for each flag present.
 // The flag package may call the String method with a zero-valued receiver,
@@ -565,19 +552,14 @@ func (f *FlagSet) defaultUsage() {
 	f.PrintDefaults()
 }
 
-// NOTE: Usage is not just defaultUsage(CommandLine)
-// because it serves (via godoc flag Usage) as the example
-// for how to write your own usage function.
+// 注意：Usage不只是defaultUsage（CommandLine）
+// 因为它用作示例（godoc flag Usage）关于如何编写自定义的用法函数
 
-// Usage prints a usage message documenting all defined command-line flags
-// to CommandLine's output, which by default is os.Stderr.
-// It is called when an error occurs while parsing flags.
-// The function is a variable that may be changed to point to a custom function.
-// By default it prints a simple header and calls PrintDefaults; for details about the
-// format of the output and how to control it, see the documentation for PrintDefaults.
-// Custom usage functions may choose to exit the program; by default exiting
-// happens anyway as the command line's error handling strategy is set to
-// ExitOnError.
+// Usage会打印一条使用说明信息（记录所有已经定义的命令行flag）到CommandLine输出，默认是os.Stderr。
+// 当解析flag发生错误时它会被调用。
+// 该函数是一个变量，它可以更改为指向自定义函数。
+// 默认情况下，它会打印一个简单的标头同时调用PrintDefaults函数；有关输出格式和如何控制它的详细信息请参考PrintDefaults函数的文档说明。
+// 自定义的用法函数可以选择退出程序；默认情况下都会退出，因为命令行的错误处理策略设置为ExitOnError。
 var Usage = func() {
 	fmt.Fprintf(CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
@@ -1007,9 +989,8 @@ func Parsed() bool {
 	return CommandLine.Parsed()
 }
 
-// CommandLine is the default set of command-line flags, parsed from os.Args.
-// The top-level functions such as BoolVar, Arg, and so on are wrappers for the
-// methods of CommandLine.
+// CommandLine 是从os.Args解析的默认命令行flag集合。
+//BoolVar、Arg等顶层函数是CommandLine方法的包装
 var CommandLine = NewFlagSet(os.Args[0], ExitOnError)
 
 func init() {
