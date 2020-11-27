@@ -5,6 +5,7 @@
 package lzw
 
 import (
+	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -105,6 +106,50 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func TestWriterReset(t *testing.T) {
+	for _, order := range [...]Order{LSB, MSB} {
+		t.Run(fmt.Sprintf("Order %d", order), func(t *testing.T) {
+			for litWidth := 6; litWidth <= 8; litWidth++ {
+				t.Run(fmt.Sprintf("LitWidth %d", litWidth), func(t *testing.T) {
+					var data []byte
+					if litWidth == 6 {
+						data = []byte{1, 2, 3}
+					} else {
+						data = []byte(`lorem ipsum dolor sit amet`)
+					}
+					var buf bytes.Buffer
+					w := NewWriter(&buf, order, litWidth)
+					if _, err := w.Write(data); err != nil {
+						t.Errorf("write: %v: %v", string(data), err)
+					}
+
+					if err := w.Close(); err != nil {
+						t.Errorf("close: %v", err)
+					}
+
+					b1 := buf.Bytes()
+					buf.Reset()
+
+					w.(*Writer).Reset(&buf, order, litWidth)
+
+					if _, err := w.Write(data); err != nil {
+						t.Errorf("write: %v: %v", string(data), err)
+					}
+
+					if err := w.Close(); err != nil {
+						t.Errorf("close: %v", err)
+					}
+					b2 := buf.Bytes()
+
+					if !bytes.Equal(b1, b2) {
+						t.Errorf("bytes written were not same")
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestWriterReturnValues(t *testing.T) {
 	w := NewWriter(io.Discard, LSB, 8)
 	n, err := w.Write([]byte("asdf"))
@@ -150,6 +195,15 @@ func BenchmarkEncoder(b *testing.B) {
 				w := NewWriter(io.Discard, LSB, 8)
 				w.Write(buf1)
 				w.Close()
+			}
+		})
+		b.Run(fmt.Sprint("1e-Reuse", e), func(b *testing.B) {
+			b.SetBytes(int64(n))
+			w := NewWriter(io.Discard, LSB, 8)
+			for i := 0; i < b.N; i++ {
+				w.Write(buf1)
+				w.Close()
+				w.(*Writer).Reset(io.Discard, LSB, 8)
 			}
 		})
 	}
