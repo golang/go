@@ -969,8 +969,9 @@ func TestDLLPreloadMitigation(t *testing.T) {
 #include <stdint.h>
 #include <windows.h>
 
-uintptr_t cfunc() {
+uintptr_t cfunc(void) {
    SetLastError(123);
+   return 0;
 }
 `
 	srcname := "nojack.c"
