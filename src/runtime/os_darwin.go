@@ -283,6 +283,12 @@ func libpreinit() {
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // OS X wants >= 8K
 	mp.gsignal.m = mp
+	if GOOS == "darwin" && GOARCH == "arm64" {
+		// mlock the signal stack to work around a kernel bug where it may
+		// SIGILL when the signal stack is not faulted in while a signal
+		// arrives. See issue 42774.
+		mlock(unsafe.Pointer(mp.gsignal.stack.hi-physPageSize), physPageSize)
+	}
 }
 
 // Called to initialize a new m (including the bootstrap m).
