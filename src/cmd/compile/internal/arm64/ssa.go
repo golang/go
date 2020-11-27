@@ -100,9 +100,11 @@ func genIndexedOperand(v *ssa.Value) obj.Addr {
 	// Reg: base register, Index: (shifted) index register
 	mop := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
 	switch v.Op {
-	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8:
+	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8,
+		ssa.OpARM64FMOVDloadidx8, ssa.OpARM64FMOVDstoreidx8:
 		mop.Index = arm64.REG_LSL | 3<<5 | v.Args[1].Reg()&31
-	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4:
+	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4,
+		ssa.OpARM64FMOVSloadidx4, ssa.OpARM64FMOVSstoreidx4:
 		mop.Index = arm64.REG_LSL | 2<<5 | v.Args[1].Reg()&31
 	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2, ssa.OpARM64MOVHstorezeroidx2:
 		mop.Index = arm64.REG_LSL | 1<<5 | v.Args[1].Reg()&31
@@ -435,7 +437,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64MOVHUloadidx2,
 		ssa.OpARM64MOVWloadidx4,
 		ssa.OpARM64MOVWUloadidx4,
-		ssa.OpARM64MOVDloadidx8:
+		ssa.OpARM64MOVDloadidx8,
+		ssa.OpARM64FMOVDloadidx8,
+		ssa.OpARM64FMOVSloadidx4:
 		p := s.Prog(v.Op.Asm())
 		p.From = genIndexedOperand(v)
 		p.To.Type = obj.TYPE_REG
@@ -472,7 +476,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FMOVDstoreidx,
 		ssa.OpARM64MOVHstoreidx2,
 		ssa.OpARM64MOVWstoreidx4,
-		ssa.OpARM64MOVDstoreidx8:
+		ssa.OpARM64FMOVSstoreidx4,
+		ssa.OpARM64MOVDstoreidx8,
+		ssa.OpARM64FMOVDstoreidx8:
 		p := s.Prog(v.Op.Asm())
 		p.To = genIndexedOperand(v)
 		p.From.Type = obj.TYPE_REG

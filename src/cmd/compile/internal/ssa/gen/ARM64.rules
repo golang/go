@@ -792,6 +792,15 @@
 (MOVHUloadidx2 ptr (MOVDconst [c]) mem) && is32Bit(c<<1) => (MOVHUload [int32(c)<<1] ptr mem)
 (MOVHloadidx2  ptr (MOVDconst [c]) mem) && is32Bit(c<<1) => (MOVHload  [int32(c)<<1] ptr mem)
 
+(FMOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil => (FMOVDloadidx8 ptr idx mem)
+(FMOVSload [off] {sym} (ADDshiftLL [2] ptr idx) mem) && off == 0 && sym == nil => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx ptr (SLLconst [3] idx) mem) => (FMOVDloadidx8 ptr idx mem)
+(FMOVSloadidx ptr (SLLconst [2] idx) mem) => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx (SLLconst [3] idx) ptr mem) => (FMOVDloadidx8 ptr idx mem)
+(FMOVSloadidx (SLLconst [2] idx) ptr mem) => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx8 ptr (MOVDconst [c]) mem) && is32Bit(c<<3) => (FMOVDload ptr [int32(c)<<3] mem)
+(FMOVSloadidx4 ptr (MOVDconst [c]) mem) && is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
+
 (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(MOVBstore [off1+int32(off2)] {sym} ptr val mem)
@@ -864,6 +873,15 @@
 (MOVDstoreidx8 ptr (MOVDconst [c]) val mem) && is32Bit(c<<3) => (MOVDstore [int32(c)<<3] ptr val mem)
 (MOVWstoreidx4 ptr (MOVDconst [c]) val mem) && is32Bit(c<<2) => (MOVWstore [int32(c)<<2] ptr val mem)
 (MOVHstoreidx2 ptr (MOVDconst [c]) val mem) && is32Bit(c<<1) => (MOVHstore [int32(c)<<1] ptr val mem)
+
+(FMOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstore [off] {sym} (ADDshiftLL [2] ptr idx) val mem) && off == 0 && sym == nil => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx ptr (SLLconst [3] idx) val mem) => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstoreidx ptr (SLLconst [2] idx) val mem) => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx (SLLconst [3] idx) ptr val mem) => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstoreidx (SLLconst [2] idx) ptr val mem) => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx8 ptr (MOVDconst [c]) val mem) && is32Bit(c<<3) => (FMOVDstore [int32(c)<<3] ptr val mem)
+(FMOVSstoreidx4 ptr (MOVDconst [c]) val mem) && is32Bit(c<<2) => (FMOVSstore [int32(c)<<2] ptr val mem)
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
