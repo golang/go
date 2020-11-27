@@ -47,7 +47,7 @@ type SyntaxError struct {
 	Offset int64  // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) Error() string { return "json: " + e.msg }
+func (e *SyntaxError) Error() string { return e.msg }
 
 // A scanner is a JSON scanning state machine.
 // Callers call scan.reset and then pass bytes in one at a time
