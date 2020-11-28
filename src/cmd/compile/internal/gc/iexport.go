@@ -1210,8 +1210,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		if !n.Type().HasNil() {
 			base.Fatalf("unexpected type for nil: %v", n.Type())
 		}
-		if n.Orig() != nil && n.Orig() != n {
-			w.expr(n.Orig())
+		if orig := ir.Orig(n); orig != nil && orig != n {
+			w.expr(orig)
 			break
 		}
 		w.op(ir.OLITERAL)

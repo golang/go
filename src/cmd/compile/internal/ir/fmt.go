@@ -1223,8 +1223,8 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 
 	case OLITERAL: // this is a bit of a mess
 		if mode == FErr {
-			if n.Orig() != nil && n.Orig() != n {
-				exprFmt(n.Orig(), s, prec, mode)
+			if orig := Orig(n); orig != nil && orig != n {
+				exprFmt(orig, s, prec, mode)
 				return
 			}
 			if n.Sym() != nil {
@@ -1561,8 +1561,8 @@ func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 
 	// We almost always want the original.
 	// TODO(gri) Why the special case for OLITERAL?
-	if n.Op() != OLITERAL && n.Orig() != nil {
-		n = n.Orig()
+	if n.Op() != OLITERAL && Orig(n) != nil {
+		n = Orig(n)
 	}
 
 	if flag&FmtLong != 0 && t != nil {

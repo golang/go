@@ -80,7 +80,7 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
 
 	dowidth(t)
 
-	return n.Orig()
+	return ir.Orig(n)
 }
 
 func temp(t *types.Type) ir.Node {

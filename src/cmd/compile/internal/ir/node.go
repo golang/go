@@ -35,8 +35,6 @@ type Node interface {
 	// Abstract graph structure, for generic traversals.
 	Op() Op
 	SetOp(x Op)
-	Orig() Node
-	SetOrig(x Node)
 	SubOp() Op
 	SetSubOp(x Op)
 	Left() Node
@@ -1616,11 +1614,41 @@ func (n *node) RawCopy() Node {
 	return &copy
 }
 
+// A Node may implement the Orig and SetOrig method to
+// maintain a pointer to the "unrewritten" form of a Node.
+// If a Node does not implement OrigNode, it is its own Orig.
+//
+// Note that both SepCopy and Copy have definitions compatible
+// with a Node that does not implement OrigNode: such a Node
+// is its own Orig, and in that case, that's what both want to return
+// anyway (SepCopy unconditionally, and Copy only when the input
+// is its own Orig as well, but if the output does not implement
+// OrigNode, then neither does the input, making the condition true).
+type OrigNode interface {
+	Node
+	Orig() Node
+	SetOrig(Node)
+}
+
+func Orig(n Node) Node {
+	if n, ok := n.(OrigNode); ok {
+		o := n.Orig()
+		if o == nil {
+			Dump("Orig nil", n)
+			base.Fatalf("Orig returned nil")
+		}
+		return o
+	}
+	return n
+}
+
 // sepcopy returns a separate shallow copy of n, with the copy's
 // Orig pointing to itself.
 func SepCopy(n Node) Node {
 	n = n.RawCopy()
-	n.SetOrig(n)
+	if n, ok := n.(OrigNode); ok {
+		n.SetOrig(n)
+	}
 	return n
 }
 
@@ -1633,8 +1661,8 @@ func SepCopy(n Node) Node {
 // messages; see issues #26855, #27765).
 func Copy(n Node) Node {
 	copy := n.RawCopy()
-	if n.Orig() == n {
-		copy.SetOrig(copy)
+	if n, ok := n.(OrigNode); ok && n.Orig() == n {
+		copy.(OrigNode).SetOrig(copy)
 	}
 	return copy
 }
@@ -1643,7 +1671,7 @@ func Copy(n Node) Node {
 func IsNil(n Node) bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
-	return n.Orig().Op() == ONIL
+	return Orig(n).Op() == ONIL
 }
 
 func IsBlank(n Node) bool {
@@ -1664,7 +1692,7 @@ func Nod(op Op, nleft, nright Node) Node {
 }
 
 func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
-	var n Node
+	var n *node
 	switch op {
 	case ODCLFUNC:
 		var x struct {

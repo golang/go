@@ -6675,7 +6675,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case ir.Node:
 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
 			a.Name = obj.NAME_PARAM
-			a.Sym = n.Orig().Sym().Linksym()
+			a.Sym = ir.Orig(n).Sym().Linksym()
 			a.Offset += n.Offset()
 			break
 		}
