@@ -687,7 +687,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		a = ir.Nod(ir.OADDR, a, nil)
 	} else {
 		a = ir.Nod(ir.ONEW, nil, nil)
-		a.PtrList().Set1(typenod(t))
+		a.PtrList().Set1(ir.TypeNode(t))
 	}
 
 	a = ir.Nod(ir.OAS, vauto, a)
@@ -763,7 +763,7 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	a := ir.Nod(ir.OMAKE, nil, nil)
 	a.SetEsc(n.Esc())
-	a.PtrList().Set2(typenod(n.Type()), nodintconst(int64(n.List().Len())))
+	a.PtrList().Set2(ir.TypeNode(n.Type()), nodintconst(int64(n.List().Len())))
 	litas(m, a, init)
 
 	entries := n.List().Slice()

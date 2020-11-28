@@ -836,7 +836,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - should have been resolved by typechecking
 
 	case ir.OTYPE:
-		return typenod(r.typ())
+		return ir.TypeNode(r.typ())
 
 	case ir.OTYPESW:
 		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
@@ -860,7 +860,7 @@ func (r *importReader) node() ir.Node {
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
 		savedlineno := base.Pos
 		base.Pos = r.pos()
-		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, typenod(r.typ()))
+		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
 		n.PtrList().Set(r.elemList()) // special handling of field names
 		base.Pos = savedlineno
 		return n
@@ -869,7 +869,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to case OCOMPLIT below by exporter
 
 	case ir.OCOMPLIT:
-		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, typenod(r.typ()))
+		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
 		n.PtrList().Set(r.exprList())
 		return n
 
@@ -944,7 +944,7 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
 		n := npos(r.pos(), builtinCall(ir.OMAKE))
-		n.PtrList().Append(typenod(r.typ()))
+		n.PtrList().Append(ir.TypeNode(r.typ()))
 		n.PtrList().Append(r.exprList()...)
 		return n
 
@@ -971,7 +971,7 @@ func (r *importReader) node() ir.Node {
 	case ir.ODCL:
 		pos := r.pos()
 		lhs := npos(pos, dclname(r.ident()))
-		typ := typenod(r.typ())
+		typ := ir.TypeNode(r.typ())
 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 
 	// case ODCLFIELD:

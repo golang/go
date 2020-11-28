@@ -1810,7 +1810,7 @@ func mkdotargslice(typ *types.Type, args []ir.Node) ir.Node {
 		n = nodnil()
 		n.SetType(typ)
 	} else {
-		n = ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
+		n = ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
 		n.PtrList().Append(args...)
 		n.SetImplicit(true)
 	}
@@ -2687,7 +2687,7 @@ func addstr(n ir.Node, init *ir.Nodes) ir.Node {
 		fn = "concatstrings"
 
 		t := types.NewSlice(types.Types[types.TSTRING])
-		slice := ir.Nod(ir.OCOMPLIT, nil, typenod(t))
+		slice := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(t))
 		if prealloc[n] != nil {
 			prealloc[slice] = prealloc[n]
 		}

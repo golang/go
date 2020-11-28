@@ -221,23 +221,6 @@ func dclname(s *types.Sym) *ir.Name {
 	return n
 }
 
-func typenod(t *types.Type) ir.Node {
-	return typenodl(src.NoXPos, t)
-}
-
-func typenodl(pos src.XPos, t *types.Type) ir.Node {
-	// if we copied another type with *t = *u
-	// then t->nod might be out of date, so
-	// check t->nod->type too
-	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type() != t {
-		t.Nod = ir.NodAt(pos, ir.OTYPE, nil, nil)
-		ir.AsNode(t.Nod).SetType(t)
-		ir.AsNode(t.Nod).SetSym(t.Sym)
-	}
-
-	return ir.AsNode(t.Nod)
-}
-
 func anonfield(typ *types.Type) ir.Node {
 	return symfield(nil, typ)
 }
