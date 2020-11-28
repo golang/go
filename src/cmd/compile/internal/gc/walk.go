@@ -604,11 +604,8 @@ opswitch:
 
 		if n.Op() == ir.OASOP {
 			// Rewrite x op= y into x = x op y.
-			n.SetRight(ir.Nod(n.SubOp(), n.Left(), n.Right()))
-			n.SetRight(typecheck(n.Right(), ctxExpr))
-
-			n.SetOp(ir.OAS)
-			n.ResetAux()
+			n = ir.Nod(ir.OAS, n.Left(),
+				typecheck(ir.Nod(n.SubOp(), n.Left(), n.Right()), ctxExpr))
 		}
 
 		if oaslit(n, init) {
@@ -683,12 +680,12 @@ opswitch:
 	case ir.OAS2FUNC:
 		init.AppendNodes(n.PtrInit())
 
-		r := n.Right()
+		r := n.Rlist().First()
 		walkexprlistsafe(n.List().Slice(), init)
 		r = walkexpr(r, init)
 
 		if isIntrinsicCall(r) {
-			n.SetRight(r)
+			n.PtrRlist().Set1(r)
 			break
 		}
 		init.Append(r)
@@ -701,7 +698,7 @@ opswitch:
 	case ir.OAS2RECV:
 		init.AppendNodes(n.PtrInit())
 
-		r := n.Right()
+		r := n.Rlist().First()
 		walkexprlistsafe(n.List().Slice(), init)
 		r.SetLeft(walkexpr(r.Left(), init))
 		var n1 ir.Node
@@ -720,7 +717,7 @@ opswitch:
 	case ir.OAS2MAPR:
 		init.AppendNodes(n.PtrInit())
 
-		r := n.Right()
+		r := n.Rlist().First()
 		walkexprlistsafe(n.List().Slice(), init)
 		r.SetLeft(walkexpr(r.Left(), init))
 		r.SetRight(walkexpr(r.Right(), init))
@@ -759,7 +756,7 @@ opswitch:
 		if ok := n.List().Second(); !ir.IsBlank(ok) && ok.Type().IsBoolean() {
 			r.Type().Field(1).Type = ok.Type()
 		}
-		n.SetRight(r)
+		n.PtrRlist().Set1(r)
 		n.SetOp(ir.OAS2FUNC)
 
 		// don't generate a = *var if a is _
@@ -793,7 +790,7 @@ opswitch:
 
 	case ir.OAS2DOTTYPE:
 		walkexprlistsafe(n.List().Slice(), init)
-		n.SetRight(walkexpr(n.Right(), init))
+		n.PtrRlist().SetIndex(0, walkexpr(n.Rlist().First(), init))
 
 	case ir.OCONVIFACE:
 		n.SetLeft(walkexpr(n.Left(), init))

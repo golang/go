@@ -1001,20 +1001,17 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 			return n
 		}
 
-		n := p.nod(stmt, ir.OAS, nil, nil) // assume common case
-
 		rhs := p.exprList(stmt.Rhs)
-		lhs := p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)
-
-		if len(lhs) == 1 && len(rhs) == 1 {
-			// common case
-			n.SetLeft(lhs[0])
-			n.SetRight(rhs[0])
-		} else {
-			n.SetOp(ir.OAS2)
-			n.PtrList().Set(lhs)
+		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
+			n := p.nod(stmt, ir.OAS2, nil, nil)
+			n.PtrList().Set(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def))
 			n.PtrRlist().Set(rhs)
+			return n
 		}
+
+		n := p.nod(stmt, ir.OAS, nil, nil)
+		n.SetLeft(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)[0])
+		n.SetRight(rhs[0])
 		return n
 
 	case *syntax.BranchStmt:

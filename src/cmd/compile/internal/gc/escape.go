@@ -394,8 +394,8 @@ func (e *Escape) stmt(n ir.Node) {
 	case ir.OSELRECV:
 		e.assign(n.Left(), n.Right(), "selrecv", n)
 	case ir.OSELRECV2:
-		e.assign(n.Left(), n.Right(), "selrecv", n)
-		e.assign(n.List().First(), nil, "selrecv", n)
+		e.assign(n.List().First(), n.Rlist().First(), "selrecv", n)
+		e.assign(n.List().Second(), nil, "selrecv", n)
 	case ir.ORECV:
 		// TODO(mdempsky): Consider e.discard(n.Left).
 		e.exprSkipInit(e.discardHole(), n) // already visited n.Ninit
@@ -412,18 +412,18 @@ func (e *Escape) stmt(n ir.Node) {
 		}
 
 	case ir.OAS2DOTTYPE: // v, ok = x.(type)
-		e.assign(n.List().First(), n.Right(), "assign-pair-dot-type", n)
+		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-dot-type", n)
 		e.assign(n.List().Second(), nil, "assign-pair-dot-type", n)
 	case ir.OAS2MAPR: // v, ok = m[k]
-		e.assign(n.List().First(), n.Right(), "assign-pair-mapr", n)
+		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-mapr", n)
 		e.assign(n.List().Second(), nil, "assign-pair-mapr", n)
 	case ir.OAS2RECV: // v, ok = <-ch
-		e.assign(n.List().First(), n.Right(), "assign-pair-receive", n)
+		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-receive", n)
 		e.assign(n.List().Second(), nil, "assign-pair-receive", n)
 
 	case ir.OAS2FUNC:
-		e.stmts(n.Right().Init())
-		e.call(e.addrs(n.List()), n.Right(), nil)
+		e.stmts(n.Rlist().First().Init())
+		e.call(e.addrs(n.List()), n.Rlist().First(), nil)
 	case ir.ORETURN:
 		results := e.curfn.Type().Results().FieldSlice()
 		for i, v := range n.List().Slice() {
@@ -709,8 +709,7 @@ func (e *Escape) discards(l ir.Nodes) {
 // that represents storing into the represented location.
 func (e *Escape) addr(n ir.Node) EscHole {
 	if n == nil || ir.IsBlank(n) {
-		// Can happen at least in OSELRECV.
-		// TODO(mdempsky): Anywhere else?
+		// Can happen in select case, range, maybe others.
 		return e.discardHole()
 	}
 

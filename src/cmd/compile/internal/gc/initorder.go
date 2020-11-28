@@ -256,7 +256,7 @@ func collectDeps(n ir.Node, transitive bool) ir.NodeSet {
 	case ir.OAS:
 		d.inspect(n.Right())
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		d.inspect(n.Right())
+		d.inspect(n.Rlist().First())
 	case ir.ODCLFUNC:
 		d.inspectList(n.Body())
 	default:

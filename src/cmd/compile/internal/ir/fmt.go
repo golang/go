@@ -939,15 +939,12 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 
 		mode.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
 
-	case OAS2:
+	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		if n.Colas() && !complexinit {
 			mode.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
-			break
+		} else {
+			mode.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
 		}
-		fallthrough
-
-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		mode.Fprintf(s, "%.v = %v", n.List(), n.Right())
 
 	case ORETURN:
 		mode.Fprintf(s, "return %.v", n.List())

@@ -1076,17 +1076,11 @@ func (w *exportWriter) stmt(n ir.Node) {
 			w.expr(n.Right())
 		}
 
-	case ir.OAS2:
+	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		w.op(ir.OAS2)
 		w.pos(n.Pos())
 		w.exprList(n.List())
 		w.exprList(n.Rlist())
-
-	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		w.op(ir.OAS2)
-		w.pos(n.Pos())
-		w.exprList(n.List())
-		w.exprList(ir.AsNodes([]ir.Node{n.Right()}))
 
 	case ir.ORETURN:
 		w.op(ir.ORETURN)

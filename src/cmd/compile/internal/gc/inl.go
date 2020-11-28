@@ -520,14 +520,11 @@ func inlcalls(fn *ir.Func) {
 }
 
 // Turn an OINLCALL into a statement.
-func inlconv2stmt(n ir.Node) {
-	n.SetOp(ir.OBLOCK)
-
-	// n->ninit stays
-	n.PtrList().Set(n.Body().Slice())
-
-	n.PtrBody().Set(nil)
-	n.PtrRlist().Set(nil)
+func inlconv2stmt(inlcall ir.Node) ir.Node {
+	n := ir.NodAt(inlcall.Pos(), ir.OBLOCK, nil, nil)
+	n.SetList(inlcall.Body())
+	n.SetInit(inlcall.Init())
+	return n
 }
 
 // Turn an OINLCALL into a single valued expression.
@@ -600,9 +597,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 	lno := setlineno(n)
 
 	inlnodelist(n.Init(), maxCost, inlMap)
-	for _, n1 := range n.Init().Slice() {
+	init := n.Init().Slice()
+	for i, n1 := range init {
 		if n1.Op() == ir.OINLCALL {
-			inlconv2stmt(n1)
+			init[i] = inlconv2stmt(n1)
 		}
 	}
 
@@ -614,50 +612,49 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 	n.SetRight(inlnode(n.Right(), maxCost, inlMap))
 	if n.Right() != nil && n.Right().Op() == ir.OINLCALL {
 		if n.Op() == ir.OFOR || n.Op() == ir.OFORUNTIL {
-			inlconv2stmt(n.Right())
-		} else if n.Op() == ir.OAS2FUNC {
-			n.PtrRlist().Set(inlconv2list(n.Right()))
-			n.SetRight(nil)
-			n.SetOp(ir.OAS2)
-			n.SetTypecheck(0)
-			n = typecheck(n, ctxStmt)
+			n.SetRight(inlconv2stmt(n.Right()))
 		} else {
 			n.SetRight(inlconv2expr(n.Right()))
 		}
 	}
 
 	inlnodelist(n.List(), maxCost, inlMap)
+	s := n.List().Slice()
+	convert := inlconv2expr
 	if n.Op() == ir.OBLOCK {
-		for _, n2 := range n.List().Slice() {
-			if n2.Op() == ir.OINLCALL {
-				inlconv2stmt(n2)
-			}
-		}
-	} else {
-		s := n.List().Slice()
-		for i1, n1 := range s {
-			if n1 != nil && n1.Op() == ir.OINLCALL {
-				s[i1] = inlconv2expr(s[i1])
-			}
+		convert = inlconv2stmt
+	}
+	for i, n1 := range s {
+		if n1 != nil && n1.Op() == ir.OINLCALL {
+			s[i] = convert(n1)
 		}
 	}
 
 	inlnodelist(n.Rlist(), maxCost, inlMap)
-	s := n.Rlist().Slice()
-	for i1, n1 := range s {
+
+	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
+		n.PtrRlist().Set(inlconv2list(n.Rlist().First()))
+		n.SetOp(ir.OAS2)
+		n.SetTypecheck(0)
+		n = typecheck(n, ctxStmt)
+	}
+
+	s = n.Rlist().Slice()
+	for i, n1 := range s {
 		if n1.Op() == ir.OINLCALL {
 			if n.Op() == ir.OIF {
-				inlconv2stmt(n1)
+				s[i] = inlconv2stmt(n1)
 			} else {
-				s[i1] = inlconv2expr(s[i1])
+				s[i] = inlconv2expr(n1)
 			}
 		}
 	}
 
 	inlnodelist(n.Body(), maxCost, inlMap)
-	for _, n := range n.Body().Slice() {
-		if n.Op() == ir.OINLCALL {
-			inlconv2stmt(n)
+	s = n.Body().Slice()
+	for i, n1 := range s {
+		if n1.Op() == ir.OINLCALL {
+			s[i] = inlconv2stmt(n1)
 		}
 	}
 
@@ -1200,9 +1197,10 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 	// and each use must redo the inlining.
 	// luckily these are small.
 	inlnodelist(call.Body(), maxCost, inlMap)
-	for _, n := range call.Body().Slice() {
-		if n.Op() == ir.OINLCALL {
-			inlconv2stmt(n)
+	s := call.Body().Slice()
+	for i, n1 := range s {
+		if n1.Op() == ir.OINLCALL {
+			s[i] = inlconv2stmt(n1)
 		}
 	}
 
