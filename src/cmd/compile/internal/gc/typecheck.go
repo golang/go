@@ -1985,8 +1985,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
 			// See issues 7538, 11589, 11593.
-			n.SetOp(ir.OEMPTY)
-			n.SetLeft(nil)
+			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
 		}
 
 	case ir.ODEFER:

@@ -152,10 +152,12 @@ func walkstmt(n ir.Node) ir.Node {
 		init := n.Init()
 		n.PtrInit().Set(nil)
 		n = walkexpr(n, &init)
-		n = addinit(n, init.Slice())
-		if wascopy && n.Op() == ir.OCONVNOP {
-			n.SetOp(ir.OEMPTY) // don't leave plain values as statements.
+		if wascopy && n.Op() == ir.ONAME {
+			// copy rewrote to a statement list and a temp for the length.
+			// Throw away the temp to avoid plain values as statements.
+			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
 		}
+		n = addinit(n, init.Slice())
 
 	// special case for a receive where we throw away
 	// the value received.
@@ -609,6 +611,7 @@ opswitch:
 		}
 
 		if oaslit(n, init) {
+			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
 			break
 		}
 
