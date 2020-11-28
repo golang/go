@@ -127,7 +127,7 @@ func (n *miniNode) SubOp() Op           { panic(n.no("SubOp")) }
 func (n *miniNode) SetSubOp(Op)         { panic(n.no("SetSubOp")) }
 func (n *miniNode) Type() *types.Type   { return nil }
 func (n *miniNode) SetType(*types.Type) { panic(n.no("SetType")) }
-func (n *miniNode) Func() *Func         { panic(n.no("Func")) }
+func (n *miniNode) Func() *Func         { return nil }
 func (n *miniNode) SetFunc(*Func)       { panic(n.no("SetFunc")) }
 func (n *miniNode) Name() *Name         { return nil }
 func (n *miniNode) SetName(*Name)       { panic(n.no("SetName")) }
@@ -172,7 +172,7 @@ func (n *miniNode) Uint64Val() uint64         { panic(n.no("Uint64Val")) }
 func (n *miniNode) CanInt64() bool            { panic(n.no("CanInt64")) }
 func (n *miniNode) BoolVal() bool             { panic(n.no("BoolVal")) }
 func (n *miniNode) StringVal() string         { panic(n.no("StringVal")) }
-func (n *miniNode) HasCall() bool             { panic(n.no("HasCall")) }
+func (n *miniNode) HasCall() bool             { return false }
 func (n *miniNode) SetHasCall(bool)           { panic(n.no("SetHasCall")) }
 func (n *miniNode) NonNil() bool              { return false }
 func (n *miniNode) MarkNonNil()               { panic(n.no("MarkNonNil")) }

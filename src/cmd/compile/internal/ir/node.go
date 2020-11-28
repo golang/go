@@ -1702,13 +1702,19 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		n = &x.n
 		n.SetFunc(&x.f)
 		n.Func().Decl = n
-	case OLABEL, OPACK:
+	case OPACK:
 		var x struct {
 			n node
 			m Name
 		}
 		n = &x.n
 		n.SetName(&x.m)
+	case OEMPTY:
+		return NewEmptyStmt(pos)
+	case OBREAK, OCONTINUE, OFALL, OGOTO:
+		return NewBranchStmt(pos, op, nil)
+	case OLABEL:
+		return NewLabelStmt(pos, nil)
 	default:
 		n = new(node)
 	}
@@ -1740,7 +1746,6 @@ var okForNod = [OEND]bool{
 	OASOP:          true,
 	OBITNOT:        true,
 	OBLOCK:         true,
-	OBREAK:         true,
 	OBYTES2STR:     true,
 	OBYTES2STRTMP:  true,
 	OCALL:          true,
@@ -1757,7 +1762,6 @@ var okForNod = [OEND]bool{
 	OCLOSUREVAR:    true,
 	OCOMPLEX:       true,
 	OCOMPLIT:       true,
-	OCONTINUE:      true,
 	OCONV:          true,
 	OCONVIFACE:     true,
 	OCONVNOP:       true,
@@ -1779,15 +1783,12 @@ var okForNod = [OEND]bool{
 	ODOTTYPE:       true,
 	ODOTTYPE2:      true,
 	OEFACE:         true,
-	OEMPTY:         true,
 	OEQ:            true,
-	OFALL:          true,
 	OFOR:           true,
 	OFORUNTIL:      true,
 	OGE:            true,
 	OGETG:          true,
 	OGO:            true,
-	OGOTO:          true,
 	OGT:            true,
 	OIDATA:         true,
 	OIF:            true,
