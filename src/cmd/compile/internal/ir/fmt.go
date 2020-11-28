@@ -1615,9 +1615,9 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 		} else {
 			mode.Fprintf(s, "%v%j", n.Op(), n)
 		}
-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Param != nil && n.Name().Param.Ntype != nil {
+		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
 			indent(s)
-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Param.Ntype)
+			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
 		}
 
 	case OASOP:
@@ -1625,9 +1625,9 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 
 	case OTYPE:
 		mode.Fprintf(s, "%v %v%j type=%v", n.Op(), n.Sym(), n, n.Type())
-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Param != nil && n.Name().Param.Ntype != nil {
+		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
 			indent(s)
-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Param.Ntype)
+			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
 		}
 	}
 

@@ -21,7 +21,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	fn := dcl.Func()
 	fn.SetIsHiddenClosure(Curfn != nil)
 	fn.Nname = newfuncnamel(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
-	fn.Nname.Name().Param.Ntype = xtype
+	fn.Nname.Name().Ntype = xtype
 	fn.Nname.Name().Defn = dcl
 
 	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
@@ -38,7 +38,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	for _, v := range fn.ClosureVars.Slice() {
 		// Unlink from v1; see comment in syntax.go type Param for these fields.
 		v1 := v.Name().Defn
-		v1.Name().Param.Innermost = v.Name().Param.Outer
+		v1.Name().Innermost = v.Name().Outer
 
 		// If the closure usage of v is not dense,
 		// we need to make it dense; now that we're out
@@ -68,7 +68,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 		// obtains f3's v, creating it if necessary (as it is in the example).
 		//
 		// capturevars will decide whether to use v directly or &v.
-		v.Name().Param.Outer = oldname(v.Sym())
+		v.Name().Outer = oldname(v.Sym()).(*ir.Name)
 	}
 
 	return clo
@@ -194,7 +194,8 @@ func capturevars(dcl ir.Node) {
 		// so that the outer frame also grabs them and knows they escape.
 		dowidth(v.Type())
 
-		outer := v.Name().Param.Outer
+		var outer ir.Node
+		outer = v.Name().Outer
 		outermost := v.Name().Defn
 
 		// out parameters will be assigned to implicitly upon return.
@@ -262,7 +263,7 @@ func transformclosure(dcl ir.Node) {
 				// (accesses will implicitly deref &v).
 				addr := NewName(lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
-				v.Name().Param.Heapaddr = addr
+				v.Name().Heapaddr = addr
 				v = addr
 			}
 
@@ -312,7 +313,7 @@ func transformclosure(dcl ir.Node) {
 				addr.Name().SetUsed(true)
 				addr.Name().Curfn = dcl
 				fn.Dcl = append(fn.Dcl, addr)
-				v.Name().Param.Heapaddr = addr
+				v.Name().Heapaddr = addr
 				if v.Name().Byval() {
 					cv = ir.Nod(ir.OADDR, cv, nil)
 				}

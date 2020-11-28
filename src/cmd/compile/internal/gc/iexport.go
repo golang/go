@@ -1463,7 +1463,7 @@ func (w *exportWriter) localName(n ir.Node) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy == nil) {
+	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
 		v = n.Name().Vargen
 	}
 

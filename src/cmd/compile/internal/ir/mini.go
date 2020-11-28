@@ -130,7 +130,6 @@ func (n *miniNode) SetType(*types.Type) { panic(n.no("SetType")) }
 func (n *miniNode) Func() *Func         { return nil }
 func (n *miniNode) SetFunc(*Func)       { panic(n.no("SetFunc")) }
 func (n *miniNode) Name() *Name         { return nil }
-func (n *miniNode) SetName(*Name)       { panic(n.no("SetName")) }
 func (n *miniNode) Sym() *types.Sym     { return nil }
 func (n *miniNode) SetSym(*types.Sym)   { panic(n.no("SetSym")) }
 func (n *miniNode) Offset() int64       { return types.BADWIDTH }
@@ -164,7 +163,6 @@ func (n *miniNode) SetIndexMapLValue(bool)    { panic(n.no("SetIndexMapLValue"))
 func (n *miniNode) ResetAux()                 { panic(n.no("ResetAux")) }
 func (n *miniNode) HasBreak() bool            { panic(n.no("HasBreak")) }
 func (n *miniNode) SetHasBreak(bool)          { panic(n.no("SetHasBreak")) }
-func (n *miniNode) HasVal() bool              { return false }
 func (n *miniNode) Val() constant.Value       { panic(n.no("Val")) }
 func (n *miniNode) SetVal(v constant.Value)   { panic(n.no("SetVal")) }
 func (n *miniNode) Int64Val() int64           { panic(n.no("Int64Val")) }

@@ -196,7 +196,7 @@ func walkstmt(n ir.Node) ir.Node {
 			if prealloc[v] == nil {
 				prealloc[v] = callnew(v.Type())
 			}
-			nn := ir.Nod(ir.OAS, v.Name().Param.Heapaddr, prealloc[v])
+			nn := ir.Nod(ir.OAS, v.Name().Heapaddr, prealloc[v])
 			nn.SetColas(true)
 			nn = typecheck(nn, ctxStmt)
 			return walkstmt(nn)
@@ -286,7 +286,7 @@ func walkstmt(n ir.Node) ir.Node {
 				}
 				if cl == ir.PPARAMOUT {
 					if isParamStackCopy(ln) {
-						ln = walkexpr(typecheck(ir.Nod(ir.ODEREF, ln.Name().Param.Heapaddr, nil), ctxExpr), nil)
+						ln = walkexpr(typecheck(ir.Nod(ir.ODEREF, ln.Name().Heapaddr, nil), ctxExpr), nil)
 					}
 					rl = append(rl, ln)
 				}
@@ -314,7 +314,7 @@ func walkstmt(n ir.Node) ir.Node {
 		for i, nl := range lhs.FieldSlice() {
 			nname := ir.AsNode(nl.Nname)
 			if isParamHeapCopy(nname) {
-				nname = nname.Name().Param.Stackcopy
+				nname = nname.Name().Stackcopy
 			}
 			a := ir.Nod(ir.OAS, nname, rhs[i])
 			res[i] = convas(a, n.PtrInit())
@@ -456,7 +456,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	if n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP {
-		nn := ir.Nod(ir.ODEREF, n.Name().Param.Heapaddr, nil)
+		nn := ir.Nod(ir.ODEREF, n.Name().Heapaddr, nil)
 		nn = typecheck(nn, ctxExpr)
 		nn = walkexpr(nn, init)
 		nn.Left().MarkNonNil()
@@ -1160,7 +1160,7 @@ opswitch:
 			if n.Type().Elem().Width >= maxImplicitStackVarSize {
 				base.Fatalf("large ONEW with EscNone: %v", n)
 			}
-			r := temp(n.Type().Elem())
+			r := ir.Node(temp(n.Type().Elem()))
 			r = ir.Nod(ir.OAS, r, nil) // zero temp
 			r = typecheck(r, ctxStmt)
 			init.Append(r)
@@ -1776,7 +1776,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		// Any assignment to an lvalue that might cause a function call must be
 		// deferred until all the returned values have been read.
 		if fncall(l, r.Type) {
-			tmp := temp(r.Type)
+			tmp := ir.Node(temp(r.Type))
 			tmp = typecheck(tmp, ctxExpr)
 			a := ir.Nod(ir.OAS, l, tmp)
 			a = convas(a, &mm)
@@ -2174,7 +2174,7 @@ func reorder3save(n ir.Node, all []ir.Node, i int, early *[]ir.Node) ir.Node {
 		return n
 	}
 
-	q := temp(n.Type())
+	q := ir.Node(temp(n.Type()))
 	q = ir.Nod(ir.OAS, q, n)
 	q = typecheck(q, ctxStmt)
 	*early = append(*early, q)
@@ -2411,7 +2411,7 @@ func paramstoheap(params *types.Type) []ir.Node {
 			continue
 		}
 
-		if stackcopy := v.Name().Param.Stackcopy; stackcopy != nil {
+		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
 			nn = append(nn, walkstmt(ir.Nod(ir.ODCL, v, nil)))
 			if stackcopy.Class() == ir.PPARAM {
 				nn = append(nn, walkstmt(typecheck(ir.Nod(ir.OAS, v, stackcopy), ctxStmt)))
@@ -2432,7 +2432,7 @@ func paramstoheap(params *types.Type) []ir.Node {
 func zeroResults() {
 	for _, f := range Curfn.Type().Results().Fields().Slice() {
 		v := ir.AsNode(f.Nname)
-		if v != nil && v.Name().Param.Heapaddr != nil {
+		if v != nil && v.Name().Heapaddr != nil {
 			// The local which points to the return value is the
 			// thing that needs zeroing. This is already handled
 			// by a Needzero annotation in plive.go:livenessepilogue.
@@ -2445,7 +2445,7 @@ func zeroResults() {
 			// I don't think the zeroing below matters.
 			// The stack return value will never be marked as live anywhere in the function.
 			// It is not written to until deferreturn returns.
-			v = v.Name().Param.Stackcopy
+			v = v.Name().Stackcopy
 		}
 		// Zero the stack location containing f.
 		Curfn.Func().Enter.Append(ir.NodAt(Curfn.Pos(), ir.OAS, v, nil))
@@ -2461,7 +2461,7 @@ func returnsfromheap(params *types.Type) []ir.Node {
 		if v == nil {
 			continue
 		}
-		if stackcopy := v.Name().Param.Stackcopy; stackcopy != nil && stackcopy.Class() == ir.PPARAMOUT {
+		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class() == ir.PPARAMOUT {
 			nn = append(nn, walkstmt(typecheck(ir.Nod(ir.OAS, stackcopy, v), ctxStmt)))
 		}
 	}
@@ -3155,7 +3155,7 @@ func copyany(n ir.Node, init *ir.Nodes, runtimecall bool) ir.Node {
 
 	fn := syslook("memmove")
 	fn = substArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
-	nwid := temp(types.Types[types.TUINTPTR])
+	nwid := ir.Node(temp(types.Types[types.TUINTPTR]))
 	setwid := ir.Nod(ir.OAS, nwid, conv(nlen, types.Types[types.TUINTPTR]))
 	ne.PtrBody().Append(setwid)
 	nwid = ir.Nod(ir.OMUL, nwid, nodintconst(nl.Type().Elem().Width))

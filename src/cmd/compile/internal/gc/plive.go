@@ -795,7 +795,7 @@ func (lv *Liveness) epilogue() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					base.Fatalf("variable %v both output param and heap output param", n)
 				}
-				if n.Name().Param.Heapaddr != nil {
+				if n.Name().Heapaddr != nil {
 					// If this variable moved to the heap, then
 					// its stack copy is not live.
 					continue

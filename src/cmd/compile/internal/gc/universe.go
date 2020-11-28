@@ -110,7 +110,6 @@ func lexinit() {
 			types.Types[etype] = t
 		}
 		s2.Def = typenod(t)
-		ir.AsNode(s2.Def).SetName(new(ir.Name))
 	}
 
 	for _, s := range &builtinFuncs {
@@ -132,13 +131,11 @@ func lexinit() {
 	s := ir.BuiltinPkg.Lookup("true")
 	s.Def = nodbool(true)
 	ir.AsNode(s.Def).SetSym(lookup("true"))
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = ir.BuiltinPkg.Lookup("false")
 	s.Def = nodbool(false)
 	ir.AsNode(s.Def).SetSym(lookup("false"))
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = lookup("_")
@@ -158,12 +155,10 @@ func lexinit() {
 	s = ir.BuiltinPkg.Lookup("nil")
 	s.Def = nodnil()
 	ir.AsNode(s.Def).SetSym(s)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 
 	s = ir.BuiltinPkg.Lookup("iota")
 	s.Def = ir.Nod(ir.OIOTA, nil, nil)
 	ir.AsNode(s.Def).SetSym(s)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 }
 
 func typeinit() {
@@ -182,7 +177,6 @@ func typeinit() {
 	types.Types[types.TUNSAFEPTR] = t
 	t.Sym = unsafepkg.Lookup("Pointer")
 	t.Sym.Def = typenod(t)
-	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
 	dowidth(types.Types[types.TUNSAFEPTR])
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {
@@ -359,7 +353,6 @@ func lexinit1() {
 	types.Bytetype = types.New(types.TUINT8)
 	types.Bytetype.Sym = s
 	s.Def = typenod(types.Bytetype)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Bytetype)
 
 	// rune alias
@@ -367,7 +360,6 @@ func lexinit1() {
 	types.Runetype = types.New(types.TINT32)
 	types.Runetype.Sym = s
 	s.Def = typenod(types.Runetype)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
@@ -385,7 +377,6 @@ func lexinit1() {
 		t.Sym = s1
 		types.Types[s.etype] = t
 		s1.Def = typenod(t)
-		ir.AsNode(s1.Def).SetName(new(ir.Name))
 		s1.Origpkg = ir.BuiltinPkg
 
 		dowidth(t)

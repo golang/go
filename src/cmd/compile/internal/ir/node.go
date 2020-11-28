@@ -59,7 +59,6 @@ type Node interface {
 	Func() *Func
 	SetFunc(x *Func)
 	Name() *Name
-	SetName(x *Name)
 	Sym() *types.Sym
 	SetSym(x *types.Sym)
 	Offset() int64
@@ -93,7 +92,6 @@ type Node interface {
 	SetHasBreak(x bool)
 	MarkReadonly()
 	Val() constant.Value
-	HasVal() bool
 	SetVal(v constant.Value)
 	Int64Val() int64
 	Uint64Val() uint64
@@ -149,11 +147,8 @@ type node struct {
 	// func
 	fn *Func
 
-	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
-	name *Name
-
-	sym *types.Sym  // various
-	e   interface{} // Opt or Val, see methods below
+	sym *types.Sym // various
+	opt interface{}
 
 	// Various. Usually an offset into a struct. For example:
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
@@ -185,8 +180,7 @@ func (n *node) Type() *types.Type     { return n.typ }
 func (n *node) SetType(x *types.Type) { n.typ = x }
 func (n *node) Func() *Func           { return n.fn }
 func (n *node) SetFunc(x *Func)       { n.fn = x }
-func (n *node) Name() *Name           { return n.name }
-func (n *node) SetName(x *Name)       { n.name = x }
+func (n *node) Name() *Name           { return nil }
 func (n *node) Sym() *types.Sym       { return n.sym }
 func (n *node) SetSym(x *types.Sym)   { n.sym = x }
 func (n *node) Pos() src.XPos         { return n.pos }
@@ -208,6 +202,14 @@ func (n *node) PtrList() *Nodes       { return &n.list }
 func (n *node) Rlist() Nodes          { return n.rlist }
 func (n *node) SetRlist(x Nodes)      { n.rlist = x }
 func (n *node) PtrRlist() *Nodes      { return &n.rlist }
+func (n *node) MarkReadonly()         { panic("node.MarkReadOnly") }
+func (n *node) Val() constant.Value   { panic("node.Val") }
+func (n *node) SetVal(constant.Value) { panic("node.SetVal") }
+func (n *node) Int64Val() int64       { panic("node.Int64Val") }
+func (n *node) CanInt64() bool        { return false }
+func (n *node) Uint64Val() uint64     { panic("node.Uint64Val") }
+func (n *node) BoolVal() bool         { panic("node.BoolVal") }
+func (n *node) StringVal() string     { panic("node.StringVal") }
 
 func (n *node) SetOp(op Op) {
 	if !okForNod[op] {
@@ -305,8 +307,6 @@ const (
 	_, nodeBounded   // bounds check unnecessary
 	_, nodeHasCall   // expression contains a function call
 	_, nodeLikely    // if statement condition likely
-	_, nodeHasVal    // node.E contains a Val
-	_, nodeHasOpt    // node.E contains an Opt
 	_, nodeEmbedded  // ODCLFIELD embedded type
 )
 
@@ -326,8 +326,6 @@ func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
 func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
 func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
 func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
-func (n *node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
-func (n *node) hasOpt() bool    { return n.flags&nodeHasOpt != 0 }
 func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
 func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
@@ -344,8 +342,6 @@ func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
 func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
 func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
 func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
-func (n *node) setHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
-func (n *node) setHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // MarkNonNil marks a pointer n as being guaranteed non-nil,
@@ -380,29 +376,13 @@ func (n *node) SetBounded(b bool) {
 
 // Opt returns the optimizer data for the node.
 func (n *node) Opt() interface{} {
-	if !n.hasOpt() {
-		return nil
-	}
-	return n.e
+	return n.opt
 }
 
 // SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
 // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
 func (n *node) SetOpt(x interface{}) {
-	if x == nil {
-		if n.hasOpt() {
-			n.setHasOpt(false)
-			n.e = nil
-		}
-		return
-	}
-	if n.HasVal() {
-		base.Flag.LowerH = 1
-		Dump("have Val", n)
-		base.Fatalf("have Val")
-	}
-	n.setHasOpt(true)
-	n.e = x
+	n.opt = x
 }
 
 func (n *node) Iota() int64 {
@@ -1344,6 +1324,10 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewEmptyStmt(pos)
 	case OBREAK, OCONTINUE, OFALL, OGOTO:
 		return NewBranchStmt(pos, op, nil)
+	case OLITERAL, OTYPE, OIOTA:
+		n := newNameAt(pos, nil)
+		n.SetOp(op)
+		return n
 	case OLABEL:
 		return NewLabelStmt(pos, nil)
 	default:
@@ -1428,13 +1412,11 @@ var okForNod = [OEND]bool{
 	OINDEXMAP:      true,
 	OINLCALL:       true,
 	OINLMARK:       true,
-	OIOTA:          true,
 	OITAB:          true,
 	OKEY:           true,
 	OLABEL:         true,
 	OLE:            true,
 	OLEN:           true,
-	OLITERAL:       true,
 	OLSH:           true,
 	OLT:            true,
 	OMAKE:          true,
@@ -1446,13 +1428,11 @@ var okForNod = [OEND]bool{
 	OMETHEXPR:      true,
 	OMOD:           true,
 	OMUL:           true,
-	ONAME:          true,
 	ONE:            true,
 	ONEG:           true,
 	ONEW:           true,
 	ONEWOBJ:        true,
 	ONIL:           true,
-	ONONAME:        true,
 	ONOT:           true,
 	OOFFSETOF:      true,
 	OOR:            true,
@@ -1499,7 +1479,7 @@ var okForNod = [OEND]bool{
 	OTINTER:        true,
 	OTMAP:          true,
 	OTSTRUCT:       true,
-	OTYPE:          true,
+	OTYPE:          true, // TODO: Remove once setTypeNode is gone.
 	OTYPESW:        true,
 	OVARDEF:        true,
 	OVARKILL:       true,

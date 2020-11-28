@@ -456,7 +456,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		n.SetOp(ir.OLITERAL)
 		declare(n, dclcontext)
 
-		n.Name().Param.Ntype = typ
+		n.Name().Ntype = typ
 		n.Name().Defn = v
 		n.SetIota(cs.iota)
 
@@ -480,19 +480,18 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
 
-	param := n.Name().Param
-	param.Ntype = typ
-	param.SetAlias(decl.Alias)
+	n.Ntype = typ
+	n.SetAlias(decl.Alias)
 	if pragma, ok := decl.Pragma.(*Pragma); ok {
 		if !decl.Alias {
-			param.SetPragma(pragma.Flag & TypePragmas)
+			n.SetPragma(pragma.Flag & TypePragmas)
 			pragma.Flag &^= TypePragmas
 		}
 		p.checkUnused(pragma)
 	}
 
 	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
-	if param.Alias() && !langSupported(1, 9, ir.LocalPkg) {
+	if n.Alias() && !langSupported(1, 9, ir.LocalPkg) {
 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -506,7 +505,7 @@ func (p *noder) declNames(names []*syntax.Name) []ir.Node {
 	return nodes
 }
 
-func (p *noder) declName(name *syntax.Name) ir.Node {
+func (p *noder) declName(name *syntax.Name) *ir.Name {
 	n := dclname(p.name(name))
 	n.SetPos(p.pos(name))
 	return n
@@ -537,7 +536,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 
 	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
 	f.Func().Nname.Name().Defn = f
-	f.Func().Nname.Name().Param.Ntype = t
+	f.Func().Nname.Name().Ntype = t
 
 	if pragma, ok := fun.Pragma.(*Pragma); ok {
 		f.Func().Pragma = pragma.Flag & FuncPragmas
@@ -872,7 +871,7 @@ func (p *noder) structType(expr *syntax.StructType) ir.Node {
 			n = p.nodSym(field, ir.ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
-			n.SetVal(p.basicLit(expr.TagList[i]))
+			n.SetOpt(constant.StringVal(p.basicLit(expr.TagList[i])))
 		}
 		l = append(l, n)
 	}

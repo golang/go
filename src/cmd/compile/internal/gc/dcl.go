@@ -12,7 +12,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
-	"go/constant"
 	"strings"
 )
 
@@ -62,11 +61,6 @@ var declare_typegen int
 func declare(n ir.Node, ctxt ir.Class) {
 	if ir.IsBlank(n) {
 		return
-	}
-
-	if n.Name() == nil {
-		// named OLITERAL needs Name; most OLITERALs don't.
-		n.SetName(new(ir.Name))
 	}
 
 	s := n.Sym()
@@ -152,7 +146,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 		for _, v := range vl {
 			v.SetOp(ir.ONAME)
 			declare(v, dclcontext)
-			v.Name().Param.Ntype = t
+			v.Name().Ntype = t
 			v.Name().Defn = as2
 			if Curfn != nil {
 				init = append(init, ir.Nod(ir.ODCL, v, nil))
@@ -176,7 +170,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 
 		v.SetOp(ir.ONAME)
 		declare(v, dclcontext)
-		v.Name().Param.Ntype = t
+		v.Name().Ntype = t
 
 		if e != nil || Curfn != nil || ir.IsBlank(v) {
 			if Curfn != nil {
@@ -201,9 +195,8 @@ func newnoname(s *types.Sym) ir.Node {
 	if s == nil {
 		base.Fatalf("newnoname nil")
 	}
-	n := ir.Nod(ir.ONONAME, nil, nil)
-	n.SetSym(s)
-	n.SetOffset(0)
+	n := ir.NewNameAt(base.Pos, s)
+	n.SetOp(ir.ONONAME)
 	return n
 }
 
@@ -220,7 +213,7 @@ func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) ir.Node {
 
 // this generates a new name node for a name
 // being declared.
-func dclname(s *types.Sym) ir.Node {
+func dclname(s *types.Sym) *ir.Name {
 	n := NewName(s)
 	n.SetOp(ir.ONONAME) // caller will correct it
 	return n
@@ -277,7 +270,7 @@ func oldname(s *types.Sym) ir.Node {
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		c := n.Name().Param.Innermost
+		c := n.Name().Innermost
 		if c == nil || c.Name().Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = NewName(s)
@@ -288,8 +281,8 @@ func oldname(s *types.Sym) ir.Node {
 
 			// Link into list of active closure variables.
 			// Popped from list in func funcLit.
-			c.Name().Param.Outer = n.Name().Param.Innermost
-			n.Name().Param.Innermost = c
+			c.Name().Outer = n.Name().Innermost
+			n.Name().Innermost = c
 
 			Curfn.Func().ClosureVars.Append(c)
 		}
@@ -392,8 +385,8 @@ func funchdr(n ir.Node) {
 
 	types.Markdcl()
 
-	if n.Func().Nname != nil && n.Func().Nname.Name().Param.Ntype != nil {
-		funcargs(n.Func().Nname.Name().Param.Ntype)
+	if n.Func().Nname != nil && n.Func().Nname.Name().Ntype != nil {
+		funcargs(n.Func().Nname.Name().Ntype)
 	} else {
 		funcargs2(n.Type())
 	}
@@ -458,7 +451,7 @@ func funcarg(n ir.Node, ctxt ir.Class) {
 	}
 
 	n.SetRight(ir.NewNameAt(n.Pos(), n.Sym()))
-	n.Right().Name().Param.Ntype = n.Left()
+	n.Right().Name().Ntype = n.Left()
 	n.Right().SetIsDDD(n.IsDDD())
 	declare(n.Right(), ctxt)
 
@@ -554,8 +547,8 @@ func structfield(n ir.Node) *types.Field {
 		checkembeddedtype(n.Type())
 		f.Embedded = 1
 	}
-	if n.HasVal() {
-		f.Note = constant.StringVal(n.Val())
+	if n.Opt() != nil {
+		f.Note = n.Opt().(string)
 	}
 
 	base.Pos = lno
@@ -640,7 +633,7 @@ func interfacefield(n ir.Node) *types.Field {
 		base.Fatalf("interfacefield: oops %v\n", n)
 	}
 
-	if n.HasVal() {
+	if n.Opt() != nil {
 		base.Errorf("interface method cannot have annotation")
 	}
 
@@ -952,10 +945,10 @@ func dclfunc(sym *types.Sym, tfn ir.Node) ir.Node {
 	fn := ir.Nod(ir.ODCLFUNC, nil, nil)
 	fn.Func().Nname = newfuncnamel(base.Pos, sym, fn.Func())
 	fn.Func().Nname.Name().Defn = fn
-	fn.Func().Nname.Name().Param.Ntype = tfn
+	fn.Func().Nname.Name().Ntype = tfn
 	setNodeNameFunc(fn.Func().Nname)
 	funchdr(fn)
-	fn.Func().Nname.Name().Param.Ntype = typecheck(fn.Func().Nname.Name().Param.Ntype, ctxType)
+	fn.Func().Nname.Name().Ntype = typecheck(fn.Func().Nname.Name().Ntype, ctxType)
 	return fn
 }
 

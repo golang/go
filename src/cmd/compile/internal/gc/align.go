@@ -126,8 +126,8 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if n.Name().Param.Stackcopy != nil {
-				n.Name().Param.Stackcopy.SetOffset(o)
+			if n.Name().Stackcopy != nil {
+				n.Name().Stackcopy.SetOffset(o)
 				n.SetOffset(0)
 			} else {
 				n.SetOffset(o)
@@ -198,8 +198,10 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if p := ir.AsNode(t.Nod).Name().Param; p != nil && findTypeLoop(p.Ntype.Type(), path) {
-			return true
+		if n := ir.AsNode(t.Nod); n != nil {
+			if name := n.Name(); name != nil && name.Ntype != nil && findTypeLoop(name.Ntype.Type(), path) {
+				return true
+			}
 		}
 		*path = (*path)[:len(*path)-1]
 	} else {
