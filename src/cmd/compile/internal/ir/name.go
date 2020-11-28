@@ -38,7 +38,7 @@ type Name struct {
 	BuiltinOp Op         // uint8
 	Class_    Class      // uint8
 	pragma    PragmaFlag // int16
-	flags     bitset32
+	flags     bitset16
 	sym       *types.Sym
 	Func      *Func
 	Offset_   int64
@@ -273,7 +273,6 @@ const (
 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
 	nameAlias                 // is type name an alias
-	nameAddrtaken2
 )
 
 func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
@@ -285,7 +284,7 @@ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
 func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
 func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
 func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
-func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken2 != 0 }
+func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
 func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
 func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
 func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
@@ -300,7 +299,7 @@ func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
 func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
 func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
 func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
-func (n *Name) SetAddrtaken2(b bool)            { n.flags.set(nameAddrtaken2, b) }
+func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
 func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
 func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }

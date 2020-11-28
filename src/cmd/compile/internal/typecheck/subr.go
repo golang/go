@@ -81,7 +81,7 @@ func markAddrOf(n ir.Node) ir.Node {
 		// Note: outervalue doesn't work correctly until n is typechecked.
 		n = typecheck(n, ctxExpr)
 		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
-			x.Name().SetAddrtaken2(true)
+			x.Name().SetAddrtaken(true)
 		}
 	} else {
 		// Remember that we built an OADDR without computing the Addrtaken bit for
@@ -106,11 +106,11 @@ func computeAddrtaken(top []ir.Node) {
 		ir.Visit(n, func(n ir.Node) {
 			if n.Op() == ir.OADDR {
 				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
-					x.Name().SetAddrtaken2(true)
+					x.Name().SetAddrtaken(true)
 					if x.Name().IsClosureVar() {
 						// Mark the original variable as Addrtaken so that capturevars
 						// knows not to pass it by value.
-						x.Name().Defn.Name().SetAddrtaken2(true)
+						x.Name().Defn.Name().SetAddrtaken(true)
 					}
 				}
 			}
