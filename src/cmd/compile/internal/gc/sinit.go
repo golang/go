@@ -959,6 +959,9 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 	}
 }
 
+// oaslit handles special composite literal assignments.
+// It returns true if n's effects have been added to init,
+// in which case n should be dropped from the program by the caller.
 func oaslit(n ir.Node, init *ir.Nodes) bool {
 	if n.Left() == nil || n.Right() == nil {
 		// not a special composite literal assignment
@@ -990,8 +993,6 @@ func oaslit(n ir.Node, init *ir.Nodes) bool {
 		anylit(n.Right(), n.Left(), init)
 	}
 
-	n.SetOp(ir.OEMPTY)
-	n.SetRight(nil)
 	return true
 }
 
