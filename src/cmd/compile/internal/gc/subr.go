@@ -136,7 +136,7 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
 }
 
 // newname returns a new ONAME Node associated with symbol s.
-func NewName(s *types.Sym) ir.Node {
+func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
 	n.Name().Curfn = Curfn
 	return n

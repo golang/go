@@ -259,12 +259,12 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 				// are substituted.
 				cycle := cycleFor(n)
 				for _, n1 := range cycle {
-					if n1.Name() != nil && !n1.Name().Param.Alias() {
+					if n1.Name() != nil && !n1.Name().Alias() {
 						// Cycle is ok. But if n is an alias type and doesn't
 						// have a type yet, we have a recursive type declaration
 						// with aliases that we can't handle properly yet.
 						// Report an error rather than crashing later.
-						if n.Name() != nil && n.Name().Param.Alias() && n.Type() == nil {
+						if n.Name() != nil && n.Name().Alias() && n.Type() == nil {
 							base.Pos = n.Pos()
 							base.Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
 						}
@@ -2412,9 +2412,6 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 	}
 
 	n.SetOp(ir.OMETHEXPR)
-	if n.Name() == nil {
-		n.SetName(new(ir.Name))
-	}
 	n.SetRight(NewName(n.Sym()))
 	n.SetSym(methodSym(t, n.Sym()))
 	n.SetType(methodfunc(m.Type, n.Left().Type()))
@@ -3228,7 +3225,7 @@ func typecheckas(n ir.Node) {
 	// so that the conversion below happens).
 	n.SetLeft(resolve(n.Left()))
 
-	if n.Left().Name() == nil || n.Left().Name().Defn != n || n.Left().Name().Param.Ntype != nil {
+	if n.Left().Name() == nil || n.Left().Name().Defn != n || n.Left().Name().Ntype != nil {
 		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxAssign))
 	}
 
@@ -3247,7 +3244,7 @@ func typecheckas(n ir.Node) {
 		}
 	}
 
-	if n.Left().Name() != nil && n.Left().Name().Defn == n && n.Left().Name().Param.Ntype == nil {
+	if n.Left().Name() != nil && n.Left().Name().Defn == n && n.Left().Name().Ntype == nil {
 		n.SetRight(defaultlit(n.Right(), nil))
 		n.Left().SetType(n.Right().Type())
 	}
@@ -3283,7 +3280,7 @@ func typecheckas2(n ir.Node) {
 		n1 = resolve(n1)
 		ls[i1] = n1
 
-		if n1.Name() == nil || n1.Name().Defn != n || n1.Name().Param.Ntype != nil {
+		if n1.Name() == nil || n1.Name().Defn != n || n1.Name().Ntype != nil {
 			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
 		}
 	}
@@ -3308,7 +3305,7 @@ func typecheckas2(n ir.Node) {
 			if nl.Type() != nil && nr.Type() != nil {
 				rs[il] = assignconv(nr, nl.Type(), "assignment")
 			}
-			if nl.Name() != nil && nl.Name().Defn == n && nl.Name().Param.Ntype == nil {
+			if nl.Name() != nil && nl.Name().Defn == n && nl.Name().Ntype == nil {
 				rs[il] = defaultlit(rs[il], nil)
 				nl.SetType(rs[il].Type())
 			}
@@ -3342,7 +3339,7 @@ func typecheckas2(n ir.Node) {
 				if f.Type != nil && l.Type() != nil {
 					checkassignto(f.Type, l)
 				}
-				if l.Name() != nil && l.Name().Defn == n && l.Name().Param.Ntype == nil {
+				if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
 					l.SetType(f.Type)
 				}
 			}
@@ -3378,7 +3375,7 @@ func typecheckas2(n ir.Node) {
 			if l.Type() != nil && !l.Type().IsBoolean() {
 				checkassignto(types.Types[types.TBOOL], l)
 			}
-			if l.Name() != nil && l.Name().Defn == n && l.Name().Param.Ntype == nil {
+			if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
 				l.SetType(types.Types[types.TBOOL])
 			}
 			goto out
@@ -3502,7 +3499,7 @@ func setUnderlying(t, underlying *types.Type) {
 	}
 
 	// Propagate go:notinheap pragma from the Name to the Type.
-	if n.Name() != nil && n.Name().Param != nil && n.Name().Param.Pragma()&ir.NotInHeap != 0 {
+	if n.Name() != nil && n.Name().Pragma()&ir.NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
 
@@ -3525,8 +3522,8 @@ func typecheckdeftype(n ir.Node) {
 	}
 
 	n.SetTypecheck(1)
-	n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
-	t := n.Name().Param.Ntype.Type()
+	n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+	t := n.Name().Ntype.Type()
 	if t == nil {
 		n.SetDiag(true)
 		n.SetType(nil)
@@ -3586,10 +3583,10 @@ func typecheckdef(n ir.Node) {
 		base.Fatalf("typecheckdef %v", n.Op())
 
 	case ir.OLITERAL:
-		if n.Name().Param.Ntype != nil {
-			n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
-			n.SetType(n.Name().Param.Ntype.Type())
-			n.Name().Param.Ntype = nil
+		if n.Name().Ntype != nil {
+			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+			n.SetType(n.Name().Ntype.Type())
+			n.Name().Ntype = nil
 			if n.Type() == nil {
 				n.SetDiag(true)
 				goto ret
@@ -3640,9 +3637,9 @@ func typecheckdef(n ir.Node) {
 		}
 
 	case ir.ONAME:
-		if n.Name().Param.Ntype != nil {
-			n.Name().Param.Ntype = typecheck(n.Name().Param.Ntype, ctxType)
-			n.SetType(n.Name().Param.Ntype.Type())
+		if n.Name().Ntype != nil {
+			n.Name().Ntype = typecheck(n.Name().Ntype, ctxType)
+			n.SetType(n.Name().Ntype.Type())
 			if n.Type() == nil {
 				n.SetDiag(true)
 				goto ret
@@ -3676,21 +3673,22 @@ func typecheckdef(n ir.Node) {
 		n.Name().Defn = typecheck(n.Name().Defn, ctxStmt) // fills in n.Type
 
 	case ir.OTYPE:
-		if p := n.Name().Param; p.Alias() {
+		n := n.(*ir.Name)
+		if n.Alias() {
 			// Type alias declaration: Simply use the rhs type - no need
 			// to create a new type.
 			// If we have a syntax error, p.Ntype may be nil.
-			if p.Ntype != nil {
-				p.Ntype = typecheck(p.Ntype, ctxType)
-				n.SetType(p.Ntype.Type())
+			if n.Ntype != nil {
+				n.Ntype = typecheck(n.Ntype, ctxType)
+				n.SetType(n.Ntype.Type())
 				if n.Type() == nil {
 					n.SetDiag(true)
 					goto ret
 				}
 				// For package-level type aliases, set n.Sym.Def so we can identify
 				// it as a type alias during export. See also #31959.
-				if n.Name().Curfn == nil {
-					n.Sym().Def = p.Ntype
+				if n.Curfn == nil {
+					n.Sym().Def = n.Ntype
 				}
 			}
 			break

@@ -22,6 +22,7 @@ package main_test
 var knownFormats = map[string]string{
 	"*bytes.Buffer %s":                                "",
 	"*cmd/compile/internal/gc.EscLocation %v":         "",
+	"*cmd/compile/internal/ir.Name %v":                "",
 	"*cmd/compile/internal/ir.node %v":                "",
 	"*cmd/compile/internal/ssa.Block %s":              "",
 	"*cmd/compile/internal/ssa.Block %v":              "",
