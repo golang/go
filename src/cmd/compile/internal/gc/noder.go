@@ -356,9 +356,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		my = lookup(ipkg.Name)
 	}
 
-	pack := p.nod(imp, ir.OPACK, nil, nil)
-	pack.SetSym(my)
-	pack.Name().Pkg = ipkg
+	pack := ir.NewPkgName(p.pos(imp), my, ipkg)
 
 	switch my.Name {
 	case ".":
@@ -685,8 +683,9 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		// parser.new_dotname
 		obj := p.expr(expr.X)
 		if obj.Op() == ir.OPACK {
-			obj.Name().SetUsed(true)
-			return importName(obj.Name().Pkg.Lookup(expr.Sel.Value))
+			pack := obj.(*ir.PkgName)
+			pack.Used = true
+			return importName(pack.Pkg.Lookup(expr.Sel.Value))
 		}
 		n := nodSym(ir.OXDOT, obj, p.name(expr.Sel))
 		n.SetPos(p.pos(expr)) // lineno may have been changed by p.expr(expr.X)
@@ -910,8 +909,8 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	switch expr := expr.(type) {
 	case *syntax.Name:
 		name := p.name(expr)
-		if n := oldname(name); n.Name() != nil && n.Name().Pack != nil {
-			n.Name().Pack.Name().SetUsed(true)
+		if n := oldname(name); n.Name() != nil && n.Name().PkgName != nil {
+			n.Name().PkgName.Used = true
 		}
 		return name
 	case *syntax.SelectorExpr:
@@ -926,8 +925,9 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 			base.Errorf("%v is not a package", name)
 			pkg = ir.LocalPkg
 		} else {
-			def.Name().SetUsed(true)
-			pkg = def.Name().Pkg
+			def := def.(*ir.PkgName)
+			def.Used = true
+			pkg = def.Pkg
 		}
 		return pkg.Lookup(expr.Sel.Value)
 	}
@@ -1675,8 +1675,8 @@ func safeArg(name string) bool {
 
 func mkname(sym *types.Sym) ir.Node {
 	n := oldname(sym)
-	if n.Name() != nil && n.Name().Pack != nil {
-		n.Name().Pack.Name().SetUsed(true)
+	if n.Name() != nil && n.Name().PkgName != nil {
+		n.Name().PkgName.Used = true
 	}
 	return n
 }

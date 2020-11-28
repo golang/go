@@ -955,8 +955,9 @@ func clearImports() {
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !n.Name().Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Pos(), n.Name().Pkg.Path, s.Name})
+			p := n.(*ir.PkgName)
+			if !p.Used && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{p.Pos(), p.Pkg.Path, s.Name})
 			}
 			s.Def = nil
 			continue
@@ -964,9 +965,9 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if n.Name() != nil && n.Name().Pack != nil && !n.Name().Pack.Name().Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Name().Pack.Pos(), n.Name().Pack.Name().Pkg.Path, ""})
-				n.Name().Pack.Name().SetUsed(true)
+			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
+				name.PkgName.Used = true
 			}
 			s.Def = nil
 			continue

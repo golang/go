@@ -9,13 +9,13 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"fmt"
 	"go/constant"
 )
 
-// Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+// Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
-	Pack Node       // real package for import . names
-	Pkg  *types.Pkg // pkg for OPACK nodes
+	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable
 	Defn Node
@@ -374,3 +374,23 @@ const (
 	// Careful: Class is stored in three bits in Node.flags.
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
+
+// A Pack is an identifier referring to an imported package.
+type PkgName struct {
+	miniNode
+	sym  *types.Sym
+	Pkg  *types.Pkg
+	Used bool
+}
+
+func (p *PkgName) String() string                { return fmt.Sprint(p) }
+func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
+func (p *PkgName) RawCopy() Node                 { c := *p; return &c }
+func (p *PkgName) Sym() *types.Sym               { return p.sym }
+
+func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
+	p := &PkgName{sym: sym, Pkg: pkg}
+	p.op = OPACK
+	p.pos = pos
+	return p
+}
