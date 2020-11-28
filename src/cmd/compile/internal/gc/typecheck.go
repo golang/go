@@ -1694,8 +1694,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 		op, why := convertop(n.Left().Op() == ir.OLITERAL, t, n.Type())
-		n.SetOp(op)
-		if n.Op() == ir.OXXX {
+		if op == ir.OXXX {
 			if !n.Diag() && !n.Type().Broke() && !n.Left().Diag() {
 				base.Errorf("cannot convert %L to type %v%s", n.Left(), n.Type(), why)
 				n.SetDiag(true)
@@ -1705,6 +1704,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 
+		n.SetOp(op)
 		switch n.Op() {
 		case ir.OCONVNOP:
 			if t.Etype == n.Type().Etype {
