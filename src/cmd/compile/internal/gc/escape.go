@@ -1092,7 +1092,7 @@ func (e *Escape) newLoc(n ir.Node, transient bool) *EscLocation {
 			base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
 		}
 
-		if n.HasOpt() {
+		if n.Opt() != nil {
 			base.Fatalf("%v already has a location", n)
 		}
 		n.SetOpt(loc)
