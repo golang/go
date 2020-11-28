@@ -111,7 +111,6 @@ type Node interface {
 	SetWalkdef(x uint8)
 	Opt() interface{}
 	SetOpt(x interface{})
-	HasOpt() bool
 	Diag() bool
 	SetDiag(x bool)
 	Bounded() bool
@@ -325,7 +324,7 @@ func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
 func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
 func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
 func (n *node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
-func (n *node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+func (n *node) hasOpt() bool    { return n.flags&nodeHasOpt != 0 }
 func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
 func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
@@ -399,7 +398,7 @@ func (n *node) Val() constant.Value {
 // SetVal sets the constant.Value for the node,
 // which must not have been used with SetOpt.
 func (n *node) SetVal(v constant.Value) {
-	if n.HasOpt() {
+	if n.hasOpt() {
 		base.Flag.LowerH = 1
 		Dump("have Opt", n)
 		base.Fatalf("have Opt")
@@ -413,7 +412,7 @@ func (n *node) SetVal(v constant.Value) {
 
 // Opt returns the optimizer data for the node.
 func (n *node) Opt() interface{} {
-	if !n.HasOpt() {
+	if !n.hasOpt() {
 		return nil
 	}
 	return n.e
@@ -423,7 +422,7 @@ func (n *node) Opt() interface{} {
 // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
 func (n *node) SetOpt(x interface{}) {
 	if x == nil {
-		if n.HasOpt() {
+		if n.hasOpt() {
 			n.setHasOpt(false)
 			n.e = nil
 		}
