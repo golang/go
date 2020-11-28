@@ -35,14 +35,6 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
 			if ir.Orig(r) != r {
 				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
 			}
-			r.Name().SetAddrtaken(true)
-			if r.Name().IsClosureVar() && !CaptureVarsComplete {
-				// Mark the original variable as Addrtaken so that capturevars
-				// knows not to pass it by value.
-				// But if the capturevars phase is complete, don't touch it,
-				// in case l.Name's containing function has not yet been compiled.
-				r.Name().Defn.Name().SetAddrtaken(true)
-			}
 		}
 		n.X = DefaultLit(n.X, nil)
 		if n.X.Type() == nil {
