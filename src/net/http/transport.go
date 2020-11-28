@@ -508,9 +508,21 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
+
+	if req.Method != "" && !validMethod(req.Method) {
+		req.closeBody()
+		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
+	}
+	if req.URL.Host == "" {
+		req.closeBody()
+		return nil, errors.New("http: no Host in request URL")
+	}
 	scheme := req.URL.Scheme
 	isHTTP := scheme == "http" || scheme == "https"
-	if isHTTP {
+	if !isHTTP {
+		req.closeBody()
+		return nil, badStringError("unsupported protocol scheme", scheme)
+	}else {
 		for k, vv := range req.Header {
 			if !httpguts.ValidHeaderFieldName(k) {
 				req.closeBody()
@@ -543,18 +555,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 	}
-	if !isHTTP {
-		req.closeBody()
-		return nil, badStringError("unsupported protocol scheme", scheme)
-	}
-	if req.Method != "" && !validMethod(req.Method) {
-		req.closeBody()
-		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
-	}
-	if req.URL.Host == "" {
-		req.closeBody()
-		return nil, errors.New("http: no Host in request URL")
-	}
+
 
 	for {
 		select {
