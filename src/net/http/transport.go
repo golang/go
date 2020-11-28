@@ -500,10 +500,7 @@ func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
-	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
-	ctx := req.Context()
-	trace := httptrace.ContextClientTrace(ctx)
-
+	
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
@@ -528,7 +525,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 			}
 		}
 	}
+	
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+	ctx := req.Context()
+	trace := httptrace.ContextClientTrace(ctx)
 
+	
 	origReq := req
 	cancelKey := cancelKey{origReq}
 	req = setupRewindBody(req)
