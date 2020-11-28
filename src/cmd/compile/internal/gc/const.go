@@ -537,7 +537,7 @@ func evalConst(n ir.Node) ir.Node {
 				}
 
 				nl := origConst(s[i], constant.MakeString(strings.Join(strs, "")))
-				nl.SetOrig(nl) // it's bigger than just s[i]
+				nl.(ir.OrigNode).SetOrig(nl) // it's bigger than just s[i]
 				newList = append(newList, nl)
 				i = i2 - 1
 			} else {
@@ -642,7 +642,7 @@ func origConst(n ir.Node, v constant.Value) ir.Node {
 
 	orig := n
 	n = ir.NodAt(orig.Pos(), ir.OLITERAL, nil, nil)
-	n.SetOrig(orig)
+	n.(ir.OrigNode).SetOrig(orig)
 	n.SetType(orig.Type())
 	n.SetVal(v)
 	return n

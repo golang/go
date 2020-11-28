@@ -851,7 +851,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			checklvalue(n.Left(), "take the address of")
 			r := outervalue(n.Left())
 			if r.Op() == ir.ONAME {
-				if r.Orig() != r {
+				if ir.Orig(r) != r {
 					base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
 				}
 				r.Name().SetAddrtaken(true)
@@ -2144,8 +2144,8 @@ func typecheckargs(n ir.Node) {
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
 
 	// Save n as n.Orig for fmt.go.
-	if n.Orig() == n {
-		n.SetOrig(ir.SepCopy(n))
+	if ir.Orig(n) == n {
+		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
 	as := ir.Nod(ir.OAS2, nil, nil)
@@ -2245,7 +2245,7 @@ func checkdefergo(n ir.Node) {
 		ir.ONEW,
 		ir.OREAL,
 		ir.OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
-		if n.Left().Orig() != nil && n.Left().Orig().Op() == ir.OCONV {
+		if orig := ir.Orig(n.Left()); orig.Op() == ir.OCONV {
 			break
 		}
 		base.ErrorfAt(n.Pos(), "%s discards result of %v", what, n.Left())
@@ -2814,7 +2814,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 	}
 
 	// Save original node (including n.Right)
-	n.SetOrig(ir.Copy(n))
+	n.(ir.OrigNode).SetOrig(ir.Copy(n))
 
 	setlineno(n.Right())
 
