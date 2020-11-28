@@ -1274,7 +1274,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				return n
 			}
 
-			n.SetLeft(ir.Nod(ir.OADDR, n.Left(), nil))
+			n.SetLeft(nodAddr(n.Left()))
 			n.Left().SetImplicit(true)
 			n.SetLeft(typecheck(n.Left(), ctxExpr))
 			l = n.Left()
@@ -2462,7 +2462,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 		if !types.Identical(rcvr, tt) {
 			if rcvr.IsPtr() && types.Identical(rcvr.Elem(), tt) {
 				checklvalue(n.Left(), "call pointer method on")
-				n.SetLeft(ir.Nod(ir.OADDR, n.Left(), nil))
+				n.SetLeft(nodAddr(n.Left()))
 				n.Left().SetImplicit(true)
 				n.SetLeft(typecheck(n.Left(), ctxType|ctxExpr))
 			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
@@ -2747,7 +2747,7 @@ func pushtype(n ir.Node, t *types.Type) ir.Node {
 		// For *T, return &T{...}.
 		n.SetRight(ir.TypeNode(t.Elem()))
 
-		n = ir.NodAt(n.Pos(), ir.OADDR, n, nil)
+		n = nodAddrAt(n.Pos(), n)
 		n.SetImplicit(true)
 	}
 

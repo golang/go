@@ -675,7 +675,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			init.Append(ir.Nod(ir.OVARDEF, x, nil))
 		}
 
-		a = ir.Nod(ir.OADDR, x, nil)
+		a = nodAddr(x)
 	} else if n.Esc() == EscNone {
 		a = temp(t)
 		if vstat == nil {
@@ -687,7 +687,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			init.Append(ir.Nod(ir.OVARDEF, a, nil))
 		}
 
-		a = ir.Nod(ir.OADDR, a, nil)
+		a = nodAddr(a)
 	} else {
 		a = ir.Nod(ir.ONEW, ir.TypeNode(t), nil)
 	}
@@ -888,7 +888,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		if n.Right() != nil {
 			// n.Right is stack temporary used as backing store.
 			init.Append(ir.Nod(ir.OAS, n.Right(), nil)) // zero backing store, just in case (#18410)
-			r = ir.Nod(ir.OADDR, n.Right(), nil)
+			r = nodAddr(n.Right())
 			r = typecheck(r, ctxExpr)
 		} else {
 			r = ir.Nod(ir.ONEW, ir.TypeNode(n.Left().Type()), nil)

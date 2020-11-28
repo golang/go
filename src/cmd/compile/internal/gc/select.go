@@ -171,18 +171,18 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		switch n.Op() {
 		case ir.OSEND:
-			n.SetRight(ir.Nod(ir.OADDR, n.Right(), nil))
+			n.SetRight(nodAddr(n.Right()))
 			n.SetRight(typecheck(n.Right(), ctxExpr))
 
 		case ir.OSELRECV:
 			if !ir.IsBlank(n.Left()) {
-				n.SetLeft(ir.Nod(ir.OADDR, n.Left(), nil))
+				n.SetLeft(nodAddr(n.Left()))
 				n.SetLeft(typecheck(n.Left(), ctxExpr))
 			}
 
 		case ir.OSELRECV2:
 			if !ir.IsBlank(n.List().First()) {
-				n.List().SetIndex(0, ir.Nod(ir.OADDR, n.List().First(), nil))
+				n.List().SetIndex(0, nodAddr(n.List().First()))
 				n.List().SetIndex(0, typecheck(n.List().First(), ctxExpr))
 			}
 		}
@@ -225,7 +225,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 			if ir.IsBlank(elem) {
 				elem = nodnil()
 			}
-			receivedp := ir.Nod(ir.OADDR, n.List().Second(), nil)
+			receivedp := nodAddr(n.List().Second())
 			receivedp = typecheck(receivedp, ctxExpr)
 			call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
 		}
@@ -257,7 +257,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 	var pc0, pcs ir.Node
 	if base.Flag.Race {
 		pcs = temp(types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
-		pc0 = typecheck(ir.Nod(ir.OADDR, ir.Nod(ir.OINDEX, pcs, nodintconst(0)), nil), ctxExpr)
+		pc0 = typecheck(nodAddr(ir.Nod(ir.OINDEX, pcs, nodintconst(0))), ctxExpr)
 	} else {
 		pc0 = nodnil()
 	}
@@ -314,7 +314,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r = mkcall("selectsetpc", nil, nil, ir.Nod(ir.OADDR, ir.Nod(ir.OINDEX, pcs, nodintconst(int64(i))), nil))
+			r = mkcall("selectsetpc", nil, nil, nodAddr(ir.Nod(ir.OINDEX, pcs, nodintconst(int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -372,7 +372,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
 func bytePtrToIndex(n ir.Node, i int64) ir.Node {
-	s := ir.Nod(ir.OADDR, ir.Nod(ir.OINDEX, n, nodintconst(i)), nil)
+	s := nodAddr(ir.Nod(ir.OINDEX, n, nodintconst(i)))
 	t := types.NewPtr(types.Types[types.TUINT8])
 	return convnop(s, t)
 }
