@@ -1302,14 +1302,19 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 }
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
-	lhs := p.nodSym(label, ir.OLABEL, nil, p.name(label.Label))
+	sym := p.name(label.Label)
+	lhs := p.nodSym(label, ir.OLABEL, nil, sym)
 
 	var ls ir.Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
 		ls = p.stmtFall(label.Stmt, fallOK)
+		switch label.Stmt.(type) {
+		case *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
+			// Attach label directly to control statement too.
+			ls.SetSym(sym)
+		}
 	}
 
-	lhs.Name().Defn = ls
 	l := []ir.Node{lhs}
 	if ls != nil {
 		if ls.Op() == ir.OBLOCK && ls.Init().Len() == 0 {

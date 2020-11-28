@@ -85,6 +85,7 @@ import (
 
 type Escape struct {
 	allLocs []*EscLocation
+	labels  map[*types.Sym]labelState // known labels
 
 	curfn ir.Node
 
@@ -229,13 +230,16 @@ func (e *Escape) walkFunc(fn ir.Node) {
 	ir.InspectList(fn.Body(), func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OLABEL:
-			n.Sym().Label = nonlooping
+			if e.labels == nil {
+				e.labels = make(map[*types.Sym]labelState)
+			}
+			e.labels[n.Sym()] = nonlooping
 
 		case ir.OGOTO:
 			// If we visited the label before the goto,
 			// then this is a looping label.
-			if n.Sym().Label == nonlooping {
-				n.Sym().Label = looping
+			if e.labels[n.Sym()] == nonlooping {
+				e.labels[n.Sym()] = looping
 			}
 		}
 
@@ -245,6 +249,10 @@ func (e *Escape) walkFunc(fn ir.Node) {
 	e.curfn = fn
 	e.loopDepth = 1
 	e.block(fn.Body())
+
+	if len(e.labels) != 0 {
+		base.FatalfAt(fn.Pos(), "leftover labels after walkFunc")
+	}
 }
 
 // Below we implement the methods for walking the AST and recording
@@ -310,7 +318,7 @@ func (e *Escape) stmt(n ir.Node) {
 		}
 
 	case ir.OLABEL:
-		switch ir.AsNode(n.Sym().Label) {
+		switch e.labels[n.Sym()] {
 		case nonlooping:
 			if base.Flag.LowerM > 2 {
 				fmt.Printf("%v:%v non-looping label\n", base.FmtPos(base.Pos), n)
@@ -323,7 +331,7 @@ func (e *Escape) stmt(n ir.Node) {
 		default:
 			base.Fatalf("label missing tag")
 		}
-		n.Sym().Label = nil
+		delete(e.labels, n.Sym())
 
 	case ir.OIF:
 		e.discard(n.Left())
@@ -1615,11 +1623,11 @@ func funcSym(fn ir.Node) *types.Sym {
 }
 
 // Mark labels that have no backjumps to them as not increasing e.loopdepth.
-// Walk hasn't generated (goto|label).Left.Sym.Label yet, so we'll cheat
-// and set it to one of the following two. Then in esc we'll clear it again.
-var (
-	looping    = ir.Nod(ir.OXXX, nil, nil)
-	nonlooping = ir.Nod(ir.OXXX, nil, nil)
+type labelState int
+
+const (
+	looping labelState = 1 + iota
+	nonlooping
 )
 
 func isSliceSelfAssign(dst, src ir.Node) bool {

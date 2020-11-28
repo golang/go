@@ -3759,7 +3759,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	return true
 }
 
-func markbreak(n ir.Node, implicit ir.Node) {
+func markbreak(labels *map[*types.Sym]ir.Node, n ir.Node, implicit ir.Node) {
 	if n == nil {
 		return
 	}
@@ -3771,43 +3771,35 @@ func markbreak(n ir.Node, implicit ir.Node) {
 				implicit.SetHasBreak(true)
 			}
 		} else {
-			lab := ir.AsNode(n.Sym().Label)
-			if lab != nil {
+			if lab := (*labels)[n.Sym()]; lab != nil {
 				lab.SetHasBreak(true)
 			}
 		}
 	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
 		implicit = n
+		if sym := n.Sym(); sym != nil {
+			if *labels == nil {
+				// Map creation delayed until we need it - most functions don't.
+				*labels = make(map[*types.Sym]ir.Node)
+			}
+			(*labels)[sym] = n
+			defer delete(*labels, sym)
+		}
 		fallthrough
 	default:
-		markbreak(n.Left(), implicit)
-		markbreak(n.Right(), implicit)
-		markbreaklist(n.Init(), implicit)
-		markbreaklist(n.Body(), implicit)
-		markbreaklist(n.List(), implicit)
-		markbreaklist(n.Rlist(), implicit)
+		markbreak(labels, n.Left(), implicit)
+		markbreak(labels, n.Right(), implicit)
+		markbreaklist(labels, n.Init(), implicit)
+		markbreaklist(labels, n.Body(), implicit)
+		markbreaklist(labels, n.List(), implicit)
+		markbreaklist(labels, n.Rlist(), implicit)
 	}
 }
 
-func markbreaklist(l ir.Nodes, implicit ir.Node) {
+func markbreaklist(labels *map[*types.Sym]ir.Node, l ir.Nodes, implicit ir.Node) {
 	s := l.Slice()
 	for i := 0; i < len(s); i++ {
-		n := s[i]
-		if n == nil {
-			continue
-		}
-		if n.Op() == ir.OLABEL && i+1 < len(s) && n.Name().Defn == s[i+1] {
-			switch n.Name().Defn.Op() {
-			case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
-				n.Sym().Label = n.Name().Defn
-				markbreak(n.Name().Defn, n.Name().Defn)
-				n.Sym().Label = nil
-				i++
-				continue
-			}
-		}
-
-		markbreak(n, implicit)
+		markbreak(labels, s[i], implicit)
 	}
 }
 
@@ -3874,7 +3866,8 @@ func isTermNode(n ir.Node) bool {
 // checkreturn makes sure that fn terminates appropriately.
 func checkreturn(fn ir.Node) {
 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
-		markbreaklist(fn.Body(), nil)
+		var labels map[*types.Sym]ir.Node
+		markbreaklist(&labels, fn.Body(), nil)
 		if !isTermNodes(fn.Body()) {
 			base.ErrorfAt(fn.Func().Endlineno, "missing return at end of function")
 		}
