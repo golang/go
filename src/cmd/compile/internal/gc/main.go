@@ -277,7 +277,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if n.Op() == ir.ODCLFUNC {
-			Curfn = n
+			Curfn = n.(*ir.Func)
 			decldepth = 1
 			errorsBefore := base.Errors()
 			typecheckslice(Curfn.Body().Slice(), ctxStmt)
@@ -307,8 +307,8 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "capturevars")
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n
-			capturevars(n)
+			Curfn = n.(*ir.Func)
+			capturevars(Curfn)
 		}
 	}
 	capturevarscomplete = true
@@ -321,7 +321,7 @@ func Main(archInit func(*Arch)) {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func().Inl != nil {
+			if n.Inl != nil {
 				typecheckinl(n)
 			}
 		}
@@ -330,7 +330,7 @@ func Main(archInit func(*Arch)) {
 
 	if base.Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list []ir.Node, recursive bool) {
+		visitBottomUp(xtop, func(list []*ir.Func, recursive bool) {
 			numfns := numNonClosures(list)
 			for _, n := range list {
 				if !recursive || numfns > 1 {
@@ -340,7 +340,7 @@ func Main(archInit func(*Arch)) {
 					caninl(n)
 				} else {
 					if base.Flag.LowerM > 1 {
-						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Func().Nname)
+						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 					}
 				}
 				inlcalls(n)
@@ -350,7 +350,7 @@ func Main(archInit func(*Arch)) {
 
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC {
-			devirtualize(n)
+			devirtualize(n.(*ir.Func))
 		}
 	}
 	Curfn = nil
@@ -380,8 +380,8 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "xclosures")
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n
-			transformclosure(n)
+			Curfn = n.(*ir.Func)
+			transformclosure(Curfn)
 		}
 	}
 
@@ -403,7 +403,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if n.Op() == ir.ODCLFUNC {
-			funccompile(n)
+			funccompile(n.(*ir.Func))
 			fcount++
 		}
 	}
@@ -481,10 +481,10 @@ func Main(archInit func(*Arch)) {
 }
 
 // numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []ir.Node) int {
+func numNonClosures(list []*ir.Func) int {
 	count := 0
-	for _, n := range list {
-		if n.Func().OClosure == nil {
+	for _, fn := range list {
+		if fn.OClosure == nil {
 			count++
 		}
 	}

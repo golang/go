@@ -19,7 +19,7 @@ var renameinitgen int
 
 // Function collecting autotmps generated during typechecking,
 // to be included in the package-level init function.
-var initTodo = ir.Nod(ir.ODCLFUNC, nil, nil)
+var initTodo = ir.NewFunc(base.Pos)
 
 func renameinit() *types.Sym {
 	s := lookupN("init.", renameinitgen)
@@ -49,23 +49,23 @@ func fninit(n []ir.Node) {
 		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
 		fn := dclfunc(initializers, ir.Nod(ir.OTFUNC, nil, nil))
-		for _, dcl := range initTodo.Func().Dcl {
+		for _, dcl := range initTodo.Dcl {
 			dcl.Name().Curfn = fn
 		}
-		fn.Func().Dcl = append(fn.Func().Dcl, initTodo.Func().Dcl...)
-		initTodo.Func().Dcl = nil
+		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
+		initTodo.Dcl = nil
 
 		fn.PtrBody().Set(nf)
 		funcbody()
 
-		fn = typecheck(fn, ctxStmt)
+		typecheckFunc(fn)
 		Curfn = fn
 		typecheckslice(nf, ctxStmt)
 		Curfn = nil
 		xtop = append(xtop, fn)
 		fns = append(fns, initializers.Linksym())
 	}
-	if initTodo.Func().Dcl != nil {
+	if initTodo.Dcl != nil {
 		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.

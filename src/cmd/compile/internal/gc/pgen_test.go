@@ -26,19 +26,19 @@ func typeWithPointers() *types.Type {
 	return t
 }
 
-func markUsed(n ir.Node) ir.Node {
-	n.Name().SetUsed(true)
+func markUsed(n *ir.Name) *ir.Name {
+	n.SetUsed(true)
 	return n
 }
 
-func markNeedZero(n ir.Node) ir.Node {
-	n.Name().SetNeedzero(true)
+func markNeedZero(n *ir.Name) *ir.Name {
+	n.SetNeedzero(true)
 	return n
 }
 
 // Test all code paths for cmpstackvarlt.
 func TestCmpstackvar(t *testing.T) {
-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) ir.Node {
+	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
 		if s == nil {
 			s = &types.Sym{Name: "."}
 		}
@@ -49,7 +49,7 @@ func TestCmpstackvar(t *testing.T) {
 		return n
 	}
 	testdata := []struct {
-		a, b ir.Node
+		a, b *ir.Name
 		lt   bool
 	}{
 		{
@@ -156,14 +156,14 @@ func TestCmpstackvar(t *testing.T) {
 }
 
 func TestStackvarSort(t *testing.T) {
-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) ir.Node {
+	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
 		n := NewName(s)
 		n.SetType(t)
 		n.SetOffset(xoffset)
 		n.SetClass(cl)
 		return n
 	}
-	inp := []ir.Node{
+	inp := []*ir.Name{
 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
 		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
@@ -178,7 +178,7 @@ func TestStackvarSort(t *testing.T) {
 		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
 		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
 	}
-	want := []ir.Node{
+	want := []*ir.Name{
 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
 		nod(10, &types.Type{}, &types.Sym{}, ir.PFUNC),

@@ -429,6 +429,7 @@ func (p *iexporter) doDecl(n ir.Node) {
 
 	switch n.Op() {
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		switch n.Class() {
 		case ir.PEXTERN:
 			// Variable.
@@ -515,7 +516,7 @@ func (w *exportWriter) tag(tag byte) {
 	w.data.WriteByte(tag)
 }
 
-func (p *iexporter) doInline(f ir.Node) {
+func (p *iexporter) doInline(f *ir.Name) {
 	w := p.newWriter()
 	w.setPkg(fnpkg(f), false)
 
@@ -960,7 +961,7 @@ func (w *exportWriter) varExt(n ir.Node) {
 	w.symIdx(n.Sym())
 }
 
-func (w *exportWriter) funcExt(n ir.Node) {
+func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
@@ -979,14 +980,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
 		}
 
 		// Endlineno for inlined function.
-		if n.Name().Defn != nil {
-			w.pos(n.Name().Defn.Func().Endlineno)
-		} else {
-			// When the exported node was defined externally,
-			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
-			// Keep it as we don't distinguish this case in iimport.go.
-			w.pos(n.Func().Endlineno)
-		}
+		w.pos(n.Func().Endlineno)
 	} else {
 		w.uint64(0)
 	}
@@ -994,7 +988,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
 
 func (w *exportWriter) methExt(m *types.Field) {
 	w.bool(m.Nointerface())
-	w.funcExt(ir.AsNode(m.Nname))
+	w.funcExt(ir.AsNode(m.Nname).(*ir.Name))
 }
 
 func (w *exportWriter) linkname(s *types.Sym) {

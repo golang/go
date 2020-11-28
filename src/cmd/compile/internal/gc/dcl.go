@@ -58,7 +58,7 @@ var declare_typegen int
 
 // declare records that Node n declares symbol n.Sym in the specified
 // declaration context.
-func declare(n ir.Node, ctxt ir.Class) {
+func declare(n *ir.Name, ctxt ir.Class) {
 	if ir.IsBlank(n) {
 		return
 	}
@@ -85,7 +85,7 @@ func declare(n ir.Node, ctxt ir.Class) {
 			base.Fatalf("automatic outside function")
 		}
 		if Curfn != nil && ctxt != ir.PFUNC {
-			Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
+			Curfn.Dcl = append(Curfn.Dcl, n)
 		}
 		if n.Op() == ir.OTYPE {
 			declare_typegen++
@@ -122,7 +122,7 @@ func declare(n ir.Node, ctxt ir.Class) {
 	autoexport(n, ctxt)
 }
 
-func addvar(n ir.Node, t *types.Type, ctxt ir.Class) {
+func addvar(n *ir.Name, t *types.Type, ctxt ir.Class) {
 	if n == nil || n.Sym() == nil || (n.Op() != ir.ONAME && n.Op() != ir.ONONAME) || t == nil {
 		base.Fatalf("addvar: n=%v t=%v nil", n, t)
 	}
@@ -144,10 +144,11 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 		as2.PtrList().Set(vl)
 		as2.PtrRlist().Set1(e)
 		for _, v := range vl {
+			v := v.(*ir.Name)
 			v.SetOp(ir.ONAME)
 			declare(v, dclcontext)
-			v.Name().Ntype = t
-			v.Name().Defn = as2
+			v.Ntype = t
+			v.Defn = as2
 			if Curfn != nil {
 				init = append(init, ir.Nod(ir.ODCL, v, nil))
 			}
@@ -158,6 +159,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 
 	nel := len(el)
 	for _, v := range vl {
+		v := v.(*ir.Name)
 		var e ir.Node
 		if doexpr {
 			if len(el) == 0 {
@@ -170,7 +172,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 
 		v.SetOp(ir.ONAME)
 		declare(v, dclcontext)
-		v.Name().Ntype = t
+		v.Ntype = t
 
 		if e != nil || Curfn != nil || ir.IsBlank(v) {
 			if Curfn != nil {
@@ -179,7 +181,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
 			e = ir.Nod(ir.OAS, v, e)
 			init = append(init, e)
 			if e.Right() != nil {
-				v.Name().Defn = e
+				v.Defn = e
 			}
 		}
 	}
@@ -200,10 +202,10 @@ func newnoname(s *types.Sym) ir.Node {
 	return n
 }
 
-// newfuncnamel generates a new name node for a function or method.
-func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) ir.Node {
+// newFuncNameAt generates a new name node for a function or method.
+func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
 	if fn.Nname != nil {
-		base.Fatalf("newfuncnamel - already have name")
+		base.Fatalf("newFuncName - already have name")
 	}
 	n := ir.NewNameAt(pos, s)
 	n.SetFunc(fn)
@@ -271,20 +273,20 @@ func oldname(s *types.Sym) ir.Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		c := n.Name().Innermost
-		if c == nil || c.Name().Curfn != Curfn {
+		if c == nil || c.Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = NewName(s)
 			c.SetClass(ir.PAUTOHEAP)
-			c.Name().SetIsClosureVar(true)
+			c.SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
-			c.Name().Defn = n
+			c.Defn = n
 
 			// Link into list of active closure variables.
 			// Popped from list in func funcLit.
-			c.Name().Outer = n.Name().Innermost
+			c.Outer = n.Name().Innermost
 			n.Name().Innermost = c
 
-			Curfn.Func().ClosureVars.Append(c)
+			Curfn.ClosureVars = append(Curfn.ClosureVars, c)
 		}
 
 		// return ref to closure var, not original
@@ -349,7 +351,7 @@ func colasdefn(left []ir.Node, defn ir.Node) {
 		}
 
 		nnew++
-		n = NewName(n.Sym())
+		n := NewName(n.Sym())
 		declare(n, dclcontext)
 		n.Name().Defn = defn
 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
@@ -377,18 +379,18 @@ func ifacedcl(n ir.Node) {
 // and declare the arguments.
 // called in extern-declaration context
 // returns in auto-declaration context.
-func funchdr(n ir.Node) {
+func funchdr(fn *ir.Func) {
 	// change the declaration context from extern to auto
 	funcStack = append(funcStack, funcStackEnt{Curfn, dclcontext})
-	Curfn = n
+	Curfn = fn
 	dclcontext = ir.PAUTO
 
 	types.Markdcl()
 
-	if n.Func().Nname != nil && n.Func().Nname.Name().Ntype != nil {
-		funcargs(n.Func().Nname.Name().Ntype)
+	if fn.Nname != nil && fn.Nname.Ntype != nil {
+		funcargs(fn.Nname.Ntype)
 	} else {
-		funcargs2(n.Type())
+		funcargs2(fn.Type())
 	}
 }
 
@@ -450,10 +452,11 @@ func funcarg(n ir.Node, ctxt ir.Class) {
 		return
 	}
 
-	n.SetRight(ir.NewNameAt(n.Pos(), n.Sym()))
-	n.Right().Name().Ntype = n.Left()
-	n.Right().SetIsDDD(n.IsDDD())
-	declare(n.Right(), ctxt)
+	name := ir.NewNameAt(n.Pos(), n.Sym())
+	n.SetRight(name)
+	name.Ntype = n.Left()
+	name.SetIsDDD(n.IsDDD())
+	declare(name, ctxt)
 
 	vargen++
 	n.Right().Name().Vargen = int32(vargen)
@@ -492,7 +495,7 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
 var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
 
 type funcStackEnt struct {
-	curfn      ir.Node
+	curfn      *ir.Func
 	dclcontext ir.Class
 }
 
@@ -937,18 +940,18 @@ func setNodeNameFunc(n ir.Node) {
 	n.Sym().SetFunc(true)
 }
 
-func dclfunc(sym *types.Sym, tfn ir.Node) ir.Node {
+func dclfunc(sym *types.Sym, tfn ir.Node) *ir.Func {
 	if tfn.Op() != ir.OTFUNC {
 		base.Fatalf("expected OTFUNC node, got %v", tfn)
 	}
 
-	fn := ir.Nod(ir.ODCLFUNC, nil, nil)
-	fn.Func().Nname = newfuncnamel(base.Pos, sym, fn.Func())
-	fn.Func().Nname.Name().Defn = fn
-	fn.Func().Nname.Name().Ntype = tfn
-	setNodeNameFunc(fn.Func().Nname)
+	fn := ir.NewFunc(base.Pos)
+	fn.Nname = newFuncNameAt(base.Pos, sym, fn)
+	fn.Nname.Defn = fn
+	fn.Nname.Ntype = tfn
+	setNodeNameFunc(fn.Nname)
 	funchdr(fn)
-	fn.Func().Nname.Name().Ntype = typecheck(fn.Func().Nname.Name().Ntype, ctxType)
+	fn.Nname.Ntype = typecheck(fn.Nname.Ntype, ctxType)
 	return fn
 }
 
@@ -959,11 +962,11 @@ type nowritebarrierrecChecker struct {
 	extraCalls map[ir.Node][]nowritebarrierrecCall
 
 	// curfn is the current function during AST walks.
-	curfn ir.Node
+	curfn *ir.Func
 }
 
 type nowritebarrierrecCall struct {
-	target ir.Node  // ODCLFUNC of caller or callee
+	target *ir.Func // caller or callee
 	lineno src.XPos // line of call
 }
 
@@ -983,7 +986,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
-		c.curfn = n
+		c.curfn = n.(*ir.Func)
 		ir.Inspect(n, c.findExtraCalls)
 	}
 	c.curfn = nil
@@ -1002,13 +1005,13 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
 		return true
 	}
 
-	var callee ir.Node
+	var callee *ir.Func
 	arg := n.List().First()
 	switch arg.Op() {
 	case ir.ONAME:
-		callee = arg.Name().Defn
+		callee = arg.Name().Defn.(*ir.Func)
 	case ir.OCLOSURE:
-		callee = arg.Func().Decl
+		callee = arg.Func()
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
@@ -1027,13 +1030,8 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
 // because that's all we know after we start SSA.
 //
 // This can be called concurrently for different from Nodes.
-func (c *nowritebarrierrecChecker) recordCall(from ir.Node, to *obj.LSym, pos src.XPos) {
-	if from.Op() != ir.ODCLFUNC {
-		base.Fatalf("expected ODCLFUNC, got %v", from)
-	}
-	// We record this information on the *Func so this is
-	// concurrent-safe.
-	fn := from.Func()
+func (c *nowritebarrierrecChecker) recordCall(fn *ir.Func, to *obj.LSym, pos src.XPos) {
+	// We record this information on the *Func so this is concurrent-safe.
 	if fn.NWBRCalls == nil {
 		fn.NWBRCalls = new([]ir.SymAndPos)
 	}
@@ -1045,7 +1043,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// capture all calls created by lowering, but this means we
 	// only get to see the obj.LSyms of calls. symToFunc lets us
 	// get back to the ODCLFUNCs.
-	symToFunc := make(map[*obj.LSym]ir.Node)
+	symToFunc := make(map[*obj.LSym]*ir.Func)
 	// funcs records the back-edges of the BFS call graph walk. It
 	// maps from the ODCLFUNC of each function that must not have
 	// write barriers to the call that inhibits them. Functions
@@ -1060,24 +1058,25 @@ func (c *nowritebarrierrecChecker) check() {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
+		fn := n.(*ir.Func)
 
-		symToFunc[n.Func().LSym] = n
+		symToFunc[fn.LSym] = fn
 
 		// Make nowritebarrierrec functions BFS roots.
-		if n.Func().Pragma&ir.Nowritebarrierrec != 0 {
-			funcs[n] = nowritebarrierrecCall{}
-			q.PushRight(n)
+		if fn.Pragma&ir.Nowritebarrierrec != 0 {
+			funcs[fn] = nowritebarrierrecCall{}
+			q.PushRight(fn)
 		}
 		// Check go:nowritebarrier functions.
-		if n.Func().Pragma&ir.Nowritebarrier != 0 && n.Func().WBPos.IsKnown() {
-			base.ErrorfAt(n.Func().WBPos, "write barrier prohibited")
+		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
+			base.ErrorfAt(fn.WBPos, "write barrier prohibited")
 		}
 	}
 
 	// Perform a BFS of the call graph from all
 	// go:nowritebarrierrec functions.
-	enqueue := func(src, target ir.Node, pos src.XPos) {
-		if target.Func().Pragma&ir.Yeswritebarrierrec != 0 {
+	enqueue := func(src, target *ir.Func, pos src.XPos) {
+		if target.Pragma&ir.Yeswritebarrierrec != 0 {
 			// Don't flow into this function.
 			return
 		}
@@ -1091,17 +1090,17 @@ func (c *nowritebarrierrecChecker) check() {
 		q.PushRight(target)
 	}
 	for !q.Empty() {
-		fn := q.PopLeft()
+		fn := q.PopLeft().(*ir.Func)
 
 		// Check fn.
-		if fn.Func().WBPos.IsKnown() {
+		if fn.WBPos.IsKnown() {
 			var err bytes.Buffer
 			call := funcs[fn]
 			for call.target != nil {
-				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Func().Nname)
+				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
 				call = funcs[call.target]
 			}
-			base.ErrorfAt(fn.Func().WBPos, "write barrier prohibited by caller; %v%s", fn.Func().Nname, err.String())
+			base.ErrorfAt(fn.WBPos, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
 			continue
 		}
 
@@ -1109,10 +1108,10 @@ func (c *nowritebarrierrecChecker) check() {
 		for _, callee := range c.extraCalls[fn] {
 			enqueue(fn, callee.target, callee.lineno)
 		}
-		if fn.Func().NWBRCalls == nil {
+		if fn.NWBRCalls == nil {
 			continue
 		}
-		for _, callee := range *fn.Func().NWBRCalls {
+		for _, callee := range *fn.NWBRCalls {
 			target := symToFunc[callee.Sym]
 			if target != nil {
 				enqueue(fn, target, callee.Pos)

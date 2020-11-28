@@ -161,8 +161,12 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
 	if n == nil {
 		return
 	}
+	name := n.(*ir.Name)
 
-	n.SetFunc(new(ir.Func))
+	fn := ir.NewFunc(pos)
+	fn.SetType(t)
+	name.SetFunc(fn)
+	fn.Nname = name
 
 	if base.Flag.E != 0 {
 		fmt.Printf("import func %v%S\n", s, t)

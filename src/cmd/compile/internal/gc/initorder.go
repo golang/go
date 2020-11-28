@@ -284,11 +284,11 @@ func (d *initDeps) visit(n ir.Node) bool {
 	case ir.ONAME:
 		switch n.Class() {
 		case ir.PEXTERN, ir.PFUNC:
-			d.foundDep(n)
+			d.foundDep(n.(*ir.Name))
 		}
 
 	case ir.OCLOSURE:
-		d.inspectList(n.Func().Decl.Body())
+		d.inspectList(n.Func().Body())
 
 	case ir.ODOTMETH, ir.OCALLPART:
 		d.foundDep(methodExprName(n))
@@ -299,7 +299,7 @@ func (d *initDeps) visit(n ir.Node) bool {
 
 // foundDep records that we've found a dependency on n by adding it to
 // seen.
-func (d *initDeps) foundDep(n ir.Node) {
+func (d *initDeps) foundDep(n *ir.Name) {
 	// Can happen with method expressions involving interface
 	// types; e.g., fixedbugs/issue4495.go.
 	if n == nil {
@@ -308,7 +308,7 @@ func (d *initDeps) foundDep(n ir.Node) {
 
 	// Names without definitions aren't interesting as far as
 	// initialization ordering goes.
-	if n.Name().Defn == nil {
+	if n.Defn == nil {
 		return
 	}
 
@@ -317,7 +317,7 @@ func (d *initDeps) foundDep(n ir.Node) {
 	}
 	d.seen.Add(n)
 	if d.transitive && n.Class() == ir.PFUNC {
-		d.inspectList(n.Name().Defn.Body())
+		d.inspectList(n.Defn.Body())
 	}
 }
 

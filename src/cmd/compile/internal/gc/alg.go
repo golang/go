@@ -382,8 +382,8 @@ func genhash(t *types.Type) *obj.LSym {
 
 	funcbody()
 
-	fn.Func().SetDupok(true)
-	fn = typecheck(fn, ctxStmt)
+	fn.SetDupok(true)
+	typecheckFunc(fn)
 
 	Curfn = fn
 	typecheckslice(fn.Body().Slice(), ctxStmt)
@@ -393,7 +393,7 @@ func genhash(t *types.Type) *obj.LSym {
 		testdclstack()
 	}
 
-	fn.Func().SetNilCheckDisabled(true)
+	fn.SetNilCheckDisabled(true)
 	xtop = append(xtop, fn)
 
 	// Build closure. It doesn't close over any variables, so
@@ -761,8 +761,8 @@ func geneq(t *types.Type) *obj.LSym {
 
 	funcbody()
 
-	fn.Func().SetDupok(true)
-	fn = typecheck(fn, ctxStmt)
+	fn.SetDupok(true)
+	typecheckFunc(fn)
 
 	Curfn = fn
 	typecheckslice(fn.Body().Slice(), ctxStmt)
@@ -776,7 +776,7 @@ func geneq(t *types.Type) *obj.LSym {
 	// We are comparing a struct or an array,
 	// neither of which can be nil, and our comparisons
 	// are shallow.
-	fn.Func().SetNilCheckDisabled(true)
+	fn.SetNilCheckDisabled(true)
 	xtop = append(xtop, fn)
 
 	// Generate a closure which points at the function we just generated.

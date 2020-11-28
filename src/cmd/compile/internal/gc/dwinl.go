@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -211,6 +212,7 @@ func genAbstractFunc(fn *obj.LSym) {
 		base.Ctxt.Diag("failed to locate precursor fn for %v", fn)
 		return
 	}
+	_ = ifn.(*ir.Func)
 	if base.Debug.DwarfInl != 0 {
 		base.Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
 	}

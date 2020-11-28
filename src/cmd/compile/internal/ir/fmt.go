@@ -1338,7 +1338,7 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 			mode.Fprintf(s, "%v { %v }", n.Type(), n.Body())
 			return
 		}
-		mode.Fprintf(s, "%v { %v }", n.Type(), n.Func().Decl.Body())
+		mode.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
 
 	case OCOMPLIT:
 		if mode == FErr {
@@ -1638,7 +1638,7 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 		}
 	}
 
-	if n.Op() == OCLOSURE && n.Func().Decl != nil && n.Func().Nname.Sym() != nil {
+	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Nname.Sym() != nil {
 		mode.Fprintf(s, " fnName %v", n.Func().Nname.Sym())
 	}
 	if n.Sym() != nil && n.Op() != ONAME {
@@ -1656,15 +1656,15 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 		if n.Right() != nil {
 			mode.Fprintf(s, "%v", n.Right())
 		}
-		if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Decl != nil && n.Func().Decl.Body().Len() != 0 {
+		if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Body().Len() != 0 {
 			indent(s)
 			// The function associated with a closure
-			mode.Fprintf(s, "%v-clofunc%v", n.Op(), n.Func().Decl)
+			mode.Fprintf(s, "%v-clofunc%v", n.Op(), n.Func())
 		}
 		if n.Op() == ODCLFUNC && n.Func() != nil && n.Func().Dcl != nil && len(n.Func().Dcl) != 0 {
 			indent(s)
 			// The dcls for a func or closure
-			mode.Fprintf(s, "%v-dcl%v", n.Op(), AsNodes(n.Func().Dcl))
+			mode.Fprintf(s, "%v-dcl%v", n.Op(), asNameNodes(n.Func().Dcl))
 		}
 		if n.List().Len() != 0 {
 			indent(s)
@@ -1681,6 +1681,16 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 			mode.Fprintf(s, "%v-body%v", n.Op(), n.Body())
 		}
 	}
+}
+
+// asNameNodes copies list to a new Nodes.
+// It should only be called in debug formatting and other low-performance contexts.
+func asNameNodes(list []*Name) Nodes {
+	var ns Nodes
+	for _, n := range list {
+		ns.Append(n)
+	}
+	return ns
 }
 
 // "%S" suppresses qualifying with package

@@ -101,7 +101,7 @@ type BlockEffects struct {
 
 // A collection of global state used by liveness analysis.
 type Liveness struct {
-	fn         ir.Node
+	fn         *ir.Func
 	f          *ssa.Func
 	vars       []ir.Node
 	idx        map[ir.Node]int32
@@ -212,9 +212,9 @@ func livenessShouldTrack(n ir.Node) bool {
 
 // getvariables returns the list of on-stack variables that we need to track
 // and a map for looking up indices by *Node.
-func getvariables(fn ir.Node) ([]ir.Node, map[ir.Node]int32) {
+func getvariables(fn *ir.Func) ([]ir.Node, map[ir.Node]int32) {
 	var vars []ir.Node
-	for _, n := range fn.Func().Dcl {
+	for _, n := range fn.Dcl {
 		if livenessShouldTrack(n) {
 			vars = append(vars, n)
 		}
@@ -356,7 +356,7 @@ type livenessFuncCache struct {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn ir.Node, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
+func newliveness(fn *ir.Func, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
@@ -788,7 +788,7 @@ func (lv *Liveness) epilogue() {
 	// pointers to copy values back to the stack).
 	// TODO: if the output parameter is heap-allocated, then we
 	// don't need to keep the stack copy live?
-	if lv.fn.Func().HasDefer() {
+	if lv.fn.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == ir.PPARAMOUT {
 				if n.Name().IsOutputParamHeapAddr() {
@@ -891,7 +891,7 @@ func (lv *Liveness) epilogue() {
 				if n.Class() == ir.PPARAM {
 					continue // ok
 				}
-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func().Nname, n)
+				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
 			}
 
 			// Record live variables.
@@ -904,7 +904,7 @@ func (lv *Liveness) epilogue() {
 	}
 
 	// If we have an open-coded deferreturn call, make a liveness map for it.
-	if lv.fn.Func().OpenCodedDeferDisallowed() {
+	if lv.fn.OpenCodedDeferDisallowed() {
 		lv.livenessMap.deferreturn = LivenessDontCare
 	} else {
 		lv.livenessMap.deferreturn = LivenessIndex{
@@ -922,7 +922,7 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func().Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
 		}
 	}
 }
@@ -980,7 +980,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 		return
 	}
 
-	pos := lv.fn.Func().Nname.Pos()
+	pos := lv.fn.Nname.Pos()
 	if v != nil {
 		pos = v.Pos
 	}
@@ -1090,7 +1090,7 @@ func (lv *Liveness) printDebug() {
 
 		if b == lv.f.Entry {
 			live := lv.stackMaps[0]
-			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func().Nname.Pos()))
+			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Nname.Pos()))
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1266,7 +1266,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	}
 
 	// Emit the live pointer map data structures
-	ls := e.curfn.Func().LSym
+	ls := e.curfn.LSym
 	fninfo := ls.Func()
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 
