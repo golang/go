@@ -51,9 +51,9 @@ type Order struct {
 
 // Order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
-func order(fn ir.Node) {
+func order(fn *ir.Func) {
 	if base.Flag.W > 1 {
-		s := fmt.Sprintf("\nbefore order %v", fn.Func().Nname.Sym())
+		s := fmt.Sprintf("\nbefore order %v", fn.Sym())
 		ir.DumpList(s, fn.Body())
 	}
 
@@ -1258,7 +1258,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		}
 
 	case ir.OCLOSURE:
-		if n.Transient() && n.Func().ClosureVars.Len() > 0 {
+		if n.Transient() && len(n.Func().ClosureVars) > 0 {
 			prealloc[n] = o.newTemp(closureType(n), false)
 		}
 

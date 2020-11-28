@@ -593,7 +593,7 @@ func arrayClear(n, v1, v2, a ir.Node) bool {
 	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
-		Curfn.Func().SetWBPos(stmt.Pos())
+		Curfn.SetWBPos(stmt.Pos())
 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
 	} else {
 		// memclrNoHeapPointers(hp, hn)

@@ -24,14 +24,14 @@ import (
 // "Portable" code generation.
 
 var (
-	compilequeue []ir.Node // functions waiting to be compiled
+	compilequeue []*ir.Func // functions waiting to be compiled
 )
 
-func emitptrargsmap(fn ir.Node) {
-	if ir.FuncName(fn) == "_" || fn.Func().Nname.Sym().Linkname != "" {
+func emitptrargsmap(fn *ir.Func) {
+	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
 		return
 	}
-	lsym := base.Ctxt.Lookup(fn.Func().LSym.Name + ".args_stackmap")
+	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
 
 	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
@@ -68,7 +68,7 @@ func emitptrargsmap(fn ir.Node) {
 // really means, in memory, things with pointers needing zeroing at
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
-func cmpstackvarlt(a, b ir.Node) bool {
+func cmpstackvarlt(a, b *ir.Name) bool {
 	if (a.Class() == ir.PAUTO) != (b.Class() == ir.PAUTO) {
 		return b.Class() == ir.PAUTO
 	}
@@ -101,7 +101,7 @@ func cmpstackvarlt(a, b ir.Node) bool {
 }
 
 // byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
-type byStackVar []ir.Node
+type byStackVar []*ir.Name
 
 func (s byStackVar) Len() int           { return len(s) }
 func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
@@ -110,7 +110,7 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
-	fn := s.curfn.Func()
+	fn := s.curfn
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
@@ -193,9 +193,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
 }
 
-func funccompile(fn ir.Node) {
+func funccompile(fn *ir.Func) {
 	if Curfn != nil {
-		base.Fatalf("funccompile %v inside %v", fn.Func().Nname.Sym(), Curfn.Func().Nname.Sym())
+		base.Fatalf("funccompile %v inside %v", fn.Sym(), Curfn.Sym())
 	}
 
 	if fn.Type() == nil {
@@ -210,21 +210,19 @@ func funccompile(fn ir.Node) {
 
 	if fn.Body().Len() == 0 {
 		// Initialize ABI wrappers if necessary.
-		initLSym(fn.Func(), false)
+		initLSym(fn, false)
 		emitptrargsmap(fn)
 		return
 	}
 
 	dclcontext = ir.PAUTO
 	Curfn = fn
-
 	compile(fn)
-
 	Curfn = nil
 	dclcontext = ir.PEXTERN
 }
 
-func compile(fn ir.Node) {
+func compile(fn *ir.Func) {
 	errorsBefore := base.Errors()
 	order(fn)
 	if base.Errors() > errorsBefore {
@@ -234,7 +232,7 @@ func compile(fn ir.Node) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in markTypeUsedInInterface).
-	initLSym(fn.Func(), true)
+	initLSym(fn, true)
 
 	walk(fn)
 	if base.Errors() > errorsBefore {
@@ -259,15 +257,15 @@ func compile(fn ir.Node) {
 	// be types of stack objects. We need to do this here
 	// because symbols must be allocated before the parallel
 	// phase of the compiler.
-	for _, n := range fn.Func().Dcl {
+	for _, n := range fn.Dcl {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
 			if livenessShouldTrack(n) && n.Name().Addrtaken() {
 				dtypesym(n.Type())
 				// Also make sure we allocate a linker symbol
 				// for the stack object data, for the same reason.
-				if fn.Func().LSym.Func().StackObjects == nil {
-					fn.Func().LSym.Func().StackObjects = base.Ctxt.Lookup(fn.Func().LSym.Name + ".stkobj")
+				if fn.LSym.Func().StackObjects == nil {
+					fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
 				}
 			}
 		}
@@ -284,7 +282,7 @@ func compile(fn ir.Node) {
 // If functions are not compiled immediately,
 // they are enqueued in compilequeue,
 // which is drained by compileFunctions.
-func compilenow(fn ir.Node) bool {
+func compilenow(fn *ir.Func) bool {
 	// Issue 38068: if this function is a method AND an inline
 	// candidate AND was not inlined (yet), put it onto the compile
 	// queue instead of compiling it immediately. This is in case we
@@ -299,8 +297,8 @@ func compilenow(fn ir.Node) bool {
 // isInlinableButNotInlined returns true if 'fn' was marked as an
 // inline candidate but then never inlined (presumably because we
 // found no call sites).
-func isInlinableButNotInlined(fn ir.Node) bool {
-	if fn.Func().Nname.Func().Inl == nil {
+func isInlinableButNotInlined(fn *ir.Func) bool {
+	if fn.Inl == nil {
 		return false
 	}
 	if fn.Sym() == nil {
@@ -315,7 +313,7 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
-func compileSSA(fn ir.Node, worker int) {
+func compileSSA(fn *ir.Func, worker int) {
 	f := buildssa(fn, worker)
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type().ArgWidth() >= maxStackSize {
@@ -343,7 +341,7 @@ func compileSSA(fn ir.Node, worker int) {
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
 	// fieldtrack must be called after pp.Flush. See issue 20014.
-	fieldtrack(pp.Text.From.Sym, fn.Func().FieldTrack)
+	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
 }
 
 func init() {
@@ -360,7 +358,7 @@ func compileFunctions() {
 		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
 		if race.Enabled {
 			// Randomize compilation order to try to shake out races.
-			tmp := make([]ir.Node, len(compilequeue))
+			tmp := make([]*ir.Func, len(compilequeue))
 			perm := rand.Perm(len(compilequeue))
 			for i, v := range perm {
 				tmp[v] = compilequeue[i]
@@ -376,7 +374,7 @@ func compileFunctions() {
 		}
 		var wg sync.WaitGroup
 		base.Ctxt.InParallel = true
-		c := make(chan ir.Node, base.Flag.LowerC)
+		c := make(chan *ir.Func, base.Flag.LowerC)
 		for i := 0; i < base.Flag.LowerC; i++ {
 			wg.Add(1)
 			go func(worker int) {
@@ -398,9 +396,10 @@ func compileFunctions() {
 }
 
 func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
-	fn := curfn.(ir.Node)
-	if fn.Func().Nname != nil {
-		if expect := fn.Func().Nname.Sym().Linksym(); fnsym != expect {
+	fn := curfn.(*ir.Func)
+
+	if fn.Nname != nil {
+		if expect := fn.Sym().Linksym(); fnsym != expect {
 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 		}
 	}
@@ -430,12 +429,19 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	//
 	// These two adjustments keep toolstash -cmp working for now.
 	// Deciding the right answer is, as they say, future work.
-	isODCLFUNC := fn.Op() == ir.ODCLFUNC
+	//
+	// We can tell the difference between the old ODCLFUNC and ONAME
+	// cases by looking at the infosym.Name. If it's empty, DebugInfo is
+	// being called from (*obj.Link).populateDWARF, which used to use
+	// the ODCLFUNC. If it's non-empty (the name will end in $abstract),
+	// DebugInfo is being called from (*obj.Link).DwarfAbstractFunc,
+	// which used to use the ONAME form.
+	isODCLFUNC := infosym.Name == ""
 
 	var apdecls []ir.Node
 	// Populate decls for fn.
 	if isODCLFUNC {
-		for _, n := range fn.Func().Dcl {
+		for _, n := range fn.Dcl {
 			if n.Op() != ir.ONAME { // might be OTYPE or OLITERAL
 				continue
 			}
@@ -457,7 +463,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 		}
 	}
 
-	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func(), apdecls)
+	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn, apdecls)
 
 	// For each type referenced by the functions auto vars but not
 	// already referenced by a dwarf var, attach an R_USETYPE relocation to
@@ -478,7 +484,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	var varScopes []ir.ScopeID
 	for _, decl := range decls {
 		pos := declPos(decl)
-		varScopes = append(varScopes, findScope(fn.Func().Marks, pos))
+		varScopes = append(varScopes, findScope(fn.Marks, pos))
 	}
 
 	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
@@ -709,9 +715,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.
 // names of the variables may have been "versioned" to avoid conflicts
 // with local vars; disregard this versioning when sorting.
 func preInliningDcls(fnsym *obj.LSym) []ir.Node {
-	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(ir.Node)
+	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*ir.Func)
 	var rdcl []ir.Node
-	for _, n := range fn.Func().Inl.Dcl {
+	for _, n := range fn.Inl.Dcl {
 		c := n.Sym().Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.

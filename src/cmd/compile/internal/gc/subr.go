@@ -95,8 +95,8 @@ func autolabel(prefix string) *types.Sym {
 	if Curfn == nil {
 		base.Fatalf("autolabel outside function")
 	}
-	n := fn.Func().Label
-	fn.Func().Label++
+	n := fn.Label
+	fn.Label++
 	return lookupN(prefix, int(n))
 }
 
@@ -138,7 +138,7 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
 // newname returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
-	n.Name().Curfn = Curfn
+	n.Curfn = Curfn
 	return n
 }
 
@@ -1165,7 +1165,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	tfn.PtrRlist().Set(structargs(method.Type.Results(), false))
 
 	fn := dclfunc(newnam, tfn)
-	fn.Func().SetDupok(true)
+	fn.SetDupok(true)
 
 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
@@ -1201,7 +1201,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		fn.PtrBody().Append(as)
 		fn.PtrBody().Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
-		fn.Func().SetWrapper(true) // ignore frame for panic+recover matching
+		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.Nod(ir.OCALL, dot, nil)
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
@@ -1222,8 +1222,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		testdclstack()
 	}
 
-	fn = typecheck(fn, ctxStmt)
-
+	typecheckFunc(fn)
 	Curfn = fn
 	typecheckslice(fn.Body().Slice(), ctxStmt)
 
@@ -1233,7 +1232,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escapeFuncs([]ir.Node{fn}, false)
+	escapeFuncs([]*ir.Func{fn}, false)
 
 	Curfn = nil
 	xtop = append(xtop, fn)

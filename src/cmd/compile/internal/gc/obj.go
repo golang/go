@@ -143,7 +143,7 @@ func dumpdata() {
 		for i := xtops; i < len(xtop); i++ {
 			n := xtop[i]
 			if n.Op() == ir.ODCLFUNC {
-				funccompile(n)
+				funccompile(n.(*ir.Func))
 			}
 		}
 		xtops = len(xtop)

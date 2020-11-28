@@ -41,7 +41,7 @@ var (
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
 
-func expandDecl(n ir.Node) {
+func expandDecl(n *ir.Name) {
 	if n.Op() != ir.ONONAME {
 		return
 	}
@@ -55,12 +55,12 @@ func expandDecl(n ir.Node) {
 	r.doDecl(n)
 }
 
-func expandInline(fn ir.Node) {
-	if fn.Func().Inl.Body != nil {
+func expandInline(fn *ir.Func) {
+	if fn.Inl.Body != nil {
 		return
 	}
 
-	r := importReaderFor(fn, inlineImporter)
+	r := importReaderFor(fn.Nname, inlineImporter)
 	if r == nil {
 		base.Fatalf("missing import reader for %v", fn)
 	}
@@ -68,7 +68,7 @@ func expandInline(fn ir.Node) {
 	r.doInline(fn)
 }
 
-func importReaderFor(n ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
+func importReaderFor(n *ir.Name, importers map[*types.Sym]iimporterAndOffset) *importReader {
 	x, ok := importers[n.Sym()]
 	if !ok {
 		return nil
@@ -331,7 +331,9 @@ func (r *importReader) doDecl(n ir.Node) {
 			recv := r.param()
 			mtyp := r.signature(recv)
 
-			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(ir.Func))
+			fn := ir.NewFunc(mpos)
+			fn.SetType(mtyp)
+			m := newFuncNameAt(mpos, methodSym(recv.Type, msym), fn)
 			m.SetType(mtyp)
 			m.SetClass(ir.PFUNC)
 			// methodSym already marked m.Sym as a function.
@@ -501,7 +503,7 @@ func (r *importReader) typ1() *types.Type {
 		// type.
 		n := ir.AsNode(r.qualifiedIdent().PkgDef())
 		if n.Op() == ir.ONONAME {
-			expandDecl(n)
+			expandDecl(n.(*ir.Name))
 		}
 		if n.Op() != ir.OTYPE {
 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
@@ -695,12 +697,12 @@ func (r *importReader) typeExt(t *types.Type) {
 // so we can use index to reference the symbol.
 var typeSymIdx = make(map[*types.Type][2]int64)
 
-func (r *importReader) doInline(n ir.Node) {
-	if len(n.Func().Inl.Body) != 0 {
-		base.Fatalf("%v already has inline body", n)
+func (r *importReader) doInline(fn *ir.Func) {
+	if len(fn.Inl.Body) != 0 {
+		base.Fatalf("%v already has inline body", fn)
 	}
 
-	funchdr(n)
+	funchdr(fn)
 	body := r.stmtList()
 	funcbody()
 	if body == nil {
@@ -712,15 +714,15 @@ func (r *importReader) doInline(n ir.Node) {
 		// functions).
 		body = []ir.Node{}
 	}
-	n.Func().Inl.Body = body
+	fn.Inl.Body = body
 
-	importlist = append(importlist, n)
+	importlist = append(importlist, fn)
 
 	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
+			fmt.Printf("inl body for %v %#v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
 		} else {
-			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
+			fmt.Printf("inl body for %v %#v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
 		}
 	}
 }
@@ -772,7 +774,7 @@ func (r *importReader) caseList(sw ir.Node) []ir.Node {
 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			declare(caseVar, dclcontext)
 			cas.PtrRlist().Set1(caseVar)
-			caseVar.Name().Defn = sw.Left()
+			caseVar.Defn = sw.Left()
 		}
 		cas.PtrBody().Set(r.stmtList())
 		cases[i] = cas

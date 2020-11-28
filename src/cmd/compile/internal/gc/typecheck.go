@@ -95,7 +95,7 @@ func resolve(n ir.Node) (res ir.Node) {
 			base.Fatalf("recursive inimport")
 		}
 		inimport = true
-		expandDecl(n)
+		expandDecl(n.(*ir.Name))
 		inimport = false
 		return n
 	}
@@ -198,6 +198,13 @@ func cycleTrace(cycle []ir.Node) string {
 }
 
 var typecheck_tcstack []ir.Node
+
+func typecheckFunc(fn *ir.Func) {
+	new := typecheck(fn, ctxStmt)
+	if new != fn {
+		base.Fatalf("typecheck changed func")
+	}
+}
 
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
@@ -2069,7 +2076,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.ODCLFUNC:
 		ok |= ctxStmt
-		typecheckfunc(n)
+		typecheckfunc(n.(*ir.Func))
 
 	case ir.ODCLCONST:
 		ok |= ctxStmt
@@ -3402,36 +3409,38 @@ out:
 }
 
 // type check function definition
-func typecheckfunc(n ir.Node) {
+// To be called by typecheck, not directly.
+// (Call typecheckfn instead.)
+func typecheckfunc(n *ir.Func) {
 	if enableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckfunc", n)(nil)
 	}
 
-	for _, ln := range n.Func().Dcl {
+	for _, ln := range n.Dcl {
 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PPARAM || ln.Class() == ir.PPARAMOUT) {
 			ln.Name().Decldepth = 1
 		}
 	}
 
-	n.Func().Nname = typecheck(n.Func().Nname, ctxExpr|ctxAssign)
-	t := n.Func().Nname.Type()
+	n.Nname = typecheck(n.Nname, ctxExpr|ctxAssign).(*ir.Name)
+	t := n.Nname.Type()
 	if t == nil {
 		return
 	}
 	n.SetType(t)
 	rcvr := t.Recv()
-	if rcvr != nil && n.Func().Shortname != nil {
-		m := addmethod(n, n.Func().Shortname, t, true, n.Func().Pragma&ir.Nointerface != 0)
+	if rcvr != nil && n.Shortname != nil {
+		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
 		if m == nil {
 			return
 		}
 
-		n.Func().Nname.SetSym(methodSym(rcvr.Type, n.Func().Shortname))
-		declare(n.Func().Nname, ir.PFUNC)
+		n.Nname.SetSym(methodSym(rcvr.Type, n.Shortname))
+		declare(n.Nname, ir.PFUNC)
 	}
 
-	if base.Ctxt.Flag_dynlink && !inimport && n.Func().Nname != nil {
-		makefuncsym(n.Func().Nname.Sym())
+	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
+		makefuncsym(n.Sym())
 	}
 }
 
@@ -3861,22 +3870,19 @@ func isTermNode(n ir.Node) bool {
 }
 
 // checkreturn makes sure that fn terminates appropriately.
-func checkreturn(fn ir.Node) {
+func checkreturn(fn *ir.Func) {
 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
 		var labels map[*types.Sym]ir.Node
 		markbreaklist(&labels, fn.Body(), nil)
 		if !isTermNodes(fn.Body()) {
-			base.ErrorfAt(fn.Func().Endlineno, "missing return at end of function")
+			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
 		}
 	}
 }
 
-func deadcode(fn ir.Node) {
+func deadcode(fn *ir.Func) {
 	deadcodeslice(fn.PtrBody())
-	deadcodefn(fn)
-}
 
-func deadcodefn(fn ir.Node) {
 	if fn.Body().Len() == 0 {
 		return
 	}
@@ -4014,21 +4020,15 @@ func curpkg() *types.Pkg {
 		// Initialization expressions for package-scope variables.
 		return ir.LocalPkg
 	}
-
-	// TODO(mdempsky): Standardize on either ODCLFUNC or ONAME for
-	// Curfn, rather than mixing them.
-	if fn.Op() == ir.ODCLFUNC {
-		fn = fn.Func().Nname
-	}
-
-	return fnpkg(fn)
+	return fnpkg(fn.Nname)
 }
 
 // MethodName returns the ONAME representing the method
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.
-func methodExprName(n ir.Node) ir.Node {
-	return ir.AsNode(methodExprFunc(n).Nname)
+func methodExprName(n ir.Node) *ir.Name {
+	name, _ := ir.AsNode(methodExprFunc(n).Nname).(*ir.Name)
+	return name
 }
 
 // MethodFunc is like MethodName, but returns the types.Field instead.

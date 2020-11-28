@@ -152,7 +152,7 @@ type noder struct {
 	lastCloseScopePos syntax.Pos
 }
 
-func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
+func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	oldScope := p.scope
 	p.scope = 0
 	funchdr(fn)
@@ -165,7 +165,7 @@ func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
 		fn.PtrBody().Set(body)
 
 		base.Pos = p.makeXPos(block.Rbrace)
-		fn.Func().Endlineno = base.Pos
+		fn.Endlineno = base.Pos
 	}
 
 	funcbody()
@@ -176,9 +176,9 @@ func (p *noder) openScope(pos syntax.Pos) {
 	types.Markdcl()
 
 	if trackScopes {
-		Curfn.Func().Parents = append(Curfn.Func().Parents, p.scope)
-		p.scopeVars = append(p.scopeVars, len(Curfn.Func().Dcl))
-		p.scope = ir.ScopeID(len(Curfn.Func().Parents))
+		Curfn.Parents = append(Curfn.Parents, p.scope)
+		p.scopeVars = append(p.scopeVars, len(Curfn.Dcl))
+		p.scope = ir.ScopeID(len(Curfn.Parents))
 
 		p.markScope(pos)
 	}
@@ -191,29 +191,29 @@ func (p *noder) closeScope(pos syntax.Pos) {
 	if trackScopes {
 		scopeVars := p.scopeVars[len(p.scopeVars)-1]
 		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
-		if scopeVars == len(Curfn.Func().Dcl) {
+		if scopeVars == len(Curfn.Dcl) {
 			// no variables were declared in this scope, so we can retract it.
 
-			if int(p.scope) != len(Curfn.Func().Parents) {
+			if int(p.scope) != len(Curfn.Parents) {
 				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
 			}
 
-			p.scope = Curfn.Func().Parents[p.scope-1]
-			Curfn.Func().Parents = Curfn.Func().Parents[:len(Curfn.Func().Parents)-1]
+			p.scope = Curfn.Parents[p.scope-1]
+			Curfn.Parents = Curfn.Parents[:len(Curfn.Parents)-1]
 
-			nmarks := len(Curfn.Func().Marks)
-			Curfn.Func().Marks[nmarks-1].Scope = p.scope
+			nmarks := len(Curfn.Marks)
+			Curfn.Marks[nmarks-1].Scope = p.scope
 			prevScope := ir.ScopeID(0)
 			if nmarks >= 2 {
-				prevScope = Curfn.Func().Marks[nmarks-2].Scope
+				prevScope = Curfn.Marks[nmarks-2].Scope
 			}
-			if Curfn.Func().Marks[nmarks-1].Scope == prevScope {
-				Curfn.Func().Marks = Curfn.Func().Marks[:nmarks-1]
+			if Curfn.Marks[nmarks-1].Scope == prevScope {
+				Curfn.Marks = Curfn.Marks[:nmarks-1]
 			}
 			return
 		}
 
-		p.scope = Curfn.Func().Parents[p.scope-1]
+		p.scope = Curfn.Parents[p.scope-1]
 
 		p.markScope(pos)
 	}
@@ -221,10 +221,10 @@ func (p *noder) closeScope(pos syntax.Pos) {
 
 func (p *noder) markScope(pos syntax.Pos) {
 	xpos := p.makeXPos(pos)
-	if i := len(Curfn.Func().Marks); i > 0 && Curfn.Func().Marks[i-1].Pos == xpos {
-		Curfn.Func().Marks[i-1].Scope = p.scope
+	if i := len(Curfn.Marks); i > 0 && Curfn.Marks[i-1].Pos == xpos {
+		Curfn.Marks[i-1].Scope = p.scope
 	} else {
-		Curfn.Func().Marks = append(Curfn.Func().Marks, ir.Mark{Pos: xpos, Scope: p.scope})
+		Curfn.Marks = append(Curfn.Marks, ir.Mark{Pos: xpos, Scope: p.scope})
 	}
 }
 
@@ -444,6 +444,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 
 	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
+		n := n.(*ir.Name)
 		if i >= len(values) {
 			base.Errorf("missing value in const declaration")
 			break
@@ -456,8 +457,8 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		n.SetOp(ir.OLITERAL)
 		declare(n, dclcontext)
 
-		n.Name().Ntype = typ
-		n.Name().Defn = v
+		n.Ntype = typ
+		n.Defn = v
 		n.SetIota(cs.iota)
 
 		nn = append(nn, p.nod(decl, ir.ODCLCONST, n, nil))
@@ -514,7 +515,7 @@ func (p *noder) declName(name *syntax.Name) *ir.Name {
 func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	name := p.name(fun.Name)
 	t := p.signature(fun.Recv, fun.Type)
-	f := p.nod(fun, ir.ODCLFUNC, nil, nil)
+	f := ir.NewFunc(p.pos(fun))
 
 	if fun.Recv == nil {
 		if name.Name == "init" {
@@ -530,16 +531,16 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 			}
 		}
 	} else {
-		f.Func().Shortname = name
+		f.Shortname = name
 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
 	}
 
-	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
-	f.Func().Nname.Name().Defn = f
-	f.Func().Nname.Name().Ntype = t
+	f.Nname = newFuncNameAt(p.pos(fun.Name), name, f)
+	f.Nname.Defn = f
+	f.Nname.Ntype = t
 
 	if pragma, ok := fun.Pragma.(*Pragma); ok {
-		f.Func().Pragma = pragma.Flag & FuncPragmas
+		f.Pragma = pragma.Flag & FuncPragmas
 		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
 			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
 		}
@@ -548,13 +549,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	}
 
 	if fun.Recv == nil {
-		declare(f.Func().Nname, ir.PFUNC)
+		declare(f.Nname, ir.PFUNC)
 	}
 
 	p.funcBody(f, fun.Body)
 
 	if fun.Body != nil {
-		if f.Func().Pragma&ir.Noescape != 0 {
+		if f.Pragma&ir.Noescape != 0 {
 			base.ErrorfAt(f.Pos(), "can only use //go:noescape with external func implementations")
 		}
 	} else {
@@ -1059,7 +1060,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		n := p.nod(stmt, ir.ORETURN, nil, nil)
 		n.PtrList().Set(results)
 		if n.List().Len() == 0 && Curfn != nil {
-			for _, ln := range Curfn.Func().Dcl {
+			for _, ln := range Curfn.Dcl {
 				if ln.Class() == ir.PPARAM {
 					continue
 				}
@@ -1133,7 +1134,7 @@ func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node
 		newOrErr = true
 		n := NewName(sym)
 		declare(n, dclcontext)
-		n.Name().Defn = defn
+		n.Defn = defn
 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
 		res[i] = n
 	}
@@ -1240,7 +1241,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch ir.Node, rbrac
 			declare(nn, dclcontext)
 			n.PtrRlist().Set1(nn)
 			// keep track of the instances for reporting unused
-			nn.Name().Defn = tswitch
+			nn.Defn = tswitch
 		}
 
 		// Trim trailing empty statements. We omit them from

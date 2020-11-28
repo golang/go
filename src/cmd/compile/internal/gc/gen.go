@@ -52,7 +52,7 @@ func autotmpname(n int) string {
 }
 
 // make a new Node off the books
-func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
+func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for tempAt")
 	}
@@ -65,7 +65,7 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
 	}
 
 	s := &types.Sym{
-		Name: autotmpname(len(curfn.Func().Dcl)),
+		Name: autotmpname(len(curfn.Dcl)),
 		Pkg:  ir.LocalPkg,
 	}
 	n := ir.NewNameAt(pos, s)
@@ -73,10 +73,10 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
 	n.SetType(t)
 	n.SetClass(ir.PAUTO)
 	n.SetEsc(EscNever)
-	n.Name().Curfn = curfn
-	n.Name().SetUsed(true)
-	n.Name().SetAutoTemp(true)
-	curfn.Func().Dcl = append(curfn.Func().Dcl, n)
+	n.Curfn = curfn
+	n.SetUsed(true)
+	n.SetAutoTemp(true)
+	curfn.Dcl = append(curfn.Dcl, n)
 
 	dowidth(t)
 

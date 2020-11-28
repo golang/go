@@ -32,9 +32,10 @@ type Name struct {
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable
 	Defn Node
-	// The ODCLFUNC node (for a static function/method or a closure) in which
-	// local variable or param is declared.
-	Curfn Node
+
+	// The function, method, or closure in which local variable or param is declared.
+	Curfn *Func
+
 	// Unique number for ONAME nodes within a function. Function outputs
 	// (results) are numbered starting at one, followed by function inputs
 	// (parameters), and then local variables. Vargen is used to distinguish

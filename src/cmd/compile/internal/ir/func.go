@@ -53,9 +53,8 @@ type Func struct {
 	body Nodes
 	iota int64
 
-	Nname    Node // ONAME node
-	Decl     Node // ODCLFUNC node
-	OClosure Node // OCLOSURE node
+	Nname    *Name // ONAME node
+	OClosure Node  // OCLOSURE node
 
 	Shortname *types.Sym
 
@@ -65,12 +64,11 @@ type Func struct {
 	Exit  Nodes
 	// ONAME nodes for all params/locals for this func/closure, does NOT
 	// include closurevars until transformclosure runs.
-	Dcl []Node
+	Dcl []*Name
 
-	ClosureEnter  Nodes // list of ONAME nodes of captured variables
-	ClosureType   Node  // closure representation type
-	ClosureCalled bool  // closure is only immediately called
-	ClosureVars   Nodes // closure params; each has closurevar set
+	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
+	ClosureType  Node    // closure representation type
+	ClosureVars  []*Name // closure params; each has closurevar set
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -80,16 +78,16 @@ type Func struct {
 	// Marks records scope boundary changes.
 	Marks []Mark
 
-	// Closgen tracks how many closures have been generated within
-	// this function. Used by closurename for creating unique
-	// function names.
-	Closgen int
-
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  interface{}
 	LSym       *obj.LSym
 
 	Inl *Inline
+
+	// Closgen tracks how many closures have been generated within
+	// this function. Used by closurename for creating unique
+	// function names.
+	Closgen int32
 
 	Label int32 // largest auto-generated label in this function
 
@@ -99,8 +97,8 @@ type Func struct {
 	Pragma PragmaFlag // go:xxx function annotations
 
 	flags      bitset16
-	NumDefers  int // number of defer calls in the function
-	NumReturns int // number of explicit returns in the function
+	NumDefers  int32 // number of defer calls in the function
+	NumReturns int32 // number of explicit returns in the function
 
 	// nwbrCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
@@ -112,7 +110,6 @@ func NewFunc(pos src.XPos) *Func {
 	f := new(Func)
 	f.pos = pos
 	f.op = ODCLFUNC
-	f.Decl = f
 	f.iota = -1
 	return f
 }
@@ -141,7 +138,7 @@ type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
 	// Copies of Func.Dcl and Nbody for use during inlining.
-	Dcl  []Node
+	Dcl  []*Name
 	Body []Node
 }
 
@@ -172,6 +169,7 @@ const (
 	funcExportInline             // include inline body in export data
 	funcInstrumentBody           // add race/msan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
+	funcClosureCalled            // closure is only immediately called
 )
 
 type SymAndPos struct {
@@ -190,6 +188,7 @@ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinability
 func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
+func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
@@ -202,6 +201,7 @@ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilit
 func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {
 	if base.Debug.WB != 0 {
