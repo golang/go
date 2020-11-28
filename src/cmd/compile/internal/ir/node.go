@@ -1339,12 +1339,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		n.SetFunc(&x.f)
 		n.Func().Decl = n
 	case OPACK:
-		var x struct {
-			n node
-			m Name
-		}
-		n = &x.n
-		n.SetName(&x.m)
+		return NewPkgName(pos, nil, nil)
 	case OEMPTY:
 		return NewEmptyStmt(pos)
 	case OBREAK, OCONTINUE, OFALL, OGOTO:
@@ -1462,7 +1457,6 @@ var okForNod = [OEND]bool{
 	OOFFSETOF:      true,
 	OOR:            true,
 	OOROR:          true,
-	OPACK:          true,
 	OPANIC:         true,
 	OPAREN:         true,
 	OPLUS:          true,
