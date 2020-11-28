@@ -199,7 +199,6 @@ func (n *node) SetOffset(x int64)     { n.offset = x }
 func (n *node) Esc() uint16           { return n.esc }
 func (n *node) SetEsc(x uint16)       { n.esc = x }
 func (n *node) Op() Op                { return n.op }
-func (n *node) SetOp(x Op)            { n.op = x }
 func (n *node) Init() Nodes           { return n.init }
 func (n *node) SetInit(x Nodes)       { n.init = x }
 func (n *node) PtrInit() *Nodes       { return &n.init }
@@ -212,6 +211,13 @@ func (n *node) PtrList() *Nodes       { return &n.list }
 func (n *node) Rlist() Nodes          { return n.rlist }
 func (n *node) SetRlist(x Nodes)      { n.rlist = x }
 func (n *node) PtrRlist() *Nodes      { return &n.rlist }
+
+func (n *node) SetOp(op Op) {
+	if !okForNod[op] {
+		panic("cannot node.SetOp " + op.String())
+	}
+	n.op = op
+}
 
 func (n *node) ResetAux() {
 	n.aux = 0
@@ -1109,6 +1115,10 @@ const (
 // a slice to save space.
 type Nodes struct{ slice *[]Node }
 
+// immutableEmptyNodes is an immutable, empty Nodes list.
+// The methods that would modify it panic instead.
+var immutableEmptyNodes = Nodes{}
+
 // asNodes returns a slice of *Node as a Nodes value.
 func AsNodes(s []Node) Nodes {
 	return Nodes{&s}
@@ -1150,9 +1160,22 @@ func (n Nodes) Second() Node {
 	return (*n.slice)[1]
 }
 
+func (n *Nodes) mutate() {
+	if n == &immutableEmptyNodes {
+		panic("immutable Nodes.Set")
+	}
+}
+
 // Set sets n to a slice.
 // This takes ownership of the slice.
 func (n *Nodes) Set(s []Node) {
+	if n == &immutableEmptyNodes {
+		if len(s) == 0 {
+			// Allow immutableEmptyNodes.Set(nil) (a no-op).
+			return
+		}
+		n.mutate()
+	}
 	if len(s) == 0 {
 		n.slice = nil
 	} else {
@@ -1166,21 +1189,25 @@ func (n *Nodes) Set(s []Node) {
 
 // Set1 sets n to a slice containing a single node.
 func (n *Nodes) Set1(n1 Node) {
+	n.mutate()
 	n.slice = &[]Node{n1}
 }
 
 // Set2 sets n to a slice containing two nodes.
 func (n *Nodes) Set2(n1, n2 Node) {
+	n.mutate()
 	n.slice = &[]Node{n1, n2}
 }
 
 // Set3 sets n to a slice containing three nodes.
 func (n *Nodes) Set3(n1, n2, n3 Node) {
+	n.mutate()
 	n.slice = &[]Node{n1, n2, n3}
 }
 
 // MoveNodes sets n to the contents of n2, then clears n2.
 func (n *Nodes) MoveNodes(n2 *Nodes) {
+	n.mutate()
 	n.slice = n2.slice
 	n2.slice = nil
 }
@@ -1214,6 +1241,7 @@ func (n *Nodes) Append(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
+	n.mutate()
 	if n.slice == nil {
 		s := make([]Node, len(a))
 		copy(s, a)
@@ -1229,6 +1257,7 @@ func (n *Nodes) Prepend(a ...Node) {
 	if len(a) == 0 {
 		return
 	}
+	n.mutate()
 	if n.slice == nil {
 		n.slice = &a
 	} else {
@@ -1238,6 +1267,7 @@ func (n *Nodes) Prepend(a ...Node) {
 
 // AppendNodes appends the contents of *n2 to n, then clears n2.
 func (n *Nodes) AppendNodes(n2 *Nodes) {
+	n.mutate()
 	switch {
 	case n2.slice == nil:
 	case n.slice == nil:
@@ -1341,43 +1371,7 @@ func (s NodeSet) Sorted(less func(Node, Node) bool) []Node {
 	return res
 }
 
-func Nod(op Op, nleft, nright Node) Node {
-	return NodAt(base.Pos, op, nleft, nright)
-}
-
-func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
-	var n Node
-	switch op {
-	case ODCLFUNC:
-		var x struct {
-			n node
-			f Func
-		}
-		n = &x.n
-		n.SetFunc(&x.f)
-		n.Func().Decl = n
-	case ONAME:
-		base.Fatalf("use newname instead")
-	case OLABEL, OPACK:
-		var x struct {
-			n node
-			m Name
-		}
-		n = &x.n
-		n.SetName(&x.m)
-	default:
-		n = new(node)
-	}
-	n.SetOp(op)
-	n.SetLeft(nleft)
-	n.SetRight(nright)
-	n.SetPos(pos)
-	n.SetOffset(types.BADWIDTH)
-	n.SetOrig(n)
-	return n
-}
-
-// newnamel returns a new ONAME Node associated with symbol s at position pos.
+// NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting n.Name.Curfn.
 func NewNameAt(pos src.XPos, s *types.Sym) Node {
 	if s == nil {
@@ -1663,4 +1657,194 @@ func IsBlank(n Node) bool {
 // n must be a function or a method.
 func IsMethod(n Node) bool {
 	return n.Type().Recv() != nil
+}
+
+func Nod(op Op, nleft, nright Node) Node {
+	return NodAt(base.Pos, op, nleft, nright)
+}
+
+func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+	var n Node
+	switch op {
+	case ODCLFUNC:
+		var x struct {
+			n node
+			f Func
+		}
+		n = &x.n
+		n.SetFunc(&x.f)
+		n.Func().Decl = n
+	case OLABEL, OPACK:
+		var x struct {
+			n node
+			m Name
+		}
+		n = &x.n
+		n.SetName(&x.m)
+	default:
+		n = new(node)
+	}
+	n.SetOp(op)
+	n.SetLeft(nleft)
+	n.SetRight(nright)
+	n.SetPos(pos)
+	n.SetOffset(types.BADWIDTH)
+	n.SetOrig(n)
+	return n
+}
+
+var okForNod = [OEND]bool{
+	OADD:           true,
+	OADDR:          true,
+	OADDSTR:        true,
+	OALIGNOF:       true,
+	OAND:           true,
+	OANDAND:        true,
+	OANDNOT:        true,
+	OAPPEND:        true,
+	OARRAYLIT:      true,
+	OAS:            true,
+	OAS2:           true,
+	OAS2DOTTYPE:    true,
+	OAS2FUNC:       true,
+	OAS2MAPR:       true,
+	OAS2RECV:       true,
+	OASOP:          true,
+	OBITNOT:        true,
+	OBLOCK:         true,
+	OBREAK:         true,
+	OBYTES2STR:     true,
+	OBYTES2STRTMP:  true,
+	OCALL:          true,
+	OCALLFUNC:      true,
+	OCALLINTER:     true,
+	OCALLMETH:      true,
+	OCALLPART:      true,
+	OCAP:           true,
+	OCASE:          true,
+	OCFUNC:         true,
+	OCHECKNIL:      true,
+	OCLOSE:         true,
+	OCLOSURE:       true,
+	OCLOSUREVAR:    true,
+	OCOMPLEX:       true,
+	OCOMPLIT:       true,
+	OCONTINUE:      true,
+	OCONV:          true,
+	OCONVIFACE:     true,
+	OCONVNOP:       true,
+	OCOPY:          true,
+	ODCL:           true,
+	ODCLCONST:      true,
+	ODCLFIELD:      true,
+	ODCLFUNC:       true,
+	ODCLTYPE:       true,
+	ODDD:           true,
+	ODEFER:         true,
+	ODELETE:        true,
+	ODEREF:         true,
+	ODIV:           true,
+	ODOT:           true,
+	ODOTINTER:      true,
+	ODOTMETH:       true,
+	ODOTPTR:        true,
+	ODOTTYPE:       true,
+	ODOTTYPE2:      true,
+	OEFACE:         true,
+	OEMPTY:         true,
+	OEQ:            true,
+	OFALL:          true,
+	OFOR:           true,
+	OFORUNTIL:      true,
+	OGE:            true,
+	OGETG:          true,
+	OGO:            true,
+	OGOTO:          true,
+	OGT:            true,
+	OIDATA:         true,
+	OIF:            true,
+	OIMAG:          true,
+	OINDEX:         true,
+	OINDEXMAP:      true,
+	OINLCALL:       true,
+	OINLMARK:       true,
+	OIOTA:          true,
+	OITAB:          true,
+	OKEY:           true,
+	OLABEL:         true,
+	OLE:            true,
+	OLEN:           true,
+	OLITERAL:       true,
+	OLSH:           true,
+	OLT:            true,
+	OMAKE:          true,
+	OMAKECHAN:      true,
+	OMAKEMAP:       true,
+	OMAKESLICE:     true,
+	OMAKESLICECOPY: true,
+	OMAPLIT:        true,
+	OMETHEXPR:      true,
+	OMOD:           true,
+	OMUL:           true,
+	ONAME:          true,
+	ONE:            true,
+	ONEG:           true,
+	ONEW:           true,
+	ONEWOBJ:        true,
+	ONIL:           true,
+	ONONAME:        true,
+	ONOT:           true,
+	OOFFSETOF:      true,
+	OOR:            true,
+	OOROR:          true,
+	OPACK:          true,
+	OPANIC:         true,
+	OPAREN:         true,
+	OPLUS:          true,
+	OPRINT:         true,
+	OPRINTN:        true,
+	OPTRLIT:        true,
+	ORANGE:         true,
+	OREAL:          true,
+	ORECOVER:       true,
+	ORECV:          true,
+	ORESULT:        true,
+	ORETJMP:        true,
+	ORETURN:        true,
+	ORSH:           true,
+	ORUNES2STR:     true,
+	ORUNESTR:       true,
+	OSELECT:        true,
+	OSELRECV:       true,
+	OSELRECV2:      true,
+	OSEND:          true,
+	OSIZEOF:        true,
+	OSLICE:         true,
+	OSLICE3:        true,
+	OSLICE3ARR:     true,
+	OSLICEARR:      true,
+	OSLICEHEADER:   true,
+	OSLICELIT:      true,
+	OSLICESTR:      true,
+	OSPTR:          true,
+	OSTR2BYTES:     true,
+	OSTR2BYTESTMP:  true,
+	OSTR2RUNES:     true,
+	OSTRUCTKEY:     true,
+	OSTRUCTLIT:     true,
+	OSUB:           true,
+	OSWITCH:        true,
+	OTARRAY:        true,
+	OTCHAN:         true,
+	OTFUNC:         true,
+	OTINTER:        true,
+	OTMAP:          true,
+	OTSTRUCT:       true,
+	OTYPE:          true,
+	OTYPESW:        true,
+	OVARDEF:        true,
+	OVARKILL:       true,
+	OVARLIVE:       true,
+	OXDOT:          true,
+	OXOR:           true,
 }
