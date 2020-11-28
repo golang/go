@@ -356,7 +356,6 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
 
 	// Allocate starting values
 	s.labels = map[string]*ssaLabel{}
-	s.labeledNodes = map[ir.Node]*ssaLabel{}
 	s.fwdVars = map[ir.Node]*ssa.Value{}
 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
 
@@ -596,9 +595,8 @@ type state struct {
 	// Node for function
 	curfn ir.Node
 
-	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
-	labels       map[string]*ssaLabel
-	labeledNodes map[ir.Node]*ssaLabel
+	// labels in f
+	labels map[string]*ssaLabel
 
 	// unlabeled break and continue statement tracking
 	breakTo    *ssa.Block // current target for plain break statement
@@ -1169,11 +1167,6 @@ func (s *state) stmt(n ir.Node) {
 		sym := n.Sym()
 		lab := s.label(sym)
 
-		// Associate label with its control flow node, if any
-		if ctl := labeledControl(n); ctl != nil {
-			s.labeledNodes[ctl] = lab
-		}
-
 		// The label might already have a target block via a goto.
 		if lab.target == nil {
 			lab.target = s.f.NewBlock(ssa.BlockPlain)
@@ -1431,9 +1424,10 @@ func (s *state) stmt(n ir.Node) {
 		prevBreak := s.breakTo
 		s.continueTo = bIncr
 		s.breakTo = bEnd
-		lab := s.labeledNodes[n]
-		if lab != nil {
+		var lab *ssaLabel
+		if sym := n.Sym(); sym != nil {
 			// labeled for loop
+			lab = s.label(sym)
 			lab.continueTarget = bIncr
 			lab.breakTarget = bEnd
 		}
@@ -1489,9 +1483,10 @@ func (s *state) stmt(n ir.Node) {
 
 		prevBreak := s.breakTo
 		s.breakTo = bEnd
-		lab := s.labeledNodes[n]
-		if lab != nil {
+		var lab *ssaLabel
+		if sym := n.Sym(); sym != nil {
 			// labeled
+			lab = s.label(sym)
 			lab.breakTarget = bEnd
 		}
 

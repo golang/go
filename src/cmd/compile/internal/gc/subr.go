@@ -582,23 +582,6 @@ func backingArrayPtrLen(n ir.Node) (ptr, len ir.Node) {
 	return ptr, len
 }
 
-// labeledControl returns the control flow Node (for, switch, select)
-// associated with the label n, if any.
-func labeledControl(n ir.Node) ir.Node {
-	if n.Op() != ir.OLABEL {
-		base.Fatalf("labeledControl %v", n.Op())
-	}
-	ctl := n.Name().Defn
-	if ctl == nil {
-		return nil
-	}
-	switch ctl.Op() {
-	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT:
-		return ctl
-	}
-	return nil
-}
-
 func syslook(name string) ir.Node {
 	s := Runtimepkg.Lookup(name)
 	if s == nil || s.Def == nil {

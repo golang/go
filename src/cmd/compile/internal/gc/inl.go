@@ -405,16 +405,16 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 		// These nodes don't produce code; omit from inlining budget.
 		return false
 
-	case ir.OLABEL:
-		// TODO(mdempsky): Add support for inlining labeled control statements.
-		if labeledControl(n) != nil {
+	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH:
+		// ORANGE, OSELECT in "unhandled" above
+		if n.Sym() != nil {
 			v.reason = "labeled control"
 			return true
 		}
 
 	case ir.OBREAK, ir.OCONTINUE:
 		if n.Sym() != nil {
-			// Should have short-circuited due to labeledControl above.
+			// Should have short-circuited due to labeled control error above.
 			base.Fatalf("unexpected labeled break/continue: %v", n)
 		}
 
