@@ -134,7 +134,6 @@ func CaptureVars(fn *ir.Func) {
 		if outermost.Class_ != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
 			v.SetByval(true)
 		} else {
-			outermost.Name().SetAddrtaken(true)
 			outermost.Name().SetAddrtaken2(true)
 			outer = NodAddr(outer)
 		}

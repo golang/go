@@ -1012,7 +1012,6 @@ func inlvar(var_ ir.Node) ir.Node {
 	n.Class_ = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
-	n.SetAddrtaken(var_.Name().Addrtaken())
 	n.SetAddrtaken2(var_.Name().Addrtaken())
 
 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
