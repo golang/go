@@ -3330,8 +3330,6 @@ func typecheckas2(n ir.Node) {
 				goto mismatch
 			}
 			n.SetOp(ir.OAS2FUNC)
-			n.SetRight(r)
-			n.PtrRlist().Set(nil)
 			for i, l := range n.List().Slice() {
 				f := r.Type().Field(i)
 				if f.Type != nil && l.Type() != nil {
@@ -3361,8 +3359,6 @@ func typecheckas2(n ir.Node) {
 				n.SetOp(ir.OAS2DOTTYPE)
 				r.SetOp(ir.ODOTTYPE2)
 			}
-			n.SetRight(r)
-			n.PtrRlist().Set(nil)
 			if l.Type() != nil {
 				checkassignto(r.Type(), l)
 			}

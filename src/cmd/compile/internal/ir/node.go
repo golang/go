@@ -520,8 +520,8 @@ const (
 	ORECOVER     // recover()
 	ORECV        // <-Left
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
-	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
-	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OSELRECV     // like OAS: Left = Right where Right.Op = ORECV (appears as .Left of OCASE)
+	OSELRECV2    // like OAS2: List = Rlist where len(List)=2, len(Rlist)=1, Rlist[0].Op = ORECV (appears as .Left of OCASE)
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)

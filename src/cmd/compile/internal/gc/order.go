@@ -103,7 +103,11 @@ func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
 // (The other candidate would be map access, but map access
 // returns a pointer to the result data instead of taking a pointer
 // to be filled in.)
+// TODO(rsc): t == n.Type() always; remove parameter.
 func (o *Order) copyExpr(n ir.Node, t *types.Type, clear bool) ir.Node {
+	if t != n.Type() {
+		panic("copyExpr")
+	}
 	v := o.newTemp(t, clear)
 	a := ir.Nod(ir.OAS, v, n)
 	a = typecheck(a, ctxStmt)
@@ -606,23 +610,19 @@ func (o *Order) stmt(n ir.Node) {
 			// that we can ensure that if op panics
 			// because r is zero, the panic happens before
 			// the map assignment.
-
-			n.SetLeft(o.safeExpr(n.Left()))
-
-			// TODO(rsc): Why is this DeepCopy?
-			// We should know enough about the form here
-			// to do something more provably shallower.
-			l := ir.DeepCopy(src.NoXPos, n.Left())
-			if l.Op() == ir.OINDEXMAP {
-				l.SetIndexMapLValue(false)
+			// DeepCopy is a big hammer here, but safeExpr
+			// makes sure there is nothing too deep being copied.
+			l1 := o.safeExpr(n.Left())
+			l2 := ir.DeepCopy(src.NoXPos, l1)
+			if l1.Op() == ir.OINDEXMAP {
+				l2.SetIndexMapLValue(false)
 			}
-			l = o.copyExpr(l, n.Left().Type(), false)
-			n.SetRight(ir.Nod(n.SubOp(), l, n.Right()))
-			n.SetRight(typecheck(n.Right(), ctxExpr))
-			n.SetRight(o.expr(n.Right(), nil))
-
-			n.SetOp(ir.OAS)
-			n.ResetAux()
+			l2 = o.copyExpr(l2, l2.Type(), false)
+			r := ir.NodAt(n.Pos(), n.SubOp(), l2, n.Right())
+			r = typecheck(r, ctxExpr)
+			r = o.expr(r, nil)
+			n = ir.NodAt(n.Pos(), ir.OAS, l1, r)
+			n = typecheck(n, ctxStmt)
 		}
 
 		o.mapAssign(n)
@@ -639,8 +639,8 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OAS2FUNC:
 		t := o.markTemp()
 		o.exprList(n.List())
-		o.init(n.Right())
-		o.call(n.Right())
+		o.init(n.Rlist().First())
+		o.call(n.Rlist().First())
 		o.as2(n)
 		o.cleanTemp(t)
 
@@ -654,7 +654,7 @@ func (o *Order) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.exprList(n.List())
 
-		switch r := n.Right(); r.Op() {
+		switch r := n.Rlist().First(); r.Op() {
 		case ir.ODOTTYPE2, ir.ORECV:
 			r.SetLeft(o.expr(r.Left(), nil))
 		case ir.OINDEXMAP:
@@ -866,38 +866,39 @@ func (o *Order) stmt(n ir.Node) {
 				ir.Dump("select case", r)
 				base.Fatalf("unknown op in select %v", r.Op())
 
-			// If this is case x := <-ch or case x, y := <-ch, the case has
-			// the ODCL nodes to declare x and y. We want to delay that
-			// declaration (and possible allocation) until inside the case body.
-			// Delete the ODCL nodes here and recreate them inside the body below.
 			case ir.OSELRECV, ir.OSELRECV2:
-				if r.Colas() {
-					i := 0
-					if r.Init().Len() != 0 && r.Init().First().Op() == ir.ODCL && r.Init().First().Left() == r.Left() {
-						i++
-					}
-					if i < r.Init().Len() && r.Init().Index(i).Op() == ir.ODCL && r.List().Len() != 0 && r.Init().Index(i).Left() == r.List().First() {
-						i++
-					}
-					if i >= r.Init().Len() {
-						r.PtrInit().Set(nil)
-					}
+				var dst, ok, recv ir.Node
+				if r.Op() == ir.OSELRECV {
+					// case x = <-c
+					// case <-c (dst is ir.BlankNode)
+					dst, ok, recv = r.Left(), ir.BlankNode, r.Right()
+				} else {
+					// case x, ok = <-c
+					dst, ok, recv = r.List().First(), r.List().Second(), r.Rlist().First()
 				}
 
+				// If this is case x := <-ch or case x, y := <-ch, the case has
+				// the ODCL nodes to declare x and y. We want to delay that
+				// declaration (and possible allocation) until inside the case body.
+				// Delete the ODCL nodes here and recreate them inside the body below.
+				if r.Colas() {
+					init := r.Init().Slice()
+					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].Left() == dst {
+						init = init[1:]
+					}
+					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].Left() == ok {
+						init = init[1:]
+					}
+					r.PtrInit().Set(init)
+				}
 				if r.Init().Len() != 0 {
 					ir.DumpList("ninit", r.Init())
 					base.Fatalf("ninit on select recv")
 				}
 
-				// case x = <-c
-				// case x, ok = <-c
-				// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
-				// r->left == N means 'case <-c'.
-				// c is always evaluated; x and ok are only evaluated when assigned.
-				r.Right().SetLeft(o.expr(r.Right().Left(), nil))
-
-				if r.Right().Left().Op() != ir.ONAME {
-					r.Right().SetLeft(o.copyExpr(r.Right().Left(), r.Right().Left().Type(), false))
+				recv.SetLeft(o.expr(recv.Left(), nil))
+				if recv.Left().Op() != ir.ONAME {
+					recv.SetLeft(o.copyExpr(recv.Left(), recv.Left().Type(), false))
 				}
 
 				// Introduce temporary for receive and move actual copy into case body.
@@ -906,42 +907,41 @@ func (o *Order) stmt(n ir.Node) {
 				// temporary per distinct type, sharing the temp among all receives
 				// with that temp. Similarly one ok bool could be shared among all
 				// the x,ok receives. Not worth doing until there's a clear need.
-				if r.Left() != nil && ir.IsBlank(r.Left()) {
-					r.SetLeft(nil)
-				}
-				if r.Left() != nil {
+				if !ir.IsBlank(dst) {
 					// use channel element type for temporary to avoid conversions,
 					// such as in case interfacevalue = <-intchan.
 					// the conversion happens in the OAS instead.
-					tmp1 := r.Left()
-
 					if r.Colas() {
-						tmp2 := ir.Nod(ir.ODCL, tmp1, nil)
-						tmp2 = typecheck(tmp2, ctxStmt)
-						n2.PtrInit().Append(tmp2)
+						dcl := ir.Nod(ir.ODCL, dst, nil)
+						dcl = typecheck(dcl, ctxStmt)
+						n2.PtrInit().Append(dcl)
 					}
 
-					r.SetLeft(o.newTemp(r.Right().Left().Type().Elem(), r.Right().Left().Type().Elem().HasPointers()))
-					tmp2 := ir.Nod(ir.OAS, tmp1, r.Left())
-					tmp2 = typecheck(tmp2, ctxStmt)
-					n2.PtrInit().Append(tmp2)
+					tmp := o.newTemp(recv.Left().Type().Elem(), recv.Left().Type().Elem().HasPointers())
+					as := ir.Nod(ir.OAS, dst, tmp)
+					as = typecheck(as, ctxStmt)
+					n2.PtrInit().Append(as)
+					dst = tmp
 				}
-
-				if r.List().Len() != 0 && ir.IsBlank(r.List().First()) {
-					r.PtrList().Set(nil)
-				}
-				if r.List().Len() != 0 {
-					tmp1 := r.List().First()
+				if !ir.IsBlank(ok) {
 					if r.Colas() {
-						tmp2 := ir.Nod(ir.ODCL, tmp1, nil)
-						tmp2 = typecheck(tmp2, ctxStmt)
-						n2.PtrInit().Append(tmp2)
+						dcl := ir.Nod(ir.ODCL, ok, nil)
+						dcl = typecheck(dcl, ctxStmt)
+						n2.PtrInit().Append(dcl)
 					}
 
-					r.PtrList().Set1(o.newTemp(types.Types[types.TBOOL], false))
-					tmp2 := okas(tmp1, r.List().First())
-					tmp2 = typecheck(tmp2, ctxStmt)
-					n2.PtrInit().Append(tmp2)
+					tmp := o.newTemp(types.Types[types.TBOOL], false)
+					as := okas(ok, tmp)
+					as = typecheck(as, ctxStmt)
+					n2.PtrInit().Append(as)
+					ok = tmp
+				}
+
+				if r.Op() == ir.OSELRECV {
+					r.SetLeft(dst)
+				} else {
+					r.List().SetIndex(0, dst)
+					r.List().SetIndex(1, ok)
 				}
 				orderBlock(n2.PtrInit(), o.free)
 
@@ -1420,7 +1420,7 @@ func (o *Order) as2(n ir.Node) {
 func (o *Order) okAs2(n ir.Node) {
 	var tmp1, tmp2 ir.Node
 	if !ir.IsBlank(n.List().First()) {
-		typ := n.Right().Type()
+		typ := n.Rlist().First().Type()
 		tmp1 = o.newTemp(typ, typ.HasPointers())
 	}
 

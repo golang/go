@@ -144,6 +144,7 @@ func lexinit() {
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
+	ir.BlankNode.SetTypecheck(1)
 
 	s = ir.BuiltinPkg.Lookup("_")
 	s.Block = -100
