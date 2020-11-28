@@ -109,7 +109,7 @@ func lexinit() {
 			}
 			types.Types[etype] = t
 		}
-		s2.Def = typenod(t)
+		s2.Def = ir.TypeNode(t)
 	}
 
 	for _, s := range &builtinFuncs {
@@ -176,7 +176,7 @@ func typeinit() {
 	t := types.New(types.TUNSAFEPTR)
 	types.Types[types.TUNSAFEPTR] = t
 	t.Sym = unsafepkg.Lookup("Pointer")
-	t.Sym.Def = typenod(t)
+	t.Sym.Def = ir.TypeNode(t)
 	dowidth(types.Types[types.TUNSAFEPTR])
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {
@@ -337,7 +337,7 @@ func lexinit1() {
 	types.Errortype = makeErrorInterface()
 	types.Errortype.Sym = s
 	types.Errortype.Orig = makeErrorInterface()
-	s.Def = typenod(types.Errortype)
+	s.Def = ir.TypeNode(types.Errortype)
 	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
@@ -352,14 +352,14 @@ func lexinit1() {
 	s = ir.BuiltinPkg.Lookup("byte")
 	types.Bytetype = types.New(types.TUINT8)
 	types.Bytetype.Sym = s
-	s.Def = typenod(types.Bytetype)
+	s.Def = ir.TypeNode(types.Bytetype)
 	dowidth(types.Bytetype)
 
 	// rune alias
 	s = ir.BuiltinPkg.Lookup("rune")
 	types.Runetype = types.New(types.TINT32)
 	types.Runetype.Sym = s
-	s.Def = typenod(types.Runetype)
+	s.Def = ir.TypeNode(types.Runetype)
 	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
@@ -376,7 +376,7 @@ func lexinit1() {
 		t := types.New(s.etype)
 		t.Sym = s1
 		types.Types[s.etype] = t
-		s1.Def = typenod(t)
+		s1.Def = ir.TypeNode(t)
 		s1.Origpkg = ir.BuiltinPkg
 
 		dowidth(t)

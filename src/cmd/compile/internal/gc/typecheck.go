@@ -2785,11 +2785,11 @@ func pushtype(n ir.Node, t *types.Type) ir.Node {
 	switch {
 	case iscomptype(t):
 		// For T, return T{...}.
-		n.SetRight(typenod(t))
+		n.SetRight(ir.TypeNode(t))
 
 	case t.IsPtr() && iscomptype(t.Elem()):
 		// For *T, return &T{...}.
-		n.SetRight(typenod(t.Elem()))
+		n.SetRight(ir.TypeNode(t.Elem()))
 
 		n = ir.NodAt(n.Pos(), ir.OADDR, n, nil)
 		n.SetImplicit(true)
@@ -3458,7 +3458,7 @@ func stringtoruneslit(n ir.Node) ir.Node {
 		i++
 	}
 
-	nn := ir.Nod(ir.OCOMPLIT, nil, typenod(n.Type()))
+	nn := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(n.Type()))
 	nn.PtrList().Set(l)
 	nn = typecheck(nn, ctxExpr)
 	return nn

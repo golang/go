@@ -392,7 +392,7 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
 
 	typ := closureType(clo)
 
-	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
+	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
 	clos.SetEsc(clo.Esc())
 	clos.PtrList().Set(append([]ir.Node{ir.Nod(ir.OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
 
@@ -542,7 +542,7 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 
 	typ := partialCallType(n)
 
-	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
+	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
 	clos.SetEsc(n.Esc())
 	clos.PtrList().Set2(ir.Nod(ir.OCFUNC, n.Func().Nname, nil), n.Left())
 

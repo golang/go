@@ -640,7 +640,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 		w.startType(definedType)
-		w.qualifiedIdent(typenod(t))
+		w.qualifiedIdent(ir.TypeNode(t))
 		return
 	}
 

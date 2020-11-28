@@ -1108,7 +1108,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 			vas.SetRight(nodnil())
 			vas.Right().SetType(param.Type)
 		} else {
-			vas.SetRight(ir.Nod(ir.OCOMPLIT, nil, typenod(param.Type)))
+			vas.SetRight(ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(param.Type)))
 			vas.Right().PtrList().Set(varargs)
 		}
 	}
