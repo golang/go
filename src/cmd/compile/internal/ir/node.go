@@ -1106,13 +1106,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	var n *node
 	switch op {
 	case ODCLFUNC:
-		var x struct {
-			n node
-			f Func
-		}
-		n = &x.n
-		n.SetFunc(&x.f)
-		n.Func().Decl = n
+		return NewFunc(pos)
 	case OPACK:
 		return NewPkgName(pos, nil, nil)
 	case OEMPTY:
@@ -1179,7 +1173,6 @@ var okForNod = [OEND]bool{
 	ODCL:           true,
 	ODCLCONST:      true,
 	ODCLFIELD:      true,
-	ODCLFUNC:       true,
 	ODCLTYPE:       true,
 	ODDD:           true,
 	ODEFER:         true,

@@ -1269,6 +1269,13 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 			mode.Fprintf(s, ")")
 		}
 
+	case ODCLFUNC:
+		if sym := n.Sym(); sym != nil {
+			fmt.Fprint(s, smodeString(sym, mode))
+			return
+		}
+		mode.Fprintf(s, "<unnamed Func>")
+
 	case ONAME:
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export

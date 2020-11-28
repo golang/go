@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"fmt"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -47,6 +48,11 @@ import (
 // the generated ODCLFUNC (as n.Func.Decl), but there is no
 // pointer from the Func back to the OCALLPART.
 type Func struct {
+	miniNode
+	typ  *types.Type
+	body Nodes
+	iota int64
+
 	Nname    Node // ONAME node
 	Decl     Node // ODCLFUNC node
 	OClosure Node // OCLOSURE node
@@ -100,6 +106,34 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos
+}
+
+func NewFunc(pos src.XPos) *Func {
+	f := new(Func)
+	f.pos = pos
+	f.op = ODCLFUNC
+	f.Decl = f
+	f.iota = -1
+	return f
+}
+
+func (f *Func) String() string                { return fmt.Sprint(f) }
+func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
+func (f *Func) RawCopy() Node                 { panic(f.no("RawCopy")) }
+func (f *Func) Func() *Func                   { return f }
+func (f *Func) Body() Nodes                   { return f.body }
+func (f *Func) PtrBody() *Nodes               { return &f.body }
+func (f *Func) SetBody(x Nodes)               { f.body = x }
+func (f *Func) Type() *types.Type             { return f.typ }
+func (f *Func) SetType(x *types.Type)         { f.typ = x }
+func (f *Func) Iota() int64                   { return f.iota }
+func (f *Func) SetIota(x int64)               { f.iota = x }
+
+func (f *Func) Sym() *types.Sym {
+	if f.Nname != nil {
+		return f.Nname.Sym()
+	}
+	return nil
 }
 
 // An Inline holds fields used for function bodies that can be inlined.
