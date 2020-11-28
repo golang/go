@@ -878,7 +878,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 				addr.SetType(types.NewPtr(v.Type()))
 				ia := typecheck(inlvar(addr), ctxExpr)
 				ninit.Append(ir.Nod(ir.ODCL, ia, nil))
-				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, ir.Nod(ir.OADDR, o, nil)), ctxStmt))
+				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, nodAddr(o)), ctxStmt))
 				inlvars[addr] = ia
 
 				// When capturing by reference, all occurrence of the captured var

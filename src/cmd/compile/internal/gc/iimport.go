@@ -943,8 +943,10 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OADDR, ir.OBITNOT, ir.ODEREF, ir.ONOT, ir.ORECV:
+	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ODEREF, ir.ONOT, ir.ORECV:
 		return ir.NodAt(r.pos(), op, r.expr(), nil)
+	case ir.OADDR:
+		return nodAddrAt(r.pos(), r.expr())
 
 	// binary expressions
 	case ir.OADD, ir.OAND, ir.OANDAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,

@@ -274,7 +274,7 @@ func walkrange(nrange ir.Node) ir.Node {
 		hp := temp(types.NewPtr(nrange.Type().Elem()))
 		tmp := ir.Nod(ir.OINDEX, ha, nodintconst(0))
 		tmp.SetBounded(true)
-		init = append(init, ir.Nod(ir.OAS, hp, ir.Nod(ir.OADDR, tmp, nil)))
+		init = append(init, ir.Nod(ir.OAS, hp, nodAddr(tmp)))
 
 		// Use OAS2 to correctly handle assignments
 		// of the form "v1, a[v1] := range".
@@ -305,12 +305,12 @@ func walkrange(nrange ir.Node) ir.Node {
 		fn := syslook("mapiterinit")
 
 		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
-		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, ir.Nod(ir.OADDR, hit, nil)))
+		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, nodAddr(hit)))
 		nfor.SetLeft(ir.Nod(ir.ONE, nodSym(ir.ODOT, hit, keysym), nodnil()))
 
 		fn = syslook("mapiternext")
 		fn = substArgTypes(fn, th)
-		nfor.SetRight(mkcall1(fn, nil, nil, ir.Nod(ir.OADDR, hit, nil)))
+		nfor.SetRight(mkcall1(fn, nil, nil, nodAddr(hit)))
 
 		key := nodSym(ir.ODOT, hit, keysym)
 		key = ir.Nod(ir.ODEREF, key, nil)
@@ -572,7 +572,7 @@ func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
 
 	tmp := ir.Nod(ir.OINDEX, a, nodintconst(0))
 	tmp.SetBounded(true)
-	tmp = ir.Nod(ir.OADDR, tmp, nil)
+	tmp = nodAddr(tmp)
 	tmp = convnop(tmp, types.Types[types.TUNSAFEPTR])
 	n.PtrBody().Append(ir.Nod(ir.OAS, hp, tmp))
 

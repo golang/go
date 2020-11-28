@@ -615,7 +615,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return mkcall("gopanic", nil, init, n.Left())
 
 	case ir.ORECOVER:
-		return mkcall("gorecover", n.Type(), init, ir.Nod(ir.OADDR, nodfp, nil))
+		return mkcall("gorecover", n.Type(), init, nodAddr(nodfp))
 
 	case ir.OCLOSUREREAD, ir.OCFUNC:
 		return n
@@ -694,7 +694,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			// order.stmt made sure x is addressable.
 			n.Right().SetLeft(walkexpr(n.Right().Left(), init))
 
-			n1 := ir.Nod(ir.OADDR, n.Left(), nil)
+			n1 := nodAddr(n.Left())
 			r := n.Right().Left() // the channel
 			return mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
 
@@ -767,7 +767,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if ir.IsBlank(n.List().First()) {
 			n1 = nodnil()
 		} else {
-			n1 = ir.Nod(ir.OADDR, n.List().First(), nil)
+			n1 = nodAddr(n.List().First())
 		}
 		fn := chanfn("chanrecv2", 2, r.Left().Type())
 		ok := n.List().Second()
@@ -793,7 +793,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		} else {
 			// standard version takes key by reference
 			// order.expr made sure key is addressable.
-			key = ir.Nod(ir.OADDR, r.Right(), nil)
+			key = nodAddr(r.Right())
 		}
 
 		// from:
@@ -846,7 +846,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		fast := mapfast(t)
 		if fast == mapslow {
 			// order.stmt made sure key is addressable.
-			key = ir.Nod(ir.OADDR, key, nil)
+			key = nodAddr(key)
 		}
 		return mkcall1(mapfndel(mapdelete[fast], t), nil, init, typename(t), map_, key)
 
@@ -924,7 +924,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if value != nil {
 			// Value is identical to n.Left.
 			// Construct the interface directly: {type/itab, &value}.
-			l := ir.Nod(ir.OEFACE, typeword(), typecheck(ir.Nod(ir.OADDR, value, nil), ctxExpr))
+			l := ir.Nod(ir.OEFACE, typeword(), typecheck(nodAddr(value), ctxExpr))
 			l.SetType(toType)
 			l.SetTypecheck(n.Typecheck())
 			return l
@@ -998,7 +998,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			if !islvalue(v) {
 				v = copyexpr(v, v.Type(), init)
 			}
-			v = ir.Nod(ir.OADDR, v, nil)
+			v = nodAddr(v)
 		}
 
 		dowidth(fromType)
@@ -1145,7 +1145,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			if fast == mapslow {
 				// standard version takes key by reference.
 				// order.expr made sure key is addressable.
-				key = ir.Nod(ir.OADDR, key, nil)
+				key = nodAddr(key)
 			}
 			n = mkcall1(mapfn(mapassign[fast], t), nil, init, typename(t), map_, key)
 		} else {
@@ -1154,7 +1154,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			if fast == mapslow {
 				// standard version takes key by reference.
 				// order.expr made sure key is addressable.
-				key = ir.Nod(ir.OADDR, key, nil)
+				key = nodAddr(key)
 			}
 
 			if w := t.Elem().Width; w <= zeroValSize {
@@ -1226,7 +1226,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			r = ir.Nod(ir.OAS, r, nil) // zero temp
 			r = typecheck(r, ctxStmt)
 			init.Append(r)
-			r = ir.Nod(ir.OADDR, r.Left(), nil)
+			r = nodAddr(r.Left())
 			return typecheck(r, ctxExpr)
 		}
 		return callnew(n.Type().Elem())
@@ -1281,7 +1281,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			zero = typecheck(zero, ctxStmt)
 			init.Append(zero)
 			// h = &hv
-			h = ir.Nod(ir.OADDR, hv, nil)
+			h = nodAddr(hv)
 
 			// Allocate one bucket pointed to by hmap.buckets on stack if hint
 			// is not larger than BUCKETSIZE. In case hint is larger than
@@ -1309,7 +1309,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				nif.PtrBody().Append(zero)
 
 				// b = &bv
-				b := ir.Nod(ir.OADDR, bv, nil)
+				b := nodAddr(bv)
 
 				// h.buckets = b
 				bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
@@ -1515,7 +1515,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		a := nodnil()
 		if n.Esc() == EscNone {
 			t := types.NewArray(types.Types[types.TUINT8], 4)
-			a = ir.Nod(ir.OADDR, temp(t), nil)
+			a = nodAddr(temp(t))
 		}
 		// intstring(*[4]byte, rune)
 		return mkcall("intstring", n.Type(), init, a, conv(n.Left(), types.Types[types.TINT64]))
@@ -1525,7 +1525,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if n.Esc() == EscNone {
 			// Create temporary buffer for string on stack.
 			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-			a = ir.Nod(ir.OADDR, temp(t), nil)
+			a = nodAddr(temp(t))
 		}
 		if n.Op() == ir.ORUNES2STR {
 			// slicerunetostring(*[32]byte, []rune) string
@@ -1557,7 +1557,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			t := types.NewArray(types.Types[types.TUINT8], int64(len(sc)))
 			var a ir.Node
 			if n.Esc() == EscNone && len(sc) <= int(maxImplicitStackVarSize) {
-				a = ir.Nod(ir.OADDR, temp(t), nil)
+				a = nodAddr(temp(t))
 			} else {
 				a = callnew(t)
 			}
@@ -1585,7 +1585,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if n.Esc() == EscNone {
 			// Create temporary buffer for slice on stack.
 			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-			a = ir.Nod(ir.OADDR, temp(t), nil)
+			a = nodAddr(temp(t))
 		}
 		// stringtoslicebyte(*32[byte], string) []byte
 		return mkcall("stringtoslicebyte", n.Type(), init, a, conv(s, types.Types[types.TSTRING]))
@@ -1606,7 +1606,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if n.Esc() == EscNone {
 			// Create temporary buffer for slice on stack.
 			t := types.NewArray(types.Types[types.TINT32], tmpstringbufsize)
-			a = ir.Nod(ir.OADDR, temp(t), nil)
+			a = nodAddr(temp(t))
 		}
 		// stringtoslicerune(*[32]rune, string) []rune
 		return mkcall("stringtoslicerune", n.Type(), init, a, conv(n.Left(), types.Types[types.TSTRING]))
@@ -1627,7 +1627,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n1 := n.Right()
 		n1 = assignconv(n1, n.Left().Type().Elem(), "chan send")
 		n1 = walkexpr(n1, init)
-		n1 = ir.Nod(ir.OADDR, n1, nil)
+		n1 = nodAddr(n1)
 		return mkcall1(chanfn("chansend1", 2, n.Left().Type()), nil, init, n.Left(), n1)
 
 	case ir.OCLOSURE:
@@ -2699,7 +2699,7 @@ func addstr(n ir.Node, init *ir.Nodes) ir.Node {
 		if sz < tmpstringbufsize {
 			// Create temporary buffer for result string on stack.
 			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
-			buf = ir.Nod(ir.OADDR, temp(t), nil)
+			buf = nodAddr(temp(t))
 		}
 	}
 
@@ -2842,7 +2842,7 @@ func appendslice(n ir.Node, init *ir.Nodes) ir.Node {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
 		nptr1.SetBounded(true)
-		nptr1 = ir.Nod(ir.OADDR, nptr1, nil)
+		nptr1 = nodAddr(nptr1)
 
 		nptr2 := ir.Nod(ir.OSPTR, l2, nil)
 
@@ -2988,7 +2988,7 @@ func extendslice(n ir.Node, init *ir.Nodes) ir.Node {
 	// hp := &s[len(l1)]
 	hp := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
 	hp.SetBounded(true)
-	hp = ir.Nod(ir.OADDR, hp, nil)
+	hp = nodAddr(hp)
 	hp = convnop(hp, types.Types[types.TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
@@ -3372,8 +3372,8 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 
 		fn, needsize := eqfor(t)
 		call := ir.Nod(ir.OCALL, fn, nil)
-		call.PtrList().Append(ir.Nod(ir.OADDR, cmpl, nil))
-		call.PtrList().Append(ir.Nod(ir.OADDR, cmpr, nil))
+		call.PtrList().Append(nodAddr(cmpl))
+		call.PtrList().Append(nodAddr(cmpr))
 		if needsize {
 			call.PtrList().Append(nodintconst(t.Width))
 		}

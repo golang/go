@@ -323,7 +323,7 @@ func genhash(t *types.Type) *obj.LSym {
 
 		nx := ir.Nod(ir.OINDEX, np, ni)
 		nx.SetBounded(true)
-		na := ir.Nod(ir.OADDR, nx, nil)
+		na := nodAddr(nx)
 		call.PtrList().Append(na)
 		call.PtrList().Append(nh)
 		loop.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
@@ -347,7 +347,7 @@ func genhash(t *types.Type) *obj.LSym {
 				hashel := hashfor(f.Type)
 				call := ir.Nod(ir.OCALL, hashel, nil)
 				nx := nodSym(ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
-				na := ir.Nod(ir.OADDR, nx, nil)
+				na := nodAddr(nx)
 				call.PtrList().Append(na)
 				call.PtrList().Append(nh)
 				fn.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
@@ -362,7 +362,7 @@ func genhash(t *types.Type) *obj.LSym {
 			hashel := hashmem(f.Type)
 			call := ir.Nod(ir.OCALL, hashel, nil)
 			nx := nodSym(ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
-			na := ir.Nod(ir.OADDR, nx, nil)
+			na := nodAddr(nx)
 			call.PtrList().Append(na)
 			call.PtrList().Append(nh)
 			call.PtrList().Append(nodintconst(size))
@@ -868,8 +868,8 @@ func eqinterface(s, t ir.Node) (eqtab, eqdata ir.Node) {
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
-	nx := ir.Nod(ir.OADDR, nodSym(ir.OXDOT, p, field), nil)
-	ny := ir.Nod(ir.OADDR, nodSym(ir.OXDOT, q, field), nil)
+	nx := nodAddr(nodSym(ir.OXDOT, p, field))
+	ny := nodAddr(nodSym(ir.OXDOT, q, field))
 	nx = typecheck(nx, ctxExpr)
 	ny = typecheck(ny, ctxExpr)
 

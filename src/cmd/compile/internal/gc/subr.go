@@ -135,6 +135,14 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
 	}
 }
 
+// nodAddr returns a node representing &n.
+func nodAddr(n ir.Node) ir.Node {
+	return ir.Nod(ir.OADDR, n, nil)
+}
+func nodAddrAt(pos src.XPos, n ir.Node) ir.Node {
+	return ir.NodAt(pos, ir.OADDR, n, nil)
+}
+
 // newname returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
@@ -1158,7 +1166,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		dot = dot.Left() // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
 		if !dotlist[0].field.Type.IsPtr() {
-			dot = ir.Nod(ir.OADDR, dot, nil)
+			dot = nodAddr(dot)
 		}
 		as := ir.Nod(ir.OAS, nthis, convnop(dot, rcvr))
 		fn.PtrBody().Append(as)

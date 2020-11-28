@@ -996,7 +996,7 @@ func typename(t *types.Type) ir.Node {
 		s.Def = n
 	}
 
-	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	n := nodAddr(ir.AsNode(s.Def))
 	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
@@ -1016,7 +1016,7 @@ func itabname(t, itype *types.Type) ir.Node {
 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
 	}
 
-	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	n := nodAddr(ir.AsNode(s.Def))
 	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
@@ -1880,7 +1880,7 @@ func zeroaddr(size int64) ir.Node {
 		x.SetTypecheck(1)
 		s.Def = x
 	}
-	z := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+	z := nodAddr(ir.AsNode(s.Def))
 	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	z.SetTypecheck(1)
 	return z
