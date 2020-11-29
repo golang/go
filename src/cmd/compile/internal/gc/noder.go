@@ -451,7 +451,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		}
 		v := values[i]
 		if decl.Values == nil {
-			v = treecopy(v, n.Pos())
+			v = ir.DeepCopy(n.Pos(), v)
 		}
 
 		n.SetOp(ir.OLITERAL)
