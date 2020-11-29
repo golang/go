@@ -75,6 +75,10 @@ func parseFiles(filenames []string) uint {
 		testdclstack()
 	}
 
+	for _, p := range noders {
+		p.processPragmas()
+	}
+
 	ir.LocalPkg.Height = myheight
 
 	return lines
@@ -258,23 +262,27 @@ func (p *noder) node() {
 
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
-	for _, n := range p.linknames {
+	base.Pos = src.NoXPos
+	clearImports()
+}
+
+func (p *noder) processPragmas() {
+	for _, l := range p.linknames {
 		if !p.importedUnsafe {
-			p.errorAt(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+			p.errorAt(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 			continue
 		}
-		s := lookup(n.local)
-		if n.remote != "" {
-			s.Linkname = n.remote
-		} else {
-			// Use the default object symbol name if the
-			// user didn't provide one.
-			if base.Ctxt.Pkgpath == "" {
-				p.errorAt(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
-			} else {
-				s.Linkname = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + n.local
-			}
+		n := ir.AsNode(lookup(l.local).Def)
+		if n == nil || n.Op() != ir.ONAME {
+			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
+			base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
+			continue
 		}
+		if n.Sym().Linkname != "" {
+			p.errorAt(l.pos, "duplicate //go:linkname for %s", l.local)
+			continue
+		}
+		n.Sym().Linkname = l.remote
 	}
 
 	// The linker expects an ABI0 wrapper for all cgo-exported
@@ -290,8 +298,6 @@ func (p *noder) node() {
 	}
 
 	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
-	base.Pos = src.NoXPos
-	clearImports()
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
@@ -1592,6 +1598,13 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		var target string
 		if len(f) == 3 {
 			target = f[2]
+		} else if base.Ctxt.Pkgpath != "" {
+			// Use the default object symbol name if the
+			// user didn't provide one.
+			target = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + f[1]
+		} else {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname requires linkname argument or -p compiler flag"})
+			break
 		}
 		p.linknames = append(p.linknames, linkname{pos, f[1], target})
 
