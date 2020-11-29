@@ -453,6 +453,18 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 255881 -->
+      <a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a> and
+      <a href="/pkg/encoding/asn1/#UnmarshalWithParams">UnmarshalWithParams</a>
+      now return an error instead of panic when the argument is not
+      a pointer or is nil. This change matches the behavior of other
+      encoding packages such as <a href="/pkg/encoding/json">encoding/json</a>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
     <p><!-- CL 234818 -->
