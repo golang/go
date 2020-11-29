@@ -93,21 +93,26 @@ func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
 
 // copyExpr behaves like newTemp but also emits
 // code to initialize the temporary to the value n.
-//
-// The clear argument is provided for use when the evaluation
-// of tmp = n turns into a function call that is passed a pointer
-// to the temporary as the output space. If the call blocks before
-// tmp has been written, the garbage collector will still treat the
-// temporary as live, so we must zero it before entering that call.
+func (o *Order) copyExpr(n ir.Node) ir.Node {
+	return o.copyExpr1(n, false)
+}
+
+// copyExprClear is like copyExpr but clears the temp before assignment.
+// It is provided for use when the evaluation of tmp = n turns into
+// a function call that is passed a pointer to the temporary as the output space.
+// If the call blocks before tmp has been written,
+// the garbage collector will still treat the temporary as live,
+// so we must zero it before entering that call.
 // Today, this only happens for channel receive operations.
 // (The other candidate would be map access, but map access
 // returns a pointer to the result data instead of taking a pointer
 // to be filled in.)
-// TODO(rsc): t == n.Type() always; remove parameter.
-func (o *Order) copyExpr(n ir.Node, t *types.Type, clear bool) ir.Node {
-	if t != n.Type() {
-		panic("copyExpr")
-	}
+func (o *Order) copyExprClear(n ir.Node) ir.Node {
+	return o.copyExpr1(n, true)
+}
+
+func (o *Order) copyExpr1(n ir.Node, clear bool) ir.Node {
+	t := n.Type()
 	v := o.newTemp(t, clear)
 	a := ir.Nod(ir.OAS, v, n)
 	a = typecheck(a, ctxStmt)
@@ -137,7 +142,7 @@ func (o *Order) cheapExpr(n ir.Node) ir.Node {
 		return typecheck(a, ctxExpr)
 	}
 
-	return o.copyExpr(n, n.Type(), false)
+	return o.copyExpr(n)
 }
 
 // safeExpr returns a safe version of n.
@@ -224,7 +229,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
 	if isaddrokay(n) {
 		return n
 	}
-	return o.copyExpr(n, n.Type(), false)
+	return o.copyExpr(n)
 }
 
 // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
@@ -493,7 +498,7 @@ func (o *Order) call(n ir.Node) {
 		// by copying it into a temp and marking that temp
 		// still alive when we pop the temp stack.
 		if arg.Op() == ir.OCONVNOP && arg.Left().Type().IsUnsafePtr() {
-			x := o.copyExpr(arg.Left(), arg.Left().Type(), false)
+			x := o.copyExpr(arg.Left())
 			arg.SetLeft(x)
 			x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
 			n.PtrBody().Append(typecheck(ir.Nod(ir.OVARLIVE, x, nil), ctxStmt))
@@ -555,10 +560,10 @@ func (o *Order) mapAssign(n ir.Node) {
 			switch {
 			case m.Op() == ir.OINDEXMAP:
 				if !ir.IsAutoTmp(m.Left()) {
-					m.SetLeft(o.copyExpr(m.Left(), m.Left().Type(), false))
+					m.SetLeft(o.copyExpr(m.Left()))
 				}
 				if !ir.IsAutoTmp(m.Right()) {
-					m.SetRight(o.copyExpr(m.Right(), m.Right().Type(), false))
+					m.SetRight(o.copyExpr(m.Right()))
 				}
 				fallthrough
 			case instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
@@ -617,7 +622,7 @@ func (o *Order) stmt(n ir.Node) {
 			if l1.Op() == ir.OINDEXMAP {
 				l2.SetIndexMapLValue(false)
 			}
-			l2 = o.copyExpr(l2, l2.Type(), false)
+			l2 = o.copyExpr(l2)
 			r := ir.NodAt(n.Pos(), n.SubOp(), l2, n.Right())
 			r = typecheck(r, ctxExpr)
 			r = o.expr(r, nil)
@@ -802,7 +807,7 @@ func (o *Order) stmt(n ir.Node) {
 				r = typecheck(r, ctxExpr)
 			}
 
-			n.SetRight(o.copyExpr(r, r.Type(), false))
+			n.SetRight(o.copyExpr(r))
 
 		case types.TMAP:
 			if isMapClear(n) {
@@ -817,7 +822,7 @@ func (o *Order) stmt(n ir.Node) {
 			// TODO(rsc): Make tmp = literal expressions reuse tmp.
 			// For maps tmp is just one word so it hardly matters.
 			r := n.Right()
-			n.SetRight(o.copyExpr(r, r.Type(), false))
+			n.SetRight(o.copyExpr(r))
 
 			// prealloc[n] is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
@@ -898,7 +903,7 @@ func (o *Order) stmt(n ir.Node) {
 
 				recv.SetLeft(o.expr(recv.Left(), nil))
 				if recv.Left().Op() != ir.ONAME {
-					recv.SetLeft(o.copyExpr(recv.Left(), recv.Left().Type(), false))
+					recv.SetLeft(o.copyExpr(recv.Left()))
 				}
 
 				// Introduce temporary for receive and move actual copy into case body.
@@ -956,11 +961,11 @@ func (o *Order) stmt(n ir.Node) {
 				r.SetLeft(o.expr(r.Left(), nil))
 
 				if !ir.IsAutoTmp(r.Left()) {
-					r.SetLeft(o.copyExpr(r.Left(), r.Left().Type(), false))
+					r.SetLeft(o.copyExpr(r.Left()))
 				}
 				r.SetRight(o.expr(r.Right(), nil))
 				if !ir.IsAutoTmp(r.Right()) {
-					r.SetRight(o.copyExpr(r.Right(), r.Right().Type(), false))
+					r.SetRight(o.copyExpr(r.Right()))
 				}
 			}
 		}
@@ -988,7 +993,7 @@ func (o *Order) stmt(n ir.Node) {
 		if instrumenting {
 			// Force copying to the stack so that (chan T)(nil) <- x
 			// is still instrumented as a read of x.
-			n.SetRight(o.copyExpr(n.Right(), n.Right().Type(), false))
+			n.SetRight(o.copyExpr(n.Right()))
 		} else {
 			n.SetRight(o.addrTemp(n.Right()))
 		}
@@ -1134,7 +1139,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		// key must be addressable
 		n.SetRight(o.mapKeyTemp(n.Left().Type(), n.Right()))
 		if needCopy {
-			n = o.copyExpr(n, n.Type(), false)
+			n = o.copyExpr(n)
 		}
 
 	// concrete type (not interface) argument might need an addressable
@@ -1159,7 +1164,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 			o.init(n.Left())
 			o.call(n.Left())
 			if lhs == nil || lhs.Op() != ir.ONAME || instrumenting {
-				n = o.copyExpr(n, n.Type(), false)
+				n = o.copyExpr(n)
 			}
 		} else {
 			n.SetLeft(o.expr(n.Left(), nil))
@@ -1229,7 +1234,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		}
 
 		if lhs == nil || lhs.Op() != ir.ONAME || instrumenting {
-			n = o.copyExpr(n, n.Type(), false)
+			n = o.copyExpr(n)
 		}
 
 	case ir.OAPPEND:
@@ -1242,7 +1247,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		}
 
 		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.List().First()) {
-			n = o.copyExpr(n, n.Type(), false)
+			n = o.copyExpr(n)
 		}
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
@@ -1256,7 +1261,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		max = o.cheapExpr(max)
 		n.SetSliceBounds(low, high, max)
 		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.Left()) {
-			n = o.copyExpr(n, n.Type(), false)
+			n = o.copyExpr(n)
 		}
 
 	case ir.OCLOSURE:
@@ -1283,12 +1288,12 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n.SetLeft(o.expr(n.Left(), nil))
 		if !isdirectiface(n.Type()) || instrumenting {
-			n = o.copyExpr(n, n.Type(), true)
+			n = o.copyExprClear(n)
 		}
 
 	case ir.ORECV:
 		n.SetLeft(o.expr(n.Left(), nil))
-		n = o.copyExpr(n, n.Type(), true)
+		n = o.copyExprClear(n)
 
 	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
 		n.SetLeft(o.expr(n.Left(), nil))
