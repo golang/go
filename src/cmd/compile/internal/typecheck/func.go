@@ -135,6 +135,7 @@ func CaptureVars(fn *ir.Func) {
 			v.SetByval(true)
 		} else {
 			outermost.Name().SetAddrtaken(true)
+			outermost.Name().SetAddrtaken2(true)
 			outer = NodAddr(outer)
 		}
 
@@ -162,6 +163,21 @@ func CaptureVars(fn *ir.Func) {
 // because they're a copy of an already checked body.
 func ImportedBody(fn *ir.Func) {
 	lno := ir.SetPos(fn.Nname)
+
+	// When we load an inlined body, we need to allow OADDR
+	// operations on untyped expressions. We will fix the
+	// addrtaken flags on all the arguments of the OADDR with the
+	// computeAddrtaken call below (after we typecheck the body).
+	// TODO: export/import types and addrtaken marks along with inlined bodies,
+	// so this will be unnecessary.
+	incrementalAddrtaken = false
+	defer func() {
+		if dirtyAddrtaken {
+			computeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+			dirtyAddrtaken = false
+		}
+		incrementalAddrtaken = true
+	}()
 
 	ImportBody(fn)
 
