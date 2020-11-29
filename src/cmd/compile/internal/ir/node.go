@@ -594,6 +594,7 @@ const (
 	// list of result fields.
 	OTFUNC
 	OTARRAY // []int, [8]int, [N]int or [...]int
+	OTSLICE // to be used in future CL
 
 	// misc
 	ODDD         // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
