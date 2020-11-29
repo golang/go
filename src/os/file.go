@@ -406,7 +406,7 @@ func UserCacheDir() (string, error) {
 			return "", errors.New("%LocalAppData% is not defined")
 		}
 
-	case "darwin":
+	case "darwin", "ios":
 		dir = Getenv("HOME")
 		if dir == "" {
 			return "", errors.New("$HOME is not defined")
@@ -457,7 +457,7 @@ func UserConfigDir() (string, error) {
 			return "", errors.New("%AppData% is not defined")
 		}
 
-	case "darwin":
+	case "darwin", "ios":
 		dir = Getenv("HOME")
 		if dir == "" {
 			return "", errors.New("$HOME is not defined")
@@ -505,10 +505,8 @@ func UserHomeDir() (string, error) {
 	switch runtime.GOOS {
 	case "android":
 		return "/sdcard", nil
-	case "darwin":
-		if runtime.GOARCH == "arm64" {
-			return "/", nil
-		}
+	case "ios":
+		return "/", nil
 	}
 	return "", errors.New(enverr + " is not defined")
 }
