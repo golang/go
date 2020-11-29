@@ -457,7 +457,6 @@ const (
 
 	// Used during parsing but don't last.
 	ODCLFUNC  // func f() or func (r) f()
-	ODCLFIELD // UNUSED: TODO(rsc): Delete.
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
@@ -580,7 +579,6 @@ const (
 	OTSLICE // []int
 
 	// misc
-	ODDD         // UNUSED; TODO(rsc): Delete.
 	OINLCALL     // intermediary representation of an inlined call.
 	OEFACE       // itable and data words of an empty-interface value.
 	OITAB        // itable word of an interface value.
