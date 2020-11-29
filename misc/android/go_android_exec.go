@@ -276,7 +276,7 @@ func adbCopyGoroot() error {
 	if err := syscall.Flock(int(stat.Fd()), syscall.LOCK_EX); err != nil {
 		return err
 	}
-	s, err := ioutil.ReadAll(stat)
+	s, err := io.ReadAll(stat)
 	if err != nil {
 		return err
 	}
