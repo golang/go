@@ -181,42 +181,6 @@ func nodstr(s string) ir.Node {
 	return ir.NewLiteral(constant.MakeString(s))
 }
 
-// treecopy recursively copies n, with the exception of
-// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
-// If pos.IsKnown(), it sets the source position of newly
-// allocated nodes to pos.
-func treecopy(n ir.Node, pos src.XPos) ir.Node {
-	if n == nil {
-		return nil
-	}
-
-	switch n.Op() {
-	default:
-		m := ir.SepCopy(n)
-		m.SetLeft(treecopy(n.Left(), pos))
-		m.SetRight(treecopy(n.Right(), pos))
-		m.PtrList().Set(listtreecopy(n.List().Slice(), pos))
-		if pos.IsKnown() {
-			m.SetPos(pos)
-		}
-		if m.Name() != nil && n.Op() != ir.ODCLFIELD {
-			ir.Dump("treecopy", n)
-			base.Fatalf("treecopy Name")
-		}
-		return m
-
-	case ir.OPACK:
-		// OPACK nodes are never valid in const value declarations,
-		// but allow them like any other declared symbol to avoid
-		// crashing (golang.org/issue/11361).
-		fallthrough
-
-	case ir.ONAME, ir.ONONAME, ir.OLITERAL, ir.ONIL, ir.OTYPE:
-		return n
-
-	}
-}
-
 func isptrto(t *types.Type, et types.EType) bool {
 	if t == nil {
 		return false
@@ -1373,14 +1337,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		itabname(t0, iface)
 	}
 	return true
-}
-
-func listtreecopy(l []ir.Node, pos src.XPos) []ir.Node {
-	var out []ir.Node
-	for _, n := range l {
-		out = append(out, treecopy(n, pos))
-	}
-	return out
 }
 
 func liststmt(l []ir.Node) ir.Node {

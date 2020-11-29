@@ -1021,59 +1021,6 @@ func (n *node) RawCopy() Node {
 	return &copy
 }
 
-// A Node may implement the Orig and SetOrig method to
-// maintain a pointer to the "unrewritten" form of a Node.
-// If a Node does not implement OrigNode, it is its own Orig.
-//
-// Note that both SepCopy and Copy have definitions compatible
-// with a Node that does not implement OrigNode: such a Node
-// is its own Orig, and in that case, that's what both want to return
-// anyway (SepCopy unconditionally, and Copy only when the input
-// is its own Orig as well, but if the output does not implement
-// OrigNode, then neither does the input, making the condition true).
-type OrigNode interface {
-	Node
-	Orig() Node
-	SetOrig(Node)
-}
-
-func Orig(n Node) Node {
-	if n, ok := n.(OrigNode); ok {
-		o := n.Orig()
-		if o == nil {
-			Dump("Orig nil", n)
-			base.Fatalf("Orig returned nil")
-		}
-		return o
-	}
-	return n
-}
-
-// sepcopy returns a separate shallow copy of n, with the copy's
-// Orig pointing to itself.
-func SepCopy(n Node) Node {
-	n = n.RawCopy()
-	if n, ok := n.(OrigNode); ok {
-		n.SetOrig(n)
-	}
-	return n
-}
-
-// copy returns shallow copy of n and adjusts the copy's Orig if
-// necessary: In general, if n.Orig points to itself, the copy's
-// Orig should point to itself as well. Otherwise, if n is modified,
-// the copy's Orig node appears modified, too, and then doesn't
-// represent the original node anymore.
-// (This caused the wrong complit Op to be used when printing error
-// messages; see issues #26855, #27765).
-func Copy(n Node) Node {
-	copy := n.RawCopy()
-	if n, ok := n.(OrigNode); ok && n.Orig() == n {
-		copy.(OrigNode).SetOrig(copy)
-	}
-	return copy
-}
-
 // isNil reports whether n represents the universal untyped zero value "nil".
 func IsNil(n Node) bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,

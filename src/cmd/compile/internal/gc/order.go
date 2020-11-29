@@ -609,7 +609,10 @@ func (o *Order) stmt(n ir.Node) {
 
 			n.SetLeft(o.safeExpr(n.Left()))
 
-			l := treecopy(n.Left(), src.NoXPos)
+			// TODO(rsc): Why is this DeepCopy?
+			// We should know enough about the form here
+			// to do something more provably shallower.
+			l := ir.DeepCopy(src.NoXPos, n.Left())
 			if l.Op() == ir.OINDEXMAP {
 				l.SetIndexMapLValue(false)
 			}
@@ -1123,8 +1126,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 			needCopy = mapKeyReplaceStrConv(n.Right())
 
 			if instrumenting {
-				// Race detector needs the copy so it can
-				// call treecopy on the result.
+				// Race detector needs the copy.
 				needCopy = true
 			}
 		}
