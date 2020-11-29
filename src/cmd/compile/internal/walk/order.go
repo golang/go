@@ -517,7 +517,8 @@ func (o *orderState) call(nn ir.Node) {
 			if arg.X.Type().IsUnsafePtr() {
 				x := o.copyExpr(arg.X)
 				arg.X = x
-				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
+				x.Name().SetAddrtaken(true)  // ensure SSA keeps the x variable
+				x.Name().SetAddrtaken2(true) // ensure SSA keeps the x variable
 				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
 			}
 		}

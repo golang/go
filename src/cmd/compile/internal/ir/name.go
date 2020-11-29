@@ -35,10 +35,10 @@ func (*Ident) CanBeNtype() {}
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr
-	BuiltinOp Op    // uint8
-	Class_    Class // uint8
-	flags     bitset16
+	BuiltinOp Op         // uint8
+	Class_    Class      // uint8
 	pragma    PragmaFlag // int16
+	flags     bitset32
 	sym       *types.Sym
 	Func      *Func
 	Offset_   int64
@@ -273,6 +273,7 @@ const (
 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
 	nameAlias                 // is type name an alias
+	nameAddrtaken2
 )
 
 func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
@@ -284,7 +285,7 @@ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
 func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
 func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
 func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
-func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
+func (n *Name) Addrtaken() bool             { return n.checkAddrtaken() && n.flags&nameAddrtaken != 0 }
 func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
 func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
 func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
@@ -300,10 +301,22 @@ func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, 
 func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
 func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
 func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
+func (n *Name) SetAddrtaken2(b bool)            { n.flags.set(nameAddrtaken2, b) }
 func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
 func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
 func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+
+func (n *Name) checkAddrtaken() bool {
+	// The two different ways of computing addrtaken bits might diverge during computation,
+	// but any time we look at them, they should be identical.
+	x := n.flags&nameAddrtaken != 0
+	y := n.flags&nameAddrtaken2 != 0
+	if x != y {
+		panic("inconsistent addrtaken")
+	}
+	return true
+}
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
 func (n *Name) MarkReadonly() {

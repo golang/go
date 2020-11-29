@@ -99,7 +99,26 @@ func Package() {
 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
 	CheckMapKeys()
 
-	// Phase 6: Decide how to capture closed variables.
+	// Phase 6: Compute Addrtaken for names.
+	// We need to wait until typechecking is done so that when we see &x[i]
+	// we know that x has its address taken if x is an array, but not if x is a slice.
+	// We compute Addrtaken in bulk here.
+	// After this phase, we maintain Addrtaken incrementally.
+	if dirtyAddrtaken {
+		computeAddrtaken(Target.Decls)
+		dirtyAddrtaken = false
+	}
+	incrementalAddrtaken = true
+
+	// Phase 7: Eliminate some obviously dead code.
+	// Must happen after typechecking.
+	for _, n := range Target.Decls {
+		if n.Op() == ir.ODCLFUNC {
+			deadcode(n.(*ir.Func))
+		}
+	}
+
+	// Phase 8: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
 	base.Timer.Start("fe", "capturevars")
@@ -156,9 +175,6 @@ func FuncBody(n *ir.Func) {
 	if base.Errors() > errorsBefore {
 		n.Body.Set(nil) // type errors; do not compile
 	}
-	// Now that we've checked whether n terminates,
-	// we can eliminate some obviously dead code.
-	deadcode(n)
 }
 
 var importlist []*ir.Func
