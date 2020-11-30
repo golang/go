@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/types"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -407,7 +408,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			}
 			dep := resolveImportPath(pkgPath, pkg, deps)
 			if dep == nil {
-				return nil, errors.Errorf("no package for import %s", pkgPath)
+				return nil, snapshot.missingPkgError(pkgPath)
 			}
 			if !isValidImport(m.pkgPath, dep.m.pkgPath) {
 				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
@@ -451,6 +452,24 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	}
 
 	return pkg, nil
+}
+
+// missingPkgError returns an error message for a missing package that varies
+// based on the user's workspace mode.
+func (s *snapshot) missingPkgError(pkgPath string) error {
+	if s.workspaceMode()&moduleMode != 0 {
+		return fmt.Errorf("no required module provides package %q", pkgPath)
+	}
+	gorootSrcPkg := filepath.FromSlash(filepath.Join(s.view.goroot, "src", pkgPath))
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("cannot find package %q in any of \n\t%s (from $GOROOT)", pkgPath, gorootSrcPkg))
+
+	for _, gopath := range strings.Split(s.view.gopath, ":") {
+		gopathSrcPkg := filepath.FromSlash(filepath.Join(gopath, "src", pkgPath))
+		b.WriteString(fmt.Sprintf("\n\t%s (from $GOPATH)", gopathSrcPkg))
+	}
+	return errors.New(b.String())
 }
 
 type extendedError struct {
