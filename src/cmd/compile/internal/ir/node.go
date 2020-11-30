@@ -118,140 +118,6 @@ type Node interface {
 	CanBeAnSSASym()
 }
 
-var _ Node = (*node)(nil)
-
-// A Node is a single node in the syntax tree.
-// Actually the syntax tree is a syntax DAG, because there is only one
-// node with Op=ONAME for a given instance of a variable x.
-// The same is true for Op=OTYPE and Op=OLITERAL. See Node.mayBeShared.
-type node struct {
-	// Tree structure.
-	// Generic recursive walks should follow these fields.
-	left  Node
-	right Node
-	init  Nodes
-	body  Nodes
-	list  Nodes
-	rlist Nodes
-
-	// most nodes
-	typ  *types.Type
-	orig Node // original form, for printing, and tracking copies of ONAMEs
-
-	sym *types.Sym // various
-	opt interface{}
-
-	// Various. Usually an offset into a struct. For example:
-	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
-	// - ODOT, ODOTPTR, and ORESULT use it to indicate offset relative to their base address.
-	// - OSTRUCTKEY uses it to store the named field's offset.
-	// - Named OLITERALs use it to store their ambient iota value.
-	// - OINLMARK stores an index into the inlTree data structure.
-	// - OCLOSURE uses it to store ambient iota value, if any.
-	// Possibly still more uses. If you find any, document them.
-	offset int64
-
-	pos src.XPos
-
-	flags bitset32
-
-	esc uint16 // EscXXX
-
-	op  Op
-	aux uint8
-}
-
-func (n *node) Left() Node            { return n.left }
-func (n *node) SetLeft(x Node)        { n.left = x }
-func (n *node) Right() Node           { return n.right }
-func (n *node) SetRight(x Node)       { n.right = x }
-func (n *node) Orig() Node            { return n.orig }
-func (n *node) SetOrig(x Node)        { n.orig = x }
-func (n *node) Type() *types.Type     { return n.typ }
-func (n *node) SetType(x *types.Type) { n.typ = x }
-func (n *node) Func() *Func           { return nil }
-func (n *node) Name() *Name           { return nil }
-func (n *node) Sym() *types.Sym       { return n.sym }
-func (n *node) SetSym(x *types.Sym)   { n.sym = x }
-func (n *node) Pos() src.XPos         { return n.pos }
-func (n *node) SetPos(x src.XPos)     { n.pos = x }
-func (n *node) Offset() int64         { return n.offset }
-func (n *node) SetOffset(x int64)     { n.offset = x }
-func (n *node) Esc() uint16           { return n.esc }
-func (n *node) SetEsc(x uint16)       { n.esc = x }
-func (n *node) Op() Op                { return n.op }
-func (n *node) Init() Nodes           { return n.init }
-func (n *node) SetInit(x Nodes)       { n.init = x }
-func (n *node) PtrInit() *Nodes       { return &n.init }
-func (n *node) Body() Nodes           { return n.body }
-func (n *node) SetBody(x Nodes)       { n.body = x }
-func (n *node) PtrBody() *Nodes       { return &n.body }
-func (n *node) List() Nodes           { return n.list }
-func (n *node) SetList(x Nodes)       { n.list = x }
-func (n *node) PtrList() *Nodes       { return &n.list }
-func (n *node) Rlist() Nodes          { return n.rlist }
-func (n *node) SetRlist(x Nodes)      { n.rlist = x }
-func (n *node) PtrRlist() *Nodes      { return &n.rlist }
-func (n *node) MarkReadonly()         { panic("node.MarkReadOnly") }
-func (n *node) Val() constant.Value   { panic("node.Val") }
-func (n *node) SetVal(constant.Value) { panic("node.SetVal") }
-func (n *node) Int64Val() int64       { panic("node.Int64Val") }
-func (n *node) CanInt64() bool        { return false }
-func (n *node) Uint64Val() uint64     { panic("node.Uint64Val") }
-func (n *node) BoolVal() bool         { panic("node.BoolVal") }
-func (n *node) StringVal() string     { panic("node.StringVal") }
-
-// node can be Ntype only because of OXDOT of undefined name.
-// When that moves into its own syntax, can drop this.
-func (n *node) CanBeNtype() {}
-
-func (n *node) SetOp(op Op) {
-	if !okForNod[op] {
-		panic("cannot node.SetOp " + op.String())
-	}
-	n.op = op
-}
-
-func (n *node) ResetAux() {
-	n.aux = 0
-}
-
-func (n *node) SubOp() Op {
-	switch n.Op() {
-	case OASOP, ONAME:
-	default:
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	return Op(n.aux)
-}
-
-func (n *node) SetSubOp(op Op) {
-	switch n.Op() {
-	case OASOP, ONAME:
-	default:
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	n.aux = uint8(op)
-}
-
-func (n *node) IndexMapLValue() bool {
-	if n.Op() != OINDEXMAP {
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	return n.aux != 0
-}
-
-func (n *node) SetIndexMapLValue(b bool) {
-	if n.Op() != OINDEXMAP {
-		base.Fatalf("unexpected op: %v", n.Op())
-	}
-	if b {
-		n.aux = 1
-	} else {
-		n.aux = 0
-	}
-}
-
 func IsSynthetic(n Node) bool {
 	name := n.Sym().Name
 	return name[0] == '.' || name[0] == '~'
@@ -266,110 +132,6 @@ func IsAutoTmp(n Node) bool {
 	return n.Name().AutoTemp()
 }
 
-const (
-	nodeClass, _     = iota, 1 << iota // PPARAM, PAUTO, PEXTERN, etc; three bits; first in the list because frequently accessed
-	_, _                               // second nodeClass bit
-	_, _                               // third nodeClass bit
-	nodeWalkdef, _                     // tracks state during typecheckdef; 2 == loop detected; two bits
-	_, _                               // second nodeWalkdef bit
-	nodeTypecheck, _                   // tracks state during typechecking; 2 == loop detected; two bits
-	_, _                               // second nodeTypecheck bit
-	nodeInitorder, _                   // tracks state during init1; two bits
-	_, _                               // second nodeInitorder bit
-	_, nodeHasBreak
-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP
-	_, nodeIsDDD     // is the argument variadic
-	_, nodeDiag      // already printed error about this
-	_, nodeColas     // OAS resulting from :=
-	_, nodeNonNil    // guaranteed to be non-nil
-	_, nodeTransient // storage can be reused immediately after this statement
-	_, nodeBounded   // bounds check unnecessary
-	_, nodeHasCall   // expression contains a function call
-	_, nodeLikely    // if statement condition likely
-)
-
-func (n *node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
-func (n *node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
-func (n *node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
-func (n *node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
-
-func (n *node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
-func (n *node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
-func (n *node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
-func (n *node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
-func (n *node) Diag() bool      { return n.flags&nodeDiag != 0 }
-func (n *node) Colas() bool     { return n.flags&nodeColas != 0 }
-func (n *node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
-func (n *node) Transient() bool { return n.flags&nodeTransient != 0 }
-func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
-func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
-func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
-
-func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
-func (n *node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
-func (n *node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
-func (n *node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
-
-func (n *node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
-func (n *node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
-func (n *node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
-func (n *node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
-func (n *node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
-func (n *node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
-func (n *node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
-func (n *node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
-func (n *node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
-
-// MarkNonNil marks a pointer n as being guaranteed non-nil,
-// on all code paths, at all times.
-// During conversion to SSA, non-nil pointers won't have nil checks
-// inserted before dereferencing. See state.exprPtr.
-func (n *node) MarkNonNil() {
-	if !n.Type().IsPtr() && !n.Type().IsUnsafePtr() {
-		base.Fatalf("MarkNonNil(%v), type %v", n, n.Type())
-	}
-	n.flags.set(nodeNonNil, true)
-}
-
-// SetBounded indicates whether operation n does not need safety checks.
-// When n is an index or slice operation, n does not need bounds checks.
-// When n is a dereferencing operation, n does not need nil checks.
-// When n is a makeslice+copy operation, n does not need length and cap checks.
-func (n *node) SetBounded(b bool) {
-	switch n.Op() {
-	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
-		// No bounds checks needed.
-	case ODOTPTR, ODEREF:
-		// No nil check needed.
-	case OMAKESLICECOPY:
-		// No length and cap checks needed
-		// since new slice and copied over slice data have same length.
-	default:
-		base.Fatalf("SetBounded(%v)", n)
-	}
-	n.flags.set(nodeBounded, b)
-}
-
-// Opt returns the optimizer data for the node.
-func (n *node) Opt() interface{} {
-	return n.opt
-}
-
-// SetOpt sets the optimizer data for the node, which must not have been used with SetVal.
-// SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
-func (n *node) SetOpt(x interface{}) {
-	n.opt = x
-}
-
-func (n *node) Iota() int64 {
-	return n.Offset()
-}
-
-func (n *node) SetIota(x int64) {
-	n.SetOffset(x)
-}
-
 // mayBeShared reports whether n may occur in multiple places in the AST.
 // Extra care must be taken when mutating such a node.
 func MayBeShared(n Node) bool {
@@ -378,10 +140,6 @@ func MayBeShared(n Node) bool {
 		return true
 	}
 	return false
-}
-
-// The compiler needs *Node to be assignable to cmd/compile/internal/ssa.Sym.
-func (n *node) CanBeAnSSASym() {
 }
 
 //go:generate stringer -type=Op -trimprefix=O
@@ -922,91 +680,15 @@ func OrigSym(s *types.Sym) *types.Sym {
 	return s
 }
 
-// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
-// n must be a slice expression. max is nil if n is a simple slice expression.
-func (n *node) SliceBounds() (low, high, max Node) {
-	if n.List().Len() == 0 {
-		return nil, nil, nil
-	}
-
-	switch n.Op() {
-	case OSLICE, OSLICEARR, OSLICESTR:
-		s := n.List().Slice()
-		return s[0], s[1], nil
-	case OSLICE3, OSLICE3ARR:
-		s := n.List().Slice()
-		return s[0], s[1], s[2]
-	}
-	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
-	return nil, nil, nil
-}
-
-// SetSliceBounds sets n's slice bounds, where n is a slice expression.
-// n must be a slice expression. If max is non-nil, n must be a full slice expression.
-func (n *node) SetSliceBounds(low, high, max Node) {
-	switch n.Op() {
-	case OSLICE, OSLICEARR, OSLICESTR:
-		if max != nil {
-			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
-		}
-		s := n.List().Slice()
-		if s == nil {
-			if low == nil && high == nil {
-				return
-			}
-			n.PtrList().Set2(low, high)
-			return
-		}
-		s[0] = low
-		s[1] = high
-		return
-	case OSLICE3, OSLICE3ARR:
-		s := n.List().Slice()
-		if s == nil {
-			if low == nil && high == nil && max == nil {
-				return
-			}
-			n.PtrList().Set3(low, high, max)
-			return
-		}
-		s[0] = low
-		s[1] = high
-		s[2] = max
-		return
-	}
-	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
-}
-
-// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
-// o must be a slicing op.
-func (o Op) IsSlice3() bool {
-	switch o {
-	case OSLICE, OSLICEARR, OSLICESTR:
-		return false
-	case OSLICE3, OSLICE3ARR:
-		return true
-	}
-	base.Fatalf("IsSlice3 op %v", o)
-	return false
-}
-
 func IsConst(n Node, ct constant.Kind) bool {
 	return ConstType(n) == ct
-}
-
-// rawcopy returns a shallow copy of n.
-// Note: copy or sepcopy (rather than rawcopy) is usually the
-//       correct choice (see comment with Node.copy, below).
-func (n *node) RawCopy() Node {
-	copy := *n
-	return &copy
 }
 
 // isNil reports whether n represents the universal untyped zero value "nil".
 func IsNil(n Node) bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
-	return Orig(n).Op() == ONIL
+	return n != nil && Orig(n).Op() == ONIL
 }
 
 func IsBlank(n Node) bool {
@@ -1027,8 +709,26 @@ func Nod(op Op, nleft, nright Node) Node {
 }
 
 func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
-	var n *node
 	switch op {
+	default:
+		panic("NodAt " + op.String())
+	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
+		OCOPY, OCOMPLEX,
+		OEFACE:
+		return NewBinaryExpr(pos, op, nleft, nright)
+	case OADDR, OPTRLIT:
+		return NewAddrExpr(pos, nleft)
+	case OADDSTR:
+		return NewAddStringExpr(pos, nil)
+	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
+		var typ Ntype
+		if nright != nil {
+			typ = nright.(Ntype)
+		}
+		n := NewCompLitExpr(pos, typ, nil)
+		n.SetOp(op)
+		return n
 	case OAS, OSELRECV:
 		n := NewAssignStmt(pos, nleft, nright)
 		n.SetOp(op)
@@ -1039,12 +739,27 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return n
 	case OASOP:
 		return NewAssignOpStmt(pos, OXXX, nleft, nright)
+	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
+		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW, ONEWOBJ,
+		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
+		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
+		if nright != nil {
+			panic("unary nright")
+		}
+		return NewUnaryExpr(pos, op, nleft)
 	case OBLOCK:
 		return NewBlockStmt(pos, nil)
 	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
 		return NewBranchStmt(pos, op, nil)
+	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
+		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
+		n := NewCallExpr(pos, nleft, nil)
+		n.SetOp(op)
+		return n
 	case OCASE:
 		return NewCaseStmt(pos, nil, nil)
+	case OCONV, OCONVIFACE, OCONVNOP, ORUNESTR:
+		return NewConvExpr(pos, op, nil, nleft)
 	case ODCL, ODCLCONST, ODCLTYPE:
 		return NewDecl(pos, op, nleft)
 	case ODCLFUNC:
@@ -1053,6 +768,18 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewDeferStmt(pos, nleft)
 	case ODEREF:
 		return NewStarExpr(pos, nleft)
+	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
+		n := NewSelectorExpr(pos, nleft, nil)
+		n.SetOp(op)
+		return n
+	case ODOTTYPE, ODOTTYPE2:
+		var typ Ntype
+		if nright != nil {
+			typ = nright.(Ntype)
+		}
+		n := NewTypeAssertExpr(pos, nleft, typ)
+		n.SetOp(op)
+		return n
 	case OEMPTY:
 		return NewEmptyStmt(pos)
 	case OFOR:
@@ -1061,140 +788,51 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewGoStmt(pos, nleft)
 	case OIF:
 		return NewIfStmt(pos, nleft, nil, nil)
+	case OINDEX, OINDEXMAP:
+		n := NewIndexExpr(pos, nleft, nright)
+		n.SetOp(op)
+		return n
 	case OINLMARK:
 		return NewInlineMarkStmt(pos, types.BADWIDTH)
+	case OKEY, OSTRUCTKEY:
+		n := NewKeyExpr(pos, nleft, nright)
+		n.SetOp(op)
+		return n
 	case OLABEL:
 		return NewLabelStmt(pos, nil)
 	case OLITERAL, OTYPE, OIOTA:
 		n := newNameAt(pos, nil)
 		n.SetOp(op)
 		return n
+	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
+		return NewMakeExpr(pos, op, nleft, nright)
+	case OMETHEXPR:
+		return NewMethodExpr(pos, op, nleft, nright)
+	case ONIL:
+		return NewNilExpr(pos)
 	case OPACK:
 		return NewPkgName(pos, nil, nil)
+	case OPAREN:
+		return NewParenExpr(pos, nleft)
 	case ORANGE:
 		return NewRangeStmt(pos, nil, nright, nil)
+	case ORESULT:
+		return NewResultExpr(pos, nil, types.BADWIDTH)
 	case ORETURN:
 		return NewReturnStmt(pos, nil)
 	case OSELECT:
 		return NewSelectStmt(pos, nil)
 	case OSEND:
 		return NewSendStmt(pos, nleft, nright)
+	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+		return NewSliceExpr(pos, op, nleft)
+	case OSLICEHEADER:
+		return NewSliceHeaderExpr(pos, nil, nleft, nil, nil)
 	case OSWITCH:
 		return NewSwitchStmt(pos, nleft, nil)
 	case OTYPESW:
 		return NewTypeSwitchGuard(pos, nleft, nright)
-	default:
-		n = new(node)
+	case OINLCALL:
+		return NewInlinedCallExpr(pos, nil, nil)
 	}
-	n.SetOp(op)
-	n.SetLeft(nleft)
-	n.SetRight(nright)
-	n.SetPos(pos)
-	n.SetOffset(types.BADWIDTH)
-	n.SetOrig(n)
-	return n
-}
-
-var okForNod = [OEND]bool{
-	OADD:           true,
-	OADDR:          true,
-	OADDSTR:        true,
-	OALIGNOF:       true,
-	OAND:           true,
-	OANDAND:        true,
-	OANDNOT:        true,
-	OAPPEND:        true,
-	OARRAYLIT:      true,
-	OBITNOT:        true,
-	OBYTES2STR:     true,
-	OBYTES2STRTMP:  true,
-	OCALL:          true,
-	OCALLFUNC:      true,
-	OCALLINTER:     true,
-	OCALLMETH:      true,
-	OCAP:           true,
-	OCFUNC:         true,
-	OCHECKNIL:      true,
-	OCLOSE:         true,
-	OCOMPLEX:       true,
-	OCOMPLIT:       true,
-	OCONV:          true,
-	OCONVIFACE:     true,
-	OCONVNOP:       true,
-	OCOPY:          true,
-	ODELETE:        true,
-	ODIV:           true,
-	ODOT:           true,
-	ODOTINTER:      true,
-	ODOTMETH:       true,
-	ODOTPTR:        true,
-	ODOTTYPE:       true,
-	ODOTTYPE2:      true,
-	OEFACE:         true,
-	OEQ:            true,
-	OGE:            true,
-	OGETG:          true,
-	OGT:            true,
-	OIDATA:         true,
-	OIMAG:          true,
-	OINDEX:         true,
-	OINDEXMAP:      true,
-	OINLCALL:       true,
-	OITAB:          true,
-	OKEY:           true,
-	OLE:            true,
-	OLEN:           true,
-	OLSH:           true,
-	OLT:            true,
-	OMAKE:          true,
-	OMAKECHAN:      true,
-	OMAKEMAP:       true,
-	OMAKESLICE:     true,
-	OMAKESLICECOPY: true,
-	OMAPLIT:        true,
-	OMETHEXPR:      true,
-	OMOD:           true,
-	OMUL:           true,
-	ONE:            true,
-	ONEG:           true,
-	ONEW:           true,
-	ONEWOBJ:        true,
-	ONIL:           true,
-	ONOT:           true,
-	OOFFSETOF:      true,
-	OOR:            true,
-	OOROR:          true,
-	OPANIC:         true,
-	OPAREN:         true,
-	OPLUS:          true,
-	OPRINT:         true,
-	OPRINTN:        true,
-	OPTRLIT:        true,
-	OREAL:          true,
-	ORECOVER:       true,
-	ORECV:          true,
-	ORESULT:        true,
-	ORSH:           true,
-	ORUNES2STR:     true,
-	ORUNESTR:       true,
-	OSIZEOF:        true,
-	OSLICE:         true,
-	OSLICE3:        true,
-	OSLICE3ARR:     true,
-	OSLICEARR:      true,
-	OSLICEHEADER:   true,
-	OSLICELIT:      true,
-	OSLICESTR:      true,
-	OSPTR:          true,
-	OSTR2BYTES:     true,
-	OSTR2BYTESTMP:  true,
-	OSTR2RUNES:     true,
-	OSTRUCTKEY:     true,
-	OSTRUCTLIT:     true,
-	OSUB:           true,
-	OVARDEF:        true,
-	OVARKILL:       true,
-	OVARLIVE:       true,
-	OXDOT:          true,
-	OXOR:           true,
 }

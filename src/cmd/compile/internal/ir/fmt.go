@@ -277,10 +277,6 @@ type fmtNodes struct {
 
 func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
 
-func (n *node) Format(s fmt.State, verb rune) {
-	FmtNode(n, s, verb)
-}
-
 func FmtNode(n Node, s fmt.State, verb rune) {
 	nodeFormat(n, s, verb, FErr)
 }
@@ -1806,7 +1802,6 @@ func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
 	}
 }
 
-func (n *node) String() string               { return fmt.Sprint(n) }
 func modeString(n Node, mode FmtMode) string { return mode.Sprint(n) }
 
 // "%L"  suffix with "(type %T)" where possible
