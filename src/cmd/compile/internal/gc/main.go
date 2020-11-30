@@ -43,6 +43,9 @@ func hidePanic() {
 		// about a panic too; let the user clean up
 		// the code and try again.
 		if err := recover(); err != nil {
+			if err == "-h" {
+				panic(err)
+			}
 			base.ErrorExit()
 		}
 	}
