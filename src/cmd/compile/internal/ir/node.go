@@ -1029,22 +1029,60 @@ func Nod(op Op, nleft, nright Node) Node {
 func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	var n *node
 	switch op {
+	case OAS, OSELRECV:
+		n := NewAssignStmt(pos, nleft, nright)
+		n.SetOp(op)
+		return n
+	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
+		n := NewAssignListStmt(pos, nil, nil)
+		n.SetOp(op)
+		return n
+	case OASOP:
+		return NewAssignOpStmt(pos, OXXX, nleft, nright)
+	case OBLOCK:
+		return NewBlockStmt(pos, nil)
+	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
+		return NewBranchStmt(pos, op, nil)
+	case OCASE:
+		return NewCaseStmt(pos, nil, nil)
+	case ODCL, ODCLCONST, ODCLTYPE:
+		return NewDecl(pos, op, nleft)
 	case ODCLFUNC:
 		return NewFunc(pos)
+	case ODEFER:
+		return NewDeferStmt(pos, nleft)
 	case ODEREF:
 		return NewStarExpr(pos, nleft)
-	case OPACK:
-		return NewPkgName(pos, nil, nil)
 	case OEMPTY:
 		return NewEmptyStmt(pos)
-	case OBREAK, OCONTINUE, OFALL, OGOTO:
-		return NewBranchStmt(pos, op, nil)
+	case OFOR:
+		return NewForStmt(pos, nil, nleft, nright, nil)
+	case OGO:
+		return NewGoStmt(pos, nleft)
+	case OIF:
+		return NewIfStmt(pos, nleft, nil, nil)
+	case OINLMARK:
+		return NewInlineMarkStmt(pos, types.BADWIDTH)
+	case OLABEL:
+		return NewLabelStmt(pos, nil)
 	case OLITERAL, OTYPE, OIOTA:
 		n := newNameAt(pos, nil)
 		n.SetOp(op)
 		return n
-	case OLABEL:
-		return NewLabelStmt(pos, nil)
+	case OPACK:
+		return NewPkgName(pos, nil, nil)
+	case ORANGE:
+		return NewRangeStmt(pos, nil, nright, nil)
+	case ORETURN:
+		return NewReturnStmt(pos, nil)
+	case OSELECT:
+		return NewSelectStmt(pos, nil)
+	case OSEND:
+		return NewSendStmt(pos, nleft, nright)
+	case OSWITCH:
+		return NewSwitchStmt(pos, nleft, nil)
+	case OTYPESW:
+		return NewTypeSwitchGuard(pos, nleft, nright)
 	default:
 		n = new(node)
 	}
@@ -1067,15 +1105,7 @@ var okForNod = [OEND]bool{
 	OANDNOT:        true,
 	OAPPEND:        true,
 	OARRAYLIT:      true,
-	OAS:            true,
-	OAS2:           true,
-	OAS2DOTTYPE:    true,
-	OAS2FUNC:       true,
-	OAS2MAPR:       true,
-	OAS2RECV:       true,
-	OASOP:          true,
 	OBITNOT:        true,
-	OBLOCK:         true,
 	OBYTES2STR:     true,
 	OBYTES2STRTMP:  true,
 	OCALL:          true,
@@ -1083,7 +1113,6 @@ var okForNod = [OEND]bool{
 	OCALLINTER:     true,
 	OCALLMETH:      true,
 	OCAP:           true,
-	OCASE:          true,
 	OCFUNC:         true,
 	OCHECKNIL:      true,
 	OCLOSE:         true,
@@ -1093,10 +1122,6 @@ var okForNod = [OEND]bool{
 	OCONVIFACE:     true,
 	OCONVNOP:       true,
 	OCOPY:          true,
-	ODCL:           true,
-	ODCLCONST:      true,
-	ODCLTYPE:       true,
-	ODEFER:         true,
 	ODELETE:        true,
 	ODIV:           true,
 	ODOT:           true,
@@ -1107,22 +1132,16 @@ var okForNod = [OEND]bool{
 	ODOTTYPE2:      true,
 	OEFACE:         true,
 	OEQ:            true,
-	OFOR:           true,
-	OFORUNTIL:      true,
 	OGE:            true,
 	OGETG:          true,
-	OGO:            true,
 	OGT:            true,
 	OIDATA:         true,
-	OIF:            true,
 	OIMAG:          true,
 	OINDEX:         true,
 	OINDEXMAP:      true,
 	OINLCALL:       true,
-	OINLMARK:       true,
 	OITAB:          true,
 	OKEY:           true,
-	OLABEL:         true,
 	OLE:            true,
 	OLEN:           true,
 	OLSH:           true,
@@ -1151,20 +1170,13 @@ var okForNod = [OEND]bool{
 	OPRINT:         true,
 	OPRINTN:        true,
 	OPTRLIT:        true,
-	ORANGE:         true,
 	OREAL:          true,
 	ORECOVER:       true,
 	ORECV:          true,
 	ORESULT:        true,
-	ORETJMP:        true,
-	ORETURN:        true,
 	ORSH:           true,
 	ORUNES2STR:     true,
 	ORUNESTR:       true,
-	OSELECT:        true,
-	OSELRECV:       true,
-	OSELRECV2:      true,
-	OSEND:          true,
 	OSIZEOF:        true,
 	OSLICE:         true,
 	OSLICE3:        true,
@@ -1180,8 +1192,6 @@ var okForNod = [OEND]bool{
 	OSTRUCTKEY:     true,
 	OSTRUCTLIT:     true,
 	OSUB:           true,
-	OSWITCH:        true,
-	OTYPESW:        true,
 	OVARDEF:        true,
 	OVARKILL:       true,
 	OVARLIVE:       true,
