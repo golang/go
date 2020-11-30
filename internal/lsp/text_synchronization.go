@@ -186,6 +186,11 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 			}()
 		}()
 	}
+
+	// If the set of changes included directories, expand those directories
+	// to their files.
+	modifications = s.session.ExpandModificationsToDirectories(ctx, modifications)
+
 	views, snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		return err

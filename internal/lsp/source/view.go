@@ -289,6 +289,11 @@ type Session interface {
 	// resulting snapshots, a guaranteed one per view.
 	DidModifyFiles(ctx context.Context, changes []FileModification) (map[span.URI]View, map[View]Snapshot, []func(), error)
 
+	// ExpandModificationsToDirectories returns the set of changes with the
+	// directory changes removed and expanded to include all of the files in
+	// the directory.
+	ExpandModificationsToDirectories(ctx context.Context, changes []FileModification) []FileModification
+
 	// Overlays returns a slice of file overlays for the session.
 	Overlays() []Overlay
 

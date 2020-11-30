@@ -422,10 +422,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	views := make(map[*View]map[span.URI]*fileChange)
 	bestViews := map[span.URI]source.View{}
 
-	// If the set of changes included directories, expand those directories
-	// to their files.
-	changes = s.expandChangesToDirectories(ctx, changes)
-
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
 		return nil, nil, nil, err
@@ -498,9 +494,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	return bestViews, snapshots, releases, nil
 }
 
-// expandChangesToDirectories returns the set of changes with the directory
-// changes removed and expanded to include all of the files in the directory.
-func (s *Session) expandChangesToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {
+func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {
 	var snapshots []*snapshot
 	for _, v := range s.views {
 		snapshot, release := v.getSnapshot(ctx)
