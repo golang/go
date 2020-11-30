@@ -352,6 +352,26 @@ func main() {
 }
 `
 
+const exampleWholeFileExternalFunction = `package foo_test
+
+func foo(x int)
+
+func Example() {
+	foo(42) // External function reference
+	fmt.Println("Hello, world!")
+	// Output: Hello, world!
+}
+`
+
+const exampleWholeFileExternalFunctionOutput = `package main
+
+func foo(x int)
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+`
+
 var exampleWholeFileTestCases = []struct {
 	Title, Source, Play, Output string
 }{
@@ -365,6 +385,12 @@ var exampleWholeFileTestCases = []struct {
 		"Function",
 		exampleWholeFileFunction,
 		exampleWholeFileFunctionOutput,
+		"Hello, world!\n",
+	},
+	{
+		"ExternalFunction",
+		exampleWholeFileExternalFunction,
+		exampleWholeFileExternalFunctionOutput,
 		"Hello, world!\n",
 	},
 }
