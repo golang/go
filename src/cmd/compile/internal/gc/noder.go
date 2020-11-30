@@ -347,6 +347,9 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		p.importedEmbed = true
 	}
 
+	if !ipkg.Direct {
+		sourceOrderImports = append(sourceOrderImports, ipkg)
+	}
 	ipkg.Direct = true
 
 	var my *types.Sym
