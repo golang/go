@@ -1065,7 +1065,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetRight(assignconv(n.Right(), t.Key(), "map index"))
 			n.SetType(t.Elem())
 			n.SetOp(ir.OINDEXMAP)
-			n.ResetAux()
+			n.SetIndexMapLValue(false)
 		}
 
 	case ir.ORECV:
@@ -1099,27 +1099,22 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		n.SetLeft(defaultlit(n.Left(), nil))
 		t := n.Left().Type()
 		if t == nil {
-			n.SetType(nil)
 			return n
 		}
 		if !t.IsChan() {
 			base.Errorf("invalid operation: %v (send to non-chan type %v)", n, t)
-			n.SetType(nil)
 			return n
 		}
 
 		if !t.ChanDir().CanSend() {
 			base.Errorf("invalid operation: %v (send to receive-only type %v)", n, t)
-			n.SetType(nil)
 			return n
 		}
 
 		n.SetRight(assignconv(n.Right(), t.Elem(), "send"))
 		if n.Right().Type() == nil {
-			n.SetType(nil)
 			return n
 		}
-		n.SetType(nil)
 
 	case ir.OSLICEHEADER:
 		// Errors here are Fatalf instead of Errorf because only the compiler
@@ -1299,9 +1294,44 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			}
 
 			// builtin: OLEN, OCAP, etc.
-			n.SetOp(l.SubOp())
-			n.SetLeft(n.Right())
-			n.SetRight(nil)
+			switch l.SubOp() {
+			default:
+				base.Fatalf("unknown builtin %v", l)
+				return n
+
+			case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+				n.SetOp(l.SubOp())
+				n.SetLeft(nil)
+
+			case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
+				typecheckargs(n)
+				fallthrough
+			case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+				arg, ok := needOneArg(n, "%v", n.Op())
+				if !ok {
+					n.SetType(nil)
+					return n
+				}
+				old := n
+				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
+				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
+				if l.SubOp() == ir.ONEW {
+					// Bug-compatibility with earlier version.
+					// This extra node is unnecessary but raises the inlining cost by 1.
+					n.SetList(old.List())
+				}
+
+			case ir.OCOMPLEX, ir.OCOPY:
+				typecheckargs(n)
+				arg1, arg2, ok := needTwoArgs(n)
+				if !ok {
+					n.SetType(nil)
+					return n
+				}
+				old := n
+				n = ir.NodAt(n.Pos(), l.SubOp(), arg1, arg2)
+				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
+			}
 			n = typecheck1(n, top)
 			return n
 		}
@@ -1319,15 +1349,14 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// pick off before type-checking arguments
 			ok |= ctxExpr
 
-			// turn CALL(type, arg) into CONV(arg) w/ type
-			n.SetLeft(nil)
-
-			n.SetOp(ir.OCONV)
-			n.SetType(l.Type())
-			if !onearg(n, "conversion to %v", l.Type()) {
+			arg, ok := needOneArg(n, "conversion to %v", l.Type())
+			if !ok {
 				n.SetType(nil)
 				return n
 			}
+
+			n = ir.NodAt(n.Pos(), ir.OCONV, arg, nil)
+			n.SetType(l.Type())
 			n = typecheck1(n, top)
 			return n
 		}
@@ -1406,19 +1435,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 		ok |= ctxExpr
-		if !onearg(n, "%v", n.Op()) {
-			n.SetType(nil)
-			return n
-		}
 		n.SetType(types.Types[types.TUINTPTR])
 
 	case ir.OCAP, ir.OLEN:
 		ok |= ctxExpr
-		if !onearg(n, "%v", n.Op()) {
-			n.SetType(nil)
-			return n
-		}
-
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		n.SetLeft(implicitstar(n.Left()))
@@ -1445,11 +1465,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.OREAL, ir.OIMAG:
 		ok |= ctxExpr
-		if !onearg(n, "%v", n.Op()) {
-			n.SetType(nil)
-			return n
-		}
-
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		l := n.Left()
 		t := l.Type()
@@ -1474,13 +1489,8 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.OCOMPLEX:
 		ok |= ctxExpr
-		typecheckargs(n)
-		if !twoarg(n) {
-			n.SetType(nil)
-			return n
-		}
-		l := n.Left()
-		r := n.Right()
+		l := typecheck(n.Left(), ctxExpr)
+		r := typecheck(n.Right(), ctxExpr)
 		if l.Type() == nil || r.Type() == nil {
 			n.SetType(nil)
 			return n
@@ -1518,10 +1528,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		n.SetType(t)
 
 	case ir.OCLOSE:
-		if !onearg(n, "%v", n.Op()) {
-			n.SetType(nil)
-			return n
-		}
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		l := n.Left()
@@ -1638,17 +1644,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.OCOPY:
 		ok |= ctxStmt | ctxExpr
-		typecheckargs(n)
-		if !twoarg(n) {
-			n.SetType(nil)
-			return n
-		}
 		n.SetType(types.Types[types.TINT])
-		if n.Left().Type() == nil || n.Right().Type() == nil {
-			n.SetType(nil)
-			return n
-		}
+		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
+		n.SetRight(typecheck(n.Right(), ctxExpr))
 		n.SetRight(defaultlit(n.Right(), nil))
 		if n.Left().Type() == nil || n.Right().Type() == nil {
 			n.SetType(nil)
@@ -1746,6 +1745,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		i := 1
+		var nn ir.Node
 		switch t.Etype {
 		default:
 			base.Errorf("cannot make type %v", t)
@@ -1782,10 +1782,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n.SetType(nil)
 				return n
 			}
-
-			n.SetLeft(l)
-			n.SetRight(r)
-			n.SetOp(ir.OMAKESLICE)
+			nn = ir.NodAt(n.Pos(), ir.OMAKESLICE, l, r)
 
 		case types.TMAP:
 			if i < len(args) {
@@ -1801,11 +1798,11 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 					n.SetType(nil)
 					return n
 				}
-				n.SetLeft(l)
 			} else {
-				n.SetLeft(nodintconst(0))
+				l = nodintconst(0)
 			}
-			n.SetOp(ir.OMAKEMAP)
+			nn = ir.NodAt(n.Pos(), ir.OMAKEMAP, l, nil)
+			nn.SetEsc(n.Esc())
 
 		case types.TCHAN:
 			l = nil
@@ -1822,44 +1819,35 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 					n.SetType(nil)
 					return n
 				}
-				n.SetLeft(l)
 			} else {
-				n.SetLeft(nodintconst(0))
+				l = nodintconst(0)
 			}
-			n.SetOp(ir.OMAKECHAN)
+			nn = ir.NodAt(n.Pos(), ir.OMAKECHAN, l, nil)
 		}
 
 		if i < len(args) {
 			base.Errorf("too many arguments to make(%v)", t)
-			n.SetOp(ir.OMAKE)
 			n.SetType(nil)
 			return n
 		}
 
-		n.SetType(t)
+		nn.SetType(t)
+		n = nn
 
 	case ir.ONEW:
 		ok |= ctxExpr
-		args := n.List()
-		if args.Len() == 0 {
-			base.Errorf("missing argument to new")
-			n.SetType(nil)
-			return n
+		if n.Left() == nil {
+			// Fatalf because the OCALL above checked for us,
+			// so this must be an internally-generated mistake.
+			base.Fatalf("missing argument to new")
 		}
-
-		l := args.First()
+		l := n.Left()
 		l = typecheck(l, ctxType)
 		t := l.Type()
 		if t == nil {
 			n.SetType(nil)
 			return n
 		}
-		if args.Len() > 1 {
-			base.Errorf("too many arguments to new(%v)", t)
-			n.SetType(nil)
-			return n
-		}
-
 		n.SetLeft(l)
 		n.SetType(types.NewPtr(t))
 
@@ -1878,10 +1866,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	case ir.OPANIC:
 		ok |= ctxStmt
-		if !onearg(n, "panic") {
-			n.SetType(nil)
-			return n
-		}
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), types.Types[types.TINTER]))
 		if n.Left().Type() == nil {
@@ -2286,45 +2270,32 @@ func implicitstar(n ir.Node) ir.Node {
 	return n
 }
 
-func onearg(n ir.Node, f string, args ...interface{}) bool {
-	if n.Left() != nil {
-		return true
-	}
+func needOneArg(n ir.Node, f string, args ...interface{}) (ir.Node, bool) {
 	if n.List().Len() == 0 {
 		p := fmt.Sprintf(f, args...)
 		base.Errorf("missing argument to %s: %v", p, n)
-		return false
+		return nil, false
 	}
 
 	if n.List().Len() > 1 {
 		p := fmt.Sprintf(f, args...)
 		base.Errorf("too many arguments to %s: %v", p, n)
-		n.SetLeft(n.List().First())
-		n.PtrList().Set(nil)
-		return false
+		return n.List().First(), false
 	}
 
-	n.SetLeft(n.List().First())
-	n.PtrList().Set(nil)
-	return true
+	return n.List().First(), true
 }
 
-func twoarg(n ir.Node) bool {
-	if n.Left() != nil {
-		return true
-	}
+func needTwoArgs(n ir.Node) (ir.Node, ir.Node, bool) {
 	if n.List().Len() != 2 {
 		if n.List().Len() < 2 {
 			base.Errorf("not enough arguments in call to %v", n)
 		} else {
 			base.Errorf("too many arguments in call to %v", n)
 		}
-		return false
+		return nil, nil, false
 	}
-	n.SetLeft(n.List().First())
-	n.SetRight(n.List().Second())
-	n.PtrList().Set(nil)
-	return true
+	return n.List().First(), n.List().Second(), true
 }
 
 func lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
@@ -2411,21 +2382,19 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 		return n
 	}
 
-	n.SetOp(ir.OMETHEXPR)
-	n.SetRight(NewName(n.Sym()))
-	n.SetSym(methodSym(t, n.Sym()))
-	n.SetType(methodfunc(m.Type, n.Left().Type()))
-	n.SetOffset(0)
-	n.SetClass(ir.PFUNC)
-	n.SetOpt(m)
-	// methodSym already marked n.Sym as a function.
+	me := ir.NodAt(n.Pos(), ir.OMETHEXPR, n.Left(), NewName(n.Sym()))
+	me.SetSym(methodSym(t, n.Sym()))
+	me.SetType(methodfunc(m.Type, n.Left().Type()))
+	me.SetOffset(0)
+	me.SetClass(ir.PFUNC)
+	me.SetOpt(m)
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym == nil || t.Sym.Pkg == ir.LocalPkg) {
-		makefuncsym(n.Sym())
+		makefuncsym(me.Sym())
 	}
 
-	return n
+	return me
 }
 
 // isMethodApplicable reports whether method m can be called on a

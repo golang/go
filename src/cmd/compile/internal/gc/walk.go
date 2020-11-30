@@ -1515,9 +1515,10 @@ opswitch:
 			}
 
 			// Slice the [n]byte to a []byte.
-			n.SetOp(ir.OSLICEARR)
-			n.SetLeft(p)
-			n = walkexpr(n, init)
+			slice := ir.NodAt(n.Pos(), ir.OSLICEARR, p, nil)
+			slice.SetType(n.Type())
+			slice.SetTypecheck(1)
+			n = walkexpr(slice, init)
 			break
 		}
 
