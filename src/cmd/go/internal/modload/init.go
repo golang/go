@@ -1018,7 +1018,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
 			}
 		}
 		for _, pkg := range loaded.pkgs {
-			if pkg.testOf != nil || pkg.inStd {
+			if pkg.testOf != nil || pkg.inStd || module.CheckImportPath(pkg.path) != nil {
 				continue
 			}
 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
