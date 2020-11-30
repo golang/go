@@ -691,6 +691,18 @@ func TestExtraFiles(t *testing.T) {
 	c.Stdout = &stdout
 	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
+	if runtime.GOOS == "illumos" {
+		// Some facilities in illumos are implemented via access
+		// to /proc by libc; such accesses can briefly occupy a
+		// low-numbered fd.  If this occurs concurrently with the
+		// test that checks for leaked descriptors, the check can
+		// become confused and report a spurious leaked descriptor.
+		// (See issue #42431 for more detailed analysis.)
+		//
+		// Attempt to constrain the use of additional threads in the
+		// child process to make this test less flaky:
+		c.Env = append(os.Environ(), "GOMAXPROCS=1")
+	}
 	err = c.Run()
 	if err != nil {
 		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
