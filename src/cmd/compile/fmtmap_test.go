@@ -29,7 +29,7 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/ir.Name %+v":               "",
 	"*cmd/compile/internal/ir.Name %L":                "",
 	"*cmd/compile/internal/ir.Name %v":                "",
-	"*cmd/compile/internal/ir.node %v":                "",
+	"*cmd/compile/internal/ir.SliceExpr %v":           "",
 	"*cmd/compile/internal/ssa.Block %s":              "",
 	"*cmd/compile/internal/ssa.Block %v":              "",
 	"*cmd/compile/internal/ssa.Func %s":               "",
