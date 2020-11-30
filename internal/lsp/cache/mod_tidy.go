@@ -204,6 +204,7 @@ func hashImports(ctx context.Context, wsPackages []source.Package) (string, erro
 				imports = append(imports, imp)
 			}
 		}
+		imports = append(imports, pkg.MissingDependencies()...)
 	}
 	sort.Strings(imports)
 	hashed := strings.Join(imports, ",")
