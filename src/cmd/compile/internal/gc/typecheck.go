@@ -1315,11 +1315,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				old := n
 				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
 				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
-				if l.SubOp() == ir.ONEW {
-					// Bug-compatibility with earlier version.
-					// This extra node is unnecessary but raises the inlining cost by 1.
-					n.SetList(old.List())
-				}
 
 			case ir.OCOMPLEX, ir.OCOPY:
 				typecheckargs(n)
