@@ -27,6 +27,9 @@ func renameinit() *types.Sym {
 	return s
 }
 
+// List of imported packages, in source code order. See #31636.
+var sourceOrderImports []*types.Pkg
+
 // fninit makes an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:
@@ -40,8 +43,15 @@ func fninit(n []ir.Node) {
 	var fns []*obj.LSym  // functions to call for package initialization
 
 	// Find imported packages with init tasks.
-	for _, s := range types.InitSyms {
-		deps = append(deps, s.Linksym())
+	for _, pkg := range sourceOrderImports {
+		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
+		if n == nil {
+			continue
+		}
+		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
+			base.Fatalf("bad inittask: %v", n)
+		}
+		deps = append(deps, n.Sym().Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
