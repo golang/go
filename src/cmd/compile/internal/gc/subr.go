@@ -1472,7 +1472,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	if t.IsInterface() {
 		base.Fatalf("ifaceData interface: %v", t)
 	}
-	ptr := nodlSym(pos, ir.OIDATA, n, nil)
+	ptr := ir.NodAt(pos, ir.OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.SetType(t)
 		ptr.SetTypecheck(1)

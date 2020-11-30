@@ -686,8 +686,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 
 		a = ir.Nod(ir.OADDR, a, nil)
 	} else {
-		a = ir.Nod(ir.ONEW, nil, nil)
-		a.PtrList().Set1(ir.TypeNode(t))
+		a = ir.Nod(ir.ONEW, ir.TypeNode(t), nil)
 	}
 
 	a = ir.Nod(ir.OAS, vauto, a)
@@ -889,9 +888,8 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			r = ir.Nod(ir.OADDR, n.Right(), nil)
 			r = typecheck(r, ctxExpr)
 		} else {
-			r = ir.Nod(ir.ONEW, nil, nil)
-			r.SetTypecheck(1)
-			r.SetType(t)
+			r = ir.Nod(ir.ONEW, ir.TypeNode(n.Left().Type()), nil)
+			r = typecheck(r, ctxExpr)
 			r.SetEsc(n.Esc())
 		}
 
