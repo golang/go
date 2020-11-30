@@ -809,20 +809,19 @@ func (r *importReader) node() ir.Node {
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
 
-	// case ONIL:
-	//	unreachable - mapped to OLITERAL
+	case ir.ONIL:
+		pos := r.pos()
+		typ := r.typ()
+
+		n := npos(pos, nodnil())
+		n.SetType(typ)
+		return n
 
 	case ir.OLITERAL:
 		pos := r.pos()
 		typ := r.typ()
 
-		var n ir.Node
-		if typ.HasNil() {
-			n = nodnil()
-		} else {
-			n = ir.NewLiteral(r.value(typ))
-		}
-		n = npos(pos, n)
+		n := npos(pos, ir.NewLiteral(r.value(typ)))
 		n.SetType(typ)
 		return n
 
