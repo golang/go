@@ -301,7 +301,6 @@ const (
 	OCASE
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
-	OEMPTY    // TODO(rsc): Delete. (Use OBLOCK instead.)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
 	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
