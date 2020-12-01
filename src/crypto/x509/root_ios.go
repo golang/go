@@ -10,9 +10,6 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	return nil, nil
 }
 
-// loadSystemRootsWithCgo is not available on iOS.
-var loadSystemRootsWithCgo func() (*CertPool, error)
-
 func loadSystemRoots() (*CertPool, error) {
 	p := NewCertPool()
 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
