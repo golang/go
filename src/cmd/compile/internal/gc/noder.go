@@ -84,7 +84,8 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 
 		conf := types2.Config{
 			InferFromConstraints:  true,
-			CompilerErrorMessages: true,
+			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
+			CompilerErrorMessages: true, // use error strings matching existing compiler errors
 			Error: func(err error) {
 				terr := err.(types2.Error)
 				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
