@@ -2493,7 +2493,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 			pll = ll
 			ll = ll.Left()
 		}
-		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym() != nil && ir.AsNode(ll.Type().Sym().Def) != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
+		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym() != nil && ll.Type().Sym().Def != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
 			// It is invalid to automatically dereference a named pointer type when selecting a method.
 			// Make n.Left == ll to clarify error message.
 			n.SetLeft(ll)
@@ -3369,7 +3369,7 @@ func typecheckfunc(n *ir.Func) {
 
 	for _, ln := range n.Dcl {
 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PPARAM || ln.Class() == ir.PPARAMOUT) {
-			ln.Name().Decldepth = 1
+			ln.Decldepth = 1
 		}
 	}
 
@@ -3923,7 +3923,7 @@ func curpkg() *types.Pkg {
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.
 func methodExprName(n ir.Node) *ir.Name {
-	name, _ := ir.AsNode(methodExprFunc(n).Nname).(*ir.Name)
+	name, _ := methodExprFunc(n).Nname.(*ir.Name)
 	return name
 }
 

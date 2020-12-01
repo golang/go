@@ -1001,7 +1001,7 @@ func typename(t *types.Type) ir.Node {
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
+	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1021,7 +1021,7 @@ func itabname(t, itype *types.Type) ir.Node {
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
+	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
 }

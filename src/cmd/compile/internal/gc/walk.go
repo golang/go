@@ -43,16 +43,16 @@ func walk(fn *ir.Func) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
 	for _, ln := range fn.Dcl {
-		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Name().Defn != nil && ln.Name().Defn.Op() == ir.OTYPESW && ln.Name().Used() {
-			ln.Name().Defn.Left().Name().SetUsed(true)
+		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
+			ln.Defn.Left().Name().SetUsed(true)
 		}
 	}
 
 	for _, ln := range fn.Dcl {
-		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Name().Used() {
+		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
 			continue
 		}
-		if defn := ln.Name().Defn; defn != nil && defn.Op() == ir.OTYPESW {
+		if defn := ln.Defn; defn != nil && defn.Op() == ir.OTYPESW {
 			if defn.Left().Name().Used() {
 				continue
 			}
@@ -91,7 +91,7 @@ func paramoutheap(fn *ir.Func) bool {
 	for _, ln := range fn.Dcl {
 		switch ln.Class() {
 		case ir.PPARAMOUT:
-			if isParamStackCopy(ln) || ln.Name().Addrtaken() {
+			if isParamStackCopy(ln) || ln.Addrtaken() {
 				return true
 			}
 

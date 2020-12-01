@@ -6196,7 +6196,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func emitStackObjects(e *ssafn, pp *Progs) {
 	var vars []ir.Node
 	for _, n := range e.curfn.Dcl {
-		if livenessShouldTrack(n) && n.Name().Addrtaken() {
+		if livenessShouldTrack(n) && n.Addrtaken() {
 			vars = append(vars, n)
 		}
 	}
@@ -6583,7 +6583,7 @@ func defframe(s *SSAGenState, e *ssafn) {
 
 	// Iterate through declarations. They are sorted in decreasing Xoffset order.
 	for _, n := range e.curfn.Dcl {
-		if !n.Name().Needzero() {
+		if !n.Needzero() {
 			continue
 		}
 		if n.Class() != ir.PAUTO {
