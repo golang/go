@@ -191,6 +191,9 @@ func (f *F) Fuzz(ff interface{}) {
 }
 
 func (f *F) report() {
+	if *isFuzzWorker {
+		return
+	}
 	if f.Failed() {
 		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", f.name, f.result.String())
 	} else if f.chatty != nil {
@@ -357,7 +360,9 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	}
 	if Verbose() {
 		f.chatty = newChattyPrinter(f.w)
-		f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
+		if !*isFuzzWorker {
+			f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
+		}
 	}
 	go f.runTarget(target.Fn)
 	<-f.signal
