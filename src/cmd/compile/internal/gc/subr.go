@@ -181,7 +181,7 @@ func nodstr(s string) ir.Node {
 	return ir.NewLiteral(constant.MakeString(s))
 }
 
-func isptrto(t *types.Type, et types.EType) bool {
+func isptrto(t *types.Type, et types.Kind) bool {
 	if t == nil {
 		return false
 	}
@@ -192,7 +192,7 @@ func isptrto(t *types.Type, et types.EType) bool {
 	if t == nil {
 		return false
 	}
-	if t.Etype != et {
+	if t.Kind() != et {
 		return false
 	}
 	return true
@@ -208,7 +208,7 @@ func methtype(t *types.Type) *types.Type {
 
 	// Strip away pointer if it's there.
 	if t.IsPtr() {
-		if t.Sym != nil {
+		if t.Sym() != nil {
 			return nil
 		}
 		t = t.Elem()
@@ -218,15 +218,15 @@ func methtype(t *types.Type) *types.Type {
 	}
 
 	// Must be a named type or anonymous struct.
-	if t.Sym == nil && !t.IsStruct() {
+	if t.Sym() == nil && !t.IsStruct() {
 		return nil
 	}
 
 	// Check types.
-	if issimple[t.Etype] {
+	if issimple[t.Kind()] {
 		return t
 	}
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRING, types.TSTRUCT:
 		return t
 	}
@@ -241,7 +241,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
-	if src == nil || dst == nil || src.Etype == types.TFORW || dst.Etype == types.TFORW || src.Orig == nil || dst.Orig == nil {
+	if src == nil || dst == nil || src.Kind() == types.TFORW || dst.Kind() == types.TFORW || src.Underlying() == nil || dst.Underlying() == nil {
 		return ir.OXXX, ""
 	}
 
@@ -257,13 +257,13 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 	// we want to recompute the itab. Recomputing the itab ensures
 	// that itabs are unique (thus an interface with a compile-time
 	// type I has an itab with interface type I).
-	if types.Identical(src.Orig, dst.Orig) {
+	if types.Identical(src.Underlying(), dst.Underlying()) {
 		if src.IsEmptyInterface() {
 			// Conversion between two empty interfaces
 			// requires no code.
 			return ir.OCONVNOP, ""
 		}
-		if (src.Sym == nil || dst.Sym == nil) && !src.IsInterface() {
+		if (src.Sym() == nil || dst.Sym() == nil) && !src.IsInterface() {
 			// Conversion between two types, at least one unnamed,
 			// needs no conversion. The exception is nonempty interfaces
 			// which need to have their itab updated.
@@ -272,7 +272,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 	}
 
 	// 3. dst is an interface type and src implements dst.
-	if dst.IsInterface() && src.Etype != types.TNIL {
+	if dst.IsInterface() && src.Kind() != types.TNIL {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
@@ -309,7 +309,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 		return ir.OXXX, why
 	}
 
-	if src.IsInterface() && dst.Etype != types.TBLANK {
+	if src.IsInterface() && dst.Kind() != types.TBLANK {
 		var missing, have *types.Field
 		var ptr int
 		var why string
@@ -323,14 +323,14 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
 	if src.IsChan() && src.ChanDir() == types.Cboth && dst.IsChan() {
-		if types.Identical(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+		if types.Identical(src.Elem(), dst.Elem()) && (src.Sym() == nil || dst.Sym() == nil) {
 			return ir.OCONVNOP, ""
 		}
 	}
 
 	// 5. src is the predeclared identifier nil and dst is a nillable type.
-	if src.Etype == types.TNIL {
-		switch dst.Etype {
+	if src.Kind() == types.TNIL {
+		switch dst.Kind() {
 		case types.TPTR,
 			types.TFUNC,
 			types.TMAP,
@@ -344,7 +344,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 	// 6. rule about untyped constants - already converted by defaultlit.
 
 	// 7. Any typed value can be assigned to the blank identifier.
-	if dst.Etype == types.TBLANK {
+	if dst.Kind() == types.TBLANK {
 		return ir.OCONVNOP, ""
 	}
 
@@ -373,7 +373,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 		return ir.OXXX, why
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
-	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
+	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Kind() == types.ByteType.Kind() || dst.Elem().Kind() == types.RuneType.Kind()) {
 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		return ir.OXXX, why
 	}
@@ -393,21 +393,21 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	}
 
 	// 2. Ignoring struct tags, src and dst have identical underlying types.
-	if types.IdenticalIgnoreTags(src.Orig, dst.Orig) {
+	if types.IdenticalIgnoreTags(src.Underlying(), dst.Underlying()) {
 		return ir.OCONVNOP, ""
 	}
 
 	// 3. src and dst are unnamed pointer types and, ignoring struct tags,
 	// their base types have identical underlying types.
-	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
-		if types.IdenticalIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
+	if src.IsPtr() && dst.IsPtr() && src.Sym() == nil && dst.Sym() == nil {
+		if types.IdenticalIgnoreTags(src.Elem().Underlying(), dst.Elem().Underlying()) {
 			return ir.OCONVNOP, ""
 		}
 	}
 
 	// 4. src and dst are both integer or floating point types.
 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
-		if simtype[src.Etype] == simtype[dst.Etype] {
+		if simtype[src.Kind()] == simtype[dst.Kind()] {
 			return ir.OCONVNOP, ""
 		}
 		return ir.OCONV, ""
@@ -415,7 +415,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 
 	// 5. src and dst are both complex types.
 	if src.IsComplex() && dst.IsComplex() {
-		if simtype[src.Etype] == simtype[dst.Etype] {
+		if simtype[src.Kind()] == simtype[dst.Kind()] {
 			return ir.OCONVNOP, ""
 		}
 		return ir.OCONV, ""
@@ -435,10 +435,10 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	}
 
 	if src.IsSlice() && dst.IsString() {
-		if src.Elem().Etype == types.Bytetype.Etype {
+		if src.Elem().Kind() == types.ByteType.Kind() {
 			return ir.OBYTES2STR, ""
 		}
-		if src.Elem().Etype == types.Runetype.Etype {
+		if src.Elem().Kind() == types.RuneType.Kind() {
 			return ir.ORUNES2STR, ""
 		}
 	}
@@ -446,10 +446,10 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
 	if src.IsString() && dst.IsSlice() {
-		if dst.Elem().Etype == types.Bytetype.Etype {
+		if dst.Elem().Kind() == types.ByteType.Kind() {
 			return ir.OSTR2BYTES, ""
 		}
-		if dst.Elem().Etype == types.Runetype.Etype {
+		if dst.Elem().Kind() == types.RuneType.Kind() {
 			return ir.OSTR2RUNES, ""
 		}
 	}
@@ -467,7 +467,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	// src is map and dst is a pointer to corresponding hmap.
 	// This rule is needed for the implementation detail that
 	// go gc maps are implemented as a pointer to a hmap struct.
-	if src.Etype == types.TMAP && dst.IsPtr() &&
+	if src.Kind() == types.TMAP && dst.IsPtr() &&
 		src.MapType().Hmap == dst.Elem() {
 		return ir.OCONVNOP, ""
 	}
@@ -485,7 +485,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		return n
 	}
 
-	if t.Etype == types.TBLANK && n.Type().Etype == types.TNIL {
+	if t.Kind() == types.TBLANK && n.Type().Kind() == types.TNIL {
 		base.Errorf("use of untyped nil")
 	}
 
@@ -493,7 +493,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 	if n.Type() == nil {
 		return n
 	}
-	if t.Etype == types.TBLANK {
+	if t.Kind() == types.TBLANK {
 		return n
 	}
 
@@ -600,15 +600,15 @@ func calcHasCall(n ir.Node) bool {
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
 	case ir.OADD, ir.OSUB, ir.ONEG, ir.OMUL:
-		if thearch.SoftFloat && (isFloat[n.Type().Etype] || isComplex[n.Type().Etype]) {
+		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
-		if thearch.SoftFloat && (isFloat[n.Left().Type().Etype] || isComplex[n.Left().Type().Etype]) {
+		if thearch.SoftFloat && (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()]) {
 			return true
 		}
 	case ir.OCONV:
-		if thearch.SoftFloat && ((isFloat[n.Type().Etype] || isComplex[n.Type().Etype]) || (isFloat[n.Left().Type().Etype] || isComplex[n.Left().Type().Etype])) {
+		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()])) {
 			return true
 		}
 	}
@@ -802,7 +802,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 	}
 
 	u = t
-	if t.Sym != nil && t.IsPtr() && !t.Elem().IsPtr() {
+	if t.Sym() != nil && t.IsPtr() && !t.Elem().IsPtr() {
 		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
 		u = t.Elem()
 	}
@@ -1110,13 +1110,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	// Only generate (*T).M wrappers for T.M in T's own package.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
-		rcvr.Elem().Sym != nil && rcvr.Elem().Sym.Pkg != ir.LocalPkg {
+		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != ir.LocalPkg {
 		return
 	}
 
 	// Only generate I.M wrappers for I in I's own package
 	// but keep doing it for error.Error (was issue #29304).
-	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != ir.LocalPkg && rcvr != types.Errortype {
+	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != ir.LocalPkg && rcvr != types.ErrorType {
 		return
 	}
 
@@ -1193,7 +1193,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// Inline calls within (*T).M wrappers. This is safe because we only
 	// generate those wrappers within the same compilation unit as (T).M.
 	// TODO(mdempsky): Investigate why we can't enable this more generally.
-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
+	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
 		inlcalls(fn)
 	}
 	escapeFuncs([]*ir.Func{fn}, false)
@@ -1433,7 +1433,7 @@ func isdirectiface(t *types.Type) bool {
 		return false
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR:
 		// Pointers to notinheap types must be stored indirectly. See issue 42076.
 		return !t.Elem().NotInHeap()

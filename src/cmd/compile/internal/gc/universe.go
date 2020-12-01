@@ -15,7 +15,7 @@ import (
 
 var basicTypes = [...]struct {
 	name  string
-	etype types.EType
+	etype types.Kind
 }{
 	{"int8", types.TINT8},
 	{"int16", types.TINT16},
@@ -35,9 +35,9 @@ var basicTypes = [...]struct {
 
 var typedefs = [...]struct {
 	name     string
-	etype    types.EType
-	sameas32 types.EType
-	sameas64 types.EType
+	etype    types.Kind
+	sameas32 types.Kind
+	sameas64 types.Kind
 }{
 	{"int", types.TINT, types.TINT32, types.TINT64},
 	{"uint", types.TUINT, types.TUINT32, types.TUINT64},
@@ -99,14 +99,14 @@ func initUniverse() {
 	// string is same as slice wo the cap
 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
 
-	for et := types.EType(0); et < types.NTYPE; et++ {
+	for et := types.Kind(0); et < types.NTYPE; et++ {
 		simtype[et] = et
 	}
 
 	types.Types[types.TANY] = types.New(types.TANY)
 	types.Types[types.TINTER] = types.New(types.TINTER) // empty interface
 
-	defBasic := func(kind types.EType, pkg *types.Pkg, name string) *types.Type {
+	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
 		sym := pkg.Lookup(name)
 		n := ir.NewNameAt(src.NoXPos, sym)
 		n.SetOp(ir.OTYPE)
@@ -140,18 +140,18 @@ func initUniverse() {
 	// of less informative error messages involving bytes and runes)?
 	// (Alternatively, we could introduce an OTALIAS node representing
 	// type aliases, albeit at the cost of having to deal with it everywhere).
-	types.Bytetype = defBasic(types.TUINT8, ir.BuiltinPkg, "byte")
-	types.Runetype = defBasic(types.TINT32, ir.BuiltinPkg, "rune")
+	types.ByteType = defBasic(types.TUINT8, ir.BuiltinPkg, "byte")
+	types.RuneType = defBasic(types.TINT32, ir.BuiltinPkg, "rune")
 
 	// error type
 	s := ir.BuiltinPkg.Lookup("error")
 	n := ir.NewNameAt(src.NoXPos, s)
 	n.SetOp(ir.OTYPE)
-	types.Errortype = types.NewNamed(n)
-	types.Errortype.SetUnderlying(makeErrorInterface())
-	n.SetType(types.Errortype)
+	types.ErrorType = types.NewNamed(n)
+	types.ErrorType.SetUnderlying(makeErrorInterface())
+	n.SetType(types.ErrorType)
 	s.Def = n
-	dowidth(types.Errortype)
+	dowidth(types.ErrorType)
 
 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, unsafepkg, "Pointer")
 
@@ -218,7 +218,7 @@ func initUniverse() {
 	isComplex[types.TCOMPLEX128] = true
 
 	// initialize okfor
-	for et := types.EType(0); et < types.NTYPE; et++ {
+	for et := types.Kind(0); et < types.NTYPE; et++ {
 		if isInt[et] || et == types.TIDEAL {
 			okforeq[et] = true
 			okforcmp[et] = true

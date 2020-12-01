@@ -206,7 +206,7 @@ var runtimeDecls = [...]struct {
 
 func runtimeTypes() []*types.Type {
 	var typs [131]*types.Type
-	typs[0] = types.Bytetype
+	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
 	typs[3] = types.NewPtr(typs[2])
@@ -252,7 +252,7 @@ func runtimeTypes() []*types.Type {
 	typs[43] = functype(nil, []*ir.Field{anonfield(typs[42]), anonfield(typs[22])}, []*ir.Field{anonfield(typs[28])})
 	typs[44] = functype(nil, []*ir.Field{anonfield(typs[33]), anonfield(typs[1]), anonfield(typs[15])}, []*ir.Field{anonfield(typs[28])})
 	typs[45] = functype(nil, []*ir.Field{anonfield(typs[1]), anonfield(typs[15])}, []*ir.Field{anonfield(typs[28])})
-	typs[46] = types.Runetype
+	typs[46] = types.RuneType
 	typs[47] = types.NewSlice(typs[46])
 	typs[48] = functype(nil, []*ir.Field{anonfield(typs[33]), anonfield(typs[47])}, []*ir.Field{anonfield(typs[28])})
 	typs[49] = types.NewSlice(typs[0])

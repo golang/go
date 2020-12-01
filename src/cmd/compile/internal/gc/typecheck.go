@@ -156,7 +156,7 @@ func typekind(t *types.Type) string {
 	if t.IsUntyped() {
 		return fmt.Sprintf("%v", t)
 	}
-	et := t.Etype
+	et := t.Kind()
 	if int(et) < len(_typekind) {
 		s := _typekind[et]
 		if s != "" {
@@ -329,7 +329,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 // The result of indexlit MUST be assigned back to n, e.g.
 // 	n.Left = indexlit(n.Left)
 func indexlit(n ir.Node) ir.Node {
-	if n != nil && n.Type() != nil && n.Type().Etype == types.TIDEAL {
+	if n != nil && n.Type() != nil && n.Type().Kind() == types.TIDEAL {
 		return defaultlit(n, types.Types[types.TINT])
 	}
 	return n
@@ -583,7 +583,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n.SetType(nil)
 				return n
 			}
-			if n.Implicit() && !okforarith[l.Type().Etype] {
+			if n.Implicit() && !okforarith[l.Type().Kind()] {
 				base.Errorf("invalid operation: %v (non-numeric type %v)", n, l.Type())
 				n.SetType(nil)
 				return n
@@ -617,7 +617,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				return n
 			}
 			t = l.Type()
-			if t != nil && t.Etype != types.TIDEAL && !t.IsInteger() {
+			if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
 				base.Errorf("invalid operation: %v (shift of type %v)", n, t)
 				n.SetType(nil)
 				return n
@@ -659,15 +659,15 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 		t := l.Type()
-		if t.Etype == types.TIDEAL {
+		if t.Kind() == types.TIDEAL {
 			t = r.Type()
 		}
-		et := t.Etype
+		et := t.Kind()
 		if et == types.TIDEAL {
 			et = types.TINT
 		}
 		aop := ir.OXXX
-		if iscmp[n.Op()] && t.Etype != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
+		if iscmp[n.Op()] && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
 			// the same type.
@@ -676,7 +676,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// in that case, check comparability of the concrete type.
 			// The conversion allocates, so only do it if the concrete type is huge.
 			converted := false
-			if r.Type().Etype != types.TBLANK {
+			if r.Type().Kind() != types.TBLANK {
 				aop, _ = assignop(l.Type(), r.Type())
 				if aop != ir.OXXX {
 					if r.Type().IsInterface() && !l.Type().IsInterface() && !IsComparable(l.Type()) {
@@ -698,7 +698,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				}
 			}
 
-			if !converted && l.Type().Etype != types.TBLANK {
+			if !converted && l.Type().Kind() != types.TBLANK {
 				aop, _ = assignop(r.Type(), l.Type())
 				if aop != ir.OXXX {
 					if l.Type().IsInterface() && !r.Type().IsInterface() && !IsComparable(r.Type()) {
@@ -719,10 +719,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				}
 			}
 
-			et = t.Etype
+			et = t.Kind()
 		}
 
-		if t.Etype != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
+		if t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
 			l, r = defaultlit2(l, r, true)
 			if l.Type() == nil || r.Type() == nil {
 				n.SetType(nil)
@@ -735,10 +735,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			}
 		}
 
-		if t.Etype == types.TIDEAL {
+		if t.Kind() == types.TIDEAL {
 			t = mixUntyped(l.Type(), r.Type())
 		}
-		if dt := defaultType(t); !okfor[op][dt.Etype] {
+		if dt := defaultType(t); !okfor[op][dt.Kind()] {
 			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(t))
 			n.SetType(nil)
 			return n
@@ -764,7 +764,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 
-		if l.Type().Etype == types.TFUNC && !ir.IsNil(l) && !ir.IsNil(r) {
+		if l.Type().Kind() == types.TFUNC && !ir.IsNil(l) && !ir.IsNil(r) {
 			base.Errorf("invalid operation: %v (func can only be compared to nil)", n)
 			n.SetType(nil)
 			return n
@@ -825,7 +825,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
-		if !okfor[n.Op()][defaultType(t).Etype] {
+		if !okfor[n.Op()][defaultType(t).Kind()] {
 			base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, n.Op(), typekind(t))
 			n.SetType(nil)
 			return n
@@ -1023,7 +1023,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
-		switch t.Etype {
+		switch t.Kind() {
 		default:
 			base.Errorf("invalid operation: %v (type %v does not support indexing)", n, t)
 			n.SetType(nil)
@@ -1032,7 +1032,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		case types.TSTRING, types.TARRAY, types.TSLICE:
 			n.SetRight(indexlit(n.Right()))
 			if t.IsString() {
-				n.SetType(types.Bytetype)
+				n.SetType(types.ByteType)
 			} else {
 				n.SetType(t.Elem())
 			}
@@ -1191,7 +1191,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		n.SetLeft(defaultlit(n.Left(), types.Types[types.TINT]))
 
-		if !n.Left().Type().IsInteger() && n.Type().Etype != types.TIDEAL {
+		if !n.Left().Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 			base.Errorf("non-integer len argument in OMAKESLICECOPY")
 		}
 
@@ -1383,7 +1383,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		default:
 			n.SetOp(ir.OCALLFUNC)
-			if t.Etype != types.TFUNC {
+			if t.Kind() != types.TFUNC {
 				name := l.String()
 				if isBuiltinFuncName(name) && l.Name().Defn != nil {
 					// be more specific when the function
@@ -1446,9 +1446,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		var ok bool
 		if n.Op() == ir.OLEN {
-			ok = okforlen[t.Etype]
+			ok = okforlen[t.Kind()]
 		} else {
-			ok = okforcap[t.Etype]
+			ok = okforcap[t.Kind()]
 		}
 		if !ok {
 			base.Errorf("invalid argument %L for %v", l, n.Op())
@@ -1469,7 +1469,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		// Determine result type.
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TIDEAL:
 			n.SetType(types.UntypedFloat)
 		case types.TCOMPLEX64:
@@ -1505,7 +1505,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		var t *types.Type
-		switch l.Type().Etype {
+		switch l.Type().Kind() {
 		default:
 			base.Errorf("invalid operation: %v (arguments have type %v, expected floating-point)", n, l.Type())
 			n.SetType(nil)
@@ -1624,7 +1624,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				break
 			}
 
-			args.SetSecond(assignconv(args.Second(), t.Orig, "append"))
+			args.SetSecond(assignconv(args.Second(), t.Underlying(), "append"))
 			break
 		}
 
@@ -1651,7 +1651,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		// copy([]byte, string)
 		if n.Left().Type().IsSlice() && n.Right().Type().IsString() {
-			if types.Identical(n.Left().Type().Elem(), types.Bytetype) {
+			if types.Identical(n.Left().Type().Elem(), types.ByteType) {
 				break
 			}
 			base.Errorf("arguments to copy have different element types: %L and string", n.Left().Type())
@@ -1701,8 +1701,8 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		n.SetOp(op)
 		switch n.Op() {
 		case ir.OCONVNOP:
-			if t.Etype == n.Type().Etype {
-				switch t.Etype {
+			if t.Kind() == n.Type().Kind() {
+				switch t.Kind() {
 				case types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
 					// Floating point casts imply rounding and
 					// so the conversion must be kept.
@@ -1741,7 +1741,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		i := 1
 		var nn ir.Node
-		switch t.Etype {
+		switch t.Kind() {
 		default:
 			base.Errorf("cannot make type %v", t)
 			n.SetType(nil)
@@ -2062,7 +2062,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	t := n.Type()
 	if t != nil && !t.IsFuncArgStruct() && n.Op() != ir.OTYPE {
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TFUNC, // might have TANY; wait until it's called
 			types.TANY, types.TFORW, types.TIDEAL, types.TNIL, types.TBLANK:
 			break
@@ -2352,7 +2352,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 		// types declared at package scope. However, we need
 		// to make sure to generate wrappers for anonymous
 		// receiver types too.
-		if mt.Sym == nil {
+		if mt.Sym() == nil {
 			addsignat(t)
 		}
 	}
@@ -2385,7 +2385,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 	me.SetOpt(m)
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym == nil || t.Sym.Pkg == ir.LocalPkg) {
+	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == ir.LocalPkg) {
 		makefuncsym(me.Sym())
 	}
 
@@ -2417,7 +2417,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 	}
 
 	var f2 *types.Field
-	if n.Left().Type() == t || n.Left().Type().Sym == nil {
+	if n.Left().Type() == t || n.Left().Type().Sym() == nil {
 		mt := methtype(t)
 		if mt != nil {
 			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
@@ -2493,7 +2493,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 			pll = ll
 			ll = ll.Left()
 		}
-		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym != nil && ir.AsNode(ll.Type().Sym.Def) != nil && ir.AsNode(ll.Type().Sym.Def).Op() == ir.OTYPE {
+		if pll.Implicit() && ll.Type().IsPtr() && ll.Type().Sym() != nil && ir.AsNode(ll.Type().Sym().Def) != nil && ir.AsNode(ll.Type().Sym().Def).Op() == ir.OTYPE {
 			// It is invalid to automatically dereference a named pointer type when selecting a method.
 			// Make n.Left == ll to clarify error message.
 			n.SetLeft(ll)
@@ -2681,7 +2681,7 @@ func sigrepr(t *types.Type, isddd bool) string {
 		return "bool"
 	}
 
-	if t.Etype == types.TIDEAL {
+	if t.Kind() == types.TIDEAL {
 		// "untyped number" is not commonly used
 		// outside of the compiler, so let's use "number".
 		// TODO(mdempsky): Revisit this.
@@ -2724,7 +2724,7 @@ func fielddup(name string, hash map[string]bool) {
 
 // iscomptype reports whether type t is a composite literal type.
 func iscomptype(t *types.Type) bool {
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TARRAY, types.TSLICE, types.TSTRUCT, types.TMAP:
 		return true
 	default:
@@ -2801,7 +2801,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 	}
 	n.SetType(t)
 
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		base.Errorf("invalid composite literal type %v", t)
 		n.SetType(nil)
@@ -3154,7 +3154,7 @@ func samesafeexpr(l ir.Node, r ir.Node) bool {
 	case ir.OCONV:
 		// Some conversions can't be reused, such as []byte(str).
 		// Allow only numeric-ish types. This is a bit conservative.
-		return issimple[l.Type().Etype] && samesafeexpr(l.Left(), r.Left())
+		return issimple[l.Type().Kind()] && samesafeexpr(l.Left(), r.Left())
 
 	case ir.OINDEX, ir.OINDEXMAP,
 		ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD:
@@ -3451,7 +3451,7 @@ func typecheckdeftype(n *ir.Name) {
 		n.SetDiag(true)
 		n.SetType(nil)
 	}
-	if t.Etype == types.TFORW && base.Errors() > errorsBefore {
+	if t.Kind() == types.TFORW && base.Errors() > errorsBefore {
 		// Something went wrong during type-checking,
 		// but it was reported. Silence future errors.
 		t.SetBroke(true)
@@ -3541,7 +3541,7 @@ func typecheckdef(n ir.Node) {
 
 		t := n.Type()
 		if t != nil {
-			if !ir.OKForConst[t.Etype] {
+			if !ir.OKForConst[t.Kind()] {
 				base.ErrorfAt(n.Pos(), "invalid constant type %v", t)
 				goto ret
 			}
@@ -3638,7 +3638,7 @@ ret:
 
 func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	n := *np
-	if !n.Type().IsInteger() && n.Type().Etype != types.TIDEAL {
+	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 		base.Errorf("non-integer %s argument in make(%v) - %v", arg, t, n.Type())
 		return false
 	}

@@ -218,7 +218,7 @@ func addptabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
-		if n.Type().Etype == types.TFUNC && n.Class() == ir.PFUNC {
+		if n.Type().Kind() == types.TFUNC && n.Class() == ir.PFUNC {
 			// function
 			ptabs = append(ptabs, ptabEntry{s: s, t: ir.AsNode(s.Def).Type()})
 		} else {
@@ -602,7 +602,7 @@ func litsym(n, c ir.Node, wid int) {
 
 	case constant.Float:
 		f, _ := constant.Float64Val(u)
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TFLOAT32:
 			s.WriteFloat32(base.Ctxt, n.Offset(), float32(f))
 		case types.TFLOAT64:
@@ -612,7 +612,7 @@ func litsym(n, c ir.Node, wid int) {
 	case constant.Complex:
 		re, _ := constant.Float64Val(constant.Real(u))
 		im, _ := constant.Float64Val(constant.Imag(u))
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TCOMPLEX64:
 			s.WriteFloat32(base.Ctxt, n.Offset(), float32(re))
 			s.WriteFloat32(base.Ctxt, n.Offset()+4, float32(im))

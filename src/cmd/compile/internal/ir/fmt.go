@@ -317,7 +317,7 @@ func (m FmtMode) prepareArgs(args []interface{}) {
 			args[i] = &fmtSym{arg, m}
 		case Nodes:
 			args[i] = &fmtNodes{arg, m}
-		case int32, int64, string, types.EType, constant.Value:
+		case int32, int64, string, types.Kind, constant.Value:
 			// OK: printing these types doesn't depend on mode
 		default:
 			base.Fatalf("mode.prepareArgs type %T", arg)
@@ -590,18 +590,18 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 		b.WriteString("<T>")
 		return
 	}
-	if t.Etype == types.TSSA {
+	if t.Kind() == types.TSSA {
 		b.WriteString(t.Extra.(string))
 		return
 	}
-	if t.Etype == types.TTUPLE {
+	if t.Kind() == types.TTUPLE {
 		b.WriteString(t.FieldType(0).String())
 		b.WriteByte(',')
 		b.WriteString(t.FieldType(1).String())
 		return
 	}
 
-	if t.Etype == types.TRESULTS {
+	if t.Kind() == types.TRESULTS {
 		tys := t.Extra.(*types.Results).Types
 		for i, et := range tys {
 			if i > 0 {
@@ -616,51 +616,51 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 	if mode == FTypeIdName {
 		flag |= FmtUnsigned
 	}
-	if t == types.Bytetype || t == types.Runetype {
+	if t == types.ByteType || t == types.RuneType {
 		// in %-T mode collapse rune and byte with their originals.
 		switch mode {
 		case FTypeIdName, FTypeId:
-			t = types.Types[t.Etype]
+			t = types.Types[t.Kind()]
 		default:
-			sconv2(b, t.Sym, FmtShort, mode)
+			sconv2(b, t.Sym(), FmtShort, mode)
 			return
 		}
 	}
-	if t == types.Errortype {
+	if t == types.ErrorType {
 		b.WriteString("error")
 		return
 	}
 
 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
-	if flag&FmtLong == 0 && t.Sym != nil && t != types.Types[t.Etype] {
+	if flag&FmtLong == 0 && t.Sym() != nil && t != types.Types[t.Kind()] {
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					sconv2(b, t.Sym, FmtShort, mode)
+					sconv2(b, t.Sym(), FmtShort, mode)
 					fmt.Fprintf(b, "·%d", t.Vargen)
 					return
 				}
-				sconv2(b, t.Sym, FmtShort, mode)
+				sconv2(b, t.Sym(), FmtShort, mode)
 				return
 			}
 
 			if mode == FTypeIdName {
-				sconv2(b, t.Sym, FmtUnsigned, mode)
+				sconv2(b, t.Sym(), FmtUnsigned, mode)
 				return
 			}
 
-			if t.Sym.Pkg == LocalPkg && t.Vargen != 0 {
-				b.WriteString(mode.Sprintf("%v·%d", t.Sym, t.Vargen))
+			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
+				b.WriteString(mode.Sprintf("%v·%d", t.Sym(), t.Vargen))
 				return
 			}
 		}
 
-		sconv2(b, t.Sym, 0, mode)
+		sconv2(b, t.Sym(), 0, mode)
 		return
 	}
 
-	if int(t.Etype) < len(BasicTypeNames) && BasicTypeNames[t.Etype] != "" {
+	if int(t.Kind()) < len(BasicTypeNames) && BasicTypeNames[t.Kind()] != "" {
 		var name string
 		switch t {
 		case types.UntypedBool:
@@ -676,14 +676,14 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 		case types.UntypedComplex:
 			name = "untyped complex"
 		default:
-			name = BasicTypeNames[t.Etype]
+			name = BasicTypeNames[t.Kind()]
 		}
 		b.WriteString(name)
 		return
 	}
 
 	if mode == FDbg {
-		b.WriteString(t.Etype.String())
+		b.WriteString(t.Kind().String())
 		b.WriteByte('-')
 		tconv2(b, t, flag, FErr, visited)
 		return
@@ -702,7 +702,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 	visited[t] = b.Len()
 	defer delete(visited, t)
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR:
 		b.WriteByte('*')
 		switch mode {
@@ -734,7 +734,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 			tconv2(b, t.Elem(), 0, mode, visited)
 		default:
 			b.WriteString("chan ")
-			if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == types.Crecv {
+			if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym() == nil && t.Elem().ChanDir() == types.Crecv {
 				b.WriteByte('(')
 				tconv2(b, t.Elem(), 0, mode, visited)
 				b.WriteByte(')')
@@ -860,9 +860,9 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 
 	case types.TFORW:
 		b.WriteString("undefined")
-		if t.Sym != nil {
+		if t.Sym() != nil {
 			b.WriteByte(' ')
-			sconv2(b, t.Sym, 0, mode)
+			sconv2(b, t.Sym(), 0, mode)
 		}
 
 	case types.TUNSAFEPTR:
@@ -872,7 +872,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 		b.WriteString("Txxx")
 	default:
 		// Don't know how to handle - fall back to detailed prints.
-		b.WriteString(mode.Sprintf("%v <%v>", t.Etype, t.Sym))
+		b.WriteString(mode.Sprintf("%v <%v>", t.Kind(), t.Sym()))
 	}
 }
 
@@ -1446,7 +1446,7 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		OSTR2BYTES,
 		OSTR2RUNES,
 		ORUNESTR:
-		if n.Type() == nil || n.Type().Sym == nil {
+		if n.Type() == nil || n.Type().Sym() == nil {
 			mode.Fprintf(s, "(%v)", n.Type())
 		} else {
 			mode.Fprintf(s, "%v", n.Type())
@@ -1564,7 +1564,7 @@ func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	}
 
 	if flag&FmtLong != 0 && t != nil {
-		if t.Etype == types.TNIL {
+		if t.Kind() == types.TNIL {
 			fmt.Fprint(s, "nil")
 		} else if n.Op() == ONAME && n.Name().AutoTemp() {
 			mode.Fprintf(s, "%v value", t)

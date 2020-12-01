@@ -473,15 +473,15 @@ func (p *iexporter) doDecl(n ir.Node) {
 		w.tag('T')
 		w.pos(n.Pos())
 
-		underlying := n.Type().Orig
-		if underlying == types.Errortype.Orig {
+		underlying := n.Type().Underlying()
+		if underlying == types.ErrorType.Underlying() {
 			// For "type T error", use error as the
 			// underlying type instead of error's own
 			// underlying anonymous interface. This
 			// ensures consistency with how importers may
 			// declare error (e.g., go/types uses nil Pkg
 			// for predeclared objects).
-			underlying = types.Errortype
+			underlying = types.ErrorType
 		}
 		w.typ(underlying)
 
@@ -634,8 +634,8 @@ func (w *exportWriter) startType(k itag) {
 }
 
 func (w *exportWriter) doTyp(t *types.Type) {
-	if t.Sym != nil {
-		if t.Sym.Pkg == ir.BuiltinPkg || t.Sym.Pkg == unsafepkg {
+	if t.Sym() != nil {
+		if t.Sym().Pkg == ir.BuiltinPkg || t.Sym().Pkg == unsafepkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
@@ -644,7 +644,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		return
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR:
 		w.startType(pointerType)
 		w.typ(t.Elem())
@@ -762,7 +762,7 @@ func constTypeOf(typ *types.Type) constant.Kind {
 		return constant.Complex
 	}
 
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TBOOL:
 		return constant.Bool
 	case types.TSTRING:
@@ -809,7 +809,7 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 		return true, Mpprec / 8
 	}
 
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TFLOAT32, types.TCOMPLEX64:
 		return true, 3
 	case types.TFLOAT64, types.TCOMPLEX128:
@@ -821,7 +821,7 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 
 	// The go/types API doesn't expose sizes to importers, so they
 	// don't know how big these types are.
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TINT, types.TUINT, types.TUINTPTR:
 		maxBytes = 8
 	}

@@ -157,7 +157,7 @@ func typecheckExprSwitch(n ir.Node) {
 		switch {
 		case t.IsMap():
 			nilonly = "map"
-		case t.Etype == types.TFUNC:
+		case t.Kind() == types.TFUNC:
 			nilonly = "func"
 		case t.IsSlice():
 			nilonly = "slice"
@@ -332,7 +332,7 @@ type exprClause struct {
 
 func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
 	c := exprClause{pos: pos, lo: expr, hi: expr, jmp: jmp}
-	if okforcmp[s.exprname.Type().Etype] && expr.Op() == ir.OLITERAL {
+	if okforcmp[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
 	}

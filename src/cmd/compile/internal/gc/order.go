@@ -784,7 +784,7 @@ func (o *Order) stmt(n ir.Node) {
 		n.SetRight(o.expr(n.Right(), nil))
 
 		orderBody := true
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		default:
 			base.Fatalf("order.stmt range %v", n.Type())
 

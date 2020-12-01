@@ -151,13 +151,13 @@ func embedKindApprox(typ ir.Node) int {
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	if typ == types.Types[types.TSTRING] {
 		return embedString
 	}
-	if typ.Sym == nil && typ.IsSlice() && typ.Elem() == types.Bytetype {
+	if typ.Sym() == nil && typ.IsSlice() && typ.Elem() == types.ByteType {
 		return embedBytes
 	}
 	return embedUnknown

@@ -647,7 +647,7 @@ const (
 	GoBuildPragma
 )
 
-func AsNode(n types.IRNode) Node {
+func AsNode(n types.Object) Node {
 	if n == nil {
 		return nil
 	}

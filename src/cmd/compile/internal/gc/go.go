@@ -102,7 +102,7 @@ var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver 
 
 var zerosize int64
 
-var simtype [types.NTYPE]types.EType
+var simtype [types.NTYPE]types.Kind
 
 var (
 	isInt     [types.NTYPE]bool

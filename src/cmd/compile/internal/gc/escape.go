@@ -659,7 +659,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 // unsafeValue evaluates a uintptr-typed arithmetic expression looking
 // for conversions from an unsafe.Pointer.
 func (e *Escape) unsafeValue(k EscHole, n ir.Node) {
-	if n.Type().Etype != types.TUINTPTR {
+	if n.Type().Kind() != types.TUINTPTR {
 		base.Fatalf("unexpected type %v for %v", n.Type(), n)
 	}
 
