@@ -20,10 +20,6 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	return nil, nil
 }
 
-// loadSystemRootsWithCgo is set in root_cgo_darwin_amd64.go when cgo is
-// available, and is only used for testing.
-var loadSystemRootsWithCgo func() (*CertPool, error)
-
 func loadSystemRoots() (*CertPool, error) {
 	var trustedRoots []*Certificate
 	untrustedRoots := make(map[string]bool)

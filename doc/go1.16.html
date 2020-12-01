@@ -286,6 +286,14 @@ Do not send CLs removing the interior tags from such phrases.
   has no effect.
 </p>
 
+<p><!-- CL 239748 -->
+  Clients now ensure that the server selects
+  <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
+  an ALPN protocol</a> from
+  <a href="/pkg/crypto/tls/#Config.NextProtos">
+  the list advertised by the client</a>.
+</p>
+
 <h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
 
 <p><!-- CL 235078 -->

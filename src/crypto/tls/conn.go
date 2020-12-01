@@ -88,8 +88,8 @@ type Conn struct {
 	clientFinished [12]byte
 	serverFinished [12]byte
 
-	clientProtocol         string
-	clientProtocolFallback bool
+	// clientProtocol is the negotiated ALPN protocol.
+	clientProtocol string
 
 	// input/output
 	in, out   halfConn
@@ -1471,7 +1471,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	state.Version = c.vers
 	state.NegotiatedProtocol = c.clientProtocol
 	state.DidResume = c.didResume
-	state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
+	state.NegotiatedProtocolIsMutual = true
 	state.ServerName = c.serverName
 	state.CipherSuite = c.cipherSuite
 	state.PeerCertificates = c.peerCertificates

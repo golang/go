@@ -1444,7 +1444,6 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 
 // cgoPackages is the standard packages that use cgo.
 var cgoPackages = []string{
-	"crypto/x509",
 	"net",
 	"os/user",
 }

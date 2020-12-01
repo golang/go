@@ -229,9 +229,6 @@ type ConnectionState struct {
 	CipherSuite uint16
 
 	// NegotiatedProtocol is the application protocol negotiated with ALPN.
-	//
-	// Note that on the client side, this is currently not guaranteed to be from
-	// Config.NextProtos.
 	NegotiatedProtocol string
 
 	// NegotiatedProtocolIsMutual used to indicate a mutual NPN negotiation.

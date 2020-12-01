@@ -393,7 +393,7 @@ var depsRules = `
 	net !< CRYPTO-BORING;
 
 	# TLS, Prince of Dependencies.
-	CGO, CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
+	CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
 	< golang.org/x/crypto/internal/subtle
 	< golang.org/x/crypto/chacha20
 	< golang.org/x/crypto/poly1305
