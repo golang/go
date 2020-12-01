@@ -966,6 +966,9 @@ opswitch:
 
 	case ir.OCONV, ir.OCONVNOP:
 		n.SetLeft(walkexpr(n.Left(), init))
+		if n.Op() == ir.OCONVNOP && n.Type() == n.Left().Type() {
+			return n.Left()
+		}
 		if n.Op() == ir.OCONVNOP && checkPtr(Curfn, 1) {
 			if n.Type().IsPtr() && n.Left().Type().IsUnsafePtr() { // unsafe.Pointer to *T
 				n = walkCheckPtrAlignment(n, init, nil)
