@@ -180,7 +180,7 @@ func CanInline(fn *ir.Func) {
 	n.Func.Inl = &ir.Inline{
 		Cost: inlineMaxBudget - visitor.budget,
 		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
-		Body: ir.DeepCopyList(src.NoXPos, fn.Body),
+		Body: inlcopylist(fn.Body),
 	}
 
 	if base.Flag.LowerM > 1 {
@@ -217,10 +217,8 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 
 	typecheck.ImportedBody(fn)
 
-	// Recursively identify all referenced functions for
-	// reexport. We want to include even non-called functions,
-	// because after inlining they might be callable.
-	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
+	var doFlood func(n ir.Node)
+	doFlood = func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
 			Inline_Flood(ir.MethodExprName(n), exportsym)
@@ -239,15 +237,16 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 			// Okay, because we don't yet inline indirect
 			// calls to method values.
 		case ir.OCLOSURE:
-			// If the closure is inlinable, we'll need to
-			// flood it too. But today we don't support
-			// inlining functions that contain closures.
-			//
-			// When we do, we'll probably want:
-			//     inlFlood(n.Func.Closure.Func.Nname)
-			base.Fatalf("unexpected closure in inlinable function")
+			// VisitList doesn't visit closure bodies, so force a
+			// recursive call to VisitList on the body of the closure.
+			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
 		}
-	})
+	}
+
+	// Recursively identify all referenced functions for
+	// reexport. We want to include even non-called functions,
+	// because after inlining they might be callable.
+	ir.VisitList(ir.Nodes(fn.Inl.Body), doFlood)
 }
 
 // hairyVisitor visits a function body to determine its inlining
@@ -360,8 +359,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// the right panic value, so it needs an argument frame.
 		return errors.New("call to recover")
 
-	case ir.OCLOSURE,
-		ir.ORANGE,
+	case ir.OCLOSURE:
+		// TODO(danscales) - fix some bugs when budget is lowered below 30
+		// Maybe make budget proportional to number of closure variables, e.g.:
+		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
+		v.budget -= 30
+
+	case ir.ORANGE,
 		ir.OSELECT,
 		ir.OGO,
 		ir.ODEFER,
@@ -447,6 +451,52 @@ func isBigFunc(fn *ir.Func) bool {
 		budget--
 		return budget <= 0
 	})
+}
+
+// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
+// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
+// the body and dcls of an inlineable function.
+func inlcopylist(ll []ir.Node) []ir.Node {
+	s := make([]ir.Node, len(ll))
+	for i, n := range ll {
+		s[i] = inlcopy(n)
+	}
+	return s
+}
+
+// inlcopy is like DeepCopy(), but does extra work to copy closures.
+func inlcopy(n ir.Node) ir.Node {
+	var edit func(ir.Node) ir.Node
+	edit = func(x ir.Node) ir.Node {
+		switch x.Op() {
+		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.ONIL:
+			return x
+		}
+		m := ir.Copy(x)
+		ir.EditChildren(m, edit)
+		if x.Op() == ir.OCLOSURE {
+			x := x.(*ir.ClosureExpr)
+			// Need to save/duplicate x.Func.Nname,
+			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
+			// x.Func.Body for iexport and local inlining.
+			oldfn := x.Func
+			newfn := ir.NewFunc(oldfn.Pos())
+			if oldfn.ClosureCalled() {
+				newfn.SetClosureCalled(true)
+			}
+			m.(*ir.ClosureExpr).Func = newfn
+			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
+			// XXX OK to share fn.Type() ??
+			newfn.Nname.SetType(oldfn.Nname.Type())
+			newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+			newfn.Body = inlcopylist(oldfn.Body)
+			// Make shallow copy of the Dcl and ClosureVar slices
+			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
+			newfn.ClosureVars = append([]*ir.Name(nil), oldfn.ClosureVars...)
+		}
+		return m
+	}
+	return edit(n)
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -925,6 +975,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		inlvars:      inlvars,
 		bases:        make(map[*src.PosBase]*src.PosBase),
 		newInlIndex:  newIndex,
+		fn:           fn,
 	}
 	subst.edit = subst.node
 
@@ -1031,6 +1082,12 @@ type inlsubst struct {
 	newInlIndex int
 
 	edit func(ir.Node) ir.Node // cached copy of subst.node method value closure
+
+	// If non-nil, we are inside a closure inside the inlined function, and
+	// newclofn is the Func of the new inlined closure.
+	newclofn *ir.Func
+
+	fn *ir.Func // For debug -- the func that is being inlined
 }
 
 // list inlines a list of nodes.
@@ -1040,6 +1097,157 @@ func (subst *inlsubst) list(ll ir.Nodes) []ir.Node {
 		s = append(s, subst.node(n))
 	}
 	return s
+}
+
+// fields returns a list of the fields of a struct type representing receiver,
+// params, or results, after duplicating the field nodes and substituting the
+// Nname nodes inside the field nodes.
+func (subst *inlsubst) fields(oldt *types.Type) []*types.Field {
+	oldfields := oldt.FieldSlice()
+	newfields := make([]*types.Field, len(oldfields))
+	for i := range oldfields {
+		newfields[i] = oldfields[i].Copy()
+		if oldfields[i].Nname != nil {
+			newfields[i].Nname = subst.node(oldfields[i].Nname.(*ir.Name))
+		}
+	}
+	return newfields
+}
+
+// clovar creates a new ONAME node for a local variable or param of a closure
+// inside a function being inlined.
+func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+	// TODO(danscales): want to get rid of this shallow copy, with code like the
+	// following, but it is hard to copy all the necessary flags in a maintainable way.
+	// m := ir.NewNameAt(n.Pos(), n.Sym())
+	// m.Class = n.Class
+	// m.SetType(n.Type())
+	// m.SetTypecheck(1)
+	//if n.IsClosureVar() {
+	//	m.SetIsClosureVar(true)
+	//}
+	m := &ir.Name{}
+	*m = *n
+	m.Curfn = subst.newclofn
+	if n.Defn != nil && n.Defn.Op() == ir.ONAME {
+		if !n.IsClosureVar() {
+			base.FatalfAt(n.Pos(), "want closure variable, got: %+v", n)
+		}
+		if n.Sym().Pkg != types.LocalPkg {
+			// If the closure came from inlining a function from
+			// another package, must change package of captured
+			// variable to localpkg, so that the fields of the closure
+			// struct are local package and can be accessed even if
+			// name is not exported. If you disable this code, you can
+			// reproduce the problem by running 'go test
+			// go/internal/srcimporter'. TODO(mdempsky) - maybe change
+			// how we create closure structs?
+			m.SetSym(types.LocalPkg.Lookup(n.Sym().Name))
+		}
+		// Make sure any inlvar which is the Defn
+		// of an ONAME closure var is rewritten
+		// during inlining. Don't substitute
+		// if Defn node is outside inlined function.
+		if subst.inlvars[n.Defn.(*ir.Name)] != nil {
+			m.Defn = subst.node(n.Defn)
+		}
+	}
+	if n.Outer != nil {
+		// Either the outer variable is defined in function being inlined,
+		// and we will replace it with the substituted variable, or it is
+		// defined outside the function being inlined, and we should just
+		// skip the outer variable (the closure variable of the function
+		// being inlined).
+		s := subst.node(n.Outer).(*ir.Name)
+		if s == n.Outer {
+			s = n.Outer.Outer
+		}
+		m.Outer = s
+	}
+	return m
+}
+
+// closure does the necessary substitions for a ClosureExpr n and returns the new
+// closure node.
+func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+	m := ir.Copy(n)
+	m.SetPos(subst.updatedPos(m.Pos()))
+	ir.EditChildren(m, subst.edit)
+
+	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
+
+	// The following is similar to funcLit
+	oldfn := n.Func
+	newfn := ir.NewFunc(oldfn.Pos())
+	// These three lines are not strictly necessary, but just to be clear
+	// that new function needs to redo typechecking and inlinability.
+	newfn.SetTypecheck(0)
+	newfn.SetInlinabilityChecked(false)
+	newfn.Inl = nil
+	newfn.SetIsHiddenClosure(true)
+	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
+	newfn.Nname.Func = newfn
+	newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+	newfn.Nname.Defn = newfn
+
+	m.(*ir.ClosureExpr).Func = newfn
+	newfn.OClosure = m.(*ir.ClosureExpr)
+
+	if subst.newclofn != nil {
+		//fmt.Printf("Inlining a closure with a nested closure\n")
+	}
+	prevxfunc := subst.newclofn
+
+	// Mark that we are now substituting within a closure (within the
+	// inlined function), and create new nodes for all the local
+	// vars/params inside this closure.
+	subst.newclofn = newfn
+	newfn.Dcl = nil
+	newfn.ClosureVars = nil
+	for _, oldv := range oldfn.Dcl {
+		newv := subst.clovar(oldv)
+		subst.inlvars[oldv] = newv
+		newfn.Dcl = append(newfn.Dcl, newv)
+	}
+	for _, oldv := range oldfn.ClosureVars {
+		newv := subst.clovar(oldv)
+		subst.inlvars[oldv] = newv
+		newfn.ClosureVars = append(newfn.ClosureVars, newv)
+	}
+
+	// Need to replace ONAME nodes in
+	// newfn.Type().FuncType().Receiver/Params/Results.FieldSlice().Nname
+	oldt := oldfn.Type()
+	newrecvs := subst.fields(oldt.Recvs())
+	var newrecv *types.Field
+	if len(newrecvs) > 0 {
+		newrecv = newrecvs[0]
+	}
+	newt := types.NewSignature(oldt.Pkg(), newrecv,
+		subst.fields(oldt.Params()), subst.fields(oldt.Results()))
+
+	newfn.Nname.SetType(newt)
+	newfn.Body = subst.list(oldfn.Body)
+
+	// Remove the nodes for the current closure from subst.inlvars
+	for _, oldv := range oldfn.Dcl {
+		delete(subst.inlvars, oldv)
+	}
+	for _, oldv := range oldfn.ClosureVars {
+		delete(subst.inlvars, oldv)
+	}
+	// Go back to previous closure func
+	subst.newclofn = prevxfunc
+
+	// Actually create the named function for the closure, now that
+	// the closure is inlined in a specific function.
+	m.SetTypecheck(0)
+	if oldfn.ClosureCalled() {
+		typecheck.Callee(m)
+	} else {
+		typecheck.Expr(m)
+	}
+	return m
 }
 
 // node recursively copies a node from the saved pristine body of the
@@ -1056,13 +1264,17 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.Name)
 
 		// Handle captured variables when inlining closures.
-		if n.IsClosureVar() {
+		if n.IsClosureVar() && subst.newclofn == nil {
 			o := n.Outer
 
+			// Deal with case where sequence of closures are inlined.
+			// TODO(danscales) - write test case to see if we need to
+			// go up multiple levels.
+			if o.Curfn != ir.CurFunc {
+				o = o.Outer
+			}
+
 			// make sure the outer param matches the inlining location
-			// NB: if we enabled inlining of functions containing OCLOSURE or refined
-			// the reassigned check via some sort of copy propagation this would most
-			// likely need to be changed to a loop to walk up to the correct Param
 			if o == nil || o.Curfn != ir.CurFunc {
 				base.Fatalf("%v: unresolvable capture %v\n", ir.Line(n), n)
 			}
@@ -1098,6 +1310,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		}
 
 	case ir.ORETURN:
+		if subst.newclofn != nil {
+			// Don't do special substitutions if inside a closure
+			break
+		}
 		// Since we don't handle bodies with closures,
 		// this return is guaranteed to belong to the current inlined function.
 		n := n.(*ir.ReturnStmt)
@@ -1136,6 +1352,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return m
 
 	case ir.OLABEL:
+		if subst.newclofn != nil {
+			// Don't do special substitutions if inside a closure
+			break
+		}
 		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
@@ -1143,10 +1363,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
 		m.Label = typecheck.Lookup(p)
 		return m
-	}
 
-	if n.Op() == ir.OCLOSURE {
-		base.Fatalf("cannot inline function containing closure: %+v", n)
+	case ir.OCLOSURE:
+		return subst.closure(n.(*ir.ClosureExpr))
+
 	}
 
 	m := ir.Copy(n)

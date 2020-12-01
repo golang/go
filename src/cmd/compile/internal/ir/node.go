@@ -291,6 +291,10 @@ const (
 	OTSLICE // []int
 
 	// misc
+	// intermediate representation of an inlined call.  Uses Init (assignments
+	// for the captured variables, parameters, retvars, & INLMARK op),
+	// Body (body of the inlined function), and ReturnVars (list of
+	// return values)
 	OINLCALL       // intermediary representation of an inlined call.
 	OEFACE         // itable and data words of an empty-interface value.
 	OITAB          // itable word of an interface value.

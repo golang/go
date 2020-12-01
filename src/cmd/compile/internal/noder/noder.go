@@ -142,7 +142,15 @@ func Package() {
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
 		n := typecheck.Target.Decls[i]
 		if n.Op() == ir.ODCLFUNC {
+			if base.Flag.W > 1 {
+				s := fmt.Sprintf("\nbefore typecheck %v", n)
+				ir.Dump(s, n)
+			}
 			typecheck.FuncBody(n.(*ir.Func))
+			if base.Flag.W > 1 {
+				s := fmt.Sprintf("\nafter typecheck %v", n)
+				ir.Dump(s, n)
+			}
 			fcount++
 		}
 	}

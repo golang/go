@@ -1020,6 +1020,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
 	}
 
+	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Curfn != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(w, " curfn(%p)", n.Name().Curfn)
+	}
+	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Outer != nil {
+		// Useful to see where Defn is set and what node it points to
+		fmt.Fprintf(w, " outer(%p)", n.Name().Outer)
+	}
+
 	if EscFmt != nil {
 		if esc := EscFmt(n); esc != "" {
 			fmt.Fprintf(w, " %s", esc)
@@ -1186,6 +1195,18 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			for _, dcl := range n.Dcl {
 				dumpNode(w, dcl, depth+1)
 			}
+		}
+		if len(fn.ClosureVars) > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-ClosureVars", n.Op())
+			for _, cv := range fn.ClosureVars {
+				dumpNode(w, cv, depth+1)
+			}
+		}
+		if len(fn.Enter) > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-Enter", n.Op())
+			dumpNodes(w, fn.Enter, depth+1)
 		}
 		if len(fn.Body) > 0 {
 			indent(w, depth)
