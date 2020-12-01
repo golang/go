@@ -732,16 +732,24 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="path"><dt><a href="/pkg/path/">path</a></dt>
   <dd>
-    <p><!-- CL 264397 -->
-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <code>Match</code> and <code>Glob</code> functions now
+      return an error if the unmatched part of the pattern has a
+      syntax error. Previously, the functions returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
     </p>
   </dd>
 </dl><!-- path -->
 
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
-    <p><!-- CL 264397 -->
-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <code>Match</code> and <code>Glob</code> functions now
+      return an error if the unmatched part of the pattern has a
+      syntax error. Previously, the functions returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
     </p>
   </dd>
 </dl><!-- path/filepath -->
