@@ -1071,7 +1071,7 @@ func (s *state) stmt(n ir.Node) {
 		s.stmtList(n.List())
 
 	// No-ops
-	case ir.OEMPTY, ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL:
+	case ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL:
 
 	// Expression statements
 	case ir.OCALLFUNC:

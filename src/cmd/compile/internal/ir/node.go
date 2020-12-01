@@ -301,7 +301,7 @@ const (
 	OCASE
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
-	OEMPTY    // no-op (empty statement)
+	OEMPTY    // TODO(rsc): Delete. (Use OBLOCK instead.)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
 	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
@@ -781,8 +781,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		n := NewTypeAssertExpr(pos, nleft, typ)
 		n.SetOp(op)
 		return n
-	case OEMPTY:
-		return NewEmptyStmt(pos)
 	case OFOR:
 		return NewForStmt(pos, nil, nleft, nright, nil)
 	case OGO:

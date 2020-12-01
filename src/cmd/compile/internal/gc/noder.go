@@ -164,7 +164,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	if block != nil {
 		body := p.stmts(block.List)
 		if body == nil {
-			body = []ir.Node{ir.Nod(ir.OEMPTY, nil, nil)}
+			body = []ir.Node{ir.Nod(ir.OBLOCK, nil, nil)}
 		}
 		fn.PtrBody().Set(body)
 
@@ -967,7 +967,9 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op() == ir.OBLOCK && s.Init().Len() == 0 {
+		} else if s.Op() == ir.OBLOCK && s.List().Len() > 0 {
+			// Inline non-empty block.
+			// Empty blocks must be preserved for checkreturn.
 			nodes = append(nodes, s.List().Slice()...)
 		} else {
 			nodes = append(nodes, s)
@@ -991,7 +993,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		l := p.blockStmt(stmt)
 		if len(l) == 0 {
 			// TODO(mdempsky): Line number?
-			return ir.Nod(ir.OEMPTY, nil, nil)
+			return ir.Nod(ir.OBLOCK, nil, nil)
 		}
 		return liststmt(l)
 	case *syntax.ExprStmt:
@@ -1166,7 +1168,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	n.PtrBody().Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
-		if e.Op() == ir.OBLOCK && e.Init().Len() == 0 {
+		if e.Op() == ir.OBLOCK {
 			n.PtrRlist().Set(e.List().Slice())
 		} else {
 			n.PtrRlist().Set1(e)
@@ -1319,7 +1321,7 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 
 	l := []ir.Node{lhs}
 	if ls != nil {
-		if ls.Op() == ir.OBLOCK && ls.Init().Len() == 0 {
+		if ls.Op() == ir.OBLOCK {
 			l = append(l, ls.List().Slice()...)
 		} else {
 			l = append(l, ls)

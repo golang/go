@@ -676,7 +676,7 @@ func (o *Order) stmt(n ir.Node) {
 		o.cleanTemp(t)
 
 	// Special: does not save n onto out.
-	case ir.OBLOCK, ir.OEMPTY:
+	case ir.OBLOCK:
 		o.stmtList(n.List())
 
 	// Special: n->left is not an expression; save as is.

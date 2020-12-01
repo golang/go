@@ -942,6 +942,11 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 			mode.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
 		}
 
+	case OBLOCK:
+		if n.List().Len() != 0 {
+			mode.Fprintf(s, "%v", n.List())
+		}
+
 	case ORETURN:
 		mode.Fprintf(s, "return %.v", n.List())
 
@@ -1043,9 +1048,6 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 		} else {
 			mode.Fprintf(s, "%#v", n.Op())
 		}
-
-	case OEMPTY:
-		break
 
 	case OLABEL:
 		mode.Fprintf(s, "%v: ", n.Sym())
@@ -1155,12 +1157,12 @@ var OpPrec = []int{
 	OAS2MAPR:    -1,
 	OAS2RECV:    -1,
 	OASOP:       -1,
+	OBLOCK:      -1,
 	OBREAK:      -1,
 	OCASE:       -1,
 	OCONTINUE:   -1,
 	ODCL:        -1,
 	ODEFER:      -1,
-	OEMPTY:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
 	OFORUNTIL:   -1,
