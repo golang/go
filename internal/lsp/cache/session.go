@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -288,12 +287,11 @@ func (s *Session) viewOf(uri span.URI) (*View, error) {
 		return v, nil
 	}
 	// Pick the best view for this file and memoize the result.
-	v, err := s.bestView(uri)
-	if err != nil {
-		return nil, err
+	if len(s.views) == 0 {
+		return nil, fmt.Errorf("no views in session")
 	}
-	s.viewMap[uri] = v
-	return v, nil
+	s.viewMap[uri] = bestViewForURI(uri, s.views)
+	return s.viewMap[uri], nil
 }
 
 func (s *Session) viewsOf(uri span.URI) []*View {
@@ -302,7 +300,7 @@ func (s *Session) viewsOf(uri span.URI) []*View {
 
 	var views []*View
 	for _, view := range s.views {
-		if strings.HasPrefix(string(uri), string(view.Folder())) {
+		if source.InDir(view.folder.Filename(), uri.Filename()) {
 			views = append(views, view)
 		}
 	}
@@ -319,15 +317,12 @@ func (s *Session) Views() []source.View {
 	return result
 }
 
-// bestView finds the best view to associate a given URI with.
-// viewMu must be held when calling this method.
-func (s *Session) bestView(uri span.URI) (*View, error) {
-	if len(s.views) == 0 {
-		return nil, errors.Errorf("no views in the session")
-	}
+// bestViewForURI returns the most closely matching view for the given URI
+// out of the given set of views.
+func bestViewForURI(uri span.URI, views []*View) *View {
 	// we need to find the best view for this file
 	var longest *View
-	for _, view := range s.views {
+	for _, view := range views {
 		if longest != nil && len(longest.Folder()) > len(view.Folder()) {
 			continue
 		}
@@ -336,16 +331,16 @@ func (s *Session) bestView(uri span.URI) (*View, error) {
 		}
 	}
 	if longest != nil {
-		return longest, nil
+		return longest
 	}
 	// Try our best to return a view that knows the file.
-	for _, view := range s.views {
+	for _, view := range views {
 		if view.knownFile(uri) {
-			return view, nil
+			return view
 		}
 	}
 	// TODO: are there any more heuristics we can use?
-	return s.views[0], nil
+	return views[0]
 }
 
 func (s *Session) removeView(ctx context.Context, view *View) error {
@@ -405,7 +400,7 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
-	_, _, releases, err := s.DidModifyFiles(ctx, changes)
+	_, releases, err := s.DidModifyFiles(ctx, changes)
 	for _, release := range releases {
 		release()
 	}
@@ -418,13 +413,13 @@ type fileChange struct {
 	fileHandle source.VersionedFileHandle
 }
 
-func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[span.URI]source.View, map[source.View]source.Snapshot, []func(), error) {
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, []func(), error) {
 	views := make(map[*View]map[span.URI]*fileChange)
-	bestViews := map[span.URI]source.View{}
+	affectedViews := map[span.URI][]*View{}
 
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	var forceReloadMetadata bool
 	for _, c := range changes {
@@ -433,12 +428,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		}
 
 		// Build the list of affected views.
-		bestView, err := s.viewOf(c.URI)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		bestViews[c.URI] = bestView
-
 		var changedViews []*View
 		for _, view := range s.views {
 			// Don't propagate changes that are outside of the view's scope
@@ -448,16 +437,25 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			}
 			changedViews = append(changedViews, view)
 		}
-		// If no view matched the change, assign it to the best view.
+		// If the change is not relevant to any view, but the change is
+		// happening in the editor, assign it the most closely matching view.
 		if len(changedViews) == 0 {
+			if c.OnDisk {
+				continue
+			}
+			bestView, err := s.viewOf(c.URI)
+			if err != nil {
+				return nil, nil, err
+			}
 			changedViews = append(changedViews, bestView)
 		}
+		affectedViews[c.URI] = changedViews
 
 		// Apply the changes to all affected views.
 		for _, view := range changedViews {
 			// Make sure that the file is added to the view.
 			if _, err := view.getFile(c.URI); err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]*fileChange)
@@ -471,7 +469,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			} else {
 				fsFile, err := s.cache.getFile(ctx, c.URI)
 				if err != nil {
-					return nil, nil, nil, err
+					return nil, nil, err
 				}
 				content, err := fsFile.Read()
 				fh := &closedFile{fsFile}
@@ -484,14 +482,32 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		}
 	}
 
-	snapshots := map[source.View]source.Snapshot{}
 	var releases []func()
+	viewToSnapshot := map[*View]*snapshot{}
 	for view, changed := range views {
 		snapshot, release := view.invalidateContent(ctx, changed, forceReloadMetadata)
-		snapshots[view] = snapshot
 		releases = append(releases, release)
+		viewToSnapshot[view] = snapshot
 	}
-	return bestViews, snapshots, releases, nil
+
+	// We only want to diagnose each changed file once, in the view to which
+	// it "most" belongs. We do this by picking the best view for each URI,
+	// and then aggregating the set of snapshots and their URIs (to avoid
+	// diagnosing the same snapshot multiple times).
+	snapshotURIs := map[source.Snapshot][]span.URI{}
+	for _, mod := range changes {
+		viewSlice, ok := affectedViews[mod.URI]
+		if !ok || len(viewSlice) == 0 {
+			continue
+		}
+		view := bestViewForURI(mod.URI, viewSlice)
+		snapshot, ok := viewToSnapshot[view]
+		if !ok {
+			panic(fmt.Sprintf("no snapshot for view %s", view.Folder()))
+		}
+		snapshotURIs[snapshot] = append(snapshotURIs[snapshot], mod.URI)
+	}
+	return snapshotURIs, releases, nil
 }
 
 func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {

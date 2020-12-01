@@ -353,15 +353,23 @@ func basename(filename string) string {
 
 func (v *View) relevantChange(c source.FileModification) bool {
 	// If the file is known to the view, the change is relevant.
-	known := v.knownFile(c.URI)
-
+	if v.knownFile(c.URI) {
+		return true
+	}
+	// The gopls.mod may not be "known" because we first access it through the
+	// session. As a result, treat changes to the view's gopls.mod file as
+	// always relevant, even if they are only on-disk changes.
+	// TODO(rstambler): Make sure the gopls.mod is always known to the view.
+	if c.URI == goplsModURI(v.rootURI) {
+		return true
+	}
 	// If the file is not known to the view, and the change is only on-disk,
 	// we should not invalidate the snapshot. This is necessary because Emacs
 	// sends didChangeWatchedFiles events for temp files.
-	if !known && c.OnDisk && (c.Action == source.Change || c.Action == source.Delete) {
+	if c.OnDisk && (c.Action == source.Change || c.Action == source.Delete) {
 		return false
 	}
-	return v.contains(c.URI) || known
+	return v.contains(c.URI)
 }
 
 func (v *View) knownFile(uri span.URI) bool {
@@ -578,7 +586,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
-func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (source.Snapshot, func()) {
+func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 

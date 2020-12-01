@@ -303,9 +303,10 @@ type Session interface {
 	// GetFile returns a handle for the specified file.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 
-	// DidModifyFile reports a file modification to the session. It returns the
-	// resulting snapshots, a guaranteed one per view.
-	DidModifyFiles(ctx context.Context, changes []FileModification) (map[span.URI]View, map[View]Snapshot, []func(), error)
+	// DidModifyFile reports a file modification to the session. It returns
+	// the new snapshots after the modifications have been applied, paired with
+	// the affected file URIs for those snapshots.
+	DidModifyFiles(ctx context.Context, changes []FileModification) (map[Snapshot][]span.URI, []func(), error)
 
 	// ExpandModificationsToDirectories returns the set of changes with the
 	// directory changes removed and expanded to include all of the files in

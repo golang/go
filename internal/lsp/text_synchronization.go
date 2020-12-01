@@ -221,21 +221,12 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	// to their files.
 	modifications = s.session.ExpandModificationsToDirectories(ctx, modifications)
 
-	views, snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
+	snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		return err
 	}
 
-	// Group files by best view and diagnose them.
-	viewURIs := map[source.View][]span.URI{}
-	for uri, view := range views {
-		viewURIs[view] = append(viewURIs[view], uri)
-	}
-	for view, uris := range viewURIs {
-		snapshot := snapshots[view]
-		if snapshot == nil {
-			panic(fmt.Sprintf("no snapshot assigned for files %v", uris))
-		}
+	for snapshot, uris := range snapshots {
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()

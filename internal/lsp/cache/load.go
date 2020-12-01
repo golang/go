@@ -459,7 +459,7 @@ func isTestMain(pkg *packages.Package, gocache string) bool {
 	if len(pkg.GoFiles) > 1 {
 		return false
 	}
-	if !strings.HasPrefix(pkg.GoFiles[0], gocache) {
+	if !source.InDir(gocache, pkg.GoFiles[0]) {
 		return false
 	}
 	return true
