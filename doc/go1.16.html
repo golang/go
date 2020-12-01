@@ -783,8 +783,10 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
-    <p><!-- CL 248341 -->
-      TODO: <a href="https://golang.org/cl/248341">https://golang.org/cl/248341</a>: support multiple keys in struct tags
+    <p><!-- CL 248341, golang.org/issues/40281 -->
+      <code>StructTag</code> now allows multiple space-separated keys
+      in key:value pairs, as in <code>`json xml:"field1"`</code>
+      (equivalent to <code>`json:"field1" xml:"field1"`</code>).
     </p>
   </dd>
 </dl><!-- reflect -->
