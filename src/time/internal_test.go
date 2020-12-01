@@ -53,18 +53,8 @@ func CheckRuntimeTimerOverflow() {
 	t := NewTimer(1)
 
 	defer func() {
-		// Subsequent tests won't work correctly if we don't stop the
-		// overflow timer and kick the timer proc back into service.
-		//
-		// The timer proc is now sleeping and can only be awoken by
-		// adding a timer to the *beginning* of the heap. We can't
-		// wake it up by calling NewTimer since other tests may have
-		// left timers running that should have expired before ours.
-		// Instead we zero the overflow timer duration and start it
-		// once more.
 		stopTimer(r)
 		t.Stop()
-		resetTimer(r, 0)
 	}()
 
 	// If the test fails, we will hang here until the timeout in the

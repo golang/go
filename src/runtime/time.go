@@ -23,6 +23,8 @@ type timer struct {
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, now) in the timer goroutine, so f must be
 	// a well-behaved function and not block.
+	//
+	// when must be positive on an active timer.
 	when   int64
 	period int64
 	f      func(interface{}, uintptr)
