@@ -118,7 +118,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
 		// Can't always set n.Type directly on OLITERAL nodes.
 		// See discussion on CL 20813.
-		n = n.RawCopy()
+		old := n
+		n = ir.Copy(old)
+		if old.Op() == ir.OLITERAL {
+			// Keep untyped constants in their original untyped syntax for error messages.
+			n.(ir.OrigNode).SetOrig(old)
+		}
 	}
 
 	// Nil is technically not a constant, so handle it specially.

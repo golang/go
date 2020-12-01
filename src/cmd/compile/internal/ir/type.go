@@ -92,7 +92,7 @@ func (n *ChanType) DeepCopy(pos src.XPos) Node {
 	return NewChanType(n.posOr(pos), DeepCopy(pos, n.Elem), n.Dir)
 }
 
-// A MapType represents a map[Key]Value type syntax.u
+// A MapType represents a map[Key]Value type syntax.
 type MapType struct {
 	miniType
 	Key  Node
