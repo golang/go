@@ -405,7 +405,8 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 246637 -->
-      TODO: <a href="https://golang.org/cl/246637">https://golang.org/cl/246637</a>: make config.Clone return nil if the source is nil
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now returns
+      a nil <code>*Config</code> if the source is nil, rather than panicking.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
