@@ -190,6 +190,13 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// recurse on the type expression used in the type
 		// declaration.
 
+		// Type imported from package, so it can't be part of
+		// a type loop (otherwise that package should have
+		// failed to compile).
+		if t.Sym.Pkg != ir.LocalPkg {
+			return false
+		}
+
 		for i, x := range *path {
 			if x == t {
 				*path = (*path)[i:]
@@ -198,10 +205,8 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if n := ir.AsNode(t.Nod); n != nil {
-			if name := n.Name(); name != nil && name.Ntype != nil && findTypeLoop(name.Ntype.Type(), path) {
-				return true
-			}
+		if findTypeLoop(ir.AsNode(t.Nod).Name().Ntype.Type(), path) {
+			return true
 		}
 		*path = (*path)[:len(*path)-1]
 	} else {
