@@ -85,7 +85,6 @@ func bmap(t *types.Type) *types.Type {
 		return t.MapType().Bucket
 	}
 
-	bucket := types.New(types.TSTRUCT)
 	keytype := t.Key()
 	elemtype := t.Elem()
 	dowidth(keytype)
@@ -119,7 +118,7 @@ func bmap(t *types.Type) *types.Type {
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
-	otyp := types.NewPtr(bucket)
+	otyp := types.Types[types.TUNSAFEPTR]
 	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[types.TUINTPTR]
 	}
@@ -127,6 +126,7 @@ func bmap(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
+	bucket := types.New(types.TSTRUCT)
 	bucket.SetNoalg(true)
 	bucket.SetFields(field[:])
 	dowidth(bucket)
