@@ -353,7 +353,7 @@ func (n *typeNode) String() string                { return fmt.Sprint(n) }
 func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *typeNode) rawCopy() Node                 { c := *n; return &c }
 func (n *typeNode) Type() *types.Type             { return n.typ }
-func (n *typeNode) Sym() *types.Sym               { return n.typ.Sym }
+func (n *typeNode) Sym() *types.Sym               { return n.typ.Sym() }
 func (n *typeNode) CanBeNtype()                   {}
 
 // TypeNode returns the Node representing the type t.

@@ -33,7 +33,7 @@ type Sym struct {
 	Name string // object name
 
 	// saved and restored by dcopy
-	Def        IRNode   // definition: ONAME OTYPE OPACK or OLITERAL
+	Def        Object   // definition: ONAME OTYPE OPACK or OLITERAL
 	Block      int32    // blocknumber to catch redeclaration
 	Lastlineno src.XPos // last declaration for diagnostic
 

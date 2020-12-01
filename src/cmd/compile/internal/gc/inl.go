@@ -61,10 +61,10 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 		if rcvr.IsPtr() {
 			rcvr = rcvr.Elem()
 		}
-		if rcvr.Sym == nil {
+		if rcvr.Sym() == nil {
 			base.Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym(), fn, rcvr)
 		}
-		return rcvr.Sym.Pkg
+		return rcvr.Sym().Pkg
 	}
 
 	// non-method

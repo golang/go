@@ -73,7 +73,7 @@ func AssertValidTypeForConst(t *types.Type, v constant.Value) {
 func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 	switch v.Kind() {
 	case constant.Unknown:
-		return OKForConst[t.Etype]
+		return OKForConst[t.Kind()]
 	case constant.Bool:
 		return t.IsBoolean()
 	case constant.String:

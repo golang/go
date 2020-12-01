@@ -140,7 +140,7 @@ func init() {
 	// so this test setup can share it.
 
 	types.Tconv = func(t *types.Type, flag, mode int) string {
-		return t.Etype.String()
+		return t.Kind().String()
 	}
 	types.Sconv = func(s *types.Sym, flag, mode int) string {
 		return "sym"
@@ -149,13 +149,13 @@ func init() {
 		fmt.Fprintf(s, "sym")
 	}
 	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
-		fmt.Fprintf(s, "%v", t.Etype)
+		fmt.Fprintf(s, "%v", t.Kind())
 	}
 	types.Dowidth = func(t *types.Type) {}
 
 	for _, typ := range [...]struct {
 		width int64
-		et    types.EType
+		et    types.Kind
 	}{
 		{1, types.TINT8},
 		{1, types.TUINT8},

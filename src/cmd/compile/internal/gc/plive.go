@@ -416,7 +416,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		return
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
 		if off&int64(Widthptr-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
@@ -1300,7 +1300,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 // to fully initialize t.
 func isfat(t *types.Type) bool {
 	if t != nil {
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TSLICE, types.TSTRING,
 			types.TINTER: // maybe remove later
 			return true

@@ -185,7 +185,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 	// We implement a simple DFS loop-finding algorithm. This
 	// could be faster, but type cycles are rare.
 
-	if t.Sym != nil {
+	if t.Sym() != nil {
 		// Declared type. Check for loops and otherwise
 		// recurse on the type expression used in the type
 		// declaration.
@@ -193,7 +193,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Type imported from package, so it can't be part of
 		// a type loop (otherwise that package should have
 		// failed to compile).
-		if t.Sym.Pkg != ir.LocalPkg {
+		if t.Sym().Pkg != ir.LocalPkg {
 			return false
 		}
 
@@ -212,7 +212,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 	} else {
 		// Anonymous type. Recurse on contained types.
 
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TARRAY:
 			if findTypeLoop(t.Elem(), path) {
 				return true
@@ -321,15 +321,15 @@ func dowidth(t *types.Type) {
 	t.Width = -2
 	t.Align = 0 // 0 means use t.Width, below
 
-	et := t.Etype
+	et := t.Kind()
 	switch et {
 	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
 		break
 
 	// simtype == 0 during bootstrap
 	default:
-		if simtype[t.Etype] != 0 {
-			et = simtype[t.Etype]
+		if simtype[t.Kind()] != 0 {
+			et = simtype[t.Kind()]
 		}
 	}
 

@@ -445,7 +445,7 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 // This happens during import, where the hidden_fndcl rule has
 // used functype directly to parse the function's type.
 func funcargs2(t *types.Type) {
-	if t.Etype != types.TFUNC {
+	if t.Kind() != types.TFUNC {
 		base.Fatalf("funcargs2 %v", t)
 	}
 
@@ -496,7 +496,7 @@ func checkembeddedtype(t *types.Type) {
 		return
 	}
 
-	if t.Sym == nil && t.IsPtr() {
+	if t.Sym() == nil && t.IsPtr() {
 		t = t.Elem()
 		if t.IsInterface() {
 			base.Errorf("embedded type cannot be a pointer to interface")
@@ -505,7 +505,7 @@ func checkembeddedtype(t *types.Type) {
 
 	if t.IsPtr() || t.IsUnsafePtr() {
 		base.Errorf("embedded type cannot be a pointer")
-	} else if t.Etype == types.TFORW && !t.ForwardType().Embedlineno.IsKnown() {
+	} else if t.Kind() == types.TFORW && !t.ForwardType().Embedlineno.IsKnown() {
 		t.ForwardType().Embedlineno = base.Pos
 	}
 }
@@ -719,12 +719,12 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 		base.Fatalf("blank method name")
 	}
 
-	rsym := recv.Sym
+	rsym := recv.Sym()
 	if recv.IsPtr() {
 		if rsym != nil {
 			base.Fatalf("declared pointer receiver type: %v", recv)
 		}
-		rsym = recv.Elem().Sym
+		rsym = recv.Elem().Sym()
 	}
 
 	// Find the package the receiver type appeared in. For
@@ -777,11 +777,11 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 	}
 
 	mt := methtype(rf.Type)
-	if mt == nil || mt.Sym == nil {
+	if mt == nil || mt.Sym() == nil {
 		pa := rf.Type
 		t := pa
 		if t != nil && t.IsPtr() {
-			if t.Sym != nil {
+			if t.Sym() != nil {
 				base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return nil
 			}
@@ -791,7 +791,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 		switch {
 		case t == nil || t.Broke():
 			// rely on typecheck having complained before
-		case t.Sym == nil:
+		case t.Sym() == nil:
 			base.Errorf("invalid receiver type %v (%v is not a defined type)", pa, t)
 		case t.IsPtr():
 			base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
@@ -805,7 +805,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 		return nil
 	}
 
-	if local && mt.Sym.Pkg != ir.LocalPkg {
+	if local && mt.Sym().Pkg != ir.LocalPkg {
 		base.Errorf("cannot define new methods on non-local type %v", mt)
 		return nil
 	}

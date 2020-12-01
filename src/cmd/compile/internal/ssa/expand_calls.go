@@ -69,7 +69,7 @@ func expandCalls(f *Func) {
 
 	// intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
 	// that has no 64-bit integer registers.
-	intPairTypes := func(et types.EType) (tHi, tLo *types.Type) {
+	intPairTypes := func(et types.Kind) (tHi, tLo *types.Type) {
 		tHi = typ.UInt32
 		if et == types.TINT64 {
 			tHi = typ.Int32
@@ -294,7 +294,7 @@ func expandCalls(f *Func) {
 		case OpStructSelect:
 			w := selector.Args[0]
 			var ls []LocalSlot
-			if w.Type.Etype != types.TSTRUCT { // IData artifact
+			if w.Type.Kind() != types.TSTRUCT { // IData artifact
 				ls = rewriteSelect(leaf, w, offset)
 			} else {
 				ls = rewriteSelect(leaf, w, offset+w.Type.FieldOff(int(selector.AuxInt)))
@@ -383,7 +383,7 @@ func expandCalls(f *Func) {
 		decomposeOne func(pos src.XPos, b *Block, base, source, mem *Value, t1 *types.Type, offArg, offStore int64) *Value,
 		decomposeTwo func(pos src.XPos, b *Block, base, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64) *Value) *Value {
 		u := source.Type
-		switch u.Etype {
+		switch u.Kind() {
 		case types.TARRAY:
 			elem := u.Elem()
 			for i := int64(0); i < u.NumElem(); i++ {
@@ -403,7 +403,7 @@ func expandCalls(f *Func) {
 			if t.Width == regSize {
 				break
 			}
-			tHi, tLo := intPairTypes(t.Etype)
+			tHi, tLo := intPairTypes(t.Kind())
 			mem = decomposeOne(pos, b, base, source, mem, tHi, source.AuxInt+hiOffset, offset+hiOffset)
 			pos = pos.WithNotStmt()
 			return decomposeOne(pos, b, base, source, mem, tLo, source.AuxInt+lowOffset, offset+lowOffset)
@@ -491,7 +491,7 @@ func expandCalls(f *Func) {
 			return storeArgOrLoad(pos, b, base, source.Args[0], mem, t.Elem(), offset)
 
 		case OpInt64Make:
-			tHi, tLo := intPairTypes(t.Etype)
+			tHi, tLo := intPairTypes(t.Kind())
 			mem = storeArgOrLoad(pos, b, base, source.Args[0], mem, tHi, offset+hiOffset)
 			pos = pos.WithNotStmt()
 			return storeArgOrLoad(pos, b, base, source.Args[1], mem, tLo, offset+lowOffset)
@@ -524,7 +524,7 @@ func expandCalls(f *Func) {
 		}
 
 		// For nodes that cannot be taken apart -- OpSelectN, other structure selectors.
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TARRAY:
 			elt := t.Elem()
 			if source.Type != t && t.NumElem() == 1 && elt.Width == t.Width && t.Width == regSize {
@@ -576,7 +576,7 @@ func expandCalls(f *Func) {
 			if t.Width == regSize {
 				break
 			}
-			tHi, tLo := intPairTypes(t.Etype)
+			tHi, tLo := intPairTypes(t.Kind())
 			sel := source.Block.NewValue1(pos, OpInt64Hi, tHi, source)
 			mem = storeArgOrLoad(pos, b, base, sel, mem, tHi, offset+hiOffset)
 			pos = pos.WithNotStmt()
@@ -873,7 +873,7 @@ func expandCalls(f *Func) {
 		offset := int64(0)
 		switch v.Op {
 		case OpStructSelect:
-			if w.Type.Etype == types.TSTRUCT {
+			if w.Type.Kind() == types.TSTRUCT {
 				offset = w.Type.FieldOff(int(v.AuxInt))
 			} else { // Immediate interface data artifact, offset is zero.
 				f.Fatalf("Expand calls interface data problem, func %s, v=%s, w=%s\n", f.Name, v.LongString(), w.LongString())

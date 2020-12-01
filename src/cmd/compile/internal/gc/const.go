@@ -127,7 +127,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	}
 
 	// Nil is technically not a constant, so handle it specially.
-	if n.Type().Etype == types.TNIL {
+	if n.Type().Kind() == types.TNIL {
 		if n.Op() != ir.ONIL {
 			base.Fatalf("unexpected op: %v (%v)", n, n.Op())
 		}
@@ -147,7 +147,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if t == nil || !ir.OKForConst[t.Etype] {
+	if t == nil || !ir.OKForConst[t.Kind()] {
 		t = defaultType(n.Type())
 	}
 
@@ -245,7 +245,7 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
 			return complexForFloat(t)
 		}
 	default:
-		if okfor[op][t.Etype] {
+		if okfor[op][t.Kind()] {
 			return t
 		}
 	}
@@ -499,12 +499,12 @@ func evalConst(n ir.Node) ir.Node {
 		}
 
 	case ir.OCONV, ir.ORUNESTR:
-		if ir.OKForConst[n.Type().Etype] && nl.Op() == ir.OLITERAL {
+		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			return origConst(n, convertVal(nl.Val(), n.Type(), true))
 		}
 
 	case ir.OCONVNOP:
-		if ir.OKForConst[n.Type().Etype] && nl.Op() == ir.OLITERAL {
+		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			// set so n.Orig gets OCONV instead of OCONVNOP
 			n.SetOp(ir.OCONV)
 			return origConst(n, nl.Val())
@@ -555,7 +555,7 @@ func evalConst(n ir.Node) ir.Node {
 		return n
 
 	case ir.OCAP, ir.OLEN:
-		switch nl.Type().Etype {
+		switch nl.Type().Kind() {
 		case types.TSTRING:
 			if ir.IsConst(nl, constant.String) {
 				return origIntConst(n, int64(len(nl.StringVal())))
@@ -729,7 +729,7 @@ func mixUntyped(t1, t2 *types.Type) *types.Type {
 }
 
 func defaultType(t *types.Type) *types.Type {
-	if !t.IsUntyped() || t.Etype == types.TNIL {
+	if !t.IsUntyped() || t.Kind() == types.TNIL {
 		return t
 	}
 
@@ -741,7 +741,7 @@ func defaultType(t *types.Type) *types.Type {
 	case types.UntypedInt:
 		return types.Types[types.TINT]
 	case types.UntypedRune:
-		return types.Runetype
+		return types.RuneType
 	case types.UntypedFloat:
 		return types.Types[types.TFLOAT64]
 	case types.UntypedComplex:
@@ -769,7 +769,7 @@ func indexconst(n ir.Node) int64 {
 	if n.Op() != ir.OLITERAL {
 		return -1
 	}
-	if !n.Type().IsInteger() && n.Type().Etype != types.TIDEAL {
+	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 		return -1
 	}
 
@@ -885,9 +885,9 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 
 	typ := n.Type()
 	switch typ {
-	case types.Bytetype:
+	case types.ByteType:
 		typ = types.Types[types.TUINT8]
-	case types.Runetype:
+	case types.RuneType:
 		typ = types.Types[types.TINT32]
 	}
 	k := constSetKey{typ, ir.ConstValue(n)}

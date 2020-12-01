@@ -61,7 +61,7 @@ func typecheckrangeExpr(n ir.Node) {
 
 	var t1, t2 *types.Type
 	toomany := false
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		base.ErrorfAt(n.Pos(), "cannot range over %L", n.Right())
 		return
@@ -88,7 +88,7 @@ func typecheckrangeExpr(n ir.Node) {
 
 	case types.TSTRING:
 		t1 = types.Types[types.TINT]
-		t2 = types.Runetype
+		t2 = types.RuneType
 	}
 
 	if n.List().Len() > 2 || toomany {
@@ -208,7 +208,7 @@ func walkrange(nrange ir.Node) ir.Node {
 
 	var body []ir.Node
 	var init []ir.Node
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		base.Fatalf("walkrange")
 
@@ -375,7 +375,7 @@ func walkrange(nrange ir.Node) ir.Node {
 
 		hv1 := temp(types.Types[types.TINT])
 		hv1t := temp(types.Types[types.TINT])
-		hv2 := temp(types.Runetype)
+		hv2 := temp(types.RuneType)
 
 		// hv1 := 0
 		init = append(init, ir.Nod(ir.OAS, hv1, nil))
@@ -391,7 +391,7 @@ func walkrange(nrange ir.Node) ir.Node {
 		// hv2 := rune(ha[hv1])
 		nind := ir.Nod(ir.OINDEX, ha, hv1)
 		nind.SetBounded(true)
-		body = append(body, ir.Nod(ir.OAS, hv2, conv(nind, types.Runetype)))
+		body = append(body, ir.Nod(ir.OAS, hv2, conv(nind, types.RuneType)))
 
 		// if hv2 < utf8.RuneSelf
 		nif := ir.Nod(ir.OIF, nil, nil)
@@ -467,7 +467,7 @@ func isMapClear(n ir.Node) bool {
 		return false
 	}
 
-	if n.Op() != ir.ORANGE || n.Type().Etype != types.TMAP || n.List().Len() != 1 {
+	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || n.List().Len() != 1 {
 		return false
 	}
 

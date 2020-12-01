@@ -15,7 +15,7 @@ var Block int32        // current block number
 // restored once the block scope ends.
 type dsym struct {
 	sym        *Sym // sym == nil indicates stack mark
-	def        IRNode
+	def        Object
 	block      int32
 	lastlineno src.XPos // last declaration for diagnostic
 }
@@ -79,16 +79,16 @@ func IsDclstackValid() bool {
 }
 
 // PkgDef returns the definition associated with s at package scope.
-func (s *Sym) PkgDef() IRNode {
+func (s *Sym) PkgDef() Object {
 	return *s.pkgDefPtr()
 }
 
 // SetPkgDef sets the definition associated with s at package scope.
-func (s *Sym) SetPkgDef(n IRNode) {
+func (s *Sym) SetPkgDef(n Object) {
 	*s.pkgDefPtr() = n
 }
 
-func (s *Sym) pkgDefPtr() *IRNode {
+func (s *Sym) pkgDefPtr() *Object {
 	// Look for outermost saved declaration, which must be the
 	// package scope definition, if present.
 	for _, d := range dclstack {

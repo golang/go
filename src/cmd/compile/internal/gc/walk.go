@@ -423,7 +423,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	// Eagerly checkwidth all expressions for the back end.
 	if n.Type() != nil && !n.Type().WidthCalculated() {
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TBLANK, types.TNIL, types.TIDEAL:
 		default:
 			checkwidth(n.Type())
@@ -975,7 +975,7 @@ opswitch:
 		n.SetRight(walkexpr(n.Right(), init))
 
 		// rewrite complex div into function call.
-		et := n.Left().Type().Etype
+		et := n.Left().Type().Kind()
 
 		if isComplex[et] && n.Op() == ir.ODIV {
 			t := n.Type()
@@ -1638,7 +1638,7 @@ func markUsedIfaceMethod(n ir.Node) {
 // name can be derived from the names of the returned types.
 //
 // If no such function is necessary, it returns (Txxx, Txxx).
-func rtconvfn(src, dst *types.Type) (param, result types.EType) {
+func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
 	if thearch.SoftFloat {
 		return types.Txxx, types.Txxx
 	}
@@ -1646,31 +1646,31 @@ func rtconvfn(src, dst *types.Type) (param, result types.EType) {
 	switch thearch.LinkArch.Family {
 	case sys.ARM, sys.MIPS:
 		if src.IsFloat() {
-			switch dst.Etype {
+			switch dst.Kind() {
 			case types.TINT64, types.TUINT64:
-				return types.TFLOAT64, dst.Etype
+				return types.TFLOAT64, dst.Kind()
 			}
 		}
 		if dst.IsFloat() {
-			switch src.Etype {
+			switch src.Kind() {
 			case types.TINT64, types.TUINT64:
-				return src.Etype, types.TFLOAT64
+				return src.Kind(), types.TFLOAT64
 			}
 		}
 
 	case sys.I386:
 		if src.IsFloat() {
-			switch dst.Etype {
+			switch dst.Kind() {
 			case types.TINT64, types.TUINT64:
-				return types.TFLOAT64, dst.Etype
+				return types.TFLOAT64, dst.Kind()
 			case types.TUINT32, types.TUINT, types.TUINTPTR:
 				return types.TFLOAT64, types.TUINT32
 			}
 		}
 		if dst.IsFloat() {
-			switch src.Etype {
+			switch src.Kind() {
 			case types.TINT64, types.TUINT64:
-				return src.Etype, types.TFLOAT64
+				return src.Kind(), types.TFLOAT64
 			case types.TUINT32, types.TUINT, types.TUINTPTR:
 				return types.TUINT32, types.TFLOAT64
 			}
@@ -1937,7 +1937,7 @@ func walkprint(nn ir.Node, init *ir.Nodes) ir.Node {
 	for i, n := range nn.List().Slice() {
 		if n.Op() == ir.OLITERAL {
 			if n.Type() == types.UntypedRune {
-				n = defaultlit(n, types.Runetype)
+				n = defaultlit(n, types.RuneType)
 			}
 
 			switch n.Val().Kind() {
@@ -1949,17 +1949,17 @@ func walkprint(nn ir.Node, init *ir.Nodes) ir.Node {
 			}
 		}
 
-		if n.Op() != ir.OLITERAL && n.Type() != nil && n.Type().Etype == types.TIDEAL {
+		if n.Op() != ir.OLITERAL && n.Type() != nil && n.Type().Kind() == types.TIDEAL {
 			n = defaultlit(n, types.Types[types.TINT64])
 		}
 		n = defaultlit(n, nil)
 		nn.List().SetIndex(i, n)
-		if n.Type() == nil || n.Type().Etype == types.TFORW {
+		if n.Type() == nil || n.Type().Kind() == types.TFORW {
 			continue
 		}
 
 		var on ir.Node
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TINTER:
 			if n.Type().IsEmptyInterface() {
 				on = syslook("printeface")
@@ -1984,7 +1984,7 @@ func walkprint(nn ir.Node, init *ir.Nodes) ir.Node {
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type()) // any-1
 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
-			if isRuntimePkg(n.Type().Sym.Pkg) && n.Type().Sym.Name == "hex" {
+			if isRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
 				on = syslook("printhex")
 			} else {
 				on = syslook("printuint")
@@ -2058,9 +2058,9 @@ func isReflectHeaderDataField(l ir.Node) bool {
 	var tsym *types.Sym
 	switch l.Op() {
 	case ir.ODOT:
-		tsym = l.Left().Type().Sym
+		tsym = l.Left().Type().Sym()
 	case ir.ODOTPTR:
-		tsym = l.Left().Type().Elem().Sym
+		tsym = l.Left().Type().Elem().Sym()
 	default:
 		return false
 	}
@@ -2484,7 +2484,7 @@ func heapmoves() {
 }
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) ir.Node {
-	if fn.Type() == nil || fn.Type().Etype != types.TFUNC {
+	if fn.Type() == nil || fn.Type().Kind() != types.TFUNC {
 		base.Fatalf("mkcall %v %v", fn, fn.Type())
 	}
 
@@ -3264,7 +3264,7 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 		maxcmpsize = 2 * int64(thearch.LinkArch.RegSize)
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		if base.Debug.Libfuzzer != 0 && t.IsInteger() {
 			n.SetLeft(cheapexpr(n.Left(), init))
@@ -3315,7 +3315,7 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 	case types.TARRAY:
 		// We can compare several elements at once with 2/4/8 byte integer compares
-		inline = t.NumElem() <= 1 || (issimple[t.Elem().Etype] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
+		inline = t.NumElem() <= 1 || (issimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
 	case types.TSTRUCT:
 		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
 	}
@@ -3697,7 +3697,7 @@ func usemethod(n ir.Node) {
 	}
 
 	if res1 == nil {
-		if p0.Type.Etype != types.TINT {
+		if p0.Type.Kind() != types.TINT {
 			return
 		}
 	} else {
@@ -3712,7 +3712,7 @@ func usemethod(n ir.Node) {
 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
 	//       (including global variables such as numImports - was issue #19028).
 	// Also need to check for reflect package itself (see Issue #38515).
-	if s := res0.Type.Sym; s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
+	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
 		Curfn.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		Curfn.LSym.Set(obj.AttrReflectMethod, true)
@@ -3756,7 +3756,7 @@ func usefield(n ir.Node) {
 	if outer.IsPtr() {
 		outer = outer.Elem()
 	}
-	if outer.Sym == nil {
+	if outer.Sym() == nil {
 		base.Errorf("tracked field must be in named struct type")
 	}
 	if !types.IsExported(field.Sym.Name) {
