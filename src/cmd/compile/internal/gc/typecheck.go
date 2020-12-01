@@ -3432,10 +3432,8 @@ func typecheckdeftype(n *ir.Name) {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
-	t := types.New(types.TFORW)
-	t.Sym = n.Sym()
+	t := types.NewNamed(n)
 	t.Vargen = n.Vargen
-	t.Nod = n
 	if n.Pragma()&ir.NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
@@ -3448,7 +3446,7 @@ func typecheckdeftype(n *ir.Name) {
 	errorsBefore := base.Errors()
 	n.Ntype = typecheckNtype(n.Ntype)
 	if underlying := n.Ntype.Type(); underlying != nil {
-		types.SetUnderlying(t, underlying)
+		t.SetUnderlying(underlying)
 	} else {
 		n.SetDiag(true)
 		n.SetType(nil)
@@ -3892,14 +3890,6 @@ func deadcodeexpr(n ir.Node) ir.Node {
 			}
 		}
 	}
-	return n
-}
-
-func toTypeNode(orig ir.Node, t *types.Type) ir.Node {
-	n := ir.Nod(ir.OTYPE, nil, nil)
-	n.SetPos(orig.Pos())
-	n.SetType(t)
-	t.Nod = n
 	return n
 }
 

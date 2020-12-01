@@ -1490,9 +1490,9 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 // typePos returns the position associated with t.
 // This is where t was declared or where it appeared as a type expression.
 func typePos(t *types.Type) src.XPos {
-	n := ir.AsNode(t.Nod)
-	if n == nil || !n.Pos().IsKnown() {
-		base.Fatalf("bad type: %v", t)
+	if pos := t.Pos(); pos.IsKnown() {
+		return pos
 	}
-	return n.Pos()
+	base.Fatalf("bad type: %v", t)
+	panic("unreachable")
 }

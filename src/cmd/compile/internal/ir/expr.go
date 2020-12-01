@@ -545,9 +545,7 @@ func (*ParenExpr) CanBeNtype() {}
 func (n *ParenExpr) SetOTYPE(t *types.Type) {
 	n.op = OTYPE
 	n.typ = t
-	if t.Nod == nil {
-		t.Nod = n
-	}
+	t.SetNod(n)
 }
 
 // A ResultExpr represents a direct access to a result slot on the stack frame.
@@ -762,9 +760,7 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
 	n.op = OTYPE
 	n.X = nil
 	n.typ = t
-	if t.Nod == nil {
-		t.Nod = n
-	}
+	t.SetNod(n)
 }
 
 func (n *StarExpr) DeepCopy(pos src.XPos) Node {

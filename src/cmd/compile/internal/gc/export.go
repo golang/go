@@ -101,9 +101,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 	n := importsym(ipkg, s, ir.OTYPE)
 	if n.Op() != ir.OTYPE {
-		t := types.New(types.TFORW)
-		t.Sym = s
-		t.Nod = n
+		t := types.NewNamed(n)
 
 		n.SetOp(ir.OTYPE)
 		n.SetPos(pos)
