@@ -39,6 +39,7 @@ var (
 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	linkshared     = flag.Bool("linkshared", false, "")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
+	newTypechecker = flag.Bool("G", false, "generics typechecker. if set, run basic errorcheck tests also with new typechecker")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
@@ -740,7 +741,116 @@ func (t *test) run() {
 			t.updateErrors(string(out), long)
 		}
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
-		return
+
+		if t.err != nil || !*newTypechecker {
+			return
+		}
+
+		// The following is temporary scaffolding to get types2 typechecker
+		// up and running against the existing test cases. The explicitly
+		// listed files don't pass yet, usually because the error messages
+		// are slightly different (this list is not complete). Any errorcheck
+		// tests that require output from analysis phases past intial type-
+		// checking are also excluded since these phases are not running yet.
+		// We can get rid of this code once types2 is fully plugged in.
+
+		// For now we're done when we can't handle the file or some of the flags.
+		// The first goal is to eliminate the file list; the second goal is to
+		// eliminate the flag list.
+
+		// Excluded files.
+		for _, file := range []string{
+			"complit1",
+			"const2",
+			"convlit.go",
+			"copy1.go",
+			"ddd1.go",
+			"devirt.go",
+			"directive.go",
+			"float_lit3.go",
+			"func1.go",
+			"funcdup.go",
+			"funcdup2.go",
+			"goto.go",
+			"import1.go",
+			"import5.go",
+			"import6.go",
+			"init.go",
+			"initializerr.go",
+			"initloop.go",
+			"label.go",
+			"label1.go",
+			"makechan.go",
+			"makemap.go",
+			"makenew.go",
+			"map1.go",
+			"method2.go",
+			"method6.go",
+			"named1.go",
+			"rename1.go",
+			"runtime.go",
+			"shift1.go",
+			"slice3err.go",
+			"switch3.go",
+			"switch5.go",
+			"switch6.go",
+			"switch7.go",
+			"typecheck.go",
+			"typecheckloop.go",
+			"typeswitch3.go",
+			"undef.go",
+			"varerr.go",
+		} {
+			if strings.Contains(long, file) {
+				return // cannot handle file
+			}
+		}
+
+		// Excluded flags.
+		for _, flag := range flags {
+			for _, pattern := range []string{
+				"-+",
+				"-m",
+				"-live",
+				"wb",
+				"append",
+				"slice",
+				"ssa/check_bce/debug",
+				"ssa/intrinsics/debug",
+				"ssa/prove/debug",
+				"ssa/likelyadjust/debug",
+				"ssa/insert_resched_checks/off",
+				"ssa/phiopt/debug",
+				"defer",
+				"nil",
+			} {
+				if strings.Contains(flag, pattern) {
+					return // cannot handle flag
+				}
+			}
+		}
+
+		// Run errorcheck again with -G option (new typechecker).
+		cmdline = []string{goTool(), "tool", "compile", "-G", "-C", "-e", "-o", "a.o"}
+		// No need to add -dynlink even if linkshared if we're just checking for errors...
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, long)
+		out, err = runcmd(cmdline...)
+		if wantError {
+			if err == nil {
+				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+		} else {
+			if err != nil {
+				t.err = err
+				return
+			}
+		}
+		if *updateErrors {
+			t.updateErrors(string(out), long)
+		}
+		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
 		// Compile Go file.
