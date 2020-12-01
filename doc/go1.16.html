@@ -456,7 +456,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
     <p><!-- CL 234818 -->
-      TODO: <a href="https://golang.org/cl/234818">https://golang.org/cl/234818</a>: allow semicolon in field key / struct tag
+      The <code>json</code> struct field tags understood by
+      <a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>,
+      <a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>,
+      and related functionality now permit semicolon characters within
+      a JSON object name for a Go struct field.
     </p>
   </dd>
 </dl><!-- encoding/json -->
