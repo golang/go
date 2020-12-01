@@ -3434,33 +3434,28 @@ func setUnderlying(t, underlying *types.Type) {
 		return
 	}
 
-	n := ir.AsNode(t.Nod)
 	ft := t.ForwardType()
-	cache := t.Cache
 
 	// TODO(mdempsky): Fix Type rekinding.
-	*t = *underlying
+	t.Etype = underlying.Etype
+	t.Extra = underlying.Extra
+	t.Width = underlying.Width
+	t.Align = underlying.Align
+	t.Orig = underlying.Orig
 
-	// Restore unnecessarily clobbered attributes.
-	t.Nod = n
-	t.Sym = n.Sym()
-	if n.Name() != nil {
-		t.Vargen = n.Name().Vargen
+	if underlying.NotInHeap() {
+		t.SetNotInHeap(true)
 	}
-	t.Cache = cache
-	t.SetDeferwidth(false)
+	if underlying.Broke() {
+		t.SetBroke(true)
+	}
 
 	// spec: "The declared type does not inherit any methods bound
 	// to the existing type, but the method set of an interface
 	// type [...] remains unchanged."
-	if !t.IsInterface() {
-		*t.Methods() = types.Fields{}
-		*t.AllMethods() = types.Fields{}
-	}
-
-	// Propagate go:notinheap pragma from the Name to the Type.
-	if n.Name() != nil && n.Name().Pragma()&ir.NotInHeap != 0 {
-		t.SetNotInHeap(true)
+	if t.IsInterface() {
+		*t.Methods() = *underlying.Methods()
+		*t.AllMethods() = *underlying.AllMethods()
 	}
 
 	// Update types waiting on this type.
@@ -3476,24 +3471,38 @@ func setUnderlying(t, underlying *types.Type) {
 	}
 }
 
-func typecheckdeftype(n ir.Node) {
+func typecheckdeftype(n *ir.Name) {
 	if enableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
+	t := types.New(types.TFORW)
+	t.Sym = n.Sym()
+	t.Vargen = n.Vargen
+	t.Nod = n
+	if n.Pragma()&ir.NotInHeap != 0 {
+		t.SetNotInHeap(true)
+	}
+
+	n.SetType(t)
 	n.SetTypecheck(1)
-	n.Name().Ntype = typecheckNtype(n.Name().Ntype)
-	t := n.Name().Ntype.Type()
-	if t == nil {
+	n.SetWalkdef(1)
+
+	defercheckwidth()
+	errorsBefore := base.Errors()
+	n.Ntype = typecheckNtype(n.Ntype)
+	if underlying := n.Ntype.Type(); underlying != nil {
+		setUnderlying(t, underlying)
+	} else {
 		n.SetDiag(true)
 		n.SetType(nil)
-	} else if n.Type() == nil {
-		n.SetDiag(true)
-	} else {
-		// copy new type and clear fields
-		// that don't come along.
-		setUnderlying(n.Type(), t)
 	}
+	if t.Etype == types.TFORW && base.Errors() > errorsBefore {
+		// Something went wrong during type-checking,
+		// but it was reported. Silence future errors.
+		t.SetBroke(true)
+	}
+	resumecheckwidth()
 }
 
 func typecheckdef(n ir.Node) {
@@ -3655,20 +3664,7 @@ func typecheckdef(n ir.Node) {
 		}
 
 		// regular type declaration
-		defercheckwidth()
-		n.SetWalkdef(1)
-		t := types.New(types.TFORW)
-		t.Nod = n
-		t.Sym = n.Sym()
-		n.SetType(t)
-		errorsBefore := base.Errors()
 		typecheckdeftype(n)
-		if n.Type().Etype == types.TFORW && base.Errors() > errorsBefore {
-			// Something went wrong during type-checking,
-			// but it was reported. Silence future errors.
-			n.Type().SetBroke(true)
-		}
-		resumecheckwidth()
 	}
 
 ret:
