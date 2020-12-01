@@ -36,7 +36,7 @@ type (
 
 // Methods can be declared on the original named type and the alias.
 func (T0) m1()  {} // GCCGO_ERROR "previous"
-func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|redefinition of .m1."
+func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 redeclared in this block|redefinition of .m1."
 func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
 func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
 func (A0) m2()  {}
@@ -90,7 +90,7 @@ func _() {
 
 // Invalid type alias declarations.
 
-type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
+type _ = reflect.ValueOf // ERROR "reflect.ValueOf .*is not a type|expected type"
 
 func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
 func (A2) m() {} // ERROR "invalid receiver type"
