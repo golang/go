@@ -213,7 +213,7 @@ func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
 	}
 	key := workspaceDirKey(hashContents(content))
 	s.mu.Lock()
-	s.workspaceDirHandle = s.generation.Bind(key, func(context.Context, memoize.Arg) interface{} {
+	h = s.generation.Bind(key, func(context.Context, memoize.Arg) interface{} {
 		tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
 		if err != nil {
 			return &workspaceDirData{err: err}
@@ -232,8 +232,9 @@ func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
 			}
 		}
 	})
+	s.workspaceDirHandle = h
 	s.mu.Unlock()
-	return getWorkspaceDir(ctx, s.workspaceDirHandle, s.generation)
+	return getWorkspaceDir(ctx, h, s.generation)
 }
 
 func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generation) (span.URI, error) {
