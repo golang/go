@@ -143,7 +143,7 @@ func newNameAt(pos src.XPos, sym *types.Sym) *Name {
 
 func (n *Name) String() string                { return fmt.Sprint(n) }
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Name) RawCopy() Node                 { c := *n; return &c }
+func (n *Name) rawCopy() Node                 { c := *n; return &c }
 func (n *Name) Name() *Name                   { return n }
 func (n *Name) Sym() *types.Sym               { return n.sym }
 func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
@@ -370,7 +370,7 @@ type PkgName struct {
 
 func (p *PkgName) String() string                { return fmt.Sprint(p) }
 func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
-func (p *PkgName) RawCopy() Node                 { c := *p; return &c }
+func (p *PkgName) rawCopy() Node                 { c := *p; return &c }
 func (p *PkgName) Sym() *types.Sym               { return p.sym }
 
 func (*PkgName) CanBeNtype() {}

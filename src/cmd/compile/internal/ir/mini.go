@@ -19,7 +19,7 @@ import (
 // must at the least provide:
 //
 //	func (n *MyNode) String() string { return fmt.Sprint(n) }
-//	func (n *MyNode) RawCopy() Node { c := *n; return &c }
+//	func (n *MyNode) rawCopy() Node { c := *n; return &c }
 //	func (n *MyNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 //
 // The embedding struct should also fill in n.op in its constructor,
