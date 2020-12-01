@@ -337,11 +337,12 @@ func makeErrorInterface() *types.Type {
 
 func lexinit1() {
 	// error type
-	s := ir.BuiltinPkg.Lookup("error")
-	types.Errortype = makeErrorInterface()
-	types.Errortype.Sym = s
-	types.Errortype.Orig = makeErrorInterface()
-	s.Def = ir.TypeNode(types.Errortype)
+	n := ir.NewNameAt(src.NoXPos, ir.BuiltinPkg.Lookup("error"))
+	types.Errortype = types.NewNamed(n)
+	types.Errortype.SetUnderlying(makeErrorInterface())
+	n.SetOp(ir.OTYPE)
+	n.SetType(types.Errortype)
+	n.Sym().Def = n
 	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
@@ -353,7 +354,7 @@ func lexinit1() {
 	// type aliases, albeit at the cost of having to deal with it everywhere).
 
 	// byte alias
-	s = ir.BuiltinPkg.Lookup("byte")
+	s := ir.BuiltinPkg.Lookup("byte")
 	types.Bytetype = types.New(types.TUINT8)
 	types.Bytetype.Sym = s
 	s.Def = ir.TypeNode(types.Bytetype)

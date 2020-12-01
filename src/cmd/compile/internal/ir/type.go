@@ -5,6 +5,7 @@
 package ir
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -51,12 +52,7 @@ func (n *miniType) setOTYPE(t *types.Type, self Node) {
 	}
 	n.op = OTYPE
 	n.typ = t
-
-	// t.Nod can be non-nil already
-	// in the case of shared *type.Types, like []byte or interface{}.
-	if t.Nod == nil {
-		t.Nod = self
-	}
+	t.SetNod(self)
 }
 
 func (n *miniType) Sym() *types.Sym { return nil }   // for Format OTYPE
@@ -362,20 +358,11 @@ func (n *typeNode) CanBeNtype()                   {}
 
 // TypeNode returns the Node representing the type t.
 func TypeNode(t *types.Type) Ntype {
-	return TypeNodeAt(src.NoXPos, t)
-}
-
-// TypeNodeAt returns the Node representing the type t.
-// If the node must be created, TypeNodeAt uses the position pos.
-// TODO(rsc): Does anyone actually use position on these type nodes?
-func TypeNodeAt(pos src.XPos, t *types.Type) Ntype {
-	// If we copied another type with *t = *u,
-	// then t.Nod might be out of date, so check t.Nod.Type() too.
-	n := AsNode(t.Nod)
-	if n == nil || n.Type() != t {
-		n := newTypeNode(pos, t) // t.Sym may be nil
-		t.Nod = n
-		return n
+	if n := t.Obj(); n != nil {
+		if n.Type() != t {
+			base.Fatalf("type skew: %v has type %v, but expected %v", n, n.Type(), t)
+		}
+		return n.(Ntype)
 	}
-	return n.(Ntype)
+	return newTypeNode(src.NoXPos, t)
 }

@@ -14,7 +14,11 @@ import (
 // IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
 // which would cause an import cycle. The uses in other packages must type assert
 // values of type IRNode to ir.Node or a more specific type.
-type IRNode interface{ Type() *Type }
+type IRNode interface {
+	Pos() src.XPos
+	Sym() *Sym
+	Type() *Type
+}
 
 //go:generate stringer -type EType -trimprefix T
 
@@ -142,7 +146,7 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	Nod  IRNode // canonical OTYPE node
+	nod  IRNode // canonical OTYPE node
 	Orig *Type  // original type (type literal or predefined type)
 
 	// Cache of composite types, with this type being the element type.
@@ -179,6 +183,24 @@ func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+
+// SetNod associates t with syntax node n.
+func (t *Type) SetNod(n IRNode) {
+	// t.nod can be non-nil already
+	// in the case of shared *Types, like []byte or interface{}.
+	if t.nod == nil {
+		t.nod = n
+	}
+}
+
+// Pos returns a position associated with t, if any.
+// This should only be used for diagnostics.
+func (t *Type) Pos() src.XPos {
+	if t.nod != nil {
+		return t.nod.Pos()
+	}
+	return src.NoXPos
+}
 
 // Pkg returns the package that t appeared in.
 //
@@ -1519,7 +1541,24 @@ var (
 	TypeInt128  = newSSA("int128")
 )
 
-func SetUnderlying(t, underlying *Type) {
+// NewNamed returns a new named type for the given type name.
+func NewNamed(obj IRNode) *Type {
+	t := New(TFORW)
+	t.Sym = obj.Sym()
+	t.nod = obj
+	return t
+}
+
+// Obj returns the type name for the named type t.
+func (t *Type) Obj() IRNode {
+	if t.Sym != nil {
+		return t.nod
+	}
+	return nil
+}
+
+// SetUnderlying sets the underlying type.
+func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.Etype == TFORW {
 		// This type isn't computed yet; when it is, update n.
 		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
@@ -1546,13 +1585,13 @@ func SetUnderlying(t, underlying *Type) {
 	// to the existing type, but the method set of an interface
 	// type [...] remains unchanged."
 	if t.IsInterface() {
-		*t.Methods() = *underlying.Methods()
-		*t.AllMethods() = *underlying.AllMethods()
+		t.methods = underlying.methods
+		t.allMethods = underlying.allMethods
 	}
 
 	// Update types waiting on this type.
 	for _, w := range ft.Copyto {
-		SetUnderlying(w, t)
+		w.SetUnderlying(t)
 	}
 
 	// Double-check use of type as embedded type.

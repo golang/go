@@ -205,7 +205,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if findTypeLoop(ir.AsNode(t.Nod).Name().Ntype.Type(), path) {
+		if findTypeLoop(t.Obj().(*ir.Name).Ntype.Type(), path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -314,8 +314,8 @@ func dowidth(t *types.Type) {
 	defercheckwidth()
 
 	lno := base.Pos
-	if ir.AsNode(t.Nod) != nil {
-		base.Pos = ir.AsNode(t.Nod).Pos()
+	if pos := t.Pos(); pos.IsKnown() {
+		base.Pos = pos
 	}
 
 	t.Width = -2
