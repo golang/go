@@ -1434,7 +1434,7 @@ func main() {
 // have no more complaints about it.
 // https://github.com/golang/go/issues/41061
 func TestRenamePackage(t *testing.T) {
-	t.Skip("Waiting for the fix that makes this pass: https://github.com/golang/go/issues/41061")
+	testenv.NeedsGo1Point(t, 16)
 
 	const contents = `
 -- go.mod --
