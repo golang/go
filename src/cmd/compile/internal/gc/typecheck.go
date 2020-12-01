@@ -2021,7 +2021,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 
-		if Curfn.Type().FuncType().Outnamed && n.List().Len() == 0 {
+		if hasNamedResults(Curfn) && n.List().Len() == 0 {
 			break
 		}
 		typecheckaste(ir.ORETURN, nil, false, Curfn.Type().Results(), n.List(), func() string { return "return argument" })
