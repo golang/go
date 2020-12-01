@@ -147,16 +147,25 @@ func walkstmt(n ir.Node) ir.Node {
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
-		wascopy := n.Op() == ir.OCOPY
 		init := n.Init()
 		n.PtrInit().Set(nil)
 		n = walkexpr(n, &init)
-		if wascopy && n.Op() == ir.ONAME {
+		if n.Op() == ir.ONAME {
 			// copy rewrote to a statement list and a temp for the length.
 			// Throw away the temp to avoid plain values as statements.
-			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
+			n = ir.NewBlockStmt(n.Pos(), init.Slice())
+			init.Set(nil)
 		}
-		n = addinit(n, init.Slice())
+		if init.Len() > 0 {
+			switch n.Op() {
+			case ir.OAS, ir.OAS2, ir.OBLOCK:
+				n.PtrInit().Prepend(init.Slice()...)
+
+			default:
+				init.Append(n)
+				n = ir.NewBlockStmt(n.Pos(), init.Slice())
+			}
+		}
 
 	// special case for a receive where we throw away
 	// the value received.
@@ -223,29 +232,34 @@ func walkstmt(n ir.Node) ir.Node {
 		}
 		fallthrough
 	case ir.OGO:
+		var init ir.Nodes
 		switch n.Left().Op() {
 		case ir.OPRINT, ir.OPRINTN:
-			n.SetLeft(wrapCall(n.Left(), n.PtrInit()))
+			n.SetLeft(wrapCall(n.Left(), &init))
 
 		case ir.ODELETE:
 			if mapfast(n.Left().List().First().Type()) == mapslow {
-				n.SetLeft(wrapCall(n.Left(), n.PtrInit()))
+				n.SetLeft(wrapCall(n.Left(), &init))
 			} else {
-				n.SetLeft(walkexpr(n.Left(), n.PtrInit()))
+				n.SetLeft(walkexpr(n.Left(), &init))
 			}
 
 		case ir.OCOPY:
-			n.SetLeft(copyany(n.Left(), n.PtrInit(), true))
+			n.SetLeft(copyany(n.Left(), &init, true))
 
 		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 			if n.Left().Body().Len() > 0 {
-				n.SetLeft(wrapCall(n.Left(), n.PtrInit()))
+				n.SetLeft(wrapCall(n.Left(), &init))
 			} else {
-				n.SetLeft(walkexpr(n.Left(), n.PtrInit()))
+				n.SetLeft(walkexpr(n.Left(), &init))
 			}
 
 		default:
-			n.SetLeft(walkexpr(n.Left(), n.PtrInit()))
+			n.SetLeft(walkexpr(n.Left(), &init))
+		}
+		if init.Len() > 0 {
+			init.Append(n)
+			n = ir.NewBlockStmt(n.Pos(), init.Slice())
 		}
 
 	case ir.OFOR, ir.OFORUNTIL:

@@ -527,8 +527,8 @@ func inlcalls(fn *ir.Func) {
 // Turn an OINLCALL into a statement.
 func inlconv2stmt(inlcall ir.Node) ir.Node {
 	n := ir.NodAt(inlcall.Pos(), ir.OBLOCK, nil, nil)
-	n.SetList(inlcall.Body())
-	n.SetInit(inlcall.Init())
+	n.SetList(inlcall.Init())
+	n.PtrList().AppendNodes(inlcall.PtrBody())
 	return n
 }
 
@@ -543,7 +543,7 @@ func inlconv2expr(n ir.Node) ir.Node {
 // Turn the rlist (with the return values) of the OINLCALL in
 // n into an expression list lumping the ninit and body
 // containing the inlined statements on the first list element so
-// order will be preserved Used in return, oas2func and call
+// order will be preserved. Used in return, oas2func and call
 // statements.
 func inlconv2list(n ir.Node) []ir.Node {
 	if n.Op() != ir.OINLCALL || n.Rlist().Len() == 0 {
@@ -1330,9 +1330,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 
 	//		dump("Return before substitution", n);
 	case ir.ORETURN:
-		m := nodSym(ir.OGOTO, nil, subst.retlabel)
-		m.PtrInit().Set(subst.list(n.Init()))
-
+		init := subst.list(n.Init())
 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
 			as := ir.Nod(ir.OAS2, nil, nil)
 
@@ -1352,14 +1350,11 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			}
 
 			as = typecheck(as, ctxStmt)
-			m.PtrInit().Append(as)
+			init = append(init, as)
 		}
-
-		typecheckslice(m.Init().Slice(), ctxStmt)
-		m = typecheck(m, ctxStmt)
-
-		//		dump("Return after substitution", m);
-		return m
+		init = append(init, nodSym(ir.OGOTO, nil, subst.retlabel))
+		typecheckslice(init, ctxStmt)
+		return ir.NewBlockStmt(base.Pos, init)
 
 	case ir.OGOTO, ir.OLABEL:
 		m := ir.Copy(n)
