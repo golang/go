@@ -240,6 +240,19 @@ comprehensively test.
 
 
 Default: `true`.
+### **allowModfileModifications** *bool*
+allowModfileModifications disables -mod=readonly, allowing imports from
+out-of-scope modules. This option will eventually be removed.
+
+
+Default: `false`.
+### **allowImplicitNetworkAccess** *bool*
+allowImplicitNetworkAccess disables GOPROXY=off, allowing implicit module
+downloads rather than requiring user action. This option will eventually
+be removed.
+
+
+Default: `false`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Debugging

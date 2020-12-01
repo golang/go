@@ -350,6 +350,15 @@ type ExperimentalOptions struct {
 	// by an experiment because caching behavior is subtle and difficult to
 	// comprehensively test.
 	ExperimentalPackageCacheKey bool
+
+	// AllowModfileModifications disables -mod=readonly, allowing imports from
+	// out-of-scope modules. This option will eventually be removed.
+	AllowModfileModifications bool
+
+	// AllowImplicitNetworkAccess disables GOPROXY=off, allowing implicit module
+	// downloads rather than requiring user action. This option will eventually
+	// be removed.
+	AllowImplicitNetworkAccess bool
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may

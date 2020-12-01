@@ -249,6 +249,8 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.Invocation
 
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
+	allowModfileModificationOption := s.view.options.AllowModfileModifications
+	allowNetworkOption := s.view.options.AllowImplicitNetworkAccess
 	inv.Env = append(append(append(os.Environ(), s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.go111module)
 	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
 	s.view.optionsMu.Unlock()
@@ -260,7 +262,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	}
 
 	mode, allowNetwork := flags.Mode(), flags.AllowNetwork()
-	if !allowNetwork {
+	if !allowNetwork && !allowNetworkOption {
 		inv.Env = append(inv.Env, "GOPROXY=off")
 	}
 
@@ -314,7 +316,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	case source.LoadWorkspace, source.Normal:
 		if vendorEnabled {
 			inv.ModFlag = "vendor"
-		} else if s.workspaceMode()&usesWorkspaceModule == 0 {
+		} else if s.workspaceMode()&usesWorkspaceModule == 0 && !allowModfileModificationOption {
 			inv.ModFlag = "readonly"
 		} else {
 			// Temporarily allow updates for multi-module workspace mode:
