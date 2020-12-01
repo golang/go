@@ -31,7 +31,7 @@ func NewDecl(pos src.XPos, op Op, x Node) *Decl {
 
 func (n *Decl) String() string                { return fmt.Sprint(n) }
 func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Decl) RawCopy() Node                 { c := *n; return &c }
+func (n *Decl) rawCopy() Node                 { c := *n; return &c }
 func (n *Decl) Left() Node                    { return n.X }
 func (n *Decl) SetLeft(x Node)                { n.X = x }
 
@@ -70,7 +70,7 @@ func NewAssignListStmt(pos src.XPos, lhs, rhs []Node) *AssignListStmt {
 
 func (n *AssignListStmt) String() string                { return fmt.Sprint(n) }
 func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignListStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *AssignListStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *AssignListStmt) List() Nodes       { return n.Lhs }
 func (n *AssignListStmt) PtrList() *Nodes   { return &n.Lhs }
@@ -112,7 +112,7 @@ func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
 
 func (n *AssignStmt) String() string                { return fmt.Sprint(n) }
 func (n *AssignStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *AssignStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *AssignStmt) Left() Node        { return n.X }
 func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
@@ -151,7 +151,7 @@ func NewAssignOpStmt(pos src.XPos, op Op, x, y Node) *AssignOpStmt {
 
 func (n *AssignOpStmt) String() string                { return fmt.Sprint(n) }
 func (n *AssignOpStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignOpStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *AssignOpStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *AssignOpStmt) Left() Node            { return n.X }
 func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
@@ -180,7 +180,7 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 
 func (n *BlockStmt) String() string                { return fmt.Sprint(n) }
 func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BlockStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *BlockStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *BlockStmt) List() Nodes                   { return n.list }
 func (n *BlockStmt) PtrList() *Nodes               { return &n.list }
 func (n *BlockStmt) SetList(x Nodes)               { n.list = x }
@@ -209,7 +209,7 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 
 func (n *BranchStmt) String() string                { return fmt.Sprint(n) }
 func (n *BranchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BranchStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *BranchStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *BranchStmt) Sym() *types.Sym               { return n.Label }
 func (n *BranchStmt) SetSym(sym *types.Sym)         { n.Label = sym }
 
@@ -233,7 +233,7 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
 
 func (n *CaseStmt) String() string                { return fmt.Sprint(n) }
 func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CaseStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *CaseStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *CaseStmt) List() Nodes                   { return n.list }
 func (n *CaseStmt) PtrList() *Nodes               { return &n.list }
 func (n *CaseStmt) SetList(x Nodes)               { n.list = x }
@@ -261,7 +261,7 @@ func NewDeferStmt(pos src.XPos, call Node) *DeferStmt {
 
 func (n *DeferStmt) String() string                { return fmt.Sprint(n) }
 func (n *DeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *DeferStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *DeferStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *DeferStmt) Left() Node     { return n.Call }
 func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
@@ -280,7 +280,7 @@ func NewEmptyStmt(pos src.XPos) *EmptyStmt {
 
 func (n *EmptyStmt) String() string                { return fmt.Sprint(n) }
 func (n *EmptyStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *EmptyStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *EmptyStmt) rawCopy() Node                 { c := *n; return &c }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
 // Op can be OFOR or OFORUNTIL (!Cond).
@@ -305,7 +305,7 @@ func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStm
 
 func (n *ForStmt) String() string                { return fmt.Sprint(n) }
 func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ForStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *ForStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *ForStmt) Sym() *types.Sym               { return n.Label }
 func (n *ForStmt) SetSym(x *types.Sym)           { n.Label = x }
 func (n *ForStmt) Left() Node                    { return n.Cond }
@@ -343,7 +343,7 @@ func NewGoStmt(pos src.XPos, call Node) *GoStmt {
 
 func (n *GoStmt) String() string                { return fmt.Sprint(n) }
 func (n *GoStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *GoStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *GoStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *GoStmt) Left() Node     { return n.Call }
 func (n *GoStmt) SetLeft(x Node) { n.Call = x }
@@ -368,7 +368,7 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 
 func (n *IfStmt) String() string                { return fmt.Sprint(n) }
 func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *IfStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *IfStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *IfStmt) Left() Node                    { return n.Cond }
 func (n *IfStmt) SetLeft(x Node)                { n.Cond = x }
 func (n *IfStmt) Body() Nodes                   { return n.body }
@@ -395,7 +395,7 @@ func NewInlineMarkStmt(pos src.XPos, index int64) *InlineMarkStmt {
 
 func (n *InlineMarkStmt) String() string                { return fmt.Sprint(n) }
 func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *InlineMarkStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *InlineMarkStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *InlineMarkStmt) Offset() int64                 { return n.Index }
 func (n *InlineMarkStmt) SetOffset(x int64)             { n.Index = x }
 
@@ -414,7 +414,7 @@ func NewLabelStmt(pos src.XPos, label *types.Sym) *LabelStmt {
 
 func (n *LabelStmt) String() string                { return fmt.Sprint(n) }
 func (n *LabelStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *LabelStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *LabelStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *LabelStmt) Sym() *types.Sym               { return n.Label }
 func (n *LabelStmt) SetSym(x *types.Sym)           { n.Label = x }
 
@@ -442,7 +442,7 @@ func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
 
 func (n *RangeStmt) String() string                { return fmt.Sprint(n) }
 func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *RangeStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *RangeStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *RangeStmt) Sym() *types.Sym               { return n.Label }
 func (n *RangeStmt) SetSym(x *types.Sym)           { n.Label = x }
 func (n *RangeStmt) Right() Node                   { return n.X }
@@ -478,7 +478,7 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 
 func (n *ReturnStmt) String() string                { return fmt.Sprint(n) }
 func (n *ReturnStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ReturnStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *ReturnStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *ReturnStmt) Orig() Node                    { return n.orig }
 func (n *ReturnStmt) SetOrig(x Node)                { n.orig = x }
 func (n *ReturnStmt) List() Nodes                   { return n.Results }
@@ -507,7 +507,7 @@ func NewSelectStmt(pos src.XPos, cases []Node) *SelectStmt {
 
 func (n *SelectStmt) String() string                { return fmt.Sprint(n) }
 func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SelectStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *SelectStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *SelectStmt) List() Nodes                   { return n.Cases }
 func (n *SelectStmt) PtrList() *Nodes               { return &n.Cases }
 func (n *SelectStmt) SetList(x Nodes)               { n.Cases = x }
@@ -535,7 +535,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 
 func (n *SendStmt) String() string                { return fmt.Sprint(n) }
 func (n *SendStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SendStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *SendStmt) rawCopy() Node                 { c := *n; return &c }
 
 func (n *SendStmt) Left() Node      { return n.Chan }
 func (n *SendStmt) SetLeft(x Node)  { n.Chan = x }
@@ -564,7 +564,7 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []Node) *SwitchStmt {
 
 func (n *SwitchStmt) String() string                { return fmt.Sprint(n) }
 func (n *SwitchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SwitchStmt) RawCopy() Node                 { c := *n; return &c }
+func (n *SwitchStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *SwitchStmt) Left() Node                    { return n.Tag }
 func (n *SwitchStmt) SetLeft(x Node)                { n.Tag = x }
 func (n *SwitchStmt) List() Nodes                   { return n.Cases }
@@ -597,7 +597,7 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
 
 func (n *TypeSwitchGuard) String() string                { return fmt.Sprint(n) }
 func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *TypeSwitchGuard) RawCopy() Node                 { c := *n; return &c }
+func (n *TypeSwitchGuard) rawCopy() Node                 { c := *n; return &c }
 
 func (n *TypeSwitchGuard) Left() Node {
 	if n.name == nil {

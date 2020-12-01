@@ -28,7 +28,7 @@ type Node interface {
 	SetPos(x src.XPos)
 
 	// For making copies. Mainly used by Copy and SepCopy.
-	RawCopy() Node
+	rawCopy() Node
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op

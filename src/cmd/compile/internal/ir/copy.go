@@ -43,7 +43,7 @@ func Orig(n Node) Node {
 // SepCopy returns a separate shallow copy of n,
 // breaking any Orig link to any other nodes.
 func SepCopy(n Node) Node {
-	n = n.RawCopy()
+	n = n.rawCopy()
 	if n, ok := n.(OrigNode); ok {
 		n.SetOrig(n)
 	}
@@ -57,7 +57,7 @@ func SepCopy(n Node) Node {
 // The specific semantics surrounding Orig are subtle but right for most uses.
 // See issues #26855 and #27765 for pitfalls.
 func Copy(n Node) Node {
-	copy := n.RawCopy()
+	copy := n.rawCopy()
 	if n, ok := n.(OrigNode); ok && n.Orig() == n {
 		copy.(OrigNode).SetOrig(copy)
 	}
