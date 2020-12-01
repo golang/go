@@ -68,7 +68,11 @@ func autoNetworkAddressPosix(goplsPath, id string) (network string, address stri
 	if id != "" {
 		idComponent = "-" + id
 	}
-	return "unix", filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s-daemon.%s%s", basename, shortHash, user, idComponent))
+	runtimeDir := os.TempDir()
+	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
+		runtimeDir = xdg
+	}
+	return "unix", filepath.Join(runtimeDir, fmt.Sprintf("%s-%s-daemon.%s%s", basename, shortHash, user, idComponent))
 }
 
 func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
