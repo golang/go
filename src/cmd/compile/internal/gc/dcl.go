@@ -84,7 +84,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 			base.Pos = n.Pos()
 			base.Fatalf("automatic outside function")
 		}
-		if Curfn != nil && ctxt != ir.PFUNC {
+		if Curfn != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			Curfn.Dcl = append(Curfn.Dcl, n)
 		}
 		if n.Op() == ir.OTYPE {
