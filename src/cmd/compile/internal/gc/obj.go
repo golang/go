@@ -220,10 +220,10 @@ func addptabs() {
 		}
 		if n.Type().Kind() == types.TFUNC && n.Class() == ir.PFUNC {
 			// function
-			ptabs = append(ptabs, ptabEntry{s: s, t: ir.AsNode(s.Def).Type()})
+			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
 		} else {
 			// variable
-			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(ir.AsNode(s.Def).Type())})
+			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(s.Def.Type())})
 		}
 	}
 }

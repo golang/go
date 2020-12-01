@@ -95,7 +95,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 			gen = vargen
 		}
 		types.Pushdcl(s)
-		n.Name().Curfn = Curfn
+		n.Curfn = Curfn
 	}
 
 	if ctxt == ir.PAUTO {
@@ -113,7 +113,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	s.Block = types.Block
 	s.Lastlineno = base.Pos
 	s.Def = n
-	n.Name().Vargen = int32(gen)
+	n.Vargen = int32(gen)
 	n.SetClass(ctxt)
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
@@ -335,7 +335,7 @@ func colasdefn(left []ir.Node, defn ir.Node) {
 		nnew++
 		n := NewName(n.Sym())
 		declare(n, dclcontext)
-		n.Name().Defn = defn
+		n.Defn = defn
 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
 		left[i] = n
 	}
@@ -438,7 +438,7 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
 	declare(name, ctxt)
 
 	vargen++
-	n.Decl.Name().Vargen = int32(vargen)
+	n.Decl.Vargen = int32(vargen)
 }
 
 // Same as funcargs, except run over an already constructed TFUNC.
@@ -837,7 +837,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 	}
 
 	f := types.NewField(base.Pos, msym, t)
-	f.Nname = n.Func().Nname
+	f.Nname = n.Nname
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)

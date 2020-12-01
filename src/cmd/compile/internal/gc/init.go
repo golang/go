@@ -60,7 +60,7 @@ func fninit(n []ir.Node) {
 		initializers := lookup("init")
 		fn := dclfunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
 		for _, dcl := range initTodo.Dcl {
-			dcl.Name().Curfn = fn
+			dcl.Curfn = fn
 		}
 		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
 		initTodo.Dcl = nil

@@ -395,7 +395,7 @@ func (p *iexporter) stringOff(s string) uint64 {
 
 // pushDecl adds n to the declaration work queue, if not already present.
 func (p *iexporter) pushDecl(n ir.Node) {
-	if n.Sym() == nil || ir.AsNode(n.Sym().Def) != n && n.Op() != ir.OTYPE {
+	if n.Sym() == nil || n.Sym().Def != n && n.Op() != ir.OTYPE {
 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
 	}
 
@@ -988,7 +988,7 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 
 func (w *exportWriter) methExt(m *types.Field) {
 	w.bool(m.Nointerface())
-	w.funcExt(ir.AsNode(m.Nname).(*ir.Name))
+	w.funcExt(m.Nname.(*ir.Name))
 }
 
 func (w *exportWriter) linkname(s *types.Sym) {

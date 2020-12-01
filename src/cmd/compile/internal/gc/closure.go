@@ -437,7 +437,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
-		return ir.AsNode(sym.Def).(*ir.Func)
+		return sym.Def.(*ir.Func)
 	}
 	sym.SetUniq(true)
 

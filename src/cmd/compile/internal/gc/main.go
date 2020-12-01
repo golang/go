@@ -984,7 +984,7 @@ func clearImports() {
 }
 
 func IsAlias(sym *types.Sym) bool {
-	return sym.Def != nil && ir.AsNode(sym.Def).Sym() != sym
+	return sym.Def != nil && sym.Def.Sym() != sym
 }
 
 // recordFlags records the specified command-line flags to be placed

@@ -77,8 +77,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 		return a.Offset() < b.Offset()
 	}
 
-	if a.Name().Used() != b.Name().Used() {
-		return a.Name().Used()
+	if a.Used() != b.Used() {
+		return a.Used()
 	}
 
 	ap := a.Type().HasPointers()
@@ -87,8 +87,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 		return ap
 	}
 
-	ap = a.Name().Needzero()
-	bp = b.Name().Needzero()
+	ap = a.Needzero()
+	bp = b.Needzero()
 	if ap != bp {
 		return ap
 	}
@@ -115,7 +115,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
 		if ln.Class() == ir.PAUTO {
-			ln.Name().SetUsed(false)
+			ln.SetUsed(false)
 		}
 	}
 
@@ -158,7 +158,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if n.Op() != ir.ONAME || n.Class() != ir.PAUTO {
 			continue
 		}
-		if !n.Name().Used() {
+		if !n.Used() {
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
@@ -260,7 +260,7 @@ func compile(fn *ir.Func) {
 	for _, n := range fn.Dcl {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
-			if livenessShouldTrack(n) && n.Name().Addrtaken() {
+			if livenessShouldTrack(n) && n.Addrtaken() {
 				dtypesym(n.Type())
 				// Also make sure we allocate a linker symbol
 				// for the stack object data, for the same reason.
@@ -447,7 +447,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 			}
 			switch n.Class() {
 			case ir.PAUTO:
-				if !n.Name().Used() {
+				if !n.Used() {
 					// Text == nil -> generating abstract function
 					if fnsym.Func().Text != nil {
 						base.Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")

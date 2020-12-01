@@ -1802,8 +1802,8 @@ func addrescapes(n ir.Node) {
 		}
 
 		// If a closure reference escapes, mark the outer variable as escaping.
-		if n.Name().IsClosureVar() {
-			addrescapes(n.Name().Defn)
+		if n.IsClosureVar() {
+			addrescapes(n.Defn)
 			break
 		}
 
@@ -1824,7 +1824,7 @@ func addrescapes(n ir.Node) {
 		// then we're analyzing the inner closure but we need to move x to the
 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
 		oldfn := Curfn
-		Curfn = n.Name().Curfn
+		Curfn = n.Curfn
 		ln := base.Pos
 		base.Pos = Curfn.Pos()
 		moveToHeap(n)
@@ -1893,7 +1893,7 @@ func moveToHeap(n *ir.Name) {
 			// See issue 16095.
 			heapaddr.SetIsOutputParamHeapAddr(true)
 		}
-		n.Name().Stackcopy = stackcopy
+		n.Stackcopy = stackcopy
 
 		// Substitute the stackcopy into the function variable list so that
 		// liveness and other analyses use the underlying stack slot
@@ -1920,7 +1920,7 @@ func moveToHeap(n *ir.Name) {
 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
 	n.SetClass(ir.PAUTOHEAP)
 	n.SetOffset(0)
-	n.Name().Heapaddr = heapaddr
+	n.Heapaddr = heapaddr
 	n.SetEsc(EscHeap)
 	if base.Flag.LowerM != 0 {
 		base.WarnfAt(n.Pos(), "moved to heap: %v", n)

@@ -1071,7 +1071,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 				if ln.Class() != ir.PPARAMOUT {
 					break
 				}
-				if ir.AsNode(ln.Sym().Def) != ln {
+				if ln.Sym().Def != ln {
 					base.Errorf("%s is shadowed during return", ln.Sym().Name)
 				}
 			}
