@@ -3427,50 +3427,6 @@ func checkMapKeys() {
 	mapqueue = nil
 }
 
-func setUnderlying(t, underlying *types.Type) {
-	if underlying.Etype == types.TFORW {
-		// This type isn't computed yet; when it is, update n.
-		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
-		return
-	}
-
-	ft := t.ForwardType()
-
-	// TODO(mdempsky): Fix Type rekinding.
-	t.Etype = underlying.Etype
-	t.Extra = underlying.Extra
-	t.Width = underlying.Width
-	t.Align = underlying.Align
-	t.Orig = underlying.Orig
-
-	if underlying.NotInHeap() {
-		t.SetNotInHeap(true)
-	}
-	if underlying.Broke() {
-		t.SetBroke(true)
-	}
-
-	// spec: "The declared type does not inherit any methods bound
-	// to the existing type, but the method set of an interface
-	// type [...] remains unchanged."
-	if t.IsInterface() {
-		*t.Methods() = *underlying.Methods()
-		*t.AllMethods() = *underlying.AllMethods()
-	}
-
-	// Update types waiting on this type.
-	for _, w := range ft.Copyto {
-		setUnderlying(w, t)
-	}
-
-	// Double-check use of type as embedded type.
-	if ft.Embedlineno.IsKnown() {
-		if t.IsPtr() || t.IsUnsafePtr() {
-			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
-		}
-	}
-}
-
 func typecheckdeftype(n *ir.Name) {
 	if enableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
@@ -3492,7 +3448,7 @@ func typecheckdeftype(n *ir.Name) {
 	errorsBefore := base.Errors()
 	n.Ntype = typecheckNtype(n.Ntype)
 	if underlying := n.Ntype.Type(); underlying != nil {
-		setUnderlying(t, underlying)
+		types.SetUnderlying(t, underlying)
 	} else {
 		n.SetDiag(true)
 		n.SetType(nil)

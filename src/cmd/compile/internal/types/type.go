@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
@@ -1517,3 +1518,47 @@ var (
 	TypeVoid    = newSSA("void")
 	TypeInt128  = newSSA("int128")
 )
+
+func SetUnderlying(t, underlying *Type) {
+	if underlying.Etype == TFORW {
+		// This type isn't computed yet; when it is, update n.
+		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
+		return
+	}
+
+	ft := t.ForwardType()
+
+	// TODO(mdempsky): Fix Type rekinding.
+	t.Etype = underlying.Etype
+	t.Extra = underlying.Extra
+	t.Width = underlying.Width
+	t.Align = underlying.Align
+	t.Orig = underlying.Orig
+
+	if underlying.NotInHeap() {
+		t.SetNotInHeap(true)
+	}
+	if underlying.Broke() {
+		t.SetBroke(true)
+	}
+
+	// spec: "The declared type does not inherit any methods bound
+	// to the existing type, but the method set of an interface
+	// type [...] remains unchanged."
+	if t.IsInterface() {
+		*t.Methods() = *underlying.Methods()
+		*t.AllMethods() = *underlying.AllMethods()
+	}
+
+	// Update types waiting on this type.
+	for _, w := range ft.Copyto {
+		SetUnderlying(w, t)
+	}
+
+	// Double-check use of type as embedded type.
+	if ft.Embedlineno.IsKnown() {
+		if t.IsPtr() || t.IsUnsafePtr() {
+			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
+		}
+	}
+}
