@@ -42,6 +42,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	check.stmtList(0, body.List)
 
 	if check.hasLabel {
+		assert(!check.conf.IgnoreBranches)
 		check.labels(body)
 	}
 
@@ -316,7 +317,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.declStmt(s.DeclList)
 
 	case *syntax.LabeledStmt:
-		check.hasLabel = true
+		check.hasLabel = !check.conf.IgnoreBranches
 		check.stmt(ctxt, s.Stmt)
 
 	case *syntax.ExprStmt:
@@ -443,6 +444,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		}
 
 	case *syntax.BranchStmt:
+		if check.conf.IgnoreBranches {
+			break
+		}
+
 		if s.Label != nil {
 			check.hasLabel = true
 			return // checked in 2nd pass (check.labels)
@@ -464,6 +469,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				}
 				check.error(s, msg)
 			}
+		case syntax.Goto:
+			// goto's must have labels, should have been caught above
+			fallthrough
 		default:
 			check.invalidASTf(s, "branch statement: %s", s.Tok)
 		}
