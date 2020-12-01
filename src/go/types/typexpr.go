@@ -135,11 +135,12 @@ func (check *Checker) varType(e ast.Expr) Type {
 // ordinaryType reports an error if typ is an interface type containing
 // type lists or is (or embeds) the predeclared type comparable.
 func (check *Checker) ordinaryType(pos token.Pos, typ Type) {
-	// We don't want to call Under() (via Interface) or complete interfaces while we
-	// are in the middle of type-checking parameter declarations that might belong to
-	// interface methods. Delay this check to the end of type-checking.
+	// We don't want to call under() (via asInterface) or complete interfaces
+	// while we are in the middle of type-checking parameter declarations that
+	// might belong to interface methods. Delay this check to the end of
+	// type-checking.
 	check.atEnd(func() {
-		if t := typ.Interface(); t != nil {
+		if t := asInterface(typ); t != nil {
 			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
 				check.softErrorf(pos, "interface contains type constraints (%s)", t.allTypes)
@@ -279,7 +280,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv := check.genericType(rname, false).Named(); recv != nil {
+				if recv := asNamed(check.genericType(rname, false)); recv != nil {
 					recvTParams = recv.tparams
 				}
 			}
@@ -359,14 +360,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (ignore invalid types - error was reported before)
 		if t := rtyp; t != Typ[Invalid] {
 			var err string
-			if T := t.Named(); T != nil {
+			if T := asNamed(t); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
 				} else {
-					switch u := optype(T.Under()).(type) {
+					switch u := optype(T).(type) {
 					case *Basic:
 						// unsafe.Pointer is treated like a regular pointer
 						if u.kind == UnsafePointer {
@@ -409,7 +410,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			check.indent--
 			var under Type
 			if T != nil {
-				// Calling Under() here may lead to endless instantiations.
+				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] *T[P]
 				// TODO(gri) investigate if that's a bug or to be expected
 				// (see also analogous comment in Checker.instantiate).
@@ -532,7 +533,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		check.atEnd(func() {
 			if !Comparable(typ.key) {
 				var why string
-				if typ.key.TypeParam() != nil {
+				if asTypeParam(typ.key) != nil {
 					why = " (missing comparable constraint)"
 				}
 				check.errorf(e.Key.Pos(), "invalid map key type %s%s", typ.key, why)
@@ -603,7 +604,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named)
 	if b == Typ[Invalid] {
 		return b // error already reported
 	}
-	base := b.Named()
+	base := asNamed(b)
 	if base == nil {
 		unreachable() // should have been caught by genericType
 	}
@@ -914,8 +915,8 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
-		utyp := typ.Under()
-		etyp := utyp.Interface()
+		utyp := under(typ)
+		etyp := asInterface(utyp)
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
 				var format string
@@ -988,7 +989,7 @@ func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func sortName(t Type) string {
-	if named := t.Named(); named != nil {
+	if named := asNamed(t); named != nil {
 		return named.obj.Id()
 	}
 	return ""
@@ -1081,12 +1082,12 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
 			// We must delay this check to the end because we don't want to instantiate
-			// (via t.Under()) a possibly incomplete type.
+			// (via under(t)) a possibly incomplete type.
 			embeddedTyp := typ // for closure below
 			embeddedPos := pos
 			check.atEnd(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := optype(t.Under()).(type) {
+				switch t := optype(t).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before
@@ -1158,7 +1159,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 	check.atEnd(func() {
 		uniques := make([]Type, 0, len(list)) // assume all types are unique
 		for i, t := range list {
-			if t := t.Interface(); t != nil {
+			if t := asInterface(t); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
 			if includes(uniques, t) {

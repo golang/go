@@ -53,7 +53,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		case 1:
 			check.expr(x, call.Args[0])
 			if x.mode != invalid {
-				if t := T.Interface(); t != nil {
+				if t := asInterface(T); t != nil {
 					check.completeInterface(token.NoPos, t)
 					if t.IsConstraint() {
 						check.errorf(call.Pos(), "cannot use interface %s in conversion (contains type list or is comparable)", T)
@@ -85,7 +85,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		// function/method call
 		cgocall := x.mode == cgofunc
 
-		sig := x.typ.Signature()
+		sig := asSignature(x.typ)
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
 			x.mode = invalid
@@ -572,7 +572,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
 		default:
 			var why string
-			if tpar := x.typ.TypeParam(); tpar != nil {
+			if tpar := asTypeParam(x.typ); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
 				switch obj := tpar.Bound().obj.(type) {
 				case nil:

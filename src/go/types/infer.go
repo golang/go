@@ -291,7 +291,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
 		typ := tpar.typ.(*TypeParam)
-		sbound := check.structuralType(typ.bound.Under())
+		sbound := check.structuralType(under(typ.bound))
 		if sbound != nil {
 			//check.dump(">>> unify(%s, %s)", tpar, sbound)
 			if !u.unify(typ, sbound) {

@@ -58,11 +58,16 @@ the type (and constant value, if any) is recorded via Info.Types, if present.
 
 type opPredicates map[token.Token]func(Type) bool
 
-var unaryOpPredicates = opPredicates{
-	token.ADD: isNumeric,
-	token.SUB: isNumeric,
-	token.XOR: isInteger,
-	token.NOT: isBoolean,
+var unaryOpPredicates opPredicates
+
+func init() {
+	// Setting unaryOpPredicates in init avoids declaration cycles.
+	unaryOpPredicates = opPredicates{
+		token.ADD: isNumeric,
+		token.SUB: isNumeric,
+		token.XOR: isInteger,
+		token.NOT: isBoolean,
+	}
 }
 
 func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
@@ -94,7 +99,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
 		return
 
 	case token.ARROW:
-		typ := x.typ.Chan()
+		typ := asChan(x.typ)
 		if typ == nil {
 			check.invalidOp(x.pos(), "cannot receive from non-channel %s", x)
 			x.mode = invalid
@@ -117,7 +122,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
 	}
 
 	if x.mode == constant_ {
-		typ := x.typ.Basic()
+		typ := asBasic(x.typ)
 		var prec uint
 		if isUnsigned(typ) {
 			prec = uint(check.conf.sizeof(typ) * 8)
@@ -444,7 +449,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	// If the new type is not final and still untyped, just
 	// update the recorded type.
 	if !final && isUntyped(typ) {
-		old.typ = typ.Basic()
+		old.typ = asBasic(typ)
 		check.untyped[x] = old
 		return
 	}
@@ -516,7 +521,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	// TODO(gri) We should not need this because we have the code
 	// for Sum types in convertUntypedInternal. But at least one
 	// test fails. Investigate.
-	if t := target.TypeParam(); t != nil {
+	if t := asTypeParam(target); t != nil {
 		types := t.Bound().allTypes
 		if types == nil {
 			goto Error
@@ -552,7 +557,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	assert(isTyped(target))
 
 	// typed target
-	switch t := optype(target.Under()).(type) {
+	switch t := optype(target).(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			check.representable(x, t)
@@ -755,7 +760,7 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 				if e != nil {
 					x.expr = e // for better error message
 				}
-				check.representable(x, x.typ.Basic())
+				check.representable(x, asBasic(x.typ))
 			}
 			return
 		}
@@ -801,20 +806,25 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	x.mode = value
 }
 
-var binaryOpPredicates = opPredicates{
-	token.ADD: isNumericOrString,
-	token.SUB: isNumeric,
-	token.MUL: isNumeric,
-	token.QUO: isNumeric,
-	token.REM: isInteger,
+var binaryOpPredicates opPredicates
 
-	token.AND:     isInteger,
-	token.OR:      isInteger,
-	token.XOR:     isInteger,
-	token.AND_NOT: isInteger,
+func init() {
+	// Setting binaryOpPredicates in init avoids declaration cycles.
+	binaryOpPredicates = opPredicates{
+		token.ADD: isNumericOrString,
+		token.SUB: isNumeric,
+		token.MUL: isNumeric,
+		token.QUO: isNumeric,
+		token.REM: isInteger,
 
-	token.LAND: isBoolean,
-	token.LOR:  isBoolean,
+		token.AND:     isInteger,
+		token.OR:      isInteger,
+		token.XOR:     isInteger,
+		token.AND_NOT: isInteger,
+
+		token.LAND: isBoolean,
+		token.LOR:  isBoolean,
+	}
 }
 
 // The binary expression e may be nil. It's passed in for better error messages only.
@@ -891,7 +901,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 	if x.mode == constant_ && y.mode == constant_ {
 		xval := x.val
 		yval := y.val
-		typ := x.typ.Basic()
+		typ := asBasic(x.typ)
 		// force integer division of integer operands
 		if op == token.QUO && isInteger(typ) {
 			op = token.QUO_ASSIGN
@@ -1134,7 +1144,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base, _ = deref(typ.Under()) // *T implies &T{}
+			base, _ = deref(under(typ)) // *T implies &T{}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
@@ -1142,7 +1152,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
-		switch utyp := optype(base.Under()).(type) {
+		switch utyp := optype(base).(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
@@ -1268,7 +1278,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					duplicate := false
 					// if the key is of interface type, the type is also significant when checking for duplicates
 					xkey := keyVal(x.val)
-					if utyp.key.Interface() != nil {
+					if asInterface(utyp.key) != nil {
 						for _, vtyp := range visited[xkey] {
 							if check.identical(vtyp, x.typ) {
 								duplicate = true
@@ -1345,14 +1355,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				goto Error
 			}
 
-			if sig := x.typ.Signature(); sig != nil {
+			if sig := asSignature(x.typ); sig != nil {
 				return check.call(x, nil, e)
 			}
 		}
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := optype(x.typ.Under()).(type) {
+		switch typ := optype(x.typ).(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1375,7 +1385,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.typ = typ.elem
 
 		case *Pointer:
-			if typ := typ.base.Array(); typ != nil {
+			if typ := asArray(typ.base); typ != nil {
 				valid = true
 				length = typ.len
 				x.mode = variable
@@ -1405,7 +1415,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			nmaps := 0           // number of map types in sum type
 			if typ.is(func(t Type) bool {
 				var e Type
-				switch t := t.Under().(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if isString(t) {
 						e = universeByte
@@ -1413,7 +1423,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				case *Array:
 					e = t.elem
 				case *Pointer:
-					if t := t.base.Array(); t != nil {
+					if t := asArray(t.base); t != nil {
 						e = t.elem
 					}
 				case *Slice:
@@ -1503,7 +1513,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := optype(x.typ.Under()).(type) {
+		switch typ := optype(x.typ).(type) {
 		case *Basic:
 			if isString(typ) {
 				if e.Slice3 {
@@ -1531,7 +1541,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.typ = &Slice{elem: typ.elem}
 
 		case *Pointer:
-			if typ := typ.base.Array(); typ != nil {
+			if typ := asArray(typ.base); typ != nil {
 				valid = true
 				length = typ.len
 				x.typ = &Slice{elem: typ.elem}
@@ -1604,7 +1614,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if x.mode == invalid {
 			goto Error
 		}
-		xtyp, _ := x.typ.Under().(*Interface)
+		xtyp, _ := under(x.typ).(*Interface)
 		if xtyp == nil {
 			check.errorf(x.pos(), "%s is not an interface type", x)
 			goto Error
@@ -1634,7 +1644,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case typexpr:
 			x.typ = &Pointer{base: x.typ}
 		default:
-			if typ := x.typ.Pointer(); typ != nil {
+			if typ := asPointer(x.typ); typ != nil {
 				x.mode = variable
 				x.typ = typ.base
 			} else {

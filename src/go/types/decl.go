@@ -404,7 +404,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 		if !isConstType(t) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
-			if t.Under() != Typ[Invalid] {
+			if under(t) != Typ[Invalid] {
 				check.errorf(typ.Pos(), "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
@@ -481,13 +481,13 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
 }
 
-// Under returns the expanded underlying type of n0; possibly by following
+// under returns the expanded underlying type of n0; possibly by following
 // forward chains of named types. If an underlying type is found, resolve
 // the chain by setting the underlying type for each defined type in the
 // chain before returning it. If no underlying type is found or a cycle
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
-func (n0 *Named) Under() Type {
+func (n0 *Named) under() Type {
 	u := n0.underlying
 	if u == nil {
 		return Typ[Invalid]
@@ -495,7 +495,7 @@ func (n0 *Named) Under() Type {
 
 	// If the underlying type of a defined type is not a defined
 	// type, then that is the desired underlying type.
-	n := u.Named()
+	n := asNamed(u)
 	if n == nil {
 		return u // common case
 	}
@@ -509,7 +509,7 @@ func (n0 *Named) Under() Type {
 			u = Typ[Invalid]
 			break
 		}
-		n1 := u.Named()
+		n1 := asNamed(u)
 		if n1 == nil {
 			break // end of chain
 		}
@@ -600,7 +600,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		// any forward chain.
 		// TODO(gri) Investigate if we can just use named.origin here
 		//           and rely on lazy computation of the underlying type.
-		named.underlying = named.Under()
+		named.underlying = under(named)
 	}
 
 }
@@ -653,7 +653,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		//           we may not have a complete interface yet:
 		//           type C(type T C) interface {}
 		//           (issue #39724).
-		if _, ok := bound.Under().(*Interface); ok {
+		if _, ok := under(bound).(*Interface); ok {
 			if enableImplicitTParam && isGeneric(bound) {
 				base := bound.(*Named) // only a *Named type can be generic
 				if len(base.tparams) != 1 {
@@ -742,7 +742,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base := obj.typ.Named() // shouldn't fail but be conservative
+	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
 		if t, _ := base.underlying.(*Struct); t != nil {
 			for _, fld := range t.fields {

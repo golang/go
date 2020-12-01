@@ -771,13 +771,13 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 	// if they go through an embedded instantiated field.
 	// We have to add a reference to the field we inserted.
 	if xType := t.lookupType(e.X); xType != nil {
-		if ptr := xType.Pointer(); ptr != nil {
+		if ptr := types.AsPointer(xType); ptr != nil {
 			xType = ptr.Elem()
 		}
 		fobj, indexes, _ := types.LookupFieldOrMethod(xType, true, obj.Pkg(), obj.Name())
 		if fobj != nil && len(indexes) > 1 {
 			for _, index := range indexes[:len(indexes)-1] {
-				xf := xType.Struct().Field(index)
+				xf := types.AsStruct(xType).Field(index)
 				// This must be an embedded type.
 				// If the field name is the one we expect,
 				// don't mention it explicitly,
@@ -790,7 +790,7 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 					Sel: ast.NewIdent(xf.Name()),
 				}
 				xType = xf.Type()
-				if ptr := xType.Pointer(); ptr != nil {
+				if ptr := types.AsPointer(xType); ptr != nil {
 					xType = ptr.Elem()
 				}
 			}
@@ -805,7 +805,7 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 		if typ == nil {
 			typ = f.Type()
 		}
-		if pt := typ.Pointer(); pt != nil {
+		if pt := types.AsPointer(typ); pt != nil {
 			typ = pt.Elem()
 		}
 		named, ok := typ.(*types.Named)
@@ -1247,7 +1247,7 @@ func (t *translator) sameType(a, b types.Type) bool {
 	if types.IdenticalIgnoreTags(a, b) {
 		return true
 	}
-	if ap, bp := a.Pointer(), b.Pointer(); ap != nil && bp != nil {
+	if ap, bp := types.AsPointer(a), types.AsPointer(b); ap != nil && bp != nil {
 		a = ap.Elem()
 		b = bp.Elem()
 	}

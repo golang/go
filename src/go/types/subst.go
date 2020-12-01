@@ -61,7 +61,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			check.indent--
 			var under Type
 			if res != nil {
-				// Calling Under() here may lead to endless instantiations.
+				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] T[P]
 				// TODO(gri) investigate if that's a bug or to be expected.
 				under = res.Underlying()
@@ -147,12 +147,12 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			// If the type argument is a pointer to a type parameter, the type argument's
 			// method set is empty.
 			// TODO(gri) is this what we want? (spec question)
-			if tparg := targ.TypeParam(); tparg != nil {
+			if tparg := asTypeParam(targ); tparg != nil {
 				if tparg.ptr != tpar.ptr {
 					check.errorf(pos, "pointer designation mismatch")
 					break
 				}
-			} else if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
+			} else if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
 				check.errorf(pos, "%s has no methods", targ)
 				break
 			}
@@ -191,7 +191,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
-		if targ := targ.TypeParam(); targ != nil {
+		if targ := asTypeParam(targ); targ != nil {
 			targBound := targ.Bound()
 			if targBound.allTypes == nil {
 				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
@@ -209,7 +209,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, targ.Under(), iface.allTypes)
+			check.softErrorf(pos, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
 			break
 		}
 	}

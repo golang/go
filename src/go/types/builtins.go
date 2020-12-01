@@ -81,7 +81,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s := S.Slice(); s != nil {
+		if s := asSlice(S); s != nil {
 			T = s.elem
 		} else {
 			check.invalidArg(x.pos(), "%s is not a slice", x)
@@ -141,7 +141,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(optype(x.typ.Under())); t := typ.(type) {
+		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -177,7 +177,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		case *Sum:
 			if t.is(func(t Type) bool {
-				switch t := t.Under().(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -209,7 +209,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Close:
 		// close(c)
-		c := x.typ.Chan()
+		c := asChan(x.typ)
 		if c == nil {
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			return
@@ -285,7 +285,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// the argument types must be of floating-point type
 		f := func(x Type) Type {
-			if t := x.Basic(); t != nil {
+			if t := asBasic(x); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -319,7 +319,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Copy:
 		// copy(x, y []T) int
 		var dst Type
-		if t := x.typ.Slice(); t != nil {
+		if t := asSlice(x.typ); t != nil {
 			dst = t.elem
 		}
 
@@ -329,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 		var src Type
-		switch t := optype(y.typ.Under()).(type) {
+		switch t := optype(y.typ).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
@@ -356,7 +356,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Delete:
 		// delete(m, k)
-		m := x.typ.Map()
+		m := asMap(x.typ)
 		if m == nil {
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			return
@@ -403,7 +403,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// the argument must be of complex type
 		f := func(x Type) Type {
-			if t := x.Basic(); t != nil {
+			if t := asBasic(x); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -452,7 +452,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var valid func(t Type) bool
 		valid = func(t Type) bool {
 			var m int
-			switch t := optype(t.Under()).(type) {
+			switch t := optype(t).(type) {
 			case *Slice:
 				m = 2
 			case *Map, *Chan:
@@ -576,7 +576,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
-		if x.typ.TypeParam() != nil {
+		if asTypeParam(x.typ) != nil {
 			check.invalidOp(call.Pos(), "unsafe.Alignof undefined for %s", x)
 			return
 		}
@@ -637,7 +637,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
-		if x.typ.TypeParam() != nil {
+		if asTypeParam(x.typ) != nil {
 			check.invalidOp(call.Pos(), "unsafe.Sizeof undefined for %s", x)
 			return
 		}
@@ -704,7 +704,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp := x.TypeParam(); tp != nil {
+	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var rtypes []Type
@@ -751,7 +751,7 @@ func makeSig(res Type, args ...Type) *Signature {
 //
 func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := p.base.Array(); a != nil {
+		if a := asArray(p.base); a != nil {
 			return a
 		}
 	}
