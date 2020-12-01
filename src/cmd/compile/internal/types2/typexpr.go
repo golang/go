@@ -384,6 +384,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// as the method."
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
+					if check.conf.CompilerErrorMessages {
+						check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+						err = ""
+					}
 				} else {
 					switch u := optype(T.Under()).(type) {
 					case *Basic:
@@ -395,11 +399,17 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 						err = "pointer or interface type"
 					}
 				}
-			} else {
+			} else if T := t.Basic(); T != nil {
 				err = "basic or unnamed type"
+				if check.conf.CompilerErrorMessages {
+					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+					err = ""
+				}
+			} else {
+				check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
 			}
 			if err != "" {
-				check.errorf(recv.pos, "invalid receiver %s (%s)", recv.typ, err)
+				check.errorf(recv.pos, "invalid receiver type %s (%s)", recv.typ, err)
 				// ok to continue
 			}
 		}

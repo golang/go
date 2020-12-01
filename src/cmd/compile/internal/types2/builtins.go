@@ -281,7 +281,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// both argument types must be identical
 		if !check.identical(x.typ, y.typ) {
-			check.invalidArgf(x, "mismatched types %s and %s", x.typ, y.typ)
+			check.invalidOpf(x, "%s (mismatched types %s and %s)", call, x.typ, y.typ)
 			return
 		}
 

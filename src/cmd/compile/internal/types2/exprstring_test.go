@@ -24,9 +24,9 @@ var testExprs = []testEntry{
 	dup("`bar`"),
 
 	// func and composite literals
-	{"func(){}", "(func() literal)"},
-	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
-	{"[]int{1, 2, 3}", "([]int literal)"},
+	{"func(){}", "func() {}"},
+	{"func(x int) complex128 {}", "func(x int) complex128 {}"},
+	{"[]int{1, 2, 3}", "[]int{…}"},
 
 	// non-type expressions
 	dup("(x)"),

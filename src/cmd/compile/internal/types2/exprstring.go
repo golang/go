@@ -50,14 +50,20 @@ func WriteExpr(buf *bytes.Buffer, x syntax.Expr) {
 		buf.WriteString(x.Value)
 
 	case *syntax.FuncLit:
-		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // shortened
+		if x.Body != nil && len(x.Body.List) > 0 {
+			buf.WriteString(" {…}") // shortened
+		} else {
+			buf.WriteString(" {}")
+		}
 
 	case *syntax.CompositeLit:
-		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // shortened
+		if len(x.ElemList) > 0 {
+			buf.WriteString("{…}") // shortened
+		} else {
+			buf.WriteString("{}")
+		}
 
 	case *syntax.ParenExpr:
 		buf.WriteByte('(')
