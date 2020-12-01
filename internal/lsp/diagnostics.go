@@ -44,6 +44,7 @@ type diagnosticReport struct {
 // fileReports holds a collection of diagnostic reports for a single file, as
 // well as the hash of the last published set of diagnostics.
 type fileReports struct {
+	snapshotID    uint64
 	publishedHash string
 	reports       map[diagnosticSource]diagnosticReport
 }
@@ -430,14 +431,18 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 	s.diagnosticsMu.Lock()
 	defer s.diagnosticsMu.Unlock()
 	for uri, r := range s.diagnostics {
+		// Snapshot IDs are always increasing, so we use them instead of file
+		// versions to create the correct order for diagnostics.
+
+		// If we've already delivered diagnostics for a future snapshot for this
+		// file, do not deliver them.
+		if r.snapshotID > snapshot.ID() {
+			continue
+		}
 		anyReportsChanged := false
 		reportHashes := map[diagnosticSource]string{}
 		var diags []*source.Diagnostic
 		for dsource, report := range r.reports {
-			// Note: it might be worth adding special handling for the case where
-			// report.snapshotID > snapshot.ID(), in which case this publish pass is
-			// operating on stale data, but for now this is handled by virtue of
-			// cancelling the old snapshot context before diagnosing the next.
 			if report.snapshotID != snapshot.ID() {
 				continue
 			}
@@ -473,6 +478,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			Version:     version,
 		}); err == nil {
 			r.publishedHash = hash
+			r.snapshotID = snapshot.ID()
 			for dsource, hash := range reportHashes {
 				report := r.reports[dsource]
 				report.publishedHash = hash
