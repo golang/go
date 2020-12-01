@@ -369,7 +369,7 @@ func funchdr(fn *ir.Func) {
 
 	types.Markdcl()
 
-	if fn.Nname != nil && fn.Nname.Ntype != nil {
+	if fn.Nname.Ntype != nil {
 		funcargs(fn.Nname.Ntype.(*ir.FuncType))
 	} else {
 		funcargs2(fn.Type())
@@ -510,27 +510,6 @@ func checkembeddedtype(t *types.Type) {
 	}
 }
 
-func structfield(n *ir.Field) *types.Field {
-	lno := base.Pos
-	base.Pos = n.Pos
-
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.Type = n.Ntype.Type()
-		n.Ntype = nil
-	}
-
-	f := types.NewField(n.Pos, n.Sym, n.Type)
-	if n.Embedded {
-		checkembeddedtype(n.Type)
-		f.Embedded = 1
-	}
-	f.Note = n.Note
-
-	base.Pos = lno
-	return f
-}
-
 // checkdupfields emits errors for duplicately named fields or methods in
 // a list of struct or interface types.
 func checkdupfields(what string, fss ...[]*types.Field) {
@@ -552,95 +531,49 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 // convert a parsed id/type list into
 // a type for struct/interface/arglist
 func tostruct(l []*ir.Field) *types.Type {
-	t := types.New(types.TSTRUCT)
-
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		f := structfield(n)
-		if f.Broke() {
-			t.SetBroke(true)
-		}
-		fields[i] = f
-	}
-	t.SetFields(fields)
-
-	checkdupfields("field", t.FieldSlice())
-
-	if !t.Broke() {
-		checkwidth(t)
-	}
-
-	return t
-}
-
-func tofunargs(l []*ir.Field, funarg types.Funarg) *types.Type {
-	t := types.New(types.TSTRUCT)
-	t.StructType().Funarg = funarg
-
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		f := structfield(n)
-		f.SetIsDDD(n.IsDDD)
-		if n.Decl != nil {
-			n.Decl.SetType(f.Type)
-			f.Nname = n.Decl
-		}
-		if f.Broke() {
-			t.SetBroke(true)
-		}
-		fields[i] = f
-	}
-	t.SetFields(fields)
-	return t
-}
-
-func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
-	t := types.New(types.TSTRUCT)
-	t.StructType().Funarg = funarg
-	t.SetFields(fields)
-	return t
-}
-
-func interfacefield(n *ir.Field) *types.Field {
 	lno := base.Pos
-	base.Pos = n.Pos
 
-	if n.Note != "" {
-		base.Errorf("interface method cannot have annotation")
+	fields := make([]*types.Field, len(l))
+	for i, n := range l {
+		base.Pos = n.Pos
+
+		if n.Ntype != nil {
+			n.Type = typecheckNtype(n.Ntype).Type()
+			n.Ntype = nil
+		}
+		f := types.NewField(n.Pos, n.Sym, n.Type)
+		if n.Embedded {
+			checkembeddedtype(n.Type)
+			f.Embedded = 1
+		}
+		f.Note = n.Note
+		fields[i] = f
 	}
-
-	// MethodSpec = MethodName Signature | InterfaceTypeName .
-	//
-	// If Sym != nil, then Sym is MethodName and Left is Signature.
-	// Otherwise, Left is InterfaceTypeName.
-
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.Type = n.Ntype.Type()
-		n.Ntype = nil
-	}
-
-	f := types.NewField(n.Pos, n.Sym, n.Type)
+	checkdupfields("field", fields)
 
 	base.Pos = lno
-	return f
+	return types.NewStruct(fields)
 }
 
-func tointerface(l []*ir.Field) *types.Type {
-	if len(l) == 0 {
+func tointerface(nmethods []*ir.Field) *types.Type {
+	if len(nmethods) == 0 {
 		return types.Types[types.TINTER]
 	}
-	t := types.New(types.TINTER)
-	var fields []*types.Field
-	for _, n := range l {
-		f := interfacefield(n)
-		if f.Broke() {
-			t.SetBroke(true)
+
+	lno := base.Pos
+
+	methods := make([]*types.Field, len(nmethods))
+	for i, n := range nmethods {
+		base.Pos = n.Pos
+		if n.Ntype != nil {
+			n.Type = typecheckNtype(n.Ntype).Type()
+			n.Ntype = nil
 		}
-		fields = append(fields, f)
+		methods[i] = types.NewField(n.Pos, n.Sym, n.Type)
 	}
-	t.SetInterface(fields)
-	return t
+
+	base.Pos = lno
+	return types.NewInterface(methods)
 }
 
 func fakeRecv() *ir.Field {
@@ -659,42 +592,47 @@ func isifacemethod(f *types.Type) bool {
 }
 
 // turn a parsed function declaration into a type
-func functype(this *ir.Field, in, out []*ir.Field) *types.Type {
-	t := types.New(types.TFUNC)
+func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
+	funarg := func(n *ir.Field) *types.Field {
+		lno := base.Pos
+		base.Pos = n.Pos
 
-	var rcvr []*ir.Field
-	if this != nil {
-		rcvr = []*ir.Field{this}
+		if n.Ntype != nil {
+			n.Type = typecheckNtype(n.Ntype).Type()
+			n.Ntype = nil
+		}
+
+		f := types.NewField(n.Pos, n.Sym, n.Type)
+		f.SetIsDDD(n.IsDDD)
+		if n.Decl != nil {
+			n.Decl.SetType(f.Type)
+			f.Nname = n.Decl
+		}
+
+		base.Pos = lno
+		return f
 	}
-	t.FuncType().Receiver = tofunargs(rcvr, types.FunargRcvr)
-	t.FuncType().Params = tofunargs(in, types.FunargParams)
-	t.FuncType().Results = tofunargs(out, types.FunargResults)
+	funargs := func(nn []*ir.Field) []*types.Field {
+		res := make([]*types.Field, len(nn))
+		for i, n := range nn {
+			res[i] = funarg(n)
+		}
+		return res
+	}
 
+	var recv *types.Field
+	if nrecv != nil {
+		recv = funarg(nrecv)
+	}
+
+	t := types.NewSignature(recv, funargs(nparams), funargs(nresults))
 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
-
-	if t.Recvs().Broke() || t.Results().Broke() || t.Params().Broke() {
-		t.SetBroke(true)
-	}
-
-	t.FuncType().Outnamed = t.NumResults() > 0 && ir.OrigSym(t.Results().Field(0).Sym) != nil
-
 	return t
 }
 
-func functypefield(this *types.Field, in, out []*types.Field) *types.Type {
-	t := types.New(types.TFUNC)
-
-	var rcvr []*types.Field
-	if this != nil {
-		rcvr = []*types.Field{this}
-	}
-	t.FuncType().Receiver = tofunargsfield(rcvr, types.FunargRcvr)
-	t.FuncType().Params = tofunargsfield(in, types.FunargParams)
-	t.FuncType().Results = tofunargsfield(out, types.FunargResults)
-
-	t.FuncType().Outnamed = t.NumResults() > 0 && ir.OrigSym(t.Results().Field(0).Sym) != nil
-
-	return t
+func hasNamedResults(fn *ir.Func) bool {
+	typ := fn.Type()
+	return typ.NumResults() > 0 && ir.OrigSym(typ.Results().Field(0).Sym) != nil
 }
 
 // methodSym returns the method symbol representing a method name

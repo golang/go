@@ -126,9 +126,8 @@ func bmap(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
-	bucket := types.New(types.TSTRUCT)
+	bucket := types.NewStruct(field[:])
 	bucket.SetNoalg(true)
-	bucket.SetFields(field[:])
 	dowidth(bucket)
 
 	// Check invariants that map code depends on.
@@ -221,9 +220,8 @@ func hmap(t *types.Type) *types.Type {
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.New(types.TSTRUCT)
+	hmap := types.NewStruct(fields)
 	hmap.SetNoalg(true)
-	hmap.SetFields(fields)
 	dowidth(hmap)
 
 	// The size of hmap should be 48 bytes on 64 bit
@@ -285,9 +283,8 @@ func hiter(t *types.Type) *types.Type {
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.New(types.TSTRUCT)
+	hiter := types.NewStruct(fields)
 	hiter.SetNoalg(true)
-	hiter.SetFields(fields)
 	dowidth(hiter)
 	if hiter.Width != int64(12*Widthptr) {
 		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
@@ -332,9 +329,8 @@ func deferstruct(stksize int64) *types.Type {
 	}
 
 	// build struct holding the above fields
-	s := types.New(types.TSTRUCT)
+	s := types.NewStruct(fields)
 	s.SetNoalg(true)
-	s.SetFields(fields)
 	s.Width = widstruct(s, s, 0, 1)
 	s.Align = uint8(Widthptr)
 	return s

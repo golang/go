@@ -545,9 +545,8 @@ func (r *importReader) typ1() *types.Type {
 			fs[i] = f
 		}
 
-		t := types.New(types.TSTRUCT)
+		t := types.NewStruct(fs)
 		t.SetPkg(r.currPkg)
-		t.SetFields(fs)
 		return t
 
 	case interfaceType:
@@ -570,9 +569,8 @@ func (r *importReader) typ1() *types.Type {
 			methods[i] = types.NewField(pos, sym, typ)
 		}
 
-		t := types.New(types.TINTER)
+		t := types.NewInterface(append(embeddeds, methods...))
 		t.SetPkg(r.currPkg)
-		t.SetInterface(append(embeddeds, methods...))
 
 		// Ensure we expand the interface in the frontend (#25055).
 		checkwidth(t)
@@ -590,7 +588,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
 	if n := len(params); n > 0 {
 		params[n-1].SetIsDDD(r.bool())
 	}
-	t := functypefield(recv, params, results)
+	t := types.NewSignature(recv, params, results)
 	t.SetPkg(r.currPkg)
 	return t
 }

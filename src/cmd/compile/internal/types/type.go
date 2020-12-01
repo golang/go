@@ -285,8 +285,6 @@ type Func struct {
 	// It gets calculated via a temporary TFUNCARGS type.
 	// Note that TFUNC's Width is Widthptr.
 	Argwid int64
-
-	Outnamed bool
 }
 
 // FuncType returns t's extra func-specific fields.
@@ -1617,4 +1615,61 @@ func NewBasic(kind Kind, obj Object) *Type {
 	t.sym = obj.Sym()
 	t.nod = obj
 	return t
+}
+
+// NewInterface returns a new interface for the given methods and
+// embedded types. Embedded types are specified as fields with no Sym.
+func NewInterface(methods []*Field) *Type {
+	t := New(TINTER)
+	t.SetInterface(methods)
+	if anyBroke(methods) {
+		t.SetBroke(true)
+	}
+	return t
+}
+
+//  NewSignature returns a new function type for the given receiver,
+//  parameters, and results, any of which may be nil.
+func NewSignature(recv *Field, params, results []*Field) *Type {
+	var recvs []*Field
+	if recv != nil {
+		recvs = []*Field{recv}
+	}
+
+	t := New(TFUNC)
+	ft := t.FuncType()
+
+	funargs := func(fields []*Field, funarg Funarg) *Type {
+		s := NewStruct(fields)
+		s.StructType().Funarg = funarg
+		if s.Broke() {
+			t.SetBroke(true)
+		}
+		return s
+	}
+
+	ft.Receiver = funargs(recvs, FunargRcvr)
+	ft.Params = funargs(params, FunargParams)
+	ft.Results = funargs(results, FunargResults)
+
+	return t
+}
+
+// NewStruct returns a new struct with the given fields.
+func NewStruct(fields []*Field) *Type {
+	t := New(TSTRUCT)
+	t.SetFields(fields)
+	if anyBroke(fields) {
+		t.SetBroke(true)
+	}
+	return t
+}
+
+func anyBroke(fields []*Field) bool {
+	for _, f := range fields {
+		if f.Broke() {
+			return true
+		}
+	}
+	return false
 }

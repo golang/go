@@ -7,23 +7,22 @@ package gc
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"reflect"
 	"sort"
 	"testing"
 )
 
 func typeWithoutPointers() *types.Type {
-	t := types.New(types.TSTRUCT)
-	f := &types.Field{Type: types.New(types.TINT)}
-	t.SetFields([]*types.Field{f})
-	return t
+	return types.NewStruct([]*types.Field{
+		types.NewField(src.NoXPos, nil, types.New(types.TINT)),
+	})
 }
 
 func typeWithPointers() *types.Type {
-	t := types.New(types.TSTRUCT)
-	f := &types.Field{Type: types.NewPtr(types.New(types.TINT))}
-	t.SetFields([]*types.Field{f})
-	return t
+	return types.NewStruct([]*types.Field{
+		types.NewField(src.NoXPos, nil, types.NewPtr(types.New(types.TINT))),
+	})
 }
 
 func markUsed(n *ir.Name) *ir.Name {
