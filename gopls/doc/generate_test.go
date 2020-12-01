@@ -18,6 +18,6 @@ func TestGenerated(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !ok {
-		t.Error("documentation needs updating. run: `go run gopls/doc/generate.go` from the root of tools.")
+		t.Error("documentation needs updating. run: `go run doc/generate.go` from the gopls module.")
 	}
 }

@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
@@ -94,6 +95,10 @@ func (sj *apiJSON) DetailedHelp(f *flag.FlagSet) {
 }
 
 func (sj *apiJSON) Run(ctx context.Context, args ...string) error {
-	fmt.Fprintf(os.Stdout, source.GeneratedAPIJSON)
+	js, err := json.MarshalIndent(source.GeneratedAPIJSON, "", "\t")
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(os.Stdout, string(js))
 	return nil
 }
