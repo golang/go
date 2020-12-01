@@ -742,7 +742,9 @@ func (r *importReader) stmtList() []ir.Node {
 		if n == nil {
 			break
 		}
-		// OBLOCK nodes may be created when importing ODCL nodes - unpack them
+		// OBLOCK nodes are not written to the import data directly,
+		// but the handling of ODCL calls liststmt, which creates one.
+		// Inline them into the statement list.
 		if n.Op() == ir.OBLOCK {
 			list = append(list, n.List().Slice()...)
 		} else {

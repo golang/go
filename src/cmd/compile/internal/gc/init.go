@@ -88,8 +88,10 @@ func fninit(n []ir.Node) {
 		s := lookupN("init.", i)
 		fn := ir.AsNode(s.Def).Name().Defn
 		// Skip init functions with empty bodies.
-		if fn.Body().Len() == 1 && fn.Body().First().Op() == ir.OEMPTY {
-			continue
+		if fn.Body().Len() == 1 {
+			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.List().Len() == 0 {
+				continue
+			}
 		}
 		fns = append(fns, s.Linksym())
 	}

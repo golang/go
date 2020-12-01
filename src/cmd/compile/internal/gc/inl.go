@@ -396,7 +396,7 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
 
-	case ir.ODCLCONST, ir.OEMPTY, ir.OFALL:
+	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
 
@@ -425,6 +425,11 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 			v.usedLocals[n] = true
 		}
 
+	case ir.OBLOCK:
+		// The only OBLOCK we should see at this point is an empty one.
+		// In any event, let the visitList(n.List()) below take care of the statements,
+		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
+		v.budget++
 	}
 
 	v.budget--

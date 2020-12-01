@@ -1950,12 +1950,15 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 	case ir.OBREAK,
 		ir.OCONTINUE,
 		ir.ODCL,
-		ir.OEMPTY,
 		ir.OGOTO,
 		ir.OFALL,
 		ir.OVARKILL,
 		ir.OVARLIVE:
 		ok |= ctxStmt
+
+	case ir.OBLOCK:
+		ok |= ctxStmt
+		typecheckslice(n.List().Slice(), ctxStmt)
 
 	case ir.OLABEL:
 		ok |= ctxStmt
@@ -1964,7 +1967,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
 			// See issues 7538, 11589, 11593.
-			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
 		}
 
 	case ir.ODEFER:
@@ -3808,7 +3811,7 @@ func deadcode(fn *ir.Func) {
 		}
 	}
 
-	fn.PtrBody().Set([]ir.Node{ir.Nod(ir.OEMPTY, nil, nil)})
+	fn.PtrBody().Set([]ir.Node{ir.Nod(ir.OBLOCK, nil, nil)})
 }
 
 func deadcodeslice(nn *ir.Nodes) {

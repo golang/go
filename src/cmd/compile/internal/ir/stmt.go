@@ -266,22 +266,6 @@ func (n *DeferStmt) rawCopy() Node                 { c := *n; return &c }
 func (n *DeferStmt) Left() Node     { return n.Call }
 func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
 
-// An EmptyStmt is an empty statement
-type EmptyStmt struct {
-	miniStmt
-}
-
-func NewEmptyStmt(pos src.XPos) *EmptyStmt {
-	n := &EmptyStmt{}
-	n.pos = pos
-	n.op = OEMPTY
-	return n
-}
-
-func (n *EmptyStmt) String() string                { return fmt.Sprint(n) }
-func (n *EmptyStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *EmptyStmt) rawCopy() Node                 { c := *n; return &c }
-
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
 // Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {

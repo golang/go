@@ -142,7 +142,6 @@ func walkstmt(n ir.Node) ir.Node {
 		ir.OPRINT,
 		ir.OPRINTN,
 		ir.OPANIC,
-		ir.OEMPTY,
 		ir.ORECOVER,
 		ir.OGETG:
 		if n.Typecheck() == 0 {
@@ -155,7 +154,7 @@ func walkstmt(n ir.Node) ir.Node {
 		if wascopy && n.Op() == ir.ONAME {
 			// copy rewrote to a statement list and a temp for the length.
 			// Throw away the temp to avoid plain values as statements.
-			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
 		}
 		n = addinit(n, init.Slice())
 
@@ -470,7 +469,7 @@ opswitch:
 		ir.Dump("walk", n)
 		base.Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case ir.ONONAME, ir.OEMPTY, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
+	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
@@ -609,7 +608,7 @@ opswitch:
 		}
 
 		if oaslit(n, init) {
-			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
 			break
 		}
 
@@ -2032,10 +2031,10 @@ func walkprint(nn ir.Node, init *ir.Nodes) ir.Node {
 	typecheckslice(calls, ctxStmt)
 	walkexprlist(calls, init)
 
-	r := ir.Nod(ir.OEMPTY, nil, nil)
+	r := ir.Nod(ir.OBLOCK, nil, nil)
 	r = typecheck(r, ctxStmt)
-	r = walkexpr(r, init)
-	r.PtrInit().Set(calls)
+	r = walkstmt(r)
+	r.PtrList().Set(calls)
 	return r
 }
 
