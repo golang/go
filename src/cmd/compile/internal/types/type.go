@@ -110,8 +110,8 @@ var (
 	Errortype *Type
 
 	// Types to represent untyped string and boolean constants.
-	UntypedString *Type
-	UntypedBool   *Type
+	UntypedString = New(TSTRING)
+	UntypedBool   = New(TBOOL)
 
 	// Types to represent untyped numeric constants.
 	UntypedInt     = New(TIDEAL)
@@ -183,6 +183,15 @@ func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+
+// Kind returns the kind of type t.
+func (t *Type) Kind() EType { return t.Etype }
+
+// Sym returns the name of type t.
+func (t *Type) GetSym() *Sym { return t.Sym }
+
+// Underlying returns the underlying type of type t.
+func (t *Type) Underlying() *Type { return t.Orig }
 
 // SetNod associates t with syntax node n.
 func (t *Type) SetNod(n IRNode) {
@@ -1600,4 +1609,12 @@ func (t *Type) SetUnderlying(underlying *Type) {
 			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
 		}
 	}
+}
+
+// NewNamed returns a new basic type of the given kind.
+func NewBasic(kind EType, obj IRNode) *Type {
+	t := New(kind)
+	t.Sym = obj.Sym()
+	t.nod = obj
+	return t
 }
