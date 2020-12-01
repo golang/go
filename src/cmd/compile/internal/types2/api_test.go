@@ -687,8 +687,8 @@ func TestPredicatesInfo(t *testing.T) {
 
 		// values
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
-		{`package v1; var _ = &[]int{1}`, `([]int literal)`, `value`},
-		{`package v2; var _ = func(){}`, `(func() literal)`, `value`},
+		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
+		{`package v2; var _ = func(){}`, `func() {}`, `value`},
 		{`package v4; func f() { _ = f }`, `f`, `value`},
 		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
 		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
@@ -896,10 +896,10 @@ func TestInitOrderInfo(t *testing.T) {
 			"z = 0", "a, b = f()",
 		}},
 		{`package p7; var (a = func() int { return b }(); b = 1)`, []string{
-			"b = 1", "a = (func() int literal)()",
+			"b = 1", "a = func() int {…}()",
 		}},
 		{`package p8; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{
-			"c = 1", "a, b = (func() (_, _ int) literal)()",
+			"c = 1", "a, b = func() (_, _ int) {…}()",
 		}},
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",

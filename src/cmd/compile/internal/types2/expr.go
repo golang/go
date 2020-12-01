@@ -736,7 +736,8 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 	}
 
 	if err != "" {
-		check.errorf(x, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
+		// TODO(gri) better error message for cases where one can only compare against nil
+		check.invalidOpf(x, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
 		x.mode = invalid
 		return
 	}
@@ -1174,6 +1175,9 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		goto Error
 
 	case *syntax.BasicLit:
+		if e.Bad {
+			goto Error // error was reported before
+		}
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {
 			// The parser already establishes syntactic correctness.
@@ -1624,7 +1628,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			valid = true
 			length = typ.len
 			if x.mode != variable {
-				check.invalidOpf(x, "cannot slice %s (value not addressable)", x)
+				check.invalidOpf(x, "%s (slice of unaddressable value)", x)
 				goto Error
 			}
 			x.typ = &Slice{elem: typ.elem}
