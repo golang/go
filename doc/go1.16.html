@@ -416,7 +416,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 257257 -->
-      TODO: <a href="https://golang.org/cl/257257">https://golang.org/cl/257257</a>: return additional chains from Verify on Windows
+      On Windows, <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      will now return all certificate chains that are built by the platform
+      certificate verifier, instead of just the highest ranked chain.
     </p>
 
     <p><!-- CL 262343 -->
