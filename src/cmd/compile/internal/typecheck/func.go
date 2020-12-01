@@ -145,7 +145,7 @@ func ImportedBody(fn *ir.Func) {
 	// declarations are added to fn.Func.Dcl by funcBody(). Move them
 	// to fn.Func.Inl.Dcl for consistency with how local functions
 	// behave. (Append because ImportedBody may be called multiple
-	// times.)
+	// times on same fn.)
 	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
 	fn.Dcl = nil
 
@@ -303,8 +303,15 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		return
 	}
 
-	fn.Nname.SetSym(closurename(ir.CurFunc))
-	ir.MarkFunc(fn.Nname)
+	// Don't give a name and add to xtop if we are typechecking an inlined
+	// body in ImportedBody(), since we only want to create the named function
+	// when the closure is actually inlined (and then we force a typecheck
+	// explicitly in (*inlsubst).node()).
+	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
+	if !inTypeCheckInl {
+		fn.Nname.SetSym(closurename(ir.CurFunc))
+		ir.MarkFunc(fn.Nname)
+	}
 	Func(fn)
 	clo.SetType(fn.Type())
 
@@ -338,7 +345,14 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 	fn.ClosureVars = fn.ClosureVars[:out]
 
-	Target.Decls = append(Target.Decls, fn)
+	if base.Flag.W > 1 {
+		s := fmt.Sprintf("New closure func: %s", ir.FuncName(fn))
+		ir.Dump(s, fn)
+	}
+	if !inTypeCheckInl {
+		// Add function to xtop once only when we give it a name
+		Target.Decls = append(Target.Decls, fn)
+	}
 }
 
 // type check function definition

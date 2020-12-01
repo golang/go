@@ -218,6 +218,10 @@ func Batch(fns []*ir.Func, recursive bool) {
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
+		if base.Flag.W > 1 {
+			s := fmt.Sprintf("\nbefore escape %v", fn)
+			ir.Dump(s, fn)
+		}
 		b.initFunc(fn)
 	}
 	for _, fn := range fns {
