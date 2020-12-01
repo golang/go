@@ -2103,6 +2103,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		// Assume everything will work out, so set up our return value.
 		// Anything interesting that happens from here is a fatal.
 		x := s.expr(n.Left())
+		if to == from {
+			return x
+		}
 
 		// Special case for not confusing GC and liveness.
 		// We don't want pointers accidentally classified
@@ -2965,6 +2968,10 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 	case ir.ONOT:
 		s.stmtList(cond.Init())
 		s.condBranch(cond.Left(), no, yes, -likely)
+		return
+	case ir.OCONVNOP:
+		s.stmtList(cond.Init())
+		s.condBranch(cond.Left(), yes, no, likely)
 		return
 	}
 	c := s.expr(cond)
@@ -4903,6 +4910,9 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(),
 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case ir.OCONVNOP:
+		if n.Type() == n.Left().Type() {
+			return s.addr(n.Left())
+		}
 		addr := s.addr(n.Left())
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
 	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
