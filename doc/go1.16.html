@@ -271,6 +271,20 @@ Do not send CLs removing the interior tags from such phrases.
   but without the extra step.
 </p>
 
+<h4 id="overlay-flag">The <code>-overlay</code> flag</h4>
+
+<p><!-- golang.org/issue/39958 -->
+  The <code>-overlay</code> flag specifies a JSON configuration file containing
+  a set of file path replacements. The <code>-overlay</code> flag may be used
+  with all build commands and <code>go</code> <code>mod</code> subcommands.
+  It is primarily intended to be used by editor tooling such as gopls to
+  understand the effects of unsaved changes to source files.  The config file
+  maps actual file paths to replacement file paths and the <code>go</code>
+  command and its builds will run as if the actual file paths exist with the
+  contents given by the replacement file paths, or don't exist if the replacement
+  file paths are empty.
+</p>
+
 <h3 id="cgo">Cgo</h3>
 
 <p><!-- CL 252378 -->
