@@ -59,11 +59,14 @@
 // as Go double-quoted or back-quoted string literals.
 //
 // If a pattern names a directory, all files in the subtree rooted at that directory are
-// embedded (recursively), so the variable in the above example is equivalent to:
+// embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
+// are excluded. So the variable in the above example is almost equivalent to:
 //
 //	// content is our static web server content.
 //	//go:embed image template html/index.html
 //	var content embed.FS
+//
+// The difference is that ‘image/*’ embeds ‘image/.tempfile’ while ‘image’ does not.
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.

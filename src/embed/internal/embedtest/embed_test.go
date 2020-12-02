@@ -101,3 +101,24 @@ func TestDir(t *testing.T) {
 	testDir(t, all, "testdata/i/j", "k/")
 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
 }
+
+func TestHidden(t *testing.T) {
+	//go:embed testdata
+	var dir embed.FS
+
+	//go:embed testdata/*
+	var star embed.FS
+
+	t.Logf("//go:embed testdata")
+
+	testDir(t, dir, "testdata",
+		"ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
+
+	t.Logf("//go:embed testdata/*")
+
+	testDir(t, star, "testdata",
+		".hidden/", "_hidden/", "ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
+
+	testDir(t, star, "testdata/.hidden",
+		"fortune.txt", "more/") // but not .more or _more
+}
