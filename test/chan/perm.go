@@ -66,5 +66,5 @@ func main() {
 	close(c)
 	close(cs)
 	close(cr) // ERROR "receive"
-	close(n)  // ERROR "invalid operation.*non-chan type"
+	close(n)  // ERROR "invalid operation.*non-chan type|not a channel"
 }
