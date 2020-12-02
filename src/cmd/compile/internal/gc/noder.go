@@ -516,9 +516,7 @@ func (p *noder) declNames(names []*syntax.Name) []ir.Node {
 }
 
 func (p *noder) declName(name *syntax.Name) *ir.Name {
-	n := dclname(p.name(name))
-	n.SetPos(p.pos(name))
-	return n
+	return ir.NewDeclNameAt(p.pos(name), p.name(name))
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
