@@ -838,6 +838,9 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 					return err
 				}
 				tg.tempFile(dest, string(data))
+				if strings.Contains(copydir, filepath.Join("pkg", "tool")) {
+					os.Chmod(tg.path(dest), 0777)
+				}
 				return nil
 			})
 		if err != nil {
