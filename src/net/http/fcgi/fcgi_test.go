@@ -293,8 +293,8 @@ var streamFullRequestStdin = bytes.Join([][]byte{
 	makeRecord(typeParams, 1, nil),
 	// begin sending body of request
 	makeRecord(typeStdin, 1, []byte("0123456789abcdef")),
-	// end request
-	makeRecord(typeEndRequest, 1, nil),
+	makeRecord(typeStdin, 1, nil),
+	// request ends on empty stdin message
 },
 	nil)
 
