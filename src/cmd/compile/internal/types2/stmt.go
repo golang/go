@@ -886,7 +886,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Chan:
 		var msg string
 		if typ.dir == SendOnly {
-			msg = "send-only channel"
+			msg = "receive from send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
 	case *Sum:
