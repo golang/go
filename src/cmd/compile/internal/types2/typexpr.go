@@ -32,7 +32,11 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		if e.Value == "_" {
 			check.errorf(e, "cannot use _ as value or type")
 		} else {
-			check.errorf(e, "undeclared name: %s", e.Value)
+			if check.conf.CompilerErrorMessages {
+				check.errorf(e, "undefined: %s", e.Value)
+			} else {
+				check.errorf(e, "undeclared name: %s", e.Value)
+			}
 		}
 		return
 	}
