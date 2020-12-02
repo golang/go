@@ -17,13 +17,14 @@ import (
 //
 // There are multiple nodes that represent a Func in the IR.
 //
-// The ONAME node (Func.Name) is used for plain references to it.
-// The ODCLFUNC node (Func.Decl) is used for its declaration code.
-// The OCLOSURE node (Func.Closure) is used for a reference to a
+// The ONAME node (Func.Nname) is used for plain references to it.
+// The ODCLFUNC node (the Func itself) is used for its declaration code.
+// The OCLOSURE node (Func.OClosure) is used for a reference to a
 // function literal.
 //
-// A Func for an imported function will have only an ONAME node.
-// A declared function or method has an ONAME and an ODCLFUNC.
+// An imported function will have an ONAME node which points to a Func
+// with an empty body.
+// A declared function or method has an ODCLFUNC (the Func itself) and an ONAME.
 // A function literal is represented directly by an OCLOSURE, but it also
 // has an ODCLFUNC (and a matching ONAME) representing the compiled
 // underlying form of the closure, which accesses the captured variables
@@ -44,8 +45,8 @@ import (
 // the method name is stored in Sym instead of Right.
 // Each OCALLPART ends up being implemented as a new
 // function, a bit like a closure, with its own ODCLFUNC.
-// The OCALLPART has uses n.Func to record the linkage to
-// the generated ODCLFUNC (as n.Func.Decl), but there is no
+// The OCALLPART uses n.Func to record the linkage to
+// the generated ODCLFUNC, but there is no
 // pointer from the Func back to the OCALLPART.
 type Func struct {
 	miniNode

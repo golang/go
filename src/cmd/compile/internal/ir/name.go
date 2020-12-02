@@ -21,7 +21,6 @@ type Name struct {
 	flags      bitset16
 	pragma     PragmaFlag // int16
 	sym        *types.Sym
-	typ        *types.Type
 	fn         *Func
 	offset     int64
 	val        constant.Value
