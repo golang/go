@@ -175,7 +175,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			if s.Def != nil {
 				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
 			}
-			s.Def = npos(src.NoXPos, dclname(s))
+			s.Def = ir.NewDeclNameAt(src.NoXPos, s)
 		}
 	}
 
@@ -833,7 +833,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OTYPESW:
 		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
 		if s := r.ident(); s != nil {
-			n.SetLeft(npos(n.Pos(), newnoname(s)))
+			n.SetLeft(ir.NewDeclNameAt(n.Pos(), s))
 		}
 		right, _ := r.exprsOrNil()
 		n.SetRight(right)
@@ -962,7 +962,7 @@ func (r *importReader) node() ir.Node {
 	// statements
 	case ir.ODCL:
 		pos := r.pos()
-		lhs := npos(pos, dclname(r.ident()))
+		lhs := ir.NewDeclNameAt(pos, r.ident())
 		typ := ir.TypeNode(r.typ())
 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 

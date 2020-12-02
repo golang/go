@@ -122,16 +122,6 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	autoexport(n, ctxt)
 }
 
-func addvar(n *ir.Name, t *types.Type, ctxt ir.Class) {
-	if n == nil || n.Sym() == nil || (n.Op() != ir.ONAME && n.Op() != ir.ONONAME) || t == nil {
-		base.Fatalf("addvar: n=%v t=%v nil", n, t)
-	}
-
-	n.SetOp(ir.ONAME)
-	declare(n, ctxt)
-	n.SetType(t)
-}
-
 // declare variables from grammar
 // new_name_list (type | [type] = expr_list)
 func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
@@ -192,16 +182,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 	return init
 }
 
-// newnoname returns a new ONONAME Node associated with symbol s.
-func newnoname(s *types.Sym) ir.Node {
-	if s == nil {
-		base.Fatalf("newnoname nil")
-	}
-	n := ir.NewNameAt(base.Pos, s)
-	n.SetOp(ir.ONONAME)
-	return n
-}
-
 // newFuncNameAt generates a new name node for a function or method.
 func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
 	if fn.Nname != nil {
@@ -210,14 +190,6 @@ func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	n.SetFunc(fn)
 	fn.Nname = n
-	return n
-}
-
-// this generates a new name node for a name
-// being declared.
-func dclname(s *types.Sym) *ir.Name {
-	n := NewName(s)
-	n.SetOp(ir.ONONAME) // caller will correct it
 	return n
 }
 
@@ -243,7 +215,7 @@ func oldname(s *types.Sym) ir.Node {
 		// Maybe a top-level declaration will come along later to
 		// define s. resolve will check s.Def again once all input
 		// source has been processed.
-		return newnoname(s)
+		return ir.NewDeclNameAt(base.Pos, s)
 	}
 
 	if Curfn != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != Curfn {

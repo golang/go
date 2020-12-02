@@ -85,7 +85,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
 			base.Fatalf("missing ONONAME for %v\n", s)
 		}
 
-		n = dclname(s)
+		n = ir.NewDeclNameAt(src.NoXPos, s)
 		s.SetPkgDef(n)
 		s.Importdef = ipkg
 	}

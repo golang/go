@@ -371,7 +371,8 @@ func staticname(t *types.Type) ir.Node {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
 	n := NewName(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
 	statuniqgen++
-	addvar(n, t, ir.PEXTERN)
+	declare(n, ir.PEXTERN)
+	n.SetType(t)
 	n.Sym().Linksym().Set(obj.AttrLocal, true)
 	return n
 }

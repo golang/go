@@ -108,7 +108,7 @@ func initUniverse() {
 
 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
 		sym := pkg.Lookup(name)
-		n := ir.NewNameAt(src.NoXPos, sym)
+		n := ir.NewDeclNameAt(src.NoXPos, sym)
 		n.SetOp(ir.OTYPE)
 		t := types.NewBasic(kind, n)
 		n.SetType(t)
@@ -145,7 +145,7 @@ func initUniverse() {
 
 	// error type
 	s := ir.BuiltinPkg.Lookup("error")
-	n := ir.NewNameAt(src.NoXPos, s)
+	n := ir.NewDeclNameAt(src.NoXPos, s)
 	n.SetOp(ir.OTYPE)
 	types.ErrorType = types.NewNamed(n)
 	types.ErrorType.SetUnderlying(makeErrorInterface())

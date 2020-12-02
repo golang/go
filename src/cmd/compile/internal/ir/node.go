@@ -802,9 +802,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	case OLABEL:
 		return NewLabelStmt(pos, nil)
 	case OLITERAL, OTYPE, OIOTA:
-		n := newNameAt(pos, nil)
-		n.SetOp(op)
-		return n
+		return newNameAt(pos, op, nil)
 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
 		return NewMakeExpr(pos, op, nleft, nright)
 	case OMETHEXPR:

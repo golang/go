@@ -123,18 +123,27 @@ type Name struct {
 }
 
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
-// The caller is responsible for setting n.Name.Curfn.
+// The caller is responsible for setting Curfn.
 func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
 	if sym == nil {
 		base.Fatalf("NewNameAt nil")
 	}
-	return newNameAt(pos, sym)
+	return newNameAt(pos, ONAME, sym)
+}
+
+// NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
+// The caller is responsible for setting Curfn.
+func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
+	if sym == nil {
+		base.Fatalf("NewDeclNameAt nil")
+	}
+	return newNameAt(pos, ONONAME, sym)
 }
 
 // newNameAt is like NewNameAt but allows sym == nil.
-func newNameAt(pos src.XPos, sym *types.Sym) *Name {
+func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	n := new(Name)
-	n.op = ONAME
+	n.op = op
 	n.pos = pos
 	n.orig = n
 	n.sym = sym
@@ -163,10 +172,13 @@ func (n *Name) SetIota(x int64)               { n.offset = x }
 func (*Name) CanBeNtype() {}
 
 func (n *Name) SetOp(op Op) {
+	if n.op != ONONAME {
+		base.Fatalf("%v already has Op %v", n, n.op)
+	}
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OLITERAL, ONONAME, ONAME, OTYPE, OIOTA:
+	case OLITERAL, ONAME, OTYPE, OIOTA:
 		n.op = op
 	}
 }
