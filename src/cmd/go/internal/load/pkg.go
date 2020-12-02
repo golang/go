@@ -1998,6 +1998,16 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 						return err
 					}
 					rel := filepath.ToSlash(path[len(p.Dir)+1:])
+					name := info.Name()
+					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+						// Ignore bad names, assuming they won't go into modules.
+						// Also avoid hidden files that user may not know about.
+						// See golang.org/issue/42328.
+						if info.IsDir() {
+							return fs.SkipDir
+						}
+						return nil
+					}
 					if info.IsDir() {
 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
 							return filepath.SkipDir
@@ -2005,10 +2015,6 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 						return nil
 					}
 					if !info.Mode().IsRegular() {
-						return nil
-					}
-					if isBadEmbedName(info.Name()) {
-						// Ignore bad names, assuming they won't go into modules.
 						return nil
 					}
 					count++
@@ -2050,6 +2056,9 @@ func validEmbedPattern(pattern string) bool {
 // as existing for embedding.
 func isBadEmbedName(name string) bool {
 	switch name {
+	// Empty string should be impossible but make it bad.
+	case "":
+		return true
 	// Version control directories won't be present in module.
 	case ".bzr", ".hg", ".git", ".svn":
 		return true

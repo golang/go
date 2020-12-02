@@ -1,0 +1,2 @@
+WARNING: terminal is not fully functional
+ -  (press RETURN)
