@@ -1355,9 +1355,9 @@ func ngotype(n ir.Node) *types.Sym {
 	return nil
 }
 
-// The result of addinit MUST be assigned back to n, e.g.
-// 	n.Left = addinit(n.Left, init)
-func addinit(n ir.Node, init []ir.Node) ir.Node {
+// The result of initExpr MUST be assigned back to n, e.g.
+// 	n.Left = initExpr(init, n.Left)
+func initExpr(init []ir.Node, n ir.Node) ir.Node {
 	if len(init) == 0 {
 		return n
 	}
