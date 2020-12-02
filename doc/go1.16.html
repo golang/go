@@ -283,11 +283,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<p>
-  TODO
+<h4 id="vet-string-int">New warning for invalid testing.T use in
+goroutines</h4>
 
-  <!-- CL 235677: https://golang.org/cl/235677: cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines -->
+<p><!-- CL 235677 -->
+  The vet tool now warns about invalid calls to the <code>testing.T</code>
+  method <code>Fatal</code> from within a goroutine created during the test.
+  This also warns on calls to <code>Fatalf</code>, <code>FailNow</code>, and
+  <code>Skip{,f,Now}</code> methods on <code>testing.T</code> tests or
+  <code>testing.B</code> benchmarks.
 </p>
+
+<p>
+  Calls to these methods stop the execution of the created goroutine and not
+  the <code>Test*</code> or <code>Benchmark*</code> function. So these are
+  <a href="/pkg/testing/#T.FailNow">required</a> to be called by the goroutine
+  running the test or benchmark function. For example:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Fatal("oops") // This exits the inner func instead of TestFoo.
+        }
+        ...
+    }()
+}
+</pre>
+
+<p>
+  Code calling <code>t.Fatal</code> (or a similar method) from a created
+  goroutine should be rewritten to signal the test failure using
+  <code>t.Error</code> and exit the goroutine early using an alternative
+  method, such as using a <code>return</code> statement. The previous example
+  could be rewritten as:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Error("oops")
+            return
+        }
+        ...
+    }()
+}
+</pre>
 
 <p><!-- CL 248686, CL 276372 -->
   The vet tool now warns about amd64 assembly that clobbers the BP
