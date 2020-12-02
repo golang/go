@@ -936,7 +936,7 @@ func (o *Order) stmt(n ir.Node) {
 					}
 
 					tmp := o.newTemp(types.Types[types.TBOOL], false)
-					as := okas(ok, tmp)
+					as := ir.Nod(ir.OAS, ok, conv(tmp, ok.Type()))
 					as = typecheck(as, ctxStmt)
 					n2.PtrInit().Append(as)
 					ok = tmp
@@ -1382,15 +1382,6 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 	return n
 }
 
-// okas creates and returns an assignment of val to ok,
-// including an explicit conversion if necessary.
-func okas(ok, val ir.Node) ir.Node {
-	if !ir.IsBlank(ok) {
-		val = conv(val, ok.Type())
-	}
-	return ir.Nod(ir.OAS, ok, val)
-}
-
 // as2 orders OAS2XXXX nodes. It creates temporaries to ensure left-to-right assignment.
 // The caller should order the right-hand side of the assignment before calling order.as2.
 // It rewrites,
@@ -1442,7 +1433,7 @@ func (o *Order) okAs2(n ir.Node) {
 		n.List().SetFirst(tmp1)
 	}
 	if tmp2 != nil {
-		r := okas(n.List().Second(), tmp2)
+		r := ir.Nod(ir.OAS, n.List().Second(), conv(tmp2, n.List().Second().Type()))
 		r = typecheck(r, ctxStmt)
 		o.mapAssign(r)
 		n.List().SetSecond(tmp2)
