@@ -211,6 +211,11 @@ func (t *Type) Pos() src.XPos {
 	return src.NoXPos
 }
 
+// NoPkg is a nil *Pkg value for clarity.
+// It's intended for use when constructing types that aren't exported
+// and thus don't need to be associated with any package.
+var NoPkg *Pkg = nil
+
 // Pkg returns the package that t appeared in.
 //
 // Pkg is only defined for function, struct, and interface types
@@ -228,20 +233,6 @@ func (t *Type) Pkg() *Pkg {
 	default:
 		Fatalf("Pkg: unexpected kind: %v", t)
 		return nil
-	}
-}
-
-// SetPkg sets the package that t appeared in.
-func (t *Type) SetPkg(pkg *Pkg) {
-	switch t.kind {
-	case TFUNC:
-		t.Extra.(*Func).pkg = pkg
-	case TSTRUCT:
-		t.Extra.(*Struct).pkg = pkg
-	case TINTER:
-		t.Extra.(*Interface).pkg = pkg
-	default:
-		Fatalf("Pkg: unexpected kind: %v", t)
 	}
 }
 
@@ -1609,7 +1600,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	}
 }
 
-// NewNamed returns a new basic type of the given kind.
+// NewBasic returns a new basic type of the given kind.
 func NewBasic(kind Kind, obj Object) *Type {
 	t := New(kind)
 	t.sym = obj.Sym()
@@ -1619,18 +1610,19 @@ func NewBasic(kind Kind, obj Object) *Type {
 
 // NewInterface returns a new interface for the given methods and
 // embedded types. Embedded types are specified as fields with no Sym.
-func NewInterface(methods []*Field) *Type {
+func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	t := New(TINTER)
 	t.SetInterface(methods)
 	if anyBroke(methods) {
 		t.SetBroke(true)
 	}
+	t.Extra.(*Interface).pkg = pkg
 	return t
 }
 
-//  NewSignature returns a new function type for the given receiver,
-//  parameters, and results, any of which may be nil.
-func NewSignature(recv *Field, params, results []*Field) *Type {
+// NewSignature returns a new function type for the given receiver,
+// parameters, and results, any of which may be nil.
+func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {
 		recvs = []*Field{recv}
@@ -1640,7 +1632,7 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 	ft := t.FuncType()
 
 	funargs := func(fields []*Field, funarg Funarg) *Type {
-		s := NewStruct(fields)
+		s := NewStruct(NoPkg, fields)
 		s.StructType().Funarg = funarg
 		if s.Broke() {
 			t.SetBroke(true)
@@ -1651,17 +1643,19 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 	ft.Receiver = funargs(recvs, FunargRcvr)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
+	ft.pkg = pkg
 
 	return t
 }
 
 // NewStruct returns a new struct with the given fields.
-func NewStruct(fields []*Field) *Type {
+func NewStruct(pkg *Pkg, fields []*Field) *Type {
 	t := New(TSTRUCT)
 	t.SetFields(fields)
 	if anyBroke(fields) {
 		t.SetBroke(true)
 	}
+	t.Extra.(*Struct).pkg = pkg
 	return t
 }
 

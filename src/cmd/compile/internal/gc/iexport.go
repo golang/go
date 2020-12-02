@@ -718,10 +718,8 @@ func (w *exportWriter) doTyp(t *types.Type) {
 }
 
 func (w *exportWriter) setPkg(pkg *types.Pkg, write bool) {
-	if pkg == nil {
-		// TODO(mdempsky): Proactively set Pkg for types and
-		// remove this fallback logic.
-		pkg = ir.LocalPkg
+	if pkg == types.NoPkg {
+		base.Fatalf("missing pkg")
 	}
 
 	if write {

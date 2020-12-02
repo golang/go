@@ -464,8 +464,6 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 	fn.SetDupok(true)
 	fn.SetNeedctxt(true)
 
-	tfn.Type().SetPkg(t0.Pkg())
-
 	// Declare and initialize variable holding receiver.
 	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
 	ptr := NewName(lookup(".this"))

@@ -126,7 +126,7 @@ func bmap(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
-	bucket := types.NewStruct(field[:])
+	bucket := types.NewStruct(types.NoPkg, field[:])
 	bucket.SetNoalg(true)
 	dowidth(bucket)
 
@@ -220,7 +220,7 @@ func hmap(t *types.Type) *types.Type {
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.NewStruct(fields)
+	hmap := types.NewStruct(types.NoPkg, fields)
 	hmap.SetNoalg(true)
 	dowidth(hmap)
 
@@ -283,7 +283,7 @@ func hiter(t *types.Type) *types.Type {
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.NewStruct(fields)
+	hiter := types.NewStruct(types.NoPkg, fields)
 	hiter.SetNoalg(true)
 	dowidth(hiter)
 	if hiter.Width != int64(12*Widthptr) {
@@ -329,7 +329,7 @@ func deferstruct(stksize int64) *types.Type {
 	}
 
 	// build struct holding the above fields
-	s := types.NewStruct(fields)
+	s := types.NewStruct(types.NoPkg, fields)
 	s.SetNoalg(true)
 	s.Width = widstruct(s, s, 0, 1)
 	s.Align = uint8(Widthptr)

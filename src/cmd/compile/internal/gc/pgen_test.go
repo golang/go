@@ -14,13 +14,13 @@ import (
 )
 
 func typeWithoutPointers() *types.Type {
-	return types.NewStruct([]*types.Field{
+	return types.NewStruct(types.NoPkg, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.New(types.TINT)),
 	})
 }
 
 func typeWithPointers() *types.Type {
-	return types.NewStruct([]*types.Field{
+	return types.NewStruct(types.NoPkg, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.NewPtr(types.New(types.TINT))),
 	})
 }
