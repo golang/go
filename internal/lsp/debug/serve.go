@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
+	stdlog "log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -34,15 +34,19 @@ import (
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
 )
 
-type instanceKeyType int
+type contextKeyType int
 
-const instanceKey = instanceKeyType(0)
+const (
+	instanceKey contextKeyType = iota
+	traceKey
+)
 
 // An Instance holds all debug information associated with a gopls instance.
 type Instance struct {
@@ -373,7 +377,7 @@ func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 		closeLog = func() {
 			defer f.Close()
 		}
-		log.SetOutput(io.MultiWriter(os.Stderr, f))
+		stdlog.SetOutput(io.MultiWriter(os.Stderr, f))
 		i.LogWriter = f
 	}
 	i.Logfile = logfile
@@ -384,7 +388,7 @@ func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 // It also logs the port the server starts on, to allow for :0 auto assigned
 // ports.
 func (i *Instance) Serve(ctx context.Context) error {
-	log.SetFlags(log.Lshortfile)
+	stdlog.SetFlags(stdlog.Lshortfile)
 	if i.DebugAddress == "" {
 		return nil
 	}
@@ -396,7 +400,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	if strings.HasSuffix(i.DebugAddress, ":0") {
-		log.Printf("debug server listening at http://localhost:%d", port)
+		stdlog.Printf("debug server listening at http://localhost:%d", port)
 	}
 	event.Log(ctx, "Debug serving", tag.Port.Of(port))
 	go func() {
@@ -520,13 +524,29 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 				p.WriteEvent(stderr, ev, lm)
 				pMu.Unlock()
 			}
+			level := log.LabeledLevel(lm)
+			// Exclude trace logs from LSP logs.
+			if level < log.Trace {
+				ctx = protocol.LogEvent(ctx, ev, lm, messageType(level))
+			}
 		}
-		ctx = protocol.LogEvent(ctx, ev, lm)
 		if i == nil {
 			return ctx
 		}
 		return i.exporter(ctx, ev, lm)
 	}
+}
+
+func messageType(l log.Level) protocol.MessageType {
+	switch l {
+	case log.Error:
+		return protocol.Error
+	case log.Warning:
+		return protocol.Warning
+	case log.Debug:
+		return protocol.Log
+	}
+	return protocol.Info
 }
 
 func makeInstanceExporter(i *Instance) event.Exporter {
@@ -573,6 +593,9 @@ func makeInstanceExporter(i *Instance) event.Exporter {
 		}
 		return ctx
 	}
+	// StdTrace must be above export.Spans below (by convention, export
+	// middleware applies its wrapped exporter last).
+	exporter = StdTrace(exporter)
 	metrics := metric.Config{}
 	registerMetrics(&metrics)
 	exporter = metrics.Exporter(exporter)

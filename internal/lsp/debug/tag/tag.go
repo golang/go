@@ -41,6 +41,8 @@ var (
 	DebugAddress = keys.NewString("debug_address", "")
 	GoplsPath    = keys.NewString("gopls_path", "")
 	ClientID     = keys.NewString("client_id", "")
+
+	Level = keys.NewInt("level", "The logging level")
 )
 
 var (

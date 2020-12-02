@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -74,6 +75,8 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool) {
 	ctx := snapshot.BackgroundContext()
+	ctx, done := event.Start(ctx, "Server.diagnoseSnapshot", tag.Snapshot.Of(snapshot.ID()))
+	defer done()
 
 	delay := snapshot.View().Options().ExperimentalDiagnosticsDelay
 	if delay > 0 {
@@ -99,7 +102,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 }
 
 func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI, onDisk bool) {
-	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles")
+	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
 	packages := make(map[source.Package]struct{})
 	for _, uri := range uris {
@@ -140,7 +143,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly. forceAnalysis is only true for testing purposes.
 func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAnalysis bool) {
-	ctx, done := event.Start(ctx, "Server.diagnose")
+	ctx, done := event.Start(ctx, "Server.diagnose", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
 
 	// Wait for a free diagnostics slot.
@@ -156,6 +159,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// First, diagnose the go.mod file.
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
 	if modErr != nil {
@@ -238,6 +242,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 }
 
 func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) {
+	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+	defer done()
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
 	var gcDetailsDir span.URI        // find the package's optimization details, if available
 	for _, pgf := range pkg.CompiledGoFiles() {
@@ -439,8 +445,16 @@ func (s *Server) storeErrorDiagnostics(ctx context.Context, snapshot source.Snap
 
 // publishDiagnostics collects and publishes any unpublished diagnostic reports.
 func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot source.Snapshot) {
+	ctx, done := event.Start(ctx, "Server.publishDiagnostics", tag.Snapshot.Of(snapshot.ID()))
+	defer done()
 	s.diagnosticsMu.Lock()
 	defer s.diagnosticsMu.Unlock()
+
+	published := 0
+	defer func() {
+		log.Trace.Logf(ctx, "published %d diagnostics", published)
+	}()
+
 	for uri, r := range s.diagnostics {
 		// Snapshot IDs are always increasing, so we use them instead of file
 		// versions to create the correct order for diagnostics.
@@ -491,6 +505,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			URI:         protocol.URIFromSpanURI(uri),
 			Version:     version,
 		}); err == nil {
+			published++
 			r.publishedHash = hash
 			r.snapshotID = snapshot.ID()
 			for dsource, hash := range reportHashes {
@@ -501,6 +516,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 		} else {
 			if ctx.Err() != nil {
 				// Publish may have failed due to a cancelled context.
+				log.Trace.Log(ctx, "publish cancelled")
 				return
 			}
 			event.Error(ctx, "publishReports: failed to deliver diagnostic", err, tag.URI.Of(uri))
