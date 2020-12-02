@@ -537,7 +537,7 @@ func inlconv2stmt(inlcall ir.Node) ir.Node {
 // 	n.Left = inlconv2expr(n.Left)
 func inlconv2expr(n ir.Node) ir.Node {
 	r := n.Rlist().First()
-	return addinit(r, append(n.Init().Slice(), n.Body().Slice()...))
+	return initExpr(append(n.Init().Slice(), n.Body().Slice()...), r)
 }
 
 // Turn the rlist (with the return values) of the OINLCALL in
@@ -551,7 +551,7 @@ func inlconv2list(n ir.Node) []ir.Node {
 	}
 
 	s := n.Rlist().Slice()
-	s[0] = addinit(s[0], append(n.Init().Slice(), n.Body().Slice()...))
+	s[0] = initExpr(append(n.Init().Slice(), n.Body().Slice()...), s[0])
 	return s
 }
 

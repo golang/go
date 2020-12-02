@@ -1314,7 +1314,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				}
 				old := n
 				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
-				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
+				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
 
 			case ir.OCOMPLEX, ir.OCOPY:
 				typecheckargs(n)
@@ -1325,7 +1325,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				}
 				old := n
 				n = ir.NodAt(n.Pos(), l.SubOp(), arg1, arg2)
-				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
+				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
 			}
 			n = typecheck1(n, top)
 			return n

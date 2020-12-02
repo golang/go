@@ -180,7 +180,7 @@ func walkstmt(n ir.Node) ir.Node {
 		n = mkcall1(chanfn("chanrecv1", 2, n.Left().Type()), nil, &init, n.Left(), nodnil())
 		n = walkexpr(n, &init)
 
-		n = addinit(n, init.Slice())
+		n = initExpr(init.Slice(), n)
 
 	case ir.OBREAK,
 		ir.OCONTINUE,
@@ -268,7 +268,7 @@ func walkstmt(n ir.Node) ir.Node {
 			init := n.Left().Init()
 			n.Left().PtrInit().Set(nil)
 			n.SetLeft(walkexpr(n.Left(), &init))
-			n.SetLeft(addinit(n.Left(), init.Slice()))
+			n.SetLeft(initExpr(init.Slice(), n.Left()))
 		}
 
 		n.SetRight(walkstmt(n.Right()))
@@ -557,7 +557,7 @@ opswitch:
 		var ll ir.Nodes
 
 		n.SetRight(walkexpr(n.Right(), &ll))
-		n.SetRight(addinit(n.Right(), ll.Slice()))
+		n.SetRight(initExpr(ll.Slice(), n.Right()))
 
 	case ir.OPRINT, ir.OPRINTN:
 		n = walkprint(n, init)
