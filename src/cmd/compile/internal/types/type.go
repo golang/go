@@ -1335,6 +1335,20 @@ func (t *Type) IsEmptyInterface() bool {
 	return t.IsInterface() && t.NumFields() == 0
 }
 
+// IsScalar reports whether 't' is a scalar Go type, e.g.
+// bool/int/float/complex. Note that struct and array types consisting
+// of a single scalar element are not considered scalar, likewise
+// pointer types are also not considered scalar.
+func (t *Type) IsScalar() bool {
+	switch t.kind {
+	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
+		TUINT32, TINT64, TUINT64, TINT, TUINT,
+		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
+		return true
+	}
+	return false
+}
+
 func (t *Type) PtrTo() *Type {
 	return NewPtr(t)
 }
