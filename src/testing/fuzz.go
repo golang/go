@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 )
@@ -21,6 +22,10 @@ func initFuzzFlags() {
 var (
 	matchFuzz    *string
 	isFuzzWorker *bool
+
+	// corpusDir is the parent directory of the target's seed corpus within
+	// the package.
+	corpusDir = "testdata/corpus"
 )
 
 // InternalFuzzTarget is an internal type but exported because it is cross-package;
@@ -87,7 +92,7 @@ func (f *F) Fuzz(ff interface{}) {
 	}
 
 	// Load seed corpus
-	c, err := f.context.readCorpus(f.name)
+	c, err := f.context.readCorpus(filepath.Join(corpusDir, f.name))
 	if err != nil {
 		f.Fatal(err)
 	}
@@ -127,12 +132,15 @@ func (f *F) Fuzz(ff interface{}) {
 		for i, e := range f.corpus {
 			seed[i] = e.b
 		}
-		err := f.context.coordinateFuzzing(*parallel, seed)
+		err := f.context.coordinateFuzzing(*parallel, seed, filepath.Join(corpusDir, f.name))
+		if err != nil {
+			f.Fail()
+			f.result = FuzzResult{Error: err}
+		}
 		f.setRan()
 		f.finished = true
-		f.result = FuzzResult{Error: err}
 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
-		// and set FuzzResult properly.
+		// and add to FuzzResult (ie. time taken, num iterations)
 
 	case f.context.runFuzzWorker != nil:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
@@ -249,10 +257,9 @@ func (f *F) runTarget(fn func(*F)) {
 
 // FuzzResult contains the results of a fuzz run.
 type FuzzResult struct {
-	N       int           // The number of iterations.
-	T       time.Duration // The total time taken.
-	Crasher *corpusEntry  // Crasher is the corpus entry that caused the crash
-	Error   error         // Error is the error from the crash
+	N     int           // The number of iterations.
+	T     time.Duration // The total time taken.
+	Error error         // Error is the error from the crash
 }
 
 func (r FuzzResult) String() string {
@@ -261,9 +268,6 @@ func (r FuzzResult) String() string {
 		return s
 	}
 	s = fmt.Sprintf("%s", r.Error.Error())
-	if r.Crasher != nil {
-		s += fmt.Sprintf("\ncrasher: %b", r.Crasher)
-	}
 	return s
 }
 
@@ -271,7 +275,7 @@ func (r FuzzResult) String() string {
 type fuzzContext struct {
 	runMatch          *matcher
 	fuzzMatch         *matcher
-	coordinateFuzzing func(int, [][]byte) error
+	coordinateFuzzing func(int, [][]byte, string) error
 	runFuzzWorker     func(func([]byte) error) error
 	readCorpus        func(string) ([][]byte, error)
 }
