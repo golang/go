@@ -65,7 +65,7 @@ func TestGlobal(t *testing.T) {
 	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
 	testFiles(t, global, "testdata/glass.txt", "I can eat glass and it doesn't hurt me.\n")
 
-	if err := fstest.TestFS(global); err != nil {
+	if err := fstest.TestFS(global, "concurrency.txt", "testdata/hello.txt"); err != nil {
 		t.Fatal(err)
 	}
 

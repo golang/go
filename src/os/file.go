@@ -609,6 +609,13 @@ func isWindowsNulName(name string) bool {
 }
 
 // DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
+//
+// Note that DirFS("/prefix") only guarantees that the Open calls it makes to the
+// operating system will begin with "/prefix": DirFS("/prefix").Open("file") is the
+// same as os.Open("/prefix/file"). So if /prefix/file is a symbolic link pointing outside
+// the /prefix tree, then using DirFS does not stop the access any more than using
+// os.Open does. DirFS is therefore not a general substitute for a chroot-style security
+// mechanism when the directory tree contains arbitrary content.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
