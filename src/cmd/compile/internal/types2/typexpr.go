@@ -806,7 +806,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// of a type list (f.Name.Value == "type").
 			name := f.Name.Value
 			if name == "_" {
-				check.errorf(f.Name, "invalid method name _")
+				if check.conf.CompilerErrorMessages {
+					check.errorf(f.Name, "methods must have a unique non-blank name")
+				} else {
+					check.errorf(f.Name, "invalid method name _")
+				}
 				continue // ignore
 			}
 

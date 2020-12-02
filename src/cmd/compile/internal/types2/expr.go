@@ -1867,7 +1867,11 @@ func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface,
 	} else {
 		msg = "missing method " + method.name
 	}
-	check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
+	if check.conf.CompilerErrorMessages {
+		check.errorf(pos, "impossible type assertion: %s (%s)", x, msg)
+	} else {
+		check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
+	}
 }
 
 // expr typechecks expression e and initializes x with the expression value.
