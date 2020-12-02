@@ -37,11 +37,11 @@ if [ "$pattern" = "" ]; then
 	pattern=.
 fi
 
-targets="$(go tool dist list; echo linux/386/387)"
+targets="$(go tool dist list; echo linux/386/softfloat)"
 targets="$(echo "$targets" | tr '/' '-' | sort | egrep "$pattern" | egrep -v 'android-arm|darwin-arm')"
 
-# put linux, nacl first in the target list to get all the architectures up front.
-targets="$(echo "$targets" | egrep 'linux|nacl') $(echo "$targets" | egrep -v 'linux|nacl')"
+# put linux first in the target list to get all the architectures up front.
+targets="$(echo "$targets" | egrep 'linux') $(echo "$targets" | egrep -v 'linux')"
 
 if [ "$sete" = true ]; then
 	set -e
@@ -52,9 +52,9 @@ do
 	export GOOS=$(echo $target | sed 's/-.*//')
 	export GOARCH=$(echo $target | sed 's/.*-//')
 	unset GO386
-	if [ "$GOARCH" = "387" ]; then
+	if [ "$GOARCH" = "softfloat" ]; then
 		export GOARCH=386
-		export GO386=387
+		export GO386=softfloat
 	fi
 	if $cmp; then
 		if [ "$GOOS" = "android" ]; then
