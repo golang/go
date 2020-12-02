@@ -552,7 +552,7 @@ func tostruct(l []*ir.Field) *types.Type {
 	checkdupfields("field", fields)
 
 	base.Pos = lno
-	return types.NewStruct(fields)
+	return types.NewStruct(ir.LocalPkg, fields)
 }
 
 func tointerface(nmethods []*ir.Field) *types.Type {
@@ -573,7 +573,7 @@ func tointerface(nmethods []*ir.Field) *types.Type {
 	}
 
 	base.Pos = lno
-	return types.NewInterface(methods)
+	return types.NewInterface(ir.LocalPkg, methods)
 }
 
 func fakeRecv() *ir.Field {
@@ -625,7 +625,7 @@ func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
 		recv = funarg(nrecv)
 	}
 
-	t := types.NewSignature(recv, funargs(nparams), funargs(nresults))
+	t := types.NewSignature(ir.LocalPkg, recv, funargs(nparams), funargs(nresults))
 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
 	return t
 }

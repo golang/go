@@ -104,7 +104,7 @@ func initUniverse() {
 	}
 
 	types.Types[types.TANY] = types.New(types.TANY)
-	types.Types[types.TINTER] = types.NewInterface(nil)
+	types.Types[types.TINTER] = types.NewInterface(ir.LocalPkg, nil)
 
 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
 		sym := pkg.Lookup(name)
@@ -325,11 +325,11 @@ func initUniverse() {
 }
 
 func makeErrorInterface() *types.Type {
-	sig := types.NewSignature(fakeRecvField(), nil, []*types.Field{
+	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
 	})
 	method := types.NewField(src.NoXPos, lookup("Error"), sig)
-	return types.NewInterface([]*types.Field{method})
+	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
 // finishUniverse makes the universe block visible within the current package.
