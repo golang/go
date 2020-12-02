@@ -16,9 +16,12 @@ var x, y int
 //go:linkname x ok
 
 // ERROR "//go:linkname requires linkname argument or -p compiler flag"
-// ERROR "//go:linkname must refer to declared function or variable"
-// ERROR "//go:linkname must refer to declared function or variable"
+// BAD: want error "//go:linkname must refer to declared function or variable"
+// BAD: want error "//go:linkname must refer to declared function or variable"
 // ERROR "duplicate //go:linkname for x"
+
+// The two BAD lines are just waiting for #42938 before we can
+// re-enable the errors.
 
 //line linkname2.go:18
 //go:linkname y
