@@ -321,6 +321,13 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **fieldalignment**
+
+This analyzer find structs that can be rearranged to take less memory, and provides
+a suggested edit with the optimal order.
+
+Default value: `false`.
+
 ### **fillreturns**
 
 suggested fixes for "wrong number of return values (want %d, got %d)"
