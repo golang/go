@@ -303,9 +303,24 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	if c.config.PreferServerCipherSuites {
 		preferenceList = c.config.cipherSuites()
 		supportedList = hs.clientHello.cipherSuites
+
+		// If the client does not seem to have hardware support for AES-GCM,
+		// and the application did not specify a cipher suite preference order,
+		// prefer other AEAD ciphers even if we prioritized AES-GCM ciphers
+		// by default.
+		if c.config.CipherSuites == nil && !aesgcmPreferred(hs.clientHello.cipherSuites) {
+			preferenceList = deprioritizeAES(preferenceList)
+		}
 	} else {
 		preferenceList = hs.clientHello.cipherSuites
 		supportedList = c.config.cipherSuites()
+
+		// If we don't have hardware support for AES-GCM, prefer other AEAD
+		// ciphers even if the client prioritized AES-GCM.
+		// If BoringCrypto is enabled, always prioritize AES-GCM.
+		if !hasAESGCMHardwareSupport && !boringEnabled {
+			preferenceList = deprioritizeAES(preferenceList)
+		}
 	}
 
 	hs.suite = selectCipherSuite(preferenceList, supportedList, hs.cipherSuiteOk)

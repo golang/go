@@ -294,6 +294,17 @@ Do not send CLs removing the interior tags from such phrases.
   the list advertised by the client</a>.
 </p>
 
+<p><!-- CL 262857 -->
+  TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
+  over AES-GCM cipher suites if either the client or server doesn't have AES hardware
+  support, unless the application set both
+  <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+  and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
+  or there are no other AEAD cipher suites supported.
+  The client is assumed not to have AES hardware support if it does not signal a
+  preference for AES-GCM cipher suites.
+</p>
+
 <h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
 
 <p><!-- CL 235078 -->
