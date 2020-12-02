@@ -1,0 +1,68 @@
+# Tests that a crash caused by a mutator-discovered input writes the bad input
+# to testdata, and fails+reports correctly. This tests the end-to-end behavior
+# of the mutator finding a crash while fuzzing, adding it as a regression test
+# to the seed corpus in testdata, and failing the next time the test is run.
+
+[short] skip
+
+# TODO: remove -parallel=1 once the races are fixed.
+
+# Running the seed corpus for all of the targets should pass the first
+# time, since nothing in the seed corpus will cause a crash.
+go test -parallel=1
+
+# Running the fuzzer should find a crashing input quickly.
+! go test -fuzz=FuzzWithBug -parallel=1
+stdout 'testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603'
+stdout 'this input caused a crash!'
+grep '\Aab\z' testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603
+
+# Now, the failing bytes should have been added to the seed corpus for
+# the target, and should fail when run without fuzzing.
+! go test -parallel=1
+
+! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -parallel=1
+stdout 'testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1'
+stdout 'runtime.Goexit'
+grep '\Aac\z' testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1
+
+! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -parallel=1
+stdout 'testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67'
+stdout 'unexpectedly'
+grep '\Aad\z' testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67
+
+-- fuzz_crash_test.go --
+package fuzz_crash
+
+import (
+	"bytes"
+    "os"
+	"testing"
+)
+
+func FuzzWithBug(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(b, []byte("ab")) {
+			panic("this input caused a crash!")
+		}
+	})
+}
+
+func FuzzWithNilPanic(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(b, []byte("ac")) {
+			panic(nil)
+		}
+	})
+}
+
+func FuzzWithBadExit(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(b, []byte("ad")) {
+			os.Exit(1)
+		}
+	})
+}

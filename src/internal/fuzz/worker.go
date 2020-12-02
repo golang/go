@@ -61,8 +61,7 @@ func (w *worker) cleanup() error {
 //
 // This function loops until w.coordinator.doneC is closed or some
 // fatal error is encountered. It receives inputs from w.coordinator.inputC,
-// then passes those on to the worker process. If the worker crashes,
-// runFuzzing restarts it and continues.
+// then passes those on to the worker process.
 func (w *worker) runFuzzing() error {
 	// Start the process.
 	if err := w.start(); err != nil {
@@ -83,14 +82,19 @@ func (w *worker) runFuzzing() error {
 			return w.stop()
 
 		case <-w.termC:
-			// Worker process terminated unexpectedly.
-			// TODO(jayconrod,katiehockman): handle crasher.
+			// Worker process terminated unexpectedly, so inform the coordinator
+			// that a crash occurred.
+			b := w.mem.value() // These are the bytes that caused the crash.
+			resB := make([]byte, len(b))
+			copy(resB, b)
+			resp := fuzzResponse{Value: resB, Err: "fuzzing process crashed unexpectedly"}
+			w.coordinator.interestingC <- resp
+
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 			err := w.stop()
 			if err == nil {
 				err = fmt.Errorf("worker exited unexpectedly")
 			}
-			close(w.coordinator.doneC)
 			return err
 
 		case input := <-inputC:
@@ -98,7 +102,7 @@ func (w *worker) runFuzzing() error {
 			inputC = nil // block new inputs until we finish with this one.
 			go func() {
 				args := fuzzArgs{Duration: workerFuzzDuration}
-				_, err := w.client.fuzz(input.b, args)
+				resp, err := w.client.fuzz(input.b, args)
 				if err != nil {
 					// TODO(jayconrod): if we get an error here, something failed between
 					// main and the call to testing.F.Fuzz. The error here won't
@@ -109,15 +113,28 @@ func (w *worker) runFuzzing() error {
 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
 					// TODO(jayconrod): time out if the test process hangs.
 					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
-				}
+				} else {
+					// TODO(jayconrod, katiehockman): Right now, this will just
+					// send an empty fuzzResponse{} if nothing interesting came
+					// up. Probably want to only pass to interestingC if fuzzing
+					// found something interesting.
 
-				fuzzC <- struct{}{}
+					// Inform the coordinator that fuzzing found something
+					// interesting (ie. a crash or new coverage).
+					w.coordinator.interestingC <- resp
+
+					if resp.Err == "" {
+						// Only unblock to allow more fuzzing to occur if
+						// everything was successful with the last fuzzing
+						// attempt.
+						fuzzC <- struct{}{}
+					}
+				}
+				// TODO(jayconrod,katiehockman): gather statistics.
 			}()
 
 		case <-fuzzC:
-			// Worker finished fuzzing.
-			// TODO(jayconrod,katiehockman): gather statistics. Collect "interesting"
-			// inputs and add to corpus.
+			// Worker finished fuzzing and nothing new happened.
 			inputC = w.coordinator.inputC // unblock new inputs
 		}
 	}
@@ -304,8 +321,8 @@ type fuzzArgs struct {
 }
 
 type fuzzResponse struct {
-	Crasher []byte
-	Err     string
+	Value []byte // The bytes that yielded the response.
+	Err   string // The error if the bytes resulted in a crash, nil otherwise.
 }
 
 // workerComm holds pipes and shared memory used for communication
@@ -375,10 +392,12 @@ func (ws *workerServer) fuzz(value []byte, args fuzzArgs) fuzzResponse {
 			return fuzzResponse{}
 		default:
 			b := mutate(value)
+			ws.mem.setValue(b) // Write the value to memory so it can be recovered it if the process dies
 			if err := ws.fuzzFn(b); err != nil {
-				return fuzzResponse{Crasher: b, Err: err.Error()}
+				return fuzzResponse{Value: b, Err: err.Error()}
 			}
 			// TODO(jayconrod,katiehockman): return early if coverage is expanded
+			// by returning a fuzzResponse with the Value set but a nil Err.
 		}
 	}
 }

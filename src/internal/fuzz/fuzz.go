@@ -8,6 +8,7 @@
 package fuzz
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,7 +32,10 @@ import (
 // in testdata.
 // Seed values from GOFUZZCACHE should not be included in this list; this
 // function loads them separately.
-func CoordinateFuzzing(parallel int, seed [][]byte) error {
+//
+// If a crash occurs, the function will return an error containing information
+// about the crash, which can be reported to the user.
+func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
@@ -63,8 +67,9 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 	env := os.Environ() // same as self
 
 	c := &coordinator{
-		doneC:  make(chan struct{}),
-		inputC: make(chan corpusEntry),
+		doneC:        make(chan struct{}),
+		inputC:       make(chan corpusEntry),
+		interestingC: make(chan fuzzResponse),
 	}
 
 	newWorker := func() (*worker, error) {
@@ -128,6 +133,33 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
 			}
 			return nil
 
+		case resp := <-c.interestingC:
+			// Some interesting input arrived from a worker.
+			if resp.Err != "" {
+				// This is a crasher, which should be written to testdata and
+				// reported to the user.
+				fileName, err := writeToCorpus(resp.Value, crashDir)
+				if err == nil {
+					err = fmt.Errorf("    Crash written to: %s\n%s", fileName, resp.Err)
+				}
+				// TODO(jayconrod,katiehockman): if -keepfuzzing, don't stop all
+				// of the workers, but still report to the user.
+
+				// Stop the rest of the workers and wait until they have
+				// stopped before returning this error.
+				close(c.doneC)
+				wg.Wait()
+				return err
+			} else if len(resp.Value) > 0 {
+				// This is not a crasher, but something interesting that should
+				// be added to the on disk corpus and prioritized for future
+				// workers to fuzz.
+
+				corpus.entries = append(corpus.entries, corpusEntry{b: resp.Value})
+				// TODO(jayconrod, katiehockman): Add this to the on disk corpus
+				// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which expanded coverage
+			}
+
 		case c.inputC <- corpus.entries[i]:
 			// Sent the next input to any worker.
 			// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
@@ -162,13 +194,17 @@ type coordinator struct {
 	// inputC is sent values to fuzz by the coordinator. Any worker may receive
 	// values from this channel.
 	inputC chan corpusEntry
+
+	// interestingC is sent interesting values by the worker, which is received
+	// by the coordinator. The interesting value could be a crash or some
+	// value that increased coverage.
+	interestingC chan fuzzResponse
 }
 
 // ReadCorpus reads the corpus from the testdata directory in this target's
 // package.
-func ReadCorpus(name string) ([][]byte, error) {
-	testdataDir := filepath.Join("testdata/corpus", name)
-	files, err := ioutil.ReadDir(testdataDir)
+func ReadCorpus(dir string) ([][]byte, error) {
+	files, err := ioutil.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil, nil // No corpus to read
 	} else if err != nil {
@@ -179,11 +215,37 @@ func ReadCorpus(name string) ([][]byte, error) {
 		if file.IsDir() {
 			continue
 		}
-		bytes, err := ioutil.ReadFile(filepath.Join(testdataDir, file.Name()))
+		bytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("testing: failed to read corpus file: %v", err)
 		}
 		corpus = append(corpus, bytes)
 	}
 	return corpus, nil
+}
+
+// writeToCorpus writes the given bytes to a new file in testdata. If the
+// directory does not exist, it will create one. It returns the filename that
+// was written, or an error if it failed.
+func writeToCorpus(b []byte, crashDir string) (string, error) {
+	// TODO: Consider not writing a new file if one with those contents already
+	// exists. Perhaps the filename can be compared to those that already exist
+	// if all of the filenames are normalized, or by checking the contents of
+	// all other files.
+	if _, err := ioutil.ReadDir(crashDir); os.IsNotExist(err) {
+		// Make the seed corpus directory since it doesn't exist.
+		err = os.MkdirAll(crashDir, 0777)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+	sum := fmt.Sprintf("%x", sha256.Sum256(b))
+	name := filepath.Join(crashDir, sum)
+	err := ioutil.WriteFile(name, b, 0666)
+	if err != nil {
+		return "", err
+	}
+	return name, nil
 }
