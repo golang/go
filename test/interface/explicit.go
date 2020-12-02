@@ -38,7 +38,7 @@ var e E
 
 func main() {
 	e = t // ok
-	t = e // ERROR "need explicit|need type assertion"
+	t = e // ERROR "need explicit|need type assertion|incompatible type"
 
 	// neither of these can work,
 	// because i has an extra method
@@ -47,17 +47,17 @@ func main() {
 	t = i // ERROR "incompatible|assignment$"
 
 	i = i2 // ok
-	i2 = i // ERROR "incompatible|missing N method"
+	i2 = i // ERROR "incompatible|missing N method|cannot convert"
 
 	i = I(i2)  // ok
-	i2 = I2(i) // ERROR "invalid|missing N method"
+	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
 
 	e = E(t) // ok
-	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+	t = T(e) // ERROR "need explicit|need type assertion|incompatible|cannot convert"
 
 	// cannot type-assert non-interfaces
 	f := 2.0
-	_ = f.(int) // ERROR "non-interface type"
+	_ = f.(int) // ERROR "non-interface type|not an interface type"
 
 }
 
@@ -83,8 +83,8 @@ var jj Int
 var m1 M = ii // ERROR "incompatible|missing"
 var m2 M = jj // ERROR "incompatible|wrong type for M method"
 
-var m3 = M(ii) // ERROR "invalid|missing"
-var m4 = M(jj) // ERROR "invalid|wrong type for M method"
+var m3 = M(ii) // ERROR "invalid|missing|cannot convert"
+var m4 = M(jj) // ERROR "invalid|wrong type for M method|cannot convert"
 
 type B1 interface {
 	_() // ERROR "methods must have a unique non-blank name"
@@ -101,5 +101,9 @@ func (t *T2) M() {}
 func (t *T2) _() {}
 
 // Check that nothing satisfies an interface with blank methods.
-var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
-var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"
+// Disabled this test as it's not clear we need this behavior.
+// See also issue #42964.
+/*
+var b1 B1 = &T2{} // "incompatible|missing _ method"
+var b2 B2 = &T2{} // "incompatible|missing _ method"
+*/

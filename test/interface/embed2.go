@@ -48,25 +48,25 @@ func main() {
 	check("t.M()", t.M())
 	check("pt.M()", pt.M())
 	check("ti.M()", ti.M())
-	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface"
+	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface|no field or method M"
 	check("s.M()", s.M())
 	check("ps.M()", ps.M())
 
 	i = t
 	check("i = t; i.M()", i.M())
-	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
 
 	i = pt
 	check("i = pt; i.M()", i.M())
-	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
 
 	i = s
 	check("i = s; i.M()", i.M())
-	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
 
 	i = ps
 	check("i = ps; i.M()", i.M())
-	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
 
 	if !ok {
 		println("BUG: interface10")

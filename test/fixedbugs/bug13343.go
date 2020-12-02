@@ -7,7 +7,7 @@
 package main
 
 var (
-	a, b = f() // ERROR "initialization loop|depends upon itself"
+	a, b = f() // ERROR "initialization loop|depends upon itself|initialization cycle"
 	c    = b
 )
 

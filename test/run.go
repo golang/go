@@ -813,6 +813,7 @@ func (t *test) run() {
 				"wb",
 				"append",
 				"slice",
+				"typeassert",
 				"ssa/check_bce/debug",
 				"ssa/intrinsics/debug",
 				"ssa/prove/debug",
