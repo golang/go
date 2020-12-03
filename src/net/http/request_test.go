@@ -285,7 +285,7 @@ func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	if g, w := res.StatusCode, StatusBadRequest; g != w {
+	if g, w := res.StatusCode, StatusOK; g != w {
 		t.Fatalf("Status code mismatch: got %d, want %d", g, w)
 	}
 }
