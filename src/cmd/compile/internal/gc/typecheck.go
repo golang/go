@@ -2385,7 +2385,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 	me.SetType(methodfunc(m.Type, n.Left().Type()))
 	me.SetOffset(0)
 	me.SetClass(ir.PFUNC)
-	me.SetOpt(m)
+	me.(*ir.MethodExpr).Method = m
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == ir.LocalPkg) {
@@ -2448,10 +2448,8 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 			}
 
 			n.SetOp(ir.ODOTINTER)
-		} else {
-			n.SetOpt(f1)
 		}
-
+		n.(*ir.SelectorExpr).Selection = f1
 		return f1
 	}
 
@@ -2507,7 +2505,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
 		n.SetOffset(f2.Offset)
 		n.SetType(f2.Type)
 		n.SetOp(ir.ODOTMETH)
-		n.SetOpt(f2)
+		n.(*ir.SelectorExpr).Selection = f2
 
 		return f2
 	}
@@ -3933,8 +3931,10 @@ func methodExprName(n ir.Node) *ir.Name {
 // MethodFunc is like MethodName, but returns the types.Field instead.
 func methodExprFunc(n ir.Node) *types.Field {
 	switch n.Op() {
-	case ir.ODOTMETH, ir.OMETHEXPR:
-		return n.Opt().(*types.Field)
+	case ir.ODOTMETH:
+		return n.(*ir.SelectorExpr).Selection
+	case ir.OMETHEXPR:
+		return n.(*ir.MethodExpr).Method
 	case ir.OCALLPART:
 		return callpartMethod(n)
 	}

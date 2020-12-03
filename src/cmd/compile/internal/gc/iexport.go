@@ -1290,8 +1290,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OXDOT)
 		w.pos(n.Pos())
 		w.expr(n.Left())
-		// Right node should be ONAME
-		w.selector(n.Right().Sym())
+		w.selector(n.Sym())
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
 		w.op(ir.OXDOT)

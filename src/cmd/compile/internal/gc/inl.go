@@ -430,6 +430,9 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 		// In any event, let the visitList(n.List()) below take care of the statements,
 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
 		v.budget++
+
+	case ir.OCALLPART:
+		v.budget-- // Hack for toolstash -cmp.
 	}
 
 	v.budget--
