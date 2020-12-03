@@ -33,7 +33,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.Walk(runtime.GOROOT(), func(path string, info fs.FileInfo, err error) error {
+		goroot.err = filepath.WalkDir(runtime.GOROOT(), func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}

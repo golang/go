@@ -6433,3 +6433,54 @@ func TestErrorWriteLoopRace(t *testing.T) {
 		testTransportRace(req)
 	}
 }
+
+// Issue 41600
+// Test that a new request which uses the connection of an active request
+// cannot cause it to be canceled as well.
+func TestCancelRequestWhenSharingConnection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		w.Header().Add("Content-Length", "0")
+	}))
+	defer ts.Close()
+
+	client := ts.Client()
+	transport := client.Transport.(*Transport)
+	transport.MaxIdleConns = 1
+	transport.MaxConnsPerHost = 1
+
+	var wg sync.WaitGroup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for ctx.Err() == nil {
+				reqctx, reqcancel := context.WithCancel(ctx)
+				go reqcancel()
+				req, _ := NewRequestWithContext(reqctx, "GET", ts.URL, nil)
+				res, err := client.Do(req)
+				if err == nil {
+					res.Body.Close()
+				}
+			}
+		}()
+	}
+
+	for ctx.Err() == nil {
+		req, _ := NewRequest("GET", ts.URL, nil)
+		if res, err := client.Do(req); err != nil {
+			t.Errorf("unexpected: %p %v", req, err)
+			break
+		} else {
+			res.Body.Close()
+		}
+	}
+
+	cancel()
+	wg.Wait()
+}
