@@ -1071,6 +1071,7 @@ var OpPrec = []int{
 	OCALL:          8,
 	OCAP:           8,
 	OCLOSE:         8,
+	OCOMPLIT:       8,
 	OCONVIFACE:     8,
 	OCONVNOP:       8,
 	OCONV:          8,
@@ -1179,13 +1180,28 @@ var OpPrec = []int{
 }
 
 func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
-	for n != nil && n.Implicit() && (n.Op() == ODEREF || n.Op() == OADDR) {
-		n = n.Left()
-	}
+	for {
+		if n == nil {
+			fmt.Fprint(s, "<N>")
+			return
+		}
 
-	if n == nil {
-		fmt.Fprint(s, "<N>")
-		return
+		// We always want the original, if any.
+		if o := Orig(n); o != n {
+			n = o
+			continue
+		}
+
+		// Skip implicit operations introduced during typechecking.
+		switch n.Op() {
+		case OADDR, ODEREF, OCONV, OCONVNOP, OCONVIFACE:
+			if n.Implicit() {
+				n = n.Left()
+				continue
+			}
+		}
+
+		break
 	}
 
 	nprec := OpPrec[n.Op()]
@@ -1206,15 +1222,9 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		fmt.Fprint(s, "nil")
 
 	case OLITERAL: // this is a bit of a mess
-		if mode == FErr {
-			if orig := Orig(n); orig != nil && orig != n {
-				exprFmt(orig, s, prec, mode)
-				return
-			}
-			if n.Sym() != nil {
-				fmt.Fprint(s, smodeString(n.Sym(), mode))
-				return
-			}
+		if mode == FErr && n.Sym() != nil {
+			fmt.Fprint(s, smodeString(n.Sym(), mode))
+			return
 		}
 
 		needUnparen := false
@@ -1558,13 +1568,6 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 
 func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	t := n.Type()
-
-	// We almost always want the original.
-	// TODO(gri) Why the special case for OLITERAL?
-	if n.Op() != OLITERAL && Orig(n) != nil {
-		n = Orig(n)
-	}
-
 	if flag&FmtLong != 0 && t != nil {
 		if t.Kind() == types.TNIL {
 			fmt.Fprint(s, "nil")

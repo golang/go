@@ -523,7 +523,6 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 	r.SetType(t)
 	r.SetTypecheck(1)
 	r.SetImplicit(true)
-	r.(ir.OrigNode).SetOrig(ir.Orig(n))
 	return r
 }
 
