@@ -638,6 +638,14 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 		}
 	}
 
+	inlnodelist(n.Body(), maxCost, inlMap)
+	s = n.Body().Slice()
+	for i, n1 := range s {
+		if n1.Op() == ir.OINLCALL {
+			s[i] = inlconv2stmt(n1)
+		}
+	}
+
 	inlnodelist(n.Rlist(), maxCost, inlMap)
 
 	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
@@ -655,14 +663,6 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 			} else {
 				s[i] = inlconv2expr(n1)
 			}
-		}
-	}
-
-	inlnodelist(n.Body(), maxCost, inlMap)
-	s = n.Body().Slice()
-	for i, n1 := range s {
-		if n1.Op() == ir.OINLCALL {
-			s[i] = inlconv2stmt(n1)
 		}
 	}
 
