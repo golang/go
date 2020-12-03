@@ -162,31 +162,26 @@ func TestFormattingOnSave(t *testing.T) {
 	})
 }
 
-// Reproduce golang/go#41057.
-func TestCRLF(t *testing.T) {
-	runner.Run(t, "-- main.go --", func(t *testing.T, env *Env) {
-		want := `package main
+// Tests various possibilities for comments in files with CRLF line endings.
+// Import organization in these files has historically been a source of bugs.
+func TestCRLFLineEndings(t *testing.T) {
+	for _, tt := range []struct {
+		issue, want string
+	}{
+		{
+			issue: "41057",
+			want: `package main
 
 /*
 Hi description
 */
 func Hi() {
 }
-`
-		crlf := strings.ReplaceAll(want, "\n", "\r\n")
-		env.CreateBuffer("main.go", crlf)
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
-		env.SaveBuffer("main.go")
-		got := env.Editor.BufferText("main.go")
-		if want != got {
-			t.Errorf("unexpected content after save:\n%s", tests.Diff(want, got))
-		}
-	})
-}
-
-func TestCRLF_42646(t *testing.T) {
-	runner.Run(t, "-- main.go --", func(t *testing.T, env *Env) {
-		want := `package main
+`,
+		},
+		{
+			issue: "42646",
+			want: `package main
 
 import (
 	"fmt"
@@ -211,15 +206,32 @@ func main() {
 	const server_port = 8080
 	fmt.Printf("port: %d\n", server_port)
 }
-`
-		crlf := strings.ReplaceAll(want, "\n", "\r\n")
-		env.CreateBuffer("main.go", crlf)
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
-		env.OrganizeImports("main.go")
-		got := env.Editor.BufferText("main.go")
-		got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
-		if want != got {
-			t.Errorf("unexpected content after save:\n%s", tests.Diff(want, got))
-		}
-	})
+`,
+		},
+		{
+			issue: "42923",
+			want: `package main
+
+// Line 1.
+// aa
+type Tree struct {
+	arr []string
+}
+`,
+		},
+	} {
+		t.Run(tt.issue, func(t *testing.T) {
+			run(t, "-- main.go --", func(t *testing.T, env *Env) {
+				crlf := strings.ReplaceAll(tt.want, "\n", "\r\n")
+				env.CreateBuffer("main.go", crlf)
+				env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+				env.OrganizeImports("main.go")
+				got := env.Editor.BufferText("main.go")
+				got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
+				if tt.want != got {
+					t.Errorf("unexpected content after save:\n%s", tests.Diff(tt.want, got))
+				}
+			})
+		})
+	}
 }

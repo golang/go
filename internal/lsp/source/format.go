@@ -227,21 +227,23 @@ func importPrefix(src []byte) string {
 		pkgEnd := f.Name.End()
 		importEnd = maybeAdjustToLineEnd(pkgEnd, false)
 	}
-	for _, c := range f.Comments {
-		if end := tok.Offset(c.End()); end > importEnd {
-			startLine := tok.Position(c.Pos()).Line
-			endLine := tok.Position(c.End()).Line
+	for _, cgroup := range f.Comments {
+		for _, c := range cgroup.List {
+			if end := tok.Offset(c.End()); end > importEnd {
+				startLine := tok.Position(c.Pos()).Line
+				endLine := tok.Position(c.End()).Line
 
-			// Work around golang/go#41197 by checking if the comment might
-			// contain "\r", and if so, find the actual end position of the
-			// comment by scanning the content of the file.
-			startOffset := tok.Offset(c.Pos())
-			if startLine != endLine && bytes.Contains(src[startOffset:], []byte("\r")) {
-				if commentEnd := scanForCommentEnd(tok, src[startOffset:]); commentEnd > 0 {
-					end = startOffset + commentEnd
+				// Work around golang/go#41197 by checking if the comment might
+				// contain "\r", and if so, find the actual end position of the
+				// comment by scanning the content of the file.
+				startOffset := tok.Offset(c.Pos())
+				if startLine != endLine && bytes.Contains(src[startOffset:], []byte("\r")) {
+					if commentEnd := scanForCommentEnd(tok, src[startOffset:]); commentEnd > 0 {
+						end = startOffset + commentEnd
+					}
 				}
+				importEnd = maybeAdjustToLineEnd(tok.Pos(end), true)
 			}
-			importEnd = maybeAdjustToLineEnd(tok.Pos(end), true)
 		}
 	}
 	if importEnd > len(src) {
