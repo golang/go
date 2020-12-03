@@ -175,14 +175,14 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	}
 	root := folder
 	if options.ExpandWorkspaceToModule {
-		root, err = findWorkspaceRoot(ctx, root, s, options.ExperimentalWorkspaceModule)
+		root, err = findWorkspaceRoot(ctx, root, s, pathExcludedByFilterFunc(options), options.ExperimentalWorkspaceModule)
 		if err != nil {
 			return nil, nil, func() {}, err
 		}
 	}
 
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, s, ws.userGo111Module == off, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, s, pathExcludedByFilterFunc(options), ws.userGo111Module == off, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}

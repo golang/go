@@ -185,7 +185,8 @@ replace gopls.test => ../../gopls.test2`,
 			root := span.URIFromPath(dir)
 
 			fs := osFileSource{}
-			w, err := newWorkspace(ctx, root, fs, false, !test.legacyMode)
+			excludeNothing := func(string) bool { return false }
+			w, err := newWorkspace(ctx, root, fs, excludeNothing, false, !test.legacyMode)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -23,6 +23,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -242,6 +243,9 @@ func minorOptionsChange(a, b *source.Options) bool {
 	if !reflect.DeepEqual(a.Env, b.Env) {
 		return false
 	}
+	if !reflect.DeepEqual(a.DirectoryFilters, b.DirectoryFilters) {
+		return false
+	}
 	aBuildFlags := make([]string, len(a.BuildFlags))
 	bBuildFlags := make([]string, len(b.BuildFlags))
 	copy(aBuildFlags, a.BuildFlags)
@@ -323,7 +327,16 @@ func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Optio
 }
 
 func (v *View) contains(uri span.URI) bool {
-	return source.InDir(v.rootURI.Filename(), uri.Filename()) || source.InDir(v.folder.Filename(), uri.Filename())
+	inRoot := source.InDir(v.rootURI.Filename(), uri.Filename())
+	inFolder := source.InDir(v.folder.Filename(), uri.Filename())
+	if !inRoot && !inFolder {
+		return false
+	}
+	// Filters are applied relative to the workspace folder.
+	if inFolder {
+		return !pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), v.Options())
+	}
+	return true
 }
 
 func (v *View) mapFile(uri span.URI, f *fileBase) {
@@ -699,7 +712,7 @@ func go111moduleForVersion(go111module string, goversion int) go111module {
 // Otherwise, it returns folder.
 // TODO (rFindley): move this to workspace.go
 // TODO (rFindley): simplify this once workspace modules are enabled by default.
-func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, experimental bool) (span.URI, error) {
+func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
 	patterns := []string{"go.mod"}
 	if experimental {
 		patterns = []string{"gopls.mod", "go.mod"}
@@ -720,7 +733,7 @@ func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSourc
 	}
 
 	// ...else we should check if there's exactly one nested module.
-	all, err := findModules(ctx, folder, 2)
+	all, err := findModules(ctx, folder, excludePath, 2)
 	if err == errExhausted {
 		// Fall-back behavior: if we don't find any modules after searching 10000
 		// files, assume there are none.
@@ -914,4 +927,44 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	}
 	vendorEnabled := modFile.Go != nil && modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
 	return vendorEnabled, nil
+}
+
+func (v *View) allFilesExcluded(pkg *packages.Package) bool {
+	opts := v.Options()
+	folder := filepath.ToSlash(v.folder.Filename())
+	for _, f := range pkg.GoFiles {
+		f = filepath.ToSlash(f)
+		if !strings.HasPrefix(f, folder) {
+			return false
+		}
+		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), opts) {
+			return false
+		}
+	}
+	return true
+}
+
+func pathExcludedByFilterFunc(opts *source.Options) func(string) bool {
+	return func(path string) bool {
+		return pathExcludedByFilter(path, opts)
+	}
+}
+
+func pathExcludedByFilter(path string, opts *source.Options) bool {
+	path = strings.TrimPrefix(filepath.ToSlash(path), "/")
+
+	excluded := false
+	for _, filter := range opts.DirectoryFilters {
+		op, prefix := filter[0], filter[1:]
+		// Non-empty prefixes have to be precise directory matches.
+		if prefix != "" {
+			prefix = prefix + "/"
+			path = path + "/"
+		}
+		if !strings.HasPrefix(path, prefix) {
+			continue
+		}
+		excluded = op == '-'
+	}
+	return excluded
 }

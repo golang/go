@@ -54,6 +54,7 @@ func (s workspaceSource) String() string {
 // across multiple snapshots.
 type workspace struct {
 	root         span.URI
+	excludePath  func(string) bool
 	moduleSource workspaceSource
 
 	// activeModFiles holds the active go.mod files.
@@ -81,7 +82,7 @@ type workspace struct {
 	wsDirs   map[span.URI]struct{}
 }
 
-func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go111moduleOff bool, experimental bool) (*workspace, error) {
+func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excludePath func(string) bool, go111moduleOff bool, experimental bool) (*workspace, error) {
 	// In experimental mode, the user may have a gopls.mod file that defines
 	// their workspace.
 	if experimental {
@@ -97,6 +98,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 			}
 			return &workspace{
 				root:           root,
+				excludePath:    excludePath,
 				activeModFiles: activeModFiles,
 				knownModFiles:  activeModFiles,
 				mod:            file,
@@ -106,7 +108,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 	}
 	// Otherwise, in all other modes, search for all of the go.mod files in the
 	// workspace.
-	knownModFiles, err := findModules(ctx, root, 0)
+	knownModFiles, err := findModules(ctx, root, excludePath, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +116,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 	if go111moduleOff {
 		return &workspace{
 			root:           root,
+			excludePath:    excludePath,
 			moduleSource:   legacyWorkspace,
 			knownModFiles:  knownModFiles,
 			go111moduleOff: true,
@@ -127,6 +130,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 		}
 		return &workspace{
 			root:           root,
+			excludePath:    excludePath,
 			activeModFiles: activeModFiles,
 			knownModFiles:  knownModFiles,
 			moduleSource:   legacyWorkspace,
@@ -134,6 +138,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 	}
 	return &workspace{
 		root:           root,
+		excludePath:    excludePath,
 		activeModFiles: knownModFiles,
 		knownModFiles:  knownModFiles,
 		moduleSource:   fileSystemWorkspace,
@@ -279,7 +284,7 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 			} else {
 				// gopls.mod is deleted. search for modules again.
 				moduleSource = fileSystemWorkspace
-				knownModFiles, err = findModules(ctx, w.root, 0)
+				knownModFiles, err = findModules(ctx, w.root, w.excludePath, 0)
 				// the modFile is no longer valid.
 				if err != nil {
 					event.Error(ctx, "finding file system modules", err)
@@ -335,6 +340,7 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 		// Any change to modules triggers a new version.
 		return &workspace{
 			root:           w.root,
+			excludePath:    w.excludePath,
 			moduleSource:   moduleSource,
 			activeModFiles: activeModFiles,
 			knownModFiles:  knownModFiles,
@@ -438,7 +444,7 @@ const fileLimit = 1000000
 // searching stops once modLimit modules have been found.
 //
 // TODO(rfindley): consider overlays.
-func findModules(ctx context.Context, root span.URI, modLimit int) (map[span.URI]struct{}, error) {
+func findModules(ctx context.Context, root span.URI, excludePath func(string) bool, modLimit int) (map[span.URI]struct{}, error) {
 	// Walk the view's folder to find all modules in the view.
 	modFiles := make(map[span.URI]struct{})
 	searched := 0
@@ -455,7 +461,8 @@ func findModules(ctx context.Context, root span.URI, modLimit int) (map[span.URI
 			suffix := strings.TrimPrefix(path, root.Filename())
 			switch {
 			case checkIgnored(suffix),
-				strings.Contains(filepath.ToSlash(suffix), "/vendor/"):
+				strings.Contains(filepath.ToSlash(suffix), "/vendor/"),
+				excludePath(suffix):
 				return filepath.SkipDir
 			}
 		}

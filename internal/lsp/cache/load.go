@@ -159,6 +159,11 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		if isTestMain(pkg, s.view.gocache) {
 			continue
 		}
+		// Skip filtered packages. They may be added anyway if they're
+		// dependencies of non-filtered packages.
+		if s.view.allFilesExcluded(pkg) {
+			continue
+		}
 		// Set the metadata for this package.
 		m, err := s.setMetadata(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
 		if err != nil {

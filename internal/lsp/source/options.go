@@ -7,6 +7,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -267,6 +268,19 @@ type UserOptions struct {
 	// }
 	// ```
 	SymbolStyle SymbolStyle
+
+	// DirectoryFilters can be used to exclude unwanted directories from the
+	// workspace. By default, all directories are included. Filters are an
+	// operator, `+` to include and `-` to exclude, followed by a path prefix
+	// relative to the workspace folder. They are evaluated in order, and
+	// the last filter that applies to a path controls whether it is included.
+	// The path prefix can be empty, so an initial `-` excludes everything.
+	//
+	// Examples:
+	// Exclude node_modules: `-node_modules`
+	// Include only project_a: `-` (exclude everything), `+project_a`
+	// Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
+	DirectoryFilters []string
 }
 
 // EnvSlice returns Env as a slice of k=v strings.
@@ -606,6 +620,7 @@ func (o *Options) Clone() *Options {
 	}
 	result.SetEnvSlice(o.EnvSlice())
 	result.BuildFlags = copySlice(o.BuildFlags)
+	result.DirectoryFilters = copySlice(o.DirectoryFilters)
 
 	copyAnalyzerMap := func(src map[string]Analyzer) map[string]Analyzer {
 		dst := make(map[string]Analyzer)
@@ -665,7 +680,22 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			flags = append(flags, fmt.Sprintf("%s", flag))
 		}
 		o.BuildFlags = flags
-
+	case "directoryFilters":
+		ifilters, ok := value.([]interface{})
+		if !ok {
+			result.errorf("invalid type %T, expect list", value)
+			break
+		}
+		var filters []string
+		for _, ifilter := range ifilters {
+			filter := fmt.Sprint(ifilter)
+			if filter[0] != '+' && filter[0] != '-' {
+				result.errorf("invalid filter %q, must start with + or -", filter)
+				return result
+			}
+			filters = append(filters, filepath.FromSlash(filter))
+		}
+		o.DirectoryFilters = filters
 	case "completionDocumentation":
 		result.setBool(&o.CompletionDocumentation)
 	case "usePlaceholders":

@@ -645,3 +645,96 @@ func main() {
 		}
 	})
 }
+
+func TestDirectoryFiltersLoads(t *testing.T) {
+	// exclude, and its error, should be excluded from the workspace.
+	const files = `
+-- go.mod --
+module example.com
+
+go 1.12
+-- exclude/exclude.go --
+package exclude
+
+const _ = Nonexistant
+`
+	cfg := EditorConfig{
+		DirectoryFilters: []string{"-exclude"},
+	}
+	withOptions(cfg).run(t, files, func(t *testing.T, env *Env) {
+		env.Await(NoDiagnostics("exclude/x.go"))
+	})
+}
+
+func TestDirectoryFiltersTransitiveDep(t *testing.T) {
+	// Even though exclude is excluded from the workspace, it should
+	// still be importable as a non-workspace package.
+	const files = `
+-- go.mod --
+module example.com
+
+go 1.12
+-- include/include.go --
+package include
+import "example.com/exclude"
+
+const _ = exclude.X
+-- exclude/exclude.go --
+package exclude
+
+const _ = Nonexistant // should be ignored, since this is a non-workspace package
+const X = 1
+`
+
+	cfg := EditorConfig{
+		DirectoryFilters: []string{"-exclude"},
+	}
+	withOptions(cfg).run(t, files, func(t *testing.T, env *Env) {
+		env.Await(
+			NoDiagnostics("exclude/exclude.go"), // filtered out
+			NoDiagnostics("include/include.go"), // successfully builds
+		)
+	})
+}
+
+func TestDirectoryFiltersWorkspaceModules(t *testing.T) {
+	// Define a module include.com which should be in the workspace, plus a
+	// module exclude.com which should be excluded and therefore come from
+	// the proxy.
+	const files = `
+-- include/go.mod --
+module include.com
+
+go 1.12
+
+require exclude.com v1.0.0
+-- include/include.go --
+package include
+
+import "exclude.com"
+
+var _ = exclude.X // satisfied only by the workspace version
+-- exclude/go.mod --
+module exclude.com
+
+go 1.12
+-- exclude/exclude.go --
+package exclude
+
+const X = 1
+`
+	const proxy = `
+-- exclude.com@v1.0.0/go.mod --
+module exclude.com
+
+go 1.12
+-- exclude.com@v1.0.0/exclude.go --
+package exclude
+`
+	cfg := EditorConfig{
+		DirectoryFilters: []string{"-exclude"},
+	}
+	withOptions(cfg, WithModes(Experimental), WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
+	})
+}

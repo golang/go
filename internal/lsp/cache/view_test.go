@@ -95,7 +95,8 @@ module fg
 		ctx := context.Background()
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
-		got, err := findWorkspaceRoot(ctx, folderURI, osFileSource{}, test.experimental)
+		excludeNothing := func(string) bool { return false }
+		got, err := findWorkspaceRoot(ctx, folderURI, osFileSource{}, excludeNothing, test.experimental)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,6 +208,52 @@ func TestInVendor(t *testing.T) {
 	} {
 		if got := inVendor(span.URIFromPath(tt.path)); got != tt.inVendor {
 			t.Errorf("expected %s inVendor %v, got %v", tt.path, tt.inVendor, got)
+		}
+	}
+}
+
+func TestFilters(t *testing.T) {
+	tests := []struct {
+		filters  []string
+		included []string
+		excluded []string
+	}{
+		{
+			included: []string{"x"},
+		},
+		{
+			filters:  []string{"-"},
+			excluded: []string{"x", "x/a"},
+		},
+		{
+			filters:  []string{"-x", "+y"},
+			included: []string{"y", "y/a", "z"},
+			excluded: []string{"x", "x/a"},
+		},
+		{
+			filters:  []string{"-x", "+x/y", "-x/y/z"},
+			included: []string{"x/y", "x/y/a", "a"},
+			excluded: []string{"x", "x/a", "x/y/z/a"},
+		},
+		{
+			filters:  []string{"+foobar", "-foo"},
+			included: []string{"foobar", "foobar/a"},
+			excluded: []string{"foo", "foo/a"},
+		},
+	}
+
+	for _, tt := range tests {
+		opts := &source.Options{}
+		opts.DirectoryFilters = tt.filters
+		for _, inc := range tt.included {
+			if pathExcludedByFilter(inc, opts) {
+				t.Errorf("filters %q excluded %v, wanted included", tt.filters, inc)
+			}
+		}
+		for _, exc := range tt.excluded {
+			if !pathExcludedByFilter(exc, opts) {
+				t.Errorf("filters %q included %v, wanted excluded", tt.filters, exc)
+			}
 		}
 	}
 }

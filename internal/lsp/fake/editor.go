@@ -96,6 +96,8 @@ type EditorConfig struct {
 	// the PID. This can only be set by one test.
 	SendPID bool
 
+	DirectoryFilters []string
+
 	VerboseOutput bool
 }
 
@@ -197,7 +199,9 @@ func (e *Editor) configuration() map[string]interface{} {
 	if e.Config.BuildFlags != nil {
 		config["buildFlags"] = e.Config.BuildFlags
 	}
-
+	if e.Config.DirectoryFilters != nil {
+		config["directoryFilters"] = e.Config.DirectoryFilters
+	}
 	if e.Config.CodeLenses != nil {
 		config["codelenses"] = e.Config.CodeLenses
 	}

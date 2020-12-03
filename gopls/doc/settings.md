@@ -175,6 +175,21 @@ just "Foo.Field".
 
 
 Default: `"Dynamic"`.
+### **directoryFilters** *[]string*
+directoryFilters can be used to exclude unwanted directories from the
+workspace. By default, all directories are included. Filters are an
+operator, `+` to include and `-` to exclude, followed by a path prefix
+relative to the workspace folder. They are evaluated in order, and
+the last filter that applies to a path controls whether it is included.
+The path prefix can be empty, so an initial `-` excludes everything.
+
+Examples:
+Exclude node_modules: `-node_modules`
+Include only project_a: `-` (exclude everything), `+project_a`
+Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
+
+
+Default: `[]`.
 <!-- END User: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Experimental
