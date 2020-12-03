@@ -483,10 +483,11 @@ func inlcalls(fn *ir.Func) {
 	// Most likely, the inlining will stop before we even hit the beginning of
 	// the cycle again, but the map catches the unusual case.
 	inlMap := make(map[*ir.Func]bool)
-	fn = inlnode(fn, maxCost, inlMap).(*ir.Func)
-	if fn != Curfn {
-		base.Fatalf("inlnode replaced curfn")
+	var edit func(ir.Node) ir.Node
+	edit = func(n ir.Node) ir.Node {
+		return inlnode(n, maxCost, inlMap, edit)
 	}
+	ir.EditChildren(fn, edit)
 	Curfn = savefn
 }
 
@@ -521,13 +522,6 @@ func inlconv2list(n ir.Node) []ir.Node {
 	return s
 }
 
-func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[*ir.Func]bool) {
-	s := l.Slice()
-	for i := range s {
-		s[i] = inlnode(s[i], maxCost, inlMap)
-	}
-}
-
 // inlnode recurses over the tree to find inlineable calls, which will
 // be turned into OINLCALLs by mkinlcall. When the recursion comes
 // back up will examine left, right, list, rlist, ninit, ntest, nincr,
@@ -541,7 +535,7 @@ func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[*ir.Func]bool) {
 // shorter and less complicated.
 // The result of inlnode MUST be assigned back to n, e.g.
 // 	n.Left = inlnode(n.Left)
-func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
 	if n == nil {
 		return n
 	}
@@ -567,66 +561,13 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 
 	lno := setlineno(n)
 
-	inlnodelist(n.Init(), maxCost, inlMap)
-	init := n.Init().Slice()
-	for i, n1 := range init {
-		if n1.Op() == ir.OINLCALL {
-			init[i] = inlconv2stmt(n1)
-		}
-	}
-
-	n.SetLeft(inlnode(n.Left(), maxCost, inlMap))
-	if n.Left() != nil && n.Left().Op() == ir.OINLCALL {
-		n.SetLeft(inlconv2expr(n.Left()))
-	}
-
-	n.SetRight(inlnode(n.Right(), maxCost, inlMap))
-	if n.Right() != nil && n.Right().Op() == ir.OINLCALL {
-		if n.Op() == ir.OFOR || n.Op() == ir.OFORUNTIL {
-			n.SetRight(inlconv2stmt(n.Right()))
-		} else {
-			n.SetRight(inlconv2expr(n.Right()))
-		}
-	}
-
-	inlnodelist(n.List(), maxCost, inlMap)
-	s := n.List().Slice()
-	convert := inlconv2expr
-	if n.Op() == ir.OBLOCK {
-		convert = inlconv2stmt
-	}
-	for i, n1 := range s {
-		if n1 != nil && n1.Op() == ir.OINLCALL {
-			s[i] = convert(n1)
-		}
-	}
-
-	inlnodelist(n.Body(), maxCost, inlMap)
-	s = n.Body().Slice()
-	for i, n1 := range s {
-		if n1.Op() == ir.OINLCALL {
-			s[i] = inlconv2stmt(n1)
-		}
-	}
-
-	inlnodelist(n.Rlist(), maxCost, inlMap)
+	ir.EditChildren(n, edit)
 
 	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
 		n.PtrRlist().Set(inlconv2list(n.Rlist().First()))
 		n.SetOp(ir.OAS2)
 		n.SetTypecheck(0)
 		n = typecheck(n, ctxStmt)
-	}
-
-	s = n.Rlist().Slice()
-	for i, n1 := range s {
-		if n1.Op() == ir.OINLCALL {
-			if n.Op() == ir.OIF {
-				s[i] = inlconv2stmt(n1)
-			} else {
-				s[i] = inlconv2expr(n1)
-			}
-		}
 	}
 
 	// with all the branches out of the way, it is now time to
@@ -639,8 +580,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 		}
 	}
 
+	var call ir.Node
 	switch n.Op() {
 	case ir.OCALLFUNC:
+		call = n
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), n.Left())
 		}
@@ -648,10 +591,11 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 			break
 		}
 		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
-			n = mkinlcall(n, fn, maxCost, inlMap)
+			n = mkinlcall(n, fn, maxCost, inlMap, edit)
 		}
 
 	case ir.OCALLMETH:
+		call = n
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to meth %L\n", ir.Line(n), n.Left().Right())
 		}
@@ -661,10 +605,25 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
 			base.Fatalf("no function type for [%p] %+v\n", n.Left(), n.Left())
 		}
 
-		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap)
+		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap, edit)
 	}
 
 	base.Pos = lno
+
+	if n.Op() == ir.OINLCALL {
+		switch call.(*ir.CallExpr).Use {
+		default:
+			ir.Dump("call", call)
+			base.Fatalf("call missing use")
+		case ir.CallUseExpr:
+			n = inlconv2expr(n)
+		case ir.CallUseStmt:
+			n = inlconv2stmt(n)
+		case ir.CallUseList:
+			// leave for caller to convert
+		}
+	}
+
 	return n
 }
 
@@ -805,7 +764,7 @@ var inlgen int
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
 	if fn.Inl == nil {
 		if logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(Curfn),
@@ -1131,13 +1090,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 	// instead we emit the things that the body needs
 	// and each use must redo the inlining.
 	// luckily these are small.
-	inlnodelist(call.Body(), maxCost, inlMap)
-	s := call.Body().Slice()
-	for i, n1 := range s {
-		if n1.Op() == ir.OINLCALL {
-			s[i] = inlconv2stmt(n1)
-		}
-	}
+	ir.EditChildren(call, edit)
 
 	if base.Flag.LowerM > 2 {
 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(call), call)
