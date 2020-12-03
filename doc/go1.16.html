@@ -494,7 +494,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 240014 -->
-      TODO: <a href="https://golang.org/cl/240014">https://golang.org/cl/240014</a>: add Func
+      The new <a href="/pkg/flag/#Func"><code>Func</code></a> function
+      allows registering a flag implemented by calling a function,
+      as a lighter-weight alternative to implementing the
+      <a href="/pkg/flag/#Value"><code>Value</code></a> interface.
     </p>
   </dd>
 </dl><!-- flag -->
@@ -502,7 +505,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
     <p><!-- CL 261577 -->
-      TODO: <a href="https://golang.org/cl/261577">https://golang.org/cl/261577</a>: add a new ReadSeekCloser interface
+      The package now defines a
+      <a href="/pkg/io/#ReadSeekCloser"><code>ReadSeekCloser</code></a> interface.
     </p>
   </dd>
 </dl><!-- io -->
@@ -510,7 +514,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 264460 -->
-      TODO: <a href="https://golang.org/cl/264460">https://golang.org/cl/264460</a>: expose std via new Default function
+      The new <a href="/pkg/log/#Default"><code>Default</code></a> function
+      provides access to the default <a href="/pkg/log/#Logger"><code>Logger</code></a>.
     </p>
   </dd>
 </dl><!-- log -->
@@ -518,7 +523,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="log/syslog"><dt><a href="/pkg/log/syslog/">log/syslog</a></dt>
   <dd>
     <p><!-- CL 264297 -->
-      TODO: <a href="https://golang.org/cl/264297">https://golang.org/cl/264297</a>: set local to true if network is any of &#34;unix&#34;, or &#34;unixgram&#34;
+      The <a href="/pkg/log/syslog/#Writer"><code>Writer</code></a>
+      now uses the local message format
+      (omitting the host name and using a shorter time stamp)
+      when logging to custom Unix domain sockets,
+      matching the format already used for the default log socket.
     </p>
   </dd>
 </dl><!-- log/syslog -->
@@ -526,7 +535,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
   <dd>
     <p><!-- CL 247477 -->
-      TODO: <a href="https://golang.org/cl/247477">https://golang.org/cl/247477</a>: return overflow errors in Reader.ReadForm
+      The <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a>'s
+      <a href="/pkg/mime/multipart/#Reader.ReadForm"><code>ReadForm</code></a>
+      method no longer rejects form data
+      when passed the maximum int64 value as a limit.
     </p>
   </dd>
 </dl><!-- mime/multipart -->
@@ -550,7 +562,10 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 238629 -->
-      TODO: <a href="https://golang.org/cl/238629">https://golang.org/cl/238629</a>: prefer /etc/hosts over DNS when no /etc/nsswitch.conf is present
+      On Linux, host name lookups no longer use DNS before checking
+      <code>/etc/hosts</code> when <code>/etc/nsswitch.conf</code>
+      is missing; this is common on musl-based systems and makes
+      Go programs match the behavior of C programs on those systems.
     </p>
   </dd>
 </dl><!-- net -->
@@ -590,11 +605,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 250039 -->
-      TODO: <a href="https://golang.org/cl/250039">https://golang.org/cl/250039</a>: set Content-Length:0 for empty PATCH requests as with POST, PATCH
+      The <a href="/pkg/net/http/#Client">Client</a> now sends
+      an explicit <code>Content-Length:</code> <code>0</code>
+      header in <code>PATCH</code> requests with empty bodies,
+      matching the existing behavior of <code>POST</code> and <code>PUT</code>.
     </p>
 
     <p><!-- CL 249440 -->
-      TODO: <a href="https://golang.org/cl/249440">https://golang.org/cl/249440</a>: match http scheme when selecting http_proxy
+      The <a href="/pkg/net/http/#ProxyFromEnvironment">ProxyFromEnvironment</a> function
+      no longer returns the setting of the <code>HTTP_PROXY</code> environment
+      variable for <code>https://</code> URLs when <code>HTTPS_PROXY</code> is unset.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -602,7 +622,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 260637 -->
-      TODO: <a href="https://golang.org/cl/260637">https://golang.org/cl/260637</a>: flush ReverseProxy immediately if Content-Length is -1
+      The <a href="/pkg/net/http/httputil/#ReverseProxy">ReverseProxy</a>
+      now flushes buffered data more aggressively when proxying
+      streamed responses with unknown body lengths.
     </p>
   </dd>
 </dl><!-- net/http/httputil -->
@@ -610,7 +632,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
   <dd>
     <p><!-- CL 247257 -->
-      TODO: <a href="https://golang.org/cl/247257">https://golang.org/cl/247257</a>: adds support for the SMTPUTF8 extension
+      The <a href="/pkg/net/smtp/#Client">Client</a>'s
+      <a href="/pkg/net/smtp/#Client.Mail"><code>Mail</code></a>
+      method now sends the <code>SMTPUTF8</code> directive to
+      servers that support it, signaling that addresses are encoded in UTF-8.
     </p>
   </dd>
 </dl><!-- net/smtp -->
@@ -629,7 +654,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
   <dd>
     <p><!-- CL 219640 -->
-      TODO: <a href="https://golang.org/cl/219640">https://golang.org/cl/219640</a>: add NotifyContext to cancel context using system signals
+      The new
+      <a href="/pkg/os/signal/#NotifyContext"><code>NotifyContext</code></a>
+      function allows creating contexts that are canceled upon arrival of
+      specific signals.
     </p>
   </dd>
 </dl><!-- os/signal -->
@@ -709,7 +737,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 210639 -->
-      TODO: <a href="https://golang.org/cl/210639">https://golang.org/cl/210639</a>: support POSIX semantics for Linux syscalls
+      On Linux,
+      <a href="/pkg/syscall/#Setgid"><code>Setgid</code></a>,
+      <a href="/pkg/syscall/#Setuid"><code>Setuid</code></a>,
+      and related calls are now implemented.
+      Previously, they returned an <code>syscall.EOPNOTSUPP</code> error.
     </p>
   </dd>
 </dl><!-- syscall -->
