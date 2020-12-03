@@ -618,7 +618,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 242998 -->
-      TODO: <a href="https://golang.org/cl/242998">https://golang.org/cl/242998</a>: export errFinished as ErrProcessDone
+      <a href="/pkg/os/#Process.Signal"><code>Process.Signal</code></a> now
+      returns <a href="/pkg/os/#ErrProcessDone"><code>ErrProcessDone</code></a>
+      instead of the unexported <code>errFinished</code> when the process has
+      already finished.
     </p>
   </dd>
 </dl><!-- os -->
