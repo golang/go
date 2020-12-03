@@ -230,6 +230,12 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		}
 
 	case ssa.OpWasmLoweredAddr:
+		if v.Aux == nil { // address of off(SP), no symbol
+			getValue64(s, v.Args[0])
+			i64Const(s, v.AuxInt)
+			s.Prog(wasm.AI64Add)
+			break
+		}
 		p := s.Prog(wasm.AGet)
 		p.From.Type = obj.TYPE_ADDR
 		switch v.Aux.(type) {
