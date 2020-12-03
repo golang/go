@@ -321,7 +321,7 @@ func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ConstExpr) rawCopy() Node                 { c := *n; return &c }
 func (n *ConstExpr) Sym() *types.Sym               { return n.orig.Sym() }
 func (n *ConstExpr) Orig() Node                    { return n.orig }
-func (n *ConstExpr) SetOrig(orig Node)             { n.orig = orig }
+func (n *ConstExpr) SetOrig(orig Node)             { panic(n.no("SetOrig")) }
 func (n *ConstExpr) Val() constant.Value           { return n.val }
 
 // A ConvExpr is a conversion Type(X).
@@ -344,8 +344,6 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
 func (n *ConvExpr) String() string                { return fmt.Sprint(n) }
 func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ConvExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ConvExpr) Orig() Node                    { return n.orig }
-func (n *ConvExpr) SetOrig(x Node)                { n.orig = x }
 func (n *ConvExpr) Left() Node                    { return n.X }
 func (n *ConvExpr) SetLeft(x Node)                { n.X = x }
 

@@ -155,8 +155,6 @@ func (n *Name) rawCopy() Node                 { c := *n; return &c }
 func (n *Name) Name() *Name                   { return n }
 func (n *Name) Sym() *types.Sym               { return n.sym }
 func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
-func (n *Name) Orig() Node                    { return n.orig }
-func (n *Name) SetOrig(x Node)                { n.orig = x }
 func (n *Name) SubOp() Op                     { return n.subOp }
 func (n *Name) SetSubOp(x Op)                 { n.subOp = x }
 func (n *Name) Class() Class                  { return n.class }
