@@ -229,10 +229,10 @@ func Main(archInit func(*Arch)) {
 	loadsys()
 
 	timings.Start("fe", "parse")
-	lines := parseFiles(flag.Args(), base.Flag.G != 0)
+	lines := parseFiles(flag.Args())
 	timings.Stop()
 	timings.AddEvent(int64(lines), "lines")
-	if base.Flag.G != 0 {
+	if base.Flag.G != 0 && base.Flag.G < 3 {
 		// can only parse generic code for now
 		base.ExitIfErrors()
 		return
