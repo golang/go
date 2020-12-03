@@ -1382,11 +1382,11 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 
 	case OCALLPART:
 		exprFmt(n.Left(), s, nprec, mode)
-		if n.Right() == nil || n.Right().Sym() == nil {
+		if n.Sym() == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		mode.Fprintf(s, ".%0S", n.Right().Sym())
+		mode.Fprintf(s, ".%0S", n.Sym())
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		exprFmt(n.Left(), s, nprec, mode)

@@ -3757,7 +3757,7 @@ func usefield(n ir.Node) {
 	if t.IsPtr() {
 		t = t.Elem()
 	}
-	field := n.Opt().(*types.Field)
+	field := n.(*ir.SelectorExpr).Selection
 	if field == nil {
 		base.Fatalf("usefield %v %v without paramfld", n.Left().Type(), n.Sym())
 	}

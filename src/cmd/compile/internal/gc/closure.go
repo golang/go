@@ -427,7 +427,7 @@ func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
 	fn := makepartialcall(dot, dot.Type(), sym)
 	fn.SetWrapper(true)
 
-	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), NewName(sym), fn)
+	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.(*ir.SelectorExpr).Selection, fn)
 }
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
@@ -565,16 +565,5 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 // callpartMethod returns the *types.Field representing the method
 // referenced by method value n.
 func callpartMethod(n ir.Node) *types.Field {
-	if n.Op() != ir.OCALLPART {
-		base.Fatalf("expected OCALLPART, got %v", n)
-	}
-
-	// TODO(mdempsky): Optimize this. If necessary,
-	// makepartialcall could save m for us somewhere.
-	var m *types.Field
-	if lookdot0(n.Right().Sym(), n.Left().Type(), &m, false) != 1 {
-		base.Fatalf("failed to find field for OCALLPART")
-	}
-
-	return m
+	return n.(*ir.CallPartExpr).Method
 }
