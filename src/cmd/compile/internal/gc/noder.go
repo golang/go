@@ -32,7 +32,7 @@ import (
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to xtop.
 // Returns the total count of parsed lines.
-func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
+func parseFiles(filenames []string) (lines uint) {
 	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -48,7 +48,7 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer close(p.err)
-			base := syntax.NewFileBase(filename)
+			fbase := syntax.NewFileBase(filename)
 
 			f, err := os.Open(filename)
 			if err != nil {
@@ -58,14 +58,16 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 			defer f.Close()
 
 			mode := syntax.CheckBranches
-			if allowGenerics {
+			if base.Flag.G != 0 {
 				mode |= syntax.AllowGenerics
 			}
-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, mode) // errors are tracked via p.error
+			p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
 		}(filename)
 	}
 
-	if allowGenerics {
+	// generic noding phase (using new typechecker)
+	if base.Flag.G != 0 {
+		// setup and syntax error reporting
 		nodersmap := make(map[string]*noder)
 		var files []*syntax.File
 		for _, p := range noders {
@@ -77,11 +79,12 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 			files = append(files, p.file)
 			lines += p.file.EOF.Line()
 
-			if base.SyntaxErrors() != 0 {
-				base.ErrorExit()
-			}
+		}
+		if base.SyntaxErrors() != 0 {
+			base.ErrorExit()
 		}
 
+		// typechecking
 		conf := types2.Config{
 			InferFromConstraints:  true,
 			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
@@ -110,10 +113,37 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 				},
 			},
 		}
-		conf.Check(base.Ctxt.Pkgpath, files, nil)
+		info := types2.Info{
+			Types: make(map[syntax.Expr]types2.TypeAndValue),
+			Defs:  make(map[*syntax.Name]types2.Object),
+			Uses:  make(map[*syntax.Name]types2.Object),
+			// expand as needed
+		}
+		conf.Check(base.Ctxt.Pkgpath, files, &info)
+		base.ExitIfErrors()
+		if base.Flag.G < 2 {
+			return
+		}
+
+		// noding
+		for _, p := range noders {
+			// errors have already been reported
+
+			p.typeInfo = &info
+			p.node()
+			lines += p.file.EOF.Line()
+			p.file = nil // release memory
+			base.ExitIfErrors()
+
+			// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+			testdclstack()
+		}
+
+		ir.LocalPkg.Height = myheight
 		return
 	}
 
+	// traditional (non-generic) noding phase
 	for _, p := range noders {
 		for e := range p.err {
 			p.errorAt(e.Pos, "%s", e.Msg)
@@ -122,10 +152,10 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
 		p.node()
 		lines += p.file.EOF.Line()
 		p.file = nil // release memory
-
 		if base.SyntaxErrors() != 0 {
 			base.ErrorExit()
 		}
+
 		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
 		testdclstack()
 	}
@@ -220,7 +250,33 @@ type noder struct {
 	// current function at the moment each open scope was opened.
 	scopeVars []int
 
+	// typeInfo provides access to the type information computed by the new
+	// typechecker. It is only present if -G is set, and all noders point to
+	// the same types.Info. For now this is a local field, if need be we can
+	// make it global.
+	typeInfo *types2.Info
+
 	lastCloseScopePos syntax.Pos
+}
+
+// For now we provide these basic accessors to get to type and object
+// information of expression nodes during noding. Eventually we will
+// attach this information directly to the syntax tree which should
+// simplify access and make it more efficient as well.
+
+// typ returns the type and value information for the given expression.
+func (p *noder) typ(x syntax.Expr) types2.TypeAndValue {
+	return p.typeInfo.Types[x]
+}
+
+// def returns the object for the given name in its declaration.
+func (p *noder) def(x *syntax.Name) types2.Object {
+	return p.typeInfo.Defs[x]
+}
+
+// use returns the object for the given name outside its declaration.
+func (p *noder) use(x *syntax.Name) types2.Object {
+	return p.typeInfo.Uses[x]
 }
 
 func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
