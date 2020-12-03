@@ -31,7 +31,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
-<h3 id="darwin">Darwin</h3>
+<h3 id="darwin">Darwin and iOS</h3>
 
 <p><!-- golang.org/issue/38485, golang.org/issue/41385, CL 266373, more CLs -->
   Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
@@ -43,15 +43,19 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- CL 254740 -->
-  The iOS port, which was previously <code>darwin/arm64</code>, is now
-  moved to <code>ios/arm64</code>. <code>GOOS=ios</code> implies the
+  The iOS port, which was previously <code>darwin/arm64</code>, has
+  been renamed to <code>ios/arm64</code>. <code>GOOS=ios</code>
+  implies the
   <code>darwin</code> build tag, just as <code>GOOS=android</code>
-  implies the <code>linux</code> build tag.
+  implies the <code>linux</code> build tag. This change should be
+  transparent to anyone using gomobile to build iOS apps.
 </p>
 
 <p><!-- golang.org/issue/42100, CL 263798 -->
-  The <code>ios/amd64</code> port is added, targetting the iOS simulator
-  running on AMD64-based macOS.
+  Go 1.16 adds an <code>ios/amd64</code> port, which targets the iOS
+  simulator running on AMD64-based macOS. Previously this was
+  unofficially supported through <code>darwin/amd64</code> with
+  the <code>ios</code> build tag set.
 </p>
 
 <h3 id="netbsd">NetBSD</h3>
