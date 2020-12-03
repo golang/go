@@ -1,5 +1,7 @@
 # gopls documentation
 
+[![PkgGoDev](https://pkg.go.dev/badge/golang.org/x/tools/gopls)](https://pkg.go.dev/golang.org/x/tools/gopls)
+
 gopls (pronounced: "go please") is the official [language server] for the Go language.
 
 ## Status

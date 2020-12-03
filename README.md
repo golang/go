@@ -1,5 +1,7 @@
 # Go Tools
 
+[![PkgGoDev](https://pkg.go.dev/badge/golang.org/x/tools)](https://pkg.go.dev/golang.org/x/tools)
+
 This subrepository holds the source for various packages and tools that support
 the Go programming language.
 
