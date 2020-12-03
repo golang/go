@@ -782,37 +782,14 @@ func geneq(t *types.Type) *obj.LSym {
 	return closure
 }
 
-func hasCall(n ir.Node) bool {
-	if n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC {
-		return true
-	}
-	if n.Left() != nil && hasCall(n.Left()) {
-		return true
-	}
-	if n.Right() != nil && hasCall(n.Right()) {
-		return true
-	}
-	for _, x := range n.Init().Slice() {
-		if hasCall(x) {
-			return true
+func hasCall(fn *ir.Func) bool {
+	found := ir.Find(fn, func(n ir.Node) interface{} {
+		if op := n.Op(); op == ir.OCALL || op == ir.OCALLFUNC {
+			return n
 		}
-	}
-	for _, x := range n.Body().Slice() {
-		if hasCall(x) {
-			return true
-		}
-	}
-	for _, x := range n.List().Slice() {
-		if hasCall(x) {
-			return true
-		}
-	}
-	for _, x := range n.Rlist().Slice() {
-		if hasCall(x) {
-			return true
-		}
-	}
-	return false
+		return nil
+	})
+	return found != nil
 }
 
 // eqfield returns the node

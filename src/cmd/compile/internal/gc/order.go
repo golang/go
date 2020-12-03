@@ -1062,6 +1062,10 @@ func (o *Order) exprListInPlace(l ir.Nodes) {
 // prealloc[x] records the allocation to use for x.
 var prealloc = map[ir.Node]ir.Node{}
 
+func (o *Order) exprNoLHS(n ir.Node) ir.Node {
+	return o.expr(n, nil)
+}
+
 // expr orders a single expression, appending side
 // effects to o.out as needed.
 // If this is part of an assignment lhs = *np, lhs is given.
@@ -1079,10 +1083,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 
 	switch n.Op() {
 	default:
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
-		o.exprList(n.List())
-		o.exprList(n.Rlist())
+		ir.EditChildren(n, o.exprNoLHS)
 
 	// Addition of strings turns into a function call.
 	// Allocate a temporary to hold the strings.

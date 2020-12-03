@@ -33,6 +33,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"errors"
 	"fmt"
 	"go/constant"
 	"strings"
@@ -206,12 +207,8 @@ func caninl(fn *ir.Func) {
 		extraCallCost: cc,
 		usedLocals:    make(map[ir.Node]bool),
 	}
-	if visitor.visitList(fn.Body()) {
+	if visitor.tooHairy(fn) {
 		reason = visitor.reason
-		return
-	}
-	if visitor.budget < 0 {
-		reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-visitor.budget, inlineMaxBudget)
 		return
 	}
 
@@ -296,21 +293,29 @@ type hairyVisitor struct {
 	reason        string
 	extraCallCost int32
 	usedLocals    map[ir.Node]bool
+	do            func(ir.Node) error
 }
 
-// Look for anything we want to punt on.
-func (v *hairyVisitor) visitList(ll ir.Nodes) bool {
-	for _, n := range ll.Slice() {
-		if v.visit(n) {
-			return true
-		}
+var errBudget = errors.New("too expensive")
+
+func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
+	v.do = v.doNode // cache closure
+
+	err := ir.DoChildren(fn, v.do)
+	if err != nil {
+		v.reason = err.Error()
+		return true
+	}
+	if v.budget < 0 {
+		v.reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-v.budget, inlineMaxBudget)
+		return true
 	}
 	return false
 }
 
-func (v *hairyVisitor) visit(n ir.Node) bool {
+func (v *hairyVisitor) doNode(n ir.Node) error {
 	if n == nil {
-		return false
+		return nil
 	}
 
 	switch n.Op() {
@@ -323,8 +328,7 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 		if n.Left().Op() == ir.ONAME && n.Left().Class() == ir.PFUNC && isRuntimePkg(n.Left().Sym().Pkg) {
 			fn := n.Left().Sym().Name
 			if fn == "getcallerpc" || fn == "getcallersp" {
-				v.reason = "call to " + fn
-				return true
+				return errors.New("call to " + fn)
 			}
 			if fn == "throw" {
 				v.budget -= inlineExtraThrowCost
@@ -380,8 +384,7 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 	case ir.ORECOVER:
 		// recover matches the argument frame pointer to find
 		// the right panic value, so it needs an argument frame.
-		v.reason = "call to recover"
-		return true
+		return errors.New("call to recover")
 
 	case ir.OCLOSURE,
 		ir.ORANGE,
@@ -390,21 +393,19 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet
 		ir.ORETJMP:
-		v.reason = "unhandled op " + n.Op().String()
-		return true
+		return errors.New("unhandled op " + n.Op().String())
 
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
 
 	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
-		return false
+		return nil
 
 	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH:
 		// ORANGE, OSELECT in "unhandled" above
 		if n.Sym() != nil {
-			v.reason = "labeled control"
-			return true
+			return errors.New("labeled control")
 		}
 
 	case ir.OBREAK, ir.OCONTINUE:
@@ -416,8 +417,17 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 	case ir.OIF:
 		if ir.IsConst(n.Left(), constant.Bool) {
 			// This if and the condition cost nothing.
-			return v.visitList(n.Init()) || v.visitList(n.Body()) ||
-				v.visitList(n.Rlist())
+			// TODO(rsc): It seems strange that we visit the dead branch.
+			if err := ir.DoList(n.Init(), v.do); err != nil {
+				return err
+			}
+			if err := ir.DoList(n.Body(), v.do); err != nil {
+				return err
+			}
+			if err := ir.DoList(n.Rlist(), v.do); err != nil {
+				return err
+			}
+			return nil
 		}
 
 	case ir.ONAME:
@@ -439,34 +449,22 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 
 	// When debugging, don't stop early, to get full cost of inlining this function
 	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() {
-		return true
+		return errBudget
 	}
 
-	return v.visit(n.Left()) || v.visit(n.Right()) ||
-		v.visitList(n.List()) || v.visitList(n.Rlist()) ||
-		v.visitList(n.Init()) || v.visitList(n.Body())
+	return ir.DoChildren(n, v.do)
 }
 
-func countNodes(n ir.Node) int {
-	if n == nil {
-		return 0
-	}
-	cnt := 1
-	cnt += countNodes(n.Left())
-	cnt += countNodes(n.Right())
-	for _, n1 := range n.Init().Slice() {
-		cnt += countNodes(n1)
-	}
-	for _, n1 := range n.Body().Slice() {
-		cnt += countNodes(n1)
-	}
-	for _, n1 := range n.List().Slice() {
-		cnt += countNodes(n1)
-	}
-	for _, n1 := range n.Rlist().Slice() {
-		cnt += countNodes(n1)
-	}
-	return cnt
+func isBigFunc(fn *ir.Func) bool {
+	budget := inlineBigFunctionNodes
+	over := ir.Find(fn, func(n ir.Node) interface{} {
+		budget--
+		if budget <= 0 {
+			return n
+		}
+		return nil
+	})
+	return over != nil
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -475,7 +473,7 @@ func inlcalls(fn *ir.Func) {
 	savefn := Curfn
 	Curfn = fn
 	maxCost := int32(inlineMaxBudget)
-	if countNodes(fn) >= inlineBigFunctionNodes {
+	if isBigFunc(fn) {
 		maxCost = inlineBigFunctionMaxCost
 	}
 	// Map to keep track of functions that have been inlined at a particular
@@ -742,13 +740,14 @@ FindRHS:
 		base.Fatalf("RHS is nil: %v", defn)
 	}
 
-	unsafe, _ := reassigned(n.(*ir.Name))
-	if unsafe {
+	if reassigned(n.(*ir.Name)) {
 		return nil
 	}
 
 	return rhs
 }
+
+var errFound = errors.New("found")
 
 // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
 // indicating whether the name has any assignments other than its declaration.
@@ -756,68 +755,30 @@ FindRHS:
 // useful for -m output documenting the reason for inhibited optimizations.
 // NB: global variables are always considered to be re-assigned.
 // TODO: handle initial declaration not including an assignment and followed by a single assignment?
-func reassigned(n *ir.Name) (bool, ir.Node) {
-	if n.Op() != ir.ONAME {
-		base.Fatalf("reassigned %v", n)
+func reassigned(name *ir.Name) bool {
+	if name.Op() != ir.ONAME {
+		base.Fatalf("reassigned %v", name)
 	}
 	// no way to reliably check for no-reassignment of globals, assume it can be
-	if n.Curfn == nil {
-		return true, nil
+	if name.Curfn == nil {
+		return true
 	}
-	f := n.Curfn
-	v := reassignVisitor{name: n}
-	a := v.visitList(f.Body())
-	return a != nil, a
-}
-
-type reassignVisitor struct {
-	name ir.Node
-}
-
-func (v *reassignVisitor) visit(n ir.Node) ir.Node {
-	if n == nil {
-		return nil
-	}
-	switch n.Op() {
-	case ir.OAS:
-		if n.Left() == v.name && n != v.name.Name().Defn {
-			return n
-		}
-	case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
-		for _, p := range n.List().Slice() {
-			if p == v.name && n != v.name.Name().Defn {
+	a := ir.Find(name.Curfn, func(n ir.Node) interface{} {
+		switch n.Op() {
+		case ir.OAS:
+			if n.Left() == name && n != name.Defn {
 				return n
 			}
+		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+			for _, p := range n.List().Slice() {
+				if p == name && n != name.Defn {
+					return n
+				}
+			}
 		}
-	}
-	if a := v.visit(n.Left()); a != nil {
-		return a
-	}
-	if a := v.visit(n.Right()); a != nil {
-		return a
-	}
-	if a := v.visitList(n.List()); a != nil {
-		return a
-	}
-	if a := v.visitList(n.Rlist()); a != nil {
-		return a
-	}
-	if a := v.visitList(n.Init()); a != nil {
-		return a
-	}
-	if a := v.visitList(n.Body()); a != nil {
-		return a
-	}
-	return nil
-}
-
-func (v *reassignVisitor) visitList(l ir.Nodes) ir.Node {
-	for _, n := range l.Slice() {
-		if a := v.visit(n); a != nil {
-			return a
-		}
-	}
-	return nil
+		return nil
+	})
+	return a != nil
 }
 
 func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
@@ -1140,6 +1101,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) 
 		bases:        make(map[*src.PosBase]*src.PosBase),
 		newInlIndex:  newIndex,
 	}
+	subst.edit = subst.node
 
 	body := subst.list(ir.AsNodes(fn.Inl.Body))
 
@@ -1248,6 +1210,8 @@ type inlsubst struct {
 	// newInlIndex is the index of the inlined call frame to
 	// insert for inlined nodes.
 	newInlIndex int
+
+	edit func(ir.Node) ir.Node // cached copy of subst.node method value closure
 }
 
 // list inlines a list of nodes.
@@ -1334,21 +1298,13 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return m
 	}
 
-	m := ir.Copy(n)
-	m.SetPos(subst.updatedPos(m.Pos()))
-	m.PtrInit().Set(nil)
-
 	if n.Op() == ir.OCLOSURE {
 		base.Fatalf("cannot inline function containing closure: %+v", n)
 	}
 
-	m.SetLeft(subst.node(n.Left()))
-	m.SetRight(subst.node(n.Right()))
-	m.PtrList().Set(subst.list(n.List()))
-	m.PtrRlist().Set(subst.list(n.Rlist()))
-	m.PtrInit().Set(append(m.Init().Slice(), subst.list(n.Init())...))
-	m.PtrBody().Set(subst.list(n.Body()))
-
+	m := ir.Copy(n)
+	m.SetPos(subst.updatedPos(m.Pos()))
+	ir.EditChildren(m, subst.edit)
 	return m
 }
 
