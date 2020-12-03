@@ -286,6 +286,17 @@ Do not send CLs removing the interior tags from such phrases.
   See the package documentation for more details.
 </p>
 
+<p><!-- CL 254659 -->
+  Setting the <code>GODEBUG<code> environment variable
+  to <code>inittrace=1</code> now causes the runtime to emit a single
+  line to standard error for each package <code>init</code>,
+  summarizing its execution time and memory allocation. This trace can
+  be used to find bottlenecks or regressions in Go startup
+  performance.
+  The <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GODEBUG</code><
+  documentation</a> describes the format.
+</p>
+
 <p><!-- CL 267100 -->
   On Linux, the runtime now defaults to releasing memory to the
   operating system promptly (using <code>MADV_DONTNEED</code>), rather
@@ -298,10 +309,19 @@ Do not send CLs removing the interior tags from such phrases.
   variable.
 </p>
 
+<p><!-- CL 220419, CL 271987 -->
+  The race detector's model for channel operations now more precisely
+  follows the <a href="/ref/mem">Go memory model</a>. As a result, it
+  may report now races that it previously missed.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO
+<p><!-- CL 256459, CL 264837, CL 266203, CL 256460 -->
+  The compiler can now inline functions with
+  non-labeled <code>for</code> loops, method values, and type
+  switches. The inliner can also detect more indirect calls where
+  inlining is possible.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -762,22 +782,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- reflect -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
-  <dd>
-    <p><!-- CL 37222 -->
-      TODO: <a href="https://golang.org/cl/37222">https://golang.org/cl/37222</a>: make stack traces of endless recursion print only top and bottom 50
-    </p>
-
-    <p><!-- CL 242258 -->
-      TODO: <a href="https://golang.org/cl/242258">https://golang.org/cl/242258</a>: add 24 byte allocation size class
-    </p>
-
-    <p><!-- CL 254659 -->
-      TODO: <a href="https://golang.org/cl/254659">https://golang.org/cl/254659</a>: implement GODEBUG=inittrace=1 support
-    </p>
-  </dd>
-</dl><!-- runtime -->
-
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
     <p><!-- CL 249677 -->
@@ -804,12 +808,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
+    <p><!-- CL 263271 -->
+      <a href="/pkg/syscall/?GOOS=windows#NewCallback"><code>NewCallback</code></a>
+      and
+      <a href="/pkg/syscall/?GOOS=windows#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
+      now correctly support callback functions with multiple
+      sub-<code>uintptr</code>-sized arguments in a row. This may
+      require changing uses of these functions to eliminate manual
+      padding between small arguments.
+    </p>
+
     <p><!-- CL 261917 -->
-      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
     </p>
 
     <p><!-- CL 269761, golang.org/issue/42584 -->
-      <a href="/pkg/syscall/#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
+      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
     </p>
 
     <p><!-- CL 210639 -->
