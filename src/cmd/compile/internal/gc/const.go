@@ -526,7 +526,7 @@ func evalConst(n ir.Node) ir.Node {
 		if need == 1 {
 			var strs []string
 			for _, c := range s {
-				strs = append(strs, c.StringVal())
+				strs = append(strs, ir.StringVal(c))
 			}
 			return origConst(n, constant.MakeString(strings.Join(strs, "")))
 		}
@@ -537,7 +537,7 @@ func evalConst(n ir.Node) ir.Node {
 				var strs []string
 				i2 := i
 				for i2 < len(s) && ir.IsConst(s[i2], constant.String) {
-					strs = append(strs, s[i2].StringVal())
+					strs = append(strs, ir.StringVal(s[i2]))
 					i2++
 				}
 
@@ -558,7 +558,7 @@ func evalConst(n ir.Node) ir.Node {
 		switch nl.Type().Kind() {
 		case types.TSTRING:
 			if ir.IsConst(nl, constant.String) {
-				return origIntConst(n, int64(len(nl.StringVal())))
+				return origIntConst(n, int64(len(ir.StringVal(nl))))
 			}
 		case types.TARRAY:
 			if !hascallchan(nl) {
@@ -780,7 +780,7 @@ func indexconst(n ir.Node) int64 {
 	if doesoverflow(v, types.Types[types.TINT]) {
 		return -2
 	}
-	return ir.Int64Val(types.Types[types.TINT], v)
+	return ir.IntVal(types.Types[types.TINT], v)
 }
 
 // isGoConst reports whether n is a Go language constant (as opposed to a

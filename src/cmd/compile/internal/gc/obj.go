@@ -263,7 +263,7 @@ func dumpGlobalConst(n ir.Node) {
 			return
 		}
 	}
-	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.Int64Val(t, v))
+	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.IntVal(t, v))
 }
 
 func dumpglobls() {
@@ -598,7 +598,7 @@ func litsym(n, c ir.Node, wid int) {
 		s.WriteInt(base.Ctxt, n.Offset(), wid, i)
 
 	case constant.Int:
-		s.WriteInt(base.Ctxt, n.Offset(), wid, ir.Int64Val(n.Type(), u))
+		s.WriteInt(base.Ctxt, n.Offset(), wid, ir.IntVal(n.Type(), u))
 
 	case constant.Float:
 		f, _ := constant.Float64Val(u)

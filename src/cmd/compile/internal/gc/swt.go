@@ -365,8 +365,8 @@ func (s *exprSwitch) flush() {
 		// all we need here is consistency. We respect this
 		// sorting below.
 		sort.Slice(cc, func(i, j int) bool {
-			si := cc[i].lo.StringVal()
-			sj := cc[j].lo.StringVal()
+			si := ir.StringVal(cc[i].lo)
+			sj := ir.StringVal(cc[j].lo)
 			if len(si) != len(sj) {
 				return len(si) < len(sj)
 			}
@@ -375,7 +375,7 @@ func (s *exprSwitch) flush() {
 
 		// runLen returns the string length associated with a
 		// particular run of exprClauses.
-		runLen := func(run []exprClause) int64 { return int64(len(run[0].lo.StringVal())) }
+		runLen := func(run []exprClause) int64 { return int64(len(ir.StringVal(run[0].lo))) }
 
 		// Collapse runs of consecutive strings with the same length.
 		var runs [][]exprClause
@@ -411,7 +411,7 @@ func (s *exprSwitch) flush() {
 		merged := cc[:1]
 		for _, c := range cc[1:] {
 			last := &merged[len(merged)-1]
-			if last.jmp == c.jmp && last.hi.Int64Val()+1 == c.lo.Int64Val() {
+			if last.jmp == c.jmp && ir.Int64Val(last.hi)+1 == ir.Int64Val(c.lo) {
 				last.hi = c.lo
 			} else {
 				merged = append(merged, c)
@@ -446,7 +446,7 @@ func (c *exprClause) test(exprname ir.Node) ir.Node {
 
 	// Optimize "switch true { ...}" and "switch false { ... }".
 	if ir.IsConst(exprname, constant.Bool) && !c.lo.Type().IsInterface() {
-		if exprname.BoolVal() {
+		if ir.BoolVal(exprname) {
 			return c.lo
 		} else {
 			return ir.NodAt(c.pos, ir.ONOT, c.lo, nil)

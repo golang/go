@@ -87,11 +87,6 @@ type Node interface {
 	MarkReadonly()
 	Val() constant.Value
 	SetVal(v constant.Value)
-	Int64Val() int64
-	Uint64Val() uint64
-	CanInt64() bool
-	BoolVal() bool
-	StringVal() string
 
 	// Storage for analysis passes.
 	Esc() uint16

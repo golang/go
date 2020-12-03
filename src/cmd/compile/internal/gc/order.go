@@ -1107,7 +1107,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 		haslit := false
 		for _, n1 := range n.List().Slice() {
 			hasbyte = hasbyte || n1.Op() == ir.OBYTES2STR
-			haslit = haslit || n1.Op() == ir.OLITERAL && len(n1.StringVal()) != 0
+			haslit = haslit || n1.Op() == ir.OLITERAL && len(ir.StringVal(n1)) != 0
 		}
 
 		if haslit && hasbyte {
@@ -1278,7 +1278,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 			var t *types.Type
 			switch n.Op() {
 			case ir.OSLICELIT:
-				t = types.NewArray(n.Type().Elem(), n.Right().Int64Val())
+				t = types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
 			case ir.OCALLPART:
 				t = partialCallType(n)
 			}

@@ -1769,7 +1769,7 @@ func heapAllocReason(n ir.Node) string {
 		if !smallintconst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Width != 0 && r.Int64Val() >= maxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) >= maxImplicitStackVarSize/t.Elem().Width {
 			return "too large for stack"
 		}
 	}
