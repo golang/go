@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 )
 
 // A miniStmt is a miniNode with extra fields common to expressions.
@@ -299,6 +300,30 @@ func (n *CompLitExpr) SetOp(op Op) {
 		n.op = op
 	}
 }
+
+type ConstExpr struct {
+	miniExpr
+	val  constant.Value
+	orig Node
+}
+
+func NewConstExpr(val constant.Value, orig Node) Node {
+	n := &ConstExpr{orig: orig, val: val}
+	n.op = OLITERAL
+	n.pos = orig.Pos()
+	n.SetType(orig.Type())
+	n.SetTypecheck(orig.Typecheck())
+	n.SetDiag(orig.Diag())
+	return n
+}
+
+func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
+func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ConstExpr) rawCopy() Node                 { c := *n; return &c }
+func (n *ConstExpr) Sym() *types.Sym               { return n.orig.Sym() }
+func (n *ConstExpr) Orig() Node                    { return n.orig }
+func (n *ConstExpr) SetOrig(orig Node)             { n.orig = orig }
+func (n *ConstExpr) Val() constant.Value           { return n.val }
 
 // A ConvExpr is a conversion Type(X).
 // It may end up being a value or a type.
