@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -187,6 +186,8 @@ go 1.12
 -- a.go --
 package x
 
+// import "fmt"
+
 func f() {}
 
 -- a_test.go --
@@ -199,28 +200,33 @@ func TestA(t *testing.T) {
 }
 `
 
-func TestRmTest38878Close(t *testing.T) {
+// Tests golang/go#38878: deleting a test file should clear its errors, and
+// not break the workspace.
+func TestDeleteTestVariant(t *testing.T) {
 	runner.Run(t, test38878, func(t *testing.T, env *Env) {
-		env.OpenFile("a_test.go")
-		env.Await(DiagnosticAt("a_test.go", 5, 3))
-		env.CloseBuffer("a_test.go")
+		env.Await(env.DiagnosticAtRegexp("a_test.go", `f\((3)\)`))
 		env.RemoveWorkspaceFile("a_test.go")
-		// diagnostics go away
 		env.Await(EmptyDiagnostics("a_test.go"))
+
+		// Make sure the test variant has been removed from the workspace by
+		// triggering a metadata load.
+		env.OpenFile("a.go")
+		env.RegexpReplace("a.go", `// import`, "import")
+		env.Await(env.DiagnosticAtRegexp("a.go", `"fmt"`))
 	})
 }
 
-func TestRmTest38878(t *testing.T) {
+// Tests golang/go#38878: deleting a test file on disk while it's still open
+// should not clear its errors.
+func TestDeleteTestVariant_DiskOnly(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 	runner.Run(t, test38878, func(t *testing.T, env *Env) {
 		env.OpenFile("a_test.go")
 		env.Await(DiagnosticAt("a_test.go", 5, 3))
 		env.Sandbox.Workdir.RemoveFile(context.Background(), "a_test.go")
-		// diagnostics remain after giving gopls a chance to do something
-		// (there is not yet a better way to decide gopls isn't going
-		// to do anything)
-		time.Sleep(time.Second)
-		env.Await(DiagnosticAt("a_test.go", 5, 3))
+		env.Await(OnceMet(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+			DiagnosticAt("a_test.go", 5, 3)))
 	})
 }
 

@@ -1372,6 +1372,12 @@ copyIDs:
 		if m := s.metadata[id]; m != nil {
 			hasFiles := false
 			for _, uri := range s.metadata[id].goFiles {
+				// For internal tests, we need _test files, not just the normal
+				// ones. External tests only have _test files, but we can check
+				// them anyway.
+				if m.forTest != "" && !strings.HasSuffix(uri.Filename(), "_test.go") {
+					continue
+				}
 				if _, ok := result.files[uri]; ok {
 					hasFiles = true
 					break
