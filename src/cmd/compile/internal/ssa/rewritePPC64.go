@@ -4195,6 +4195,20 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDconst [c] x:(SP))
+	// cond: is32Bit(c)
+	// result: (MOVDaddr [int32(c)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if x.Op != OpSP || !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpPPC64MOVDaddr)
+		v.AuxInt = int32ToAuxInt(int32(c))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADDconst [c] (SUBFCconst [d] x))
 	// cond: is32Bit(c+d)
 	// result: (SUBFCconst [c+d] x)
