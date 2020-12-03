@@ -218,7 +218,7 @@ func caninl(fn *ir.Func) {
 	n.Func().Inl = &ir.Inline{
 		Cost: inlineMaxBudget - visitor.budget,
 		Dcl:  pruneUnusedAutos(n.Defn.Func().Dcl, &visitor),
-		Body: inlcopylist(fn.Body().Slice()),
+		Body: ir.DeepCopyList(src.NoXPos, fn.Body().Slice()),
 	}
 
 	if base.Flag.LowerM > 1 {
@@ -445,41 +445,6 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
 	return v.visit(n.Left()) || v.visit(n.Right()) ||
 		v.visitList(n.List()) || v.visitList(n.Rlist()) ||
 		v.visitList(n.Init()) || v.visitList(n.Body())
-}
-
-// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
-// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
-// the body and dcls of an inlineable function.
-func inlcopylist(ll []ir.Node) []ir.Node {
-	s := make([]ir.Node, 0, len(ll))
-	for _, n := range ll {
-		s = append(s, inlcopy(n))
-	}
-	return s
-}
-
-func inlcopy(n ir.Node) ir.Node {
-	if n == nil {
-		return nil
-	}
-
-	switch n.Op() {
-	case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.ONIL:
-		return n
-	}
-
-	m := ir.Copy(n)
-	if n.Op() != ir.OCALLPART && m.Func() != nil {
-		base.Fatalf("unexpected Func: %v", m)
-	}
-	m.SetLeft(inlcopy(n.Left()))
-	m.SetRight(inlcopy(n.Right()))
-	m.PtrList().Set(inlcopylist(n.List().Slice()))
-	m.PtrRlist().Set(inlcopylist(n.Rlist().Slice()))
-	m.PtrInit().Set(inlcopylist(n.Init().Slice()))
-	m.PtrBody().Set(inlcopylist(n.Body().Slice()))
-
-	return m
 }
 
 func countNodes(n ir.Node) int {
