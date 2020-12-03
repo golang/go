@@ -107,44 +107,26 @@ type DeepCopyNode interface {
 //
 // If a Node wishes to provide an alternate implementation, it can
 // implement a DeepCopy method: see the DeepCopyNode interface.
+//
+// TODO(rsc): Once Nodes implement EditChildren, remove the DeepCopyNode interface.
 func DeepCopy(pos src.XPos, n Node) Node {
-	if n == nil {
-		return nil
-	}
-
-	if n, ok := n.(DeepCopyNode); ok {
-		return n.DeepCopy(pos)
-	}
-
-	switch n.Op() {
-	default:
-		m := Copy(n)
-		m.SetLeft(DeepCopy(pos, n.Left()))
-		m.SetRight(DeepCopy(pos, n.Right()))
-		// deepCopyList instead of DeepCopyList
-		// because Copy already copied all these slices.
-		deepCopyList(pos, m.PtrList().Slice())
-		deepCopyList(pos, m.PtrRlist().Slice())
-		deepCopyList(pos, m.PtrInit().Slice())
-		deepCopyList(pos, m.PtrBody().Slice())
+	var edit func(Node) Node
+	edit = func(x Node) Node {
+		if x, ok := x.(DeepCopyNode); ok {
+			return x.DeepCopy(pos)
+		}
+		switch x.Op() {
+		case OPACK, ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
+			return x
+		}
+		x = Copy(x)
 		if pos.IsKnown() {
-			m.SetPos(pos)
+			x.SetPos(pos)
 		}
-		if m.Name() != nil {
-			Dump("DeepCopy", n)
-			base.Fatalf("DeepCopy Name")
-		}
-		return m
-
-	case OPACK:
-		// OPACK nodes are never valid in const value declarations,
-		// but allow them like any other declared symbol to avoid
-		// crashing (golang.org/issue/11361).
-		fallthrough
-
-	case ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
-		return n
+		EditChildren(x, edit)
+		return x
 	}
+	return edit(n)
 }
 
 // DeepCopyList returns a list of deep copies (using DeepCopy) of the nodes in list.
@@ -154,11 +136,4 @@ func DeepCopyList(pos src.XPos, list []Node) []Node {
 		out = append(out, DeepCopy(pos, n))
 	}
 	return out
-}
-
-// deepCopyList edits list to point to deep copies of its elements.
-func deepCopyList(pos src.XPos, list []Node) {
-	for i, n := range list {
-		list[i] = DeepCopy(pos, n)
-	}
 }
