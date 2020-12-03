@@ -521,26 +521,6 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 	n2.slice = nil
 }
 
-// inspect invokes f on each node in an AST in depth-first order.
-// If f(n) returns false, inspect skips visiting n's children.
-func Inspect(n Node, f func(Node) bool) {
-	if n == nil || !f(n) {
-		return
-	}
-	InspectList(n.Init(), f)
-	Inspect(n.Left(), f)
-	Inspect(n.Right(), f)
-	InspectList(n.List(), f)
-	InspectList(n.Body(), f)
-	InspectList(n.Rlist(), f)
-}
-
-func InspectList(l Nodes, f func(Node) bool) {
-	for _, n := range l.Slice() {
-		Inspect(n, f)
-	}
-}
-
 // nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
 // a ready-to-use empty queue.
 type NodeQueue struct {
