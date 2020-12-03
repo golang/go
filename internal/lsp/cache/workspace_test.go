@@ -174,7 +174,7 @@ replace gopls.test => ../../gopls.test2`,
 			root := span.URIFromPath(dir)
 
 			fs := osFileSource{}
-			wm, err := newWorkspace(ctx, root, fs, "", !test.legacyMode)
+			wm, err := newWorkspace(ctx, root, fs, false, !test.legacyMode)
 			if err != nil {
 				t.Fatal(err)
 			}

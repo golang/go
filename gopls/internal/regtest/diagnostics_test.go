@@ -940,7 +940,7 @@ func TestIgnoredFiles(t *testing.T) {
 -- go.mod --
 module mod.com
 
-go 1.15
+go 1.12
 -- _foo/x.go --
 package x
 

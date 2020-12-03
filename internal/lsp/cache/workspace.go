@@ -80,7 +80,7 @@ type workspace struct {
 	wsDirs   map[span.URI]struct{}
 }
 
-func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go111module string, experimental bool) (*workspace, error) {
+func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go111moduleOff bool, experimental bool) (*workspace, error) {
 	// In experimental mode, the user may have a gopls.mod file that defines
 	// their workspace.
 	if experimental {
@@ -110,7 +110,7 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, go11
 		return nil, err
 	}
 	// When GO111MODULE=off, there are no active go.mod files.
-	if go111module == "off" {
+	if go111moduleOff {
 		return &workspace{
 			root:           root,
 			moduleSource:   legacyWorkspace,

@@ -182,7 +182,7 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	}
 
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, s, ws.go111module, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, s, ws.userGo111Module == off, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}

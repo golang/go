@@ -210,7 +210,7 @@ func (s *snapshot) workspaceLayoutErrors(ctx context.Context, err error) *source
 		return nil
 	}
 	// TODO(rstambler): Handle GO111MODULE=auto.
-	if s.view.go111module != "on" {
+	if s.view.userGo111Module != on {
 		return nil
 	}
 	if s.workspace.moduleSource != legacyWorkspace {

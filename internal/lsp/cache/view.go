@@ -110,16 +110,27 @@ type workspaceInformation struct {
 	// `go env` variables that need to be tracked by gopls.
 	environmentVariables
 
+	// userGo111Module is the user's value of GO111MODULE.
+	userGo111Module go111module
+
 	// The value of GO111MODULE we want to run with.
-	go111module string
+	effectiveGo111Module string
 
 	// goEnv is the `go env` output collected when a view is created.
 	// It includes the values of the environment variables above.
 	goEnv map[string]string
 }
 
+type go111module int
+
+const (
+	off = go111module(iota)
+	auto
+	on
+)
+
 type environmentVariables struct {
-	gocache, gopath, goroot, goprivate, gomodcache string
+	gocache, gopath, goroot, goprivate, gomodcache, go111module string
 }
 
 type workspaceMode int
@@ -652,16 +663,15 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	if v, ok := options.Env["GO111MODULE"]; ok {
 		go111module = v
 	}
+	// Make sure to get the `go env` before continuing with initialization.
+	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), goversion, go111module, options.EnvSlice())
+	if err != nil {
+		return nil, err
+	}
 	// If using 1.16, change the default back to auto. The primary effect of
 	// GO111MODULE=on is to break GOPATH, which we aren't too interested in.
 	if goversion >= 16 && go111module == "" {
 		go111module = "auto"
-	}
-
-	// Make sure to get the `go env` before continuing with initialization.
-	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), append(options.EnvSlice(), "GO111MODULE="+go111module))
-	if err != nil {
-		return nil, err
 	}
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
 	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
@@ -671,6 +681,7 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 			gopackagesdriver = split[1]
 		}
 	}
+
 	// A user may also have a gopackagesdriver binary on their machine, which
 	// works the same way as setting GOPACKAGESDRIVER.
 	tool, _ := exec.LookPath("gopackagesdriver")
@@ -678,11 +689,24 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 
 	return &workspaceInformation{
 		hasGopackagesDriver:  hasGopackagesDriver,
-		go111module:          go111module,
+		effectiveGo111Module: go111module,
+		userGo111Module:      go111moduleForVersion(go111module, goversion),
 		goversion:            goversion,
 		environmentVariables: envVars,
 		goEnv:                env,
 	}, nil
+}
+
+func go111moduleForVersion(go111module string, goversion int) go111module {
+	// Off by default until Go 1.12.
+	if go111module == "off" || (goversion < 12 && go111module == "") {
+		return off
+	}
+	// On by default as of Go 1.16.
+	if go111module == "on" || (goversion >= 16 && go111module == "") {
+		return on
+	}
+	return auto
 }
 
 // findWorkspaceRoot searches for the best workspace root according to the
@@ -784,15 +808,17 @@ func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modFiles
 }
 
 // getGoEnv gets the view's various GO* values.
-func (s *Session) getGoEnv(ctx context.Context, folder string, configEnv []string) (environmentVariables, map[string]string, error) {
+func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, go111module string, configEnv []string) (environmentVariables, map[string]string, error) {
 	envVars := environmentVariables{}
 	vars := map[string]*string{
-		"GOCACHE":    &envVars.gocache,
-		"GOPATH":     &envVars.gopath,
-		"GOROOT":     &envVars.goroot,
-		"GOPRIVATE":  &envVars.goprivate,
-		"GOMODCACHE": &envVars.gomodcache,
+		"GOCACHE":     &envVars.gocache,
+		"GOPATH":      &envVars.gopath,
+		"GOROOT":      &envVars.goroot,
+		"GOPRIVATE":   &envVars.goprivate,
+		"GOMODCACHE":  &envVars.gomodcache,
+		"GO111MODULE": &envVars.go111module,
 	}
+
 	// We can save ~200 ms by requesting only the variables we care about.
 	args := append([]string{"-json"}, imports.RequiredGoEnvVars...)
 	for k := range vars {
@@ -823,6 +849,10 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, configEnv []strin
 	// Old versions of Go don't have GOMODCACHE, so emulate it.
 	if envVars.gomodcache == "" && envVars.gopath != "" {
 		envVars.gomodcache = filepath.Join(filepath.SplitList(envVars.gopath)[0], "pkg/mod")
+	}
+	// GO111MODULE does not appear in `go env` output until Go 1.13.
+	if goversion < 13 {
+		envVars.go111module = go111module
 	}
 	return envVars, env, err
 }
