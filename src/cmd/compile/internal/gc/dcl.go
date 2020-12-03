@@ -317,18 +317,6 @@ func colasdefn(left []ir.Node, defn ir.Node) {
 	}
 }
 
-// declare the arguments in an
-// interface field declaration.
-func ifacedcl(n *ir.Field) {
-	if n.Sym == nil {
-		base.Fatalf("ifacedcl")
-	}
-
-	if n.Sym.IsBlank() {
-		base.Errorf("methods must have a unique non-blank name")
-	}
-}
-
 // declare the function proper
 // and declare the arguments.
 // called in extern-declaration context
