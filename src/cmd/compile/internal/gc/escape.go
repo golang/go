@@ -803,6 +803,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 
 	switch call.Op() {
 	default:
+		ir.Dump("esc", call)
 		base.Fatalf("unexpected call op: %v", call.Op())
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:

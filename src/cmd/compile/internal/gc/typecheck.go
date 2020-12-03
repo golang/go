@@ -1280,6 +1280,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	// call and call like
 	case ir.OCALL:
+		n.(*ir.CallExpr).Use = ir.CallUseExpr
+		if top == ctxStmt {
+			n.(*ir.CallExpr).Use = ir.CallUseStmt
+		}
 		typecheckslice(n.Init().Slice(), ctxStmt) // imported rewritten f(g()) calls (#30907)
 		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxType|ctxCallee))
 		if n.Left().Diag() {
@@ -3294,6 +3298,7 @@ func typecheckas2(n ir.Node) {
 			if cr != cl {
 				goto mismatch
 			}
+			r.(*ir.CallExpr).Use = ir.CallUseList
 			n.SetOp(ir.OAS2FUNC)
 			for i, l := range n.List().Slice() {
 				f := r.Type().Field(i)
