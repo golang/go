@@ -66,5 +66,5 @@ Common errors:
 [use-package]: https://github.com/jwiegley/use-package
 [exec-path-from-shell]: https://github.com/purcell/exec-path-from-shell
 [settings]: settings.md
-[lsp-go]: https://github.com/emacs-lsp/lsp-mode/blob/master/lsp-go.el
+[lsp-go]: https://github.com/emacs-lsp/lsp-mode/blob/master/clients/lsp-go.el
 [Gophers slack]: https://invite.slack.golangbridge.org/
