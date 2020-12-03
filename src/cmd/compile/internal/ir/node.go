@@ -27,8 +27,8 @@ type Node interface {
 	Pos() src.XPos
 	SetPos(x src.XPos)
 
-	// For making copies. Mainly used by Copy and SepCopy.
-	rawCopy() Node
+	// For making copies. For Copy and SepCopy.
+	copy() Node
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op
@@ -519,6 +519,21 @@ func (n *Nodes) AppendNodes(n2 *Nodes) {
 		*n.slice = append(*n.slice, *n2.slice...)
 	}
 	n2.slice = nil
+}
+
+// Copy returns a copy of the content of the slice.
+func (n Nodes) Copy() Nodes {
+	var c Nodes
+	if n.slice == nil {
+		return c
+	}
+	c.slice = new([]Node)
+	if *n.slice == nil {
+		return c
+	}
+	*c.slice = make([]Node, n.Len())
+	copy(*c.slice, n.Slice())
+	return c
 }
 
 // nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is

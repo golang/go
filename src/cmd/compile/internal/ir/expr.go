@@ -76,10 +76,16 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 
 func (n *AddStringExpr) String() string                { return fmt.Sprint(n) }
 func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AddStringExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *AddStringExpr) List() Nodes                   { return n.list }
-func (n *AddStringExpr) PtrList() *Nodes               { return &n.list }
-func (n *AddStringExpr) SetList(x Nodes)               { n.list = x }
+func (n *AddStringExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.list = c.list.Copy()
+	return &c
+}
+
+func (n *AddStringExpr) List() Nodes     { return n.list }
+func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
+func (n *AddStringExpr) SetList(x Nodes) { n.list = x }
 
 // An AddrExpr is an address-of expression &X.
 // It may end up being a normal address-of or an allocation of a composite literal.
@@ -98,11 +104,16 @@ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
 
 func (n *AddrExpr) String() string                { return fmt.Sprint(n) }
 func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AddrExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *AddrExpr) Left() Node                    { return n.X }
-func (n *AddrExpr) SetLeft(x Node)                { n.X = x }
-func (n *AddrExpr) Right() Node                   { return n.Alloc }
-func (n *AddrExpr) SetRight(x Node)               { n.Alloc = x }
+func (n *AddrExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *AddrExpr) Left() Node      { return n.X }
+func (n *AddrExpr) SetLeft(x Node)  { n.X = x }
+func (n *AddrExpr) Right() Node     { return n.Alloc }
+func (n *AddrExpr) SetRight(x Node) { n.Alloc = x }
 
 func (n *AddrExpr) SetOp(op Op) {
 	switch op {
@@ -130,11 +141,16 @@ func NewBinaryExpr(pos src.XPos, op Op, x, y Node) *BinaryExpr {
 
 func (n *BinaryExpr) String() string                { return fmt.Sprint(n) }
 func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BinaryExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *BinaryExpr) Left() Node                    { return n.X }
-func (n *BinaryExpr) SetLeft(x Node)                { n.X = x }
-func (n *BinaryExpr) Right() Node                   { return n.Y }
-func (n *BinaryExpr) SetRight(y Node)               { n.Y = y }
+func (n *BinaryExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *BinaryExpr) Left() Node      { return n.X }
+func (n *BinaryExpr) SetLeft(x Node)  { n.X = x }
+func (n *BinaryExpr) Right() Node     { return n.Y }
+func (n *BinaryExpr) SetRight(y Node) { n.Y = y }
 
 func (n *BinaryExpr) SetOp(op Op) {
 	switch op {
@@ -183,24 +199,32 @@ func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
 
 func (n *CallExpr) String() string                { return fmt.Sprint(n) }
 func (n *CallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *CallExpr) Orig() Node                    { return n.orig }
-func (n *CallExpr) SetOrig(x Node)                { n.orig = x }
-func (n *CallExpr) Left() Node                    { return n.X }
-func (n *CallExpr) SetLeft(x Node)                { n.X = x }
-func (n *CallExpr) List() Nodes                   { return n.Args }
-func (n *CallExpr) PtrList() *Nodes               { return &n.Args }
-func (n *CallExpr) SetList(x Nodes)               { n.Args = x }
-func (n *CallExpr) Rlist() Nodes                  { return n.Rargs }
-func (n *CallExpr) PtrRlist() *Nodes              { return &n.Rargs }
-func (n *CallExpr) SetRlist(x Nodes)              { n.Rargs = x }
-func (n *CallExpr) IsDDD() bool                   { return n.DDD }
-func (n *CallExpr) SetIsDDD(x bool)               { n.DDD = x }
-func (n *CallExpr) NoInline() bool                { return n.noInline }
-func (n *CallExpr) SetNoInline(x bool)            { n.noInline = x }
-func (n *CallExpr) Body() Nodes                   { return n.body }
-func (n *CallExpr) PtrBody() *Nodes               { return &n.body }
-func (n *CallExpr) SetBody(x Nodes)               { n.body = x }
+func (n *CallExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.Args = c.Args.Copy()
+	c.Rargs = c.Rargs.Copy()
+	c.body = c.body.Copy()
+	return &c
+}
+
+func (n *CallExpr) Orig() Node         { return n.orig }
+func (n *CallExpr) SetOrig(x Node)     { n.orig = x }
+func (n *CallExpr) Left() Node         { return n.X }
+func (n *CallExpr) SetLeft(x Node)     { n.X = x }
+func (n *CallExpr) List() Nodes        { return n.Args }
+func (n *CallExpr) PtrList() *Nodes    { return &n.Args }
+func (n *CallExpr) SetList(x Nodes)    { n.Args = x }
+func (n *CallExpr) Rlist() Nodes       { return n.Rargs }
+func (n *CallExpr) PtrRlist() *Nodes   { return &n.Rargs }
+func (n *CallExpr) SetRlist(x Nodes)   { n.Rargs = x }
+func (n *CallExpr) IsDDD() bool        { return n.DDD }
+func (n *CallExpr) SetIsDDD(x bool)    { n.DDD = x }
+func (n *CallExpr) NoInline() bool     { return n.noInline }
+func (n *CallExpr) SetNoInline(x bool) { n.noInline = x }
+func (n *CallExpr) Body() Nodes        { return n.body }
+func (n *CallExpr) PtrBody() *Nodes    { return &n.body }
+func (n *CallExpr) SetBody(x Nodes)    { n.body = x }
 
 func (n *CallExpr) SetOp(op Op) {
 	switch op {
@@ -231,11 +255,16 @@ func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallP
 
 func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
 func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallPartExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *CallPartExpr) Func() *Func                   { return n.fn }
-func (n *CallPartExpr) Left() Node                    { return n.X }
-func (n *CallPartExpr) Sym() *types.Sym               { return n.Method.Sym }
-func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
+func (n *CallPartExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *CallPartExpr) Func() *Func     { return n.fn }
+func (n *CallPartExpr) Left() Node      { return n.X }
+func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
+func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
 
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
@@ -252,8 +281,13 @@ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 
 func (n *ClosureExpr) String() string                { return fmt.Sprint(n) }
 func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ClosureExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ClosureExpr) Func() *Func                   { return n.fn }
+func (n *ClosureExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *ClosureExpr) Func() *Func { return n.fn }
 
 // A ClosureRead denotes reading a variable stored within a closure struct.
 type ClosureRead struct {
@@ -270,9 +304,14 @@ func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
 
 func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
 func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ClosureRead) rawCopy() Node                 { c := *n; return &c }
-func (n *ClosureRead) Type() *types.Type             { return n.typ }
-func (n *ClosureRead) Offset() int64                 { return n.offset }
+func (n *ClosureRead) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *ClosureRead) Type() *types.Type { return n.typ }
+func (n *ClosureRead) Offset() int64     { return n.offset }
 
 // A CompLitExpr is a composite literal Type{Vals}.
 // Before type-checking, the type is Ntype.
@@ -294,14 +333,20 @@ func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
 
 func (n *CompLitExpr) String() string                { return fmt.Sprint(n) }
 func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CompLitExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *CompLitExpr) Orig() Node                    { return n.orig }
-func (n *CompLitExpr) SetOrig(x Node)                { n.orig = x }
-func (n *CompLitExpr) Right() Node                   { return n.Ntype }
-func (n *CompLitExpr) SetRight(x Node)               { n.Ntype = toNtype(x) }
-func (n *CompLitExpr) List() Nodes                   { return n.list }
-func (n *CompLitExpr) PtrList() *Nodes               { return &n.list }
-func (n *CompLitExpr) SetList(x Nodes)               { n.list = x }
+func (n *CompLitExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.list = c.list.Copy()
+	return &c
+}
+
+func (n *CompLitExpr) Orig() Node      { return n.orig }
+func (n *CompLitExpr) SetOrig(x Node)  { n.orig = x }
+func (n *CompLitExpr) Right() Node     { return n.Ntype }
+func (n *CompLitExpr) SetRight(x Node) { n.Ntype = toNtype(x) }
+func (n *CompLitExpr) List() Nodes     { return n.list }
+func (n *CompLitExpr) PtrList() *Nodes { return &n.list }
+func (n *CompLitExpr) SetList(x Nodes) { n.list = x }
 
 func (n *CompLitExpr) SetOp(op Op) {
 	switch op {
@@ -330,11 +375,12 @@ func NewConstExpr(val constant.Value, orig Node) Node {
 
 func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
 func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ConstExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ConstExpr) Sym() *types.Sym               { return n.orig.Sym() }
-func (n *ConstExpr) Orig() Node                    { return n.orig }
-func (n *ConstExpr) SetOrig(orig Node)             { panic(n.no("SetOrig")) }
-func (n *ConstExpr) Val() constant.Value           { return n.val }
+func (n *ConstExpr) copy() Node                    { c := *n; return &c }
+
+func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
+func (n *ConstExpr) Orig() Node          { return n.orig }
+func (n *ConstExpr) SetOrig(orig Node)   { panic(n.no("SetOrig")) }
+func (n *ConstExpr) Val() constant.Value { return n.val }
 
 // A ConvExpr is a conversion Type(X).
 // It may end up being a value or a type.
@@ -355,9 +401,15 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
 
 func (n *ConvExpr) String() string                { return fmt.Sprint(n) }
 func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ConvExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ConvExpr) Left() Node                    { return n.X }
-func (n *ConvExpr) SetLeft(x Node)                { n.X = x }
+func (n *ConvExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *ConvExpr) rawCopy() Node  { c := *n; return &c }
+func (n *ConvExpr) Left() Node     { return n.X }
+func (n *ConvExpr) SetLeft(x Node) { n.X = x }
 
 func (n *ConvExpr) SetOp(op Op) {
 	switch op {
@@ -385,13 +437,18 @@ func NewIndexExpr(pos src.XPos, x, index Node) *IndexExpr {
 
 func (n *IndexExpr) String() string                { return fmt.Sprint(n) }
 func (n *IndexExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *IndexExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *IndexExpr) Left() Node                    { return n.X }
-func (n *IndexExpr) SetLeft(x Node)                { n.X = x }
-func (n *IndexExpr) Right() Node                   { return n.Index }
-func (n *IndexExpr) SetRight(y Node)               { n.Index = y }
-func (n *IndexExpr) IndexMapLValue() bool          { return n.Assigned }
-func (n *IndexExpr) SetIndexMapLValue(x bool)      { n.Assigned = x }
+func (n *IndexExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *IndexExpr) Left() Node               { return n.X }
+func (n *IndexExpr) SetLeft(x Node)           { n.X = x }
+func (n *IndexExpr) Right() Node              { return n.Index }
+func (n *IndexExpr) SetRight(y Node)          { n.Index = y }
+func (n *IndexExpr) IndexMapLValue() bool     { return n.Assigned }
+func (n *IndexExpr) SetIndexMapLValue(x bool) { n.Assigned = x }
 
 func (n *IndexExpr) SetOp(op Op) {
 	switch op {
@@ -422,15 +479,20 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 
 func (n *KeyExpr) String() string                { return fmt.Sprint(n) }
 func (n *KeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *KeyExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *KeyExpr) Left() Node                    { return n.Key }
-func (n *KeyExpr) SetLeft(x Node)                { n.Key = x }
-func (n *KeyExpr) Right() Node                   { return n.Value }
-func (n *KeyExpr) SetRight(y Node)               { n.Value = y }
-func (n *KeyExpr) Sym() *types.Sym               { return n.sym }
-func (n *KeyExpr) SetSym(x *types.Sym)           { n.sym = x }
-func (n *KeyExpr) Offset() int64                 { return n.offset }
-func (n *KeyExpr) SetOffset(x int64)             { n.offset = x }
+func (n *KeyExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *KeyExpr) Left() Node          { return n.Key }
+func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
+func (n *KeyExpr) Right() Node         { return n.Value }
+func (n *KeyExpr) SetRight(y Node)     { n.Value = y }
+func (n *KeyExpr) Sym() *types.Sym     { return n.sym }
+func (n *KeyExpr) SetSym(x *types.Sym) { n.sym = x }
+func (n *KeyExpr) Offset() int64       { return n.offset }
+func (n *KeyExpr) SetOffset(x int64)   { n.offset = x }
 
 func (n *KeyExpr) SetOp(op Op) {
 	switch op {
@@ -459,13 +521,20 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 
 func (n *InlinedCallExpr) String() string                { return fmt.Sprint(n) }
 func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *InlinedCallExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *InlinedCallExpr) Body() Nodes                   { return n.body }
-func (n *InlinedCallExpr) PtrBody() *Nodes               { return &n.body }
-func (n *InlinedCallExpr) SetBody(x Nodes)               { n.body = x }
-func (n *InlinedCallExpr) Rlist() Nodes                  { return n.ReturnVars }
-func (n *InlinedCallExpr) PtrRlist() *Nodes              { return &n.ReturnVars }
-func (n *InlinedCallExpr) SetRlist(x Nodes)              { n.ReturnVars = x }
+func (n *InlinedCallExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.body = c.body.Copy()
+	c.ReturnVars = c.ReturnVars.Copy()
+	return &c
+}
+
+func (n *InlinedCallExpr) Body() Nodes      { return n.body }
+func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
+func (n *InlinedCallExpr) SetBody(x Nodes)  { n.body = x }
+func (n *InlinedCallExpr) Rlist() Nodes     { return n.ReturnVars }
+func (n *InlinedCallExpr) PtrRlist() *Nodes { return &n.ReturnVars }
+func (n *InlinedCallExpr) SetRlist(x Nodes) { n.ReturnVars = x }
 
 // A MakeExpr is a make expression: make(Type[, Len[, Cap]]).
 // Op is OMAKECHAN, OMAKEMAP, OMAKESLICE, or OMAKESLICECOPY,
@@ -485,11 +554,16 @@ func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {
 
 func (n *MakeExpr) String() string                { return fmt.Sprint(n) }
 func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MakeExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *MakeExpr) Left() Node                    { return n.Len }
-func (n *MakeExpr) SetLeft(x Node)                { n.Len = x }
-func (n *MakeExpr) Right() Node                   { return n.Cap }
-func (n *MakeExpr) SetRight(x Node)               { n.Cap = x }
+func (n *MakeExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *MakeExpr) Left() Node      { return n.Len }
+func (n *MakeExpr) SetLeft(x Node)  { n.Len = x }
+func (n *MakeExpr) Right() Node     { return n.Cap }
+func (n *MakeExpr) SetRight(x Node) { n.Cap = x }
 
 func (n *MakeExpr) SetOp(op Op) {
 	switch op {
@@ -521,17 +595,22 @@ func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
 
 func (n *MethodExpr) String() string                { return fmt.Sprint(n) }
 func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MethodExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *MethodExpr) Left() Node                    { return n.X }
-func (n *MethodExpr) SetLeft(x Node)                { n.X = x }
-func (n *MethodExpr) Right() Node                   { return n.M }
-func (n *MethodExpr) SetRight(y Node)               { n.M = y }
-func (n *MethodExpr) Sym() *types.Sym               { return n.sym }
-func (n *MethodExpr) SetSym(x *types.Sym)           { n.sym = x }
-func (n *MethodExpr) Offset() int64                 { return n.offset }
-func (n *MethodExpr) SetOffset(x int64)             { n.offset = x }
-func (n *MethodExpr) Class() Class                  { return n.class }
-func (n *MethodExpr) SetClass(x Class)              { n.class = x }
+func (n *MethodExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *MethodExpr) Left() Node          { return n.X }
+func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
+func (n *MethodExpr) Right() Node         { return n.M }
+func (n *MethodExpr) SetRight(y Node)     { n.M = y }
+func (n *MethodExpr) Sym() *types.Sym     { return n.sym }
+func (n *MethodExpr) SetSym(x *types.Sym) { n.sym = x }
+func (n *MethodExpr) Offset() int64       { return n.offset }
+func (n *MethodExpr) SetOffset(x int64)   { n.offset = x }
+func (n *MethodExpr) Class() Class        { return n.class }
+func (n *MethodExpr) SetClass(x Class)    { n.class = x }
 
 // A NilExpr represents the predefined untyped constant nil.
 // (It may be copied and assigned a type, though.)
@@ -549,9 +628,14 @@ func NewNilExpr(pos src.XPos) *NilExpr {
 
 func (n *NilExpr) String() string                { return fmt.Sprint(n) }
 func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *NilExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *NilExpr) Sym() *types.Sym               { return n.sym }
-func (n *NilExpr) SetSym(x *types.Sym)           { n.sym = x }
+func (n *NilExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *NilExpr) Sym() *types.Sym     { return n.sym }
+func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
 
 // A ParenExpr is a parenthesized expression (X).
 // It may end up being a value or a type.
@@ -569,9 +653,14 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
 
 func (n *ParenExpr) String() string                { return fmt.Sprint(n) }
 func (n *ParenExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ParenExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ParenExpr) Left() Node                    { return n.X }
-func (n *ParenExpr) SetLeft(x Node)                { n.X = x }
+func (n *ParenExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *ParenExpr) Left() Node     { return n.X }
+func (n *ParenExpr) SetLeft(x Node) { n.X = x }
 
 func (*ParenExpr) CanBeNtype() {}
 
@@ -599,9 +688,14 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
 
 func (n *ResultExpr) String() string                { return fmt.Sprint(n) }
 func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ResultExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *ResultExpr) Offset() int64                 { return n.offset }
-func (n *ResultExpr) SetOffset(x int64)             { n.offset = x }
+func (n *ResultExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *ResultExpr) Offset() int64     { return n.offset }
+func (n *ResultExpr) SetOffset(x int64) { n.offset = x }
 
 // A SelectorExpr is a selector expression X.Sym.
 type SelectorExpr struct {
@@ -631,13 +725,18 @@ func (n *SelectorExpr) SetOp(op Op) {
 
 func (n *SelectorExpr) String() string                { return fmt.Sprint(n) }
 func (n *SelectorExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SelectorExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *SelectorExpr) Left() Node                    { return n.X }
-func (n *SelectorExpr) SetLeft(x Node)                { n.X = x }
-func (n *SelectorExpr) Sym() *types.Sym               { return n.Sel }
-func (n *SelectorExpr) SetSym(x *types.Sym)           { n.Sel = x }
-func (n *SelectorExpr) Offset() int64                 { return n.offset }
-func (n *SelectorExpr) SetOffset(x int64)             { n.offset = x }
+func (n *SelectorExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *SelectorExpr) Left() Node          { return n.X }
+func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
+func (n *SelectorExpr) Sym() *types.Sym     { return n.Sel }
+func (n *SelectorExpr) SetSym(x *types.Sym) { n.Sel = x }
+func (n *SelectorExpr) Offset() int64       { return n.offset }
+func (n *SelectorExpr) SetOffset(x int64)   { n.offset = x }
 
 // Before type-checking, bytes.Buffer is a SelectorExpr.
 // After type-checking it becomes a Name.
@@ -659,12 +758,18 @@ func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
 
 func (n *SliceExpr) String() string                { return fmt.Sprint(n) }
 func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SliceExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *SliceExpr) Left() Node                    { return n.X }
-func (n *SliceExpr) SetLeft(x Node)                { n.X = x }
-func (n *SliceExpr) List() Nodes                   { return n.list }
-func (n *SliceExpr) PtrList() *Nodes               { return &n.list }
-func (n *SliceExpr) SetList(x Nodes)               { n.list = x }
+func (n *SliceExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.list = c.list.Copy()
+	return &c
+}
+
+func (n *SliceExpr) Left() Node      { return n.X }
+func (n *SliceExpr) SetLeft(x Node)  { n.X = x }
+func (n *SliceExpr) List() Nodes     { return n.list }
+func (n *SliceExpr) PtrList() *Nodes { return &n.list }
+func (n *SliceExpr) SetList(x Nodes) { n.list = x }
 
 func (n *SliceExpr) SetOp(op Op) {
 	switch op {
@@ -761,12 +866,17 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 
 func (n *SliceHeaderExpr) String() string                { return fmt.Sprint(n) }
 func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SliceHeaderExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *SliceHeaderExpr) Left() Node                    { return n.Ptr }
-func (n *SliceHeaderExpr) SetLeft(x Node)                { n.Ptr = x }
-func (n *SliceHeaderExpr) List() Nodes                   { return n.lenCap }
-func (n *SliceHeaderExpr) PtrList() *Nodes               { return &n.lenCap }
-func (n *SliceHeaderExpr) SetList(x Nodes)               { n.lenCap = x }
+func (n *SliceHeaderExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
+func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
+func (n *SliceHeaderExpr) List() Nodes     { return n.lenCap }
+func (n *SliceHeaderExpr) PtrList() *Nodes { return &n.lenCap }
+func (n *SliceHeaderExpr) SetList(x Nodes) { n.lenCap = x }
 
 // A StarExpr is a dereference expression *X.
 // It may end up being a value or a type.
@@ -784,9 +894,14 @@ func NewStarExpr(pos src.XPos, x Node) *StarExpr {
 
 func (n *StarExpr) String() string                { return fmt.Sprint(n) }
 func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *StarExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *StarExpr) Left() Node                    { return n.X }
-func (n *StarExpr) SetLeft(x Node)                { n.X = x }
+func (n *StarExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *StarExpr) Left() Node     { return n.X }
+func (n *StarExpr) SetLeft(x Node) { n.X = x }
 
 func (*StarExpr) CanBeNtype() {}
 
@@ -828,14 +943,20 @@ func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
 
 func (n *TypeAssertExpr) String() string                { return fmt.Sprint(n) }
 func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *TypeAssertExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *TypeAssertExpr) Left() Node                    { return n.X }
-func (n *TypeAssertExpr) SetLeft(x Node)                { n.X = x }
-func (n *TypeAssertExpr) Right() Node                   { return n.Ntype }
-func (n *TypeAssertExpr) SetRight(x Node)               { n.Ntype = x } // TODO: toNtype(x)
-func (n *TypeAssertExpr) List() Nodes                   { return n.Itab }
-func (n *TypeAssertExpr) PtrList() *Nodes               { return &n.Itab }
-func (n *TypeAssertExpr) SetList(x Nodes)               { n.Itab = x }
+func (n *TypeAssertExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	c.Itab = c.Itab.Copy()
+	return &c
+}
+
+func (n *TypeAssertExpr) Left() Node      { return n.X }
+func (n *TypeAssertExpr) SetLeft(x Node)  { n.X = x }
+func (n *TypeAssertExpr) Right() Node     { return n.Ntype }
+func (n *TypeAssertExpr) SetRight(x Node) { n.Ntype = x } // TODO: toNtype(x)
+func (n *TypeAssertExpr) List() Nodes     { return n.Itab }
+func (n *TypeAssertExpr) PtrList() *Nodes { return &n.Itab }
+func (n *TypeAssertExpr) SetList(x Nodes) { n.Itab = x }
 
 func (n *TypeAssertExpr) SetOp(op Op) {
 	switch op {
@@ -862,9 +983,14 @@ func NewUnaryExpr(pos src.XPos, op Op, x Node) *UnaryExpr {
 
 func (n *UnaryExpr) String() string                { return fmt.Sprint(n) }
 func (n *UnaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *UnaryExpr) rawCopy() Node                 { c := *n; return &c }
-func (n *UnaryExpr) Left() Node                    { return n.X }
-func (n *UnaryExpr) SetLeft(x Node)                { n.X = x }
+func (n *UnaryExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+
+func (n *UnaryExpr) Left() Node     { return n.X }
+func (n *UnaryExpr) SetLeft(x Node) { n.X = x }
 
 func (n *UnaryExpr) SetOp(op Op) {
 	switch op {

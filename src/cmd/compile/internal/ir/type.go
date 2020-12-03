@@ -74,7 +74,7 @@ func NewChanType(pos src.XPos, elem Node, dir types.ChanDir) *ChanType {
 
 func (n *ChanType) String() string                { return fmt.Sprint(n) }
 func (n *ChanType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ChanType) rawCopy() Node                 { c := *n; return &c }
+func (n *ChanType) copy() Node                    { c := *n; return &c }
 func (n *ChanType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -104,7 +104,7 @@ func NewMapType(pos src.XPos, key, elem Node) *MapType {
 
 func (n *MapType) String() string                { return fmt.Sprint(n) }
 func (n *MapType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MapType) rawCopy() Node                 { c := *n; return &c }
+func (n *MapType) copy() Node                    { c := *n; return &c }
 func (n *MapType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Key = nil
@@ -134,7 +134,12 @@ func NewStructType(pos src.XPos, fields []*Field) *StructType {
 
 func (n *StructType) String() string                { return fmt.Sprint(n) }
 func (n *StructType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *StructType) rawCopy() Node                 { c := *n; return &c }
+func (n *StructType) copy() Node {
+	c := *n
+	c.Fields = copyFields(c.Fields)
+	return &c
+}
+
 func (n *StructType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Fields = nil
@@ -171,7 +176,12 @@ func NewInterfaceType(pos src.XPos, methods []*Field) *InterfaceType {
 
 func (n *InterfaceType) String() string                { return fmt.Sprint(n) }
 func (n *InterfaceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *InterfaceType) rawCopy() Node                 { c := *n; return &c }
+func (n *InterfaceType) copy() Node {
+	c := *n
+	c.Methods = copyFields(c.Methods)
+	return &c
+}
+
 func (n *InterfaceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Methods = nil
@@ -202,7 +212,15 @@ func NewFuncType(pos src.XPos, rcvr *Field, args, results []*Field) *FuncType {
 
 func (n *FuncType) String() string                { return fmt.Sprint(n) }
 func (n *FuncType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *FuncType) rawCopy() Node                 { c := *n; return &c }
+func (n *FuncType) copy() Node {
+	c := *n
+	if c.Recv != nil {
+		c.Recv = c.Recv.copy()
+	}
+	c.Params = copyFields(c.Params)
+	c.Results = copyFields(c.Results)
+	return &c
+}
 
 func (n *FuncType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
@@ -252,6 +270,20 @@ func (f *Field) String() string {
 	return typ
 }
 
+func (f *Field) copy() *Field {
+	c := *f
+	return &c
+}
+
+func copyFields(list []*Field) []*Field {
+	out := make([]*Field, len(list))
+	copy(out, list)
+	for i, f := range out {
+		out[i] = f.copy()
+	}
+	return out
+}
+
 func (f *Field) deepCopy(pos src.XPos) *Field {
 	if f == nil {
 		return nil
@@ -289,7 +321,7 @@ func NewSliceType(pos src.XPos, elem Node) *SliceType {
 
 func (n *SliceType) String() string                { return fmt.Sprint(n) }
 func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SliceType) rawCopy() Node                 { c := *n; return &c }
+func (n *SliceType) copy() Node                    { c := *n; return &c }
 func (n *SliceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -320,7 +352,7 @@ func NewArrayType(pos src.XPos, size Node, elem Node) *ArrayType {
 
 func (n *ArrayType) String() string                { return fmt.Sprint(n) }
 func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ArrayType) rawCopy() Node                 { c := *n; return &c }
+func (n *ArrayType) copy() Node                    { c := *n; return &c }
 
 func (n *ArrayType) DeepCopy(pos src.XPos) Node {
 	if n.op == OTYPE {
@@ -351,7 +383,7 @@ func newTypeNode(pos src.XPos, typ *types.Type) *typeNode {
 
 func (n *typeNode) String() string                { return fmt.Sprint(n) }
 func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *typeNode) rawCopy() Node                 { c := *n; return &c }
+func (n *typeNode) copy() Node                    { c := *n; return &c }
 func (n *typeNode) Type() *types.Type             { return n.typ }
 func (n *typeNode) Sym() *types.Sym               { return n.typ.Sym() }
 func (n *typeNode) CanBeNtype()                   {}

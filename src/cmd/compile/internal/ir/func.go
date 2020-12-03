@@ -117,7 +117,7 @@ func NewFunc(pos src.XPos) *Func {
 
 func (f *Func) String() string                { return fmt.Sprint(f) }
 func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
-func (f *Func) rawCopy() Node                 { panic(f.no("rawCopy")) }
+func (f *Func) copy() Node                    { panic(f.no("copy")) }
 func (f *Func) Func() *Func                   { return f }
 func (f *Func) Body() Nodes                   { return f.body }
 func (f *Func) PtrBody() *Nodes               { return &f.body }
