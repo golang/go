@@ -61,7 +61,31 @@ func Copy(n Node) Node {
 	if n, ok := n.(OrigNode); ok && n.Orig() == n {
 		copy.(OrigNode).SetOrig(copy)
 	}
+
+	// Copy lists so that updates to n.List[0]
+	// don't affect copy.List[0] and vice versa,
+	// same as updates to Left and Right.
+	// TODO(rsc): Eventually the Node implementations will need to do this.
+	if l := copy.List(); l.Len() > 0 {
+		copy.SetList(copyList(l))
+	}
+	if l := copy.Rlist(); l.Len() > 0 {
+		copy.SetRlist(copyList(l))
+	}
+	if l := copy.Init(); l.Len() > 0 {
+		copy.SetInit(copyList(l))
+	}
+	if l := copy.Body(); l.Len() > 0 {
+		copy.SetBody(copyList(l))
+	}
+
 	return copy
+}
+
+func copyList(x Nodes) Nodes {
+	out := make([]Node, x.Len())
+	copy(out, x.Slice())
+	return AsNodes(out)
 }
 
 // A Node can implement DeepCopyNode to provide a custom implementation
@@ -94,10 +118,15 @@ func DeepCopy(pos src.XPos, n Node) Node {
 
 	switch n.Op() {
 	default:
-		m := SepCopy(n)
+		m := Copy(n)
 		m.SetLeft(DeepCopy(pos, n.Left()))
 		m.SetRight(DeepCopy(pos, n.Right()))
-		m.PtrList().Set(deepCopyList(pos, n.List().Slice()))
+		// deepCopyList instead of DeepCopyList
+		// because Copy already copied all these slices.
+		deepCopyList(pos, m.PtrList().Slice())
+		deepCopyList(pos, m.PtrRlist().Slice())
+		deepCopyList(pos, m.PtrInit().Slice())
+		deepCopyList(pos, m.PtrBody().Slice())
 		if pos.IsKnown() {
 			m.SetPos(pos)
 		}
@@ -118,10 +147,18 @@ func DeepCopy(pos src.XPos, n Node) Node {
 	}
 }
 
-func deepCopyList(pos src.XPos, list []Node) []Node {
+// DeepCopyList returns a list of deep copies (using DeepCopy) of the nodes in list.
+func DeepCopyList(pos src.XPos, list []Node) []Node {
 	var out []Node
 	for _, n := range list {
 		out = append(out, DeepCopy(pos, n))
 	}
 	return out
+}
+
+// deepCopyList edits list to point to deep copies of its elements.
+func deepCopyList(pos src.XPos, list []Node) {
+	for i, n := range list {
+		list[i] = DeepCopy(pos, n)
+	}
 }
