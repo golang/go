@@ -3669,51 +3669,52 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	return true
 }
 
-func markbreak(labels *map[*types.Sym]ir.Node, n ir.Node, implicit ir.Node) {
-	if n == nil {
-		return
+// markBreak marks control statements containing break statements with SetHasBreak(true).
+func markBreak(fn *ir.Func) {
+	var labels map[*types.Sym]ir.Node
+	var implicit ir.Node
+
+	var mark func(ir.Node) error
+	mark = func(n ir.Node) error {
+		switch n.Op() {
+		default:
+			ir.DoChildren(n, mark)
+
+		case ir.OBREAK:
+			if n.Sym() == nil {
+				if implicit != nil {
+					implicit.SetHasBreak(true)
+				}
+			} else {
+				if lab := labels[n.Sym()]; lab != nil {
+					lab.SetHasBreak(true)
+				}
+			}
+
+		case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
+			old := implicit
+			implicit = n
+			sym := n.Sym()
+			if sym != nil {
+				if labels == nil {
+					// Map creation delayed until we need it - most functions don't.
+					labels = make(map[*types.Sym]ir.Node)
+				}
+				labels[sym] = n
+			}
+			ir.DoChildren(n, mark)
+			if sym != nil {
+				delete(labels, sym)
+			}
+			implicit = old
+		}
+		return nil
 	}
 
-	switch n.Op() {
-	case ir.OBREAK:
-		if n.Sym() == nil {
-			if implicit != nil {
-				implicit.SetHasBreak(true)
-			}
-		} else {
-			if lab := (*labels)[n.Sym()]; lab != nil {
-				lab.SetHasBreak(true)
-			}
-		}
-	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
-		implicit = n
-		if sym := n.Sym(); sym != nil {
-			if *labels == nil {
-				// Map creation delayed until we need it - most functions don't.
-				*labels = make(map[*types.Sym]ir.Node)
-			}
-			(*labels)[sym] = n
-			defer delete(*labels, sym)
-		}
-		fallthrough
-	default:
-		markbreak(labels, n.Left(), implicit)
-		markbreak(labels, n.Right(), implicit)
-		markbreaklist(labels, n.Init(), implicit)
-		markbreaklist(labels, n.Body(), implicit)
-		markbreaklist(labels, n.List(), implicit)
-		markbreaklist(labels, n.Rlist(), implicit)
-	}
+	mark(fn)
 }
 
-func markbreaklist(labels *map[*types.Sym]ir.Node, l ir.Nodes, implicit ir.Node) {
-	s := l.Slice()
-	for i := 0; i < len(s); i++ {
-		markbreak(labels, s[i], implicit)
-	}
-}
-
-// isterminating reports whether the Nodes list ends with a terminating statement.
+// isTermNodes reports whether the Nodes list ends with a terminating statement.
 func isTermNodes(l ir.Nodes) bool {
 	s := l.Slice()
 	c := len(s)
@@ -3723,7 +3724,7 @@ func isTermNodes(l ir.Nodes) bool {
 	return isTermNode(s[c-1])
 }
 
-// Isterminating reports whether the node n, the last one in a
+// isTermNode reports whether the node n, the last one in a
 // statement list, is a terminating statement.
 func isTermNode(n ir.Node) bool {
 	switch n.Op() {
@@ -3776,8 +3777,7 @@ func isTermNode(n ir.Node) bool {
 // checkreturn makes sure that fn terminates appropriately.
 func checkreturn(fn *ir.Func) {
 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
-		var labels map[*types.Sym]ir.Node
-		markbreaklist(&labels, fn.Body(), nil)
+		markBreak(fn)
 		if !isTermNodes(fn.Body()) {
 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
 		}

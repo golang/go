@@ -553,7 +553,7 @@ func evalConst(n ir.Node) ir.Node {
 				return origIntConst(n, int64(len(ir.StringVal(nl))))
 			}
 		case types.TARRAY:
-			if !hascallchan(nl) {
+			if !hasCallOrChan(nl) {
 				return origIntConst(n, nl.Type().NumElem())
 			}
 		}
@@ -779,49 +779,35 @@ func isGoConst(n ir.Node) bool {
 	return n.Op() == ir.OLITERAL
 }
 
-func hascallchan(n ir.Node) bool {
-	if n == nil {
-		return false
-	}
-	switch n.Op() {
-	case ir.OAPPEND,
-		ir.OCALL,
-		ir.OCALLFUNC,
-		ir.OCALLINTER,
-		ir.OCALLMETH,
-		ir.OCAP,
-		ir.OCLOSE,
-		ir.OCOMPLEX,
-		ir.OCOPY,
-		ir.ODELETE,
-		ir.OIMAG,
-		ir.OLEN,
-		ir.OMAKE,
-		ir.ONEW,
-		ir.OPANIC,
-		ir.OPRINT,
-		ir.OPRINTN,
-		ir.OREAL,
-		ir.ORECOVER,
-		ir.ORECV:
-		return true
-	}
-
-	if hascallchan(n.Left()) || hascallchan(n.Right()) {
-		return true
-	}
-	for _, n1 := range n.List().Slice() {
-		if hascallchan(n1) {
-			return true
+// hasCallOrChan reports whether n contains any calls or channel operations.
+func hasCallOrChan(n ir.Node) bool {
+	found := ir.Find(n, func(n ir.Node) interface{} {
+		switch n.Op() {
+		case ir.OAPPEND,
+			ir.OCALL,
+			ir.OCALLFUNC,
+			ir.OCALLINTER,
+			ir.OCALLMETH,
+			ir.OCAP,
+			ir.OCLOSE,
+			ir.OCOMPLEX,
+			ir.OCOPY,
+			ir.ODELETE,
+			ir.OIMAG,
+			ir.OLEN,
+			ir.OMAKE,
+			ir.ONEW,
+			ir.OPANIC,
+			ir.OPRINT,
+			ir.OPRINTN,
+			ir.OREAL,
+			ir.ORECOVER,
+			ir.ORECV:
+			return n
 		}
-	}
-	for _, n2 := range n.Rlist().Slice() {
-		if hascallchan(n2) {
-			return true
-		}
-	}
-
-	return false
+		return nil
+	})
+	return found != nil
 }
 
 // A constSet represents a set of Go constant expressions.

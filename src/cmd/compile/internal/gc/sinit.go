@@ -60,7 +60,8 @@ func (s *InitSchedule) tryStaticInit(n ir.Node) bool {
 	if n.Op() != ir.OAS {
 		return false
 	}
-	if ir.IsBlank(n.Left()) && candiscard(n.Right()) {
+	if ir.IsBlank(n.Left()) && !hasSideEffects(n.Right()) {
+		// Discard.
 		return true
 	}
 	lno := setlineno(n)
@@ -548,7 +549,8 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
 
 	for _, r := range n.List().Slice() {
 		a, value := splitnode(r)
-		if a == ir.BlankNode && candiscard(value) {
+		if a == ir.BlankNode && !hasSideEffects(value) {
+			// Discard.
 			continue
 		}
 

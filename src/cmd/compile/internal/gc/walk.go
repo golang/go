@@ -3786,107 +3786,91 @@ func usefield(n ir.Node) {
 	Curfn.FieldTrack[sym] = struct{}{}
 }
 
-func candiscardlist(l ir.Nodes) bool {
-	for _, n := range l.Slice() {
-		if !candiscard(n) {
-			return false
+// hasSideEffects reports whether n contains any operations that could have observable side effects.
+func hasSideEffects(n ir.Node) bool {
+	found := ir.Find(n, func(n ir.Node) interface{} {
+		switch n.Op() {
+		// Assume side effects unless we know otherwise.
+		default:
+			return n
+
+		// No side effects here (arguments are checked separately).
+		case ir.ONAME,
+			ir.ONONAME,
+			ir.OTYPE,
+			ir.OPACK,
+			ir.OLITERAL,
+			ir.ONIL,
+			ir.OADD,
+			ir.OSUB,
+			ir.OOR,
+			ir.OXOR,
+			ir.OADDSTR,
+			ir.OADDR,
+			ir.OANDAND,
+			ir.OBYTES2STR,
+			ir.ORUNES2STR,
+			ir.OSTR2BYTES,
+			ir.OSTR2RUNES,
+			ir.OCAP,
+			ir.OCOMPLIT,
+			ir.OMAPLIT,
+			ir.OSTRUCTLIT,
+			ir.OARRAYLIT,
+			ir.OSLICELIT,
+			ir.OPTRLIT,
+			ir.OCONV,
+			ir.OCONVIFACE,
+			ir.OCONVNOP,
+			ir.ODOT,
+			ir.OEQ,
+			ir.ONE,
+			ir.OLT,
+			ir.OLE,
+			ir.OGT,
+			ir.OGE,
+			ir.OKEY,
+			ir.OSTRUCTKEY,
+			ir.OLEN,
+			ir.OMUL,
+			ir.OLSH,
+			ir.ORSH,
+			ir.OAND,
+			ir.OANDNOT,
+			ir.ONEW,
+			ir.ONOT,
+			ir.OBITNOT,
+			ir.OPLUS,
+			ir.ONEG,
+			ir.OOROR,
+			ir.OPAREN,
+			ir.ORUNESTR,
+			ir.OREAL,
+			ir.OIMAG,
+			ir.OCOMPLEX:
+			return nil
+
+		// Only possible side effect is division by zero.
+		case ir.ODIV, ir.OMOD:
+			if n.Right().Op() != ir.OLITERAL || constant.Sign(n.Right().Val()) == 0 {
+				return n
+			}
+
+		// Only possible side effect is panic on invalid size,
+		// but many makechan and makemap use size zero, which is definitely OK.
+		case ir.OMAKECHAN, ir.OMAKEMAP:
+			if !ir.IsConst(n.Left(), constant.Int) || constant.Sign(n.Left().Val()) != 0 {
+				return n
+			}
+
+		// Only possible side effect is panic on invalid size.
+		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
+		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
+			return n
 		}
-	}
-	return true
-}
-
-func candiscard(n ir.Node) bool {
-	if n == nil {
-		return true
-	}
-
-	switch n.Op() {
-	default:
-		return false
-
-		// Discardable as long as the subpieces are.
-	case ir.ONAME,
-		ir.ONONAME,
-		ir.OTYPE,
-		ir.OPACK,
-		ir.OLITERAL,
-		ir.ONIL,
-		ir.OADD,
-		ir.OSUB,
-		ir.OOR,
-		ir.OXOR,
-		ir.OADDSTR,
-		ir.OADDR,
-		ir.OANDAND,
-		ir.OBYTES2STR,
-		ir.ORUNES2STR,
-		ir.OSTR2BYTES,
-		ir.OSTR2RUNES,
-		ir.OCAP,
-		ir.OCOMPLIT,
-		ir.OMAPLIT,
-		ir.OSTRUCTLIT,
-		ir.OARRAYLIT,
-		ir.OSLICELIT,
-		ir.OPTRLIT,
-		ir.OCONV,
-		ir.OCONVIFACE,
-		ir.OCONVNOP,
-		ir.ODOT,
-		ir.OEQ,
-		ir.ONE,
-		ir.OLT,
-		ir.OLE,
-		ir.OGT,
-		ir.OGE,
-		ir.OKEY,
-		ir.OSTRUCTKEY,
-		ir.OLEN,
-		ir.OMUL,
-		ir.OLSH,
-		ir.ORSH,
-		ir.OAND,
-		ir.OANDNOT,
-		ir.ONEW,
-		ir.ONOT,
-		ir.OBITNOT,
-		ir.OPLUS,
-		ir.ONEG,
-		ir.OOROR,
-		ir.OPAREN,
-		ir.ORUNESTR,
-		ir.OREAL,
-		ir.OIMAG,
-		ir.OCOMPLEX:
-		break
-
-		// Discardable as long as we know it's not division by zero.
-	case ir.ODIV, ir.OMOD:
-		if n.Right().Op() == ir.OLITERAL && constant.Sign(n.Right().Val()) != 0 {
-			break
-		}
-		return false
-
-		// Discardable as long as we know it won't fail because of a bad size.
-	case ir.OMAKECHAN, ir.OMAKEMAP:
-		if ir.IsConst(n.Left(), constant.Int) && constant.Sign(n.Left().Val()) == 0 {
-			break
-		}
-		return false
-
-		// Difficult to tell what sizes are okay.
-	case ir.OMAKESLICE:
-		return false
-
-	case ir.OMAKESLICECOPY:
-		return false
-	}
-
-	if !candiscard(n.Left()) || !candiscard(n.Right()) || !candiscardlist(n.Init()) || !candiscardlist(n.Body()) || !candiscardlist(n.List()) || !candiscardlist(n.Rlist()) {
-		return false
-	}
-
-	return true
+		return nil
+	})
+	return found != nil
 }
 
 // Rewrite
