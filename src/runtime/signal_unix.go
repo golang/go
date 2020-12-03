@@ -336,7 +336,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	atomic.Xadd(&gp.m.preemptGen, 1)
 	atomic.Store(&gp.m.signalPending, 0)
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		atomic.Xadd(&pendingPreemptSignals, -1)
 	}
 }
@@ -352,12 +352,12 @@ const preemptMSupported = true
 func preemptM(mp *m) {
 	// On Darwin, don't try to preempt threads during exec.
 	// Issue #41702.
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		execLock.rlock()
 	}
 
 	if atomic.Cas(&mp.signalPending, 0, 1) {
-		if GOOS == "darwin" {
+		if GOOS == "darwin" || GOOS == "ios" {
 			atomic.Xadd(&pendingPreemptSignals, 1)
 		}
 
@@ -369,7 +369,7 @@ func preemptM(mp *m) {
 		signalM(mp, sigPreempt)
 	}
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		execLock.runlock()
 	}
 }
@@ -432,7 +432,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			// no non-Go signal handler for sigPreempt.
 			// The default behavior for sigPreempt is to ignore
 			// the signal, so badsignal will be a no-op anyway.
-			if GOOS == "darwin" {
+			if GOOS == "darwin" || GOOS == "ios" {
 				atomic.Xadd(&pendingPreemptSignals, -1)
 			}
 			return
