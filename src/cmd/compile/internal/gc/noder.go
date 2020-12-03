@@ -899,10 +899,13 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) ir.Node {
 			n = ir.NewField(p.pos(method), nil, importName(p.packname(method.Type)).(ir.Ntype), nil)
 		} else {
 			mname := p.name(method.Name)
+			if mname.IsBlank() {
+				base.Errorf("methods must have a unique non-blank name")
+				continue
+			}
 			sig := p.typeExpr(method.Type).(*ir.FuncType)
 			sig.Recv = fakeRecv()
 			n = ir.NewField(p.pos(method), mname, sig, nil)
-			ifacedcl(n)
 		}
 		l = append(l, n)
 	}
