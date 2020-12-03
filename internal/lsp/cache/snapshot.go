@@ -966,29 +966,34 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	// If the view's build configuration is invalid, we cannot reload by
-	// package path. Just reload the directory instead.
-	if !s.ValidBuildConfiguration() {
-		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
-	}
-
 	// See which of the workspace packages are missing metadata.
 	s.mu.Lock()
+	missingMetadata := len(s.workspacePackages) == 0 || len(s.metadata) == 0
 	pkgPathSet := map[packagePath]struct{}{}
 	for id, pkgPath := range s.workspacePackages {
+		if s.metadata[id] != nil {
+			continue
+		}
+		missingMetadata = true
+
 		// Don't try to reload "command-line-arguments" directly.
 		if pkgPath == "command-line-arguments" {
 			continue
 		}
-		if s.metadata[id] == nil {
-			pkgPathSet[pkgPath] = struct{}{}
-		}
+		pkgPathSet[pkgPath] = struct{}{}
 	}
 	s.mu.Unlock()
+
+	// If the view's build configuration is invalid, we cannot reload by
+	// package path. Just reload the directory instead.
+	if missingMetadata && !s.ValidBuildConfiguration() {
+		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
+	}
 
 	if len(pkgPathSet) == 0 {
 		return nil
 	}
+
 	var pkgPaths []interface{}
 	for pkgPath := range pkgPathSet {
 		pkgPaths = append(pkgPaths, pkgPath)

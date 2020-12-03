@@ -1627,3 +1627,22 @@ package b
 		)
 	})
 }
+
+func TestAdHocPackagesReloading(t *testing.T) {
+	const nomod = `
+-- main.go --
+package main
+
+func main() {}
+`
+	run(t, nomod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.RegexpReplace("main.go", "{}", "{ var x int; }") // simulate typing
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoLogMatching(protocol.Info, "packages=1"),
+			),
+		)
+	})
+}
