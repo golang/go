@@ -17,14 +17,12 @@ rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
 
 # direct access fails (because localhost.localdev does not exist)
-# The text of the error message is hard to predict because some DNS servers
-# will resolve unknown domains like localhost.localdev to a real IP
-# to serve ads.
+# web.get is providing the error message - there's no actual network access.
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=direct
 ! go get -d rsc.io/fortune@v1.0.0
-stderr 'verifying.*localhost.localdev'
+stderr 'verifying module: rsc.io/fortune@v1.0.0: .*: no such host localhost.localdev'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
 

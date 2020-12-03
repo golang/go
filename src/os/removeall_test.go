@@ -355,11 +355,12 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 	// The error should be of type *PathError.
 	// see issue 30491 for details.
 	if pathErr, ok := err.(*PathError); ok {
-		if g, w := pathErr.Path, filepath.Join(tempDir, "b", "y"); g != w {
-			t.Errorf("got %q, expected pathErr.path %q", g, w)
+		want := filepath.Join(tempDir, "b", "y")
+		if pathErr.Path != want {
+			t.Errorf("RemoveAll(%q): err.Path=%q, want %q", tempDir, pathErr.Path, want)
 		}
 	} else {
-		t.Errorf("got %T, expected *fs.PathError", err)
+		t.Errorf("RemoveAll(%q): error has type %T, want *fs.PathError", tempDir, err)
 	}
 
 	for _, dir := range dirs {

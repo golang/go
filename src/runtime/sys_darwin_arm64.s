@@ -120,6 +120,12 @@ TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
 	BL	libc_madvise(SB)
 	RET
 
+TEXT runtime·mlock_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 len
+	MOVD	0(R0), R0	// arg 1 addr
+	BL	libc_mlock(SB)
+	RET
+
 TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 new
 	MOVD	16(R0), R2	// arg 3 old

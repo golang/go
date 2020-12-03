@@ -62,7 +62,7 @@ func main() {
 		return
 	}
 
-	f, err = os.OpenFile(file, os.O_WRONLY, 0)
+	f, err = os.OpenFile(file, os.O_RDWR, 0)
 	if err != nil {
 		log.Fatal(err)
 	}

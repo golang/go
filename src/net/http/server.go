@@ -1468,7 +1468,13 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		return
 	}
 
-	if w.closeAfterReply && (!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) {
+	// Only override the Connection header if it is not a successful
+	// protocol switch response and if KeepAlives are not enabled.
+	// See https://golang.org/issue/36381.
+	delConnectionHeader := w.closeAfterReply &&
+		(!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) &&
+		!isProtocolSwitchResponse(w.status, header)
+	if delConnectionHeader {
 		delHeader("Connection")
 		if w.req.ProtoAtLeast(1, 1) {
 			setHeader.connection = "close"

@@ -55,6 +55,7 @@ var bootstrapDirs = []string{
 	"cmd/compile/internal/x86",
 	"cmd/compile/internal/wasm",
 	"cmd/internal/bio",
+	"cmd/internal/codesign",
 	"cmd/internal/gcprog",
 	"cmd/internal/dwarf",
 	"cmd/internal/edit",

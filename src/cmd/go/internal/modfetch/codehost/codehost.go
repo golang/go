@@ -264,6 +264,9 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, 
 	}
 
 	cmd := str.StringList(cmdline...)
+	if os.Getenv("TESTGOVCS") == "panic" {
+		panic(fmt.Sprintf("use of vcs: %v", cmd))
+	}
 	if cfg.BuildX {
 		text := new(strings.Builder)
 		if dir != "" {

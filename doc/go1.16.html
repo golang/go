@@ -80,16 +80,15 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<p>
-  TODO
-
-  <!-- CL 237697: https://golang.org/cl/237697: cmd/go: error when -c or -i are used with unknown flags -->
-  <!-- CL 255052: https://golang.org/cl/255052: cmd/go: default to GO111MODULE=on -->
-  <!-- CL 266420: https://golang.org/cl/266420: yes (mention go help vcs): cmd/go: add GOVCS setting to control version control usage -->
-  <!-- CL 244773: https://golang.org/cl/244773: cmd/go/internal/modload: drop requirements on excluded versions -->
-</p>
-
 <h4 id="modules">Modules</h4>
+
+<p><!-- golang.org/issue/41330 -->
+  Module-aware mode is enabled by default, regardless of whether a
+  <code>go.mod</code> file is present in the current working directory or a
+  parent directory. Specifically, the <code>GO111MODULE</code> environment
+  variable now defaults to <code>on</code>. To switch to the previous behavior,
+  set <code>GO111MODULE</code> to <code>auto</code>.
+</p>
 
 <p><!-- golang.org/issue/40728 -->
   Build commands like <code>go</code> <code>build</code> and <code>go</code>
@@ -107,9 +106,7 @@ Do not send CLs removing the interior tags from such phrases.
   <code>install</code> to build and install packages in module-aware mode,
   ignoring the <code>go.mod</code> file in the current directory or any parent
   directory, if there is one. This is useful for installing executables without
-  affecting the dependencies of the main module.<br>
-  TODO: write and link to section in golang.org/ref/mod<br>
-  TODO: write and link to blog post
+  affecting the dependencies of the main module.
 </p>
 
 <p><!-- golang.org/issue/40276 -->
@@ -127,8 +124,6 @@ Do not send CLs removing the interior tags from such phrases.
   to indicate that certain published versions of the module should not be used
   by other modules. A module author may retract a version after a severe problem
   is discovered or if the version was published unintentionally.<br>
-  TODO: write and link to section in golang.org/ref/mod<br>
-  TODO: write and link to tutorial or blog post
 </p>
 
 <p><!-- golang.org/issue/26603 -->
@@ -136,6 +131,14 @@ Do not send CLs removing the interior tags from such phrases.
   and <code>go</code> <code>mod</code> <code>tidy</code> subcommands now accept
   the <code>-e</code> flag, which instructs them to proceed despite errors in
   resolving missing packages.
+</p>
+
+<p><!-- golang.org/issue/36465 -->
+  The <code>go</code> command now ignores requirements on module versions
+  excluded by <code>exclude</code> directives in the main module. Previously,
+  the <code>go</code> command used the next version higher than an excluded
+  version, but that version could change over time, resulting in
+  non-reproducible builds.
 </p>
 
 <h4 id="go-test"><code>go</code> <code>test</code></h4>
@@ -150,6 +153,15 @@ Do not send CLs removing the interior tags from such phrases.
   that is still considered to be a passing test.
 </p>
 
+<p><!-- golang.org/issue/39484 -->
+  <code>go</code> <code>test</code> reports an error when the <code>-c</code>
+  or <code>-i</code> flags are used together with unknown flags. Normally,
+  unknown flags are passed to tests, but when <code>-c</code> or <code>-i</code>
+  are used, tests are not run.
+</p>
+
+<h4 id="go-get"><code>go</code> <code>get</code></h4>
+
 <p><!-- golang.org/issue/37519 -->
   The <code>go</code> <code>get</code> <code>-insecure</code> flag is
   deprecated and will be removed in a future version. This flag permits
@@ -161,14 +173,27 @@ Do not send CLs removing the interior tags from such phrases.
   See <code>go</code> <code>help</code> <code>environment</code> for details.
 </p>
 
-<h4 id="go-get"><code>go</code> <code>get</code></h4>
-
 <p><!-- golang.org/cl/263267 -->
   <code>go</code> <code>get</code> <code>example.com/mod@patch</code> now
   requires that some version of <code>example.com/mod</code> already be
   required by the main module.
   (However, <code>go</code> <code>get</code> <code>-u=patch</code> continues
   to patch even newly-added dependencies.)
+</p>
+
+<h4 id="govcs"><code>GOVCS</code> environment variable</h4>
+
+<p><!-- golang.org/issue/266420 -->
+  <code>GOVCS</code> is a new environment variable that limits which version
+  control tools the <code>go</code> command may use to download source code.
+  This mitigates security issues with tools that are typically used in trusted,
+  authenticated environments. By default, <code>git</code> and <code>hg</code>
+  may be used to download code from any repository. <code>svn</code>,
+  <code>bzr</code>, and <code>fossil</code> may only be used to download code
+  from repositories with module paths or package paths matching patterns in
+  the <code>GOPRIVATE</code> environment variable. See
+  <a href="/cmd/go/#hdr-Controlling_version_control_with_GOVCS"><code>go</code>
+  <code>help</code> <code>vcs</code></a> for details.
 </p>
 
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
@@ -380,7 +405,8 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 246637 -->
-      TODO: <a href="https://golang.org/cl/246637">https://golang.org/cl/246637</a>: make config.Clone return nil if the source is nil
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now returns
+      a nil <code>*Config</code> if the source is nil, rather than panicking.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
@@ -416,7 +442,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 257257 -->
-      TODO: <a href="https://golang.org/cl/257257">https://golang.org/cl/257257</a>: return additional chains from Verify on Windows
+      On Windows, <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      will now return all certificate chains that are built by the platform
+      certificate verifier, instead of just the highest ranked chain.
     </p>
 
     <p><!-- CL 262343 -->
@@ -425,16 +453,26 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
+  <dd>
+    <p><!-- CL 255881 -->
+      <a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a> and
+      <a href="/pkg/encoding/asn1/#UnmarshalWithParams">UnmarshalWithParams</a>
+      now return an error instead of panic when the argument is not
+      a pointer or is nil. This change matches the behavior of other
+      encoding packages such as <a href="/pkg/encoding/json">encoding/json</a>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
-    <p><!-- CL 263619 -->
-      The error message for
-      <a href="/pkg/encoding/json/#SyntaxError">SyntaxError</a>
-      now begins with "json: ", matching the other errors in the package.
-    </p>
-
     <p><!-- CL 234818 -->
-      TODO: <a href="https://golang.org/cl/234818">https://golang.org/cl/234818</a>: allow semicolon in field key / struct tag
+      The <code>json</code> struct field tags understood by
+      <a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>,
+      <a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>,
+      and related functionality now permit semicolon characters within
+      a JSON object name for a Go struct field.
     </p>
   </dd>
 </dl><!-- encoding/json -->
@@ -580,7 +618,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 242998 -->
-      TODO: <a href="https://golang.org/cl/242998">https://golang.org/cl/242998</a>: export errFinished as ErrProcessDone
+      <a href="/pkg/os/#Process.Signal"><code>Process.Signal</code></a> now
+      returns <a href="/pkg/os/#ErrProcessDone"><code>ErrProcessDone</code></a>
+      instead of the unexported <code>errFinished</code> when the process has
+      already finished.
     </p>
   </dd>
 </dl><!-- os -->
@@ -636,7 +677,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
     <p><!-- CL 249677 -->
-      TODO: <a href="https://golang.org/cl/249677">https://golang.org/cl/249677</a>: provide Addr method for errors from SetPanicOnFault
+      The <a href="/pkg/runtime#Error"><code>runtime.Error</code> values
+      used when <code>SetPanicOnFault</code> is enabled may now have an
+      <code>Addr</code> method. If that method exists, it returns the memory
+      address that triggered the fault.
     </p>
   </dd>
 </dl><!-- runtime/debug -->
@@ -672,8 +716,9 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
-    <p><!-- CL 254257 -->
-      TODO: <a href="https://golang.org/cl/254257">https://golang.org/cl/254257</a>: allow newlines inside action delimiters
+    <p><!-- CL 254257, golang.org/issue/29770 -->
+      Newlines characters are now allowed inside action delimiters,
+      permitting actions to span multiple lines.
     </p>
   </dd>
 </dl><!-- text/template -->

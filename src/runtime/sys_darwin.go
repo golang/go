@@ -228,6 +228,13 @@ func madvise_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+func mlock(addr unsafe.Pointer, n uintptr) {
+	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
+}
+func mlock_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
 func read(fd int32, p unsafe.Pointer, n int32) int32 {
 	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
 }
@@ -465,6 +472,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mlock mlock "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
