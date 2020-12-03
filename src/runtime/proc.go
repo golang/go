@@ -1363,7 +1363,7 @@ found:
 	checkdead()
 	unlock(&sched.lock)
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		// Make sure pendingPreemptSignals is correct when an M exits.
 		// For #41702.
 		if atomic.Load(&m.signalPending) != 0 {
@@ -3852,7 +3852,7 @@ func syscall_runtime_BeforeExec() {
 
 	// On Darwin, wait for all pending preemption signals to
 	// be received. See issue #41702.
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
 			osyield()
 		}
