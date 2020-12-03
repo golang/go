@@ -807,7 +807,7 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 	n := p.expr(x)
 	if ir.IsConst(n, constant.String) && n.Sym() == nil {
 		nstr = n
-		chunks = append(chunks, nstr.StringVal())
+		chunks = append(chunks, ir.StringVal(nstr))
 	}
 
 	for i := len(adds) - 1; i >= 0; i-- {
@@ -817,12 +817,12 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 		if ir.IsConst(r, constant.String) && r.Sym() == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
-				chunks = append(chunks, r.StringVal())
+				chunks = append(chunks, ir.StringVal(r))
 				continue
 			}
 
 			nstr = r
-			chunks = append(chunks, nstr.StringVal())
+			chunks = append(chunks, ir.StringVal(nstr))
 		} else {
 			if len(chunks) > 1 {
 				nstr.SetVal(constant.MakeString(strings.Join(chunks, "")))

@@ -296,62 +296,6 @@ func (n *Name) SetVal(v constant.Value) {
 	n.val = v
 }
 
-// Int64Val returns n as an int64.
-// n must be an integer or rune constant.
-func (n *Name) Int64Val() int64 {
-	if !IsConst(n, constant.Int) {
-		base.Fatalf("Int64Val(%v)", n)
-	}
-	x, ok := constant.Int64Val(n.Val())
-	if !ok {
-		base.Fatalf("Int64Val(%v)", n)
-	}
-	return x
-}
-
-// CanInt64 reports whether it is safe to call Int64Val() on n.
-func (n *Name) CanInt64() bool {
-	if !IsConst(n, constant.Int) {
-		return false
-	}
-
-	// if the value inside n cannot be represented as an int64, the
-	// return value of Int64 is undefined
-	_, ok := constant.Int64Val(n.Val())
-	return ok
-}
-
-// Uint64Val returns n as an uint64.
-// n must be an integer or rune constant.
-func (n *Name) Uint64Val() uint64 {
-	if !IsConst(n, constant.Int) {
-		base.Fatalf("Uint64Val(%v)", n)
-	}
-	x, ok := constant.Uint64Val(n.Val())
-	if !ok {
-		base.Fatalf("Uint64Val(%v)", n)
-	}
-	return x
-}
-
-// BoolVal returns n as a bool.
-// n must be a boolean constant.
-func (n *Name) BoolVal() bool {
-	if !IsConst(n, constant.Bool) {
-		base.Fatalf("BoolVal(%v)", n)
-	}
-	return constant.BoolVal(n.Val())
-}
-
-// StringVal returns the value of a literal string Node as a string.
-// n must be a string constant.
-func (n *Name) StringVal() string {
-	if !IsConst(n, constant.String) {
-		base.Fatalf("StringVal(%v)", n)
-	}
-	return constant.StringVal(n.Val())
-}
-
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.

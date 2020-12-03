@@ -1054,8 +1054,8 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 					base.Errorf("invalid %s index %v (index must be non-negative)", why, n.Right())
 				} else if t.IsArray() && constant.Compare(x, token.GEQ, constant.MakeInt64(t.NumElem())) {
 					base.Errorf("invalid array index %v (out of bounds for %d-element array)", n.Right(), t.NumElem())
-				} else if ir.IsConst(n.Left(), constant.String) && constant.Compare(x, token.GEQ, constant.MakeInt64(int64(len(n.Left().StringVal())))) {
-					base.Errorf("invalid string index %v (out of bounds for %d-byte string)", n.Right(), len(n.Left().StringVal()))
+				} else if ir.IsConst(n.Left(), constant.String) && constant.Compare(x, token.GEQ, constant.MakeInt64(int64(len(ir.StringVal(n.Left()))))) {
+					base.Errorf("invalid string index %v (out of bounds for %d-byte string)", n.Right(), len(ir.StringVal(n.Left())))
 				} else if doesoverflow(x, types.Types[types.TINT]) {
 					base.Errorf("invalid %s index %v (index too large)", why, n.Right())
 				}
@@ -1146,11 +1146,11 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		l = defaultlit(l, types.Types[types.TINT])
 		c = defaultlit(c, types.Types[types.TINT])
 
-		if ir.IsConst(l, constant.Int) && l.Int64Val() < 0 {
+		if ir.IsConst(l, constant.Int) && ir.Int64Val(l) < 0 {
 			base.Fatalf("len for OSLICEHEADER must be non-negative")
 		}
 
-		if ir.IsConst(c, constant.Int) && c.Int64Val() < 0 {
+		if ir.IsConst(c, constant.Int) && ir.Int64Val(c) < 0 {
 			base.Fatalf("cap for OSLICEHEADER must be non-negative")
 		}
 
@@ -2173,8 +2173,8 @@ func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
 		} else if tp != nil && tp.NumElem() >= 0 && constant.Compare(x, token.GTR, constant.MakeInt64(tp.NumElem())) {
 			base.Errorf("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if ir.IsConst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(l.StringVal())))) {
-			base.Errorf("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.StringVal()))
+		} else if ir.IsConst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(ir.StringVal(l))))) {
+			base.Errorf("invalid slice index %v (out of bounds for %d-byte string)", r, len(ir.StringVal(l)))
 			return false
 		} else if doesoverflow(x, types.Types[types.TINT]) {
 			base.Errorf("invalid slice index %v (index too large)", r)
@@ -3407,7 +3407,7 @@ func stringtoruneslit(n ir.Node) ir.Node {
 
 	var l []ir.Node
 	i := 0
-	for _, r := range n.Left().StringVal() {
+	for _, r := range ir.StringVal(n.Left()) {
 		l = append(l, ir.Nod(ir.OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
 		i++
 	}
@@ -3803,7 +3803,7 @@ func deadcode(fn *ir.Func) {
 				return
 			}
 		case ir.OFOR:
-			if !ir.IsConst(n.Left(), constant.Bool) || n.Left().BoolVal() {
+			if !ir.IsConst(n.Left(), constant.Bool) || ir.BoolVal(n.Left()) {
 				return
 			}
 		default:
@@ -3833,7 +3833,7 @@ func deadcodeslice(nn *ir.Nodes) {
 			n.SetLeft(deadcodeexpr(n.Left()))
 			if ir.IsConst(n.Left(), constant.Bool) {
 				var body ir.Nodes
-				if n.Left().BoolVal() {
+				if ir.BoolVal(n.Left()) {
 					n.SetRlist(ir.Nodes{})
 					body = n.Body()
 				} else {
@@ -3876,7 +3876,7 @@ func deadcodeexpr(n ir.Node) ir.Node {
 		n.SetLeft(deadcodeexpr(n.Left()))
 		n.SetRight(deadcodeexpr(n.Right()))
 		if ir.IsConst(n.Left(), constant.Bool) {
-			if n.Left().BoolVal() {
+			if ir.BoolVal(n.Left()) {
 				return n.Right() // true && x => x
 			} else {
 				return n.Left() // false && x => false
@@ -3886,7 +3886,7 @@ func deadcodeexpr(n ir.Node) ir.Node {
 		n.SetLeft(deadcodeexpr(n.Left()))
 		n.SetRight(deadcodeexpr(n.Right()))
 		if ir.IsConst(n.Left(), constant.Bool) {
-			if n.Left().BoolVal() {
+			if ir.BoolVal(n.Left()) {
 				return n.Left() // true || x => true
 			} else {
 				return n.Right() // false || x => x

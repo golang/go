@@ -134,7 +134,7 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
 	case ir.OSLICELIT:
 		// copy slice
 		a := s.inittemps[r]
-		slicesym(l, a, r.Right().Int64Val())
+		slicesym(l, a, ir.Int64Val(r.Right()))
 		return true
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
@@ -213,7 +213,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
 
 	case ir.OSTR2BYTES:
 		if l.Class() == ir.PEXTERN && r.Left().Op() == ir.OLITERAL {
-			sval := r.Left().StringVal()
+			sval := ir.StringVal(r.Left())
 			slicebytes(l, sval)
 			return true
 		}
@@ -221,7 +221,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
 	case ir.OSLICELIT:
 		s.initplan(r)
 		// Init slice.
-		bound := r.Right().Int64Val()
+		bound := ir.Int64Val(r.Right())
 		ta := types.NewArray(r.Type().Elem(), bound)
 		ta.SetNoalg(true)
 		a := staticname(ta)
@@ -418,7 +418,7 @@ func getdyn(n ir.Node, top bool) initGenType {
 		if !top {
 			return initDynamic
 		}
-		if n.Right().Int64Val()/4 > int64(n.List().Len()) {
+		if ir.Int64Val(n.Right())/4 > int64(n.List().Len()) {
 			// <25% of entries have explicit values.
 			// Very rough estimation, it takes 4 bytes of instructions
 			// to initialize 1 byte of result. So don't use a static
@@ -594,12 +594,12 @@ func isSmallSliceLit(n ir.Node) bool {
 
 	r := n.Right()
 
-	return smallintconst(r) && (n.Type().Elem().Width == 0 || r.Int64Val() <= smallArrayBytes/n.Type().Elem().Width)
+	return smallintconst(r) && (n.Type().Elem().Width == 0 || ir.Int64Val(r) <= smallArrayBytes/n.Type().Elem().Width)
 }
 
 func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
-	t := types.NewArray(n.Type().Elem(), n.Right().Int64Val())
+	t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
 	dowidth(t)
 
 	if ctxt == inNonInitFunction {
@@ -997,7 +997,7 @@ func oaslit(n ir.Node, init *ir.Nodes) bool {
 
 func getlit(lit ir.Node) int {
 	if smallintconst(lit) {
-		return int(lit.Int64Val())
+		return int(ir.Int64Val(lit))
 	}
 	return -1
 }

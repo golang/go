@@ -1271,7 +1271,7 @@ func (s *state) stmt(n ir.Node) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
 			i, j, k := rhs.SliceBounds()
-			if i != nil && (i.Op() == ir.OLITERAL && i.Val().Kind() == constant.Int && i.Int64Val() == 0) {
+			if i != nil && (i.Op() == ir.OLITERAL && i.Val().Kind() == constant.Int && ir.Int64Val(i) == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
 			}
@@ -1301,7 +1301,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OIF:
 		if ir.IsConst(n.Left(), constant.Bool) {
 			s.stmtList(n.Left().Init())
-			if n.Left().BoolVal() {
+			if ir.BoolVal(n.Left()) {
 				s.stmtList(n.Body())
 			} else {
 				s.stmtList(n.Rlist())
@@ -2041,7 +2041,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.OLITERAL:
 		switch u := n.Val(); u.Kind() {
 		case constant.Int:
-			i := ir.Int64Val(n.Type(), u)
+			i := ir.IntVal(n.Type(), u)
 			switch n.Type().Size() {
 			case 1:
 				return s.constInt8(n.Type(), int8(i))
@@ -2624,7 +2624,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 				// Replace "abc"[1] with 'b'.
 				// Delayed until now because "abc"[1] is not an ideal constant.
 				// See test/fixedbugs/issue11370.go.
-				return s.newValue0I(ssa.OpConst8, types.Types[types.TUINT8], int64(int8(n.Left().StringVal()[n.Right().Int64Val()])))
+				return s.newValue0I(ssa.OpConst8, types.Types[types.TUINT8], int64(int8(ir.StringVal(n.Left())[ir.Int64Val(n.Right())])))
 			}
 			a := s.expr(n.Left())
 			i := s.expr(n.Right())
@@ -2633,7 +2633,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			ptrtyp := s.f.Config.Types.BytePtr
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
 			if ir.IsConst(n.Right(), constant.Int) {
-				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right().Int64Val(), ptr)
+				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, ir.Int64Val(n.Right()), ptr)
 			} else {
 				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
 			}
