@@ -85,7 +85,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- golang.org/issue/41330 -->
   Module-aware mode is enabled by default, regardless of whether a
   <code>go.mod</code> file is present in the current working directory or a
-  parent directory. Specifically, the <code>GO111MODULE</code> environment
+  parent directory. More precisely, the <code>GO111MODULE</code> environment
   variable now defaults to <code>on</code>. To switch to the previous behavior,
   set <code>GO111MODULE</code> to <code>auto</code>.
 </p>
@@ -139,6 +139,17 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>go</code> command used the next version higher than an excluded
   version, but that version could change over time, resulting in
   non-reproducible builds.
+</p>
+
+<h4 id="embed">Embedding Files</h4>
+
+<p>
+  The <code>go</code> command now supports including
+  static files and file trees as part of the final executable,
+  using the new <code>//go:embed</code> directive.
+  See the documentation for the new
+  <a href="/pkg/embed/"><code>embed</code></a>
+  package for details.
 </p>
 
 <h4 id="go-test"><code>go</code> <code>test</code></h4>
@@ -260,7 +271,15 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="runtime">Runtime</h2>
 
 <p>
-  TODO
+  The new <a href="/pkg/runtime/metrics/"><code>runtime/metrics</code></a> package
+  introduces a stable interface for reading
+  implementation-defined metrics from the Go runtime.
+  It supersedes existing functions like
+  <a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
+  and
+  <a href="/pkg/runtime/debug/#GCStats"><code>debug.GCStats</code></a>
+  and is significantly more general and efficient.
+  See the package documentation for more details.
 </p>
 
 <p><!-- CL 267100 -->
@@ -313,9 +332,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="library">Core library</h2>
 
+<h3 id="library-embed">Embedded Files</h3>
+
 <p>
-  TODO: mention significant additions like new packages (<code>io/fs</code>),
-  new proposal-scoped features (<code>//go:embed</code>), and so on
+  The new <a href="/pkg/embed/"><code>embed</code></a> package
+  provides access to files embedded in the program during compilation
+  using the new <a href="#embed"><code>//go:embed</code> directive</a>.
+</p>
+
+<h3 id="fs">File Systems</h3>
+
+<p>
+  The new <a href="/pkg/io/fs/"><code>io/fs</code></a> package
+  defines an abstraction for read-only trees of files,
+  the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
+  and the standard library packages have
+  been adapted to make use of the interface as appropriate.
+</p>
+
+<p>
+  On the producer side of the interface,
+  the new <a href="/pkg/embed/#FS">embed.FS</code></a> type
+  implements <code>fs.FS</code>, as does
+  <a href="/pkg/archive/zip/#Reader"><code>zip.Reader</code></a>.
+  The new <a href="/pkg/os/#Dir"><code>os.Dir</code></a> function
+  provides an implementation of <code>fs.FS</code> backed by a tree
+  of operating system files.
+</p>
+
+<p>
+  On the consumer side,
+  the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
+  function converts an <code>fs.FS</code> to an
+  <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+  Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
+  and <a href="/pkg/text/template/"><code>text/template</code></a>
+  packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
+  functions and methods read templates from an <code>fs.FS</code>.
+</p>
+
+<p>
+  For testing code that implements <code>fs.FS</code>,
+  the new <a href="/pkg/testing/fstest/"><code>testing/fstest</code></a>
+  package provides a <a href="/pkg/testing/fstest/#TestFS"><code>TestFS</code></a>
+  function that checks for and reports common mistakes.
+  It also provides a simple in-memory file system implementation,
+  <a href="/pkg/testing/fstest/#MapFS"><code>MapFS</code></a>,
+  which can be useful for testing code that accepts <code>fs.FS</code>
+  implementations.
 </p>
 
 <p>
