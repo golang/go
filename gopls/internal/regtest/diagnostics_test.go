@@ -858,6 +858,8 @@ func TestHello(t *testing.T) {
 
 // Reproduce golang/go#40690.
 func TestCreateOnlyXTest(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
+
 	const mod = `
 -- go.mod --
 module mod.com

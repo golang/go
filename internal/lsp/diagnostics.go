@@ -115,6 +115,11 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		if onDisk && !snapshot.IsOpen(uri) {
 			continue
 		}
+		// If the file is not known to the snapshot (e.g., if it was deleted),
+		// don't diagnose it.
+		if snapshot.FindFile(uri) == nil {
+			continue
+		}
 		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
 		if err != nil {
 			// TODO (findleyr): we should probably do something with the error here,
@@ -133,15 +138,15 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		go func(pkg source.Package) {
 			defer wg.Done()
 
-			_ = s.diagnosePkg(ctx, snapshot, pkg, true)
+			_ = s.diagnosePkg(ctx, snapshot, pkg, false)
 		}(pkg)
 	}
 	wg.Wait()
 }
 
 // diagnose is a helper function for running diagnostics with a given context.
-// Do not call it directly.
-func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) bool {
+// Do not call it directly. forceAnalysis is only true for testing purposes.
+func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAnalysis bool) bool {
 	ctx, done := event.Start(ctx, "Server.diagnose")
 	defer done()
 
@@ -204,7 +209,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		go func(pkg source.Package) {
 			defer wg.Done()
 
-			show := s.diagnosePkg(ctx, snapshot, pkg, alwaysAnalyze)
+			show := s.diagnosePkg(ctx, snapshot, pkg, forceAnalysis)
 			if show {
 				shouldShowMsgMu.Lock()
 				shouldShowMsg = true

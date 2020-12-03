@@ -61,7 +61,7 @@ var GeneratedAPIJSON = &APIJSON{
 				Type:       "time.Duration",
 				Doc:        "experimentalDiagnosticsDelay controls the amount of time that gopls waits\nafter the most recent file modification before computing deep diagnostics.\nSimple diagnostics (parsing and type-checking) are always run immediately\non recently modified packages.\n\nThis option must be set to a valid duration string, for example `\"250ms\"`.\n",
 				EnumValues: nil,
-				Default:    "\"0s\"",
+				Default:    "\"250ms\"",
 			},
 			{
 				Name:       "experimentalPackageCacheKey",

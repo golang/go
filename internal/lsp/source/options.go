@@ -120,8 +120,9 @@ func DefaultOptions() *Options {
 				CompletionBudget: 100 * time.Millisecond,
 			},
 			ExperimentalOptions: ExperimentalOptions{
-				ExpandWorkspaceToModule:     true,
-				ExperimentalPackageCacheKey: true,
+				ExpandWorkspaceToModule:      true,
+				ExperimentalPackageCacheKey:  true,
+				ExperimentalDiagnosticsDelay: 250 * time.Millisecond,
 			},
 			InternalOptions: InternalOptions{
 				LiteralCompletions:      true,
@@ -625,11 +626,10 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
 }
 
 // enableAllExperiments turns on all of the experimental "off-by-default"
-// features offered by gopls.
-// Any experimental features specified in maps should be enabled in
-// enableAllExperimentMaps.
+// features offered by gopls. Any experimental features specified in maps
+// should be enabled in enableAllExperimentMaps.
 func (o *Options) enableAllExperiments() {
-	o.ExperimentalDiagnosticsDelay = 200 * time.Millisecond
+	// There are currently no experimental features in development.
 }
 
 func (o *Options) enableAllExperimentMaps() {

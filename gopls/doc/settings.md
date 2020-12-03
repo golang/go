@@ -228,7 +228,7 @@ on recently modified packages.
 This option must be set to a valid duration string, for example `"250ms"`.
 
 
-Default: `"0s"`.
+Default: `"250ms"`.
 ### **experimentalPackageCacheKey** *bool*
 experimentalPackageCacheKey controls whether to use a coarser cache key
 for package type information to increase cache hits. This setting removes
