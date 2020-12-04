@@ -70,33 +70,12 @@ func copyList(x Nodes) Nodes {
 	return AsNodes(c)
 }
 
-// A Node can implement DeepCopyNode to provide a custom implementation
-// of DeepCopy. If the compiler only needs access to a Node's structure during
-// DeepCopy, then a Node can implement DeepCopyNode instead of providing
-// fine-grained mutable access with Left, SetLeft, Right, SetRight, and so on.
-type DeepCopyNode interface {
-	Node
-	DeepCopy(pos src.XPos) Node
-}
-
 // DeepCopy returns a “deep” copy of n, with its entire structure copied
 // (except for shared nodes like ONAME, ONONAME, OLITERAL, and OTYPE).
 // If pos.IsKnown(), it sets the source position of newly allocated Nodes to pos.
-//
-// The default implementation is to traverse the Node graph, making
-// a shallow copy of each node and then updating each field to point
-// at shallow copies of children, recursively, using Left, SetLeft, and so on.
-//
-// If a Node wishes to provide an alternate implementation, it can
-// implement a DeepCopy method: see the DeepCopyNode interface.
-//
-// TODO(rsc): Once Nodes implement EditChildren, remove the DeepCopyNode interface.
 func DeepCopy(pos src.XPos, n Node) Node {
 	var edit func(Node) Node
 	edit = func(x Node) Node {
-		if x, ok := x.(DeepCopyNode); ok {
-			return x.DeepCopy(pos)
-		}
 		switch x.Op() {
 		case OPACK, ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
 			return x
