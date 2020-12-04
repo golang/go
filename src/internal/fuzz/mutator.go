@@ -6,13 +6,12 @@ package fuzz
 
 import "math/rand"
 
-func mutate(b []byte) []byte {
-	mutated := make([]byte, len(b))
-	copy(mutated, b)
+func mutate(b []byte) {
+	if len(b) == 0 {
+		return
+	}
 
 	// Mutate a byte in a random position.
-	pos := rand.Intn(len(mutated))
-	mutated[pos] = byte(rand.Intn(256))
-
-	return mutated
+	pos := rand.Intn(len(b))
+	b[pos] = byte(rand.Intn(256))
 }

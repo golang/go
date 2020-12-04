@@ -17,11 +17,9 @@ import (
 //
 // When fuzzing, the coordinator creates a sharedMem from a temporary file for
 // each worker. This buffer is used to pass values to fuzz between processes.
-//
-// Care must be taken to synchronize access to shared memory across processes.
-// For example, workerClient and workerServer use an RPC protocol over pipes:
-// workerServer may access shared memory when handling an RPC; workerClient may
-// access shared memory at other times.
+// Care must be taken to manage access to shared memory across processes;
+// sharedMem provides no synchronization on its own. See workerComm for an
+// explanation.
 type sharedMem struct {
 	// f is the file mapped into memory.
 	f *os.File
@@ -81,19 +79,27 @@ func (m *sharedMem) header() *sharedMemHeader {
 	return (*sharedMemHeader)(unsafe.Pointer(&m.region[0]))
 }
 
-// value returns the value currently stored in shared memory. The returned slice
-// points to shared memory; it is not a copy.
-func (m *sharedMem) value() []byte {
+// valueRef returns the value currently stored in shared memory. The returned
+// slice points to shared memory; it is not a copy.
+func (m *sharedMem) valueRef() []byte {
 	length := m.header().length
 	valueOffset := int(unsafe.Sizeof(sharedMemHeader{}))
 	return m.region[valueOffset : valueOffset+length]
+}
+
+// valueCopy returns a copy of the value stored in shared memory.
+func (m *sharedMem) valueCopy() []byte {
+	ref := m.valueRef()
+	b := make([]byte, len(ref))
+	copy(b, ref)
+	return b
 }
 
 // setValue copies the data in b into the shared memory buffer and sets
 // the length. len(b) must be less than or equal to the capacity of the buffer
 // (as returned by cap(m.value())).
 func (m *sharedMem) setValue(b []byte) {
-	v := m.value()
+	v := m.valueRef()
 	if len(b) > cap(v) {
 		panic(fmt.Sprintf("value length %d larger than shared memory capacity %d", len(b), cap(v)))
 	}
