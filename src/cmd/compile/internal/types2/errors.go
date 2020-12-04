@@ -87,6 +87,17 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 		return
 	}
 
+	// If we are encountering an error while evaluating an inherited
+	// constant initialization expression, pos is the position of in
+	// the original expression, and not of the currently declared
+	// constant identifier. Use the provided errpos instead.
+	// TODO(gri) We may also want to augment the error message and
+	// refer to the position (pos) in the original expression.
+	if check.errpos.IsKnown() {
+		assert(check.iota != nil)
+		pos = check.errpos
+	}
+
 	err := Error{pos, stripAnnotations(msg), msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
