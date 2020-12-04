@@ -7,11 +7,13 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // ident type-checks identifier e and initializes x with the value or type of e.
@@ -205,6 +207,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
 	sig.variadic = variadic
+}
+
+// goTypeName returns the Go type name for typ and
+// removes any occurences of "types." from that name.
+func goTypeName(typ Type) string {
+	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
 }
 
 // typInternal drives type checking of types.
@@ -498,7 +506,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// it if it's a valid interface.
 			typ := check.typ(f.Type)
 
-			utyp := check.underlying(typ)
+			utyp := under(typ)
 			if _, ok := utyp.(*Interface); !ok {
 				if utyp != Typ[Invalid] {
 					check.errorf(f.Type, _InvalidIfaceEmbed, "%s is not an interface", typ)
@@ -521,10 +529,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	sort.Sort(byUniqueMethodName(ityp.methods))
 	sort.Stable(byUniqueTypeName(ityp.embeddeds))
 
-	check.later(func() { check.completeInterface(ityp) })
+	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
 
-func (check *Checker) completeInterface(ityp *Interface) {
+func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	if ityp.allMethods != nil {
 		return
 	}
@@ -538,11 +546,18 @@ func (check *Checker) completeInterface(ityp *Interface) {
 	}
 
 	if trace {
-		check.trace(token.NoPos, "complete %s", ityp)
+		// Types don't generally have position information.
+		// If we don't have a valid pos provided, try to use
+		// one close enough.
+		if !pos.IsValid() && len(ityp.methods) > 0 {
+			pos = ityp.methods[0].pos
+		}
+
+		check.trace(pos, "complete %s", ityp)
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(token.NoPos, "=> %s", ityp)
+			check.trace(pos, "=> %s (methods = %v, types = %v)", ityp, ityp.allMethods, ityp.allTypes)
 		}()
 	}
 
@@ -592,25 +607,77 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		addMethod(m.pos, m, true)
 	}
 
+	// collect types
+	allTypes := ityp.types
+
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
-		typ, ok := check.underlying(typ).(*Interface)
-		if !ok {
-			// An error was reported when collecting the embedded types.
-			// Ignore it.
+		utyp := under(typ)
+		etyp := asInterface(utyp)
+		if etyp == nil {
+			if utyp != Typ[Invalid] {
+				var format string
+				if _, ok := utyp.(*TypeParam); ok {
+					format = "%s is a type parameter, not an interface"
+				} else {
+					format = "%s is not an interface"
+				}
+				// TODO: correct error code.
+				check.errorf(atPos(pos), 0, format, typ)
+			}
 			continue
 		}
-		check.completeInterface(typ)
-		for _, m := range typ.allMethods {
+		check.completeInterface(pos, etyp)
+		for _, m := range etyp.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
+		allTypes = intersect(allTypes, etyp.allTypes)
 	}
 
 	if methods != nil {
 		sort.Sort(byUniqueMethodName(methods))
 		ityp.allMethods = methods
 	}
+	ityp.allTypes = allTypes
+}
+
+// intersect computes the intersection of the types x and y.
+// Note: A incomming nil type stands for the top type. A top
+// type result is returned as nil.
+func intersect(x, y Type) (r Type) {
+	defer func() {
+		if r == theTop {
+			r = nil
+		}
+	}()
+
+	switch {
+	case x == theBottom || y == theBottom:
+		return theBottom
+	case x == nil || x == theTop:
+		return y
+	case y == nil || x == theTop:
+		return x
+	}
+
+	xtypes := unpackType(x)
+	ytypes := unpackType(y)
+	// Compute the list rtypes which includes only
+	// types that are in both xtypes and ytypes.
+	// Quadratic algorithm, but good enough for now.
+	// TODO(gri) fix this
+	var rtypes []Type
+	for _, x := range xtypes {
+		if includes(ytypes, x) {
+			rtypes = append(rtypes, x)
+		}
+	}
+
+	if rtypes == nil {
+		return theBottom
+	}
+	return NewSum(rtypes)
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.
@@ -761,4 +828,14 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	}
 	return nil // invalid embedded field
+}
+
+// includes reports whether typ is in list.
+func includes(list []Type, typ Type) bool {
+	for _, e := range list {
+		if Identical(typ, e) {
+			return true
+		}
+	}
+	return false
 }
