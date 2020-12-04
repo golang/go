@@ -47,10 +47,6 @@ type View struct {
 	// background contexts created for this view.
 	baseCtx context.Context
 
-	// backgroundCtx is the current context used by background tasks initiated
-	// by the view.
-	backgroundCtx context.Context
-
 	// cancel is called when all action being performed by the current view
 	// should be stopped.
 	cancel context.CancelFunc
@@ -449,13 +445,6 @@ func (v *View) Session() *Session {
 	return v.session
 }
 
-func (v *View) BackgroundContext() context.Context {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	return v.backgroundCtx
-}
-
 func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
@@ -585,7 +574,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
-	v.cancelBackground()
+	v.snapshot.cancel()
 
 	// Do not clone a snapshot until its view has finished initializing.
 	v.snapshot.AwaitInitialized(ctx)
@@ -597,7 +586,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	oldSnapshot := v.snapshot
 
 	var workspaceChanged bool
-	v.snapshot, workspaceChanged = oldSnapshot.clone(ctx, changes, forceReloadMetadata)
+	v.snapshot, workspaceChanged = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 	if workspaceChanged && v.tempWorkspace != "" {
 		snap := v.snapshot
 		go func() {
@@ -632,17 +621,6 @@ func copyWorkspace(dst span.URI, src span.URI) error {
 		return errors.Errorf("copying modfiles: %w", err)
 	}
 	return nil
-}
-
-func (v *View) cancelBackground() {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.cancel == nil {
-		// this can happen during shutdown
-		return
-	}
-	v.cancel()
-	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 }
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {

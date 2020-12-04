@@ -66,7 +66,7 @@ func hashDiagnostics(diags ...*source.Diagnostic) string {
 }
 
 func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
-	ctx := snapshot.View().BackgroundContext()
+	ctx := snapshot.BackgroundContext()
 	ctx = xcontext.Detach(ctx)
 	showWarning := s.diagnose(ctx, snapshot, false)
 	if showWarning {
@@ -80,7 +80,7 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 }
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool) {
-	ctx := snapshot.View().BackgroundContext()
+	ctx := snapshot.BackgroundContext()
 
 	delay := snapshot.View().Options().ExperimentalDiagnosticsDelay
 	if delay > 0 {

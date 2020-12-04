@@ -31,6 +31,10 @@ type Snapshot interface {
 	// View returns the View associated with this snapshot.
 	View() View
 
+	// BackgroundContext returns a context used for all background processing
+	// on behalf of this snapshot.
+	BackgroundContext() context.Context
+
 	// Fileset returns the Fileset used to parse all the Go files in this snapshot.
 	FileSet() *token.FileSet
 
@@ -202,10 +206,6 @@ type View interface {
 
 	// Folder returns the folder with which this view was created.
 	Folder() span.URI
-
-	// BackgroundContext returns a context used for all background processing
-	// on behalf of this view.
-	BackgroundContext() context.Context
 
 	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)

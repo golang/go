@@ -199,8 +199,6 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		id:                   strconv.FormatInt(index, 10),
 		options:              options,
 		baseCtx:              baseCtx,
-		backgroundCtx:        backgroundCtx,
-		cancel:               cancel,
 		name:                 name,
 		folder:               folder,
 		filesByURI:           make(map[span.URI]*fileBase),
@@ -218,6 +216,8 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 	v.snapshot = &snapshot{
 		id:                snapshotID,
 		view:              v,
+		backgroundCtx:     backgroundCtx,
+		cancel:            cancel,
 		initializeOnce:    &sync.Once{},
 		generation:        s.cache.store.Generation(generationName(v, 0)),
 		packages:          make(map[packageKey]*packageHandle),

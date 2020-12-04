@@ -40,6 +40,9 @@ type snapshot struct {
 	id   uint64
 	view *View
 
+	cancel        func()
+	backgroundCtx context.Context
+
 	// the cache generation that contains the data for this snapshot.
 	generation *memoize.Generation
 
@@ -123,6 +126,10 @@ func (s *snapshot) ID() uint64 {
 
 func (s *snapshot) View() source.View {
 	return s.view
+}
+
+func (s *snapshot) BackgroundContext() context.Context {
+	return s.backgroundCtx
 }
 
 func (s *snapshot) FileSet() *token.FileSet {
@@ -1126,7 +1133,7 @@ func generationName(v *View, snapshotID uint64) string {
 	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
 }
 
-func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
+func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
 	// Track some important types of changes.
 	var (
 		vendorChanged  bool
@@ -1138,10 +1145,13 @@ func (s *snapshot) clone(ctx context.Context, changes map[span.URI]*fileChange, 
 	defer s.mu.Unlock()
 
 	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
+	bgCtx, cancel := context.WithCancel(bgCtx)
 	result := &snapshot{
 		id:                s.id + 1,
 		generation:        newGen,
 		view:              s.view,
+		backgroundCtx:     bgCtx,
+		cancel:            cancel,
 		builtin:           s.builtin,
 		initializeOnce:    s.initializeOnce,
 		initializedErr:    s.initializedErr,
