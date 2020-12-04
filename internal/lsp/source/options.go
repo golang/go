@@ -792,6 +792,12 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "experimentalPackageCacheKey":
 		result.setBool(&o.ExperimentalPackageCacheKey)
 
+	case "allowModfileModifications":
+		result.setBool(&o.AllowModfileModifications)
+
+	case "allowImplicitNetworkAccess":
+		result.setBool(&o.AllowImplicitNetworkAccess)
+
 	case "allExperiments":
 		// This setting should be handled before all of the other options are
 		// processed, so do nothing here.
