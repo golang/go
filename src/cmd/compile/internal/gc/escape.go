@@ -148,7 +148,7 @@ func init() {
 }
 
 // escFmt is called from node printing to print information about escape analysis results.
-func escFmt(n ir.Node, short bool) string {
+func escFmt(n ir.Node) string {
 	text := ""
 	switch n.Esc() {
 	case EscUnknown:
@@ -161,9 +161,7 @@ func escFmt(n ir.Node, short bool) string {
 		text = "esc(no)"
 
 	case EscNever:
-		if !short {
-			text = "esc(N)"
-		}
+		text = "esc(N)"
 
 	default:
 		text = fmt.Sprintf("esc(%d)", n.Esc())

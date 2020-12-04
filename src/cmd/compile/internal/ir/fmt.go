@@ -339,21 +339,19 @@ func nodeFormat(n Node, s fmt.State, verb rune, mode FmtMode) {
 }
 
 // EscFmt is set by the escape analysis code to add escape analysis details to the node print.
-var EscFmt func(n Node, short bool) string
+var EscFmt func(n Node) string
 
 // *Node details
 func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
-	short := flag&FmtShort != 0
-
 	// Useful to see which nodes in an AST printout are actually identical
 	if base.Debug.DumpPtrs != 0 {
 		fmt.Fprintf(s, " p(%p)", n)
 	}
-	if !short && n.Name() != nil && n.Name().Vargen != 0 {
+	if n.Name() != nil && n.Name().Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name().Vargen)
 	}
 
-	if base.Debug.DumpPtrs != 0 && !short && n.Name() != nil && n.Name().Defn != nil {
+	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Defn != nil {
 		// Useful to see where Defn is set and what node it points to
 		fmt.Fprintf(s, " defn(%p)", n.Name().Defn)
 	}
@@ -369,7 +367,7 @@ func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos().Line())
 	}
 
-	if !short && n.Offset() != types.BADWIDTH {
+	if n.Offset() != types.BADWIDTH {
 		fmt.Fprintf(s, " x(%d)", n.Offset())
 	}
 
@@ -382,12 +380,12 @@ func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 	}
 
 	if EscFmt != nil {
-		if esc := EscFmt(n, short); esc != "" {
+		if esc := EscFmt(n); esc != "" {
 			fmt.Fprintf(s, " %s", esc)
 		}
 	}
 
-	if !short && n.Typecheck() != 0 {
+	if n.Typecheck() != 0 {
 		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
 	}
 
@@ -423,11 +421,11 @@ func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 		fmt.Fprint(s, " nonnil")
 	}
 
-	if !short && n.HasCall() {
+	if n.HasCall() {
 		fmt.Fprint(s, " hascall")
 	}
 
-	if !short && n.Name() != nil && n.Name().Used() {
+	if n.Name() != nil && n.Name().Used() {
 		fmt.Fprint(s, " used")
 	}
 }
