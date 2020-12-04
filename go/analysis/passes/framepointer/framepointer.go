@@ -41,7 +41,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	// Find assembly files to work on.
 	var sfiles []string
 	for _, fname := range pass.OtherFiles {
-		if strings.HasSuffix(fname, ".s") {
+		if strings.HasSuffix(fname, ".s") && pass.Pkg.Path() != "runtime" {
 			sfiles = append(sfiles, fname)
 		}
 	}
