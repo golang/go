@@ -501,6 +501,8 @@ var optab = []Optab{
 	{AVMOV, C_REG, C_NONE, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
 	{AVMOV, C_ARNG, C_NONE, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
+	{AVDUP, C_ELEM, C_NONE, C_NONE, C_VREG, 80, 4, 0, 0, 0},
+	{AVDUP, C_REG, C_NONE, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
 	{AVMOVI, C_ADDCON, C_NONE, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
 	{AVFMLA, C_ARNG, C_ARNG, C_NONE, C_ARNG, 72, 4, 0, 0, 0},
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
@@ -4653,13 +4655,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 80: /* vmov V.<T>[index], Vn */
+	case 80: /* vmov/vdup V.<T>[index], Vn */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		imm5 := 0
 		index := int(p.From.Index)
 		switch p.As {
-		case AVMOV:
+		case AVMOV, AVDUP:
 			o1 = 1<<30 | 15<<25 | 1<<10
 			switch (p.From.Reg >> 5) & 15 {
 			case ARNG_B:
@@ -4709,7 +4711,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
 
-	case 82: /* vmov Rn, Vd.<T> */
+	case 82: /* vmov/vdup Rn, Vd.<T> */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		o1 = 7<<25 | 3<<10
@@ -4737,7 +4739,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Q = 1
 			imm5 = 2
 		default:
-			c.ctxt.Diag("invalid arrangement on VMOV Rn, Vd.<T>: %v\n", p)
+			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
 		o1 |= (Q & 1 << 30) | (imm5 & 0x1f << 16)
 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
