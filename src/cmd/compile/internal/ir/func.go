@@ -9,7 +9,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"fmt"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -113,18 +112,6 @@ func NewFunc(pos src.XPos) *Func {
 	f.op = ODCLFUNC
 	f.iota = -1
 	return f
-}
-
-func (f *Func) String() string                { return fmt.Sprint(f) }
-func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
-func (f *Func) copy() Node                    { panic(f.no("copy")) }
-func (f *Func) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(f.body, err, do)
-	return err
-}
-func (f *Func) editChildren(edit func(Node) Node) {
-	editList(f.body, edit)
 }
 
 func (f *Func) Func() *Func           { return f }

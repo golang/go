@@ -7,7 +7,6 @@ package ir
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"fmt"
 )
 
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
@@ -26,18 +25,6 @@ func NewDecl(pos src.XPos, op Op, x Node) *Decl {
 		n.op = op
 	}
 	return n
-}
-
-func (n *Decl) String() string                { return fmt.Sprint(n) }
-func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Decl) copy() Node                    { c := *n; return &c }
-func (n *Decl) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *Decl) editChildren(edit func(Node) Node) {
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *Decl) Left() Node     { return n.X }
@@ -74,28 +61,6 @@ func NewAssignListStmt(pos src.XPos, lhs, rhs []Node) *AssignListStmt {
 	n.Rhs.Set(rhs)
 	n.offset = types.BADWIDTH
 	return n
-}
-
-func (n *AssignListStmt) String() string                { return fmt.Sprint(n) }
-func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignListStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Lhs = c.Lhs.Copy()
-	c.Rhs = c.Rhs.Copy()
-	return &c
-}
-func (n *AssignListStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Lhs, err, do)
-	err = maybeDoList(n.Rhs, err, do)
-	return err
-}
-func (n *AssignListStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Lhs, edit)
-	editList(n.Rhs, edit)
 }
 
 func (n *AssignListStmt) List() Nodes       { return n.Lhs }
@@ -136,26 +101,6 @@ func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
 	return n
 }
 
-func (n *AssignStmt) String() string                { return fmt.Sprint(n) }
-func (n *AssignStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *AssignStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
-}
-func (n *AssignStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
-}
-
 func (n *AssignStmt) Left() Node        { return n.X }
 func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
 func (n *AssignStmt) Right() Node       { return n.Y }
@@ -191,26 +136,6 @@ func NewAssignOpStmt(pos src.XPos, op Op, x, y Node) *AssignOpStmt {
 	return n
 }
 
-func (n *AssignOpStmt) String() string                { return fmt.Sprint(n) }
-func (n *AssignOpStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AssignOpStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *AssignOpStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
-}
-func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
-}
-
 func (n *AssignOpStmt) Left() Node            { return n.X }
 func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
 func (n *AssignOpStmt) Right() Node           { return n.Y }
@@ -234,25 +159,6 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 	n.op = OBLOCK
 	n.list.Set(list)
 	return n
-}
-
-func (n *BlockStmt) String() string                { return fmt.Sprint(n) }
-func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BlockStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.list = c.list.Copy()
-	return &c
-}
-func (n *BlockStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.list, err, do)
-	return err
-}
-func (n *BlockStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.list, edit)
 }
 
 func (n *BlockStmt) List() Nodes     { return n.list }
@@ -281,22 +187,6 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 	return n
 }
 
-func (n *BranchStmt) String() string                { return fmt.Sprint(n) }
-func (n *BranchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BranchStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *BranchStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *BranchStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
-
 func (n *BranchStmt) Sym() *types.Sym       { return n.Label }
 func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
 
@@ -316,33 +206,6 @@ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
 	n.list.Set(list)
 	n.body.Set(body)
 	return n
-}
-
-func (n *CaseStmt) String() string                { return fmt.Sprint(n) }
-func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CaseStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Vars = c.Vars.Copy()
-	c.list = c.list.Copy()
-	c.body = c.body.Copy()
-	return &c
-}
-func (n *CaseStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Vars, err, do)
-	err = maybeDoList(n.list, err, do)
-	err = maybeDo(n.Comm, err, do)
-	err = maybeDoList(n.body, err, do)
-	return err
-}
-func (n *CaseStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Vars, edit)
-	editList(n.list, edit)
-	n.Comm = maybeEdit(n.Comm, edit)
-	editList(n.body, edit)
 }
 
 func (n *CaseStmt) List() Nodes      { return n.list }
@@ -370,24 +233,6 @@ func NewDeferStmt(pos src.XPos, call Node) *DeferStmt {
 	return n
 }
 
-func (n *DeferStmt) String() string                { return fmt.Sprint(n) }
-func (n *DeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *DeferStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *DeferStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Call, err, do)
-	return err
-}
-func (n *DeferStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Call = maybeEdit(n.Call, edit)
-}
-
 func (n *DeferStmt) Left() Node     { return n.Call }
 func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
 
@@ -410,32 +255,6 @@ func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStm
 	n.init.Set(init)
 	n.body.Set(body)
 	return n
-}
-
-func (n *ForStmt) String() string                { return fmt.Sprint(n) }
-func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ForStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Late = c.Late.Copy()
-	c.body = c.body.Copy()
-	return &c
-}
-func (n *ForStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Cond, err, do)
-	err = maybeDoList(n.Late, err, do)
-	err = maybeDo(n.Post, err, do)
-	err = maybeDoList(n.body, err, do)
-	return err
-}
-func (n *ForStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Cond = maybeEdit(n.Cond, edit)
-	editList(n.Late, edit)
-	n.Post = maybeEdit(n.Post, edit)
-	editList(n.body, edit)
 }
 
 func (n *ForStmt) Sym() *types.Sym     { return n.Label }
@@ -473,24 +292,6 @@ func NewGoStmt(pos src.XPos, call Node) *GoStmt {
 	return n
 }
 
-func (n *GoStmt) String() string                { return fmt.Sprint(n) }
-func (n *GoStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *GoStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *GoStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Call, err, do)
-	return err
-}
-func (n *GoStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Call = maybeEdit(n.Call, edit)
-}
-
 func (n *GoStmt) Left() Node     { return n.Call }
 func (n *GoStmt) SetLeft(x Node) { n.Call = x }
 
@@ -510,30 +311,6 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	n.body.Set(body)
 	n.Else.Set(els)
 	return n
-}
-
-func (n *IfStmt) String() string                { return fmt.Sprint(n) }
-func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *IfStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.body = c.body.Copy()
-	c.Else = c.Else.Copy()
-	return &c
-}
-func (n *IfStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Cond, err, do)
-	err = maybeDoList(n.body, err, do)
-	err = maybeDoList(n.Else, err, do)
-	return err
-}
-func (n *IfStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Cond = maybeEdit(n.Cond, edit)
-	editList(n.body, edit)
-	editList(n.Else, edit)
 }
 
 func (n *IfStmt) Left() Node       { return n.Cond }
@@ -560,22 +337,6 @@ func NewInlineMarkStmt(pos src.XPos, index int64) *InlineMarkStmt {
 	return n
 }
 
-func (n *InlineMarkStmt) String() string                { return fmt.Sprint(n) }
-func (n *InlineMarkStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *InlineMarkStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
-
 func (n *InlineMarkStmt) Offset() int64     { return n.Index }
 func (n *InlineMarkStmt) SetOffset(x int64) { n.Index = x }
 
@@ -590,22 +351,6 @@ func NewLabelStmt(pos src.XPos, label *types.Sym) *LabelStmt {
 	n.pos = pos
 	n.op = OLABEL
 	return n
-}
-
-func (n *LabelStmt) String() string                { return fmt.Sprint(n) }
-func (n *LabelStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *LabelStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *LabelStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *LabelStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
 }
 
 func (n *LabelStmt) Sym() *types.Sym     { return n.Label }
@@ -631,30 +376,6 @@ func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
 	n.Vars.Set(vars)
 	n.body.Set(body)
 	return n
-}
-
-func (n *RangeStmt) String() string                { return fmt.Sprint(n) }
-func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *RangeStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Vars = c.Vars.Copy()
-	c.body = c.body.Copy()
-	return &c
-}
-func (n *RangeStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Vars, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.body, err, do)
-	return err
-}
-func (n *RangeStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Vars, edit)
-	n.X = maybeEdit(n.X, edit)
-	editList(n.body, edit)
 }
 
 func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
@@ -690,25 +411,6 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 	return n
 }
 
-func (n *ReturnStmt) String() string                { return fmt.Sprint(n) }
-func (n *ReturnStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ReturnStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Results = c.Results.Copy()
-	return &c
-}
-func (n *ReturnStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Results, err, do)
-	return err
-}
-func (n *ReturnStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Results, edit)
-}
-
 func (n *ReturnStmt) Orig() Node      { return n.orig }
 func (n *ReturnStmt) SetOrig(x Node)  { n.orig = x }
 func (n *ReturnStmt) List() Nodes     { return n.Results }
@@ -733,28 +435,6 @@ func NewSelectStmt(pos src.XPos, cases []Node) *SelectStmt {
 	n.op = OSELECT
 	n.Cases.Set(cases)
 	return n
-}
-
-func (n *SelectStmt) String() string                { return fmt.Sprint(n) }
-func (n *SelectStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SelectStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Cases = c.Cases.Copy()
-	c.Compiled = c.Compiled.Copy()
-	return &c
-}
-func (n *SelectStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Cases, err, do)
-	err = maybeDoList(n.Compiled, err, do)
-	return err
-}
-func (n *SelectStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.Cases, edit)
-	editList(n.Compiled, edit)
 }
 
 func (n *SelectStmt) List() Nodes         { return n.Cases }
@@ -782,26 +462,6 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 	return n
 }
 
-func (n *SendStmt) String() string                { return fmt.Sprint(n) }
-func (n *SendStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SendStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *SendStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Chan, err, do)
-	err = maybeDo(n.Value, err, do)
-	return err
-}
-func (n *SendStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Chan = maybeEdit(n.Chan, edit)
-	n.Value = maybeEdit(n.Value, edit)
-}
-
 func (n *SendStmt) Left() Node      { return n.Chan }
 func (n *SendStmt) SetLeft(x Node)  { n.Chan = x }
 func (n *SendStmt) Right() Node     { return n.Value }
@@ -825,30 +485,6 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []Node) *SwitchStmt {
 	n.op = OSWITCH
 	n.Cases.Set(cases)
 	return n
-}
-
-func (n *SwitchStmt) String() string                { return fmt.Sprint(n) }
-func (n *SwitchStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SwitchStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Cases = c.Cases.Copy()
-	c.Compiled = c.Compiled.Copy()
-	return &c
-}
-func (n *SwitchStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Tag, err, do)
-	err = maybeDoList(n.Cases, err, do)
-	err = maybeDoList(n.Compiled, err, do)
-	return err
-}
-func (n *SwitchStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Tag = maybeEdit(n.Tag, edit)
-	editList(n.Cases, edit)
-	editList(n.Compiled, edit)
 }
 
 func (n *SwitchStmt) Left() Node          { return n.Tag }
@@ -879,24 +515,6 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
 	n.pos = pos
 	n.op = OTYPESW
 	return n
-}
-
-func (n *TypeSwitchGuard) String() string                { return fmt.Sprint(n) }
-func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *TypeSwitchGuard) copy() Node                    { c := *n; return &c }
-func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
-	var err error
-	if n.name != nil {
-		err = maybeDo(n.name, err, do)
-	}
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
-	if n.name != nil {
-		n.name = edit(n.name).(*Name)
-	}
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *TypeSwitchGuard) Left() Node {
