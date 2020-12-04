@@ -218,9 +218,9 @@ func (e *Editor) configuration() map[string]interface{} {
 		config["verboseOutput"] = true
 	}
 
-	// TODO(rFindley): uncomment this if/when diagnostics delay is on by
-	// default... and probably change to the new settings name.
-	// config["experimentalDiagnosticsDelay"] = "10ms"
+	// TODO(rFindley): change to the new settings name once it is no longer
+	// designated experimental.
+	config["experimentalDiagnosticsDelay"] = "10ms"
 
 	// ExperimentalWorkspaceModule is only set as a mode, not a configuration.
 	return config

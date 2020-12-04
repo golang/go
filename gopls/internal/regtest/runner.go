@@ -46,10 +46,6 @@ const (
 	// Experimental enables all of the experimental configurations that are
 	// being developed. Currently, it enables the workspace module.
 	Experimental
-	// WithoutExperiments are the modes that run without experimental features,
-	// like the workspace module. These should be used for tests that only work
-	// in the default modes.
-	WithoutExperiments = Singleton | Forwarded
 	// NormalModes are the global default execution modes, when unmodified by
 	// test flags or by individual test options.
 	NormalModes = Singleton | Experimental

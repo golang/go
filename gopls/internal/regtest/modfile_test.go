@@ -621,7 +621,7 @@ func main() {
 			},
 		},
 		WithProxyFiles(proxy),
-		WithModes(WithoutExperiments),
+		WithModes(Singleton),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
