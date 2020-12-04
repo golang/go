@@ -279,6 +279,8 @@
 // download cache, including unpacked source code of versioned
 // dependencies.
 //
+// The -fuzzcache flag causes clean to remove values used for fuzz testing.
+//
 // For more about build flags, see 'go help build'.
 //
 // For more about specifying packages, see 'go help packages'.

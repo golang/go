@@ -128,8 +128,8 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
-	return fuzz.CoordinateFuzzing(parallel, seed, crashDir)
+func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) error {
+	return fuzz.CoordinateFuzzing(parallel, seed, corpusDir, cacheDir)
 }
 
 func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
