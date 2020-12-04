@@ -14,7 +14,9 @@
 
 package ir
 
-import "errors"
+import (
+	"errors"
+)
 
 // DoChildren calls do(x) on each of n's non-nil child nodes x.
 // If any call returns a non-nil error, DoChildren stops and returns that error.
@@ -86,7 +88,7 @@ import "errors"
 //				found = v
 //				return stop
 //			}
-//			return DoChildren(x, do)
+//			return ir.DoChildren(x, do)
 //		}
 //		do(n)
 //		return found
@@ -100,29 +102,7 @@ func DoChildren(n Node, do func(Node) error) error {
 	if n == nil {
 		return nil
 	}
-	if err := DoList(n.Init(), do); err != nil {
-		return err
-	}
-	if l := n.Left(); l != nil {
-		if err := do(l); err != nil {
-			return err
-		}
-	}
-	if r := n.Right(); r != nil {
-		if err := do(r); err != nil {
-			return err
-		}
-	}
-	if err := DoList(n.List(), do); err != nil {
-		return err
-	}
-	if err := DoList(n.Body(), do); err != nil {
-		return err
-	}
-	if err := DoList(n.Rlist(), do); err != nil {
-		return err
-	}
-	return nil
+	return n.doChildren(do)
 }
 
 // DoList calls f on each non-nil node x in the list, in list order.

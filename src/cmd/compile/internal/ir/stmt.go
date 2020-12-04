@@ -11,7 +11,6 @@ import (
 )
 
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
-// (This is not technically a statement but it's not worth its own file.)
 type Decl struct {
 	miniNode
 	X Node // the thing being declared
@@ -32,8 +31,14 @@ func NewDecl(pos src.XPos, op Op, x Node) *Decl {
 func (n *Decl) String() string                { return fmt.Sprint(n) }
 func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *Decl) copy() Node                    { c := *n; return &c }
-func (n *Decl) Left() Node                    { return n.X }
-func (n *Decl) SetLeft(x Node)                { n.X = x }
+func (n *Decl) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDo(n.X, err, do)
+	return err
+}
+
+func (n *Decl) Left() Node     { return n.X }
+func (n *Decl) SetLeft(x Node) { n.X = x }
 
 // A miniStmt is a miniNode with extra fields common to statements.
 type miniStmt struct {
@@ -76,6 +81,13 @@ func (n *AssignListStmt) copy() Node {
 	c.Lhs = c.Lhs.Copy()
 	c.Rhs = c.Rhs.Copy()
 	return &c
+}
+func (n *AssignListStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.Lhs, err, do)
+	err = maybeDoList(n.Rhs, err, do)
+	return err
 }
 
 func (n *AssignListStmt) List() Nodes       { return n.Lhs }
@@ -123,6 +135,13 @@ func (n *AssignStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *AssignStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.X, err, do)
+	err = maybeDo(n.Y, err, do)
+	return err
+}
 
 func (n *AssignStmt) Left() Node        { return n.X }
 func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
@@ -166,6 +185,13 @@ func (n *AssignOpStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *AssignOpStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.X, err, do)
+	err = maybeDo(n.Y, err, do)
+	return err
+}
 
 func (n *AssignOpStmt) Left() Node            { return n.X }
 func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
@@ -199,6 +225,12 @@ func (n *BlockStmt) copy() Node {
 	c.init = c.init.Copy()
 	c.list = c.list.Copy()
 	return &c
+}
+func (n *BlockStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.list, err, do)
+	return err
 }
 
 func (n *BlockStmt) List() Nodes     { return n.list }
@@ -234,6 +266,11 @@ func (n *BranchStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *BranchStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
 
 func (n *BranchStmt) Sym() *types.Sym       { return n.Label }
 func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
@@ -265,6 +302,15 @@ func (n *CaseStmt) copy() Node {
 	c.list = c.list.Copy()
 	c.body = c.body.Copy()
 	return &c
+}
+func (n *CaseStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.Vars, err, do)
+	err = maybeDoList(n.list, err, do)
+	err = maybeDo(n.Comm, err, do)
+	err = maybeDoList(n.body, err, do)
+	return err
 }
 
 func (n *CaseStmt) List() Nodes      { return n.list }
@@ -299,6 +345,12 @@ func (n *DeferStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *DeferStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Call, err, do)
+	return err
+}
 
 func (n *DeferStmt) Left() Node     { return n.Call }
 func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
@@ -309,8 +361,8 @@ type ForStmt struct {
 	miniStmt
 	Label    *types.Sym
 	Cond     Node
-	Post     Node
 	Late     Nodes
+	Post     Node
 	body     Nodes
 	hasBreak bool
 }
@@ -332,6 +384,15 @@ func (n *ForStmt) copy() Node {
 	c.Late = c.Late.Copy()
 	c.body = c.body.Copy()
 	return &c
+}
+func (n *ForStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Cond, err, do)
+	err = maybeDoList(n.Late, err, do)
+	err = maybeDo(n.Post, err, do)
+	err = maybeDoList(n.body, err, do)
+	return err
 }
 
 func (n *ForStmt) Sym() *types.Sym     { return n.Label }
@@ -376,6 +437,12 @@ func (n *GoStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *GoStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Call, err, do)
+	return err
+}
 
 func (n *GoStmt) Left() Node     { return n.Call }
 func (n *GoStmt) SetLeft(x Node) { n.Call = x }
@@ -406,6 +473,14 @@ func (n *IfStmt) copy() Node {
 	c.body = c.body.Copy()
 	c.Else = c.Else.Copy()
 	return &c
+}
+func (n *IfStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Cond, err, do)
+	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Else, err, do)
+	return err
 }
 
 func (n *IfStmt) Left() Node       { return n.Cond }
@@ -439,6 +514,11 @@ func (n *InlineMarkStmt) copy() Node {
 	c.init = c.init.Copy()
 	return &c
 }
+func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
 
 func (n *InlineMarkStmt) Offset() int64     { return n.Index }
 func (n *InlineMarkStmt) SetOffset(x int64) { n.Index = x }
@@ -462,6 +542,11 @@ func (n *LabelStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	return &c
+}
+func (n *LabelStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
 }
 
 func (n *LabelStmt) Sym() *types.Sym     { return n.Label }
@@ -497,6 +582,14 @@ func (n *RangeStmt) copy() Node {
 	c.Vars = c.Vars.Copy()
 	c.body = c.body.Copy()
 	return &c
+}
+func (n *RangeStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.Vars, err, do)
+	err = maybeDo(n.X, err, do)
+	err = maybeDoList(n.body, err, do)
+	return err
 }
 
 func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
@@ -540,6 +633,12 @@ func (n *ReturnStmt) copy() Node {
 	c.Results = c.Results.Copy()
 	return &c
 }
+func (n *ReturnStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.Results, err, do)
+	return err
+}
 
 func (n *ReturnStmt) Orig() Node      { return n.orig }
 func (n *ReturnStmt) SetOrig(x Node)  { n.orig = x }
@@ -576,6 +675,13 @@ func (n *SelectStmt) copy() Node {
 	c.Compiled = c.Compiled.Copy()
 	return &c
 }
+func (n *SelectStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDoList(n.Cases, err, do)
+	err = maybeDoList(n.Compiled, err, do)
+	return err
+}
 
 func (n *SelectStmt) List() Nodes         { return n.Cases }
 func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
@@ -608,6 +714,13 @@ func (n *SendStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	return &c
+}
+func (n *SendStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Chan, err, do)
+	err = maybeDo(n.Value, err, do)
+	return err
 }
 
 func (n *SendStmt) Left() Node      { return n.Chan }
@@ -644,6 +757,14 @@ func (n *SwitchStmt) copy() Node {
 	c.Compiled = c.Compiled.Copy()
 	return &c
 }
+func (n *SwitchStmt) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Tag, err, do)
+	err = maybeDoList(n.Cases, err, do)
+	err = maybeDoList(n.Compiled, err, do)
+	return err
+}
 
 func (n *SwitchStmt) Left() Node          { return n.Tag }
 func (n *SwitchStmt) SetLeft(x Node)      { n.Tag = x }
@@ -678,6 +799,14 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
 func (n *TypeSwitchGuard) String() string                { return fmt.Sprint(n) }
 func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *TypeSwitchGuard) copy() Node                    { c := *n; return &c }
+func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
+	var err error
+	if n.name != nil {
+		err = maybeDo(n.name, err, do)
+	}
+	err = maybeDo(n.X, err, do)
+	return err
+}
 
 func (n *TypeSwitchGuard) Left() Node {
 	if n.name == nil {

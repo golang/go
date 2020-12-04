@@ -75,6 +75,11 @@ func NewChanType(pos src.XPos, elem Node, dir types.ChanDir) *ChanType {
 func (n *ChanType) String() string                { return fmt.Sprint(n) }
 func (n *ChanType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ChanType) copy() Node                    { c := *n; return &c }
+func (n *ChanType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDo(n.Elem, err, do)
+	return err
+}
 func (n *ChanType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -105,6 +110,12 @@ func NewMapType(pos src.XPos, key, elem Node) *MapType {
 func (n *MapType) String() string                { return fmt.Sprint(n) }
 func (n *MapType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *MapType) copy() Node                    { c := *n; return &c }
+func (n *MapType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDo(n.Key, err, do)
+	err = maybeDo(n.Elem, err, do)
+	return err
+}
 func (n *MapType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Key = nil
@@ -138,6 +149,11 @@ func (n *StructType) copy() Node {
 	c := *n
 	c.Fields = copyFields(c.Fields)
 	return &c
+}
+func (n *StructType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoFields(n.Fields, err, do)
+	return err
 }
 
 func (n *StructType) SetOTYPE(t *types.Type) {
@@ -181,6 +197,11 @@ func (n *InterfaceType) copy() Node {
 	c.Methods = copyFields(c.Methods)
 	return &c
 }
+func (n *InterfaceType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoFields(n.Methods, err, do)
+	return err
+}
 
 func (n *InterfaceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
@@ -220,6 +241,13 @@ func (n *FuncType) copy() Node {
 	c.Params = copyFields(c.Params)
 	c.Results = copyFields(c.Results)
 	return &c
+}
+func (n *FuncType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoField(n.Recv, err, do)
+	err = maybeDoFields(n.Params, err, do)
+	err = maybeDoFields(n.Results, err, do)
+	return err
 }
 
 func (n *FuncType) SetOTYPE(t *types.Type) {
@@ -284,6 +312,31 @@ func copyFields(list []*Field) []*Field {
 	return out
 }
 
+func maybeDoField(f *Field, err error, do func(Node) error) error {
+	if f != nil {
+		if err == nil && f.Decl != nil {
+			err = do(f.Decl)
+		}
+		if err == nil && f.Ntype != nil {
+			err = do(f.Ntype)
+		}
+	}
+	return err
+}
+
+func maybeDoFields(list []*Field, err error, do func(Node) error) error {
+	if err != nil {
+		return err
+	}
+	for _, f := range list {
+		err = maybeDoField(f, err, do)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
 func (f *Field) deepCopy(pos src.XPos) *Field {
 	if f == nil {
 		return nil
@@ -322,6 +375,11 @@ func NewSliceType(pos src.XPos, elem Node) *SliceType {
 func (n *SliceType) String() string                { return fmt.Sprint(n) }
 func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SliceType) copy() Node                    { c := *n; return &c }
+func (n *SliceType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDo(n.Elem, err, do)
+	return err
+}
 func (n *SliceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -353,6 +411,12 @@ func NewArrayType(pos src.XPos, size Node, elem Node) *ArrayType {
 func (n *ArrayType) String() string                { return fmt.Sprint(n) }
 func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ArrayType) copy() Node                    { c := *n; return &c }
+func (n *ArrayType) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDo(n.Len, err, do)
+	err = maybeDo(n.Elem, err, do)
+	return err
+}
 
 func (n *ArrayType) DeepCopy(pos src.XPos) Node {
 	if n.op == OTYPE {
@@ -384,9 +448,13 @@ func newTypeNode(pos src.XPos, typ *types.Type) *typeNode {
 func (n *typeNode) String() string                { return fmt.Sprint(n) }
 func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *typeNode) copy() Node                    { c := *n; return &c }
-func (n *typeNode) Type() *types.Type             { return n.typ }
-func (n *typeNode) Sym() *types.Sym               { return n.typ.Sym() }
-func (n *typeNode) CanBeNtype()                   {}
+func (n *typeNode) doChildren(do func(Node) error) error {
+	return nil
+}
+
+func (n *typeNode) Type() *types.Type { return n.typ }
+func (n *typeNode) Sym() *types.Sym   { return n.typ.Sym() }
+func (n *typeNode) CanBeNtype()       {}
 
 // TypeNode returns the Node representing the type t.
 func TypeNode(t *types.Type) Ntype {
