@@ -187,7 +187,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	switch obj := obj.(type) {
 	case *Const:
 		check.decl = d // new package-level const decl
-		check.constDecl(obj, d.vtyp, d.init)
+		check.constDecl(obj, d.vtyp, d.init, d.inherited)
 	case *Var:
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.vtyp, d.init)
@@ -421,12 +421,16 @@ func firstInSrc(path []Object) int {
 	return fst
 }
 
-func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
+func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited bool) {
 	assert(obj.typ == nil)
 
-	// use the correct value of iota
-	defer func(iota constant.Value) { check.iota = iota }(check.iota)
+	// use the correct value of iota and errpos
+	defer func(iota constant.Value, errpos syntax.Pos) {
+		check.iota = iota
+		check.errpos = errpos
+	}(check.iota, check.errpos)
 	check.iota = obj.val
+	check.errpos = nopos
 
 	// provide valid constant value under all circumstances
 	obj.val = constant.MakeUnknown()
@@ -449,6 +453,15 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
 	// check initialization
 	var x operand
 	if init != nil {
+		if inherited {
+			// The initialization expression is inherited from a previous
+			// constant declaration, and (error) positions refer to that
+			// expression and not the current constant declaration. Use
+			// the constant identifier position for any errors during
+			// init expression evaluation since that is all we have
+			// (see issues #42991, #42992).
+			check.errpos = obj.pos
+		}
 		check.expr(&x, init)
 	}
 	check.initConst(obj, &x)
@@ -898,7 +911,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 					init = values[i]
 				}
 
-				check.constDecl(obj, last.Type, init)
+				check.constDecl(obj, last.Type, init, inherited)
 			}
 
 			// Constants must always have init values.

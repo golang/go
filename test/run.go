@@ -2132,5 +2132,4 @@ var excluded = map[string]bool{
 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
 	"fixedbugs/issue8501.go":   true, // crashes
 	"fixedbugs/issue8507.go":   true, // crashes
-	"fixedbugs/issue8183.go":   true, // issue #42992
 }
