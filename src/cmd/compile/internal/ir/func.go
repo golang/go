@@ -123,6 +123,9 @@ func (f *Func) doChildren(do func(Node) error) error {
 	err = maybeDoList(f.body, err, do)
 	return err
 }
+func (f *Func) editChildren(edit func(Node) Node) {
+	editList(f.body, edit)
+}
 
 func (f *Func) Func() *Func           { return f }
 func (f *Func) Body() Nodes           { return f.body }

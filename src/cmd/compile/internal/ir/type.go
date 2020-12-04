@@ -80,6 +80,9 @@ func (n *ChanType) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Elem, err, do)
 	return err
 }
+func (n *ChanType) editChildren(edit func(Node) Node) {
+	n.Elem = maybeEdit(n.Elem, edit)
+}
 func (n *ChanType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -115,6 +118,10 @@ func (n *MapType) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Key, err, do)
 	err = maybeDo(n.Elem, err, do)
 	return err
+}
+func (n *MapType) editChildren(edit func(Node) Node) {
+	n.Key = maybeEdit(n.Key, edit)
+	n.Elem = maybeEdit(n.Elem, edit)
 }
 func (n *MapType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
@@ -154,6 +161,9 @@ func (n *StructType) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoFields(n.Fields, err, do)
 	return err
+}
+func (n *StructType) editChildren(edit func(Node) Node) {
+	editFields(n.Fields, edit)
 }
 
 func (n *StructType) SetOTYPE(t *types.Type) {
@@ -202,6 +212,9 @@ func (n *InterfaceType) doChildren(do func(Node) error) error {
 	err = maybeDoFields(n.Methods, err, do)
 	return err
 }
+func (n *InterfaceType) editChildren(edit func(Node) Node) {
+	editFields(n.Methods, edit)
+}
 
 func (n *InterfaceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
@@ -248,6 +261,11 @@ func (n *FuncType) doChildren(do func(Node) error) error {
 	err = maybeDoFields(n.Params, err, do)
 	err = maybeDoFields(n.Results, err, do)
 	return err
+}
+func (n *FuncType) editChildren(edit func(Node) Node) {
+	editField(n.Recv, edit)
+	editFields(n.Params, edit)
+	editFields(n.Results, edit)
 }
 
 func (n *FuncType) SetOTYPE(t *types.Type) {
@@ -337,6 +355,24 @@ func maybeDoFields(list []*Field, err error, do func(Node) error) error {
 	return err
 }
 
+func editField(f *Field, edit func(Node) Node) {
+	if f == nil {
+		return
+	}
+	if f.Decl != nil {
+		f.Decl = edit(f.Decl).(*Name)
+	}
+	if f.Ntype != nil {
+		f.Ntype = toNtype(edit(f.Ntype))
+	}
+}
+
+func editFields(list []*Field, edit func(Node) Node) {
+	for _, f := range list {
+		editField(f, edit)
+	}
+}
+
 func (f *Field) deepCopy(pos src.XPos) *Field {
 	if f == nil {
 		return nil
@@ -380,6 +416,9 @@ func (n *SliceType) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Elem, err, do)
 	return err
 }
+func (n *SliceType) editChildren(edit func(Node) Node) {
+	n.Elem = maybeEdit(n.Elem, edit)
+}
 func (n *SliceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Elem = nil
@@ -417,6 +456,10 @@ func (n *ArrayType) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Elem, err, do)
 	return err
 }
+func (n *ArrayType) editChildren(edit func(Node) Node) {
+	n.Len = maybeEdit(n.Len, edit)
+	n.Elem = maybeEdit(n.Elem, edit)
+}
 
 func (n *ArrayType) DeepCopy(pos src.XPos) Node {
 	if n.op == OTYPE {
@@ -451,6 +494,7 @@ func (n *typeNode) copy() Node                    { c := *n; return &c }
 func (n *typeNode) doChildren(do func(Node) error) error {
 	return nil
 }
+func (n *typeNode) editChildren(edit func(Node) Node) {}
 
 func (n *typeNode) Type() *types.Type { return n.typ }
 func (n *typeNode) Sym() *types.Sym   { return n.typ.Sym() }
