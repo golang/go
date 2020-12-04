@@ -153,6 +153,7 @@ func (n *Name) String() string                       { return fmt.Sprint(n) }
 func (n *Name) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
 func (n *Name) copy() Node                           { c := *n; return &c }
 func (n *Name) doChildren(do func(Node) error) error { return nil }
+func (n *Name) editChildren(edit func(Node) Node)    {}
 
 func (n *Name) Name() *Name         { return n }
 func (n *Name) Sym() *types.Sym     { return n.sym }
@@ -327,6 +328,7 @@ func (p *PkgName) String() string                       { return fmt.Sprint(p) }
 func (p *PkgName) Format(s fmt.State, verb rune)        { FmtNode(p, s, verb) }
 func (p *PkgName) copy() Node                           { c := *p; return &c }
 func (p *PkgName) doChildren(do func(Node) error) error { return nil }
+func (p *PkgName) editChildren(edit func(Node) Node) {}
 
 func (p *PkgName) Sym() *types.Sym { return p.sym }
 

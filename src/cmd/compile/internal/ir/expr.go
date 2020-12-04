@@ -26,6 +26,13 @@ func maybeDoList(x Nodes, err error, do func(Node) error) error {
 	return err
 }
 
+func maybeEdit(x Node, edit func(Node) Node) Node {
+	if x == nil {
+		return x
+	}
+	return edit(x)
+}
+
 // A miniStmt is a miniNode with extra fields common to expressions.
 // TODO(rsc): Once we are sure about the contents, compact the bools
 // into a bit field and leave extra bits available for implementations
@@ -102,6 +109,10 @@ func (n *AddStringExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.list, err, do)
 	return err
 }
+func (n *AddStringExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.list, edit)
+}
 
 func (n *AddStringExpr) List() Nodes     { return n.list }
 func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
@@ -134,6 +145,10 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *AddrExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *AddrExpr) Left() Node      { return n.X }
@@ -178,6 +193,11 @@ func (n *BinaryExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	err = maybeDo(n.Y, err, do)
 	return err
+}
+func (n *BinaryExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Y = maybeEdit(n.Y, edit)
 }
 
 func (n *BinaryExpr) Left() Node      { return n.X }
@@ -249,6 +269,13 @@ func (n *CallExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.body, err, do)
 	return err
 }
+func (n *CallExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	editList(n.Args, edit)
+	editList(n.Rargs, edit)
+	editList(n.body, edit)
+}
 
 func (n *CallExpr) Orig() Node         { return n.orig }
 func (n *CallExpr) SetOrig(x Node)     { n.orig = x }
@@ -308,6 +335,10 @@ func (n *CallPartExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	return err
 }
+func (n *CallPartExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+}
 
 func (n *CallPartExpr) Func() *Func     { return n.fn }
 func (n *CallPartExpr) Left() Node      { return n.X }
@@ -339,6 +370,9 @@ func (n *ClosureExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	return err
 }
+func (n *ClosureExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+}
 
 func (n *ClosureExpr) Func() *Func { return n.fn }
 
@@ -369,6 +403,9 @@ func (n *ClosureRead) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	return err
+}
+func (n *ClosureRead) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 // A CompLitExpr is a composite literal Type{Vals}.
@@ -403,6 +440,11 @@ func (n *CompLitExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Ntype, err, do)
 	err = maybeDoList(n.list, err, do)
 	return err
+}
+func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
+	editList(n.list, edit)
 }
 
 func (n *CompLitExpr) Orig() Node      { return n.orig }
@@ -442,6 +484,7 @@ func (n *ConstExpr) String() string                       { return fmt.Sprint(n)
 func (n *ConstExpr) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
 func (n *ConstExpr) copy() Node                           { c := *n; return &c }
 func (n *ConstExpr) doChildren(do func(Node) error) error { return nil }
+func (n *ConstExpr) editChildren(edit func(Node) Node)    {}
 
 func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
 func (n *ConstExpr) Orig() Node          { return n.orig }
@@ -477,6 +520,10 @@ func (n *ConvExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *ConvExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *ConvExpr) rawCopy() Node  { c := *n; return &c }
@@ -520,6 +567,11 @@ func (n *IndexExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	err = maybeDo(n.Index, err, do)
 	return err
+}
+func (n *IndexExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Index = maybeEdit(n.Index, edit)
 }
 
 func (n *IndexExpr) Left() Node               { return n.X }
@@ -569,6 +621,11 @@ func (n *KeyExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Key, err, do)
 	err = maybeDo(n.Value, err, do)
 	return err
+}
+func (n *KeyExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Key = maybeEdit(n.Key, edit)
+	n.Value = maybeEdit(n.Value, edit)
 }
 
 func (n *KeyExpr) Left() Node          { return n.Key }
@@ -621,6 +678,11 @@ func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.ReturnVars, err, do)
 	return err
 }
+func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.body, edit)
+	editList(n.ReturnVars, edit)
+}
 
 func (n *InlinedCallExpr) Body() Nodes      { return n.body }
 func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
@@ -658,6 +720,11 @@ func (n *MakeExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Len, err, do)
 	err = maybeDo(n.Cap, err, do)
 	return err
+}
+func (n *MakeExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Len = maybeEdit(n.Len, edit)
+	n.Cap = maybeEdit(n.Cap, edit)
 }
 
 func (n *MakeExpr) Left() Node      { return n.Len }
@@ -707,6 +774,11 @@ func (n *MethodExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.M, err, do)
 	return err
 }
+func (n *MethodExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.M = maybeEdit(n.M, edit)
+}
 
 func (n *MethodExpr) Left() Node          { return n.X }
 func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
@@ -745,6 +817,9 @@ func (n *NilExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	return err
 }
+func (n *NilExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+}
 
 func (n *NilExpr) Sym() *types.Sym     { return n.sym }
 func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
@@ -775,6 +850,10 @@ func (n *ParenExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *ParenExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *ParenExpr) Left() Node     { return n.X }
@@ -815,6 +894,9 @@ func (n *ResultExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	return err
+}
+func (n *ResultExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 func (n *ResultExpr) Offset() int64     { return n.offset }
@@ -859,6 +941,10 @@ func (n *SelectorExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	return err
 }
+func (n *SelectorExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+}
 
 func (n *SelectorExpr) Left() Node          { return n.X }
 func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
@@ -899,6 +985,11 @@ func (n *SliceExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	err = maybeDoList(n.list, err, do)
 	return err
+}
+func (n *SliceExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	editList(n.list, edit)
 }
 
 func (n *SliceExpr) Left() Node      { return n.X }
@@ -1014,6 +1105,11 @@ func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.lenCap, err, do)
 	return err
 }
+func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Ptr = maybeEdit(n.Ptr, edit)
+	editList(n.lenCap, edit)
+}
 
 func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
 func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
@@ -1047,6 +1143,10 @@ func (n *StarExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *StarExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *StarExpr) Left() Node     { return n.X }
@@ -1106,6 +1206,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Itab, err, do)
 	return err
 }
+func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Ntype = maybeEdit(n.Ntype, edit)
+	editList(n.Itab, edit)
+}
 
 func (n *TypeAssertExpr) Left() Node      { return n.X }
 func (n *TypeAssertExpr) SetLeft(x Node)  { n.X = x }
@@ -1150,6 +1256,10 @@ func (n *UnaryExpr) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *UnaryExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *UnaryExpr) Left() Node     { return n.X }

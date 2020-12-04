@@ -31,6 +31,7 @@ type Node interface {
 	copy() Node
 
 	doChildren(func(Node) error) error
+	editChildren(func(Node) Node)
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op

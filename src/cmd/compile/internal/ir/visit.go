@@ -226,16 +226,7 @@ func EditChildren(n Node, edit func(Node) Node) {
 	if n == nil {
 		return
 	}
-	editList(n.Init(), edit)
-	if l := n.Left(); l != nil {
-		n.SetLeft(edit(l))
-	}
-	if r := n.Right(); r != nil {
-		n.SetRight(edit(r))
-	}
-	editList(n.List(), edit)
-	editList(n.Body(), edit)
-	editList(n.Rlist(), edit)
+	n.editChildren(edit)
 }
 
 // editList calls edit on each non-nil node x in the list,

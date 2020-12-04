@@ -36,6 +36,9 @@ func (n *Decl) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	return err
 }
+func (n *Decl) editChildren(edit func(Node) Node) {
+	n.X = maybeEdit(n.X, edit)
+}
 
 func (n *Decl) Left() Node     { return n.X }
 func (n *Decl) SetLeft(x Node) { n.X = x }
@@ -88,6 +91,11 @@ func (n *AssignListStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Lhs, err, do)
 	err = maybeDoList(n.Rhs, err, do)
 	return err
+}
+func (n *AssignListStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.Lhs, edit)
+	editList(n.Rhs, edit)
 }
 
 func (n *AssignListStmt) List() Nodes       { return n.Lhs }
@@ -142,6 +150,11 @@ func (n *AssignStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Y, err, do)
 	return err
 }
+func (n *AssignStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Y = maybeEdit(n.Y, edit)
+}
 
 func (n *AssignStmt) Left() Node        { return n.X }
 func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
@@ -192,6 +205,11 @@ func (n *AssignOpStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Y, err, do)
 	return err
 }
+func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Y = maybeEdit(n.Y, edit)
+}
 
 func (n *AssignOpStmt) Left() Node            { return n.X }
 func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
@@ -232,6 +250,10 @@ func (n *BlockStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.list, err, do)
 	return err
 }
+func (n *BlockStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.list, edit)
+}
 
 func (n *BlockStmt) List() Nodes     { return n.list }
 func (n *BlockStmt) PtrList() *Nodes { return &n.list }
@@ -270,6 +292,9 @@ func (n *BranchStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	return err
+}
+func (n *BranchStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 func (n *BranchStmt) Sym() *types.Sym       { return n.Label }
@@ -312,6 +337,13 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.body, err, do)
 	return err
 }
+func (n *CaseStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.Vars, edit)
+	editList(n.list, edit)
+	n.Comm = maybeEdit(n.Comm, edit)
+	editList(n.body, edit)
+}
 
 func (n *CaseStmt) List() Nodes      { return n.list }
 func (n *CaseStmt) PtrList() *Nodes  { return &n.list }
@@ -350,6 +382,10 @@ func (n *DeferStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Call, err, do)
 	return err
+}
+func (n *DeferStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Call = maybeEdit(n.Call, edit)
 }
 
 func (n *DeferStmt) Left() Node     { return n.Call }
@@ -393,6 +429,13 @@ func (n *ForStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Post, err, do)
 	err = maybeDoList(n.body, err, do)
 	return err
+}
+func (n *ForStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Cond = maybeEdit(n.Cond, edit)
+	editList(n.Late, edit)
+	n.Post = maybeEdit(n.Post, edit)
+	editList(n.body, edit)
 }
 
 func (n *ForStmt) Sym() *types.Sym     { return n.Label }
@@ -443,6 +486,10 @@ func (n *GoStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Call, err, do)
 	return err
 }
+func (n *GoStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Call = maybeEdit(n.Call, edit)
+}
 
 func (n *GoStmt) Left() Node     { return n.Call }
 func (n *GoStmt) SetLeft(x Node) { n.Call = x }
@@ -482,6 +529,12 @@ func (n *IfStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Else, err, do)
 	return err
 }
+func (n *IfStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Cond = maybeEdit(n.Cond, edit)
+	editList(n.body, edit)
+	editList(n.Else, edit)
+}
 
 func (n *IfStmt) Left() Node       { return n.Cond }
 func (n *IfStmt) SetLeft(x Node)   { n.Cond = x }
@@ -519,6 +572,9 @@ func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	return err
 }
+func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+}
 
 func (n *InlineMarkStmt) Offset() int64     { return n.Index }
 func (n *InlineMarkStmt) SetOffset(x int64) { n.Index = x }
@@ -547,6 +603,9 @@ func (n *LabelStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	return err
+}
+func (n *LabelStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 func (n *LabelStmt) Sym() *types.Sym     { return n.Label }
@@ -590,6 +649,12 @@ func (n *RangeStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	err = maybeDoList(n.body, err, do)
 	return err
+}
+func (n *RangeStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.Vars, edit)
+	n.X = maybeEdit(n.X, edit)
+	editList(n.body, edit)
 }
 
 func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
@@ -639,6 +704,10 @@ func (n *ReturnStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Results, err, do)
 	return err
 }
+func (n *ReturnStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.Results, edit)
+}
 
 func (n *ReturnStmt) Orig() Node      { return n.orig }
 func (n *ReturnStmt) SetOrig(x Node)  { n.orig = x }
@@ -682,6 +751,11 @@ func (n *SelectStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Compiled, err, do)
 	return err
 }
+func (n *SelectStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	editList(n.Cases, edit)
+	editList(n.Compiled, edit)
+}
 
 func (n *SelectStmt) List() Nodes         { return n.Cases }
 func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
@@ -721,6 +795,11 @@ func (n *SendStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Chan, err, do)
 	err = maybeDo(n.Value, err, do)
 	return err
+}
+func (n *SendStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Chan = maybeEdit(n.Chan, edit)
+	n.Value = maybeEdit(n.Value, edit)
 }
 
 func (n *SendStmt) Left() Node      { return n.Chan }
@@ -765,6 +844,12 @@ func (n *SwitchStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.Compiled, err, do)
 	return err
 }
+func (n *SwitchStmt) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Tag = maybeEdit(n.Tag, edit)
+	editList(n.Cases, edit)
+	editList(n.Compiled, edit)
+}
 
 func (n *SwitchStmt) Left() Node          { return n.Tag }
 func (n *SwitchStmt) SetLeft(x Node)      { n.Tag = x }
@@ -806,6 +891,12 @@ func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
 	}
 	err = maybeDo(n.X, err, do)
 	return err
+}
+func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
+	if n.name != nil {
+		n.name = edit(n.name).(*Name)
+	}
+	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *TypeSwitchGuard) Left() Node {
