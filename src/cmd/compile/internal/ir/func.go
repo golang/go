@@ -114,6 +114,8 @@ func NewFunc(pos src.XPos) *Func {
 	return f
 }
 
+func (f *Func) isStmt() {}
+
 func (f *Func) Func() *Func           { return f }
 func (f *Func) Body() Nodes           { return f.body }
 func (f *Func) PtrBody() *Nodes       { return &f.body }

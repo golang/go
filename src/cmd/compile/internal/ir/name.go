@@ -121,6 +121,8 @@ type Name struct {
 	Outer     *Name
 }
 
+func (n *Name) isExpr() {}
+
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
 func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
