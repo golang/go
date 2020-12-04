@@ -6,6 +6,8 @@
 
 package types
 
+import "go/token"
+
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
 // bool indicating if there were any pointer indirections on the path to the
@@ -175,7 +177,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			case *Interface:
 				// look for a matching method
 				// TODO(gri) t.allMethods is sorted - use binary search
-				check.completeInterface(t)
+				check.completeInterface(token.NoPos, t)
 				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -276,7 +278,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
 func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
-	check.completeInterface(T)
+	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
 	if T.Empty() {
@@ -284,7 +286,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	}
 
 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
-		check.completeInterface(ityp)
+		check.completeInterface(token.NoPos, ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
 			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
