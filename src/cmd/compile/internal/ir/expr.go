@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"fmt"
 	"go/constant"
 )
 
@@ -95,25 +94,6 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 	return n
 }
 
-func (n *AddStringExpr) String() string                { return fmt.Sprint(n) }
-func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AddStringExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.list = c.list.Copy()
-	return &c
-}
-func (n *AddStringExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.list, err, do)
-	return err
-}
-func (n *AddStringExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.list, edit)
-}
-
 func (n *AddStringExpr) List() Nodes     { return n.list }
 func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
 func (n *AddStringExpr) SetList(x Nodes) { n.list = x }
@@ -131,24 +111,6 @@ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
 	n.op = OADDR
 	n.pos = pos
 	return n
-}
-
-func (n *AddrExpr) String() string                { return fmt.Sprint(n) }
-func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *AddrExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *AddrExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *AddrExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *AddrExpr) Left() Node      { return n.X }
@@ -178,26 +140,6 @@ func NewBinaryExpr(pos src.XPos, op Op, x, y Node) *BinaryExpr {
 	n.pos = pos
 	n.SetOp(op)
 	return n
-}
-
-func (n *BinaryExpr) String() string                { return fmt.Sprint(n) }
-func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *BinaryExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *BinaryExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Y, err, do)
-	return err
-}
-func (n *BinaryExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Y = maybeEdit(n.Y, edit)
 }
 
 func (n *BinaryExpr) Left() Node      { return n.X }
@@ -250,33 +192,6 @@ func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
 	return n
 }
 
-func (n *CallExpr) String() string                { return fmt.Sprint(n) }
-func (n *CallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Args = c.Args.Copy()
-	c.Rargs = c.Rargs.Copy()
-	c.body = c.body.Copy()
-	return &c
-}
-func (n *CallExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.Args, err, do)
-	err = maybeDoList(n.Rargs, err, do)
-	err = maybeDoList(n.body, err, do)
-	return err
-}
-func (n *CallExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	editList(n.Args, edit)
-	editList(n.Rargs, edit)
-	editList(n.body, edit)
-}
-
 func (n *CallExpr) Orig() Node         { return n.orig }
 func (n *CallExpr) SetOrig(x Node)     { n.orig = x }
 func (n *CallExpr) Left() Node         { return n.X }
@@ -322,24 +237,6 @@ func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallP
 	return n
 }
 
-func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
-func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CallPartExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *CallPartExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *CallPartExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-}
-
 func (n *CallPartExpr) Func() *Func     { return n.fn }
 func (n *CallPartExpr) Left() Node      { return n.X }
 func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
@@ -358,22 +255,6 @@ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 	return n
 }
 
-func (n *ClosureExpr) String() string                { return fmt.Sprint(n) }
-func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ClosureExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *ClosureExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *ClosureExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
-
 func (n *ClosureExpr) Func() *Func { return n.fn }
 
 // A ClosureRead denotes reading a variable stored within a closure struct.
@@ -389,24 +270,8 @@ func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
 	return n
 }
 
-func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
-func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ClosureRead) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-
 func (n *ClosureRead) Type() *types.Type { return n.typ }
 func (n *ClosureRead) Offset() int64     { return n.offset }
-func (n *ClosureRead) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *ClosureRead) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
 
 // A CompLitExpr is a composite literal Type{Vals}.
 // Before type-checking, the type is Ntype.
@@ -424,27 +289,6 @@ func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
 	n.list.Set(list)
 	n.orig = n
 	return n
-}
-
-func (n *CompLitExpr) String() string                { return fmt.Sprint(n) }
-func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *CompLitExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.list = c.list.Copy()
-	return &c
-}
-func (n *CompLitExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.list, err, do)
-	return err
-}
-func (n *CompLitExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
-	editList(n.list, edit)
 }
 
 func (n *CompLitExpr) Orig() Node      { return n.orig }
@@ -480,12 +324,6 @@ func NewConstExpr(val constant.Value, orig Node) Node {
 	return n
 }
 
-func (n *ConstExpr) String() string                       { return fmt.Sprint(n) }
-func (n *ConstExpr) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
-func (n *ConstExpr) copy() Node                           { c := *n; return &c }
-func (n *ConstExpr) doChildren(do func(Node) error) error { return nil }
-func (n *ConstExpr) editChildren(edit func(Node) Node)    {}
-
 func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
 func (n *ConstExpr) Orig() Node          { return n.orig }
 func (n *ConstExpr) SetOrig(orig Node)   { panic(n.no("SetOrig")) }
@@ -495,8 +333,7 @@ func (n *ConstExpr) Val() constant.Value { return n.val }
 // It may end up being a value or a type.
 type ConvExpr struct {
 	miniExpr
-	orig Node
-	X    Node
+	X Node
 }
 
 func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
@@ -504,29 +341,9 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
 	n.pos = pos
 	n.typ = typ
 	n.SetOp(op)
-	n.orig = n
 	return n
 }
 
-func (n *ConvExpr) String() string                { return fmt.Sprint(n) }
-func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ConvExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *ConvExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *ConvExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-}
-
-func (n *ConvExpr) rawCopy() Node  { c := *n; return &c }
 func (n *ConvExpr) Left() Node     { return n.X }
 func (n *ConvExpr) SetLeft(x Node) { n.X = x }
 
@@ -552,26 +369,6 @@ func NewIndexExpr(pos src.XPos, x, index Node) *IndexExpr {
 	n.pos = pos
 	n.op = OINDEX
 	return n
-}
-
-func (n *IndexExpr) String() string                { return fmt.Sprint(n) }
-func (n *IndexExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *IndexExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *IndexExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Index, err, do)
-	return err
-}
-func (n *IndexExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Index = maybeEdit(n.Index, edit)
 }
 
 func (n *IndexExpr) Left() Node               { return n.X }
@@ -608,26 +405,6 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 	return n
 }
 
-func (n *KeyExpr) String() string                { return fmt.Sprint(n) }
-func (n *KeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *KeyExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *KeyExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Key, err, do)
-	err = maybeDo(n.Value, err, do)
-	return err
-}
-func (n *KeyExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Key = maybeEdit(n.Key, edit)
-	n.Value = maybeEdit(n.Value, edit)
-}
-
 func (n *KeyExpr) Left() Node          { return n.Key }
 func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
 func (n *KeyExpr) Right() Node         { return n.Value }
@@ -662,28 +439,6 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 	return n
 }
 
-func (n *InlinedCallExpr) String() string                { return fmt.Sprint(n) }
-func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *InlinedCallExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.body = c.body.Copy()
-	c.ReturnVars = c.ReturnVars.Copy()
-	return &c
-}
-func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.body, err, do)
-	err = maybeDoList(n.ReturnVars, err, do)
-	return err
-}
-func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	editList(n.body, edit)
-	editList(n.ReturnVars, edit)
-}
-
 func (n *InlinedCallExpr) Body() Nodes      { return n.body }
 func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
 func (n *InlinedCallExpr) SetBody(x Nodes)  { n.body = x }
@@ -705,26 +460,6 @@ func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {
 	n.pos = pos
 	n.SetOp(op)
 	return n
-}
-
-func (n *MakeExpr) String() string                { return fmt.Sprint(n) }
-func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MakeExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *MakeExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Len, err, do)
-	err = maybeDo(n.Cap, err, do)
-	return err
-}
-func (n *MakeExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Len = maybeEdit(n.Len, edit)
-	n.Cap = maybeEdit(n.Cap, edit)
 }
 
 func (n *MakeExpr) Left() Node      { return n.Len }
@@ -760,26 +495,6 @@ func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
 	return n
 }
 
-func (n *MethodExpr) String() string                { return fmt.Sprint(n) }
-func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *MethodExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *MethodExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.M, err, do)
-	return err
-}
-func (n *MethodExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.M = maybeEdit(n.M, edit)
-}
-
 func (n *MethodExpr) Left() Node          { return n.X }
 func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
 func (n *MethodExpr) Right() Node         { return n.M }
@@ -805,22 +520,6 @@ func NewNilExpr(pos src.XPos) *NilExpr {
 	return n
 }
 
-func (n *NilExpr) String() string                { return fmt.Sprint(n) }
-func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *NilExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *NilExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *NilExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-}
-
 func (n *NilExpr) Sym() *types.Sym     { return n.sym }
 func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
 
@@ -836,24 +535,6 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
 	n.op = OPAREN
 	n.pos = pos
 	return n
-}
-
-func (n *ParenExpr) String() string                { return fmt.Sprint(n) }
-func (n *ParenExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ParenExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *ParenExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *ParenExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *ParenExpr) Left() Node     { return n.X }
@@ -881,22 +562,6 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
 	n.op = ORESULT
 	n.typ = typ
 	return n
-}
-
-func (n *ResultExpr) String() string                { return fmt.Sprint(n) }
-func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ResultExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *ResultExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	return err
-}
-func (n *ResultExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
 }
 
 func (n *ResultExpr) Offset() int64     { return n.offset }
@@ -928,24 +593,6 @@ func (n *SelectorExpr) SetOp(op Op) {
 	}
 }
 
-func (n *SelectorExpr) String() string                { return fmt.Sprint(n) }
-func (n *SelectorExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SelectorExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *SelectorExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *SelectorExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-}
-
 func (n *SelectorExpr) Left() Node          { return n.X }
 func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
 func (n *SelectorExpr) Sym() *types.Sym     { return n.Sel }
@@ -969,27 +616,6 @@ func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
 	n.pos = pos
 	n.op = op
 	return n
-}
-
-func (n *SliceExpr) String() string                { return fmt.Sprint(n) }
-func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SliceExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.list = c.list.Copy()
-	return &c
-}
-func (n *SliceExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.list, err, do)
-	return err
-}
-func (n *SliceExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	editList(n.list, edit)
 }
 
 func (n *SliceExpr) Left() Node      { return n.X }
@@ -1091,26 +717,6 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	return n
 }
 
-func (n *SliceHeaderExpr) String() string                { return fmt.Sprint(n) }
-func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *SliceHeaderExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Ptr, err, do)
-	err = maybeDoList(n.lenCap, err, do)
-	return err
-}
-func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Ptr = maybeEdit(n.Ptr, edit)
-	editList(n.lenCap, edit)
-}
-
 func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
 func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
 func (n *SliceHeaderExpr) List() Nodes     { return n.lenCap }
@@ -1129,24 +735,6 @@ func NewStarExpr(pos src.XPos, x Node) *StarExpr {
 	n.op = ODEREF
 	n.pos = pos
 	return n
-}
-
-func (n *StarExpr) String() string                { return fmt.Sprint(n) }
-func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *StarExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *StarExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *StarExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *StarExpr) Left() Node     { return n.X }
@@ -1179,29 +767,6 @@ func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
 	return n
 }
 
-func (n *TypeAssertExpr) String() string                { return fmt.Sprint(n) }
-func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *TypeAssertExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	c.Itab = c.Itab.Copy()
-	return &c
-}
-func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.Itab, err, do)
-	return err
-}
-func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.Ntype = maybeEdit(n.Ntype, edit)
-	editList(n.Itab, edit)
-}
-
 func (n *TypeAssertExpr) Left() Node      { return n.X }
 func (n *TypeAssertExpr) SetLeft(x Node)  { n.X = x }
 func (n *TypeAssertExpr) Right() Node     { return n.Ntype }
@@ -1231,24 +796,6 @@ func NewUnaryExpr(pos src.XPos, op Op, x Node) *UnaryExpr {
 	n.pos = pos
 	n.SetOp(op)
 	return n
-}
-
-func (n *UnaryExpr) String() string                { return fmt.Sprint(n) }
-func (n *UnaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *UnaryExpr) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *UnaryExpr) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	return err
-}
-func (n *UnaryExpr) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
 }
 
 func (n *UnaryExpr) Left() Node     { return n.X }

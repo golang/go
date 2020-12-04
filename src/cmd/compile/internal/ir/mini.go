@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run -mod=mod mknode.go
+
 package ir
 
 import (
@@ -32,6 +34,12 @@ type miniNode struct {
 	bits bitset8
 	esc  uint16
 }
+
+func (n *miniNode) String() string                       { panic(1) }
+func (n *miniNode) Format(s fmt.State, verb rune)        { panic(1) }
+func (n *miniNode) copy() Node                           { panic(1) }
+func (n *miniNode) doChildren(do func(Node) error) error { panic(1) }
+func (n *miniNode) editChildren(edit func(Node) Node)    { panic(1) }
 
 // posOr returns pos if known, or else n.pos.
 // For use in DeepCopy.
