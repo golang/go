@@ -88,14 +88,6 @@ func (n *ChanType) SetOTYPE(t *types.Type) {
 	n.Elem = nil
 }
 
-func (n *ChanType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewChanType(n.posOr(pos), DeepCopy(pos, n.Elem), n.Dir)
-}
-
 // A MapType represents a map[Key]Value type syntax.
 type MapType struct {
 	miniType
@@ -127,14 +119,6 @@ func (n *MapType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Key = nil
 	n.Elem = nil
-}
-
-func (n *MapType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewMapType(n.posOr(pos), DeepCopy(pos, n.Key), DeepCopy(pos, n.Elem))
 }
 
 // A StructType represents a struct { ... } type syntax.
@@ -169,14 +153,6 @@ func (n *StructType) editChildren(edit func(Node) Node) {
 func (n *StructType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Fields = nil
-}
-
-func (n *StructType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewStructType(n.posOr(pos), deepCopyFields(pos, n.Fields))
 }
 
 func deepCopyFields(pos src.XPos, fields []*Field) []*Field {
@@ -219,14 +195,6 @@ func (n *InterfaceType) editChildren(edit func(Node) Node) {
 func (n *InterfaceType) SetOTYPE(t *types.Type) {
 	n.setOTYPE(t, n)
 	n.Methods = nil
-}
-
-func (n *InterfaceType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewInterfaceType(n.posOr(pos), deepCopyFields(pos, n.Methods))
 }
 
 // A FuncType represents a func(Args) Results type syntax.
@@ -273,17 +241,6 @@ func (n *FuncType) SetOTYPE(t *types.Type) {
 	n.Recv = nil
 	n.Params = nil
 	n.Results = nil
-}
-
-func (n *FuncType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewFuncType(n.posOr(pos),
-		n.Recv.deepCopy(pos),
-		deepCopyFields(pos, n.Params),
-		deepCopyFields(pos, n.Results))
 }
 
 // A Field is a declared struct field, interface method, or function argument.
@@ -424,14 +381,6 @@ func (n *SliceType) SetOTYPE(t *types.Type) {
 	n.Elem = nil
 }
 
-func (n *SliceType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewSliceType(n.posOr(pos), DeepCopy(pos, n.Elem))
-}
-
 // An ArrayType represents a [Len]Elem type syntax.
 // If Len is nil, the type is a [...]Elem in an array literal.
 type ArrayType struct {
@@ -459,14 +408,6 @@ func (n *ArrayType) doChildren(do func(Node) error) error {
 func (n *ArrayType) editChildren(edit func(Node) Node) {
 	n.Len = maybeEdit(n.Len, edit)
 	n.Elem = maybeEdit(n.Elem, edit)
-}
-
-func (n *ArrayType) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	return NewArrayType(n.posOr(pos), DeepCopy(pos, n.Len), DeepCopy(pos, n.Elem))
 }
 
 func (n *ArrayType) SetOTYPE(t *types.Type) {

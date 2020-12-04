@@ -1163,17 +1163,6 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
 	t.SetNod(n)
 }
 
-func (n *StarExpr) DeepCopy(pos src.XPos) Node {
-	if n.op == OTYPE {
-		// Can't change types and no node references left.
-		return n
-	}
-	c := SepCopy(n).(*StarExpr)
-	c.pos = n.posOr(pos)
-	c.X = DeepCopy(pos, n.X)
-	return c
-}
-
 // A TypeAssertionExpr is a selector expression X.(Type).
 // Before type-checking, the type is Ntype.
 type TypeAssertExpr struct {
