@@ -485,6 +485,9 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 		source.SortDiagnostics(diags)
 		hash := hashDiagnostics(diags...)
 		if hash == r.publishedHash {
+			// Update snapshotID to be the latest snapshot for which this diagnostic
+			// hash is valid.
+			r.snapshotID = snapshot.ID()
 			continue
 		}
 		version := float64(0)
