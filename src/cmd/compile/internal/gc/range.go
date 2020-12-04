@@ -49,7 +49,7 @@ func typecheckrangeExpr(n ir.Node) {
 	// delicate little dance.  see typecheckas2
 	ls := n.List().Slice()
 	for i1, n1 := range ls {
-		if n1.Name() == nil || n1.Name().Defn != n {
+		if !ir.DeclaredBy(n1, n) {
 			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
 		}
 	}
@@ -115,7 +115,7 @@ func typecheckrangeExpr(n ir.Node) {
 	}
 
 	if v1 != nil {
-		if v1.Name() != nil && v1.Name().Defn == n {
+		if ir.DeclaredBy(v1, n) {
 			v1.SetType(t1)
 		} else if v1.Type() != nil {
 			if op, why := assignop(t1, v1.Type()); op == ir.OXXX {
@@ -126,7 +126,7 @@ func typecheckrangeExpr(n ir.Node) {
 	}
 
 	if v2 != nil {
-		if v2.Name() != nil && v2.Name().Defn == n {
+		if ir.DeclaredBy(v2, n) {
 			v2.SetType(t2)
 		} else if v2.Type() != nil {
 			if op, why := assignop(t2, v2.Type()); op == ir.OXXX {
@@ -477,7 +477,7 @@ func isMapClear(n ir.Node) bool {
 	}
 
 	// Require k to be a new variable name.
-	if k.Name() == nil || k.Name().Defn != n {
+	if !ir.DeclaredBy(k, n) {
 		return false
 	}
 
