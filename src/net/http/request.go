@@ -1383,23 +1383,23 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 
 // MultipartFormValue returns the first value for the provided form key
 // MultipartFormValue calls ParseMultipartForm and ParseForm if necessary.
-func (r *Request) MultipartFormValue(key string) (multipart.File, *multipart.FileHeader, error) {
+func (r *Request) MultipartFormValue(key string) (string, error) {
+	nilString := ""
 	if r.MultipartForm == multipartByReader {
-		return nil, nil, errors.New("http: multipart handled by MultipartReader")
+		return nilString, errors.New("http: multipart handled by MultipartReader")
 	}
 	if r.MultipartForm == nil {
 		err := r.ParseMultipartForm(defaultMaxMemory)
 		if err != nil {
-			return nil, nil, err
+			return nilString, err
 		}
 	}
 	if r.MultipartForm != nil && r.MultipartForm.Value != nil {
-		if vhs := r.MultipartForm.Value[key]; len(fhs) > 0 {
-			v, err := vhs[0].Open()
-			return f, vhs[0], err
+		if vhs := r.MultipartForm.Value[key]; len(vhs) > 0 {
+			return vhs[0], nil
 		}
 	}
-	return nil, nil, ErrMissingValue
+	return nilString, ErrMissingValue
 }
 
 func (r *Request) expectsContinue() bool {
