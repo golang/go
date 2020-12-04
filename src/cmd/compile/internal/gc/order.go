@@ -44,9 +44,9 @@ import (
 
 // Order holds state during the ordering process.
 type Order struct {
-	out  []ir.Node            // list of generated statements
-	temp []ir.Node            // stack of temporary variables
-	free map[string][]ir.Node // free list of unused temporaries, by type.LongString().
+	out  []ir.Node             // list of generated statements
+	temp []*ir.Name            // stack of temporary variables
+	free map[string][]*ir.Name // free list of unused temporaries, by type.LongString().
 }
 
 // Order rewrites fn.Nbody to apply the ordering constraints
@@ -57,14 +57,14 @@ func order(fn *ir.Func) {
 		ir.DumpList(s, fn.Body())
 	}
 
-	orderBlock(fn.PtrBody(), map[string][]ir.Node{})
+	orderBlock(fn.PtrBody(), map[string][]*ir.Name{})
 }
 
 // newTemp allocates a new temporary with the given type,
 // pushes it onto the temp stack, and returns it.
 // If clear is true, newTemp emits code to zero the temporary.
 func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
-	var v ir.Node
+	var v *ir.Name
 	// Note: LongString is close to the type equality we want,
 	// but not exactly. We still need to double-check with types.Identical.
 	key := t.LongString()
@@ -415,7 +415,7 @@ func (o *Order) edge() {
 // orderBlock orders the block of statements in n into a new slice,
 // and then replaces the old slice in n with the new slice.
 // free is a map that can be used to obtain temporary variables by type.
-func orderBlock(n *ir.Nodes, free map[string][]ir.Node) {
+func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	var order Order
 	order.free = free
 	mark := order.markTemp()
@@ -446,7 +446,7 @@ func (o *Order) exprInPlace(n ir.Node) ir.Node {
 // The result of orderStmtInPlace MUST be assigned back to n, e.g.
 // 	n.Left = orderStmtInPlace(n.Left)
 // free is a map that can be used to obtain temporary variables by type.
-func orderStmtInPlace(n ir.Node, free map[string][]ir.Node) ir.Node {
+func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
 	var order Order
 	order.free = free
 	mark := order.markTemp()
