@@ -67,7 +67,7 @@ func (w *worker) runFuzzing() error {
 	if err := w.start(); err != nil {
 		// We couldn't start the worker process. We can't do anything, and it's
 		// likely that other workers can't either, so give up.
-		close(w.coordinator.doneC)
+		w.coordinator.errC <- err
 		return err
 	}
 
@@ -84,11 +84,12 @@ func (w *worker) runFuzzing() error {
 		case <-w.termC:
 			// Worker process terminated unexpectedly, so inform the coordinator
 			// that a crash occurred.
-			b := w.mem.value() // These are the bytes that caused the crash.
-			resB := make([]byte, len(b))
-			copy(resB, b)
-			resp := fuzzResponse{Value: resB, Err: "fuzzing process crashed unexpectedly"}
-			w.coordinator.interestingC <- resp
+			value := w.mem.valueCopy()
+			crasher := crasherEntry{
+				corpusEntry: corpusEntry{b: value},
+				errMsg:      "fuzzing process crashed unexpectedly",
+			}
+			w.coordinator.crasherC <- crasher
 
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 			err := w.stop()
@@ -102,7 +103,7 @@ func (w *worker) runFuzzing() error {
 			inputC = nil // block new inputs until we finish with this one.
 			go func() {
 				args := fuzzArgs{Duration: workerFuzzDuration}
-				resp, err := w.client.fuzz(input.b, args)
+				value, resp, err := w.client.fuzz(input.b, args)
 				if err != nil {
 					// TODO(jayconrod): if we get an error here, something failed between
 					// main and the call to testing.F.Fuzz. The error here won't
@@ -113,22 +114,22 @@ func (w *worker) runFuzzing() error {
 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
 					// TODO(jayconrod): time out if the test process hangs.
 					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
+				} else if resp.Err != "" {
+					// The worker found a crasher. Inform the coordinator.
+					crasher := crasherEntry{
+						corpusEntry: corpusEntry{b: value},
+						errMsg:      resp.Err,
+					}
+					w.coordinator.crasherC <- crasher
 				} else {
-					// TODO(jayconrod, katiehockman): Right now, this will just
-					// send an empty fuzzResponse{} if nothing interesting came
-					// up. Probably want to only pass to interestingC if fuzzing
-					// found something interesting.
-
 					// Inform the coordinator that fuzzing found something
 					// interesting (ie. a crash or new coverage).
-					w.coordinator.interestingC <- resp
-
-					if resp.Err == "" {
-						// Only unblock to allow more fuzzing to occur if
-						// everything was successful with the last fuzzing
-						// attempt.
-						fuzzC <- struct{}{}
+					if resp.Interesting {
+						w.coordinator.interestingC <- corpusEntry{b: value}
 					}
+
+					// Continue fuzzing.
+					fuzzC <- struct{}{}
 				}
 				// TODO(jayconrod,katiehockman): gather statistics.
 			}()
@@ -316,17 +317,31 @@ type call struct {
 	Fuzz *fuzzArgs
 }
 
+// fuzzArgs contains arguments to workerServer.fuzz. The value to fuzz is
+// passed in shared memory.
 type fuzzArgs struct {
 	Duration time.Duration
 }
 
+// fuzzResponse contains results from workerServer.fuzz.
 type fuzzResponse struct {
-	Value []byte // The bytes that yielded the response.
-	Err   string // The error if the bytes resulted in a crash, nil otherwise.
+	// Interesting indicates the value in shared memory may be interesting to
+	// the coordinator (for example, because it expanded coverage).
+	Interesting bool
+
+	// Err is set if the value in shared memory caused a crash.
+	Err string
 }
 
 // workerComm holds pipes and shared memory used for communication
 // between the coordinator process (client) and a worker process (server).
+// These values are unique to each worker; they are shared only with the
+// coordinator, not with other workers.
+//
+// Access to shared memory is synchronized implicitly over the RPC protocol
+// implemented in workerServer and workerClient. During a call, the client
+// (worker) has exclusive access to shared memory; at other times, the server
+// (coordinator) has exclusive access.
 type workerComm struct {
 	fuzzIn, fuzzOut *os.File
 	mem             *sharedMem
@@ -369,8 +384,7 @@ func (ws *workerServer) serve() error {
 		var resp interface{}
 		switch {
 		case c.Fuzz != nil:
-			value := ws.mem.value()
-			resp = ws.fuzz(value, *c.Fuzz)
+			resp = ws.fuzz(*c.Fuzz)
 		default:
 			return errors.New("no arguments provided for any call")
 		}
@@ -384,20 +398,21 @@ func (ws *workerServer) serve() error {
 // fuzz runs the test function on random variations of a given input value for
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
-func (ws *workerServer) fuzz(value []byte, args fuzzArgs) fuzzResponse {
+func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
 	t := time.NewTimer(args.Duration)
 	for {
 		select {
 		case <-t.C:
-			return fuzzResponse{}
+			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
+			// real heuristic once we have one.
+			return fuzzResponse{Interesting: true}
 		default:
-			b := mutate(value)
-			ws.mem.setValue(b) // Write the value to memory so it can be recovered it if the process dies
-			if err := ws.fuzzFn(b); err != nil {
-				return fuzzResponse{Value: b, Err: err.Error()}
+			mutate(ws.mem.valueRef())
+			if err := ws.fuzzFn(ws.mem.valueRef()); err != nil {
+				return fuzzResponse{Err: err.Error()}
 			}
-			// TODO(jayconrod,katiehockman): return early if coverage is expanded
-			// by returning a fuzzResponse with the Value set but a nil Err.
+			// TODO(jayconrod,katiehockman): return early if we find an
+			// interesting value.
 		}
 	}
 }
@@ -445,18 +460,16 @@ func (wc *workerClient) Close() error {
 }
 
 // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
-func (wc *workerClient) fuzz(value []byte, args fuzzArgs) (fuzzResponse, error) {
+func (wc *workerClient) fuzz(valueIn []byte, args fuzzArgs) (valueOut []byte, resp fuzzResponse, err error) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
-	wc.mem.setValue(value)
+	wc.mem.setValue(valueIn)
 	c := call{Fuzz: &args}
 	if err := wc.enc.Encode(c); err != nil {
-		return fuzzResponse{}, err
+		return nil, fuzzResponse{}, err
 	}
-	var resp fuzzResponse
-	if err := wc.dec.Decode(&resp); err != nil {
-		return fuzzResponse{}, err
-	}
-	return resp, nil
+	err = wc.dec.Decode(&resp)
+	valueOut = wc.mem.valueCopy()
+	return valueOut, resp, err
 }

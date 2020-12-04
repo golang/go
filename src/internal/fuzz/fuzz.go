@@ -35,7 +35,7 @@ import (
 //
 // If a crash occurs, the function will return an error containing information
 // about the crash, which can be reported to the user.
-func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
+func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error) {
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
@@ -69,7 +69,9 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
 	c := &coordinator{
 		doneC:        make(chan struct{}),
 		inputC:       make(chan corpusEntry),
-		interestingC: make(chan fuzzResponse),
+		interestingC: make(chan corpusEntry),
+		crasherC:     make(chan crasherEntry),
+		errC:         make(chan error),
 	}
 
 	newWorker := func() (*worker, error) {
@@ -110,58 +112,56 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
 		}(i)
 	}
 
+	// Before returning, signal workers to stop, wait for them to actually stop,
+	// and gather any errors they encountered.
+	defer func() {
+		close(c.doneC)
+		wg.Wait()
+		if err == nil {
+			for _, err = range workerErrs {
+				if err != nil {
+					// Return the first error found.
+					return
+				}
+			}
+		}
+	}()
+
 	// Main event loop.
 	stopC := time.After(duration)
 	i := 0
 	for {
 		select {
 		// TODO(jayconrod): handle interruptions like SIGINT.
-		// TODO(jayconrod,katiehockman): receive crashers and new corpus values
-		// from workers.
 
 		case <-stopC:
 			// Time's up.
-			close(c.doneC)
-
-		case <-c.doneC:
-			// Wait for workers to stop and return.
-			wg.Wait()
-			for _, err := range workerErrs {
-				if err != nil {
-					return err
-				}
-			}
 			return nil
 
-		case resp := <-c.interestingC:
-			// Some interesting input arrived from a worker.
-			if resp.Err != "" {
-				// This is a crasher, which should be written to testdata and
-				// reported to the user.
-				fileName, err := writeToCorpus(resp.Value, crashDir)
-				if err == nil {
-					err = fmt.Errorf("    Crash written to: %s\n%s", fileName, resp.Err)
-				}
-				// TODO(jayconrod,katiehockman): if -keepfuzzing, don't stop all
-				// of the workers, but still report to the user.
-
-				// Stop the rest of the workers and wait until they have
-				// stopped before returning this error.
-				close(c.doneC)
-				wg.Wait()
-				return err
-			} else if len(resp.Value) > 0 {
-				// This is not a crasher, but something interesting that should
-				// be added to the on disk corpus and prioritized for future
-				// workers to fuzz.
-
-				corpus.entries = append(corpus.entries, corpusEntry{b: resp.Value})
-				// TODO(jayconrod, katiehockman): Add this to the on disk corpus
-				// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which expanded coverage
+		case crasher := <-c.crasherC:
+			// A worker found a crasher. Write it to testdata and return it.
+			fileName, err := writeToCorpus(crasher.b, crashDir)
+			if err == nil {
+				err = fmt.Errorf("    Crash written to %s\n%s", fileName, crasher.errMsg)
 			}
+			// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
+			// the user and restart the crashed worker.
+			return err
+
+		case entry := <-c.interestingC:
+			// Some interesting input arrived from a worker.
+			// This is not a crasher, but something interesting that should
+			// be added to the on disk corpus and prioritized for future
+			// workers to fuzz.
+			// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which expanded coverage
+			corpus.entries = append(corpus.entries, entry)
+
+		case err := <-c.errC:
+			// A worker encountered a fatal error.
+			return err
 
 		case c.inputC <- corpus.entries[i]:
-			// Sent the next input to any worker.
+			// Send the next input to any worker.
 			// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
 			// which corpus value to send next (or generates something new).
 			i = (i + 1) % len(corpus.entries)
@@ -183,6 +183,11 @@ type corpusEntry struct {
 	b []byte
 }
 
+type crasherEntry struct {
+	corpusEntry
+	errMsg string
+}
+
 // coordinator holds channels that workers can use to communicate with
 // the coordinator.
 type coordinator struct {
@@ -196,9 +201,18 @@ type coordinator struct {
 	inputC chan corpusEntry
 
 	// interestingC is sent interesting values by the worker, which is received
-	// by the coordinator. The interesting value could be a crash or some
-	// value that increased coverage.
-	interestingC chan fuzzResponse
+	// by the coordinator. Values are usually interesting because they
+	// increase coverage.
+	interestingC chan corpusEntry
+
+	// crasherC is sent values that crashed the code being fuzzed. These values
+	// should be saved in the corpus, and we may want to stop fuzzing after
+	// receiving one.
+	crasherC chan crasherEntry
+
+	// errC is sent internal errors encountered by workers. When the coordinator
+	// receives an error, it closes doneC and returns.
+	errC chan error
 }
 
 // ReadCorpus reads the corpus from the testdata directory in this target's
