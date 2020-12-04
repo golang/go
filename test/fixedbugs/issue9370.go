@@ -67,12 +67,12 @@ var (
 	_ = 1 != e
 	_ = 1 >= e // ERROR "invalid operation.*not defined"
 
-	_ = i == 1 // ERROR "invalid operation.*mismatched types"
-	_ = i != 1 // ERROR "invalid operation.*mismatched types"
-	_ = i >= 1 // ERROR "invalid operation.*mismatched types"
-	_ = 1 == i // ERROR "invalid operation.*mismatched types"
-	_ = 1 != i // ERROR "invalid operation.*mismatched types"
-	_ = 1 >= i // ERROR "invalid operation.*mismatched types"
+	_ = i == 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+	_ = i != 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+	_ = i >= 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+	_ = 1 == i // ERROR "invalid operation.*mismatched types|cannot convert"
+	_ = 1 != i // ERROR "invalid operation.*mismatched types|cannot convert"
+	_ = 1 >= i // ERROR "invalid operation.*mismatched types|cannot convert"
 
 	_ = e == f // ERROR "invalid operation.*not defined"
 	_ = e != f // ERROR "invalid operation.*not defined"
