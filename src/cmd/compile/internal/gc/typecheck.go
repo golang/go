@@ -3083,7 +3083,7 @@ func checklvalue(n ir.Node, verb string) {
 
 func checkassign(stmt ir.Node, n ir.Node) {
 	// Variables declared in ORANGE are assigned on every iteration.
-	if n.Name() == nil || n.Name().Defn != stmt || stmt.Op() == ir.ORANGE {
+	if !ir.DeclaredBy(n, stmt) || stmt.Op() == ir.ORANGE {
 		r := outervalue(n)
 		if r.Op() == ir.ONAME {
 			r.Name().SetAssigned(true)
@@ -3192,7 +3192,7 @@ func typecheckas(n ir.Node) {
 	// so that the conversion below happens).
 	n.SetLeft(resolve(n.Left()))
 
-	if n.Left().Name() == nil || n.Left().Name().Defn != n || n.Left().Name().Ntype != nil {
+	if !ir.DeclaredBy(n.Left(), n) || n.Left().Name().Ntype != nil {
 		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxAssign))
 	}
 
@@ -3211,7 +3211,7 @@ func typecheckas(n ir.Node) {
 		}
 	}
 
-	if n.Left().Name() != nil && n.Left().Name().Defn == n && n.Left().Name().Ntype == nil {
+	if ir.DeclaredBy(n.Left(), n) && n.Left().Name().Ntype == nil {
 		n.SetRight(defaultlit(n.Right(), nil))
 		n.Left().SetType(n.Right().Type())
 	}
@@ -3247,7 +3247,7 @@ func typecheckas2(n ir.Node) {
 		n1 = resolve(n1)
 		ls[i1] = n1
 
-		if n1.Name() == nil || n1.Name().Defn != n || n1.Name().Ntype != nil {
+		if !ir.DeclaredBy(n1, n) || n1.Name().Ntype != nil {
 			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
 		}
 	}
@@ -3272,7 +3272,7 @@ func typecheckas2(n ir.Node) {
 			if nl.Type() != nil && nr.Type() != nil {
 				rs[il] = assignconv(nr, nl.Type(), "assignment")
 			}
-			if nl.Name() != nil && nl.Name().Defn == n && nl.Name().Ntype == nil {
+			if ir.DeclaredBy(nl, n) && nl.Name().Ntype == nil {
 				rs[il] = defaultlit(rs[il], nil)
 				nl.SetType(rs[il].Type())
 			}
@@ -3305,7 +3305,7 @@ func typecheckas2(n ir.Node) {
 				if f.Type != nil && l.Type() != nil {
 					checkassignto(f.Type, l)
 				}
-				if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
+				if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
 					l.SetType(f.Type)
 				}
 			}
@@ -3332,14 +3332,14 @@ func typecheckas2(n ir.Node) {
 			if l.Type() != nil {
 				checkassignto(r.Type(), l)
 			}
-			if l.Name() != nil && l.Name().Defn == n {
+			if ir.DeclaredBy(l, n) {
 				l.SetType(r.Type())
 			}
 			l := n.List().Second()
 			if l.Type() != nil && !l.Type().IsBoolean() {
 				checkassignto(types.Types[types.TBOOL], l)
 			}
-			if l.Name() != nil && l.Name().Defn == n && l.Name().Ntype == nil {
+			if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
 				l.SetType(types.Types[types.TBOOL])
 			}
 			goto out
