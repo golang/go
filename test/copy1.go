@@ -17,11 +17,11 @@ func main() {
 	_ = copy()        // ERROR "not enough arguments"
 	_ = copy(1, 2, 3) // ERROR "too many arguments"
 
-	_ = copy(si, "hi") // ERROR "have different element types.*int.*string"
+	_ = copy(si, "hi") // ERROR "have different element types(.*int.*string| int and byte)"
 	_ = copy(si, sf)   // ERROR "have different element types.*int.*float64"
 
-	_ = copy(1, 2)  // ERROR "must be slices; have int, int"
-	_ = copy(1, si) // ERROR "first argument to copy should be"
-	_ = copy(si, 2) // ERROR "second argument to copy should be"
+	_ = copy(1, 2)  // ERROR "must be slices; have int, int|expects slice arguments"
+	_ = copy(1, si) // ERROR "first argument to copy should be|expects slice arguments"
+	_ = copy(si, 2) // ERROR "second argument to copy should be|expects slice arguments"
 
 }

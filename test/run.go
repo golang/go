@@ -740,6 +740,9 @@ func (t *test) run() {
 			t.updateErrors(string(out), long)
 		}
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
+		if t.err != nil {
+			return // don't hide error if run below succeeds
+		}
 
 		// The following is temporary scaffolding to get types2 typechecker
 		// up and running against the existing test cases. The explicitly
@@ -765,6 +768,7 @@ func (t *test) run() {
 		for _, flag := range flags {
 			for _, pattern := range []string{
 				"-+",
+				"-0",
 				"-m",
 				"-live",
 				"wb",
@@ -773,6 +777,7 @@ func (t *test) run() {
 				"typeassert",
 				"ssa/check_bce/debug",
 				"ssa/intrinsics/debug",
+				"ssa/opt/debug",
 				"ssa/prove/debug",
 				"ssa/likelyadjust/debug",
 				"ssa/insert_resched_checks/off",
@@ -1916,44 +1921,26 @@ func overlayDir(dstRoot, srcRoot string) error {
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var excluded = map[string]bool{
-	"complit1.go":      true,
-	"const2.go":        true,
-	"convlit.go":       true,
-	"copy1.go":         true,
-	"ddd1.go":          true,
-	"devirt.go":        true,
-	"directive.go":     true,
-	"float_lit3.go":    true,
-	"func1.go":         true,
-	"funcdup.go":       true,
-	"funcdup2.go":      true,
-	"import1.go":       true,
-	"import5.go":       true,
-	"import6.go":       true,
-	"init.go":          true,
-	"initializerr.go":  true,
-	"initloop.go":      true,
-	"makechan.go":      true,
-	"makemap.go":       true,
-	"makenew.go":       true,
-	"map1.go":          true,
-	"method2.go":       true,
-	"method6.go":       true,
-	"named1.go":        true,
-	"rename1.go":       true,
-	"runtime.go":       true,
-	"shift1.go":        true,
-	"slice3err.go":     true,
-	"switch3.go":       true,
-	"switch4.go":       true,
-	"switch5.go":       true,
-	"switch6.go":       true,
-	"switch7.go":       true,
-	"typecheck.go":     true,
-	"typecheckloop.go": true,
-	"typeswitch3.go":   true,
-	"undef.go":         true,
-	"varerr.go":        true,
+	"complit1.go":     true,
+	"const2.go":       true,
+	"convlit.go":      true,
+	"ddd1.go":         true, // issue #42987
+	"directive.go":    true, // misplaced compiler directive checks
+	"float_lit3.go":   true,
+	"import1.go":      true,
+	"import5.go":      true, // issue #42988
+	"import6.go":      true,
+	"initializerr.go": true,
+	"makechan.go":     true,
+	"makemap.go":      true,
+	"shift1.go":       true, // issue #42989
+	"slice3err.go":    true,
+	"switch3.go":      true,
+	"switch4.go":      true,
+	"switch5.go":      true,
+	"switch6.go":      true,
+	"switch7.go":      true,
+	"typecheck.go":    true, // invalid function is not causing errors when called
 
 	"fixedbugs/bug163.go":      true,
 	"fixedbugs/bug176.go":      true,
@@ -1994,11 +1981,8 @@ var excluded = map[string]bool{
 	"fixedbugs/bug462.go":      true,
 	"fixedbugs/bug463.go":      true,
 	"fixedbugs/bug487.go":      true,
-	"fixedbugs/issue10975.go":  true,
 	"fixedbugs/issue11326.go":  true,
-	"fixedbugs/issue11361.go":  true,
 	"fixedbugs/issue11362.go":  true,
-	"fixedbugs/issue11371.go":  true,
 	"fixedbugs/issue11590.go":  true,
 	"fixedbugs/issue11610.go":  true,
 	"fixedbugs/issue11614.go":  true,
@@ -2148,14 +2132,5 @@ var excluded = map[string]bool{
 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
 	"fixedbugs/issue8501.go":   true, // crashes
 	"fixedbugs/issue8507.go":   true, // crashes
-	"fixedbugs/issue8183.go":   true,
-	"fixedbugs/issue8385.go":   true,
-	"fixedbugs/issue8438.go":   true,
-	"fixedbugs/issue8440.go":   true,
-	"fixedbugs/issue8745.go":   true,
-	"fixedbugs/issue9083.go":   true,
-	"fixedbugs/issue9370.go":   true,
-	"fixedbugs/issue9432.go":   true,
-	"fixedbugs/issue9521.go":   true,
-	"fixedbugs/issue9634.go":   true,
+	"fixedbugs/issue8183.go":   true, // issue #42992
 }
