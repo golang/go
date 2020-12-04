@@ -3860,9 +3860,24 @@ func deadcodeslice(nn *ir.Nodes) {
 		}
 
 		deadcodeslice(n.PtrInit())
-		deadcodeslice(n.PtrBody())
-		deadcodeslice(n.PtrList())
-		deadcodeslice(n.PtrRlist())
+		switch n.Op() {
+		case ir.OBLOCK:
+			deadcodeslice(n.PtrList())
+		case ir.OCASE:
+			deadcodeslice(n.PtrBody())
+		case ir.OFOR:
+			deadcodeslice(n.PtrBody())
+		case ir.OIF:
+			deadcodeslice(n.PtrBody())
+			deadcodeslice(n.PtrRlist())
+		case ir.ORANGE:
+			deadcodeslice(n.PtrBody())
+		case ir.OSELECT:
+			deadcodeslice(n.PtrList())
+		case ir.OSWITCH:
+			deadcodeslice(n.PtrList())
+		}
+
 		if cut {
 			nn.Set(nn.Slice()[:i+1])
 			break
