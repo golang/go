@@ -36,6 +36,7 @@ const (
 // ErrMissingFile is returned by FormFile when the provided file field name
 // is either not present in the request or not a file field.
 var ErrMissingFile = errors.New("http: no such file")
+var ErrMissingValue = errors.New("http: no such value")
 
 // ProtocolError represents an HTTP protocol error.
 //
@@ -1378,6 +1379,27 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 		}
 	}
 	return nil, nil, ErrMissingFile
+}
+
+// MultipartFormValue returns the first value for the provided form key
+// MultipartFormValue calls ParseMultipartForm and ParseForm if necessary.
+func (r *Request) MultipartFormValue(key string) (multipart.File, *multipart.FileHeader, error) {
+	if r.MultipartForm == multipartByReader {
+		return nil, nil, errors.New("http: multipart handled by MultipartReader")
+	}
+	if r.MultipartForm == nil {
+		err := r.ParseMultipartForm(defaultMaxMemory)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	if r.MultipartForm != nil && r.MultipartForm.Value != nil {
+		if vhs := r.MultipartForm.Value[key]; len(fhs) > 0 {
+			v, err := vhs[0].Open()
+			return f, vhs[0], err
+		}
+	}
+	return nil, nil, ErrMissingValue
 }
 
 func (r *Request) expectsContinue() bool {
