@@ -118,14 +118,20 @@ func NewFunc(pos src.XPos) *Func {
 func (f *Func) String() string                { return fmt.Sprint(f) }
 func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
 func (f *Func) copy() Node                    { panic(f.no("copy")) }
-func (f *Func) Func() *Func                   { return f }
-func (f *Func) Body() Nodes                   { return f.body }
-func (f *Func) PtrBody() *Nodes               { return &f.body }
-func (f *Func) SetBody(x Nodes)               { f.body = x }
-func (f *Func) Type() *types.Type             { return f.typ }
-func (f *Func) SetType(x *types.Type)         { f.typ = x }
-func (f *Func) Iota() int64                   { return f.iota }
-func (f *Func) SetIota(x int64)               { f.iota = x }
+func (f *Func) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(f.body, err, do)
+	return err
+}
+
+func (f *Func) Func() *Func           { return f }
+func (f *Func) Body() Nodes           { return f.body }
+func (f *Func) PtrBody() *Nodes       { return &f.body }
+func (f *Func) SetBody(x Nodes)       { f.body = x }
+func (f *Func) Type() *types.Type     { return f.typ }
+func (f *Func) SetType(x *types.Type) { f.typ = x }
+func (f *Func) Iota() int64           { return f.iota }
+func (f *Func) SetIota(x int64)       { f.iota = x }
 
 func (f *Func) Sym() *types.Sym {
 	if f.Nname != nil {

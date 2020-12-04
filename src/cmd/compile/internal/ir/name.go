@@ -149,22 +149,24 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	return n
 }
 
-func (n *Name) String() string                { return fmt.Sprint(n) }
-func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Name) copy() Node                    { c := *n; return &c }
-func (n *Name) Name() *Name                   { return n }
-func (n *Name) Sym() *types.Sym               { return n.sym }
-func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
-func (n *Name) SubOp() Op                     { return n.subOp }
-func (n *Name) SetSubOp(x Op)                 { n.subOp = x }
-func (n *Name) Class() Class                  { return n.class }
-func (n *Name) SetClass(x Class)              { n.class = x }
-func (n *Name) Func() *Func                   { return n.fn }
-func (n *Name) SetFunc(x *Func)               { n.fn = x }
-func (n *Name) Offset() int64                 { return n.offset }
-func (n *Name) SetOffset(x int64)             { n.offset = x }
-func (n *Name) Iota() int64                   { return n.offset }
-func (n *Name) SetIota(x int64)               { n.offset = x }
+func (n *Name) String() string                       { return fmt.Sprint(n) }
+func (n *Name) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
+func (n *Name) copy() Node                           { c := *n; return &c }
+func (n *Name) doChildren(do func(Node) error) error { return nil }
+
+func (n *Name) Name() *Name         { return n }
+func (n *Name) Sym() *types.Sym     { return n.sym }
+func (n *Name) SetSym(x *types.Sym) { n.sym = x }
+func (n *Name) SubOp() Op           { return n.subOp }
+func (n *Name) SetSubOp(x Op)       { n.subOp = x }
+func (n *Name) Class() Class        { return n.class }
+func (n *Name) SetClass(x Class)    { n.class = x }
+func (n *Name) Func() *Func         { return n.fn }
+func (n *Name) SetFunc(x *Func)     { n.fn = x }
+func (n *Name) Offset() int64       { return n.offset }
+func (n *Name) SetOffset(x int64)   { n.offset = x }
+func (n *Name) Iota() int64         { return n.offset }
+func (n *Name) SetIota(x int64)     { n.offset = x }
 
 func (*Name) CanBeNtype() {}
 
@@ -321,10 +323,12 @@ type PkgName struct {
 	Used bool
 }
 
-func (p *PkgName) String() string                { return fmt.Sprint(p) }
-func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
-func (p *PkgName) copy() Node                    { c := *p; return &c }
-func (p *PkgName) Sym() *types.Sym               { return p.sym }
+func (p *PkgName) String() string                       { return fmt.Sprint(p) }
+func (p *PkgName) Format(s fmt.State, verb rune)        { FmtNode(p, s, verb) }
+func (p *PkgName) copy() Node                           { c := *p; return &c }
+func (p *PkgName) doChildren(do func(Node) error) error { return nil }
+
+func (p *PkgName) Sym() *types.Sym { return p.sym }
 
 func (*PkgName) CanBeNtype() {}
 
