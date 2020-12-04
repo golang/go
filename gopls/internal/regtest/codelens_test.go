@@ -72,7 +72,7 @@ const (
 // dependencies in a go.mod file. It checks for the code lens that suggests
 // an update and then executes the command associated with that code lens. A
 // regression test for golang/go#39446.
-func TestUpdateCodelens(t *testing.T) {
+func TestUpgradeCodelens(t *testing.T) {
 	const proxyWithLatest = `
 -- golang.org/x/hello@v1.3.3/go.mod --
 module golang.org/x/hello
@@ -111,21 +111,46 @@ func main() {
 	_ = hi.Goodbye
 }
 `
-	runner.Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
-		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", source.CommandUpgradeDependency)
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
-		got := env.Editor.BufferText("go.mod")
-		const wantGoMod = `module mod.com
+	for _, commandTitle := range []string{
+		"Upgrade transitive dependencies",
+		"Upgrade direct dependencies",
+	} {
+		t.Run(commandTitle, func(t *testing.T) {
+			withOptions(
+				WithProxyFiles(proxyWithLatest),
+			).run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
+				env.OpenFile("go.mod")
+				var lens protocol.CodeLens
+				var found bool
+				for _, l := range env.CodeLens("go.mod") {
+					if l.Command.Title == commandTitle {
+						lens = l
+						found = true
+					}
+				}
+				if !found {
+					t.Fatalf("found no command with the title %s", commandTitle)
+				}
+				if _, err := env.Editor.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
+					Command:   lens.Command.Command,
+					Arguments: lens.Command.Arguments,
+				}); err != nil {
+					t.Fatal(err)
+				}
+				env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
+				got := env.Editor.BufferText("go.mod")
+				const wantGoMod = `module mod.com
 
 go 1.12
 
 require golang.org/x/hello v1.3.3
 `
-		if got != wantGoMod {
-			t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(wantGoMod, got))
-		}
-	}, WithProxyFiles(proxyWithLatest))
+				if got != wantGoMod {
+					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(wantGoMod, got))
+				}
+			})
+		})
+	}
 }
 
 func TestUnusedDependenciesCodelens(t *testing.T) {

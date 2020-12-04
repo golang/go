@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -14,13 +15,13 @@ import (
 // LensFuncs returns the supported lensFuncs for go.mod files.
 func LensFuncs() map[string]source.LensFunc {
 	return map[string]source.LensFunc{
-		source.CommandUpgradeDependency.Name: upgradeLens,
+		source.CommandUpgradeDependency.Name: upgradeLenses,
 		source.CommandTidy.Name:              tidyLens,
 		source.CommandVendor.Name:            vendorLens,
 	}
 }
 
-func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {
+func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil || pm.File == nil {
 		return nil, err
@@ -29,22 +30,41 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 		// Nothing to upgrade.
 		return nil, nil
 	}
-	upgradeDepArgs, err := source.MarshalArgs(fh.URI(), false, []string{"-u", "all"})
+	upgradeTransitiveArgs, err := source.MarshalArgs(fh.URI(), false, []string{"-u", "all"})
 	if err != nil {
 		return nil, err
 	}
-	rng, err := moduleStmtRange(fh, pm)
+	var requires []string
+	for _, req := range pm.File.Require {
+		requires = append(requires, req.Mod.Path)
+	}
+	upgradeDirectArgs, err := source.MarshalArgs(fh.URI(), false, requires)
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.CodeLens{{
-		Range: rng,
-		Command: protocol.Command{
-			Title:     "Upgrade all dependencies",
-			Command:   source.CommandUpgradeDependency.ID(),
-			Arguments: upgradeDepArgs,
+	// Put the upgrade code lenses above the first require block or statement.
+	rng, err := firstRequireRange(fh, pm)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeLens{
+		{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "Upgrade transitive dependencies",
+				Command:   source.CommandUpgradeDependency.ID(),
+				Arguments: upgradeTransitiveArgs,
+			},
 		},
-	}}, nil
+		{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "Upgrade direct dependencies",
+				Command:   source.CommandUpgradeDependency.ID(),
+				Arguments: upgradeDirectArgs,
+			},
+		},
+	}, nil
 
 }
 
@@ -110,19 +130,40 @@ func moduleStmtRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.Ra
 		return protocol.Range{}, fmt.Errorf("no module statement in %s", fh.URI())
 	}
 	syntax := pm.File.Module.Syntax
-	line, col, err := pm.Mapper.Converter.ToPosition(syntax.Start.Byte)
+	return lineToRange(pm.Mapper, fh.URI(), syntax.Start, syntax.End)
+}
+
+// firstRequireRange returns the range for the first "require" in the given
+// go.mod file. This is either a require block or an individual require line.
+func firstRequireRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.Range, error) {
+	if len(pm.File.Require) == 0 {
+		return protocol.Range{}, fmt.Errorf("no requires in the file %s", fh.URI())
+	}
+	var start, end modfile.Position
+	for _, stmt := range pm.File.Syntax.Stmt {
+		if b, ok := stmt.(*modfile.LineBlock); ok && len(b.Token) == 1 && b.Token[0] == "require" {
+			start, end = b.Span()
+			break
+		}
+	}
+
+	firstRequire := pm.File.Require[0].Syntax
+	if firstRequire.Start.Byte < start.Byte {
+		start, end = firstRequire.Start, firstRequire.End
+	}
+	return lineToRange(pm.Mapper, fh.URI(), start, end)
+}
+
+func lineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Position) (protocol.Range, error) {
+	line, col, err := m.Converter.ToPosition(start.Byte)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	start := span.NewPoint(line, col, syntax.Start.Byte)
-	line, col, err = pm.Mapper.Converter.ToPosition(syntax.End.Byte)
+	s := span.NewPoint(line, col, start.Byte)
+	line, col, err = m.Converter.ToPosition(end.Byte)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	end := span.NewPoint(line, col, syntax.End.Byte)
-	rng, err := pm.Mapper.Range(span.New(fh.URI(), start, end))
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	return rng, err
+	e := span.NewPoint(line, col, end.Byte)
+	return m.Range(span.New(uri, s, e))
 }
