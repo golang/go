@@ -669,6 +669,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    VCMEQ V24.S4, V13.S4, V12.S4                                // ac8db86e
    VCNT V13.B8, V11.B8                                         // ab59200e
    VMOV V31.B[15], V18                                         // f2071f5e
+   VDUP V31.B[15], V18                                         // f2071f5e
    VDUP V31.B[13], V20.B16                                     // f4071b4e
    VEOR V4.B8, V18.B8, V7.B8                                   // 471e242e
    VEXT $4, V2.B8, V1.B8, V3.B8                                // 2320022e
@@ -700,6 +701,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO FMOVS.W 71(R29), F28                                 // bc7f44bc
    FMOVS 6160(R4), F23                                         // 971058bd
    VMOV V18.B[10], V27                                         // 5b06155e
+   VDUP V18.B[10], V27                                         // 5b06155e
    VMOV V12.B[2], V28.B[12]                                    // 9c15196e
    VMOV R30, V4.B[13]                                          // c41f1b4e
    VMOV V2.B16, V4.B16                                         // 441ca24e

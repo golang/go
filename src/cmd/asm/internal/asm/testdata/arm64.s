@@ -596,9 +596,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOV	R20, V1.S[0]          // 811e044e
 	VMOV	R20, V1.S[1]          // 811e0c4e
 	VMOV	R1, V9.H4             // 290c020e
+	VDUP	R1, V9.H4             // 290c020e
 	VMOV	R22, V11.D2           // cb0e084e
+	VDUP	R22, V11.D2           // cb0e084e
 	VMOV	V2.B16, V4.B16        // 441ca24e
 	VMOV	V20.S[0], V20         // 9406045e
+	VDUP	V20.S[0], V20         // 9406045e
 	VMOV	V12.D[0], V12.D[1]    // 8c05186e
 	VMOV	V10.S[0], V12.S[1]    // 4c050c6e
 	VMOV	V9.H[0], V12.H[1]     // 2c05066e
