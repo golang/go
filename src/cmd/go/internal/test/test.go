@@ -1169,7 +1169,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
 	panicArg := "-test.paniconexit0"
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
+	fuzzArg := []string{}
+	if testFuzz != "" {
+		fuzzCacheDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath)
+		fuzzArg = []string{"-test.fuzzcachedir=" + fuzzCacheDir}
+	}
+	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.

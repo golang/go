@@ -1353,17 +1353,17 @@ var errMain = errors.New("testing: unexpected use of func Main")
 
 type matchStringOnly func(pat, str string) (bool, error)
 
-func (f matchStringOnly) MatchString(pat, str string) (bool, error)     { return f(pat, str) }
-func (f matchStringOnly) StartCPUProfile(w io.Writer) error             { return errMain }
-func (f matchStringOnly) StopCPUProfile()                               {}
-func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error   { return errMain }
-func (f matchStringOnly) ImportPath() string                            { return "" }
-func (f matchStringOnly) StartTestLog(io.Writer)                        {}
-func (f matchStringOnly) StopTestLog() error                            { return errMain }
-func (f matchStringOnly) SetPanicOnExit0(bool)                          {}
-func (f matchStringOnly) CoordinateFuzzing(int, [][]byte, string) error { return errMain }
-func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error        { return errMain }
-func (f matchStringOnly) ReadCorpus(string) ([][]byte, error)           { return nil, errMain }
+func (f matchStringOnly) MatchString(pat, str string) (bool, error)             { return f(pat, str) }
+func (f matchStringOnly) StartCPUProfile(w io.Writer) error                     { return errMain }
+func (f matchStringOnly) StopCPUProfile()                                       {}
+func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error           { return errMain }
+func (f matchStringOnly) ImportPath() string                                    { return "" }
+func (f matchStringOnly) StartTestLog(io.Writer)                                {}
+func (f matchStringOnly) StopTestLog() error                                    { return errMain }
+func (f matchStringOnly) SetPanicOnExit0(bool)                                  {}
+func (f matchStringOnly) CoordinateFuzzing(int, [][]byte, string, string) error { return errMain }
+func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error                { return errMain }
+func (f matchStringOnly) ReadCorpus(string) ([][]byte, error)                   { return nil, errMain }
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1406,7 +1406,7 @@ type testDeps interface {
 	StartTestLog(io.Writer)
 	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
-	CoordinateFuzzing(int, [][]byte, string) error
+	CoordinateFuzzing(int, [][]byte, string, string) error
 	RunFuzzWorker(func([]byte) error) error
 	ReadCorpus(string) ([][]byte, error)
 }
@@ -1444,6 +1444,12 @@ func (m *M) Run() (code int) {
 
 	if *parallel < 1 {
 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
+		flag.Usage()
+		m.exitCode = 2
+		return
+	}
+	if *matchFuzz != "" && *fuzzCacheDir == "" {
+		fmt.Fprintln(os.Stderr, "testing: internal error: -test.fuzzcachedir must be set if -test.fuzz is set")
 		flag.Usage()
 		m.exitCode = 2
 		return
