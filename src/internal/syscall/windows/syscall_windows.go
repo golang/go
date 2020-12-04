@@ -36,6 +36,7 @@ func UTF16PtrToString(p *uint16) string {
 }
 
 const (
+	ERROR_INVALID_FUNCTION       syscall.Errno = 1
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
 	ERROR_NOT_SUPPORTED          syscall.Errno = 50

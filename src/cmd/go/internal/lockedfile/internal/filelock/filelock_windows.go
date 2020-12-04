@@ -58,7 +58,7 @@ func unlock(f File) error {
 
 func isNotSupported(err error) bool {
 	switch err {
-	case windows.ERROR_NOT_SUPPORTED, windows.ERROR_CALL_NOT_IMPLEMENTED, ErrNotSupported:
+	case windows.ERROR_INVALID_FUNCTION, windows.ERROR_NOT_SUPPORTED, windows.ERROR_CALL_NOT_IMPLEMENTED, ErrNotSupported:
 		return true
 	default:
 		return false

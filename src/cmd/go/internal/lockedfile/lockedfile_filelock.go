@@ -31,7 +31,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	default:
 		err = filelock.RLock(f)
 	}
-	if err != nil {
+	if err != nil && !filelock.IsNotSupported(err) {
 		f.Close()
 		return nil, err
 	}
