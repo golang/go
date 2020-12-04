@@ -440,9 +440,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/hmac"><dt><a href="/pkg/crypto/hmac/">crypto/hmac</a></dt>
   <dd>
     <p><!-- CL 261960 -->
-      <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
-      the hash generation function fail to return new values. Previously, the
-      behavior was undefined and invalid outputs were sometimes generated.
+      <a href="/pkg/crypto/hmac/#New"><code>New</code></a> will now panic if
+      separate calls to the hash generation function fail to return new values.
+      Previously, the behavior was undefined and invalid outputs were sometimes
+      generated.
     </p>
   </dd>
 </dl><!-- crypto/hmac -->
@@ -450,56 +451,49 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 256897 -->
-      I/O operations on closing or closed TLS connections can now be detected using
-      the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
-      would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
-      the only way to reliably detect this case was to match the string returned
-      by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+      I/O operations on closing or closed TLS connections can now be detected
+      using the new <a href="/pkg/net/#ErrClosed"><code>net.ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
     </p>
 
     <p><!-- CL 266037 -->
-      A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
-      before sending the close notify alert, in order to prevent blocking
+      A default write deadline is now set in
+      <a href="/pkg/crypto/tls/#Conn.Close"><code>Conn.Close</code></a>
+      before sending the "close notify" alert, in order to prevent blocking
       indefinitely.
     </p>
 
     <p><!-- CL 246338 -->
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
-      allow the user to control cancellation of an in-progress TLS Handshake.
-      The context provided is propagated into the
-      <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
-      and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
-      structs and accessible through the new
-      <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
-      and
-      <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-        (*CertificateRequestInfo).Context
-      </a> methods respectively. Canceling the context after the handshake has finished
-      has no effect.
+      The new <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>Conn.HandshakeContext</code></a>
+      method allows cancellation of an in-progress handshake. The provided
+      context is accessible through the new
+      <a href="/pkg/crypto/tls#ClientHelloInfo.Context"><code>ClientHelloInfo.Context</code></a>
+      and <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
+      <code>CertificateRequestInfo.Context</code></a> methods. Canceling the
+      context after the handshake has finished has no effect.
     </p>
 
     <p><!-- CL 239748 -->
-      Clients now ensure that the server selects
+      Clients now return a handshake error if the server selects
       <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
-      an ALPN protocol</a> from
+      an ALPN protocol</a> that was not in
       <a href="/pkg/crypto/tls/#Config.NextProtos">
       the list advertised by the client</a>.
     </p>
 
     <p><!-- CL 262857 -->
-      TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
+      Servers will now prefer other available AEAD cipher suites (such as ChaCha20Poly1305)
       over AES-GCM cipher suites if either the client or server doesn't have AES hardware
-      support, unless the application set both
-      <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+      support, unless both <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites">
+      <code>Config.PreferServerCipherSuites</code></a>
       and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
-      or there are no other AEAD cipher suites supported.
-      The client is assumed not to have AES hardware support if it does not signal a
-      preference for AES-GCM cipher suites.
+      are set. The client is assumed not to have AES hardware support if it does
+      not signal a preference for AES-GCM cipher suites.
     </p>
 
     <p><!-- CL 246637 -->
-      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now returns
-      a nil <code>*Config</code> if the source is nil, rather than panicking.
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now
+      returns nil if the receiver is nil, rather than panicking.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
@@ -514,25 +508,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 235078 -->
-      <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
-      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
-      now enforce string encoding restrictions for the fields <code>DNSNames</code>,
-      <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
-      contain strings with characters within the ASCII range.
+      <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a> and
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now enforce string encoding restrictions for the <code>DNSNames</code>,
+      <code>EmailAddresses</code>, and <code>URIs</code> fields. These fields
+      can only contain strings with characters within the ASCII range.
     </p>
 
     <p><!-- CL 259697 -->
-      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
-      verifies the generated certificate's signature using the signer's
-      public key. If the signature is invalid, an error is returned, instead
-      of a malformed certificate.
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now verifies the generated certificate's signature using the signer's
+      public key. If the signature is invalid, an error is returned, instead of
+      a malformed certificate.
     </p>
 
     <p><!-- CL 233163 -->
       A number of additional fields have been added to the
-      <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
-      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
-      and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
+      <a href="/pkg/crypto/x509/#CertificateRequest"><code>CertificateRequest</code></a> type.
+      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">
+      <code>ParseCertificateRequest</code></a> and marshalled in
+      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>.
     </p>
 
     <p><!-- CL 257939 -->
@@ -548,7 +543,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 262343 -->
-      TODO: <a href="https://golang.org/cl/262343">https://golang.org/cl/262343</a>: add Unwrap to SystemRootsError
+      The new <a href="/pkg/crypto/x509/#SystemRootsError.Unwrap"><code>SystemRootsError.Unwrap</code></a>
+      method allows accessing the <a href="/pkg/crypto/x509/#SystemRootsError.Err"><code>Err</code></a>
+      field through the <a href="/pkg/errors"><code>errors</code></a> package functions.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
@@ -556,11 +553,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 255881 -->
-      <a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a> and
-      <a href="/pkg/encoding/asn1/#UnmarshalWithParams">UnmarshalWithParams</a>
-      now return an error instead of panic when the argument is not
+      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> and
+      <a href="/pkg/encoding/asn1/#UnmarshalWithParams"><code>UnmarshalWithParams</code></a>
+      now return an error instead of panicking when the argument is not
       a pointer or is nil. This change matches the behavior of other
-      encoding packages such as <a href="/pkg/encoding/json">encoding/json</a>.
+      encoding packages such as <a href="/pkg/encoding/json"><code>encoding/json</code></a>.
     </p>
   </dd>
 </dl>
@@ -693,15 +690,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 256498, golang.org/issue/36990 -->
-      Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
-      spec (no attribute is set) instead of generating a SameSite key without a value.
+      Cookies set with <a href="/pkg/net/http/#SameSiteDefaultMode"><code>SameSiteDefaultMode</code></a>
+      now behave according to the current spec (no attribute is set) instead of
+      generating a SameSite key without a value.
     </p>
 
     <p><!-- CL 246338 -->
-      The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
-      with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
-      when performing TLS handshakes in the client or server.
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now passes the
+      <a href="/pkg/net/http/#Request.Context"><code>Request</code> context</a> to
+      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>tls.Conn.HandshakeContext</code></a>
+      when performing TLS handshakes.
     </p>
 
     <p><!-- CL 250039 -->
