@@ -103,8 +103,8 @@ type BlockEffects struct {
 type Liveness struct {
 	fn         *ir.Func
 	f          *ssa.Func
-	vars       []ir.Node
-	idx        map[ir.Node]int32
+	vars       []*ir.Name
+	idx        map[*ir.Name]int32
 	stkptrsize int64
 
 	be []BlockEffects
@@ -212,14 +212,14 @@ func livenessShouldTrack(n ir.Node) bool {
 
 // getvariables returns the list of on-stack variables that we need to track
 // and a map for looking up indices by *Node.
-func getvariables(fn *ir.Func) ([]ir.Node, map[ir.Node]int32) {
-	var vars []ir.Node
+func getvariables(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32) {
+	var vars []*ir.Name
 	for _, n := range fn.Dcl {
 		if livenessShouldTrack(n) {
 			vars = append(vars, n)
 		}
 	}
-	idx := make(map[ir.Node]int32, len(vars))
+	idx := make(map[*ir.Name]int32, len(vars))
 	for i, n := range vars {
 		idx[n] = int32(i)
 	}
@@ -276,13 +276,14 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		return -1, 0
 	}
 
+	nn := n.(*ir.Name)
 	// AllocFrame has dropped unused variables from
 	// lv.fn.Func.Dcl, but they might still be referenced by
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !n.Name().Used() {
+		if !nn.Name().Used() {
 			return -1, 0
 		}
 	}
@@ -305,7 +306,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		return -1, 0
 	}
 
-	if pos, ok := lv.idx[n]; ok {
+	if pos, ok := lv.idx[nn]; ok {
 		return pos, effect
 	}
 	return -1, 0
@@ -356,7 +357,7 @@ type livenessFuncCache struct {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *ir.Func, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
+func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
@@ -482,7 +483,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func (lv *Liveness) pointerMap(liveout bvec, vars []ir.Node, args, locals bvec) {
+func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
