@@ -297,6 +297,43 @@ func (n *Name) SetVal(v constant.Value) {
 	n.val = v
 }
 
+// SameSource reports whether two nodes refer to the same source
+// element.
+//
+// It exists to help incrementally migrate the compiler towards
+// allowing the introduction of IdentExpr (#42990). Once we have
+// IdentExpr, it will no longer be safe to directly compare Node
+// values to tell if they refer to the same Name. Instead, code will
+// need to explicitly get references to the underlying Name object(s),
+// and compare those instead.
+//
+// It will still be safe to compare Nodes directly for checking if two
+// nodes are syntactically the same. The SameSource function exists to
+// indicate code that intentionally compares Nodes for syntactic
+// equality as opposed to code that has yet to be updated in
+// preparation for IdentExpr.
+func SameSource(n1, n2 Node) bool {
+	return n1 == n2
+}
+
+// Uses reports whether expression x is a (direct) use of the given
+// variable.
+func Uses(x Node, v *Name) bool {
+	if v == nil || v.Op() != ONAME {
+		base.Fatalf("RefersTo bad Name: %v", v)
+	}
+	return x.Op() == ONAME && x.Name() == v
+}
+
+// DeclaredBy reports whether expression x refers (directly) to a
+// variable that was declared by the given statement.
+func DeclaredBy(x, stmt Node) bool {
+	if stmt == nil {
+		base.Fatalf("DeclaredBy nil")
+	}
+	return x.Op() == ONAME && SameSource(x.Name().Defn, stmt)
+}
+
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.
