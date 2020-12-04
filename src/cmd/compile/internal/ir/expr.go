@@ -32,7 +32,13 @@ func maybeEdit(x Node, edit func(Node) Node) Node {
 	return edit(x)
 }
 
-// A miniStmt is a miniNode with extra fields common to expressions.
+// An Expr is a Node that can appear as an expression.
+type Expr interface {
+	Node
+	isExpr()
+}
+
+// A miniExpr is a miniNode with extra fields common to expressions.
 // TODO(rsc): Once we are sure about the contents, compact the bools
 // into a bit field and leave extra bits available for implementations
 // embedding miniExpr. Right now there are ~60 unused bits sitting here.
@@ -51,6 +57,8 @@ const (
 	miniExprTransient
 	miniExprBounded
 )
+
+func (*miniExpr) isExpr() {}
 
 func (n *miniExpr) Type() *types.Type     { return n.typ }
 func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
@@ -191,6 +199,8 @@ func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
 	n.Args.Set(args)
 	return n
 }
+
+func (*CallExpr) isStmt() {}
 
 func (n *CallExpr) Orig() Node         { return n.orig }
 func (n *CallExpr) SetOrig(x Node)     { n.orig = x }

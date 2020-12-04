@@ -27,14 +27,25 @@ func NewDecl(pos src.XPos, op Op, x Node) *Decl {
 	return n
 }
 
+func (*Decl) isStmt() {}
+
 func (n *Decl) Left() Node     { return n.X }
 func (n *Decl) SetLeft(x Node) { n.X = x }
+
+// A Stmt is a Node that can appear as a statement.
+// This includes statement-like expressions such as <-c and f().
+type Stmt interface {
+	Node
+	isStmt()
+}
 
 // A miniStmt is a miniNode with extra fields common to statements.
 type miniStmt struct {
 	miniNode
 	init Nodes
 }
+
+func (*miniStmt) isStmt() {}
 
 func (n *miniStmt) Init() Nodes       { return n.init }
 func (n *miniStmt) SetInit(x Nodes)   { n.init = x }

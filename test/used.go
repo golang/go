@@ -10,7 +10,7 @@ import "unsafe"
 
 const C = 1
 
-var x1, x int
+var x, x1, x2 int
 var b bool
 var s string
 var c chan int
@@ -120,7 +120,6 @@ func _() {
 	_ = print(1)           // ERROR "print\(1\) used as value"
 	println(1)             // ok
 	_ = println(1)         // ERROR "println\(1\) used as value"
-	(x)                    // ERROR "x evaluated but not used"
 	c <- 1                 // ok
 	slice[1:1]             // ERROR "slice\[1:1\] evaluated but not used"
 	array[1:1]             // ERROR "array\[1:1\] evaluated but not used"
@@ -137,6 +136,8 @@ func _() {
 	unsafe.Alignof(t.X)    // ERROR "unsafe.Alignof\(t.X\) evaluated but not used"
 	unsafe.Offsetof(t.X)   // ERROR "unsafe.Offsetof\(t.X\) evaluated but not used"
 	unsafe.Sizeof(t)       // ERROR "unsafe.Sizeof\(t\) evaluated but not used"
-	_ = new(x)             // ERROR "x is not a type"
 	_ = int                // ERROR "type int is not an expression"
+	(x)                    // ERROR "x evaluated but not used"
+	_ = new(x2)            // ERROR "x2 is not a type"
+	_ = new(1 + 1)         // ERROR "1 \+ 1 is not a type"
 }

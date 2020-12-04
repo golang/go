@@ -307,16 +307,90 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 		return n
 	}
 
-	n.SetTypecheck(2)
-
 	typecheck_tcstack = append(typecheck_tcstack, n)
-	n = typecheck1(n, top)
 
+	n.SetTypecheck(2)
+	n = typecheck1(n, top)
 	n.SetTypecheck(1)
 
 	last := len(typecheck_tcstack) - 1
 	typecheck_tcstack[last] = nil
 	typecheck_tcstack = typecheck_tcstack[:last]
+
+	_, isExpr := n.(ir.Expr)
+	_, isStmt := n.(ir.Stmt)
+	isMulti := false
+	switch n.Op() {
+	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+		if t := n.Left().Type(); t != nil && t.Kind() == types.TFUNC {
+			nr := t.NumResults()
+			isMulti = nr > 1
+			if nr == 0 {
+				isExpr = false
+			}
+		}
+	case ir.OAPPEND:
+		// Must be used (and not BinaryExpr/UnaryExpr).
+		isStmt = false
+	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.OVARKILL, ir.OVARLIVE:
+		// Must not be used.
+		isExpr = false
+		isStmt = true
+	case ir.OCOPY, ir.ORECOVER, ir.ORECV:
+		// Can be used or not.
+		isStmt = true
+	}
+
+	t := n.Type()
+	if t != nil && !t.IsFuncArgStruct() && n.Op() != ir.OTYPE {
+		switch t.Kind() {
+		case types.TFUNC, // might have TANY; wait until it's called
+			types.TANY, types.TFORW, types.TIDEAL, types.TNIL, types.TBLANK:
+			break
+
+		default:
+			checkwidth(t)
+		}
+	}
+	if t != nil {
+		n = evalConst(n)
+		t = n.Type()
+	}
+
+	// TODO(rsc): Lots of the complexity here is because typecheck can
+	// see OTYPE, ONAME, and OLITERAL nodes multiple times.
+	// Once we make the IR a proper tree, we should be able to simplify
+	// this code a bit, especially the final case.
+	switch {
+	case top&(ctxStmt|ctxExpr) == ctxExpr && !isExpr && n.Op() != ir.OTYPE && !isMulti:
+		if !n.Diag() {
+			base.Errorf("%v used as value", n)
+			n.SetDiag(true)
+		}
+		if t != nil {
+			n.SetType(nil)
+		}
+
+	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
+		if !n.Type().Broke() {
+			base.Errorf("type %v is not an expression", n.Type())
+		}
+		n.SetType(nil)
+
+	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
+		if !n.Diag() {
+			base.Errorf("%v evaluated but not used", n)
+			n.SetDiag(true)
+		}
+		n.SetType(nil)
+
+	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
+		base.Errorf("%v is not a type", n)
+		if t != nil {
+			n.SetType(nil)
+		}
+
+	}
 
 	base.Pos = lno
 	return n
@@ -335,8 +409,7 @@ func indexlit(n ir.Node) ir.Node {
 	return n
 }
 
-// The result of typecheck1 MUST be assigned back to n, e.g.
-// 	n.Left = typecheck1(n.Left, top)
+// typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) (res ir.Node) {
 	if enableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheck1", n)(&res)
@@ -345,7 +418,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 	switch n.Op() {
 	case ir.OLITERAL, ir.ONAME, ir.ONONAME, ir.OTYPE:
 		if n.Sym() == nil {
-			break
+			return n
 		}
 
 		if n.Op() == ir.ONAME && n.SubOp() != 0 && top&ctxCallee == 0 {
@@ -361,34 +434,29 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 	}
 
-	ok := 0
 	switch n.Op() {
-	// until typecheck is complete, do nothing.
 	default:
 		ir.Dump("typecheck", n)
-
 		base.Fatalf("typecheck %v", n.Op())
+		panic("unreachable")
 
 	// names
 	case ir.OLITERAL:
-		ok |= ctxExpr
-
 		if n.Type() == nil && n.Val().Kind() == constant.String {
 			base.Fatalf("string literal missing type")
 		}
+		return n
 
 	case ir.ONIL, ir.ONONAME:
-		ok |= ctxExpr
+		return n
 
 	case ir.ONAME:
 		if n.Name().Decldepth == 0 {
 			n.Name().Decldepth = decldepth
 		}
 		if n.SubOp() != 0 {
-			ok |= ctxCallee
-			break
+			return n
 		}
-
 		if top&ctxAssign == 0 {
 			// not a write to the variable
 			if ir.IsBlank(n) {
@@ -396,11 +464,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n.SetType(nil)
 				return n
 			}
-
 			n.Name().SetUsed(true)
 		}
-
-		ok |= ctxExpr
+		return n
 
 	case ir.OPACK:
 		base.Errorf("use of package %v without selector", n.Sym())
@@ -409,14 +475,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 	// types (ODEREF is with exprs)
 	case ir.OTYPE:
-		ok |= ctxType
-
 		if n.Type() == nil {
 			return n
 		}
+		return n
 
 	case ir.OTSLICE:
-		ok |= ctxType
 		n := n.(*ir.SliceType)
 		n.Elem = typecheck(n.Elem, ctxType)
 		if n.Elem.Type() == nil {
@@ -425,9 +489,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		t := types.NewSlice(n.Elem.Type())
 		n.SetOTYPE(t)
 		checkwidth(t)
+		return n
 
 	case ir.OTARRAY:
-		ok |= ctxType
 		n := n.(*ir.ArrayType)
 		n.Elem = typecheck(n.Elem, ctxType)
 		if n.Elem.Type() == nil {
@@ -469,9 +533,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		t := types.NewArray(n.Elem.Type(), bound)
 		n.SetOTYPE(t)
 		checkwidth(t)
+		return n
 
 	case ir.OTMAP:
-		ok |= ctxType
 		n := n.(*ir.MapType)
 		n.Key = typecheck(n.Key, ctxType)
 		n.Elem = typecheck(n.Elem, ctxType)
@@ -488,9 +552,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		n.SetOTYPE(types.NewMap(l.Type(), r.Type()))
 		mapqueue = append(mapqueue, n) // check map keys when all types are settled
+		return n
 
 	case ir.OTCHAN:
-		ok |= ctxType
 		n := n.(*ir.ChanType)
 		n.Elem = typecheck(n.Elem, ctxType)
 		l := n.Elem
@@ -501,21 +565,22 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			base.Errorf("chan of incomplete (or unallocatable) type not allowed")
 		}
 		n.SetOTYPE(types.NewChan(l.Type(), n.Dir))
+		return n
 
 	case ir.OTSTRUCT:
-		ok |= ctxType
 		n := n.(*ir.StructType)
 		n.SetOTYPE(tostruct(n.Fields))
+		return n
 
 	case ir.OTINTER:
-		ok |= ctxType
 		n := n.(*ir.InterfaceType)
 		n.SetOTYPE(tointerface(n.Methods))
+		return n
 
 	case ir.OTFUNC:
-		ok |= ctxType
 		n := n.(*ir.FuncType)
 		n.SetOTYPE(functype(n.Recv, n.Params, n.Results))
+		return n
 
 	// type or expr
 	case ir.ODEREF:
@@ -528,11 +593,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 		if l.Op() == ir.OTYPE {
-			ok |= ctxType
 			n.SetOTYPE(types.NewPtr(l.Type()))
 			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
 			checkwidth(l.Type())
-			break
+			return n
 		}
 
 		if !t.IsPtr() {
@@ -541,12 +605,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n.SetType(nil)
 				return n
 			}
-
-			break
+			base.Errorf("%v is not a type", l)
+			return n
 		}
 
-		ok |= ctxExpr
 		n.SetType(t.Elem())
+		return n
 
 	// arithmetic exprs
 	case ir.OASOP,
@@ -573,7 +637,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		var op ir.Op
 		var r ir.Node
 		if n.Op() == ir.OASOP {
-			ok |= ctxStmt
 			n.SetLeft(typecheck(n.Left(), ctxExpr))
 			n.SetRight(typecheck(n.Right(), ctxExpr))
 			l = n.Left()
@@ -591,7 +654,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// TODO(marvin): Fix Node.EType type union.
 			op = n.SubOp()
 		} else {
-			ok |= ctxExpr
 			n.SetLeft(typecheck(n.Left(), ctxExpr))
 			n.SetRight(typecheck(n.Right(), ctxExpr))
 			l = n.Left()
@@ -629,8 +691,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			if (l.Type() == types.UntypedFloat || l.Type() == types.UntypedComplex) && r.Op() == ir.OLITERAL {
 				n.SetType(types.UntypedInt)
 			}
-
-			break
+			return n
 		}
 
 		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
@@ -815,9 +876,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(t)
+		return n
 
 	case ir.OBITNOT, ir.ONEG, ir.ONOT, ir.OPLUS:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		l := n.Left()
 		t := l.Type()
@@ -832,11 +893,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(t)
+		return n
 
 	// exprs
 	case ir.OADDR:
-		ok |= ctxExpr
-
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		if n.Left().Type() == nil {
 			n.SetType(nil)
@@ -871,13 +931,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(types.NewPtr(n.Left().Type()))
+		return n
 
 	case ir.OCOMPLIT:
-		ok |= ctxExpr
-		n = typecheckcomplit(n)
-		if n.Type() == nil {
-			return n
-		}
+		return typecheckcomplit(n)
 
 	case ir.OXDOT, ir.ODOT:
 		if n.Op() == ir.OXDOT {
@@ -903,12 +960,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		s := n.Sym()
 
 		if n.Left().Op() == ir.OTYPE {
-			n = typecheckMethodExpr(n)
-			if n.Type() == nil {
-				return n
-			}
-			ok = ctxExpr
-			break
+			return typecheckMethodExpr(n)
 		}
 
 		if t.IsPtr() && !t.Elem().IsInterface() {
@@ -952,21 +1004,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			return n
 		}
 
-		switch n.Op() {
-		case ir.ODOTINTER, ir.ODOTMETH:
-			if top&ctxCallee != 0 {
-				ok |= ctxCallee
-			} else {
-				n = typecheckpartialcall(n, s)
-				ok |= ctxExpr
-			}
-
-		default:
-			ok |= ctxExpr
+		if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
+			n = typecheckpartialcall(n, s)
 		}
+		return n
 
 	case ir.ODOTTYPE:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		l := n.Left()
@@ -1009,9 +1052,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				return n
 			}
 		}
+		return n
 
 	case ir.OINDEX:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		n.SetLeft(implicitstar(n.Left()))
@@ -1045,7 +1088,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 			if n.Right().Type() != nil && !n.Right().Type().IsInteger() {
 				base.Errorf("non-integer %s index %v", why, n.Right())
-				break
+				return n
 			}
 
 			if !n.Bounded() && ir.IsConst(n.Right(), constant.Int) {
@@ -1067,9 +1110,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetOp(ir.OINDEXMAP)
 			n.SetIndexMapLValue(false)
 		}
+		return n
 
 	case ir.ORECV:
-		ok |= ctxStmt | ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		l := n.Left()
@@ -1091,9 +1134,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(t.Elem())
+		return n
 
 	case ir.OSEND:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetRight(typecheck(n.Right(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
@@ -1115,14 +1158,13 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		if n.Right().Type() == nil {
 			return n
 		}
+		return n
 
 	case ir.OSLICEHEADER:
 		// Errors here are Fatalf instead of Errorf because only the compiler
 		// can construct an OSLICEHEADER node.
 		// Components used in OSLICEHEADER that are supplied by parsed source code
 		// have already been typechecked in e.g. OMAKESLICE earlier.
-		ok |= ctxExpr
-
 		t := n.Type()
 		if t == nil {
 			base.Fatalf("no type specified for OSLICEHEADER")
@@ -1160,14 +1202,13 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		n.List().SetFirst(l)
 		n.List().SetSecond(c)
+		return n
 
 	case ir.OMAKESLICECOPY:
 		// Errors here are Fatalf instead of Errorf because only the compiler
 		// can construct an OMAKESLICECOPY node.
 		// Components used in OMAKESCLICECOPY that are supplied by parsed source code
 		// have already been typechecked in OMAKE and OCOPY earlier.
-		ok |= ctxExpr
-
 		t := n.Type()
 
 		if t == nil {
@@ -1203,9 +1244,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				base.Fatalf("len for OMAKESLICECOPY must be non-negative")
 			}
 		}
+		return n
 
 	case ir.OSLICE, ir.OSLICE3:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		low, high, max := n.SliceBounds()
 		hasmax := n.Op().IsSlice3()
@@ -1277,6 +1318,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
+		return n
 
 	// call and call like
 	case ir.OCALL:
@@ -1306,6 +1348,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 				n.SetOp(l.SubOp())
 				n.SetLeft(nil)
+				n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 
 			case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
 				typecheckargs(n)
@@ -1331,8 +1374,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n = ir.NodAt(n.Pos(), l.SubOp(), arg1, arg2)
 				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
 			}
-			n = typecheck1(n, top)
-			return n
+			return typecheck(n, top)
 		}
 
 		n.SetLeft(defaultlit(n.Left(), nil))
@@ -1346,8 +1388,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			}
 
 			// pick off before type-checking arguments
-			ok |= ctxExpr
-
 			arg, ok := needOneArg(n, "conversion to %v", l.Type())
 			if !ok {
 				n.SetType(nil)
@@ -1356,8 +1396,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 			n = ir.NodAt(n.Pos(), ir.OCONV, arg, nil)
 			n.SetType(l.Type())
-			n = typecheck1(n, top)
-			return n
+			return typecheck1(n, top)
 		}
 
 		typecheckargs(n)
@@ -1403,11 +1442,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		typecheckaste(ir.OCALL, n.Left(), n.IsDDD(), t.Params(), n.List(), func() string { return fmt.Sprintf("argument to %v", n.Left()) })
-		ok |= ctxStmt
 		if t.NumResults() == 0 {
-			break
+			return n
 		}
-		ok |= ctxExpr
 		if t.NumResults() == 1 {
 			n.SetType(l.Type().Results().Field(0).Type)
 
@@ -1420,24 +1457,23 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				// and we want to avoid the temporaries, so we do the rewrite earlier than is typical.
 				n.SetOp(ir.OGETG)
 			}
-
-			break
+			return n
 		}
 
 		// multiple return
 		if top&(ctxMultiOK|ctxStmt) == 0 {
 			base.Errorf("multiple-value %v() in single-value context", l)
-			break
+			return n
 		}
 
 		n.SetType(l.Type().Results())
+		return n
 
 	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-		ok |= ctxExpr
 		n.SetType(types.Types[types.TUINTPTR])
+		return n
 
 	case ir.OCAP, ir.OLEN:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		n.SetLeft(implicitstar(n.Left()))
@@ -1461,9 +1497,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(types.Types[types.TINT])
+		return n
 
 	case ir.OREAL, ir.OIMAG:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		l := n.Left()
 		t := l.Type()
@@ -1485,9 +1521,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
+		return n
 
 	case ir.OCOMPLEX:
-		ok |= ctxExpr
 		l := typecheck(n.Left(), ctxExpr)
 		r := typecheck(n.Right(), ctxExpr)
 		if l.Type() == nil || r.Type() == nil {
@@ -1525,6 +1561,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			t = types.Types[types.TCOMPLEX128]
 		}
 		n.SetType(t)
+		return n
 
 	case ir.OCLOSE:
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
@@ -1546,11 +1583,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
-
-		ok |= ctxStmt
+		return n
 
 	case ir.ODELETE:
-		ok |= ctxStmt
 		typecheckargs(n)
 		args := n.List()
 		if args.Len() == 0 {
@@ -1580,9 +1615,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		args.SetSecond(assignconv(r, l.Type().Key(), "delete"))
+		return n
 
 	case ir.OAPPEND:
-		ok |= ctxExpr
 		typecheckargs(n)
 		args := n.List()
 		if args.Len() == 0 {
@@ -1625,11 +1660,11 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 			if t.Elem().IsKind(types.TUINT8) && args.Second().Type().IsString() {
 				args.SetSecond(defaultlit(args.Second(), types.Types[types.TSTRING]))
-				break
+				return n
 			}
 
 			args.SetSecond(assignconv(args.Second(), t.Underlying(), "append"))
-			break
+			return n
 		}
 
 		as := args.Slice()[1:]
@@ -1640,9 +1675,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			as[i] = assignconv(n, t.Elem(), "append")
 			checkwidth(as[i].Type()) // ensure width is calculated for backend
 		}
+		return n
 
 	case ir.OCOPY:
-		ok |= ctxStmt | ctxExpr
 		n.SetType(types.Types[types.TINT])
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
@@ -1656,7 +1691,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		// copy([]byte, string)
 		if n.Left().Type().IsSlice() && n.Right().Type().IsString() {
 			if types.Identical(n.Left().Type().Elem(), types.ByteType) {
-				break
+				return n
 			}
 			base.Errorf("arguments to copy have different element types: %L and string", n.Left().Type())
 			n.SetType(nil)
@@ -1680,9 +1715,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			n.SetType(nil)
 			return n
 		}
+		return n
 
 	case ir.OCONV:
-		ok |= ctxExpr
 		checkwidth(n.Type()) // ensure width is calculated for backend
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(convlit1(n.Left(), n.Type(), true, nil))
@@ -1717,16 +1752,16 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		// do not convert to []byte literal. See CL 125796.
 		// generated code and compiler memory footprint is better without it.
 		case ir.OSTR2BYTES:
-			break
+			// ok
 
 		case ir.OSTR2RUNES:
 			if n.Left().Op() == ir.OLITERAL {
 				n = stringtoruneslit(n)
 			}
 		}
+		return n
 
 	case ir.OMAKE:
-		ok |= ctxExpr
 		args := n.List().Slice()
 		if len(args) == 0 {
 			base.Errorf("missing argument to make")
@@ -1832,9 +1867,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		nn.SetType(t)
 		n = nn
+		return n
 
 	case ir.ONEW:
-		ok |= ctxExpr
 		if n.Left() == nil {
 			// Fatalf because the OCALL above checked for us,
 			// so this must be an internally-generated mistake.
@@ -1849,9 +1884,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		n.SetLeft(l)
 		n.SetType(types.NewPtr(t))
+		return n
 
 	case ir.OPRINT, ir.OPRINTN:
-		ok |= ctxStmt
 		typecheckargs(n)
 		ls := n.List().Slice()
 		for i1, n1 := range ls {
@@ -1862,18 +1897,18 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				ls[i1] = defaultlit(ls[i1], nil)
 			}
 		}
+		return n
 
 	case ir.OPANIC:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), types.Types[types.TINTER]))
 		if n.Left().Type() == nil {
 			n.SetType(nil)
 			return n
 		}
+		return n
 
 	case ir.ORECOVER:
-		ok |= ctxExpr | ctxStmt
 		if n.List().Len() != 0 {
 			base.Errorf("too many arguments to recover")
 			n.SetType(nil)
@@ -1881,16 +1916,16 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		n.SetType(types.Types[types.TINTER])
+		return n
 
 	case ir.OCLOSURE:
-		ok |= ctxExpr
 		typecheckclosure(n, top)
 		if n.Type() == nil {
 			return n
 		}
+		return n
 
 	case ir.OITAB:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		t := n.Left().Type()
 		if t == nil {
@@ -1901,14 +1936,15 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			base.Fatalf("OITAB of %v", t)
 		}
 		n.SetType(types.NewPtr(types.Types[types.TUINTPTR]))
+		return n
 
 	case ir.OIDATA:
 		// Whoever creates the OIDATA node must know a priori the concrete type at that moment,
 		// usually by just having checked the OITAB.
 		base.Fatalf("cannot typecheck interface data %v", n)
+		panic("unreachable")
 
 	case ir.OSPTR:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		t := n.Left().Type()
 		if t == nil {
@@ -1923,33 +1959,33 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		} else {
 			n.SetType(types.NewPtr(t.Elem()))
 		}
+		return n
 
 	case ir.OCLOSUREREAD:
-		ok |= ctxExpr
+		return n
 
 	case ir.OCFUNC:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetType(types.Types[types.TUINTPTR])
+		return n
 
 	case ir.OCONVNOP:
-		ok |= ctxExpr
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
+		return n
 
 	// statements
 	case ir.OAS:
-		ok |= ctxStmt
-
 		typecheckas(n)
 
 		// Code that creates temps does not bother to set defn, so do it here.
 		if n.Left().Op() == ir.ONAME && ir.IsAutoTmp(n.Left()) {
 			n.Left().Name().Defn = n
 		}
+		return n
 
 	case ir.OAS2:
-		ok |= ctxStmt
 		typecheckas2(n)
+		return n
 
 	case ir.OBREAK,
 		ir.OCONTINUE,
@@ -1958,14 +1994,13 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		ir.OFALL,
 		ir.OVARKILL,
 		ir.OVARLIVE:
-		ok |= ctxStmt
+		return n
 
 	case ir.OBLOCK:
-		ok |= ctxStmt
 		typecheckslice(n.List().Slice(), ctxStmt)
+		return n
 
 	case ir.OLABEL:
-		ok |= ctxStmt
 		decldepth++
 		if n.Sym().IsBlank() {
 			// Empty identifier is valid but useless.
@@ -1973,21 +2008,21 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// See issues 7538, 11589, 11593.
 			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
 		}
+		return n
 
 	case ir.ODEFER:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
 		if !n.Left().Diag() {
 			checkdefergo(n)
 		}
+		return n
 
 	case ir.OGO:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
 		checkdefergo(n)
+		return n
 
 	case ir.OFOR, ir.OFORUNTIL:
-		ok |= ctxStmt
 		typecheckslice(n.Init().Slice(), ctxStmt)
 		decldepth++
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
@@ -2004,9 +2039,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		typecheckslice(n.Body().Slice(), ctxStmt)
 		decldepth--
+		return n
 
 	case ir.OIF:
-		ok |= ctxStmt
 		typecheckslice(n.Init().Slice(), ctxStmt)
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
@@ -2018,9 +2053,9 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		typecheckslice(n.Body().Slice(), ctxStmt)
 		typecheckslice(n.Rlist().Slice(), ctxStmt)
+		return n
 
 	case ir.ORETURN:
-		ok |= ctxStmt
 		typecheckargs(n)
 		if Curfn == nil {
 			base.Errorf("return outside function")
@@ -2029,24 +2064,25 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 
 		if hasNamedResults(Curfn) && n.List().Len() == 0 {
-			break
+			return n
 		}
 		typecheckaste(ir.ORETURN, nil, false, Curfn.Type().Results(), n.List(), func() string { return "return argument" })
+		return n
 
 	case ir.ORETJMP:
-		ok |= ctxStmt
+		return n
 
 	case ir.OSELECT:
-		ok |= ctxStmt
 		typecheckselect(n)
+		return n
 
 	case ir.OSWITCH:
-		ok |= ctxStmt
 		typecheckswitch(n)
+		return n
 
 	case ir.ORANGE:
-		ok |= ctxStmt
 		typecheckrange(n)
+		return n
 
 	case ir.OTYPESW:
 		base.Errorf("use of .(type) outside type switch")
@@ -2054,64 +2090,22 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		return n
 
 	case ir.ODCLFUNC:
-		ok |= ctxStmt
 		typecheckfunc(n.(*ir.Func))
+		return n
 
 	case ir.ODCLCONST:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
+		return n
 
 	case ir.ODCLTYPE:
-		ok |= ctxStmt
 		n.SetLeft(typecheck(n.Left(), ctxType))
 		checkwidth(n.Left().Type())
-	}
-
-	t := n.Type()
-	if t != nil && !t.IsFuncArgStruct() && n.Op() != ir.OTYPE {
-		switch t.Kind() {
-		case types.TFUNC, // might have TANY; wait until it's called
-			types.TANY, types.TFORW, types.TIDEAL, types.TNIL, types.TBLANK:
-			break
-
-		default:
-			checkwidth(t)
-		}
-	}
-
-	n = evalConst(n)
-	if n.Op() == ir.OTYPE && top&ctxType == 0 {
-		if !n.Type().Broke() {
-			base.Errorf("type %v is not an expression", n.Type())
-		}
-		n.SetType(nil)
 		return n
 	}
 
-	if top&(ctxExpr|ctxType) == ctxType && n.Op() != ir.OTYPE {
-		base.Errorf("%v is not a type", n)
-		n.SetType(nil)
-		return n
-	}
-
-	// TODO(rsc): simplify
-	if (top&(ctxCallee|ctxExpr|ctxType) != 0) && top&ctxStmt == 0 && ok&(ctxExpr|ctxType|ctxCallee) == 0 {
-		base.Errorf("%v used as value", n)
-		n.SetType(nil)
-		return n
-	}
-
-	if (top&ctxStmt != 0) && top&(ctxCallee|ctxExpr|ctxType) == 0 && ok&ctxStmt == 0 {
-		if !n.Diag() {
-			base.Errorf("%v evaluated but not used", n)
-			n.SetDiag(true)
-		}
-
-		n.SetType(nil)
-		return n
-	}
-
-	return n
+	// No return n here!
+	// Individual cases can type-assert n, introducing a new one.
+	// Each must execute its own return n.
 }
 
 func typecheckargs(n ir.Node) {
