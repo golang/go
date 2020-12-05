@@ -654,6 +654,8 @@ func AsNode(n types.Object) Node {
 
 var BlankNode Node
 
+var BlankSym *types.Sym
+
 // origSym returns the original symbol written by the user.
 func OrigSym(s *types.Sym) *types.Sym {
 	if s == nil {
@@ -666,7 +668,7 @@ func OrigSym(s *types.Sym) *types.Sym {
 			return nil
 		case 'b': // originally the blank identifier _
 			// TODO(mdempsky): Does s.Pkg matter here?
-			return BlankNode.Sym()
+			return BlankSym
 		}
 		return s
 	}

@@ -339,7 +339,8 @@ func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
 
 func smodeString(s *types.Sym, mode FmtMode) string { return sconv(s, 0, mode) }
 
-// See #16897 before changing the implementation of sconv.
+// See #16897 for details about performance implications
+// before changing the implementation of sconv.
 func sconv(s *types.Sym, flag FmtFlag, mode FmtMode) string {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
@@ -472,17 +473,23 @@ var fmtBufferPool = sync.Pool{
 }
 
 func InstallTypeFormats() {
-	types.Sconv = func(s *types.Sym, flag, mode int) string {
-		return sconv(s, FmtFlag(flag), FmtMode(mode))
+	types.SymString = func(s *types.Sym) string {
+		return sconv(s, 0, FErr)
 	}
-	types.Tconv = func(t *types.Type, flag, mode int) string {
-		return tconv(t, FmtFlag(flag), FmtMode(mode))
+	types.TypeString = func(t *types.Type) string {
+		return tconv(t, 0, FErr)
 	}
-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
-		symFormat(sym, s, verb, FmtMode(mode))
+	types.TypeShortString = func(t *types.Type) string {
+		return tconv(t, FmtLeft, FErr)
 	}
-	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
-		typeFormat(t, s, verb, FmtMode(mode))
+	types.TypeLongString = func(t *types.Type) string {
+		return tconv(t, FmtLeft|FmtUnsigned, FErr)
+	}
+	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune) {
+		symFormat(sym, s, verb, FErr)
+	}
+	types.FormatType = func(t *types.Type, s fmt.State, verb rune) {
+		typeFormat(t, s, verb, FErr)
 	}
 }
 

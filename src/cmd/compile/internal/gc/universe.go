@@ -182,6 +182,7 @@ func initUniverse() {
 	ir.AsNode(s.Def).SetSym(lookup("false"))
 
 	s = lookup("_")
+	ir.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
