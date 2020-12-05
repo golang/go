@@ -1234,7 +1234,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	changedPkgNames := map[packageID][]span.URI{}
+	changedPkgNames := map[packageID]struct{}{}
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
 		// directory.
@@ -1255,7 +1255,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		filePackageIDs := guessPackageIDsForURI(uri, s.ids)
 		if pkgNameChanged {
 			for _, id := range filePackageIDs {
-				changedPkgNames[id] = append(changedPkgNames[id], uri)
+				changedPkgNames[id] = struct{}{}
 			}
 		}
 		for _, id := range filePackageIDs {
@@ -1389,8 +1389,10 @@ copyIDs:
 		}
 
 		// If the package name of a file in the package has changed, it's
-		// possible that the package ID may no longer exist.
-		if uris, ok := changedPkgNames[id]; ok && s.shouldDeleteWorkspacePackageID(id, uris) {
+		// possible that the package ID may no longer exist. Delete it from
+		// the set of workspace packages, on the assumption that we will add it
+		// back when the relevant files are reloaded.
+		if _, ok := changedPkgNames[id]; ok {
 			continue
 		}
 
@@ -1426,38 +1428,6 @@ copyIDs:
 		}
 	}
 	return result, workspaceChanged
-}
-
-// shouldDeleteWorkspacePackageID reports whether the given package ID should
-// be removed from the set of workspace packages. If one of the files in the
-// package has changed package names, we check if it is the only file that
-// *only* belongs to this package. For example, in the case of a test variant,
-// confirm that it is the sole file constituting the test variant.
-func (s *snapshot) shouldDeleteWorkspacePackageID(id packageID, changedPkgNames []span.URI) bool {
-	m, ok := s.metadata[id]
-	if !ok {
-		return false
-	}
-	changedPkgName := func(uri span.URI) bool {
-		for _, changed := range changedPkgNames {
-			if uri == changed {
-				return true
-			}
-		}
-		return false
-	}
-	for _, uri := range m.compiledGoFiles {
-		if changedPkgName(uri) {
-			continue
-		}
-		// If there is at least one file remaining that belongs only to this
-		// package, and its package name has not changed, we shouldn't delete
-		// its package ID from the set of workspace packages.
-		if ids := guessPackageIDsForURI(uri, s.ids); len(ids) == 1 && ids[0] == id {
-			return false
-		}
-	}
-	return true
 }
 
 // guessPackageIDsForURI returns all packages related to uri. If we haven't

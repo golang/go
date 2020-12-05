@@ -460,8 +460,13 @@ func _() {
 	fmt.Println("Hello World")
 }
 `
-	editorConfig := EditorConfig{Env: map[string]string{"GOPATH": ""}}
-	withOptions(editorConfig).run(t, files, func(t *testing.T, env *Env) {
+	withOptions(
+		EditorConfig{
+			Env: map[string]string{
+				"GOPATH":      "",
+				"GO111MODULE": "off",
+			},
+		}).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
 		env.SaveBuffer("main.go")
@@ -1470,17 +1475,37 @@ func TestRenamePackage(t *testing.T) {
 module mod.com
 
 go 1.12
--- foo.go --
-package foo
--- foo_test.go --
-package foo_`
+-- main.go --
+package main
 
-	runner.Run(t, contents, func(t *testing.T, env *Env) {
-		env.OpenFile("foo_test.go")
-		env.RegexpReplace("foo_test.go", "foo_", "foo_test")
-		env.SaveBuffer("foo_test.go")
+import "example.com/blah"
+
+func main() {
+	blah.Hello()
+}
+-- bob.go --
+package main
+-- foo/foo.go --
+package foo
+-- foo/foo_test.go --
+package foo_
+`
+
+	withOptions(
+		WithProxyFiles(proxy),
+		InGOPATH(),
+	).run(t, contents, func(t *testing.T, env *Env) {
+		// Simulate typing character by character.
+		env.OpenFile("foo/foo_test.go")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		env.RegexpReplace("foo/foo_test.go", "_", "_t")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
+		env.RegexpReplace("foo/foo_test.go", "_t", "_test")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2))
+
 		env.Await(
-			EmptyDiagnostics("foo_test.go"),
+			EmptyDiagnostics("foo/foo_test.go"),
+			NoOutstandingWork(),
 		)
 	})
 }
