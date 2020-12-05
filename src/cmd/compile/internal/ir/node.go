@@ -585,26 +585,26 @@ func (q *NodeQueue) PopLeft() Node {
 	return n
 }
 
-// NodeSet is a set of Nodes.
-type NodeSet map[Node]struct{}
+// NameSet is a set of Names.
+type NameSet map[*Name]struct{}
 
 // Has reports whether s contains n.
-func (s NodeSet) Has(n Node) bool {
+func (s NameSet) Has(n *Name) bool {
 	_, isPresent := s[n]
 	return isPresent
 }
 
 // Add adds n to s.
-func (s *NodeSet) Add(n Node) {
+func (s *NameSet) Add(n *Name) {
 	if *s == nil {
-		*s = make(map[Node]struct{})
+		*s = make(map[*Name]struct{})
 	}
 	(*s)[n] = struct{}{}
 }
 
 // Sorted returns s sorted according to less.
-func (s NodeSet) Sorted(less func(Node, Node) bool) []Node {
-	var res []Node
+func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
+	var res []*Name
 	for n := range s {
 		res = append(res, n)
 	}

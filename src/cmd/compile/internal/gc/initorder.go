@@ -110,7 +110,7 @@ func initOrder(l []ir.Node) []ir.Node {
 				// first.
 				base.ExitIfErrors()
 
-				findInitLoopAndExit(firstLHS(n), new([]ir.Node))
+				findInitLoopAndExit(firstLHS(n), new([]*ir.Name))
 				base.Fatalf("initialization unfinished, but failed to identify loop")
 			}
 		}
@@ -136,7 +136,7 @@ func (o *InitOrder) processAssign(n ir.Node) {
 	// Compute number of variable dependencies and build the
 	// inverse dependency ("blocking") graph.
 	for dep := range collectDeps(n, true) {
-		defn := dep.Name().Defn
+		defn := dep.Defn
 		// Skip dependencies on functions (PFUNC) and
 		// variables already initialized (InitDone).
 		if dep.Class() != ir.PEXTERN || defn.Initorder() == InitDone {
@@ -183,7 +183,7 @@ func (o *InitOrder) flushReady(initialize func(ir.Node)) {
 // path points to a slice used for tracking the sequence of
 // variables/functions visited. Using a pointer to a slice allows the
 // slice capacity to grow and limit reallocations.
-func findInitLoopAndExit(n ir.Node, path *[]ir.Node) {
+func findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 	// We implement a simple DFS loop-finding algorithm. This
 	// could be faster, but initialization cycles are rare.
 
@@ -196,14 +196,14 @@ func findInitLoopAndExit(n ir.Node, path *[]ir.Node) {
 
 	// There might be multiple loops involving n; by sorting
 	// references, we deterministically pick the one reported.
-	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj ir.Node) bool {
+	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj *ir.Name) bool {
 		return ni.Pos().Before(nj.Pos())
 	})
 
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class() == ir.PEXTERN && ref.Name().Defn.Initorder() == InitDone {
+		if ref.Class() == ir.PEXTERN && ref.Defn.Initorder() == InitDone {
 			continue
 		}
 
@@ -215,7 +215,7 @@ func findInitLoopAndExit(n ir.Node, path *[]ir.Node) {
 // reportInitLoopAndExit reports and initialization loop as an error
 // and exits. However, if l is not actually an initialization loop, it
 // simply returns instead.
-func reportInitLoopAndExit(l []ir.Node) {
+func reportInitLoopAndExit(l []*ir.Name) {
 	// Rotate loop so that the earliest variable declaration is at
 	// the start.
 	i := -1
@@ -250,7 +250,7 @@ func reportInitLoopAndExit(l []ir.Node) {
 // variables that declaration n depends on. If transitive is true,
 // then it also includes the transitive dependencies of any depended
 // upon functions (but not variables).
-func collectDeps(n ir.Node, transitive bool) ir.NodeSet {
+func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 	d := initDeps{transitive: transitive}
 	switch n.Op() {
 	case ir.OAS:
@@ -267,7 +267,7 @@ func collectDeps(n ir.Node, transitive bool) ir.NodeSet {
 
 type initDeps struct {
 	transitive bool
-	seen       ir.NodeSet
+	seen       ir.NameSet
 }
 
 func (d *initDeps) inspect(n ir.Node)      { ir.Inspect(n, d.visit) }
@@ -345,12 +345,12 @@ func (s *declOrder) Pop() interface{} {
 
 // firstLHS returns the first expression on the left-hand side of
 // assignment n.
-func firstLHS(n ir.Node) ir.Node {
+func firstLHS(n ir.Node) *ir.Name {
 	switch n.Op() {
 	case ir.OAS:
-		return n.Left()
+		return n.Left().Name()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2RECV, ir.OAS2MAPR:
-		return n.List().First()
+		return n.List().First().Name()
 	}
 
 	base.Fatalf("unexpected Op: %v", n.Op())
