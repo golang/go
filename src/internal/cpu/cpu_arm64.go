@@ -36,7 +36,7 @@ func doinit() {
 
 	switch GOOS {
 	case "linux", "android":
-		// HWCap was populated by the runtime from the auxillary vector.
+		// HWCap was populated by the runtime from the auxiliary vector.
 		// Use HWCap information since reading aarch64 system registers
 		// is not supported in user space on older linux kernels.
 		ARM64.HasAES = isSet(HWCap, hwcap_AES)
@@ -103,7 +103,7 @@ func doinit() {
 			ARM64.HasATOMICS = true
 		}
 	default:
-		// Other operating systems do not support reading HWCap from auxillary vector
+		// Other operating systems do not support reading HWCap from auxiliary vector
 		// or reading privileged aarch64 system registers in user space.
 	}
 }
