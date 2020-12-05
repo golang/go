@@ -4,7 +4,10 @@
 
 package types
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/base"
+	"cmd/internal/src"
+)
 
 // Declaration stack & operations
 
@@ -56,7 +59,7 @@ func Popdcl() {
 		d.sym = nil
 		d.def = nil
 	}
-	Fatalf("popdcl: no stack mark")
+	base.Fatalf("popdcl: no stack mark")
 }
 
 // Markdcl records the start of a new block scope for declarations.

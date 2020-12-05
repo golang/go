@@ -231,7 +231,7 @@ func (t *Type) Pkg() *Pkg {
 	case TINTER:
 		return t.Extra.(*Interface).pkg
 	default:
-		Fatalf("Pkg: unexpected kind: %v", t)
+		base.Fatalf("Pkg: unexpected kind: %v", t)
 		return nil
 	}
 }
@@ -501,7 +501,7 @@ func New(et Kind) *Type {
 // NewArray returns a new fixed-length array Type.
 func NewArray(elem *Type, bound int64) *Type {
 	if bound < 0 {
-		Fatalf("NewArray: invalid bound %v", bound)
+		base.Fatalf("NewArray: invalid bound %v", bound)
 	}
 	t := New(TARRAY)
 	t.Extra = &Array{Elem: elem, Bound: bound}
@@ -513,7 +513,7 @@ func NewArray(elem *Type, bound int64) *Type {
 func NewSlice(elem *Type) *Type {
 	if t := elem.cache.slice; t != nil {
 		if t.Elem() != elem {
-			Fatalf("elem mismatch")
+			base.Fatalf("elem mismatch")
 		}
 		return t
 	}
@@ -569,12 +569,12 @@ var NewPtrCacheEnabled = true
 // NewPtr returns the pointer type pointing to t.
 func NewPtr(elem *Type) *Type {
 	if elem == nil {
-		Fatalf("NewPtr: pointer to elem Type is nil")
+		base.Fatalf("NewPtr: pointer to elem Type is nil")
 	}
 
 	if t := elem.cache.ptr; t != nil {
 		if t.Elem() != elem {
-			Fatalf("NewPtr: elem mismatch")
+			base.Fatalf("NewPtr: elem mismatch")
 		}
 		return t
 	}
@@ -629,7 +629,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 
 	case TANY:
 		if len(*types) == 0 {
-			Fatalf("substArgTypes: not enough argument types")
+			base.Fatalf("substArgTypes: not enough argument types")
 		}
 		t = (*types)[0]
 		*types = (*types)[1:]
@@ -730,7 +730,7 @@ func (t *Type) copy() *Type {
 		x := *t.Extra.(*Array)
 		nt.Extra = &x
 	case TTUPLE, TSSA, TRESULTS:
-		Fatalf("ssa types cannot be copied")
+		base.Fatalf("ssa types cannot be copied")
 	}
 	// TODO(mdempsky): Find out why this is necessary and explain.
 	if t.underlying == t {
@@ -746,7 +746,7 @@ func (f *Field) Copy() *Field {
 
 func (t *Type) wantEtype(et Kind) {
 	if t.kind != et {
-		Fatalf("want %v, but have %v", et, t)
+		base.Fatalf("want %v, but have %v", et, t)
 	}
 }
 
@@ -811,7 +811,7 @@ func (t *Type) Elem() *Type {
 	case TMAP:
 		return t.Extra.(*Map).Elem
 	}
-	Fatalf("Type.Elem %s", t.kind)
+	base.Fatalf("Type.Elem %s", t.kind)
 	return nil
 }
 
@@ -850,7 +850,7 @@ func (t *Type) Fields() *Fields {
 		Dowidth(t)
 		return &t.Extra.(*Interface).Fields
 	}
-	Fatalf("Fields: type %v does not have fields", t)
+	base.Fatalf("Fields: type %v does not have fields", t)
 	return nil
 }
 
@@ -874,7 +874,7 @@ func (t *Type) SetFields(fields []*Field) {
 	// enforce that SetFields cannot be called once
 	// t's width has been calculated.
 	if t.WidthCalculated() {
-		Fatalf("SetFields of %v: width previously calculated", t)
+		base.Fatalf("SetFields of %v: width previously calculated", t)
 	}
 	t.wantEtype(TSTRUCT)
 	for _, f := range fields {
@@ -1223,7 +1223,7 @@ var unsignedEType = [...]Kind{
 // ToUnsigned returns the unsigned equivalent of integer type t.
 func (t *Type) ToUnsigned() *Type {
 	if !t.IsInteger() {
-		Fatalf("unsignedType(%v)", t)
+		base.Fatalf("unsignedType(%v)", t)
 	}
 	return Types[unsignedEType[t.kind]]
 }
@@ -1385,7 +1385,7 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 	switch t.kind {
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
-			Fatalf("NumComponents func arg struct")
+			base.Fatalf("NumComponents func arg struct")
 		}
 		var n int64
 		for _, f := range t.FieldSlice() {
@@ -1408,7 +1408,7 @@ func (t *Type) SoleComponent() *Type {
 	switch t.kind {
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
-			Fatalf("SoleComponent func arg struct")
+			base.Fatalf("SoleComponent func arg struct")
 		}
 		if t.NumFields() != 1 {
 			return nil

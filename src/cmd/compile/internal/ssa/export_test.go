@@ -12,7 +12,6 @@ import (
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
-	"fmt"
 	"testing"
 )
 
@@ -138,19 +137,7 @@ func init() {
 	// Initialize just enough of the universe and the types package to make our tests function.
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
-
-	types.Tconv = func(t *types.Type, flag, mode int) string {
-		return t.Kind().String()
-	}
-	types.Sconv = func(s *types.Sym, flag, mode int) string {
-		return "sym"
-	}
-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
-		fmt.Fprintf(s, "sym")
-	}
-	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
-		fmt.Fprintf(s, "%v", t.Kind())
-	}
+	ir.InstallTypeFormats()
 	types.Dowidth = func(t *types.Type) {}
 
 	for _, typ := range [...]struct {

@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"unicode"
@@ -88,9 +89,9 @@ func (sym *Sym) Linksym() *obj.LSym {
 	}
 	if sym.Func() {
 		// This is a function symbol. Mark it as "internal ABI".
-		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
+		return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
 	}
-	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
+	return base.Ctxt.LookupInit(sym.LinksymName(), initPkg)
 }
 
 // Less reports whether symbol a is ordered before symbol b.

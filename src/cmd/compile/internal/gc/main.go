@@ -212,15 +212,10 @@ func Main(archInit func(*Arch)) {
 	// would lead to import cycles)
 	types.Widthptr = Widthptr
 	types.Dowidth = dowidth
-	types.Fatalf = base.Fatalf
 	ir.InstallTypeFormats()
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return typenamesym(t).Linksym()
 	}
-	types.FmtLeft = int(ir.FmtLeft)
-	types.FmtUnsigned = int(ir.FmtUnsigned)
-	types.FErr = int(ir.FErr)
-	types.Ctxt = base.Ctxt
 
 	initUniverse()
 
