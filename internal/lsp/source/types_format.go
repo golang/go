@@ -282,10 +282,7 @@ func qualifyExpr(expr ast.Expr, srcpkg, pkg Package, clonedInfo map[token.Pos]*t
 			if !ok {
 				return false
 			}
-			pkgName := qf(obj.Imported())
-			if pkgName != "" {
-				x.Name = pkgName
-			}
+			x.Name = qf(obj.Imported())
 			return false
 		case *ast.Ident:
 			if srcpkg == pkg {
