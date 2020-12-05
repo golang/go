@@ -49,6 +49,14 @@ type subFS struct {
 	dir  string
 }
 
+// define operation tag for subFS's fullName
+// when fullName called, must have a definite operation tag
+const (
+	opOpen     = "open"     // open
+	opReadDir  = "readDir"  // readDir
+	opReadFile = "readFile" // readFile
+)
+
 // fullName maps name to the fully-qualified name dir/name.
 func (f *subFS) fullName(op string, name string) (string, error) {
 	if !ValidPath(name) {
@@ -79,7 +87,7 @@ func (f *subFS) fixErr(err error) error {
 }
 
 func (f *subFS) Open(name string) (File, error) {
-	full, err := f.fullName("open", name)
+	full, err := f.fullName(opOpen, name)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +96,7 @@ func (f *subFS) Open(name string) (File, error) {
 }
 
 func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
-	full, err := f.fullName("open", name)
+	full, err := f.fullName(opReadDir, name)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +105,7 @@ func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
 }
 
 func (f *subFS) ReadFile(name string) ([]byte, error) {
-	full, err := f.fullName("open", name)
+	full, err := f.fullName(opReadFile, name)
 	if err != nil {
 		return nil, err
 	}
