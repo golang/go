@@ -116,6 +116,12 @@ type Node interface {
 	CanBeAnSSASym()
 }
 
+// Line returns n's position as a string. If n has been inlined,
+// it uses the outermost position where n has been inlined.
+func Line(n Node) string {
+	return base.FmtPos(n.Pos())
+}
+
 func IsSynthetic(n Node) bool {
 	name := n.Sym().Name
 	return name[0] == '.' || name[0] == '~'
