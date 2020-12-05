@@ -1284,12 +1284,10 @@ func (c *completer) lexical(ctx context.Context) error {
 				}
 			}
 
-			// Don't use LHS of value spec in RHS.
-			if vs := enclosingValueSpec(c.path); vs != nil {
-				for _, ident := range vs.Names {
-					if obj.Pos() == ident.Pos() {
-						continue Names
-					}
+			// Don't use LHS of decl in RHS.
+			for _, ident := range enclosingDeclLHS(c.path) {
+				if obj.Pos() == ident.Pos() {
+					continue Names
 				}
 			}
 

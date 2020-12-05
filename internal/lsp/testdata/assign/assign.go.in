@@ -16,3 +16,11 @@ func _() {
 func _() {
 	var a string = a //@complete(" //")
 }
+
+func _() {
+	fooBar := fooBa //@complete(" //"),item(assignFooBar, "fooBar", "", "var")
+	abc, fooBar := 123, fooBa //@complete(" //", assignFooBar)
+	{
+		fooBar := fooBa //@complete(" //", assignFooBar)
+	}
+}
