@@ -2882,7 +2882,9 @@ func wakeNetPoller(when int64) {
 	} else {
 		// There are no threads in the network poller, try to get
 		// one there so it can handle new timers.
-		wakep()
+		if GOOS != "plan9" { // Temporary workaround - see issue #42303.
+			wakep()
+		}
 	}
 }
 
