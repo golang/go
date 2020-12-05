@@ -85,8 +85,6 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/gc.itag %v":                 "",
 	"cmd/compile/internal/ir.Class %d":                "",
 	"cmd/compile/internal/ir.Class %v":                "",
-	"cmd/compile/internal/ir.FmtMode %d":              "",
-	"cmd/compile/internal/ir.Node %+S":                "",
 	"cmd/compile/internal/ir.Node %+v":                "",
 	"cmd/compile/internal/ir.Node %L":                 "",
 	"cmd/compile/internal/ir.Node %S":                 "",

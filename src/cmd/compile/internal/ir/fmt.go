@@ -170,19 +170,13 @@ func (m FmtMode) Sprint(args ...interface{}) string {
 func (m FmtMode) prepareArgs(args []interface{}) {
 	for i, arg := range args {
 		switch arg := arg.(type) {
-		case Op:
-			args[i] = &fmtOp{arg, m}
-		case Node:
-			args[i] = &fmtNode{arg, m}
 		case nil:
-			args[i] = &fmtNode{nil, m} // assume this was a node interface
+			args[i] = "<N>" // assume this was a node interface
 		case *types.Type:
 			args[i] = &fmtType{arg, m}
 		case *types.Sym:
 			args[i] = &fmtSym{arg, m}
-		case Nodes:
-			args[i] = &fmtNodes{arg, m}
-		case int32, int64, string, types.Kind, constant.Value:
+		case int32, int64, string, Op, Node, Nodes, types.Kind, constant.Value:
 			// OK: printing these types doesn't depend on mode
 		default:
 			base.Fatalf("mode.prepareArgs type %T", arg)
@@ -264,13 +258,6 @@ func (o Op) GoString() string {
 	}
 	return o.String()
 }
-
-type fmtOp struct {
-	x Op
-	m FmtMode
-}
-
-func (f *fmtOp) Format(s fmt.State, verb rune) { f.x.Format(s, verb) }
 
 func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
@@ -851,7 +838,7 @@ func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode FmtMode, visite
 
 		if s != nil && f.Embedded == 0 {
 			if funarg != types.FunargNone {
-				name = modeString(AsNode(f.Nname), mode)
+				name = fmt.Sprint(f.Nname)
 			} else if flag&FmtLong != 0 {
 				name = mode.Sprintf("%0S", s)
 				if !types.IsExported(name) && flag&FmtUnsigned == 0 {
@@ -887,64 +874,38 @@ func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode FmtMode, visite
 
 // Node
 
-func modeString(n Node, mode FmtMode) string { return mode.Sprint(n) }
-
-type fmtNode struct {
-	x Node
-	m FmtMode
-}
-
-func (f *fmtNode) Format(s fmt.State, verb rune) { nodeFormat(f.x, s, verb, f.m) }
-
 func FmtNode(n Node, s fmt.State, verb rune) {
+	// TODO(rsc): Remove uses of %#v, which behaves just like %v.
+	// TODO(rsc): Remove uses of %S, which behaves just like %v.
+	if verb == 'S' {
+		verb = 'v'
+	}
+
 	// %+v prints Dump.
+	// Otherwise we print Go syntax.
 	if s.Flag('+') && verb == 'v' {
 		dumpNode(s, n, 1)
 		return
 	}
 
-	// Otherwise print Go syntax.
-	nodeFormat(n, s, verb, FErr)
-}
-
-func nodeFormat(n Node, s fmt.State, verb rune, mode FmtMode) {
-	switch verb {
-	case 'v', 'S', 'L':
-		nconvFmt(n, s, fmtFlag(s, verb), mode)
-
-	default:
+	if verb != 'v' && verb != 'S' && verb != 'L' {
 		fmt.Fprintf(s, "%%!%c(*Node=%p)", verb, n)
+		return
 	}
-}
 
-// "%L"  suffix with "(type %T)" where possible
-// "%+S" in debug mode, don't recurse, no multiline output
-func nconvFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
 		return
 	}
 
-	flag, mode = flag.update(mode)
-
-	switch mode {
-	case FErr:
-		nodeFmt(n, s, flag, mode)
-
-	default:
-		base.Fatalf("unhandled %%N mode: %d", mode)
-	}
-}
-
-func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	t := n.Type()
-	if flag&FmtLong != 0 && t != nil {
+	if verb == 'L' && t != nil {
 		if t.Kind() == types.TNIL {
 			fmt.Fprint(s, "nil")
 		} else if n.Op() == ONAME && n.Name().AutoTemp() {
-			mode.Fprintf(s, "%v value", t)
+			fmt.Fprintf(s, "%v value", t)
 		} else {
-			mode.Fprintf(s, "%v (type %v)", n, t)
+			fmt.Fprintf(s, "%v (type %v)", n, t)
 		}
 		return
 	}
@@ -952,11 +913,11 @@ func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	// TODO inlining produces expressions with ninits. we can't print these yet.
 
 	if OpPrec[n.Op()] < 0 {
-		stmtFmt(n, s, mode)
+		stmtFmt(n, s)
 		return
 	}
 
-	exprFmt(n, s, 0, mode)
+	exprFmt(n, s, 0)
 }
 
 var OpPrec = []int{
@@ -1089,7 +1050,15 @@ func StmtWithInit(op Op) bool {
 	return false
 }
 
-func stmtFmt(n Node, s fmt.State, mode FmtMode) {
+func stmtFmt(n Node, s fmt.State) {
+	// NOTE(rsc): This code used to support the text-based
+	// which was more aggressive about printing full Go syntax
+	// (for example, an actual loop instead of "for loop").
+	// The code is preserved for now in case we want to expand
+	// any of those shortenings later. Or maybe we will delete
+	// the code. But for now, keep it.
+	const exportFormat = false
+
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
 	// and inlining. If it doesn't fit the syntax, emit an enclosing
@@ -1099,7 +1068,7 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 	simpleinit := n.Init().Len() == 1 && n.Init().First().Init().Len() == 0 && StmtWithInit(n.Op())
 
 	// otherwise, print the inits as separate statements
-	complexinit := n.Init().Len() != 0 && !simpleinit && (mode != FErr)
+	complexinit := n.Init().Len() != 0 && !simpleinit && exportFormat
 
 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
 	extrablock := complexinit && StmtWithInit(n.Op())
@@ -1109,70 +1078,70 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 	}
 
 	if complexinit {
-		mode.Fprintf(s, " %v; ", n.Init())
+		fmt.Fprintf(s, " %v; ", n.Init())
 	}
 
 	switch n.Op() {
 	case ODCL:
-		mode.Fprintf(s, "var %v %v", n.Left().Sym(), n.Left().Type())
+		fmt.Fprintf(s, "var %v %v", n.Left().Sym(), n.Left().Type())
 
 	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS:
 		if n.Colas() && !complexinit {
-			mode.Fprintf(s, "%v := %v", n.Left(), n.Right())
+			fmt.Fprintf(s, "%v := %v", n.Left(), n.Right())
 		} else {
-			mode.Fprintf(s, "%v = %v", n.Left(), n.Right())
+			fmt.Fprintf(s, "%v = %v", n.Left(), n.Right())
 		}
 
 	case OASOP:
 		if n.Implicit() {
 			if n.SubOp() == OADD {
-				mode.Fprintf(s, "%v++", n.Left())
+				fmt.Fprintf(s, "%v++", n.Left())
 			} else {
-				mode.Fprintf(s, "%v--", n.Left())
+				fmt.Fprintf(s, "%v--", n.Left())
 			}
 			break
 		}
 
-		mode.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
+		fmt.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		if n.Colas() && !complexinit {
-			mode.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
+			fmt.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
 		} else {
-			mode.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
+			fmt.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
 		}
 
 	case OBLOCK:
 		if n.List().Len() != 0 {
-			mode.Fprintf(s, "%v", n.List())
+			fmt.Fprintf(s, "%v", n.List())
 		}
 
 	case ORETURN:
-		mode.Fprintf(s, "return %.v", n.List())
+		fmt.Fprintf(s, "return %.v", n.List())
 
 	case ORETJMP:
-		mode.Fprintf(s, "retjmp %v", n.Sym())
+		fmt.Fprintf(s, "retjmp %v", n.Sym())
 
 	case OINLMARK:
-		mode.Fprintf(s, "inlmark %d", n.Offset())
+		fmt.Fprintf(s, "inlmark %d", n.Offset())
 
 	case OGO:
-		mode.Fprintf(s, "go %v", n.Left())
+		fmt.Fprintf(s, "go %v", n.Left())
 
 	case ODEFER:
-		mode.Fprintf(s, "defer %v", n.Left())
+		fmt.Fprintf(s, "defer %v", n.Left())
 
 	case OIF:
 		if simpleinit {
-			mode.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Left(), n.Body())
+			fmt.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Left(), n.Body())
 		} else {
-			mode.Fprintf(s, "if %v { %v }", n.Left(), n.Body())
+			fmt.Fprintf(s, "if %v { %v }", n.Left(), n.Body())
 		}
 		if n.Rlist().Len() != 0 {
-			mode.Fprintf(s, " else { %v }", n.Rlist())
+			fmt.Fprintf(s, " else { %v }", n.Rlist())
 		}
 
 	case OFOR, OFORUNTIL:
@@ -1180,80 +1149,80 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 		if n.Op() == OFORUNTIL {
 			opname = "foruntil"
 		}
-		if mode == FErr { // TODO maybe only if FmtShort, same below
+		if !exportFormat { // TODO maybe only if FmtShort, same below
 			fmt.Fprintf(s, "%s loop", opname)
 			break
 		}
 
 		fmt.Fprint(s, opname)
 		if simpleinit {
-			mode.Fprintf(s, " %v;", n.Init().First())
+			fmt.Fprintf(s, " %v;", n.Init().First())
 		} else if n.Right() != nil {
 			fmt.Fprint(s, " ;")
 		}
 
 		if n.Left() != nil {
-			mode.Fprintf(s, " %v", n.Left())
+			fmt.Fprintf(s, " %v", n.Left())
 		}
 
 		if n.Right() != nil {
-			mode.Fprintf(s, "; %v", n.Right())
+			fmt.Fprintf(s, "; %v", n.Right())
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
 		}
 
 		if n.Op() == OFORUNTIL && n.List().Len() != 0 {
-			mode.Fprintf(s, "; %v", n.List())
+			fmt.Fprintf(s, "; %v", n.List())
 		}
 
-		mode.Fprintf(s, " { %v }", n.Body())
+		fmt.Fprintf(s, " { %v }", n.Body())
 
 	case ORANGE:
-		if mode == FErr {
+		if !exportFormat {
 			fmt.Fprint(s, "for loop")
 			break
 		}
 
 		if n.List().Len() == 0 {
-			mode.Fprintf(s, "for range %v { %v }", n.Right(), n.Body())
+			fmt.Fprintf(s, "for range %v { %v }", n.Right(), n.Body())
 			break
 		}
 
-		mode.Fprintf(s, "for %.v = range %v { %v }", n.List(), n.Right(), n.Body())
+		fmt.Fprintf(s, "for %.v = range %v { %v }", n.List(), n.Right(), n.Body())
 
 	case OSELECT, OSWITCH:
-		if mode == FErr {
-			mode.Fprintf(s, "%v statement", n.Op())
+		if !exportFormat {
+			fmt.Fprintf(s, "%v statement", n.Op())
 			break
 		}
 
-		mode.Fprintf(s, "%#v", n.Op())
+		fmt.Fprintf(s, "%#v", n.Op())
 		if simpleinit {
-			mode.Fprintf(s, " %v;", n.Init().First())
+			fmt.Fprintf(s, " %v;", n.Init().First())
 		}
 		if n.Left() != nil {
-			mode.Fprintf(s, " %v ", n.Left())
+			fmt.Fprintf(s, " %v ", n.Left())
 		}
 
-		mode.Fprintf(s, " { %v }", n.List())
+		fmt.Fprintf(s, " { %v }", n.List())
 
 	case OCASE:
 		if n.List().Len() != 0 {
-			mode.Fprintf(s, "case %.v", n.List())
+			fmt.Fprintf(s, "case %.v", n.List())
 		} else {
 			fmt.Fprint(s, "default")
 		}
-		mode.Fprintf(s, ": %v", n.Body())
+		fmt.Fprintf(s, ": %v", n.Body())
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
 		if n.Sym() != nil {
-			mode.Fprintf(s, "%#v %v", n.Op(), n.Sym())
+			fmt.Fprintf(s, "%#v %v", n.Op(), n.Sym())
 		} else {
-			mode.Fprintf(s, "%#v", n.Op())
+			fmt.Fprintf(s, "%#v", n.Op())
 		}
 
 	case OLABEL:
-		mode.Fprintf(s, "%v: ", n.Sym())
+		fmt.Fprintf(s, "%v: ", n.Sym())
 	}
 
 	if extrablock {
@@ -1261,7 +1230,15 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
 	}
 }
 
-func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+func exprFmt(n Node, s fmt.State, prec int) {
+	// NOTE(rsc): This code used to support the text-based
+	// which was more aggressive about printing full Go syntax
+	// (for example, an actual loop instead of "for loop").
+	// The code is preserved for now in case we want to expand
+	// any of those shortenings later. Or maybe we will delete
+	// the code. But for now, keep it.
+	const exportFormat = false
+
 	for {
 		if n == nil {
 			fmt.Fprint(s, "<N>")
@@ -1292,20 +1269,20 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 	}
 
 	if prec > nprec {
-		mode.Fprintf(s, "(%v)", n)
+		fmt.Fprintf(s, "(%v)", n)
 		return
 	}
 
 	switch n.Op() {
 	case OPAREN:
-		mode.Fprintf(s, "(%v)", n.Left())
+		fmt.Fprintf(s, "(%v)", n.Left())
 
 	case ONIL:
 		fmt.Fprint(s, "nil")
 
 	case OLITERAL: // this is a bit of a mess
-		if mode == FErr && n.Sym() != nil {
-			fmt.Fprint(s, smodeString(n.Sym(), mode))
+		if !exportFormat && n.Sym() != nil {
+			fmt.Fprint(s, smodeString(n.Sym(), FErr))
 			return
 		}
 
@@ -1314,9 +1291,9 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type().IsPtr() || (n.Type().IsChan() && n.Type().ChanDir() == types.Crecv) {
-				mode.Fprintf(s, "(%v)(", n.Type())
+				fmt.Fprintf(s, "(%v)(", n.Type())
 			} else {
-				mode.Fprintf(s, "%v(", n.Type())
+				fmt.Fprintf(s, "%v(", n.Type())
 			}
 			needUnparen = true
 		}
@@ -1342,68 +1319,68 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		}
 
 		if needUnparen {
-			mode.Fprintf(s, ")")
+			fmt.Fprintf(s, ")")
 		}
 
 	case ODCLFUNC:
 		if sym := n.Sym(); sym != nil {
-			fmt.Fprint(s, smodeString(sym, mode))
+			fmt.Fprint(s, smodeString(sym, FErr))
 			return
 		}
-		mode.Fprintf(s, "<unnamed Func>")
+		fmt.Fprintf(s, "<unnamed Func>")
 
 	case ONAME:
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export
-		if mode == FErr && n.Sym() != nil && n.Sym().Name[0] == '~' && n.Sym().Name[1] == 'b' {
+		if !exportFormat && n.Sym() != nil && n.Sym().Name[0] == '~' && n.Sym().Name[1] == 'b' {
 			fmt.Fprint(s, "_")
 			return
 		}
 		fallthrough
 	case OPACK, ONONAME, OMETHEXPR:
-		fmt.Fprint(s, smodeString(n.Sym(), mode))
+		fmt.Fprint(s, smodeString(n.Sym(), FErr))
 
 	case OTYPE:
 		if n.Type() == nil && n.Sym() != nil {
-			fmt.Fprint(s, smodeString(n.Sym(), mode))
+			fmt.Fprint(s, smodeString(n.Sym(), FErr))
 			return
 		}
-		mode.Fprintf(s, "%v", n.Type())
+		fmt.Fprintf(s, "%v", n.Type())
 
 	case OTSLICE:
 		n := n.(*SliceType)
 		if n.DDD {
-			mode.Fprintf(s, "...%v", n.Elem)
+			fmt.Fprintf(s, "...%v", n.Elem)
 		} else {
-			mode.Fprintf(s, "[]%v", n.Elem) // happens before typecheck
+			fmt.Fprintf(s, "[]%v", n.Elem) // happens before typecheck
 		}
 
 	case OTARRAY:
 		n := n.(*ArrayType)
 		if n.Len == nil {
-			mode.Fprintf(s, "[...]%v", n.Elem)
+			fmt.Fprintf(s, "[...]%v", n.Elem)
 		} else {
-			mode.Fprintf(s, "[%v]%v", n.Len, n.Elem)
+			fmt.Fprintf(s, "[%v]%v", n.Len, n.Elem)
 		}
 
 	case OTMAP:
 		n := n.(*MapType)
-		mode.Fprintf(s, "map[%v]%v", n.Key, n.Elem)
+		fmt.Fprintf(s, "map[%v]%v", n.Key, n.Elem)
 
 	case OTCHAN:
 		n := n.(*ChanType)
 		switch n.Dir {
 		case types.Crecv:
-			mode.Fprintf(s, "<-chan %v", n.Elem)
+			fmt.Fprintf(s, "<-chan %v", n.Elem)
 
 		case types.Csend:
-			mode.Fprintf(s, "chan<- %v", n.Elem)
+			fmt.Fprintf(s, "chan<- %v", n.Elem)
 
 		default:
 			if n.Elem != nil && n.Elem.Op() == OTCHAN && n.Elem.(*ChanType).Dir == types.Crecv {
-				mode.Fprintf(s, "chan (%v)", n.Elem)
+				fmt.Fprintf(s, "chan (%v)", n.Elem)
 			} else {
-				mode.Fprintf(s, "chan %v", n.Elem)
+				fmt.Fprintf(s, "chan %v", n.Elem)
 			}
 		}
 
@@ -1417,104 +1394,104 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		fmt.Fprint(s, "<func>")
 
 	case OCLOSURE:
-		if mode == FErr {
+		if !exportFormat {
 			fmt.Fprint(s, "func literal")
 			return
 		}
 		if n.Body().Len() != 0 {
-			mode.Fprintf(s, "%v { %v }", n.Type(), n.Body())
+			fmt.Fprintf(s, "%v { %v }", n.Type(), n.Body())
 			return
 		}
-		mode.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
+		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
 
 	case OCOMPLIT:
-		if mode == FErr {
+		if !exportFormat {
 			if n.Implicit() {
-				mode.Fprintf(s, "... argument")
+				fmt.Fprintf(s, "... argument")
 				return
 			}
 			if n.Right() != nil {
-				mode.Fprintf(s, "%v{%s}", n.Right(), ellipsisIf(n.List().Len() != 0))
+				fmt.Fprintf(s, "%v{%s}", n.Right(), ellipsisIf(n.List().Len() != 0))
 				return
 			}
 
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-		mode.Fprintf(s, "(%v{ %.v })", n.Right(), n.List())
+		fmt.Fprintf(s, "(%v{ %.v })", n.Right(), n.List())
 
 	case OPTRLIT:
-		mode.Fprintf(s, "&%v", n.Left())
+		fmt.Fprintf(s, "&%v", n.Left())
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
-		if mode == FErr {
-			mode.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List().Len() != 0))
+		if !exportFormat {
+			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List().Len() != 0))
 			return
 		}
-		mode.Fprintf(s, "(%v{ %.v })", n.Type(), n.List())
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List())
 
 	case OKEY:
 		if n.Left() != nil && n.Right() != nil {
-			mode.Fprintf(s, "%v:%v", n.Left(), n.Right())
+			fmt.Fprintf(s, "%v:%v", n.Left(), n.Right())
 			return
 		}
 
 		if n.Left() == nil && n.Right() != nil {
-			mode.Fprintf(s, ":%v", n.Right())
+			fmt.Fprintf(s, ":%v", n.Right())
 			return
 		}
 		if n.Left() != nil && n.Right() == nil {
-			mode.Fprintf(s, "%v:", n.Left())
+			fmt.Fprintf(s, "%v:", n.Left())
 			return
 		}
 		fmt.Fprint(s, ":")
 
 	case OSTRUCTKEY:
-		mode.Fprintf(s, "%v:%v", n.Sym(), n.Left())
+		fmt.Fprintf(s, "%v:%v", n.Sym(), n.Left())
 
 	case OCALLPART:
-		exprFmt(n.Left(), s, nprec, mode)
+		exprFmt(n.Left(), s, nprec)
 		if n.Sym() == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		mode.Fprintf(s, ".%0S", n.Sym())
+		fmt.Fprintf(s, ".%0S", n.Sym())
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
-		exprFmt(n.Left(), s, nprec, mode)
+		exprFmt(n.Left(), s, nprec)
 		if n.Sym() == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		mode.Fprintf(s, ".%0S", n.Sym())
+		fmt.Fprintf(s, ".%0S", n.Sym())
 
 	case ODOTTYPE, ODOTTYPE2:
-		exprFmt(n.Left(), s, nprec, mode)
+		exprFmt(n.Left(), s, nprec)
 		if n.Right() != nil {
-			mode.Fprintf(s, ".(%v)", n.Right())
+			fmt.Fprintf(s, ".(%v)", n.Right())
 			return
 		}
-		mode.Fprintf(s, ".(%v)", n.Type())
+		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:
-		exprFmt(n.Left(), s, nprec, mode)
-		mode.Fprintf(s, "[%v]", n.Right())
+		exprFmt(n.Left(), s, nprec)
+		fmt.Fprintf(s, "[%v]", n.Right())
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
-		exprFmt(n.Left(), s, nprec, mode)
+		exprFmt(n.Left(), s, nprec)
 		fmt.Fprint(s, "[")
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			fmt.Fprint(s, modeString(low, mode))
+			fmt.Fprint(s, low)
 		}
 		fmt.Fprint(s, ":")
 		if high != nil {
-			fmt.Fprint(s, modeString(high, mode))
+			fmt.Fprint(s, high)
 		}
 		if n.Op().IsSlice3() {
 			fmt.Fprint(s, ":")
 			if max != nil {
-				fmt.Fprint(s, modeString(max, mode))
+				fmt.Fprint(s, max)
 			}
 		}
 		fmt.Fprint(s, "]")
@@ -1523,13 +1500,13 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		if n.List().Len() != 2 {
 			base.Fatalf("bad OSLICEHEADER list length %d", n.List().Len())
 		}
-		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left(), n.List().First(), n.List().Second())
+		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left(), n.List().First(), n.List().Second())
 
 	case OCOMPLEX, OCOPY:
 		if n.Left() != nil {
-			mode.Fprintf(s, "%#v(%v, %v)", n.Op(), n.Left(), n.Right())
+			fmt.Fprintf(s, "%#v(%v, %v)", n.Op(), n.Left(), n.Right())
 		} else {
-			mode.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
+			fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
 		}
 
 	case OCONV,
@@ -1541,14 +1518,14 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		OSTR2RUNES,
 		ORUNESTR:
 		if n.Type() == nil || n.Type().Sym() == nil {
-			mode.Fprintf(s, "(%v)", n.Type())
+			fmt.Fprintf(s, "(%v)", n.Type())
 		} else {
-			mode.Fprintf(s, "%v", n.Type())
+			fmt.Fprintf(s, "%v", n.Type())
 		}
 		if n.Left() != nil {
-			mode.Fprintf(s, "(%v)", n.Left())
+			fmt.Fprintf(s, "(%v)", n.Left())
 		} else {
-			mode.Fprintf(s, "(%.v)", n.List())
+			fmt.Fprintf(s, "(%.v)", n.List())
 		}
 
 	case OREAL,
@@ -1568,48 +1545,48 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		OPRINT,
 		OPRINTN:
 		if n.Left() != nil {
-			mode.Fprintf(s, "%#v(%v)", n.Op(), n.Left())
+			fmt.Fprintf(s, "%#v(%v)", n.Op(), n.Left())
 			return
 		}
 		if n.IsDDD() {
-			mode.Fprintf(s, "%#v(%.v...)", n.Op(), n.List())
+			fmt.Fprintf(s, "%#v(%.v...)", n.Op(), n.List())
 			return
 		}
-		mode.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
+		fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
-		exprFmt(n.Left(), s, nprec, mode)
+		exprFmt(n.Left(), s, nprec)
 		if n.IsDDD() {
-			mode.Fprintf(s, "(%.v...)", n.List())
+			fmt.Fprintf(s, "(%.v...)", n.List())
 			return
 		}
-		mode.Fprintf(s, "(%.v)", n.List())
+		fmt.Fprintf(s, "(%.v)", n.List())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if n.List().Len() != 0 { // pre-typecheck
-			mode.Fprintf(s, "make(%v, %.v)", n.Type(), n.List())
+			fmt.Fprintf(s, "make(%v, %.v)", n.Type(), n.List())
 			return
 		}
 		if n.Right() != nil {
-			mode.Fprintf(s, "make(%v, %v, %v)", n.Type(), n.Left(), n.Right())
+			fmt.Fprintf(s, "make(%v, %v, %v)", n.Type(), n.Left(), n.Right())
 			return
 		}
 		if n.Left() != nil && (n.Op() == OMAKESLICE || !n.Left().Type().IsUntyped()) {
-			mode.Fprintf(s, "make(%v, %v)", n.Type(), n.Left())
+			fmt.Fprintf(s, "make(%v, %v)", n.Type(), n.Left())
 			return
 		}
-		mode.Fprintf(s, "make(%v)", n.Type())
+		fmt.Fprintf(s, "make(%v)", n.Type())
 
 	case OMAKESLICECOPY:
-		mode.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Left(), n.Right())
+		fmt.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Left(), n.Right())
 
 	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
 		// Unary
-		mode.Fprintf(s, "%#v", n.Op())
+		fmt.Fprintf(s, "%#v", n.Op())
 		if n.Left() != nil && n.Left().Op() == n.Op() {
 			fmt.Fprint(s, " ")
 		}
-		exprFmt(n.Left(), s, nprec+1, mode)
+		exprFmt(n.Left(), s, nprec+1)
 
 		// Binary
 	case OADD,
@@ -1632,19 +1609,19 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
 		OSEND,
 		OSUB,
 		OXOR:
-		exprFmt(n.Left(), s, nprec, mode)
-		mode.Fprintf(s, " %#v ", n.Op())
-		exprFmt(n.Right(), s, nprec+1, mode)
+		exprFmt(n.Left(), s, nprec)
+		fmt.Fprintf(s, " %#v ", n.Op())
+		exprFmt(n.Right(), s, nprec+1)
 
 	case OADDSTR:
 		for i, n1 := range n.List().Slice() {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
 			}
-			exprFmt(n1, s, nprec, mode)
+			exprFmt(n1, s, nprec)
 		}
 	default:
-		mode.Fprintf(s, "<node %v>", n.Op())
+		fmt.Fprintf(s, "<node %v>", n.Op())
 	}
 }
 
@@ -1657,45 +1634,25 @@ func ellipsisIf(b bool) string {
 
 // Nodes
 
-type fmtNodes struct {
-	x Nodes
-	m FmtMode
-}
-
-func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, FErr) }
-
-func (l Nodes) Format(s fmt.State, verb rune) { l.format(s, verb, FErr) }
-
-func (l Nodes) format(s fmt.State, verb rune, mode FmtMode) {
+func (l Nodes) Format(s fmt.State, verb rune) {
 	if s.Flag('+') && verb == 'v' {
 		// %+v is DumpList output
 		dumpNodes(s, l, 1)
 		return
 	}
 
-	switch verb {
-	case 'v':
-		l.hconv(s, fmtFlag(s, verb), mode)
-
-	default:
+	if verb != 'v' {
 		fmt.Fprintf(s, "%%!%c(Nodes)", verb)
+		return
 	}
-}
 
-func (n Nodes) String() string {
-	return fmt.Sprint(n)
-}
-
-// Flags: all those of %N plus '.': separate with comma's instead of semicolons.
-func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode FmtMode) {
-	flag, mode = flag.update(mode)
 	sep := "; "
-	if flag&FmtComma != 0 {
+	if _, ok := s.Precision(); ok { // %.v is expr list
 		sep = ", "
 	}
 
 	for i, n := range l.Slice() {
-		fmt.Fprint(s, modeString(n, mode))
+		fmt.Fprint(s, n)
 		if i+1 < l.Len() {
 			fmt.Fprint(s, sep)
 		}

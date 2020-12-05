@@ -481,7 +481,7 @@ opswitch:
 	switch n.Op() {
 	default:
 		ir.Dump("walk", n)
-		base.Fatalf("walkexpr: switch 1 unknown op %+S", n)
+		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
 
 	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
 
