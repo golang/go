@@ -234,7 +234,7 @@ func (s *snapshot) WorkspaceLayoutError(ctx context.Context) *source.CriticalErr
 	}
 	s.mu.Unlock()
 
-	msg := `gopls requires a module at the root of your workspace.
+	msg := `gopls requires one module per workspace folder.
 You can work with multiple modules by opening each one as a workspace folder.
 Improvements to this workflow will be coming soon (https://github.com/golang/go/issues/32394),
 and you can learn more here: https://github.com/golang/go/issues/36899.`

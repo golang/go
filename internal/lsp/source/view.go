@@ -556,7 +556,7 @@ type Package interface {
 
 type CriticalError struct {
 	MainError error
-	ErrorList
+	ErrorList []*Error
 }
 
 func (err *CriticalError) Error() string {
@@ -564,16 +564,6 @@ func (err *CriticalError) Error() string {
 		return ""
 	}
 	return err.MainError.Error()
-}
-
-type ErrorList []*Error
-
-func (err ErrorList) Error() string {
-	var list []string
-	for _, e := range err {
-		list = append(list, e.Error())
-	}
-	return strings.Join(list, "\n\t")
 }
 
 // An Error corresponds to an LSP Diagnostic.

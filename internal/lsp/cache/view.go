@@ -528,11 +528,8 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 
 		// If we have multiple modules, we need to load them by paths.
 		var scopes []interface{}
-		var modErrors source.ErrorList
+		var modErrors []*source.Error
 		addError := func(uri span.URI, err error) {
-			if modErrors == nil {
-				modErrors = source.ErrorList{}
-			}
 			modErrors = append(modErrors, &source.Error{
 				URI:      uri,
 				Category: "compiler",

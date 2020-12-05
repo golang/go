@@ -538,43 +538,26 @@ func _() {
 
 // Expect a module/GOPATH error if there is an error in the file at startup.
 // Tests golang/go#37279.
-func TestShowMessage_Issue37279(t *testing.T) {
+func TestShowCriticalError_Issue37279(t *testing.T) {
 	const noModule = `
 -- a.go --
 package foo
 
-func f() {
-	fmt.Printl()
-}
-`
-	runner.Run(t, noModule, func(t *testing.T, env *Env) {
-		env.OpenFile("a.go")
-		env.Await(env.DiagnosticAtRegexp("a.go", "fmt.Printl"), ShownMessage(""))
-	})
-}
-
-// Expect no module/GOPATH error if there is no error in the file.
-// Tests golang/go#37279.
-func TestNoShowMessage_Issue37279(t *testing.T) {
-	const noModule = `
--- a.go --
-package foo
+import "mod.com/hello"
 
 func f() {
+	hello.Goodbye()
 }
 `
 	runner.Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(
-			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
-				NoDiagnostics("a.go"),
-			),
-			NoShowMessage(),
+			OutstandingWork(lsp.WorkspaceLoadFailure, "outside of a module"),
 		)
-		// introduce an error, expect no Show Message
-		env.RegexpReplace("a.go", "func", "fun")
-		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), NoShowMessage())
+		env.RegexpReplace("a.go", `import "mod.com/hello"`, "")
+		env.Await(
+			NoOutstandingWork(),
+		)
 	})
 }
 
@@ -1526,14 +1509,14 @@ package main
 	run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.Await(
-			OutstandingWork("Error loading workspace", "unknown directive"),
+			OutstandingWork(lsp.WorkspaceLoadFailure, "unknown directive"),
 		)
 		env.EditBuffer("go.mod", fake.NewEdit(0, 0, 3, 0, `module mod.com
 
 go 1.hello
 `))
 		env.Await(
-			OutstandingWork("Error loading workspace", "invalid go version"),
+			OutstandingWork(lsp.WorkspaceLoadFailure, "invalid go version"),
 		)
 		env.RegexpReplace("go.mod", "go 1.hello", "go 1.12")
 		env.Await(
@@ -1681,7 +1664,7 @@ package b
 				env.Await(
 					env.DiagnosticAtRegexp("a/a.go", "package a"),
 					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-					OutstandingWork("Error loading workspace", "gopls requires a module at the root of your workspace."),
+					OutstandingWork(lsp.WorkspaceLoadFailure, "gopls requires one module per workspace folder."),
 				)
 			})
 		})

@@ -117,9 +117,20 @@ func (p *pkg) GetImport(pkgPath string) (source.Package, error) {
 }
 
 func (p *pkg) MissingDependencies() []string {
+	// We don't invalidate metadata for import deletions, so check the package
+	// imports via the *types.Package. Only use metadata if p.types is nil.
+	if p.types == nil {
+		var md []string
+		for i := range p.m.missingDeps {
+			md = append(md, string(i))
+		}
+		return md
+	}
 	var md []string
-	for i := range p.m.missingDeps {
-		md = append(md, string(i))
+	for _, pkg := range p.types.Imports() {
+		if _, ok := p.m.missingDeps[packagePath(pkg.Path())]; ok {
+			md = append(md, pkg.Path())
+		}
 	}
 	return md
 }

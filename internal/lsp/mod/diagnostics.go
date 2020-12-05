@@ -69,8 +69,6 @@ func ErrorsForMod(ctx context.Context, snapshot source.Snapshot, fh source.FileH
 		// Some error messages can also be displayed as diagnostics.
 		if criticalErr := (*source.CriticalError)(nil); errors.As(err, &criticalErr) {
 			return criticalErr.ErrorList, nil
-		} else if srcErrList := (source.ErrorList)(nil); errors.As(err, &srcErrList) {
-			return srcErrList, nil
 		}
 		return nil, err
 	}
