@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -258,7 +259,10 @@ var OpNames = []string{
 }
 
 func (o Op) GoString() string {
-	return fmt.Sprintf("%#v", o)
+	if int(o) < len(OpNames) && OpNames[o] != "" {
+		return OpNames[o]
+	}
+	return o.String()
 }
 
 type fmtOp struct {
@@ -266,30 +270,20 @@ type fmtOp struct {
 	m FmtMode
 }
 
-func (f *fmtOp) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+func (f *fmtOp) Format(s fmt.State, verb rune) { f.x.Format(s, verb) }
 
-func (o Op) Format(s fmt.State, verb rune) { o.format(s, verb, FErr) }
-
-func (o Op) format(s fmt.State, verb rune, mode FmtMode) {
+func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 'v':
-		o.oconv(s, fmtFlag(s, verb), mode)
-
 	default:
 		fmt.Fprintf(s, "%%!%c(Op=%d)", verb, int(o))
-	}
-}
-
-func (o Op) oconv(s fmt.State, flag FmtFlag, mode FmtMode) {
-	if flag&FmtSharp != 0 || mode != FDbg {
-		if int(o) < len(OpNames) && OpNames[o] != "" {
-			fmt.Fprint(s, OpNames[o])
+	case 'v':
+		if s.Flag('+') {
+			// %+v is OMUL instead of "*"
+			io.WriteString(s, o.String())
 			return
 		}
+		io.WriteString(s, o.GoString())
 	}
-
-	// 'o.String()' instead of just 'o' to avoid infinite recursion
-	fmt.Fprint(s, o.String())
 }
 
 // Val
@@ -346,6 +340,9 @@ func (f *fmtSym) Format(s fmt.State, verb rune) { symFormat(f.x, s, verb, f.m) }
 func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S':
+		if verb == 'v' && f.Flag('+') {
+			mode = FDbg
+		}
 		fmt.Fprint(f, sconv(s, fmtFlag(f, verb), mode))
 
 	default:
@@ -514,6 +511,9 @@ func (f *fmtType) Format(s fmt.State, verb rune) { typeFormat(f.x, s, verb, f.m)
 func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
+		if verb == 'v' && s.Flag('+') { // %+v is debug format
+			mode = FDbg
+		}
 		fmt.Fprint(s, tconv(t, fmtFlag(s, verb), mode))
 	default:
 		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
@@ -897,6 +897,13 @@ type fmtNode struct {
 func (f *fmtNode) Format(s fmt.State, verb rune) { nodeFormat(f.x, s, verb, f.m) }
 
 func FmtNode(n Node, s fmt.State, verb rune) {
+	// %+v prints Dump.
+	if s.Flag('+') && verb == 'v' {
+		dumpNode(s, n, 1)
+		return
+	}
+
+	// Otherwise print Go syntax.
 	nodeFormat(n, s, verb, FErr)
 }
 
@@ -904,9 +911,6 @@ func nodeFormat(n Node, s fmt.State, verb rune, mode FmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
 		nconvFmt(n, s, fmtFlag(s, verb), mode)
-
-	case 'j':
-		jconvFmt(n, s, fmtFlag(s, verb))
 
 	default:
 		fmt.Fprintf(s, "%%!%c(*Node=%p)", verb, n)
@@ -926,11 +930,6 @@ func nconvFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
 	switch mode {
 	case FErr:
 		nodeFmt(n, s, flag, mode)
-
-	case FDbg:
-		dumpdepth++
-		nodeDumpFmt(n, s, flag, mode)
-		dumpdepth--
 
 	default:
 		base.Fatalf("unhandled %%N mode: %d", mode)
@@ -1663,11 +1662,17 @@ type fmtNodes struct {
 	m FmtMode
 }
 
-func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, f.m) }
+func (f *fmtNodes) Format(s fmt.State, verb rune) { f.x.format(s, verb, FErr) }
 
 func (l Nodes) Format(s fmt.State, verb rune) { l.format(s, verb, FErr) }
 
 func (l Nodes) format(s fmt.State, verb rune, mode FmtMode) {
+	if s.Flag('+') && verb == 'v' {
+		// %+v is DumpList output
+		dumpNodes(s, l, 1)
+		return
+	}
+
 	switch verb {
 	case 'v':
 		l.hconv(s, fmtFlag(s, verb), mode)
@@ -1683,16 +1688,9 @@ func (n Nodes) String() string {
 
 // Flags: all those of %N plus '.': separate with comma's instead of semicolons.
 func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode FmtMode) {
-	if l.Len() == 0 && mode == FDbg {
-		fmt.Fprint(s, "<nil>")
-		return
-	}
-
 	flag, mode = flag.update(mode)
 	sep := "; "
-	if mode == FDbg {
-		sep = "\n"
-	} else if flag&FmtComma != 0 {
+	if flag&FmtComma != 0 {
 		sep = ", "
 	}
 
@@ -1707,44 +1705,45 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode FmtMode) {
 // Dump
 
 func Dump(s string, n Node) {
-	fmt.Printf("%s [%p]%+v\n", s, n, n)
+	fmt.Printf("%s [%p]%+v", s, n, n)
 }
 
 func DumpList(s string, l Nodes) {
-	fmt.Printf("%s%+v\n", s, l)
+	var buf bytes.Buffer
+	FDumpList(&buf, s, l)
+	os.Stdout.Write(buf.Bytes())
 }
 
 func FDumpList(w io.Writer, s string, l Nodes) {
-	fmt.Fprintf(w, "%s%+v\n", s, l)
+	io.WriteString(w, s)
+	dumpNodes(w, l, 1)
+	io.WriteString(w, "\n")
 }
 
-// TODO(gri) make variable local somehow
-var dumpdepth int
-
-// indent prints indentation to s.
-func indent(s fmt.State) {
-	fmt.Fprint(s, "\n")
-	for i := 0; i < dumpdepth; i++ {
-		fmt.Fprint(s, ".   ")
+// indent prints indentation to w.
+func indent(w io.Writer, depth int) {
+	fmt.Fprint(w, "\n")
+	for i := 0; i < depth; i++ {
+		fmt.Fprint(w, ".   ")
 	}
 }
 
 // EscFmt is set by the escape analysis code to add escape analysis details to the node print.
 var EscFmt func(n Node) string
 
-// *Node details
-func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
+// dumpNodeHeader prints the debug-format node header line to w.
+func dumpNodeHeader(w io.Writer, n Node) {
 	// Useful to see which nodes in an AST printout are actually identical
 	if base.Debug.DumpPtrs != 0 {
-		fmt.Fprintf(s, " p(%p)", n)
+		fmt.Fprintf(w, " p(%p)", n)
 	}
 	if n.Name() != nil && n.Name().Vargen != 0 {
-		fmt.Fprintf(s, " g(%d)", n.Name().Vargen)
+		fmt.Fprintf(w, " g(%d)", n.Name().Vargen)
 	}
 
 	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Defn != nil {
 		// Useful to see where Defn is set and what node it points to
-		fmt.Fprintf(s, " defn(%p)", n.Name().Defn)
+		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
 	}
 
 	if n.Pos().IsKnown() {
@@ -1755,168 +1754,179 @@ func jconvFmt(n Node, s fmt.State, flag FmtFlag) {
 		case src.PosIsStmt:
 			pfx = "+"
 		}
-		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos().Line())
+		fmt.Fprintf(w, " l(%s%d)", pfx, n.Pos().Line())
 	}
 
 	if n.Offset() != types.BADWIDTH {
-		fmt.Fprintf(s, " x(%d)", n.Offset())
+		fmt.Fprintf(w, " x(%d)", n.Offset())
 	}
 
 	if n.Class() != 0 {
-		fmt.Fprintf(s, " class(%v)", n.Class())
+		fmt.Fprintf(w, " class(%v)", n.Class())
 	}
 
 	if n.Colas() {
-		fmt.Fprintf(s, " colas(%v)", n.Colas())
+		fmt.Fprintf(w, " colas(%v)", n.Colas())
 	}
 
 	if EscFmt != nil {
 		if esc := EscFmt(n); esc != "" {
-			fmt.Fprintf(s, " %s", esc)
+			fmt.Fprintf(w, " %s", esc)
 		}
 	}
 
 	if n.Typecheck() != 0 {
-		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
+		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
 	}
 
 	if n.IsDDD() {
-		fmt.Fprintf(s, " isddd(%v)", n.IsDDD())
+		fmt.Fprintf(w, " isddd(%v)", n.IsDDD())
 	}
 
 	if n.Implicit() {
-		fmt.Fprintf(s, " implicit(%v)", n.Implicit())
+		fmt.Fprintf(w, " implicit(%v)", n.Implicit())
 	}
 
 	if n.Op() == ONAME {
 		if n.Name().Addrtaken() {
-			fmt.Fprint(s, " addrtaken")
+			fmt.Fprint(w, " addrtaken")
 		}
 		if n.Name().Assigned() {
-			fmt.Fprint(s, " assigned")
+			fmt.Fprint(w, " assigned")
 		}
 		if n.Name().IsClosureVar() {
-			fmt.Fprint(s, " closurevar")
+			fmt.Fprint(w, " closurevar")
 		}
 		if n.Name().Captured() {
-			fmt.Fprint(s, " captured")
+			fmt.Fprint(w, " captured")
 		}
 		if n.Name().IsOutputParamHeapAddr() {
-			fmt.Fprint(s, " outputparamheapaddr")
+			fmt.Fprint(w, " outputparamheapaddr")
 		}
 	}
 	if n.Bounded() {
-		fmt.Fprint(s, " bounded")
+		fmt.Fprint(w, " bounded")
 	}
 	if n.NonNil() {
-		fmt.Fprint(s, " nonnil")
+		fmt.Fprint(w, " nonnil")
 	}
 
 	if n.HasCall() {
-		fmt.Fprint(s, " hascall")
+		fmt.Fprint(w, " hascall")
 	}
 
 	if n.Name() != nil && n.Name().Used() {
-		fmt.Fprint(s, " used")
+		fmt.Fprint(w, " used")
 	}
 }
 
-func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
-	recur := flag&FmtShort == 0
+func dumpNode(w io.Writer, n Node, depth int) {
+	indent(w, depth)
+	if depth > 40 {
+		fmt.Fprint(w, "...")
+		return
+	}
 
-	if recur {
-		indent(s)
-		if dumpdepth > 40 {
-			fmt.Fprint(s, "...")
-			return
-		}
-
-		if n.Init().Len() != 0 {
-			mode.Fprintf(s, "%v-init%v", n.Op(), n.Init())
-			indent(s)
-		}
+	if n.Init().Len() != 0 {
+		fmt.Fprintf(w, "%+v-init", n.Op())
+		dumpNodes(w, n.Init(), depth+1)
+		indent(w, depth)
 	}
 
 	switch n.Op() {
 	default:
-		mode.Fprintf(s, "%v%j", n.Op(), n)
+		fmt.Fprintf(w, "%+v", n.Op())
+		dumpNodeHeader(w, n)
 
 	case OLITERAL:
-		mode.Fprintf(s, "%v-%v%j", n.Op(), n.Val(), n)
+		fmt.Fprintf(w, "%+v-%v", n.Op(), n.Val())
+		dumpNodeHeader(w, n)
 
 	case ONAME, ONONAME, OMETHEXPR:
 		if n.Sym() != nil {
-			mode.Fprintf(s, "%v-%v%j", n.Op(), n.Sym(), n)
+			fmt.Fprintf(w, "%+v-%+v", n.Op(), n.Sym())
 		} else {
-			mode.Fprintf(s, "%v%j", n.Op(), n)
+			fmt.Fprintf(w, "%+v", n.Op())
 		}
-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(s)
-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
+		dumpNodeHeader(w, n)
+		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-ntype", n.Op())
+			dumpNode(w, n.Name().Ntype, depth+1)
 		}
 
 	case OASOP:
-		mode.Fprintf(s, "%v-%v%j", n.Op(), n.SubOp(), n)
+		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.SubOp())
+		dumpNodeHeader(w, n)
 
 	case OTYPE:
-		mode.Fprintf(s, "%v %v%j type=%v", n.Op(), n.Sym(), n, n.Type())
-		if recur && n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(s)
-			mode.Fprintf(s, "%v-ntype%v", n.Op(), n.Name().Ntype)
+		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
+		dumpNodeHeader(w, n)
+		fmt.Fprintf(w, " type=%+v", n.Type())
+		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-ntype", n.Op())
+			dumpNode(w, n.Name().Ntype, depth+1)
 		}
 	}
 
 	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Nname.Sym() != nil {
-		mode.Fprintf(s, " fnName %v", n.Func().Nname.Sym())
+		fmt.Fprintf(w, " fnName %+v", n.Func().Nname.Sym())
 	}
 	if n.Sym() != nil && n.Op() != ONAME {
-		mode.Fprintf(s, " %v", n.Sym())
+		fmt.Fprintf(w, " %+v", n.Sym())
 	}
 
 	if n.Type() != nil {
-		mode.Fprintf(s, " %v", n.Type())
+		fmt.Fprintf(w, " %+v", n.Type())
 	}
 
-	if recur {
-		if n.Left() != nil {
-			mode.Fprintf(s, "%v", n.Left())
+	if n.Left() != nil {
+		dumpNode(w, n.Left(), depth+1)
+	}
+	if n.Right() != nil {
+		dumpNode(w, n.Right(), depth+1)
+	}
+	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Body().Len() != 0 {
+		indent(w, depth)
+		// The function associated with a closure
+		fmt.Fprintf(w, "%+v-clofunc", n.Op())
+		dumpNode(w, n.Func(), depth+1)
+	}
+	if n.Op() == ODCLFUNC && n.Func() != nil && n.Func().Dcl != nil && len(n.Func().Dcl) != 0 {
+		indent(w, depth)
+		// The dcls for a func or closure
+		fmt.Fprintf(w, "%+v-dcl", n.Op())
+		for _, dcl := range n.Func().Dcl {
+			dumpNode(w, dcl, depth+1)
 		}
-		if n.Right() != nil {
-			mode.Fprintf(s, "%v", n.Right())
-		}
-		if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Body().Len() != 0 {
-			indent(s)
-			// The function associated with a closure
-			mode.Fprintf(s, "%v-clofunc%v", n.Op(), n.Func())
-		}
-		if n.Op() == ODCLFUNC && n.Func() != nil && n.Func().Dcl != nil && len(n.Func().Dcl) != 0 {
-			indent(s)
-			// The dcls for a func or closure
-			mode.Fprintf(s, "%v-dcl%v", n.Op(), asNameNodes(n.Func().Dcl))
-		}
-		if n.List().Len() != 0 {
-			indent(s)
-			mode.Fprintf(s, "%v-list%v", n.Op(), n.List())
-		}
+	}
+	if n.List().Len() != 0 {
+		indent(w, depth)
+		fmt.Fprintf(w, "%+v-list", n.Op())
+		dumpNodes(w, n.List(), depth+1)
+	}
 
-		if n.Rlist().Len() != 0 {
-			indent(s)
-			mode.Fprintf(s, "%v-rlist%v", n.Op(), n.Rlist())
-		}
+	if n.Rlist().Len() != 0 {
+		indent(w, depth)
+		fmt.Fprintf(w, "%+v-rlist", n.Op())
+		dumpNodes(w, n.Rlist(), depth+1)
+	}
 
-		if n.Body().Len() != 0 {
-			indent(s)
-			mode.Fprintf(s, "%v-body%v", n.Op(), n.Body())
-		}
+	if n.Body().Len() != 0 {
+		indent(w, depth)
+		fmt.Fprintf(w, "%+v-body", n.Op())
+		dumpNodes(w, n.Body(), depth+1)
 	}
 }
 
-// asNameNodes copies list to a new Nodes.
-// It should only be called in debug formatting and other low-performance contexts.
-func asNameNodes(list []*Name) Nodes {
-	var ns Nodes
-	for _, n := range list {
-		ns.Append(n)
+func dumpNodes(w io.Writer, list Nodes, depth int) {
+	if list.Len() == 0 {
+		fmt.Fprintf(w, " <nil>")
+		return
 	}
-	return ns
+
+	for _, n := range list.Slice() {
+		dumpNode(w, n, depth)
+	}
 }
