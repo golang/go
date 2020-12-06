@@ -931,7 +931,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// acts as the set of marks for the BFS of the call graph.
 	funcs := make(map[ir.Node]nowritebarrierrecCall)
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
-	var q ir.NodeQueue
+	var q ir.NameQueue
 
 	for _, n := range xtop {
 		if n.Op() != ir.ODCLFUNC {
@@ -944,7 +944,7 @@ func (c *nowritebarrierrecChecker) check() {
 		// Make nowritebarrierrec functions BFS roots.
 		if fn.Pragma&ir.Nowritebarrierrec != 0 {
 			funcs[fn] = nowritebarrierrecCall{}
-			q.PushRight(fn)
+			q.PushRight(fn.Nname)
 		}
 		// Check go:nowritebarrier functions.
 		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
@@ -966,10 +966,10 @@ func (c *nowritebarrierrecChecker) check() {
 
 		// Record the path.
 		funcs[target] = nowritebarrierrecCall{target: src, lineno: pos}
-		q.PushRight(target)
+		q.PushRight(target.Nname)
 	}
 	for !q.Empty() {
-		fn := q.PopLeft().(*ir.Func)
+		fn := q.PopLeft().Func()
 
 		// Check fn.
 		if fn.WBPos.IsKnown() {

@@ -24,7 +24,7 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
 var asmlist []ir.Node
 
 // exportsym marks n for export (or reexport).
-func exportsym(n ir.Node) {
+func exportsym(n *ir.Name) {
 	if n.Sym().OnExportList() {
 		return
 	}
@@ -41,7 +41,7 @@ func initname(s string) bool {
 	return s == "init"
 }
 
-func autoexport(n ir.Node, ctxt ir.Class) {
+func autoexport(n *ir.Name, ctxt ir.Class) {
 	if n.Sym().Pkg != ir.LocalPkg {
 		return
 	}

@@ -539,25 +539,25 @@ func (n Nodes) Copy() Nodes {
 	return c
 }
 
-// nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
+// NameQueue is a FIFO queue of *Name. The zero value of NameQueue is
 // a ready-to-use empty queue.
-type NodeQueue struct {
-	ring       []Node
+type NameQueue struct {
+	ring       []*Name
 	head, tail int
 }
 
-// empty reports whether q contains no Nodes.
-func (q *NodeQueue) Empty() bool {
+// Empty reports whether q contains no Names.
+func (q *NameQueue) Empty() bool {
 	return q.head == q.tail
 }
 
-// pushRight appends n to the right of the queue.
-func (q *NodeQueue) PushRight(n Node) {
+// PushRight appends n to the right of the queue.
+func (q *NameQueue) PushRight(n *Name) {
 	if len(q.ring) == 0 {
-		q.ring = make([]Node, 16)
+		q.ring = make([]*Name, 16)
 	} else if q.head+len(q.ring) == q.tail {
 		// Grow the ring.
-		nring := make([]Node, len(q.ring)*2)
+		nring := make([]*Name, len(q.ring)*2)
 		// Copy the old elements.
 		part := q.ring[q.head%len(q.ring):]
 		if q.tail-q.head <= len(part) {
@@ -574,9 +574,9 @@ func (q *NodeQueue) PushRight(n Node) {
 	q.tail++
 }
 
-// popLeft pops a node from the left of the queue. It panics if q is
+// PopLeft pops a Name from the left of the queue. It panics if q is
 // empty.
-func (q *NodeQueue) PopLeft() Node {
+func (q *NameQueue) PopLeft() *Name {
 	if q.Empty() {
 		panic("dequeue empty")
 	}
