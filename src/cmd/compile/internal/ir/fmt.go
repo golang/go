@@ -152,38 +152,6 @@ func (f FmtFlag) update(mode FmtMode) (FmtFlag, FmtMode) {
 	return f, mode
 }
 
-func (m FmtMode) Fprintf(s fmt.State, format string, args ...interface{}) {
-	m.prepareArgs(args)
-	fmt.Fprintf(s, format, args...)
-}
-
-func (m FmtMode) Sprintf(format string, args ...interface{}) string {
-	m.prepareArgs(args)
-	return fmt.Sprintf(format, args...)
-}
-
-func (m FmtMode) Sprint(args ...interface{}) string {
-	m.prepareArgs(args)
-	return fmt.Sprint(args...)
-}
-
-func (m FmtMode) prepareArgs(args []interface{}) {
-	for i, arg := range args {
-		switch arg := arg.(type) {
-		case nil:
-			args[i] = "<N>" // assume this was a node interface
-		case *types.Type:
-			args[i] = &fmtType{arg, m}
-		case *types.Sym:
-			args[i] = &fmtSym{arg, m}
-		case int32, int64, string, Op, Node, Nodes, types.Kind, constant.Value:
-			// OK: printing these types doesn't depend on mode
-		default:
-			base.Fatalf("mode.prepareArgs type %T", arg)
-		}
-	}
-}
-
 // Op
 
 var OpNames = []string{
@@ -316,15 +284,9 @@ func FmtConst(v constant.Value, flag FmtFlag) string {
 // the same name appears in an error message.
 var NumImport = make(map[string]int)
 
-type fmtSym struct {
-	x *types.Sym
-	m FmtMode
-}
-
-func (f *fmtSym) Format(s fmt.State, verb rune) { symFormat(f.x, s, verb, f.m) }
-
 // "%S" suppresses qualifying with package
-func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
+func symFormat(s *types.Sym, f fmt.State, verb rune) {
+	mode := FErr
 	switch verb {
 	case 'v', 'S':
 		if verb == 'v' && f.Flag('+') {
@@ -336,8 +298,6 @@ func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
 		fmt.Fprintf(f, "%%!%c(*types.Sym=%p)", verb, s)
 	}
 }
-
-func smodeString(s *types.Sym, mode FmtMode) string { return sconv(s, 0, mode) }
 
 // See #16897 for details about performance implications
 // before changing the implementation of sconv.
@@ -421,23 +381,20 @@ func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode FmtMode) {
 	}
 
 	if flag&FmtByte != 0 {
-		// FmtByte (hh) implies FmtShort (h)
-		// skip leading "type." in method name
-		name := s.Name
-		if i := strings.LastIndex(name, "."); i >= 0 {
-			name = name[i+1:]
-		}
-
-		if mode == FDbg {
-			fmt.Fprintf(b, "@%q.%s", s.Pkg.Path, name)
-			return
-		}
-
-		b.WriteString(name)
+		b.WriteString(methodSymName(s))
 		return
 	}
 
 	b.WriteString(s.Name)
+}
+
+func methodSymName(s *types.Sym) string {
+	// Skip leading "type." in method name
+	name := s.Name
+	if i := strings.LastIndex(name, "."); i >= 0 {
+		name = name[i+1:]
+	}
+	return name
 }
 
 // Type
@@ -485,24 +442,14 @@ func InstallTypeFormats() {
 	types.TypeLongString = func(t *types.Type) string {
 		return tconv(t, FmtLeft|FmtUnsigned, FErr)
 	}
-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune) {
-		symFormat(sym, s, verb, FErr)
-	}
-	types.FormatType = func(t *types.Type, s fmt.State, verb rune) {
-		typeFormat(t, s, verb, FErr)
-	}
+	types.FormatSym = symFormat
+	types.FormatType = typeFormat
 }
-
-type fmtType struct {
-	x *types.Type
-	m FmtMode
-}
-
-func (f *fmtType) Format(s fmt.State, verb rune) { typeFormat(f.x, s, verb, f.m) }
 
 // "%L"  print definition, not name
 // "%S"  omit 'func' and receiver from function types, short type names
-func typeFormat(t *types.Type, s fmt.State, verb rune, mode FmtMode) {
+func typeFormat(t *types.Type, s fmt.State, verb rune) {
+	mode := FErr
 	switch verb {
 	case 'v', 'S', 'L':
 		if verb == 'v' && s.Flag('+') { // %+v is debug format
@@ -599,7 +546,8 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 			}
 
 			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
-				b.WriteString(mode.Sprintf("%v·%d", t.Sym(), t.Vargen))
+				sconv2(b, t.Sym(), 0, mode)
+				fmt.Fprintf(b, "·%d", t.Vargen)
 				return
 			}
 		}
@@ -818,9 +766,14 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode FmtMode, visited 
 
 	case types.Txxx:
 		b.WriteString("Txxx")
+
 	default:
-		// Don't know how to handle - fall back to detailed prints.
-		b.WriteString(mode.Sprintf("%v <%v>", t.Kind(), t.Sym()))
+		// Don't know how to handle - fall back to detailed prints
+		b.WriteString(t.Kind().String())
+		b.WriteString(" <")
+		sconv2(b, t.Sym(), 0, mode)
+		b.WriteString(">")
+
 	}
 }
 
@@ -847,12 +800,12 @@ func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode FmtMode, visite
 			if funarg != types.FunargNone {
 				name = fmt.Sprint(f.Nname)
 			} else if flag&FmtLong != 0 {
-				name = mode.Sprintf("%0S", s)
+				name = methodSymName(s)
 				if !types.IsExported(name) && flag&FmtUnsigned == 0 {
-					name = smodeString(s, mode) // qualify non-exported names (used on structs, not on funarg)
+					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
 				}
 			} else {
-				name = smodeString(s, mode)
+				name = sconv(s, 0, mode)
 			}
 		}
 	}
@@ -1289,7 +1242,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OLITERAL: // this is a bit of a mess
 		if !exportFormat && n.Sym() != nil {
-			fmt.Fprint(s, smodeString(n.Sym(), FErr))
+			fmt.Fprint(s, n.Sym())
 			return
 		}
 
@@ -1331,7 +1284,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case ODCLFUNC:
 		if sym := n.Sym(); sym != nil {
-			fmt.Fprint(s, smodeString(sym, FErr))
+			fmt.Fprint(s, sym)
 			return
 		}
 		fmt.Fprintf(s, "<unnamed Func>")
@@ -1345,11 +1298,11 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 		fallthrough
 	case OPACK, ONONAME, OMETHEXPR:
-		fmt.Fprint(s, smodeString(n.Sym(), FErr))
+		fmt.Fprint(s, n.Sym())
 
 	case OTYPE:
 		if n.Type() == nil && n.Sym() != nil {
-			fmt.Fprint(s, smodeString(n.Sym(), FErr))
+			fmt.Fprint(s, n.Sym())
 			return
 		}
 		fmt.Fprintf(s, "%v", n.Type())
