@@ -380,7 +380,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpVarDef || v.Op == OpVarKill {
-				n := v.Aux.(ir.Node)
+				n := v.Aux.(*ir.Name)
 				if ir.IsSynthetic(n) {
 					continue
 				}
