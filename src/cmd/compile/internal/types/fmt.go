@@ -15,14 +15,16 @@ import (
 	"cmd/compile/internal/base"
 )
 
-// builtinpkg is a fake package that declares the universe block.
+// BuiltinPkg is a fake package that declares the universe block.
 var BuiltinPkg *Pkg
 
-var LocalPkg *Pkg // package being compiled
+// LocalPkg is the package being compiled.
+var LocalPkg *Pkg
 
+// BlankSym is the blank (_) symbol.
 var BlankSym *Sym
 
-// origSym returns the original symbol written by the user.
+// OrigSym returns the original symbol written by the user.
 func OrigSym(s *Sym) *Sym {
 	if s == nil {
 		return nil
@@ -47,84 +49,36 @@ func OrigSym(s *Sym) *Sym {
 	return s
 }
 
-// Sym
-
 // numImport tracks how often a package with a given name is imported.
 // It is used to provide a better error message (by using the package
 // path to disambiguate) if a package that appears multiple times with
 // the same name appears in an error message.
 var NumImport = make(map[string]int)
 
-// Format conversions:
-// TODO(gri) verify these; eliminate those not used anymore
-//
-//	%v Op		Node opcodes
-//		Flags:  #: print Go syntax (automatic unless mode == FDbg)
-//
-//	%j *Node	Node details
-//		Flags:  0: suppresses things not relevant until walk
-//
-//	%v *Val		Constant values
-//
-//	%v *types.Sym		Symbols
-//	%S              unqualified identifier in any mode
-//		Flags:  +,- #: mode (see below)
-//			0: in export mode: unqualified identifier if exported, qualified if not
-//
-//	%v *types.Type	Types
-//	%S              omit "func" and receiver in function types
-//	%L              definition instead of name.
-//		Flags:  +,- #: mode (see below)
-//			' ' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
-//
-//	%v *Node	Nodes
-//	%S              (only in +/debug mode) suppress recursion
-//	%L              (only in Error mode) print "foo (type Bar)"
-//		Flags:  +,- #: mode (see below)
-//
-//	%v Nodes	Node lists
-//		Flags:  those of *Node
-//			.: separate items with ',' instead of ';'
-
-// *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
-
-// The mode flags '+', '-', and '#' are sticky; they persist through
-// recursions of *Node, *types.Type, and *types.Sym values. The ' ' flag is
-// sticky only on *types.Type recursions and only used in %-/*types.Sym mode.
-//
-// Example: given a *types.Sym: %+v %#v %-v print an identifier properly qualified for debug/export/internal mode
-
-// Useful format combinations:
-// TODO(gri): verify these
-//
-// *Node, Nodes:
-//   %+v    multiline recursive debug dump of *Node/Nodes
-//   %+S    non-recursive debug dump
-//
-// *Node:
-//   %#v    Go format
-//   %L     "foo (type Bar)" for error messages
-//
-// *types.Type:
-//   %#v    Go format
-//   %#L    type definition instead of name
-//   %#S    omit "func" and receiver in function signature
-//
-//   %-v    type identifiers
-//   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
-//   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
-
+// fmtMode represents the kind of printing being done.
+// The default is regular Go syntax (fmtGo).
+// fmtDebug is like fmtGo but for debugging dumps and prints the type kind too.
+// fmtTypeID and fmtTypeIDName are for generating various unique representations
+// of types used in hashes and the linker.
 type fmtMode int
 
 const (
 	fmtGo fmtMode = iota
 	fmtDebug
 	fmtTypeID
-	fmtTypeIDName // same as FTypeId, but use package name instead of prefix
+	fmtTypeIDName
 )
 
-// "%S" suppresses qualifying with package
-func symFormat(s *Sym, f fmt.State, verb rune) {
+// Sym
+
+// Format implements formatting for a Sym.
+// The valid formats are:
+//
+//	%v	Go syntax: Name for symbols in the local package, PkgName.Name for imported symbols.
+//	%+v	Debug syntax: always include PkgName. prefix even for local names.
+//	%S	Short syntax: Name only, no matter what.
+//
+func (s *Sym) Format(f fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {
 	case 'v', 'S':
@@ -136,6 +90,10 @@ func symFormat(s *Sym, f fmt.State, verb rune) {
 	default:
 		fmt.Fprintf(f, "%%!%c(*types.Sym=%p)", verb, s)
 	}
+}
+
+func (s *Sym) String() string {
+	return sconv(s, 0, fmtGo)
 }
 
 // See #16897 for details about performance implications
@@ -261,26 +219,16 @@ var fmtBufferPool = sync.Pool{
 	},
 }
 
-func InstallTypeFormats() {
-	SymString = func(s *Sym) string {
-		return sconv(s, 0, fmtGo)
-	}
-	TypeString = func(t *Type) string {
-		return tconv(t, 0, fmtGo)
-	}
-	TypeShortString = func(t *Type) string {
-		return tconv(t, 0, fmtTypeID)
-	}
-	TypeLongString = func(t *Type) string {
-		return tconv(t, 0, fmtTypeIDName)
-	}
-	FormatSym = symFormat
-	FormatType = typeFormat
-}
-
-// "%L"  print definition, not name
-// "%S"  omit 'func' and receiver from function types, short type names
-func typeFormat(t *Type, s fmt.State, verb rune) {
+// Format implements formatting for a Type.
+// The valid formats are:
+//
+//	%v	Go syntax
+//	%+v	Debug syntax: Go syntax with a KIND- prefix for all but builtins.
+//	%L	Go syntax for underlying type if t is named
+//	%S	short Go syntax: drop leading "func" in function type
+//	%-S	special case for method receiver symbol
+//
+func (t *Type) Format(s fmt.State, verb rune) {
 	mode := fmtGo
 	switch verb {
 	case 'v', 'S', 'L':
@@ -294,6 +242,25 @@ func typeFormat(t *Type, s fmt.State, verb rune) {
 	default:
 		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
 	}
+}
+
+// String returns the Go syntax for the type t.
+func (t *Type) String() string {
+	return tconv(t, 0, fmtGo)
+}
+
+// ShortString generates a short description of t.
+// It is used in autogenerated method names, reflection,
+// and itab names.
+func (t *Type) ShortString() string {
+	return tconv(t, 0, fmtTypeID)
+}
+
+// LongString generates a complete description of t.
+// It is useful for reflection,
+// or when a unique fingerprint or hash of a type is required.
+func (t *Type) LongString() string {
+	return tconv(t, 0, fmtTypeIDName)
 }
 
 func tconv(t *Type, verb rune, mode fmtMode) string {
