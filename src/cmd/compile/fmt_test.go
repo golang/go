@@ -125,6 +125,12 @@ func TestFormats(t *testing.T) {
 			typ := p.types[index]
 			format := typ + " " + in // e.g., "*Node %n"
 
+			// Do not bother reporting basic types, nor %v, %T, %p.
+			// Vet handles basic types, and those three formats apply to all types.
+			if !strings.Contains(typ, ".") || (in == "%v" || in == "%T" || in == "%p") {
+				return in
+			}
+
 			// check if format is known
 			out, known := knownFormats[format]
 
@@ -413,7 +419,17 @@ func nodeString(n ast.Node) string {
 
 // typeString returns a string representation of n.
 func typeString(typ types.Type) string {
-	return filepath.ToSlash(typ.String())
+	s := filepath.ToSlash(typ.String())
+
+	// Report all the concrete IR types as Node, to shorten fmtmap.
+	const ir = "cmd/compile/internal/ir."
+	if s == "*"+ir+"Name" || s == "*"+ir+"Func" || s == "*"+ir+"Decl" ||
+		s == ir+"Ntype" || s == ir+"Expr" || s == ir+"Stmt" ||
+		strings.HasPrefix(s, "*"+ir) && (strings.HasSuffix(s, "Expr") || strings.HasSuffix(s, "Stmt")) {
+		return "cmd/compile/internal/ir.Node"
+	}
+
+	return s
 }
 
 // stringLit returns the unquoted string value and true if
