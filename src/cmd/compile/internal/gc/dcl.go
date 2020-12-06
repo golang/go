@@ -838,7 +838,7 @@ type nowritebarrierrecChecker struct {
 	// extraCalls contains extra function calls that may not be
 	// visible during later analysis. It maps from the ODCLFUNC of
 	// the caller to a list of callees.
-	extraCalls map[ir.Node][]nowritebarrierrecCall
+	extraCalls map[*ir.Func][]nowritebarrierrecCall
 
 	// curfn is the current function during AST walks.
 	curfn *ir.Func
@@ -853,7 +853,7 @@ type nowritebarrierrecCall struct {
 // must be called before transformclosure and walk.
 func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	c := &nowritebarrierrecChecker{
-		extraCalls: make(map[ir.Node][]nowritebarrierrecCall),
+		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),
 	}
 
 	// Find all systemstack calls and record their targets. In
@@ -929,7 +929,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// that are directly marked go:nowritebarrierrec are in this
 	// map with a zero-valued nowritebarrierrecCall. This also
 	// acts as the set of marks for the BFS of the call graph.
-	funcs := make(map[ir.Node]nowritebarrierrecCall)
+	funcs := make(map[*ir.Func]nowritebarrierrecCall)
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
 	var q ir.NameQueue
 
