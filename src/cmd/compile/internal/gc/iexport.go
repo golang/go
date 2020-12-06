@@ -368,7 +368,7 @@ type iexporter struct {
 	// main index.
 	allPkgs map[*types.Pkg]bool
 
-	declTodo ir.NodeQueue
+	declTodo ir.NameQueue
 
 	strings     intWriter
 	stringIndex map[string]uint64
@@ -394,7 +394,7 @@ func (p *iexporter) stringOff(s string) uint64 {
 }
 
 // pushDecl adds n to the declaration work queue, if not already present.
-func (p *iexporter) pushDecl(n ir.Node) {
+func (p *iexporter) pushDecl(n *ir.Name) {
 	if n.Sym() == nil || n.Sym().Def != n && n.Op() != ir.OTYPE {
 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
 	}
@@ -573,7 +573,7 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
 
 func (w *exportWriter) qualifiedIdent(n ir.Node) {
 	// Ensure any referenced declarations are written out too.
-	w.p.pushDecl(n)
+	w.p.pushDecl(n.Name())
 
 	s := n.Sym()
 	w.string(s.Name)

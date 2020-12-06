@@ -130,7 +130,7 @@ var (
 
 var xtop []ir.Node
 
-var exportlist []ir.Node
+var exportlist []*ir.Name
 
 var importlist []*ir.Func // imported functions and methods with inlinable bodies
 
