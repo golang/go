@@ -37,7 +37,7 @@ var (
 
 // isRuntimePkg reports whether p is package runtime.
 func isRuntimePkg(p *types.Pkg) bool {
-	if base.Flag.CompilingRuntime && p == ir.LocalPkg {
+	if base.Flag.CompilingRuntime && p == types.LocalPkg {
 		return true
 	}
 	return p.Path == "runtime"
@@ -45,7 +45,7 @@ func isRuntimePkg(p *types.Pkg) bool {
 
 // isReflectPkg reports whether p is package reflect.
 func isReflectPkg(p *types.Pkg) bool {
-	if p == ir.LocalPkg {
+	if p == types.LocalPkg {
 		return base.Ctxt.Pkgpath == "reflect"
 	}
 	return p.Path == "reflect"

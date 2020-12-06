@@ -69,7 +69,7 @@ func setlineno(n ir.Node) src.XPos {
 }
 
 func lookup(name string) *types.Sym {
-	return ir.LocalPkg.Lookup(name)
+	return types.LocalPkg.Lookup(name)
 }
 
 // lookupN looks up the symbol starting with prefix and ending with
@@ -78,7 +78,7 @@ func lookupN(prefix string, n int) *types.Sym {
 	var buf [20]byte // plenty long enough for all current users
 	copy(buf[:], prefix)
 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
-	return ir.LocalPkg.LookupBytes(b)
+	return types.LocalPkg.LookupBytes(b)
 }
 
 // autolabel generates a new Name node for use with
@@ -1109,13 +1109,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	// Only generate (*T).M wrappers for T.M in T's own package.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != ir.LocalPkg {
+		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg {
 		return
 	}
 
 	// Only generate I.M wrappers for I in I's own package
 	// but keep doing it for error.Error (was issue #29304).
-	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != ir.LocalPkg && rcvr != types.ErrorType {
+	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
 		return
 	}
 

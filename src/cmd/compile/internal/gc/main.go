@@ -77,17 +77,17 @@ func Main(archInit func(*Arch)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
-	ir.LocalPkg = types.NewPkg("", "")
-	ir.LocalPkg.Prefix = "\"\""
+	types.LocalPkg = types.NewPkg("", "")
+	types.LocalPkg.Prefix = "\"\""
 
 	// We won't know localpkg's height until after import
 	// processing. In the mean time, set to MaxPkgHeight to ensure
 	// height comparisons at least work until then.
-	ir.LocalPkg.Height = types.MaxPkgHeight
+	types.LocalPkg.Height = types.MaxPkgHeight
 
 	// pseudo-package, for scoping
-	ir.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
-	ir.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = types.NewPkg("unsafe", "unsafe")
@@ -212,7 +212,7 @@ func Main(archInit func(*Arch)) {
 	// would lead to import cycles)
 	types.Widthptr = Widthptr
 	types.Dowidth = dowidth
-	ir.InstallTypeFormats()
+	types.InstallTypeFormats()
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return typenamesym(t).Linksym()
 	}
@@ -922,14 +922,14 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 }
 
 func mkpackage(pkgname string) {
-	if ir.LocalPkg.Name == "" {
+	if types.LocalPkg.Name == "" {
 		if pkgname == "_" {
 			base.Errorf("invalid package name _")
 		}
-		ir.LocalPkg.Name = pkgname
+		types.LocalPkg.Name = pkgname
 	} else {
-		if pkgname != ir.LocalPkg.Name {
-			base.Errorf("package %s; expected %s", pkgname, ir.LocalPkg.Name)
+		if pkgname != types.LocalPkg.Name {
+			base.Errorf("package %s; expected %s", pkgname, types.LocalPkg.Name)
 		}
 	}
 }
@@ -942,7 +942,7 @@ func clearImports() {
 	}
 	var unused []importedPkg
 
-	for _, s := range ir.LocalPkg.Syms {
+	for _, s := range types.LocalPkg.Syms {
 		n := ir.AsNode(s.Def)
 		if n == nil {
 			continue
@@ -1046,7 +1046,7 @@ func recordPackageName() {
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
 	base.Ctxt.Data = append(base.Ctxt.Data, s)
-	s.P = []byte(ir.LocalPkg.Name)
+	s.P = []byte(types.LocalPkg.Name)
 }
 
 // currentLang returns the current language version.
@@ -1073,9 +1073,9 @@ var langWant lang
 func langSupported(major, minor int, pkg *types.Pkg) bool {
 	if pkg == nil {
 		// TODO(mdempsky): Set Pkg for local types earlier.
-		pkg = ir.LocalPkg
+		pkg = types.LocalPkg
 	}
-	if pkg != ir.LocalPkg {
+	if pkg != types.LocalPkg {
 		// Assume imported packages passed type-checking.
 		return true
 	}

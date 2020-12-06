@@ -193,7 +193,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Type imported from package, so it can't be part of
 		// a type loop (otherwise that package should have
 		// failed to compile).
-		if t.Sym().Pkg != ir.LocalPkg {
+		if t.Sym().Pkg != types.LocalPkg {
 			return false
 		}
 

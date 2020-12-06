@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/constant"
 	"sort"
-	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
@@ -653,33 +652,6 @@ func AsNode(n types.Object) Node {
 }
 
 var BlankNode Node
-
-var BlankSym *types.Sym
-
-// origSym returns the original symbol written by the user.
-func OrigSym(s *types.Sym) *types.Sym {
-	if s == nil {
-		return nil
-	}
-
-	if len(s.Name) > 1 && s.Name[0] == '~' {
-		switch s.Name[1] {
-		case 'r': // originally an unnamed result
-			return nil
-		case 'b': // originally the blank identifier _
-			// TODO(mdempsky): Does s.Pkg matter here?
-			return BlankSym
-		}
-		return s
-	}
-
-	if strings.HasPrefix(s.Name, ".anon") {
-		// originally an unnamed or _ name (see subr.go: structargs)
-		return nil
-	}
-
-	return s
-}
 
 func IsConst(n Node, ct constant.Kind) bool {
 	return ConstType(n) == ct

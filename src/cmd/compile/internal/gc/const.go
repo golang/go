@@ -384,7 +384,7 @@ func overflow(v constant.Value, t *types.Type) bool {
 		return true
 	}
 	if doesoverflow(v, t) {
-		base.Errorf("constant %v overflows %v", ir.FmtConst(v, false), t)
+		base.Errorf("constant %v overflows %v", types.FmtConst(v, false), t)
 		return true
 	}
 	return false

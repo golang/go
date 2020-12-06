@@ -79,7 +79,7 @@ func parseFiles(filenames []string) uint {
 		p.processPragmas()
 	}
 
-	ir.LocalPkg.Height = myheight
+	types.LocalPkg.Height = myheight
 
 	return lines
 }
@@ -501,7 +501,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	}
 
 	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
-	if n.Alias() && !langSupported(1, 9, ir.LocalPkg) {
+	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -532,7 +532,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 			}
 		}
 
-		if ir.LocalPkg.Name == "main" && name.Name == "main" {
+		if types.LocalPkg.Name == "main" && name.Name == "main" {
 			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
 				base.ErrorfAt(f.Pos(), "func main must have no arguments and no return values")
 			}
@@ -931,7 +931,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 		var pkg *types.Pkg
 		if def.Op() != ir.OPACK {
 			base.Errorf("%v is not a package", name)
-			pkg = ir.LocalPkg
+			pkg = types.LocalPkg
 		} else {
 			def := def.(*ir.PkgName)
 			def.Used = true
@@ -1387,7 +1387,7 @@ func (p *noder) binOp(op syntax.Operator) ir.Op {
 // literal is not compatible with the current language version.
 func checkLangCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || langSupported(1, 13, ir.LocalPkg) {
+	if len(s) <= 2 || langSupported(1, 13, types.LocalPkg) {
 		return
 	}
 	// len(s) > 2
