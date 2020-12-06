@@ -58,7 +58,7 @@ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
 
 		skipDowidthForTracing = true
 		defer func() { skipDowidthForTracing = false }()
-		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%#L\n", pos, indent, n, op, n, tc, typ)
+		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%L\n", pos, indent, n, op, n, tc, typ)
 	}
 }
 
@@ -1039,12 +1039,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			if !implements(n.Type(), t, &missing, &have, &ptr) {
 				if have != nil && have.Sym == missing.Sym {
 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
-						"\t\thave %v%0S\n\t\twant %v%0S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+						"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
 				} else if have != nil {
 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
-						"\t\thave %v%0S\n\t\twant %v%0S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+						"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else {
 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
 				}

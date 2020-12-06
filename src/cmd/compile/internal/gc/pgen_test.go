@@ -145,11 +145,11 @@ func TestCmpstackvar(t *testing.T) {
 	for _, d := range testdata {
 		got := cmpstackvarlt(d.a, d.b)
 		if got != d.lt {
-			t.Errorf("want %#v < %#v", d.a, d.b)
+			t.Errorf("want %v < %v", d.a, d.b)
 		}
 		// If we expect a < b to be true, check that b < a is false.
 		if d.lt && cmpstackvarlt(d.b, d.a) {
-			t.Errorf("unexpected %#v < %#v", d.b, d.a)
+			t.Errorf("unexpected %v < %v", d.b, d.a)
 		}
 	}
 }

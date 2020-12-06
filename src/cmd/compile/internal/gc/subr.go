@@ -291,12 +291,12 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 		} else if have != nil && have.Sym == missing.Sym {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
-				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 		} else if ptr != 0 {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 		} else if have != nil {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
-				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 		} else {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 		}

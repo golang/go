@@ -90,7 +90,7 @@ func typecheckinl(fn *ir.Func) {
 	}
 
 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
+		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
 	}
 
 	savefn := Curfn
@@ -219,7 +219,7 @@ func caninl(fn *ir.Func) {
 	}
 
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.AsNodes(n.Func().Inl.Body))
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.AsNodes(n.Func().Inl.Body))
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
 	}
@@ -816,7 +816,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 
 	// We have a function node, and it has an inlineable body.
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
+		fmt.Printf("%v: inlining call to %v %v { %v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
 	}

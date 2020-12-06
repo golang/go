@@ -2154,7 +2154,7 @@ func reorder3(all []ir.Node) []ir.Node {
 
 		switch l.Op() {
 		default:
-			base.Fatalf("reorder3 unexpected lvalue %#v", l.Op())
+			base.Fatalf("reorder3 unexpected lvalue %v", l.Op())
 
 		case ir.ONAME:
 			break

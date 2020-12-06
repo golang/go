@@ -100,7 +100,7 @@ func typecheckclosure(clo ir.Node, top int) {
 		if !n.Name().Captured() {
 			n.Name().SetCaptured(true)
 			if n.Name().Decldepth == 0 {
-				base.Fatalf("typecheckclosure: var %S does not have decldepth assigned", n)
+				base.Fatalf("typecheckclosure: var %v does not have decldepth assigned", n)
 			}
 
 			// Ignore assignments to the variable in straightline code
