@@ -713,9 +713,9 @@ func (r *importReader) doInline(fn *ir.Func) {
 
 	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("inl body for %v %#v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+			fmt.Printf("inl body for %v %v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
 		} else {
-			fmt.Printf("inl body for %v %#v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+			fmt.Printf("inl body for %v %v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
 		}
 	}
 }

@@ -125,12 +125,6 @@ func (o Op) Format(s fmt.State, verb rune) {
 //	%+v	Debug syntax, as in Dump.
 //
 func FmtNode(n Node, s fmt.State, verb rune) {
-	// TODO(rsc): Remove uses of %#v, which behaves just like %v.
-	// TODO(rsc): Remove uses of %S, which behaves just like %v.
-	if verb == 'S' {
-		verb = 'v'
-	}
-
 	// %+v prints Dump.
 	// Otherwise we print Go syntax.
 	if s.Flag('+') && verb == 'v' {
@@ -355,7 +349,7 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		fmt.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
+		fmt.Fprintf(s, "%v %v= %v", n.Left(), n.SubOp(), n.Right())
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		if n.Colas() && !complexinit {
@@ -446,7 +440,7 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		fmt.Fprintf(s, "%#v", n.Op())
+		fmt.Fprintf(s, "%v", n.Op())
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init().First())
 		}
@@ -466,9 +460,9 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
 		if n.Sym() != nil {
-			fmt.Fprintf(s, "%#v %v", n.Op(), n.Sym())
+			fmt.Fprintf(s, "%v %v", n.Op(), n.Sym())
 		} else {
-			fmt.Fprintf(s, "%#v", n.Op())
+			fmt.Fprintf(s, "%v", n.Op())
 		}
 
 	case OLABEL:
@@ -754,9 +748,9 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCOMPLEX, OCOPY:
 		if n.Left() != nil {
-			fmt.Fprintf(s, "%#v(%v, %v)", n.Op(), n.Left(), n.Right())
+			fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.Left(), n.Right())
 		} else {
-			fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
+			fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
 		}
 
 	case OCONV,
@@ -795,14 +789,14 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OPRINT,
 		OPRINTN:
 		if n.Left() != nil {
-			fmt.Fprintf(s, "%#v(%v)", n.Op(), n.Left())
+			fmt.Fprintf(s, "%v(%v)", n.Op(), n.Left())
 			return
 		}
 		if n.IsDDD() {
-			fmt.Fprintf(s, "%#v(%.v...)", n.Op(), n.List())
+			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.List())
 			return
 		}
-		fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
+		fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		exprFmt(n.Left(), s, nprec)
@@ -832,7 +826,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
 		// Unary
-		fmt.Fprintf(s, "%#v", n.Op())
+		fmt.Fprintf(s, "%v", n.Op())
 		if n.Left() != nil && n.Left().Op() == n.Op() {
 			fmt.Fprint(s, " ")
 		}
@@ -860,7 +854,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OSUB,
 		OXOR:
 		exprFmt(n.Left(), s, nprec)
-		fmt.Fprintf(s, " %#v ", n.Op())
+		fmt.Fprintf(s, " %v ", n.Op())
 		exprFmt(n.Right(), s, nprec+1)
 
 	case OADDSTR:

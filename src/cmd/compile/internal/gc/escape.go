@@ -757,7 +757,7 @@ func (e *Escape) assign(dst, src ir.Node, why string, where ir.Node) {
 	// Filter out some no-op assignments for escape analysis.
 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
 	if ignore && base.Flag.LowerM != 0 {
-		base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
+		base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %v", funcSym(e.curfn), where)
 	}
 
 	k := e.addr(dst)
@@ -1454,7 +1454,7 @@ func (e *Escape) finish(fns []*ir.Func) {
 		if loc.escapes {
 			if n.Op() != ir.ONAME {
 				if base.Flag.LowerM != 0 {
-					base.WarnfAt(n.Pos(), "%S escapes to heap", n)
+					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
 				}
 				if logopt.Enabled() {
 					logopt.LogOpt(n.Pos(), "escape", "escape", ir.FuncName(e.curfn))
@@ -1464,7 +1464,7 @@ func (e *Escape) finish(fns []*ir.Func) {
 			addrescapes(n)
 		} else {
 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
-				base.WarnfAt(n.Pos(), "%S does not escape", n)
+				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
 			n.SetEsc(EscNone)
 			if loc.transient {
