@@ -6078,7 +6078,7 @@ func (s *state) addNamedValue(n ir.Node, v *ssa.Value) {
 	if n.Class() == ir.PAUTO && n.Offset() != 0 {
 		s.Fatalf("AUTO var with offset %v %d", n, n.Offset())
 	}
-	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
+	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
 		s.f.Names = append(s.f.Names, loc)
@@ -6979,9 +6979,8 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 	return data
 }
 
-func (e *ssafn) Auto(pos src.XPos, t *types.Type) ir.Node {
-	n := tempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
-	return n
+func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
+	return tempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
 }
 
 func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
