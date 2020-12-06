@@ -3361,7 +3361,7 @@ out:
 
 // type check function definition
 // To be called by typecheck, not directly.
-// (Call typecheckfn instead.)
+// (Call typecheckFunc instead.)
 func typecheckfunc(n *ir.Func) {
 	if enableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckfunc", n)(nil)
