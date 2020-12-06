@@ -141,7 +141,7 @@ func forNodeFields(typName string, typ *types.Struct, f func(name string, is fun
 		}
 		switch typName {
 		case "Func":
-			if v.Name() != "body" {
+			if strings.ToLower(strings.TrimSuffix(v.Name(), "_")) != "body" {
 				continue
 			}
 		case "Name", "Pack":
