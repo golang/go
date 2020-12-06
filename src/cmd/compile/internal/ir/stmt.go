@@ -161,20 +161,20 @@ func (n *AssignOpStmt) SetType(x *types.Type) { n.typ = x }
 // A BlockStmt is a block: { List }.
 type BlockStmt struct {
 	miniStmt
-	list Nodes
+	List_ Nodes
 }
 
 func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 	n := &BlockStmt{}
 	n.pos = pos
 	n.op = OBLOCK
-	n.list.Set(list)
+	n.List_.Set(list)
 	return n
 }
 
-func (n *BlockStmt) List() Nodes     { return n.list }
-func (n *BlockStmt) PtrList() *Nodes { return &n.list }
-func (n *BlockStmt) SetList(x Nodes) { n.list = x }
+func (n *BlockStmt) List() Nodes     { return n.List_ }
+func (n *BlockStmt) PtrList() *Nodes { return &n.List_ }
+func (n *BlockStmt) SetList(x Nodes) { n.List_ = x }
 
 // A BranchStmt is a break, continue, fallthrough, or goto statement.
 //
@@ -204,27 +204,27 @@ func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
 // A CaseStmt is a case statement in a switch or select: case List: Body.
 type CaseStmt struct {
 	miniStmt
-	Vars Nodes // declared variable for this case in type switch
-	list Nodes // list of expressions for switch, early select
-	Comm Node  // communication case (Exprs[0]) after select is type-checked
-	body Nodes
+	Vars  Nodes // declared variable for this case in type switch
+	List_ Nodes // list of expressions for switch, early select
+	Comm  Node  // communication case (Exprs[0]) after select is type-checked
+	Body_ Nodes
 }
 
 func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
 	n := &CaseStmt{}
 	n.pos = pos
 	n.op = OCASE
-	n.list.Set(list)
-	n.body.Set(body)
+	n.List_.Set(list)
+	n.Body_.Set(body)
 	return n
 }
 
-func (n *CaseStmt) List() Nodes      { return n.list }
-func (n *CaseStmt) PtrList() *Nodes  { return &n.list }
-func (n *CaseStmt) SetList(x Nodes)  { n.list = x }
-func (n *CaseStmt) Body() Nodes      { return n.body }
-func (n *CaseStmt) PtrBody() *Nodes  { return &n.body }
-func (n *CaseStmt) SetBody(x Nodes)  { n.body = x }
+func (n *CaseStmt) List() Nodes      { return n.List_ }
+func (n *CaseStmt) PtrList() *Nodes  { return &n.List_ }
+func (n *CaseStmt) SetList(x Nodes)  { n.List_ = x }
+func (n *CaseStmt) Body() Nodes      { return n.Body_ }
+func (n *CaseStmt) PtrBody() *Nodes  { return &n.Body_ }
+func (n *CaseStmt) SetBody(x Nodes)  { n.Body_ = x }
 func (n *CaseStmt) Rlist() Nodes     { return n.Vars }
 func (n *CaseStmt) PtrRlist() *Nodes { return &n.Vars }
 func (n *CaseStmt) SetRlist(x Nodes) { n.Vars = x }
@@ -255,7 +255,7 @@ type ForStmt struct {
 	Cond     Node
 	Late     Nodes
 	Post     Node
-	body     Nodes
+	Body_    Nodes
 	hasBreak bool
 }
 
@@ -264,7 +264,7 @@ func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStm
 	n.pos = pos
 	n.op = OFOR
 	n.init.Set(init)
-	n.body.Set(body)
+	n.Body_.Set(body)
 	return n
 }
 
@@ -274,9 +274,9 @@ func (n *ForStmt) Left() Node          { return n.Cond }
 func (n *ForStmt) SetLeft(x Node)      { n.Cond = x }
 func (n *ForStmt) Right() Node         { return n.Post }
 func (n *ForStmt) SetRight(x Node)     { n.Post = x }
-func (n *ForStmt) Body() Nodes         { return n.body }
-func (n *ForStmt) PtrBody() *Nodes     { return &n.body }
-func (n *ForStmt) SetBody(x Nodes)     { n.body = x }
+func (n *ForStmt) Body() Nodes         { return n.Body_ }
+func (n *ForStmt) PtrBody() *Nodes     { return &n.Body_ }
+func (n *ForStmt) SetBody(x Nodes)     { n.Body_ = x }
 func (n *ForStmt) List() Nodes         { return n.Late }
 func (n *ForStmt) PtrList() *Nodes     { return &n.Late }
 func (n *ForStmt) SetList(x Nodes)     { n.Late = x }
@@ -310,7 +310,7 @@ func (n *GoStmt) SetLeft(x Node) { n.Call = x }
 type IfStmt struct {
 	miniStmt
 	Cond   Node
-	body   Nodes
+	Body_  Nodes
 	Else   Nodes
 	likely bool // code layout hint
 }
@@ -319,16 +319,16 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	n := &IfStmt{Cond: cond}
 	n.pos = pos
 	n.op = OIF
-	n.body.Set(body)
+	n.Body_.Set(body)
 	n.Else.Set(els)
 	return n
 }
 
 func (n *IfStmt) Left() Node       { return n.Cond }
 func (n *IfStmt) SetLeft(x Node)   { n.Cond = x }
-func (n *IfStmt) Body() Nodes      { return n.body }
-func (n *IfStmt) PtrBody() *Nodes  { return &n.body }
-func (n *IfStmt) SetBody(x Nodes)  { n.body = x }
+func (n *IfStmt) Body() Nodes      { return n.Body_ }
+func (n *IfStmt) PtrBody() *Nodes  { return &n.Body_ }
+func (n *IfStmt) SetBody(x Nodes)  { n.Body_ = x }
 func (n *IfStmt) Rlist() Nodes     { return n.Else }
 func (n *IfStmt) PtrRlist() *Nodes { return &n.Else }
 func (n *IfStmt) SetRlist(x Nodes) { n.Else = x }
@@ -375,7 +375,7 @@ type RangeStmt struct {
 	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
 	Def      bool
 	X        Node
-	body     Nodes
+	Body_    Nodes
 	hasBreak bool
 	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
 }
@@ -385,7 +385,7 @@ func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
 	n.pos = pos
 	n.op = ORANGE
 	n.Vars.Set(vars)
-	n.body.Set(body)
+	n.Body_.Set(body)
 	return n
 }
 
@@ -393,9 +393,9 @@ func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
 func (n *RangeStmt) SetSym(x *types.Sym)   { n.Label = x }
 func (n *RangeStmt) Right() Node           { return n.X }
 func (n *RangeStmt) SetRight(x Node)       { n.X = x }
-func (n *RangeStmt) Body() Nodes           { return n.body }
-func (n *RangeStmt) PtrBody() *Nodes       { return &n.body }
-func (n *RangeStmt) SetBody(x Nodes)       { n.body = x }
+func (n *RangeStmt) Body() Nodes           { return n.Body_ }
+func (n *RangeStmt) PtrBody() *Nodes       { return &n.Body_ }
+func (n *RangeStmt) SetBody(x Nodes)       { n.Body_ = x }
 func (n *RangeStmt) List() Nodes           { return n.Vars }
 func (n *RangeStmt) PtrList() *Nodes       { return &n.Vars }
 func (n *RangeStmt) SetList(x Nodes)       { n.Vars = x }
@@ -514,14 +514,14 @@ func (n *SwitchStmt) SetHasBreak(x bool)  { n.hasBreak = x }
 // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
 type TypeSwitchGuard struct {
 	miniNode
-	name *Name
-	X    Node
+	Name_ *Name
+	X     Node
 }
 
 func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
 	n := &TypeSwitchGuard{X: x}
 	if name != nil {
-		n.name = name.(*Name)
+		n.Name_ = name.(*Name)
 	}
 	n.pos = pos
 	n.op = OTYPESW
@@ -529,17 +529,17 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
 }
 
 func (n *TypeSwitchGuard) Left() Node {
-	if n.name == nil {
+	if n.Name_ == nil {
 		return nil
 	}
-	return n.name
+	return n.Name_
 }
 func (n *TypeSwitchGuard) SetLeft(x Node) {
 	if x == nil {
-		n.name = nil
+		n.Name_ = nil
 		return
 	}
-	n.name = x.(*Name)
+	n.Name_ = x.(*Name)
 }
 func (n *TypeSwitchGuard) Right() Node     { return n.X }
 func (n *TypeSwitchGuard) SetRight(x Node) { n.X = x }

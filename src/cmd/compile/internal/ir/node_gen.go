@@ -9,18 +9,18 @@ func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *AddStringExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.list = c.list.Copy()
+	c.List_ = c.List_.Copy()
 	return &c
 }
 func (n *AddStringExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.list, err, do)
+	err = maybeDoList(n.List_, err, do)
 	return err
 }
 func (n *AddStringExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.list, edit)
+	editList(n.List_, edit)
 }
 
 func (n *AddrExpr) String() string                { return fmt.Sprint(n) }
@@ -147,18 +147,18 @@ func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *BlockStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.list = c.list.Copy()
+	c.List_ = c.List_.Copy()
 	return &c
 }
 func (n *BlockStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.list, err, do)
+	err = maybeDoList(n.List_, err, do)
 	return err
 }
 func (n *BlockStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.list, edit)
+	editList(n.List_, edit)
 }
 
 func (n *BranchStmt) String() string                { return fmt.Sprint(n) }
@@ -184,7 +184,7 @@ func (n *CallExpr) copy() Node {
 	c.init = c.init.Copy()
 	c.Args = c.Args.Copy()
 	c.Rargs = c.Rargs.Copy()
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	return &c
 }
 func (n *CallExpr) doChildren(do func(Node) error) error {
@@ -193,7 +193,7 @@ func (n *CallExpr) doChildren(do func(Node) error) error {
 	err = maybeDo(n.X, err, do)
 	err = maybeDoList(n.Args, err, do)
 	err = maybeDoList(n.Rargs, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	return err
 }
 func (n *CallExpr) editChildren(edit func(Node) Node) {
@@ -201,7 +201,7 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 	editList(n.Args, edit)
 	editList(n.Rargs, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 }
 
 func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
@@ -228,25 +228,25 @@ func (n *CaseStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	c.Vars = c.Vars.Copy()
-	c.list = c.list.Copy()
-	c.body = c.body.Copy()
+	c.List_ = c.List_.Copy()
+	c.Body_ = c.Body_.Copy()
 	return &c
 }
 func (n *CaseStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDoList(n.Vars, err, do)
-	err = maybeDoList(n.list, err, do)
+	err = maybeDoList(n.List_, err, do)
 	err = maybeDo(n.Comm, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	return err
 }
 func (n *CaseStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	editList(n.Vars, edit)
-	editList(n.list, edit)
+	editList(n.List_, edit)
 	n.Comm = maybeEdit(n.Comm, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 }
 
 func (n *ChanType) String() string                { return fmt.Sprint(n) }
@@ -301,20 +301,20 @@ func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *CompLitExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.list = c.list.Copy()
+	c.List_ = c.List_.Copy()
 	return &c
 }
 func (n *CompLitExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Ntype, err, do)
-	err = maybeDoList(n.list, err, do)
+	err = maybeDoList(n.List_, err, do)
 	return err
 }
 func (n *CompLitExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
-	editList(n.list, edit)
+	editList(n.List_, edit)
 }
 
 func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
@@ -390,7 +390,7 @@ func (n *ForStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	c.Late = c.Late.Copy()
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	return &c
 }
 func (n *ForStmt) doChildren(do func(Node) error) error {
@@ -399,7 +399,7 @@ func (n *ForStmt) doChildren(do func(Node) error) error {
 	err = maybeDo(n.Cond, err, do)
 	err = maybeDoList(n.Late, err, do)
 	err = maybeDo(n.Post, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	return err
 }
 func (n *ForStmt) editChildren(edit func(Node) Node) {
@@ -407,23 +407,23 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 	n.Cond = maybeEdit(n.Cond, edit)
 	editList(n.Late, edit)
 	n.Post = maybeEdit(n.Post, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 }
 
 func (n *Func) String() string                { return fmt.Sprint(n) }
 func (n *Func) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *Func) copy() Node {
 	c := *n
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	return &c
 }
 func (n *Func) doChildren(do func(Node) error) error {
 	var err error
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	return err
 }
 func (n *Func) editChildren(edit func(Node) Node) {
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 }
 
 func (n *FuncType) String() string                { return fmt.Sprint(n) }
@@ -473,7 +473,7 @@ func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *IfStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	c.Else = c.Else.Copy()
 	return &c
 }
@@ -481,14 +481,14 @@ func (n *IfStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Cond, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	err = maybeDoList(n.Else, err, do)
 	return err
 }
 func (n *IfStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Cond = maybeEdit(n.Cond, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 	editList(n.Else, edit)
 }
 
@@ -533,20 +533,20 @@ func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *InlinedCallExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	c.ReturnVars = c.ReturnVars.Copy()
 	return &c
 }
 func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	err = maybeDoList(n.ReturnVars, err, do)
 	return err
 }
 func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 	editList(n.ReturnVars, edit)
 }
 
@@ -725,7 +725,7 @@ func (n *RangeStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	c.Vars = c.Vars.Copy()
-	c.body = c.body.Copy()
+	c.Body_ = c.Body_.Copy()
 	return &c
 }
 func (n *RangeStmt) doChildren(do func(Node) error) error {
@@ -733,14 +733,14 @@ func (n *RangeStmt) doChildren(do func(Node) error) error {
 	err = maybeDoList(n.init, err, do)
 	err = maybeDoList(n.Vars, err, do)
 	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.body, err, do)
+	err = maybeDoList(n.Body_, err, do)
 	return err
 }
 func (n *RangeStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	editList(n.Vars, edit)
 	n.X = maybeEdit(n.X, edit)
-	editList(n.body, edit)
+	editList(n.Body_, edit)
 }
 
 func (n *ResultExpr) String() string                { return fmt.Sprint(n) }
@@ -843,20 +843,20 @@ func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SliceExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.list = c.list.Copy()
+	c.List_ = c.List_.Copy()
 	return &c
 }
 func (n *SliceExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.list, err, do)
+	err = maybeDoList(n.List_, err, do)
 	return err
 }
 func (n *SliceExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
-	editList(n.list, edit)
+	editList(n.List_, edit)
 }
 
 func (n *SliceHeaderExpr) String() string                { return fmt.Sprint(n) }
@@ -864,20 +864,20 @@ func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SliceHeaderExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.lenCap = c.lenCap.Copy()
+	c.LenCap_ = c.LenCap_.Copy()
 	return &c
 }
 func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Ptr, err, do)
-	err = maybeDoList(n.lenCap, err, do)
+	err = maybeDoList(n.LenCap_, err, do)
 	return err
 }
 func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Ptr = maybeEdit(n.Ptr, edit)
-	editList(n.lenCap, edit)
+	editList(n.LenCap_, edit)
 }
 
 func (n *SliceType) String() string                { return fmt.Sprint(n) }
@@ -984,15 +984,15 @@ func (n *TypeSwitchGuard) copy() Node {
 }
 func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
 	var err error
-	if n.name != nil {
-		err = maybeDo(n.name, err, do)
+	if n.Name_ != nil {
+		err = maybeDo(n.Name_, err, do)
 	}
 	err = maybeDo(n.X, err, do)
 	return err
 }
 func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
-	if n.name != nil {
-		n.name = edit(n.name).(*Name)
+	if n.Name_ != nil {
+		n.Name_ = edit(n.Name_).(*Name)
 	}
 	n.X = maybeEdit(n.X, edit)
 }

@@ -49,9 +49,9 @@ import (
 // pointer from the Func back to the OCALLPART.
 type Func struct {
 	miniNode
-	typ  *types.Type
-	body Nodes
-	iota int64
+	typ   *types.Type
+	Body_ Nodes
+	iota  int64
 
 	Nname    *Name        // ONAME node
 	OClosure *ClosureExpr // OCLOSURE node
@@ -117,9 +117,9 @@ func NewFunc(pos src.XPos) *Func {
 func (f *Func) isStmt() {}
 
 func (f *Func) Func() *Func           { return f }
-func (f *Func) Body() Nodes           { return f.body }
-func (f *Func) PtrBody() *Nodes       { return &f.body }
-func (f *Func) SetBody(x Nodes)       { f.body = x }
+func (f *Func) Body() Nodes           { return f.Body_ }
+func (f *Func) PtrBody() *Nodes       { return &f.Body_ }
+func (f *Func) SetBody(x Nodes)       { f.Body_ = x }
 func (f *Func) Type() *types.Type     { return f.typ }
 func (f *Func) SetType(x *types.Type) { f.typ = x }
 func (f *Func) Iota() int64           { return f.iota }
