@@ -259,8 +259,8 @@ func iexport(out *bufio.Writer) {
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
 		stringIndex: map[string]uint64{},
-		declIndex:   map[ir.Node]uint64{},
-		inlineIndex: map[ir.Node]uint64{},
+		declIndex:   map[*types.Sym]uint64{},
+		inlineIndex: map[*types.Sym]uint64{},
 		typIndex:    map[*types.Type]uint64{},
 	}
 
@@ -310,37 +310,34 @@ func iexport(out *bufio.Writer) {
 	out.Write(base.Ctxt.Fingerprint[:])
 }
 
-// writeIndex writes out an object index. mainIndex indicates whether
+// writeIndex writes out a symbol index. mainIndex indicates whether
 // we're writing out the main index, which is also read by
 // non-compiler tools and includes a complete package description
 // (i.e., name and height).
-func (w *exportWriter) writeIndex(index map[ir.Node]uint64, mainIndex bool) {
-	// Build a map from packages to objects from that package.
-	pkgObjs := map[*types.Pkg][]ir.Node{}
+func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
+	// Build a map from packages to symbols from that package.
+	pkgSyms := map[*types.Pkg][]*types.Sym{}
 
 	// For the main index, make sure to include every package that
 	// we reference, even if we're not exporting (or reexporting)
 	// any symbols from it.
 	if mainIndex {
-		pkgObjs[ir.LocalPkg] = nil
+		pkgSyms[ir.LocalPkg] = nil
 		for pkg := range w.p.allPkgs {
-			pkgObjs[pkg] = nil
+			pkgSyms[pkg] = nil
 		}
 	}
 
-	for n := range index {
-		pkgObjs[n.Sym().Pkg] = append(pkgObjs[n.Sym().Pkg], n)
+	// Group symbols by package.
+	for sym := range index {
+		pkgSyms[sym.Pkg] = append(pkgSyms[sym.Pkg], sym)
 	}
 
+	// Sort packages by path.
 	var pkgs []*types.Pkg
-	for pkg, objs := range pkgObjs {
+	for pkg := range pkgSyms {
 		pkgs = append(pkgs, pkg)
-
-		sort.Slice(objs, func(i, j int) bool {
-			return objs[i].Sym().Name < objs[j].Sym().Name
-		})
 	}
-
 	sort.Slice(pkgs, func(i, j int) bool {
 		return pkgs[i].Path < pkgs[j].Path
 	})
@@ -353,11 +350,16 @@ func (w *exportWriter) writeIndex(index map[ir.Node]uint64, mainIndex bool) {
 			w.uint64(uint64(pkg.Height))
 		}
 
-		objs := pkgObjs[pkg]
-		w.uint64(uint64(len(objs)))
-		for _, n := range objs {
-			w.string(n.Sym().Name)
-			w.uint64(index[n])
+		// Sort symbols within a package by name.
+		syms := pkgSyms[pkg]
+		sort.Slice(syms, func(i, j int) bool {
+			return syms[i].Name < syms[j].Name
+		})
+
+		w.uint64(uint64(len(syms)))
+		for _, sym := range syms {
+			w.string(sym.Name)
+			w.uint64(index[sym])
 		}
 	}
 }
@@ -374,8 +376,8 @@ type iexporter struct {
 	stringIndex map[string]uint64
 
 	data0       intWriter
-	declIndex   map[ir.Node]uint64
-	inlineIndex map[ir.Node]uint64
+	declIndex   map[*types.Sym]uint64
+	inlineIndex map[*types.Sym]uint64
 	typIndex    map[*types.Type]uint64
 }
 
@@ -404,11 +406,11 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 		return
 	}
 
-	if _, ok := p.declIndex[n]; ok {
+	if _, ok := p.declIndex[n.Sym()]; ok {
 		return
 	}
 
-	p.declIndex[n] = ^uint64(0) // mark n present in work queue
+	p.declIndex[n.Sym()] = ^uint64(0) // mark n present in work queue
 	p.declTodo.PushRight(n)
 }
 
@@ -423,13 +425,12 @@ type exportWriter struct {
 	prevColumn int64
 }
 
-func (p *iexporter) doDecl(n ir.Node) {
+func (p *iexporter) doDecl(n *ir.Name) {
 	w := p.newWriter()
 	w.setPkg(n.Sym().Pkg, false)
 
 	switch n.Op() {
 	case ir.ONAME:
-		n := n.(*ir.Name)
 		switch n.Class() {
 		case ir.PEXTERN:
 			// Variable.
@@ -455,7 +456,8 @@ func (p *iexporter) doDecl(n ir.Node) {
 
 	case ir.OLITERAL:
 		// Constant.
-		n = typecheck(n, ctxExpr)
+		// TODO(mdempsky): Do we still need this typecheck? If so, why?
+		n = typecheck(n, ctxExpr).(*ir.Name)
 		w.tag('C')
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
@@ -509,7 +511,7 @@ func (p *iexporter) doDecl(n ir.Node) {
 		base.Fatalf("unexpected node: %v", n)
 	}
 
-	p.declIndex[n] = w.flush()
+	p.declIndex[n.Sym()] = w.flush()
 }
 
 func (w *exportWriter) tag(tag byte) {
@@ -522,7 +524,7 @@ func (p *iexporter) doInline(f *ir.Name) {
 
 	w.stmtList(ir.AsNodes(f.Func().Inl.Body))
 
-	p.inlineIndex[f] = w.flush()
+	p.inlineIndex[f.Sym()] = w.flush()
 }
 
 func (w *exportWriter) pos(pos src.XPos) {
