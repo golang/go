@@ -311,7 +311,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	if len(pkgs) == 0 {
 		return fmt.Errorf("package could not be found for file: %s", uri.SpanURI().Filename())
 	}
-	pkgPath := pkgs[0].PkgPath()
+	pkgPath := pkgs[0].ForTest()
 
 	// create output
 	buf := &bytes.Buffer{}
