@@ -322,7 +322,7 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
 	// we reference, even if we're not exporting (or reexporting)
 	// any symbols from it.
 	if mainIndex {
-		pkgSyms[ir.LocalPkg] = nil
+		pkgSyms[types.LocalPkg] = nil
 		for pkg := range w.p.allPkgs {
 			pkgSyms[pkg] = nil
 		}
@@ -402,7 +402,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == ir.BuiltinPkg || n.Sym().Pkg == unsafepkg {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == unsafepkg {
 		return
 	}
 
@@ -596,7 +596,7 @@ func (w *exportWriter) selector(s *types.Sym) {
 	} else {
 		pkg := w.currPkg
 		if types.IsExported(name) {
-			pkg = ir.LocalPkg
+			pkg = types.LocalPkg
 		}
 		if s.Pkg != pkg {
 			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
@@ -637,7 +637,7 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	if t.Sym() != nil {
-		if t.Sym().Pkg == ir.BuiltinPkg || t.Sym().Pkg == unsafepkg {
+		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == unsafepkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
@@ -748,7 +748,7 @@ func (w *exportWriter) paramList(fs []*types.Field) {
 
 func (w *exportWriter) param(f *types.Field) {
 	w.pos(f.Pos)
-	w.localIdent(ir.OrigSym(f.Sym), 0)
+	w.localIdent(types.OrigSym(f.Sym), 0)
 	w.typ(f.Type)
 }
 

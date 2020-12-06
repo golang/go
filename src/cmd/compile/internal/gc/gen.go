@@ -66,7 +66,7 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 
 	s := &types.Sym{
 		Name: autotmpname(len(curfn.Dcl)),
-		Pkg:  ir.LocalPkg,
+		Pkg:  types.LocalPkg,
 	}
 	n := ir.NewNameAt(pos, s)
 	s.Def = n

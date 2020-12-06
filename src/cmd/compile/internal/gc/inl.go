@@ -85,7 +85,7 @@ func typecheckinl(fn *ir.Func) {
 	// the ->inl of a local function has been typechecked before caninl copied it.
 	pkg := fnpkg(fn.Nname)
 
-	if pkg == ir.LocalPkg || pkg == nil {
+	if pkg == types.LocalPkg || pkg == nil {
 		return // typecheckinl on local function
 	}
 

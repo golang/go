@@ -301,7 +301,7 @@ func deferstruct(stksize int64) *types.Type {
 		// Unlike the global makefield function, this one needs to set Pkg
 		// because these types might be compared (in SSA CSE sorting).
 		// TODO: unify this makefield and the global one above.
-		sym := &types.Sym{Name: name, Pkg: ir.LocalPkg}
+		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
 		return types.NewField(src.NoXPos, sym, typ)
 	}
 	argtype := types.NewArray(types.Types[types.TUINT8], stksize)
@@ -491,7 +491,7 @@ func dimportpath(p *types.Pkg) {
 	}
 
 	str := p.Path
-	if p == ir.LocalPkg {
+	if p == types.LocalPkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
 		str = base.Ctxt.Pkgpath
 	}
@@ -508,7 +508,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return duintptr(s, ot, 0)
 	}
 
-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
+	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -527,7 +527,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duint32(s, ot, 0)
 	}
-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
+	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -1158,7 +1158,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 
 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
 		// named types from other files are defined only by those files
-		if tbase.Sym() != nil && tbase.Sym().Pkg != ir.LocalPkg {
+		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
 			if i, ok := typeSymIdx[tbase]; ok {
 				lsym.Pkg = tbase.Sym().Pkg.Prefix
 				if t != tbase {
@@ -1568,7 +1568,7 @@ func dumptabs() {
 	}
 
 	// process ptabs
-	if ir.LocalPkg.Name == "main" && len(ptabs) > 0 {
+	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
 		s := base.Ctxt.Lookup("go.plugin.tabs")
 		for _, p := range ptabs {

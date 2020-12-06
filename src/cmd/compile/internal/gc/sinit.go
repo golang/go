@@ -79,7 +79,7 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
 		pfuncsym(l, r)
 		return true
 	}
-	if r.Class() != ir.PEXTERN || r.Sym().Pkg != ir.LocalPkg {
+	if r.Class() != ir.PEXTERN || r.Sym().Pkg != types.LocalPkg {
 		return false
 	}
 	if r.Name().Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value

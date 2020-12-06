@@ -3,10 +3,3 @@
 // license that can be found in the LICENSE file.
 
 package ir
-
-import "cmd/compile/internal/types"
-
-var LocalPkg *types.Pkg // package being compiled
-
-// builtinpkg is a fake package that declares the universe block.
-var BuiltinPkg *types.Pkg

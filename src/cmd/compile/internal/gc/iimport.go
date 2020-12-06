@@ -148,7 +148,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 		if pkg.Name == "" {
 			pkg.Name = pkgName
 			pkg.Height = pkgHeight
-			ir.NumImport[pkgName]++
+			types.NumImport[pkgName]++
 
 			// TODO(mdempsky): This belongs somewhere else.
 			pkg.Lookup("_").Def = ir.BlankNode
@@ -437,7 +437,7 @@ func (r *importReader) ident() *types.Sym {
 	}
 	pkg := r.currPkg
 	if types.IsExported(name) {
-		pkg = ir.LocalPkg
+		pkg = types.LocalPkg
 	}
 	return pkg.Lookup(name)
 }

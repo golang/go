@@ -983,7 +983,7 @@ opswitch:
 		if param == types.Txxx {
 			break
 		}
-		fn := ir.BasicTypeNames[param] + "to" + ir.BasicTypeNames[result]
+		fn := types.BasicTypeNames[param] + "to" + types.BasicTypeNames[result]
 		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left(), types.Types[param])), n.Type())
 
 	case ir.ODIV, ir.OMOD:

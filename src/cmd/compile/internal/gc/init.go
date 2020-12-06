@@ -96,7 +96,7 @@ func fninit(n []ir.Node) {
 		fns = append(fns, s.Linksym())
 	}
 
-	if len(deps) == 0 && len(fns) == 0 && ir.LocalPkg.Name != "main" && ir.LocalPkg.Name != "runtime" {
+	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
 		return // nothing to initialize
 	}
 

@@ -66,7 +66,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	s := n.Sym()
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
-	if !inimport && !typecheckok && s.Pkg != ir.LocalPkg {
+	if !inimport && !typecheckok && s.Pkg != types.LocalPkg {
 		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
 	}
 
@@ -253,7 +253,7 @@ func oldname(s *types.Sym) ir.Node {
 // but it reports an error if sym is from another package and not exported.
 func importName(sym *types.Sym) ir.Node {
 	n := oldname(sym)
-	if !types.IsExported(sym.Name) && sym.Pkg != ir.LocalPkg {
+	if !types.IsExported(sym.Name) && sym.Pkg != types.LocalPkg {
 		n.SetDiag(true)
 		base.Errorf("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
 	}
@@ -512,7 +512,7 @@ func tostruct(l []*ir.Field) *types.Type {
 	checkdupfields("field", fields)
 
 	base.Pos = lno
-	return types.NewStruct(ir.LocalPkg, fields)
+	return types.NewStruct(types.LocalPkg, fields)
 }
 
 func tointerface(nmethods []*ir.Field) *types.Type {
@@ -533,7 +533,7 @@ func tointerface(nmethods []*ir.Field) *types.Type {
 	}
 
 	base.Pos = lno
-	return types.NewInterface(ir.LocalPkg, methods)
+	return types.NewInterface(types.LocalPkg, methods)
 }
 
 func fakeRecv() *ir.Field {
@@ -585,14 +585,14 @@ func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
 		recv = funarg(nrecv)
 	}
 
-	t := types.NewSignature(ir.LocalPkg, recv, funargs(nparams), funargs(nresults))
+	t := types.NewSignature(types.LocalPkg, recv, funargs(nparams), funargs(nresults))
 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
 	return t
 }
 
 func hasNamedResults(fn *ir.Func) bool {
 	typ := fn.Type()
-	return typ.NumResults() > 0 && ir.OrigSym(typ.Results().Field(0).Sym) != nil
+	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
 }
 
 // methodSym returns the method symbol representing a method name
@@ -703,7 +703,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 		return nil
 	}
 
-	if local && mt.Sym().Pkg != ir.LocalPkg {
+	if local && mt.Sym().Pkg != types.LocalPkg {
 		base.Errorf("cannot define new methods on non-local type %v", mt)
 		return nil
 	}

@@ -104,7 +104,7 @@ func initUniverse() {
 	}
 
 	types.Types[types.TANY] = types.New(types.TANY)
-	types.Types[types.TINTER] = types.NewInterface(ir.LocalPkg, nil)
+	types.Types[types.TINTER] = types.NewInterface(types.LocalPkg, nil)
 
 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
 		sym := pkg.Lookup(name)
@@ -120,7 +120,7 @@ func initUniverse() {
 	}
 
 	for _, s := range &basicTypes {
-		types.Types[s.etype] = defBasic(s.etype, ir.BuiltinPkg, s.name)
+		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
 	}
 
 	for _, s := range &typedefs {
@@ -130,7 +130,7 @@ func initUniverse() {
 		}
 		simtype[s.etype] = sameas
 
-		types.Types[s.etype] = defBasic(s.etype, ir.BuiltinPkg, s.name)
+		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
 	}
 
 	// We create separate byte and rune types for better error messages
@@ -140,11 +140,11 @@ func initUniverse() {
 	// of less informative error messages involving bytes and runes)?
 	// (Alternatively, we could introduce an OTALIAS node representing
 	// type aliases, albeit at the cost of having to deal with it everywhere).
-	types.ByteType = defBasic(types.TUINT8, ir.BuiltinPkg, "byte")
-	types.RuneType = defBasic(types.TINT32, ir.BuiltinPkg, "rune")
+	types.ByteType = defBasic(types.TUINT8, types.BuiltinPkg, "byte")
+	types.RuneType = defBasic(types.TINT32, types.BuiltinPkg, "rune")
 
 	// error type
-	s := ir.BuiltinPkg.Lookup("error")
+	s := types.BuiltinPkg.Lookup("error")
 	n := ir.NewDeclNameAt(src.NoXPos, s)
 	n.SetOp(ir.OTYPE)
 	types.ErrorType = types.NewNamed(n)
@@ -162,7 +162,7 @@ func initUniverse() {
 	simtype[types.TUNSAFEPTR] = types.TPTR
 
 	for _, s := range &builtinFuncs {
-		s2 := ir.BuiltinPkg.Lookup(s.name)
+		s2 := types.BuiltinPkg.Lookup(s.name)
 		s2.Def = NewName(s2)
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
@@ -173,16 +173,16 @@ func initUniverse() {
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
-	s = ir.BuiltinPkg.Lookup("true")
+	s = types.BuiltinPkg.Lookup("true")
 	s.Def = nodbool(true)
 	ir.AsNode(s.Def).SetSym(lookup("true"))
 
-	s = ir.BuiltinPkg.Lookup("false")
+	s = types.BuiltinPkg.Lookup("false")
 	s.Def = nodbool(false)
 	ir.AsNode(s.Def).SetSym(lookup("false"))
 
 	s = lookup("_")
-	ir.BlankSym = s
+	types.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
@@ -190,18 +190,18 @@ func initUniverse() {
 	ir.BlankNode = ir.AsNode(s.Def)
 	ir.BlankNode.SetTypecheck(1)
 
-	s = ir.BuiltinPkg.Lookup("_")
+	s = types.BuiltinPkg.Lookup("_")
 	s.Block = -100
 	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
 	types.Types[types.TNIL] = types.New(types.TNIL)
-	s = ir.BuiltinPkg.Lookup("nil")
+	s = types.BuiltinPkg.Lookup("nil")
 	s.Def = nodnil()
 	ir.AsNode(s.Def).SetSym(s)
 
-	s = ir.BuiltinPkg.Lookup("iota")
+	s = types.BuiltinPkg.Lookup("iota")
 	s.Def = ir.Nod(ir.OIOTA, nil, nil)
 	ir.AsNode(s.Def).SetSym(s)
 
@@ -339,7 +339,7 @@ func finishUniverse() {
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
 
-	for _, s := range ir.BuiltinPkg.Syms {
+	for _, s := range types.BuiltinPkg.Syms {
 		if s.Def == nil {
 			continue
 		}

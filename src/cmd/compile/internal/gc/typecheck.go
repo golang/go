@@ -90,7 +90,7 @@ func resolve(n ir.Node) (res ir.Node) {
 		defer tracePrint("resolve", n)(&res)
 	}
 
-	if n.Sym().Pkg != ir.LocalPkg {
+	if n.Sym().Pkg != types.LocalPkg {
 		if inimport {
 			base.Fatalf("recursive inimport")
 		}
@@ -2386,7 +2386,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 	me.(*ir.MethodExpr).Method = m
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == ir.LocalPkg) {
+	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
 		makefuncsym(me.Sym())
 	}
 
@@ -2862,7 +2862,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 
 				f := t.Field(i)
 				s := f.Sym
-				if s != nil && !types.IsExported(s.Name) && s.Pkg != ir.LocalPkg {
+				if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
 					base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 				}
 				// No pushtype allowed here. Must name fields for that.
@@ -2903,7 +2903,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 					// package, because of import dot. Redirect to correct sym
 					// before we do the lookup.
 					s := key.Sym()
-					if s.Pkg != ir.LocalPkg && types.IsExported(s.Name) {
+					if s.Pkg != types.LocalPkg && types.IsExported(s.Name) {
 						s1 := lookup(s.Name)
 						if s1.Origpkg == s.Pkg {
 							s = s1
@@ -3034,7 +3034,7 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 
 // visible reports whether sym is exported or locally defined.
 func visible(sym *types.Sym) bool {
-	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == ir.LocalPkg)
+	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == types.LocalPkg)
 }
 
 // nonexported reports whether sym is an unexported field.
@@ -3929,7 +3929,7 @@ func curpkg() *types.Pkg {
 	fn := Curfn
 	if fn == nil {
 		// Initialization expressions for package-scope variables.
-		return ir.LocalPkg
+		return types.LocalPkg
 	}
 	return fnpkg(fn.Nname)
 }

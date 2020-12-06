@@ -84,7 +84,7 @@ func printObjHeader(bout *bio.Writer) {
 	if base.Flag.BuildID != "" {
 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
 	}
-	if ir.LocalPkg.Name == "main" {
+	if types.LocalPkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
 	fmt.Fprintf(bout, "\n") // header ends with blank line
@@ -200,7 +200,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 }
 
 func addptabs() {
-	if !base.Ctxt.Flag_dynlink || ir.LocalPkg.Name != "main" {
+	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
 		return
 	}
 	for _, exportn := range exportlist {
@@ -235,7 +235,7 @@ func dumpGlobal(n ir.Node) {
 	if n.Class() == ir.PFUNC {
 		return
 	}
-	if n.Sym().Pkg != ir.LocalPkg {
+	if n.Sym().Pkg != types.LocalPkg {
 		return
 	}
 	dowidth(n.Type())
@@ -248,7 +248,7 @@ func dumpGlobalConst(n ir.Node) {
 	if t == nil {
 		return
 	}
-	if n.Sym().Pkg != ir.LocalPkg {
+	if n.Sym().Pkg != types.LocalPkg {
 		return
 	}
 	// only export integer constants for now
@@ -478,7 +478,7 @@ var slicedataGen int
 func slicedata(pos src.XPos, s string) ir.Node {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
-	sym := ir.LocalPkg.Lookup(symname)
+	sym := types.LocalPkg.Lookup(symname)
 	symnode := NewName(sym)
 	sym.Def = symnode
 

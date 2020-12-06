@@ -4127,7 +4127,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 		return nil
 	}
 	pkg := sym.Pkg.Path
-	if sym.Pkg == ir.LocalPkg {
+	if sym.Pkg == types.LocalPkg {
 		pkg = base.Ctxt.Pkgpath
 	}
 	if base.Flag.Race && pkg == "sync/atomic" {
@@ -7073,7 +7073,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
 	}
 
-	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: ir.LocalPkg}
+	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
 	n := ir.NewNameAt(parent.N.Pos(), s)
 	s.Def = n
 	ir.AsNode(s.Def).Name().SetUsed(true)
