@@ -86,6 +86,7 @@ var OpNames = []string{
 	OXOR:      "^",
 }
 
+// GoString returns the Go syntax for the Op, or else its name.
 func (o Op) GoString() string {
 	if int(o) < len(OpNames) && OpNames[o] != "" {
 		return OpNames[o]
@@ -93,6 +94,12 @@ func (o Op) GoString() string {
 	return o.String()
 }
 
+// Format implements formatting for an Op.
+// The valid formats are:
+//
+//	%v	Go syntax ("+", "<-", "print")
+//	%+v	Debug syntax ("ADD", "RECV", "PRINT")
+//
 func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
 	default:
@@ -109,6 +116,14 @@ func (o Op) Format(s fmt.State, verb rune) {
 
 // Node
 
+// FmtNode implements formatting for a Node n.
+// Every Node implementation must define a Format method that calls FmtNode.
+// The valid formats are:
+//
+//	%v	Go syntax
+//	%L	Go syntax followed by " (type T)" if type is known.
+//	%+v	Debug syntax, as in Dump.
+//
 func FmtNode(n Node, s fmt.State, verb rune) {
 	// TODO(rsc): Remove uses of %#v, which behaves just like %v.
 	// TODO(rsc): Remove uses of %S, which behaves just like %v.
@@ -276,7 +291,7 @@ var OpPrec = []int{
 	OEND: 0,
 }
 
-// Statements which may be rendered with a simplestmt as init.
+// StmtWithInit reports whether op is a statement with an explicit init list.
 func StmtWithInit(op Op) bool {
 	switch op {
 	case OIF, OFOR, OFORUNTIL, OSWITCH:
@@ -869,6 +884,13 @@ func ellipsisIf(b bool) string {
 
 // Nodes
 
+// Format implements formatting for a Nodes.
+// The valid formats are:
+//
+//	%v	Go syntax, semicolon-separated
+//	%.v	Go syntax, comma-separated
+//	%+v	Debug syntax, as in DumpList.
+//
 func (l Nodes) Format(s fmt.State, verb rune) {
 	if s.Flag('+') && verb == 'v' {
 		// %+v is DumpList output
@@ -896,19 +918,22 @@ func (l Nodes) Format(s fmt.State, verb rune) {
 
 // Dump
 
+// Dump prints the message s followed by a debug dump of n.
 func Dump(s string, n Node) {
 	fmt.Printf("%s [%p]%+v", s, n, n)
 }
 
-func DumpList(s string, l Nodes) {
+// DumpList prints the message s followed by a debug dump of each node in the list.
+func DumpList(s string, list Nodes) {
 	var buf bytes.Buffer
-	FDumpList(&buf, s, l)
+	FDumpList(&buf, s, list)
 	os.Stdout.Write(buf.Bytes())
 }
 
-func FDumpList(w io.Writer, s string, l Nodes) {
+// FDumpList prints to w the message s followed by a debug dump of each node in the list.
+func FDumpList(w io.Writer, s string, list Nodes) {
 	io.WriteString(w, s)
-	dumpNodes(w, l, 1)
+	dumpNodes(w, list, 1)
 	io.WriteString(w, "\n")
 }
 

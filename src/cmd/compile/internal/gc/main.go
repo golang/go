@@ -212,7 +212,6 @@ func Main(archInit func(*Arch)) {
 	// would lead to import cycles)
 	types.Widthptr = Widthptr
 	types.Dowidth = dowidth
-	types.InstallTypeFormats()
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return typenamesym(t).Linksym()
 	}
