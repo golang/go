@@ -399,9 +399,6 @@ func (e *Escape) stmt(n ir.Node) {
 			e.stmt(cas.Left())
 			e.block(cas.Body())
 		}
-	case ir.OSELRECV:
-		n := n.(*ir.AssignStmt)
-		e.assign(n.Left(), n.Right(), "selrecv", n)
 	case ir.OSELRECV2:
 		n := n.(*ir.AssignListStmt)
 		e.assign(n.List().First(), n.Rlist().First(), "selrecv", n)

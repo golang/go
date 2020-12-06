@@ -872,15 +872,14 @@ func (o *Order) stmt(n ir.Node) {
 	// give this away).
 	case ir.OSELECT:
 		t := o.markTemp()
-
-		for _, cas := range n.List().Slice() {
-			cas := cas.(*ir.CaseStmt)
-			r := cas.Left()
-			setlineno(cas)
+		for _, ncas := range n.List().Slice() {
+			ncas := ncas.(*ir.CaseStmt)
+			r := ncas.Left()
+			setlineno(ncas)
 
 			// Append any new body prologue to ninit.
 			// The next loop will insert ninit into nbody.
-			if cas.Init().Len() != 0 {
+			if ncas.Init().Len() != 0 {
 				base.Fatalf("order select ninit")
 			}
 			if r == nil {
@@ -891,84 +890,48 @@ func (o *Order) stmt(n ir.Node) {
 				ir.Dump("select case", r)
 				base.Fatalf("unknown op in select %v", r.Op())
 
-			case ir.OSELRECV, ir.OSELRECV2:
-				var dst, ok ir.Node
-				var recv *ir.UnaryExpr
-				var def bool
-				if r.Op() == ir.OSELRECV {
-					// case x = <-c
-					// case <-c (dst is ir.BlankNode)
-					def, dst, ok, recv = r.Colas(), r.Left(), ir.BlankNode, r.Right().(*ir.UnaryExpr)
-				} else {
-					r := r.(*ir.AssignListStmt)
-					// case x, ok = <-c
-					def, dst, ok, recv = r.Colas(), r.List().First(), r.List().Second(), r.Rlist().First().(*ir.UnaryExpr)
-				}
-
-				// If this is case x := <-ch or case x, y := <-ch, the case has
-				// the ODCL nodes to declare x and y. We want to delay that
-				// declaration (and possible allocation) until inside the case body.
-				// Delete the ODCL nodes here and recreate them inside the body below.
-				if def {
-					init := r.Init().Slice()
-					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == dst {
-						init = init[1:]
-					}
-					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == ok {
-						init = init[1:]
-					}
-					r.PtrInit().Set(init)
-				}
-				if r.Init().Len() != 0 {
-					ir.DumpList("ninit", r.Init())
-					base.Fatalf("ninit on select recv")
-				}
-
+			case ir.OSELRECV2:
+				// case x, ok = <-c
+				recv := r.Rlist().First().(*ir.UnaryExpr)
 				recv.SetLeft(o.expr(recv.Left(), nil))
 				if recv.Left().Op() != ir.ONAME {
 					recv.SetLeft(o.copyExpr(recv.Left()))
 				}
+				r := r.(*ir.AssignListStmt)
+				init := r.PtrInit().Slice()
+				r.PtrInit().Set(nil)
 
-				// Introduce temporary for receive and move actual copy into case body.
-				// avoids problems with target being addressed, as usual.
-				// NOTE: If we wanted to be clever, we could arrange for just one
-				// temporary per distinct type, sharing the temp among all receives
-				// with that temp. Similarly one ok bool could be shared among all
-				// the x,ok receives. Not worth doing until there's a clear need.
-				if !ir.IsBlank(dst) {
-					// use channel element type for temporary to avoid conversions,
-					// such as in case interfacevalue = <-intchan.
-					// the conversion happens in the OAS instead.
-					if def {
-						dcl := ir.Nod(ir.ODCL, dst, nil)
-						cas.PtrInit().Append(typecheck(dcl, ctxStmt))
+				colas := r.Colas()
+				do := func(i int, t *types.Type) {
+					n := r.List().Index(i)
+					if ir.IsBlank(n) {
+						return
 					}
-
-					tmp := o.newTemp(recv.Left().Type().Elem(), recv.Left().Type().Elem().HasPointers())
-					as := ir.Nod(ir.OAS, dst, tmp)
-					cas.PtrInit().Append(typecheck(as, ctxStmt))
-					dst = tmp
-				}
-				if !ir.IsBlank(ok) {
-					if def {
-						dcl := ir.Nod(ir.ODCL, ok, nil)
-						cas.PtrInit().Append(typecheck(dcl, ctxStmt))
+					// If this is case x := <-ch or case x, y := <-ch, the case has
+					// the ODCL nodes to declare x and y. We want to delay that
+					// declaration (and possible allocation) until inside the case body.
+					// Delete the ODCL nodes here and recreate them inside the body below.
+					if colas {
+						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == n {
+							init = init[1:]
+						}
+						dcl := ir.Nod(ir.ODCL, n, nil)
+						dcl = typecheck(dcl, ctxStmt)
+						ncas.PtrInit().Append(dcl)
 					}
-
-					tmp := o.newTemp(types.Types[types.TBOOL], false)
-					as := ir.Nod(ir.OAS, ok, conv(tmp, ok.Type()))
-					cas.PtrInit().Append(typecheck(as, ctxStmt))
-					ok = tmp
+					tmp := o.newTemp(t, t.HasPointers())
+					as := ir.Nod(ir.OAS, n, conv(tmp, n.Type()))
+					as = typecheck(as, ctxStmt)
+					ncas.PtrInit().Append(as)
+					r.PtrList().SetIndex(i, tmp)
 				}
-
-				if r.Op() == ir.OSELRECV {
-					r.SetLeft(dst)
-				} else {
-					r := r.(*ir.AssignListStmt)
-					r.List().SetIndex(0, dst)
-					r.List().SetIndex(1, ok)
+				do(0, recv.Left().Type().Elem())
+				do(1, types.Types[types.TBOOL])
+				if len(init) != 0 {
+					ir.DumpList("ninit", r.Init())
+					base.Fatalf("ninit on select recv")
 				}
-				orderBlock(cas.PtrInit(), o.free)
+				orderBlock(ncas.PtrInit(), o.free)
 
 			case ir.OSEND:
 				if r.Init().Len() != 0 {
