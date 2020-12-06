@@ -10,6 +10,9 @@ import (
 	"go/constant"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 
 	"unicode/utf8"
 
@@ -957,17 +960,6 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
 	}
 
-	if n.Pos().IsKnown() {
-		pfx := ""
-		switch n.Pos().IsStmt() {
-		case src.PosNotStmt:
-			pfx = "_" // "-" would be confusing
-		case src.PosIsStmt:
-			pfx = "+"
-		}
-		fmt.Fprintf(w, " l(%s%d)", pfx, n.Pos().Line())
-	}
-
 	if n.Offset() != types.BADWIDTH {
 		fmt.Fprintf(w, " x(%d)", n.Offset())
 	}
@@ -1029,6 +1021,32 @@ func dumpNodeHeader(w io.Writer, n Node) {
 	if n.Name() != nil && n.Name().Used() {
 		fmt.Fprint(w, " used")
 	}
+
+	if n.Op() == OCLOSURE {
+		if fn := n.Func(); fn != nil && fn.Nname.Sym() != nil {
+			fmt.Fprintf(w, " fnName(%+v)", fn.Nname.Sym())
+		}
+	}
+
+	if n.Type() != nil {
+		if n.Op() == OTYPE {
+			fmt.Fprintf(w, " type")
+		}
+		fmt.Fprintf(w, " %+v", n.Type())
+	}
+
+	if n.Pos().IsKnown() {
+		pfx := ""
+		switch n.Pos().IsStmt() {
+		case src.PosNotStmt:
+			pfx = "_" // "-" would be confusing
+		case src.PosIsStmt:
+			pfx = "+"
+		}
+		pos := base.Ctxt.PosTable.Pos(n.Pos())
+		file := filepath.Base(pos.Filename())
+		fmt.Fprintf(w, " # %s%s:%d", pfx, file, pos.Line())
+	}
 }
 
 func dumpNode(w io.Writer, n Node, depth int) {
@@ -1052,6 +1070,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case OLITERAL:
 		fmt.Fprintf(w, "%+v-%v", n.Op(), n.Val())
 		dumpNodeHeader(w, n)
+		return
 
 	case ONAME, ONONAME, OMETHEXPR:
 		if n.Sym() != nil {
@@ -1065,6 +1084,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v-ntype", n.Op())
 			dumpNode(w, n.Name().Ntype, depth+1)
 		}
+		return
 
 	case OASOP:
 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.SubOp())
@@ -1073,61 +1093,86 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case OTYPE:
 		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
 		dumpNodeHeader(w, n)
-		fmt.Fprintf(w, " type=%+v", n.Type())
 		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-ntype", n.Op())
 			dumpNode(w, n.Name().Ntype, depth+1)
 		}
+		return
+
+	case OCLOSURE:
+		fmt.Fprintf(w, "%+v", n.Op())
+		dumpNodeHeader(w, n)
+
+	case ODCLFUNC:
+		// Func has many fields we don't want to print.
+		// Bypass reflection and just print what we want.
+		fmt.Fprintf(w, "%+v", n.Op())
+		dumpNodeHeader(w, n)
+		fn := n.Func()
+		if len(fn.Dcl) > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-Dcl", n.Op())
+			for _, dcl := range n.Func().Dcl {
+				dumpNode(w, dcl, depth+1)
+			}
+		}
+		if fn.Body().Len() > 0 {
+			indent(w, depth)
+			fmt.Fprintf(w, "%+v-body", n.Op())
+			dumpNodes(w, n.Body(), depth+1)
+		}
+		return
 	}
 
-	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Nname.Sym() != nil {
-		fmt.Fprintf(w, " fnName %+v", n.Func().Nname.Sym())
-	}
-	if n.Sym() != nil && n.Op() != ONAME {
+	if n.Sym() != nil {
 		fmt.Fprintf(w, " %+v", n.Sym())
 	}
-
 	if n.Type() != nil {
 		fmt.Fprintf(w, " %+v", n.Type())
 	}
 
-	if n.Left() != nil {
-		dumpNode(w, n.Left(), depth+1)
-	}
-	if n.Right() != nil {
-		dumpNode(w, n.Right(), depth+1)
-	}
-	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Body().Len() != 0 {
-		indent(w, depth)
-		// The function associated with a closure
-		fmt.Fprintf(w, "%+v-clofunc", n.Op())
-		dumpNode(w, n.Func(), depth+1)
-	}
-	if n.Op() == ODCLFUNC && n.Func() != nil && n.Func().Dcl != nil && len(n.Func().Dcl) != 0 {
-		indent(w, depth)
-		// The dcls for a func or closure
-		fmt.Fprintf(w, "%+v-dcl", n.Op())
-		for _, dcl := range n.Func().Dcl {
-			dumpNode(w, dcl, depth+1)
+	v := reflect.ValueOf(n).Elem()
+	t := reflect.TypeOf(n).Elem()
+	nf := t.NumField()
+	for i := 0; i < nf; i++ {
+		tf := t.Field(i)
+		vf := v.Field(i)
+		if tf.PkgPath != "" {
+			// skip unexported field - Interface will fail
+			continue
 		}
-	}
-	if n.List().Len() != 0 {
-		indent(w, depth)
-		fmt.Fprintf(w, "%+v-list", n.Op())
-		dumpNodes(w, n.List(), depth+1)
-	}
-
-	if n.Rlist().Len() != 0 {
-		indent(w, depth)
-		fmt.Fprintf(w, "%+v-rlist", n.Op())
-		dumpNodes(w, n.Rlist(), depth+1)
-	}
-
-	if n.Body().Len() != 0 {
-		indent(w, depth)
-		fmt.Fprintf(w, "%+v-body", n.Op())
-		dumpNodes(w, n.Body(), depth+1)
+		switch tf.Type.Kind() {
+		case reflect.Interface, reflect.Ptr, reflect.Slice:
+			if vf.IsNil() {
+				continue
+			}
+		}
+		name := strings.TrimSuffix(tf.Name, "_")
+		// Do not bother with field name header lines for the
+		// most common positional arguments: unary, binary expr,
+		// index expr, send stmt, go and defer call expression.
+		switch name {
+		case "X", "Y", "Index", "Chan", "Value", "Call":
+			name = ""
+		}
+		switch val := vf.Interface().(type) {
+		case Node:
+			if name != "" {
+				indent(w, depth)
+				fmt.Fprintf(w, "%+v-%s", n.Op(), name)
+			}
+			dumpNode(w, val, depth+1)
+		case Nodes:
+			if val.Len() == 0 {
+				continue
+			}
+			if name != "" {
+				indent(w, depth)
+				fmt.Fprintf(w, "%+v-%s", n.Op(), name)
+			}
+			dumpNodes(w, val, depth+1)
+		}
 	}
 }
 
