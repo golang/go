@@ -91,20 +91,20 @@ func toNtype(x Node) Ntype {
 // An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
 type AddStringExpr struct {
 	miniExpr
-	list Nodes
+	List_ Nodes
 }
 
 func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
 	n := &AddStringExpr{}
 	n.pos = pos
 	n.op = OADDSTR
-	n.list.Set(list)
+	n.List_.Set(list)
 	return n
 }
 
-func (n *AddStringExpr) List() Nodes     { return n.list }
-func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
-func (n *AddStringExpr) SetList(x Nodes) { n.list = x }
+func (n *AddStringExpr) List() Nodes     { return n.List_ }
+func (n *AddStringExpr) PtrList() *Nodes { return &n.List_ }
+func (n *AddStringExpr) SetList(x Nodes) { n.List_ = x }
 
 // An AddrExpr is an address-of expression &X.
 // It may end up being a normal address-of or an allocation of a composite literal.
@@ -185,7 +185,7 @@ type CallExpr struct {
 	X        Node
 	Args     Nodes
 	Rargs    Nodes // TODO(rsc): Delete.
-	body     Nodes // TODO(rsc): Delete.
+	Body_    Nodes // TODO(rsc): Delete.
 	DDD      bool
 	Use      CallUse
 	noInline bool
@@ -216,9 +216,9 @@ func (n *CallExpr) IsDDD() bool        { return n.DDD }
 func (n *CallExpr) SetIsDDD(x bool)    { n.DDD = x }
 func (n *CallExpr) NoInline() bool     { return n.noInline }
 func (n *CallExpr) SetNoInline(x bool) { n.noInline = x }
-func (n *CallExpr) Body() Nodes        { return n.body }
-func (n *CallExpr) PtrBody() *Nodes    { return &n.body }
-func (n *CallExpr) SetBody(x Nodes)    { n.body = x }
+func (n *CallExpr) Body() Nodes        { return n.Body_ }
+func (n *CallExpr) PtrBody() *Nodes    { return &n.Body_ }
+func (n *CallExpr) SetBody(x Nodes)    { n.Body_ = x }
 
 func (n *CallExpr) SetOp(op Op) {
 	switch op {
@@ -255,17 +255,17 @@ func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
 	miniExpr
-	fn *Func
+	Func_ *Func
 }
 
 func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
-	n := &ClosureExpr{fn: fn}
+	n := &ClosureExpr{Func_: fn}
 	n.op = OCLOSURE
 	n.pos = pos
 	return n
 }
 
-func (n *ClosureExpr) Func() *Func { return n.fn }
+func (n *ClosureExpr) Func() *Func { return n.Func_ }
 
 // A ClosureRead denotes reading a variable stored within a closure struct.
 type ClosureRead struct {
@@ -289,14 +289,14 @@ type CompLitExpr struct {
 	miniExpr
 	orig  Node
 	Ntype Ntype
-	list  Nodes // initialized values
+	List_ Nodes // initialized values
 }
 
 func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
 	n := &CompLitExpr{Ntype: typ}
 	n.pos = pos
 	n.op = OCOMPLIT
-	n.list.Set(list)
+	n.List_.Set(list)
 	n.orig = n
 	return n
 }
@@ -305,9 +305,9 @@ func (n *CompLitExpr) Orig() Node      { return n.orig }
 func (n *CompLitExpr) SetOrig(x Node)  { n.orig = x }
 func (n *CompLitExpr) Right() Node     { return n.Ntype }
 func (n *CompLitExpr) SetRight(x Node) { n.Ntype = toNtype(x) }
-func (n *CompLitExpr) List() Nodes     { return n.list }
-func (n *CompLitExpr) PtrList() *Nodes { return &n.list }
-func (n *CompLitExpr) SetList(x Nodes) { n.list = x }
+func (n *CompLitExpr) List() Nodes     { return n.List_ }
+func (n *CompLitExpr) PtrList() *Nodes { return &n.List_ }
+func (n *CompLitExpr) SetList(x Nodes) { n.List_ = x }
 
 func (n *CompLitExpr) SetOp(op Op) {
 	switch op {
@@ -436,7 +436,7 @@ func (n *KeyExpr) SetOp(op Op) {
 // An InlinedCallExpr is an inlined function call.
 type InlinedCallExpr struct {
 	miniExpr
-	body       Nodes
+	Body_      Nodes
 	ReturnVars Nodes
 }
 
@@ -444,14 +444,14 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 	n := &InlinedCallExpr{}
 	n.pos = pos
 	n.op = OINLCALL
-	n.body.Set(body)
+	n.Body_.Set(body)
 	n.ReturnVars.Set(retvars)
 	return n
 }
 
-func (n *InlinedCallExpr) Body() Nodes      { return n.body }
-func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
-func (n *InlinedCallExpr) SetBody(x Nodes)  { n.body = x }
+func (n *InlinedCallExpr) Body() Nodes      { return n.Body_ }
+func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.Body_ }
+func (n *InlinedCallExpr) SetBody(x Nodes)  { n.Body_ = x }
 func (n *InlinedCallExpr) Rlist() Nodes     { return n.ReturnVars }
 func (n *InlinedCallExpr) PtrRlist() *Nodes { return &n.ReturnVars }
 func (n *InlinedCallExpr) SetRlist(x Nodes) { n.ReturnVars = x }
@@ -617,8 +617,8 @@ func (*SelectorExpr) CanBeNtype() {}
 // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
 type SliceExpr struct {
 	miniExpr
-	X    Node
-	list Nodes // TODO(rsc): Use separate Nodes
+	X     Node
+	List_ Nodes // TODO(rsc): Use separate Nodes
 }
 
 func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
@@ -630,9 +630,9 @@ func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
 
 func (n *SliceExpr) Left() Node      { return n.X }
 func (n *SliceExpr) SetLeft(x Node)  { n.X = x }
-func (n *SliceExpr) List() Nodes     { return n.list }
-func (n *SliceExpr) PtrList() *Nodes { return &n.list }
-func (n *SliceExpr) SetList(x Nodes) { n.list = x }
+func (n *SliceExpr) List() Nodes     { return n.List_ }
+func (n *SliceExpr) PtrList() *Nodes { return &n.List_ }
+func (n *SliceExpr) SetList(x Nodes) { n.List_ = x }
 
 func (n *SliceExpr) SetOp(op Op) {
 	switch op {
@@ -646,16 +646,16 @@ func (n *SliceExpr) SetOp(op Op) {
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *SliceExpr) SliceBounds() (low, high, max Node) {
-	if n.list.Len() == 0 {
+	if n.List_.Len() == 0 {
 		return nil, nil, nil
 	}
 
 	switch n.Op() {
 	case OSLICE, OSLICEARR, OSLICESTR:
-		s := n.list.Slice()
+		s := n.List_.Slice()
 		return s[0], s[1], nil
 	case OSLICE3, OSLICE3ARR:
-		s := n.list.Slice()
+		s := n.List_.Slice()
 		return s[0], s[1], s[2]
 	}
 	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
@@ -670,24 +670,24 @@ func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
 		if max != nil {
 			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
 		}
-		s := n.list.Slice()
+		s := n.List_.Slice()
 		if s == nil {
 			if low == nil && high == nil {
 				return
 			}
-			n.list.Set2(low, high)
+			n.List_.Set2(low, high)
 			return
 		}
 		s[0] = low
 		s[1] = high
 		return
 	case OSLICE3, OSLICE3ARR:
-		s := n.list.Slice()
+		s := n.List_.Slice()
 		if s == nil {
 			if low == nil && high == nil && max == nil {
 				return
 			}
-			n.list.Set3(low, high, max)
+			n.List_.Set3(low, high, max)
 			return
 		}
 		s[0] = low
@@ -714,8 +714,8 @@ func (o Op) IsSlice3() bool {
 // A SliceHeader expression constructs a slice header from its parts.
 type SliceHeaderExpr struct {
 	miniExpr
-	Ptr    Node
-	lenCap Nodes // TODO(rsc): Split into two Node fields
+	Ptr     Node
+	LenCap_ Nodes // TODO(rsc): Split into two Node fields
 }
 
 func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *SliceHeaderExpr {
@@ -723,15 +723,15 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	n.pos = pos
 	n.op = OSLICEHEADER
 	n.typ = typ
-	n.lenCap.Set2(len, cap)
+	n.LenCap_.Set2(len, cap)
 	return n
 }
 
 func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
 func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
-func (n *SliceHeaderExpr) List() Nodes     { return n.lenCap }
-func (n *SliceHeaderExpr) PtrList() *Nodes { return &n.lenCap }
-func (n *SliceHeaderExpr) SetList(x Nodes) { n.lenCap = x }
+func (n *SliceHeaderExpr) List() Nodes     { return n.LenCap_ }
+func (n *SliceHeaderExpr) PtrList() *Nodes { return &n.LenCap_ }
+func (n *SliceHeaderExpr) SetList(x Nodes) { n.LenCap_ = x }
 
 // A StarExpr is a dereference expression *X.
 // It may end up being a value or a type.
