@@ -274,7 +274,6 @@ const (
 	ORECOVER     // recover()
 	ORECV        // <-Left
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
-	OSELRECV     // like OAS: Left = Right where Right.Op = ORECV (appears as .Left of OCASE)
 	OSELRECV2    // like OAS2: List = Rlist where len(List)=2, len(Rlist)=1, Rlist[0].Op = ORECV (appears as .Left of OCASE)
 	OIOTA        // iota
 	OREAL        // real(Left)
@@ -666,12 +665,8 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 			typ = nright.(Ntype)
 		}
 		return NewCompLitExpr(pos, op, typ, nil)
-	case OAS, OSELRECV:
-		n := NewAssignStmt(pos, nleft, nright)
-		if op != OAS {
-			n.SetOp(op)
-		}
-		return n
+	case OAS:
+		return NewAssignStmt(pos, nleft, nright)
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
 		n := NewAssignListStmt(pos, op, nil, nil)
 		return n
