@@ -681,30 +681,31 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	switch op {
 	default:
 		panic("NodAt " + op.String())
-	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
-		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
+	case OADD, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
 		OCOPY, OCOMPLEX,
 		OEFACE:
 		return NewBinaryExpr(pos, op, nleft, nright)
-	case OADDR, OPTRLIT:
+	case OADDR:
 		return NewAddrExpr(pos, nleft)
 	case OADDSTR:
 		return NewAddStringExpr(pos, nil)
+	case OANDAND, OOROR:
+		return NewLogicalExpr(pos, op, nleft, nright)
 	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
 		var typ Ntype
 		if nright != nil {
 			typ = nright.(Ntype)
 		}
-		n := NewCompLitExpr(pos, typ, nil)
-		n.SetOp(op)
-		return n
+		return NewCompLitExpr(pos, op, typ, nil)
 	case OAS, OSELRECV:
 		n := NewAssignStmt(pos, nleft, nright)
-		n.SetOp(op)
+		if op != OAS {
+			n.SetOp(op)
+		}
 		return n
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
-		n := NewAssignListStmt(pos, nil, nil)
-		n.SetOp(op)
+		n := NewAssignListStmt(pos, op, nil, nil)
 		return n
 	case OASOP:
 		return NewAssignOpStmt(pos, OXXX, nleft, nright)
@@ -722,9 +723,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewBranchStmt(pos, op, nil)
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
 		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
-		n := NewCallExpr(pos, nleft, nil)
-		n.SetOp(op)
-		return n
+		return NewCallExpr(pos, op, nleft, nil)
 	case OCASE:
 		return NewCaseStmt(pos, nil, nil)
 	case OCONV, OCONVIFACE, OCONVNOP, ORUNESTR:
@@ -733,38 +732,38 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewDecl(pos, op, nleft)
 	case ODCLFUNC:
 		return NewFunc(pos)
-	case ODEFER:
-		return NewDeferStmt(pos, nleft)
+	case ODEFER, OGO:
+		return NewGoDeferStmt(pos, op, nleft)
 	case ODEREF:
 		return NewStarExpr(pos, nleft)
 	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
-		n := NewSelectorExpr(pos, nleft, nil)
-		n.SetOp(op)
-		return n
+		return NewSelectorExpr(pos, op, nleft, nil)
 	case ODOTTYPE, ODOTTYPE2:
 		var typ Ntype
 		if nright != nil {
 			typ = nright.(Ntype)
 		}
 		n := NewTypeAssertExpr(pos, nleft, typ)
-		n.SetOp(op)
+		if op != ODOTTYPE {
+			n.SetOp(op)
+		}
 		return n
 	case OFOR:
 		return NewForStmt(pos, nil, nleft, nright, nil)
-	case OGO:
-		return NewGoStmt(pos, nleft)
 	case OIF:
 		return NewIfStmt(pos, nleft, nil, nil)
 	case OINDEX, OINDEXMAP:
 		n := NewIndexExpr(pos, nleft, nright)
-		n.SetOp(op)
+		if op != OINDEX {
+			n.SetOp(op)
+		}
 		return n
 	case OINLMARK:
 		return NewInlineMarkStmt(pos, types.BADWIDTH)
-	case OKEY, OSTRUCTKEY:
-		n := NewKeyExpr(pos, nleft, nright)
-		n.SetOp(op)
-		return n
+	case OKEY:
+		return NewKeyExpr(pos, nleft, nright)
+	case OSTRUCTKEY:
+		return NewStructKeyExpr(pos, nil, nleft)
 	case OLABEL:
 		return NewLabelStmt(pos, nil)
 	case OLITERAL, OTYPE, OIOTA:
@@ -772,7 +771,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
 		return NewMakeExpr(pos, op, nleft, nright)
 	case OMETHEXPR:
-		return NewMethodExpr(pos, op, nleft, nright)
+		return NewMethodExpr(pos, nleft, nright)
 	case ONIL:
 		return NewNilExpr(pos)
 	case OPACK:

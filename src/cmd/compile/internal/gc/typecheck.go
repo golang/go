@@ -2010,16 +2010,11 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		return n
 
-	case ir.ODEFER:
+	case ir.ODEFER, ir.OGO:
 		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
 		if !n.Left().Diag() {
 			checkdefergo(n)
 		}
-		return n
-
-	case ir.OGO:
-		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
-		checkdefergo(n)
 		return n
 
 	case ir.OFOR, ir.OFORUNTIL:
@@ -2885,9 +2880,9 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 				if l.Op() == ir.OKEY {
 					key := l.Left()
 
-					l.SetOp(ir.OSTRUCTKEY)
-					l.SetLeft(l.Right())
-					l.SetRight(nil)
+					sk := ir.NewStructKeyExpr(l.Pos(), nil, l.Right())
+					ls[i] = sk
+					l = sk
 
 					// An OXDOT uses the Sym field to hold
 					// the field to the right of the dot,
@@ -2895,7 +2890,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 					// is never a valid struct literal key.
 					if key.Sym() == nil || key.Op() == ir.OXDOT || key.Sym().IsBlank() {
 						base.Errorf("invalid field name %v in struct initializer", key)
-						l.SetLeft(typecheck(l.Left(), ctxExpr))
+						sk.SetLeft(typecheck(sk.Left(), ctxExpr))
 						continue
 					}
 
@@ -2909,7 +2904,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 							s = s1
 						}
 					}
-					l.SetSym(s)
+					sk.SetSym(s)
 				}
 
 				if l.Op() != ir.OSTRUCTKEY {

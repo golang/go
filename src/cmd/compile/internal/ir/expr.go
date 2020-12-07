@@ -159,8 +159,8 @@ func (n *BinaryExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OADD, OADDSTR, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
-		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
+	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
 		OCOPY, OCOMPLEX,
 		OEFACE:
 		n.op = op
@@ -181,21 +181,21 @@ const (
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
-	orig     Node
-	X        Node
-	Args     Nodes
-	Rargs    Nodes // TODO(rsc): Delete.
-	Body_    Nodes // TODO(rsc): Delete.
-	DDD      bool
-	Use      CallUse
-	noInline bool
+	orig      Node
+	X         Node
+	Args      Nodes
+	Rargs     Nodes // TODO(rsc): Delete.
+	Body_     Nodes // TODO(rsc): Delete.
+	DDD       bool
+	Use       CallUse
+	NoInline_ bool
 }
 
-func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
+func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
 	n := &CallExpr{X: fun}
 	n.pos = pos
 	n.orig = n
-	n.op = OCALL
+	n.SetOp(op)
 	n.Args.Set(args)
 	return n
 }
@@ -214,8 +214,8 @@ func (n *CallExpr) PtrRlist() *Nodes   { return &n.Rargs }
 func (n *CallExpr) SetRlist(x Nodes)   { n.Rargs = x }
 func (n *CallExpr) IsDDD() bool        { return n.DDD }
 func (n *CallExpr) SetIsDDD(x bool)    { n.DDD = x }
-func (n *CallExpr) NoInline() bool     { return n.noInline }
-func (n *CallExpr) SetNoInline(x bool) { n.noInline = x }
+func (n *CallExpr) NoInline() bool     { return n.NoInline_ }
+func (n *CallExpr) SetNoInline(x bool) { n.NoInline_ = x }
 func (n *CallExpr) Body() Nodes        { return n.Body_ }
 func (n *CallExpr) PtrBody() *Nodes    { return &n.Body_ }
 func (n *CallExpr) SetBody(x Nodes)    { n.Body_ = x }
@@ -233,21 +233,21 @@ func (n *CallExpr) SetOp(op Op) {
 // A CallPartExpr is a method expression X.Method (uncalled).
 type CallPartExpr struct {
 	miniExpr
-	fn     *Func
+	Func_  *Func
 	X      Node
 	Method *types.Field
 }
 
 func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
-	n := &CallPartExpr{fn: fn, X: x, Method: method}
+	n := &CallPartExpr{Func_: fn, X: x, Method: method}
 	n.op = OCALLPART
 	n.pos = pos
 	n.typ = fn.Type()
-	n.fn = fn
+	n.Func_ = fn
 	return n
 }
 
-func (n *CallPartExpr) Func() *Func     { return n.fn }
+func (n *CallPartExpr) Func() *Func     { return n.Func_ }
 func (n *CallPartExpr) Left() Node      { return n.X }
 func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
 func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
@@ -268,20 +268,20 @@ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 func (n *ClosureExpr) Func() *Func { return n.Func_ }
 
 // A ClosureRead denotes reading a variable stored within a closure struct.
-type ClosureRead struct {
+type ClosureReadExpr struct {
 	miniExpr
-	offset int64
+	Offset_ int64
 }
 
-func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
-	n := &ClosureRead{offset: offset}
+func NewClosureRead(typ *types.Type, offset int64) *ClosureReadExpr {
+	n := &ClosureReadExpr{Offset_: offset}
 	n.typ = typ
 	n.op = OCLOSUREREAD
 	return n
 }
 
-func (n *ClosureRead) Type() *types.Type { return n.typ }
-func (n *ClosureRead) Offset() int64     { return n.offset }
+func (n *ClosureReadExpr) Type() *types.Type { return n.typ }
+func (n *ClosureReadExpr) Offset() int64     { return n.Offset_ }
 
 // A CompLitExpr is a composite literal Type{Vals}.
 // Before type-checking, the type is Ntype.
@@ -292,10 +292,10 @@ type CompLitExpr struct {
 	List_ Nodes // initialized values
 }
 
-func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
+func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
 	n := &CompLitExpr{Ntype: typ}
 	n.pos = pos
-	n.op = OCOMPLIT
+	n.SetOp(op)
 	n.List_.Set(list)
 	n.orig = n
 	return n
@@ -397,41 +397,47 @@ func (n *IndexExpr) SetOp(op Op) {
 	}
 }
 
-// A KeyExpr is an X:Y composite literal key.
-// After type-checking, a key for a struct sets Sym to the field.
+// A KeyExpr is a Key: Value composite literal key.
 type KeyExpr struct {
 	miniExpr
-	Key    Node
-	sym    *types.Sym
-	Value  Node
-	offset int64
+	Key   Node
+	Value Node
 }
 
 func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 	n := &KeyExpr{Key: key, Value: value}
 	n.pos = pos
 	n.op = OKEY
-	n.offset = types.BADWIDTH
 	return n
 }
 
-func (n *KeyExpr) Left() Node          { return n.Key }
-func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
-func (n *KeyExpr) Right() Node         { return n.Value }
-func (n *KeyExpr) SetRight(y Node)     { n.Value = y }
-func (n *KeyExpr) Sym() *types.Sym     { return n.sym }
-func (n *KeyExpr) SetSym(x *types.Sym) { n.sym = x }
-func (n *KeyExpr) Offset() int64       { return n.offset }
-func (n *KeyExpr) SetOffset(x int64)   { n.offset = x }
+func (n *KeyExpr) Left() Node      { return n.Key }
+func (n *KeyExpr) SetLeft(x Node)  { n.Key = x }
+func (n *KeyExpr) Right() Node     { return n.Value }
+func (n *KeyExpr) SetRight(y Node) { n.Value = y }
 
-func (n *KeyExpr) SetOp(op Op) {
-	switch op {
-	default:
-		panic(n.no("SetOp " + op.String()))
-	case OKEY, OSTRUCTKEY:
-		n.op = op
-	}
+// A StructKeyExpr is an Field: Value composite literal key.
+type StructKeyExpr struct {
+	miniExpr
+	Field   *types.Sym
+	Value   Node
+	Offset_ int64
 }
+
+func NewStructKeyExpr(pos src.XPos, field *types.Sym, value Node) *StructKeyExpr {
+	n := &StructKeyExpr{Field: field, Value: value}
+	n.pos = pos
+	n.op = OSTRUCTKEY
+	n.Offset_ = types.BADWIDTH
+	return n
+}
+
+func (n *StructKeyExpr) Sym() *types.Sym     { return n.Field }
+func (n *StructKeyExpr) SetSym(x *types.Sym) { n.Field = x }
+func (n *StructKeyExpr) Left() Node          { return n.Value }
+func (n *StructKeyExpr) SetLeft(x Node)      { n.Value = x }
+func (n *StructKeyExpr) Offset() int64       { return n.Offset_ }
+func (n *StructKeyExpr) SetOffset(x int64)   { n.Offset_ = x }
 
 // An InlinedCallExpr is an inlined function call.
 type InlinedCallExpr struct {
@@ -455,6 +461,36 @@ func (n *InlinedCallExpr) SetBody(x Nodes)  { n.Body_ = x }
 func (n *InlinedCallExpr) Rlist() Nodes     { return n.ReturnVars }
 func (n *InlinedCallExpr) PtrRlist() *Nodes { return &n.ReturnVars }
 func (n *InlinedCallExpr) SetRlist(x Nodes) { n.ReturnVars = x }
+
+// A LogicalExpr is a expression X Op Y where Op is && or ||.
+// It is separate from BinaryExpr to make room for statements
+// that must be executed before Y but after X.
+type LogicalExpr struct {
+	miniExpr
+	X Node
+	Y Node
+}
+
+func NewLogicalExpr(pos src.XPos, op Op, x, y Node) *LogicalExpr {
+	n := &LogicalExpr{X: x, Y: y}
+	n.pos = pos
+	n.SetOp(op)
+	return n
+}
+
+func (n *LogicalExpr) Left() Node      { return n.X }
+func (n *LogicalExpr) SetLeft(x Node)  { n.X = x }
+func (n *LogicalExpr) Right() Node     { return n.Y }
+func (n *LogicalExpr) SetRight(y Node) { n.Y = y }
+
+func (n *LogicalExpr) SetOp(op Op) {
+	switch op {
+	default:
+		panic(n.no("SetOp " + op.String()))
+	case OANDAND, OOROR:
+		n.op = op
+	}
+}
 
 // A MakeExpr is a make expression: make(Type[, Len[, Cap]]).
 // Op is OMAKECHAN, OMAKEMAP, OMAKESLICE, or OMAKESLICECOPY,
@@ -489,19 +525,19 @@ func (n *MakeExpr) SetOp(op Op) {
 // A MethodExpr is a method value X.M (where X is an expression, not a type).
 type MethodExpr struct {
 	miniExpr
-	X      Node
-	M      Node
-	sym    *types.Sym
-	offset int64
-	class  Class
-	Method *types.Field
+	X       Node
+	M       Node
+	Sym_    *types.Sym
+	Offset_ int64
+	Class_  Class
+	Method  *types.Field
 }
 
-func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
+func NewMethodExpr(pos src.XPos, x, m Node) *MethodExpr {
 	n := &MethodExpr{X: x, M: m}
 	n.pos = pos
 	n.op = OMETHEXPR
-	n.offset = types.BADWIDTH
+	n.Offset_ = types.BADWIDTH
 	return n
 }
 
@@ -509,18 +545,18 @@ func (n *MethodExpr) Left() Node          { return n.X }
 func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
 func (n *MethodExpr) Right() Node         { return n.M }
 func (n *MethodExpr) SetRight(y Node)     { n.M = y }
-func (n *MethodExpr) Sym() *types.Sym     { return n.sym }
-func (n *MethodExpr) SetSym(x *types.Sym) { n.sym = x }
-func (n *MethodExpr) Offset() int64       { return n.offset }
-func (n *MethodExpr) SetOffset(x int64)   { n.offset = x }
-func (n *MethodExpr) Class() Class        { return n.class }
-func (n *MethodExpr) SetClass(x Class)    { n.class = x }
+func (n *MethodExpr) Sym() *types.Sym     { return n.Sym_ }
+func (n *MethodExpr) SetSym(x *types.Sym) { n.Sym_ = x }
+func (n *MethodExpr) Offset() int64       { return n.Offset_ }
+func (n *MethodExpr) SetOffset(x int64)   { n.Offset_ = x }
+func (n *MethodExpr) Class() Class        { return n.Class_ }
+func (n *MethodExpr) SetClass(x Class)    { n.Class_ = x }
 
 // A NilExpr represents the predefined untyped constant nil.
 // (It may be copied and assigned a type, though.)
 type NilExpr struct {
 	miniExpr
-	sym *types.Sym // TODO: Remove
+	Sym_ *types.Sym // TODO: Remove
 }
 
 func NewNilExpr(pos src.XPos) *NilExpr {
@@ -530,8 +566,8 @@ func NewNilExpr(pos src.XPos) *NilExpr {
 	return n
 }
 
-func (n *NilExpr) Sym() *types.Sym     { return n.sym }
-func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
+func (n *NilExpr) Sym() *types.Sym     { return n.Sym_ }
+func (n *NilExpr) SetSym(x *types.Sym) { n.Sym_ = x }
 
 // A ParenExpr is a parenthesized expression (X).
 // It may end up being a value or a type.
@@ -563,34 +599,34 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
 // A ResultExpr represents a direct access to a result slot on the stack frame.
 type ResultExpr struct {
 	miniExpr
-	offset int64
+	Offset_ int64
 }
 
 func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
-	n := &ResultExpr{offset: offset}
+	n := &ResultExpr{Offset_: offset}
 	n.pos = pos
 	n.op = ORESULT
 	n.typ = typ
 	return n
 }
 
-func (n *ResultExpr) Offset() int64     { return n.offset }
-func (n *ResultExpr) SetOffset(x int64) { n.offset = x }
+func (n *ResultExpr) Offset() int64     { return n.Offset_ }
+func (n *ResultExpr) SetOffset(x int64) { n.Offset_ = x }
 
 // A SelectorExpr is a selector expression X.Sym.
 type SelectorExpr struct {
 	miniExpr
 	X         Node
 	Sel       *types.Sym
-	offset    int64
+	Offset_   int64
 	Selection *types.Field
 }
 
-func NewSelectorExpr(pos src.XPos, x Node, sel *types.Sym) *SelectorExpr {
+func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
 	n := &SelectorExpr{X: x, Sel: sel}
 	n.pos = pos
-	n.op = OXDOT
-	n.offset = types.BADWIDTH
+	n.Offset_ = types.BADWIDTH
+	n.SetOp(op)
 	return n
 }
 
@@ -607,8 +643,8 @@ func (n *SelectorExpr) Left() Node          { return n.X }
 func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
 func (n *SelectorExpr) Sym() *types.Sym     { return n.Sel }
 func (n *SelectorExpr) SetSym(x *types.Sym) { n.Sel = x }
-func (n *SelectorExpr) Offset() int64       { return n.offset }
-func (n *SelectorExpr) SetOffset(x int64)   { n.offset = x }
+func (n *SelectorExpr) Offset() int64       { return n.Offset_ }
+func (n *SelectorExpr) SetOffset(x int64)   { n.Offset_ = x }
 
 // Before type-checking, bytes.Buffer is a SelectorExpr.
 // After type-checking it becomes a Name.

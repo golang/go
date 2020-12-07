@@ -202,8 +202,7 @@ func initUniverse() {
 	ir.AsNode(s.Def).SetSym(s)
 
 	s = types.BuiltinPkg.Lookup("iota")
-	s.Def = ir.Nod(ir.OIOTA, nil, nil)
-	ir.AsNode(s.Def).SetSym(s)
+	s.Def = ir.NewIota(base.Pos, s)
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {
 		isInt[et] = true
