@@ -680,6 +680,9 @@ Unknown page
 		}
 		return s
 	},
+	"options": func(s *cache.Session) []string {
+		return showOptions(s.Options())
+	},
 })
 
 var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
@@ -779,6 +782,8 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 <ul>{{range .Views}}<li>{{.Name}} is {{template "viewlink" .ID}} in {{.Folder}}</li>{{end}}</ul>
 <h2>Overlays</h2>
 <ul>{{range .Overlays}}<li>{{template "filelink" .}}</li>{{end}}</ul>
+<h2>Options</h2>
+{{range options .}}<p>{{.}}{{end}}
 {{end}}
 `))
 
