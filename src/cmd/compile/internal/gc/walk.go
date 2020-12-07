@@ -123,6 +123,7 @@ func walkstmt(n ir.Node) ir.Node {
 			base.Errorf("%v is not a top level statement", n.Op())
 		}
 		ir.Dump("nottop", n)
+		return n
 
 	case ir.OAS,
 		ir.OASOP,
@@ -166,6 +167,7 @@ func walkstmt(n ir.Node) ir.Node {
 				n = ir.NewBlockStmt(n.Pos(), init.Slice())
 			}
 		}
+		return n
 
 	// special case for a receive where we throw away
 	// the value received.
@@ -179,8 +181,7 @@ func walkstmt(n ir.Node) ir.Node {
 		n.SetLeft(walkexpr(n.Left(), &init))
 		n = mkcall1(chanfn("chanrecv1", 2, n.Left().Type()), nil, &init, n.Left(), nodnil())
 		n = walkexpr(n, &init)
-
-		n = initExpr(init.Slice(), n)
+		return initExpr(init.Slice(), n)
 
 	case ir.OBREAK,
 		ir.OCONTINUE,
@@ -193,7 +194,7 @@ func walkstmt(n ir.Node) ir.Node {
 		ir.OVARDEF,
 		ir.OVARKILL,
 		ir.OVARLIVE:
-		break
+		return n
 
 	case ir.ODCL:
 		v := n.Left()
@@ -209,12 +210,15 @@ func walkstmt(n ir.Node) ir.Node {
 			nn = typecheck(nn, ctxStmt)
 			return walkstmt(nn)
 		}
+		return n
 
 	case ir.OBLOCK:
 		walkstmtlist(n.List().Slice())
+		return n
 
 	case ir.OCASE:
 		base.Errorf("case statement out of place")
+		panic("unreachable")
 
 	case ir.ODEFER:
 		Curfn.SetHasDefer(true)
@@ -261,6 +265,7 @@ func walkstmt(n ir.Node) ir.Node {
 			init.Append(n)
 			n = ir.NewBlockStmt(n.Pos(), init.Slice())
 		}
+		return n
 
 	case ir.OFOR, ir.OFORUNTIL:
 		if n.Left() != nil {
@@ -276,16 +281,18 @@ func walkstmt(n ir.Node) ir.Node {
 			walkstmtlist(n.List().Slice())
 		}
 		walkstmtlist(n.Body().Slice())
+		return n
 
 	case ir.OIF:
 		n.SetLeft(walkexpr(n.Left(), n.PtrInit()))
 		walkstmtlist(n.Body().Slice())
 		walkstmtlist(n.Rlist().Slice())
+		return n
 
 	case ir.ORETURN:
 		Curfn.NumReturns++
 		if n.List().Len() == 0 {
-			break
+			return n
 		}
 		if (hasNamedResults(Curfn) && n.List().Len() > 1) || paramoutheap(Curfn) {
 			// assign to the function out parameters,
@@ -317,7 +324,7 @@ func walkstmt(n ir.Node) ir.Node {
 
 			ll := ascompatee(n.Op(), rl, n.List().Slice(), n.PtrInit())
 			n.PtrList().Set(reorder3(ll))
-			break
+			return n
 		}
 		walkexprlist(n.List().Slice(), n.PtrInit())
 
@@ -334,27 +341,29 @@ func walkstmt(n ir.Node) ir.Node {
 			res[i] = convas(a, n.PtrInit())
 		}
 		n.PtrList().Set(res)
+		return n
 
 	case ir.ORETJMP:
-		break
+		return n
 
 	case ir.OINLMARK:
-		break
+		return n
 
 	case ir.OSELECT:
 		walkselect(n)
+		return n
 
 	case ir.OSWITCH:
 		walkswitch(n)
+		return n
 
 	case ir.ORANGE:
-		n = walkrange(n)
+		return walkrange(n)
 	}
 
-	if n.Op() == ir.ONAME {
-		base.Fatalf("walkstmt ended up with name: %+v", n)
-	}
-	return n
+	// No return! Each case must return (or panic),
+	// to avoid confusion about what gets returned
+	// in the presence of type assertions.
 }
 
 // walk the whole tree of the body of an
@@ -477,31 +486,68 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return nn
 	}
 
-opswitch:
+	n = walkexpr1(n, init)
+
+	// Expressions that are constant at run time but not
+	// considered const by the language spec are not turned into
+	// constants until walk. For example, if n is y%1 == 0, the
+	// walk of y%1 may have replaced it by 0.
+	// Check whether n with its updated args is itself now a constant.
+	t := n.Type()
+	n = evalConst(n)
+	if n.Type() != t {
+		base.Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type())
+	}
+	if n.Op() == ir.OLITERAL {
+		n = typecheck(n, ctxExpr)
+		// Emit string symbol now to avoid emitting
+		// any concurrently during the backend.
+		if v := n.Val(); v.Kind() == constant.String {
+			_ = stringsym(n.Pos(), constant.StringVal(v))
+		}
+	}
+
+	updateHasCall(n)
+
+	if base.Flag.LowerW != 0 && n != nil {
+		ir.Dump("after walk expr", n)
+	}
+
+	base.Pos = lno
+	return n
+}
+
+func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	switch n.Op() {
 	default:
 		ir.Dump("walk", n)
 		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
+		panic("unreachable")
 
 	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
+		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 		// Perhaps refactor to use Node.mayBeShared for these instead.
 		// If these return early, make sure to still call
 		// stringsym for constant strings.
+		return n
 
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.ODOTMETH, ir.ODOTINTER,
 		ir.ODEREF, ir.OSPTR, ir.OITAB, ir.OIDATA, ir.OADDR:
 		n.SetLeft(walkexpr(n.Left(), init))
+		return n
 
 	case ir.OEFACE, ir.OAND, ir.OANDNOT, ir.OSUB, ir.OMUL, ir.OADD, ir.OOR, ir.OXOR, ir.OLSH, ir.ORSH:
 		n.SetLeft(walkexpr(n.Left(), init))
 		n.SetRight(walkexpr(n.Right(), init))
+		return n
 
 	case ir.ODOT, ir.ODOTPTR:
 		usefield(n)
 		n.SetLeft(walkexpr(n.Left(), init))
+		return n
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -513,12 +559,12 @@ opswitch:
 		if !n.Type().IsInterface() && !n.Left().Type().IsEmptyInterface() {
 			n.PtrList().Set1(itabname(n.Type(), n.Left().Type()))
 		}
+		return n
 
 	case ir.OLEN, ir.OCAP:
 		if isRuneCount(n) {
 			// Replace len([]rune(string)) with runtime.countrunes(string).
-			n = mkcall("countrunes", n.Type(), init, conv(n.Left().Left(), types.Types[types.TSTRING]))
-			break
+			return mkcall("countrunes", n.Type(), init, conv(n.Left().Left(), types.Types[types.TSTRING]))
 		}
 
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -535,6 +581,7 @@ opswitch:
 			n = origIntConst(n, t.NumElem())
 			n.SetTypecheck(1)
 		}
+		return n
 
 	case ir.OCOMPLEX:
 		// Use results from call expression as arguments for complex.
@@ -544,9 +591,10 @@ opswitch:
 		}
 		n.SetLeft(walkexpr(n.Left(), init))
 		n.SetRight(walkexpr(n.Right(), init))
+		return n
 
 	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
-		n = walkcompare(n, init)
+		return walkcompare(n, init)
 
 	case ir.OANDAND, ir.OOROR:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -558,17 +606,19 @@ opswitch:
 
 		n.SetRight(walkexpr(n.Right(), &ll))
 		n.SetRight(initExpr(ll.Slice(), n.Right()))
+		return n
 
 	case ir.OPRINT, ir.OPRINTN:
-		n = walkprint(n, init)
+		return walkprint(n, init)
 
 	case ir.OPANIC:
-		n = mkcall("gopanic", nil, init, n.Left())
+		return mkcall("gopanic", nil, init, n.Left())
 
 	case ir.ORECOVER:
-		n = mkcall("gorecover", n.Type(), init, ir.Nod(ir.OADDR, nodfp, nil))
+		return mkcall("gorecover", n.Type(), init, ir.Nod(ir.OADDR, nodfp, nil))
 
 	case ir.OCLOSUREREAD, ir.OCFUNC:
+		return n
 
 	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
 		if n.Op() == ir.OCALLINTER {
@@ -597,6 +647,7 @@ opswitch:
 		}
 
 		walkCall(n, init)
+		return n
 
 	case ir.OAS, ir.OASOP:
 		init.AppendNodes(n.PtrInit())
@@ -622,17 +673,16 @@ opswitch:
 		}
 
 		if oaslit(n, init) {
-			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
-			break
+			return ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
 		}
 
 		if n.Right() == nil {
 			// TODO(austin): Check all "implicit zeroing"
-			break
+			return n
 		}
 
 		if !instrumenting && isZero(n.Right()) {
-			break
+			return n
 		}
 
 		switch n.Right().Op() {
@@ -646,9 +696,7 @@ opswitch:
 
 			n1 := ir.Nod(ir.OADDR, n.Left(), nil)
 			r := n.Right().Left() // the channel
-			n = mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
-			n = walkexpr(n, init)
-			break opswitch
+			return mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
 
 		case ir.OAPPEND:
 			// x = append(...)
@@ -671,7 +719,7 @@ opswitch:
 				// Do not add a new write barrier.
 				// Set up address of type for back end.
 				r.SetLeft(typename(r.Type().Elem()))
-				break opswitch
+				return n
 			}
 			// Otherwise, lowered for race detector.
 			// Treat as ordinary assignment.
@@ -680,6 +728,7 @@ opswitch:
 		if n.Left() != nil && n.Right() != nil {
 			n = convas(n, init)
 		}
+		return n
 
 	case ir.OAS2:
 		init.AppendNodes(n.PtrInit())
@@ -687,7 +736,7 @@ opswitch:
 		walkexprlistsafe(n.Rlist().Slice(), init)
 		ll := ascompatee(ir.OAS, n.List().Slice(), n.Rlist().Slice(), init)
 		ll = reorder3(ll)
-		n = liststmt(ll)
+		return liststmt(ll)
 
 	// a,b,... = fn()
 	case ir.OAS2FUNC:
@@ -699,12 +748,12 @@ opswitch:
 
 		if isIntrinsicCall(r) {
 			n.PtrRlist().Set1(r)
-			break
+			return n
 		}
 		init.Append(r)
 
 		ll := ascompatet(n.List(), r.Type())
-		n = liststmt(ll)
+		return liststmt(ll)
 
 	// x, y = <-c
 	// order.stmt made sure x is addressable or blank.
@@ -724,7 +773,7 @@ opswitch:
 		ok := n.List().Second()
 		call := mkcall1(fn, types.Types[types.TBOOL], init, r.Left(), n1)
 		n = ir.Nod(ir.OAS, ok, call)
-		n = typecheck(n, ctxStmt)
+		return typecheck(n, ctxStmt)
 
 	// a,b = m[i]
 	case ir.OAS2MAPR:
@@ -784,7 +833,7 @@ opswitch:
 		}
 
 		n = typecheck(n, ctxStmt)
-		n = walkexpr(n, init)
+		return walkexpr(n, init)
 
 	case ir.ODELETE:
 		init.AppendNodes(n.PtrInit())
@@ -799,11 +848,12 @@ opswitch:
 			// order.stmt made sure key is addressable.
 			key = ir.Nod(ir.OADDR, key, nil)
 		}
-		n = mkcall1(mapfndel(mapdelete[fast], t), nil, init, typename(t), map_, key)
+		return mkcall1(mapfndel(mapdelete[fast], t), nil, init, typename(t), map_, key)
 
 	case ir.OAS2DOTTYPE:
 		walkexprlistsafe(n.List().Slice(), init)
 		n.PtrRlist().SetIndex(0, walkexpr(n.Rlist().First(), init))
+		return n
 
 	case ir.OCONVIFACE:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -828,8 +878,7 @@ opswitch:
 			l := ir.Nod(ir.OEFACE, typeword(), n.Left())
 			l.SetType(toType)
 			l.SetTypecheck(n.Typecheck())
-			n = l
-			break
+			return l
 		}
 
 		if staticuint64s == nil {
@@ -878,8 +927,7 @@ opswitch:
 			l := ir.Nod(ir.OEFACE, typeword(), typecheck(ir.Nod(ir.OADDR, value, nil), ctxExpr))
 			l.SetType(toType)
 			l.SetTypecheck(n.Typecheck())
-			n = l
-			break
+			return l
 		}
 
 		// Implement interface to empty interface conversion.
@@ -906,8 +954,7 @@ opswitch:
 			e := ir.Nod(ir.OEFACE, tmp, ifaceData(n.Pos(), c, types.NewPtr(types.Types[types.TUINT8])))
 			e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
 			e.SetTypecheck(1)
-			n = e
-			break
+			return e
 		}
 
 		fnname, needsaddr := convFuncName(fromType, toType)
@@ -928,8 +975,7 @@ opswitch:
 			e := ir.Nod(ir.OEFACE, typeword(), call)
 			e.SetType(toType)
 			e.SetTypecheck(1)
-			n = e
-			break
+			return e
 		}
 
 		var tab ir.Node
@@ -962,7 +1008,7 @@ opswitch:
 		n = ir.Nod(ir.OCALL, fn, nil)
 		n.PtrList().Set2(tab, v)
 		n = typecheck(n, ctxExpr)
-		n = walkexpr(n, init)
+		return walkexpr(n, init)
 
 	case ir.OCONV, ir.OCONVNOP:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -971,20 +1017,18 @@ opswitch:
 		}
 		if n.Op() == ir.OCONVNOP && checkPtr(Curfn, 1) {
 			if n.Type().IsPtr() && n.Left().Type().IsUnsafePtr() { // unsafe.Pointer to *T
-				n = walkCheckPtrAlignment(n, init, nil)
-				break
+				return walkCheckPtrAlignment(n, init, nil)
 			}
 			if n.Type().IsUnsafePtr() && n.Left().Type().IsUintptr() { // uintptr to unsafe.Pointer
-				n = walkCheckPtrArithmetic(n, init)
-				break
+				return walkCheckPtrArithmetic(n, init)
 			}
 		}
 		param, result := rtconvfn(n.Left().Type(), n.Type())
 		if param == types.Txxx {
-			break
+			return n
 		}
 		fn := types.BasicTypeNames[param] + "to" + types.BasicTypeNames[result]
-		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left(), types.Types[param])), n.Type())
+		return conv(mkcall(fn, types.Types[result], init, conv(n.Left(), types.Types[param])), n.Type())
 
 	case ir.ODIV, ir.OMOD:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -996,13 +1040,12 @@ opswitch:
 		if isComplex[et] && n.Op() == ir.ODIV {
 			t := n.Type()
 			n = mkcall("complex128div", types.Types[types.TCOMPLEX128], init, conv(n.Left(), types.Types[types.TCOMPLEX128]), conv(n.Right(), types.Types[types.TCOMPLEX128]))
-			n = conv(n, t)
-			break
+			return conv(n, t)
 		}
 
 		// Nothing to do for float divisions.
 		if isFloat[et] {
-			break
+			return n
 		}
 
 		// rewrite 64-bit div and mod on 32-bit architectures.
@@ -1019,15 +1062,15 @@ opswitch:
 						c = -c
 					}
 					if c != 0 && c&(c-1) == 0 {
-						break opswitch
+						return n
 					}
 				case types.TUINT64:
 					c := ir.Uint64Val(n.Right())
 					if c < 1<<16 {
-						break opswitch
+						return n
 					}
 					if c != 0 && c&(c-1) == 0 {
-						break opswitch
+						return n
 					}
 				}
 			}
@@ -1042,8 +1085,9 @@ opswitch:
 			} else {
 				fn += "mod"
 			}
-			n = mkcall(fn, n.Type(), init, conv(n.Left(), types.Types[et]), conv(n.Right(), types.Types[et]))
+			return mkcall(fn, n.Type(), init, conv(n.Left(), types.Types[et]), conv(n.Right(), types.Types[et]))
 		}
+		return n
 
 	case ir.OINDEX:
 		n.SetLeft(walkexpr(n.Left(), init))
@@ -1057,7 +1101,7 @@ opswitch:
 		// if range of type cannot exceed static array bound,
 		// disable bounds check.
 		if n.Bounded() {
-			break
+			return n
 		}
 		t := n.Left().Type()
 		if t != nil && t.IsPtr() {
@@ -1086,6 +1130,7 @@ opswitch:
 				base.Errorf("index out of bounds")
 			}
 		}
+		return n
 
 	case ir.OINDEXMAP:
 		// Replace m[k] with *map{access1,assign}(maptype, m, &k)
@@ -1124,14 +1169,17 @@ opswitch:
 		n = ir.Nod(ir.ODEREF, n, nil)
 		n.SetType(t.Elem())
 		n.SetTypecheck(1)
+		return n
 
 	case ir.ORECV:
 		base.Fatalf("walkexpr ORECV") // should see inside OAS only
+		panic("unreachable")
 
 	case ir.OSLICEHEADER:
 		n.SetLeft(walkexpr(n.Left(), init))
 		n.List().SetFirst(walkexpr(n.List().First(), init))
 		n.List().SetSecond(walkexpr(n.List().Second(), init))
+		return n
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		checkSlice := checkPtr(Curfn, 1) && n.Op() == ir.OSLICE3ARR && n.Left().Op() == ir.OCONVNOP && n.Left().Left().Type().IsUnsafePtr()
@@ -1160,11 +1208,11 @@ opswitch:
 				} else {
 					n.SetOp(ir.OSLICEARR)
 				}
-				n = reduceSlice(n)
+				return reduceSlice(n)
 			}
-		} else {
-			n = reduceSlice(n)
+			return n
 		}
+		return reduceSlice(n)
 
 	case ir.ONEW:
 		if n.Type().Elem().NotInHeap() {
@@ -1179,28 +1227,26 @@ opswitch:
 			r = typecheck(r, ctxStmt)
 			init.Append(r)
 			r = ir.Nod(ir.OADDR, r.Left(), nil)
-			r = typecheck(r, ctxExpr)
-			n = r
-		} else {
-			n = callnew(n.Type().Elem())
+			return typecheck(r, ctxExpr)
 		}
+		return callnew(n.Type().Elem())
 
 	case ir.OADDSTR:
-		n = addstr(n, init)
+		return addstr(n, init)
 
 	case ir.OAPPEND:
 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
 		base.Fatalf("append outside assignment")
+		panic("unreachable")
 
 	case ir.OCOPY:
-		n = copyany(n, init, instrumenting && !base.Flag.CompilingRuntime)
+		return copyany(n, init, instrumenting && !base.Flag.CompilingRuntime)
 
-		// cannot use chanfn - closechan takes any, not chan any
 	case ir.OCLOSE:
+		// cannot use chanfn - closechan takes any, not chan any
 		fn := syslook("closechan")
-
 		fn = substArgTypes(fn, n.Left().Type())
-		n = mkcall1(fn, nil, init, n.Left())
+		return mkcall1(fn, nil, init, n.Left())
 
 	case ir.OMAKECHAN:
 		// When size fits into int, use makechan instead of
@@ -1217,7 +1263,7 @@ opswitch:
 			argtype = types.Types[types.TINT]
 		}
 
-		n = mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, typename(n.Type()), conv(size, argtype))
+		return mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, typename(n.Type()), conv(size, argtype))
 
 	case ir.OMAKEMAP:
 		t := n.Type()
@@ -1294,41 +1340,40 @@ opswitch:
 				a = typecheck(a, ctxStmt)
 				a = walkexpr(a, init)
 				init.Append(a)
-				n = convnop(h, t)
-			} else {
-				// Call runtime.makehmap to allocate an
-				// hmap on the heap and initialize hmap's hash0 field.
-				fn := syslook("makemap_small")
-				fn = substArgTypes(fn, t.Key(), t.Elem())
-				n = mkcall1(fn, n.Type(), init)
+				return convnop(h, t)
 			}
-		} else {
-			if n.Esc() != EscNone {
-				h = nodnil()
-			}
-			// Map initialization with a variable or large hint is
-			// more complicated. We therefore generate a call to
-			// runtime.makemap to initialize hmap and allocate the
-			// map buckets.
-
-			// When hint fits into int, use makemap instead of
-			// makemap64, which is faster and shorter on 32 bit platforms.
-			fnname := "makemap64"
-			argtype := types.Types[types.TINT64]
-
-			// Type checking guarantees that TIDEAL hint is positive and fits in an int.
-			// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
-			// The case of hint overflow when converting TUINT or TUINTPTR to TINT
-			// will be handled by the negative range checks in makemap during runtime.
-			if hint.Type().IsKind(types.TIDEAL) || hint.Type().Size() <= types.Types[types.TUINT].Size() {
-				fnname = "makemap"
-				argtype = types.Types[types.TINT]
-			}
-
-			fn := syslook(fnname)
-			fn = substArgTypes(fn, hmapType, t.Key(), t.Elem())
-			n = mkcall1(fn, n.Type(), init, typename(n.Type()), conv(hint, argtype), h)
+			// Call runtime.makehmap to allocate an
+			// hmap on the heap and initialize hmap's hash0 field.
+			fn := syslook("makemap_small")
+			fn = substArgTypes(fn, t.Key(), t.Elem())
+			return mkcall1(fn, n.Type(), init)
 		}
+
+		if n.Esc() != EscNone {
+			h = nodnil()
+		}
+		// Map initialization with a variable or large hint is
+		// more complicated. We therefore generate a call to
+		// runtime.makemap to initialize hmap and allocate the
+		// map buckets.
+
+		// When hint fits into int, use makemap instead of
+		// makemap64, which is faster and shorter on 32 bit platforms.
+		fnname := "makemap64"
+		argtype := types.Types[types.TINT64]
+
+		// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+		// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+		// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+		// will be handled by the negative range checks in makemap during runtime.
+		if hint.Type().IsKind(types.TIDEAL) || hint.Type().Size() <= types.Types[types.TUINT].Size() {
+			fnname = "makemap"
+			argtype = types.Types[types.TINT]
+		}
+
+		fn := syslook(fnname)
+		fn = substArgTypes(fn, hmapType, t.Key(), t.Elem())
+		return mkcall1(fn, n.Type(), init, typename(n.Type()), conv(hint, argtype), h)
 
 	case ir.OMAKESLICE:
 		l := n.Left()
@@ -1376,38 +1421,38 @@ opswitch:
 			r = conv(r, n.Type()) // in case n.Type is named.
 			r = typecheck(r, ctxExpr)
 			r = walkexpr(r, init)
-			n = r
-		} else {
-			// n escapes; set up a call to makeslice.
-			// When len and cap can fit into int, use makeslice instead of
-			// makeslice64, which is faster and shorter on 32 bit platforms.
-
-			len, cap := l, r
-
-			fnname := "makeslice64"
-			argtype := types.Types[types.TINT64]
-
-			// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
-			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
-			// will be handled by the negative range checks in makeslice during runtime.
-			if (len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size()) &&
-				(cap.Type().IsKind(types.TIDEAL) || cap.Type().Size() <= types.Types[types.TUINT].Size()) {
-				fnname = "makeslice"
-				argtype = types.Types[types.TINT]
-			}
-
-			m := ir.Nod(ir.OSLICEHEADER, nil, nil)
-			m.SetType(t)
-
-			fn := syslook(fnname)
-			m.SetLeft(mkcall1(fn, types.Types[types.TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype)))
-			m.Left().MarkNonNil()
-			m.PtrList().Set2(conv(len, types.Types[types.TINT]), conv(cap, types.Types[types.TINT]))
-
-			m = typecheck(m, ctxExpr)
-			m = walkexpr(m, init)
-			n = m
+			return r
 		}
+
+		// n escapes; set up a call to makeslice.
+		// When len and cap can fit into int, use makeslice instead of
+		// makeslice64, which is faster and shorter on 32 bit platforms.
+
+		len, cap := l, r
+
+		fnname := "makeslice64"
+		argtype := types.Types[types.TINT64]
+
+		// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
+		// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+		// will be handled by the negative range checks in makeslice during runtime.
+		if (len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size()) &&
+			(cap.Type().IsKind(types.TIDEAL) || cap.Type().Size() <= types.Types[types.TUINT].Size()) {
+			fnname = "makeslice"
+			argtype = types.Types[types.TINT]
+		}
+
+		m := ir.Nod(ir.OSLICEHEADER, nil, nil)
+		m.SetType(t)
+
+		fn := syslook(fnname)
+		m.SetLeft(mkcall1(fn, types.Types[types.TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype)))
+		m.Left().MarkNonNil()
+		m.PtrList().Set2(conv(len, types.Types[types.TINT]), conv(cap, types.Types[types.TINT]))
+
+		m = typecheck(m, ctxExpr)
+		m = walkexpr(m, init)
+		return m
 
 	case ir.OMAKESLICECOPY:
 		if n.Esc() == EscNone {
@@ -1453,18 +1498,18 @@ opswitch:
 			ncopy = walkexpr(ncopy, init)
 			init.Append(ncopy)
 
-			n = s
-		} else { // Replace make+copy with runtime.makeslicecopy.
-			// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
-			fn := syslook("makeslicecopy")
-			s := ir.Nod(ir.OSLICEHEADER, nil, nil)
-			s.SetLeft(mkcall1(fn, types.Types[types.TUNSAFEPTR], init, typename(t.Elem()), length, copylen, conv(copyptr, types.Types[types.TUNSAFEPTR])))
-			s.Left().MarkNonNil()
-			s.PtrList().Set2(length, length)
-			s.SetType(t)
-			n = typecheck(s, ctxExpr)
-			n = walkexpr(n, init)
+			return s
 		}
+		// Replace make+copy with runtime.makeslicecopy.
+		// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
+		fn := syslook("makeslicecopy")
+		s := ir.Nod(ir.OSLICEHEADER, nil, nil)
+		s.SetLeft(mkcall1(fn, types.Types[types.TUNSAFEPTR], init, typename(t.Elem()), length, copylen, conv(copyptr, types.Types[types.TUNSAFEPTR])))
+		s.Left().MarkNonNil()
+		s.PtrList().Set2(length, length)
+		s.SetType(t)
+		n = typecheck(s, ctxExpr)
+		return walkexpr(n, init)
 
 	case ir.ORUNESTR:
 		a := nodnil()
@@ -1473,7 +1518,7 @@ opswitch:
 			a = ir.Nod(ir.OADDR, temp(t), nil)
 		}
 		// intstring(*[4]byte, rune)
-		n = mkcall("intstring", n.Type(), init, a, conv(n.Left(), types.Types[types.TINT64]))
+		return mkcall("intstring", n.Type(), init, a, conv(n.Left(), types.Types[types.TINT64]))
 
 	case ir.OBYTES2STR, ir.ORUNES2STR:
 		a := nodnil()
@@ -1484,25 +1529,24 @@ opswitch:
 		}
 		if n.Op() == ir.ORUNES2STR {
 			// slicerunetostring(*[32]byte, []rune) string
-			n = mkcall("slicerunetostring", n.Type(), init, a, n.Left())
-		} else {
-			// slicebytetostring(*[32]byte, ptr *byte, n int) string
-			n.SetLeft(cheapexpr(n.Left(), init))
-			ptr, len := backingArrayPtrLen(n.Left())
-			n = mkcall("slicebytetostring", n.Type(), init, a, ptr, len)
+			return mkcall("slicerunetostring", n.Type(), init, a, n.Left())
 		}
+		// slicebytetostring(*[32]byte, ptr *byte, n int) string
+		n.SetLeft(cheapexpr(n.Left(), init))
+		ptr, len := backingArrayPtrLen(n.Left())
+		return mkcall("slicebytetostring", n.Type(), init, a, ptr, len)
 
 	case ir.OBYTES2STRTMP:
 		n.SetLeft(walkexpr(n.Left(), init))
 		if !instrumenting {
 			// Let the backend handle OBYTES2STRTMP directly
 			// to avoid a function call to slicebytetostringtmp.
-			break
+			return n
 		}
 		// slicebytetostringtmp(ptr *byte, n int) string
 		n.SetLeft(cheapexpr(n.Left(), init))
 		ptr, len := backingArrayPtrLen(n.Left())
-		n = mkcall("slicebytetostringtmp", n.Type(), init, ptr, len)
+		return mkcall("slicebytetostringtmp", n.Type(), init, ptr, len)
 
 	case ir.OSTR2BYTES:
 		s := n.Left()
@@ -1534,8 +1578,7 @@ opswitch:
 			slice := ir.NodAt(n.Pos(), ir.OSLICEARR, p, nil)
 			slice.SetType(n.Type())
 			slice.SetTypecheck(1)
-			n = walkexpr(slice, init)
-			break
+			return walkexpr(slice, init)
 		}
 
 		a := nodnil()
@@ -1545,7 +1588,7 @@ opswitch:
 			a = ir.Nod(ir.OADDR, temp(t), nil)
 		}
 		// stringtoslicebyte(*32[byte], string) []byte
-		n = mkcall("stringtoslicebyte", n.Type(), init, a, conv(s, types.Types[types.TSTRING]))
+		return mkcall("stringtoslicebyte", n.Type(), init, a, conv(s, types.Types[types.TSTRING]))
 
 	case ir.OSTR2BYTESTMP:
 		// []byte(string) conversion that creates a slice
@@ -1556,6 +1599,7 @@ opswitch:
 		// The only such case today is:
 		// for i, c := range []byte(string)
 		n.SetLeft(walkexpr(n.Left(), init))
+		return n
 
 	case ir.OSTR2RUNES:
 		a := nodnil()
@@ -1565,7 +1609,7 @@ opswitch:
 			a = ir.Nod(ir.OADDR, temp(t), nil)
 		}
 		// stringtoslicerune(*[32]rune, string) []rune
-		n = mkcall("stringtoslicerune", n.Type(), init, a, conv(n.Left(), types.Types[types.TSTRING]))
+		return mkcall("stringtoslicerune", n.Type(), init, a, conv(n.Left(), types.Types[types.TSTRING]))
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT, ir.OPTRLIT:
 		if isStaticCompositeLiteral(n) && !canSSAType(n.Type()) {
@@ -1573,55 +1617,29 @@ opswitch:
 			// Make direct reference to the static data. See issue 12841.
 			vstat := readonlystaticname(n.Type())
 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
-			n = vstat
-			n = typecheck(n, ctxExpr)
-			break
+			return typecheck(vstat, ctxExpr)
 		}
 		var_ := temp(n.Type())
 		anylit(n, var_, init)
-		n = var_
+		return var_
 
 	case ir.OSEND:
 		n1 := n.Right()
 		n1 = assignconv(n1, n.Left().Type().Elem(), "chan send")
 		n1 = walkexpr(n1, init)
 		n1 = ir.Nod(ir.OADDR, n1, nil)
-		n = mkcall1(chanfn("chansend1", 2, n.Left().Type()), nil, init, n.Left(), n1)
+		return mkcall1(chanfn("chansend1", 2, n.Left().Type()), nil, init, n.Left(), n1)
 
 	case ir.OCLOSURE:
-		n = walkclosure(n, init)
+		return walkclosure(n, init)
 
 	case ir.OCALLPART:
-		n = walkpartialcall(n.(*ir.CallPartExpr), init)
+		return walkpartialcall(n.(*ir.CallPartExpr), init)
 	}
 
-	// Expressions that are constant at run time but not
-	// considered const by the language spec are not turned into
-	// constants until walk. For example, if n is y%1 == 0, the
-	// walk of y%1 may have replaced it by 0.
-	// Check whether n with its updated args is itself now a constant.
-	t := n.Type()
-	n = evalConst(n)
-	if n.Type() != t {
-		base.Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type())
-	}
-	if n.Op() == ir.OLITERAL {
-		n = typecheck(n, ctxExpr)
-		// Emit string symbol now to avoid emitting
-		// any concurrently during the backend.
-		if v := n.Val(); v.Kind() == constant.String {
-			_ = stringsym(n.Pos(), constant.StringVal(v))
-		}
-	}
-
-	updateHasCall(n)
-
-	if base.Flag.LowerW != 0 && n != nil {
-		ir.Dump("after walk expr", n)
-	}
-
-	base.Pos = lno
-	return n
+	// No return! Each case must return (or panic),
+	// to avoid confusion about what gets returned
+	// in the presence of type assertions.
 }
 
 // markTypeUsedInInterface marks that type t is converted to an interface.
