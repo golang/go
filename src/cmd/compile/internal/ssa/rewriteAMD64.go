@@ -1089,6 +1089,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpAMD64SQRTSD
 		return true
+	case OpSqrt32:
+		v.Op = OpAMD64SQRTSS
+		return true
 	case OpStaticCall:
 		v.Op = OpAMD64CALLstatic
 		return true

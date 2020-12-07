@@ -4085,6 +4085,26 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
 		v.AuxInt = float32ToAuxInt(float32(c))
 		return true
 	}
+	// match: (Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x)))
+	// cond: sqrt0.Uses==1
+	// result: (Sqrt32 x)
+	for {
+		sqrt0 := v_0
+		if sqrt0.Op != OpSqrt {
+			break
+		}
+		sqrt0_0 := sqrt0.Args[0]
+		if sqrt0_0.Op != OpCvt32Fto64F {
+			break
+		}
+		x := sqrt0_0.Args[0]
+		if !(sqrt0.Uses == 1) {
+			break
+		}
+		v.reset(OpSqrt32)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpCvt64Fto64(v *Value) bool {

@@ -104,6 +104,7 @@
 (PopCount8 x) => (POPCNTL (MOVBQZX <typ.UInt32> x))
 
 (Sqrt ...) => (SQRTSD ...)
+(Sqrt32 ...) => (SQRTSS ...)
 
 (RoundToEven x) => (ROUNDSD [0] x)
 (Floor x)       => (ROUNDSD [1] x)

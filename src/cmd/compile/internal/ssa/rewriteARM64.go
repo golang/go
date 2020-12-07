@@ -999,6 +999,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpARM64FSQRTD
 		return true
+	case OpSqrt32:
+		v.Op = OpARM64FSQRTS
+		return true
 	case OpStaticCall:
 		v.Op = OpARM64CALLstatic
 		return true

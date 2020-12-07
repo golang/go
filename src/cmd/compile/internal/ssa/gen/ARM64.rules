@@ -60,6 +60,8 @@
 (Trunc ...) => (FRINTZD ...)
 (FMA x y z) => (FMADDD z x y)
 
+(Sqrt32 ...) => (FSQRTS ...)
+
 // lowering rotates
 (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))

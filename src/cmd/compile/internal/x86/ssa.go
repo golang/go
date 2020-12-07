@@ -760,7 +760,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.Op386BSFL, ssa.Op386BSFW,
 		ssa.Op386BSRL, ssa.Op386BSRW,
-		ssa.Op386SQRTSD:
+		ssa.Op386SQRTSS, ssa.Op386SQRTSD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()

@@ -596,6 +596,9 @@ func rewriteValueMIPS64(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpMIPS64SQRTD
 		return true
+	case OpSqrt32:
+		v.Op = OpMIPS64SQRTF
+		return true
 	case OpStaticCall:
 		v.Op = OpMIPS64CALLstatic
 		return true

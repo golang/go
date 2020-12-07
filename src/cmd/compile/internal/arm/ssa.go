@@ -654,6 +654,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARMREV,
 		ssa.OpARMREV16,
 		ssa.OpARMRBIT,
+		ssa.OpARMSQRTF,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
 		ssa.OpARMNEGD,

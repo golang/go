@@ -92,6 +92,7 @@
 (Com8  ...) => (NOT ...)
 
 (Sqrt ...) => (FSQRTD ...)
+(Sqrt32 ...) => (FSQRTS ...)
 
 // Sign and zero extension.
 

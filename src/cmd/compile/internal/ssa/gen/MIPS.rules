@@ -121,6 +121,7 @@
 (Com(32|16|8) x) => (NORconst [0] x)
 
 (Sqrt ...) => (SQRTD ...)
+(Sqrt32 ...) => (SQRTF ...)
 
 // TODO: optimize this case?
 (Ctz32NonZero ...) => (Ctz32 ...)

@@ -1968,6 +1968,9 @@
 (Div32F x (Const32F <t> [c])) && reciprocalExact32(c) => (Mul32F x (Const32F <t> [1/c]))
 (Div64F x (Const64F <t> [c])) && reciprocalExact64(c) => (Mul64F x (Const64F <t> [1/c]))
 
+// rewrite single-precision sqrt expression "float32(math.Sqrt(float64(x)))"
+(Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x))) && sqrt0.Uses==1 => (Sqrt32 x)
+
 (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
 
 // for rewriting results of some late-expanded rewrites (below)
