@@ -1249,7 +1249,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
-				} else if _, ok := a.Aux.(ir.Node); ok && vi.rematerializeable {
+				} else if _, ok := a.Aux.(*ir.Name); ok && vi.rematerializeable {
 					// Rematerializeable value with a gc.Node. This is the address of
 					// a stack object (e.g. an LEAQ). Keep the object live.
 					// Change it to VarLive, which is what plive expects for locals.

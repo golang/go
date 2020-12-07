@@ -128,7 +128,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	scratchUsed := false
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if n, ok := v.Aux.(ir.Node); ok {
+			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class() {
 				case ir.PPARAM, ir.PPARAMOUT:
 					// Don't modify nodfp; it is a global.

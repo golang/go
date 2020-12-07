@@ -718,7 +718,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 
 	switch {
 	case v.Op == OpVarDef, v.Op == OpVarKill:
-		n := v.Aux.(ir.Node)
+		n := v.Aux.(*ir.Name)
 		if ir.IsSynthetic(n) {
 			break
 		}

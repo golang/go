@@ -324,9 +324,9 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
 		return n, ssa.SymWrite
 
 	case ssa.OpVarLive:
-		return v.Aux.(ir.Node), ssa.SymRead
+		return v.Aux.(*ir.Name), ssa.SymRead
 	case ssa.OpVarDef, ssa.OpVarKill:
-		return v.Aux.(ir.Node), ssa.SymWrite
+		return v.Aux.(*ir.Name), ssa.SymWrite
 	case ssa.OpKeepAlive:
 		n, _ := AutoVar(v.Args[0])
 		return n, ssa.SymRead
@@ -341,7 +341,7 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
 	case nil, *obj.LSym:
 		// ok, but no node
 		return nil, e
-	case ir.Node:
+	case *ir.Name:
 		return a, e
 	default:
 		base.Fatalf("weird aux: %s", v.LongString())
