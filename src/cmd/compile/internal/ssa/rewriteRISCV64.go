@@ -582,6 +582,9 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpRISCV64FSQRTD
 		return true
+	case OpSqrt32:
+		v.Op = OpRISCV64FSQRTS
+		return true
 	case OpStaticCall:
 		v.Op = OpRISCV64CALLstatic
 		return true

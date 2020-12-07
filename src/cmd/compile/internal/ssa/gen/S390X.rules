@@ -142,6 +142,8 @@
 (Round       x) => (FIDBR [1] x)
 (FMA     x y z) => (FMADD z x y)
 
+(Sqrt32    ...) => (FSQRTS ...)
+
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,

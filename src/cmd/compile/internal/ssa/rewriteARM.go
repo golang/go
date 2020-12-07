@@ -823,6 +823,9 @@ func rewriteValueARM(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpARMSQRTD
 		return true
+	case OpSqrt32:
+		v.Op = OpARMSQRTF
+		return true
 	case OpStaticCall:
 		v.Op = OpARMCALLstatic
 		return true

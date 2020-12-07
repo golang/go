@@ -620,6 +620,9 @@ func rewriteValue386(v *Value) bool {
 	case OpSqrt:
 		v.Op = Op386SQRTSD
 		return true
+	case OpSqrt32:
+		v.Op = Op386SQRTSS
+		return true
 	case OpStaticCall:
 		v.Op = Op386CALLstatic
 		return true

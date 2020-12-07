@@ -743,6 +743,9 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpPPC64FSQRT
 		return true
+	case OpSqrt32:
+		v.Op = OpPPC64FSQRTS
+		return true
 	case OpStaticCall:
 		v.Op = OpPPC64CALLstatic
 		return true

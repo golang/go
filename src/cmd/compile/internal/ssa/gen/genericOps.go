@@ -258,13 +258,14 @@ var genericOps = []opData{
 	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
-	// Square root, float64 only.
+	// Square root.
 	// Special cases:
 	//   +∞  → +∞
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1}, // √arg0
+	{name: "Sqrt", argLength: 1}, // √arg0   (floating point, double precision)
+	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
 	// Special cases:

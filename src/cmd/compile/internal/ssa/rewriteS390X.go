@@ -792,6 +792,9 @@ func rewriteValueS390X(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpS390XFSQRT
 		return true
+	case OpSqrt32:
+		v.Op = OpS390XFSQRTS
+		return true
 	case OpStaticCall:
 		v.Op = OpS390XCALLstatic
 		return true
