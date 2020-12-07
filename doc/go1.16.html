@@ -361,13 +361,10 @@ Do not send CLs removing the interior tags from such phrases.
   supported architecture/OS combinations (the 1.15 performance improvements
   were primarily focused on <code>ELF</code>-based OSes and
   <code>amd64</code> architectures).  For a representative set of
-  large Go programs, linking is 20-35% faster than 1.15 and requires
+  large Go programs, linking is 20-25% faster than 1.15 and requires
   5-15% less memory on average for <code>linux/amd64</code>, with larger
-  improvements for other architectures and OSes.
-</p>
-
-<p>
-  TODO: update with final numbers later in the release.
+  improvements for other architectures and OSes. Most binaries are
+  also smaller as a result of more aggressive symbol pruning.
 </p>
 
 <p><!-- CL 255259 -->
