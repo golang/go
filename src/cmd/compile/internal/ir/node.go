@@ -109,11 +109,6 @@ type Node interface {
 	MarkNonNil()
 	HasCall() bool
 	SetHasCall(x bool)
-
-	// Only for SSA and should be removed when SSA starts
-	// using a more specific type than Node.
-	CanBeAnSSASym()
-	CanBeAnSSAAux()
 }
 
 // Line returns n's position as a string. If n has been inlined,
