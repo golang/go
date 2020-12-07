@@ -6051,7 +6051,7 @@ func (s *state) variable(name ir.Node, t *types.Type) *ssa.Value {
 	}
 	// Make a FwdRef, which records a value that's live on block input.
 	// We'll find the matching definition as part of insertPhis.
-	v = s.newValue0A(ssa.OpFwdRef, t, name)
+	v = s.newValue0A(ssa.OpFwdRef, t, FwdRefAux{N: name})
 	s.fwdVars[name] = v
 	s.addNamedValue(name, v)
 	return v
