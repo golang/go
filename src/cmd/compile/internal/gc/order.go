@@ -63,7 +63,7 @@ func order(fn *ir.Func) {
 // newTemp allocates a new temporary with the given type,
 // pushes it onto the temp stack, and returns it.
 // If clear is true, newTemp emits code to zero the temporary.
-func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
+func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
 	var v *ir.Name
 	// Note: LongString is close to the type equality we want,
 	// but not exactly. We still need to double-check with types.Identical.
@@ -107,11 +107,11 @@ func (o *Order) copyExpr(n ir.Node) ir.Node {
 // (The other candidate would be map access, but map access
 // returns a pointer to the result data instead of taking a pointer
 // to be filled in.)
-func (o *Order) copyExprClear(n ir.Node) ir.Node {
+func (o *Order) copyExprClear(n ir.Node) *ir.Name {
 	return o.copyExpr1(n, true)
 }
 
-func (o *Order) copyExpr1(n ir.Node, clear bool) ir.Node {
+func (o *Order) copyExpr1(n ir.Node, clear bool) *ir.Name {
 	t := n.Type()
 	v := o.newTemp(t, clear)
 	a := ir.Nod(ir.OAS, v, n)

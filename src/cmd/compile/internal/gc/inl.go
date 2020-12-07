@@ -205,7 +205,7 @@ func caninl(fn *ir.Func) {
 	visitor := hairyVisitor{
 		budget:        inlineMaxBudget,
 		extraCallCost: cc,
-		usedLocals:    make(map[ir.Node]bool),
+		usedLocals:    make(map[*ir.Name]bool),
 	}
 	if visitor.tooHairy(fn) {
 		reason = visitor.reason
@@ -292,7 +292,7 @@ type hairyVisitor struct {
 	budget        int32
 	reason        string
 	extraCallCost int32
-	usedLocals    map[ir.Node]bool
+	usedLocals    map[*ir.Name]bool
 	do            func(ir.Node) error
 }
 
@@ -431,6 +431,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		}
 
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		if n.Class() == ir.PAUTO {
 			v.usedLocals[n] = true
 		}

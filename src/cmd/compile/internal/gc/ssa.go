@@ -410,7 +410,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 
 	// Generate addresses of local declarations
-	s.decladdrs = map[ir.Node]*ssa.Value{}
+	s.decladdrs = map[*ir.Name]*ssa.Value{}
 	var args []ssa.Param
 	var results []ssa.Param
 	for _, n := range fn.Dcl {
@@ -576,7 +576,7 @@ type openDeferInfo struct {
 	// function call are stored.
 	argVals []*ssa.Value
 	// The nodes representing the argtmps where the args of the defer are stored
-	argNodes []ir.Node
+	argNodes []*ir.Name
 }
 
 type state struct {
@@ -613,7 +613,7 @@ type state struct {
 	defvars []map[ir.Node]*ssa.Value
 
 	// addresses of PPARAM and PPARAMOUT variables.
-	decladdrs map[ir.Node]*ssa.Value
+	decladdrs map[*ir.Name]*ssa.Value
 
 	// starting values. Memory, stack pointer, and globals pointer
 	startmem *ssa.Value
@@ -633,7 +633,7 @@ type state struct {
 	panics map[funcLine]*ssa.Block
 
 	// list of PPARAMOUT (return) variables.
-	returns []ir.Node
+	returns []*ir.Name
 
 	cgoUnsafeArgs bool
 	hasdefer      bool // whether the function contains a defer statement
@@ -685,7 +685,7 @@ func (s *state) Fatalf(msg string, args ...interface{}) {
 func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl(pos, msg, args...) }
 func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
 
-func ssaMarker(name string) ir.Node {
+func ssaMarker(name string) *ir.Name {
 	return NewName(&types.Sym{Name: name})
 }
 
@@ -1571,7 +1571,7 @@ func (s *state) exit() *ssa.Block {
 	for _, n := range s.returns {
 		addr := s.decladdrs[n]
 		val := s.variable(n, n.Type())
-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n.(*ir.Name), s.mem())
+		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
 		s.store(n.Type(), addr, val)
 		// TODO: if val is ever spilled, we'd like to use the
 		// PPARAMOUT slot for spilling it. That won't happen
@@ -4224,7 +4224,7 @@ func (s *state) openDeferRecord(n ir.Node) {
 	s.stmtList(n.List())
 
 	var args []*ssa.Value
-	var argNodes []ir.Node
+	var argNodes []*ir.Name
 
 	opendefer := &openDeferInfo{
 		n: n,
@@ -4467,7 +4467,7 @@ func (s *state) openDeferExit() {
 		}
 		for _, argNode := range r.argNodes {
 			if argNode.Type().HasPointers() {
-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode.(*ir.Name), s.mem(), false)
+				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
 			}
 		}
 
@@ -4838,6 +4838,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	t := types.NewPtr(n.Type())
 	switch n.Op() {
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		switch n.Class() {
 		case ir.PEXTERN:
 			// global variable
@@ -4855,17 +4856,17 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			}
 			if n == nodfp {
 				// Special arg that points to the frame pointer (Used by ORECOVER).
-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.startmem)
+				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
 			}
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case ir.PAUTO:
-			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), !ir.IsAutoTmp(n))
+			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
 
 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
-			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), true)
+			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
 		default:
 			s.Fatalf("variable address class %v not implemented", n.Class())
 			return nil
@@ -6196,15 +6197,15 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
 	}
 }
 
-// byXoffset implements sort.Interface for []*Node using Xoffset as the ordering.
-type byXoffset []ir.Node
+// byXoffset implements sort.Interface for []*ir.Name using Xoffset as the ordering.
+type byXoffset []*ir.Name
 
 func (s byXoffset) Len() int           { return len(s) }
 func (s byXoffset) Less(i, j int) bool { return s[i].Offset() < s[j].Offset() }
 func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func emitStackObjects(e *ssafn, pp *Progs) {
-	var vars []ir.Node
+	var vars []*ir.Name
 	for _, n := range e.curfn.Dcl {
 		if livenessShouldTrack(n) && n.Addrtaken() {
 			vars = append(vars, n)

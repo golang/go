@@ -438,7 +438,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	// which used to use the ONAME form.
 	isODCLFUNC := infosym.Name == ""
 
-	var apdecls []ir.Node
+	var apdecls []*ir.Name
 	// Populate decls for fn.
 	if isODCLFUNC {
 		for _, n := range fn.Dcl {
@@ -495,7 +495,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	return scopes, inlcalls
 }
 
-func declPos(decl ir.Node) src.XPos {
+func declPos(decl *ir.Name) src.XPos {
 	if decl.Name().Defn != nil && (decl.Name().Captured() || decl.Name().Byval()) {
 		// It's not clear which position is correct for captured variables here:
 		// * decl.Pos is the wrong position for captured variables, in the inner
@@ -518,10 +518,10 @@ func declPos(decl ir.Node) src.XPos {
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(fnsym *obj.LSym, apDecls []ir.Node) ([]ir.Node, []*dwarf.Var, map[ir.Node]bool) {
+func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
 	var vars []*dwarf.Var
-	var decls []ir.Node
-	selected := make(map[ir.Node]bool)
+	var decls []*ir.Name
+	selected := make(map[*ir.Name]bool)
 	for _, n := range apDecls {
 		if ir.IsAutoTmp(n) {
 			continue
@@ -534,7 +534,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []ir.Node) ([]ir.Node, []*dwarf.V
 	return decls, vars, selected
 }
 
-func createSimpleVar(fnsym *obj.LSym, n ir.Node) *dwarf.Var {
+func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
 	offs := n.Offset()
 
@@ -585,13 +585,13 @@ func createSimpleVar(fnsym *obj.LSym, n ir.Node) *dwarf.Var {
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]ir.Node, []*dwarf.Var, map[ir.Node]bool) {
+func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
 	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 
 	// Produce a DWARF variable entry for each user variable.
-	var decls []ir.Node
+	var decls []*ir.Name
 	var vars []*dwarf.Var
-	ssaVars := make(map[ir.Node]bool)
+	ssaVars := make(map[*ir.Name]bool)
 
 	for varID, dvar := range debugInfo.Vars {
 		n := dvar
@@ -611,11 +611,11 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]ir.Node, []*dwarf.Var, m
 
 // createDwarfVars process fn, returning a list of DWARF variables and the
 // Nodes they represent.
-func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.Node) ([]ir.Node, []*dwarf.Var) {
+func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var) {
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
-	var decls []ir.Node
-	var selected map[ir.Node]bool
+	var decls []*ir.Name
+	var selected map[*ir.Name]bool
 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
@@ -714,9 +714,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.
 // function that is not local to the package being compiled, then the
 // names of the variables may have been "versioned" to avoid conflicts
 // with local vars; disregard this versioning when sorting.
-func preInliningDcls(fnsym *obj.LSym) []ir.Node {
+func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*ir.Func)
-	var rdcl []ir.Node
+	var rdcl []*ir.Name
 	for _, n := range fn.Inl.Dcl {
 		c := n.Sym().Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
