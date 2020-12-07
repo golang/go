@@ -280,19 +280,19 @@ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
-func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
-func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *ClosureRead) copy() Node {
+func (n *ClosureReadExpr) String() string                { return fmt.Sprint(n) }
+func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *ClosureReadExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	return &c
 }
-func (n *ClosureRead) doChildren(do func(Node) error) error {
+func (n *ClosureReadExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	return err
 }
-func (n *ClosureRead) editChildren(edit func(Node) Node) {
+func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 }
 
@@ -366,24 +366,6 @@ func (n *Decl) editChildren(edit func(Node) Node) {
 	n.X = maybeEdit(n.X, edit)
 }
 
-func (n *DeferStmt) String() string                { return fmt.Sprint(n) }
-func (n *DeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *DeferStmt) copy() Node {
-	c := *n
-	c.init = c.init.Copy()
-	return &c
-}
-func (n *DeferStmt) doChildren(do func(Node) error) error {
-	var err error
-	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.Call, err, do)
-	return err
-}
-func (n *DeferStmt) editChildren(edit func(Node) Node) {
-	editList(n.init, edit)
-	n.Call = maybeEdit(n.Call, edit)
-}
-
 func (n *ForStmt) String() string                { return fmt.Sprint(n) }
 func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
@@ -450,20 +432,20 @@ func (n *FuncType) editChildren(edit func(Node) Node) {
 	editFields(n.Results, edit)
 }
 
-func (n *GoStmt) String() string                { return fmt.Sprint(n) }
-func (n *GoStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *GoStmt) copy() Node {
+func (n *GoDeferStmt) String() string                { return fmt.Sprint(n) }
+func (n *GoDeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *GoDeferStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
 	return &c
 }
-func (n *GoStmt) doChildren(do func(Node) error) error {
+func (n *GoDeferStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.Call, err, do)
 	return err
 }
-func (n *GoStmt) editChildren(edit func(Node) Node) {
+func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.Call = maybeEdit(n.Call, edit)
 }
@@ -600,6 +582,26 @@ func (n *LabelStmt) doChildren(do func(Node) error) error {
 }
 func (n *LabelStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
+}
+
+func (n *LogicalExpr) String() string                { return fmt.Sprint(n) }
+func (n *LogicalExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *LogicalExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *LogicalExpr) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.X, err, do)
+	err = maybeDo(n.Y, err, do)
+	return err
+}
+func (n *LogicalExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.X = maybeEdit(n.X, edit)
+	n.Y = maybeEdit(n.Y, edit)
 }
 
 func (n *MakeExpr) String() string                { return fmt.Sprint(n) }
@@ -911,6 +913,24 @@ func (n *StarExpr) doChildren(do func(Node) error) error {
 func (n *StarExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
+}
+
+func (n *StructKeyExpr) String() string                { return fmt.Sprint(n) }
+func (n *StructKeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *StructKeyExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *StructKeyExpr) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	err = maybeDo(n.Value, err, do)
+	return err
+}
+func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+	n.Value = maybeEdit(n.Value, edit)
 }
 
 func (n *StructType) String() string                { return fmt.Sprint(n) }

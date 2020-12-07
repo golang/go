@@ -63,19 +63,19 @@ func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
 // If Def is true, the assignment is a :=.
 type AssignListStmt struct {
 	miniStmt
-	Lhs    Nodes
-	Def    bool
-	Rhs    Nodes
-	offset int64 // for initorder
+	Lhs     Nodes
+	Def     bool
+	Rhs     Nodes
+	Offset_ int64 // for initorder
 }
 
-func NewAssignListStmt(pos src.XPos, lhs, rhs []Node) *AssignListStmt {
+func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
 	n := &AssignListStmt{}
 	n.pos = pos
-	n.op = OAS2
+	n.SetOp(op)
 	n.Lhs.Set(lhs)
 	n.Rhs.Set(rhs)
-	n.offset = types.BADWIDTH
+	n.Offset_ = types.BADWIDTH
 	return n
 }
 
@@ -87,8 +87,8 @@ func (n *AssignListStmt) PtrRlist() *Nodes  { return &n.Rhs }
 func (n *AssignListStmt) SetRlist(x Nodes)  { n.Rhs = x }
 func (n *AssignListStmt) Colas() bool       { return n.Def }
 func (n *AssignListStmt) SetColas(x bool)   { n.Def = x }
-func (n *AssignListStmt) Offset() int64     { return n.offset }
-func (n *AssignListStmt) SetOffset(x int64) { n.offset = x }
+func (n *AssignListStmt) Offset() int64     { return n.Offset_ }
+func (n *AssignListStmt) SetOffset(x int64) { n.Offset_ = x }
 
 func (n *AssignListStmt) SetOp(op Op) {
 	switch op {
@@ -103,17 +103,17 @@ func (n *AssignListStmt) SetOp(op Op) {
 // If Def is true, the assignment is a :=.
 type AssignStmt struct {
 	miniStmt
-	X      Node
-	Def    bool
-	Y      Node
-	offset int64 // for initorder
+	X       Node
+	Def     bool
+	Y       Node
+	Offset_ int64 // for initorder
 }
 
 func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
 	n := &AssignStmt{X: x, Y: y}
 	n.pos = pos
 	n.op = OAS
-	n.offset = types.BADWIDTH
+	n.Offset_ = types.BADWIDTH
 	return n
 }
 
@@ -123,8 +123,8 @@ func (n *AssignStmt) Right() Node       { return n.Y }
 func (n *AssignStmt) SetRight(y Node)   { n.Y = y }
 func (n *AssignStmt) Colas() bool       { return n.Def }
 func (n *AssignStmt) SetColas(x bool)   { n.Def = x }
-func (n *AssignStmt) Offset() int64     { return n.offset }
-func (n *AssignStmt) SetOffset(x int64) { n.offset = x }
+func (n *AssignStmt) Offset() int64     { return n.Offset_ }
+func (n *AssignStmt) SetOffset(x int64) { n.Offset_ = x }
 
 func (n *AssignStmt) SetOp(op Op) {
 	switch op {
@@ -236,32 +236,16 @@ func (n *CaseStmt) SetRlist(x Nodes) { n.Vars = x }
 func (n *CaseStmt) Left() Node       { return n.Comm }
 func (n *CaseStmt) SetLeft(x Node)   { n.Comm = x }
 
-// A DeferStmt is a defer statement: defer Call.
-type DeferStmt struct {
-	miniStmt
-	Call Node
-}
-
-func NewDeferStmt(pos src.XPos, call Node) *DeferStmt {
-	n := &DeferStmt{Call: call}
-	n.pos = pos
-	n.op = ODEFER
-	return n
-}
-
-func (n *DeferStmt) Left() Node     { return n.Call }
-func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
-
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
 // Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Cond     Node
-	Late     Nodes
-	Post     Node
-	Body_    Nodes
-	hasBreak bool
+	Label     *types.Sym
+	Cond      Node
+	Late      Nodes
+	Post      Node
+	Body_     Nodes
+	HasBreak_ bool
 }
 
 func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStmt {
@@ -285,8 +269,8 @@ func (n *ForStmt) SetBody(x Nodes)     { n.Body_ = x }
 func (n *ForStmt) List() Nodes         { return n.Late }
 func (n *ForStmt) PtrList() *Nodes     { return &n.Late }
 func (n *ForStmt) SetList(x Nodes)     { n.Late = x }
-func (n *ForStmt) HasBreak() bool      { return n.hasBreak }
-func (n *ForStmt) SetHasBreak(b bool)  { n.hasBreak = b }
+func (n *ForStmt) HasBreak() bool      { return n.HasBreak_ }
+func (n *ForStmt) SetHasBreak(b bool)  { n.HasBreak_ = b }
 
 func (n *ForStmt) SetOp(op Op) {
 	if op != OFOR && op != OFORUNTIL {
@@ -295,29 +279,38 @@ func (n *ForStmt) SetOp(op Op) {
 	n.op = op
 }
 
-// A GoStmt is a go statement: go Call.
-type GoStmt struct {
+// A GoDeferStmt is a go or defer statement: go Call / defer Call.
+//
+// The two opcodes use a signle syntax because the implementations
+// are very similar: both are concerned with saving Call and running it
+// in a different context (a separate goroutine or a later time).
+type GoDeferStmt struct {
 	miniStmt
 	Call Node
 }
 
-func NewGoStmt(pos src.XPos, call Node) *GoStmt {
-	n := &GoStmt{Call: call}
+func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
+	n := &GoDeferStmt{Call: call}
 	n.pos = pos
-	n.op = OGO
+	switch op {
+	case ODEFER, OGO:
+		n.op = op
+	default:
+		panic("NewGoDeferStmt " + op.String())
+	}
 	return n
 }
 
-func (n *GoStmt) Left() Node     { return n.Call }
-func (n *GoStmt) SetLeft(x Node) { n.Call = x }
+func (n *GoDeferStmt) Left() Node     { return n.Call }
+func (n *GoDeferStmt) SetLeft(x Node) { n.Call = x }
 
 // A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
 type IfStmt struct {
 	miniStmt
-	Cond   Node
-	Body_  Nodes
-	Else   Nodes
-	likely bool // code layout hint
+	Cond    Node
+	Body_   Nodes
+	Else    Nodes
+	Likely_ bool // code layout hint
 }
 
 func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
@@ -337,8 +330,8 @@ func (n *IfStmt) SetBody(x Nodes)  { n.Body_ = x }
 func (n *IfStmt) Rlist() Nodes     { return n.Else }
 func (n *IfStmt) PtrRlist() *Nodes { return &n.Else }
 func (n *IfStmt) SetRlist(x Nodes) { n.Else = x }
-func (n *IfStmt) Likely() bool     { return n.likely }
-func (n *IfStmt) SetLikely(x bool) { n.likely = x }
+func (n *IfStmt) Likely() bool     { return n.Likely_ }
+func (n *IfStmt) SetLikely(x bool) { n.Likely_ = x }
 
 // An InlineMarkStmt is a marker placed just before an inlined body.
 type InlineMarkStmt struct {
@@ -376,13 +369,13 @@ func (n *LabelStmt) SetSym(x *types.Sym) { n.Label = x }
 // Op can be OFOR or OFORUNTIL (!Cond).
 type RangeStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
-	Def      bool
-	X        Node
-	Body_    Nodes
-	hasBreak bool
-	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
+	Label     *types.Sym
+	Vars      Nodes // TODO(rsc): Replace with Key, Value Node
+	Def       bool
+	X         Node
+	Body_     Nodes
+	HasBreak_ bool
+	typ       *types.Type // TODO(rsc): Remove - use X.Type() instead
 }
 
 func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
@@ -404,8 +397,8 @@ func (n *RangeStmt) SetBody(x Nodes)       { n.Body_ = x }
 func (n *RangeStmt) List() Nodes           { return n.Vars }
 func (n *RangeStmt) PtrList() *Nodes       { return &n.Vars }
 func (n *RangeStmt) SetList(x Nodes)       { n.Vars = x }
-func (n *RangeStmt) HasBreak() bool        { return n.hasBreak }
-func (n *RangeStmt) SetHasBreak(b bool)    { n.hasBreak = b }
+func (n *RangeStmt) HasBreak() bool        { return n.HasBreak_ }
+func (n *RangeStmt) SetHasBreak(b bool)    { n.HasBreak_ = b }
 func (n *RangeStmt) Colas() bool           { return n.Def }
 func (n *RangeStmt) SetColas(b bool)       { n.Def = b }
 func (n *RangeStmt) Type() *types.Type     { return n.typ }
@@ -437,9 +430,9 @@ func (n *ReturnStmt) IsDDD() bool     { return false } // typecheckargs asks
 // A SelectStmt is a block: { Cases }.
 type SelectStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Cases    Nodes
-	hasBreak bool
+	Label     *types.Sym
+	Cases     Nodes
+	HasBreak_ bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkswitch
@@ -458,8 +451,8 @@ func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
 func (n *SelectStmt) SetList(x Nodes)     { n.Cases = x }
 func (n *SelectStmt) Sym() *types.Sym     { return n.Label }
 func (n *SelectStmt) SetSym(x *types.Sym) { n.Label = x }
-func (n *SelectStmt) HasBreak() bool      { return n.hasBreak }
-func (n *SelectStmt) SetHasBreak(x bool)  { n.hasBreak = x }
+func (n *SelectStmt) HasBreak() bool      { return n.HasBreak_ }
+func (n *SelectStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
 func (n *SelectStmt) Body() Nodes         { return n.Compiled }
 func (n *SelectStmt) PtrBody() *Nodes     { return &n.Compiled }
 func (n *SelectStmt) SetBody(x Nodes)     { n.Compiled = x }
@@ -486,10 +479,10 @@ func (n *SendStmt) SetRight(y Node) { n.Value = y }
 // A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
 type SwitchStmt struct {
 	miniStmt
-	Tag      Node
-	Cases    Nodes // list of *CaseStmt
-	Label    *types.Sym
-	hasBreak bool
+	Tag       Node
+	Cases     Nodes // list of *CaseStmt
+	Label     *types.Sym
+	HasBreak_ bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkswitch
@@ -513,8 +506,8 @@ func (n *SwitchStmt) PtrBody() *Nodes     { return &n.Compiled }
 func (n *SwitchStmt) SetBody(x Nodes)     { n.Compiled = x }
 func (n *SwitchStmt) Sym() *types.Sym     { return n.Label }
 func (n *SwitchStmt) SetSym(x *types.Sym) { n.Label = x }
-func (n *SwitchStmt) HasBreak() bool      { return n.hasBreak }
-func (n *SwitchStmt) SetHasBreak(x bool)  { n.hasBreak = x }
+func (n *SwitchStmt) HasBreak() bool      { return n.HasBreak_ }
+func (n *SwitchStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
 
 // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
 type TypeSwitchGuard struct {

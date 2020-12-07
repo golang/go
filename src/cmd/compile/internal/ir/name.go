@@ -132,6 +132,14 @@ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
 	return newNameAt(pos, ONAME, sym)
 }
 
+// NewIota returns a new OIOTA Node.
+func NewIota(pos src.XPos, sym *types.Sym) *Name {
+	if sym == nil {
+		base.Fatalf("NewIota nil")
+	}
+	return newNameAt(pos, OIOTA, sym)
+}
+
 // NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
 func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
