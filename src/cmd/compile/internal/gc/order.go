@@ -47,6 +47,7 @@ type Order struct {
 	out  []ir.Node             // list of generated statements
 	temp []*ir.Name            // stack of temporary variables
 	free map[string][]*ir.Name // free list of unused temporaries, by type.LongString().
+	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
 }
 
 // Order rewrites fn.Nbody to apply the ordering constraints
@@ -1072,7 +1073,10 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 
 	switch n.Op() {
 	default:
-		ir.EditChildren(n, o.exprNoLHS)
+		if o.edit == nil {
+			o.edit = o.exprNoLHS // create closure once
+		}
+		ir.EditChildren(n, o.edit)
 
 	// Addition of strings turns into a function call.
 	// Allocate a temporary to hold the strings.
