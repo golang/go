@@ -42,6 +42,12 @@ did also, and a new key should be introduced.
 For more details on the precise definition of the metric key's path and unit formats, see
 the documentation of the Name field of the Description struct.
 
+A note about floats
+
+This package supports metrics whose values have a floating-point representation. In
+order to improve ease-of-use, this package promises to never produce the following
+classes of floating-point values: NaN, infinity.
+
 Supported metrics
 
 Below is the full list of supported metrics, ordered lexicographically.
