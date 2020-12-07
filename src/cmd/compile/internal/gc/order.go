@@ -619,11 +619,8 @@ func (o *Order) stmt(n ir.Node) {
 				l2.SetIndexMapLValue(false)
 			}
 			l2 = o.copyExpr(l2)
-			r := ir.NodAt(n.Pos(), n.SubOp(), l2, n.Right())
-			r = typecheck(r, ctxExpr)
-			r = o.expr(r, nil)
-			n = ir.NodAt(n.Pos(), ir.OAS, l1, r)
-			n = typecheck(n, ctxStmt)
+			r := o.expr(typecheck(ir.NewBinaryExpr(n.Pos(), n.SubOp(), l2, n.Right()), ctxExpr), nil)
+			n = typecheck(ir.NodAt(n.Pos(), ir.OAS, l1, r), ctxStmt)
 		}
 
 		o.mapAssign(n)

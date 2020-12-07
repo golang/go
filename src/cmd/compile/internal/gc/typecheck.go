@@ -766,8 +766,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 					dowidth(l.Type())
 					if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
-						l = ir.Nod(aop, l, nil)
-						l.SetType(r.Type())
+						l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
 						l.SetTypecheck(1)
 						n.SetLeft(l)
 					}
@@ -788,8 +787,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 					dowidth(r.Type())
 					if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
-						r = ir.Nod(aop, r, nil)
-						r.SetType(l.Type())
+						r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
 						r.SetTypecheck(1)
 						n.SetRight(r)
 					}
@@ -1361,12 +1359,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			switch l.SubOp() {
 			default:
 				base.Fatalf("unknown builtin %v", l)
-				return n
 
 			case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 				n.SetOp(l.SubOp())
 				n.SetLeft(nil)
 				n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
+				return typecheck(n, top)
 
 			case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
 				typecheckargs(n)
@@ -1377,9 +1375,8 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 					n.SetType(nil)
 					return n
 				}
-				old := n
-				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
-				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
+				u := ir.NewUnaryExpr(n.Pos(), l.SubOp(), arg)
+				return typecheck(initExpr(n.Init().Slice(), u), top) // typecheckargs can add to old.Init
 
 			case ir.OCOMPLEX, ir.OCOPY:
 				typecheckargs(n)
@@ -1388,11 +1385,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 					n.SetType(nil)
 					return n
 				}
-				old := n
-				n = ir.NodAt(n.Pos(), l.SubOp(), arg1, arg2)
-				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
+				b := ir.NewBinaryExpr(n.Pos(), l.SubOp(), arg1, arg2)
+				return typecheck(initExpr(n.Init().Slice(), b), top) // typecheckargs can add to old.Init
 			}
-			return typecheck(n, top)
+			panic("unreachable")
 		}
 
 		n.SetLeft(defaultlit(n.Left(), nil))
