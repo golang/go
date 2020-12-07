@@ -331,9 +331,11 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- CL 220419, CL 271987 -->
-  The race detector's model for channel operations now more precisely
-  follows the <a href="/ref/mem">Go memory model</a>. As a result, it
-  may report now races that it previously missed.
+  Go 1.16 fixes a discrepancy between the race detector and
+  the <a href="/ref/mem">Go memory model</a>. The race detector now
+  more precisely follows the channel synchronization rules of the
+  memory model. As a result, the detector may now report races it
+  previously missed.
 </p>
 
 <h2 id="compiler">Compiler</h2>
