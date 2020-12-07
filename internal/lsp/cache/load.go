@@ -175,10 +175,8 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 }
 
 func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) *source.CriticalError {
-	// The error may be a result of the user's workspace layout. Check for
-	// a valid workspace configuration first.
-	if criticalErr := s.workspaceLayoutErrors(ctx, loadErr); criticalErr != nil {
-		return criticalErr
+	if strings.Contains(loadErr.Error(), "cannot find main module") {
+		return s.WorkspaceLayoutError(ctx)
 	}
 	criticalErr := &source.CriticalError{
 		MainError: loadErr,
@@ -200,7 +198,7 @@ func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) *source.Cr
 
 // workspaceLayoutErrors returns a diagnostic for every open file, as well as
 // an error message if there are no open files.
-func (s *snapshot) workspaceLayoutErrors(ctx context.Context, err error) *source.CriticalError {
+func (s *snapshot) WorkspaceLayoutError(ctx context.Context) *source.CriticalError {
 	// Assume the workspace is misconfigured only if we've detected an invalid
 	// build configuration. Currently, a valid build configuration is either a
 	// module at the root of the view or a GOPATH workspace.
@@ -210,8 +208,7 @@ func (s *snapshot) workspaceLayoutErrors(ctx context.Context, err error) *source
 	if len(s.workspace.getKnownModFiles()) == 0 {
 		return nil
 	}
-	// TODO(rstambler): Handle GO111MODULE=auto.
-	if s.view.userGo111Module != on {
+	if s.view.userGo111Module == off {
 		return nil
 	}
 	if s.workspace.moduleSource != legacyWorkspace {

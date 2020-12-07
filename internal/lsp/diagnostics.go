@@ -182,6 +182,16 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		return false
 	}
 
+	// Even if workspace packages were returned, there still may be an error
+	// with the user's workspace layout. Workspace packages that only have the
+	// ID "command-line-arguments" are usually a symptom of a bad workspace
+	// configuration.
+	if onlyCommandLineArguments(wsPkgs) {
+		if criticalErr := snapshot.WorkspaceLayoutError(ctx); criticalErr != nil {
+			err = criticalErr
+		}
+	}
+
 	// Show the error as a progress error report so that it appears in the
 	// status bar. If a client doesn't support progress reports, the error
 	// will still be shown as a ShowMessage. If there is no error, any running
@@ -576,4 +586,13 @@ func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot
 		return errors.New("done")
 	})
 	return !hasGo
+}
+
+func onlyCommandLineArguments(pkgs []source.Package) bool {
+	for _, pkg := range pkgs {
+		if pkg.ID() != "command-line-arguments" {
+			return false
+		}
+	}
+	return true
 }

@@ -1651,7 +1651,7 @@ import (
 	})
 }
 
-func TestMultipleModules_GO111MODULE_on(t *testing.T) {
+func TestMultipleModules_Warning(t *testing.T) {
 	const modules = `
 -- a/go.mod --
 module a.com
@@ -1666,21 +1666,47 @@ go 1.12
 -- b/b.go --
 package b
 `
-	withOptions(
-		WithModes(Singleton),
-		EditorConfig{
-			Env: map[string]string{
-				"GO111MODULE": "on",
+	for _, go111module := range []string{"on", "auto"} {
+		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
+			withOptions(
+				WithModes(Singleton),
+				EditorConfig{
+					Env: map[string]string{
+						"GO111MODULE": go111module,
+					},
+				},
+			).run(t, modules, func(t *testing.T, env *Env) {
+				env.OpenFile("a/a.go")
+				env.OpenFile("b/go.mod")
+				env.Await(
+					env.DiagnosticAtRegexp("a/a.go", "package a"),
+					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+					OutstandingWork("Error loading workspace", "gopls requires a module at the root of your workspace."),
+				)
+			})
+		})
+	}
+
+	// Expect no warning if GO111MODULE=auto in a directory in GOPATH.
+	t.Run("GOPATH_GO111MODULE_auto", func(t *testing.T) {
+		withOptions(
+			WithModes(Singleton),
+			EditorConfig{
+				Env: map[string]string{
+					"GO111MODULE": "auto",
+				},
 			},
-		},
-	).run(t, modules, func(t *testing.T, env *Env) {
-		env.OpenFile("a/a.go")
-		env.OpenFile("b/go.mod")
-		env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "package a"),
-			env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-			OutstandingWork("Error loading workspace", "gopls requires a module at the root of your workspace."),
-		)
+			InGOPATH(),
+		).run(t, modules, func(t *testing.T, env *Env) {
+			env.OpenFile("a/a.go")
+			env.Await(
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+					NoDiagnostics("a/a.go"),
+				),
+				NoOutstandingWork(),
+			)
+		})
 	})
 }
 
