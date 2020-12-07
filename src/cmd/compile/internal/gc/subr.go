@@ -153,12 +153,14 @@ func checkDotImports() {
 	dotImportRefs = nil
 }
 
-// nodAddr returns a node representing &n.
-func nodAddr(n ir.Node) ir.Node {
-	return ir.Nod(ir.OADDR, n, nil)
+// nodAddr returns a node representing &n at base.Pos.
+func nodAddr(n ir.Node) *ir.AddrExpr {
+	return nodAddrAt(base.Pos, n)
 }
-func nodAddrAt(pos src.XPos, n ir.Node) ir.Node {
-	return ir.NodAt(pos, ir.OADDR, n, nil)
+
+// nodAddrPos returns a node representing &n at position pos.
+func nodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+	return ir.NewAddrExpr(pos, n)
 }
 
 // newname returns a new ONAME Node associated with symbol s.
@@ -774,10 +776,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 func copyexpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	l := temp(t)
-	a := ir.Nod(ir.OAS, l, n)
-	a = typecheck(a, ctxStmt)
-	a = walkexpr(a, init)
-	init.Append(a)
+	appendWalkStmt(init, ir.Nod(ir.OAS, l, n))
 	return l
 }
 
@@ -1195,11 +1194,12 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
 		if method.Type.NumResults() > 0 {
-			n := ir.Nod(ir.ORETURN, nil, nil)
-			n.PtrList().Set1(call)
-			call = n
+			ret := ir.Nod(ir.ORETURN, nil, nil)
+			ret.PtrList().Set1(call)
+			fn.PtrBody().Append(ret)
+		} else {
+			fn.PtrBody().Append(call)
 		}
-		fn.PtrBody().Append(call)
 	}
 
 	if false && base.Flag.LowerR != 0 {

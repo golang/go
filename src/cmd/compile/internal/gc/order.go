@@ -60,6 +60,11 @@ func order(fn *ir.Func) {
 	orderBlock(fn.PtrBody(), map[string][]*ir.Name{})
 }
 
+// append typechecks stmt and appends it to out.
+func (o *Order) append(stmt ir.Node) {
+	o.out = append(o.out, typecheck(stmt, ctxStmt))
+}
+
 // newTemp allocates a new temporary with the given type,
 // pushes it onto the temp stack, and returns it.
 // If clear is true, newTemp emits code to zero the temporary.
@@ -82,9 +87,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
 		v = temp(t)
 	}
 	if clear {
-		a := ir.Nod(ir.OAS, v, nil)
-		a = typecheck(a, ctxStmt)
-		o.out = append(o.out, a)
+		o.append(ir.Nod(ir.OAS, v, nil))
 	}
 
 	o.temp = append(o.temp, v)
@@ -114,9 +117,7 @@ func (o *Order) copyExprClear(n ir.Node) *ir.Name {
 func (o *Order) copyExpr1(n ir.Node, clear bool) *ir.Name {
 	t := n.Type()
 	v := o.newTemp(t, clear)
-	a := ir.Nod(ir.OAS, v, n)
-	a = typecheck(a, ctxStmt)
-	o.out = append(o.out, a)
+	o.append(ir.Nod(ir.OAS, v, n))
 	return v
 }
 
@@ -306,9 +307,7 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []ir.Node {
 	var out []ir.Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		kill := ir.Nod(ir.OVARKILL, n, nil)
-		kill = typecheck(kill, ctxStmt)
-		out = append(out, kill)
+		out = append(out, typecheck(ir.Nod(ir.OVARKILL, n, nil), ctxStmt))
 	}
 	return out
 }
@@ -407,9 +406,7 @@ func (o *Order) edge() {
 	// counter += 1
 	incr := ir.Nod(ir.OASOP, counter, nodintconst(1))
 	incr.SetSubOp(ir.OADD)
-	incr = typecheck(incr, ctxStmt)
-
-	o.out = append(o.out, incr)
+	o.append(incr)
 }
 
 // orderBlock orders the block of statements in n into a new slice,
@@ -570,8 +567,7 @@ func (o *Order) mapAssign(n ir.Node) {
 				t := o.newTemp(m.Type(), false)
 				n.List().SetIndex(i, t)
 				a := ir.Nod(ir.OAS, m, t)
-				a = typecheck(a, ctxStmt)
-				post = append(post, a)
+				post = append(post, typecheck(a, ctxStmt))
 			}
 		}
 
@@ -918,27 +914,23 @@ func (o *Order) stmt(n ir.Node) {
 					// the conversion happens in the OAS instead.
 					if r.Colas() {
 						dcl := ir.Nod(ir.ODCL, dst, nil)
-						dcl = typecheck(dcl, ctxStmt)
-						n2.PtrInit().Append(dcl)
+						n2.PtrInit().Append(typecheck(dcl, ctxStmt))
 					}
 
 					tmp := o.newTemp(recv.Left().Type().Elem(), recv.Left().Type().Elem().HasPointers())
 					as := ir.Nod(ir.OAS, dst, tmp)
-					as = typecheck(as, ctxStmt)
-					n2.PtrInit().Append(as)
+					n2.PtrInit().Append(typecheck(as, ctxStmt))
 					dst = tmp
 				}
 				if !ir.IsBlank(ok) {
 					if r.Colas() {
 						dcl := ir.Nod(ir.ODCL, ok, nil)
-						dcl = typecheck(dcl, ctxStmt)
-						n2.PtrInit().Append(dcl)
+						n2.PtrInit().Append(typecheck(dcl, ctxStmt))
 					}
 
 					tmp := o.newTemp(types.Types[types.TBOOL], false)
 					as := ir.Nod(ir.OAS, ok, conv(tmp, ok.Type()))
-					as = typecheck(as, ctxStmt)
-					n2.PtrInit().Append(as)
+					n2.PtrInit().Append(typecheck(as, ctxStmt))
 					ok = tmp
 				}
 
@@ -1408,8 +1400,7 @@ func (o *Order) as2(n ir.Node) {
 	as := ir.Nod(ir.OAS2, nil, nil)
 	as.PtrList().Set(left)
 	as.PtrRlist().Set(tmplist)
-	as = typecheck(as, ctxStmt)
-	o.stmt(as)
+	o.stmt(typecheck(as, ctxStmt))
 }
 
 // okAs2 orders OAS2XXX with ok.
@@ -1429,14 +1420,12 @@ func (o *Order) okAs2(n ir.Node) {
 
 	if tmp1 != nil {
 		r := ir.Nod(ir.OAS, n.List().First(), tmp1)
-		r = typecheck(r, ctxStmt)
-		o.mapAssign(r)
+		o.mapAssign(typecheck(r, ctxStmt))
 		n.List().SetFirst(tmp1)
 	}
 	if tmp2 != nil {
 		r := ir.Nod(ir.OAS, n.List().Second(), conv(tmp2, n.List().Second().Type()))
-		r = typecheck(r, ctxStmt)
-		o.mapAssign(r)
+		o.mapAssign(typecheck(r, ctxStmt))
 		n.List().SetSecond(tmp2)
 	}
 }

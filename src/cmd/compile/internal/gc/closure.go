@@ -396,22 +396,22 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
 	clos.SetEsc(clo.Esc())
 	clos.PtrList().Set(append([]ir.Node{ir.Nod(ir.OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
 
-	clos = nodAddr(clos)
-	clos.SetEsc(clo.Esc())
+	addr := nodAddr(clos)
+	addr.SetEsc(clo.Esc())
 
 	// Force type conversion from *struct to the func type.
-	clos = convnop(clos, clo.Type())
+	cfn := convnop(addr, clo.Type())
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[clo]; x != nil {
 		if !types.Identical(typ, x.Type()) {
 			panic("closure type does not match order's assigned type")
 		}
-		clos.Left().SetRight(x)
+		addr.SetRight(x)
 		delete(prealloc, clo)
 	}
 
-	return walkexpr(clos, init)
+	return walkexpr(cfn, init)
 }
 
 func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
@@ -482,11 +482,12 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 	call.PtrList().Set(paramNnames(tfn.Type()))
 	call.SetIsDDD(tfn.Type().IsVariadic())
 	if t0.NumResults() != 0 {
-		n := ir.Nod(ir.ORETURN, nil, nil)
-		n.PtrList().Set1(call)
-		call = n
+		ret := ir.Nod(ir.ORETURN, nil, nil)
+		ret.PtrList().Set1(call)
+		body = append(body, ret)
+	} else {
+		body = append(body, call)
 	}
-	body = append(body, call)
 
 	fn.PtrBody().Set(body)
 	funcbody()
@@ -530,8 +531,7 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 		n.SetLeft(cheapexpr(n.Left(), init))
 		n.SetLeft(walkexpr(n.Left(), nil))
 
-		tab := ir.Nod(ir.OITAB, n.Left(), nil)
-		tab = typecheck(tab, ctxExpr)
+		tab := typecheck(ir.Nod(ir.OITAB, n.Left(), nil), ctxExpr)
 
 		c := ir.Nod(ir.OCHECKNIL, tab, nil)
 		c.SetTypecheck(1)
@@ -544,22 +544,22 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	clos.SetEsc(n.Esc())
 	clos.PtrList().Set2(ir.Nod(ir.OCFUNC, n.Func().Nname, nil), n.Left())
 
-	clos = nodAddr(clos)
-	clos.SetEsc(n.Esc())
+	addr := nodAddr(clos)
+	addr.SetEsc(n.Esc())
 
 	// Force type conversion from *struct to the func type.
-	clos = convnop(clos, n.Type())
+	cfn := convnop(addr, n.Type())
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[n]; x != nil {
 		if !types.Identical(typ, x.Type()) {
 			panic("partial call type does not match order's assigned type")
 		}
-		clos.Left().SetRight(x)
+		addr.SetRight(x)
 		delete(prealloc, n)
 	}
 
-	return walkexpr(clos, init)
+	return walkexpr(cfn, init)
 }
 
 // callpartMethod returns the *types.Field representing the method

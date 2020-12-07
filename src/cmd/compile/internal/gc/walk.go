@@ -1306,8 +1306,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
 				na := ir.Nod(ir.OAS, nodSym(ir.ODOT, h, bsym), b)
 				nif.PtrBody().Append(na)
-
-				init.Append(walkstmt(typecheck(nif, ctxStmt)))
+				appendWalkStmt(init, nif)
 			}
 		}
 
@@ -1325,7 +1324,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				// h.hash0 = fastrand()
 				rand := mkcall("fastrand", types.Types[types.TUINT32], init)
 				hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
-				appendWalk(init, ir.Nod(ir.OAS, nodSym(ir.ODOT, h, hashsym), rand))
+				appendWalkStmt(init, ir.Nod(ir.OAS, nodSym(ir.ODOT, h, hashsym), rand))
 				return convnop(h, t)
 			}
 			// Call runtime.makehmap to allocate an
@@ -1398,8 +1397,8 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 			t = types.NewArray(t.Elem(), i) // [r]T
 			var_ := temp(t)
-			appendWalk(init, ir.Nod(ir.OAS, var_, nil)) // zero temp
-			r := ir.Nod(ir.OSLICE, var_, nil)           // arr[:l]
+			appendWalkStmt(init, ir.Nod(ir.OAS, var_, nil)) // zero temp
+			r := ir.Nod(ir.OSLICE, var_, nil)               // arr[:l]
 			r.SetSliceBounds(nil, l, nil)
 			// The conv is necessary in case n.Type is named.
 			return walkexpr(typecheck(conv(r, n.Type()), ctxExpr), init)
@@ -1547,7 +1546,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				as := ir.Nod(ir.OAS,
 					ir.Nod(ir.ODEREF, p, nil),
 					ir.Nod(ir.ODEREF, convnop(ir.Nod(ir.OSPTR, s, nil), t.PtrTo()), nil))
-				appendWalk(init, as)
+				appendWalkStmt(init, as)
 			}
 
 			// Slice the [n]byte to a []byte.
@@ -2807,7 +2806,7 @@ func appendslice(n ir.Node, init *ir.Nodes) ir.Node {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		ix := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
 		ix.SetBounded(true)
-		addr := ir.Nod(ir.OADDR, ix, nil)
+		addr := nodAddr(ix)
 
 		sptr := ir.Nod(ir.OSPTR, l2, nil)
 
@@ -2953,7 +2952,7 @@ func extendslice(n ir.Node, init *ir.Nodes) ir.Node {
 	// hp := &s[len(l1)]
 	ix := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
 	ix.SetBounded(true)
-	hp := convnop(ir.Nod(ir.OADDR, ix, nil), types.Types[types.TUNSAFEPTR])
+	hp := convnop(nodAddr(ix), types.Types[types.TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
 	hn := conv(ir.Nod(ir.OMUL, l2, nodintconst(elemtype.Width)), types.Types[types.TUINTPTR])
@@ -4070,4 +4069,20 @@ func walkCheckPtrArithmetic(n ir.Node, init *ir.Nodes) ir.Node {
 // levels.
 func checkPtr(fn *ir.Func, level int) bool {
 	return base.Debug.Checkptr >= level && fn.Pragma&ir.NoCheckPtr == 0
+}
+
+// appendWalkStmt typechecks and walks stmt and then appends it to init.
+func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+	op := stmt.Op()
+	n := typecheck(stmt, ctxStmt)
+	if op == ir.OAS || op == ir.OAS2 {
+		// If the assignment has side effects, walkexpr will append them
+		// directly to init for us, while walkstmt will wrap it in an OBLOCK.
+		// We need to append them directly.
+		// TODO(rsc): Clean this up.
+		n = walkexpr(n, init)
+	} else {
+		n = walkstmt(n)
+	}
+	init.Append(n)
 }
