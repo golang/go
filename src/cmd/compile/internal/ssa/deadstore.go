@@ -137,9 +137,9 @@ func dse(f *Func) {
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.
 func elimDeadAutosGeneric(f *Func) {
-	addr := make(map[*Value]ir.Node) // values that the address of the auto reaches
-	elim := make(map[*Value]ir.Node) // values that could be eliminated if the auto is
-	used := make(map[ir.Node]bool)   // used autos that must be kept
+	addr := make(map[*Value]*ir.Name) // values that the address of the auto reaches
+	elim := make(map[*Value]*ir.Name) // values that could be eliminated if the auto is
+	used := make(map[*ir.Name]bool)   // used autos that must be kept
 
 	// visit the value and report whether any of the maps are updated
 	visit := func(v *Value) (changed bool) {
@@ -222,7 +222,7 @@ func elimDeadAutosGeneric(f *Func) {
 		}
 
 		// Propagate any auto addresses through v.
-		var node ir.Node
+		var node *ir.Name
 		for _, a := range args {
 			if n, ok := addr[a]; ok && !used[n] {
 				if node == nil {
@@ -299,7 +299,7 @@ func elimUnreadAutos(f *Func) {
 	// Loop over all ops that affect autos taking note of which
 	// autos we need and also stores that we might be able to
 	// eliminate.
-	seen := make(map[ir.Node]bool)
+	seen := make(map[*ir.Name]bool)
 	var stores []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
