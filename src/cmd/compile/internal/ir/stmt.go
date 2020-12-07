@@ -33,7 +33,12 @@ func (n *Decl) Left() Node     { return n.X }
 func (n *Decl) SetLeft(x Node) { n.X = x }
 
 // A Stmt is a Node that can appear as a statement.
-// This includes statement-like expressions such as <-c and f().
+// This includes statement-like expressions such as f().
+//
+// (It's possible it should include <-c, but that would require
+// splitting ORECV out of UnaryExpr, which hasn't yet been
+// necessary. Maybe instead we will introduce ExprStmt at
+// some point.)
 type Stmt interface {
 	Node
 	isStmt()
