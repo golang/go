@@ -147,7 +147,7 @@ func elimDeadAutosGeneric(f *Func) {
 		switch v.Op {
 		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
-			n, ok := v.Aux.(ir.Node)
+			n, ok := v.Aux.(*ir.Name)
 			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
@@ -158,7 +158,7 @@ func elimDeadAutosGeneric(f *Func) {
 			return
 		case OpVarDef, OpVarKill:
 			// v should be eliminated if we eliminate the auto.
-			n, ok := v.Aux.(ir.Node)
+			n, ok := v.Aux.(*ir.Name)
 			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
@@ -174,7 +174,7 @@ func elimDeadAutosGeneric(f *Func) {
 			// for open-coded defers from being removed (since they
 			// may not be used by the inline code, but will be used by
 			// panic processing).
-			n, ok := v.Aux.(ir.Node)
+			n, ok := v.Aux.(*ir.Name)
 			if !ok || n.Class() != ir.PAUTO {
 				return
 			}
@@ -303,7 +303,7 @@ func elimUnreadAutos(f *Func) {
 	var stores []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			n, ok := v.Aux.(ir.Node)
+			n, ok := v.Aux.(*ir.Name)
 			if !ok {
 				continue
 			}
@@ -335,7 +335,7 @@ func elimUnreadAutos(f *Func) {
 
 	// Eliminate stores to unread autos.
 	for _, store := range stores {
-		n, _ := store.Aux.(ir.Node)
+		n, _ := store.Aux.(*ir.Name)
 		if seen[n] {
 			continue
 		}

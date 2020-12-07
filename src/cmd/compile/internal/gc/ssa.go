@@ -1504,7 +1504,7 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.OVARDEF:
 		if !s.canSSA(n.Left()) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left(), s.mem(), false)
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left().(*ir.Name), s.mem(), false)
 		}
 	case ir.OVARKILL:
 		// Insert a varkill op to record that a variable is no longer live.
@@ -1512,7 +1512,7 @@ func (s *state) stmt(n ir.Node) {
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
 		if !s.canSSA(n.Left()) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.Left(), s.mem(), false)
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.Left().(*ir.Name), s.mem(), false)
 		}
 
 	case ir.OVARLIVE:
@@ -1525,7 +1525,7 @@ func (s *state) stmt(n ir.Node) {
 		default:
 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left())
 		}
-		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left(), s.mem())
+		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left().(*ir.Name), s.mem())
 
 	case ir.OCHECKNIL:
 		p := s.expr(n.Left())
@@ -1571,7 +1571,7 @@ func (s *state) exit() *ssa.Block {
 	for _, n := range s.returns {
 		addr := s.decladdrs[n]
 		val := s.variable(n, n.Type())
-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n.(*ir.Name), s.mem())
 		s.store(n.Type(), addr, val)
 		// TODO: if val is ever spilled, we'd like to use the
 		// PPARAMOUT slot for spilling it. That won't happen
@@ -2866,7 +2866,7 @@ func (s *state) append(n ir.Node, inplace bool) *ssa.Value {
 	if inplace {
 		if sn.Op() == ir.ONAME && sn.Class() != ir.PEXTERN {
 			// Tell liveness we're about to build a new slice
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn.(*ir.Name), s.mem())
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
 		s.store(types.Types[types.TINT], capaddr, r[2])
@@ -3076,7 +3076,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
 	if base := clobberBase(left); base.Op() == ir.ONAME && base.Class() != ir.PEXTERN && skip == 0 {
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
 	}
 
 	// Left is not ssa-able. Compute its address.
@@ -4236,7 +4236,7 @@ func (s *state) openDeferRecord(n ir.Node) {
 		// call the function directly if it is a static function.
 		closureVal := s.expr(fn)
 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
-		opendefer.closureNode = closure.Aux.(ir.Node)
+		opendefer.closureNode = closure.Aux.(*ir.Name)
 		if !(fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC) {
 			opendefer.closure = closure
 		}
@@ -4249,7 +4249,7 @@ func (s *state) openDeferRecord(n ir.Node) {
 		// runtime panic code to use. But in the defer exit code, we will
 		// call the method directly.
 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
-		opendefer.closureNode = closure.Aux.(ir.Node)
+		opendefer.closureNode = closure.Aux.(*ir.Name)
 	} else {
 		if fn.Op() != ir.ODOTINTER {
 			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4259,8 +4259,8 @@ func (s *state) openDeferRecord(n ir.Node) {
 		// Important to get the receiver type correct, so it is recognized
 		// as a pointer for GC purposes.
 		opendefer.rcvr = s.openDeferSave(nil, fn.Type().Recv().Type, rcvr)
-		opendefer.closureNode = opendefer.closure.Aux.(ir.Node)
-		opendefer.rcvrNode = opendefer.rcvr.Aux.(ir.Node)
+		opendefer.closureNode = opendefer.closure.Aux.(*ir.Name)
+		opendefer.rcvrNode = opendefer.rcvr.Aux.(*ir.Name)
 	}
 	for _, argn := range n.Rlist().Slice() {
 		var v *ssa.Value
@@ -4270,7 +4270,7 @@ func (s *state) openDeferRecord(n ir.Node) {
 			v = s.openDeferSave(argn, argn.Type(), nil)
 		}
 		args = append(args, v)
-		argNodes = append(argNodes, v.Aux.(ir.Node))
+		argNodes = append(argNodes, v.Aux.(*ir.Name))
 	}
 	opendefer.argVals = args
 	opendefer.argNodes = argNodes
@@ -4458,16 +4458,16 @@ func (s *state) openDeferExit() {
 		// use the first call of the last defer exit to compute liveness
 		// for the deferreturn, so we want all stack slots to be live.
 		if r.closureNode != nil {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode.(*ir.Name), s.mem(), false)
 		}
 		if r.rcvrNode != nil {
 			if r.rcvrNode.Type().HasPointers() {
-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
+				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode.(*ir.Name), s.mem(), false)
 			}
 		}
 		for _, argNode := range r.argNodes {
 			if argNode.Type().HasPointers() {
-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
+				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode.(*ir.Name), s.mem(), false)
 			}
 		}
 
@@ -4855,17 +4855,17 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			}
 			if n == nodfp {
 				// Special arg that points to the frame pointer (Used by ORECOVER).
-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
+				return s.entryNewValue2A(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.startmem)
 			}
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case ir.PAUTO:
-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
+			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), !ir.IsAutoTmp(n))
 
 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), true)
 		default:
 			s.Fatalf("variable address class %v not implemented", n.Class())
 			return nil
@@ -5951,7 +5951,7 @@ func (s *state) dottype(n ir.Node, commaok bool) (res, resok *ssa.Value) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
 		tmp = tempAt(n.Pos(), s.curfn, n.Type())
-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
+		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp.(*ir.Name), s.mem())
 		addr = s.addr(tmp)
 	}
 
@@ -6027,7 +6027,7 @@ func (s *state) dottype(n ir.Node, commaok bool) (res, resok *ssa.Value) {
 		delete(s.vars, valVar)
 	} else {
 		res = s.load(n.Type(), addr)
-		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp, s.mem())
+		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
 	}
 	resok = s.variable(okVar, types.Types[types.TBOOL])
 	delete(s.vars, okVar)
@@ -6680,7 +6680,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case *obj.LSym:
 		a.Name = obj.NAME_EXTERN
 		a.Sym = n
-	case ir.Node:
+	case *ir.Name:
 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
 			a.Name = obj.NAME_PARAM
 			a.Sym = ir.Orig(n).Sym().Linksym()
