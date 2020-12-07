@@ -1633,7 +1633,7 @@ func raceDetectorSupported(goos, goarch string) bool {
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
-	case "freebsd", "netbsd", "windows":
+	case "freebsd", "netbsd", "openbsd", "windows":
 		return goarch == "amd64"
 	default:
 		return false
