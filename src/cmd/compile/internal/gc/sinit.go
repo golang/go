@@ -391,10 +391,7 @@ func isSimpleName(n ir.Node) bool {
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
-	a := ir.Nod(ir.OAS, l, r)
-	a = typecheck(a, ctxStmt)
-	a = walkexpr(a, init)
-	init.Append(a)
+	appendWalkStmt(init, ir.Nod(ir.OAS, l, r))
 }
 
 // initGenType is a bitmap indicating the types of generation that will occur for a static value.
@@ -528,7 +525,7 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
 			a := ir.Nod(ir.OINDEX, var_, nodintconst(k))
 			k++
 			if isBlank {
-				a = ir.BlankNode
+				return ir.BlankNode, r
 			}
 			return a, r
 		}
@@ -691,20 +688,12 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 	} else {
 		a = ir.Nod(ir.ONEW, ir.TypeNode(t), nil)
 	}
-
-	a = ir.Nod(ir.OAS, vauto, a)
-	a = typecheck(a, ctxStmt)
-	a = walkexpr(a, init)
-	init.Append(a)
+	appendWalkStmt(init, ir.Nod(ir.OAS, vauto, a))
 
 	if vstat != nil {
 		// copy static to heap (4)
 		a = ir.Nod(ir.ODEREF, vauto, nil)
-
-		a = ir.Nod(ir.OAS, a, vstat)
-		a = typecheck(a, ctxStmt)
-		a = walkexpr(a, init)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, a, vstat))
 	}
 
 	// put dynamics into array (5)
@@ -744,12 +733,10 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 
 		// build list of vauto[c] = expr
 		setlineno(value)
-		a = ir.Nod(ir.OAS, a, value)
-
-		a = typecheck(a, ctxStmt)
-		a = orderStmtInPlace(a, map[string][]*ir.Name{})
-		a = walkstmt(a)
-		init.Append(a)
+		as := typecheck(ir.Nod(ir.OAS, a, value), ctxStmt)
+		as = orderStmtInPlace(as, map[string][]*ir.Name{})
+		as = walkstmt(as)
+		init.Append(as)
 	}
 
 	// make slice out of heap (6)
@@ -825,9 +812,7 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
 		loop.PtrBody().Set1(body)
 		loop.PtrInit().Set1(zero)
 
-		loop = typecheck(loop, ctxStmt)
-		loop = walkstmt(loop)
-		init.Append(loop)
+		appendWalkStmt(init, loop)
 		return
 	}
 	// For a small number of entries, just add them directly.
@@ -842,30 +827,17 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
 		index, elem := r.Left(), r.Right()
 
 		setlineno(index)
-		a := ir.Nod(ir.OAS, tmpkey, index)
-		a = typecheck(a, ctxStmt)
-		a = walkstmt(a)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, tmpkey, index))
 
 		setlineno(elem)
-		a = ir.Nod(ir.OAS, tmpelem, elem)
-		a = typecheck(a, ctxStmt)
-		a = walkstmt(a)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, tmpelem, elem))
 
 		setlineno(tmpelem)
-		a = ir.Nod(ir.OAS, ir.Nod(ir.OINDEX, m, tmpkey), tmpelem)
-		a = typecheck(a, ctxStmt)
-		a = walkstmt(a)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, ir.Nod(ir.OINDEX, m, tmpkey), tmpelem))
 	}
 
-	a = ir.Nod(ir.OVARKILL, tmpkey, nil)
-	a = typecheck(a, ctxStmt)
-	init.Append(a)
-	a = ir.Nod(ir.OVARKILL, tmpelem, nil)
-	a = typecheck(a, ctxStmt)
-	init.Append(a)
+	appendWalkStmt(init, ir.Nod(ir.OVARKILL, tmpkey, nil))
+	appendWalkStmt(init, ir.Nod(ir.OVARKILL, tmpelem, nil))
 }
 
 func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
@@ -875,9 +847,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		base.Fatalf("anylit: not lit, op=%v node=%v", n.Op(), n)
 
 	case ir.ONAME, ir.OMETHEXPR:
-		a := ir.Nod(ir.OAS, var_, n)
-		a = typecheck(a, ctxStmt)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, var_, n))
 
 	case ir.OPTRLIT:
 		if !t.IsPtr() {
@@ -887,20 +857,13 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		var r ir.Node
 		if n.Right() != nil {
 			// n.Right is stack temporary used as backing store.
-			init.Append(ir.Nod(ir.OAS, n.Right(), nil)) // zero backing store, just in case (#18410)
+			appendWalkStmt(init, ir.Nod(ir.OAS, n.Right(), nil)) // zero backing store, just in case (#18410)
 			r = nodAddr(n.Right())
-			r = typecheck(r, ctxExpr)
 		} else {
 			r = ir.Nod(ir.ONEW, ir.TypeNode(n.Left().Type()), nil)
-			r = typecheck(r, ctxExpr)
 			r.SetEsc(n.Esc())
 		}
-
-		r = walkexpr(r, init)
-		a := ir.Nod(ir.OAS, var_, r)
-
-		a = typecheck(a, ctxStmt)
-		init.Append(a)
+		appendWalkStmt(init, ir.Nod(ir.OAS, var_, r))
 
 		var_ = ir.Nod(ir.ODEREF, var_, nil)
 		var_ = typecheck(var_, ctxExpr|ctxAssign)
@@ -922,11 +885,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
 			// copy static to var
-			a := ir.Nod(ir.OAS, var_, vstat)
-
-			a = typecheck(a, ctxStmt)
-			a = walkexpr(a, init)
-			init.Append(a)
+			appendWalkStmt(init, ir.Nod(ir.OAS, var_, vstat))
 
 			// add expressions to automatic
 			fixedlit(inInitFunction, initKindDynamic, n, var_, init)
@@ -941,10 +900,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
 		if isSimpleName(var_) || int64(n.List().Len()) < components {
-			a := ir.Nod(ir.OAS, var_, nil)
-			a = typecheck(a, ctxStmt)
-			a = walkexpr(a, init)
-			init.Append(a)
+			appendWalkStmt(init, ir.Nod(ir.OAS, var_, nil))
 		}
 
 		fixedlit(inInitFunction, initKindLocalCode, n, var_, init)

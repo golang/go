@@ -1005,13 +1005,11 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 	}
 
 	if as.Rlist().Len() != 0 {
-		as = typecheck(as, ctxStmt)
-		ninit.Append(as)
+		ninit.Append(typecheck(as, ctxStmt))
 	}
 
 	if vas != nil {
-		vas = typecheck(vas, ctxStmt)
-		ninit.Append(vas)
+		ninit.Append(typecheck(vas, ctxStmt))
 	}
 
 	if !delayretvars {
@@ -1019,8 +1017,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 		for _, n := range retvars {
 			ninit.Append(ir.Nod(ir.ODCL, n, nil))
 			ras := ir.Nod(ir.OAS, n, nil)
-			ras = typecheck(ras, ctxStmt)
-			ninit.Append(ras)
+			ninit.Append(typecheck(ras, ctxStmt))
 		}
 	}
 
@@ -1235,8 +1232,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 				}
 			}
 
-			as = typecheck(as, ctxStmt)
-			init = append(init, as)
+			init = append(init, typecheck(as, ctxStmt))
 		}
 		init = append(init, nodSym(ir.OGOTO, nil, subst.retlabel))
 		typecheckslice(init, ctxStmt)
@@ -1310,10 +1306,9 @@ func devirtualizeCall(call ir.Node) {
 		return
 	}
 
-	x := ir.NodAt(call.Left().Pos(), ir.ODOTTYPE, call.Left().Left(), nil)
-	x.SetType(typ)
-	x = nodlSym(call.Left().Pos(), ir.OXDOT, x, call.Left().Sym())
-	x = typecheck(x, ctxExpr|ctxCallee)
+	dt := ir.NodAt(call.Left().Pos(), ir.ODOTTYPE, call.Left().Left(), nil)
+	dt.SetType(typ)
+	x := typecheck(nodlSym(call.Left().Pos(), ir.OXDOT, dt, call.Left().Sym()), ctxExpr|ctxCallee)
 	switch x.Op() {
 	case ir.ODOTMETH:
 		if base.Flag.LowerM != 0 {

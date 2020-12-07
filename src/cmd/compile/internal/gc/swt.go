@@ -654,9 +654,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 	dot := ir.NodAt(pos, ir.ODOTTYPE, s.facename, nil)
 	dot.SetType(typ) // iface.(type)
 	as.PtrRlist().Set1(dot)
-	as = typecheck(as, ctxStmt)
-	as = walkexpr(as, &body)
-	body.Append(as)
+	appendWalkStmt(&body, as)
 
 	// if ok { goto label }
 	nif := ir.NodAt(pos, ir.OIF, nil, nil)

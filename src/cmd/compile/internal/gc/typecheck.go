@@ -2163,8 +2163,7 @@ func typecheckargs(n ir.Node) {
 		Curfn = nil
 	}
 
-	as = typecheck(as, ctxStmt)
-	n.PtrInit().Append(as)
+	n.PtrInit().Append(typecheck(as, ctxStmt))
 }
 
 func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
@@ -2397,7 +2396,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
 	me.SetType(methodfunc(m.Type, n.Left().Type()))
 	me.SetOffset(0)
 	me.SetClass(ir.PFUNC)
-	me.(*ir.MethodExpr).Method = m
+	ir.Node(me).(*ir.MethodExpr).Method = m
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
@@ -3419,8 +3418,7 @@ func stringtoruneslit(n ir.Node) ir.Node {
 
 	nn := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(n.Type()))
 	nn.PtrList().Set(l)
-	nn = typecheck(nn, ctxExpr)
-	return nn
+	return typecheck(nn, ctxExpr)
 }
 
 var mapqueue []*ir.MapType

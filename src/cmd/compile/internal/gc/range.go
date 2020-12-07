@@ -288,9 +288,8 @@ func walkrange(nrange ir.Node) ir.Node {
 		// This runs *after* the condition check, so we know
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
-		a = ir.Nod(ir.OAS, hp, addptr(hp, t.Elem().Width))
-		a = typecheck(a, ctxStmt)
-		nfor.PtrList().Set1(a)
+		as := ir.Nod(ir.OAS, hp, addptr(hp, t.Elem().Width))
+		nfor.PtrList().Set1(typecheck(as, ctxStmt))
 
 	case types.TMAP:
 		// order.stmt allocated the iterator for us.
@@ -312,15 +311,13 @@ func walkrange(nrange ir.Node) ir.Node {
 		fn = substArgTypes(fn, th)
 		nfor.SetRight(mkcall1(fn, nil, nil, nodAddr(hit)))
 
-		key := nodSym(ir.ODOT, hit, keysym)
-		key = ir.Nod(ir.ODEREF, key, nil)
+		key := ir.Nod(ir.ODEREF, nodSym(ir.ODOT, hit, keysym), nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []ir.Node{ir.Nod(ir.OAS, v1, key)}
 		} else {
-			elem := nodSym(ir.ODOT, hit, elemsym)
-			elem = ir.Nod(ir.ODEREF, elem, nil)
+			elem := ir.Nod(ir.ODEREF, nodSym(ir.ODOT, hit, elemsym), nil)
 			a := ir.Nod(ir.OAS2, nil, nil)
 			a.PtrList().Set2(v1, v2)
 			a.PtrRlist().Set2(key, elem)
@@ -570,19 +567,15 @@ func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
 	// hp = &a[0]
 	hp := temp(types.Types[types.TUNSAFEPTR])
 
-	tmp := ir.Nod(ir.OINDEX, a, nodintconst(0))
-	tmp.SetBounded(true)
-	tmp = nodAddr(tmp)
-	tmp = convnop(tmp, types.Types[types.TUNSAFEPTR])
-	n.PtrBody().Append(ir.Nod(ir.OAS, hp, tmp))
+	ix := ir.Nod(ir.OINDEX, a, nodintconst(0))
+	ix.SetBounded(true)
+	addr := convnop(nodAddr(ix), types.Types[types.TUNSAFEPTR])
+	n.PtrBody().Append(ir.Nod(ir.OAS, hp, addr))
 
 	// hn = len(a) * sizeof(elem(a))
 	hn := temp(types.Types[types.TUINTPTR])
-
-	tmp = ir.Nod(ir.OLEN, a, nil)
-	tmp = ir.Nod(ir.OMUL, tmp, nodintconst(elemsize))
-	tmp = conv(tmp, types.Types[types.TUINTPTR])
-	n.PtrBody().Append(ir.Nod(ir.OAS, hn, tmp))
+	mul := conv(ir.Nod(ir.OMUL, ir.Nod(ir.OLEN, a, nil), nodintconst(elemsize)), types.Types[types.TUINTPTR])
+	n.PtrBody().Append(ir.Nod(ir.OAS, hn, mul))
 
 	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
@@ -604,8 +597,7 @@ func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
 	n.SetLeft(typecheck(n.Left(), ctxExpr))
 	n.SetLeft(defaultlit(n.Left(), nil))
 	typecheckslice(n.Body().Slice(), ctxStmt)
-	n = walkstmt(n)
-	return n
+	return walkstmt(n)
 }
 
 // addptr returns (*T)(uintptr(p) + n).

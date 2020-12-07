@@ -225,8 +225,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 			if ir.IsBlank(elem) {
 				elem = nodnil()
 			}
-			receivedp := nodAddr(n.List().Second())
-			receivedp = typecheck(receivedp, ctxExpr)
+			receivedp := typecheck(nodAddr(n.List().Second()), ctxExpr)
 			call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
 		}
 
@@ -247,9 +246,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 	// generate sel-struct
 	base.Pos = sellineno
 	selv := temp(types.NewArray(scasetype(), int64(ncas)))
-	r := ir.Nod(ir.OAS, selv, nil)
-	r = typecheck(r, ctxStmt)
-	init = append(init, r)
+	init = append(init, typecheck(ir.Nod(ir.OAS, selv, nil), ctxStmt))
 
 	// No initialization for order; runtime.selectgo is responsible for that.
 	order := temp(types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
@@ -300,8 +297,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		setField := func(f string, val ir.Node) {
 			r := ir.Nod(ir.OAS, nodSym(ir.ODOT, ir.Nod(ir.OINDEX, selv, nodintconst(int64(i))), lookup(f)), val)
-			r = typecheck(r, ctxStmt)
-			init = append(init, r)
+			init = append(init, typecheck(r, ctxStmt))
 		}
 
 		c = convnop(c, types.Types[types.TUNSAFEPTR])
@@ -314,7 +310,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r = mkcall("selectsetpc", nil, nil, nodAddr(ir.Nod(ir.OINDEX, pcs, nodintconst(int64(i)))))
+			r := mkcall("selectsetpc", nil, nil, nodAddr(ir.Nod(ir.OINDEX, pcs, nodintconst(int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -326,12 +322,11 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 	base.Pos = sellineno
 	chosen := temp(types.Types[types.TINT])
 	recvOK := temp(types.Types[types.TBOOL])
-	r = ir.Nod(ir.OAS2, nil, nil)
+	r := ir.Nod(ir.OAS2, nil, nil)
 	r.PtrList().Set2(chosen, recvOK)
 	fn := syslook("selectgo")
 	r.PtrRlist().Set1(mkcall1(fn, fn.Type().Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, nodintconst(int64(nsends)), nodintconst(int64(nrecvs)), nodbool(dflt == nil)))
-	r = typecheck(r, ctxStmt)
-	init = append(init, r)
+	init = append(init, typecheck(r, ctxStmt))
 
 	// selv and order are no longer alive after selectgo.
 	init = append(init, ir.Nod(ir.OVARKILL, selv, nil))
@@ -349,8 +344,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 {
 			x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
-			x = typecheck(x, ctxStmt)
-			r.PtrBody().Append(x)
+			r.PtrBody().Append(typecheck(x, ctxStmt))
 		}
 
 		r.PtrBody().AppendNodes(cas.PtrBody())
