@@ -70,7 +70,8 @@ func typecheckselect(sel ir.Node) {
 
 			case ir.ORECV:
 				// convert <-c into OSELRECV(_, <-c)
-				n = ir.NodAt(n.Pos(), ir.OSELRECV, ir.BlankNode, n)
+				n = ir.NodAt(n.Pos(), ir.OAS, ir.BlankNode, n)
+				n.SetOp(ir.OSELRECV)
 				n.SetTypecheck(1)
 				ncase.SetLeft(n)
 
@@ -164,7 +165,8 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		// Lower x, _ = <-c to x = <-c.
 		if n.Op() == ir.OSELRECV2 && ir.IsBlank(n.List().Second()) {
-			n = ir.NodAt(n.Pos(), ir.OSELRECV, n.List().First(), n.Rlist().First())
+			n = ir.NodAt(n.Pos(), ir.OAS, n.List().First(), n.Rlist().First())
+			n.SetOp(ir.OSELRECV)
 			n.SetTypecheck(1)
 			cas.SetLeft(n)
 		}

@@ -547,8 +547,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		op = ir.OCONV
 	}
 
-	r := ir.Nod(op, n, nil)
-	r.SetType(t)
+	r := ir.NewConvExpr(base.Pos, op, t, n)
 	r.SetTypecheck(1)
 	r.SetImplicit(true)
 	return r
@@ -1169,7 +1168,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		fn.PtrBody().Append(n)
 	}
 
-	dot := adddot(nodSym(ir.OXDOT, nthis, method.Sym))
+	dot := adddot(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
 
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The

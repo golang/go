@@ -699,7 +699,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		if expr.Full {
 			op = ir.OSLICE3
 		}
-		n := p.nod(expr, op, p.expr(expr.X), nil)
+		n := ir.NewSliceExpr(p.pos(expr), op, p.expr(expr.X))
 		var index [3]ir.Node
 		for i, x := range &expr.Index {
 			if x != nil {
@@ -716,9 +716,22 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		}
 		x := p.expr(expr.X)
 		if expr.Y == nil {
-			return p.nod(expr, p.unOp(expr.Op), x, nil)
+			pos, op := p.pos(expr), p.unOp(expr.Op)
+			switch op {
+			case ir.OADDR:
+				return nodAddrAt(pos, x)
+			case ir.ODEREF:
+				return ir.NewStarExpr(pos, x)
+			}
+			return ir.NewUnaryExpr(pos, op, x)
 		}
-		return p.nod(expr, p.binOp(expr.Op), x, p.expr(expr.Y))
+
+		pos, op, y := p.pos(expr), p.binOp(expr.Op), p.expr(expr.Y)
+		switch op {
+		case ir.OANDAND, ir.OOROR:
+			return ir.NewLogicalExpr(pos, op, x, y)
+		}
+		return ir.NewBinaryExpr(pos, op, x, y)
 	case *syntax.CallExpr:
 		n := p.nod(expr, ir.OCALL, p.expr(expr.Fun), nil)
 		n.PtrList().Set(p.exprs(expr.ArgList))
@@ -1043,11 +1056,11 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		default:
 			panic("unhandled BranchStmt")
 		}
-		n := p.nod(stmt, op, nil, nil)
+		var sym *types.Sym
 		if stmt.Label != nil {
-			n.SetSym(p.name(stmt.Label))
+			sym = p.name(stmt.Label)
 		}
-		return n
+		return ir.NewBranchStmt(p.pos(stmt), op, sym)
 	case *syntax.CallStmt:
 		var op ir.Op
 		switch stmt.Tok {
@@ -1058,7 +1071,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		default:
 			panic("unhandled CallStmt")
 		}
-		return p.nod(stmt, op, p.expr(stmt.Call), nil)
+		return ir.NewGoDeferStmt(p.pos(stmt), op, p.expr(stmt.Call))
 	case *syntax.ReturnStmt:
 		var results []ir.Node
 		if stmt.Results != nil {

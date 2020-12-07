@@ -666,7 +666,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if n.Op() == ir.OASOP {
 			// Rewrite x op= y into x = x op y.
 			n = ir.Nod(ir.OAS, n.Left(),
-				typecheck(ir.Nod(n.SubOp(), n.Left(), n.Right()), ctxExpr))
+				typecheck(ir.NewBinaryExpr(base.Pos, n.SubOp(), n.Left(), n.Right()), ctxExpr))
 		}
 
 		if oaslit(n, init) {
@@ -3232,16 +3232,16 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 		if l.Type().IsEmptyInterface() {
 			tab.SetType(types.NewPtr(types.Types[types.TUINT8]))
 			tab.SetTypecheck(1)
-			eqtype = ir.Nod(eq, tab, rtyp)
+			eqtype = ir.NewBinaryExpr(base.Pos, eq, tab, rtyp)
 		} else {
-			nonnil := ir.Nod(brcom(eq), nodnil(), tab)
-			match := ir.Nod(eq, itabType(tab), rtyp)
-			eqtype = ir.Nod(andor, nonnil, match)
+			nonnil := ir.NewBinaryExpr(base.Pos, brcom(eq), nodnil(), tab)
+			match := ir.NewBinaryExpr(base.Pos, eq, itabType(tab), rtyp)
+			eqtype = ir.NewLogicalExpr(base.Pos, andor, nonnil, match)
 		}
 		// Check for data equal.
-		eqdata := ir.Nod(eq, ifaceData(n.Pos(), l, r.Type()), r)
+		eqdata := ir.NewBinaryExpr(base.Pos, eq, ifaceData(n.Pos(), l, r.Type()), r)
 		// Put it all together.
-		expr := ir.Nod(andor, eqtype, eqdata)
+		expr := ir.NewLogicalExpr(base.Pos, andor, eqtype, eqdata)
 		n = finishcompare(n, expr, init)
 		return n
 	}
@@ -3354,11 +3354,11 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 	var expr ir.Node
 	compare := func(el, er ir.Node) {
-		a := ir.Nod(n.Op(), el, er)
+		a := ir.NewBinaryExpr(base.Pos, n.Op(), el, er)
 		if expr == nil {
 			expr = a
 		} else {
-			expr = ir.Nod(andor, expr, a)
+			expr = ir.NewLogicalExpr(base.Pos, andor, expr, a)
 		}
 	}
 	cmpl = safeexpr(cmpl, init)
@@ -3519,13 +3519,13 @@ func walkcompareString(n ir.Node, init *ir.Nodes) ir.Node {
 			if len(s) > 0 {
 				ncs = safeexpr(ncs, init)
 			}
-			r := ir.Nod(cmp, ir.Nod(ir.OLEN, ncs, nil), nodintconst(int64(len(s))))
+			r := ir.Node(ir.NewBinaryExpr(base.Pos, cmp, ir.Nod(ir.OLEN, ncs, nil), nodintconst(int64(len(s)))))
 			remains := len(s)
 			for i := 0; remains > 0; {
 				if remains == 1 || !canCombineLoads {
 					cb := nodintconst(int64(s[i]))
 					ncb := ir.Nod(ir.OINDEX, ncs, nodintconst(int64(i)))
-					r = ir.Nod(and, r, ir.Nod(cmp, ncb, cb))
+					r = ir.NewLogicalExpr(base.Pos, and, r, ir.NewBinaryExpr(base.Pos, cmp, ncb, cb))
 					remains--
 					i++
 					continue
@@ -3556,7 +3556,7 @@ func walkcompareString(n ir.Node, init *ir.Nodes) ir.Node {
 				}
 				csubstrPart := nodintconst(csubstr)
 				// Compare "step" bytes as once
-				r = ir.Nod(and, r, ir.Nod(cmp, csubstrPart, ncsubstr))
+				r = ir.NewLogicalExpr(base.Pos, and, r, ir.NewBinaryExpr(base.Pos, cmp, csubstrPart, ncsubstr))
 				remains -= step
 				i += step
 			}
@@ -3583,7 +3583,7 @@ func walkcompareString(n ir.Node, init *ir.Nodes) ir.Node {
 	} else {
 		// sys_cmpstring(s1, s2) :: 0
 		r = mkcall("cmpstring", types.Types[types.TINT], init, conv(n.Left(), types.Types[types.TSTRING]), conv(n.Right(), types.Types[types.TSTRING]))
-		r = ir.Nod(n.Op(), r, nodintconst(0))
+		r = ir.NewBinaryExpr(base.Pos, n.Op(), r, nodintconst(0))
 	}
 
 	return finishcompare(n, r, init)
@@ -3909,17 +3909,13 @@ func wrapCall(n ir.Node, init *ir.Nodes) ir.Node {
 		if origArg == nil {
 			continue
 		}
-		arg := ir.Nod(origArg.Op(), args[i], nil)
-		arg.SetType(origArg.Type())
-		args[i] = arg
+		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
 	}
-	call := ir.Nod(n.Op(), nil, nil)
+	call := ir.NewCallExpr(base.Pos, n.Op(), n.Left(), args)
 	if !isBuiltinCall {
 		call.SetOp(ir.OCALL)
-		call.SetLeft(n.Left())
 		call.SetIsDDD(n.IsDDD())
 	}
-	call.PtrList().Set(args)
 	fn.PtrBody().Set1(call)
 
 	funcbody()
@@ -3928,12 +3924,8 @@ func wrapCall(n ir.Node, init *ir.Nodes) ir.Node {
 	typecheckslice(fn.Body().Slice(), ctxStmt)
 	xtop = append(xtop, fn)
 
-	call = ir.Nod(ir.OCALL, nil, nil)
-	call.SetLeft(fn.Nname)
-	call.PtrList().Set(n.List().Slice())
-	call = typecheck(call, ctxStmt)
-	call = walkexpr(call, init)
-	return call
+	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.List().Slice())
+	return walkexpr(typecheck(call, ctxStmt), init)
 }
 
 // substArgTypes substitutes the given list of types for
