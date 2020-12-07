@@ -186,7 +186,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// with the user's workspace layout. Workspace packages that only have the
 	// ID "command-line-arguments" are usually a symptom of a bad workspace
 	// configuration.
-	if onlyCommandLineArguments(wsPkgs) {
+	if containsCommandLineArguments(wsPkgs) {
 		if criticalErr := snapshot.WorkspaceLayoutError(ctx); criticalErr != nil {
 			err = criticalErr
 		}
@@ -563,11 +563,11 @@ func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot
 	return !hasGo
 }
 
-func onlyCommandLineArguments(pkgs []source.Package) bool {
+func containsCommandLineArguments(pkgs []source.Package) bool {
 	for _, pkg := range pkgs {
-		if pkg.ID() != "command-line-arguments" {
-			return false
+		if strings.Contains(pkg.ID(), "command-line-arguments") {
+			return true
 		}
 	}
-	return true
+	return false
 }

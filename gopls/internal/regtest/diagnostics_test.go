@@ -1664,7 +1664,7 @@ package b
 				env.Await(
 					env.DiagnosticAtRegexp("a/a.go", "package a"),
 					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-					OutstandingWork(lsp.WorkspaceLoadFailure, "gopls requires one module per workspace folder."),
+					OutstandingWork(lsp.WorkspaceLoadFailure, "gopls requires a module at the root of your workspace."),
 				)
 			})
 		})
@@ -1690,6 +1690,74 @@ package b
 				NoOutstandingWork(),
 			)
 		})
+	})
+}
+
+func TestNestedModules(t *testing.T) {
+	const proxy = `
+-- nested.com@v1.0.0/go.mod --
+module nested.com
+
+go 1.12
+-- nested.com@v1.0.0/hello/hello.go --
+package hello
+
+func Hello() {}
+`
+
+	const nested = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require nested.com v1.0.0
+-- go.sum --
+nested.com v1.0.0 h1:I6spLE4CgFqMdBPc+wTV2asDO2QJ3tU0YAT+jkLeN1I=
+nested.com v1.0.0/go.mod h1:ly53UzXQgVjSlV7wicdBB4p8BxfytuGT1Xcyv0ReJfI=
+-- main.go --
+package main
+
+import "nested.com/hello"
+
+func main() {
+	hello.Hello()
+}
+-- nested/go.mod --
+module nested.com
+
+-- nested/hello/hello.go --
+package hello
+
+func Hello() {
+	helloHelper()
+}
+-- nested/hello/hello_helper.go --
+package hello
+
+func helloHelper() {}
+`
+	withOptions(
+		WithProxyFiles(proxy),
+		WithModes(Singleton),
+	).run(t, nested, func(t *testing.T, env *Env) {
+		// Expect a diagnostic in a nested module.
+		env.OpenFile("nested/hello/hello.go")
+		didOpen := CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1)
+		env.Await(
+			OnceMet(
+				didOpen,
+				env.DiagnosticAtRegexp("nested/hello/hello.go", "helloHelper"),
+			),
+			OnceMet(
+				didOpen,
+				env.DiagnosticAtRegexpWithMessage("nested/hello/hello.go", "package hello", "nested module"),
+			),
+			OnceMet(
+				didOpen,
+				OutstandingWork(lsp.WorkspaceLoadFailure, "nested module"),
+			),
+		)
 	})
 }
 

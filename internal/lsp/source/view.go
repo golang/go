@@ -118,7 +118,7 @@ type Snapshot interface {
 	ModTidy(ctx context.Context, pm *ParsedModule) (*TidiedModule, error)
 
 	// GoModForFile returns the URI of the go.mod file for the given URI.
-	GoModForFile(ctx context.Context, uri span.URI) span.URI
+	GoModForFile(uri span.URI) span.URI
 
 	// BuiltinPackage returns information about the special builtin package.
 	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)

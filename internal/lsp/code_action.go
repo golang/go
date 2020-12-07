@@ -363,7 +363,7 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 
 func goGetFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	if snapshot.GoModForFile(ctx, uri) == "" {
+	if snapshot.GoModForFile(uri) == "" {
 		// Go get only supports module mode for now.
 		return nil, nil
 	}
@@ -510,7 +510,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, fh source.V
 	case source.Mod:
 		modFH = fh
 	case source.Go:
-		modURI := snapshot.GoModForFile(ctx, fh.URI())
+		modURI := snapshot.GoModForFile(fh.URI())
 		if modURI == "" {
 			return nil, nil
 		}

@@ -294,7 +294,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 			modURI = span.URIFromPath(filepath.Join(tmpDir.Filename(), "go.mod"))
 		}
 	} else {
-		modURI = s.GoModForFile(ctx, span.URIFromPath(inv.WorkingDir))
+		modURI = s.GoModForFile(span.URIFromPath(inv.WorkingDir))
 	}
 
 	var modContent []byte
@@ -795,9 +795,13 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	return results, nil
 }
 
-func (s *snapshot) GoModForFile(ctx context.Context, uri span.URI) span.URI {
+func (s *snapshot) GoModForFile(uri span.URI) span.URI {
+	return moduleForURI(s.workspace.activeModFiles, uri)
+}
+
+func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	var match span.URI
-	for modURI := range s.workspace.getActiveModFiles() {
+	for modURI := range modFiles {
 		if !source.InDir(dirURI(modURI).Filename(), uri.Filename()) {
 			continue
 		}
@@ -890,7 +894,7 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 		}
 		// If we are setting a real ID, when the package had only previously
 		// had a command-line-arguments ID, we should just replace it.
-		if existingID == "command-line-arguments" {
+		if isCommandLineArguments(string(existingID)) {
 			s.ids[uri][i] = id
 			// Delete command-line-arguments if it was a workspace package.
 			delete(s.workspacePackages, existingID)
@@ -898,6 +902,14 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 		}
 	}
 	s.ids[uri] = append(s.ids[uri], id)
+}
+
+// isCommandLineArguments reports whether a given value denotes
+// "command-line-arguments" package, which is a package with an unknown ID
+// created by the go command. It can have a test variant, which is why callers
+// should not check that a value equals "command-line-arguments" directly.
+func isCommandLineArguments(s string) bool {
+	return strings.Contains(s, "command-line-arguments")
 }
 
 func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
@@ -962,6 +974,19 @@ func (s *snapshot) IsOpen(uri span.URI) bool {
 
 }
 
+func (s *snapshot) openFiles() []source.VersionedFileHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var open []source.VersionedFileHandle
+	for _, fh := range s.files {
+		if s.isOpenLocked(fh.URI()) {
+			open = append(open, fh)
+		}
+	}
+	return open
+}
+
 func (s *snapshot) isOpenLocked(uri span.URI) bool {
 	_, open := s.files[uri].(*overlay)
 	return open
@@ -1012,7 +1037,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 		missingMetadata = true
 
 		// Don't try to reload "command-line-arguments" directly.
-		if pkgPath == "command-line-arguments" {
+		if isCommandLineArguments(string(pkgPath)) {
 			continue
 		}
 		pkgPathSet[pkgPath] = struct{}{}
@@ -1361,7 +1386,7 @@ copyIDs:
 		// go command when the user is outside of GOPATH and outside of a
 		// module. Do not cache them as workspace packages for longer than
 		// necessary.
-		if id == "command-line-arguments" {
+		if isCommandLineArguments(string(id)) {
 			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
 				continue
 			}
