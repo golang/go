@@ -88,7 +88,7 @@ func (f *subFS) Open(name string) (File, error) {
 }
 
 func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
-	full, err := f.fullName("open", name)
+	full, err := f.fullName("read", name)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
 }
 
 func (f *subFS) ReadFile(name string) ([]byte, error) {
-	full, err := f.fullName("open", name)
+	full, err := f.fullName("read", name)
 	if err != nil {
 		return nil, err
 	}
