@@ -207,8 +207,7 @@ func walkstmt(n ir.Node) ir.Node {
 			}
 			nn := ir.Nod(ir.OAS, v.Name().Heapaddr, prealloc[v])
 			nn.SetColas(true)
-			nn = typecheck(nn, ctxStmt)
-			return walkstmt(nn)
+			return walkstmt(typecheck(nn, ctxStmt))
 		}
 		return n
 
@@ -480,10 +479,8 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	if n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP {
 		nn := ir.Nod(ir.ODEREF, n.Name().Heapaddr, nil)
-		nn = typecheck(nn, ctxExpr)
-		nn = walkexpr(nn, init)
 		nn.Left().MarkNonNil()
-		return nn
+		return walkexpr(typecheck(nn, ctxExpr), init)
 	}
 
 	n = walkexpr1(n, init)
@@ -969,10 +966,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			dowidth(fn.Type())
 			call := ir.Nod(ir.OCALL, fn, nil)
 			call.PtrList().Set1(n.Left())
-			call = typecheck(call, ctxExpr)
-			call = walkexpr(call, init)
-			call = safeexpr(call, init)
-			e := ir.Nod(ir.OEFACE, typeword(), call)
+			e := ir.Nod(ir.OEFACE, typeword(), safeexpr(walkexpr(typecheck(call, ctxExpr), init), init))
 			e.SetType(toType)
 			e.SetTypecheck(1)
 			return e
@@ -1277,9 +1271,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 			// var hv hmap
 			hv := temp(hmapType)
-			zero := ir.Nod(ir.OAS, hv, nil)
-			zero = typecheck(zero, ctxStmt)
-			init.Append(zero)
+			init.Append(typecheck(ir.Nod(ir.OAS, hv, nil), ctxStmt))
 			// h = &hv
 			h = nodAddr(hv)
 
@@ -1305,8 +1297,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 				// var bv bmap
 				bv := temp(bmap(t))
-				zero = ir.Nod(ir.OAS, bv, nil)
-				nif.PtrBody().Append(zero)
+				nif.PtrBody().Append(ir.Nod(ir.OAS, bv, nil))
 
 				// b = &bv
 				b := nodAddr(bv)
@@ -1316,9 +1307,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				na := ir.Nod(ir.OAS, nodSym(ir.ODOT, h, bsym), b)
 				nif.PtrBody().Append(na)
 
-				nif = typecheck(nif, ctxStmt)
-				nif = walkstmt(nif)
-				init.Append(nif)
+				init.Append(walkstmt(typecheck(nif, ctxStmt)))
 			}
 		}
 
@@ -1336,10 +1325,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				// h.hash0 = fastrand()
 				rand := mkcall("fastrand", types.Types[types.TUINT32], init)
 				hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
-				a := ir.Nod(ir.OAS, nodSym(ir.ODOT, h, hashsym), rand)
-				a = typecheck(a, ctxStmt)
-				a = walkexpr(a, init)
-				init.Append(a)
+				appendWalk(init, ir.Nod(ir.OAS, nodSym(ir.ODOT, h, hashsym), rand))
 				return convnop(h, t)
 			}
 			// Call runtime.makehmap to allocate an
@@ -1408,20 +1394,15 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			niflen := ir.Nod(ir.OIF, ir.Nod(ir.OLT, l, nodintconst(0)), nil)
 			niflen.PtrBody().Set1(mkcall("panicmakeslicelen", nil, init))
 			nif.PtrBody().Append(niflen, mkcall("panicmakeslicecap", nil, init))
-			nif = typecheck(nif, ctxStmt)
-			init.Append(nif)
+			init.Append(typecheck(nif, ctxStmt))
 
 			t = types.NewArray(t.Elem(), i) // [r]T
 			var_ := temp(t)
-			a := ir.Nod(ir.OAS, var_, nil) // zero temp
-			a = typecheck(a, ctxStmt)
-			init.Append(a)
-			r := ir.Nod(ir.OSLICE, var_, nil) // arr[:l]
+			appendWalk(init, ir.Nod(ir.OAS, var_, nil)) // zero temp
+			r := ir.Nod(ir.OSLICE, var_, nil)           // arr[:l]
 			r.SetSliceBounds(nil, l, nil)
-			r = conv(r, n.Type()) // in case n.Type is named.
-			r = typecheck(r, ctxExpr)
-			r = walkexpr(r, init)
-			return r
+			// The conv is necessary in case n.Type is named.
+			return walkexpr(typecheck(conv(r, n.Type()), ctxExpr), init)
 		}
 
 		// n escapes; set up a call to makeslice.
@@ -1449,10 +1430,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		m.SetLeft(mkcall1(fn, types.Types[types.TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype)))
 		m.Left().MarkNonNil()
 		m.PtrList().Set2(conv(len, types.Types[types.TINT]), conv(cap, types.Types[types.TINT]))
-
-		m = typecheck(m, ctxExpr)
-		m = walkexpr(m, init)
-		return m
+		return walkexpr(typecheck(m, ctxExpr), init)
 
 	case ir.OMAKESLICECOPY:
 		if n.Esc() == EscNone {
@@ -1569,9 +1547,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 				as := ir.Nod(ir.OAS,
 					ir.Nod(ir.ODEREF, p, nil),
 					ir.Nod(ir.ODEREF, convnop(ir.Nod(ir.OSPTR, s, nil), t.PtrTo()), nil))
-				as = typecheck(as, ctxStmt)
-				as = walkstmt(as)
-				init.Append(as)
+				appendWalk(init, as)
 			}
 
 			// Slice the [n]byte to a []byte.
@@ -1811,8 +1787,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		if fncall(l, r.Type) {
 			tmp := ir.Node(temp(r.Type))
 			tmp = typecheck(tmp, ctxExpr)
-			a := ir.Nod(ir.OAS, l, tmp)
-			a = convas(a, &mm)
+			a := convas(ir.Nod(ir.OAS, l, tmp), &mm)
 			mm.Append(a)
 			l = tmp
 		}
@@ -1822,8 +1797,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		res.SetType(r.Type)
 		res.SetTypecheck(1)
 
-		a := ir.Nod(ir.OAS, l, res)
-		a = convas(a, &nn)
+		a := convas(ir.Nod(ir.OAS, l, res), &nn)
 		updateHasCall(a)
 		if a.HasCall() {
 			ir.Dump("ascompatet ucount", a)
@@ -1917,8 +1891,7 @@ func walkCall(n ir.Node, init *ir.Nodes) {
 		if instrumenting || fncall(arg, t) {
 			// make assignment of fncall to tempAt
 			tmp := temp(t)
-			a := ir.Nod(ir.OAS, tmp, arg)
-			a = convas(a, init)
+			a := convas(ir.Nod(ir.OAS, tmp, arg), init)
 			tempAssigns = append(tempAssigns, a)
 			// replace arg with temp
 			args[i] = tmp
@@ -2067,10 +2040,8 @@ func walkprint(nn ir.Node, init *ir.Nodes) ir.Node {
 	walkexprlist(calls, init)
 
 	r := ir.Nod(ir.OBLOCK, nil, nil)
-	r = typecheck(r, ctxStmt)
-	r = walkstmt(r)
 	r.PtrList().Set(calls)
-	return r
+	return walkstmt(typecheck(r, ctxStmt))
 }
 
 func callnew(t *types.Type) ir.Node {
@@ -2527,16 +2498,15 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) ir.Node {
 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
-	r := ir.Nod(ir.OCALL, fn, nil)
-	r.PtrList().Set(va)
+	call := ir.Nod(ir.OCALL, fn, nil)
+	call.PtrList().Set(va)
+	ctx := ctxStmt
 	if fn.Type().NumResults() > 0 {
-		r = typecheck(r, ctxExpr|ctxMultiOK)
-	} else {
-		r = typecheck(r, ctxStmt)
+		ctx = ctxExpr | ctxMultiOK
 	}
-	r = walkexpr(r, init)
-	r.SetType(t)
-	return r
+	r1 := typecheck(call, ctx)
+	r1.SetType(t)
+	return walkexpr(r1, init)
 }
 
 func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) ir.Node {
@@ -2731,11 +2701,11 @@ func addstr(n ir.Node, init *ir.Nodes) ir.Node {
 	cat := syslook(fn)
 	r := ir.Nod(ir.OCALL, cat, nil)
 	r.PtrList().Set(args)
-	r = typecheck(r, ctxExpr)
-	r = walkexpr(r, init)
-	r.SetType(n.Type())
+	r1 := typecheck(r, ctxExpr)
+	r1 = walkexpr(r1, init)
+	r1.SetType(n.Type())
 
-	return r
+	return r1
 }
 
 func walkAppendArgs(n ir.Node, init *ir.Nodes) {
@@ -2807,44 +2777,39 @@ func appendslice(n ir.Node, init *ir.Nodes) ir.Node {
 	var ncopy ir.Node
 	if elemtype.HasPointers() {
 		// copy(s[len(l1):], l2)
-		nptr1 := ir.Nod(ir.OSLICE, s, nil)
-		nptr1.SetType(s.Type())
-		nptr1.SetSliceBounds(ir.Nod(ir.OLEN, l1, nil), nil, nil)
-		nptr1 = cheapexpr(nptr1, &nodes)
-
-		nptr2 := l2
+		slice := ir.Nod(ir.OSLICE, s, nil)
+		slice.SetType(s.Type())
+		slice.SetSliceBounds(ir.Nod(ir.OLEN, l1, nil), nil, nil)
 
 		Curfn.SetWBPos(n.Pos())
 
 		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
 		fn := syslook("typedslicecopy")
 		fn = substArgTypes(fn, l1.Type().Elem(), l2.Type().Elem())
-		ptr1, len1 := backingArrayPtrLen(nptr1)
-		ptr2, len2 := backingArrayPtrLen(nptr2)
+		ptr1, len1 := backingArrayPtrLen(cheapexpr(slice, &nodes))
+		ptr2, len2 := backingArrayPtrLen(l2)
 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, typename(elemtype), ptr1, len1, ptr2, len2)
 	} else if instrumenting && !base.Flag.CompilingRuntime {
 		// rely on runtime to instrument:
 		//  copy(s[len(l1):], l2)
 		// l2 can be a slice or string.
-		nptr1 := ir.Nod(ir.OSLICE, s, nil)
-		nptr1.SetType(s.Type())
-		nptr1.SetSliceBounds(ir.Nod(ir.OLEN, l1, nil), nil, nil)
-		nptr1 = cheapexpr(nptr1, &nodes)
-		nptr2 := l2
+		slice := ir.Nod(ir.OSLICE, s, nil)
+		slice.SetType(s.Type())
+		slice.SetSliceBounds(ir.Nod(ir.OLEN, l1, nil), nil, nil)
 
-		ptr1, len1 := backingArrayPtrLen(nptr1)
-		ptr2, len2 := backingArrayPtrLen(nptr2)
+		ptr1, len1 := backingArrayPtrLen(cheapexpr(slice, &nodes))
+		ptr2, len2 := backingArrayPtrLen(l2)
 
 		fn := syslook("slicecopy")
 		fn = substArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, nodintconst(elemtype.Width))
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
-		nptr1 := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
-		nptr1.SetBounded(true)
-		nptr1 = nodAddr(nptr1)
+		ix := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
+		ix.SetBounded(true)
+		addr := ir.Nod(ir.OADDR, ix, nil)
 
-		nptr2 := ir.Nod(ir.OSPTR, l2, nil)
+		sptr := ir.Nod(ir.OSPTR, l2, nil)
 
 		nwid := cheapexpr(conv(ir.Nod(ir.OLEN, l2, nil), types.Types[types.TUINTPTR]), &nodes)
 		nwid = ir.Nod(ir.OMUL, nwid, nodintconst(elemtype.Width))
@@ -2852,7 +2817,7 @@ func appendslice(n ir.Node, init *ir.Nodes) ir.Node {
 		// instantiate func memmove(to *any, frm *any, length uintptr)
 		fn := syslook("memmove")
 		fn = substArgTypes(fn, elemtype, elemtype)
-		ncopy = mkcall1(fn, nil, &nodes, nptr1, nptr2, nwid)
+		ncopy = mkcall1(fn, nil, &nodes, addr, sptr, nwid)
 	}
 	ln := append(nodes.Slice(), ncopy)
 
@@ -2986,14 +2951,12 @@ func extendslice(n ir.Node, init *ir.Nodes) ir.Node {
 	nodes = append(nodes, ir.Nod(ir.OAS, sptr, tmp))
 
 	// hp := &s[len(l1)]
-	hp := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
-	hp.SetBounded(true)
-	hp = nodAddr(hp)
-	hp = convnop(hp, types.Types[types.TUNSAFEPTR])
+	ix := ir.Nod(ir.OINDEX, s, ir.Nod(ir.OLEN, l1, nil))
+	ix.SetBounded(true)
+	hp := convnop(ir.Nod(ir.OADDR, ix, nil), types.Types[types.TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
-	hn := ir.Nod(ir.OMUL, l2, nodintconst(elemtype.Width))
-	hn = conv(hn, types.Types[types.TUINTPTR])
+	hn := conv(ir.Nod(ir.OMUL, l2, nodintconst(elemtype.Width)), types.Types[types.TUINTPTR])
 
 	clrname := "memclrNoHeapPointers"
 	hasPointers := elemtype.HasPointers()
@@ -3083,32 +3046,32 @@ func walkappend(n ir.Node, init *ir.Nodes, dst ir.Node) ir.Node {
 	ns := temp(nsrc.Type())
 	l = append(l, ir.Nod(ir.OAS, ns, nsrc)) // s = src
 
-	na := nodintconst(int64(argc)) // const argc
-	nx := ir.Nod(ir.OIF, nil, nil) // if cap(s) - len(s) < argc
-	nx.SetLeft(ir.Nod(ir.OLT, ir.Nod(ir.OSUB, ir.Nod(ir.OCAP, ns, nil), ir.Nod(ir.OLEN, ns, nil)), na))
+	na := nodintconst(int64(argc))  // const argc
+	nif := ir.Nod(ir.OIF, nil, nil) // if cap(s) - len(s) < argc
+	nif.SetLeft(ir.Nod(ir.OLT, ir.Nod(ir.OSUB, ir.Nod(ir.OCAP, ns, nil), ir.Nod(ir.OLEN, ns, nil)), na))
 
 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
 	fn = substArgTypes(fn, ns.Type().Elem(), ns.Type().Elem())
 
-	nx.PtrBody().Set1(ir.Nod(ir.OAS, ns,
-		mkcall1(fn, ns.Type(), nx.PtrInit(), typename(ns.Type().Elem()), ns,
+	nif.PtrBody().Set1(ir.Nod(ir.OAS, ns,
+		mkcall1(fn, ns.Type(), nif.PtrInit(), typename(ns.Type().Elem()), ns,
 			ir.Nod(ir.OADD, ir.Nod(ir.OLEN, ns, nil), na))))
 
-	l = append(l, nx)
+	l = append(l, nif)
 
 	nn := temp(types.Types[types.TINT])
 	l = append(l, ir.Nod(ir.OAS, nn, ir.Nod(ir.OLEN, ns, nil))) // n = len(s)
 
-	nx = ir.Nod(ir.OSLICE, ns, nil) // ...s[:n+argc]
-	nx.SetSliceBounds(nil, ir.Nod(ir.OADD, nn, na), nil)
-	nx.SetBounded(true)
-	l = append(l, ir.Nod(ir.OAS, ns, nx)) // s = s[:n+argc]
+	slice := ir.Nod(ir.OSLICE, ns, nil) // ...s[:n+argc]
+	slice.SetSliceBounds(nil, ir.Nod(ir.OADD, nn, na), nil)
+	slice.SetBounded(true)
+	l = append(l, ir.Nod(ir.OAS, ns, slice)) // s = s[:n+argc]
 
 	ls = n.List().Slice()[1:]
 	for i, n := range ls {
-		nx = ir.Nod(ir.OINDEX, ns, nn) // s[n] ...
-		nx.SetBounded(true)
-		l = append(l, ir.Nod(ir.OAS, nx, n)) // s[n] = arg
+		ix := ir.Nod(ir.OINDEX, ns, nn) // s[n] ...
+		ix.SetBounded(true)
+		l = append(l, ir.Nod(ir.OAS, ix, n)) // s[n] = arg
 		if i+1 < len(ls) {
 			l = append(l, ir.Nod(ir.OAS, nn, ir.Nod(ir.OADD, nn, nodintconst(1)))) // n = n + 1
 		}
@@ -3377,7 +3340,7 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 		if needsize {
 			call.PtrList().Append(nodintconst(t.Width))
 		}
-		res := call
+		res := ir.Node(call)
 		if n.Op() != ir.OEQ {
 			res = ir.Nod(ir.ONOT, res, nil)
 		}
@@ -3442,21 +3405,21 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 				remains -= t.Elem().Width
 			} else {
 				elemType := t.Elem().ToUnsigned()
-				cmplw := ir.Nod(ir.OINDEX, cmpl, nodintconst(i))
+				cmplw := ir.Node(ir.Nod(ir.OINDEX, cmpl, nodintconst(i)))
 				cmplw = conv(cmplw, elemType) // convert to unsigned
 				cmplw = conv(cmplw, convType) // widen
-				cmprw := ir.Nod(ir.OINDEX, cmpr, nodintconst(i))
+				cmprw := ir.Node(ir.Nod(ir.OINDEX, cmpr, nodintconst(i)))
 				cmprw = conv(cmprw, elemType)
 				cmprw = conv(cmprw, convType)
 				// For code like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
 				// ssa will generate a single large load.
 				for offset := int64(1); offset < step; offset++ {
-					lb := ir.Nod(ir.OINDEX, cmpl, nodintconst(i+offset))
+					lb := ir.Node(ir.Nod(ir.OINDEX, cmpl, nodintconst(i+offset)))
 					lb = conv(lb, elemType)
 					lb = conv(lb, convType)
 					lb = ir.Nod(ir.OLSH, lb, nodintconst(8*t.Elem().Width*offset))
 					cmplw = ir.Nod(ir.OOR, cmplw, lb)
-					rb := ir.Nod(ir.OINDEX, cmpr, nodintconst(i+offset))
+					rb := ir.Node(ir.Nod(ir.OINDEX, cmpr, nodintconst(i+offset)))
 					rb = conv(rb, elemType)
 					rb = conv(rb, convType)
 					rb = ir.Nod(ir.OLSH, rb, nodintconst(8*t.Elem().Width*offset))
@@ -3473,10 +3436,8 @@ func walkcompare(n ir.Node, init *ir.Nodes) ir.Node {
 		// We still need to use cmpl and cmpr, in case they contain
 		// an expression which might panic. See issue 23837.
 		t := temp(cmpl.Type())
-		a1 := ir.Nod(ir.OAS, t, cmpl)
-		a1 = typecheck(a1, ctxStmt)
-		a2 := ir.Nod(ir.OAS, t, cmpr)
-		a2 = typecheck(a2, ctxStmt)
+		a1 := typecheck(ir.Nod(ir.OAS, t, cmpl), ctxStmt)
+		a2 := typecheck(ir.Nod(ir.OAS, t, cmpr), ctxStmt)
 		init.Append(a1, a2)
 	}
 	n = finishcompare(n, expr, init)
@@ -3583,15 +3544,13 @@ func walkcompareString(n ir.Node, init *ir.Nodes) ir.Node {
 					convType = types.Types[types.TUINT16]
 					step = 2
 				}
-				ncsubstr := ir.Nod(ir.OINDEX, ncs, nodintconst(int64(i)))
-				ncsubstr = conv(ncsubstr, convType)
+				ncsubstr := conv(ir.Nod(ir.OINDEX, ncs, nodintconst(int64(i))), convType)
 				csubstr := int64(s[i])
 				// Calculate large constant from bytes as sequence of shifts and ors.
 				// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
 				// ssa will combine this into a single large load.
 				for offset := 1; offset < step; offset++ {
-					b := ir.Nod(ir.OINDEX, ncs, nodintconst(int64(i+offset)))
-					b = conv(b, convType)
+					b := conv(ir.Nod(ir.OINDEX, ncs, nodintconst(int64(i+offset))), convType)
 					b = ir.Nod(ir.OLSH, b, nodintconst(int64(8*offset)))
 					ncsubstr = ir.Nod(ir.OOR, ncsubstr, b)
 					csubstr |= int64(s[i+offset]) << uint8(8*offset)
