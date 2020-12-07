@@ -165,7 +165,9 @@ func (n *Name) SetOffset(x int64)   { n.offset = x }
 func (n *Name) Iota() int64         { return n.offset }
 func (n *Name) SetIota(x int64)     { n.offset = x }
 
-func (*Name) CanBeNtype() {}
+func (*Name) CanBeNtype()    {}
+func (*Name) CanBeAnSSASym() {}
+func (*Name) CanBeAnSSAAux() {}
 
 func (n *Name) SetOp(op Op) {
 	if n.op != ONONAME {

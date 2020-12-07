@@ -197,7 +197,3 @@ func (n *miniNode) SetOpt(interface{})        { panic(n.no("SetOpt")) }
 func (n *miniNode) MarkReadonly()             { panic(n.no("MarkReadonly")) }
 func (n *miniNode) TChanDir() types.ChanDir   { panic(n.no("TChanDir")) }
 func (n *miniNode) SetTChanDir(types.ChanDir) { panic(n.no("SetTChanDir")) }
-
-// TODO: Delete when these are removed from Node itself.
-func (*miniNode) CanBeAnSSASym() {}
-func (*miniNode) CanBeAnSSAAux() {}
