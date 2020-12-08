@@ -44,7 +44,7 @@ func walk(fn *ir.Func) {
 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
 	for _, ln := range fn.Dcl {
 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
-			ln.Defn.Left().Name().SetUsed(true)
+			ln.Defn.(*ir.TypeSwitchGuard).Used = true
 		}
 	}
 
@@ -52,12 +52,12 @@ func walk(fn *ir.Func) {
 		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
 			continue
 		}
-		if defn := ln.Defn; defn != nil && defn.Op() == ir.OTYPESW {
-			if defn.Left().Name().Used() {
+		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
+			if defn.Used {
 				continue
 			}
-			base.ErrorfAt(defn.Left().Pos(), "%v declared but not used", ln.Sym())
-			defn.Left().Name().SetUsed(true) // suppress repeats
+			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
+			defn.Used = true // suppress repeats
 		} else {
 			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
 		}

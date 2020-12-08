@@ -512,32 +512,30 @@ func (n *SwitchStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
 // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
 type TypeSwitchGuard struct {
 	miniNode
-	Name_ *Name
-	X     Node
+	Tag  *Ident
+	X    Node
+	Used bool
 }
 
-func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
-	n := &TypeSwitchGuard{X: x}
-	if name != nil {
-		n.Name_ = name.(*Name)
-	}
+func NewTypeSwitchGuard(pos src.XPos, tag *Ident, x Node) *TypeSwitchGuard {
+	n := &TypeSwitchGuard{Tag: tag, X: x}
 	n.pos = pos
 	n.op = OTYPESW
 	return n
 }
 
 func (n *TypeSwitchGuard) Left() Node {
-	if n.Name_ == nil {
+	if n.Tag == nil {
 		return nil
 	}
-	return n.Name_
+	return n.Tag
 }
 func (n *TypeSwitchGuard) SetLeft(x Node) {
 	if x == nil {
-		n.Name_ = nil
+		n.Tag = nil
 		return
 	}
-	n.Name_ = x.(*Name)
+	n.Tag = x.(*Ident)
 }
 func (n *TypeSwitchGuard) Right() Node     { return n.X }
 func (n *TypeSwitchGuard) SetRight(x Node) { n.X = x }

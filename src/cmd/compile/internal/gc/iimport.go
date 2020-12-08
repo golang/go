@@ -833,13 +833,13 @@ func (r *importReader) node() ir.Node {
 		return ir.TypeNode(r.typ())
 
 	case ir.OTYPESW:
-		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
+		pos := r.pos()
+		var tag *ir.Ident
 		if s := r.ident(); s != nil {
-			n.SetLeft(ir.NewDeclNameAt(n.Pos(), s))
+			tag = ir.NewIdent(pos, s)
 		}
-		right, _ := r.exprsOrNil()
-		n.SetRight(right)
-		return n
+		expr, _ := r.exprsOrNil()
+		return ir.NewTypeSwitchGuard(pos, tag, expr)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking

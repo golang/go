@@ -90,12 +90,16 @@ func resolve(n ir.Node) (res ir.Node) {
 		defer tracePrint("resolve", n)(&res)
 	}
 
-	if n.Sym().Pkg != types.LocalPkg {
+	// Stub ir.Name left for us by iimport.
+	if n, ok := n.(*ir.Name); ok {
+		if n.Sym().Pkg == types.LocalPkg {
+			base.Fatalf("unexpected Name: %+v", n)
+		}
 		if inimport {
 			base.Fatalf("recursive inimport")
 		}
 		inimport = true
-		expandDecl(n.(*ir.Name))
+		expandDecl(n)
 		inimport = false
 		return n
 	}

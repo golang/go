@@ -215,7 +215,7 @@ func oldname(s *types.Sym) ir.Node {
 		// Maybe a top-level declaration will come along later to
 		// define s. resolve will check s.Def again once all input
 		// source has been processed.
-		return ir.NewDeclNameAt(base.Pos, s)
+		return ir.NewIdent(base.Pos, s)
 	}
 
 	if Curfn != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != Curfn {
