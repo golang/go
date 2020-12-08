@@ -956,7 +956,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 
 		t := n.Left().Type()
 		if t == nil {
-			base.UpdateErrorDot(ir.Line(n), n.Left().String(), n.String())
+			base.UpdateErrorDot(ir.Line(n), fmt.Sprint(n.Left()), fmt.Sprint(n))
 			n.SetType(nil)
 			return n
 		}
@@ -1431,14 +1431,15 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		default:
 			n.SetOp(ir.OCALLFUNC)
 			if t.Kind() != types.TFUNC {
-				name := l.String()
-				if isBuiltinFuncName(name) && l.Name().Defn != nil {
-					// be more specific when the function
+				// TODO(mdempsky): Remove "o.Sym() != nil" once we stop
+				// using ir.Name for numeric literals.
+				if o := ir.Orig(l); o.Name() != nil && o.Sym() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
+					// be more specific when the non-function
 					// name matches a predeclared function
-					base.Errorf("cannot call non-function %s (type %v), declared at %s",
-						name, t, base.FmtPos(l.Name().Defn.Pos()))
+					base.Errorf("cannot call non-function %L, declared at %s",
+						l, base.FmtPos(o.Name().Pos()))
 				} else {
-					base.Errorf("cannot call non-function %s (type %v)", name, t)
+					base.Errorf("cannot call non-function %L", l)
 				}
 				n.SetType(nil)
 				return n

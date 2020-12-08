@@ -248,7 +248,6 @@ const (
 //  - a *obj.LSym, for an offset from SB (the global pointer)
 //  - nil, for no offset
 type Sym interface {
-	String() string
 	CanBeAnSSASym()
 	CanBeAnSSAAux()
 }

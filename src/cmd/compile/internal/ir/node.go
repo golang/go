@@ -20,7 +20,6 @@ import (
 type Node interface {
 	// Formatting
 	Format(s fmt.State, verb rune)
-	String() string
 
 	// Source position.
 	Pos() src.XPos
