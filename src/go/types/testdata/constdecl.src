@@ -107,4 +107,35 @@ func _() {
 	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
 }
 
+// Test cases for errors in inherited constant initialization expressions.
+// Errors related to inherited initialization expressions must appear at
+// the constant identifier being declared, not at the original expression
+// (issues #42991, #42992).
+const (
+	_ byte = 255 + iota
+	/* some gap */
+	_ // ERROR overflows
+	/* some gap */
+	/* some gap */ _ /* ERROR overflows */; _ /* ERROR overflows */
+	/* some gap */
+	_ = 255 + iota
+	_ = byte /* ERROR overflows */ (255) + iota
+	_ /* ERROR overflows */
+)
+
+// Test cases from issue.
+const (
+	ok = byte(iota + 253)
+	bad
+	barn
+	bard // ERROR cannot convert
+)
+
+const (
+	c = len([1 - iota]int{})
+	d
+	e // ERROR invalid array length
+	f // ERROR invalid array length
+)
+
 // TODO(gri) move extra tests from testdata/const0.src into here
