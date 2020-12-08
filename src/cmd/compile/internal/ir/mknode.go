@@ -65,7 +65,6 @@ func main() {
 		}
 
 		fmt.Fprintf(&buf, "\n")
-		fmt.Fprintf(&buf, "func (n *%s) String() string { return fmt.Sprint(n) }\n", name)
 		fmt.Fprintf(&buf, "func (n *%s) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }\n", name)
 
 		fmt.Fprintf(&buf, "func (n *%s) copy() Node { c := *n\n", name)

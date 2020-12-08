@@ -35,7 +35,6 @@ type miniNode struct {
 	esc  uint16
 }
 
-func (n *miniNode) String() string                       { panic(1) }
 func (n *miniNode) Format(s fmt.State, verb rune)        { panic(1) }
 func (n *miniNode) copy() Node                           { panic(1) }
 func (n *miniNode) doChildren(do func(Node) error) error { panic(1) }

@@ -887,7 +887,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 //
 // TODO(mdempsky): This could probably be a fmt.go flag.
 func nodeAndVal(n ir.Node) string {
-	show := n.String()
+	show := fmt.Sprint(n)
 	val := ir.ConstValue(n)
 	if s := fmt.Sprintf("%#v", val); show != s {
 		show += " (value " + s + ")"
