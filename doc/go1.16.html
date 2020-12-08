@@ -293,6 +293,18 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- CL 235677: https://golang.org/cl/235677: cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines -->
 </p>
 
+<p><!-- CL 248686, CL 276372 -->
+  The vet tool now warns about amd64 assembly that clobbers the BP
+  register (the frame pointer) without saving and restoring it,
+  contrary to the calling convention. Code that doesn't preserve the
+  BP register must be modified to either not use BP at all or preserve
+  BP by saving and restoring it. An easy way to preserve BP is to set
+  the frame size to a nonzero value, which causes the generated
+  prologue and epilogue to preserve the BP register for you.
+  See <a href="https://golang.org/cl/248260">CL 248260</a> for example
+  fixes.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
