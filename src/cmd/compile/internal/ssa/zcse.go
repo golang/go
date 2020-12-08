@@ -57,7 +57,7 @@ func zcse(f *Func) {
 type vkey struct {
 	op Op
 	ai int64       // aux int
-	ax interface{} // aux
+	ax Aux         // aux
 	t  *types.Type // type
 }
 
