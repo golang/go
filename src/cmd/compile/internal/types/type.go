@@ -164,6 +164,8 @@ type Type struct {
 	flags bitset8
 }
 
+func (*Type) CanBeAnSSAAux() {}
+
 const (
 	typeNotInHeap  = 1 << iota // type cannot be heap allocated
 	typeBroke                  // broken type definition

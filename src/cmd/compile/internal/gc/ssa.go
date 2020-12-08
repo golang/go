@@ -772,7 +772,7 @@ func (s *state) newValue0(op ssa.Op, t *types.Type) *ssa.Value {
 }
 
 // newValue0A adds a new value with no arguments and an aux value to the current block.
-func (s *state) newValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
+func (s *state) newValue0A(op ssa.Op, t *types.Type, aux ssa.Aux) *ssa.Value {
 	return s.curBlock.NewValue0A(s.peekPos(), op, t, aux)
 }
 
@@ -787,14 +787,14 @@ func (s *state) newValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
 }
 
 // newValue1A adds a new value with one argument and an aux value to the current block.
-func (s *state) newValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+func (s *state) newValue1A(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
 }
 
 // newValue1Apos adds a new value with one argument and an aux value to the current block.
 // isStmt determines whether the created values may be a statement or not
 // (i.e., false means never, yes means maybe).
-func (s *state) newValue1Apos(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value, isStmt bool) *ssa.Value {
+func (s *state) newValue1Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value, isStmt bool) *ssa.Value {
 	if isStmt {
 		return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
 	}
@@ -812,14 +812,14 @@ func (s *state) newValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.
 }
 
 // newValue2A adds a new value with two arguments and an aux value to the current block.
-func (s *state) newValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
+func (s *state) newValue2A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
 }
 
 // newValue2Apos adds a new value with two arguments and an aux value to the current block.
 // isStmt determines whether the created values may be a statement or not
 // (i.e., false means never, yes means maybe).
-func (s *state) newValue2Apos(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value, isStmt bool) *ssa.Value {
+func (s *state) newValue2Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value, isStmt bool) *ssa.Value {
 	if isStmt {
 		return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
 	}
@@ -842,14 +842,14 @@ func (s *state) newValue3I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2
 }
 
 // newValue3A adds a new value with three arguments and an aux value to the current block.
-func (s *state) newValue3A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+func (s *state) newValue3A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 }
 
 // newValue3Apos adds a new value with three arguments and an aux value to the current block.
 // isStmt determines whether the created values may be a statement or not
 // (i.e., false means never, yes means maybe).
-func (s *state) newValue3Apos(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value, isStmt bool) *ssa.Value {
+func (s *state) newValue3Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2 *ssa.Value, isStmt bool) *ssa.Value {
 	if isStmt {
 		return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 	}
@@ -872,7 +872,7 @@ func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
 }
 
 // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
-func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
+func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux ssa.Aux) *ssa.Value {
 	return s.f.Entry.NewValue0A(src.NoXPos, op, t, aux)
 }
 
@@ -887,7 +887,7 @@ func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa
 }
 
 // entryNewValue1A adds a new value with one argument and an aux value to the entry block.
-func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue1A(src.NoXPos, op, t, aux, arg)
 }
 
@@ -897,7 +897,7 @@ func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) 
 }
 
 // entryNewValue2A adds a new value with two arguments and an aux value to the entry block.
-func (s *state) entryNewValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue2A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue2A(src.NoXPos, op, t, aux, arg0, arg1)
 }
 
@@ -2060,7 +2060,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			if i == "" {
 				return s.constEmptyString(n.Type())
 			}
-			return s.entryNewValue0A(ssa.OpConstString, n.Type(), i)
+			return s.entryNewValue0A(ssa.OpConstString, n.Type(), ssa.StringToAux(i))
 		case constant.Bool:
 			return s.constBool(constant.BoolVal(u))
 		case constant.Float:

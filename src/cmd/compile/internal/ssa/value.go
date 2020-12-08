@@ -36,7 +36,7 @@ type Value struct {
 	// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
 	// Use Value.AuxUnsigned to get the zero-extended value of AuxInt.
 	AuxInt int64
-	Aux    interface{}
+	Aux    Aux
 
 	// Arguments of this value
 	Args []*Value
@@ -492,3 +492,6 @@ func (v *Value) removeable() bool {
 	}
 	return true
 }
+
+// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
+func (*Value) CanBeAnSSAAux() {}

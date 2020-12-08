@@ -143,13 +143,13 @@ func (loc VarLoc) absent() bool {
 var BlockStart = &Value{
 	ID:  -10000,
 	Op:  OpInvalid,
-	Aux: "BlockStart",
+	Aux: StringToAux("BlockStart"),
 }
 
 var BlockEnd = &Value{
 	ID:  -20000,
 	Op:  OpInvalid,
-	Aux: "BlockEnd",
+	Aux: StringToAux("BlockEnd"),
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
