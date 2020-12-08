@@ -450,6 +450,22 @@ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
 	n.Call = maybeEdit(n.Call, edit)
 }
 
+func (n *Ident) String() string                { return fmt.Sprint(n) }
+func (n *Ident) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *Ident) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *Ident) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
+func (n *Ident) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+}
+
 func (n *IfStmt) String() string                { return fmt.Sprint(n) }
 func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *IfStmt) copy() Node {
@@ -1004,15 +1020,15 @@ func (n *TypeSwitchGuard) copy() Node {
 }
 func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
 	var err error
-	if n.Name_ != nil {
-		err = maybeDo(n.Name_, err, do)
+	if n.Tag != nil {
+		err = maybeDo(n.Tag, err, do)
 	}
 	err = maybeDo(n.X, err, do)
 	return err
 }
 func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
-	if n.Name_ != nil {
-		n.Name_ = edit(n.Name_).(*Name)
+	if n.Tag != nil {
+		n.Tag = edit(n.Tag).(*Ident)
 	}
 	n.X = maybeEdit(n.X, edit)
 }

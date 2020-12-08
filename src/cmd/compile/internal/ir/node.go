@@ -794,8 +794,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return NewSliceHeaderExpr(pos, nil, nleft, nil, nil)
 	case OSWITCH:
 		return NewSwitchStmt(pos, nleft, nil)
-	case OTYPESW:
-		return NewTypeSwitchGuard(pos, nleft, nright)
 	case OINLCALL:
 		return NewInlinedCallExpr(pos, nil, nil)
 	}

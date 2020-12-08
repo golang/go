@@ -751,14 +751,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 			p.typeExpr(expr.Elem), p.chanDir(expr.Dir))
 
 	case *syntax.TypeSwitchGuard:
-		n := p.nod(expr, ir.OTYPESW, nil, p.expr(expr.X))
+		var tag *ir.Ident
 		if expr.Lhs != nil {
-			n.SetLeft(p.declName(expr.Lhs))
-			if ir.IsBlank(n.Left()) {
-				base.Errorf("invalid variable name %v in type switch", n.Left())
+			tag = ir.NewIdent(p.pos(expr.Lhs), p.name(expr.Lhs))
+			if ir.IsBlank(tag) {
+				base.Errorf("invalid variable name %v in type switch", tag)
 			}
 		}
-		return n
+		return ir.NewTypeSwitchGuard(p.pos(expr), tag, p.expr(expr.X))
 	}
 	panic("unhandled Expr")
 }
