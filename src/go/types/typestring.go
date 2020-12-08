@@ -333,9 +333,6 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		prev = b
 
 		if t, _ := p.typ.(*TypeParam); t != nil {
-			if t.ptr {
-				buf.WriteByte('*')
-			}
 			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)
