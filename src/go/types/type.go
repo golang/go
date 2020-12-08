@@ -22,13 +22,6 @@ type Type interface {
 	String() string
 }
 
-// aType implements default type behavior
-type aType struct{}
-
-// These methods must be implemented by each type.
-func (aType) Underlying() Type { panic("unreachable") }
-func (aType) String() string   { panic("unreachable") }
-
 // BasicKind describes the kind of basic type.
 type BasicKind int
 
@@ -92,7 +85,6 @@ type Basic struct {
 	kind BasicKind
 	info BasicInfo
 	name string
-	aType
 }
 
 // Kind returns the kind of basic type b.
@@ -108,7 +100,6 @@ func (b *Basic) Name() string { return b.name }
 type Array struct {
 	len  int64
 	elem Type
-	aType
 }
 
 // NewArray returns a new array type for the given element type and length.
@@ -125,7 +116,6 @@ func (a *Array) Elem() Type { return a.elem }
 // A Slice represents a slice type.
 type Slice struct {
 	elem Type
-	aType
 }
 
 // NewSlice returns a new slice type for the given element type.
@@ -138,7 +128,6 @@ func (s *Slice) Elem() Type { return s.elem }
 type Struct struct {
 	fields []*Var
 	tags   []string // field tags; nil if there are no tags
-	aType
 }
 
 // NewStruct returns a new struct with the given fields and corresponding field tags.
@@ -175,7 +164,6 @@ func (s *Struct) Tag(i int) string {
 // A Pointer represents a pointer type.
 type Pointer struct {
 	base Type // element type
-	aType
 }
 
 // NewPointer returns a new pointer type for the given element (base) type.
@@ -189,7 +177,6 @@ func (p *Pointer) Elem() Type { return p.base }
 // assignments; they are not first class types of Go.
 type Tuple struct {
 	vars []*Var
-	aType
 }
 
 // NewTuple returns a new tuple for the given variables.
@@ -227,7 +214,6 @@ type Signature struct {
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
-	aType
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
@@ -276,7 +262,6 @@ func (s *Signature) Variadic() bool { return s.variadic }
 // first class types of Go.
 type Sum struct {
 	types []Type // types are unique
-	aType
 }
 
 // NewSum returns a new Sum type consisting of the provided
@@ -328,8 +313,6 @@ type Interface struct {
 	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
 
 	obj Object // type declaration defining this interface; or nil (for better error messages)
-
-	aType
 }
 
 // unpack unpacks a type into a list of types.
@@ -625,7 +608,6 @@ func (t *Interface) Complete() *Interface {
 // A Map represents a map type.
 type Map struct {
 	key, elem Type
-	aType
 }
 
 // NewMap returns a new map for the given key and element types.
@@ -643,7 +625,6 @@ func (m *Map) Elem() Type { return m.elem }
 type Chan struct {
 	dir  ChanDir
 	elem Type
-	aType
 }
 
 // A ChanDir value indicates a channel direction.
@@ -677,7 +658,6 @@ type Named struct {
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
-	aType
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -750,7 +730,6 @@ type TypeParam struct {
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
-	aType
 }
 
 // NewTypeParam returns a new TypeParam.
@@ -810,7 +789,6 @@ type instance struct {
 	targs   []Type      // type arguments
 	poslist []token.Pos // position of each targ; for error reporting only
 	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
-	aType
 }
 
 // expand returns the instantiated (= expanded) type of t.
@@ -852,9 +830,7 @@ func init() { expandf = expand }
 // It is the underlying type of a type parameter that
 // cannot be satisfied by any type, usually because
 // the intersection of type constraints left nothing).
-type bottom struct {
-	aType
-}
+type bottom struct{}
 
 // theBottom is the singleton bottom type.
 var theBottom = &bottom{}
@@ -864,9 +840,7 @@ var theBottom = &bottom{}
 // can be satisfied by any type (ignoring methods),
 // usually because the type constraint has no type
 // list.
-type top struct {
-	aType
-}
+type top struct{}
 
 // theTop is the singleton top type.
 var theTop = &top{}
