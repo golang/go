@@ -682,9 +682,10 @@ func WriteFile(name string, data []byte, perm FileMode) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(data)
-	if err1 := f.Close(); err1 != nil && err == nil {
-		err = err1
+	defer f.Close()
+
+	if _, err = f.Write(data); err != nil {
+		return err
 	}
-	return err
+	return nil
 }
