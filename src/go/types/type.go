@@ -313,7 +313,6 @@ type Interface struct {
 	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
 
 	obj Object // type declaration defining this interface; or nil (for better error messages)
-
 }
 
 // unpack unpacks a type into a list of types.
@@ -669,6 +668,14 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	return typ
 }
 
+func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
+	if obj.typ == nil {
+		obj.typ = typ
+	}
+	return typ
+}
+
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
@@ -713,16 +720,15 @@ func (t *Named) AddMethod(m *Func) {
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
-	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
 // NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -783,8 +789,19 @@ type instance struct {
 // The result is either an instantiated *Named type, or
 // Typ[Invalid] if there was an error.
 func (t *instance) expand() Type {
-	// TODO(rFindley) add this in a follow-up CL.
-	panic("not implemented")
+	v := t.value
+	if v == nil {
+		v = t.check.instantiate(t.pos, t.base, t.targs, t.poslist)
+		if v == nil {
+			v = Typ[Invalid]
+		}
+		t.value = v
+	}
+	// After instantiation we must have an invalid or a *Named type.
+	if debug && v != Typ[Invalid] {
+		_ = v.(*Named)
+	}
+	return v
 }
 
 // expand expands a type instance into its instantiated
