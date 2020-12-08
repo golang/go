@@ -798,7 +798,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	} else {
 		// embedded, possibly generic type
 		// (using the enclosing parentheses to distinguish it from a named field declaration)
-		// TODO(gri) confirm that this doesn't allow parenthesized embedded type
+		// TODO(rFindley) confirm that this doesn't allow parenthesized embedded type
 		typ = p.parseType()
 	}
 
@@ -870,6 +870,7 @@ type field struct {
 }
 
 func (p *parser) parseParamDecl(name *ast.Ident) (f field) {
+	// TODO(rFindley) compare with parser.paramDeclOrNil in the syntax package
 	if p.trace {
 		defer un(trace(p, "ParamDeclOrNil"))
 	}

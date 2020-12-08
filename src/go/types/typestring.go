@@ -313,6 +313,7 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
 }
 
 func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
+	// TODO(rFindley) compare this with the corresponding implementation in types2
 	buf.WriteString("[")
 	var prev Type
 	for i, p := range list {

@@ -372,7 +372,9 @@ type (
 		Args     []Expr    // function arguments; or nil
 		Ellipsis token.Pos // position of "..." (token.NoPos if there is no "...")
 		Rparen   token.Pos // position of ")"
-		Brackets bool      // if set, "[" and "]" are used instead of "(" and ")"
+		// TODO(rFindley) use a new ListExpr type rather than overloading CallExpr
+		//                via Brackets, as is done in the syntax package
+		Brackets bool // if set, "[" and "]" are used instead of "(" and ")"
 	}
 
 	// A StarExpr node represents an expression of the form "*" Expression.
@@ -987,6 +989,8 @@ type (
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
+		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
+		//                they are only valid for declared functions
 	}
 )
 
