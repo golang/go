@@ -290,6 +290,10 @@ func iexport(out *bufio.Writer) {
 	w.writeIndex(p.inlineIndex, false)
 	w.flush()
 
+	if *base.Flag.LowerV {
+		fmt.Printf("export: hdr strings %v, data %v, index %v\n", p.strings.Len(), dataLen, p.data0.Len())
+	}
+
 	// Assemble header.
 	var hdr intWriter
 	hdr.WriteByte('i')
@@ -388,6 +392,10 @@ func (p *iexporter) stringOff(s string) uint64 {
 	if !ok {
 		off = uint64(p.strings.Len())
 		p.stringIndex[s] = off
+
+		if *base.Flag.LowerV {
+			fmt.Printf("export: str %v %.40q\n", off, s)
+		}
 
 		p.strings.uint64(uint64(len(s)))
 		p.strings.WriteString(s)
@@ -511,11 +519,19 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		base.Fatalf("unexpected node: %v", n)
 	}
 
-	p.declIndex[n.Sym()] = w.flush()
+	w.finish("dcl", p.declIndex, n.Sym())
 }
 
 func (w *exportWriter) tag(tag byte) {
 	w.data.WriteByte(tag)
+}
+
+func (w *exportWriter) finish(what string, index map[*types.Sym]uint64, sym *types.Sym) {
+	off := w.flush()
+	if *base.Flag.LowerV {
+		fmt.Printf("export: %v %v %v\n", what, off, sym)
+	}
+	index[sym] = off
 }
 
 func (p *iexporter) doInline(f *ir.Name) {
@@ -524,7 +540,7 @@ func (p *iexporter) doInline(f *ir.Name) {
 
 	w.stmtList(ir.AsNodes(f.Func().Inl.Body))
 
-	p.inlineIndex[f.Sym()] = w.flush()
+	w.finish("inl", p.inlineIndex, f.Sym())
 }
 
 func (w *exportWriter) pos(pos src.XPos) {
@@ -625,7 +641,11 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
 	if !ok {
 		w := p.newWriter()
 		w.doTyp(t)
-		off = predeclReserved + w.flush()
+		rawOff := w.flush()
+		if *base.Flag.LowerV {
+			fmt.Printf("export: typ %v %v\n", rawOff, t)
+		}
+		off = predeclReserved + rawOff
 		p.typIndex[t] = off
 	}
 	return off
