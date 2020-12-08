@@ -41,6 +41,10 @@ var Analyzer = &analysis.Analyzer{
 // assertableTo checks whether interface v can be asserted into t. It returns
 // nil on success, or the first conflicting method on failure.
 func assertableTo(v, t types.Type) *types.Func {
+	if t == nil || v == nil {
+		// not assertable to, but there is no missing method
+		return nil
+	}
 	// ensure that v and t are interfaces
 	V, _ := v.Underlying().(*types.Interface)
 	T, _ := t.Underlying().(*types.Interface)
