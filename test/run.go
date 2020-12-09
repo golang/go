@@ -2115,19 +2115,12 @@ var excluded = map[string]bool{
 	"fixedbugs/issue6703x.go":  true,
 	"fixedbugs/issue6703y.go":  true,
 	"fixedbugs/issue6703z.go":  true,
-	"fixedbugs/issue6750.go":   true,
-	"fixedbugs/issue6772.go":   true,
-	"fixedbugs/issue6889.go":   true,
-	"fixedbugs/issue7129.go":   true,
-	"fixedbugs/issue7150.go":   true,
-	"fixedbugs/issue7153.go":   true,
-	"fixedbugs/issue7223.go":   true,
-	"fixedbugs/issue7310.go":   true,
-	"fixedbugs/issue7525.go":   true,
-	"fixedbugs/issue7525b.go":  true,
-	"fixedbugs/issue7525c.go":  true,
-	"fixedbugs/issue7525d.go":  true,
-	"fixedbugs/issue7525e.go":  true,
+	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go":  true, // init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go":  true, // init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go":  true, // init cycle error on different line - ok otherwise
 	"fixedbugs/issue7742.go":   true, // type-checking doesn't terminate
 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
 }
