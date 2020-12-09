@@ -1474,6 +1474,17 @@ func machoCodeSign(ctxt *Link, fname string) error {
 		// Skip.
 		return nil
 	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if sigOff+sigSz != fi.Size() {
+		// We don't expect anything after the signature (this will invalidate
+		// the signature anyway.)
+		return fmt.Errorf("unexpected content after code signature")
+	}
+
 	sz := codesign.Size(sigOff, "a.out")
 	if sz != sigSz {
 		// Update the load command,
@@ -1500,5 +1511,9 @@ func machoCodeSign(ctxt *Link, fname string) error {
 	cs := make([]byte, sz)
 	codesign.Sign(cs, f, "a.out", sigOff, int64(textSeg.Offset), int64(textSeg.Filesz), ctxt.IsExe() || ctxt.IsPIE())
 	_, err = f.WriteAt(cs, sigOff)
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(sigOff + sz)
 	return err
 }
