@@ -14,5 +14,5 @@ func (f *Foo) Call(cb func(*Foo)) {
 
 func main() {
 	f := &Foo{}
-	f.Call(func(f) {}) // ERROR "f is not a type"
+	f.Call(func(f) {}) // ERROR "f .*is not a type"
 }

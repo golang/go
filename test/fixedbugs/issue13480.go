@@ -18,21 +18,21 @@ func bug() {
 	var m M
 	var f F
 
-	_ = s == S(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
-	_ = S(nil) == s // ERROR "compare.*to nil|operator \=\= not defined for ."
+	_ = s == S(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+	_ = S(nil) == s // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	switch s {
-	case S(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+	case S(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	}
 
-	_ = m == M(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
-	_ = M(nil) == m // ERROR "compare.*to nil|operator \=\= not defined for ."
+	_ = m == M(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+	_ = M(nil) == m // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	switch m {
-	case M(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+	case M(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	}
 
-	_ = f == F(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
-	_ = F(nil) == f // ERROR "compare.*to nil|operator \=\= not defined for ."
+	_ = f == F(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+	_ = F(nil) == f // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	switch f {
-	case F(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+	case F(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
 	}
 }

@@ -677,9 +677,17 @@ func (check *Checker) unusedImports() {
 					path := obj.imported.path
 					base := pkgName(path)
 					if obj.name == base {
-						check.softErrorf(obj.pos, "%q imported but not used", path)
+						if check.conf.CompilerErrorMessages {
+							check.softErrorf(obj.pos, "%q imported and not used", path)
+						} else {
+							check.softErrorf(obj.pos, "%q imported but not used", path)
+						}
 					} else {
-						check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
+						if check.conf.CompilerErrorMessages {
+							check.softErrorf(obj.pos, "%q imported and not used as %s", path, obj.name)
+						} else {
+							check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
+						}
 					}
 				}
 			}
@@ -689,7 +697,11 @@ func (check *Checker) unusedImports() {
 	// check use of dot-imported packages
 	for _, unusedDotImports := range check.unusedDotImports {
 		for pkg, pos := range unusedDotImports {
-			check.softErrorf(pos, "%q imported but not used", pkg.path)
+			if check.conf.CompilerErrorMessages {
+				check.softErrorf(pos, "%q imported and not used", pkg.path)
+			} else {
+				check.softErrorf(pos, "%q imported but not used", pkg.path)
+			}
 		}
 	}
 }

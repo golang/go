@@ -69,7 +69,11 @@ var unaryOpPredicates = opPredicates{
 func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			check.invalidOpf(x, "operator %s not defined for %s", op, x)
+			if check.conf.CompilerErrorMessages {
+				check.invalidOpf(x, "operator %s not defined on %s", op, x)
+			} else {
+				check.invalidOpf(x, "operator %s not defined for %s", op, x)
+			}
 			return false
 		}
 	} else {
@@ -729,7 +733,11 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
 			if x.isNil() {
 				typ = y.typ
 			}
-			err = check.sprintf("operator %s not defined for %s", op, typ)
+			if check.conf.CompilerErrorMessages {
+				err = check.sprintf("operator %s not defined on %s", op, typ)
+			} else {
+				err = check.sprintf("operator %s not defined for %s", op, typ)
+			}
 		}
 	} else {
 		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
@@ -1268,7 +1276,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					}
 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
 					if i < 0 {
-						check.errorf(kv, "unknown field %s in struct literal", key.Value)
+						if check.conf.CompilerErrorMessages {
+							check.errorf(kv, "unknown field '%s' in struct literal of type %s", key.Value, base)
+						} else {
+							check.errorf(kv, "unknown field %s in struct literal", key.Value)
+						}
 						continue
 					}
 					fld := fields[i]

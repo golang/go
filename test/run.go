@@ -769,8 +769,10 @@ func (t *test) run() {
 			for _, pattern := range []string{
 				"-+",
 				"-0",
+				"-e=0",
 				"-m",
 				"-live",
+				"-std",
 				"wb",
 				"append",
 				"slice",
@@ -1942,140 +1944,88 @@ var excluded = map[string]bool{
 	"switch7.go":      true,
 	"typecheck.go":    true, // invalid function is not causing errors when called
 
-	"fixedbugs/bug163.go":      true,
-	"fixedbugs/bug176.go":      true,
-	"fixedbugs/bug192.go":      true,
-	"fixedbugs/bug193.go":      true,
-	"fixedbugs/bug195.go":      true,
-	"fixedbugs/bug213.go":      true,
-	"fixedbugs/bug228.go":      true,
-	"fixedbugs/bug229.go":      true,
-	"fixedbugs/bug231.go":      true,
-	"fixedbugs/bug251.go":      true,
-	"fixedbugs/bug255.go":      true,
-	"fixedbugs/bug256.go":      true,
-	"fixedbugs/bug325.go":      true,
-	"fixedbugs/bug326.go":      true,
-	"fixedbugs/bug340.go":      true,
-	"fixedbugs/bug342.go":      true,
-	"fixedbugs/bug350.go":      true,
-	"fixedbugs/bug351.go":      true,
-	"fixedbugs/bug353.go":      true,
-	"fixedbugs/bug357.go":      true,
-	"fixedbugs/bug362.go":      true,
-	"fixedbugs/bug371.go":      true,
-	"fixedbugs/bug374.go":      true,
-	"fixedbugs/bug379.go":      true,
-	"fixedbugs/bug383.go":      true,
-	"fixedbugs/bug385_64.go":   true,
-	"fixedbugs/bug386.go":      true,
-	"fixedbugs/bug388.go":      true,
-	"fixedbugs/bug389.go":      true,
-	"fixedbugs/bug390.go":      true,
-	"fixedbugs/bug397.go":      true,
-	"fixedbugs/bug412.go":      true,
-	"fixedbugs/bug413.go":      true,
-	"fixedbugs/bug416.go":      true,
-	"fixedbugs/bug418.go":      true,
-	"fixedbugs/bug459.go":      true,
-	"fixedbugs/bug462.go":      true,
-	"fixedbugs/bug463.go":      true,
-	"fixedbugs/bug487.go":      true,
-	"fixedbugs/issue11362.go":  true,
-	"fixedbugs/issue11590.go":  true,
-	"fixedbugs/issue11610.go":  true,
+	"fixedbugs/bug163.go":    true,
+	"fixedbugs/bug176.go":    true,
+	"fixedbugs/bug192.go":    true,
+	"fixedbugs/bug193.go":    true,
+	"fixedbugs/bug195.go":    true,
+	"fixedbugs/bug213.go":    true,
+	"fixedbugs/bug228.go":    true,
+	"fixedbugs/bug229.go":    true,
+	"fixedbugs/bug231.go":    true,
+	"fixedbugs/bug251.go":    true,
+	"fixedbugs/bug255.go":    true,
+	"fixedbugs/bug256.go":    true,
+	"fixedbugs/bug325.go":    true,
+	"fixedbugs/bug326.go":    true,
+	"fixedbugs/bug340.go":    true,
+	"fixedbugs/bug342.go":    true,
+	"fixedbugs/bug350.go":    true,
+	"fixedbugs/bug351.go":    true,
+	"fixedbugs/bug353.go":    true,
+	"fixedbugs/bug357.go":    true,
+	"fixedbugs/bug362.go":    true,
+	"fixedbugs/bug371.go":    true,
+	"fixedbugs/bug374.go":    true,
+	"fixedbugs/bug379.go":    true,
+	"fixedbugs/bug383.go":    true,
+	"fixedbugs/bug385_64.go": true,
+	"fixedbugs/bug386.go":    true,
+	"fixedbugs/bug388.go":    true,
+	"fixedbugs/bug389.go":    true,
+	"fixedbugs/bug390.go":    true,
+	"fixedbugs/bug397.go":    true,
+	"fixedbugs/bug412.go":    true,
+	"fixedbugs/bug413.go":    true,
+	"fixedbugs/bug416.go":    true,
+	"fixedbugs/bug418.go":    true,
+	"fixedbugs/bug459.go":    true,
+	"fixedbugs/bug462.go":    true,
+	"fixedbugs/bug463.go":    true,
+	"fixedbugs/bug487.go":    true,
+
+	"fixedbugs/issue11362.go":  true, // types2 import path handling
+	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
 	"fixedbugs/issue13415.go":  true, // declared but not used conflict
 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
 	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
-	"fixedbugs/issue17038.go":  true,
-	"fixedbugs/issue17588.go":  true,
-	"fixedbugs/issue17631.go":  true,
-	"fixedbugs/issue17645.go":  true,
-	"fixedbugs/issue18331.go":  true,
-	"fixedbugs/issue18392.go":  true,
-	"fixedbugs/issue18393.go":  true,
-	"fixedbugs/issue19012.go":  true,
-	"fixedbugs/issue19323.go":  true,
-	"fixedbugs/issue19482.go":  true,
-	"fixedbugs/issue19699b.go": true,
-	"fixedbugs/issue19880.go":  true,
-	"fixedbugs/issue19947.go":  true,
-	"fixedbugs/issue20185.go":  true,
-	"fixedbugs/issue20227.go":  true,
-	"fixedbugs/issue20233.go":  true,
-	"fixedbugs/issue20245.go":  true,
-	"fixedbugs/issue20298.go":  true,
-	"fixedbugs/issue20415.go":  true,
-	"fixedbugs/issue20529.go":  true,
-	"fixedbugs/issue20749.go":  true,
-	"fixedbugs/issue20780.go":  true,
-	"fixedbugs/issue21273.go":  true,
-	"fixedbugs/issue21882.go":  true,
-	"fixedbugs/issue21979.go":  true,
-	"fixedbugs/issue22200.go":  true,
-	"fixedbugs/issue22200b.go": true,
-	"fixedbugs/issue22389.go":  true,
-	"fixedbugs/issue22794.go":  true,
-	"fixedbugs/issue22822.go":  true,
-	"fixedbugs/issue22904.go":  true,
-	"fixedbugs/issue22921.go":  true,
-	"fixedbugs/issue23093.go":  true,
-	"fixedbugs/issue23094.go":  true,
-	"fixedbugs/issue23609.go":  true,
-	"fixedbugs/issue23732.go":  true,
-	"fixedbugs/issue23823.go":  true,
-	"fixedbugs/issue24339.go":  true,
-	"fixedbugs/issue24470.go":  true,
-	"fixedbugs/issue25507.go":  true,
-	"fixedbugs/issue25727.go":  true,
-	"fixedbugs/issue25958.go":  true,
-	"fixedbugs/issue26416.go":  true,
-	"fixedbugs/issue26616.go":  true,
-	"fixedbugs/issue27595.go":  true,
-	"fixedbugs/issue28079b.go": true,
-	"fixedbugs/issue28079c.go": true,
-	"fixedbugs/issue28268.go":  true,
-	"fixedbugs/issue28450.go":  true,
-	"fixedbugs/issue29855.go":  true,
-	"fixedbugs/issue30085.go":  true,
-	"fixedbugs/issue30087.go":  true,
-	"fixedbugs/issue31747.go":  true,
-	"fixedbugs/issue32133.go":  true,
-	"fixedbugs/issue32723.go":  true,
-	"fixedbugs/issue33460.go":  true,
-	"fixedbugs/issue34329.go":  true,
-	"fixedbugs/issue35291.go":  true,
-	"fixedbugs/issue38117.go":  true,
-	"fixedbugs/issue38745.go":  true,
-	"fixedbugs/issue3925.go":   true,
-	"fixedbugs/issue4085a.go":  true,
-	"fixedbugs/issue41247.go":  true,
-	"fixedbugs/issue41440.go":  true,
-	"fixedbugs/issue41500.go":  true,
-	"fixedbugs/issue41575.go":  true,
-	"fixedbugs/issue42058a.go": true,
-	"fixedbugs/issue42058b.go": true,
-	"fixedbugs/issue42075.go":  true,
-	"fixedbugs/issue4215.go":   true,
-	"fixedbugs/issue4232.go":   true,
-	"fixedbugs/issue4251.go":   true,
-	"fixedbugs/issue4429.go":   true,
-	"fixedbugs/issue4452.go":   true,
-	"fixedbugs/issue4458.go":   true,
-	"fixedbugs/issue4470.go":   true,
-	"fixedbugs/issue4517d.go":  true,
-	"fixedbugs/issue4847.go":   true,
-	"fixedbugs/issue4909a.go":  true,
+	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
+	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
+	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
+	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
+	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+	"fixedbugs/issue24339.go":  true, // types2 reports wrong line number
+	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
+	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+	"fixedbugs/issue32133.go":  true, // types2 line numbers off?
+	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
 	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
-	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525c.go":  true, // init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525d.go":  true, // init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525e.go":  true, // init cycle error on different line - ok otherwise
-	"fixedbugs/issue7742.go":   true, // type-checking doesn't terminate
-	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
+	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
+	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
 }
