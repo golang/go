@@ -463,6 +463,9 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
+// sign-extends from 24-bit.
+func signext24(x int64) int64 { return x << 40 >> 40 }
+
 func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
 	var v uint32
 
@@ -484,6 +487,10 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 			ldr.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymSect(rs).Name, ldr.SymType(rs), ldr.SymType(rs))
 			return false
 		}
+	}
+
+	if r.Xadd != signext24(r.Xadd) {
+		ldr.Errorf(s, "relocation addend overflow: %s+0x%x", ldr.SymName(rs), r.Xadd)
 	}
 
 	switch rt {
