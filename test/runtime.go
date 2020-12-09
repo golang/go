@@ -17,5 +17,5 @@ package main
 import "runtime"
 
 func main() {
-	runtime.printbool(true)	// ERROR "unexported|not declared"
+	runtime.printbool(true)	// ERROR "unexported|undefined"
 }

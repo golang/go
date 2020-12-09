@@ -1981,30 +1981,14 @@ var excluded = map[string]bool{
 	"fixedbugs/bug462.go":      true,
 	"fixedbugs/bug463.go":      true,
 	"fixedbugs/bug487.go":      true,
-	"fixedbugs/issue11326.go":  true,
 	"fixedbugs/issue11362.go":  true,
 	"fixedbugs/issue11590.go":  true,
 	"fixedbugs/issue11610.go":  true,
-	"fixedbugs/issue11614.go":  true,
-	"fixedbugs/issue11674.go":  true,
-	"fixedbugs/issue11737.go":  true,
-	"fixedbugs/issue13365.go":  true,
-	"fixedbugs/issue13415.go":  true,
-	"fixedbugs/issue13471.go":  true,
-	"fixedbugs/issue13480.go":  true,
-	"fixedbugs/issue13485.go":  true,
-	"fixedbugs/issue13539.go":  true,
-	"fixedbugs/issue13559.go":  true,
-	"fixedbugs/issue14136.go":  true,
-	"fixedbugs/issue14321.go":  true,
-	"fixedbugs/issue14520.go":  true,
-	"fixedbugs/issue14540.go":  true,
-	"fixedbugs/issue14729.go":  true,
-	"fixedbugs/issue15055.go":  true,
-	"fixedbugs/issue15898.go":  true,
-	"fixedbugs/issue16428.go":  true,
-	"fixedbugs/issue16439.go":  true,
-	"fixedbugs/issue16949.go":  true,
+	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
+	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
 	"fixedbugs/issue17038.go":  true,
 	"fixedbugs/issue17588.go":  true,
 	"fixedbugs/issue17631.go":  true,
@@ -2084,11 +2068,8 @@ var excluded = map[string]bool{
 	"fixedbugs/issue4517d.go":  true,
 	"fixedbugs/issue4847.go":   true,
 	"fixedbugs/issue4909a.go":  true,
-	"fixedbugs/issue5609.go":   true,
-	"fixedbugs/issue6402.go":   true,
-	"fixedbugs/issue6403.go":   true,
-	"fixedbugs/issue6500.go":   true,
-	"fixedbugs/issue6572.go":   true,
+	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
 	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
