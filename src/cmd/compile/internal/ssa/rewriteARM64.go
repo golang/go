@@ -189,6 +189,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64MOVDloadidx(v)
 	case OpARM64MOVDloadidx8:
 		return rewriteValueARM64_OpARM64MOVDloadidx8(v)
+	case OpARM64MOVDnop:
+		return rewriteValueARM64_OpARM64MOVDnop(v)
 	case OpARM64MOVDreg:
 		return rewriteValueARM64_OpARM64MOVDreg(v)
 	case OpARM64MOVDstore:
@@ -9007,6 +9009,21 @@ func rewriteValueARM64_OpARM64MOVDloadidx8(v *Value) bool {
 		}
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64MOVDnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVDnop (MOVDconst [c]))
+	// result: (MOVDconst [c])
+	for {
+		if v_0.Op != OpARM64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(c)
 		return true
 	}
 	return false

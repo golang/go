@@ -435,6 +435,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64MOVDconst(v)
 	case OpRISCV64MOVDload:
 		return rewriteValueRISCV64_OpRISCV64MOVDload(v)
+	case OpRISCV64MOVDnop:
+		return rewriteValueRISCV64_OpRISCV64MOVDnop(v)
 	case OpRISCV64MOVDreg:
 		return rewriteValueRISCV64_OpRISCV64MOVDreg(v)
 	case OpRISCV64MOVDstore:
@@ -3345,6 +3347,21 @@ func rewriteValueRISCV64_OpRISCV64MOVDload(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off1 + int32(off2))
 		v.Aux = symToAux(sym)
 		v.AddArg2(base, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64MOVDnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVDnop (MOVDconst [c]))
+	// result: (MOVDconst [c])
+	for {
+		if v_0.Op != OpRISCV64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpRISCV64MOVDconst)
+		v.AuxInt = int64ToAuxInt(c)
 		return true
 	}
 	return false

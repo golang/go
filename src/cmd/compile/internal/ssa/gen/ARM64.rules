@@ -1127,6 +1127,10 @@
 // MOVDnop doesn't emit instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
 
+// TODO: we should be able to get rid of MOVDnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+
 // fold constant into arithmatic ops
 (ADD x (MOVDconst [c])) => (ADDconst [c] x)
 (SUB x (MOVDconst [c])) => (SUBconst [c] x)

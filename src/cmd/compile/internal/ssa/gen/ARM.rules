@@ -546,6 +546,10 @@
 // MOVWnop doesn't emit instruction, only for ensuring the type.
 (MOVWreg x) && x.Uses == 1 => (MOVWnop x)
 
+// TODO: we should be able to get rid of MOVWnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVWnop (MOVWconst [c])) => (MOVWconst [c])
+
 // mul by constant
 (MUL x (MOVWconst [c])) && int32(c) == -1 => (RSBconst [0] x)
 (MUL _ (MOVWconst [0])) => (MOVWconst [0])

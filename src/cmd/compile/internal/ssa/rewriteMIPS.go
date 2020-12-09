@@ -297,6 +297,8 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpMIPSMOVHstorezero(v)
 	case OpMIPSMOVWload:
 		return rewriteValueMIPS_OpMIPSMOVWload(v)
+	case OpMIPSMOVWnop:
+		return rewriteValueMIPS_OpMIPSMOVWnop(v)
 	case OpMIPSMOVWreg:
 		return rewriteValueMIPS_OpMIPSMOVWreg(v)
 	case OpMIPSMOVWstore:
@@ -3643,6 +3645,21 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *Value) bool {
 			break
 		}
 		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS_OpMIPSMOVWnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVWnop (MOVWconst [c]))
+	// result: (MOVWconst [c])
+	for {
+		if v_0.Op != OpMIPSMOVWconst {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		v.reset(OpMIPSMOVWconst)
+		v.AuxInt = int32ToAuxInt(c)
 		return true
 	}
 	return false
