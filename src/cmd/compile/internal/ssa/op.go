@@ -205,6 +205,7 @@ const (
 	auxInt32                // auxInt is a 32-bit integer
 	auxInt64                // auxInt is a 64-bit integer
 	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+	auxUInt8                // auxInt is an 8-bit unsigned integer
 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
 	auxFlagConstant         // auxInt is a flagConstant
