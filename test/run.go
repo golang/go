@@ -2004,7 +2004,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue24339.go":  true, // types2 reports wrong line number
 	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
