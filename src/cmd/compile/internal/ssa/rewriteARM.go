@@ -15599,6 +15599,7 @@ func rewriteValueARM_OpSelect0(v *Value) bool {
 		return true
 	}
 	// match: (Select0 (CALLudiv (MOVWconst [c]) (MOVWconst [d])))
+	// cond: d != 0
 	// result: (MOVWconst [int32(uint32(c)/uint32(d))])
 	for {
 		if v_0.Op != OpARMCALLudiv {
@@ -15615,6 +15616,9 @@ func rewriteValueARM_OpSelect0(v *Value) bool {
 			break
 		}
 		d := auxIntToInt32(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) / uint32(d)))
 		return true
@@ -15661,6 +15665,7 @@ func rewriteValueARM_OpSelect1(v *Value) bool {
 		return true
 	}
 	// match: (Select1 (CALLudiv (MOVWconst [c]) (MOVWconst [d])))
+	// cond: d != 0
 	// result: (MOVWconst [int32(uint32(c)%uint32(d))])
 	for {
 		if v_0.Op != OpARMCALLudiv {
@@ -15677,6 +15682,9 @@ func rewriteValueARM_OpSelect1(v *Value) bool {
 			break
 		}
 		d := auxIntToInt32(v_0_1.AuxInt)
+		if !(d != 0) {
+			break
+		}
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) % uint32(d)))
 		return true
