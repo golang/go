@@ -490,7 +490,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
 					if !pkg.fake {
-						check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
+						if check.conf.CompilerErrorMessages {
+							check.errorf(e.Sel, "undefined: %s.%s", pkg.name, sel)
+						} else {
+							check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
+						}
 					}
 					goto Error
 				}
