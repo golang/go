@@ -51,6 +51,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	ADD $20, R13 // arg 5 is passed on stack
 	MOVW $SYS__umtx_op, R7
 	SWI $0
+	RSB.CS $0, R0
 	SUB $20, R13
 	// BCS error
 	MOVW	R0, ret+20(FP)
@@ -61,6 +62,7 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVW size+4(FP), R1
 	MOVW $SYS_thr_new, R7
 	SWI $0
+	RSB.CS $0, R0
 	MOVW	R0, ret+8(FP)
 	RET
 
@@ -144,6 +146,7 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
 	MOVW	flags+0(FP), R1
 	MOVW	$SYS_pipe2, R7
 	SWI	$0
+	RSB.CS $0, R0
 	MOVW	R0, errno+12(FP)
 	RET
 
