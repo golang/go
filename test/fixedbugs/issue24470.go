@@ -11,5 +11,6 @@ package p
 
 func f(i interface{}) {
 	if x, ok := i.(type); ok { // ERROR "outside type switch"
+		_ = x
 	}
 }

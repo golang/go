@@ -364,7 +364,11 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
-	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+	if check.conf.CompilerErrorMessages {
+		check.errorf(obj.Pos(), "invalid recursive type %s", obj.Name())
+	} else {
+		check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+	}
 	for range cycle {
 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
 		i++

@@ -11,7 +11,7 @@ type T struct {
 }
 
 func a() {
-	_ = T // ERROR "type T is not an expression"
+	_ = T // ERROR "type T is not an expression|T \(type\) is not an expression"
 }
 
 func b() {

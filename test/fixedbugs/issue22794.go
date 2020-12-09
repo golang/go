@@ -15,6 +15,7 @@ func main() {
 	i1 := it{Floats: true}
 	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)"
 	}
-	i2 := &it{floats: false} // ERROR "(but does have Floats)"
-	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)"
+	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field"
+	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
+	_ = i2
 }
