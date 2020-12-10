@@ -207,12 +207,12 @@ var (
 )
 
 // validateStructTag parses the struct tag and returns an error if it is not
-// in the canonical format, which is a space-separated list of key:"value"
-// settings. The value may contain spaces.
+// in the canonical format, as defined by reflect.StructTag.
 func validateStructTag(tag string) error {
 	// This code is based on the StructTag.Get code in package reflect.
 
 	n := 0
+	var keys []string
 	for ; tag != ""; n++ {
 		if n > 0 && tag != "" && tag[0] != ' ' {
 			// More restrictive than reflect, but catches likely mistakes
@@ -240,14 +240,27 @@ func validateStructTag(tag string) error {
 		if i == 0 {
 			return errTagKeySyntax
 		}
-		if i+1 >= len(tag) || tag[i] != ':' {
+		if i+1 >= len(tag) || tag[i] < ' ' || tag[i] == 0x7f {
 			return errTagSyntax
 		}
-		if tag[i+1] != '"' {
+		key := tag[:i]
+		keys = append(keys, key)
+		tag = tag[i:]
+
+		// If we found a space char here - assume that we have a tag with
+		// multiple keys.
+		if tag[0] == ' ' {
+			continue
+		}
+
+		// Spaces were filtered above so we assume that here we have
+		// only valid tag value started with `:"`.
+		if tag[0] != ':' || tag[1] != '"' {
 			return errTagValueSyntax
 		}
-		key := tag[:i]
-		tag = tag[i+1:]
+
+		// Remove the colon leaving tag at the start of the quoted string.
+		tag = tag[1:]
 
 		// Scan quoted string to find value.
 		i = 1
@@ -263,51 +276,56 @@ func validateStructTag(tag string) error {
 		qvalue := tag[:i+1]
 		tag = tag[i+1:]
 
-		value, err := strconv.Unquote(qvalue)
+		wholeValue, err := strconv.Unquote(qvalue)
 		if err != nil {
 			return errTagValueSyntax
 		}
 
-		if !checkTagSpaces[key] {
-			continue
-		}
-
-		switch key {
-		case "xml":
-			// If the first or last character in the XML tag is a space, it is
-			// suspicious.
-			if strings.Trim(value, " ") != value {
-				return errTagValueSpace
-			}
-
-			// If there are multiple spaces, they are suspicious.
-			if strings.Count(value, " ") > 1 {
-				return errTagValueSpace
-			}
-
-			// If there is no comma, skip the rest of the checks.
-			comma := strings.IndexRune(value, ',')
-			if comma < 0 {
+		for _, key := range keys {
+			if !checkTagSpaces[key] {
 				continue
 			}
 
-			// If the character before a comma is a space, this is suspicious.
-			if comma > 0 && value[comma-1] == ' ' {
+			value := wholeValue
+			switch key {
+			case "xml":
+				// If the first or last character in the XML tag is a space, it is
+				// suspicious.
+				if strings.Trim(value, " ") != value {
+					return errTagValueSpace
+				}
+
+				// If there are multiple spaces, they are suspicious.
+				if strings.Count(value, " ") > 1 {
+					return errTagValueSpace
+				}
+
+				// If there is no comma, skip the rest of the checks.
+				comma := strings.IndexRune(value, ',')
+				if comma < 0 {
+					continue
+				}
+
+				// If the character before a comma is a space, this is suspicious.
+				if comma > 0 && value[comma-1] == ' ' {
+					return errTagValueSpace
+				}
+				value = value[comma+1:]
+			case "json":
+				// JSON allows using spaces in the name, so skip it.
+				comma := strings.IndexRune(value, ',')
+				if comma < 0 {
+					continue
+				}
+				value = value[comma+1:]
+			}
+
+			if strings.IndexByte(value, ' ') >= 0 {
 				return errTagValueSpace
 			}
-			value = value[comma+1:]
-		case "json":
-			// JSON allows using spaces in the name, so skip it.
-			comma := strings.IndexRune(value, ',')
-			if comma < 0 {
-				continue
-			}
-			value = value[comma+1:]
 		}
 
-		if strings.IndexByte(value, ' ') >= 0 {
-			return errTagValueSpace
-		}
+		keys = keys[:0]
 	}
 	return nil
 }
