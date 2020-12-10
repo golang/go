@@ -2791,7 +2791,7 @@ func pushtype(nn ir.Node, t *types.Type) ir.Node {
 		// For *T, return &T{...}.
 		n.SetRight(ir.TypeNode(t.Elem()))
 
-		addr := ir.NodAt(n.Pos(), ir.OADDR, n, nil)
+		addr := nodAddrAt(n.Pos(), n)
 		addr.SetImplicit(true)
 		return addr
 	}

@@ -31,18 +31,20 @@ func evalunsafe(n ir.Node) int64 {
 			base.Errorf("invalid expression %v", n)
 			return 0
 		}
+		sel := n.Left().(*ir.SelectorExpr)
 
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		n.Left().SetLeft(typecheck(n.Left().Left(), ctxExpr))
-		sbase := n.Left().Left()
+		sel.SetLeft(typecheck(sel.Left(), ctxExpr))
+		sbase := sel.Left()
 
-		n.SetLeft(typecheck(n.Left(), ctxExpr))
-		if n.Left().Type() == nil {
+		tsel := typecheck(sel, ctxExpr)
+		n.SetLeft(tsel)
+		if tsel.Type() == nil {
 			return 0
 		}
-		switch n.Left().Op() {
+		switch tsel.Op() {
 		case ir.ODOT, ir.ODOTPTR:
 			break
 		case ir.OCALLPART:
@@ -55,7 +57,8 @@ func evalunsafe(n ir.Node) int64 {
 
 		// Sum offsets for dots until we reach sbase.
 		var v int64
-		for r := n.Left(); r != sbase; r = r.Left() {
+		var next ir.Node
+		for r := tsel; r != sbase; r = next {
 			switch r.Op() {
 			case ir.ODOTPTR:
 				// For Offsetof(s.f), s may itself be a pointer,
@@ -68,8 +71,9 @@ func evalunsafe(n ir.Node) int64 {
 				fallthrough
 			case ir.ODOT:
 				v += r.Offset()
+				next = r.Left()
 			default:
-				ir.Dump("unsafenmagic", n.Left())
+				ir.Dump("unsafenmagic", tsel)
 				base.Fatalf("impossible %v node after dot insertion", r.Op())
 			}
 		}

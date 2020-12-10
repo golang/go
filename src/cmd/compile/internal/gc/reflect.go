@@ -986,7 +986,7 @@ func typenamesym(t *types.Type) *types.Sym {
 	return s
 }
 
-func typename(t *types.Type) ir.Node {
+func typename(t *types.Type) *ir.AddrExpr {
 	s := typenamesym(t)
 	if s.Def == nil {
 		n := ir.NewNameAt(src.NoXPos, s)
@@ -1002,7 +1002,7 @@ func typename(t *types.Type) ir.Node {
 	return n
 }
 
-func itabname(t, itype *types.Type) ir.Node {
+func itabname(t, itype *types.Type) *ir.AddrExpr {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
 		base.Fatalf("itabname(%v, %v)", t, itype)
 	}

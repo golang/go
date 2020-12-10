@@ -48,10 +48,10 @@ func fninit(n []ir.Node) {
 		if n.Op() == ir.ONONAME {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.(*ir.Name).Class() != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
-		deps = append(deps, n.Sym().Linksym())
+		deps = append(deps, n.(*ir.Name).Sym().Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
@@ -86,10 +86,10 @@ func fninit(n []ir.Node) {
 	// Record user init functions.
 	for i := 0; i < renameinitgen; i++ {
 		s := lookupN("init.", i)
-		fn := ir.AsNode(s.Def).Name().Defn
+		fn := ir.AsNode(s.Def).Name().Defn.(*ir.Func)
 		// Skip init functions with empty bodies.
 		if fn.Body().Len() == 1 {
-			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.List().Len() == 0 {
+			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
 				continue
 			}
 		}

@@ -110,7 +110,7 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
 		}
 	}
 
-	v := names[0]
+	v := names[0].(*ir.Name)
 	if dclcontext != ir.PEXTERN {
 		numLocalEmbed++
 		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))

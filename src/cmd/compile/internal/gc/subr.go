@@ -1234,7 +1234,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		left := dot.Left() // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
 		if !dotlist[0].field.Type.IsPtr() {
-			left = ir.Nod(ir.OADDR, left, nil)
+			left = nodAddr(left)
 		}
 		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
 		fn.PtrBody().Append(as)

@@ -101,9 +101,11 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 			}
 		case ir.OCALLPART:
 			fn := ir.AsNode(callpartMethod(n).Nname)
-			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
-				if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
-					min = m
+			if fn != nil && fn.Op() == ir.ONAME {
+				if fn := fn.(*ir.Name); fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+					if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
+						min = m
+					}
 				}
 			}
 		case ir.OCLOSURE:

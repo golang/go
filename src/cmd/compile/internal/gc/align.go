@@ -119,6 +119,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 		}
 		f.Offset = o
 		if n := ir.AsNode(f.Nname); n != nil {
+			n := n.Name()
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
