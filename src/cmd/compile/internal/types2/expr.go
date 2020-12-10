@@ -1188,7 +1188,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 	case *syntax.BasicLit:
 		if e.Bad {
-			goto Error // error was reported before
+			goto Error // error reported during parsing
 		}
 		x.setConst(e.Kind, e.Value)
 		if x.mode == invalid {

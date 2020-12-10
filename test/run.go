@@ -2014,7 +2014,6 @@ var excluded = map[string]bool{
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
 	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
-	"fixedbugs/issue32133.go":  true, // types2 line numbers off?
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
@@ -2023,7 +2022,7 @@ var excluded = map[string]bool{
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
-	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
+	"fixedbugs/issue6500.go":   true, // error reported by noder (not running for types2 errorcheck test)
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

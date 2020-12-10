@@ -1045,7 +1045,8 @@ func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (check *Checker) tag(t *syntax.BasicLit) string {
-	if t != nil {
+	// If t.Bad, an error was reported during parsing.
+	if t != nil && !t.Bad {
 		if t.Kind == syntax.StringLit {
 			if val, err := strconv.Unquote(t.Value); err == nil {
 				return val
