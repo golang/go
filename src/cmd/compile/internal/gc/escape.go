@@ -228,6 +228,7 @@ func (e *Escape) walkFunc(fn *ir.Func) {
 	ir.Visit(fn, func(n ir.Node) {
 		switch n.Op() {
 		case ir.OLABEL:
+			n := n.(*ir.LabelStmt)
 			if e.labels == nil {
 				e.labels = make(map[*types.Sym]labelState)
 			}
@@ -236,6 +237,7 @@ func (e *Escape) walkFunc(fn *ir.Func) {
 		case ir.OGOTO:
 			// If we visited the label before the goto,
 			// then this is a looping label.
+			n := n.(*ir.BranchStmt)
 			if e.labels[n.Sym()] == nonlooping {
 				e.labels[n.Sym()] = looping
 			}
@@ -305,15 +307,18 @@ func (e *Escape) stmt(n ir.Node) {
 		// TODO(mdempsky): Handle dead code?
 
 	case ir.OBLOCK:
+		n := n.(*ir.BlockStmt)
 		e.stmts(n.List())
 
 	case ir.ODCL:
 		// Record loop depth at declaration.
+		n := n.(*ir.Decl)
 		if !ir.IsBlank(n.Left()) {
 			e.dcl(n.Left())
 		}
 
 	case ir.OLABEL:
+		n := n.(*ir.LabelStmt)
 		switch e.labels[n.Sym()] {
 		case nonlooping:
 			if base.Flag.LowerM > 2 {
@@ -330,11 +335,13 @@ func (e *Escape) stmt(n ir.Node) {
 		delete(e.labels, n.Sym())
 
 	case ir.OIF:
+		n := n.(*ir.IfStmt)
 		e.discard(n.Left())
 		e.block(n.Body())
 		e.block(n.Rlist())
 
 	case ir.OFOR, ir.OFORUNTIL:
+		n := n.(*ir.ForStmt)
 		e.loopDepth++
 		e.discard(n.Left())
 		e.stmt(n.Right())
@@ -343,6 +350,7 @@ func (e *Escape) stmt(n ir.Node) {
 
 	case ir.ORANGE:
 		// for List = range Right { Nbody }
+		n := n.(*ir.RangeStmt)
 		e.loopDepth++
 		ks := e.addrs(n.List())
 		e.block(n.Body())
@@ -360,11 +368,13 @@ func (e *Escape) stmt(n ir.Node) {
 		e.expr(e.later(k), n.Right())
 
 	case ir.OSWITCH:
+		n := n.(*ir.SwitchStmt)
 		typesw := n.Left() != nil && n.Left().Op() == ir.OTYPESW
 
 		var ks []EscHole
 		for _, cas := range n.List().Slice() { // cases
-			if typesw && n.Left().Left() != nil {
+			cas := cas.(*ir.CaseStmt)
+			if typesw && n.Left().(*ir.TypeSwitchGuard).Left() != nil {
 				cv := cas.Rlist().First()
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if cv.Type().HasPointers() {
@@ -377,50 +387,65 @@ func (e *Escape) stmt(n ir.Node) {
 		}
 
 		if typesw {
-			e.expr(e.teeHole(ks...), n.Left().Right())
+			e.expr(e.teeHole(ks...), n.Left().(*ir.TypeSwitchGuard).Right())
 		} else {
 			e.discard(n.Left())
 		}
 
 	case ir.OSELECT:
+		n := n.(*ir.SelectStmt)
 		for _, cas := range n.List().Slice() {
+			cas := cas.(*ir.CaseStmt)
 			e.stmt(cas.Left())
 			e.block(cas.Body())
 		}
 	case ir.OSELRECV:
+		n := n.(*ir.AssignStmt)
 		e.assign(n.Left(), n.Right(), "selrecv", n)
 	case ir.OSELRECV2:
+		n := n.(*ir.AssignListStmt)
 		e.assign(n.List().First(), n.Rlist().First(), "selrecv", n)
 		e.assign(n.List().Second(), nil, "selrecv", n)
 	case ir.ORECV:
 		// TODO(mdempsky): Consider e.discard(n.Left).
+		n := n.(*ir.UnaryExpr)
 		e.exprSkipInit(e.discardHole(), n) // already visited n.Ninit
 	case ir.OSEND:
+		n := n.(*ir.SendStmt)
 		e.discard(n.Left())
 		e.assignHeap(n.Right(), "send", n)
 
-	case ir.OAS, ir.OASOP:
+	case ir.OAS:
+		n := n.(*ir.AssignStmt)
 		e.assign(n.Left(), n.Right(), "assign", n)
-
+	case ir.OASOP:
+		n := n.(*ir.AssignOpStmt)
+		e.assign(n.Left(), n.Right(), "assign", n)
 	case ir.OAS2:
+		n := n.(*ir.AssignListStmt)
 		for i, nl := range n.List().Slice() {
 			e.assign(nl, n.Rlist().Index(i), "assign-pair", n)
 		}
 
 	case ir.OAS2DOTTYPE: // v, ok = x.(type)
+		n := n.(*ir.AssignListStmt)
 		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-dot-type", n)
 		e.assign(n.List().Second(), nil, "assign-pair-dot-type", n)
 	case ir.OAS2MAPR: // v, ok = m[k]
+		n := n.(*ir.AssignListStmt)
 		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-mapr", n)
 		e.assign(n.List().Second(), nil, "assign-pair-mapr", n)
 	case ir.OAS2RECV: // v, ok = <-ch
+		n := n.(*ir.AssignListStmt)
 		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-receive", n)
 		e.assign(n.List().Second(), nil, "assign-pair-receive", n)
 
 	case ir.OAS2FUNC:
+		n := n.(*ir.AssignListStmt)
 		e.stmts(n.Rlist().First().Init())
 		e.call(e.addrs(n.List()), n.Rlist().First(), nil)
 	case ir.ORETURN:
+		n := n.(*ir.ReturnStmt)
 		results := e.curfn.Type().Results().FieldSlice()
 		for i, v := range n.List().Slice() {
 			e.assign(ir.AsNode(results[i].Nname), v, "return", n)
@@ -428,6 +453,7 @@ func (e *Escape) stmt(n ir.Node) {
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		e.call(nil, n, nil)
 	case ir.OGO, ir.ODEFER:
+		n := n.(*ir.GoDeferStmt)
 		e.stmts(n.Left().Init())
 		e.call(nil, n.Left(), n)
 
@@ -472,7 +498,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 	uintptrEscapesHack := k.uintptrEscapesHack
 	k.uintptrEscapesHack = false
 
-	if uintptrEscapesHack && n.Op() == ir.OCONVNOP && n.Left().Type().IsUnsafePtr() {
+	if uintptrEscapesHack && n.Op() == ir.OCONVNOP && n.(*ir.ConvExpr).Left().Type().IsUnsafePtr() {
 		// nop
 	} else if k.derefs >= 0 && !n.Type().HasPointers() {
 		k = e.discardHole()
@@ -486,28 +512,40 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		// nop
 
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		if n.Class() == ir.PFUNC || n.Class() == ir.PEXTERN {
 			return
 		}
 		e.flow(k, e.oldLoc(n))
 
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+		n := n.(*ir.UnaryExpr)
 		e.discard(n.Left())
-	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.ODIV, ir.OMOD, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE, ir.OANDAND, ir.OOROR:
+	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.ODIV, ir.OMOD, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
+		n := n.(*ir.BinaryExpr)
 		e.discard(n.Left())
 		e.discard(n.Right())
-
+	case ir.OANDAND, ir.OOROR:
+		n := n.(*ir.LogicalExpr)
+		e.discard(n.Left())
+		e.discard(n.Right())
 	case ir.OADDR:
+		n := n.(*ir.AddrExpr)
 		e.expr(k.addr(n, "address-of"), n.Left()) // "address-of"
 	case ir.ODEREF:
+		n := n.(*ir.StarExpr)
 		e.expr(k.deref(n, "indirection"), n.Left()) // "indirection"
 	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
+		n := n.(*ir.SelectorExpr)
 		e.expr(k.note(n, "dot"), n.Left())
 	case ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
 		e.expr(k.deref(n, "dot of pointer"), n.Left()) // "dot of pointer"
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
+		n := n.(*ir.TypeAssertExpr)
 		e.expr(k.dotType(n.Type(), n, "dot"), n.Left())
 	case ir.OINDEX:
+		n := n.(*ir.IndexExpr)
 		if n.Left().Type().IsArray() {
 			e.expr(k.note(n, "fixed-array-index-of"), n.Left())
 		} else {
@@ -516,9 +554,11 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		}
 		e.discard(n.Right())
 	case ir.OINDEXMAP:
+		n := n.(*ir.IndexExpr)
 		e.discard(n.Left())
 		e.discard(n.Right())
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR:
+		n := n.(*ir.SliceExpr)
 		e.expr(k.note(n, "slice"), n.Left())
 		low, high, max := n.SliceBounds()
 		e.discard(low)
@@ -526,6 +566,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		e.discard(max)
 
 	case ir.OCONV, ir.OCONVNOP:
+		n := n.(*ir.ConvExpr)
 		if checkPtr(e.curfn, 2) && n.Type().IsUnsafePtr() && n.Left().Type().IsPtr() {
 			// When -d=checkptr=2 is enabled, treat
 			// conversions to unsafe.Pointer as an
@@ -540,27 +581,33 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 			e.expr(k, n.Left())
 		}
 	case ir.OCONVIFACE:
+		n := n.(*ir.ConvExpr)
 		if !n.Left().Type().IsInterface() && !isdirectiface(n.Left().Type()) {
 			k = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.Left())
 
 	case ir.ORECV:
+		n := n.(*ir.UnaryExpr)
 		e.discard(n.Left())
 
 	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY:
 		e.call([]EscHole{k}, n, nil)
 
 	case ir.ONEW:
+		n := n.(*ir.UnaryExpr)
 		e.spill(k, n)
 
 	case ir.OMAKESLICE:
+		n := n.(*ir.MakeExpr)
 		e.spill(k, n)
 		e.discard(n.Left())
 		e.discard(n.Right())
 	case ir.OMAKECHAN:
+		n := n.(*ir.MakeExpr)
 		e.discard(n.Left())
 	case ir.OMAKEMAP:
+		n := n.(*ir.MakeExpr)
 		e.spill(k, n)
 		e.discard(n.Left())
 
@@ -571,6 +618,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		// Flow the receiver argument to both the closure and
 		// to the receiver parameter.
 
+		n := n.(*ir.CallPartExpr)
 		closureK := e.spill(k, n)
 
 		m := callpartMethod(n)
@@ -591,37 +639,43 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		e.expr(e.teeHole(paramK, closureK), n.Left())
 
 	case ir.OPTRLIT:
+		n := n.(*ir.AddrExpr)
 		e.expr(e.spill(k, n), n.Left())
 
 	case ir.OARRAYLIT:
+		n := n.(*ir.CompLitExpr)
 		for _, elt := range n.List().Slice() {
 			if elt.Op() == ir.OKEY {
-				elt = elt.Right()
+				elt = elt.(*ir.KeyExpr).Right()
 			}
 			e.expr(k.note(n, "array literal element"), elt)
 		}
 
 	case ir.OSLICELIT:
+		n := n.(*ir.CompLitExpr)
 		k = e.spill(k, n)
 		k.uintptrEscapesHack = uintptrEscapesHack // for ...uintptr parameters
 
 		for _, elt := range n.List().Slice() {
 			if elt.Op() == ir.OKEY {
-				elt = elt.Right()
+				elt = elt.(*ir.KeyExpr).Right()
 			}
 			e.expr(k.note(n, "slice-literal-element"), elt)
 		}
 
 	case ir.OSTRUCTLIT:
+		n := n.(*ir.CompLitExpr)
 		for _, elt := range n.List().Slice() {
-			e.expr(k.note(n, "struct literal element"), elt.Left())
+			e.expr(k.note(n, "struct literal element"), elt.(*ir.StructKeyExpr).Left())
 		}
 
 	case ir.OMAPLIT:
+		n := n.(*ir.CompLitExpr)
 		e.spill(k, n)
 
 		// Map keys and values are always stored in the heap.
 		for _, elt := range n.List().Slice() {
+			elt := elt.(*ir.KeyExpr)
 			e.assignHeap(elt.Left(), "map literal key", n)
 			e.assignHeap(elt.Right(), "map literal value", n)
 		}
@@ -640,10 +694,12 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		}
 
 	case ir.ORUNES2STR, ir.OBYTES2STR, ir.OSTR2RUNES, ir.OSTR2BYTES, ir.ORUNESTR:
+		n := n.(*ir.ConvExpr)
 		e.spill(k, n)
 		e.discard(n.Left())
 
 	case ir.OADDSTR:
+		n := n.(*ir.AddStringExpr)
 		e.spill(k, n)
 
 		// Arguments of OADDSTR never escape;
@@ -663,23 +719,28 @@ func (e *Escape) unsafeValue(k EscHole, n ir.Node) {
 
 	switch n.Op() {
 	case ir.OCONV, ir.OCONVNOP:
+		n := n.(*ir.ConvExpr)
 		if n.Left().Type().IsUnsafePtr() {
 			e.expr(k, n.Left())
 		} else {
 			e.discard(n.Left())
 		}
 	case ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
 		if isReflectHeaderDataField(n) {
 			e.expr(k.deref(n, "reflect.Header.Data"), n.Left())
 		} else {
 			e.discard(n.Left())
 		}
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT:
+		n := n.(*ir.UnaryExpr)
 		e.unsafeValue(k, n.Left())
 	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.ODIV, ir.OMOD, ir.OAND, ir.OANDNOT:
+		n := n.(*ir.BinaryExpr)
 		e.unsafeValue(k, n.Left())
 		e.unsafeValue(k, n.Right())
 	case ir.OLSH, ir.ORSH:
+		n := n.(*ir.BinaryExpr)
 		e.unsafeValue(k, n.Left())
 		// RHS need not be uintptr-typed (#32959) and can't meaningfully
 		// flow pointers anyway.
@@ -715,13 +776,16 @@ func (e *Escape) addr(n ir.Node) EscHole {
 	default:
 		base.Fatalf("unexpected addr: %v", n)
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		if n.Class() == ir.PEXTERN {
 			break
 		}
 		k = e.oldLoc(n).asHole()
 	case ir.ODOT:
+		n := n.(*ir.SelectorExpr)
 		k = e.addr(n.Left())
 	case ir.OINDEX:
+		n := n.(*ir.IndexExpr)
 		e.discard(n.Right())
 		if n.Left().Type().IsArray() {
 			k = e.addr(n.Left())
@@ -731,6 +795,7 @@ func (e *Escape) addr(n ir.Node) EscHole {
 	case ir.ODEREF, ir.ODOTPTR:
 		e.discard(n)
 	case ir.OINDEXMAP:
+		n := n.(*ir.IndexExpr)
 		e.discard(n.Left())
 		e.assignHeap(n.Right(), "key of map put", n)
 	}
@@ -803,6 +868,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		base.Fatalf("unexpected call op: %v", call.Op())
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+		call := call.(*ir.CallExpr)
 		fixVariadicCall(call)
 
 		// Pick out the function callee, if statically known.
@@ -810,7 +876,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		switch call.Op() {
 		case ir.OCALLFUNC:
 			switch v := staticValue(call.Left()); {
-			case v.Op() == ir.ONAME && v.Class() == ir.PFUNC:
+			case v.Op() == ir.ONAME && v.(*ir.Name).Class() == ir.PFUNC:
 				fn = v.(*ir.Name)
 			case v.Op() == ir.OCLOSURE:
 				fn = v.Func().Nname
@@ -831,7 +897,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		}
 
 		if r := fntype.Recv(); r != nil {
-			argument(e.tagHole(ks, fn, r), call.Left().Left())
+			argument(e.tagHole(ks, fn, r), call.Left().(*ir.SelectorExpr).Left())
 		} else {
 			// Evaluate callee function expression.
 			argument(e.discardHole(), call.Left())
@@ -843,6 +909,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		}
 
 	case ir.OAPPEND:
+		call := call.(*ir.CallExpr)
 		args := call.List().Slice()
 
 		// Appendee slice may flow directly to the result, if
@@ -868,6 +935,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		}
 
 	case ir.OCOPY:
+		call := call.(*ir.BinaryExpr)
 		argument(e.discardHole(), call.Left())
 
 		copiedK := e.discardHole()
@@ -877,16 +945,20 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		argument(copiedK, call.Right())
 
 	case ir.OPANIC:
+		call := call.(*ir.UnaryExpr)
 		argument(e.heapHole(), call.Left())
 
 	case ir.OCOMPLEX:
+		call := call.(*ir.BinaryExpr)
 		argument(e.discardHole(), call.Left())
 		argument(e.discardHole(), call.Right())
 	case ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		call := call.(*ir.CallExpr)
 		for _, arg := range call.List().Slice() {
 			argument(e.discardHole(), arg)
 		}
 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), call.Left())
 	}
 }
@@ -1082,6 +1154,7 @@ func (e *Escape) newLoc(n ir.Node, transient bool) *EscLocation {
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {
 		if n.Op() == ir.ONAME && n.Name().Curfn != e.curfn {
+			n := n.(*ir.Name)
 			base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
 		}
 
@@ -1466,14 +1539,24 @@ func (e *Escape) finish(fns []*ir.Func) {
 			}
 			n.SetEsc(EscNone)
 			if loc.transient {
-				n.SetTransient(true)
+				switch n.Op() {
+				case ir.OCLOSURE:
+					n := n.(*ir.ClosureExpr)
+					n.SetTransient(true)
+				case ir.OCALLPART:
+					n := n.(*ir.CallPartExpr)
+					n.SetTransient(true)
+				case ir.OSLICELIT:
+					n := n.(*ir.CompLitExpr)
+					n.SetTransient(true)
+				}
 			}
 		}
 	}
 }
 
 func (l *EscLocation) isName(c ir.Class) bool {
-	return l.n != nil && l.n.Op() == ir.ONAME && l.n.Class() == c
+	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class() == c
 }
 
 const numEscResults = 7
@@ -1636,7 +1719,18 @@ func isSliceSelfAssign(dst, src ir.Node) bool {
 	// when we evaluate it for dst and for src.
 
 	// dst is ONAME dereference.
-	if dst.Op() != ir.ODEREF && dst.Op() != ir.ODOTPTR || dst.Left().Op() != ir.ONAME {
+	var dstX ir.Node
+	switch dst.Op() {
+	default:
+		return false
+	case ir.ODEREF:
+		dst := dst.(*ir.StarExpr)
+		dstX = dst.Left()
+	case ir.ODOTPTR:
+		dst := dst.(*ir.SelectorExpr)
+		dstX = dst.Left()
+	}
+	if dstX.Op() != ir.ONAME {
 		return false
 	}
 	// src is a slice operation.
@@ -1653,6 +1747,7 @@ func isSliceSelfAssign(dst, src ir.Node) bool {
 		// Pointer to an array is OK since it's not stored inside b directly.
 		// For slicing an array (not pointer to array), there is an implicit OADDR.
 		// We check that to determine non-pointer array slicing.
+		src := src.(*ir.SliceExpr)
 		if src.Left().Op() == ir.OADDR {
 			return false
 		}
@@ -1660,11 +1755,22 @@ func isSliceSelfAssign(dst, src ir.Node) bool {
 		return false
 	}
 	// slice is applied to ONAME dereference.
-	if src.Left().Op() != ir.ODEREF && src.Left().Op() != ir.ODOTPTR || src.Left().Left().Op() != ir.ONAME {
+	var baseX ir.Node
+	switch base := src.(*ir.SliceExpr).Left(); base.Op() {
+	default:
+		return false
+	case ir.ODEREF:
+		base := base.(*ir.StarExpr)
+		baseX = base.Left()
+	case ir.ODOTPTR:
+		base := base.(*ir.SelectorExpr)
+		baseX = base.Left()
+	}
+	if baseX.Op() != ir.ONAME {
 		return false
 	}
 	// dst and src reference the same base ONAME.
-	return dst.Left() == src.Left().Left()
+	return dstX.(*ir.Name) == baseX.(*ir.Name)
 }
 
 // isSelfAssign reports whether assignment from src to dst can
@@ -1688,19 +1794,23 @@ func isSelfAssign(dst, src ir.Node) bool {
 		return false
 	}
 
+	// The expression prefix must be both "safe" and identical.
 	switch dst.Op() {
 	case ir.ODOT, ir.ODOTPTR:
 		// Safe trailing accessors that are permitted to differ.
+		dst := dst.(*ir.SelectorExpr)
+		src := src.(*ir.SelectorExpr)
+		return samesafeexpr(dst.Left(), src.Left())
 	case ir.OINDEX:
+		dst := dst.(*ir.IndexExpr)
+		src := src.(*ir.IndexExpr)
 		if mayAffectMemory(dst.Right()) || mayAffectMemory(src.Right()) {
 			return false
 		}
+		return samesafeexpr(dst.Left(), src.Left())
 	default:
 		return false
 	}
-
-	// The expression prefix must be both "safe" and identical.
-	return samesafeexpr(dst.Left(), src.Left())
 }
 
 // mayAffectMemory reports whether evaluation of n may affect the program's
@@ -1713,17 +1823,36 @@ func mayAffectMemory(n ir.Node) bool {
 	//
 	// We're ignoring things like division by zero, index out of range,
 	// and nil pointer dereference here.
+
+	// TODO(rsc): It seems like it should be possible to replace this with
+	// an ir.Any looking for any op that's not the ones in the case statement.
+	// But that produces changes in the compiled output detected by buildall.
 	switch n.Op() {
 	case ir.ONAME, ir.OCLOSUREREAD, ir.OLITERAL, ir.ONIL:
 		return false
 
-	// Left+Right group.
-	case ir.OINDEX, ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD:
+	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD:
+		n := n.(*ir.BinaryExpr)
 		return mayAffectMemory(n.Left()) || mayAffectMemory(n.Right())
 
-	// Left group.
-	case ir.ODOT, ir.ODOTPTR, ir.ODEREF, ir.OCONVNOP, ir.OCONV, ir.OLEN, ir.OCAP,
-		ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.OINDEX:
+		n := n.(*ir.IndexExpr)
+		return mayAffectMemory(n.Left()) || mayAffectMemory(n.Right())
+
+	case ir.OCONVNOP, ir.OCONV:
+		n := n.(*ir.ConvExpr)
+		return mayAffectMemory(n.Left())
+
+	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+		n := n.(*ir.UnaryExpr)
+		return mayAffectMemory(n.Left())
+
+	case ir.ODOT, ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
+		return mayAffectMemory(n.Left())
+
+	case ir.ODEREF:
+		n := n.(*ir.StarExpr)
 		return mayAffectMemory(n.Left())
 
 	default:
@@ -1739,8 +1868,11 @@ func heapAllocReason(n ir.Node) string {
 	}
 
 	// Parameters are always passed via the stack.
-	if n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) {
-		return ""
+	if n.Op() == ir.ONAME {
+		n := n.(*ir.Name)
+		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+			return ""
+		}
 	}
 
 	if n.Type().Width > maxStackVarSize {
@@ -1754,11 +1886,12 @@ func heapAllocReason(n ir.Node) string {
 	if n.Op() == ir.OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
+	if n.Op() == ir.OCALLPART && partialCallType(n.(*ir.CallPartExpr)).Size() >= maxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
 	if n.Op() == ir.OMAKESLICE {
+		n := n.(*ir.MakeExpr)
 		r := n.Right()
 		if r == nil {
 			r = n.Left()
@@ -1833,10 +1966,20 @@ func addrescapes(n ir.Node) {
 	// In &x[0], if x is a slice, then x does not
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
-	case ir.ODOT, ir.OINDEX, ir.OPAREN, ir.OCONVNOP:
+	case ir.ODOT:
+		n := n.(*ir.SelectorExpr)
+		addrescapes(n.Left())
+	case ir.OINDEX:
+		n := n.(*ir.IndexExpr)
 		if !n.Left().Type().IsSlice() {
 			addrescapes(n.Left())
 		}
+	case ir.OPAREN:
+		n := n.(*ir.ParenExpr)
+		addrescapes(n.Left())
+	case ir.OCONVNOP:
+		n := n.(*ir.ConvExpr)
+		addrescapes(n.Left())
 	}
 }
 
@@ -1857,7 +2000,6 @@ func moveToHeap(n *ir.Name) {
 	// temp will add it to the function declaration list automatically.
 	heapaddr := temp(types.NewPtr(n.Type()))
 	heapaddr.SetSym(lookup("&" + n.Sym().Name))
-	ir.Orig(heapaddr).SetSym(heapaddr.Sym())
 	heapaddr.SetPos(n.Pos())
 
 	// Unset AutoTemp to persist the &foo variable name through SSA to
@@ -1933,7 +2075,7 @@ const unsafeUintptrTag = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const uintptrEscapesTag = "uintptr-escapes"
 
-func (e *Escape) paramTag(fn ir.Node, narg int, f *types.Field) string {
+func (e *Escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	name := func() string {
 		if f.Sym != nil {
 			return f.Sym.Name
