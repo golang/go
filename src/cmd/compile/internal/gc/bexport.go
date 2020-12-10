@@ -15,8 +15,11 @@ type exporter struct {
 
 // markObject visits a reachable object.
 func (p *exporter) markObject(n ir.Node) {
-	if n.Op() == ir.ONAME && n.Class() == ir.PFUNC {
-		inlFlood(n.(*ir.Name))
+	if n.Op() == ir.ONAME {
+		n := n.(*ir.Name)
+		if n.Class() == ir.PFUNC {
+			inlFlood(n)
+		}
 	}
 
 	p.markType(n.Type())
