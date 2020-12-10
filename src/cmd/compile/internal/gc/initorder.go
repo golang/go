@@ -79,7 +79,7 @@ type InitOrder struct {
 func initOrder(l []ir.Node) []ir.Node {
 	s := InitSchedule{
 		initplans: make(map[ir.Node]*InitPlan),
-		inittemps: make(map[ir.Node]ir.Node),
+		inittemps: make(map[ir.Node]*ir.Name),
 	}
 	o := InitOrder{
 		blocking: make(map[ir.Node][]ir.Node),

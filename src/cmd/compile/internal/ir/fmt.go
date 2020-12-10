@@ -624,8 +624,12 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fallthrough
-	case OPACK, ONONAME, OMETHEXPR:
+	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym())
+
+	case OMETHEXPR:
+		n := n.(*MethodExpr)
+		fmt.Fprint(s, n.FuncName().Sym())
 
 	case OTYPE:
 		if n.Type() == nil && n.Sym() != nil {
@@ -1139,7 +1143,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		dumpNodeHeader(w, n)
 		return
 
-	case ONAME, ONONAME, OMETHEXPR:
+	case ONAME, ONONAME:
 		if n.Sym() != nil {
 			fmt.Fprintf(w, "%+v-%+v", n.Op(), n.Sym())
 		} else {
@@ -1151,6 +1155,12 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v-ntype", n.Op())
 			dumpNode(w, n.Name().Ntype, depth+1)
 		}
+		return
+
+	case OMETHEXPR:
+		n := n.(*MethodExpr)
+		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.FuncName().Sym())
+		dumpNodeHeader(w, n)
 		return
 
 	case OASOP:

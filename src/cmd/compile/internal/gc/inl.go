@@ -640,11 +640,12 @@ func inlCallee(fn ir.Node) *ir.Func {
 	fn = staticValue(fn)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
+		fn := fn.(*ir.MethodExpr)
 		n := methodExprName(fn)
 		// Check that receiver type matches fn.Left.
 		// TODO(mdempsky): Handle implicit dereference
 		// of pointer receiver argument?
-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.Left().Type()) {
+		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
 			return nil
 		}
 		return n.Func()

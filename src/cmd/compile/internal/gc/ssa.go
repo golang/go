@@ -2087,7 +2087,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		aux := n.Left().Sym().Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
 	case ir.OMETHEXPR:
-		sym := funcsym(n.Sym()).Linksym()
+		n := n.(*ir.MethodExpr)
+		sym := funcsym(n.FuncName().Sym()).Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 	case ir.ONAME:
 		if n.Class() == ir.PFUNC {
