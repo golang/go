@@ -335,7 +335,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 			}
 		}
 
-		if isIntrinsicCall(n) {
+		if isIntrinsicCall(n.(*ir.CallExpr)) {
 			// Treat like any other node.
 			break
 		}
@@ -583,7 +583,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), n.Left())
 		}
-		if isIntrinsicCall(n) {
+		if isIntrinsicCall(n.(*ir.CallExpr)) {
 			break
 		}
 		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
