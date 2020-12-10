@@ -1926,68 +1926,34 @@ func overlayDir(dstRoot, srcRoot string) error {
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var excluded = map[string]bool{
-	"complit1.go":     true,
-	"const2.go":       true,
-	"convlit.go":      true,
+	"complit1.go":     true, // types2 reports extra errors
+	"const2.go":       true, // types2 not run after syntax errors
 	"ddd1.go":         true, // issue #42987
 	"directive.go":    true, // misplaced compiler directive checks
-	"float_lit3.go":   true,
-	"import1.go":      true,
+	"float_lit3.go":   true, // types2 reports extra errors
+	"import1.go":      true, // types2 reports extra errors
 	"import5.go":      true, // issue #42988
-	"import6.go":      true,
-	"initializerr.go": true,
-	"linkname2.go":    true,
-	"makechan.go":     true,
-	"makemap.go":      true,
+	"import6.go":      true, // issue #43109
+	"initializerr.go": true, // types2 reports extra errors
+	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"shift1.go":       true, // issue #42989
-	"slice3err.go":    true,
-	"switch3.go":      true,
-	"switch4.go":      true,
-	"switch5.go":      true,
-	"switch6.go":      true,
-	"switch7.go":      true,
+	"switch3.go":      true, // issue #43110
+	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
 	"typecheck.go":    true, // invalid function is not causing errors when called
 
-	"fixedbugs/bug163.go":    true,
-	"fixedbugs/bug176.go":    true,
-	"fixedbugs/bug192.go":    true,
-	"fixedbugs/bug193.go":    true,
-	"fixedbugs/bug195.go":    true,
-	"fixedbugs/bug213.go":    true,
-	"fixedbugs/bug228.go":    true,
-	"fixedbugs/bug229.go":    true,
-	"fixedbugs/bug231.go":    true,
-	"fixedbugs/bug251.go":    true,
-	"fixedbugs/bug255.go":    true,
-	"fixedbugs/bug256.go":    true,
-	"fixedbugs/bug325.go":    true,
-	"fixedbugs/bug326.go":    true,
-	"fixedbugs/bug340.go":    true,
-	"fixedbugs/bug342.go":    true,
-	"fixedbugs/bug350.go":    true,
-	"fixedbugs/bug351.go":    true,
-	"fixedbugs/bug353.go":    true,
-	"fixedbugs/bug357.go":    true,
-	"fixedbugs/bug362.go":    true,
-	"fixedbugs/bug371.go":    true,
-	"fixedbugs/bug374.go":    true,
-	"fixedbugs/bug379.go":    true,
-	"fixedbugs/bug383.go":    true,
+	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug213.go":    true, // error reported by noder (not running for types2 errorcheck test)
+	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+	"fixedbugs/bug374.go":    true, // types2 reports extra errors
 	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
 	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
-	"fixedbugs/bug386.go":    true,
-	"fixedbugs/bug388.go":    true,
-	"fixedbugs/bug389.go":    true,
-	"fixedbugs/bug390.go":    true,
-	"fixedbugs/bug397.go":    true,
-	"fixedbugs/bug412.go":    true,
-	"fixedbugs/bug413.go":    true,
-	"fixedbugs/bug416.go":    true,
-	"fixedbugs/bug418.go":    true,
-	"fixedbugs/bug459.go":    true,
-	"fixedbugs/bug462.go":    true,
-	"fixedbugs/bug463.go":    true,
-	"fixedbugs/bug487.go":    true,
+	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
 
 	"fixedbugs/issue11362.go":  true, // types2 import path handling
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
@@ -1995,7 +1961,7 @@ var excluded = map[string]bool{
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
 	"fixedbugs/issue13415.go":  true, // declared but not used conflict
 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
-	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
+	"fixedbugs/issue14540.go":  true, // error reported by noder (not running for types2 errorcheck test)
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
 	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue17645.go":  true, // multiple errors on same line

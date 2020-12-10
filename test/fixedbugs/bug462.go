@@ -8,12 +8,14 @@ package main
 
 import "os"
 
+var _ = os.Open // avoid imported and not used error
+
 type T struct {
 	File int
 }
 
 func main() {
 	_ = T {
-		os.File: 1, // ERROR "unknown T? ?field"
+		os.File: 1, // ERROR "unknown T? ?field|invalid field"
 	}
 }
