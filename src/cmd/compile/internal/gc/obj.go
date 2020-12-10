@@ -205,13 +205,14 @@ func addptabs() {
 	}
 	for _, exportn := range exportlist {
 		s := exportn.Sym()
-		n := ir.AsNode(s.Def)
-		if n == nil {
+		nn := ir.AsNode(s.Def)
+		if nn == nil {
 			continue
 		}
-		if n.Op() != ir.ONAME {
+		if nn.Op() != ir.ONAME {
 			continue
 		}
+		n := nn.(*ir.Name)
 		if !types.IsExported(s.Name) {
 			continue
 		}
@@ -228,7 +229,7 @@ func addptabs() {
 	}
 }
 
-func dumpGlobal(n ir.Node) {
+func dumpGlobal(n *ir.Name) {
 	if n.Type() == nil {
 		base.Fatalf("external %v nil type\n", n)
 	}
@@ -271,7 +272,7 @@ func dumpglobls() {
 	for _, n := range externdcl {
 		switch n.Op() {
 		case ir.ONAME:
-			dumpGlobal(n)
+			dumpGlobal(n.(*ir.Name))
 		case ir.OLITERAL:
 			dumpGlobalConst(n)
 		}
@@ -475,7 +476,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 var slicedataGen int
 
-func slicedata(pos src.XPos, s string) ir.Node {
+func slicedata(pos src.XPos, s string) *ir.Name {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
 	sym := types.LocalPkg.Lookup(symname)
@@ -489,7 +490,7 @@ func slicedata(pos src.XPos, s string) ir.Node {
 	return symnode
 }
 
-func slicebytes(nam ir.Node, s string) {
+func slicebytes(nam *ir.Name, s string) {
 	if nam.Op() != ir.ONAME {
 		base.Fatalf("slicebytes %v", nam)
 	}
@@ -529,8 +530,8 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
 }
 
 // slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
-// arr must be an ONAME. slicesym does not modify n.
-func slicesym(n, arr ir.Node, lencap int64) {
+// slicesym does not modify n.
+func slicesym(n, arr *ir.Name, lencap int64) {
 	s := n.Sym().Linksym()
 	off := n.Offset()
 	if arr.Op() != ir.ONAME {
@@ -543,7 +544,7 @@ func slicesym(n, arr ir.Node, lencap int64) {
 
 // addrsym writes the static address of a to n. a must be an ONAME.
 // Neither n nor a is modified.
-func addrsym(n, a ir.Node) {
+func addrsym(n, a *ir.Name) {
 	if n.Op() != ir.ONAME {
 		base.Fatalf("addrsym n op %v", n.Op())
 	}
@@ -559,7 +560,7 @@ func addrsym(n, a ir.Node) {
 
 // pfuncsym writes the static address of f to n. f must be a global function.
 // Neither n nor f is modified.
-func pfuncsym(n, f ir.Node) {
+func pfuncsym(n, f *ir.Name) {
 	if n.Op() != ir.ONAME {
 		base.Fatalf("pfuncsym n op %v", n.Op())
 	}
@@ -575,7 +576,7 @@ func pfuncsym(n, f ir.Node) {
 
 // litsym writes the static literal c to n.
 // Neither n nor c is modified.
-func litsym(n, c ir.Node, wid int) {
+func litsym(n *ir.Name, c ir.Node, wid int) {
 	if n.Op() != ir.ONAME {
 		base.Fatalf("litsym n op %v", n.Op())
 	}

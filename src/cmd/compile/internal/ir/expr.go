@@ -526,35 +526,35 @@ func (n *MakeExpr) SetOp(op Op) {
 	}
 }
 
-// A MethodExpr is a method value X.M (where X is an expression, not a type).
+// A MethodExpr is a method expression T.M (where T is a type).
 type MethodExpr struct {
 	miniExpr
-	X       Node
-	M       Node
-	Sym_    *types.Sym
-	Offset_ int64
-	Class_  Class
-	Method  *types.Field
+	T         *types.Type
+	X_Delete  Node
+	M_Delete  Node // TODO(rsc): Delete (breaks toolstash b/c inlining costs go down)
+	Method    *types.Field
+	FuncName_ *Name
 }
 
-func NewMethodExpr(pos src.XPos, x, m Node) *MethodExpr {
-	n := &MethodExpr{X: x, M: m}
+func NewMethodExpr(pos src.XPos, t *types.Type, method *types.Field) *MethodExpr {
+	n := &MethodExpr{T: t, Method: method}
 	n.pos = pos
 	n.op = OMETHEXPR
-	n.Offset_ = types.BADWIDTH
+	n.X_Delete = TypeNode(t)                // TODO(rsc): Delete.
+	n.M_Delete = NewNameAt(pos, method.Sym) // TODO(rsc): Delete.
 	return n
 }
 
-func (n *MethodExpr) Left() Node          { return n.X }
-func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
-func (n *MethodExpr) Right() Node         { return n.M }
-func (n *MethodExpr) SetRight(y Node)     { n.M = y }
-func (n *MethodExpr) Sym() *types.Sym     { return n.Sym_ }
-func (n *MethodExpr) SetSym(x *types.Sym) { n.Sym_ = x }
-func (n *MethodExpr) Offset() int64       { return n.Offset_ }
-func (n *MethodExpr) SetOffset(x int64)   { n.Offset_ = x }
-func (n *MethodExpr) Class() Class        { return n.Class_ }
-func (n *MethodExpr) SetClass(x Class)    { n.Class_ = x }
+func (n *MethodExpr) FuncName() *Name   { return n.FuncName_ }
+func (n *MethodExpr) Left() Node        { panic("MethodExpr.Left") }
+func (n *MethodExpr) SetLeft(x Node)    { panic("MethodExpr.SetLeft") }
+func (n *MethodExpr) Right() Node       { panic("MethodExpr.Right") }
+func (n *MethodExpr) SetRight(x Node)   { panic("MethodExpr.SetRight") }
+func (n *MethodExpr) Sym() *types.Sym   { panic("MethodExpr.Sym") }
+func (n *MethodExpr) Offset() int64     { panic("MethodExpr.Offset") }
+func (n *MethodExpr) SetOffset(x int64) { panic("MethodExpr.SetOffset") }
+func (n *MethodExpr) Class() Class      { panic("MethodExpr.Class") }
+func (n *MethodExpr) SetClass(x Class)  { panic("MethodExpr.SetClass") }
 
 // A NilExpr represents the predefined untyped constant nil.
 // (It may be copied and assigned a type, though.)

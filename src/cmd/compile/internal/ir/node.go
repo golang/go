@@ -733,8 +733,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return newNameAt(pos, op, nil)
 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
 		return NewMakeExpr(pos, op, nleft, nright)
-	case OMETHEXPR:
-		return NewMethodExpr(pos, nleft, nright)
 	case ONIL:
 		return NewNilExpr(pos)
 	case OPACK:

@@ -2415,16 +2415,16 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 		return n
 	}
 
-	me := ir.NodAt(n.Pos(), ir.OMETHEXPR, n.Left(), NewName(n.Sym()))
-	me.SetSym(methodSym(t, n.Sym()))
+	me := ir.NewMethodExpr(n.Pos(), n.Left().Type(), m)
 	me.SetType(methodfunc(m.Type, n.Left().Type()))
-	me.SetOffset(0)
-	me.SetClass(ir.PFUNC)
-	ir.Node(me).(*ir.MethodExpr).Method = m
+	f := NewName(methodSym(t, m.Sym))
+	f.SetClass(ir.PFUNC)
+	f.SetType(me.Type())
+	me.FuncName_ = f
 
 	// Issue 25065. Make sure that we emit the symbol for a local method.
 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
-		makefuncsym(me.Sym())
+		makefuncsym(me.FuncName_.Sym())
 	}
 
 	return me
@@ -4023,7 +4023,7 @@ func deadcodeexpr(n ir.Node) ir.Node {
 func getIotaValue() int64 {
 	if i := len(typecheckdefstack); i > 0 {
 		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
-			return x.Iota()
+			return x.(*ir.Name).Iota()
 		}
 	}
 
