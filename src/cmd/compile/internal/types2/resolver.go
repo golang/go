@@ -236,6 +236,9 @@ func (check *Checker) collectObjects() {
 			switch s := decl.(type) {
 			case *syntax.ImportDecl:
 				// import package
+				if s.Path.Bad {
+					continue // error reported during parsing
+				}
 				path, err := validatedImportPath(s.Path.Value)
 				if err != nil {
 					check.errorf(s.Path, "invalid import path (%s)", err)
