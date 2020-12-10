@@ -753,7 +753,7 @@ func (r *importReader) stmtList() []ir.Node {
 }
 
 func (r *importReader) caseList(sw ir.Node) []ir.Node {
-	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
+	namedTypeSwitch := isNamedTypeSwitch(sw)
 
 	cases := make([]ir.Node, r.uint64())
 	for i := range cases {
@@ -766,7 +766,7 @@ func (r *importReader) caseList(sw ir.Node) []ir.Node {
 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			declare(caseVar, dclcontext)
 			cas.PtrRlist().Set1(caseVar)
-			caseVar.Defn = sw.Left()
+			caseVar.Defn = sw.(*ir.SwitchStmt).Left()
 		}
 		cas.PtrBody().Set(r.stmtList())
 		cases[i] = cas
@@ -915,14 +915,14 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
-		n := npos(r.pos(), builtinCall(op))
+		n := builtinCall(r.pos(), op)
 		n.PtrList().Set(r.exprList())
 		if op == ir.OAPPEND {
 			n.SetIsDDD(r.bool())
 		}
 		return n
 
-	// case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+	// case OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 	// 	unreachable - mapped to OCALL case below by exporter
 
 	case ir.OCALL:
@@ -934,7 +934,7 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
-		n := npos(r.pos(), builtinCall(ir.OMAKE))
+		n := builtinCall(r.pos(), ir.OMAKE)
 		n.PtrList().Append(ir.TypeNode(r.typ()))
 		n.PtrList().Append(r.exprList()...)
 		return n
@@ -1042,8 +1042,7 @@ func (r *importReader) node() ir.Node {
 	case ir.OSELECT:
 		n := ir.NodAt(r.pos(), ir.OSELECT, nil, nil)
 		n.PtrInit().Set(r.stmtList())
-		left, _ := r.exprsOrNil()
-		n.SetLeft(left)
+		r.exprsOrNil() // TODO(rsc): Delete (and fix exporter). These are always nil.
 		n.PtrList().Set(r.caseList(n))
 		return n
 
@@ -1109,4 +1108,13 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 		b = r.node()
 	}
 	return
+}
+
+func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+	return ir.NewCallExpr(pos, ir.OCALL, mkname(types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+}
+
+func npos(pos src.XPos, n ir.Node) ir.Node {
+	n.SetPos(pos)
+	return n
 }
