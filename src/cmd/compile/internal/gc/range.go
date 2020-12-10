@@ -13,7 +13,7 @@ import (
 )
 
 // range
-func typecheckrange(n ir.Node) {
+func typecheckrange(n *ir.RangeStmt) {
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
 	//	it is evaluated only once and so logically it is not part of the loop.
@@ -39,7 +39,7 @@ func typecheckrange(n ir.Node) {
 	decldepth--
 }
 
-func typecheckrangeExpr(n ir.Node) {
+func typecheckrangeExpr(n *ir.RangeStmt) {
 	n.SetRight(typecheck(n.Right(), ctxExpr))
 
 	t := n.Right().Type()
@@ -157,7 +157,7 @@ func cheapComputableIndex(width int64) bool {
 // simpler forms.  The result must be assigned back to n.
 // Node n may also be modified in place, and may also be
 // the returned node.
-func walkrange(nrange ir.Node) ir.Node {
+func walkrange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
 		m := nrange.Right()
 		lno := setlineno(m)
@@ -204,7 +204,7 @@ func walkrange(nrange ir.Node) ir.Node {
 		base.Fatalf("walkrange: v2 != nil while v1 == nil")
 	}
 
-	var ifGuard ir.Node
+	var ifGuard *ir.IfStmt
 
 	var body []ir.Node
 	var init []ir.Node
@@ -267,7 +267,7 @@ func walkrange(nrange ir.Node) ir.Node {
 		// TODO(austin): OFORUNTIL inhibits bounds-check
 		// elimination on the index variable (see #20711).
 		// Enhance the prove pass to understand this.
-		ifGuard = ir.Nod(ir.OIF, nil, nil)
+		ifGuard = ir.NewIfStmt(base.Pos, nil, nil, nil)
 		ifGuard.SetLeft(ir.Nod(ir.OLT, hv1, hn))
 		nfor.SetOp(ir.OFORUNTIL)
 
@@ -426,7 +426,7 @@ func walkrange(nrange ir.Node) ir.Node {
 
 	if ifGuard != nil {
 		ifGuard.PtrInit().Append(init...)
-		ifGuard = typecheck(ifGuard, ctxStmt)
+		ifGuard = typecheck(ifGuard, ctxStmt).(*ir.IfStmt)
 	} else {
 		nfor.PtrInit().Append(init...)
 	}
@@ -459,7 +459,7 @@ func walkrange(nrange ir.Node) ir.Node {
 // }
 //
 // where == for keys of map m is reflexive.
-func isMapClear(n ir.Node) bool {
+func isMapClear(n *ir.RangeStmt) bool {
 	if base.Flag.N != 0 || instrumenting {
 		return false
 	}
@@ -488,7 +488,7 @@ func isMapClear(n ir.Node) bool {
 	}
 
 	m := n.Right()
-	if !samesafeexpr(stmt.List().First(), m) || !samesafeexpr(stmt.List().Second(), k) {
+	if delete := stmt.(*ir.CallExpr); !samesafeexpr(delete.List().First(), m) || !samesafeexpr(delete.List().Second(), k) {
 		return false
 	}
 
@@ -508,11 +508,7 @@ func mapClear(m ir.Node) ir.Node {
 	fn := syslook("mapclear")
 	fn = substArgTypes(fn, t.Key(), t.Elem())
 	n := mkcall1(fn, nil, nil, typename(t), m)
-
-	n = typecheck(n, ctxStmt)
-	n = walkstmt(n)
-
-	return n
+	return walkstmt(typecheck(n, ctxStmt))
 }
 
 // Lower n into runtime·memclr if possible, for
@@ -526,7 +522,7 @@ func mapClear(m ir.Node) ir.Node {
 // in which the evaluation of a is side-effect-free.
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
-func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
+func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	if base.Flag.N != 0 || instrumenting {
 		return nil
 	}
@@ -539,12 +535,17 @@ func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	stmt := loop.Body().First() // only stmt in body
-	if stmt.Op() != ir.OAS || stmt.Left().Op() != ir.OINDEX {
+	stmt1 := loop.Body().First() // only stmt in body
+	if stmt1.Op() != ir.OAS {
 		return nil
 	}
+	stmt := stmt1.(*ir.AssignStmt)
+	if stmt.Left().Op() != ir.OINDEX {
+		return nil
+	}
+	lhs := stmt.Left().(*ir.IndexExpr)
 
-	if !samesafeexpr(stmt.Left().Left(), a) || !samesafeexpr(stmt.Left().Right(), v1) {
+	if !samesafeexpr(lhs.Left(), a) || !samesafeexpr(lhs.Right(), v1) {
 		return nil
 	}
 

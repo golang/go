@@ -349,14 +349,17 @@ func walkstmt(n ir.Node) ir.Node {
 		return n
 
 	case ir.OSELECT:
+		n := n.(*ir.SelectStmt)
 		walkselect(n)
 		return n
 
 	case ir.OSWITCH:
+		n := n.(*ir.SwitchStmt)
 		walkswitch(n)
 		return n
 
 	case ir.ORANGE:
+		n := n.(*ir.RangeStmt)
 		return walkrange(n)
 	}
 
