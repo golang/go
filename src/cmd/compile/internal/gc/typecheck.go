@@ -957,7 +957,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 	case ir.OXDOT, ir.ODOT:
 		n := n.(*ir.SelectorExpr)
 		if n.Op() == ir.OXDOT {
-			n = adddot(n).(*ir.SelectorExpr)
+			n = adddot(n)
 			n.SetOp(ir.ODOT)
 			if n.Left() == nil {
 				n.SetType(nil)
