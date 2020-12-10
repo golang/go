@@ -254,7 +254,9 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 				hasPhi.add(c.ID)
 				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
-				s.s.addNamedValue(var_, v)
+				if var_.Op() == ir.ONAME {
+					s.s.addNamedValue(var_.(*ir.Name), v)
+				}
 				for range c.Preds {
 					v.AddArg(s.placeholder) // Actual args will be filled in by resolveFwdRefs.
 				}
@@ -546,7 +548,9 @@ func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ ir.
 	// Generate a FwdRef for the variable and return that.
 	v := b.NewValue0A(line, ssa.OpFwdRef, t, FwdRefAux{N: var_})
 	s.defvars[b.ID][var_] = v
-	s.s.addNamedValue(var_, v)
+	if var_.Op() == ir.ONAME {
+		s.s.addNamedValue(var_.(*ir.Name), v)
+	}
 	s.fwdrefs = append(s.fwdrefs, v)
 	return v
 }

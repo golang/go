@@ -206,8 +206,12 @@ type progeffectscache struct {
 // nor do we care about non-local variables,
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
-func livenessShouldTrack(n ir.Node) bool {
-	return n.Op() == ir.ONAME && (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
+func livenessShouldTrack(nn ir.Node) bool {
+	if nn.Op() != ir.ONAME {
+		return false
+	}
+	n := nn.(*ir.Name)
+	return (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -1165,7 +1169,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
-	var maxArgNode ir.Node
+	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT:
