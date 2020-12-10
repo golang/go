@@ -72,14 +72,13 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editor      fake.EditorConfig
-	sandbox     fake.SandboxConfig
-	modes       Mode
-	timeout     time.Duration
-	debugAddr   string
-	skipLogs    bool
-	skipHooks   bool
-	nestWorkdir bool
+	editor    fake.EditorConfig
+	sandbox   fake.SandboxConfig
+	modes     Mode
+	timeout   time.Duration
+	debugAddr string
+	skipLogs  bool
+	skipHooks bool
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -134,22 +133,17 @@ func (c EditorConfig) set(opts *runConfig) {
 	opts.editor = fake.EditorConfig(c)
 }
 
-// WithoutWorkspaceFolders prevents workspace folders from being sent as part
-// of the sandbox's initialization. It is used to simulate opening a single
-// file in the editor, without a workspace root. In that case, the client sends
-// neither workspace folders nor a root URI.
-func WithoutWorkspaceFolders() RunOption {
+// WorkspaceFolders configures the workdir-relative workspace folders to send
+// to the LSP server. By default the editor sends a single workspace folder
+// corresponding to the workdir root. To explicitly configure no workspace
+// folders, use WorkspaceFolders with no arguments.
+func WorkspaceFolders(relFolders ...string) RunOption {
+	if len(relFolders) == 0 {
+		// Use an empty non-nil slice to signal explicitly no folders.
+		relFolders = []string{}
+	}
 	return optionSetter(func(opts *runConfig) {
-		opts.editor.WithoutWorkspaceFolders = true
-	})
-}
-
-// RootPath specifies the rootURI of the workspace folder opened in the
-// editor. By default, the sandbox opens the top-level directory, but some
-// tests need to check other cases.
-func RootPath(path string) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.editor.WorkspaceRoot = path
+		opts.editor.WorkspaceFolders = relFolders
 	})
 }
 
@@ -212,14 +206,6 @@ func LimitWorkspaceScope() RunOption {
 	})
 }
 
-// NestWorkdir inserts the sandbox working directory in a subdirectory of the
-// editor workspace.
-func NestWorkdir() RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.nestWorkdir = true
-	})
-}
-
 type TestFunc func(t *testing.T, env *Env)
 
 // Run executes the test function in the default configured gopls execution
@@ -271,20 +257,11 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			if err := os.MkdirAll(rootDir, 0755); err != nil {
 				t.Fatal(err)
 			}
-			if config.nestWorkdir {
-				config.sandbox.Workdir = "work/nested"
-			}
 			config.sandbox.Files = files
 			config.sandbox.RootDir = rootDir
 			sandbox, err := fake.NewSandbox(&config.sandbox)
 			if err != nil {
 				t.Fatal(err)
-			}
-			workdir := sandbox.Workdir.RootURI().SpanURI().Filename()
-			if config.nestWorkdir {
-				// Now that we know the actual workdir, set our workspace to be the
-				// parent directory.
-				config.editor.WorkspaceRoot = filepath.Clean(filepath.Join(workdir, ".."))
 			}
 			// Deferring the closure of ws until the end of the entire test suite
 			// has, in testing, given the LSP server time to properly shutdown and

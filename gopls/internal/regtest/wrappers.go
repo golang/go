@@ -250,7 +250,17 @@ func (e *Env) RunGenerate(dir string) {
 // RunGoCommand runs the given command in the sandbox's default working
 // directory.
 func (e *Env) RunGoCommand(verb string, args ...string) {
+	e.T.Helper()
 	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+// RunGoCommandInDir is like RunGoCommand, but executes in the given
+// relative directory of the sandbox.
+func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
+	e.T.Helper()
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args); err != nil {
 		e.T.Fatal(err)
 	}
 }

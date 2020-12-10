@@ -29,6 +29,10 @@ var (
 
 var runner *Runner
 
+type regtestRunner interface {
+	run(t *testing.T, files string, f TestFunc)
+}
+
 func run(t *testing.T, files string, f TestFunc) {
 	runner.Run(t, files, f)
 }
@@ -45,6 +49,18 @@ func (r configuredRunner) run(t *testing.T, files string, f TestFunc) {
 	runner.Run(t, files, f, r.opts...)
 }
 
+type runMultiple []struct {
+	name   string
+	runner regtestRunner
+}
+
+func (r runMultiple) run(t *testing.T, files string, f TestFunc) {
+	for _, runner := range r {
+		t.Run(runner.name, func(t *testing.T) {
+			runner.runner.run(t, files, f)
+		})
+	}
+}
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if os.Getenv("_GOPLS_TEST_BINARY_RUN_AS_GOPLS") == "true" {

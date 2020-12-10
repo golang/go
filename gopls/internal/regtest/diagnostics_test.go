@@ -1091,12 +1091,15 @@ func _() {
 	var x int
 }
 `
-	runner.Run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(
+		// Empty workspace folders.
+		WorkspaceFolders(),
+	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "x"),
 		)
-	}, WithoutWorkspaceFolders())
+	})
 }
 
 // Reproduces the case described in
@@ -1249,13 +1252,18 @@ func main() {
 	var x int
 }
 `
-	withOptions(RootPath("a")).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(
+		WorkspaceFolders("a"),
+	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", "x"),
 		)
 	})
-	withOptions(RootPath("a"), LimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(
+		WorkspaceFolders("a"),
+		LimitWorkspaceScope(),
+	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
 			NoDiagnostics("main.go"),

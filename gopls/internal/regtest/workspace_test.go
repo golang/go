@@ -115,7 +115,7 @@ func TestReferences(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := []RunOption{ProxyFiles(workspaceProxy)}
 			if tt.rootPath != "" {
-				opts = append(opts, RootPath(tt.rootPath))
+				opts = append(opts, WorkspaceFolders(tt.rootPath))
 			}
 			withOptions(opts...).run(t, workspaceModule, func(t *testing.T, env *Env) {
 				f := "pkg/inner/inner.go"
@@ -135,7 +135,10 @@ func TestReferences(t *testing.T) {
 // VS Code, where clicking on a reference result triggers a
 // textDocument/didOpen without a corresponding textDocument/didClose.
 func TestClearAnalysisDiagnostics(t *testing.T) {
-	withOptions(ProxyFiles(workspaceProxy), RootPath("pkg/inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	withOptions(
+		ProxyFiles(workspaceProxy),
+		WorkspaceFolders("pkg/inner"),
+	).run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("pkg/main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
@@ -150,7 +153,10 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // This test checks that gopls updates the set of files it watches when a
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
-	withOptions(ProxyFiles(workspaceProxy), RootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	withOptions(
+		ProxyFiles(workspaceProxy),
+		WorkspaceFolders("pkg"),
+	).run(t, workspaceModule, func(t *testing.T, env *Env) {
 		// Add a replace directive and expect the files that gopls is watching
 		// to change.
 		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
