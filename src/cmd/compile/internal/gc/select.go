@@ -11,15 +11,12 @@ import (
 )
 
 // select
-func typecheckselect(sel ir.Node) {
+func typecheckselect(sel *ir.SelectStmt) {
 	var def ir.Node
 	lno := setlineno(sel)
 	typecheckslice(sel.Init().Slice(), ctxStmt)
 	for _, ncase := range sel.List().Slice() {
-		if ncase.Op() != ir.OCASE {
-			setlineno(ncase)
-			base.Fatalf("typecheckselect %v", ncase.Op())
-		}
+		ncase := ncase.(*ir.CaseStmt)
 
 		if ncase.List().Len() == 0 {
 			// default
@@ -51,8 +48,10 @@ func typecheckselect(sel ir.Node) {
 				// convert x = <-c into OSELRECV(x, <-c).
 				// remove implicit conversions; the eventual assignment
 				// will reintroduce them.
-				if (n.Right().Op() == ir.OCONVNOP || n.Right().Op() == ir.OCONVIFACE) && n.Right().Implicit() {
-					n.SetRight(n.Right().Left())
+				if r := n.Right(); r.Op() == ir.OCONVNOP || r.Op() == ir.OCONVIFACE {
+					if r.Implicit() {
+						n.SetRight(r.Left())
+					}
 				}
 				if n.Right().Op() != ir.ORECV {
 					base.ErrorfAt(n.Pos(), "select assignment must have receive on right hand side")
@@ -70,9 +69,10 @@ func typecheckselect(sel ir.Node) {
 
 			case ir.ORECV:
 				// convert <-c into OSELRECV(_, <-c)
-				n = ir.NodAt(n.Pos(), ir.OAS, ir.BlankNode, n)
-				n.SetOp(ir.OSELRECV)
-				n.SetTypecheck(1)
+				as := ir.NewAssignStmt(n.Pos(), ir.BlankNode, n)
+				as.SetOp(ir.OSELRECV)
+				as.SetTypecheck(1)
+				n = as
 				ncase.SetLeft(n)
 
 			case ir.OSEND:
@@ -86,7 +86,7 @@ func typecheckselect(sel ir.Node) {
 	base.Pos = lno
 }
 
-func walkselect(sel ir.Node) {
+func walkselect(sel *ir.SelectStmt) {
 	lno := setlineno(sel)
 	if sel.Body().Len() != 0 {
 		base.Fatalf("double walkselect")
@@ -95,8 +95,8 @@ func walkselect(sel ir.Node) {
 	init := sel.Init().Slice()
 	sel.PtrInit().Set(nil)
 
-	init = append(init, walkselectcases(sel.PtrList())...)
-	sel.PtrList().Set(nil)
+	init = append(init, walkselectcases(sel.List())...)
+	sel.SetList(ir.Nodes{})
 
 	sel.PtrBody().Set(init)
 	walkstmtlist(sel.Body().Slice())
@@ -104,7 +104,7 @@ func walkselect(sel ir.Node) {
 	base.Pos = lno
 }
 
-func walkselectcases(cases *ir.Nodes) []ir.Node {
+func walkselectcases(cases ir.Nodes) []ir.Node {
 	ncas := cases.Len()
 	sellineno := base.Pos
 
@@ -115,7 +115,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 	// optimization: one-case select: single op.
 	if ncas == 1 {
-		cas := cases.First()
+		cas := cases.First().(*ir.CaseStmt)
 		setlineno(cas)
 		l := cas.Init().Slice()
 		if cas.Left() != nil { // not default:
@@ -130,18 +130,20 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 				// already ok
 
 			case ir.OSELRECV:
-				if ir.IsBlank(n.Left()) {
-					n = n.Right()
+				r := n.(*ir.AssignStmt)
+				if ir.IsBlank(r.Left()) {
+					n = r.Right()
 					break
 				}
-				n.SetOp(ir.OAS)
+				r.SetOp(ir.OAS)
 
 			case ir.OSELRECV2:
-				if ir.IsBlank(n.List().First()) && ir.IsBlank(n.List().Second()) {
-					n = n.Rlist().First()
+				r := n.(*ir.AssignListStmt)
+				if ir.IsBlank(r.List().First()) && ir.IsBlank(r.List().Second()) {
+					n = r.Rlist().First()
 					break
 				}
-				n.SetOp(ir.OAS2RECV)
+				r.SetOp(ir.OAS2RECV)
 			}
 
 			l = append(l, n)
@@ -154,8 +156,9 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
-	var dflt ir.Node
+	var dflt *ir.CaseStmt
 	for _, cas := range cases.Slice() {
+		cas := cas.(*ir.CaseStmt)
 		setlineno(cas)
 		n := cas.Left()
 		if n == nil {
@@ -164,11 +167,14 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 		}
 
 		// Lower x, _ = <-c to x = <-c.
-		if n.Op() == ir.OSELRECV2 && ir.IsBlank(n.List().Second()) {
-			n = ir.NodAt(n.Pos(), ir.OAS, n.List().First(), n.Rlist().First())
-			n.SetOp(ir.OSELRECV)
-			n.SetTypecheck(1)
-			cas.SetLeft(n)
+		if sel := n; sel.Op() == ir.OSELRECV2 {
+			if ir.IsBlank(sel.List().Second()) {
+				as := ir.NewAssignStmt(sel.Pos(), sel.List().First(), sel.Rlist().First())
+				as.SetOp(ir.OSELRECV)
+				as.SetTypecheck(1)
+				n = as
+				cas.SetLeft(n)
+			}
 		}
 
 		switch n.Op() {
@@ -192,9 +198,9 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 	// optimization: two-case select but one is default: single non-blocking op.
 	if ncas == 2 && dflt != nil {
-		cas := cases.First()
+		cas := cases.First().(*ir.CaseStmt)
 		if cas == dflt {
-			cas = cases.Second()
+			cas = cases.Second().(*ir.CaseStmt)
 		}
 
 		n := cas.Left()
@@ -213,7 +219,8 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		case ir.OSELRECV:
 			// if selectnbrecv(&v, c) { body } else { default body }
-			ch := n.Right().Left()
+			recv := n.Right().(*ir.UnaryExpr)
+			ch := recv.Left()
 			elem := n.Left()
 			if ir.IsBlank(elem) {
 				elem = nodnil()
@@ -222,7 +229,8 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 		case ir.OSELRECV2:
 			// if selectnbrecv2(&v, &received, c) { body } else { default body }
-			ch := n.Rlist().First().Left()
+			recv := n.Rlist().First().(*ir.UnaryExpr)
+			ch := recv.Left()
 			elem := n.List().First()
 			if ir.IsBlank(elem) {
 				elem = nodnil()
@@ -240,7 +248,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 	if dflt != nil {
 		ncas--
 	}
-	casorder := make([]ir.Node, ncas)
+	casorder := make([]*ir.CaseStmt, ncas)
 	nsends, nrecvs := 0, 0
 
 	var init []ir.Node
@@ -263,6 +271,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 
 	// register cases
 	for _, cas := range cases.Slice() {
+		cas := cas.(*ir.CaseStmt)
 		setlineno(cas)
 
 		init = append(init, cas.Init().Slice()...)
@@ -286,12 +295,14 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 		case ir.OSELRECV:
 			nrecvs++
 			i = ncas - nrecvs
-			c = n.Right().Left()
+			recv := n.Right().(*ir.UnaryExpr)
+			c = recv.Left()
 			elem = n.Left()
 		case ir.OSELRECV2:
 			nrecvs++
 			i = ncas - nrecvs
-			c = n.Rlist().First().Left()
+			recv := n.Rlist().First().(*ir.UnaryExpr)
+			c = recv.Left()
 			elem = n.List().First()
 		}
 
@@ -338,7 +349,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
 	}
 
 	// dispatch cases
-	dispatch := func(cond, cas ir.Node) {
+	dispatch := func(cond ir.Node, cas *ir.CaseStmt) {
 		cond = typecheck(cond, ctxExpr)
 		cond = defaultlit(cond, nil)
 
