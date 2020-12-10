@@ -128,6 +128,10 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 						break
 					}
 				}
+				if call.HasDots {
+					check.errorf(call.ArgList[0], "invalid use of ... in type conversion to %s)", T)
+					break
+				}
 				check.conversion(x, T)
 			}
 		default:
