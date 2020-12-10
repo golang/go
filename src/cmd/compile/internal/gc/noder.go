@@ -527,13 +527,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	if fun.Recv == nil {
 		if name.Name == "init" {
 			name = renameinit()
-			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
+			if len(t.Params) > 0 || len(t.Results) > 0 {
 				base.ErrorfAt(f.Pos(), "func init must have no arguments and no return values")
 			}
 		}
 
 		if types.LocalPkg.Name == "main" && name.Name == "main" {
-			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
+			if len(t.Params) > 0 || len(t.Results) > 0 {
 				base.ErrorfAt(f.Pos(), "func main must have no arguments and no return values")
 			}
 		}
@@ -983,10 +983,10 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op() == ir.OBLOCK && s.List().Len() > 0 {
+		} else if s.Op() == ir.OBLOCK && s.(*ir.BlockStmt).List().Len() > 0 {
 			// Inline non-empty block.
 			// Empty blocks must be preserved for checkreturn.
-			nodes = append(nodes, s.List().Slice()...)
+			nodes = append(nodes, s.(*ir.BlockStmt).List().Slice()...)
 		} else {
 			nodes = append(nodes, s)
 		}
@@ -1020,22 +1020,23 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		return liststmt(p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
-			n := p.nod(stmt, ir.OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
+			n := ir.NewAssignOpStmt(p.pos(stmt), p.binOp(stmt.Op), p.expr(stmt.Lhs), p.expr(stmt.Rhs))
 			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
-			n.SetSubOp(p.binOp(stmt.Op))
 			return n
 		}
 
 		rhs := p.exprList(stmt.Rhs)
 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
 			n := p.nod(stmt, ir.OAS2, nil, nil)
-			n.PtrList().Set(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def))
+			n.SetColas(stmt.Op == syntax.Def)
+			n.PtrList().Set(p.assignList(stmt.Lhs, n, n.Colas()))
 			n.PtrRlist().Set(rhs)
 			return n
 		}
 
 		n := p.nod(stmt, ir.OAS, nil, nil)
-		n.SetLeft(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)[0])
+		n.SetColas(stmt.Op == syntax.Def)
+		n.SetLeft(p.assignList(stmt.Lhs, n, n.Colas())[0])
 		n.SetRight(rhs[0])
 		return n
 
@@ -1109,8 +1110,6 @@ func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node
 	if !colas {
 		return p.exprList(expr)
 	}
-
-	defn.SetColas(true)
 
 	var exprs []syntax.Expr
 	if list, ok := expr.(*syntax.ListExpr); ok {
@@ -1196,27 +1195,30 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 
 func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	var n ir.Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
 			panic("unexpected RangeClause")
 		}
 
-		n = p.nod(r, ir.ORANGE, nil, p.expr(r.X))
+		n := p.nod(r, ir.ORANGE, nil, p.expr(r.X))
 		if r.Lhs != nil {
-			n.PtrList().Set(p.assignList(r.Lhs, n, r.Def))
+			n.SetColas(r.Def)
+			n.PtrList().Set(p.assignList(r.Lhs, n, n.Colas()))
 		}
-	} else {
-		n = p.nod(stmt, ir.OFOR, nil, nil)
-		if stmt.Init != nil {
-			n.PtrInit().Set1(p.stmt(stmt.Init))
-		}
-		if stmt.Cond != nil {
-			n.SetLeft(p.expr(stmt.Cond))
-		}
-		if stmt.Post != nil {
-			n.SetRight(p.stmt(stmt.Post))
-		}
+		n.PtrBody().Set(p.blockStmt(stmt.Body))
+		p.closeAnotherScope()
+		return n
+	}
+
+	n := p.nod(stmt, ir.OFOR, nil, nil)
+	if stmt.Init != nil {
+		n.PtrInit().Set1(p.stmt(stmt.Init))
+	}
+	if stmt.Cond != nil {
+		n.SetLeft(p.expr(stmt.Cond))
+	}
+	if stmt.Post != nil {
+		n.SetRight(p.stmt(stmt.Post))
 	}
 	n.PtrBody().Set(p.blockStmt(stmt.Body))
 	p.closeAnotherScope()
@@ -1233,9 +1235,9 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 		n.SetLeft(p.expr(stmt.Tag))
 	}
 
-	tswitch := n.Left()
-	if tswitch != nil && tswitch.Op() != ir.OTYPESW {
-		tswitch = nil
+	var tswitch *ir.TypeSwitchGuard
+	if l := n.Left(); l != nil && l.Op() == ir.OTYPESW {
+		tswitch = l.(*ir.TypeSwitchGuard)
 	}
 	n.PtrList().Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
 
@@ -1243,7 +1245,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch ir.Node, rbrace syntax.Pos) []ir.Node {
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []ir.Node {
 	nodes := make([]ir.Node, 0, len(clauses))
 	for i, clause := range clauses {
 		p.setlineno(clause)
@@ -1328,10 +1330,18 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 	var ls ir.Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
 		ls = p.stmtFall(label.Stmt, fallOK)
-		switch label.Stmt.(type) {
-		case *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
-			// Attach label directly to control statement too.
-			ls.SetSym(sym)
+		// Attach label directly to control statement too.
+		if ls != nil {
+			switch ls.Op() {
+			case ir.OFOR:
+				ls.SetSym(sym)
+			case ir.ORANGE:
+				ls.SetSym(sym)
+			case ir.OSWITCH:
+				ls.SetSym(sym)
+			case ir.OSELECT:
+				ls.SetSym(sym)
+			}
 		}
 	}
 
@@ -1483,8 +1493,9 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 		}
 		fallthrough
 	case ir.ONAME, ir.ONONAME, ir.OPACK:
-		x = p.nod(n, ir.OPAREN, x, nil)
-		x.SetImplicit(true)
+		p := p.nod(n, ir.OPAREN, x, nil)
+		p.SetImplicit(true)
+		return p
 	}
 	return x
 }
