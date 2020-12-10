@@ -35,10 +35,10 @@ const Name = "Hello"
 
 func runModfileTest(t *testing.T, files, proxy string, f TestFunc) {
 	t.Run("normal", func(t *testing.T) {
-		withOptions(WithProxyFiles(proxy)).run(t, files, f)
+		withOptions(ProxyFiles(proxy)).run(t, files, f)
 	})
 	t.Run("nested", func(t *testing.T) {
-		withOptions(WithProxyFiles(proxy), NestWorkdir(), WithModes(Singleton|Experimental)).run(t, files, f)
+		withOptions(ProxyFiles(proxy), NestWorkdir(), Modes(Singleton|Experimental)).run(t, files, f)
 	})
 }
 
@@ -434,7 +434,7 @@ import "example.com/blah/v2"
 
 var _ = blah.Name
 `
-	withOptions(WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+	withOptions(ProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 		var d protocol.PublishDiagnosticsParams
@@ -620,8 +620,8 @@ func main() {
 				"GOFLAGS": "-mod=readonly",
 			},
 		},
-		WithProxyFiles(proxy),
-		WithModes(Singleton),
+		ProxyFiles(proxy),
+		Modes(Singleton),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
@@ -670,8 +670,8 @@ func main() {
 }
 `
 	withOptions(
-		WithProxyFiles(workspaceProxy),
-		WithModes(Experimental),
+		ProxyFiles(workspaceProxy),
+		Modes(Experimental),
 	).run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.3"),
@@ -700,7 +700,7 @@ func main() {
 }
 `
 	withOptions(
-		WithProxyFiles(workspaceProxy),
+		ProxyFiles(workspaceProxy),
 		EditorConfig{
 			BuildFlags: []string{"-tags", "bob"},
 		},

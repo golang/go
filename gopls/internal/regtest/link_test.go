@@ -87,5 +87,5 @@ const Hello = "Hello"
 		if len(links) != 0 {
 			t.Errorf("documentLink: got %d document links for go.mod, want 0\nlinks: %v", len(links), links)
 		}
-	}, WithProxyFiles(proxy))
+	}, ProxyFiles(proxy))
 }

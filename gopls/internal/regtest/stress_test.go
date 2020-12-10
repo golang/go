@@ -27,20 +27,20 @@ func stressTestOptions(dir string) []RunOption {
 		InExistingDir(dir),
 
 		// Enable live debugging.
-		WithDebugAddress(":8087"),
+		DebugAddress(":8087"),
 
 		// Skip logs as they buffer up memory unnaturally.
 		SkipLogs(),
 		// Similarly to logs: disable hooks so that they don't affect performance.
 		SkipHooks(true),
 		// The Debug server only makes sense if running in singleton mode.
-		WithModes(Singleton),
+		Modes(Singleton),
 		// Set a generous timeout. Individual tests should control their own
 		// graceful termination.
-		WithTimeout(20 * time.Minute),
+		Timeout(20 * time.Minute),
 
 		// Use the actual proxy, since we want our builds to succeed.
-		WithGOPROXY("https://proxy.golang.org"),
+		GOPROXY("https://proxy.golang.org"),
 	}
 }
 

@@ -46,8 +46,8 @@ func _() {
 `
 	// TODO(rstambler): Remove this when golang/go#41819 is resolved.
 	withOptions(
-		WithModes(Singleton),
-		WithProxyFiles(basicProxy),
+		Modes(Singleton),
+		ProxyFiles(basicProxy),
 	).run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")
 		env.Await(

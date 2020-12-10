@@ -113,9 +113,9 @@ func TestReferences(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := []RunOption{WithProxyFiles(workspaceProxy)}
+			opts := []RunOption{ProxyFiles(workspaceProxy)}
 			if tt.rootPath != "" {
-				opts = append(opts, WithRootPath(tt.rootPath))
+				opts = append(opts, RootPath(tt.rootPath))
 			}
 			withOptions(opts...).run(t, workspaceModule, func(t *testing.T, env *Env) {
 				f := "pkg/inner/inner.go"
@@ -135,7 +135,7 @@ func TestReferences(t *testing.T) {
 // VS Code, where clicking on a reference result triggers a
 // textDocument/didOpen without a corresponding textDocument/didClose.
 func TestClearAnalysisDiagnostics(t *testing.T) {
-	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg/inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	withOptions(ProxyFiles(workspaceProxy), RootPath("pkg/inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("pkg/main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
@@ -150,7 +150,7 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // This test checks that gopls updates the set of files it watches when a
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
-	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	withOptions(ProxyFiles(workspaceProxy), RootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
 		// Add a replace directive and expect the files that gopls is watching
 		// to change.
 		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
@@ -216,8 +216,8 @@ func Hello() int {
 }
 `
 	withOptions(
-		WithProxyFiles(workspaceModuleProxy),
-		WithModes(Experimental),
+		ProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
@@ -258,8 +258,8 @@ func Hello() int {
 }
 `
 	withOptions(
-		WithProxyFiles(workspaceModuleProxy),
-		WithModes(Experimental),
+		ProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 
@@ -314,8 +314,8 @@ func main() {
 }
 `
 	withOptions(
-		WithModes(Experimental),
-		WithProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
+		ProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
@@ -376,8 +376,8 @@ func Hello() int {
 }
 `
 	withOptions(
-		WithProxyFiles(workspaceModuleProxy),
-		WithModes(Experimental),
+		ProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
 		env.Await(
@@ -436,8 +436,8 @@ require (
 replace a.com => $SANDBOX_WORKDIR/moda/a
 `
 	withOptions(
-		WithProxyFiles(workspaceModuleProxy),
-		WithModes(Experimental),
+		ProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		// Initially, the gopls.mod should cause only the a.com module to be
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
@@ -573,7 +573,7 @@ func main() {
 }
 `
 	withOptions(
-		WithModes(Experimental),
+		Modes(Experimental),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
@@ -605,7 +605,7 @@ func main() {
 }
 `
 	withOptions(
-		WithModes(Experimental),
+		Modes(Experimental),
 		SendPID(),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		pid := os.Getpid()
@@ -734,7 +734,7 @@ package exclude
 	cfg := EditorConfig{
 		DirectoryFilters: []string{"-exclude"},
 	}
-	withOptions(cfg, WithModes(Experimental), WithProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
+	withOptions(cfg, Modes(Experimental), ProxyFiles(proxy)).run(t, files, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
 	})
 }

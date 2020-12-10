@@ -565,7 +565,7 @@ func main() {
 	blah.X()
 }
 `
-	withOptions(WithProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(ProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
 		env.WriteWorkspaceFiles(map[string]string{
 			"go.mod": `module mod.com
 
@@ -611,7 +611,7 @@ func main() {
 `
 	withOptions(
 		InGOPATH(),
-		WithModes(Experimental), // module is in a subdirectory
+		Modes(Experimental), // module is in a subdirectory
 	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/main.go")
 		env.Await(env.DiagnosticAtRegexp("foo/main.go", `"blah"`))

@@ -100,22 +100,22 @@ func (f optionSetter) set(opts *runConfig) {
 	f(opts)
 }
 
-// WithTimeout configures a custom timeout for this test run.
-func WithTimeout(d time.Duration) RunOption {
+// Timeout configures a custom timeout for this test run.
+func Timeout(d time.Duration) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.timeout = d
 	})
 }
 
-// WithProxyFiles configures a file proxy using the given txtar-encoded string.
-func WithProxyFiles(txt string) RunOption {
+// ProxyFiles configures a file proxy using the given txtar-encoded string.
+func ProxyFiles(txt string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.sandbox.ProxyFiles = txt
 	})
 }
 
-// WithModes configures the execution modes that the test should run in.
-func WithModes(modes Mode) RunOption {
+// Modes configures the execution modes that the test should run in.
+func Modes(modes Mode) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.modes = modes
 	})
@@ -144,10 +144,10 @@ func WithoutWorkspaceFolders() RunOption {
 	})
 }
 
-// WithRootPath specifies the rootURI of the workspace folder opened in the
+// RootPath specifies the rootURI of the workspace folder opened in the
 // editor. By default, the sandbox opens the top-level directory, but some
 // tests need to check other cases.
-func WithRootPath(path string) RunOption {
+func RootPath(path string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.editor.WorkspaceRoot = path
 	})
@@ -161,10 +161,10 @@ func InGOPATH() RunOption {
 	})
 }
 
-// WithDebugAddress configures a debug server bound to addr. This option is
+// DebugAddress configures a debug server bound to addr. This option is
 // currently only supported when executing in Singleton mode. It is intended to
 // be used for long-running stress tests.
-func WithDebugAddress(addr string) RunOption {
+func DebugAddress(addr string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.debugAddr = addr
 	})
@@ -196,10 +196,10 @@ func SkipHooks(skip bool) RunOption {
 	})
 }
 
-// WithGOPROXY configures the test environment to have an explicit proxy value.
+// GOPROXY configures the test environment to have an explicit proxy value.
 // This is intended for stress tests -- to ensure their isolation, regtests
 // should instead use WithProxyFiles.
-func WithGOPROXY(goproxy string) RunOption {
+func GOPROXY(goproxy string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.sandbox.GOPROXY = goproxy
 	})

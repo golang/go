@@ -290,7 +290,7 @@ func Hello() {
 
 	t.Run("without workspace module", func(t *testing.T) {
 		withOptions(
-			WithModes(Singleton),
+			Modes(Singleton),
 		).run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
@@ -424,7 +424,7 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 		// diagnostic for the wrong formatting type.
 		// TODO: we should be able to easily also match the diagnostic message.
 		env.Await(env.DiagnosticAtRegexp("print.go", "fmt.Printf"))
-	}, WithProxyFiles(testPackageWithRequireProxy))
+	}, ProxyFiles(testPackageWithRequireProxy))
 }
 
 func TestMissingDependency(t *testing.T) {
@@ -655,7 +655,7 @@ func main() {
 }
 `
 	withOptions(
-		WithProxyFiles(ardanLabsProxy),
+		ProxyFiles(ardanLabsProxy),
 	).run(t, ardanLabs, func(t *testing.T, env *Env) {
 		// Expect a diagnostic with a suggested fix to add
 		// "github.com/ardanlabs/conf" to the go.mod file.
@@ -713,7 +713,7 @@ go 1.12
 -- main.go --
 `
 	withOptions(
-		WithProxyFiles(ardanLabsProxy),
+		ProxyFiles(ardanLabsProxy),
 	).run(t, emptyFile, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
@@ -1251,13 +1251,13 @@ func main() {
 	var x int
 }
 `
-	withOptions(WithRootPath("a")).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(RootPath("a")).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", "x"),
 		)
 	})
-	withOptions(WithRootPath("a"), LimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(RootPath("a"), LimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
 			NoDiagnostics("main.go"),
@@ -1475,7 +1475,7 @@ package foo_
 `
 
 	withOptions(
-		WithProxyFiles(proxy),
+		ProxyFiles(proxy),
 		InGOPATH(),
 	).run(t, contents, func(t *testing.T, env *Env) {
 		// Simulate typing character by character.
@@ -1625,7 +1625,7 @@ import (
 			EditorConfig{
 				Env: map[string]string{"GO111MODULE": "off"},
 			},
-			WithModes(Singleton),
+			Modes(Singleton),
 		).run(t, mod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexpWithMessage("main.go", `"nosuchpkg"`, `cannot find package "nosuchpkg" in any of`),
@@ -1652,7 +1652,7 @@ package b
 	for _, go111module := range []string{"on", "auto"} {
 		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
 			withOptions(
-				WithModes(Singleton),
+				Modes(Singleton),
 				EditorConfig{
 					Env: map[string]string{
 						"GO111MODULE": go111module,
@@ -1673,7 +1673,7 @@ package b
 	// Expect no warning if GO111MODULE=auto in a directory in GOPATH.
 	t.Run("GOPATH_GO111MODULE_auto", func(t *testing.T) {
 		withOptions(
-			WithModes(Singleton),
+			Modes(Singleton),
 			EditorConfig{
 				Env: map[string]string{
 					"GO111MODULE": "auto",
@@ -1738,8 +1738,8 @@ package hello
 func helloHelper() {}
 `
 	withOptions(
-		WithProxyFiles(proxy),
-		WithModes(Singleton),
+		ProxyFiles(proxy),
+		Modes(Singleton),
 	).run(t, nested, func(t *testing.T, env *Env) {
 		// Expect a diagnostic in a nested module.
 		env.OpenFile("nested/hello/hello.go")

@@ -117,7 +117,7 @@ func main() {
 	} {
 		t.Run(commandTitle, func(t *testing.T) {
 			withOptions(
-				WithProxyFiles(proxyWithLatest),
+				ProxyFiles(proxyWithLatest),
 			).run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 				env.OpenFile("go.mod")
 				var lens protocol.CodeLens
@@ -210,7 +210,7 @@ require golang.org/x/hello v1.0.0
 		if got != wantGoMod {
 			t.Fatalf("go.mod tidy failed:\n%s", tests.Diff(wantGoMod, got))
 		}
-	}, WithProxyFiles(proxy))
+	}, ProxyFiles(proxy))
 }
 
 func TestRegenerateCgo(t *testing.T) {

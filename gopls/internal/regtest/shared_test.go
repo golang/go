@@ -30,7 +30,7 @@ func runShared(t *testing.T, program string, testFunc func(env1 *Env, env2 *Env)
 		// as the first.
 		env2 := NewEnv(env1.Ctx, t, env1.Sandbox, env1.Server, env1.Editor.Config, true)
 		testFunc(env1, env2)
-	}, WithModes(modes))
+	}, Modes(modes))
 }
 
 func TestSimultaneousEdits(t *testing.T) {
