@@ -1969,7 +1969,8 @@ var excluded = map[string]bool{
 	"fixedbugs/bug374.go":    true,
 	"fixedbugs/bug379.go":    true,
 	"fixedbugs/bug383.go":    true,
-	"fixedbugs/bug385_64.go": true,
+	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
+	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
 	"fixedbugs/bug386.go":    true,
 	"fixedbugs/bug388.go":    true,
 	"fixedbugs/bug389.go":    true,
