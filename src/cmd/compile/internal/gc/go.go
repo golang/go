@@ -192,8 +192,8 @@ type Arch struct {
 var thearch Arch
 
 var (
-	staticuint64s,
-	zerobase ir.Node
+	staticuint64s *ir.Name
+	zerobase      *ir.Name
 
 	assertE2I,
 	assertE2I2,
