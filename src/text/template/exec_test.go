@@ -1697,3 +1697,16 @@ func TestIssue31810(t *testing.T) {
 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
 	}
 }
+
+// Issue 43065, range over send only channel
+func TestIssue43065(t *testing.T) {
+	var b bytes.Buffer
+	tmp := Must(New("").Parse(`{{range .}}{{end}}`))
+	ch := make(chan<- int)
+	err := tmp.Execute(&b, ch)
+	if err == nil {
+		t.Error("expected err got nil")
+	} else if !strings.Contains(err.Error(), "range over send-only channel") {
+		t.Errorf("%s", err)
+	}
+}
