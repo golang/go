@@ -137,8 +137,8 @@ type AssignOpStmt struct {
 	IncDec bool // actually ++ or --
 }
 
-func NewAssignOpStmt(pos src.XPos, op Op, x, y Node) *AssignOpStmt {
-	n := &AssignOpStmt{AsOp: op, X: x, Y: y}
+func NewAssignOpStmt(pos src.XPos, asOp Op, x, y Node) *AssignOpStmt {
+	n := &AssignOpStmt{AsOp: asOp, X: x, Y: y}
 	n.pos = pos
 	n.op = OASOP
 	return n
