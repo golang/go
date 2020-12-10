@@ -943,7 +943,7 @@ func oaslit(n ir.Node, init *ir.Nodes) bool {
 		return false
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
-		if vmatch1(n.Left(), n.Right()) {
+		if refersToCommonName(n.Left(), n.Right()) {
 			// not a special composite literal assignment
 			return false
 		}

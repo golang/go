@@ -805,7 +805,7 @@ func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 //   memequal(s.ptr, t.ptr, len(s))
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
-func eqstring(s, t ir.Node) (eqlen, eqmem ir.Node) {
+func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	s = conv(s, types.Types[types.TSTRING])
 	t = conv(t, types.Types[types.TSTRING])
 	sptr := ir.Nod(ir.OSPTR, s, nil)
@@ -815,14 +815,13 @@ func eqstring(s, t ir.Node) (eqlen, eqmem ir.Node) {
 
 	fn := syslook("memequal")
 	fn = substArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := ir.Nod(ir.OCALL, fn, nil)
-	call.PtrList().Append(sptr, tptr, ir.Copy(slen))
-	call1 := typecheck(call, ctxExpr|ctxMultiOK)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
+	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
 
-	cmp := ir.Nod(ir.OEQ, slen, tlen)
-	cmp1 := typecheck(cmp, ctxExpr)
+	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
-	return cmp1, call1
+	return cmp, call
 }
 
 // eqinterface returns the nodes
@@ -831,7 +830,7 @@ func eqstring(s, t ir.Node) (eqlen, eqmem ir.Node) {
 //   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
 // which can be used to construct interface equality comparison.
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
-func eqinterface(s, t ir.Node) (eqtab, eqdata ir.Node) {
+func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	if !types.Identical(s.Type(), t.Type()) {
 		base.Fatalf("eqinterface %v %v", s.Type(), t.Type())
 	}
@@ -853,14 +852,13 @@ func eqinterface(s, t ir.Node) (eqtab, eqdata ir.Node) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := ir.Nod(ir.OCALL, fn, nil)
-	call.PtrList().Append(stab, sdata, tdata)
-	call1 := typecheck(call, ctxExpr|ctxMultiOK)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
+	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
 
-	cmp := ir.Nod(ir.OEQ, stab, ttab)
-	cmp1 := typecheck(cmp, ctxExpr)
-	cmp1.SetType(types.Types[types.TBOOL])
-	return cmp1, call1
+	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
+	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)
+	cmp.SetType(types.Types[types.TBOOL])
+	return cmp, call
 }
 
 // eqmem returns the node
