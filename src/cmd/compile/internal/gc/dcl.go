@@ -165,10 +165,10 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 			if Curfn != nil {
 				init = append(init, ir.Nod(ir.ODCL, v, nil))
 			}
-			e = ir.Nod(ir.OAS, v, e)
-			init = append(init, e)
-			if e.Right() != nil {
-				v.Defn = e
+			as := ir.Nod(ir.OAS, v, e)
+			init = append(init, as)
+			if e != nil {
+				v.Defn = as
 			}
 		}
 	}
@@ -799,7 +799,7 @@ func makefuncsym(s *types.Sym) {
 }
 
 // setNodeNameFunc marks a node as a function.
-func setNodeNameFunc(n ir.Node) {
+func setNodeNameFunc(n *ir.Name) {
 	if n.Op() != ir.ONAME || n.Class() != ir.Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
@@ -861,12 +861,16 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	return c
 }
 
-func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) {
-	if n.Op() != ir.OCALLFUNC {
+func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+	if nn.Op() != ir.OCALLFUNC {
 		return
 	}
-	fn := n.Left()
-	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
+	n := nn.(*ir.CallExpr)
+	if n.Left() == nil || n.Left().Op() != ir.ONAME {
+		return
+	}
+	fn := n.Left().(*ir.Name)
+	if fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
 		return
 	}
 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {

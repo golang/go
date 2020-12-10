@@ -323,7 +323,7 @@ func (d *initDeps) foundDep(n *ir.Name) {
 	}
 	d.seen.Add(n)
 	if d.transitive && n.Class() == ir.PFUNC {
-		d.inspectList(n.Defn.Body())
+		d.inspectList(n.Defn.(*ir.Func).Body())
 	}
 }
 

@@ -192,7 +192,7 @@ func capturevars(fn *ir.Func) {
 
 		var outer ir.Node
 		outer = v.Outer
-		outermost := v.Defn
+		outermost := v.Defn.(*ir.Name)
 
 		// out parameters will be assigned to implicitly upon return.
 		if outermost.Class() != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
@@ -414,25 +414,26 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
 	return walkexpr(cfn, init)
 }
 
-func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
-	switch dot.Op() {
+func typecheckpartialcall(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
+	switch n.Op() {
 	case ir.ODOTINTER, ir.ODOTMETH:
 		break
 
 	default:
 		base.Fatalf("invalid typecheckpartialcall")
 	}
+	dot := n.(*ir.SelectorExpr)
 
 	// Create top-level function.
 	fn := makepartialcall(dot, dot.Type(), sym)
 	fn.SetWrapper(true)
 
-	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.(*ir.SelectorExpr).Selection, fn)
+	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.Selection, fn)
 }
 
 // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
 // for partial calls.
-func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
 	rcvrtype := dot.Left().Type()
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
 
@@ -508,7 +509,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
 // partialCallType returns the struct type used to hold all the information
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
-func partialCallType(n ir.Node) *types.Type {
+func partialCallType(n *ir.CallPartExpr) *types.Type {
 	t := tostruct([]*ir.Field{
 		namedfield("F", types.Types[types.TUINTPTR]),
 		namedfield("R", n.Left().Type()),
