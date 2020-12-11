@@ -5130,6 +5130,26 @@ func sysmon() {
 			}
 		}
 		mDoFixup()
+		if GOOS == "netbsd" {
+			// netpoll is responsible for waiting for timer
+			// expiration, so we typically don't have to worry
+			// about starting an M to service timers. (Note that
+			// sleep for timeSleepUntil above simply ensures sysmon
+			// starts running again when that timer expiration may
+			// cause Go code to run again).
+			//
+			// However, netbsd has a kernel bug that sometimes
+			// misses netpollBreak wake-ups, which can lead to
+			// unbounded delays servicing timers. If we detect this
+			// overrun, then startm to get something to handle the
+			// timer.
+			//
+			// See issue 42515 and
+			// https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094.
+			if next, _ := timeSleepUntil(); next < now {
+				startm(nil, false)
+			}
+		}
 		if atomic.Load(&scavenge.sysmonWake) != 0 {
 			// Kick the scavenger awake if someone requested it.
 			wakeScavenger()
