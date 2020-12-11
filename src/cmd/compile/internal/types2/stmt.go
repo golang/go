@@ -596,14 +596,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	}
 }
 
-func newName(pos syntax.Pos, value string) *syntax.Name {
-	n := new(syntax.Name)
-	// TODO(gri) why does this not work?
-	//n.pos = pos
-	n.Value = value
-	return n
-}
-
 func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 	// init statement already handled
 
@@ -624,7 +616,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		if len(s.Body) > 0 {
 			pos = s.Body[0].Pos()
 		}
-		x.expr = newName(pos, "true")
+		x.expr = syntax.NewName(pos, "true")
 	}
 
 	check.multipleSwitchDefaults(s.Body)

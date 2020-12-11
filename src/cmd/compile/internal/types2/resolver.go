@@ -523,7 +523,7 @@ L: // unpack receiver type
 					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
-					par = newName(arg.Pos(), "_")
+					par = syntax.NewName(arg.Pos(), "_")
 				}
 				tparams = append(tparams, par)
 			}

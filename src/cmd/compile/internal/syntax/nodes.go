@@ -122,6 +122,13 @@ type Group struct {
 // ----------------------------------------------------------------------------
 // Expressions
 
+func NewName(pos Pos, value string) *Name {
+	n := new(Name)
+	n.pos = pos
+	n.Value = value
+	return n
+}
+
 type (
 	Expr interface {
 		Node
