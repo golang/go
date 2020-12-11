@@ -33,6 +33,10 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		case 1:
 			check.expr(x, e.Args[0])
 			if x.mode != invalid {
+				if e.Ellipsis.IsValid() {
+					check.errorf(e.Args[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+					break
+				}
 				check.conversion(x, T)
 			}
 		default:
