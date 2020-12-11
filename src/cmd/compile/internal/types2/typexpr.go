@@ -535,6 +535,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			return typ
 		}
 
+		check.errorf(e0, "%s is not a type", e0)
+		check.use(e0)
+
 	case *syntax.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
