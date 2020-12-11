@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -141,7 +142,7 @@ func FmtNode(n Node, s fmt.State, verb rune) {
 	}
 
 	if n == nil {
-		fmt.Fprint(s, "<N>")
+		fmt.Fprint(s, "<nil>")
 		return
 	}
 
@@ -330,12 +331,14 @@ func stmtFmt(n Node, s fmt.State) {
 
 	switch n.Op() {
 	case ODCL:
+		n := n.(*Decl)
 		fmt.Fprintf(s, "var %v %v", n.Left().Sym(), n.Left().Type())
 
 	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS:
+		n := n.(*AssignStmt)
 		if n.Colas() && !complexinit {
 			fmt.Fprintf(s, "%v := %v", n.Left(), n.Right())
 		} else {
@@ -343,6 +346,7 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 	case OASOP:
+		n := n.(*AssignOpStmt)
 		if n.Implicit() {
 			if n.SubOp() == OADD {
 				fmt.Fprintf(s, "%v++", n.Left())
@@ -355,6 +359,7 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprintf(s, "%v %v= %v", n.Left(), n.SubOp(), n.Right())
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		n := n.(*AssignListStmt)
 		if n.Colas() && !complexinit {
 			fmt.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
 		} else {
@@ -362,26 +367,33 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 	case OBLOCK:
+		n := n.(*BlockStmt)
 		if n.List().Len() != 0 {
 			fmt.Fprintf(s, "%v", n.List())
 		}
 
 	case ORETURN:
+		n := n.(*ReturnStmt)
 		fmt.Fprintf(s, "return %.v", n.List())
 
 	case ORETJMP:
+		n := n.(*BranchStmt)
 		fmt.Fprintf(s, "retjmp %v", n.Sym())
 
 	case OINLMARK:
+		n := n.(*InlineMarkStmt)
 		fmt.Fprintf(s, "inlmark %d", n.Offset())
 
 	case OGO:
+		n := n.(*GoDeferStmt)
 		fmt.Fprintf(s, "go %v", n.Left())
 
 	case ODEFER:
+		n := n.(*GoDeferStmt)
 		fmt.Fprintf(s, "defer %v", n.Left())
 
 	case OIF:
+		n := n.(*IfStmt)
 		if simpleinit {
 			fmt.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Left(), n.Body())
 		} else {
@@ -392,6 +404,7 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 	case OFOR, OFORUNTIL:
+		n := n.(*ForStmt)
 		opname := "for"
 		if n.Op() == OFORUNTIL {
 			opname = "foruntil"
@@ -425,6 +438,7 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprintf(s, " { %v }", n.Body())
 
 	case ORANGE:
+		n := n.(*RangeStmt)
 		if !exportFormat {
 			fmt.Fprint(s, "for loop")
 			break
@@ -437,23 +451,31 @@ func stmtFmt(n Node, s fmt.State) {
 
 		fmt.Fprintf(s, "for %.v = range %v { %v }", n.List(), n.Right(), n.Body())
 
-	case OSELECT, OSWITCH:
+	case OSELECT:
+		n := n.(*SelectStmt)
 		if !exportFormat {
 			fmt.Fprintf(s, "%v statement", n.Op())
 			break
 		}
+		fmt.Fprintf(s, "select { %v }", n.List())
 
-		fmt.Fprintf(s, "%v", n.Op())
+	case OSWITCH:
+		n := n.(*SwitchStmt)
+		if !exportFormat {
+			fmt.Fprintf(s, "%v statement", n.Op())
+			break
+		}
+		fmt.Fprintf(s, "switch")
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init().First())
 		}
 		if n.Left() != nil {
 			fmt.Fprintf(s, " %v ", n.Left())
 		}
-
 		fmt.Fprintf(s, " { %v }", n.List())
 
 	case OCASE:
+		n := n.(*CaseStmt)
 		if n.List().Len() != 0 {
 			fmt.Fprintf(s, "case %.v", n.List())
 		} else {
@@ -462,6 +484,7 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprintf(s, ": %v", n.Body())
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
+		n := n.(*BranchStmt)
 		if n.Sym() != nil {
 			fmt.Fprintf(s, "%v %v", n.Op(), n.Sym())
 		} else {
@@ -469,6 +492,7 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 	case OLABEL:
+		n := n.(*LabelStmt)
 		fmt.Fprintf(s, "%v: ", n.Sym())
 	}
 
@@ -488,7 +512,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	for {
 		if n == nil {
-			fmt.Fprint(s, "<N>")
+			fmt.Fprint(s, "<nil>")
 			return
 		}
 
@@ -499,10 +523,23 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 
 		// Skip implicit operations introduced during typechecking.
-		switch n.Op() {
-		case OADDR, ODEREF, OCONV, OCONVNOP, OCONVIFACE:
-			if n.Implicit() {
-				n = n.Left()
+		switch nn := n; nn.Op() {
+		case OADDR:
+			nn := nn.(*AddrExpr)
+			if nn.Implicit() {
+				n = nn.Left()
+				continue
+			}
+		case ODEREF:
+			nn := nn.(*StarExpr)
+			if nn.Implicit() {
+				n = nn.Left()
+				continue
+			}
+		case OCONV, OCONVNOP, OCONVIFACE:
+			nn := nn.(*ConvExpr)
+			if nn.Implicit() {
+				n = nn.Left()
 				continue
 			}
 		}
@@ -522,6 +559,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	switch n.Op() {
 	case OPAREN:
+		n := n.(*ParenExpr)
 		fmt.Fprintf(s, "(%v)", n.Left())
 
 	case ONIL:
@@ -570,6 +608,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 
 	case ODCLFUNC:
+		n := n.(*Func)
 		if sym := n.Sym(); sym != nil {
 			fmt.Fprint(s, sym)
 			return
@@ -577,6 +616,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "<unnamed Func>")
 
 	case ONAME:
+		n := n.(*Name)
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export
 		if !exportFormat && n.Sym() != nil && n.Sym().Name[0] == '~' && n.Sym().Name[1] == 'b' {
@@ -641,17 +681,15 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprint(s, "<func>")
 
 	case OCLOSURE:
+		n := n.(*ClosureExpr)
 		if !exportFormat {
 			fmt.Fprint(s, "func literal")
-			return
-		}
-		if n.Body().Len() != 0 {
-			fmt.Fprintf(s, "%v { %v }", n.Type(), n.Body())
 			return
 		}
 		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
 
 	case OCOMPLIT:
+		n := n.(*CompLitExpr)
 		if !exportFormat {
 			if n.Implicit() {
 				fmt.Fprintf(s, "... argument")
@@ -668,9 +706,11 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "(%v{ %.v })", n.Right(), n.List())
 
 	case OPTRLIT:
+		n := n.(*AddrExpr)
 		fmt.Fprintf(s, "&%v", n.Left())
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
+		n := n.(*CompLitExpr)
 		if !exportFormat {
 			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List().Len() != 0))
 			return
@@ -678,6 +718,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List())
 
 	case OKEY:
+		n := n.(*KeyExpr)
 		if n.Left() != nil && n.Right() != nil {
 			fmt.Fprintf(s, "%v:%v", n.Left(), n.Right())
 			return
@@ -694,9 +735,11 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprint(s, ":")
 
 	case OSTRUCTKEY:
+		n := n.(*StructKeyExpr)
 		fmt.Fprintf(s, "%v:%v", n.Sym(), n.Left())
 
 	case OCALLPART:
+		n := n.(*CallPartExpr)
 		exprFmt(n.Left(), s, nprec)
 		if n.Sym() == nil {
 			fmt.Fprint(s, ".<nil>")
@@ -705,6 +748,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+		n := n.(*SelectorExpr)
 		exprFmt(n.Left(), s, nprec)
 		if n.Sym() == nil {
 			fmt.Fprint(s, ".<nil>")
@@ -713,6 +757,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
 
 	case ODOTTYPE, ODOTTYPE2:
+		n := n.(*TypeAssertExpr)
 		exprFmt(n.Left(), s, nprec)
 		if n.Right() != nil {
 			fmt.Fprintf(s, ".(%v)", n.Right())
@@ -721,10 +766,12 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:
+		n := n.(*IndexExpr)
 		exprFmt(n.Left(), s, nprec)
 		fmt.Fprintf(s, "[%v]", n.Right())
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
+		n := n.(*SliceExpr)
 		exprFmt(n.Left(), s, nprec)
 		fmt.Fprint(s, "[")
 		low, high, max := n.SliceBounds()
@@ -744,17 +791,15 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprint(s, "]")
 
 	case OSLICEHEADER:
+		n := n.(*SliceHeaderExpr)
 		if n.List().Len() != 2 {
 			base.Fatalf("bad OSLICEHEADER list length %d", n.List().Len())
 		}
 		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left(), n.List().First(), n.List().Second())
 
 	case OCOMPLEX, OCOPY:
-		if n.Left() != nil {
-			fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.Left(), n.Right())
-		} else {
-			fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
-		}
+		n := n.(*BinaryExpr)
+		fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.Left(), n.Right())
 
 	case OCONV,
 		OCONVIFACE,
@@ -764,37 +809,34 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OSTR2BYTES,
 		OSTR2RUNES,
 		ORUNESTR:
+		n := n.(*ConvExpr)
 		if n.Type() == nil || n.Type().Sym() == nil {
 			fmt.Fprintf(s, "(%v)", n.Type())
 		} else {
 			fmt.Fprintf(s, "%v", n.Type())
 		}
-		if n.Left() != nil {
-			fmt.Fprintf(s, "(%v)", n.Left())
-		} else {
-			fmt.Fprintf(s, "(%.v)", n.List())
-		}
+		fmt.Fprintf(s, "(%v)", n.Left())
 
 	case OREAL,
 		OIMAG,
-		OAPPEND,
 		OCAP,
 		OCLOSE,
-		ODELETE,
 		OLEN,
-		OMAKE,
 		ONEW,
 		OPANIC,
-		ORECOVER,
 		OALIGNOF,
 		OOFFSETOF,
-		OSIZEOF,
+		OSIZEOF:
+		n := n.(*UnaryExpr)
+		fmt.Fprintf(s, "%v(%v)", n.Op(), n.Left())
+
+	case OAPPEND,
+		ODELETE,
+		OMAKE,
+		ORECOVER,
 		OPRINT,
 		OPRINTN:
-		if n.Left() != nil {
-			fmt.Fprintf(s, "%v(%v)", n.Op(), n.Left())
-			return
-		}
+		n := n.(*CallExpr)
 		if n.IsDDD() {
 			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.List())
 			return
@@ -802,6 +844,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
+		n := n.(*CallExpr)
 		exprFmt(n.Left(), s, nprec)
 		if n.IsDDD() {
 			fmt.Fprintf(s, "(%.v...)", n.List())
@@ -810,10 +853,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "(%.v)", n.List())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
-		if n.List().Len() != 0 { // pre-typecheck
-			fmt.Fprintf(s, "make(%v, %.v)", n.Type(), n.List())
-			return
-		}
+		n := n.(*MakeExpr)
 		if n.Right() != nil {
 			fmt.Fprintf(s, "make(%v, %v, %v)", n.Type(), n.Left(), n.Right())
 			return
@@ -825,20 +865,34 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		fmt.Fprintf(s, "make(%v)", n.Type())
 
 	case OMAKESLICECOPY:
+		n := n.(*MakeExpr)
 		fmt.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Left(), n.Right())
 
-	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
+	case OPLUS, ONEG, OBITNOT, ONOT, ORECV:
 		// Unary
+		n := n.(*UnaryExpr)
 		fmt.Fprintf(s, "%v", n.Op())
 		if n.Left() != nil && n.Left().Op() == n.Op() {
 			fmt.Fprint(s, " ")
 		}
 		exprFmt(n.Left(), s, nprec+1)
 
+	case OADDR:
+		n := n.(*AddrExpr)
+		fmt.Fprintf(s, "%v", n.Op())
+		if n.Left() != nil && n.Left().Op() == n.Op() {
+			fmt.Fprint(s, " ")
+		}
+		exprFmt(n.Left(), s, nprec+1)
+
+	case ODEREF:
+		n := n.(*StarExpr)
+		fmt.Fprintf(s, "%v", n.Op())
+		exprFmt(n.Left(), s, nprec+1)
+
 		// Binary
 	case OADD,
 		OAND,
-		OANDAND,
 		OANDNOT,
 		ODIV,
 		OEQ,
@@ -851,16 +905,29 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OMUL,
 		ONE,
 		OOR,
-		OOROR,
 		ORSH,
-		OSEND,
 		OSUB,
 		OXOR:
+		n := n.(*BinaryExpr)
 		exprFmt(n.Left(), s, nprec)
 		fmt.Fprintf(s, " %v ", n.Op())
 		exprFmt(n.Right(), s, nprec+1)
 
+	case OANDAND,
+		OOROR:
+		n := n.(*LogicalExpr)
+		exprFmt(n.Left(), s, nprec)
+		fmt.Fprintf(s, " %v ", n.Op())
+		exprFmt(n.Right(), s, nprec+1)
+
+	case OSEND:
+		n := n.(*SendStmt)
+		exprFmt(n.Left(), s, nprec)
+		fmt.Fprintf(s, " <- ")
+		exprFmt(n.Right(), s, nprec+1)
+
 	case OADDSTR:
+		n := n.(*AddStringExpr)
 		for i, n1 := range n.List().Slice() {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
@@ -951,25 +1018,10 @@ func dumpNodeHeader(w io.Writer, n Node) {
 	if base.Debug.DumpPtrs != 0 {
 		fmt.Fprintf(w, " p(%p)", n)
 	}
-	if n.Name() != nil && n.Name().Vargen != 0 {
-		fmt.Fprintf(w, " g(%d)", n.Name().Vargen)
-	}
 
 	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Defn != nil {
 		// Useful to see where Defn is set and what node it points to
 		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
-	}
-
-	if n.Offset() != types.BADWIDTH {
-		fmt.Fprintf(w, " x(%d)", n.Offset())
-	}
-
-	if n.Class() != 0 {
-		fmt.Fprintf(w, " class(%v)", n.Class())
-	}
-
-	if n.Colas() {
-		fmt.Fprintf(w, " colas(%v)", n.Colas())
 	}
 
 	if EscFmt != nil {
@@ -982,47 +1034,62 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
 	}
 
-	if n.IsDDD() {
-		fmt.Fprintf(w, " isddd(%v)", n.IsDDD())
+	// Print Node-specific fields of basic type in header line.
+	v := reflect.ValueOf(n).Elem()
+	t := v.Type()
+	nf := t.NumField()
+	for i := 0; i < nf; i++ {
+		tf := t.Field(i)
+		if tf.PkgPath != "" {
+			// skip unexported field - Interface will fail
+			continue
+		}
+		k := tf.Type.Kind()
+		if reflect.Bool <= k && k <= reflect.Complex128 {
+			name := strings.TrimSuffix(tf.Name, "_")
+			vf := v.Field(i)
+			vfi := vf.Interface()
+			if name == "Offset" && vfi == types.BADWIDTH || name != "Offset" && isZero(vf) {
+				continue
+			}
+			if vfi == true {
+				fmt.Fprintf(w, " %s", name)
+			} else {
+				fmt.Fprintf(w, " %s:%+v", name, vf.Interface())
+			}
+		}
 	}
 
-	if n.Implicit() {
-		fmt.Fprintf(w, " implicit(%v)", n.Implicit())
-	}
-
-	if n.Op() == ONAME {
-		if n.Name().Addrtaken() {
-			fmt.Fprint(w, " addrtaken")
+	// Print Node-specific booleans by looking for methods.
+	// Different v, t from above - want *Struct not Struct, for methods.
+	v = reflect.ValueOf(n)
+	t = v.Type()
+	nm := t.NumMethod()
+	for i := 0; i < nm; i++ {
+		tm := t.Method(i)
+		if tm.PkgPath != "" {
+			// skip unexported method - call will fail
+			continue
 		}
-		if n.Name().Assigned() {
-			fmt.Fprint(w, " assigned")
+		m := v.Method(i)
+		mt := m.Type()
+		if mt.NumIn() == 0 && mt.NumOut() == 1 && mt.Out(0).Kind() == reflect.Bool {
+			// TODO(rsc): Remove the func/defer/recover wrapping,
+			// which is guarding against panics in miniExpr,
+			// once we get down to the simpler state in which
+			// nodes have no getter methods that aren't allowed to be called.
+			func() {
+				defer func() { recover() }()
+				if m.Call(nil)[0].Bool() {
+					name := strings.TrimSuffix(tm.Name, "_")
+					fmt.Fprintf(w, " %s", name)
+				}
+			}()
 		}
-		if n.Name().IsClosureVar() {
-			fmt.Fprint(w, " closurevar")
-		}
-		if n.Name().Captured() {
-			fmt.Fprint(w, " captured")
-		}
-		if n.Name().IsOutputParamHeapAddr() {
-			fmt.Fprint(w, " outputparamheapaddr")
-		}
-	}
-	if n.Bounded() {
-		fmt.Fprint(w, " bounded")
-	}
-	if n.NonNil() {
-		fmt.Fprint(w, " nonnil")
-	}
-
-	if n.HasCall() {
-		fmt.Fprint(w, " hascall")
-	}
-
-	if n.Name() != nil && n.Name().Used() {
-		fmt.Fprint(w, " used")
 	}
 
 	if n.Op() == OCLOSURE {
+		n := n.(*ClosureExpr)
 		if fn := n.Func(); fn != nil && fn.Nname.Sym() != nil {
 			fmt.Fprintf(w, " fnName(%+v)", fn.Nname.Sym())
 		}
@@ -1087,6 +1154,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		return
 
 	case OASOP:
+		n := n.(*AssignOpStmt)
 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.SubOp())
 		dumpNodeHeader(w, n)
 
@@ -1120,7 +1188,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		if fn.Body().Len() > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-body", n.Op())
-			dumpNodes(w, n.Body(), depth+1)
+			dumpNodes(w, fn.Body(), depth+1)
 		}
 		return
 	}
@@ -1184,5 +1252,42 @@ func dumpNodes(w io.Writer, list Nodes, depth int) {
 
 	for _, n := range list.Slice() {
 		dumpNode(w, n, depth)
+	}
+}
+
+// reflect.IsZero is not available in Go 1.4 (added in Go 1.13), so we use this copy instead.
+func isZero(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return math.Float64bits(v.Float()) == 0
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			if !isZero(v.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+		return v.IsNil()
+	case reflect.String:
+		return v.Len() == 0
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !isZero(v.Field(i)) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
 	}
 }

@@ -34,13 +34,13 @@ func (*Ident) CanBeNtype() {}
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr
-	subOp      Op    // uint8
-	class      Class // uint8
+	BuiltinOp  Op    // uint8
+	Class_     Class // uint8
 	flags      bitset16
 	pragma     PragmaFlag // int16
 	sym        *types.Sym
 	fn         *Func
-	offset     int64
+	Offset_    int64
 	val        constant.Value
 	orig       Node
 	embedFiles *[]string // list of embedded files, for ONAME var
@@ -180,16 +180,16 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 func (n *Name) Name() *Name         { return n }
 func (n *Name) Sym() *types.Sym     { return n.sym }
 func (n *Name) SetSym(x *types.Sym) { n.sym = x }
-func (n *Name) SubOp() Op           { return n.subOp }
-func (n *Name) SetSubOp(x Op)       { n.subOp = x }
-func (n *Name) Class() Class        { return n.class }
-func (n *Name) SetClass(x Class)    { n.class = x }
+func (n *Name) SubOp() Op           { return n.BuiltinOp }
+func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
+func (n *Name) Class() Class        { return n.Class_ }
+func (n *Name) SetClass(x Class)    { n.Class_ = x }
 func (n *Name) Func() *Func         { return n.fn }
 func (n *Name) SetFunc(x *Func)     { n.fn = x }
-func (n *Name) Offset() int64       { return n.offset }
-func (n *Name) SetOffset(x int64)   { n.offset = x }
-func (n *Name) Iota() int64         { return n.offset }
-func (n *Name) SetIota(x int64)     { n.offset = x }
+func (n *Name) Offset() int64       { return n.Offset_ }
+func (n *Name) SetOffset(x int64)   { n.Offset_ = x }
+func (n *Name) Iota() int64         { return n.Offset_ }
+func (n *Name) SetIota(x int64)     { n.Offset_ = x }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
