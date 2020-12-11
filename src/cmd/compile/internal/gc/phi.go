@@ -188,6 +188,11 @@ levels:
 			if v.Op == ssa.OpPhi {
 				v.AuxInt = 0
 			}
+			// Any remaining FwdRefs are dead code.
+			if v.Op == ssa.OpFwdRef {
+				v.Op = ssa.OpUnknown
+				v.Aux = nil
+			}
 		}
 	}
 }
