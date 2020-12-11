@@ -161,6 +161,24 @@ var tests = []ZipTest{
 		},
 	},
 	{
+		// created by Compress-Archive powershell on windows 10
+		Name: "ps1-win10.zip",
+		File: []ZipTestFile{
+			{
+				Name: "nested\\nested2\\",
+				Content: []byte{},
+				Modified: time.Date(2020, 12, 11, 0, 41, 10, 0, time.UTC),
+				Mode: fs.ModeDir | 0666,
+			},
+			{
+				Name: "hello.txt",
+				Content: []byte("hello, world\r\n"),
+				Modified: time.Date(2020, 12, 11, 0, 40, 16, 0, time.UTC),
+				Mode: 0666,
+			},
+		},
+	},
+	{
 		// created by Zip 3.0 under Linux
 		Name: "unix.zip",
 		File: []ZipTestFile{

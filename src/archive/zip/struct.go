@@ -290,7 +290,7 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
 	case creatorNTFS, creatorVFAT, creatorFAT:
 		mode = msdosModeToFileMode(h.ExternalAttrs)
 	}
-	if len(h.Name) > 0 && h.Name[len(h.Name)-1] == '/' {
+	if len(h.Name) > 0 && (h.Name[len(h.Name)-1] == '/' || h.Name[len(h.Name)-1] == '\\') {
 		mode |= fs.ModeDir
 	}
 	return mode
