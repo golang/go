@@ -1099,23 +1099,16 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) bool {
 	key := pconn.cacheKey
 	pconns := t.idleConn[key]
 	var removed bool
-	switch len(pconns) {
-	case 0:
-		// Nothing
-	case 1:
-		if pconns[0] == pconn {
-			delete(t.idleConn, key)
-			removed = true
-		}
-	default:
-		for i, v := range pconns {
-			if v != pconn {
-				continue
+	for i, v := range pconns {
+		if v == pconn {
+			if i == len(pconns)-1 {
+				// Slide down, keeping most recently-used
+				// conns at the end.
+				copy(pconns[i:], pconns[i+1:])
+				t.idleConn[key] = pconns[:len(pconns)-1]
+			} else {
+				delete(t.idleConn, key)
 			}
-			// Slide down, keeping most recently-used
-			// conns at the end.
-			copy(pconns[i:], pconns[i+1:])
-			t.idleConn[key] = pconns[:len(pconns)-1]
 			removed = true
 			break
 		}
