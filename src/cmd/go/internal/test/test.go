@@ -595,7 +595,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
 
-	pkgs = load.PackagesForBuild(ctx, pkgArgs)
+	pkgs = load.PackagesAndErrors(ctx, pkgArgs)
+	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
@@ -678,7 +679,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		sort.Strings(all)
 
 		a := &work.Action{Mode: "go test -i"}
-		for _, p := range load.PackagesForBuild(ctx, all) {
+		pkgs := load.PackagesAndErrors(ctx, all)
+		load.CheckPackageErrors(pkgs)
+		for _, p := range pkgs {
 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
 				// gccgo's standard library packages
 				// can not be reinstalled.
