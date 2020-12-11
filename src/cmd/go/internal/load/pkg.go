@@ -2314,30 +2314,14 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // argument where needed.
 var ModResolveTests bool
 
-// Packages returns the packages named by the
-// command line arguments 'args'. If a named package
-// cannot be loaded at all (for example, if the directory does not exist),
-// then packages prints an error and does not include that
-// package in the results. However, if errors occur trying
-// to load dependencies of a named package, the named
-// package is still returned, with p.Incomplete = true
-// and details in p.DepsErrors.
-func Packages(ctx context.Context, args []string) []*Package {
-	var pkgs []*Package
-	for _, pkg := range PackagesAndErrors(ctx, args) {
-		if pkg.Error != nil {
-			base.Errorf("%v", pkg.Error)
-			continue
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	return pkgs
-}
-
-// PackagesAndErrors is like 'packages' but returns a
-// *Package for every argument, even the ones that
-// cannot be loaded at all.
-// The packages that fail to load will have p.Error != nil.
+// PackagesAndErrors returns the packages named by the command line arguments
+// 'patterns'. If a named package cannot be loaded, PackagesAndErrors returns
+// a *Package with the Error field describing the failure. If errors are found
+// loading imported packages, the DepsErrors field is set. The Incomplete field
+// may be set as well.
+//
+// To obtain a flat list of packages, use PackageList.
+// To report errors loading packages, use ReportPackageErrors.
 func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
 	defer span.Done()
@@ -2427,20 +2411,9 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	return pkgs
 }
 
-func setToolFlags(pkgs ...*Package) {
-	for _, p := range PackageList(pkgs) {
-		p.Internal.Asmflags = BuildAsmflags.For(p)
-		p.Internal.Gcflags = BuildGcflags.For(p)
-		p.Internal.Ldflags = BuildLdflags.For(p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
-	}
-}
-
-// PackagesForBuild is like Packages but exits
-// if any of the packages or their dependencies have errors
-// (cannot be built).
-func PackagesForBuild(ctx context.Context, args []string) []*Package {
-	pkgs := PackagesAndErrors(ctx, args)
+// CheckPackageErrors prints errors encountered loading pkgs and their
+// dependencies, then exits with a non-zero status if any errors were found.
+func CheckPackageErrors(pkgs []*Package) {
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
@@ -2475,8 +2448,15 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 		seen[pkg.ImportPath] = true
 	}
 	base.ExitIfErrors()
+}
 
-	return pkgs
+func setToolFlags(pkgs ...*Package) {
+	for _, p := range PackageList(pkgs) {
+		p.Internal.Asmflags = BuildAsmflags.For(p)
+		p.Internal.Gcflags = BuildGcflags.For(p)
+		p.Internal.Ldflags = BuildLdflags.For(p)
+		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+	}
 }
 
 // GoFilesPackage creates a package for building a collection of Go files

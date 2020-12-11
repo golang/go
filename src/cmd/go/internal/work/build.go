@@ -369,7 +369,8 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
 
@@ -399,7 +400,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
 	}
 
-	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
+	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
 	// Special case -o /dev/null by not writing at all.
 	if cfg.BuildO == os.DevNull {
@@ -583,7 +584,8 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	BuildInit()
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 	if cfg.BuildI {
 		allGoroot := true
 		for _, pkg := range pkgs {
@@ -824,7 +826,8 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
-	pkgs := load.PackagesForBuild(ctx, patterns)
+	pkgs := load.PackagesAndErrors(ctx, patterns)
+	load.CheckPackageErrors(pkgs)
 	mainPkgs := make([]*load.Package, 0, len(pkgs))
 	mainCount := make([]int, len(patterns))
 	nonMainCount := make([]int, len(patterns))
