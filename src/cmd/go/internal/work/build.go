@@ -583,8 +583,31 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 	}
+
 	BuildInit()
 	pkgs := load.PackagesAndErrors(ctx, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot() {
+		haveErrors := false
+		allMissingErrors := true
+		for _, pkg := range pkgs {
+			if pkg.Error == nil {
+				continue
+			}
+			haveErrors = true
+			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
+				allMissingErrors = false
+				break
+			}
+		}
+		if haveErrors && allMissingErrors {
+			latestArgs := make([]string, len(args))
+			for i := range args {
+				latestArgs[i] = args[i] + "@latest"
+			}
+			hint := strings.Join(latestArgs, " ")
+			base.Fatalf("go install: version is required when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
+		}
+	}
 	load.CheckPackageErrors(pkgs)
 	if cfg.BuildI {
 		allGoroot := true
@@ -598,6 +621,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
 		}
 	}
+
 	InstallPackages(ctx, args, pkgs)
 }
 
@@ -815,7 +839,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 
 	// Load packages for all arguments. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
-	// PackagesForBuild already prints warnings for patterns that don't match any
+	// PackagesAndErrors already prints warnings for patterns that don't match any
 	// packages, so be careful not to double print.
 	matchers := make([]func(string) bool, len(patterns))
 	for i, p := range patterns {
