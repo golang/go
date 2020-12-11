@@ -82,7 +82,7 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
 			}
 
 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
-			data, err := ReadFile(path)
+			data, err := robustio.ReadFile(path)
 			if err == nil {
 				atomic.AddInt64(&readSuccesses, 1)
 			} else if robustio.IsEphemeralError(err) {

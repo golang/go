@@ -31,12 +31,6 @@ func Pattern(filename string) string {
 //
 // That ensures that the final location, if it exists, is always a complete file.
 func WriteFile(filename string, data []byte, perm fs.FileMode) (err error) {
-	return WriteToFile(filename, bytes.NewReader(data), perm)
-}
-
-// WriteToFile is a variant of WriteFile that accepts the data as an io.Reader
-// instead of a slice.
-func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error) {
 	f, err := tempFile(filepath.Dir(filename), filepath.Base(filename), perm)
 	if err != nil {
 		return err
@@ -51,7 +45,7 @@ func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error) 
 		}
 	}()
 
-	if _, err := io.Copy(f, data); err != nil {
+	if _, err := io.Copy(f, bytes.NewReader(data)); err != nil {
 		return err
 	}
 	// Sync the file before renaming it: otherwise, after a crash the reader may
