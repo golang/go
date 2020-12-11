@@ -22,7 +22,7 @@ import (
 	"golang.org/x/tools/internal/event/label"
 )
 
-var traceTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var TraceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Trace Information{{end}}
 {{define "body"}}
 	{{range .Traces}}<a href="/trace/{{.Name}}">{{.Name}}</a> last: {{.Last.Duration}}, longest: {{.Longest.Duration}}<br>{{end}}
@@ -45,7 +45,7 @@ type traces struct {
 	unfinished map[export.SpanContext]*traceData
 }
 
-type traceResults struct {
+type TraceResults struct { // exported for testing
 	Traces   []*traceSet
 	Selected *traceSet
 }
@@ -193,7 +193,7 @@ func (t *traces) getData(req *http.Request) interface{} {
 	if len(t.sets) == 0 {
 		return nil
 	}
-	data := traceResults{}
+	data := TraceResults{}
 	data.Traces = make([]*traceSet, 0, len(t.sets))
 	for _, set := range t.sets {
 		data.Traces = append(data.Traces, set)

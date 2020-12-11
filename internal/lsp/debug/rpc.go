@@ -20,7 +20,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 )
 
-var rpcTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var RPCTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}RPC Information{{end}}
 {{define "body"}}
 	<H2>Inbound</H2>
@@ -44,7 +44,7 @@ var rpcTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-type rpcs struct {
+type Rpcs struct { // exported for testing
 	mu       sync.Mutex
 	Inbound  []*rpcStats // stats for incoming lsp rpcs sorted by method name
 	Outbound []*rpcStats // stats for outgoing lsp rpcs sorted by method name
@@ -79,7 +79,7 @@ type rpcCodeBucket struct {
 	Count int64
 }
 
-func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
+func (r *Rpcs) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -152,7 +152,7 @@ func endRPC(ctx context.Context, ev core.Event, span *export.Span, stats *rpcSta
 	}
 }
 
-func (r *rpcs) getRPCSpan(ctx context.Context, ev core.Event) (*export.Span, *rpcStats) {
+func (r *Rpcs) getRPCSpan(ctx context.Context, ev core.Event) (*export.Span, *rpcStats) {
 	// get the span
 	span := export.GetSpan(ctx)
 	if span == nil {
@@ -163,7 +163,7 @@ func (r *rpcs) getRPCSpan(ctx context.Context, ev core.Event) (*export.Span, *rp
 	return span, r.getRPCStats(span.Start())
 }
 
-func (r *rpcs) getRPCStats(lm label.Map) *rpcStats {
+func (r *Rpcs) getRPCStats(lm label.Map) *rpcStats {
 	method := tag.Method.Get(lm)
 	if method == "" {
 		return nil
@@ -209,7 +209,7 @@ func getStatusCode(span *export.Span) string {
 	return ""
 }
 
-func (r *rpcs) getData(req *http.Request) interface{} {
+func (r *Rpcs) getData(req *http.Request) interface{} {
 	return r
 }
 

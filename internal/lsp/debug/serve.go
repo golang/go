@@ -64,7 +64,7 @@ type Instance struct {
 
 	ocagent    *ocagent.Exporter
 	prometheus *prometheus.Exporter
-	rpcs       *rpcs
+	rpcs       *Rpcs
 	traces     *traces
 	State      *State
 }
@@ -349,7 +349,7 @@ func WithInstance(ctx context.Context, workdir, agent string) context.Context {
 	ocConfig.Address = i.OCAgentConfig
 	i.ocagent = ocagent.Connect(ocConfig)
 	i.prometheus = prometheus.New()
-	i.rpcs = &rpcs{}
+	i.rpcs = &Rpcs{}
 	i.traces = &traces{}
 	i.State = &State{}
 	i.exporter = makeInstanceExporter(i)
@@ -405,8 +405,8 @@ func (i *Instance) Serve(ctx context.Context) error {
 	event.Log(ctx, "Debug serving", tag.Port.Of(port))
 	go func() {
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))
-		mux.HandleFunc("/debug/", render(debugTmpl, nil))
+		mux.HandleFunc("/", render(MainTmpl, func(*http.Request) interface{} { return i }))
+		mux.HandleFunc("/debug/", render(DebugTmpl, nil))
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -416,19 +416,19 @@ func (i *Instance) Serve(ctx context.Context) error {
 			mux.HandleFunc("/metrics/", i.prometheus.Serve)
 		}
 		if i.rpcs != nil {
-			mux.HandleFunc("/rpc/", render(rpcTmpl, i.rpcs.getData))
+			mux.HandleFunc("/rpc/", render(RPCTmpl, i.rpcs.getData))
 		}
 		if i.traces != nil {
-			mux.HandleFunc("/trace/", render(traceTmpl, i.traces.getData))
+			mux.HandleFunc("/trace/", render(TraceTmpl, i.traces.getData))
 		}
-		mux.HandleFunc("/cache/", render(cacheTmpl, i.getCache))
-		mux.HandleFunc("/session/", render(sessionTmpl, i.getSession))
-		mux.HandleFunc("/view/", render(viewTmpl, i.getView))
-		mux.HandleFunc("/client/", render(clientTmpl, i.getClient))
-		mux.HandleFunc("/server/", render(serverTmpl, i.getServer))
-		mux.HandleFunc("/file/", render(fileTmpl, i.getFile))
-		mux.HandleFunc("/info", render(infoTmpl, i.getInfo))
-		mux.HandleFunc("/memory", render(memoryTmpl, getMemory))
+		mux.HandleFunc("/cache/", render(CacheTmpl, i.getCache))
+		mux.HandleFunc("/session/", render(SessionTmpl, i.getSession))
+		mux.HandleFunc("/view/", render(ViewTmpl, i.getView))
+		mux.HandleFunc("/client/", render(ClientTmpl, i.getClient))
+		mux.HandleFunc("/server/", render(ServerTmpl, i.getServer))
+		mux.HandleFunc("/file/", render(FileTmpl, i.getFile))
+		mux.HandleFunc("/info", render(InfoTmpl, i.getInfo))
+		mux.HandleFunc("/memory", render(MemoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
 			event.Error(ctx, "Debug server failed", err)
 			return
@@ -639,7 +639,7 @@ func fcontent(v []byte) string {
 	return string(v)
 }
 
-var baseTemplate = template.Must(template.New("").Parse(`
+var BaseTemplate = template.Must(template.New("").Parse(`
 <html>
 <head>
 <title>{{template "title" .}}</title>
@@ -708,7 +708,7 @@ Unknown page
 	},
 })
 
-var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var MainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls server information{{end}}
 {{define "body"}}
 <h2>Caches</h2>
@@ -724,14 +724,14 @@ var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var infoTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var InfoTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls version information{{end}}
 {{define "body"}}
 {{.}}
 {{end}}
 `))
 
-var memoryTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var MemoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls memory usage{{end}}
 {{define "head"}}<meta http-equiv="refresh" content="5">{{end}}
 {{define "body"}}
@@ -761,14 +761,14 @@ var memoryTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var debugTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var DebugTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls Debug pages{{end}}
 {{define "body"}}
 <a href="/debug/pprof">Profiling</a>
 {{end}}
 `))
 
-var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var CacheTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Cache {{.ID}}{{end}}
 {{define "body"}}
 <h2>memoize.Store entries</h2>
@@ -778,7 +778,7 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var ClientTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Client {{.Session.ID}}{{end}}
 {{define "body"}}
 Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
@@ -788,7 +788,7 @@ Gopls Path: {{.GoplsPath}}<br>
 {{end}}
 `))
 
-var serverTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var ServerTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Server {{.ID}}{{end}}
 {{define "body"}}
 {{if .DebugAddress}}Debug this server at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>{{end}}
@@ -797,7 +797,7 @@ Gopls Path: {{.GoplsPath}}<br>
 {{end}}
 `))
 
-var sessionTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var SessionTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Session {{.ID}}{{end}}
 {{define "body"}}
 From: <b>{{template "cachelink" .Cache.ID}}</b><br>
@@ -810,7 +810,7 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 {{end}}
 `))
 
-var viewTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var ViewTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}View {{.ID}}{{end}}
 {{define "body"}}
 Name: <b>{{.Name}}</b><br>
@@ -821,7 +821,7 @@ From: <b>{{template "sessionlink" .Session.ID}}</b><br>
 {{end}}
 `))
 
-var fileTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+var FileTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Overlay {{.FileIdentity.Hash}}{{end}}
 {{define "body"}}
 {{with .}}
