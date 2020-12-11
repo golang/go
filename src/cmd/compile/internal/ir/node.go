@@ -102,8 +102,6 @@ type Node interface {
 	SetBounded(x bool)
 	Typecheck() uint8
 	SetTypecheck(x uint8)
-	Initorder() uint8
-	SetInitorder(x uint8)
 	NonNil() bool
 	MarkNonNil()
 	HasCall() bool
