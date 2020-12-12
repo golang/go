@@ -216,6 +216,7 @@ func TestMain(m *testing.M) {
 	}
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
+	os.Unsetenv("GOFLAGS")
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
 	os.Unsetenv("GIT_ALLOW_PROTOCOL")
