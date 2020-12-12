@@ -168,7 +168,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 			code = 'T'
 		case objabi.SRODATA:
 			code = 'R'
-		case objabi.SDATA:
+		case objabi.SNOPTRDATA, objabi.SDATA:
 			code = 'D'
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
 			code = 'B'
