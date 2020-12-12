@@ -3764,11 +3764,11 @@ func usefield(n ir.Node) {
 
 // hasSideEffects reports whether n contains any operations that could have observable side effects.
 func hasSideEffects(n ir.Node) bool {
-	found := ir.Find(n, func(n ir.Node) interface{} {
+	return ir.Find(n, func(n ir.Node) bool {
 		switch n.Op() {
 		// Assume side effects unless we know otherwise.
 		default:
-			return n
+			return true
 
 		// No side effects here (arguments are checked separately).
 		case ir.ONAME,
@@ -3824,29 +3824,28 @@ func hasSideEffects(n ir.Node) bool {
 			ir.OREAL,
 			ir.OIMAG,
 			ir.OCOMPLEX:
-			return nil
+			return false
 
 		// Only possible side effect is division by zero.
 		case ir.ODIV, ir.OMOD:
 			if n.Right().Op() != ir.OLITERAL || constant.Sign(n.Right().Val()) == 0 {
-				return n
+				return true
 			}
 
 		// Only possible side effect is panic on invalid size,
 		// but many makechan and makemap use size zero, which is definitely OK.
 		case ir.OMAKECHAN, ir.OMAKEMAP:
 			if !ir.IsConst(n.Left(), constant.Int) || constant.Sign(n.Left().Val()) != 0 {
-				return n
+				return true
 			}
 
 		// Only possible side effect is panic on invalid size.
 		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
 		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
-			return n
+			return true
 		}
-		return nil
+		return false
 	})
-	return found != nil
 }
 
 // Rewrite

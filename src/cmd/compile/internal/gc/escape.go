@@ -225,7 +225,7 @@ func (e *Escape) walkFunc(fn *ir.Func) {
 	fn.SetEsc(EscFuncStarted)
 
 	// Identify labels that mark the head of an unstructured loop.
-	ir.InspectList(fn.Body(), func(n ir.Node) bool {
+	ir.Visit(fn, func(n ir.Node) {
 		switch n.Op() {
 		case ir.OLABEL:
 			if e.labels == nil {
@@ -240,8 +240,6 @@ func (e *Escape) walkFunc(fn *ir.Func) {
 				e.labels[n.Sym()] = looping
 			}
 		}
-
-		return true
 	})
 
 	e.curfn = fn

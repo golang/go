@@ -781,7 +781,7 @@ func isGoConst(n ir.Node) bool {
 
 // hasCallOrChan reports whether n contains any calls or channel operations.
 func hasCallOrChan(n ir.Node) bool {
-	found := ir.Find(n, func(n ir.Node) interface{} {
+	return ir.Find(n, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAPPEND,
 			ir.OCALL,
@@ -803,11 +803,10 @@ func hasCallOrChan(n ir.Node) bool {
 			ir.OREAL,
 			ir.ORECOVER,
 			ir.ORECV:
-			return n
+			return true
 		}
-		return nil
+		return false
 	})
-	return found != nil
 }
 
 // A constSet represents a set of Go constant expressions.

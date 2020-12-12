@@ -255,7 +255,7 @@ func inlFlood(n *ir.Name) {
 	// Recursively identify all referenced functions for
 	// reexport. We want to include even non-called functions,
 	// because after inlining they might be callable.
-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
 			inlFlood(methodExprName(n))
@@ -282,7 +282,6 @@ func inlFlood(n *ir.Name) {
 			//     inlFlood(n.Func.Closure.Func.Nname)
 			base.Fatalf("unexpected closure in inlinable function")
 		}
-		return true
 	})
 }
 
@@ -458,14 +457,10 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 func isBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
-	over := ir.Find(fn, func(n ir.Node) interface{} {
+	return ir.Find(fn, func(n ir.Node) bool {
 		budget--
-		if budget <= 0 {
-			return n
-		}
-		return nil
+		return budget <= 0
 	})
-	return over != nil
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -707,8 +702,6 @@ FindRHS:
 	return rhs
 }
 
-var errFound = errors.New("found")
-
 // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
 // indicating whether the name has any assignments other than its declaration.
 // The second return value is the first such assignment encountered in the walk, if any. It is mostly
@@ -723,22 +716,21 @@ func reassigned(name *ir.Name) bool {
 	if name.Curfn == nil {
 		return true
 	}
-	a := ir.Find(name.Curfn, func(n ir.Node) interface{} {
+	return ir.Find(name.Curfn, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAS:
 			if n.Left() == name && n != name.Defn {
-				return n
+				return true
 			}
 		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
 			for _, p := range n.List().Slice() {
 				if p == name && n != name.Defn {
-					return n
+					return true
 				}
 			}
 		}
-		return nil
+		return false
 	})
-	return a != nil
 }
 
 func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
@@ -916,11 +908,10 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 	}
 
 	nreturns := 0
-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
 		if n != nil && n.Op() == ir.ORETURN {
 			nreturns++
 		}
-		return true
 	})
 
 	// We can delay declaring+initializing result parameters if:
@@ -1287,11 +1278,10 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 // concrete-type method calls where applicable.
 func devirtualize(fn *ir.Func) {
 	Curfn = fn
-	ir.InspectList(fn.Body(), func(n ir.Node) bool {
+	ir.VisitList(fn.Body(), func(n ir.Node) {
 		if n.Op() == ir.OCALLINTER {
 			devirtualizeCall(n)
 		}
-		return true
 	})
 }
 

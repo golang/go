@@ -783,13 +783,11 @@ func geneq(t *types.Type) *obj.LSym {
 }
 
 func hasCall(fn *ir.Func) bool {
-	found := ir.Find(fn, func(n ir.Node) interface{} {
-		if op := n.Op(); op == ir.OCALL || op == ir.OCALLFUNC {
-			return n
-		}
-		return nil
+	return ir.Find(fn, func(n ir.Node) bool {
+		// TODO(rsc): No methods?
+		op := n.Op()
+		return op == ir.OCALL || op == ir.OCALLFUNC
 	})
-	return found != nil
 }
 
 // eqfield returns the node

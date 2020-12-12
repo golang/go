@@ -75,7 +75,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 	min := v.visitgen
 	v.stack = append(v.stack, n)
 
-	ir.InspectList(n.Body(), func(n ir.Node) bool {
+	ir.Visit(n, func(n ir.Node) {
 		switch n.Op() {
 		case ir.ONAME:
 			if n.Class() == ir.PFUNC {
@@ -111,7 +111,6 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 				min = m
 			}
 		}
-		return true
 	})
 
 	if (min == id || min == id+1) && !n.IsHiddenClosure() {
