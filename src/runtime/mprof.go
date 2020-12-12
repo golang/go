@@ -76,7 +76,7 @@ type bucket struct {
 	_       sys.NotInHeap
 	next    *bucket
 	allnext *bucket
-	typ     bucketType // memBucket or blockBucket (includes mutexProfile)
+	typ     bucketType
 	hash    uintptr
 	size    uintptr
 	nstk    uintptr
