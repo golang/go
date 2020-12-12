@@ -1515,6 +1515,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
 	if netpollinited() {
 		netpollBreak()
 	}
+	sigRecvPrepareForFixup()
 	_g_ := getg()
 	if raceenabled {
 		// For m's running without racectx, we loan out the
