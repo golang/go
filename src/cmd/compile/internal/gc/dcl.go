@@ -855,22 +855,22 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 			continue
 		}
 		c.curfn = n.(*ir.Func)
-		ir.Inspect(n, c.findExtraCalls)
+		ir.Visit(n, c.findExtraCalls)
 	}
 	c.curfn = nil
 	return c
 }
 
-func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
+func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) {
 	if n.Op() != ir.OCALLFUNC {
-		return true
+		return
 	}
 	fn := n.Left()
 	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
-		return true
+		return
 	}
 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
-		return true
+		return
 	}
 
 	var callee *ir.Func
@@ -887,7 +887,6 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
 		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
 	}
 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
-	return true
 }
 
 // recordCall records a call from ODCLFUNC node "from", to function

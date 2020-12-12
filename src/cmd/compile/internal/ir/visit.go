@@ -57,46 +57,40 @@ import (
 //	}
 //	do(root)
 //
-// The Inspect function illustrates a further simplification of the pattern,
-// only considering processing before visiting children, and letting
-// that processing decide whether children are visited at all:
+// The Visit function illustrates a further simplification of the pattern,
+// only processing before visiting children and never stopping:
 //
-//	func Inspect(n ir.Node, inspect func(ir.Node) bool) {
+//	func Visit(n ir.Node, visit func(ir.Node)) {
 //		var do func(ir.Node) error
 //		do = func(x ir.Node) error {
-//			if inspect(x) {
-//				ir.DoChildren(x, do)
-//			}
-//			return nil
+//			visit(x)
+//			return ir.DoChildren(x, do)
 //		}
 //		if n != nil {
-//			do(n)
+//			visit(n)
 //		}
 //	}
 //
 // The Find function illustrates a different simplification of the pattern,
 // visiting each node and then its children, recursively, until finding
-// a node x such that find(x) returns a non-nil result,
-// at which point the entire traversal stops:
+// a node x for which find(x) returns true, at which point the entire
+// traversal stops and returns true.
 //
-//	func Find(n ir.Node, find func(ir.Node) interface{}) interface{} {
+//	func Find(n ir.Node, find func(ir.Node)) bool {
 //		stop := errors.New("stop")
-//		var found interface{}
 //		var do func(ir.Node) error
 //		do = func(x ir.Node) error {
-//			if v := find(x); v != nil {
-//				found = v
+//			if find(x) {
 //				return stop
 //			}
 //			return ir.DoChildren(x, do)
 //		}
-//		do(n)
-//		return found
+//		return do(n) == stop
 //	}
 //
-// Inspect and Find are presented above as examples of how to use
+// Visit and Find are presented above as examples of how to use
 // DoChildren effectively, but of course, usage that fits within the
-// simplifications captured by Inspect or Find will be best served
+// simplifications captured by Visit or Find will be best served
 // by directly calling the ones provided by this package.
 func DoChildren(n Node, do func(Node) error) error {
 	if n == nil {
@@ -122,71 +116,59 @@ func DoList(list Nodes, do func(Node) error) error {
 	return nil
 }
 
-// Inspect visits each node x in the IR tree rooted at n
-// in a depth-first preorder traversal, calling inspect on each node visited.
-// If inspect(x) returns false, then Inspect skips over x's children.
-//
-// Note that the meaning of the boolean result in the callback function
-// passed to Inspect differs from that of Scan.
-// During Scan, if scan(x) returns false, then Scan stops the scan.
-// During Inspect, if inspect(x) returns false, then Inspect skips x's children
-// but continues with the remainder of the tree (x's siblings and so on).
-func Inspect(n Node, inspect func(Node) bool) {
+// Visit visits each non-nil node x in the IR tree rooted at n
+// in a depth-first preorder traversal, calling visit on each node visited.
+func Visit(n Node, visit func(Node)) {
 	var do func(Node) error
 	do = func(x Node) error {
-		if inspect(x) {
-			DoChildren(x, do)
-		}
-		return nil
+		visit(x)
+		return DoChildren(x, do)
 	}
 	if n != nil {
 		do(n)
 	}
 }
 
-// InspectList calls Inspect(x, inspect) for each node x in the list.
-func InspectList(list Nodes, inspect func(Node) bool) {
+// VisitList calls Visit(x, visit) for each node x in the list.
+func VisitList(list Nodes, visit func(Node)) {
 	for _, x := range list.Slice() {
-		Inspect(x, inspect)
+		Visit(x, visit)
 	}
 }
 
 var stop = errors.New("stop")
 
 // Find looks for a non-nil node x in the IR tree rooted at n
-// for which find(x) returns a non-nil value.
+// for which find(x) returns true.
 // Find considers nodes in a depth-first, preorder traversal.
-// When Find finds a node x such that find(x) != nil,
-// Find ends the traversal and returns the value of find(x) immediately.
-// Otherwise Find returns nil.
-func Find(n Node, find func(Node) interface{}) interface{} {
+// When Find finds a node x such that find(x) is true,
+// Find ends the traversal and returns true immediately.
+// Otherwise Find returns false after completing the entire traversal.
+func Find(n Node, find func(Node) bool) bool {
 	if n == nil {
-		return nil
+		return false
 	}
-	var found interface{}
 	var do func(Node) error
 	do = func(x Node) error {
-		if v := find(x); v != nil {
-			found = v
+		if find(x) {
 			return stop
 		}
 		return DoChildren(x, do)
 	}
-	do(n)
-	return found
+	return do(n) == stop
 }
 
-// FindList calls Find(x, ok) for each node x in the list, in order.
-// If any call find(x) returns a non-nil result, FindList stops and
+// FindList calls Find(x, find) for each node x in the list, in order.
+// If any call Find(x, find) returns true, FindList stops and
 // returns that result, skipping the remainder of the list.
-// Otherwise FindList returns nil.
-func FindList(list Nodes, find func(Node) interface{}) interface{} {
+// Otherwise FindList returns false.
+func FindList(list Nodes, find func(Node) bool) bool {
 	for _, x := range list.Slice() {
-		if v := Find(x, find); v != nil {
-			return v
+		if Find(x, find) {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 // EditChildren edits the child nodes of n, replacing each child x with edit(x).

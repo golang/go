@@ -268,18 +268,25 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 type initDeps struct {
 	transitive bool
 	seen       ir.NameSet
+	cvisit     func(ir.Node)
 }
 
-func (d *initDeps) inspect(n ir.Node)      { ir.Inspect(n, d.visit) }
-func (d *initDeps) inspectList(l ir.Nodes) { ir.InspectList(l, d.visit) }
+func (d *initDeps) cachedVisit() func(ir.Node) {
+	if d.cvisit == nil {
+		d.cvisit = d.visit // cache closure
+	}
+	return d.cvisit
+}
+
+func (d *initDeps) inspect(n ir.Node)      { ir.Visit(n, d.cachedVisit()) }
+func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
 
 // visit calls foundDep on any package-level functions or variables
 // referenced by n, if any.
-func (d *initDeps) visit(n ir.Node) bool {
+func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
 	case ir.OMETHEXPR:
 		d.foundDep(methodExprName(n))
-		return false
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
@@ -294,8 +301,6 @@ func (d *initDeps) visit(n ir.Node) bool {
 	case ir.ODOTMETH, ir.OCALLPART:
 		d.foundDep(methodExprName(n))
 	}
-
-	return true
 }
 
 // foundDep records that we've found a dependency on n by adding it to
