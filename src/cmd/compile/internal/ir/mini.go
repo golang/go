@@ -114,22 +114,22 @@ func (n *miniNode) SetRight(x Node) {
 	}
 }
 func (n *miniNode) SetInit(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetInit"))
 	}
 }
 func (n *miniNode) SetBody(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetBody"))
 	}
 }
 func (n *miniNode) SetList(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetList"))
 	}
 }
 func (n *miniNode) SetRlist(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetRlist"))
 	}
 }
