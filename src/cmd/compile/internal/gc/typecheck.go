@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -90,11 +91,24 @@ func resolve(n ir.Node) (res ir.Node) {
 		defer tracePrint("resolve", n)(&res)
 	}
 
-	// Stub ir.Name left for us by iimport.
-	if n, ok := n.(*ir.Name); ok {
-		if n.Sym().Pkg == types.LocalPkg {
-			base.Fatalf("unexpected Name: %+v", n)
+	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
+		// We might have an ir.Ident from oldname or importDot.
+		if id, ok := n.(*ir.Ident); ok {
+			if pkgName := dotImportRefs[id]; pkgName != nil {
+				pkgName.Used = true
+			}
+
+			if sym.Def == nil {
+				if _, ok := declImporter[sym]; !ok {
+					return n // undeclared name
+				}
+				sym.Def = ir.NewDeclNameAt(src.NoXPos, sym)
+			}
+			n = ir.AsNode(sym.Def)
 		}
+
+		// Stub ir.Name left for us by iimport.
+		n := n.(*ir.Name)
 		if inimport {
 			base.Fatalf("recursive inimport")
 		}
@@ -2885,31 +2899,25 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
 				if l.Op() == ir.OKEY {
 					key := l.Left()
 
-					sk := ir.NewStructKeyExpr(l.Pos(), nil, l.Right())
-					ls[i] = sk
-					l = sk
+					// Sym might have resolved to name in other top-level
+					// package, because of import dot. Redirect to correct sym
+					// before we do the lookup.
+					s := key.Sym()
+					if id, ok := key.(*ir.Ident); ok && dotImportRefs[id] != nil {
+						s = lookup(s.Name)
+					}
 
 					// An OXDOT uses the Sym field to hold
 					// the field to the right of the dot,
 					// so s will be non-nil, but an OXDOT
 					// is never a valid struct literal key.
-					if key.Sym() == nil || key.Op() == ir.OXDOT || key.Sym().IsBlank() {
+					if s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank() {
 						base.Errorf("invalid field name %v in struct initializer", key)
-						sk.SetLeft(typecheck(sk.Left(), ctxExpr))
 						continue
 					}
 
-					// Sym might have resolved to name in other top-level
-					// package, because of import dot. Redirect to correct sym
-					// before we do the lookup.
-					s := key.Sym()
-					if s.Pkg != types.LocalPkg && types.IsExported(s.Name) {
-						s1 := lookup(s.Name)
-						if s1.Origpkg == s.Pkg {
-							s = s1
-						}
-					}
-					sk.SetSym(s)
+					l = ir.NewStructKeyExpr(l.Pos(), s, l.Right())
+					ls[i] = l
 				}
 
 				if l.Op() != ir.OSTRUCTKEY {

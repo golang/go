@@ -100,13 +100,26 @@ func autolabel(prefix string) *types.Sym {
 	return lookupN(prefix, int(n))
 }
 
-// find all the exported symbols in package opkg
+// dotImports tracks all PkgNames that have been dot-imported.
+var dotImports []*ir.PkgName
+
+// dotImportRefs maps idents introduced by importDot back to the
+// ir.PkgName they were dot-imported through.
+var dotImportRefs map[*ir.Ident]*ir.PkgName
+
+// find all the exported symbols in package referenced by PkgName,
 // and make them available in the current package
-func importdot(opkg *types.Pkg, pack *ir.PkgName) {
-	n := 0
+func importDot(pack *ir.PkgName) {
+	if dotImportRefs == nil {
+		dotImportRefs = make(map[*ir.Ident]*ir.PkgName)
+	}
+
+	opkg := pack.Pkg
 	for _, s := range opkg.Syms {
 		if s.Def == nil {
-			continue
+			if _, ok := declImporter[s]; !ok {
+				continue
+			}
 		}
 		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
@@ -118,21 +131,26 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
 			continue
 		}
 
-		s1.Def = s.Def
-		s1.Block = s.Block
-		if ir.AsNode(s1.Def).Name() == nil {
-			ir.Dump("s1def", ir.AsNode(s1.Def))
-			base.Fatalf("missing Name")
-		}
-		ir.AsNode(s1.Def).Name().PkgName = pack
-		s1.Origpkg = opkg
-		n++
+		id := ir.NewIdent(src.NoXPos, s)
+		dotImportRefs[id] = pack
+		s1.Def = id
+		s1.Block = 1
 	}
 
-	if n == 0 {
-		// can't possibly be used - there were no symbols
-		base.ErrorfAt(pack.Pos(), "imported and not used: %q", opkg.Path)
+	dotImports = append(dotImports, pack)
+}
+
+// checkDotImports reports errors for any unused dot imports.
+func checkDotImports() {
+	for _, pack := range dotImports {
+		if !pack.Used {
+			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
+		}
 	}
+
+	// No longer needed; release memory.
+	dotImports = nil
+	dotImportRefs = nil
 }
 
 // nodAddr returns a node representing &n.

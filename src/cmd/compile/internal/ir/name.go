@@ -16,8 +16,7 @@ import (
 // An Ident is an identifier, possibly qualified.
 type Ident struct {
 	miniExpr
-	sym  *types.Sym
-	Used bool
+	sym *types.Sym
 }
 
 func NewIdent(pos src.XPos, sym *types.Sym) *Ident {

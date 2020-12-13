@@ -28,12 +28,9 @@ func testdclstack() {
 // redeclare emits a diagnostic about symbol s being redeclared at pos.
 func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		pkg := s.Origpkg
-		if pkg == nil {
-			pkg = s.Pkg
-		}
+		pkgName := dotImportRefs[s.Def.(*ir.Ident)]
 		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\tprevious declaration during import %q", s, where, pkg.Path)
+			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
 	} else {
 		prevPos := s.Lastlineno
 
@@ -46,7 +43,7 @@ func redeclare(pos src.XPos, s *types.Sym, where string) {
 		}
 
 		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, base.FmtPos(prevPos))
+			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
 	}
 }
 
@@ -210,6 +207,10 @@ func symfield(s *types.Sym, typ *types.Type) *ir.Field {
 // Automatically creates a new closure variable if the referenced symbol was
 // declared in a different (containing) function.
 func oldname(s *types.Sym) ir.Node {
+	if s.Pkg != types.LocalPkg {
+		return ir.NewIdent(base.Pos, s)
+	}
+
 	n := ir.AsNode(s.Def)
 	if n == nil {
 		// Maybe a top-level declaration will come along later to
