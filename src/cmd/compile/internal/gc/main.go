@@ -293,8 +293,10 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys.
+	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys
+	// and unused dot imports.
 	checkMapKeys()
+	checkDotImports()
 	base.ExitIfErrors()
 
 	timings.AddEvent(fcount, "funcs")
@@ -953,10 +955,7 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
-				name.PkgName.Used = true
-			}
+			// We'll report errors after type checking in checkDotImports.
 			s.Def = nil
 			continue
 		}

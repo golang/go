@@ -369,7 +369,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 
 	switch my.Name {
 	case ".":
-		importdot(ipkg, pack)
+		importDot(pack)
 		return
 	case "init":
 		base.ErrorfAt(pack.Pos(), "cannot import package as init - init must be a func")

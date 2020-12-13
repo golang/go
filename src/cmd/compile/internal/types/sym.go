@@ -38,8 +38,7 @@ type Sym struct {
 	Block      int32    // blocknumber to catch redeclaration
 	Lastlineno src.XPos // last declaration for diagnostic
 
-	flags   bitset8
-	Origpkg *Pkg // original package for . import
+	flags bitset8
 }
 
 const (

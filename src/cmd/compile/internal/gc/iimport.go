@@ -165,17 +165,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
-			if _, ok := declImporter[s]; ok {
-				continue
+			if _, ok := declImporter[s]; !ok {
+				declImporter[s] = iimporterAndOffset{p, off}
 			}
-			declImporter[s] = iimporterAndOffset{p, off}
-
-			// Create stub declaration. If used, this will
-			// be overwritten by expandDecl.
-			if s.Def != nil {
-				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
-			}
-			s.Def = ir.NewDeclNameAt(src.NoXPos, s)
 		}
 	}
 
@@ -187,10 +179,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
-			if _, ok := inlineImporter[s]; ok {
-				continue
+			if _, ok := inlineImporter[s]; !ok {
+				inlineImporter[s] = iimporterAndOffset{p, off}
 			}
-			inlineImporter[s] = iimporterAndOffset{p, off}
 		}
 	}
 
@@ -442,10 +433,16 @@ func (r *importReader) ident() *types.Sym {
 	return pkg.Lookup(name)
 }
 
-func (r *importReader) qualifiedIdent() *types.Sym {
+func (r *importReader) qualifiedIdent() *ir.Name {
 	name := r.string()
 	pkg := r.pkg()
-	return pkg.Lookup(name)
+	sym := pkg.Lookup(name)
+	n := sym.PkgDef()
+	if n == nil {
+		n = ir.NewDeclNameAt(src.NoXPos, sym)
+		sym.SetPkgDef(n)
+	}
+	return n.(*ir.Name)
 }
 
 func (r *importReader) pos() src.XPos {
@@ -501,9 +498,9 @@ func (r *importReader) typ1() *types.Type {
 		// support inlining functions with local defined
 		// types. Therefore, this must be a package-scope
 		// type.
-		n := ir.AsNode(r.qualifiedIdent().PkgDef())
+		n := r.qualifiedIdent()
 		if n.Op() == ir.ONONAME {
-			expandDecl(n.(*ir.Name))
+			expandDecl(n)
 		}
 		if n.Op() != ir.OTYPE {
 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
@@ -821,10 +818,10 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ONONAME:
-		return mkname(r.qualifiedIdent())
+		return r.qualifiedIdent()
 
 	case ir.ONAME:
-		return mkname(r.ident())
+		return r.ident().Def.(*ir.Name)
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking

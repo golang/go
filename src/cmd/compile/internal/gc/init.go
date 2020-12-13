@@ -44,8 +44,8 @@ func fninit(n []ir.Node) {
 
 	// Find imported packages with init tasks.
 	for _, pkg := range sourceOrderImports {
-		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
-		if n == nil {
+		n := resolve(oldname(pkg.Lookup(".inittask")))
+		if n.Op() == ir.ONONAME {
 			continue
 		}
 		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
