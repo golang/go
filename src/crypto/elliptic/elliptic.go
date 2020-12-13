@@ -19,7 +19,7 @@ import (
 	"sync"
 )
 
-// A Curve represents a short-form Weierstrass curve with a=-3.
+// A Curve represents a short-form Weierstrass curve y² = x³ + ax + b.
 //
 // Note that the point at infinity (0, 0) is not considered on the curve, and
 // although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
@@ -45,6 +45,7 @@ type Curve interface {
 type CurveParams struct {
 	P       *big.Int // the order of the underlying field
 	N       *big.Int // the order of the base point
+	A       *big.Int // the linear coefficient of the curve equation
 	B       *big.Int // the constant of the curve equation
 	Gx, Gy  *big.Int // (x,y) of the base point
 	BitSize int      // the size of the underlying field
@@ -55,23 +56,19 @@ func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
-// polynomial returns x³ - 3x + b.
+// polynomial returns x³ + ax + b.
 func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)
-	x3.Mul(x3, x)
+	x3.Add(x3, curve.A) // x² + a
+	x3.Mul(x3, x)       // x³ + ax
+	x3.Add(x3, curve.B) // x³ + ax + b
 
-	threeX := new(big.Int).Lsh(x, 1)
-	threeX.Add(threeX, x)
-
-	x3.Sub(x3, threeX)
-	x3.Add(x3, curve.B)
-	x3.Mod(x3, curve.P)
-
-	return x3
+	return x3.Mod(x3, curve.P)
 }
 
+// IsOnCurve returns whether the point (x, y) lies on the curve or not
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ - 3x + b
+	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y)
 	y2.Mod(y2, curve.P)
 
@@ -204,54 +201,51 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	delta.Mod(delta, curve.P)
 	gamma := new(big.Int).Mul(y, y)
 	gamma.Mod(gamma, curve.P)
-	alpha := new(big.Int).Sub(x, delta)
-	if alpha.Sign() == -1 {
-		alpha.Add(alpha, curve.P)
+
+	var alpha *big.Int
+	if big.NewInt(-3).Cmp(curve.A) == 0 {
+		// for a = -3, 3*x²+a*delta² = 3*(x+delta)*(x-delta)
+		alpha = new(big.Int).Sub(x, delta)
+		alpha2 := new(big.Int).Add(x, delta)
+		alpha.Mul(alpha, alpha2)
+		alpha2.Set(alpha)
+		alpha.Lsh(alpha, 1)
+		alpha.Add(alpha, alpha2)
+	} else {
+		// see https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+		// M = 3*x²+a*zz², zz = z² = delta
+		x2 := new(big.Int).Mul(x, x)
+		alpha = new(big.Int).Lsh(x2, 1)
+		alpha.Add(alpha, x2)
+		if new(big.Int).Cmp(curve.A) != 0 {
+			delta.Mul(delta, delta)
+			delta.Mul(curve.A, delta)
+			alpha.Add(alpha, delta)
+		}
 	}
-	alpha2 := new(big.Int).Add(x, delta)
-	alpha.Mul(alpha, alpha2)
-	alpha2.Set(alpha)
-	alpha.Lsh(alpha, 1)
-	alpha.Add(alpha, alpha2)
+	alpha.Mod(alpha, curve.P)
 
-	beta := alpha2.Mul(x, gamma)
+	beta4 := new(big.Int).Mul(x, gamma)
+	beta4.Lsh(beta4, 2)
+	beta4.Mod(beta4, curve.P)
 
+	// X3 = alpha²-8*beta
 	x3 := new(big.Int).Mul(alpha, alpha)
-	beta8 := new(big.Int).Lsh(beta, 3)
-	beta8.Mod(beta8, curve.P)
+	beta8 := new(big.Int).Lsh(beta4, 1)
 	x3.Sub(x3, beta8)
-	if x3.Sign() == -1 {
-		x3.Add(x3, curve.P)
-	}
 	x3.Mod(x3, curve.P)
 
-	z3 := new(big.Int).Add(y, z)
-	z3.Mul(z3, z3)
-	z3.Sub(z3, gamma)
-	if z3.Sign() == -1 {
-		z3.Add(z3, curve.P)
-	}
-	z3.Sub(z3, delta)
-	if z3.Sign() == -1 {
-		z3.Add(z3, curve.P)
-	}
+	// Z3 = (Y1+Z1)²-gamma-delta = 2*Y1*Z1
+	z3 := delta.Mul(y, z)
+	z3.Lsh(z3, 1)
 	z3.Mod(z3, curve.P)
 
-	beta.Lsh(beta, 2)
-	beta.Sub(beta, x3)
-	if beta.Sign() == -1 {
-		beta.Add(beta, curve.P)
-	}
-	y3 := alpha.Mul(alpha, beta)
-
+	// Y3 = alpha*(4*beta-X3)-8*gamma²
+	beta4.Sub(beta4, x3)
+	y3 := alpha.Mul(alpha, beta4)
 	gamma.Mul(gamma, gamma)
 	gamma.Lsh(gamma, 3)
-	gamma.Mod(gamma, curve.P)
-
 	y3.Sub(y3, gamma)
-	if y3.Sign() == -1 {
-		y3.Add(y3, curve.P)
-	}
 	y3.Mod(y3, curve.P)
 
 	return x3, y3, z3
@@ -373,7 +367,7 @@ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 	if x.Cmp(p) >= 0 {
 		return nil, nil
 	}
-	// y² = x³ - 3x + b
+	// y² = x³ + ax + b
 	y = curve.Params().polynomial(x)
 	y = y.ModSqrt(y, p)
 	if y == nil {
@@ -404,6 +398,7 @@ func initP384() {
 	p384 = &CurveParams{Name: "P-384"}
 	p384.P, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319", 10)
 	p384.N, _ = new(big.Int).SetString("39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643", 10)
+	p384.A = big.NewInt(-3)
 	p384.B, _ = new(big.Int).SetString("b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 16)
 	p384.Gx, _ = new(big.Int).SetString("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7", 16)
 	p384.Gy, _ = new(big.Int).SetString("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f", 16)
@@ -415,6 +410,7 @@ func initP521() {
 	p521 = &CurveParams{Name: "P-521"}
 	p521.P, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151", 10)
 	p521.N, _ = new(big.Int).SetString("6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449", 10)
+	p521.A = big.NewInt(-3)
 	p521.B, _ = new(big.Int).SetString("051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00", 16)
 	p521.Gx, _ = new(big.Int).SetString("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16)
 	p521.Gy, _ = new(big.Int).SetString("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
