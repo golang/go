@@ -12,5 +12,5 @@ package main
 func F() {
 	slice := []int{1, 2, 3}
 	len := int(2)
-	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at"
+	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at|expected function"
 }
