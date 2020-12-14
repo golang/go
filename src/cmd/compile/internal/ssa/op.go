@@ -197,6 +197,8 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
 	return &AuxCall{Fn: nil, args: args, results: results}
 }
 
+func (*AuxCall) CanBeAnSSAAux() {}
+
 const (
 	auxNone         auxType = iota
 	auxBool                 // auxInt is 0/1 for false/true
@@ -246,8 +248,8 @@ const (
 //  - a *obj.LSym, for an offset from SB (the global pointer)
 //  - nil, for no offset
 type Sym interface {
-	String() string
 	CanBeAnSSASym()
+	CanBeAnSSAAux()
 }
 
 // A ValAndOff is used by the several opcodes. It holds

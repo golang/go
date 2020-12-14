@@ -47,7 +47,7 @@ type Progs struct {
 	next      *obj.Prog  // next Prog
 	pc        int64      // virtual PC; count of Progs
 	pos       src.XPos   // position to use for new Progs
-	curfn     ir.Node    // fn these Progs are for
+	curfn     *ir.Func   // fn these Progs are for
 	progcache []obj.Prog // local progcache
 	cacheidx  int        // first free element of progcache
 
@@ -57,7 +57,7 @@ type Progs struct {
 
 // newProgs returns a new Progs for fn.
 // worker indicates which of the backend workers will use the Progs.
-func newProgs(fn ir.Node, worker int) *Progs {
+func newProgs(fn *ir.Func, worker int) *Progs {
 	pp := new(Progs)
 	if base.Ctxt.CanReuseProgs() {
 		sz := len(sharedProgArray) / base.Flag.LowerC
@@ -174,17 +174,17 @@ func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16
 	return q
 }
 
-func (pp *Progs) settext(fn ir.Node) {
+func (pp *Progs) settext(fn *ir.Func) {
 	if pp.Text != nil {
 		base.Fatalf("Progs.settext called twice")
 	}
 	ptxt := pp.Prog(obj.ATEXT)
 	pp.Text = ptxt
 
-	fn.Func().LSym.Func().Text = ptxt
+	fn.LSym.Func().Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
-	ptxt.From.Sym = fn.Func().LSym
+	ptxt.From.Sym = fn.LSym
 }
 
 // initLSym defines f's obj.LSym and initializes it based on the
@@ -281,7 +281,7 @@ func initLSym(f *ir.Func, hasBody bool) {
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if base.Ctxt.Pkgpath == "reflect" {
-		switch f.Nname.Sym().Name {
+		switch f.Sym().Name {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER
 		}

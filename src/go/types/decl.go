@@ -183,7 +183,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	switch obj := obj.(type) {
 	case *Const:
 		check.decl = d // new package-level const decl
-		check.constDecl(obj, d.typ, d.init)
+		check.constDecl(obj, d.typ, d.init, d.inherited)
 	case *Var:
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.typ, d.init)
@@ -388,10 +388,11 @@ type (
 
 	importDecl struct{ spec *ast.ImportSpec }
 	constDecl  struct {
-		spec *ast.ValueSpec
-		iota int
-		typ  ast.Expr
-		init []ast.Expr
+		spec      *ast.ValueSpec
+		iota      int
+		typ       ast.Expr
+		init      []ast.Expr
+		inherited bool
 	}
 	varDecl  struct{ spec *ast.ValueSpec }
 	typeDecl struct{ spec *ast.TypeSpec }
@@ -424,14 +425,17 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
 				switch d.Tok {
 				case token.CONST:
 					// determine which initialization expressions to use
+					inherited := true
 					switch {
 					case s.Type != nil || len(s.Values) > 0:
 						last = s
+						inherited = false
 					case last == nil:
 						last = new(ast.ValueSpec) // make sure last exists
+						inherited = false
 					}
 					check.arityMatch(s, last)
-					f(constDecl{spec: s, iota: iota, init: last.Values, typ: last.Type})
+					f(constDecl{spec: s, iota: iota, typ: last.Type, init: last.Values, inherited: inherited})
 				case token.VAR:
 					check.arityMatch(s, nil)
 					f(varDecl{s})
@@ -451,12 +455,16 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
 	}
 }
 
-func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool) {
 	assert(obj.typ == nil)
 
 	// use the correct value of iota
-	defer func(iota constant.Value) { check.iota = iota }(check.iota)
+	defer func(iota constant.Value, errpos positioner) {
+		check.iota = iota
+		check.errpos = errpos
+	}(check.iota, check.errpos)
 	check.iota = obj.val
+	check.errpos = nil
 
 	// provide valid constant value under all circumstances
 	obj.val = constant.MakeUnknown()
@@ -479,6 +487,15 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	// check initialization
 	var x operand
 	if init != nil {
+		if inherited {
+			// The initialization expression is inherited from a previous
+			// constant declaration, and (error) positions refer to that
+			// expression and not the current constant declaration. Use
+			// the constant identifier position for any errors during
+			// init expression evaluation since that is all we have
+			// (see issues #42991, #42992).
+			check.errpos = atPos(obj.pos)
+		}
 		check.expr(&x, init)
 	}
 	check.initConst(obj, &x)
@@ -756,7 +773,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 					init = d.init[i]
 				}
 
-				check.constDecl(obj, d.typ, init)
+				check.constDecl(obj, d.typ, init, d.inherited)
 			}
 
 			// process function literals in init expressions before scope changes

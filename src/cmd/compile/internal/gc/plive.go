@@ -101,10 +101,10 @@ type BlockEffects struct {
 
 // A collection of global state used by liveness analysis.
 type Liveness struct {
-	fn         ir.Node
+	fn         *ir.Func
 	f          *ssa.Func
-	vars       []ir.Node
-	idx        map[ir.Node]int32
+	vars       []*ir.Name
+	idx        map[*ir.Name]int32
 	stkptrsize int64
 
 	be []BlockEffects
@@ -212,14 +212,14 @@ func livenessShouldTrack(n ir.Node) bool {
 
 // getvariables returns the list of on-stack variables that we need to track
 // and a map for looking up indices by *Node.
-func getvariables(fn ir.Node) ([]ir.Node, map[ir.Node]int32) {
-	var vars []ir.Node
-	for _, n := range fn.Func().Dcl {
+func getvariables(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32) {
+	var vars []*ir.Name
+	for _, n := range fn.Dcl {
 		if livenessShouldTrack(n) {
 			vars = append(vars, n)
 		}
 	}
-	idx := make(map[ir.Node]int32, len(vars))
+	idx := make(map[*ir.Name]int32, len(vars))
 	for i, n := range vars {
 		idx[n] = int32(i)
 	}
@@ -276,13 +276,14 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		return -1, 0
 	}
 
+	nn := n.(*ir.Name)
 	// AllocFrame has dropped unused variables from
 	// lv.fn.Func.Dcl, but they might still be referenced by
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !n.Name().Used() {
+		if !nn.Name().Used() {
 			return -1, 0
 		}
 	}
@@ -305,7 +306,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		return -1, 0
 	}
 
-	if pos, ok := lv.idx[n]; ok {
+	if pos, ok := lv.idx[nn]; ok {
 		return pos, effect
 	}
 	return -1, 0
@@ -323,9 +324,9 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
 		return n, ssa.SymWrite
 
 	case ssa.OpVarLive:
-		return v.Aux.(ir.Node), ssa.SymRead
+		return v.Aux.(*ir.Name), ssa.SymRead
 	case ssa.OpVarDef, ssa.OpVarKill:
-		return v.Aux.(ir.Node), ssa.SymWrite
+		return v.Aux.(*ir.Name), ssa.SymWrite
 	case ssa.OpKeepAlive:
 		n, _ := AutoVar(v.Args[0])
 		return n, ssa.SymRead
@@ -340,7 +341,7 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
 	case nil, *obj.LSym:
 		// ok, but no node
 		return nil, e
-	case ir.Node:
+	case *ir.Name:
 		return a, e
 	default:
 		base.Fatalf("weird aux: %s", v.LongString())
@@ -356,7 +357,7 @@ type livenessFuncCache struct {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn ir.Node, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
+func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
@@ -416,7 +417,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		return
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
 		if off&int64(Widthptr-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
@@ -482,7 +483,7 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func (lv *Liveness) pointerMap(liveout bvec, vars []ir.Node, args, locals bvec) {
+func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec) {
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -788,14 +789,14 @@ func (lv *Liveness) epilogue() {
 	// pointers to copy values back to the stack).
 	// TODO: if the output parameter is heap-allocated, then we
 	// don't need to keep the stack copy live?
-	if lv.fn.Func().HasDefer() {
+	if lv.fn.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == ir.PPARAMOUT {
 				if n.Name().IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					base.Fatalf("variable %v both output param and heap output param", n)
 				}
-				if n.Name().Param.Heapaddr != nil {
+				if n.Name().Heapaddr != nil {
 					// If this variable moved to the heap, then
 					// its stack copy is not live.
 					continue
@@ -891,7 +892,7 @@ func (lv *Liveness) epilogue() {
 				if n.Class() == ir.PPARAM {
 					continue // ok
 				}
-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func().Nname, n)
+				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
 			}
 
 			// Record live variables.
@@ -904,7 +905,7 @@ func (lv *Liveness) epilogue() {
 	}
 
 	// If we have an open-coded deferreturn call, make a liveness map for it.
-	if lv.fn.Func().OpenCodedDeferDisallowed() {
+	if lv.fn.OpenCodedDeferDisallowed() {
 		lv.livenessMap.deferreturn = LivenessDontCare
 	} else {
 		lv.livenessMap.deferreturn = LivenessIndex{
@@ -922,7 +923,7 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func().Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
 		}
 	}
 }
@@ -980,7 +981,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 		return
 	}
 
-	pos := lv.fn.Func().Nname.Pos()
+	pos := lv.fn.Nname.Pos()
 	if v != nil {
 		pos = v.Pos
 	}
@@ -1090,7 +1091,7 @@ func (lv *Liveness) printDebug() {
 
 		if b == lv.f.Entry {
 			live := lv.stackMaps[0]
-			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func().Nname.Pos()))
+			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Nname.Pos()))
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
@@ -1266,7 +1267,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	}
 
 	// Emit the live pointer map data structures
-	ls := e.curfn.Func().LSym
+	ls := e.curfn.LSym
 	fninfo := ls.Func()
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 
@@ -1300,7 +1301,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 // to fully initialize t.
 func isfat(t *types.Type) bool {
 	if t != nil {
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TSLICE, types.TSTRING,
 			types.TINTER: // maybe remove later
 			return true

@@ -133,6 +133,9 @@ func sync_fastrand() uint32 { return fastrand() }
 //go:linkname net_fastrand net.fastrand
 func net_fastrand() uint32 { return fastrand() }
 
+//go:linkname os_fastrand os.fastrand
+func os_fastrand() uint32 { return fastrand() }
+
 // in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool

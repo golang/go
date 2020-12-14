@@ -723,8 +723,8 @@ func (s *LSym) String() string {
 }
 
 // The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
-func (s *LSym) CanBeAnSSASym() {
-}
+func (*LSym) CanBeAnSSASym() {}
+func (*LSym) CanBeAnSSAAux() {}
 
 type Pcln struct {
 	// Aux symbols for pcln

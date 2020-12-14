@@ -22,6 +22,8 @@ import (
 // It walks the entire tree of files in fsys,
 // opening and checking that each file behaves correctly.
 // It also checks that the file system contains at least the expected files.
+// As a special case, if no expected files are listed, fsys must be empty.
+// Otherwise, fsys must only contain at least the listed files: it can also contain others.
 //
 // If TestFS finds any misbehaviors, it returns an error reporting all of them.
 // The error text spans multiple lines, one per detected misbehavior.
@@ -33,6 +35,32 @@ import (
 //	}
 //
 func TestFS(fsys fs.FS, expected ...string) error {
+	if err := testFS(fsys, expected...); err != nil {
+		return err
+	}
+	for _, name := range expected {
+		if i := strings.Index(name, "/"); i >= 0 {
+			dir, dirSlash := name[:i], name[:i+1]
+			var subExpected []string
+			for _, name := range expected {
+				if strings.HasPrefix(name, dirSlash) {
+					subExpected = append(subExpected, name[len(dirSlash):])
+				}
+			}
+			sub, err := fs.Sub(fsys, dir)
+			if err != nil {
+				return err
+			}
+			if err := testFS(sub, subExpected...); err != nil {
+				return fmt.Errorf("testing fs.Sub(fsys, %s): %v", dir, err)
+			}
+			break // one sub-test is enough
+		}
+	}
+	return nil
+}
+
+func testFS(fsys fs.FS, expected ...string) error {
 	t := fsTester{fsys: fsys}
 	t.checkDir(".")
 	t.checkOpen(".")
@@ -42,6 +70,20 @@ func TestFS(fsys fs.FS, expected ...string) error {
 	}
 	for _, file := range t.files {
 		found[file] = true
+	}
+	delete(found, ".")
+	if len(expected) == 0 && len(found) > 0 {
+		var list []string
+		for k := range found {
+			if k != "." {
+				list = append(list, k)
+			}
+		}
+		sort.Strings(list)
+		if len(list) > 15 {
+			list = append(list[:10], "...")
+		}
+		t.errorf("expected empty file system but found files:\n%s", strings.Join(list, "\n"))
 	}
 	for _, name := range expected {
 		if !found[name] {

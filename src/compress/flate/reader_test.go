@@ -7,7 +7,7 @@ package flate
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -80,7 +80,7 @@ var sizes = []struct {
 
 func doBench(b *testing.B, f func(b *testing.B, buf []byte, level, n int)) {
 	for _, suite := range suites {
-		buf, err := ioutil.ReadFile(suite.file)
+		buf, err := os.ReadFile(suite.file)
 		if err != nil {
 			b.Fatal(err)
 		}

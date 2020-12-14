@@ -1509,6 +1509,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 	}
 	gocacheSubdir, _ := filepath.Rel(dir, gocache)
 
+	// Note: Can't use WalkDir here, because this has to compile with Go 1.4.
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
 			if suffix == gocacheSubdir {

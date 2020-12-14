@@ -47,7 +47,7 @@ func main() {
 	t = i // ERROR "incompatible|assignment$"
 
 	i = i2 // ok
-	i2 = i // ERROR "incompatible|missing N method|cannot convert"
+	i2 = i // ERROR "incompatible|missing N method"
 
 	i = I(i2)  // ok
 	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
@@ -57,7 +57,7 @@ func main() {
 
 	// cannot type-assert non-interfaces
 	f := 2.0
-	_ = f.(int) // ERROR "non-interface type|not an interface type"
+	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface type"
 
 }
 
@@ -100,10 +100,7 @@ type T2 struct{}
 func (t *T2) M() {}
 func (t *T2) _() {}
 
-// Check that nothing satisfies an interface with blank methods.
-// Disabled this test as it's not clear we need this behavior.
-// See also issue #42964.
-/*
-var b1 B1 = &T2{} // "incompatible|missing _ method"
-var b2 B2 = &T2{} // "incompatible|missing _ method"
-*/
+// Already reported about the invalid blank interface method above;
+// no need to report about not implementing it.
+var b1 B1 = &T2{}
+var b2 B2 = &T2{}

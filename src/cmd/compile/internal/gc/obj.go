@@ -84,7 +84,7 @@ func printObjHeader(bout *bio.Writer) {
 	if base.Flag.BuildID != "" {
 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
 	}
-	if ir.LocalPkg.Name == "main" {
+	if types.LocalPkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
 	fmt.Fprintf(bout, "\n") // header ends with blank line
@@ -143,7 +143,7 @@ func dumpdata() {
 		for i := xtops; i < len(xtop); i++ {
 			n := xtop[i]
 			if n.Op() == ir.ODCLFUNC {
-				funccompile(n)
+				funccompile(n.(*ir.Func))
 			}
 		}
 		xtops = len(xtop)
@@ -200,7 +200,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 }
 
 func addptabs() {
-	if !base.Ctxt.Flag_dynlink || ir.LocalPkg.Name != "main" {
+	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
 		return
 	}
 	for _, exportn := range exportlist {
@@ -218,12 +218,12 @@ func addptabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
-		if n.Type().Etype == types.TFUNC && n.Class() == ir.PFUNC {
+		if n.Type().Kind() == types.TFUNC && n.Class() == ir.PFUNC {
 			// function
-			ptabs = append(ptabs, ptabEntry{s: s, t: ir.AsNode(s.Def).Type()})
+			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
 		} else {
 			// variable
-			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(ir.AsNode(s.Def).Type())})
+			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(s.Def.Type())})
 		}
 	}
 }
@@ -235,7 +235,7 @@ func dumpGlobal(n ir.Node) {
 	if n.Class() == ir.PFUNC {
 		return
 	}
-	if n.Sym().Pkg != ir.LocalPkg {
+	if n.Sym().Pkg != types.LocalPkg {
 		return
 	}
 	dowidth(n.Type())
@@ -248,7 +248,7 @@ func dumpGlobalConst(n ir.Node) {
 	if t == nil {
 		return
 	}
-	if n.Sym().Pkg != ir.LocalPkg {
+	if n.Sym().Pkg != types.LocalPkg {
 		return
 	}
 	// only export integer constants for now
@@ -263,7 +263,7 @@ func dumpGlobalConst(n ir.Node) {
 			return
 		}
 	}
-	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.Int64Val(t, v))
+	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.IntVal(t, v))
 }
 
 func dumpglobls() {
@@ -478,7 +478,7 @@ var slicedataGen int
 func slicedata(pos src.XPos, s string) ir.Node {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
-	sym := ir.LocalPkg.Lookup(symname)
+	sym := types.LocalPkg.Lookup(symname)
 	symnode := NewName(sym)
 	sym.Def = symnode
 
@@ -598,11 +598,11 @@ func litsym(n, c ir.Node, wid int) {
 		s.WriteInt(base.Ctxt, n.Offset(), wid, i)
 
 	case constant.Int:
-		s.WriteInt(base.Ctxt, n.Offset(), wid, ir.Int64Val(n.Type(), u))
+		s.WriteInt(base.Ctxt, n.Offset(), wid, ir.IntVal(n.Type(), u))
 
 	case constant.Float:
 		f, _ := constant.Float64Val(u)
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TFLOAT32:
 			s.WriteFloat32(base.Ctxt, n.Offset(), float32(f))
 		case types.TFLOAT64:
@@ -612,7 +612,7 @@ func litsym(n, c ir.Node, wid int) {
 	case constant.Complex:
 		re, _ := constant.Float64Val(constant.Real(u))
 		im, _ := constant.Float64Val(constant.Imag(u))
-		switch n.Type().Etype {
+		switch n.Type().Kind() {
 		case types.TCOMPLEX64:
 			s.WriteFloat32(base.Ctxt, n.Offset(), float32(re))
 			s.WriteFloat32(base.Ctxt, n.Offset()+4, float32(im))

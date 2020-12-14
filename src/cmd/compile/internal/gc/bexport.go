@@ -16,7 +16,7 @@ type exporter struct {
 // markObject visits a reachable object.
 func (p *exporter) markObject(n ir.Node) {
 	if n.Op() == ir.ONAME && n.Class() == ir.PFUNC {
-		inlFlood(n)
+		inlFlood(n.(*ir.Name))
 	}
 
 	p.markType(n.Type())
@@ -35,7 +35,7 @@ func (p *exporter) markType(t *types.Type) {
 	// only their unexpanded method set (i.e., exclusive of
 	// interface embeddings), and the switch statement below
 	// handles their full method set.
-	if t.Sym != nil && t.Etype != types.TINTER {
+	if t.Sym() != nil && t.Kind() != types.TINTER {
 		for _, m := range t.Methods().Slice() {
 			if types.IsExported(m.Sym.Name) {
 				p.markObject(ir.AsNode(m.Nname))
@@ -52,7 +52,7 @@ func (p *exporter) markType(t *types.Type) {
 	// Notably, we don't mark function parameter types, because
 	// the user already needs some way to construct values of
 	// those types.
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR, types.TARRAY, types.TSLICE:
 		p.markType(t.Elem())
 
@@ -153,11 +153,11 @@ func predeclared() []*types.Type {
 			types.Types[types.TSTRING],
 
 			// basic type aliases
-			types.Bytetype,
-			types.Runetype,
+			types.ByteType,
+			types.RuneType,
 
 			// error
-			types.Errortype,
+			types.ErrorType,
 
 			// untyped types
 			types.UntypedBool,

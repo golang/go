@@ -15,7 +15,6 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -217,7 +216,7 @@ func processFile(filename string, useStdin bool) error {
 		return nil
 	}
 
-	return ioutil.WriteFile(f.Name(), newSrc, 0)
+	return os.WriteFile(f.Name(), newSrc, 0)
 }
 
 func gofmt(n interface{}) string {
@@ -234,10 +233,10 @@ func report(err error) {
 }
 
 func walkDir(path string) {
-	filepath.Walk(path, visitFile)
+	filepath.WalkDir(path, visitFile)
 }
 
-func visitFile(path string, f fs.FileInfo, err error) error {
+func visitFile(path string, f fs.DirEntry, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, false)
 	}
@@ -247,7 +246,7 @@ func visitFile(path string, f fs.FileInfo, err error) error {
 	return nil
 }
 
-func isGoFile(f fs.FileInfo) bool {
+func isGoFile(f fs.DirEntry) bool {
 	// ignore non-Go files
 	name := f.Name()
 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")

@@ -17,12 +17,13 @@ import (
 
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
-	file  *Scope        // scope of file containing this declaration
-	lhs   []*Var        // lhs of n:1 variable declarations, or nil
-	typ   ast.Expr      // type, or nil
-	init  ast.Expr      // init/orig expression, or nil
-	fdecl *ast.FuncDecl // func declaration, or nil
-	alias bool          // type alias declaration
+	file      *Scope        // scope of file containing this declaration
+	lhs       []*Var        // lhs of n:1 variable declarations, or nil
+	typ       ast.Expr      // type, or nil
+	init      ast.Expr      // init/orig expression, or nil
+	inherited bool          // if set, the init expression is inherited from a previous constant declaration
+	fdecl     *ast.FuncDecl // func declaration, or nil
+	alias     bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -323,7 +324,7 @@ func (check *Checker) collectObjects() {
 						init = d.init[i]
 					}
 
-					d := &declInfo{file: fileScope, typ: d.typ, init: init}
+					d := &declInfo{file: fileScope, typ: d.typ, init: init, inherited: d.inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 

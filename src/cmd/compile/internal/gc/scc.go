@@ -32,10 +32,10 @@ import "cmd/compile/internal/ir"
 // when analyzing a set of mutually recursive functions.
 
 type bottomUpVisitor struct {
-	analyze  func([]ir.Node, bool)
+	analyze  func([]*ir.Func, bool)
 	visitgen uint32
-	nodeID   map[ir.Node]uint32
-	stack    []ir.Node
+	nodeID   map[*ir.Func]uint32
+	stack    []*ir.Func
 }
 
 // visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
@@ -51,18 +51,18 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func visitBottomUp(list []ir.Node, analyze func(list []ir.Node, recursive bool)) {
+func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
-	v.nodeID = make(map[ir.Node]uint32)
+	v.nodeID = make(map[*ir.Func]uint32)
 	for _, n := range list {
 		if n.Op() == ir.ODCLFUNC && !n.Func().IsHiddenClosure() {
-			v.visit(n)
+			v.visit(n.(*ir.Func))
 		}
 	}
 }
 
-func (v *bottomUpVisitor) visit(n ir.Node) uint32 {
+func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 	if id := v.nodeID[n]; id > 0 {
 		// already visited
 		return id
@@ -80,41 +80,41 @@ func (v *bottomUpVisitor) visit(n ir.Node) uint32 {
 		case ir.ONAME:
 			if n.Class() == ir.PFUNC {
 				if n != nil && n.Name().Defn != nil {
-					if m := v.visit(n.Name().Defn); m < min {
+					if m := v.visit(n.Name().Defn.(*ir.Func)); m < min {
 						min = m
 					}
 				}
 			}
 		case ir.OMETHEXPR:
 			fn := methodExprName(n)
-			if fn != nil && fn.Name().Defn != nil {
-				if m := v.visit(fn.Name().Defn); m < min {
+			if fn != nil && fn.Defn != nil {
+				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
 					min = m
 				}
 			}
 		case ir.ODOTMETH:
 			fn := methodExprName(n)
-			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
-				if m := v.visit(fn.Name().Defn); m < min {
+			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Defn != nil {
+				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
 					min = m
 				}
 			}
 		case ir.OCALLPART:
 			fn := ir.AsNode(callpartMethod(n).Nname)
 			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
-				if m := v.visit(fn.Name().Defn); m < min {
+				if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
 					min = m
 				}
 			}
 		case ir.OCLOSURE:
-			if m := v.visit(n.Func().Decl); m < min {
+			if m := v.visit(n.Func()); m < min {
 				min = m
 			}
 		}
 		return true
 	})
 
-	if (min == id || min == id+1) && !n.Func().IsHiddenClosure() {
+	if (min == id || min == id+1) && !n.IsHiddenClosure() {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was v.nodeID[n]+1.

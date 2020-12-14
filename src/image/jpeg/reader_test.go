@@ -11,7 +11,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -118,7 +117,7 @@ func (r *eofReader) Read(b []byte) (n int, err error) {
 
 func TestDecodeEOF(t *testing.T) {
 	// Check that if reader returns final data and EOF at same time, jpeg handles it.
-	data, err := ioutil.ReadFile("../testdata/video-001.jpeg")
+	data, err := os.ReadFile("../testdata/video-001.jpeg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +188,7 @@ func pixString(pix []byte, stride, x, y int) string {
 }
 
 func TestTruncatedSOSDataDoesntPanic(t *testing.T) {
-	b, err := ioutil.ReadFile("../testdata/video-005.gray.q50.jpeg")
+	b, err := os.ReadFile("../testdata/video-005.gray.q50.jpeg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,7 +492,7 @@ func TestExtraneousData(t *testing.T) {
 }
 
 func benchmarkDecode(b *testing.B, filename string) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -46,6 +46,7 @@ type context struct {
 	scope         *Scope                 // top-most scope for lookups
 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	errpos        positioner             // if set, identifier position of a constant with inherited initializer
 	sig           *Signature             // function signature if inside a function; nil otherwise
 	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
 	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions

@@ -298,6 +298,11 @@ func (ctxt *Link) CanUsePlugins() bool {
 	return ctxt.canUsePlugins
 }
 
+// NeedCodeSign reports whether we need to code-sign the output binary.
+func (ctxt *Link) NeedCodeSign() bool {
+	return ctxt.IsDarwin() && ctxt.IsARM64()
+}
+
 var (
 	dynlib          []string
 	ldflag          []string
@@ -1640,6 +1645,12 @@ func (ctxt *Link) hostlink() {
 		os.Remove(*flagOutfile)
 		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
 			Exitf("%s: %v", os.Args[0], err)
+		}
+	}
+	if ctxt.NeedCodeSign() {
+		err := machoCodeSign(ctxt, *flagOutfile)
+		if err != nil {
+			Exitf("%s: code signing failed: %v", os.Args[0], err)
 		}
 	}
 }

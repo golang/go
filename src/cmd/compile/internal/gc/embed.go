@@ -28,7 +28,7 @@ const (
 
 var numLocalEmbed int
 
-func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
+func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -115,13 +115,13 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []
 		numLocalEmbed++
 		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
 		v.Sym().Def = v
-		v.Name().Param.Ntype = typ
+		v.Name().Ntype = typ
 		v.SetClass(ir.PEXTERN)
 		externdcl = append(externdcl, v)
 		exprs = []ir.Node{v}
 	}
 
-	v.Name().Param.SetEmbedFiles(list)
+	v.Name().SetEmbedFiles(list)
 	embedlist = append(embedlist, v)
 	return exprs
 }
@@ -131,31 +131,33 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Node, exprs []ir.Node, embeds []
 // can't tell whether "string" and "byte" really mean "string" and "byte".
 // The result must be confirmed later, after type checking, using embedKind.
 func embedKindApprox(typ ir.Node) int {
-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	// These are not guaranteed to match only string and []byte -
 	// maybe the local package has redefined one of those words.
 	// But it's the best we can do now during the noder.
 	// The stricter check happens later, in initEmbed calling embedKind.
-	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == ir.LocalPkg {
+	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == types.LocalPkg {
 		return embedString
 	}
-	if typ.Op() == ir.OTARRAY && typ.Left() == nil && typ.Right().Sym() != nil && typ.Right().Sym().Name == "byte" && typ.Right().Sym().Pkg == ir.LocalPkg {
-		return embedBytes
+	if typ, ok := typ.(*ir.SliceType); ok {
+		if sym := typ.Elem.Sym(); sym != nil && sym.Name == "byte" && sym.Pkg == types.LocalPkg {
+			return embedBytes
+		}
 	}
 	return embedUnknown
 }
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
 		return embedFiles
 	}
 	if typ == types.Types[types.TSTRING] {
 		return embedString
 	}
-	if typ.Sym == nil && typ.IsSlice() && typ.Elem() == types.Bytetype {
+	if typ.Sym() == nil && typ.IsSlice() && typ.Elem() == types.ByteType {
 		return embedBytes
 	}
 	return embedUnknown
@@ -193,7 +195,7 @@ func dumpembeds() {
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
 func initEmbed(v ir.Node) {
-	files := v.Name().Param.EmbedFiles()
+	files := v.Name().EmbedFiles()
 	switch kind := embedKind(v.Type()); kind {
 	case embedUnknown:
 		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())

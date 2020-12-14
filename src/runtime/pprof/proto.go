@@ -9,7 +9,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
@@ -575,7 +575,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 // It saves the address ranges of the mappings in b.mem for use
 // when emitting locations.
 func (b *profileBuilder) readMapping() {
-	data, _ := ioutil.ReadFile("/proc/self/maps")
+	data, _ := os.ReadFile("/proc/self/maps")
 	parseProcSelfMaps(data, b.addMapping)
 	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
 		b.addMappingEntry(0, 0, 0, "", "", true)

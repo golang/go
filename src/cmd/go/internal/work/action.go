@@ -14,7 +14,6 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -253,7 +252,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		tmp, err := ioutil.TempDir(cfg.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
 		}

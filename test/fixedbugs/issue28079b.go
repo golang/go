@@ -13,5 +13,5 @@ import "unsafe"
 type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound"
 
 func f() {
-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0)
+	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64"
 }

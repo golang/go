@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,7 +38,7 @@ func TestMain(m *testing.M) {
 
 func buildObjdump() error {
 	var err error
-	tmp, err = ioutil.TempDir("", "TestObjDump")
+	tmp, err = os.MkdirTemp("", "TestObjDump")
 	if err != nil {
 		return fmt.Errorf("TempDir failed: %v", err)
 	}
@@ -320,7 +319,7 @@ func TestGoobjFileNumber(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestGoobjFileNumber")
+	tmpdir, err := os.MkdirTemp("", "TestGoobjFileNumber")
 	if err != nil {
 		t.Fatal(err)
 	}

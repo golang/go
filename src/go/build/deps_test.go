@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -510,8 +509,8 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi fs.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() || path == src {
+	walkFn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || path == src {
 			return nil
 		}
 
@@ -528,7 +527,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 		pkgs = append(pkgs, strings.TrimPrefix(name, "vendor/"))
 		return nil
 	}
-	if err := filepath.Walk(src, walkFn); err != nil {
+	if err := filepath.WalkDir(src, walkFn); err != nil {
 		return nil, err
 	}
 	return pkgs, nil
@@ -597,7 +596,7 @@ func findImports(pkg string) ([]string, error) {
 		vpkg = "vendor/" + pkg
 	}
 	dir := filepath.Join(Default.GOROOT, "src", vpkg)
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}

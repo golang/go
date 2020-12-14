@@ -68,7 +68,7 @@ func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imeth
 func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
-	if t.Sym == nil && len(methods(t)) == 0 {
+	if t.Sym() == nil && len(methods(t)) == 0 {
 		return 0
 	}
 	return 4 + 2 + 2 + 4 + 4
@@ -85,7 +85,6 @@ func bmap(t *types.Type) *types.Type {
 		return t.MapType().Bucket
 	}
 
-	bucket := types.New(types.TSTRUCT)
 	keytype := t.Key()
 	elemtype := t.Elem()
 	dowidth(keytype)
@@ -119,7 +118,7 @@ func bmap(t *types.Type) *types.Type {
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
-	otyp := types.NewPtr(bucket)
+	otyp := types.Types[types.TUNSAFEPTR]
 	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[types.TUINTPTR]
 	}
@@ -127,8 +126,8 @@ func bmap(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
+	bucket := types.NewStruct(types.NoPkg, field[:])
 	bucket.SetNoalg(true)
-	bucket.SetFields(field[:])
 	dowidth(bucket)
 
 	// Check invariants that map code depends on.
@@ -221,9 +220,8 @@ func hmap(t *types.Type) *types.Type {
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.New(types.TSTRUCT)
+	hmap := types.NewStruct(types.NoPkg, fields)
 	hmap.SetNoalg(true)
-	hmap.SetFields(fields)
 	dowidth(hmap)
 
 	// The size of hmap should be 48 bytes on 64 bit
@@ -285,9 +283,8 @@ func hiter(t *types.Type) *types.Type {
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.New(types.TSTRUCT)
+	hiter := types.NewStruct(types.NoPkg, fields)
 	hiter.SetNoalg(true)
-	hiter.SetFields(fields)
 	dowidth(hiter)
 	if hiter.Width != int64(12*Widthptr) {
 		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
@@ -304,7 +301,7 @@ func deferstruct(stksize int64) *types.Type {
 		// Unlike the global makefield function, this one needs to set Pkg
 		// because these types might be compared (in SSA CSE sorting).
 		// TODO: unify this makefield and the global one above.
-		sym := &types.Sym{Name: name, Pkg: ir.LocalPkg}
+		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
 		return types.NewField(src.NoXPos, sym, typ)
 	}
 	argtype := types.NewArray(types.Types[types.TUINT8], stksize)
@@ -332,9 +329,8 @@ func deferstruct(stksize int64) *types.Type {
 	}
 
 	// build struct holding the above fields
-	s := types.New(types.TSTRUCT)
+	s := types.NewStruct(types.NoPkg, fields)
 	s.SetNoalg(true)
-	s.SetFields(fields)
 	s.Width = widstruct(s, s, 0, 1)
 	s.Align = uint8(Widthptr)
 	return s
@@ -347,7 +343,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	if receiver != nil {
 		inLen++
 	}
-	in := make([]ir.Node, 0, inLen)
+	in := make([]*ir.Field, 0, inLen)
 
 	if receiver != nil {
 		d := anonfield(receiver)
@@ -356,12 +352,12 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 
 	for _, t := range f.Params().Fields().Slice() {
 		d := anonfield(t.Type)
-		d.SetIsDDD(t.IsDDD())
+		d.IsDDD = t.IsDDD()
 		in = append(in, d)
 	}
 
 	outLen := f.Results().Fields().Len()
-	out := make([]ir.Node, 0, outLen)
+	out := make([]*ir.Field, 0, outLen)
 	for _, t := range f.Results().Fields().Slice() {
 		d := anonfield(t.Type)
 		out = append(out, d)
@@ -448,7 +444,7 @@ func methods(t *types.Type) []*Sig {
 func imethods(t *types.Type) []*Sig {
 	var methods []*Sig
 	for _, f := range t.Fields().Slice() {
-		if f.Type.Etype != types.TFUNC || f.Sym == nil {
+		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
 			continue
 		}
 		if f.Sym.IsBlank() {
@@ -495,7 +491,7 @@ func dimportpath(p *types.Pkg) {
 	}
 
 	str := p.Path
-	if p == ir.LocalPkg {
+	if p == types.LocalPkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
 		str = base.Ctxt.Pkgpath
 	}
@@ -512,7 +508,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return duintptr(s, ot, 0)
 	}
 
-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
+	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -531,7 +527,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duint32(s, ot, 0)
 	}
-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
+	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
 		// type..importpath.""., which the linker will rewrite using the correct import path.
@@ -640,7 +636,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 // backing array of the []method field is written (by dextratypeData).
 func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	m := methods(t)
-	if t.Sym == nil && len(m) == 0 {
+	if t.Sym() == nil && len(m) == 0 {
 		return ot
 	}
 	noff := int(Rnd(int64(ot), int64(Widthptr)))
@@ -672,16 +668,16 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 }
 
 func typePkg(t *types.Type) *types.Pkg {
-	tsym := t.Sym
+	tsym := t.Sym()
 	if tsym == nil {
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TARRAY, types.TSLICE, types.TPTR, types.TCHAN:
 			if t.Elem() != nil {
-				tsym = t.Elem().Sym
+				tsym = t.Elem().Sym()
 			}
 		}
 	}
-	if tsym != nil && t != types.Types[t.Etype] && t != types.Errortype {
+	if tsym != nil && t != types.Types[t.Kind()] && t != types.ErrorType {
 		return tsym.Pkg
 	}
 	return nil
@@ -753,7 +749,7 @@ func typeptrdata(t *types.Type) int64 {
 		return 0
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR,
 		types.TUNSAFEPTR,
 		types.TFUNC,
@@ -823,7 +819,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	var sptr *obj.LSym
 	if !t.IsPtr() || t.IsPtrElem() {
 		tptr := types.NewPtr(t)
-		if t.Sym != nil || methods(tptr) != nil {
+		if t.Sym() != nil || methods(tptr) != nil {
 			sptrWeak = false
 		}
 		sptr = dtypesym(tptr)
@@ -855,7 +851,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	if uncommonSize(t) != 0 {
 		tflag |= tflagUncommon
 	}
-	if t.Sym != nil && t.Sym.Name != "" {
+	if t.Sym() != nil && t.Sym().Name != "" {
 		tflag |= tflagNamed
 	}
 	if IsRegularMemory(t) {
@@ -872,12 +868,12 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	if !strings.HasPrefix(p, "*") {
 		p = "*" + p
 		tflag |= tflagExtraStar
-		if t.Sym != nil {
-			exported = types.IsExported(t.Sym.Name)
+		if t.Sym() != nil {
+			exported = types.IsExported(t.Sym().Name)
 		}
 	} else {
-		if t.Elem() != nil && t.Elem().Sym != nil {
-			exported = types.IsExported(t.Elem().Sym.Name)
+		if t.Elem() != nil && t.Elem().Sym() != nil {
+			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
 
@@ -895,7 +891,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = duint8(lsym, ot, t.Align) // align
 	ot = duint8(lsym, ot, t.Align) // fieldAlign
 
-	i = kinds[t.Etype]
+	i = kinds[t.Kind()]
 	if isdirectiface(t) {
 		i |= objabi.KindDirectIface
 	}
@@ -1001,7 +997,7 @@ func typename(t *types.Type) ir.Node {
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
+	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1021,7 +1017,7 @@ func itabname(t, itype *types.Type) ir.Node {
 	}
 
 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
-	n.SetType(types.NewPtr(ir.AsNode(s.Def).Type()))
+	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
 }
@@ -1029,7 +1025,7 @@ func itabname(t, itype *types.Type) ir.Node {
 // isreflexive reports whether t has a reflexive equality operator.
 // That is, if x==x for all x of type t.
 func isreflexive(t *types.Type) bool {
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TBOOL,
 		types.TINT,
 		types.TUINT,
@@ -1075,7 +1071,7 @@ func isreflexive(t *types.Type) bool {
 // needkeyupdate reports whether map updates with t as a key
 // need the key to be updated.
 func needkeyupdate(t *types.Type) bool {
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TBOOL, types.TINT, types.TUINT, types.TINT8, types.TUINT8, types.TINT16, types.TUINT16, types.TINT32, types.TUINT32,
 		types.TINT64, types.TUINT64, types.TUINTPTR, types.TPTR, types.TUNSAFEPTR, types.TCHAN:
 		return false
@@ -1104,7 +1100,7 @@ func needkeyupdate(t *types.Type) bool {
 
 // hashMightPanic reports whether the hash of a map key of type t might panic.
 func hashMightPanic(t *types.Type) bool {
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TINTER:
 		return true
 
@@ -1128,8 +1124,8 @@ func hashMightPanic(t *types.Type) bool {
 // They've been separate internally to make error messages
 // better, but we have to merge them in the reflect tables.
 func formalType(t *types.Type) *types.Type {
-	if t == types.Bytetype || t == types.Runetype {
-		return types.Types[t.Etype]
+	if t == types.ByteType || t == types.RuneType {
+		return types.Types[t.Kind()]
 	}
 	return t
 }
@@ -1152,19 +1148,19 @@ func dtypesym(t *types.Type) *obj.LSym {
 	// emit the type structures for int, float, etc.
 	tbase := t
 
-	if t.IsPtr() && t.Sym == nil && t.Elem().Sym != nil {
+	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
 		tbase = t.Elem()
 	}
 	dupok := 0
-	if tbase.Sym == nil {
+	if tbase.Sym() == nil {
 		dupok = obj.DUPOK
 	}
 
-	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
+	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
 		// named types from other files are defined only by those files
-		if tbase.Sym != nil && tbase.Sym.Pkg != ir.LocalPkg {
+		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
 			if i, ok := typeSymIdx[tbase]; ok {
-				lsym.Pkg = tbase.Sym.Pkg.Prefix
+				lsym.Pkg = tbase.Sym().Pkg.Prefix
 				if t != tbase {
 					lsym.SymIdx = int32(i[1])
 				} else {
@@ -1175,13 +1171,13 @@ func dtypesym(t *types.Type) *obj.LSym {
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.
-		if tbase.Etype == types.TFORW {
+		if tbase.Kind() == types.TFORW {
 			return lsym
 		}
 	}
 
 	ot := 0
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		ot = dcommontype(lsym, t)
 		ot = dextratype(lsym, ot, t, 0)
@@ -1262,8 +1258,8 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = dcommontype(lsym, t)
 
 		var tpkg *types.Pkg
-		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
-			tpkg = t.Sym.Pkg
+		if t.Sym() != nil && t != types.Types[t.Kind()] && t != types.ErrorType {
+			tpkg = t.Sym().Pkg
 		}
 		ot = dgopkgpath(lsym, ot, tpkg)
 
@@ -1328,7 +1324,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = dextratype(lsym, ot, t, 0)
 
 	case types.TPTR:
-		if t.Elem().Etype == types.TANY {
+		if t.Elem().Kind() == types.TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(lsym, t)
 			ot = dextratype(lsym, ot, t, 0)
@@ -1397,13 +1393,13 @@ func dtypesym(t *types.Type) *obj.LSym {
 	// When buildmode=shared, all types are in typelinks so the
 	// runtime can deduplicate type pointers.
 	keep := base.Ctxt.Flag_dynlink
-	if !keep && t.Sym == nil {
+	if !keep && t.Sym() == nil {
 		// For an unnamed type, we only need the link if the type can
 		// be created at run time by reflect.PtrTo and similar
 		// functions. If the type exists in the program, those
 		// functions must return the existing type structure rather
 		// than creating a new one.
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TPTR, types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRUCT:
 			keep = true
 		}
@@ -1541,7 +1537,7 @@ func dumpsignats() {
 		for _, ts := range signats {
 			t := ts.t
 			dtypesym(t)
-			if t.Sym != nil {
+			if t.Sym() != nil {
 				dtypesym(types.NewPtr(t))
 			}
 		}
@@ -1572,7 +1568,7 @@ func dumptabs() {
 	}
 
 	// process ptabs
-	if ir.LocalPkg.Name == "main" && len(ptabs) > 0 {
+	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
 		s := base.Ctxt.Lookup("go.plugin.tabs")
 		for _, p := range ptabs {
@@ -1616,7 +1612,7 @@ func dumpbasictypes() {
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in object files.
 	if base.Ctxt.Pkgpath == "runtime" {
-		for i := types.EType(1); i <= types.TBOOL; i++ {
+		for i := types.Kind(1); i <= types.TBOOL; i++ {
 			dtypesym(types.NewPtr(types.Types[i]))
 		}
 		dtypesym(types.NewPtr(types.Types[types.TSTRING]))
@@ -1624,9 +1620,9 @@ func dumpbasictypes() {
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
-		dtypesym(types.NewPtr(types.Errortype))
+		dtypesym(types.NewPtr(types.ErrorType))
 
-		dtypesym(functype(nil, []ir.Node{anonfield(types.Errortype)}, []ir.Node{anonfield(types.Types[types.TSTRING])}))
+		dtypesym(functype(nil, []*ir.Field{anonfield(types.ErrorType)}, []*ir.Field{anonfield(types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
@@ -1665,7 +1661,7 @@ func (a typesByString) Less(i, j int) bool {
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Etype == types.TINTER && a[i].t.Methods().Len() > 0 {
+	if a[i].t.Kind() == types.TINTER && a[i].t.Methods().Len() > 0 {
 		return a[i].t.Methods().Index(0).Pos.Before(a[j].t.Methods().Index(0).Pos)
 	}
 	return false
@@ -1821,7 +1817,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 		p.w.Ptr(offset / int64(Widthptr))
 		return
 	}
-	switch t.Etype {
+	switch t.Kind() {
 	default:
 		base.Fatalf("GCProg.emit: unexpected type %v", t)
 

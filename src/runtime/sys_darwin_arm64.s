@@ -120,6 +120,12 @@ TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
 	BL	libc_madvise(SB)
 	RET
 
+TEXT runtime·mlock_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 len
+	MOVD	0(R0), R0	// arg 1 addr
+	BL	libc_mlock(SB)
+	RET
+
 TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 new
 	MOVD	16(R0), R2	// arg 3 old
@@ -295,13 +301,23 @@ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
 
 TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
 	MOVW	8(R0), R1	// arg 2 miblen
-	MOVD	16(R0), R2	// arg 3 out
-	MOVD	24(R0), R3	// arg 4 size
-	MOVD	32(R0), R4	// arg 5 dst
-	MOVD	40(R0), R5	// arg 6 ndst
+	MOVD	16(R0), R2	// arg 3 oldp
+	MOVD	24(R0), R3	// arg 4 oldlenp
+	MOVD	32(R0), R4	// arg 5 newp
+	MOVD	40(R0), R5	// arg 6 newlen
 	MOVD	0(R0), R0	// arg 1 mib
 	BL	libc_sysctl(SB)
 	RET
+
+TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 oldp
+	MOVD	16(R0), R2	// arg 3 oldlenp
+	MOVD	24(R0), R3	// arg 4 newp
+	MOVD	32(R0), R4	// arg 5 newlen
+	MOVD	0(R0), R0	// arg 1 name
+	BL	libc_sysctlbyname(SB)
+	RET
+
 
 TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
 	BL	libc_kqueue(SB)

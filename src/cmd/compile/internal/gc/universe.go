@@ -15,7 +15,7 @@ import (
 
 var basicTypes = [...]struct {
 	name  string
-	etype types.EType
+	etype types.Kind
 }{
 	{"int8", types.TINT8},
 	{"int16", types.TINT16},
@@ -35,9 +35,9 @@ var basicTypes = [...]struct {
 
 var typedefs = [...]struct {
 	name     string
-	etype    types.EType
-	sameas32 types.EType
-	sameas64 types.EType
+	etype    types.Kind
+	sameas32 types.Kind
+	sameas64 types.Kind
 }{
 	{"int", types.TINT, types.TINT32, types.TINT64},
 	{"uint", types.TUINT, types.TUINT32, types.TUINT64},
@@ -65,17 +65,6 @@ var builtinFuncs = [...]struct {
 	{"recover", ir.ORECOVER},
 }
 
-// isBuiltinFuncName reports whether name matches a builtin function
-// name.
-func isBuiltinFuncName(name string) bool {
-	for _, fn := range &builtinFuncs {
-		if fn.name == name {
-			return true
-		}
-	}
-	return false
-}
-
 var unsafeFuncs = [...]struct {
 	name string
 	op   ir.Op
@@ -87,34 +76,82 @@ var unsafeFuncs = [...]struct {
 
 // initUniverse initializes the universe block.
 func initUniverse() {
-	lexinit()
-	typeinit()
-	lexinit1()
-}
-
-// lexinit initializes known symbols and the basic types.
-func lexinit() {
-	for _, s := range &basicTypes {
-		etype := s.etype
-		if int(etype) >= len(types.Types) {
-			base.Fatalf("lexinit: %s bad etype", s.name)
-		}
-		s2 := ir.BuiltinPkg.Lookup(s.name)
-		t := types.Types[etype]
-		if t == nil {
-			t = types.New(etype)
-			t.Sym = s2
-			if etype != types.TANY && etype != types.TSTRING {
-				dowidth(t)
-			}
-			types.Types[etype] = t
-		}
-		s2.Def = typenod(t)
-		ir.AsNode(s2.Def).SetName(new(ir.Name))
+	if Widthptr == 0 {
+		base.Fatalf("typeinit before betypeinit")
 	}
 
+	slicePtrOffset = 0
+	sliceLenOffset = Rnd(slicePtrOffset+int64(Widthptr), int64(Widthptr))
+	sliceCapOffset = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+	sizeofSlice = Rnd(sliceCapOffset+int64(Widthptr), int64(Widthptr))
+
+	// string is same as slice wo the cap
+	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+
+	for et := types.Kind(0); et < types.NTYPE; et++ {
+		simtype[et] = et
+	}
+
+	types.Types[types.TANY] = types.New(types.TANY)
+	types.Types[types.TINTER] = types.NewInterface(types.LocalPkg, nil)
+
+	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+		sym := pkg.Lookup(name)
+		n := ir.NewDeclNameAt(src.NoXPos, sym)
+		n.SetOp(ir.OTYPE)
+		t := types.NewBasic(kind, n)
+		n.SetType(t)
+		sym.Def = n
+		if kind != types.TANY {
+			dowidth(t)
+		}
+		return t
+	}
+
+	for _, s := range &basicTypes {
+		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+	}
+
+	for _, s := range &typedefs {
+		sameas := s.sameas32
+		if Widthptr == 8 {
+			sameas = s.sameas64
+		}
+		simtype[s.etype] = sameas
+
+		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+	}
+
+	// We create separate byte and rune types for better error messages
+	// rather than just creating type alias *types.Sym's for the uint8 and
+	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
+	// TODO(gri) Should we get rid of this special case (at the cost
+	// of less informative error messages involving bytes and runes)?
+	// (Alternatively, we could introduce an OTALIAS node representing
+	// type aliases, albeit at the cost of having to deal with it everywhere).
+	types.ByteType = defBasic(types.TUINT8, types.BuiltinPkg, "byte")
+	types.RuneType = defBasic(types.TINT32, types.BuiltinPkg, "rune")
+
+	// error type
+	s := types.BuiltinPkg.Lookup("error")
+	n := ir.NewDeclNameAt(src.NoXPos, s)
+	n.SetOp(ir.OTYPE)
+	types.ErrorType = types.NewNamed(n)
+	types.ErrorType.SetUnderlying(makeErrorInterface())
+	n.SetType(types.ErrorType)
+	s.Def = n
+	dowidth(types.ErrorType)
+
+	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, unsafepkg, "Pointer")
+
+	// simple aliases
+	simtype[types.TMAP] = types.TPTR
+	simtype[types.TCHAN] = types.TPTR
+	simtype[types.TFUNC] = types.TPTR
+	simtype[types.TUNSAFEPTR] = types.TPTR
+
 	for _, s := range &builtinFuncs {
-		s2 := ir.BuiltinPkg.Lookup(s.name)
+		s2 := types.BuiltinPkg.Lookup(s.name)
 		s2.Def = NewName(s2)
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
@@ -125,65 +162,36 @@ func lexinit() {
 		ir.AsNode(s2.Def).SetSubOp(s.op)
 	}
 
-	types.UntypedString = types.New(types.TSTRING)
-	types.UntypedBool = types.New(types.TBOOL)
-	types.Types[types.TANY] = types.New(types.TANY)
-
-	s := ir.BuiltinPkg.Lookup("true")
+	s = types.BuiltinPkg.Lookup("true")
 	s.Def = nodbool(true)
 	ir.AsNode(s.Def).SetSym(lookup("true"))
-	ir.AsNode(s.Def).SetName(new(ir.Name))
-	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
-	s = ir.BuiltinPkg.Lookup("false")
+	s = types.BuiltinPkg.Lookup("false")
 	s.Def = nodbool(false)
 	ir.AsNode(s.Def).SetSym(lookup("false"))
-	ir.AsNode(s.Def).SetName(new(ir.Name))
-	ir.AsNode(s.Def).SetType(types.UntypedBool)
 
 	s = lookup("_")
+	types.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
+	ir.BlankNode.SetTypecheck(1)
 
-	s = ir.BuiltinPkg.Lookup("_")
+	s = types.BuiltinPkg.Lookup("_")
 	s.Block = -100
 	s.Def = NewName(s)
 	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
 	types.Types[types.TNIL] = types.New(types.TNIL)
-	s = ir.BuiltinPkg.Lookup("nil")
+	s = types.BuiltinPkg.Lookup("nil")
 	s.Def = nodnil()
 	ir.AsNode(s.Def).SetSym(s)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
 
-	s = ir.BuiltinPkg.Lookup("iota")
-	s.Def = ir.Nod(ir.OIOTA, nil, nil)
-	ir.AsNode(s.Def).SetSym(s)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
-}
-
-func typeinit() {
-	if Widthptr == 0 {
-		base.Fatalf("typeinit before betypeinit")
-	}
-
-	for et := types.EType(0); et < types.NTYPE; et++ {
-		simtype[et] = et
-	}
-
-	types.Types[types.TPTR] = types.New(types.TPTR)
-	dowidth(types.Types[types.TPTR])
-
-	t := types.New(types.TUNSAFEPTR)
-	types.Types[types.TUNSAFEPTR] = t
-	t.Sym = unsafepkg.Lookup("Pointer")
-	t.Sym.Def = typenod(t)
-	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
-	dowidth(types.Types[types.TUNSAFEPTR])
+	s = types.BuiltinPkg.Lookup("iota")
+	s.Def = ir.NewIota(base.Pos, s)
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {
 		isInt[et] = true
@@ -199,7 +207,7 @@ func typeinit() {
 	isComplex[types.TCOMPLEX128] = true
 
 	// initialize okfor
-	for et := types.EType(0); et < types.NTYPE; et++ {
+	for et := types.Kind(0); et < types.NTYPE; et++ {
 		if isInt[et] || et == types.TIDEAL {
 			okforeq[et] = true
 			okforcmp[et] = true
@@ -261,8 +269,7 @@ func typeinit() {
 
 	okforcmp[types.TSTRING] = true
 
-	var i int
-	for i = 0; i < len(okfor); i++ {
+	for i := range okfor {
 		okfor[i] = okfornone[:]
 	}
 
@@ -304,92 +311,14 @@ func typeinit() {
 	iscmp[ir.OLE] = true
 	iscmp[ir.OEQ] = true
 	iscmp[ir.ONE] = true
-
-	types.Types[types.TINTER] = types.New(types.TINTER) // empty interface
-
-	// simple aliases
-	simtype[types.TMAP] = types.TPTR
-	simtype[types.TCHAN] = types.TPTR
-	simtype[types.TFUNC] = types.TPTR
-	simtype[types.TUNSAFEPTR] = types.TPTR
-
-	slicePtrOffset = 0
-	sliceLenOffset = Rnd(slicePtrOffset+int64(Widthptr), int64(Widthptr))
-	sliceCapOffset = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
-	sizeofSlice = Rnd(sliceCapOffset+int64(Widthptr), int64(Widthptr))
-
-	// string is same as slice wo the cap
-	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
-
-	dowidth(types.Types[types.TSTRING])
-	dowidth(types.UntypedString)
 }
 
 func makeErrorInterface() *types.Type {
-	sig := functypefield(fakeRecvField(), nil, []*types.Field{
+	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
 	})
-
 	method := types.NewField(src.NoXPos, lookup("Error"), sig)
-
-	t := types.New(types.TINTER)
-	t.SetInterface([]*types.Field{method})
-	return t
-}
-
-func lexinit1() {
-	// error type
-	s := ir.BuiltinPkg.Lookup("error")
-	types.Errortype = makeErrorInterface()
-	types.Errortype.Sym = s
-	types.Errortype.Orig = makeErrorInterface()
-	s.Def = typenod(types.Errortype)
-	dowidth(types.Errortype)
-
-	// We create separate byte and rune types for better error messages
-	// rather than just creating type alias *types.Sym's for the uint8 and
-	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
-	// TODO(gri) Should we get rid of this special case (at the cost
-	// of less informative error messages involving bytes and runes)?
-	// (Alternatively, we could introduce an OTALIAS node representing
-	// type aliases, albeit at the cost of having to deal with it everywhere).
-
-	// byte alias
-	s = ir.BuiltinPkg.Lookup("byte")
-	types.Bytetype = types.New(types.TUINT8)
-	types.Bytetype.Sym = s
-	s.Def = typenod(types.Bytetype)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
-	dowidth(types.Bytetype)
-
-	// rune alias
-	s = ir.BuiltinPkg.Lookup("rune")
-	types.Runetype = types.New(types.TINT32)
-	types.Runetype.Sym = s
-	s.Def = typenod(types.Runetype)
-	ir.AsNode(s.Def).SetName(new(ir.Name))
-	dowidth(types.Runetype)
-
-	// backend-dependent builtin types (e.g. int).
-	for _, s := range &typedefs {
-		s1 := ir.BuiltinPkg.Lookup(s.name)
-
-		sameas := s.sameas32
-		if Widthptr == 8 {
-			sameas = s.sameas64
-		}
-
-		simtype[s.etype] = sameas
-
-		t := types.New(s.etype)
-		t.Sym = s1
-		types.Types[s.etype] = t
-		s1.Def = typenod(t)
-		ir.AsNode(s1.Def).SetName(new(ir.Name))
-		s1.Origpkg = ir.BuiltinPkg
-
-		dowidth(t)
-	}
+	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
 // finishUniverse makes the universe block visible within the current package.
@@ -398,7 +327,7 @@ func finishUniverse() {
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
 
-	for _, s := range ir.BuiltinPkg.Syms {
+	for _, s := range types.BuiltinPkg.Syms {
 		if s.Def == nil {
 			continue
 		}
@@ -414,5 +343,5 @@ func finishUniverse() {
 	nodfp = NewName(lookup(".fp"))
 	nodfp.SetType(types.Types[types.TINT32])
 	nodfp.SetClass(ir.PPARAM)
-	nodfp.Name().SetUsed(true)
+	nodfp.SetUsed(true)
 }

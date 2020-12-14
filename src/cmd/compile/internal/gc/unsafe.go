@@ -70,7 +70,7 @@ func evalunsafe(n ir.Node) int64 {
 				v += r.Offset()
 			default:
 				ir.Dump("unsafenmagic", n.Left())
-				base.Fatalf("impossible %#v node after dot insertion", r.Op())
+				base.Fatalf("impossible %v node after dot insertion", r.Op())
 			}
 		}
 		return v

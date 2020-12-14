@@ -7,7 +7,6 @@ package gccgoimporter
 import (
 	"go/types"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -150,7 +149,7 @@ func TestObjImporter(t *testing.T) {
 	}
 	t.Logf("gccgo version %d.%d", major, minor)
 
-	tmpdir, err := ioutil.TempDir("", "TestObjImporter")
+	tmpdir, err := os.MkdirTemp("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +158,7 @@ func TestObjImporter(t *testing.T) {
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := ioutil.TempDir("", "TestObjImporter")
+	artmpdir, err := os.MkdirTemp("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}

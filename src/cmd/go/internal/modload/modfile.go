@@ -25,10 +25,11 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// lazyLoadingVersion is the Go version (plus leading "v") at which lazy module
-// loading takes effect.
-const lazyLoadingVersionV = "v1.16"
-const go116EnableLazyLoading = true
+// narrowAllVersionV is the Go version (plus leading "v") at which the
+// module-module "all" pattern no longer closes over the dependencies of
+// tests outside of the main module.
+const narrowAllVersionV = "v1.16"
+const go116EnableNarrowAll = true
 
 var modFile *modfile.File
 
@@ -296,10 +297,10 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 // (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
 // transitively *imported by* the packages and tests in the main module.)
 func (i *modFileIndex) allPatternClosesOverTests() bool {
-	if !go116EnableLazyLoading {
+	if !go116EnableNarrowAll {
 		return true
 	}
-	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
+	if i != nil && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
 		// The module explicitly predates the change in "all" for lazy loading, so
 		// continue to use the older interpretation. (If i == nil, we not in any
 		// module at all and should use the latest semantics.)

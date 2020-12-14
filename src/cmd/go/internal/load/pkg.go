@@ -15,7 +15,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	pathpkg "path"
@@ -1147,7 +1146,7 @@ var (
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
 	return goModPathCache.Do(dir, func() interface{} {
-		data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
 		}
@@ -1296,9 +1295,9 @@ HaveGoMod:
 // Otherwise it is not possible to vendor just a/b/c and still import the
 // non-vendored a/b. See golang.org/issue/13832.
 func hasGoFiles(dir string) bool {
-	fis, _ := ioutil.ReadDir(dir)
-	for _, fi := range fis {
-		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
+	files, _ := os.ReadDir(dir)
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
 			return true
 		}
 	}
@@ -1728,7 +1727,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			// not work for any package that lacks a Target — such as a non-main
 			// package in module mode. We should probably fix that.
 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
-			shlib, err := ioutil.ReadFile(shlibnamefile)
+			shlib, err := os.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {
 				base.Fatalf("reading shlibname: %v", err)
 			}
@@ -1998,6 +1997,16 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 						return err
 					}
 					rel := filepath.ToSlash(path[len(p.Dir)+1:])
+					name := info.Name()
+					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+						// Ignore bad names, assuming they won't go into modules.
+						// Also avoid hidden files that user may not know about.
+						// See golang.org/issue/42328.
+						if info.IsDir() {
+							return fs.SkipDir
+						}
+						return nil
+					}
 					if info.IsDir() {
 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
 							return filepath.SkipDir
@@ -2005,10 +2014,6 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
 						return nil
 					}
 					if !info.Mode().IsRegular() {
-						return nil
-					}
-					if isBadEmbedName(info.Name()) {
-						// Ignore bad names, assuming they won't go into modules.
 						return nil
 					}
 					count++
@@ -2050,6 +2055,9 @@ func validEmbedPattern(pattern string) bool {
 // as existing for embedding.
 func isBadEmbedName(name string) bool {
 	switch name {
+	// Empty string should be impossible but make it bad.
+	case "":
+		return true
 	// Version control directories won't be present in module.
 	case ".bzr", ".hg", ".git", ".svn":
 		return true

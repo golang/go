@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -304,7 +303,7 @@ func TestDetectNohup(t *testing.T) {
 		os.Remove("nohup.out")
 		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
 
-		data, _ := ioutil.ReadFile("nohup.out")
+		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
 		if err != nil {
 			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)

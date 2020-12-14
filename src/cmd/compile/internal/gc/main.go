@@ -43,6 +43,9 @@ func hidePanic() {
 		// about a panic too; let the user clean up
 		// the code and try again.
 		if err := recover(); err != nil {
+			if err == "-h" {
+				panic(err)
+			}
 			base.ErrorExit()
 		}
 	}
@@ -74,17 +77,17 @@ func Main(archInit func(*Arch)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
-	ir.LocalPkg = types.NewPkg("", "")
-	ir.LocalPkg.Prefix = "\"\""
+	types.LocalPkg = types.NewPkg("", "")
+	types.LocalPkg.Prefix = "\"\""
 
 	// We won't know localpkg's height until after import
 	// processing. In the mean time, set to MaxPkgHeight to ensure
 	// height comparisons at least work until then.
-	ir.LocalPkg.Height = types.MaxPkgHeight
+	types.LocalPkg.Height = types.MaxPkgHeight
 
 	// pseudo-package, for scoping
-	ir.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
-	ir.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = types.NewPkg("unsafe", "unsafe")
@@ -207,19 +210,7 @@ func Main(archInit func(*Arch)) {
 	// initialize types package
 	// (we need to do this to break dependencies that otherwise
 	// would lead to import cycles)
-	types.Widthptr = Widthptr
-	types.Dowidth = dowidth
-	types.Fatalf = base.Fatalf
-	ir.InstallTypeFormats()
-	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
-	}
-	types.FmtLeft = int(ir.FmtLeft)
-	types.FmtUnsigned = int(ir.FmtUnsigned)
-	types.FErr = int(ir.FErr)
-	types.Ctxt = base.Ctxt
-
-	initUniverse()
+	initializeTypesPackage()
 
 	dclcontext = ir.PEXTERN
 
@@ -258,7 +249,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Param.Alias()) {
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Alias()) {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -270,7 +261,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Param.Alias() {
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Alias() {
 			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
@@ -282,7 +273,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if n.Op() == ir.ODCLFUNC {
-			Curfn = n
+			Curfn = n.(*ir.Func)
 			decldepth = 1
 			errorsBefore := base.Errors()
 			typecheckslice(Curfn.Body().Slice(), ctxStmt)
@@ -312,8 +303,8 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "capturevars")
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n
-			capturevars(n)
+			Curfn = n.(*ir.Func)
+			capturevars(Curfn)
 		}
 	}
 	capturevarscomplete = true
@@ -326,7 +317,7 @@ func Main(archInit func(*Arch)) {
 		// Typecheck imported function bodies if Debug.l > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func().Inl != nil {
+			if n.Inl != nil {
 				typecheckinl(n)
 			}
 		}
@@ -335,7 +326,7 @@ func Main(archInit func(*Arch)) {
 
 	if base.Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list []ir.Node, recursive bool) {
+		visitBottomUp(xtop, func(list []*ir.Func, recursive bool) {
 			numfns := numNonClosures(list)
 			for _, n := range list {
 				if !recursive || numfns > 1 {
@@ -345,7 +336,7 @@ func Main(archInit func(*Arch)) {
 					caninl(n)
 				} else {
 					if base.Flag.LowerM > 1 {
-						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Func().Nname)
+						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 					}
 				}
 				inlcalls(n)
@@ -355,7 +346,7 @@ func Main(archInit func(*Arch)) {
 
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC {
-			devirtualize(n)
+			devirtualize(n.(*ir.Func))
 		}
 	}
 	Curfn = nil
@@ -385,8 +376,8 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "xclosures")
 	for _, n := range xtop {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n
-			transformclosure(n)
+			Curfn = n.(*ir.Func)
+			transformclosure(Curfn)
 		}
 	}
 
@@ -408,7 +399,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if n.Op() == ir.ODCLFUNC {
-			funccompile(n)
+			funccompile(n.(*ir.Func))
 			fcount++
 		}
 	}
@@ -486,10 +477,10 @@ func Main(archInit func(*Arch)) {
 }
 
 // numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []ir.Node) int {
+func numNonClosures(list []*ir.Func) int {
 	count := 0
-	for _, n := range list {
-		if n.Func().OClosure == nil {
+	for _, fn := range list {
+		if fn.OClosure == nil {
 			count++
 		}
 	}
@@ -929,14 +920,14 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 }
 
 func mkpackage(pkgname string) {
-	if ir.LocalPkg.Name == "" {
+	if types.LocalPkg.Name == "" {
 		if pkgname == "_" {
 			base.Errorf("invalid package name _")
 		}
-		ir.LocalPkg.Name = pkgname
+		types.LocalPkg.Name = pkgname
 	} else {
-		if pkgname != ir.LocalPkg.Name {
-			base.Errorf("package %s; expected %s", pkgname, ir.LocalPkg.Name)
+		if pkgname != types.LocalPkg.Name {
+			base.Errorf("package %s; expected %s", pkgname, types.LocalPkg.Name)
 		}
 	}
 }
@@ -949,7 +940,7 @@ func clearImports() {
 	}
 	var unused []importedPkg
 
-	for _, s := range ir.LocalPkg.Syms {
+	for _, s := range types.LocalPkg.Syms {
 		n := ir.AsNode(s.Def)
 		if n == nil {
 			continue
@@ -960,8 +951,9 @@ func clearImports() {
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !n.Name().Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Pos(), n.Name().Pkg.Path, s.Name})
+			p := n.(*ir.PkgName)
+			if !p.Used && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{p.Pos(), p.Pkg.Path, s.Name})
 			}
 			s.Def = nil
 			continue
@@ -969,9 +961,9 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if n.Name() != nil && n.Name().Pack != nil && !n.Name().Pack.Name().Used() && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{n.Name().Pack.Pos(), n.Name().Pack.Name().Pkg.Path, ""})
-				n.Name().Pack.Name().SetUsed(true)
+			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
+				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
+				name.PkgName.Used = true
 			}
 			s.Def = nil
 			continue
@@ -985,7 +977,7 @@ func clearImports() {
 }
 
 func IsAlias(sym *types.Sym) bool {
-	return sym.Def != nil && ir.AsNode(sym.Def).Sym() != sym
+	return sym.Def != nil && sym.Def.Sym() != sym
 }
 
 // recordFlags records the specified command-line flags to be placed
@@ -1052,7 +1044,7 @@ func recordPackageName() {
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
 	base.Ctxt.Data = append(base.Ctxt.Data, s)
-	s.P = []byte(ir.LocalPkg.Name)
+	s.P = []byte(types.LocalPkg.Name)
 }
 
 // currentLang returns the current language version.
@@ -1079,9 +1071,9 @@ var langWant lang
 func langSupported(major, minor int, pkg *types.Pkg) bool {
 	if pkg == nil {
 		// TODO(mdempsky): Set Pkg for local types earlier.
-		pkg = ir.LocalPkg
+		pkg = types.LocalPkg
 	}
-	if pkg != ir.LocalPkg {
+	if pkg != types.LocalPkg {
 		// Assume imported packages passed type-checking.
 		return true
 	}
@@ -1131,4 +1123,14 @@ func parseLang(s string) (lang, error) {
 		return lang{}, err
 	}
 	return lang{major: major, minor: minor}, nil
+}
+
+func initializeTypesPackage() {
+	types.Widthptr = Widthptr
+	types.Dowidth = dowidth
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+
+	initUniverse()
 }

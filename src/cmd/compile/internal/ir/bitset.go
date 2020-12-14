@@ -14,6 +14,18 @@ func (f *bitset8) set(mask uint8, b bool) {
 	}
 }
 
+func (f bitset8) get2(shift uint8) uint8 {
+	return uint8(f>>shift) & 3
+}
+
+// set2 sets two bits in f using the bottom two bits of b.
+func (f *bitset8) set2(shift uint8, b uint8) {
+	// Clear old bits.
+	*(*uint8)(f) &^= 3 << shift
+	// Set new bits.
+	*(*uint8)(f) |= uint8(b&3) << shift
+}
+
 type bitset16 uint16
 
 func (f *bitset16) set(mask uint16, b bool) {

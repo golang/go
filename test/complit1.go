@@ -22,9 +22,9 @@ var (
 	_ = m[0][:]            // ERROR "slice of unaddressable value"
 	_ = f()[:]             // ERROR "slice of unaddressable value"
 
-	_ = 301[:]  // ERROR "cannot slice"
-	_ = 3.1[:]  // ERROR "cannot slice"
-	_ = true[:] // ERROR "cannot slice"
+	_ = 301[:]  // ERROR "cannot slice|attempt to slice object that is not"
+	_ = 3.1[:]  // ERROR "cannot slice|attempt to slice object that is not"
+	_ = true[:] // ERROR "cannot slice|attempt to slice object that is not"
 
 	// these are okay because they are slicing a pointer to an array
 	_ = (&[3]int{1, 2, 3})[:]
@@ -46,8 +46,8 @@ var (
 	_ = &T{0, 0, "", nil}               // ok
 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP"
-	_ = &Ti{}                           // ERROR "invalid composite literal type Ti"
+	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP|omit types within composite literal"
+	_ = &Ti{}                           // ERROR "invalid composite literal type Ti|expected.*type for composite literal"
 )
 
 type M map[T]T
