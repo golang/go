@@ -26,12 +26,12 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  TODO
+  There are no changes to the language.
 </p>
 
 <h2 id="ports">Ports</h2>
 
-<h3 id="darwin">Darwin</h3>
+<h3 id="darwin">Darwin and iOS</h3>
 
 <p><!-- golang.org/issue/38485, golang.org/issue/41385, CL 266373, more CLs -->
   Go 1.16 adds support of 64-bit ARM architecture on macOS (also known as
@@ -43,15 +43,24 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- CL 254740 -->
-  The iOS port, which was previously <code>darwin/arm64</code>, is now
-  moved to <code>ios/arm64</code>. <code>GOOS=ios</code> implies the
+  The iOS port, which was previously <code>darwin/arm64</code>, has
+  been renamed to <code>ios/arm64</code>. <code>GOOS=ios</code>
+  implies the
   <code>darwin</code> build tag, just as <code>GOOS=android</code>
-  implies the <code>linux</code> build tag.
+  implies the <code>linux</code> build tag. This change should be
+  transparent to anyone using gomobile to build iOS apps.
 </p>
 
 <p><!-- golang.org/issue/42100, CL 263798 -->
-  The <code>ios/amd64</code> port is added, targetting the iOS simulator
-  running on AMD64-based macOS.
+  Go 1.16 adds an <code>ios/amd64</code> port, which targets the iOS
+  simulator running on AMD64-based macOS. Previously this was
+  unofficially supported through <code>darwin/amd64</code> with
+  the <code>ios</code> build tag set.
+</p>
+
+<p><!-- golang.org/issue/23011 -->
+  Go 1.16 is the last release that will run on macOS 10.12 Sierra.
+  Go 1.17 will require macOS 10.13 High Sierra or later.
 </p>
 
 <h3 id="netbsd">NetBSD</h3>
@@ -59,6 +68,14 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- golang.org/issue/30824 -->
   Go now supports the 64-bit ARM architecture on NetBSD (the
   <code>netbsd/arm64</code> port).
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- golang.org/issue/40995 -->
+  Go now supports the MIPS64 architecture on OpenBSD
+  (the <code>openbsd/mips64</code> port). This port does not yet
+  support cgo.
 </p>
 
 <h3 id="386">386</h3>
@@ -70,6 +87,14 @@ Do not send CLs removing the interior tags from such phrases.
   mode (<code>GO386=softfloat</code>).
   Users running on non-SSE2 processors should replace <code>GO386=387</code>
   with <code>GO386=softfloat</code>.
+</p>
+
+<h3 id="riscv">RISC-V</h3>
+
+<p><!-- golang.org/issue/36641, CL 267317 -->
+  The <code>linux/riscv64</code> port now supports cgo and
+  <code>-buildmode=pie</code>. This release also includes performance
+  optimizations and code generation improvements for RISC-V.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -85,7 +110,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- golang.org/issue/41330 -->
   Module-aware mode is enabled by default, regardless of whether a
   <code>go.mod</code> file is present in the current working directory or a
-  parent directory. Specifically, the <code>GO111MODULE</code> environment
+  parent directory. More precisely, the <code>GO111MODULE</code> environment
   variable now defaults to <code>on</code>. To switch to the previous behavior,
   set <code>GO111MODULE</code> to <code>auto</code>.
 </p>
@@ -141,6 +166,17 @@ Do not send CLs removing the interior tags from such phrases.
   non-reproducible builds.
 </p>
 
+<h4 id="embed">Embedding Files</h4>
+
+<p>
+  The <code>go</code> command now supports including
+  static files and file trees as part of the final executable,
+  using the new <code>//go:embed</code> directive.
+  See the documentation for the new
+  <a href="/pkg/embed/"><code>embed</code></a>
+  package for details.
+</p>
+
 <h4 id="go-test"><code>go</code> <code>test</code></h4>
 
 <p><!-- golang.org/issue/29062 -->
@@ -166,7 +202,7 @@ Do not send CLs removing the interior tags from such phrases.
   The <code>go</code> <code>get</code> <code>-insecure</code> flag is
   deprecated and will be removed in a future version. This flag permits
   fetching from repositories and resolving custom domains using insecure
-  schemes such as HTTP, and also bypassess module sum validation using the
+  schemes such as HTTP, and also bypasses module sum validation using the
   checksum database. To permit the use of insecure schemes, use the
   <code>GOINSECURE</code> environment variable instead. To bypass module
   sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code>.
@@ -257,10 +293,41 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- CL 235677: https://golang.org/cl/235677: cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines -->
 </p>
 
+<p><!-- CL 248686, CL 276372 -->
+  The vet tool now warns about amd64 assembly that clobbers the BP
+  register (the frame pointer) without saving and restoring it,
+  contrary to the calling convention. Code that doesn't preserve the
+  BP register must be modified to either not use BP at all or preserve
+  BP by saving and restoring it. An easy way to preserve BP is to set
+  the frame size to a nonzero value, which causes the generated
+  prologue and epilogue to preserve the BP register for you.
+  See <a href="https://golang.org/cl/248260">CL 248260</a> for example
+  fixes.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
-  TODO
+  The new <a href="/pkg/runtime/metrics/"><code>runtime/metrics</code></a> package
+  introduces a stable interface for reading
+  implementation-defined metrics from the Go runtime.
+  It supersedes existing functions like
+  <a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
+  and
+  <a href="/pkg/runtime/debug/#GCStats"><code>debug.GCStats</code></a>
+  and is significantly more general and efficient.
+  See the package documentation for more details.
+</p>
+
+<p><!-- CL 254659 -->
+  Setting the <code>GODEBUG</code> environment variable
+  to <code>inittrace=1</code> now causes the runtime to emit a single
+  line to standard error for each package <code>init</code>,
+  summarizing its execution time and memory allocation. This trace can
+  be used to find bottlenecks or regressions in Go startup
+  performance.
+  The <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GODEBUG</code><
+  documentation</a> describes the format.
 </p>
 
 <p><!-- CL 267100 -->
@@ -275,10 +342,21 @@ Do not send CLs removing the interior tags from such phrases.
   variable.
 </p>
 
+<p><!-- CL 220419, CL 271987 -->
+  Go 1.16 fixes a discrepancy between the race detector and
+  the <a href="/ref/mem">Go memory model</a>. The race detector now
+  more precisely follows the channel synchronization rules of the
+  memory model. As a result, the detector may now report races it
+  previously missed.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO
+<p><!-- CL 256459, CL 264837, CL 266203, CL 256460 -->
+  The compiler can now inline functions with
+  non-labeled <code>for</code> loops, method values, and type
+  switches. The inliner can also detect more indirect calls where
+  inlining is possible.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -297,13 +375,10 @@ Do not send CLs removing the interior tags from such phrases.
   supported architecture/OS combinations (the 1.15 performance improvements
   were primarily focused on <code>ELF</code>-based OSes and
   <code>amd64</code> architectures).  For a representative set of
-  large Go programs, linking is 20-35% faster than 1.15 and requires
+  large Go programs, linking is 20-25% faster than 1.15 and requires
   5-15% less memory on average for <code>linux/amd64</code>, with larger
-  improvements for other architectures and OSes.
-</p>
-
-<p>
-  TODO: update with final numbers later in the release.
+  improvements for other architectures and OSes. Most binaries are
+  also smaller as a result of more aggressive symbol pruning.
 </p>
 
 <p><!-- CL 255259 -->
@@ -313,9 +388,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="library">Core library</h2>
 
+<h3 id="library-embed">Embedded Files</h3>
+
 <p>
-  TODO: mention significant additions like new packages (<code>io/fs</code>),
-  new proposal-scoped features (<code>//go:embed</code>), and so on
+  The new <a href="/pkg/embed/"><code>embed</code></a> package
+  provides access to files embedded in the program during compilation
+  using the new <a href="#embed"><code>//go:embed</code> directive</a>.
+</p>
+
+<h3 id="fs">File Systems</h3>
+
+<p>
+  The new <a href="/pkg/io/fs/"><code>io/fs</code></a> package
+  defines an abstraction for read-only trees of files,
+  the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
+  and the standard library packages have
+  been adapted to make use of the interface as appropriate.
+</p>
+
+<p>
+  On the producer side of the interface,
+  the new <a href="/pkg/embed/#FS">embed.FS</code></a> type
+  implements <code>fs.FS</code>, as does
+  <a href="/pkg/archive/zip/#Reader"><code>zip.Reader</code></a>.
+  The new <a href="/pkg/os/#DirFS"><code>os.DirFS</code></a> function
+  provides an implementation of <code>fs.FS</code> backed by a tree
+  of operating system files.
+</p>
+
+<p>
+  On the consumer side,
+  the new <a href="/pkg/net/http/#FS"><code>http.FS</code></a>
+  function converts an <code>fs.FS</code> to an
+  <a href="/pkg/net/http/#Handler"><code>http.Handler</code></a>.
+  Also, the <a href="/pkg/html/template/"><code>html/template</code></a>
+  and <a href="/pkg/text/template/"><code>text/template</code></a>
+  packages’ <a href="/pkg/html/template/#ParseFS"><code>ParseFS</code></a>
+  functions and methods read templates from an <code>fs.FS</code>.
+</p>
+
+<p>
+  For testing code that implements <code>fs.FS</code>,
+  the new <a href="/pkg/testing/fstest/"><code>testing/fstest</code></a>
+  package provides a <a href="/pkg/testing/fstest/#TestFS"><code>TestFS</code></a>
+  function that checks for and reports common mistakes.
+  It also provides a simple in-memory file system implementation,
+  <a href="/pkg/testing/fstest/#MapFS"><code>MapFS</code></a>,
+  which can be useful for testing code that accepts <code>fs.FS</code>
+  implementations.
 </p>
 
 <p>
@@ -347,9 +467,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/hmac"><dt><a href="/pkg/crypto/hmac/">crypto/hmac</a></dt>
   <dd>
     <p><!-- CL 261960 -->
-      <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
-      the hash generation function fail to return new values. Previously, the
-      behavior was undefined and invalid outputs were sometimes generated.
+      <a href="/pkg/crypto/hmac/#New"><code>New</code></a> will now panic if
+      separate calls to the hash generation function fail to return new values.
+      Previously, the behavior was undefined and invalid outputs were sometimes
+      generated.
     </p>
   </dd>
 </dl><!-- crypto/hmac -->
@@ -357,82 +478,83 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 256897 -->
-      I/O operations on closing or closed TLS connections can now be detected using
-      the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error. A typical use
-      would be <code>errors.Is(err, net.ErrClosed)</code>. In earlier releases
-      the only way to reliably detect this case was to match the string returned
-      by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+      I/O operations on closing or closed TLS connections can now be detected
+      using the new <a href="/pkg/net/#ErrClosed"><code>net.ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
     </p>
 
     <p><!-- CL 266037 -->
-      A default deadline is set in <a href="/pkg/crypto/tls/#Conn.Close">Close</a>
-      before sending the close notify alert, in order to prevent blocking
+      A default write deadline is now set in
+      <a href="/pkg/crypto/tls/#Conn.Close"><code>Conn.Close</code></a>
+      before sending the "close notify" alert, in order to prevent blocking
       indefinitely.
     </p>
 
     <p><!-- CL 246338 -->
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
-      allow the user to control cancellation of an in-progress TLS Handshake.
-      The context provided is propagated into the
-      <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
-      and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
-      structs and accessible through the new
-      <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
-      and
-      <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-        (*CertificateRequestInfo).Context
-      </a> methods respectively. Canceling the context after the handshake has finished
-      has no effect.
+      The new <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>Conn.HandshakeContext</code></a>
+      method allows cancellation of an in-progress handshake. The provided
+      context is accessible through the new
+      <a href="/pkg/crypto/tls#ClientHelloInfo.Context"><code>ClientHelloInfo.Context</code></a>
+      and <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
+      <code>CertificateRequestInfo.Context</code></a> methods. Canceling the
+      context after the handshake has finished has no effect.
     </p>
 
     <p><!-- CL 239748 -->
-      Clients now ensure that the server selects
+      Clients now return a handshake error if the server selects
       <a href="/pkg/crypto/tls/#ConnectionState.NegotiatedProtocol">
-      an ALPN protocol</a> from
+      an ALPN protocol</a> that was not in
       <a href="/pkg/crypto/tls/#Config.NextProtos">
       the list advertised by the client</a>.
     </p>
 
     <p><!-- CL 262857 -->
-      TLS servers will now prefer other AEAD cipher suites (such as ChaCha20Poly1305)
+      Servers will now prefer other available AEAD cipher suites (such as ChaCha20Poly1305)
       over AES-GCM cipher suites if either the client or server doesn't have AES hardware
-      support, unless the application set both
-      <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+      support, unless both <a href="/pkg/crypto/tls/#Config.PreferServerCipherSuites">
+      <code>Config.PreferServerCipherSuites</code></a>
       and <a href="/pkg/crypto/tls/#Config.CipherSuites"><code>Config.CipherSuites</code></a>
-      or there are no other AEAD cipher suites supported.
-      The client is assumed not to have AES hardware support if it does not signal a
-      preference for AES-GCM cipher suites.
+      are set. The client is assumed not to have AES hardware support if it does
+      not signal a preference for AES-GCM cipher suites.
     </p>
 
     <p><!-- CL 246637 -->
-      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now returns
-      a nil <code>*Config</code> if the source is nil, rather than panicking.
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a> now
+      returns nil if the receiver is nil, rather than panicking.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
+    <p>
+      The <code>GODEBUG=x509ignoreCN=0</code> flag will be removed in Go 1.17.
+      It enables the legacy behavior of treating the <code>CommonName</code>
+      field on X.509 certificates as a host name when no Subject Alternative
+      Names are present.
+    </p>
+
     <p><!-- CL 235078 -->
-      <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
-      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
-      now enforce string encoding restrictions for the fields <code>DNSNames</code>,
-      <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
-      contain strings with characters within the ASCII range.
+      <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a> and
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now enforce string encoding restrictions for the <code>DNSNames</code>,
+      <code>EmailAddresses</code>, and <code>URIs</code> fields. These fields
+      can only contain strings with characters within the ASCII range.
     </p>
 
     <p><!-- CL 259697 -->
-      <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
-      verifies the generated certificate's signature using the signer's
-      public key. If the signature is invalid, an error is returned, instead
-      of a malformed certificate.
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now verifies the generated certificate's signature using the signer's
+      public key. If the signature is invalid, an error is returned, instead of
+      a malformed certificate.
     </p>
 
     <p><!-- CL 233163 -->
       A number of additional fields have been added to the
-      <a href="/pkg/crypto/x509/#CertificateRequest">CertificateRequest</a> type.
-      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">ParseCertificateRequest</a>
-      and marshalled in <a href="/pkg/crypto/x509/#CreateCertificateRequest">CreateCertificateRequest</a>.
+      <a href="/pkg/crypto/x509/#CertificateRequest"><code>CertificateRequest</code></a> type.
+      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">
+      <code>ParseCertificateRequest</code></a> and marshalled in
+      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>.
     </p>
 
     <p><!-- CL 257939 -->
@@ -448,7 +570,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 262343 -->
-      TODO: <a href="https://golang.org/cl/262343">https://golang.org/cl/262343</a>: add Unwrap to SystemRootsError
+      The new <a href="/pkg/crypto/x509/#SystemRootsError.Unwrap"><code>SystemRootsError.Unwrap</code></a>
+      method allows accessing the <a href="/pkg/crypto/x509/#SystemRootsError.Err"><code>Err</code></a>
+      field through the <a href="/pkg/errors"><code>errors</code></a> package functions.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
@@ -456,11 +580,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 255881 -->
-      <a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a> and
-      <a href="/pkg/encoding/asn1/#UnmarshalWithParams">UnmarshalWithParams</a>
-      now return an error instead of panic when the argument is not
+      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> and
+      <a href="/pkg/encoding/asn1/#UnmarshalWithParams"><code>UnmarshalWithParams</code></a>
+      now return an error instead of panicking when the argument is not
       a pointer or is nil. This change matches the behavior of other
-      encoding packages such as <a href="/pkg/encoding/json">encoding/json</a>.
+      encoding packages such as <a href="/pkg/encoding/json"><code>encoding/json</code></a>.
     </p>
   </dd>
 </dl>
@@ -494,7 +618,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 240014 -->
-      TODO: <a href="https://golang.org/cl/240014">https://golang.org/cl/240014</a>: add Func
+      The new <a href="/pkg/flag/#Func"><code>Func</code></a> function
+      allows registering a flag implemented by calling a function,
+      as a lighter-weight alternative to implementing the
+      <a href="/pkg/flag/#Value"><code>Value</code></a> interface.
     </p>
   </dd>
 </dl><!-- flag -->
@@ -502,7 +629,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
     <p><!-- CL 261577 -->
-      TODO: <a href="https://golang.org/cl/261577">https://golang.org/cl/261577</a>: add a new ReadSeekCloser interface
+      The package now defines a
+      <a href="/pkg/io/#ReadSeekCloser"><code>ReadSeekCloser</code></a> interface.
     </p>
   </dd>
 </dl><!-- io -->
@@ -510,7 +638,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 264460 -->
-      TODO: <a href="https://golang.org/cl/264460">https://golang.org/cl/264460</a>: expose std via new Default function
+      The new <a href="/pkg/log/#Default"><code>Default</code></a> function
+      provides access to the default <a href="/pkg/log/#Logger"><code>Logger</code></a>.
     </p>
   </dd>
 </dl><!-- log -->
@@ -518,7 +647,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="log/syslog"><dt><a href="/pkg/log/syslog/">log/syslog</a></dt>
   <dd>
     <p><!-- CL 264297 -->
-      TODO: <a href="https://golang.org/cl/264297">https://golang.org/cl/264297</a>: set local to true if network is any of &#34;unix&#34;, or &#34;unixgram&#34;
+      The <a href="/pkg/log/syslog/#Writer"><code>Writer</code></a>
+      now uses the local message format
+      (omitting the host name and using a shorter time stamp)
+      when logging to custom Unix domain sockets,
+      matching the format already used for the default log socket.
     </p>
   </dd>
 </dl><!-- log/syslog -->
@@ -526,7 +659,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
   <dd>
     <p><!-- CL 247477 -->
-      TODO: <a href="https://golang.org/cl/247477">https://golang.org/cl/247477</a>: return overflow errors in Reader.ReadForm
+      The <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a>'s
+      <a href="/pkg/mime/multipart/#Reader.ReadForm"><code>ReadForm</code></a>
+      method no longer rejects form data
+      when passed the maximum int64 value as a limit.
     </p>
   </dd>
 </dl><!-- mime/multipart -->
@@ -550,7 +686,10 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 238629 -->
-      TODO: <a href="https://golang.org/cl/238629">https://golang.org/cl/238629</a>: prefer /etc/hosts over DNS when no /etc/nsswitch.conf is present
+      On Linux, host name lookups no longer use DNS before checking
+      <code>/etc/hosts</code> when <code>/etc/nsswitch.conf</code>
+      is missing; this is common on musl-based systems and makes
+      Go programs match the behavior of C programs on those systems.
     </p>
   </dd>
 </dl><!-- net -->
@@ -578,23 +717,29 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 256498, golang.org/issue/36990 -->
-      Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
-      spec (no attribute is set) instead of generating a SameSite key without a value.
+      Cookies set with <a href="/pkg/net/http/#SameSiteDefaultMode"><code>SameSiteDefaultMode</code></a>
+      now behave according to the current spec (no attribute is set) instead of
+      generating a SameSite key without a value.
     </p>
 
     <p><!-- CL 246338 -->
-      The <a href="/pkg/net/http/"><code>net/http</code></a> package now uses the new
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>(*tls.Conn).HandshakeContext</code></a>
-      with the <a href="/pkg/net/http/#Request"><code>Request</code></a> context
-      when performing TLS handshakes in the client or server.
+      The <a href="/pkg/net/http/"><code>net/http</code></a> package now passes the
+      <a href="/pkg/net/http/#Request.Context"><code>Request</code> context</a> to
+      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>tls.Conn.HandshakeContext</code></a>
+      when performing TLS handshakes.
     </p>
 
     <p><!-- CL 250039 -->
-      TODO: <a href="https://golang.org/cl/250039">https://golang.org/cl/250039</a>: set Content-Length:0 for empty PATCH requests as with POST, PATCH
+      The <a href="/pkg/net/http/#Client">Client</a> now sends
+      an explicit <code>Content-Length:</code> <code>0</code>
+      header in <code>PATCH</code> requests with empty bodies,
+      matching the existing behavior of <code>POST</code> and <code>PUT</code>.
     </p>
 
     <p><!-- CL 249440 -->
-      TODO: <a href="https://golang.org/cl/249440">https://golang.org/cl/249440</a>: match http scheme when selecting http_proxy
+      The <a href="/pkg/net/http/#ProxyFromEnvironment">ProxyFromEnvironment</a> function
+      no longer returns the setting of the <code>HTTP_PROXY</code> environment
+      variable for <code>https://</code> URLs when <code>HTTPS_PROXY</code> is unset.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -602,7 +747,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 260637 -->
-      TODO: <a href="https://golang.org/cl/260637">https://golang.org/cl/260637</a>: flush ReverseProxy immediately if Content-Length is -1
+      The <a href="/pkg/net/http/httputil/#ReverseProxy">ReverseProxy</a>
+      now flushes buffered data more aggressively when proxying
+      streamed responses with unknown body lengths.
     </p>
   </dd>
 </dl><!-- net/http/httputil -->
@@ -610,7 +757,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
   <dd>
     <p><!-- CL 247257 -->
-      TODO: <a href="https://golang.org/cl/247257">https://golang.org/cl/247257</a>: adds support for the SMTPUTF8 extension
+      The <a href="/pkg/net/smtp/#Client">Client</a>'s
+      <a href="/pkg/net/smtp/#Client.Mail"><code>Mail</code></a>
+      method now sends the <code>SMTPUTF8</code> directive to
+      servers that support it, signaling that addresses are encoded in UTF-8.
     </p>
   </dd>
 </dl><!-- net/smtp -->
@@ -629,55 +779,52 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
   <dd>
     <p><!-- CL 219640 -->
-      TODO: <a href="https://golang.org/cl/219640">https://golang.org/cl/219640</a>: add NotifyContext to cancel context using system signals
+      The new
+      <a href="/pkg/os/signal/#NotifyContext"><code>NotifyContext</code></a>
+      function allows creating contexts that are canceled upon arrival of
+      specific signals.
     </p>
   </dd>
 </dl><!-- os/signal -->
 
 <dl id="path"><dt><a href="/pkg/path/">path</a></dt>
   <dd>
-    <p><!-- CL 264397 -->
-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <code>Match</code> and <code>Glob</code> functions now
+      return an error if the unmatched part of the pattern has a
+      syntax error. Previously, the functions returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
     </p>
   </dd>
 </dl><!-- path -->
 
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
-    <p><!-- CL 264397 -->
-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
+    <p><!-- CL 264397, golang.org/issues/28614 -->
+      The <code>Match</code> and <code>Glob</code> functions now
+      return an error if the unmatched part of the pattern has a
+      syntax error. Previously, the functions returned early on a failed
+      match, and thus did not report any later syntax error in the
+      pattern.
     </p>
   </dd>
 </dl><!-- path/filepath -->
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
-    <p><!-- CL 248341 -->
-      TODO: <a href="https://golang.org/cl/248341">https://golang.org/cl/248341</a>: support multiple keys in struct tags
+    <p><!-- CL 248341, golang.org/issues/40281 -->
+      <code>StructTag</code> now allows multiple space-separated keys
+      in key:value pairs, as in <code>`json xml:"field1"`</code>
+      (equivalent to <code>`json:"field1" xml:"field1"`</code>).
     </p>
   </dd>
 </dl><!-- reflect -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
-  <dd>
-    <p><!-- CL 37222 -->
-      TODO: <a href="https://golang.org/cl/37222">https://golang.org/cl/37222</a>: make stack traces of endless recursion print only top and bottom 50
-    </p>
-
-    <p><!-- CL 242258 -->
-      TODO: <a href="https://golang.org/cl/242258">https://golang.org/cl/242258</a>: add 24 byte allocation size class
-    </p>
-
-    <p><!-- CL 254659 -->
-      TODO: <a href="https://golang.org/cl/254659">https://golang.org/cl/254659</a>: implement GODEBUG=inittrace=1 support
-    </p>
-  </dd>
-</dl><!-- runtime -->
-
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
     <p><!-- CL 249677 -->
-      The <a href="/pkg/runtime#Error"><code>runtime.Error</code> values
+      The <a href="/pkg/runtime#Error"><code>runtime.Error</code></a> values
       used when <code>SetPanicOnFault</code> is enabled may now have an
       <code>Addr</code> method. If that method exists, it returns the memory
       address that triggered the fault.
@@ -700,16 +847,30 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
+    <p><!-- CL 263271 -->
+      <a href="/pkg/syscall/?GOOS=windows#NewCallback"><code>NewCallback</code></a>
+      and
+      <a href="/pkg/syscall/?GOOS=windows#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
+      now correctly support callback functions with multiple
+      sub-<code>uintptr</code>-sized arguments in a row. This may
+      require changing uses of these functions to eliminate manual
+      padding between small arguments.
+    </p>
+
     <p><!-- CL 261917 -->
-      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+      <a href="/pkg/syscall/?GOOS=windows#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
     </p>
 
     <p><!-- CL 269761, golang.org/issue/42584 -->
-      <a href="/pkg/syscall/#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
+      <a href="/pkg/syscall/?GOOS=windows#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
     </p>
 
     <p><!-- CL 210639 -->
-      TODO: <a href="https://golang.org/cl/210639">https://golang.org/cl/210639</a>: support POSIX semantics for Linux syscalls
+      On Linux,
+      <a href="/pkg/syscall/#Setgid"><code>Setgid</code></a>,
+      <a href="/pkg/syscall/#Setuid"><code>Setuid</code></a>,
+      and related calls are now implemented.
+      Previously, they returned an <code>syscall.EOPNOTSUPP</code> error.
     </p>
   </dd>
 </dl><!-- syscall -->

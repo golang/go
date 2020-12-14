@@ -12,7 +12,7 @@ import (
 	"flag"
 	"fmt"
 	traceparser "internal/trace"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"runtime/trace"
@@ -386,7 +386,7 @@ func saveTrace(buf *bytes.Buffer, name string) {
 	if !*saveTraces {
 		return
 	}
-	if err := ioutil.WriteFile(name+".trace", buf.Bytes(), 0600); err != nil {
+	if err := os.WriteFile(name+".trace", buf.Bytes(), 0600); err != nil {
 		panic(fmt.Errorf("failed to write trace file: %v", err))
 	}
 }

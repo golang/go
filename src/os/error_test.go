@@ -8,14 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestErrIsExist(t *testing.T) {
-	f, err := ioutil.TempFile("", "_Go_ErrIsExist")
+	f, err := os.CreateTemp("", "_Go_ErrIsExist")
 	if err != nil {
 		t.Fatalf("open ErrIsExist tempfile: %s", err)
 		return
@@ -55,7 +54,7 @@ func testErrNotExist(name string) string {
 }
 
 func TestErrIsNotExist(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "_Go_ErrIsNotExist")
+	tmpDir, err := os.MkdirTemp("", "_Go_ErrIsNotExist")
 	if err != nil {
 		t.Fatalf("create ErrIsNotExist tempdir: %s", err)
 		return
@@ -147,12 +146,12 @@ func TestIsPermission(t *testing.T) {
 }
 
 func TestErrPathNUL(t *testing.T) {
-	f, err := ioutil.TempFile("", "_Go_ErrPathNUL\x00")
+	f, err := os.CreateTemp("", "_Go_ErrPathNUL\x00")
 	if err == nil {
 		f.Close()
 		t.Fatal("TempFile should have failed")
 	}
-	f, err = ioutil.TempFile("", "_Go_ErrPathNUL")
+	f, err = os.CreateTemp("", "_Go_ErrPathNUL")
 	if err != nil {
 		t.Fatalf("open ErrPathNUL tempfile: %s", err)
 	}

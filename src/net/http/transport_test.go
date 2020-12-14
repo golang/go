@@ -23,7 +23,6 @@ import (
 	"go/token"
 	"internal/nettrace"
 	"io"
-	"io/ioutil"
 	"log"
 	mrand "math/rand"
 	"net"
@@ -5746,7 +5745,7 @@ func (c *testMockTCPConn) ReadFrom(r io.Reader) (int64, error) {
 func TestTransportRequestWriteRoundTrip(t *testing.T) {
 	nBytes := int64(1 << 10)
 	newFileFunc := func() (r io.Reader, done func(), err error) {
-		f, err := ioutil.TempFile("", "net-http-newfilefunc")
+		f, err := os.CreateTemp("", "net-http-newfilefunc")
 		if err != nil {
 			return nil, nil, err
 		}

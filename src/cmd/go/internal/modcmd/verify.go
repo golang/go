@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -87,7 +86,7 @@ func verifyMod(mod module.Version) []error {
 		_, zipErr = os.Stat(zip)
 	}
 	dir, dirErr := modfetch.DownloadDir(mod)
-	data, err := ioutil.ReadFile(zip + "hash")
+	data, err := os.ReadFile(zip + "hash")
 	if err != nil {
 		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&
 			dirErr != nil && errors.Is(dirErr, fs.ErrNotExist) {

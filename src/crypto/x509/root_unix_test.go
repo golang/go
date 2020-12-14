@@ -9,7 +9,6 @@ package x509
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -147,7 +146,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 		os.Setenv(certFileEnv, origFile)
 	}()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "x509-issue35325")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "x509-issue35325")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
@@ -166,7 +165,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 			t.Fatalf("Failed to create certificate dir: %v", err)
 		}
 		certOutFile := filepath.Join(certDir, "cert.crt")
-		if err := ioutil.WriteFile(certOutFile, []byte(certPEM), 0655); err != nil {
+		if err := os.WriteFile(certOutFile, []byte(certPEM), 0655); err != nil {
 			t.Fatalf("Failed to write certificate to file: %v", err)
 		}
 		certDirs = append(certDirs, certDir)

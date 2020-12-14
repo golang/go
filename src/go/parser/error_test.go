@@ -25,7 +25,7 @@ package parser
 import (
 	"go/scanner"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -174,13 +174,13 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 }
 
 func TestErrors(t *testing.T) {
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
+	for _, d := range list {
+		name := d.Name()
+		if !d.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
 			checkErrors(t, filepath.Join(testdata, name), nil)
 		}
 	}

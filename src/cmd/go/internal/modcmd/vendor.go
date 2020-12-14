@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -155,7 +154,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 }
@@ -244,7 +243,7 @@ var metaPrefixes = []string{
 }
 
 // matchMetadata reports whether info is a metadata file.
-func matchMetadata(dir string, info fs.FileInfo) bool {
+func matchMetadata(dir string, info fs.DirEntry) bool {
 	name := info.Name()
 	for _, p := range metaPrefixes {
 		if strings.HasPrefix(name, p) {
@@ -255,7 +254,7 @@ func matchMetadata(dir string, info fs.FileInfo) bool {
 }
 
 // matchPotentialSourceFile reports whether info may be relevant to a build operation.
-func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
+func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
 		return false
 	}
@@ -281,8 +280,8 @@ func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
 }
 
 // copyDir copies all regular files satisfying match(info) from src to dst.
-func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
-	files, err := ioutil.ReadDir(src)
+func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
+	files, err := os.ReadDir(src)
 	if err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
@@ -290,7 +289,7 @@ func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 	for _, file := range files {
-		if file.IsDir() || !file.Mode().IsRegular() || !match(src, file) {
+		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
 			continue
 		}
 		r, err := os.Open(filepath.Join(src, file.Name()))

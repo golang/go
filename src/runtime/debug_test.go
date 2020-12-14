@@ -17,7 +17,7 @@ package runtime_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"runtime"
 	"runtime/debug"
@@ -95,7 +95,7 @@ func debugCallTKill(tid int) error {
 // Linux-specific.
 func skipUnderDebugger(t *testing.T) {
 	pid := syscall.Getpid()
-	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
 		t.Logf("couldn't get proc tracer: %s", err)
 		return

@@ -1,7 +1,7 @@
 [short] skip
 
 # Ensure that the target of 'go build -o' can be an existing, empty file so that
-# its name can be reserved using ioutil.TempFile or the 'mktemp` command.
+# its name can be reserved using os.CreateTemp or the 'mktemp` command.
 
 go build -o empty-file$GOEXE main.go
 

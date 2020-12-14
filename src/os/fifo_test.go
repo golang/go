@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,7 +30,7 @@ func TestFifoEOF(t *testing.T) {
 		t.Skip("skipping on OpenBSD; issue 25877")
 	}
 
-	dir, err := ioutil.TempDir("", "TestFifoEOF")
+	dir, err := os.MkdirTemp("", "TestFifoEOF")
 	if err != nil {
 		t.Fatal(err)
 	}

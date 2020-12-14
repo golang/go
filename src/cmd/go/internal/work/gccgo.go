@@ -6,7 +6,6 @@ package work
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -271,7 +270,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	}
 
 	readCgoFlags := func(flagsFile string) error {
-		flags, err := ioutil.ReadFile(flagsFile)
+		flags, err := os.ReadFile(flagsFile)
 		if err != nil {
 			return err
 		}

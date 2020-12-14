@@ -242,7 +242,6 @@ import (
 	"fmt"
 	"internal/race"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -936,14 +935,14 @@ func (c *common) TempDir() string {
 	if nonExistent {
 		c.Helper()
 
-		// ioutil.TempDir doesn't like path separators in its pattern,
+		// os.MkdirTemp doesn't like path separators in its pattern,
 		// so mangle the name to accommodate subtests.
 		tempDirReplacer.Do(func() {
 			tempDirReplacer.r = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
 		})
 		pattern := tempDirReplacer.r.Replace(c.Name())
 
-		c.tempDir, c.tempDirErr = ioutil.TempDir("", pattern)
+		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
 				if err := os.RemoveAll(c.tempDir); err != nil {

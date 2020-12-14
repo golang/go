@@ -4,7 +4,7 @@
 
 // +build linux
 // +build ppc64le ppc64
-// +build !gccgo
+// +build gc
 
 package unix
 

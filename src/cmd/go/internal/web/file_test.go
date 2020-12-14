@@ -7,7 +7,6 @@ package web
 import (
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,7 +15,7 @@ import (
 func TestGetFileURL(t *testing.T) {
 	const content = "Hello, file!\n"
 
-	f, err := ioutil.TempFile("", "web-TestGetFileURL")
+	f, err := os.CreateTemp("", "web-TestGetFileURL")
 	if err != nil {
 		t.Fatal(err)
 	}
