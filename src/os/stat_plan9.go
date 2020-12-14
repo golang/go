@@ -11,7 +11,7 @@ import (
 
 const bitSize16 = 2
 
-func fileInfoFromStat(d *syscall.Dir) FileInfo {
+func fileInfoFromStat(d *syscall.Dir) *fileStat {
 	fs := &fileStat{
 		name:    d.Name,
 		size:    d.Length,
@@ -65,7 +65,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		}
 
 		if n < bitSize16 {
-			return nil, &PathError{"stat", name, err}
+			return nil, &PathError{Op: "stat", Path: name, Err: err}
 		}
 
 		// Pull the real size out of the stat message.
@@ -76,7 +76,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		if size <= n {
 			d, err := syscall.UnmarshalDir(buf[:n])
 			if err != nil {
-				return nil, &PathError{"stat", name, err}
+				return nil, &PathError{Op: "stat", Path: name, Err: err}
 			}
 			return d, nil
 		}
@@ -87,7 +87,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		err = syscall.ErrBadStat
 	}
 
-	return nil, &PathError{"stat", name, err}
+	return nil, &PathError{Op: "stat", Path: name, Err: err}
 }
 
 // statNolog implements Stat for Plan 9.

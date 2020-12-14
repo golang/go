@@ -5,6 +5,7 @@
 
 package unix
 
+// Deprecated: Use libSystem wrappers instead of direct syscalls.
 const (
 	SYS_SYSCALL                        = 0
 	SYS_EXIT                           = 1

@@ -6,8 +6,10 @@ package os_test
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -62,9 +64,9 @@ func ExampleFileMode() {
 		fmt.Println("regular file")
 	case mode.IsDir():
 		fmt.Println("directory")
-	case mode&os.ModeSymlink != 0:
+	case mode&fs.ModeSymlink != 0:
 		fmt.Println("symbolic link")
-	case mode&os.ModeNamedPipe != 0:
+	case mode&fs.ModeNamedPipe != 0:
 		fmt.Println("named pipe")
 	}
 }
@@ -142,4 +144,99 @@ func ExampleGetenv() {
 func ExampleUnsetenv() {
 	os.Setenv("TMPDIR", "/my/tmp")
 	defer os.Unsetenv("TMPDIR")
+}
+
+func ExampleReadDir() {
+	files, err := os.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file.Name())
+	}
+}
+
+func ExampleMkdirTemp() {
+	dir, err := os.MkdirTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	file := filepath.Join(dir, "tmpfile")
+	if err := os.WriteFile(file, []byte("content"), 0666); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirTemp_suffix() {
+	logsDir, err := os.MkdirTemp("", "*-logs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(logsDir) // clean up
+
+	// Logs can be cleaned out earlier if needed by searching
+	// for all directories whose suffix ends in *-logs.
+	globPattern := filepath.Join(os.TempDir(), "*-logs")
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		log.Fatalf("Failed to match %q: %v", globPattern, err)
+	}
+
+	for _, match := range matches {
+		if err := os.RemoveAll(match); err != nil {
+			log.Printf("Failed to remove %q: %v", match, err)
+		}
+	}
+}
+
+func ExampleCreateTemp() {
+	f, err := os.CreateTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleCreateTemp_suffix() {
+	f, err := os.CreateTemp("", "example.*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleReadFile() {
+	data, err := os.ReadFile("testdata/hello")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Stdout.Write(data)
+
+	// Output:
+	// Hello, Gophers!
+}
+
+func ExampleWriteFile() {
+	err := os.WriteFile("testdata/hello", []byte("Hello, Gophers!"), 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

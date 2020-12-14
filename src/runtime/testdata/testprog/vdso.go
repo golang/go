@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime/pprof"
 	"time"
@@ -19,7 +18,7 @@ func init() {
 }
 
 func signalInVDSO() {
-	f, err := ioutil.TempFile("", "timeprofnow")
+	f, err := os.CreateTemp("", "timeprofnow")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

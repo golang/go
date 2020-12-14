@@ -323,7 +323,7 @@ var lexTests = []lexTest{
 		tLeft,
 		mkItem(itemError, "unrecognized character in action: U+0001"),
 	}},
-	{"unclosed action", "{{\n}}", []item{
+	{"unclosed action", "{{", []item{
 		tLeft,
 		mkItem(itemError, "unclosed action"),
 	}},

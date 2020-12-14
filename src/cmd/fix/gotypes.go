@@ -21,11 +21,11 @@ var gotypesFix = fix{
 }
 
 func gotypes(f *ast.File) bool {
-	truth := fixGoTypes(f)
+	fixed := fixGoTypes(f)
 	if fixGoExact(f) {
-		truth = true
+		fixed = true
 	}
-	return truth
+	return fixed
 }
 
 func fixGoTypes(f *ast.File) bool {

@@ -261,11 +261,6 @@ func shortcircuitBlock(b *Block) bool {
 // and the CFG modifications must not proceed.
 // The returned function assumes that shortcircuitBlock has completed its CFG modifications.
 func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, int) {
-	const go115shortcircuitPhis = true
-	if !go115shortcircuitPhis {
-		return nil
-	}
-
 	// t is the "taken" branch: the successor we always go to when coming in from p.
 	t := b.Succs[ti].b
 	// u is the "untaken" branch: the successor we never go to when coming in from p.

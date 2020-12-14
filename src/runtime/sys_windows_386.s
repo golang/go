@@ -239,7 +239,7 @@ GLOBL runtime·cbctxts(SB), NOPTR, $4
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
-	// remove return address from stack, we are not returning there
+	// remove return address from stack, we are not returning to callbackasm, but to its caller.
 	ADDL	$4, SP
 
 	// address to callback parameters into CX
@@ -251,50 +251,35 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	PUSHL	BP
 	PUSHL	BX
 
-	// determine index into runtime·cbctxts table
+	// Go ABI requires DF flag to be cleared.
+	CLD
+
+	// determine index into runtime·cbs table
 	SUBL	$runtime·callbackasm(SB), AX
 	MOVL	$0, DX
 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	BX
+	SUBL	$1, AX	// subtract 1 because return PC is to the next slot
 
-	// find correspondent runtime·cbctxts table entry
-	MOVL	runtime·cbctxts(SB), BX
-	MOVL	-4(BX)(AX*4), BX
+	// Create a struct callbackArgs on our stack.
+	SUBL	$(12+callbackArgs__size), SP
+	MOVL	AX, (12+callbackArgs_index)(SP)		// callback index
+	MOVL	CX, (12+callbackArgs_args)(SP)		// address of args vector
+	MOVL	$0, (12+callbackArgs_result)(SP)	// result
+	LEAL	12(SP), AX	// AX = &callbackArgs{...}
 
-	// extract callback context
-	MOVL	wincallbackcontext_gobody(BX), AX
-	MOVL	wincallbackcontext_argsize(BX), DX
+	// Call cgocallback, which will call callbackWrap(frame).
+	MOVL	$0, 8(SP)	// context
+	MOVL	AX, 4(SP)	// frame (address of callbackArgs)
+	LEAL	·callbackWrap(SB), AX
+	MOVL	AX, 0(SP)	// PC of function to call
+	CALL	runtime·cgocallback(SB)
 
-	// preserve whatever's at the memory location that
-	// the callback will use to store the return value
-	PUSHL	0(CX)(DX*1)
-
-	// extend argsize by size of return value
-	ADDL	$4, DX
-
-	// remember how to restore stack on return
-	MOVL	wincallbackcontext_restorestack(BX), BX
-	PUSHL	BX
-
-	// call target Go function
-	PUSHL	DX			// argsize (including return value)
-	PUSHL	CX			// callback parameters
-	PUSHL	AX			// address of target Go function
-	CLD
-	CALL	runtime·cgocallback_gofunc(SB)
-	POPL	AX
-	POPL	CX
-	POPL	DX
-
-	// how to restore stack on return
-	POPL	BX
-
-	// return value into AX (as per Windows spec)
-	// and restore previously preserved value
-	MOVL	-4(CX)(DX*1), AX
-	POPL	-4(CX)(DX*1)
-
-	MOVL	BX, CX			// cannot use BX anymore
+	// Get callback result.
+	MOVL	(12+callbackArgs_result)(SP), AX
+	// Get popRet.
+	MOVL	(12+callbackArgs_retPop)(SP), CX	// Can't use a callee-save register
+	ADDL	$(12+callbackArgs__size), SP
 
 	// restore registers as required for windows callback
 	POPL	BX
@@ -426,6 +411,51 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	runtime·_NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVL	BP, SP
+	RET
+
+// Runs on OS stack. duration (in 100ns units) is in BX.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
+	get_tls(CX)
+	CMPL	CX, $0
+	JE	gisnotset
+
+	// Want negative 100ns units.
+	NEGL	BX
+	MOVL	$-1, hi-4(SP)
+	MOVL	BX, lo-8(SP)
+
+	MOVL	g(CX), CX
+	MOVL	g_m(CX), CX
+	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
+	MOVL	CX, saved_timer-12(SP)
+
+	MOVL	$0, fResume-16(SP)
+	MOVL	$0, lpArgToCompletionRoutine-20(SP)
+	MOVL	$0, pfnCompletionRoutine-24(SP)
+	MOVL	$0, lPeriod-28(SP)
+	LEAL	lo-8(SP), BX
+	MOVL	BX, lpDueTime-32(SP)
+	MOVL	CX, hTimer-36(SP)
+	MOVL	SP, BP
+	MOVL	runtime·_SetWaitableTimer(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+
+	MOVL	$0, ptime-28(SP)
+	MOVL	$0, alertable-32(SP)
+	MOVL	saved_timer-12(SP), CX
+	MOVL	CX, handle-36(SP)
+	MOVL	SP, BP
+	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+
+	RET
+
+gisnotset:
+	// TLS is not configured. Call usleep2 instead.
+	MOVL	$runtime·usleep2(SB), AX
+	CALL	AX
 	RET
 
 // Runs on OS stack.

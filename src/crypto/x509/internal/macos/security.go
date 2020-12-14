@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin,amd64
+// +build darwin,!ios
 
 package macOS
 
@@ -11,6 +11,10 @@ import (
 	"strconv"
 	"unsafe"
 )
+
+// Security.framework linker flags for the external linker. See Issue 42459.
+//go:cgo_ldflag "-framework"
+//go:cgo_ldflag "Security"
 
 // Based on https://opensource.apple.com/source/Security/Security-59306.41.2/base/Security.h
 

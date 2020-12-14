@@ -5,6 +5,7 @@
 # module, but not should not include test dependencies of packages imported only
 # by other root patterns.
 
+env GOFLAGS=-mod=mod
 cp go.mod go.mod.orig
 
 go list -deps all x/otherroot
@@ -18,7 +19,7 @@ stdout '^x/otherdep$'
 ! stdout '^x/fromotherroottest$'
 ! stdout '^y/fromotherdeptest$'
 
-# TODO(#40799): cmp go.mod go.mod.orig
+cmp go.mod go.mod.orig
 
 # With -deps -test, test dependencies of other roots should be included,
 # but test dependencies of non-roots should not.
@@ -33,7 +34,7 @@ stdout '^x/otherdep$'
 stdout '^x/fromotherroottest$'
 ! stdout '^y/fromotherdeptest$'
 
-# TODO(#40799): cmp go.mod go.mod.orig
+cmp go.mod go.mod.orig
 
 -- m.go --
 package m

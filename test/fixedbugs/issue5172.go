@@ -21,6 +21,6 @@ func main() {
 	go f.bar()    // ERROR "undefined"
 	defer f.bar() // ERROR "undefined"
 
-	t := T{1} // ERROR "too many values"
+	t := T{1} // ERROR "too many"
 	go t.Bar()
 }

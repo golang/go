@@ -5,7 +5,7 @@
 [!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
 
 env GOBIN=$WORK/bin
-go install mtime sametime
+go install m/mtime m/sametime
 
 go tool -n cgo
 cp stdout cgopath.txt
@@ -21,11 +21,14 @@ exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopa
 cp stdout cgotime_after.txt
 exec $GOBIN/sametime cgotime_before.txt cgotime_after.txt
 
+-- go.mod --
+module m
+
+go 1.16
 -- mtime/mtime.go --
 package main
 
 import (
-	"io/ioutil"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,7 +36,7 @@ import (
 )
 
 func main() {
-	b, err := ioutil.ReadFile(os.Args[1])
+	b, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -55,7 +58,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -63,7 +65,7 @@ import (
 
 func main() {
 	var t1 time.Time
-	b1, err := ioutil.ReadFile(os.Args[1])
+	b1, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -74,7 +76,7 @@ func main() {
 	}
 
 	var t2 time.Time
-	b2, err := ioutil.ReadFile(os.Args[2])
+	b2, err := os.ReadFile(os.Args[2])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

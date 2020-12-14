@@ -9,7 +9,6 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
-	"io"
 	"runtime"
 	"syscall"
 )
@@ -62,8 +61,13 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
+//
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -129,7 +133,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// used with kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
 			err := ignoringEINTR(func() error {
 				return syscall.Fstat(fdi, &st)
@@ -150,7 +154,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
@@ -211,7 +215,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 			continue
 		}
 
-		return nil, &PathError{"open", name, e}
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
@@ -240,7 +244,7 @@ func (file *file) close() error {
 		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
 	// no need for a finalizer anymore
@@ -272,7 +276,7 @@ func Truncate(name string, size int64) error {
 		return syscall.Truncate(name, size)
 	})
 	if e != nil {
-		return &PathError{"truncate", name, e}
+		return &PathError{Op: "truncate", Path: name, Err: e}
 	}
 	return nil
 }
@@ -309,7 +313,7 @@ func Remove(name string) error {
 	if e1 != syscall.ENOTDIR {
 		e = e1
 	}
-	return &PathError{"remove", name, e}
+	return &PathError{Op: "remove", Path: name, Err: e}
 }
 
 func tempDir() string {
@@ -348,33 +352,6 @@ func Symlink(oldname, newname string) error {
 	return nil
 }
 
-func (f *File) readdir(n int) (fi []FileInfo, err error) {
-	dirname := f.name
-	if dirname == "" {
-		dirname = "."
-	}
-	names, err := f.Readdirnames(n)
-	fi = make([]FileInfo, 0, len(names))
-	for _, filename := range names {
-		fip, lerr := lstat(dirname + "/" + filename)
-		if IsNotExist(lerr) {
-			// File disappeared between readdir + stat.
-			// Just treat it as if it didn't exist.
-			continue
-		}
-		if lerr != nil {
-			return fi, lerr
-		}
-		fi = append(fi, fip)
-	}
-	if len(fi) == 0 && err == nil && n > 0 {
-		// Per File.Readdir, the slice must be non-empty or err
-		// must be non-nil if n > 0.
-		err = io.EOF
-	}
-	return fi, err
-}
-
 // Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {
@@ -395,10 +372,48 @@ func Readlink(name string) (string, error) {
 			continue
 		}
 		if e != nil {
-			return "", &PathError{"readlink", name, e}
+			return "", &PathError{Op: "readlink", Path: name, Err: e}
 		}
 		if n < len {
 			return string(b[0:n]), nil
 		}
 	}
+}
+
+type unixDirent struct {
+	parent string
+	name   string
+	typ    FileMode
+	info   FileInfo
+}
+
+func (d *unixDirent) Name() string   { return d.name }
+func (d *unixDirent) IsDir() bool    { return d.typ.IsDir() }
+func (d *unixDirent) Type() FileMode { return d.typ }
+
+func (d *unixDirent) Info() (FileInfo, error) {
+	if d.info != nil {
+		return d.info, nil
+	}
+	return lstat(d.parent + "/" + d.name)
+}
+
+func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
+	ude := &unixDirent{
+		parent: parent,
+		name:   name,
+		typ:    typ,
+	}
+	if typ != ^FileMode(0) && !testingForceReadDirLstat {
+		return ude, nil
+	}
+
+	info, err := lstat(parent + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+
+	ude.typ = info.Mode().Type()
+	ude.info = info
+	return ude, nil
 }

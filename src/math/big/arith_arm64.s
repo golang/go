@@ -23,11 +23,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 	RET
 
 
-// func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB),NOSPLIT,$0
-	B	·divWW_g(SB) // ARM64 has no multiword division
-
-
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0
 	MOVD	z_len+8(FP), R0
@@ -585,6 +580,4 @@ done:
 	MOVD	R4, c+56(FP)
 	RET
 
-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
-TEXT ·divWVW(SB),NOSPLIT,$0
-	B ·divWVW_g(SB)
+

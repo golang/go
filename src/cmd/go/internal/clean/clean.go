@@ -8,7 +8,7 @@ package clean
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -172,7 +172,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
 			if err == nil {
 				now := time.Now().UnixNano()
-				buf, _ := ioutil.ReadAll(f)
+				buf, _ := io.ReadAll(f)
 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
 				if now > prev {
 					if err = f.Truncate(0); err == nil {
@@ -243,7 +243,7 @@ func clean(p *load.Package) {
 		base.Errorf("%v", p.Error)
 		return
 	}
-	dirs, err := ioutil.ReadDir(p.Dir)
+	dirs, err := os.ReadDir(p.Dir)
 	if err != nil {
 		base.Errorf("go clean %s: %v", p.Dir, err)
 		return
@@ -275,6 +275,8 @@ func clean(p *load.Package) {
 		allRemove = append(allRemove,
 			elem,
 			elem+".exe",
+			p.DefaultExecName(),
+			p.DefaultExecName()+".exe",
 		)
 	}
 
@@ -282,16 +284,28 @@ func clean(p *load.Package) {
 	allRemove = append(allRemove,
 		elem+".test",
 		elem+".test.exe",
+		p.DefaultExecName()+".test",
+		p.DefaultExecName()+".test.exe",
 	)
 
-	// Remove a potential executable for each .go file in the directory that
+	// Remove a potential executable, test executable for each .go file in the directory that
 	// is not part of the directory's package.
 	for _, dir := range dirs {
 		name := dir.Name()
 		if packageFile[name] {
 			continue
 		}
-		if !dir.IsDir() && strings.HasSuffix(name, ".go") {
+
+		if dir.IsDir() {
+			continue
+		}
+
+		if strings.HasSuffix(name, "_test.go") {
+			base := name[:len(name)-len("_test.go")]
+			allRemove = append(allRemove, base+".test", base+".test.exe")
+		}
+
+		if strings.HasSuffix(name, ".go") {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.

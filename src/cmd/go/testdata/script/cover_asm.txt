@@ -8,7 +8,11 @@ go tool cover -func=$WORK/cover.out
 stdout '\tg\t*100.0%' # Check g is 100% covered.
 ! stdout '\tf\t*[0-9]' # Check for no coverage on the assembly function
 
--- coverasm/p.go --
+-- go.mod --
+module coverasm
+
+go 1.16
+-- p.go --
 package p
 
 func f()
@@ -16,10 +20,10 @@ func f()
 func g() {
 	println("g")
 }
--- coverasm/p.s --
+-- p.s --
 // empty asm file,
 // so go test doesn't complain about declaration of f in p.go.
--- coverasm/p_test.go --
+-- p_test.go --
 package p
 
 import "testing"

@@ -7,7 +7,6 @@ package work
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 )
@@ -31,7 +31,7 @@ import (
 //
 //	actionID/[.../]contentID
 //
-// where the actionID and contentID are prepared by hashToString below.
+// where the actionID and contentID are prepared by buildid.HashToString below.
 // and are found by looking for the first or last slash.
 // Usually the buildID is simply actionID/contentID, but see below for an
 // exception.
@@ -106,31 +106,6 @@ func actionID(buildID string) string {
 // contentID returns the content ID half of a build ID.
 func contentID(buildID string) string {
 	return buildID[strings.LastIndex(buildID, buildIDSeparator)+1:]
-}
-
-// hashToString converts the hash h to a string to be recorded
-// in package archives and binaries as part of the build ID.
-// We use the first 96 bits of the hash and encode it in base64,
-// resulting in a 16-byte string. Because this is only used for
-// detecting the need to rebuild installed files (not for lookups
-// in the object file cache), 96 bits are sufficient to drive the
-// probability of a false "do not need to rebuild" decision to effectively zero.
-// We embed two different hashes in archives and four in binaries,
-// so cutting to 16 bytes is a significant savings when build IDs are displayed.
-// (16*4+3 = 67 bytes compared to 64*4+3 = 259 bytes for the
-// more straightforward option of printing the entire h in hex).
-func hashToString(h [cache.HashSize]byte) string {
-	const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-	const chunks = 5
-	var dst [chunks * 4]byte
-	for i := 0; i < chunks; i++ {
-		v := uint32(h[3*i])<<16 | uint32(h[3*i+1])<<8 | uint32(h[3*i+2])
-		dst[4*i+0] = b64[(v>>18)&0x3F]
-		dst[4*i+1] = b64[(v>>12)&0x3F]
-		dst[4*i+2] = b64[(v>>6)&0x3F]
-		dst[4*i+3] = b64[v&0x3F]
-	}
-	return string(dst[:])
 }
 
 // toolID returns the unique ID to use for the current copy of the
@@ -368,7 +343,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 		}
 	}
 
-	if err := ioutil.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
 		return "", err
 	}
 
@@ -400,11 +375,12 @@ func (b *Builder) buildID(file string) string {
 
 // fileHash returns the content hash of the named file.
 func (b *Builder) fileHash(file string) string {
+	file, _ = fsys.OverlayPath(file)
 	sum, err := cache.FileHash(file)
 	if err != nil {
 		return ""
 	}
-	return hashToString(sum)
+	return buildid.HashToString(sum)
 }
 
 // useCache tries to satisfy the action a, which has action ID actionHash,
@@ -425,9 +401,9 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
 	// the actionID half; if it also appeared in the input that would be like an
-	// engineered 96-bit partial SHA256 collision.
+	// engineered 120-bit partial SHA256 collision.
 	a.actionID = actionHash
-	actionID := hashToString(actionHash)
+	actionID := buildid.HashToString(actionHash)
 	if a.json != nil {
 		a.json.ActionID = actionID
 	}
@@ -480,7 +456,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 				// build IDs of completed actions.
 				oldBuildID := a.buildID
 				a.buildID = id[1] + buildIDSeparator + id[2]
-				linkID := hashToString(b.linkActionID(a.triggers[0]))
+				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
 				if id[0] == linkID {
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
@@ -654,7 +630,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	if err != nil {
 		return err
 	}
-	newID := a.buildID[:strings.LastIndex(a.buildID, buildIDSeparator)] + buildIDSeparator + hashToString(hash)
+	newID := a.buildID[:strings.LastIndex(a.buildID, buildIDSeparator)] + buildIDSeparator + buildid.HashToString(hash)
 	if len(newID) != len(a.buildID) {
 		return fmt.Errorf("internal error: build ID length mismatch %q vs %q", a.buildID, newID)
 	}
@@ -670,7 +646,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	}
 
 	if rewrite {
-		w, err := os.OpenFile(target, os.O_WRONLY, 0)
+		w, err := os.OpenFile(target, os.O_RDWR, 0)
 		if err != nil {
 			return err
 		}
@@ -713,6 +689,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 					return err
 				}
 				a.Package.Export = c.OutputFile(outputID)
+				a.Package.BuildID = a.buildID
 			}
 		}
 	}

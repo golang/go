@@ -13,7 +13,6 @@ import (
 	"internal/goroot"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -50,7 +49,7 @@ func findStandardImportPath(path string) string {
 // PackageModuleInfo returns information about the module that provides
 // a given package. If modules are not enabled or if the package is in the
 // standard library or if the package was not successfully loaded with
-// ImportPaths or a similar loading function, nil is returned.
+// LoadPackages or ImportFromFiles, nil is returned.
 func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
 	if isStandardImportPath(pkgpath) || !Enabled() {
 		return nil
@@ -76,7 +75,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return moduleInfo(ctx, m, fromBuildList, listRetracted)
 	}
 
-	for _, m := range BuildList() {
+	for _, m := range buildList {
 		if m.Path == path {
 			fromBuildList := true
 			return moduleInfo(ctx, m, fromBuildList, listRetracted)
@@ -124,13 +123,13 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *retractedError
+	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var rerr *ModuleRetractedError
 	if errors.As(err, &rerr) {
-		if len(rerr.rationale) == 0 {
+		if len(rerr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.rationale
+			m.Retracted = rerr.Rationale
 		}
 	} else if err != nil && m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
@@ -250,8 +249,7 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 
 // PackageBuildInfo returns a string containing module version information
 // for modules providing packages named by path and deps. path and deps must
-// name packages that were resolved successfully with ImportPaths or one of
-// the Load functions.
+// name packages that were resolved successfully with LoadPackages.
 func PackageBuildInfo(path string, deps []string) string {
 	if isStandardImportPath(path) || !Enabled() {
 		return ""
@@ -313,17 +311,13 @@ func mustFindModule(target, path string) module.Version {
 		return Target
 	}
 
-	if printStackInDie {
-		debug.PrintStack()
-	}
 	base.Fatalf("build %v: cannot find module for path %v", target, path)
 	panic("unreachable")
 }
 
 // findModule searches for the module that contains the package at path.
-// If the package was loaded with ImportPaths or one of the other loading
-// functions, its containing module and true are returned. Otherwise,
-// module.Version{} and false are returend.
+// If the package was loaded, its containing module and true are returned.
+// Otherwise, module.Version{} and false are returend.
 func findModule(path string) (module.Version, bool) {
 	if pkg, ok := loaded.pkgCache.Get(path).(*loadPkg); ok {
 		return pkg.mod, pkg.mod != module.Version{}
@@ -355,13 +349,13 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 import _ "unsafe"
 //go:linkname __debug_modinfo__ runtime.modinfo
 var __debug_modinfo__ = %q
-	`, string(infoStart)+info+string(infoEnd)))
+`, string(infoStart)+info+string(infoEnd)))
 	} else {
 		return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-	`, string(infoStart)+info+string(infoEnd)))
+`, string(infoStart)+info+string(infoEnd)))
 	}
 }

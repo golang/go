@@ -1,4 +1,5 @@
 # Build
+env GO111MODULE=off
 go build vend/x
 ! stdout .
 ! stderr .

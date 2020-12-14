@@ -25,7 +25,6 @@ var (
 	GOARCH   = envOr("GOARCH", defaultGOARCH)
 	GOOS     = envOr("GOOS", defaultGOOS)
 	GO386    = envOr("GO386", defaultGO386)
-	GOAMD64  = goamd64()
 	GOARM    = goarm()
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
@@ -37,17 +36,16 @@ var (
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
-	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
+	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
 )
 
-// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
-func goamd64() string {
-	return Go115AMD64
-}
-
 func goarm() int {
-	switch v := envOr("GOARM", defaultGOARM); v {
+	def := defaultGOARM
+	if GOOS == "android" && GOARCH == "arm" {
+		// Android arm devices always support GOARM=7.
+		def = "7"
+	}
+	switch v := envOr("GOARM", def); v {
 	case "5":
 		return 5
 	case "6":
@@ -139,7 +137,7 @@ func init() {
 }
 
 // Note: must agree with runtime.framepointer_enabled.
-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
+var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
 
 func addexp(s string) {
 	// Could do general integer parsing here, but the runtime copy doesn't yet.

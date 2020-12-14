@@ -20,9 +20,9 @@ type P struct {
 type T struct{}
 
 var _ = S{
-	f: &T{}, // ERROR "cannot use &T literal"
+	f: &T{}, // ERROR "cannot use &T{}"
 }
 
 var _ = P{
-	f: T{}, // ERROR "cannot use T literal"
+	f: T{}, // ERROR "cannot use T{}"
 }

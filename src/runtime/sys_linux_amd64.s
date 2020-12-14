@@ -40,6 +40,7 @@
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
 #define SYS_epoll_create	213
+#define SYS_clock_gettime	228
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
 #define SYS_tgkill		234
@@ -241,15 +242,15 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
+	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	0(SP), SI
 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
-	MOVL	$0, DI // CLOCK_REALTIME
-	LEAQ	0(SP), SI
 	CALL	AX
+ret:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
-ret:
 	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
@@ -264,13 +265,8 @@ ret:
 	MOVL	DX, nsec+8(FP)
 	RET
 fallback:
-	LEAQ	0(SP), DI
-	MOVQ	$0, SI
-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
-	CALL	AX
-	MOVQ	0(SP), AX	// sec
-	MOVL	8(SP), DX	// usec
-	IMULQ	$1000, DX
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
 	JMP ret
 
 // func nanotime1() int64
@@ -306,15 +302,15 @@ noswitch:
 	SUBQ	$16, SP		// Space for results
 	ANDQ	$~15, SP	// Align for C code
 
+	MOVL	$1, DI // CLOCK_MONOTONIC
+	LEAQ	0(SP), SI
 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
-	MOVL	$1, DI // CLOCK_MONOTONIC
-	LEAQ	0(SP), SI
 	CALL	AX
+ret:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
-ret:
 	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
@@ -332,13 +328,8 @@ ret:
 	MOVQ	AX, ret+0(FP)
 	RET
 fallback:
-	LEAQ	0(SP), DI
-	MOVQ	$0, SI
-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
-	CALL	AX
-	MOVQ	0(SP), AX	// sec
-	MOVL	8(SP), DX	// usec
-	IMULQ	$1000, DX
+	MOVQ	$SYS_clock_gettime, AX
+	SYSCALL
 	JMP	ret
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
@@ -389,7 +380,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+// Defined as ABIInternal since it does not use the stack-based Go ABI.
+TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$72
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVQ	BX,  bx-8(SP)
 	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
@@ -416,7 +408,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$72
 
 // Used instead of sigtramp in programs that use cgo.
 // Arguments from kernel are in DI, SI, DX.
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+// Defined as ABIInternal since it does not use the stack-based Go ABI.
+TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
 	// If no traceback function, do usual sigtramp.
 	MOVQ	runtime·cgoTraceback(SB), AX
 	TESTQ	AX, AX
@@ -459,12 +452,12 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	// The first three arguments, and the fifth, are already in registers.
 	// Set the two remaining arguments now.
 	MOVQ	runtime·cgoTraceback(SB), CX
-	MOVQ	$runtime·sigtramp(SB), R9
+	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
 sigtramp:
-	JMP	runtime·sigtramp(SB)
+	JMP	runtime·sigtramp<ABIInternal>(SB)
 
 sigtrampnog:
 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
@@ -495,7 +488,8 @@ sigtrampnog:
 // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
 // The code that cares about the precise instructions used is:
 // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
-TEXT runtime·sigreturn(SB),NOSPLIT,$0
+// Defined as ABIInternal since it does not use the stack-based Go ABI.
+TEXT runtime·sigreturn<ABIInternal>(SB),NOSPLIT,$0
 	MOVQ	$SYS_rt_sigreturn, AX
 	SYSCALL
 	INT $3	// not reached

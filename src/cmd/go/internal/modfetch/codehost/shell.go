@@ -14,7 +14,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -115,7 +115,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)
 				continue
 			}
-			data, err := ioutil.ReadAll(rc)
+			data, err := io.ReadAll(rc)
 			rc.Close()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "?%s\n", err)
@@ -123,7 +123,7 @@ func main() {
 			}
 
 			if f[3] != "-" {
-				if err := ioutil.WriteFile(f[3], data, 0666); err != nil {
+				if err := os.WriteFile(f[3], data, 0666); err != nil {
 					fmt.Fprintf(os.Stderr, "?%s\n", err)
 					continue
 				}

@@ -9,7 +9,7 @@ import (
 	"compress/gzip"
 	"debug/elf"
 	"internal/testenv"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,7 +30,7 @@ func dotest(t *testing.T) {
 		t.Skipf("skipping on non-AMD64 system %s", runtime.GOARCH)
 	}
 	var err error
-	pclineTempDir, err = ioutil.TempDir("", "pclinetest")
+	pclineTempDir, err = os.MkdirTemp("", "pclinetest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func TestPCLine(t *testing.T) {
 // }
 // [END]
 func Test115PclnParsing(t *testing.T) {
-	zippedDat, err := ioutil.ReadFile("testdata/pcln115.gz")
+	zippedDat, err := os.ReadFile("testdata/pcln115.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func Test115PclnParsing(t *testing.T) {
 		t.Fatal(err)
 	}
 	var dat []byte
-	dat, err = ioutil.ReadAll(gzReader)
+	dat, err = io.ReadAll(gzReader)
 	if err != nil {
 		t.Fatal(err)
 	}

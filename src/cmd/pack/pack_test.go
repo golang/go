@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +21,7 @@ import (
 
 // tmpDir creates a temporary directory and returns its name.
 func tmpDir(t *testing.T) string {
-	name, err := ioutil.TempDir("", "pack")
+	name, err := os.MkdirTemp("", "pack")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestExtract(t *testing.T) {
 	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
 	ar.scan(ar.extractContents)
 	ar.a.File().Close()
-	data, err := ioutil.ReadFile(goodbyeFile.name)
+	data, err := os.ReadFile(goodbyeFile.name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestHello(t *testing.T) {
 			println("hello world")
 		}
 	`
-	err := ioutil.WriteFile(hello, []byte(prog), 0666)
+	err := os.WriteFile(hello, []byte(prog), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestLargeDefs(t *testing.T) {
 			println("ok")
 		}
 	`
-	err = ioutil.WriteFile(main, []byte(prog), 0666)
+	err = os.WriteFile(main, []byte(prog), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,13 +280,13 @@ func TestIssue21703(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	const aSrc = `package a; const X = "\n!\n"`
-	err := ioutil.WriteFile(filepath.Join(dir, "a.go"), []byte(aSrc), 0666)
+	err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(aSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	const bSrc = `package b; import _ "a"`
-	err = ioutil.WriteFile(filepath.Join(dir, "b.go"), []byte(bSrc), 0666)
+	err = os.WriteFile(filepath.Join(dir, "b.go"), []byte(bSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,11 +327,11 @@ var goodbyeFile = &FakeFile{
 	mode:     0644,
 }
 
-// FakeFile implements FileLike and also os.FileInfo.
+// FakeFile implements FileLike and also fs.FileInfo.
 type FakeFile struct {
 	name     string
 	contents string
-	mode     os.FileMode
+	mode     fs.FileMode
 	offset   int
 }
 
@@ -348,7 +348,7 @@ func (f *FakeFile) Name() string {
 	return f.name
 }
 
-func (f *FakeFile) Stat() (os.FileInfo, error) {
+func (f *FakeFile) Stat() (fs.FileInfo, error) {
 	return f, nil
 }
 
@@ -365,13 +365,13 @@ func (f *FakeFile) Close() error {
 	return nil
 }
 
-// os.FileInfo methods.
+// fs.FileInfo methods.
 
 func (f *FakeFile) Size() int64 {
 	return int64(len(f.contents))
 }
 
-func (f *FakeFile) Mode() os.FileMode {
+func (f *FakeFile) Mode() fs.FileMode {
 	return f.mode
 }
 

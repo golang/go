@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"internal/poll"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"net/internal/socktest"
 	"os"
 	"runtime"
@@ -97,7 +97,7 @@ second:
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
-	case *os.PathError: // for Plan 9
+	case *fs.PathError: // for Plan 9
 		nestedErr = err.Err
 		goto third
 	}
@@ -531,7 +531,7 @@ second:
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
-	case *os.PathError: // for Plan 9
+	case *fs.PathError: // for Plan 9
 		nestedErr = err.Err
 		goto third
 	}
@@ -546,7 +546,7 @@ third:
 		return nil
 	}
 	switch nestedErr {
-	case os.ErrClosed: // for Plan 9
+	case fs.ErrClosed: // for Plan 9
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
@@ -627,7 +627,7 @@ second:
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
-	case *os.PathError: // for Plan 9
+	case *fs.PathError: // for Plan 9
 		nestedErr = err.Err
 		goto third
 	}
@@ -706,7 +706,7 @@ second:
 	case *os.LinkError:
 		nestedErr = err.Err
 		goto third
-	case *os.PathError:
+	case *fs.PathError:
 		nestedErr = err.Err
 		goto third
 	}
@@ -729,7 +729,7 @@ func TestFileError(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	f, err := ioutil.TempFile("", "go-nettest")
+	f, err := os.CreateTemp("", "go-nettest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -799,7 +799,7 @@ func parseLookupPortError(nestedErr error) error {
 	switch nestedErr.(type) {
 	case *AddrError, *DNSError:
 		return nil
-	case *os.PathError: // for Plan 9
+	case *fs.PathError: // for Plan 9
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)

@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -29,7 +29,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
@@ -150,6 +149,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	-i
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
+	    The -i flag is deprecated. Compiled packages are cached automatically.
 
 	-json
 	    Convert test output to JSON suitable for automated processing.
@@ -569,7 +569,7 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
-	modload.LoadTests = true
+	load.ModResolveTests = true
 
 	pkgArgs, testArgs = testFlags(args)
 
@@ -641,6 +641,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	b.Init()
 
 	if cfg.BuildI {
+		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
 		cfg.BuildV = testV
 
 		deps := make(map[string]bool)
@@ -883,7 +884,7 @@ func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAc
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
-		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+		if err := os.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
 	}
@@ -1568,13 +1569,18 @@ func hashOpen(name string) (cache.ActionID, error) {
 	}
 	hashWriteStat(h, info)
 	if info.IsDir() {
-		names, err := ioutil.ReadDir(name)
+		files, err := os.ReadDir(name)
 		if err != nil {
 			fmt.Fprintf(h, "err %v\n", err)
 		}
-		for _, f := range names {
+		for _, f := range files {
 			fmt.Fprintf(h, "file %s ", f.Name())
-			hashWriteStat(h, f)
+			finfo, err := f.Info()
+			if err != nil {
+				fmt.Fprintf(h, "err %v\n", err)
+			} else {
+				hashWriteStat(h, finfo)
+			}
 		}
 	} else if info.Mode().IsRegular() {
 		// Because files might be very large, do not attempt
@@ -1608,7 +1614,7 @@ func hashStat(name string) cache.ActionID {
 	return h.Sum()
 }
 
-func hashWriteStat(h io.Writer, info os.FileInfo) {
+func hashWriteStat(h io.Writer, info fs.FileInfo) {
 	fmt.Fprintf(h, "stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
 }
 
@@ -1623,7 +1629,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 	}
 
 	// See comment about two-level lookup in tryCacheWithID above.
-	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
+	testlog, err := os.ReadFile(a.Objdir + "testlog.txt")
 	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {

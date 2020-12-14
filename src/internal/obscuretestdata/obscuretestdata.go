@@ -10,7 +10,6 @@ package obscuretestdata
 import (
 	"encoding/base64"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -24,7 +23,7 @@ func DecodeToTempFile(name string) (path string, err error) {
 	}
 	defer f.Close()
 
-	tmp, err := ioutil.TempFile("", "obscuretestdata-decoded-")
+	tmp, err := os.CreateTemp("", "obscuretestdata-decoded-")
 	if err != nil {
 		return "", err
 	}
@@ -47,5 +46,5 @@ func ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
+	return io.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
 }

@@ -5,12 +5,11 @@
 package types_test
 
 import (
-	"flag"
-	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -18,11 +17,9 @@ import (
 	. "go/types"
 )
 
-var benchmark = flag.Bool("b", false, "run benchmarks")
-
 func TestSelf(t *testing.T) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, ".")
+	files, err := pkgFiles(fset, ".", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,46 +36,39 @@ func TestSelf(t *testing.T) {
 	}
 }
 
-func TestBenchmark(t *testing.T) {
-	if !*benchmark {
-		return
-	}
-
-	// We're not using testing's benchmarking mechanism directly
-	// because we want custom output.
-
+func BenchmarkCheck(b *testing.B) {
 	for _, p := range []string{
 		"net/http",
 		"go/parser",
 		"go/constant",
 		filepath.Join("go", "internal", "gcimporter"),
 	} {
-		path := filepath.Join("..", "..", p)
-		runbench(t, path, false)
-		runbench(t, path, true)
-		fmt.Println()
+		b.Run(path.Base(p), func(b *testing.B) {
+			path := filepath.Join("..", "..", p)
+			for _, ignoreFuncBodies := range []bool{false, true} {
+				name := "funcbodies"
+				if ignoreFuncBodies {
+					name = "nofuncbodies"
+				}
+				b.Run(name, func(b *testing.B) {
+					b.Run("info", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, true)
+					})
+					b.Run("noinfo", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, false)
+					})
+				})
+			}
+		})
 	}
 }
 
-func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
+func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path)
+	files, err := pkgFiles(fset, path, 0)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
-
-	b := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			conf := Config{
-				IgnoreFuncBodies: ignoreFuncBodies,
-				Importer:         importer.Default(),
-			}
-			if _, err := conf.Check(path, fset, files, nil); err != nil {
-				t.Fatal(err)
-			}
-		}
-	})
-
 	// determine line count
 	lines := 0
 	fset.Iterate(func(f *token.File) bool {
@@ -86,13 +76,33 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 		return true
 	})
 
-	d := time.Duration(b.NsPerOp())
-	fmt.Printf("%s (ignoreFuncBodies = %v):\n", filepath.Base(path), ignoreFuncBodies)
-	fmt.Printf("\t%s for %d lines (%.0f lines/s)\n", d, lines, float64(lines)/d.Seconds())
-	fmt.Printf("\t%s\n", b.MemString())
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		conf := Config{
+			IgnoreFuncBodies: ignoreFuncBodies,
+			Importer:         importer.Default(),
+		}
+		var info *Info
+		if writeInfo {
+			info = &Info{
+				Types:      make(map[ast.Expr]TypeAndValue),
+				Defs:       make(map[*ast.Ident]Object),
+				Uses:       make(map[*ast.Ident]Object),
+				Implicits:  make(map[ast.Node]Object),
+				Selections: make(map[*ast.SelectorExpr]*Selection),
+				Scopes:     make(map[ast.Node]*Scope),
+			}
+		}
+		if _, err := conf.Check(path, fset, files, info); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	b.ReportMetric(float64(lines)*float64(b.N)/time.Since(start).Seconds(), "lines/s")
 }
 
-func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
+func pkgFiles(fset *token.FileSet, path string, mode parser.Mode) ([]*ast.File, error) {
 	filenames, err := pkgFilenames(path) // from stdlib_test.go
 	if err != nil {
 		return nil, err
@@ -100,7 +110,7 @@ func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
 
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := parser.ParseFile(fset, filename, nil, mode)
 		if err != nil {
 			return nil, err
 		}

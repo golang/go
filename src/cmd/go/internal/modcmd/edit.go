@@ -19,7 +19,6 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -70,7 +69,7 @@ a version on the left side is dropped.
 
 The -retract=version and -dropretract=version flags add and drop a
 retraction on the given version. The version may be a single version
-like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 -retract=version is a no-op if that retraction already exists.
 
 The -require, -droprequire, -exclude, -dropexclude, -replace,
@@ -154,7 +153,7 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 
-	work.AddModCommonFlags(cmdEdit)
+	base.AddModCommonFlags(&cmdEdit.Flag)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 

@@ -78,10 +78,23 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	If the line ends with "(forced)", this GC was forced by a
 	runtime.GC() call.
 
-	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
-	instead of MADV_FREE on Linux when returning memory to the
-	kernel. This is less efficient, but causes RSS numbers to drop
-	more quickly.
+	inittrace: setting inittrace=1 causes the runtime to emit a single line to standard
+	error for each package with init work, summarizing the execution time and memory
+	allocation. No information is printed for inits executed as part of plugin loading
+	and for packages without both user defined and compiler generated init work.
+	The format of this line is subject to change. Currently, it is:
+		init # @#ms, # ms clock, # bytes, # allocs
+	where the fields are as follows:
+		init #      the package name
+		@# ms       time in milliseconds when the init started since program start
+		# clock     wall-clock time for package initialization work
+		# bytes     memory allocated on the heap
+		# allocs    number of heap allocations
+
+	madvdontneed: setting madvdontneed=0 will use MADV_FREE
+	instead of MADV_DONTNEED on Linux when returning memory to the
+	kernel. This is more efficient, but means RSS numbers will
+	drop only when the OS is under memory pressure.
 
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of

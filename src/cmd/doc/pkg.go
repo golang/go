@@ -16,8 +16,8 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/fs"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -129,11 +129,10 @@ func (pkg *Package) Fatalf(format string, args ...interface{}) {
 // parsePackage turns the build package we found into a parsed package
 // we can then use to generate documentation.
 func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Package {
-	fs := token.NewFileSet()
 	// include tells parser.ParseDir which files to include.
 	// That means the file must be in the build package's GoFiles or CgoFiles
 	// list only (no tag-ignored files, tests, swig or other non-Go files).
-	include := func(info os.FileInfo) bool {
+	include := func(info fs.FileInfo) bool {
 		for _, name := range pkg.GoFiles {
 			if name == info.Name() {
 				return true
@@ -146,7 +145,8 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 		}
 		return false
 	}
-	pkgs, err := parser.ParseDir(fs, pkg.Dir, include, parser.ParseComments)
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, pkg.Dir, include, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 		typedValue:  typedValue,
 		constructor: constructor,
 		build:       pkg,
-		fs:          fs,
+		fs:          fset,
 	}
 	p.buf.pkg = p
 	return p

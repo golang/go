@@ -193,11 +193,11 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp:
+	case auxSym, auxCall, auxTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
-	case auxSymOff, auxTypSize:
+	case auxSymOff, auxCallOff, auxTypSize:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
@@ -348,6 +348,9 @@ func (v *Value) reset(op Op) {
 // It modifies v to be (Copy a).
 //go:noinline
 func (v *Value) copyOf(a *Value) {
+	if v == a {
+		return
+	}
 	if v.InCache {
 		v.Block.Func.unCache(v)
 	}

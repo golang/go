@@ -22,11 +22,13 @@ type ScanToken rune
 const (
 	// Asm defines some two-character lexemes. We make up
 	// a rune/ScanToken value for them - ugly but simple.
-	LSH       ScanToken = -1000 - iota // << Left shift.
-	RSH                                // >> Logical right shift.
-	ARR                                // -> Used on ARM for shift type 3, arithmetic right shift.
-	ROT                                // @> Used on ARM for shift type 4, rotate right.
-	macroName                          // name of macro that should not be expanded
+	LSH          ScanToken = -1000 - iota // << Left shift.
+	RSH                                   // >> Logical right shift.
+	ARR                                   // -> Used on ARM for shift type 3, arithmetic right shift.
+	ROT                                   // @> Used on ARM for shift type 4, rotate right.
+	Include                               // included file started here
+	BuildComment                          // //go:build or +build comment
+	macroName                             // name of macro that should not be expanded
 )
 
 // IsRegisterShift reports whether the token is one of the ARM register shift operators.

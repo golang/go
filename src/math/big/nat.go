@@ -751,6 +751,7 @@ func (q nat) divBasic(u, v nat) {
 
 	// D2.
 	vn1 := v[n-1]
+	rec := reciprocalWord(vn1)
 	for j := m; j >= 0; j-- {
 		// D3.
 		qhat := Word(_M)
@@ -760,7 +761,7 @@ func (q nat) divBasic(u, v nat) {
 		}
 		if ujn != vn1 {
 			var rhat Word
-			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
+			qhat, rhat = divWW(ujn, u[j+n-1], vn1, rec)
 
 			// x1 | x2 = q̂v_{n-2}
 			vn2 := v[n-2]
@@ -928,7 +929,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 
 	// Now u < (v<<B), compute lower bits in the same way.
 	// Choose shift = B-1 again.
-	s := B
+	s := B - 1
 	qhat := *temps[depth]
 	qhat.clear()
 	qhat.divRecursiveStep(u[s:].norm(), v[s:], depth+1, tmp, temps)

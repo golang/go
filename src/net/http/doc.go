@@ -21,7 +21,7 @@ The client must close the response body when finished with it:
 		// handle error
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	// ...
 
 For control over HTTP client headers, redirect policy, and other

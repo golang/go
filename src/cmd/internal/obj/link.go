@@ -282,28 +282,41 @@ func (a *Addr) SetTarget(t *Prog) {
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt     *Link    // linker context
-	Link     *Prog    // next Prog in linked list
-	From     Addr     // first source operand
-	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
-	To       Addr     // destination operand (second is RegTo2 below)
-	Pool     *Prog    // constant pool entry, for arm,arm64 back ends
-	Forwd    *Prog    // for x86 back end
-	Rel      *Prog    // for x86, arm back ends
-	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos      src.XPos // source position of this instruction
-	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
-	As       As       // assembler opcode
-	Reg      int16    // 2nd source operand
-	RegTo2   int16    // 2nd destination operand
-	Mark     uint16   // bitmask of arch-specific items
-	Optab    uint16   // arch-specific opcode index
-	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
-	Back     uint8    // for x86 back end: backwards branch state
-	Ft       uint8    // for x86 back end: type index of Prog.From
-	Tt       uint8    // for x86 back end: type index of Prog.To
-	Isize    uint8    // for x86 back end: size of the instruction in bytes
+	Ctxt     *Link     // linker context
+	Link     *Prog     // next Prog in linked list
+	From     Addr      // first source operand
+	RestArgs []AddrPos // can pack any operands that not fit into {Prog.From, Prog.To}
+	To       Addr      // destination operand (second is RegTo2 below)
+	Pool     *Prog     // constant pool entry, for arm,arm64 back ends
+	Forwd    *Prog     // for x86 back end
+	Rel      *Prog     // for x86, arm back ends
+	Pc       int64     // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos      src.XPos  // source position of this instruction
+	Spadj    int32     // effect of instruction on stack pointer (increment or decrement amount)
+	As       As        // assembler opcode
+	Reg      int16     // 2nd source operand
+	RegTo2   int16     // 2nd destination operand
+	Mark     uint16    // bitmask of arch-specific items
+	Optab    uint16    // arch-specific opcode index
+	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions)
+	Back     uint8     // for x86 back end: backwards branch state
+	Ft       uint8     // for x86 back end: type index of Prog.From
+	Tt       uint8     // for x86 back end: type index of Prog.To
+	Isize    uint8     // for x86 back end: size of the instruction in bytes
 }
+
+// Pos indicates whether the oprand is the source or the destination.
+type AddrPos struct {
+	Addr
+	Pos OperandPos
+}
+
+type OperandPos int8
+
+const (
+	Source OperandPos = iota
+	Destination
+)
 
 // From3Type returns p.GetFrom3().Type, or TYPE_NONE when
 // p.GetFrom3() returns nil.
@@ -329,15 +342,36 @@ func (p *Prog) GetFrom3() *Addr {
 	if p.RestArgs == nil {
 		return nil
 	}
-	return &p.RestArgs[0]
+	return &p.RestArgs[0].Addr
 }
 
-// SetFrom3 assigns []Addr{a} to p.RestArgs.
+// SetFrom3 assigns []Args{{a, 0}} to p.RestArgs.
 // In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
 //
 // Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) SetFrom3(a Addr) {
-	p.RestArgs = []Addr{a}
+	p.RestArgs = []AddrPos{{a, Source}}
+}
+
+// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// operand does not fit into prog.RegTo2.
+func (p *Prog) SetTo2(a Addr) {
+	p.RestArgs = []AddrPos{{a, Destination}}
+}
+
+// GetTo2 returns the second destination operand.
+func (p *Prog) GetTo2() *Addr {
+	if p.RestArgs == nil {
+		return nil
+	}
+	return &p.RestArgs[0].Addr
+}
+
+// SetRestArgs assigns more than one source operands to p.RestArgs.
+func (p *Prog) SetRestArgs(args []Addr) {
+	for i := range args {
+		p.RestArgs = append(p.RestArgs, AddrPos{args[i], Source})
+	}
 }
 
 // An As denotes an assembler opcode.
@@ -395,17 +429,16 @@ type LSym struct {
 	Type objabi.SymKind
 	Attribute
 
-	RefIdx int // Index of this symbol in the symbol reference list.
 	Size   int64
 	Gotype *LSym
 	P      []byte
 	R      []Reloc
 
-	Func *FuncInfo
+	Extra *interface{} // *FuncInfo or *FileInfo, if present
 
 	Pkg    string
 	PkgIdx int32
-	SymIdx int32 // TODO: replace RefIdx
+	SymIdx int32
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
@@ -427,11 +460,57 @@ type FuncInfo struct {
 
 	GCArgs             *LSym
 	GCLocals           *LSym
-	GCRegs             *LSym // Only if !go115ReduceLiveness
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
 
 	FuncInfoSym *LSym
+}
+
+// NewFuncInfo allocates and returns a FuncInfo for LSym.
+func (s *LSym) NewFuncInfo() *FuncInfo {
+	if s.Extra != nil {
+		panic(fmt.Sprintf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra))
+	}
+	f := new(FuncInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// Func returns the *FuncInfo associated with s, or else nil.
+func (s *LSym) Func() *FuncInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FuncInfo)
+	return f
+}
+
+// A FileInfo contains extra fields for SDATA symbols backed by files.
+// (If LSym.Extra is a *FileInfo, LSym.P == nil.)
+type FileInfo struct {
+	Name string // name of file to read into object file
+	Size int64  // length of file
+}
+
+// NewFileInfo allocates and returns a FileInfo for LSym.
+func (s *LSym) NewFileInfo() *FileInfo {
+	if s.Extra != nil {
+		panic(fmt.Sprintf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra))
+	}
+	f := new(FileInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// File returns the *FileInfo associated with s, or else nil.
+func (s *LSym) File() *FileInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FileInfo)
+	return f
 }
 
 type InlMark struct {
@@ -481,6 +560,20 @@ const (
 
 	ABICount
 )
+
+// ParseABI converts from a string representation in 'abistr' to the
+// corresponding ABI value. Second return value is TRUE if the
+// abi string is recognized, FALSE otherwise.
+func ParseABI(abistr string) (ABI, bool) {
+	switch abistr {
+	default:
+		return ABI0, false
+	case "ABI0":
+		return ABI0, true
+	case "ABIInternal":
+		return ABIInternal, true
+	}
+}
 
 // Attribute is a set of symbol attributes.
 type Attribute uint32
@@ -634,11 +727,12 @@ func (s *LSym) CanBeAnSSASym() {
 }
 
 type Pcln struct {
-	Pcsp        Pcdata
-	Pcfile      Pcdata
-	Pcline      Pcdata
-	Pcinline    Pcdata
-	Pcdata      []Pcdata
+	// Aux symbols for pcln
+	Pcsp        *LSym
+	Pcfile      *LSym
+	Pcline      *LSym
+	Pcinline    *LSym
+	Pcdata      []*LSym
 	Funcdata    []*LSym
 	Funcdataoff []int64
 	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
@@ -658,10 +752,6 @@ type Auto struct {
 	Aoffset int32
 	Name    AddrName
 	Gotype  *LSym
-}
-
-type Pcdata struct {
-	P []byte
 }
 
 // Link holds the context for writing object code from a compiler

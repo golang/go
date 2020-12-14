@@ -2,4 +2,4 @@
 # ignored anyway due to GO111MODULE=off.
 env GO111MODULE=off
 ! go mod init
-stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''

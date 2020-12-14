@@ -10,7 +10,7 @@
 // it will use this embedded information.
 //
 // Importing this package will increase the size of a program by about
-// 800 KB.
+// 450 KB.
 //
 // This package should normally be imported by a program's main package,
 // not by a library. Libraries normally shouldn't decide whether to

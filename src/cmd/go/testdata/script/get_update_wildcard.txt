@@ -2,6 +2,7 @@
 
 [!net] skip
 [!exec:git] skip
+env GO111MODULE=off
 
 go get github.com/tmwh/go-get-issue-14450/a
 ! go get -u .../

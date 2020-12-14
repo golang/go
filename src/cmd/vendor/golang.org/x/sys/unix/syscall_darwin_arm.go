@@ -4,9 +4,7 @@
 
 package unix
 
-import (
-	"syscall"
-)
+import "syscall"
 
 func ptrace(request int, pid int, addr uintptr, data uintptr) error {
 	return ENOTSUP
@@ -18,17 +16,6 @@ func setTimespec(sec, nsec int64) Timespec {
 
 func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
-}
-
-//sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, err error)
-func Gettimeofday(tv *Timeval) (err error) {
-	// The tv passed to gettimeofday must be non-nil
-	// but is otherwise unused. The answers come back
-	// in the two registers.
-	sec, usec, err := gettimeofday(tv)
-	tv.Sec = int32(sec)
-	tv.Usec = int32(usec)
-	return err
 }
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
@@ -54,10 +41,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 }
 
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno) // sic
-
-// SYS___SYSCTL is used by syscall_bsd.go for all BSDs, but in modern versions
-// of darwin/arm the syscall is called sysctl instead of __sysctl.
-const SYS___SYSCTL = SYS_SYSCTL
 
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)

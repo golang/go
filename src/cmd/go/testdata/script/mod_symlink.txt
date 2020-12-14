@@ -1,16 +1,19 @@
 env GO111MODULE=on
 [!symlink] skip
 
-# 'go list' should resolve modules of imported packages.
+# 'go get -d' should resolve modules of imported packages.
+go get -d
 go list -deps -f '{{.Module}}' .
 stdout golang.org/x/text
 
+go get -d ./subpkg
 go list -deps -f '{{.Module}}' ./subpkg
 stdout golang.org/x/text
 
 # Create a copy of the module using symlinks in src/links.
 mkdir links
 symlink links/go.mod -> $GOPATH/src/go.mod
+symlink links/go.sum -> $GOPATH/src/go.sum
 symlink links/issue.go -> $GOPATH/src/issue.go
 mkdir links/subpkg
 symlink links/subpkg/issue.go -> $GOPATH/src/subpkg/issue.go

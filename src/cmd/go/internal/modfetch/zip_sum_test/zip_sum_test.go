@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,7 +80,7 @@ func TestZipSums(t *testing.T) {
 	if *modCacheDir != "" {
 		cfg.BuildContext.GOPATH = *modCacheDir
 	} else {
-		tmpDir, err := ioutil.TempDir("", "TestZipSums")
+		tmpDir, err := os.MkdirTemp("", "TestZipSums")
 		if err != nil {
 			t.Fatal(err)
 		}

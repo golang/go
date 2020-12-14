@@ -80,6 +80,7 @@ var okgoos = []string{
 	"darwin",
 	"dragonfly",
 	"illumos",
+	"ios",
 	"js",
 	"linux",
 	"android",
@@ -143,11 +144,7 @@ func xinit() {
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		if cansse2() {
-			b = "sse2"
-		} else {
-			b = "387"
-		}
+		b = "sse2"
 	}
 	go386 = b
 
@@ -835,6 +832,21 @@ func runInstall(pkg string, ch chan struct{}) {
 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
+	if IsRuntimePackagePath(pkg) {
+		asmArgs = append(asmArgs, "-compiling-runtime")
+		if os.Getenv("GOEXPERIMENT") == "regabi" {
+			// In order to make it easier to port runtime assembly
+			// to the register ABI, we introduce a macro
+			// indicating the experiment is enabled.
+			//
+			// Note: a similar change also appears in
+			// cmd/go/internal/work/gc.go.
+			//
+			// TODO(austin): Remove this once we commit to the
+			// register ABI (#40724).
+			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
+		}
+	}
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -970,7 +982,10 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+		(goos == "android" && tag == "linux") ||
+		(goos == "illumos" && tag == "solaris") ||
+		(goos == "ios" && tag == "darwin")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -984,7 +999,7 @@ func shouldbuild(file, pkg string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") || (ok == "ios" && x == "darwin") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -1462,9 +1477,9 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case goos == "darwin" && goarch == "arm64":
-		if gohostos != "darwin" || gohostarch != "arm64" {
-			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+	case goos == "ios":
+		if gohostos != "ios" {
+			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
 		}
 	}
 	return ""
@@ -1534,13 +1549,15 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
-	"linux/riscv64":   false, // Issue 36641
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"linux/sparc64":   true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"ios/arm64":       true,
+	"ios/amd64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
@@ -1550,6 +1567,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
+	"openbsd/mips64":  false,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1731,4 +1749,24 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
+}
+
+// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+// belongs to the collection of "runtime-related" packages, including
+// "runtime" itself, "reflect", "syscall", and the
+// "runtime/internal/*" packages. See also the function of the same
+// name in cmd/internal/objabi/path.go.
+func IsRuntimePackagePath(pkgpath string) bool {
+	rval := false
+	switch pkgpath {
+	case "runtime":
+		rval = true
+	case "reflect":
+		rval = true
+	case "syscall":
+		rval = true
+	default:
+		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+	}
+	return rval
 }

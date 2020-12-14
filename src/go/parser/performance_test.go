@@ -6,14 +6,14 @@ package parser
 
 import (
 	"go/token"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
 var src = readFile("parser.go")
 
 func readFile(filename string) []byte {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}

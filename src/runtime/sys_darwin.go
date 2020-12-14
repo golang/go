@@ -228,6 +228,13 @@ func madvise_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+func mlock(addr unsafe.Pointer, n uintptr) {
+	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
+}
+func mlock_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
 func read(fd int32, p unsafe.Pointer, n int32) int32 {
 	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
 }
@@ -303,9 +310,9 @@ func nanotime_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func walltime1() (int64, int32) {
-	var t timeval
+	var t timespec
 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
-	return int64(t.tv_sec), 1000 * t.tv_usec
+	return t.tv_sec, int32(t.tv_nsec)
 }
 func walltime_trampoline()
 
@@ -353,10 +360,17 @@ func setitimer_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+func sysctl(mib *uint32, miblen uint32, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
 	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
 }
 func sysctl_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func sysctlbyname(name *byte, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+}
+func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -465,12 +479,13 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mlock mlock "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
@@ -478,6 +493,7 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_sysctlbyname sysctlbyname "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"

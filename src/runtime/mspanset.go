@@ -102,7 +102,7 @@ retry:
 			if newCap == 0 {
 				newCap = spanSetInitSpineCap
 			}
-			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gc_sys)
+			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
 			if b.spineCap != 0 {
 				// Blocks are allocated off-heap, so
 				// no write barriers.
@@ -283,7 +283,7 @@ func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
 	if s := (*spanSetBlock)(p.stack.pop()); s != nil {
 		return s
 	}
-	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gc_sys))
+	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gcMiscSys))
 }
 
 // free returns a spanSetBlock back to the pool.

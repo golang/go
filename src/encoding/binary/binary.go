@@ -306,7 +306,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		case uint8:
 			bs[0] = v
 		case []uint8:
-			bs = v // TODO(josharian): avoid allocating bs in this case?
+			bs = v
 		case *int16:
 			order.PutUint16(bs, uint16(*v))
 		case int16:

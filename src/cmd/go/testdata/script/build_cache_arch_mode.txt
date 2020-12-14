@@ -1,18 +1,8 @@
-# Issue 9737: verify that GOARM and GO386 affect the computed build ID
+# Issue 9737: verify that GOARM affects the computed build ID
 
 [short] skip
 
-# 386
-cd $GOPATH/src/mycmd
-env GOOS=linux
-env GOARCH=386
-env GO386=387
-go install mycmd
-env GO386=sse2
-stale mycmd
-
 # arm
-cd $GOPATH/src/mycmd
 env GOOS=linux
 env GOARCH=arm
 env GOARM=5
@@ -21,7 +11,11 @@ env GOARM=7
 stale mycmd
 
 
--- mycmd/x.go --
+-- go.mod --
+module mycmd
+
+go 1.16
+-- x.go --
 package main
 
 func main() {}

@@ -35,27 +35,27 @@ func (u U) SPPi() *string { // ERROR "leaking param: u to result ~r0 level=1$"
 }
 
 func tSPPi() {
-	s := "cat"        // ERROR "moved to heap: s$"
+	s := "cat" // ERROR "moved to heap: s$"
 	ps := &s
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U{...} does not escape$"
 	Ssink = pu.SPPi()
 }
 
 func tiSPP() {
-	s := "cat"        // ERROR "moved to heap: s$"
+	s := "cat" // ERROR "moved to heap: s$"
 	ps := &s
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U{...} does not escape$"
 	Ssink = *pu.SPP()
 }
 
 // BAD: need fine-grained analysis to avoid spurious escape of ps
 func tSP() {
-	s := "cat"        // ERROR "moved to heap: s$"
-	ps := &s          // ERROR "moved to heap: ps$"
+	s := "cat" // ERROR "moved to heap: s$"
+	ps := &s   // ERROR "moved to heap: ps$"
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U{...} does not escape$"
 	Ssink = pu.SP()
 }
 
@@ -114,72 +114,72 @@ func (v V) UPiSPd() *string { // ERROR "leaking param: v to result ~r0 level=1$"
 // BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
 func tUPiSPa() {
 	s1 := "ant"
-	s2 := "bat"          // ERROR "moved to heap: s2$"
-	s3 := "cat"          // ERROR "moved to heap: s3$"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s2 := "bat" // ERROR "moved to heap: s2$"
+	s3 := "cat" // ERROR "moved to heap: s3$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
-	ps4 := &s4           // ERROR "moved to heap: ps4$"
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps4 := &s4 // ERROR "moved to heap: ps4$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} escapes to heap$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPa()   // Ssink = &s3 (only &s3 really escapes)
 }
 
 // BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
 func tUPiSPb() {
 	s1 := "ant"
-	s2 := "bat"          // ERROR "moved to heap: s2$"
-	s3 := "cat"          // ERROR "moved to heap: s3$"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s2 := "bat" // ERROR "moved to heap: s2$"
+	s3 := "cat" // ERROR "moved to heap: s3$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
-	ps4 := &s4           // ERROR "moved to heap: ps4$"
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps4 := &s4 // ERROR "moved to heap: ps4$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} escapes to heap$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPb()   // Ssink = &s3 (only &s3 really escapes)
 }
 
 // BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
 func tUPiSPc() {
 	s1 := "ant"
-	s2 := "bat"          // ERROR "moved to heap: s2$"
-	s3 := "cat"          // ERROR "moved to heap: s3$"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s2 := "bat" // ERROR "moved to heap: s2$"
+	s3 := "cat" // ERROR "moved to heap: s3$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
-	ps4 := &s4           // ERROR "moved to heap: ps4$"
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps4 := &s4 // ERROR "moved to heap: ps4$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} escapes to heap$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPc()   // Ssink = &s3 (only &s3 really escapes)
 }
 
 // BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
 func tUPiSPd() {
 	s1 := "ant"
-	s2 := "bat"          // ERROR "moved to heap: s2$"
-	s3 := "cat"          // ERROR "moved to heap: s3$"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s2 := "bat" // ERROR "moved to heap: s2$"
+	s3 := "cat" // ERROR "moved to heap: s3$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
-	ps4 := &s4           // ERROR "moved to heap: ps4$"
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps4 := &s4 // ERROR "moved to heap: ps4$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} escapes to heap$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPd()   // Ssink = &s3 (only &s3 really escapes)
 }
 
@@ -204,16 +204,16 @@ func tUPiSPPia() {
 	s1 := "ant"
 	s2 := "bat"
 	s3 := "cat"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
 	ps4 := &s4
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPPia() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -222,16 +222,16 @@ func tUPiSPPib() {
 	s1 := "ant"
 	s2 := "bat"
 	s3 := "cat"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
 	ps4 := &s4
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPPib() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -240,16 +240,16 @@ func tUPiSPPic() {
 	s1 := "ant"
 	s2 := "bat"
 	s3 := "cat"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
 	ps4 := &s4
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPPic() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -258,16 +258,16 @@ func tUPiSPPid() {
 	s1 := "ant"
 	s2 := "bat"
 	s3 := "cat"
-	s4 := "dog"          // ERROR "moved to heap: s4$"
-	s5 := "emu"          // ERROR "moved to heap: s5$"
-	s6 := "fox"          // ERROR "moved to heap: s6$"
+	s4 := "dog" // ERROR "moved to heap: s4$"
+	s5 := "emu" // ERROR "moved to heap: s5$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
 	ps4 := &s4
-	ps6 := &s6           // ERROR "moved to heap: ps6$"
+	ps6 := &s6 // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U{...} does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V{...} does not escape$"
 	Ssink = v.UPiSPPid() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -286,13 +286,13 @@ func tUPPiSPPia() { // This test is sensitive to the level cap in function summa
 	s3 := "cat"
 	s4 := "dog"
 	s5 := "emu"
-	s6 := "fox"           // ERROR "moved to heap: s6$"
+	s6 := "fox" // ERROR "moved to heap: s6$"
 	ps2 := &s2
 	ps4 := &s4
 	ps6 := &s6
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}   // ERROR "&U literal does not escape$"
-	u3 := &U{&s5, &ps6}   // ERROR "&U literal does not escape$"
-	v := &V{u1, u2, &u3}  // ERROR "&V literal does not escape$"
+	u2 := &U{&s3, &ps4}   // ERROR "&U{...} does not escape$"
+	u3 := &U{&s5, &ps6}   // ERROR "&U{...} does not escape$"
+	v := &V{u1, u2, &u3}  // ERROR "&V{...} does not escape$"
 	Ssink = v.UPPiSPPia() // Ssink = *&ps6 = &s6 (only &s6 really escapes)
 }

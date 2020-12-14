@@ -7,7 +7,7 @@
 package tar
 
 import (
-	"os"
+	"io/fs"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -23,7 +23,7 @@ func init() {
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi os.FileInfo, h *Header) error {
+func statUnix(fi fs.FileInfo, h *Header) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
@@ -66,7 +66,7 @@ func statUnix(fi os.FileInfo, h *Header) error {
 			minor := uint32((dev & 0x00000000000000ff) >> 0)
 			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
 			h.Devmajor, h.Devminor = int64(major), int64(minor)
-		case "darwin":
+		case "darwin", "ios":
 			// Copied from golang.org/x/sys/unix/dev_darwin.go.
 			major := uint32((dev >> 24) & 0xff)
 			minor := uint32(dev & 0xffffff)

@@ -54,6 +54,7 @@ func printuint(uint64)
 func printcomplex(complex128)
 func printstring(string)
 func printpointer(any)
+func printuintptr(uintptr)
 func printiface(any)
 func printeface(any)
 func printslice(any)
@@ -75,8 +76,7 @@ func slicebytetostringtmp(ptr *byte, n int) string
 func slicerunetostring(*[32]byte, []rune) string
 func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
-func slicecopy(toPtr *any, toLen int, frPtr *any, frLen int, wid uintptr) int
-func slicestringcopy(toPtr *byte, toLen int, fr string) int
+func slicecopy(toPtr *any, toLen int, fromPtr *any, fromLen int, wid uintptr) int
 
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
@@ -237,6 +237,7 @@ func racewriterange(addr, size uintptr)
 // memory sanitizer
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
+func msanmove(dst, src, size uintptr)
 
 func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
 func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)

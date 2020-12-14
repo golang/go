@@ -6,9 +6,13 @@
 ! stderr '(?m)^ok.*\[no tests to run\]'
 stdout 'FAIL'
 
--- syntaxerror/x.go --
+-- go.mod --
+module syntaxerror
+
+go 1.16
+-- x.go --
 package p
--- syntaxerror/x_test.go --
+-- x_test.go --
 package p
 
 func f() (x.y, z int) {

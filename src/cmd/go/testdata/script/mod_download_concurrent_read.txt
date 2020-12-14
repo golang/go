@@ -1,27 +1,18 @@
 # This test simulates a process watching for changes and reading files in
 # module cache as a module is extracted.
 #
-# By default, we unzip a downloaded module into a temporary directory with a
-# random name, then rename the directory into place. On Windows, this fails
-# with ERROR_ACCESS_DENIED if another process (e.g., antivirus) opens files
-# in the directory.
+# Before Go 1.16, we extracted each module zip to a temporary directory with
+# a random name, then renamed that into place with os.Rename. On Windows,
+# this failed with ERROR_ACCESS_DENIED when another process (usually an
+# anti-virus scanner) opened files in the temporary directory. This test
+# simulates that behavior, verifying golang.org/issue/36568.
 #
-# Setting GODEBUG=modcacheunzipinplace=1 opts into new behavior: a downloaded
-# module is unzipped in place. A .partial file is created elsewhere to indicate
-# that the extraction is incomplete.
-#
-# Verifies golang.org/issue/36568.
+# Since 1.16, we extract to the final directory, but we create a .partial file
+# so that if we crash, other processes know the directory is incomplete.
 
 [!windows] skip
 [short] skip
 
-# Control case: check that the default behavior fails.
-# This is commented out to avoid flakiness. We can't reproduce the failure
-# 100% of the time.
-# ! go run downloader.go
-
-# Experiment: check that the new behavior does not fail.
-env GODEBUG=modcacheunzipinplace=1
 go run downloader.go
 
 -- go.mod --
@@ -34,7 +25,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -54,7 +44,7 @@ func main() {
 // don't need to clean the cache or synchronize closing files after each
 // iteration.
 func run() (err error) {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return err
 	}

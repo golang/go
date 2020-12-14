@@ -19,7 +19,7 @@ var (
 	_ = sum(1.0, 2.0)
 	_ = sum(1.5)      // ERROR "integer"
 	_ = sum("hello")  // ERROR ".hello. .type untyped string. as type int|incompatible"
-	_ = sum([]int{1}) // ERROR "\[\]int literal.*as type int|incompatible"
+	_ = sum([]int{1}) // ERROR "\[\]int{...}.*as type int|incompatible"
 )
 
 func sum3(int, int, int) int { return 0 }
@@ -29,7 +29,7 @@ var (
 	_ = sum(tuple())
 	_ = sum(tuple()...) // ERROR "multiple-value"
 	_ = sum3(tuple())
-	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
+	_ = sum3(tuple()...) // ERROR "multiple-value"
 )
 
 type T []T
@@ -60,5 +60,5 @@ func bad(args ...int) {
 	_ = [...]byte("foo") // ERROR "[.][.][.]"
 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
 
-	Foo(x...) // ERROR "invalid use of [.][.][.] in call"
+	Foo(x...) // ERROR "invalid use of .*[.][.][.]"
 }

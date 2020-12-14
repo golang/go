@@ -1,0 +1,21 @@
+# GOPATH: Set up
+env GO111MODULE=off
+
+# GOPATH: Fetch without insecure, no warning
+! go get test
+! stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+
+# GOPATH: Fetch with insecure, should warn
+! go get -insecure test
+stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+
+# Modules: Set up
+env GO111MODULE=on
+
+# Modules: Fetch without insecure, no warning
+! go get test
+! stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+
+# Modules: Fetch with insecure, should warn
+! go get -insecure test
+stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'

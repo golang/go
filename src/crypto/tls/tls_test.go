@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
@@ -569,8 +568,8 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}
 
 	<-closeReturned
-	if err := tconn.Close(); err != errClosed {
-		t.Errorf("Close error = %v; want errClosed", err)
+	if err := tconn.Close(); err != net.ErrClosed {
+		t.Errorf("Close error = %v; want net.ErrClosed", err)
 	}
 }
 
@@ -594,7 +593,7 @@ func TestConnCloseWrite(t *testing.T) {
 		}
 		defer srv.Close()
 
-		data, err := ioutil.ReadAll(srv)
+		data, err := io.ReadAll(srv)
 		if err != nil {
 			return err
 		}
@@ -635,7 +634,7 @@ func TestConnCloseWrite(t *testing.T) {
 			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
 		}
 
-		data, err := ioutil.ReadAll(conn)
+		data, err := io.ReadAll(conn)
 		if err != nil {
 			return err
 		}
@@ -698,7 +697,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		}
 		defer srv.Close()
 
-		_, err = ioutil.ReadAll(srv)
+		_, err = io.ReadAll(srv)
 		if err == nil {
 			return errors.New("unexpected lack of error from server")
 		}
@@ -838,6 +837,13 @@ func TestCloneNonFuncFields(t *testing.T) {
 	c2 := c1.Clone()
 	if !reflect.DeepEqual(&c1, c2) {
 		t.Errorf("clone failed to copy a field")
+	}
+}
+
+func TestCloneNilConfig(t *testing.T) {
+	var config *Config
+	if cc := config.Clone(); cc != nil {
+		t.Fatalf("Clone with nil should return nil, got: %+v", cc)
 	}
 }
 

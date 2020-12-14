@@ -390,6 +390,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
 		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
 			if !ldr.AttrReachable(rs) {
+				if rt == objabi.R_METHODOFF {
+					// Set it to a sentinel value. The runtime knows this is not pointing to
+					// anything valid.
+					o = -1
+					break
+				}
 				continue
 			}
 			fallthrough
@@ -698,6 +704,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	relocs := ctxt.loader.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
+		if r.IsMarker() {
+			continue // skip marker relocations
+		}
 		targ := r.Sym()
 		if targ == 0 {
 			continue
@@ -775,6 +784,9 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
+		if r.IsMarker() {
+			continue // skip marker relocations
+		}
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
@@ -930,7 +942,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 			break
 		}
 		if val < addr {
-			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, val, ldr.SymType(s))
+			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%v sect=%v", addr, val, ldr.SymType(s), ldr.SymSect(s).Name)
 			errorexit()
 		}
 		if addr < val {
@@ -939,6 +951,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 		}
 		P := out.WriteSym(ldr, s)
 		st.relocsym(s, P)
+		if f, ok := ctxt.generatorSyms[s]; ok {
+			f(ctxt, s)
+		}
 		addr += int64(len(P))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {
@@ -1308,9 +1323,9 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 				// relro Type before it reaches here.
 				isRelro = true
 			case sym.SFUNCTAB:
-				if target.IsAIX() && ldr.SymName(s) == "runtime.etypes" {
+				if ldr.SymName(s) == "runtime.etypes" {
 					// runtime.etypes must be at the end of
-					// the relro datas.
+					// the relro data.
 					isRelro = true
 				}
 			}
@@ -1706,7 +1721,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ebss", 0), sect)
 	bssGcEnd := state.datsize - int64(sect.Vaddr)
 
-	// Emit gcdata for bcc symbols now that symbol values have been assigned.
+	// Emit gcdata for bss symbols now that symbol values have been assigned.
 	gcsToEmit := []struct {
 		symName string
 		symKind sym.SymKind
@@ -1826,13 +1841,16 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	const fallbackPerm = 04
 	relroSecPerm := fallbackPerm
 	genrelrosecname := func(suffix string) string {
+		if suffix == "" {
+			return ".rodata"
+		}
 		return suffix
 	}
 	seg := segro
 
 	if ctxt.UseRelro() {
 		segrelro := &Segrelrodata
-		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
+		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
 			// Using a separate segment with an external
 			// linker results in some programs moving
 			// their data sections unexpectedly, which
@@ -1845,9 +1863,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 			state.datsize = 0
 		}
 
-		genrelrosecname = func(suffix string) string {
-			return ".data.rel.ro" + suffix
+		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
+			genrelrosecname = func(suffix string) string {
+				return ".data.rel.ro" + suffix
+			}
 		}
+
 		relroReadOnly := []sym.SymKind{}
 		for _, symnro := range sym.ReadOnly {
 			symn := sym.RelROMap[symnro]
@@ -1923,7 +1944,10 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
@@ -2167,7 +2191,7 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	va := uint64(*FlagTextAddr)
+	va := uint64(Rnd(*FlagTextAddr, int64(Funcalign)))
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
@@ -2193,7 +2217,7 @@ func (ctxt *Link) textaddress() {
 		// Set the address of the start/end symbols, if not already
 		// (i.e. not darwin+dynlink or AIX+external, see above).
 		ldr.SetSymValue(etext, int64(va))
-		ldr.SetSymValue(text, *FlagTextAddr)
+		ldr.SetSymValue(text, int64(Segtext.Sections[0].Vaddr))
 	}
 
 	// merge tramps into Textp, keeping Textp in address order
@@ -2507,7 +2531,10 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
 	ctxt.defineInternal("runtime.pcheader", sym.SRODATA)
 	ctxt.defineInternal("runtime.funcnametab", sym.SRODATA)
-	ctxt.defineInternal("runtime.pclntab_old", sym.SRODATA)
+	ctxt.defineInternal("runtime.cutab", sym.SRODATA)
+	ctxt.defineInternal("runtime.filetab", sym.SRODATA)
+	ctxt.defineInternal("runtime.pctab", sym.SRODATA)
+	ctxt.defineInternal("runtime.functab", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))

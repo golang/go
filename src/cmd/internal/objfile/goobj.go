@@ -234,7 +234,15 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 	if f.arch == nil {
 		return "", 0, nil
 	}
-	pcdataBase := r.PcdataBase()
+	getSymData := func(s goobj.SymRef) []byte {
+		if s.PkgIdx != goobj.PkgIdxHashed {
+			// We don't need the data for non-hashed symbols, yet.
+			panic("not supported")
+		}
+		i := uint32(s.SymIdx + uint32(r.NSym()+r.NHashed64def()))
+		return r.BytesAt(r.DataOff(i), r.DataSize(i))
+	}
+
 	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
 	for i := uint32(0); i < ndef; i++ {
 		osym := r.Sym(i)
@@ -259,15 +267,11 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 		}
 		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
 		var info *goobj.FuncInfo
-		lengths := info.ReadFuncInfoLengths(b)
-		off, end := info.ReadPcline(b)
-		pcline := r.BytesAt(pcdataBase+off, int(end-off))
+		pcline := getSymData(info.ReadPcline(b))
 		line := int(pcValue(pcline, pc-addr, f.arch))
-		off, end = info.ReadPcfile(b)
-		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
+		pcfile := getSymData(info.ReadPcfile(b))
 		fileID := pcValue(pcfile, pc-addr, f.arch)
-		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
-		fileName := r.File(int(globalFileID))
+		fileName := r.File(int(fileID))
 		// Note: we provide only the name in the Func structure.
 		// We could provide more if needed.
 		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: osym.Name(r)}}

@@ -53,14 +53,19 @@ type LineTable struct {
 	quantum     uint32
 	ptrsize     uint32
 	funcnametab []byte
+	cutab       []byte
 	funcdata    []byte
 	functab     []byte
 	nfunctab    uint32
 	filetab     []byte
+	pctab       []byte // points to the pctables.
 	nfiletab    uint32
-	fileMap     map[string]uint32
 	funcNames   map[uint32]string // cache the function names
 	strings     map[uint32]string // interned substrings of Data, keyed by offset
+	// fileMap varies depending on the version of the object file.
+	// For ver12, it maps the name to the index in the file table.
+	// For ver116, it maps the name to the offset in filetab.
+	fileMap map[string]uint32
 }
 
 // NOTE(rsc): This is wrong for GOARCH=arm, which uses a quantum of 4,
@@ -223,22 +228,26 @@ func (t *LineTable) parsePclnTab() {
 	switch possibleVersion {
 	case ver116:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
-		offset := t.uintptr(t.Data[8+t.ptrsize:])
+		t.nfiletab = uint32(t.uintptr(t.Data[8+t.ptrsize:]))
+		offset := t.uintptr(t.Data[8+2*t.ptrsize:])
 		t.funcnametab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+2*t.ptrsize:])
+		offset = t.uintptr(t.Data[8+3*t.ptrsize:])
+		t.cutab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+4*t.ptrsize:])
+		t.filetab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+5*t.ptrsize:])
+		t.pctab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+6*t.ptrsize:])
 		t.funcdata = t.Data[offset:]
 		t.functab = t.Data[offset:]
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
-		fileoff := t.binary.Uint32(t.functab[functabsize:])
-		t.filetab = t.functab[fileoff:]
 		t.functab = t.functab[:functabsize]
-		t.nfiletab = t.binary.Uint32(t.filetab)
-		t.filetab = t.filetab[:t.nfiletab*4]
 	case ver12:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
 		t.funcdata = t.Data
 		t.funcnametab = t.Data
 		t.functab = t.Data[8+t.ptrsize:]
+		t.pctab = t.Data
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
 		fileoff := t.binary.Uint32(t.functab[functabsize:])
 		t.functab = t.functab[:functabsize]
@@ -330,15 +339,20 @@ func (t *LineTable) funcName(off uint32) string {
 	return s
 }
 
-// string returns a Go string found at off.
-func (t *LineTable) string(off uint32) string {
+// stringFrom returns a Go string found at off from a position.
+func (t *LineTable) stringFrom(arr []byte, off uint32) string {
 	if s, ok := t.strings[off]; ok {
 		return s
 	}
-	i := bytes.IndexByte(t.funcdata[off:], 0)
-	s := string(t.funcdata[off : off+uint32(i)])
+	i := bytes.IndexByte(arr[off:], 0)
+	s := string(arr[off : off+uint32(i)])
 	t.strings[off] = s
 	return s
+}
+
+// string returns a Go string found at off.
+func (t *LineTable) string(off uint32) string {
+	return t.stringFrom(t.funcdata, off)
 }
 
 // step advances to the next pc, value pair in the encoded table.
@@ -363,7 +377,7 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
 // off is the offset to the beginning of the pc-value table,
 // and entry is the start PC for the corresponding function.
 func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
-	p := t.funcdata[off:]
+	p := t.pctab[off:]
 
 	val := int32(-1)
 	pc := entry
@@ -381,21 +395,25 @@ func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
 // to file number. Since most functions come from a single file, these
 // are usually short and quick to scan. If a file match is found, then the
 // code goes to the expense of looking for a simultaneous line number match.
-func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32) uint64 {
+func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32, cutab []byte) uint64 {
 	if filetab == 0 || linetab == 0 {
 		return 0
 	}
 
-	fp := t.funcdata[filetab:]
-	fl := t.funcdata[linetab:]
+	fp := t.pctab[filetab:]
+	fl := t.pctab[linetab:]
 	fileVal := int32(-1)
 	filePC := entry
 	lineVal := int32(-1)
 	linePC := entry
 	fileStartPC := filePC
 	for t.step(&fp, &filePC, &fileVal, filePC == entry) {
-		if fileVal == filenum && fileStartPC < filePC {
-			// fileVal is in effect starting at fileStartPC up to
+		fileIndex := fileVal
+		if t.version == ver116 {
+			fileIndex = int32(t.binary.Uint32(cutab[fileVal*4:]))
+		}
+		if fileIndex == filenum && fileStartPC < filePC {
+			// fileIndex is in effect starting at fileStartPC up to
 			// but not including filePC, and it's the file we want.
 			// Run the PC table looking for a matching line number
 			// or until we reach filePC.
@@ -450,13 +468,24 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	entry := t.uintptr(f)
 	filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 	fno := t.pcvalue(filetab, entry, pc)
-	if fno <= 0 {
+	if t.version == ver12 {
+		if fno <= 0 {
+			return ""
+		}
+		return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	}
+	// Go ≥ 1.16
+	if fno < 0 { // 0 is valid for ≥ 1.16
 		return ""
 	}
-	return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	cuoff := t.binary.Uint32(f[t.ptrsize+7*4:])
+	if fnoff := t.binary.Uint32(t.cutab[(cuoff+uint32(fno))*4:]); fnoff != ^uint32(0) {
+		return t.stringFrom(t.filetab, fnoff)
+	}
+	return ""
 }
 
-// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2 pcln table.
+// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2/1.16 pcln table.
 func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	defer func() {
 		if recover() != nil {
@@ -465,20 +494,25 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	}()
 
 	t.initFileMap()
-	filenum := t.fileMap[file]
-	if filenum == 0 {
+	filenum, ok := t.fileMap[file]
+	if !ok {
 		return 0
 	}
 
 	// Scan all functions.
 	// If this turns out to be a bottleneck, we could build a map[int32][]int32
 	// mapping file number to a list of functions with code from that file.
+	var cutab []byte
 	for i := uint32(0); i < t.nfunctab; i++ {
 		f := t.funcdata[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
 		entry := t.uintptr(f)
 		filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 		linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
-		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line))
+		if t.version == ver116 {
+			cuoff := t.binary.Uint32(f[t.ptrsize+7*4:]) * 4
+			cutab = t.cutab[cuoff:]
+		}
+		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line), cutab)
 		if pc != 0 {
 			return pc
 		}
@@ -496,9 +530,18 @@ func (t *LineTable) initFileMap() {
 	}
 	m := make(map[string]uint32)
 
-	for i := uint32(1); i < t.nfiletab; i++ {
-		s := t.string(t.binary.Uint32(t.filetab[4*i:]))
-		m[s] = i
+	if t.version == ver12 {
+		for i := uint32(1); i < t.nfiletab; i++ {
+			s := t.string(t.binary.Uint32(t.filetab[4*i:]))
+			m[s] = i
+		}
+	} else {
+		var pos uint32
+		for i := uint32(0); i < t.nfiletab; i++ {
+			s := t.stringFrom(t.filetab, pos)
+			m[s] = pos
+			pos += uint32(len(s) + 1)
+		}
 	}
 	t.fileMap = m
 }

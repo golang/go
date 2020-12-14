@@ -4,8 +4,12 @@ env GO111MODULE=on
 # in an empty directory should refer to the path '.' and should not attempt
 # to resolve an external module.
 cd dir
+! go get
+stderr '^go get: no package in current directory$'
 ! go get .
-stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
+stderr '^go get \.: no package in current directory$'
+! go get ./subdir
+stderr '^go get: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
 ! go list
 ! stderr 'cannot find module providing package'
 stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'

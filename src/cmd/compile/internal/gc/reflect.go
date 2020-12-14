@@ -61,8 +61,9 @@ const (
 	MAXELEMSIZE = 128
 )
 
-func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
+func structfieldSize() int { return 3 * Widthptr }       // Sizeof(runtime.structfield{})
+func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imethod{})
+func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
@@ -510,6 +511,7 @@ func dimportpath(p *types.Pkg) {
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	p.Pathsym = s
 }
 
@@ -637,6 +639,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 	}
 	ot := dnameData(s, 0, name, tag, pkg, exported)
 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	s.Set(obj.AttrContentAddressable, true)
 	return s
 }
 
@@ -1422,6 +1425,20 @@ func dtypesym(t *types.Type) *obj.LSym {
 	return lsym
 }
 
+// ifaceMethodOffset returns the offset of the i-th method in the interface
+// type descriptor, ityp.
+func ifaceMethodOffset(ityp *types.Type, i int64) int64 {
+	// interface type descriptor layout is struct {
+	//   _type        // commonSize
+	//   pkgpath      // 1 word
+	//   []imethod    // 3 words (pointing to [...]imethod below)
+	//   uncommontype // uncommonSize
+	//   [...]imethod
+	// }
+	// The size of imethod is 8.
+	return int64(commonSize()+4*Widthptr+uncommonSize(ityp)) + i*8
+}
+
 // for each itabEntry, gather the methods on
 // the concrete type that implement the interface
 func peekitabs() {
@@ -1574,8 +1591,12 @@ func dumptabs() {
 			//	typ  typeOff // pointer to symbol
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
+			tsym := dtypesym(p.t)
 			ot = dsymptrOff(s, ot, nsym)
-			ot = dsymptrOff(s, ot, dtypesym(p.t))
+			ot = dsymptrOff(s, ot, tsym)
+			// Plugin exports symbols as interfaces. Mark their types
+			// as UsedInIface.
+			tsym.Set(obj.AttrUsedInIface, true)
 		}
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 

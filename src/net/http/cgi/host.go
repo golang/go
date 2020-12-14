@@ -37,15 +37,15 @@ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
 var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		return []string{"DYLD_LIBRARY_PATH"}
-	case "linux", "freebsd", "openbsd":
+	case "linux", "freebsd", "netbsd", "openbsd":
 		return []string{"LD_LIBRARY_PATH"}
 	case "hpux":
 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
 	case "irix":
 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
-	case "solaris":
+	case "illumos", "solaris":
 		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
 	case "windows":
 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}

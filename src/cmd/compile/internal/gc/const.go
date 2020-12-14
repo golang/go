@@ -44,7 +44,7 @@ func (v Val) Ctype() Ctype {
 		Fatalf("unexpected Ctype for %T", v.U)
 		panic("unreachable")
 	case nil:
-		return 0
+		return CTxxx
 	case *NilVal:
 		return CTNIL
 	case bool:
@@ -114,16 +114,16 @@ func (v Val) Interface() interface{} {
 
 type NilVal struct{}
 
-// Int64 returns n as an int64.
+// Int64Val returns n as an int64.
 // n must be an integer or rune constant.
-func (n *Node) Int64() int64 {
+func (n *Node) Int64Val() int64 {
 	if !Isconst(n, CTINT) {
-		Fatalf("Int64(%v)", n)
+		Fatalf("Int64Val(%v)", n)
 	}
 	return n.Val().U.(*Mpint).Int64()
 }
 
-// CanInt64 reports whether it is safe to call Int64() on n.
+// CanInt64 reports whether it is safe to call Int64Val() on n.
 func (n *Node) CanInt64() bool {
 	if !Isconst(n, CTINT) {
 		return false
@@ -131,16 +131,25 @@ func (n *Node) CanInt64() bool {
 
 	// if the value inside n cannot be represented as an int64, the
 	// return value of Int64 is undefined
-	return n.Val().U.(*Mpint).CmpInt64(n.Int64()) == 0
+	return n.Val().U.(*Mpint).CmpInt64(n.Int64Val()) == 0
 }
 
-// Bool returns n as a bool.
+// BoolVal returns n as a bool.
 // n must be a boolean constant.
-func (n *Node) Bool() bool {
+func (n *Node) BoolVal() bool {
 	if !Isconst(n, CTBOOL) {
-		Fatalf("Bool(%v)", n)
+		Fatalf("BoolVal(%v)", n)
 	}
 	return n.Val().U.(bool)
+}
+
+// StringVal returns the value of a literal string Node as a string.
+// n must be a string constant.
+func (n *Node) StringVal() string {
+	if !Isconst(n, CTSTR) {
+		Fatalf("StringVal(%v)", n)
+	}
+	return n.Val().U.(string)
 }
 
 // truncate float literal fv to 32-bit or 64-bit precision
@@ -261,7 +270,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, context func() string) *Nod
 	}
 
 	if t == nil || !okforconst[t.Etype] {
-		t = defaultType(idealkind(n))
+		t = defaultType(n.Type)
 	}
 
 	switch n.Op {
@@ -612,7 +621,7 @@ func evconst(n *Node) {
 				var strs []string
 				i2 := i1
 				for i2 < len(s) && Isconst(s[i2], CTSTR) {
-					strs = append(strs, strlit(s[i2]))
+					strs = append(strs, s[i2].StringVal())
 					i2++
 				}
 
@@ -635,7 +644,7 @@ func evconst(n *Node) {
 		switch nl.Type.Etype {
 		case TSTRING:
 			if Isconst(nl, CTSTR) {
-				setintconst(n, int64(len(strlit(nl))))
+				setintconst(n, int64(len(nl.StringVal())))
 			}
 		case TARRAY:
 			if !hascallchan(nl) {
@@ -838,10 +847,6 @@ Outer:
 				return Val{}
 			}
 			u.Quo(y)
-		case OMOD, OOR, OAND, OANDNOT, OXOR:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped float", op)
-			return Val{}
 		default:
 			break Outer
 		}
@@ -867,10 +872,6 @@ Outer:
 				yyerror("complex division by zero")
 				return Val{}
 			}
-		case OMOD, OOR, OAND, OANDNOT, OXOR:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped complex", op)
-			return Val{}
 		default:
 			break Outer
 		}
@@ -932,15 +933,6 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 			}
 			u.Xor(x)
 			return Val{U: u}
-
-		case CTFLT:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped float", op)
-			return Val{}
-		case CTCPLX:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped complex", op)
-			return Val{}
 		}
 
 	case ONOT:
@@ -994,10 +986,8 @@ func setconst(n *Node, v Val) {
 		Xoffset: BADWIDTH,
 	}
 	n.SetVal(v)
-	if n.Type.IsUntyped() {
-		// TODO(mdempsky): Make typecheck responsible for setting
-		// the correct untyped type.
-		n.Type = idealType(v.Ctype())
+	if vt := idealType(v.Ctype()); n.Type.IsUntyped() && n.Type != vt {
+		Fatalf("untyped type mismatch, have: %v, want: %v", n.Type, vt)
 	}
 
 	// Check range.
@@ -1038,83 +1028,22 @@ func nodlit(v Val) *Node {
 func idealType(ct Ctype) *types.Type {
 	switch ct {
 	case CTSTR:
-		return types.Idealstring
+		return types.UntypedString
 	case CTBOOL:
-		return types.Idealbool
+		return types.UntypedBool
 	case CTINT:
-		return types.Idealint
+		return types.UntypedInt
 	case CTRUNE:
-		return types.Idealrune
+		return types.UntypedRune
 	case CTFLT:
-		return types.Idealfloat
+		return types.UntypedFloat
 	case CTCPLX:
-		return types.Idealcomplex
+		return types.UntypedComplex
 	case CTNIL:
 		return types.Types[TNIL]
 	}
 	Fatalf("unexpected Ctype: %v", ct)
 	return nil
-}
-
-// idealkind returns a constant kind like consttype
-// but for an arbitrary "ideal" (untyped constant) expression.
-func idealkind(n *Node) Ctype {
-	if n == nil || !n.Type.IsUntyped() {
-		return CTxxx
-	}
-
-	switch n.Op {
-	default:
-		return CTxxx
-
-	case OLITERAL:
-		return n.Val().Ctype()
-
-		// numeric kinds.
-	case OADD,
-		OAND,
-		OANDNOT,
-		OBITNOT,
-		ODIV,
-		ONEG,
-		OMOD,
-		OMUL,
-		OSUB,
-		OXOR,
-		OOR,
-		OPLUS:
-		k1 := idealkind(n.Left)
-		k2 := idealkind(n.Right)
-		if k1 > k2 {
-			return k1
-		} else {
-			return k2
-		}
-
-	case OREAL, OIMAG:
-		return CTFLT
-
-	case OCOMPLEX:
-		return CTCPLX
-
-	case OADDSTR:
-		return CTSTR
-
-	case OANDAND,
-		OEQ,
-		OGE,
-		OGT,
-		OLE,
-		OLT,
-		ONE,
-		ONOT,
-		OOROR:
-		return CTBOOL
-
-		// shifts (beware!).
-	case OLSH, ORSH:
-		return idealkind(n.Left)
-	}
 }
 
 // defaultlit on both nodes simultaneously;
@@ -1152,41 +1081,63 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 		return l, r
 	}
 
-	k := idealkind(l)
-	if rk := idealkind(r); rk > k {
-		k = rk
-	}
-	t := defaultType(k)
+	t := defaultType(mixUntyped(l.Type, r.Type))
 	l = convlit(l, t)
 	r = convlit(r, t)
 	return l, r
 }
 
-func defaultType(k Ctype) *types.Type {
-	switch k {
-	case CTBOOL:
+func ctype(t *types.Type) Ctype {
+	switch t {
+	case types.UntypedBool:
+		return CTBOOL
+	case types.UntypedString:
+		return CTSTR
+	case types.UntypedInt:
+		return CTINT
+	case types.UntypedRune:
+		return CTRUNE
+	case types.UntypedFloat:
+		return CTFLT
+	case types.UntypedComplex:
+		return CTCPLX
+	}
+	Fatalf("bad type %v", t)
+	panic("unreachable")
+}
+
+func mixUntyped(t1, t2 *types.Type) *types.Type {
+	t := t1
+	if ctype(t2) > ctype(t1) {
+		t = t2
+	}
+	return t
+}
+
+func defaultType(t *types.Type) *types.Type {
+	if !t.IsUntyped() || t.Etype == TNIL {
+		return t
+	}
+
+	switch t {
+	case types.UntypedBool:
 		return types.Types[TBOOL]
-	case CTSTR:
+	case types.UntypedString:
 		return types.Types[TSTRING]
-	case CTINT:
+	case types.UntypedInt:
 		return types.Types[TINT]
-	case CTRUNE:
+	case types.UntypedRune:
 		return types.Runetype
-	case CTFLT:
+	case types.UntypedFloat:
 		return types.Types[TFLOAT64]
-	case CTCPLX:
+	case types.UntypedComplex:
 		return types.Types[TCOMPLEX128]
 	}
-	Fatalf("bad idealkind: %v", k)
+
+	Fatalf("bad type %v", t)
 	return nil
 }
 
-// strlit returns the value of a literal string Node as a string.
-func strlit(n *Node) string {
-	return n.Val().U.(string)
-}
-
-// TODO(gri) smallintconst is only used in one place - can we used indexconst?
 func smallintconst(n *Node) bool {
 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
 		switch simtype[n.Type.Etype] {

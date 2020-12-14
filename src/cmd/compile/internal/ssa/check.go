@@ -165,6 +165,18 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
+			case auxCallOff:
+				canHaveAuxInt = true
+				fallthrough
+			case auxCall:
+				if ac, ok := v.Aux.(*AuxCall); ok {
+					if v.Op == OpStaticCall && ac.Fn == nil {
+						f.Fatalf("value %v has *AuxCall with nil Fn", v)
+					}
+				} else {
+					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
+				}
+				canHaveAux = true
 			case auxSym, auxTyp:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:
@@ -257,6 +269,38 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad %s type: want uintptr, have %s",
 						v.Op, v.Type.String())
 				}
+			case OpStringLen:
+				if v.Type != c.Types.Int {
+					f.Fatalf("bad %s type: want int, have %s",
+						v.Op, v.Type.String())
+				}
+			case OpLoad:
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 type to %s: want mem, have %s",
+						v.Op, v.Args[1].Type.String())
+				}
+			case OpStore:
+				if !v.Type.IsMemory() {
+					f.Fatalf("bad %s type: want mem, have %s",
+						v.Op, v.Type.String())
+				}
+				if !v.Args[2].Type.IsMemory() {
+					f.Fatalf("bad arg 2 type to %s: want mem, have %s",
+						v.Op, v.Args[2].Type.String())
+				}
+			case OpCondSelect:
+				if !v.Args[2].Type.IsBoolean() {
+					f.Fatalf("bad arg 2 type to %s: want boolean, have %s",
+						v.Op, v.Args[2].Type.String())
+				}
+			case OpAddPtr:
+				if !v.Args[0].Type.IsPtrShaped() && v.Args[0].Type != c.Types.Uintptr {
+					f.Fatalf("bad arg 0 type to %s: want ptr, have %s", v.Op, v.Args[0].LongString())
+				}
+				if !v.Args[1].Type.IsInteger() {
+					f.Fatalf("bad arg 1 type to %s: want integer, have %s", v.Op, v.Args[1].LongString())
+				}
+
 			}
 
 			// TODO: check for cycles in values

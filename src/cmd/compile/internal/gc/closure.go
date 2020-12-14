@@ -71,6 +71,10 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	return clo
 }
 
+// typecheckclosure typechecks an OCLOSURE node. It also creates the named
+// function associated with the closure.
+// TODO: This creation of the named function should probably really be done in a
+// separate pass from type-checking.
 func typecheckclosure(clo *Node, top int) {
 	xfunc := clo.Func.Closure
 	// Set current associated iota value, so iota can be used inside
@@ -198,7 +202,7 @@ func capturevars(xfunc *Node) {
 			outer = nod(OADDR, outer, nil)
 		}
 
-		if Debug['m'] > 1 {
+		if Debug.m > 1 {
 			var name *types.Sym
 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
 				name = v.Name.Curfn.Func.Nname.Sym
@@ -434,6 +438,8 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	fn.Type = xfunc.Type
 }
 
+// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+// for partial calls.
 func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	rcvrtype := fn.Left.Type
 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
@@ -500,6 +506,10 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	funcbody()
 
 	xfunc = typecheck(xfunc, ctxStmt)
+	// Need to typecheck the body of the just-generated wrapper.
+	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+	Curfn = xfunc
+	typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
 	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn

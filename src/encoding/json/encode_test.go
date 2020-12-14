@@ -183,7 +183,15 @@ type PointerCycleIndirect struct {
 	Ptrs []interface{}
 }
 
-var pointerCycleIndirect = &PointerCycleIndirect{}
+type RecursiveSlice []RecursiveSlice
+
+var (
+	pointerCycleIndirect = &PointerCycleIndirect{}
+	mapCycle             = make(map[string]interface{})
+	sliceCycle           = []interface{}{nil}
+	sliceNoCycle         = []interface{}{nil, nil}
+	recursiveSliceCycle  = []RecursiveSlice{nil}
+)
 
 func init() {
 	ptr := &SamePointerNoCycle{}
@@ -192,10 +200,24 @@ func init() {
 
 	pointerCycle.Ptr = pointerCycle
 	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
+
+	mapCycle["x"] = mapCycle
+	sliceCycle[0] = sliceCycle
+	sliceNoCycle[1] = sliceNoCycle[:1]
+	for i := startDetectingCyclesAfter; i > 0; i-- {
+		sliceNoCycle = []interface{}{sliceNoCycle}
+	}
+	recursiveSliceCycle[0] = recursiveSliceCycle
 }
 
 func TestSamePointerNoCycle(t *testing.T) {
 	if _, err := Marshal(samePointerNoCycle); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSliceNoCycle(t *testing.T) {
+	if _, err := Marshal(sliceNoCycle); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -206,6 +228,9 @@ var unsupportedValues = []interface{}{
 	math.Inf(1),
 	pointerCycle,
 	pointerCycleIndirect,
+	mapCycle,
+	sliceCycle,
+	recursiveSliceCycle,
 }
 
 func TestUnsupportedValues(t *testing.T) {

@@ -3,23 +3,23 @@
 
 env GOCACHE=$WORK/tmp
 
-# Run go test -json on errors empty/pkg and skipper
+# Run go test -json on errors m/empty/pkg and m/skipper
 # It would be nice to test that the output is interlaced
 # but it seems to be impossible to do that in a short test
 # that isn't also flaky. Just check that we get JSON output.
-go test -json -short -v errors empty/pkg skipper
+go test -json -short -v errors m/empty/pkg m/skipper
 
 # Check errors for run action
 stdout '"Package":"errors"'
 stdout '"Action":"run","Package":"errors"'
 
-# Check empty/pkg for output and skip actions
-stdout '"Action":"output","Package":"empty/pkg","Output":".*no test files'
-stdout '"Action":"skip","Package":"empty/pkg"'
+# Check m/empty/pkg for output and skip actions
+stdout '"Action":"output","Package":"m/empty/pkg","Output":".*no test files'
+stdout '"Action":"skip","Package":"m/empty/pkg"'
 
 # Check skipper for output and skip actions
-stdout '"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:'
-stdout '"Action":"skip","Package":"skipper","Test":"Test"'
+stdout '"Action":"output","Package":"m/skipper","Test":"Test","Output":"--- SKIP:'
+stdout '"Action":"skip","Package":"m/skipper","Test":"Test"'
 
 # Run go test -json on errors and check it's cached
 go test -json -short -v errors
@@ -36,6 +36,10 @@ stdout '"Package":"errors"'
 stdout '"Action":"run"'
 stdout '\{"Action":"pass","Package":"errors"\}'
 
+-- go.mod --
+module m
+
+go 1.16
 -- skipper/skip_test.go --
 package skipper
 

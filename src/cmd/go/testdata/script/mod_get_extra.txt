@@ -1,0 +1,69 @@
+cp go.mod go.mod.orig
+
+# The -u flag should not (even temporarily) upgrade modules whose versions are
+# determined by explicit queries to any version other than the explicit one.
+# Otherwise, 'go get -u' could introduce spurious dependencies.
+
+go get -d -u example.net/a@v0.1.0 example.net/b@v0.1.0
+go list -m all
+stdout '^example.net/a v0.1.0 '
+stdout '^example.net/b v0.1.0 '
+! stdout '^example.net/c '
+
+
+# TODO(bcmills): This property does not yet hold for modules added for
+# missing packages when the newly-added module matches a wildcard.
+
+cp go.mod.orig go.mod
+
+go get -d -u example.net/a@v0.1.0 example.net/b/...@v0.1.0
+go list -m all
+stdout '^example.net/a v0.1.0 '
+stdout '^example.net/b v0.1.0 '
+stdout '^example.net/c '  # BUG, but a minor and rare one
+
+
+-- go.mod --
+module example
+
+go 1.15
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/b v0.1.0 => ./b1
+	example.net/b v0.2.0 => ./b2
+	example.net/c v0.1.0 => ./c1
+	example.net/c v0.2.0 => ./c1
+)
+
+-- a1/go.mod --
+module example.net/a
+
+go 1.15
+
+// example.net/a needs a dependency on example.net/b, but lacks a requirement
+// on it (perhaps due to a missed file in a VCS commit).
+-- a1/a.go --
+package a
+import _ "example.net/b"
+
+-- b1/go.mod --
+module example.net/b
+
+go 1.15
+-- b1/b.go --
+package b
+
+-- b2/go.mod --
+module example.net/b
+
+go 1.15
+
+require example.net/c v0.1.0
+-- b2/b.go --
+package b
+
+-- c1/go.mod --
+module example.net/c
+
+go 1.15

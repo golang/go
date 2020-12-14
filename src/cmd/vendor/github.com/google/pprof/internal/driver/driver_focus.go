@@ -28,15 +28,15 @@ import (
 var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)?")
 
 // applyFocus filters samples based on the focus/ignore options
-func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variables, ui plugin.UI) error {
-	focus, err := compileRegexOption("focus", v["focus"].value, nil)
-	ignore, err := compileRegexOption("ignore", v["ignore"].value, err)
-	hide, err := compileRegexOption("hide", v["hide"].value, err)
-	show, err := compileRegexOption("show", v["show"].value, err)
-	showfrom, err := compileRegexOption("show_from", v["show_from"].value, err)
-	tagfocus, err := compileTagFilter("tagfocus", v["tagfocus"].value, numLabelUnits, ui, err)
-	tagignore, err := compileTagFilter("tagignore", v["tagignore"].value, numLabelUnits, ui, err)
-	prunefrom, err := compileRegexOption("prune_from", v["prune_from"].value, err)
+func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, cfg config, ui plugin.UI) error {
+	focus, err := compileRegexOption("focus", cfg.Focus, nil)
+	ignore, err := compileRegexOption("ignore", cfg.Ignore, err)
+	hide, err := compileRegexOption("hide", cfg.Hide, err)
+	show, err := compileRegexOption("show", cfg.Show, err)
+	showfrom, err := compileRegexOption("show_from", cfg.ShowFrom, err)
+	tagfocus, err := compileTagFilter("tagfocus", cfg.TagFocus, numLabelUnits, ui, err)
+	tagignore, err := compileTagFilter("tagignore", cfg.TagIgnore, numLabelUnits, ui, err)
+	prunefrom, err := compileRegexOption("prune_from", cfg.PruneFrom, err)
 	if err != nil {
 		return err
 	}
@@ -54,11 +54,11 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variab
 	warnNoMatches(tagfocus == nil || tfm, "TagFocus", ui)
 	warnNoMatches(tagignore == nil || tim, "TagIgnore", ui)
 
-	tagshow, err := compileRegexOption("tagshow", v["tagshow"].value, err)
-	taghide, err := compileRegexOption("taghide", v["taghide"].value, err)
+	tagshow, err := compileRegexOption("tagshow", cfg.TagShow, err)
+	taghide, err := compileRegexOption("taghide", cfg.TagHide, err)
 	tns, tnh := prof.FilterTagsByName(tagshow, taghide)
 	warnNoMatches(tagshow == nil || tns, "TagShow", ui)
-	warnNoMatches(tagignore == nil || tnh, "TagHide", ui)
+	warnNoMatches(taghide == nil || tnh, "TagHide", ui)
 
 	if prunefrom != nil {
 		prof.PruneFrom(prunefrom)

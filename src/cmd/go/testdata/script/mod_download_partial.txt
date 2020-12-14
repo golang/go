@@ -1,5 +1,5 @@
-# Download a module
-go mod download -modcacherw rsc.io/quote
+# Download modules and populate go.sum.
+go get -d -modcacherw
 exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
 
 # 'go mod verify' should fail if we delete a file.
@@ -46,7 +46,6 @@ rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
 
 # 'go mod download' should not leave behind a directory or a .partial file
 # if there is an error extracting the zip file.
-env GODEBUG=modcacheunzipinplace=1
 rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 cp empty $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 ! go mod download
@@ -60,5 +59,10 @@ module m
 go 1.14
 
 require rsc.io/quote v1.5.2
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"
 
 -- empty --

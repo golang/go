@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -988,51 +989,8 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 		t.Fatalf("Failed to parse certificate: %s", err)
 	}
 	// test cert is self-signed
-	if err = cert.CheckSignatureFrom(cert); err != nil {
-		t.Fatalf("DSA Certificate verification failed: %s", err)
-	}
-}
-
-const dsaCert1024WithSha256 = `-----BEGIN CERTIFICATE-----
-MIIDKzCCAumgAwIBAgIUOXWPK4gTRZVVY7OSXTU00QEWQU8wCwYJYIZIAWUDBAMC
-MEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJ
-bnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwIBcNMTkxMDAxMDYxODUyWhgPMzAxOTAy
-MDEwNjE4NTJaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
-HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggG4MIIBLAYHKoZIzjgE
-ATCCAR8CgYEAr79m/1ypU1aUbbLX1jikTyX7w2QYP+EkxNtXUiiTuxkC1KBqqxT3
-0Aht2vxFR47ODEK4B79rHO+UevhaqDaAHSH7Z/9umS0h0aS32KLDLb+LI5AneCrn
-eW5YbVhfD03N7uR4kKUCKOnWj5hAk9xiE3y7oFR0bBXzqrrHJF9LMd0CFQCB6lSj
-HSW0rGmNxIZsBl72u7JFLQKBgQCOFd1PGEQmddn0cdFgby5QQfjrqmoD1zNlFZEt
-L0x1EbndFwelLlF1ChNh3NPNUkjwRbla07FDlONs1GMJq6w4vW11ns+pUvAZ2+RM
-EVFjugip8az2ncn3UujGTVdFxnSTLBsRlMP/tFDK3ky//8zn/5ha9SKKw4v1uv6M
-JuoIbwOBhQACgYEAoeKeR90nwrnoPi5MOUPBLQvuzB87slfr+3kL8vFCmgjA6MtB
-7TxQKoBTOo5aVgWDp0lMIMxLd6btzBrm6r3VdRlh/cL8/PtbxkFwBa+Upe4o5NAh
-ISCe2/f2leT1PxtF8xxYjz/fszeUeHsJbVMilE2cuB2SYrR5tMExiqy+QpqjUzBR
-MB0GA1UdDgQWBBQDMIEL8Z3jc1d9wCxWtksUWc8RkjAfBgNVHSMEGDAWgBQDMIEL
-8Z3jc1d9wCxWtksUWc8RkjAPBgNVHRMBAf8EBTADAQH/MAsGCWCGSAFlAwQDAgMv
-ADAsAhQFehZgI4OyKBGpfnXvyJ0Z/0a6nAIUTO265Ane87LfJuQr3FrqvuCI354=
------END CERTIFICATE-----
-`
-
-func TestVerifyCertificateWithDSATooLongHash(t *testing.T) {
-	pemBlock, _ := pem.Decode([]byte(dsaCert1024WithSha256))
-	cert, err := ParseCertificate(pemBlock.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse certificate: %s", err)
-	}
-
-	// test cert is self-signed
-	if err = cert.CheckSignatureFrom(cert); err != nil {
-		t.Fatalf("DSA Certificate self-signature verification failed: %s", err)
-	}
-
-	signed := []byte("A wild Gopher appears!\n")
-	signature, _ := hex.DecodeString("302c0214417aca7ff458f5b566e43e7b82f994953da84be50214625901e249e33f4e4838f8b5966020c286dd610e")
-
-	// This signature is using SHA256, but only has 1024 DSA key. The hash has to be truncated
-	// in CheckSignature, otherwise it won't pass.
-	if err = cert.CheckSignature(DSAWithSHA256, signed, signature); err != nil {
-		t.Fatalf("DSA signature verification failed: %s", err)
+	if err = cert.CheckSignatureFrom(cert); err == nil {
+		t.Fatalf("Expected error verifying DSA certificate")
 	}
 }
 
@@ -2002,7 +1960,7 @@ func TestSystemCertPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(a, b) {
+	if !certPoolEqual(a, b) {
 		t.Fatal("two calls to SystemCertPool had different results")
 	}
 	if ok := b.AppendCertsFromPEM([]byte(`
@@ -2700,5 +2658,350 @@ func TestCreateRevocationList(t *testing.T) {
 					parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions)
 			}
 		})
+	}
+}
+
+func TestRSAPSAParameters(t *testing.T) {
+	generateParams := func(hashFunc crypto.Hash) []byte {
+		var hashOID asn1.ObjectIdentifier
+
+		switch hashFunc {
+		case crypto.SHA256:
+			hashOID = oidSHA256
+		case crypto.SHA384:
+			hashOID = oidSHA384
+		case crypto.SHA512:
+			hashOID = oidSHA512
+		}
+
+		params := pssParameters{
+			Hash: pkix.AlgorithmIdentifier{
+				Algorithm:  hashOID,
+				Parameters: asn1.NullRawValue,
+			},
+			MGF: pkix.AlgorithmIdentifier{
+				Algorithm: oidMGF1,
+			},
+			SaltLength:   hashFunc.Size(),
+			TrailerField: 1,
+		}
+
+		mgf1Params := pkix.AlgorithmIdentifier{
+			Algorithm:  hashOID,
+			Parameters: asn1.NullRawValue,
+		}
+
+		var err error
+		params.MGF.Parameters.FullBytes, err = asn1.Marshal(mgf1Params)
+		if err != nil {
+			t.Fatalf("failed to marshal MGF parameters: %s", err)
+		}
+
+		serialized, err := asn1.Marshal(params)
+		if err != nil {
+			t.Fatalf("failed to marshal parameters: %s", err)
+		}
+
+		return serialized
+	}
+
+	for h, params := range hashToPSSParameters {
+		generated := generateParams(h)
+		if !bytes.Equal(params.FullBytes, generated) {
+			t.Errorf("hardcoded parameters for %s didn't match generated parameters: got (generated) %x, wanted (hardcoded) %x", h, generated, params.FullBytes)
+		}
+	}
+}
+
+func TestUnknownExtKey(t *testing.T) {
+	const errorContains = "unknown extended key usage"
+
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"foo"},
+		ExtKeyUsage:  []ExtKeyUsage{ExtKeyUsage(-1)},
+	}
+	signer, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Errorf("failed to generate key for TestUnknownExtKey")
+	}
+
+	_, err = CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
+	if !strings.Contains(err.Error(), errorContains) {
+		t.Errorf("expected error containing %q, got %s", errorContains, err)
+	}
+}
+
+func TestIA5SANEnforcement(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa.GenerateKey failed: %s", err)
+	}
+
+	testURL, err := url.Parse("https://example.com/")
+	if err != nil {
+		t.Fatalf("url.Parse failed: %s", err)
+	}
+	testURL.RawQuery = "∞"
+
+	marshalTests := []struct {
+		name          string
+		template      *Certificate
+		expectedError string
+	}{
+		{
+			name: "marshal: unicode dNSName",
+			template: &Certificate{
+				SerialNumber: big.NewInt(0),
+				DNSNames:     []string{"∞"},
+			},
+			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
+		},
+		{
+			name: "marshal: unicode rfc822Name",
+			template: &Certificate{
+				SerialNumber:   big.NewInt(0),
+				EmailAddresses: []string{"∞"},
+			},
+			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
+		},
+		{
+			name: "marshal: unicode uniformResourceIdentifier",
+			template: &Certificate{
+				SerialNumber: big.NewInt(0),
+				URIs:         []*url.URL{testURL},
+			},
+			expectedError: "x509: \"https://example.com/?∞\" cannot be encoded as an IA5String",
+		},
+	}
+
+	for _, tc := range marshalTests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := CreateCertificate(rand.Reader, tc.template, tc.template, k.Public(), k)
+			if err == nil {
+				t.Errorf("expected CreateCertificate to fail with template: %v", tc.template)
+			} else if err.Error() != tc.expectedError {
+				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
+			}
+		})
+	}
+
+	unmarshalTests := []struct {
+		name          string
+		cert          string
+		expectedError string
+	}{
+		{
+			name:          "unmarshal: unicode dNSName",
+			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000424bcc48180d8d9db794028f2575ebe3cac79f04d7b0d0151c5292e588aac3668c495f108c626168462e0668c9705e08a211dd103a659d2684e0adf8c2bfd47baa315301330110603551d110101ff040730058203e2889e300a06082a8648ce3d04030203490030460221008ac7827ac326a6ee0fa70b2afe99af575ec60b975f820f3c25f60fff43fbccd0022100bffeed93556722d43d13e461d5b3e33efc61f6349300327d3a0196cb6da501c2",
+			expectedError: "x509: SAN dNSName is malformed",
+		},
+		{
+			name:          "unmarshal: unicode rfc822Name",
+			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000405cb4c4ba72aac980f7b11b0285191425e29e196ce7c5df1c83f56886566e517f196657cc1b73de89ab84ce503fd634e2f2af88fde24c63ca536dc3a5eed2665a315301330110603551d110101ff040730058103e2889e300a06082a8648ce3d0403020349003046022100ed1431cd4b9bb03d88d1511a0ec128a51204375764c716280dc36e2a60142c8902210088c96d25cfaf97eea851ff17d87bb6fe619d6546656e1739f35c3566051c3d0f",
+			expectedError: "x509: SAN rfc822Name is malformed",
+		},
+		{
+			name:          "unmarshal: unicode uniformResourceIdentifier",
+			cert:          "3082011b3081c3a003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d03010703420004ce0a79b511701d9188e1ea76bcc5907f1db51de6cc1a037b803f256e8588145ca409d120288bfeb4e38f3088104674d374b35bb91fc80d768d1d519dbe2b0b5aa32a302830260603551d110101ff041c301a861868747470733a2f2f6578616d706c652e636f6d2f3fe2889e300a06082a8648ce3d0403020347003044022044f4697779fd1dae1e382d2452413c5c5ca67851e267d6bc64a8d164977c172c0220505015e657637aa1945d46e7650b6f59b968fc1508ca8b152c99f782446dfc81",
+			expectedError: "x509: SAN uniformResourceIdentifier is malformed",
+		},
+	}
+
+	for _, tc := range unmarshalTests {
+		der, err := hex.DecodeString(tc.cert)
+		if err != nil {
+			t.Fatalf("failed to decode test cert: %s", err)
+		}
+		_, err = ParseCertificate(der)
+		if err == nil {
+			t.Error("expected CreateCertificate to fail")
+		} else if err.Error() != tc.expectedError {
+			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
+		}
+	}
+}
+
+func BenchmarkCreateCertificate(b *testing.B) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	tests := []struct {
+		name string
+		gen  func() crypto.Signer
+	}{
+		{
+			name: "RSA 2048",
+			gen: func() crypto.Signer {
+				k, err := rsa.GenerateKey(rand.Reader, 2048)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+		{
+			name: "ECDSA P256",
+			gen: func() crypto.Signer {
+				k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				if err != nil {
+					b.Fatalf("failed to generate test key: %s", err)
+				}
+				return k
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		k := tc.gen()
+		b.ResetTimer()
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+				if err != nil {
+					b.Fatalf("failed to create certificate: %s", err)
+				}
+			}
+		})
+	}
+}
+
+type brokenSigner struct {
+	pub crypto.PublicKey
+}
+
+func (bs *brokenSigner) Public() crypto.PublicKey {
+	return bs.pub
+}
+
+func (bs *brokenSigner) Sign(_ io.Reader, _ []byte, _ crypto.SignerOpts) ([]byte, error) {
+	return []byte{1, 2, 3}, nil
+}
+
+func TestCreateCertificateBrokenSigner(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"example.com"},
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	expectedErr := "x509: signature over certificate returned by signer is invalid: crypto/rsa: verification error"
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err == nil {
+		t.Fatal("expected CreateCertificate to fail with a broken signer")
+	} else if err.Error() != expectedErr {
+		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestCreateCertificateMD5(t *testing.T) {
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: MD5WithRSA,
+	}
+	k, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	if err != nil {
+		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
+	}
+}
+
+func (s *CertPool) mustCert(t *testing.T, n int) *Certificate {
+	c, err := s.lazyCerts[n].getCert()
+	if err != nil {
+		t.Fatalf("failed to load cert %d: %v", n, err)
+	}
+	return c
+}
+
+func allCerts(t *testing.T, p *CertPool) []*Certificate {
+	all := make([]*Certificate, p.len())
+	for i := range all {
+		all[i] = p.mustCert(t, i)
+	}
+	return all
+}
+
+// certPoolEqual reports whether a and b are equal, except for the
+// function pointers.
+func certPoolEqual(a, b *CertPool) bool {
+	if (a != nil) != (b != nil) {
+		return false
+	}
+	if a == nil {
+		return true
+	}
+	if !reflect.DeepEqual(a.byName, b.byName) ||
+		len(a.lazyCerts) != len(b.lazyCerts) {
+		return false
+	}
+	for i := range a.lazyCerts {
+		la, lb := a.lazyCerts[i], b.lazyCerts[i]
+		if !bytes.Equal(la.rawSubject, lb.rawSubject) {
+			return false
+		}
+		ca, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		cb, err := la.getCert()
+		if err != nil {
+			panic(err)
+		}
+		if !ca.Equal(cb) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestCertificateRequestRoundtripFields(t *testing.T) {
+	in := &CertificateRequest{
+		KeyUsage:              KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageAny},
+		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{{1, 2, 3}},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          []byte{1, 2, 3},
+		PolicyIdentifiers:     []asn1.ObjectIdentifier{{1, 2, 3}},
+	}
+	out := marshalAndParseCSR(t, in)
+
+	if in.KeyUsage != out.KeyUsage {
+		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+	}
+	if !reflect.DeepEqual(in.ExtKeyUsage, out.ExtKeyUsage) {
+		t.Fatalf("Unexpected ExtKeyUsage: got %v, want %v", out.ExtKeyUsage, in.ExtKeyUsage)
+	}
+	if !reflect.DeepEqual(in.UnknownExtKeyUsage, out.UnknownExtKeyUsage) {
+		t.Fatalf("Unexpected UnknownExtKeyUsage: got %v, want %v", out.UnknownExtKeyUsage, in.UnknownExtKeyUsage)
+	}
+	if in.BasicConstraintsValid != out.BasicConstraintsValid {
+		t.Fatalf("Unexpected BasicConstraintsValid: got %v, want %v", out.BasicConstraintsValid, in.BasicConstraintsValid)
+	}
+	if in.IsCA != out.IsCA {
+		t.Fatalf("Unexpected IsCA: got %v, want %v", out.IsCA, in.IsCA)
+	}
+	if in.MaxPathLen != out.MaxPathLen {
+		t.Fatalf("Unexpected MaxPathLen: got %v, want %v", out.MaxPathLen, in.MaxPathLen)
+	}
+	if in.MaxPathLenZero != out.MaxPathLenZero {
+		t.Fatalf("Unexpected MaxPathLenZero: got %v, want %v", out.MaxPathLenZero, in.MaxPathLenZero)
+	}
+	if !reflect.DeepEqual(in.SubjectKeyId, out.SubjectKeyId) {
+		t.Fatalf("Unexpected SubjectKeyId: got %v, want %v", out.SubjectKeyId, in.SubjectKeyId)
+	}
+	if !reflect.DeepEqual(in.PolicyIdentifiers, out.PolicyIdentifiers) {
+		t.Fatalf("Unexpected PolicyIdentifiers: got %v, want %v", out.PolicyIdentifiers, in.PolicyIdentifiers)
 	}
 }

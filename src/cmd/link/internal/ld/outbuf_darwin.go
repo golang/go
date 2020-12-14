@@ -36,3 +36,12 @@ func (out *OutBuf) fallocate(size uint64) error {
 
 	return nil
 }
+
+func (out *OutBuf) purgeSignatureCache() {
+	// Apparently, the Darwin kernel may cache the code signature at mmap.
+	// When we mmap the output buffer, it doesn't have a code signature
+	// (as we haven't generated one). Invalidate the kernel cache now that
+	// we have generated the signature. See issue #42684.
+	syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_INVALIDATE)
+	// Best effort. Ignore error.
+}

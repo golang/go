@@ -287,6 +287,7 @@ func tokstring(tok token) string {
 
 // Convenience methods using the current token position.
 func (p *parser) pos() Pos               { return p.posAt(p.line, p.col) }
+func (p *parser) error(msg string)       { p.errorAt(p.pos(), msg) }
 func (p *parser) syntaxError(msg string) { p.syntaxErrorAt(p.pos(), msg) }
 
 // The stopset contains keywords that start a statement.
@@ -997,17 +998,20 @@ loop:
 				// x[i:j...
 				t.Index[1] = p.expr()
 			}
-			if p.got(_Colon) {
+			if p.tok == _Colon {
 				t.Full = true
 				// x[i:j:...]
 				if t.Index[1] == nil {
 					p.error("middle index required in 3-index slice")
+					t.Index[1] = p.badExpr()
 				}
+				p.next()
 				if p.tok != _Rbrack {
 					// x[i:j:k...
 					t.Index[2] = p.expr()
 				} else {
 					p.error("final index required in 3-index slice")
+					t.Index[2] = p.badExpr()
 				}
 			}
 			p.want(_Rbrack)
@@ -1836,6 +1840,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	if p.tok == _Lbrace {
 		if keyword == _If {
 			p.syntaxError("missing condition in if statement")
+			cond = p.badExpr()
 		}
 		return
 	}
@@ -1907,6 +1912,9 @@ done:
 			} else {
 				p.syntaxErrorAt(semi.pos, "missing condition in if statement")
 			}
+			b := new(BadExpr)
+			b.pos = semi.pos
+			cond = b
 		}
 	case *ExprStmt:
 		cond = s.X

@@ -44,7 +44,7 @@ var funcs, stringMethods stringSetFlag
 func init() {
 	// TODO(adonovan): provide a comment syntax to allow users to
 	// add their functions to this set using facts.
-	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse")
+	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
 	Analyzer.Flags.Var(&funcs, "funcs",
 		"comma-separated list of functions whose results must be used")
 

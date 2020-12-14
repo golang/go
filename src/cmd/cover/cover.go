@@ -12,7 +12,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -304,7 +303,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 
 func annotate(name string) {
 	fset := token.NewFileSet()
-	content, err := ioutil.ReadFile(name)
+	content, err := os.ReadFile(name)
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}

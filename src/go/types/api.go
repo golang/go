@@ -43,6 +43,15 @@ type Error struct {
 	Pos  token.Pos      // error position
 	Msg  string         // error message
 	Soft bool           // if set, error is "soft"
+
+	// go116code is a future API, unexported as the set of error codes is large
+	// and likely to change significantly during experimentation. Tools wishing
+	// to preview this feature may read go116code using reflection (see
+	// errorcodes_test.go), but beware that there is no guarantee of future
+	// compatibility.
+	go116code  errorCode
+	go116start token.Pos
+	go116end   token.Pos
 }
 
 // Error returns an error string formatted as follows:
@@ -370,7 +379,8 @@ func AssertableTo(V *Interface, T Type) bool {
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	return ok
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.

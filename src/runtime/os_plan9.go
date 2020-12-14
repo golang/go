@@ -92,8 +92,11 @@ func sigpanic() {
 		}
 		addr := note[i:]
 		g.sigcode1 = uintptr(atolwhex(addr))
-		if g.sigcode1 < 0x1000 || g.paniconfault {
+		if g.sigcode1 < 0x1000 {
 			panicmem()
+		}
+		if g.paniconfault {
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
@@ -181,7 +184,7 @@ func mpreinit(mp *m) {
 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
 }
 
-func msigsave(mp *m) {
+func sigsave(p *sigset) {
 }
 
 func msigrestore(sigmask sigset) {

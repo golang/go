@@ -291,31 +291,20 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVQ	DX, (16+8)(SP)
   	MOVQ	R8, (16+16)(SP)
   	MOVQ	R9, (16+24)(SP)
+	// R8 = address of args vector
+	LEAQ	(16+0)(SP), R8
 
-	// remove return address from stack, we are not returning there
+	// remove return address from stack, we are not returning to callbackasm, but to its caller.
   	MOVQ	0(SP), AX
 	ADDQ	$8, SP
 
-	// determine index into runtime·cbctxts table
+	// determine index into runtime·cbs table
 	MOVQ	$runtime·callbackasm(SB), DX
 	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	CX
-
-	// find correspondent runtime·cbctxts table entry
-	MOVQ	runtime·cbctxts(SB), CX
-	MOVQ	-8(CX)(AX*8), AX
-
-	// extract callback context
-	MOVQ	wincallbackcontext_argsize(AX), DX
-	MOVQ	wincallbackcontext_gobody(AX), AX
-
-	// preserve whatever's at the memory location that
-	// the callback will use to store the return value
-	LEAQ	8(SP), CX       // args vector, skip return address
-	PUSHQ	0(CX)(DX*1)     // store 8 bytes from just after the args array
-	ADDQ	$8, DX          // extend argsize by size of return value
+	SUBQ	$1, AX	// subtract 1 because return PC is to the next slot
 
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
@@ -330,18 +319,25 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	MOVQ	R14, 8(SP)
 	MOVQ	R15, 0(SP)
 
-	// prepare call stack.  use SUBQ to hide from stack frame checks
-	// cgocallback(Go func, void *frame, uintptr framesize)
-	SUBQ	$24, SP
-	MOVQ	DX, 16(SP)	// argsize (including return value)
-	MOVQ	CX, 8(SP)	// callback parameters
-	MOVQ	AX, 0(SP)	// address of target Go function
+	// Go ABI requires DF flag to be cleared.
 	CLD
-	CALL	runtime·cgocallback_gofunc(SB)
-	MOVQ	0(SP), AX
-	MOVQ	8(SP), CX
-	MOVQ	16(SP), DX
-	ADDQ	$24, SP
+
+	// Create a struct callbackArgs on our stack to be passed as
+	// the "frame" to cgocallback and on to callbackWrap.
+	SUBQ	$(24+callbackArgs__size), SP
+	MOVQ	AX, (24+callbackArgs_index)(SP) 	// callback index
+	MOVQ	R8, (24+callbackArgs_args)(SP)  	// address of args vector
+	MOVQ	$0, (24+callbackArgs_result)(SP)	// result
+	LEAQ	24(SP), AX
+	// Call cgocallback, which will call callbackWrap(frame).
+	MOVQ	$0, 16(SP)	// context
+	MOVQ	AX, 8(SP)	// frame (address of callbackArgs)
+	LEAQ	·callbackWrap(SB), BX
+	MOVQ	BX, 0(SP)	// PC of function value to call (callbackWrap)
+	CALL	·cgocallback(SB)
+	// Get callback result.
+	MOVQ	(24+callbackArgs_result)(SP), AX
+	ADDQ	$(24+callbackArgs__size), SP
 
 	// restore registers as required for windows callback
 	MOVQ	0(SP), R15
@@ -355,8 +351,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$64, SP
 	POPFQ
 
-	MOVQ	-8(CX)(DX*1), AX  // return value
-	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
+	// The return value was placed in AX above.
 	RET
 
 // uint32 tstart_stdcall(M *newm);
@@ -455,6 +450,47 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVQ	40(SP), SP
+	RET
+
+// Runs on OS stack. duration (in 100ns units) is in BX.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+	get_tls(CX)
+	CMPQ	CX, $0
+	JE	gisnotset
+
+	MOVQ	SP, AX
+	ANDQ	$~15, SP	// alignment as per Windows requirement
+	MOVQ	AX, 64(SP)
+
+	MOVQ	g(CX), CX
+	MOVQ	g_m(CX), CX
+	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
+	MOVQ	CX, 48(SP)				// save hTimer for later
+	// Want negative 100ns units.
+	NEGQ	BX
+	LEAQ	56(SP), DX				// lpDueTime
+	MOVQ	BX, (DX)
+	MOVQ	$0, R8					// lPeriod
+	MOVQ	$0, R9					// pfnCompletionRoutine
+	MOVQ	$0, AX
+	MOVQ	AX, 32(SP)				// lpArgToCompletionRoutine
+	MOVQ	AX, 40(SP)				// fResume
+	MOVQ	runtime·_SetWaitableTimer(SB), AX
+	CALL	AX
+
+	MOVQ	48(SP), CX				// handle
+	MOVQ	$0, DX					// alertable
+	MOVQ	$0, R8					// ptime
+	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
+	CALL	AX
+
+	MOVQ	64(SP), SP
+	RET
+
+gisnotset:
+	// TLS is not configured. Call usleep2 instead.
+	MOVQ	$runtime·usleep2(SB), AX
+	CALL	AX
 	RET
 
 // Runs on OS stack.
