@@ -4,7 +4,7 @@
 
 // +build linux
 // +build arm64
-// +build !gccgo
+// +build gc
 
 #include "textflag.h"
 

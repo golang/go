@@ -13,7 +13,6 @@ import (
 	"go/build"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -884,7 +883,7 @@ func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAc
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
-		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+		if err := os.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
 	}
@@ -1561,13 +1560,18 @@ func hashOpen(name string) (cache.ActionID, error) {
 	}
 	hashWriteStat(h, info)
 	if info.IsDir() {
-		names, err := ioutil.ReadDir(name)
+		files, err := os.ReadDir(name)
 		if err != nil {
 			fmt.Fprintf(h, "err %v\n", err)
 		}
-		for _, f := range names {
+		for _, f := range files {
 			fmt.Fprintf(h, "file %s ", f.Name())
-			hashWriteStat(h, f)
+			finfo, err := f.Info()
+			if err != nil {
+				fmt.Fprintf(h, "err %v\n", err)
+			} else {
+				hashWriteStat(h, finfo)
+			}
 		}
 	} else if info.Mode().IsRegular() {
 		// Because files might be very large, do not attempt
@@ -1616,7 +1620,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 	}
 
 	// See comment about two-level lookup in tryCacheWithID above.
-	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
+	testlog, err := os.ReadFile(a.Objdir + "testlog.txt")
 	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {

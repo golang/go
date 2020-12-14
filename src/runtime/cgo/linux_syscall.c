@@ -10,7 +10,7 @@
 
 #include <grp.h>
 #include <sys/types.h>
-#include <sys/unistd.h>
+#include <unistd.h>
 #include <errno.h>
 #include "libcgo.h"
 

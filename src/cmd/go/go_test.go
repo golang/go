@@ -17,7 +17,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -100,7 +99,7 @@ func TestMain(m *testing.M) {
 
 	// Run with a temporary TMPDIR to check that the tests don't
 	// leave anything behind.
-	topTmpdir, err := ioutil.TempDir("", "cmd-go-test-")
+	topTmpdir, err := os.MkdirTemp("", "cmd-go-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,7 +108,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv(tempEnvName(), topTmpdir)
 
-	dir, err := ioutil.TempDir(topTmpdir, "tmpdir")
+	dir, err := os.MkdirTemp(topTmpdir, "tmpdir")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -616,7 +615,7 @@ func (tg *testgoData) makeTempdir() {
 	tg.t.Helper()
 	if tg.tempdir == "" {
 		var err error
-		tg.tempdir, err = ioutil.TempDir("", "gotest")
+		tg.tempdir, err = os.MkdirTemp("", "gotest")
 		tg.must(err)
 	}
 }
@@ -633,7 +632,7 @@ func (tg *testgoData) tempFile(path, contents string) {
 			bytes = formatted
 		}
 	}
-	tg.must(ioutil.WriteFile(filepath.Join(tg.tempdir, path), bytes, 0644))
+	tg.must(os.WriteFile(filepath.Join(tg.tempdir, path), bytes, 0644))
 }
 
 // tempDir adds a temporary directory for a run of testgo.
@@ -833,7 +832,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 					return err
 				}
 				dest := filepath.Join("goroot", copydir, srcrel)
-				data, err := ioutil.ReadFile(path)
+				data, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
@@ -850,18 +849,18 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.setenv("GOROOT", tg.path("goroot"))
 
 	addVar := func(name string, idx int) (restore func()) {
-		data, err := ioutil.ReadFile(name)
+		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 		old := data
 		data = append(data, fmt.Sprintf("var DummyUnusedVar%d bool\n", idx)...)
-		if err := ioutil.WriteFile(name, append(data, '\n'), 0666); err != nil {
+		if err := os.WriteFile(name, append(data, '\n'), 0666); err != nil {
 			t.Fatal(err)
 		}
 		tg.sleep()
 		return func() {
-			if err := ioutil.WriteFile(name, old, 0666); err != nil {
+			if err := os.WriteFile(name, old, 0666); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -2674,7 +2673,7 @@ echo $* >>`+tg.path("pkg-config.out"))
 	tg.setenv("GOPATH", tg.path("."))
 	tg.setenv("PKG_CONFIG", tg.path("pkg-config.sh"))
 	tg.run("build", "x")
-	out, err := ioutil.ReadFile(tg.path("pkg-config.out"))
+	out, err := os.ReadFile(tg.path("pkg-config.out"))
 	tg.must(err)
 	out = bytes.TrimSpace(out)
 	want := "--cflags --static --static -- a a\n--libs --static --static -- a a"

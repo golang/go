@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -95,7 +94,7 @@ func testFileLevelDictReset(t *testing.T, fn string, level int, dict []byte) {
 	var b0 []byte
 	var err error
 	if fn != "" {
-		b0, err = ioutil.ReadFile(fn)
+		b0, err = os.ReadFile(fn)
 		if err != nil {
 			t.Errorf("%s (level=%d): %v", fn, level, err)
 			return

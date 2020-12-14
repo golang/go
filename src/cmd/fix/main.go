@@ -15,7 +15,6 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -217,7 +216,7 @@ func processFile(filename string, useStdin bool) error {
 		return nil
 	}
 
-	return ioutil.WriteFile(f.Name(), newSrc, 0)
+	return os.WriteFile(f.Name(), newSrc, 0)
 }
 
 func gofmt(n interface{}) string {

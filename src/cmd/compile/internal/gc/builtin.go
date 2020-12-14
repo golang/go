@@ -187,16 +187,17 @@ var runtimeDecls = [...]struct {
 	{"racewriterange", funcTag, 121},
 	{"msanread", funcTag, 121},
 	{"msanwrite", funcTag, 121},
-	{"checkptrAlignment", funcTag, 122},
-	{"checkptrArithmetic", funcTag, 124},
-	{"libfuzzerTraceCmp1", funcTag, 126},
-	{"libfuzzerTraceCmp2", funcTag, 128},
-	{"libfuzzerTraceCmp4", funcTag, 129},
-	{"libfuzzerTraceCmp8", funcTag, 130},
-	{"libfuzzerTraceConstCmp1", funcTag, 126},
-	{"libfuzzerTraceConstCmp2", funcTag, 128},
-	{"libfuzzerTraceConstCmp4", funcTag, 129},
-	{"libfuzzerTraceConstCmp8", funcTag, 130},
+	{"msanmove", funcTag, 122},
+	{"checkptrAlignment", funcTag, 123},
+	{"checkptrArithmetic", funcTag, 125},
+	{"libfuzzerTraceCmp1", funcTag, 127},
+	{"libfuzzerTraceCmp2", funcTag, 129},
+	{"libfuzzerTraceCmp4", funcTag, 130},
+	{"libfuzzerTraceCmp8", funcTag, 131},
+	{"libfuzzerTraceConstCmp1", funcTag, 127},
+	{"libfuzzerTraceConstCmp2", funcTag, 129},
+	{"libfuzzerTraceConstCmp4", funcTag, 130},
+	{"libfuzzerTraceConstCmp8", funcTag, 131},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -205,7 +206,7 @@ var runtimeDecls = [...]struct {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [131]*types.Type
+	var typs [132]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -328,14 +329,15 @@ func runtimeTypes() []*types.Type {
 	typs[119] = functype(nil, []*ir.Field{anonfield(typs[65])}, []*ir.Field{anonfield(typs[20])})
 	typs[120] = functype(nil, []*ir.Field{anonfield(typs[26]), anonfield(typs[26])}, []*ir.Field{anonfield(typs[26])})
 	typs[121] = functype(nil, []*ir.Field{anonfield(typs[5]), anonfield(typs[5])}, nil)
-	typs[122] = functype(nil, []*ir.Field{anonfield(typs[7]), anonfield(typs[1]), anonfield(typs[5])}, nil)
-	typs[123] = types.NewSlice(typs[7])
-	typs[124] = functype(nil, []*ir.Field{anonfield(typs[7]), anonfield(typs[123])}, nil)
-	typs[125] = types.Types[types.TUINT8]
-	typs[126] = functype(nil, []*ir.Field{anonfield(typs[125]), anonfield(typs[125])}, nil)
-	typs[127] = types.Types[types.TUINT16]
-	typs[128] = functype(nil, []*ir.Field{anonfield(typs[127]), anonfield(typs[127])}, nil)
-	typs[129] = functype(nil, []*ir.Field{anonfield(typs[65]), anonfield(typs[65])}, nil)
-	typs[130] = functype(nil, []*ir.Field{anonfield(typs[24]), anonfield(typs[24])}, nil)
+	typs[122] = functype(nil, []*ir.Field{anonfield(typs[5]), anonfield(typs[5]), anonfield(typs[5])}, nil)
+	typs[123] = functype(nil, []*ir.Field{anonfield(typs[7]), anonfield(typs[1]), anonfield(typs[5])}, nil)
+	typs[124] = types.NewSlice(typs[7])
+	typs[125] = functype(nil, []*ir.Field{anonfield(typs[7]), anonfield(typs[124])}, nil)
+	typs[126] = types.Types[types.TUINT8]
+	typs[127] = functype(nil, []*ir.Field{anonfield(typs[126]), anonfield(typs[126])}, nil)
+	typs[128] = types.Types[types.TUINT16]
+	typs[129] = functype(nil, []*ir.Field{anonfield(typs[128]), anonfield(typs[128])}, nil)
+	typs[130] = functype(nil, []*ir.Field{anonfield(typs[65]), anonfield(typs[65])}, nil)
+	typs[131] = functype(nil, []*ir.Field{anonfield(typs[24]), anonfield(typs[24])}, nil)
 	return typs[:]
 }

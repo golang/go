@@ -399,7 +399,7 @@ func CertGetCertificateChain(engine Handle, leaf *CertContext, time *Filetime, a
 func CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) {
 	r0, _, e1 := Syscall6(procCertOpenStore.Addr(), 5, uintptr(storeProvider), uintptr(msgAndCertEncodingType), uintptr(cryptProv), uintptr(flags), uintptr(para), 0)
 	handle = Handle(r0)
-	if handle == InvalidHandle {
+	if handle == 0 {
 		err = errnoErr(e1)
 	}
 	return

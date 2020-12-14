@@ -9,13 +9,12 @@ package filepath_test
 import (
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
 func prepareTestDirTree(tree string) (string, error) {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return "", fmt.Errorf("error creating temp directory: %v\n", err)
 	}

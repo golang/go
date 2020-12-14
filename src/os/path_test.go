@@ -6,7 +6,7 @@ package os_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -78,7 +78,7 @@ func TestMkdirAll(t *testing.T) {
 func TestMkdirAllWithSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
+	tmpDir, err := os.MkdirTemp("", "TestMkdirAllWithSymlink-")
 	if err != nil {
 		t.Fatal(err)
 	}

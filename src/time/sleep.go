@@ -31,6 +31,8 @@ func when(d Duration) int64 {
 	}
 	t := runtimeNano() + int64(d)
 	if t < 0 {
+		// N.B. runtimeNano() and d are always positive, so addition
+		// (including overflow) will never result in t == 0.
 		t = 1<<63 - 1 // math.MaxInt64
 	}
 	return t

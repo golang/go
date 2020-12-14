@@ -11,7 +11,6 @@ package os_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -29,7 +28,7 @@ func TestNonpollableDeadline(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
-	f, err := ioutil.TempFile("", "ostest")
+	f, err := os.CreateTemp("", "ostest")
 	if err != nil {
 		t.Fatal(err)
 	}
