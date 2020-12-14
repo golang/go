@@ -97,7 +97,7 @@ func TestableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
 			return false
-		case "darwin":
+		case "darwin", "ios":
 			// iOS doesn't support it.
 			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 				return false
@@ -118,7 +118,7 @@ func TestableNetwork(network string) bool {
 			return false
 		case "aix":
 			return unixStrmDgramEnabled()
-		case "darwin":
+		case "darwin", "ios":
 			// iOS does not support unix, unixgram.
 			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 				return false
@@ -126,7 +126,7 @@ func TestableNetwork(network string) bool {
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
-		case "aix", "android", "fuchsia", "hurd", "darwin", "js", "nacl", "plan9", "windows":
+		case "aix", "android", "fuchsia", "hurd", "darwin", "ios", "js", "nacl", "plan9", "windows", "zos":
 			return false
 		case "netbsd":
 			// It passes on amd64 at least. 386 fails

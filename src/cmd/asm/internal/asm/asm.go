@@ -181,7 +181,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 			// Argsize set below.
 		},
 	}
-	nameAddr.Sym.Func.Text = prog
+	nameAddr.Sym.Func().Text = prog
 	prog.To.Val = int32(argSize)
 	p.append(prog, "", true)
 }
@@ -622,8 +622,9 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.ARM64:
-			// ARM64 instructions with one input and two outputs.
-			if arch.IsARM64STLXR(op) {
+			switch {
+			case arch.IsARM64STLXR(op):
+				// ARM64 instructions with one input and two outputs.
 				prog.From = a[0]
 				prog.To = a[1]
 				if a[2].Type != obj.TYPE_REG {
@@ -631,20 +632,28 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
-				break
-			}
-			if arch.IsARM64TBL(op) {
+			case arch.IsARM64TBL(op):
+				// one of its inputs does not fit into prog.Reg.
 				prog.From = a[0]
-				if a[1].Type != obj.TYPE_REGLIST {
-					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
-				}
 				prog.SetFrom3(a[1])
 				prog.To = a[2]
-				break
+			case arch.IsARM64CASP(op):
+				prog.From = a[0]
+				prog.To = a[1]
+				// both 1st operand and 3rd operand are (Rs, Rs+1) register pair.
+				// And the register pair must be contiguous.
+				if (a[0].Type != obj.TYPE_REGREG) || (a[2].Type != obj.TYPE_REGREG) {
+					p.errorf("invalid addressing modes for 1st or 3rd operand to %s instruction, must be register pair", op)
+					return
+				}
+				// For ARM64 CASP-like instructions, its 2nd destination operand is register pair(Rt, Rt+1) that can
+				// not fit into prog.RegTo2, so save it to the prog.RestArgs.
+				prog.SetTo2(a[2])
+			default:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
 			}
-			prog.From = a[0]
-			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.To = a[2]
 		case sys.I386:
 			prog.From = a[0]
 			prog.SetFrom3(a[1])
@@ -728,7 +737,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		}
 		if p.arch.Family == sys.AMD64 {
 			prog.From = a[0]
-			prog.RestArgs = []obj.Addr{a[1], a[2]}
+			prog.SetRestArgs([]obj.Addr{a[1], a[2]})
 			prog.To = a[3]
 			break
 		}
@@ -811,13 +820,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		}
 		if p.arch.Family == sys.AMD64 {
 			prog.From = a[0]
-			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
+			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
 			prog.To = a[4]
 			break
 		}
 		if p.arch.Family == sys.S390X {
 			prog.From = a[0]
-			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
+			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
 			prog.To = a[4]
 			break
 		}

@@ -1,4 +1,5 @@
 env GO111MODULE=on
+env GOFLAGS=-mod=mod
 [short] skip
 
 # golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
@@ -34,7 +35,7 @@ grep 'golang.org/x/text' go.mod
 # 'go get' and 'go mod tidy' should follow the requirements of the replacements,
 # not the originals, even if that results in a set of versions that are
 # misleading or redundant without those replacements.
-go get rsc.io/sampler@v1.2.0
+go get -d rsc.io/sampler@v1.2.0
 go mod tidy
 go list -m all
 stdout 'rsc.io/quote/v3 v3.0.0'

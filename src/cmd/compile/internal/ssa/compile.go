@@ -47,6 +47,9 @@ func Compile(f *Func) {
 			stack := make([]byte, 16384)
 			n := runtime.Stack(stack, false)
 			stack = stack[:n]
+			if f.HTMLWriter != nil {
+				f.HTMLWriter.flushPhases()
+			}
 			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
 	}()
@@ -201,6 +204,13 @@ func (p *pass) addDump(s string) {
 	p.dump[s] = true
 }
 
+func (p *pass) String() string {
+	if p == nil {
+		return "nil pass"
+	}
+	return p.name
+}
+
 // Run consistency checker between each phase
 var (
 	checkEnabled  = false
@@ -294,37 +304,39 @@ commas. For example:
 `
 	}
 
-	if phase == "check" && flag == "on" {
-		checkEnabled = val != 0
-		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
-		return ""
-	}
-	if phase == "check" && flag == "off" {
-		checkEnabled = val == 0
-		debugPoset = checkEnabled
-		return ""
-	}
-	if phase == "check" && flag == "seed" {
-		checkEnabled = true
-		checkRandSeed = val
-		debugPoset = checkEnabled
-		return ""
+	if phase == "check" {
+		switch flag {
+		case "on":
+			checkEnabled = val != 0
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			return ""
+		case "off":
+			checkEnabled = val == 0
+			debugPoset = checkEnabled
+			return ""
+		case "seed":
+			checkEnabled = true
+			checkRandSeed = val
+			debugPoset = checkEnabled
+			return ""
+		}
 	}
 
 	alltime := false
 	allmem := false
 	alldump := false
 	if phase == "all" {
-		if flag == "time" {
+		switch flag {
+		case "time":
 			alltime = val != 0
-		} else if flag == "mem" {
+		case "mem":
 			allmem = val != 0
-		} else if flag == "dump" {
+		case "dump":
 			alldump = val != 0
 			if alldump {
 				BuildDump = valString
 			}
-		} else {
+		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
 		}
 	}
@@ -419,7 +431,7 @@ var passes = [...]pass{
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
-	{name: "decompose args", fn: decomposeArgs, required: true},
+	{name: "decompose args", fn: decomposeArgs, required: !go116lateCallExpansion, disabled: go116lateCallExpansion}, // handled by late call lowering
 	{name: "decompose user", fn: decomposeUser, required: true},
 	{name: "pre-opt deadcode", fn: deadcode},
 	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
@@ -432,6 +444,7 @@ var passes = [...]pass{
 	{name: "prove", fn: prove},
 	{name: "early fuse", fn: fuseEarly},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
+	{name: "expand calls", fn: expandCalls, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},

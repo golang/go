@@ -79,16 +79,17 @@ type pollDesc struct {
 	lock    mutex // protects the following fields
 	fd      uintptr
 	closing bool
-	everr   bool    // marks event scanning error happened
-	user    uint32  // user settable cookie
-	rseq    uintptr // protects from stale read timers
-	rg      uintptr // pdReady, pdWait, G waiting for read or nil
-	rt      timer   // read deadline timer (set if rt.f != nil)
-	rd      int64   // read deadline
-	wseq    uintptr // protects from stale write timers
-	wg      uintptr // pdReady, pdWait, G waiting for write or nil
-	wt      timer   // write deadline timer
-	wd      int64   // write deadline
+	everr   bool      // marks event scanning error happened
+	user    uint32    // user settable cookie
+	rseq    uintptr   // protects from stale read timers
+	rg      uintptr   // pdReady, pdWait, G waiting for read or nil
+	rt      timer     // read deadline timer (set if rt.f != nil)
+	rd      int64     // read deadline
+	wseq    uintptr   // protects from stale write timers
+	wg      uintptr   // pdReady, pdWait, G waiting for write or nil
+	wt      timer     // write deadline timer
+	wd      int64     // write deadline
+	self    *pollDesc // storage for indirect interface. See (*pollDesc).makeArg.
 }
 
 type pollCache struct {
@@ -157,6 +158,7 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	pd.wseq++
 	pd.wg = 0
 	pd.wd = 0
+	pd.self = pd
 	unlock(&pd.lock)
 
 	var errno int32
@@ -271,14 +273,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			// Copy current seq into the timer arg.
 			// Timer func will check the seq against current descriptor seq,
 			// if they differ the descriptor was reused or timers were reset.
-			pd.rt.arg = pd
+			pd.rt.arg = pd.makeArg()
 			pd.rt.seq = pd.rseq
 			resettimer(&pd.rt, pd.rd)
 		}
 	} else if pd.rd != rd0 || combo != combo0 {
 		pd.rseq++ // invalidate current timers
 		if pd.rd > 0 {
-			modtimer(&pd.rt, pd.rd, 0, rtf, pd, pd.rseq)
+			modtimer(&pd.rt, pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
 		} else {
 			deltimer(&pd.rt)
 			pd.rt.f = nil
@@ -287,14 +289,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if pd.wt.f == nil {
 		if pd.wd > 0 && !combo {
 			pd.wt.f = netpollWriteDeadline
-			pd.wt.arg = pd
+			pd.wt.arg = pd.makeArg()
 			pd.wt.seq = pd.wseq
 			resettimer(&pd.wt, pd.wd)
 		}
 	} else if pd.wd != wd0 || combo != combo0 {
 		pd.wseq++ // invalidate current timers
 		if pd.wd > 0 && !combo {
-			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd, pd.wseq)
+			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
 		} else {
 			deltimer(&pd.wt)
 			pd.wt.f = nil
@@ -547,3 +549,20 @@ func (c *pollCache) alloc() *pollDesc {
 	unlock(&c.lock)
 	return pd
 }
+
+// makeArg converts pd to an interface{}.
+// makeArg does not do any allocation. Normally, such
+// a conversion requires an allocation because pointers to
+// go:notinheap types (which pollDesc is) must be stored
+// in interfaces indirectly. See issue 42076.
+func (pd *pollDesc) makeArg() (i interface{}) {
+	x := (*eface)(unsafe.Pointer(&i))
+	x._type = pdType
+	x.data = unsafe.Pointer(&pd.self)
+	return
+}
+
+var (
+	pdEface interface{} = (*pollDesc)(nil)
+	pdType  *_type      = efaceOf(&pdEface)._type
+)

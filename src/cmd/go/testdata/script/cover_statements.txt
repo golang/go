@@ -5,6 +5,10 @@ stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
 stdout 'pkg3	\S+	coverage: 100.0% of statements'
 stdout 'pkg4	\S+	coverage: \[no statements\]'
 
+-- go.mod --
+module m
+
+go 1.16
 -- pkg1/a.go --
 package pkg1
 

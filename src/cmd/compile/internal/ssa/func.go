@@ -672,7 +672,7 @@ func (f *Func) Idom() []*Block {
 	return f.cachedIdom
 }
 
-// sdom returns a sparse tree representing the dominator relationships
+// Sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
 func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
@@ -774,4 +774,26 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 
 func DebugNameMatch(evname, name string) bool {
 	return os.Getenv(evname) == name
+}
+
+func (f *Func) spSb() (sp, sb *Value) {
+	initpos := f.Entry.Pos
+	for _, v := range f.Entry.Values {
+		if v.Op == OpSB {
+			sb = v
+		}
+		if v.Op == OpSP {
+			sp = v
+		}
+		if sb != nil && sp != nil {
+			break
+		}
+	}
+	if sb == nil {
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
+	}
+	if sp == nil {
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
+	}
+	return
 }

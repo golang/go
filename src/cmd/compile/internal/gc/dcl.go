@@ -257,6 +257,8 @@ func symfield(s *types.Sym, typ *types.Type) *Node {
 
 // oldname returns the Node that declares symbol s in the current scope.
 // If no such Node currently exists, an ONONAME Node is returned instead.
+// Automatically creates a new closure variable if the referenced symbol was
+// declared in a different (containing) function.
 func oldname(s *types.Sym) *Node {
 	n := asNode(s.Def)
 	if n == nil {
@@ -283,7 +285,7 @@ func oldname(s *types.Sym) *Node {
 			c.Name.Defn = n
 
 			// Link into list of active closure variables.
-			// Popped from list in func closurebody.
+			// Popped from list in func funcLit.
 			c.Name.Param.Outer = n.Name.Param.Innermost
 			n.Name.Param.Innermost = c
 
@@ -382,14 +384,11 @@ func ifacedcl(n *Node) {
 // returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
-	if Curfn == nil && dclcontext != PEXTERN {
-		Fatalf("funchdr: dclcontext = %d", dclcontext)
-	}
-
-	dclcontext = PAUTO
-	types.Markdcl()
-	funcstack = append(funcstack, Curfn)
+	funcStack = append(funcStack, funcStackEnt{Curfn, dclcontext})
 	Curfn = n
+	dclcontext = PAUTO
+
+	types.Markdcl()
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -497,21 +496,22 @@ func funcarg2(f *types.Field, ctxt Class) {
 	declare(n, ctxt)
 }
 
-var funcstack []*Node // stack of previous values of Curfn
+var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
+
+type funcStackEnt struct {
+	curfn      *Node
+	dclcontext Class
+}
 
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
 func funcbody() {
-	// change the declaration context from auto to extern
-	if dclcontext != PAUTO {
-		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
-	}
+	// change the declaration context from auto to previous context
 	types.Popdcl()
-	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
-	if Curfn == nil {
-		dclcontext = PEXTERN
-	}
+	var e funcStackEnt
+	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
+	Curfn, dclcontext = e.curfn, e.dclcontext
 }
 
 // structs, functions, and methods.

@@ -526,7 +526,7 @@ General-purpose environment variables:
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched directly
 		or that should not be compared against the checksum database.
-		See 'go help module-private'.
+		See 'go help private'.
 	GOROOT
 		The root of the go tree.
 	GOSUMDB
@@ -582,8 +582,8 @@ Architecture-specific environment variables:
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
 	GO386
-		For GOARCH=386, the floating point instruction set.
-		Valid values are 387, sse2.
+		For GOARCH=386, how to implement floating point instructions.
+		Valid values are sse2 (default), softfloat.
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -632,6 +632,8 @@ Additional information available from 'go env' but not read from the environment
 		If module-aware mode is disabled, GOMOD will be the empty string.
 	GOTOOLDIR
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+	GOVERSION
+		The version of the installed Go tree, as reported by runtime.Version.
 	`,
 }
 
@@ -837,6 +839,9 @@ in addition to android tags and files.
 
 Using GOOS=illumos matches build tags and files as for GOOS=solaris
 in addition to illumos tags and files.
+
+Using GOOS=ios matches build tags and files as for GOOS=darwin
+in addition to ios tags and files.
 
 To keep a file from being considered for the build:
 

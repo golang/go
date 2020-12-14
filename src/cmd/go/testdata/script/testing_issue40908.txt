@@ -3,7 +3,11 @@
 
 go test -race testrace
 
--- testrace/race_test.go --
+-- go.mod --
+module testrace
+
+go 1.16
+-- race_test.go --
 package testrace
 
 import "testing"

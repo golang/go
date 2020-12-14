@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -75,7 +74,7 @@ func TestGolden(t *testing.T) {
 			f.Close()
 		}
 
-		bs, err := ioutil.ReadFile(goldenFile)
+		bs, err := os.ReadFile(goldenFile)
 		if err != nil {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}
@@ -213,6 +212,19 @@ func TestIssue29837(t *testing.T) {
 		_, err := w.Import("p")
 		if _, nogo := err.(*build.NoGoError); !nogo {
 			t.Errorf("expected *build.NoGoError, got %T", err)
+		}
+	}
+}
+
+func TestIssue41358(t *testing.T) {
+	context := new(build.Context)
+	*context = build.Default
+	context.Dir = filepath.Join(context.GOROOT, "src")
+
+	w := NewWalker(context, context.Dir)
+	for _, pkg := range w.stdPackages {
+		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
+			t.Fatalf("stdPackages contains unexpected package %s", pkg)
 		}
 	}
 }

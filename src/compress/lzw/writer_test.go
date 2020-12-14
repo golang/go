@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"runtime"
@@ -67,8 +66,8 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
 	defer lzwr.Close()
 
 	// Compare the two.
-	b0, err0 := ioutil.ReadAll(golden)
-	b1, err1 := ioutil.ReadAll(lzwr)
+	b0, err0 := io.ReadAll(golden)
+	b1, err1 := io.ReadAll(lzwr)
 	if err0 != nil {
 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err0)
 		return
@@ -107,7 +106,7 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterReturnValues(t *testing.T) {
-	w := NewWriter(ioutil.Discard, LSB, 8)
+	w := NewWriter(io.Discard, LSB, 8)
 	n, err := w.Write([]byte("asdf"))
 	if n != 4 || err != nil {
 		t.Errorf("got %d, %v, want 4, nil", n, err)
@@ -115,7 +114,7 @@ func TestWriterReturnValues(t *testing.T) {
 }
 
 func TestSmallLitWidth(t *testing.T) {
-	w := NewWriter(ioutil.Discard, LSB, 2)
+	w := NewWriter(io.Discard, LSB, 2)
 	if _, err := w.Write([]byte{0x03}); err != nil {
 		t.Fatalf("write a byte < 1<<2: %v", err)
 	}
@@ -125,7 +124,7 @@ func TestSmallLitWidth(t *testing.T) {
 }
 
 func BenchmarkEncoder(b *testing.B) {
-	buf, err := ioutil.ReadFile("../testdata/e.txt")
+	buf, err := os.ReadFile("../testdata/e.txt")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -148,7 +147,7 @@ func BenchmarkEncoder(b *testing.B) {
 		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
 			b.SetBytes(int64(n))
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(ioutil.Discard, LSB, 8)
+				w := NewWriter(io.Discard, LSB, 8)
 				w.Write(buf1)
 				w.Close()
 			}

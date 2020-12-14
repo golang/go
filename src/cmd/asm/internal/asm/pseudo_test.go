@@ -37,6 +37,7 @@ func TestErroneous(t *testing.T) {
 		{"TEXT", "$0É:0, 0, $1", "expected end of operand, found É"}, // Issue #12467.
 		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"},          // Issue 12468.
 		{"TEXT", "@B(SB),0,$0", "expected '(', found B"},             // Issue 23580.
+		{"TEXT", "foo<ABIInternal>(SB),0", "ABI selector only permitted when compiling runtime, reference was to \"foo\""},
 		{"FUNCDATA", "", "expect two operands for FUNCDATA"},
 		{"FUNCDATA", "(SB ", "expect two operands for FUNCDATA"},
 		{"DATA", "", "expect two operands for DATA"},

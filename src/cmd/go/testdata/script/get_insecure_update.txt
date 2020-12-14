@@ -1,5 +1,6 @@
 [!net] skip
 [!exec:git] skip
+env GO111MODULE=off
 
 # Clone the repo via HTTP manually.
 exec git clone -q http://github.com/golang/example github.com/golang/example

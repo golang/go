@@ -9,13 +9,13 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"context"
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-v]",
+	UsageLine: "go mod tidy [-e] [-v]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -26,13 +26,19 @@ to go.sum and removes any unnecessary ones.
 
 The -v flag causes tidy to print information about removed modules
 to standard error.
+
+The -e flag causes tidy to attempt to proceed despite errors
+encountered while loading packages.
 	`,
+	Run: runTidy,
 }
 
+var tidyE bool // if true, report errors but proceed anyway.
+
 func init() {
-	cmdTidy.Run = runTidy // break init cycle
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	work.AddModCommonFlags(cmdTidy)
+	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
@@ -40,7 +46,26 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go mod tidy: no arguments allowed")
 	}
 
-	modload.LoadALL(ctx)
+	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
+	// need to include test dependencies. For modules that specify go 1.15 or
+	// earlier this is a no-op (because 'all' saturates transitive test
+	// dependencies).
+	//
+	// However, with lazy loading (go 1.16+) 'all' includes only the packages that
+	// are transitively imported by the main module, not the test dependencies of
+	// those packages. In order to make 'go test' reproducible for the packages
+	// that are in 'all' but outside of the main module, we must explicitly
+	// request that their test dependencies be included.
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
+
+	modload.LoadPackages(ctx, modload.PackageOpts{
+		Tags:                  imports.AnyTags(),
+		ResolveMissingImports: true,
+		LoadTests:             true,
+		AllowErrors:           tidyE,
+	}, "all")
+
 	modload.TidyBuildList()
 	modload.TrimGoSum()
 	modload.WriteGoMod()

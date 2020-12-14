@@ -160,6 +160,8 @@ var optab = []Optab{
 	{ASLD, C_REG, C_REG, C_NONE, C_REG, 6, 4, 0},
 	{ASLD, C_SCON, C_REG, C_NONE, C_REG, 25, 4, 0},
 	{ASLD, C_SCON, C_NONE, C_NONE, C_REG, 25, 4, 0},
+	{AEXTSWSLI, C_SCON, C_NONE, C_NONE, C_REG, 25, 4, 0},
+	{AEXTSWSLI, C_SCON, C_REG, C_NONE, C_REG, 25, 4, 0},
 	{ASLW, C_SCON, C_REG, C_NONE, C_REG, 57, 4, 0},
 	{ASLW, C_SCON, C_NONE, C_NONE, C_REG, 57, 4, 0},
 	{ASRAW, C_REG, C_NONE, C_NONE, C_REG, 6, 4, 0},
@@ -172,6 +174,7 @@ var optab = []Optab{
 	{ASRAD, C_SCON, C_NONE, C_NONE, C_REG, 56, 4, 0},
 	{ARLWMI, C_SCON, C_REG, C_LCON, C_REG, 62, 4, 0},
 	{ARLWMI, C_REG, C_REG, C_LCON, C_REG, 63, 4, 0},
+	{ACLRLSLWI, C_SCON, C_REG, C_LCON, C_REG, 62, 4, 0},
 	{ARLDMI, C_SCON, C_REG, C_LCON, C_REG, 30, 4, 0},
 	{ARLDC, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
 	{ARLDCL, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
@@ -331,6 +334,7 @@ var optab = []Optab{
 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
+	{ABR, C_NONE, C_NONE, C_SCON, C_LR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_REG, C_NONE, C_NONE, C_CTR, 18, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_ZOREG, 15, 8, 0},
@@ -661,8 +665,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 		// the function alignment is not changed which might
 		// result in 16 byte alignment but that is still fine.
 		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func.Align < 32 {
-			cursym.Func.Align = 32
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
+			cursym.Func().Align = 32
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -671,7 +675,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 }
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -720,7 +724,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
@@ -782,7 +786,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	bp := c.cursym.P
 	var i int32
 	var out [6]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
@@ -1277,6 +1281,9 @@ func buildop(ctxt *obj.Link) {
 		case AREMD:
 			opset(AREMDU, r0)
 
+		case AMULLW:
+			opset(AMULLD, r0)
+
 		case ADIVW: /* op Rb[,Ra],Rd */
 			opset(AMULHW, r0)
 
@@ -1310,7 +1317,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AMULHDCC, r0)
 			opset(AMULHDU, r0)
 			opset(AMULHDUCC, r0)
-			opset(AMULLD, r0)
 			opset(AMULLDCC, r0)
 			opset(AMULLDVCC, r0)
 			opset(AMULLDV, r0)
@@ -1877,6 +1883,9 @@ func buildop(ctxt *obj.Link) {
 		case ASRAW: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
 			opset(ASRAWCC, r0)
 
+		case AEXTSWSLI:
+			opset(AEXTSWSLICC, r0)
+
 		case ASRAD: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
 			opset(ASRADCC, r0)
 
@@ -1922,6 +1931,9 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLDICLCC, r0)
 			opset(ARLDICR, r0)
 			opset(ARLDICRCC, r0)
+			opset(ARLDIC, r0)
+			opset(ARLDICCC, r0)
+			opset(ACLRLSLDI, r0)
 
 		case AFMOVD:
 			opset(AFMOVDCC, r0)
@@ -1987,7 +1999,6 @@ func buildop(ctxt *obj.Link) {
 			AMOVB,  /* macro: move byte with sign extension */
 			AMOVBU, /* macro: move byte with sign extension & update */
 			AMOVFL,
-			AMULLW,
 			/* op $s[,r2],r3; op r1[,r2],r3; no cc/v */
 			ASUBC, /* op r1,$s,r3; op r1[,r2],r3 */
 			ASTSW,
@@ -2000,6 +2011,7 @@ func buildop(ctxt *obj.Link) {
 			AADDEX,
 			ACMPEQB,
 			AECIWX,
+			ACLRLSLWI,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -2149,7 +2161,7 @@ func AOP_DQ(op uint32, d uint32, a uint32, b uint32) uint32 {
 
 /* Z23-form, 3-register operands + CY field */
 func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
-	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<9
 }
 
 /* X-form, 3-register operands + EH field */
@@ -2185,49 +2197,54 @@ func AOP_RLDIC(op uint32, a uint32, s uint32, sh uint32, m uint32) uint32 {
 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1 | (m&31)<<6 | ((m&32)>>5)<<5
 }
 
+func AOP_EXTSWSLI(op uint32, a uint32, s uint32, sh uint32) uint32 {
+	return op | (a&31)<<21 | (s&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1
+}
+
 func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
 	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
 }
 
 const (
 	/* each rhs is OPVCC(_, _, _, _) */
-	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
-	OP_ADDI   = 14<<26 | 0<<1 | 0<<10 | 0
-	OP_ADDIS  = 15<<26 | 0<<1 | 0<<10 | 0
-	OP_ANDI   = 28<<26 | 0<<1 | 0<<10 | 0
-	OP_EXTSB  = 31<<26 | 954<<1 | 0<<10 | 0
-	OP_EXTSH  = 31<<26 | 922<<1 | 0<<10 | 0
-	OP_EXTSW  = 31<<26 | 986<<1 | 0<<10 | 0
-	OP_ISEL   = 31<<26 | 15<<1 | 0<<10 | 0
-	OP_MCRF   = 19<<26 | 0<<1 | 0<<10 | 0
-	OP_MCRFS  = 63<<26 | 64<<1 | 0<<10 | 0
-	OP_MCRXR  = 31<<26 | 512<<1 | 0<<10 | 0
-	OP_MFCR   = 31<<26 | 19<<1 | 0<<10 | 0
-	OP_MFFS   = 63<<26 | 583<<1 | 0<<10 | 0
-	OP_MFMSR  = 31<<26 | 83<<1 | 0<<10 | 0
-	OP_MFSPR  = 31<<26 | 339<<1 | 0<<10 | 0
-	OP_MFSR   = 31<<26 | 595<<1 | 0<<10 | 0
-	OP_MFSRIN = 31<<26 | 659<<1 | 0<<10 | 0
-	OP_MTCRF  = 31<<26 | 144<<1 | 0<<10 | 0
-	OP_MTFSF  = 63<<26 | 711<<1 | 0<<10 | 0
-	OP_MTFSFI = 63<<26 | 134<<1 | 0<<10 | 0
-	OP_MTMSR  = 31<<26 | 146<<1 | 0<<10 | 0
-	OP_MTMSRD = 31<<26 | 178<<1 | 0<<10 | 0
-	OP_MTSPR  = 31<<26 | 467<<1 | 0<<10 | 0
-	OP_MTSR   = 31<<26 | 210<<1 | 0<<10 | 0
-	OP_MTSRIN = 31<<26 | 242<<1 | 0<<10 | 0
-	OP_MULLW  = 31<<26 | 235<<1 | 0<<10 | 0
-	OP_MULLD  = 31<<26 | 233<<1 | 0<<10 | 0
-	OP_OR     = 31<<26 | 444<<1 | 0<<10 | 0
-	OP_ORI    = 24<<26 | 0<<1 | 0<<10 | 0
-	OP_ORIS   = 25<<26 | 0<<1 | 0<<10 | 0
-	OP_RLWINM = 21<<26 | 0<<1 | 0<<10 | 0
-	OP_RLWNM  = 23<<26 | 0<<1 | 0<<10 | 0
-	OP_SUBF   = 31<<26 | 40<<1 | 0<<10 | 0
-	OP_RLDIC  = 30<<26 | 4<<1 | 0<<10 | 0
-	OP_RLDICR = 30<<26 | 2<<1 | 0<<10 | 0
-	OP_RLDICL = 30<<26 | 0<<1 | 0<<10 | 0
-	OP_RLDCL  = 30<<26 | 8<<1 | 0<<10 | 0
+	OP_ADD      = 31<<26 | 266<<1 | 0<<10 | 0
+	OP_ADDI     = 14<<26 | 0<<1 | 0<<10 | 0
+	OP_ADDIS    = 15<<26 | 0<<1 | 0<<10 | 0
+	OP_ANDI     = 28<<26 | 0<<1 | 0<<10 | 0
+	OP_EXTSB    = 31<<26 | 954<<1 | 0<<10 | 0
+	OP_EXTSH    = 31<<26 | 922<<1 | 0<<10 | 0
+	OP_EXTSW    = 31<<26 | 986<<1 | 0<<10 | 0
+	OP_ISEL     = 31<<26 | 15<<1 | 0<<10 | 0
+	OP_MCRF     = 19<<26 | 0<<1 | 0<<10 | 0
+	OP_MCRFS    = 63<<26 | 64<<1 | 0<<10 | 0
+	OP_MCRXR    = 31<<26 | 512<<1 | 0<<10 | 0
+	OP_MFCR     = 31<<26 | 19<<1 | 0<<10 | 0
+	OP_MFFS     = 63<<26 | 583<<1 | 0<<10 | 0
+	OP_MFMSR    = 31<<26 | 83<<1 | 0<<10 | 0
+	OP_MFSPR    = 31<<26 | 339<<1 | 0<<10 | 0
+	OP_MFSR     = 31<<26 | 595<<1 | 0<<10 | 0
+	OP_MFSRIN   = 31<<26 | 659<<1 | 0<<10 | 0
+	OP_MTCRF    = 31<<26 | 144<<1 | 0<<10 | 0
+	OP_MTFSF    = 63<<26 | 711<<1 | 0<<10 | 0
+	OP_MTFSFI   = 63<<26 | 134<<1 | 0<<10 | 0
+	OP_MTMSR    = 31<<26 | 146<<1 | 0<<10 | 0
+	OP_MTMSRD   = 31<<26 | 178<<1 | 0<<10 | 0
+	OP_MTSPR    = 31<<26 | 467<<1 | 0<<10 | 0
+	OP_MTSR     = 31<<26 | 210<<1 | 0<<10 | 0
+	OP_MTSRIN   = 31<<26 | 242<<1 | 0<<10 | 0
+	OP_MULLW    = 31<<26 | 235<<1 | 0<<10 | 0
+	OP_MULLD    = 31<<26 | 233<<1 | 0<<10 | 0
+	OP_OR       = 31<<26 | 444<<1 | 0<<10 | 0
+	OP_ORI      = 24<<26 | 0<<1 | 0<<10 | 0
+	OP_ORIS     = 25<<26 | 0<<1 | 0<<10 | 0
+	OP_RLWINM   = 21<<26 | 0<<1 | 0<<10 | 0
+	OP_RLWNM    = 23<<26 | 0<<1 | 0<<10 | 0
+	OP_SUBF     = 31<<26 | 40<<1 | 0<<10 | 0
+	OP_RLDIC    = 30<<26 | 4<<1 | 0<<10 | 0
+	OP_RLDICR   = 30<<26 | 2<<1 | 0<<10 | 0
+	OP_RLDICL   = 30<<26 | 0<<1 | 0<<10 | 0
+	OP_RLDCL    = 30<<26 | 8<<1 | 0<<10 | 0
+	OP_EXTSWSLI = 31<<26 | 445<<2
 )
 
 func oclass(a *obj.Addr) int {
@@ -2734,12 +2751,30 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case ARLDICR, ARLDICRCC:
 			me := int(d)
 			sh := c.regoff(&p.From)
+			if me < 0 || me > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh, p)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
 
-		case ARLDICL, ARLDICLCC:
+		case ARLDICL, ARLDICLCC, ARLDIC, ARLDICCC:
 			mb := int(d)
 			sh := c.regoff(&p.From)
+			if mb < 0 || mb > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh, p)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+
+		case ACLRLSLDI:
+			// This is an extended mnemonic defined in the ISA section C.8.1
+			// clrlsldi ra,rs,b,n --> rldic ra,rs,n,b-n
+			// It maps onto RLDIC so is directly generated here based on the operands from
+			// the clrlsldi.
+			n := int32(d)
+			b := c.regoff(&p.From)
+			if n > b || b > 63 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
+			}
+			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -2810,6 +2845,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
 		var v int32
+		var bh uint32 = 0
 		if p.As == ABC || p.As == ABCL {
 			v = c.regoff(&p.From) & 31
 		} else {
@@ -2829,6 +2865,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("bad optab entry (18): %d\n%v", p.To.Class, p)
 			v = 0
+		}
+
+		// Insert optional branch hint for bclr[l]/bcctr[l]
+		if p.From3Type() != obj.TYPE_NONE {
+			bh = uint32(p.GetFrom3().Offset)
+			if bh == 2 || bh > 3 {
+				log.Fatalf("BH must be 0,1,3 for %v", p)
+			}
+			o1 |= bh << 11
 		}
 
 		if p.As == ABL || p.As == ABCL {
@@ -2943,14 +2988,21 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case AROTL:
 			a = int(0)
 			op = OP_RLDICL
+		case AEXTSWSLI:
+			a = int(v)
 		default:
 			c.ctxt.Diag("unexpected op in sldi case\n%v", p)
 			a = 0
 			o1 = 0
 		}
 
-		o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
-		if p.As == ASLDCC || p.As == ASRDCC {
+		if p.As == AEXTSWSLI || p.As == AEXTSWSLICC {
+			o1 = AOP_EXTSWSLI(OP_EXTSWSLI, uint32(r), uint32(p.To.Reg), uint32(v))
+
+		} else {
+			o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
+		}
+		if p.As == ASLDCC || p.As == ASRDCC || p.As == AEXTSWSLICC {
 			o1 |= 1 // Set the condition code bit
 		}
 
@@ -3354,17 +3406,28 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: /* rlwmi $sh,s,$mask,a */
 		v := c.regoff(&p.From)
+		switch p.As {
+		case ACLRLSLWI:
+			n := c.regoff(p.GetFrom3())
+			// This is an extended mnemonic described in the ISA C.8.2
+			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
+			// It maps onto rlwinm which is directly generated here.
+			if n > v || v >= 32 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
+			}
 
-		var mask [2]uint8
-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
+		default:
+			var mask [2]uint8
+			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		}
 
 	case 63: /* rlwmi b,s,$mask,a */
 		var mask [2]uint8
 		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
+		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
 		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
 
 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
@@ -4277,6 +4340,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case ARLDICRCC:
 		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
 
+	case ARLDIC:
+		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
+	case ARLDICCC:
+		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
+
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
 
@@ -4297,6 +4365,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(31, 794, 0, 0)
 	case ASRADCC:
 		return OPVCC(31, 794, 0, 1)
+
+	case AEXTSWSLI:
+		return OPVCC(31, 445, 0, 0)
+	case AEXTSWSLICC:
+		return OPVCC(31, 445, 0, 1)
 
 	case ASRW:
 		return OPVCC(31, 536, 0, 0)
@@ -4915,8 +4988,8 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 	case ADARN:
 		return OPVCC(31, 755, 0, 0) /* darn - v3.00 */
 
-	case AMULLW:
-		return OPVCC(7, 0, 0, 0)
+	case AMULLW, AMULLD:
+		return OPVCC(7, 0, 0, 0) /* mulli works with MULLW or MULLD */
 
 	case AOR:
 		return OPVCC(24, 0, 0, 0)
@@ -4961,6 +5034,10 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 		return OPVCC(31, (413 << 1), 0, 0)
 	case ASRADCC:
 		return OPVCC(31, (413 << 1), 0, 1)
+	case AEXTSWSLI:
+		return OPVCC(31, 445, 0, 0)
+	case AEXTSWSLICC:
+		return OPVCC(31, 445, 0, 1)
 
 	case ASTSW:
 		return OPVCC(31, 725, 0, 0)

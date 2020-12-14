@@ -45,6 +45,7 @@ const (
 	AF_SIP                            = 0x18
 	AF_SNA                            = 0xb
 	AF_SYSTEM                         = 0x20
+	AF_SYS_CONTROL                    = 0x2
 	AF_UNIX                           = 0x1
 	AF_UNSPEC                         = 0x0
 	AF_UTUN                           = 0x26
@@ -232,6 +233,8 @@ const (
 	CLOCK_THREAD_CPUTIME_ID           = 0x10
 	CLOCK_UPTIME_RAW                  = 0x8
 	CLOCK_UPTIME_RAW_APPROX           = 0x9
+	CLONE_NOFOLLOW                    = 0x1
+	CLONE_NOOWNERCOPY                 = 0x2
 	CR0                               = 0x0
 	CR1                               = 0x1000
 	CR2                               = 0x2000
@@ -249,6 +252,7 @@ const (
 	CSTOP                             = 0x13
 	CSTOPB                            = 0x400
 	CSUSP                             = 0x1a
+	CTLIOCGINFO                       = 0xc0644e03
 	CTL_HW                            = 0x6
 	CTL_KERN                          = 0x1
 	CTL_MAXNAME                       = 0xc

@@ -51,7 +51,35 @@ func want(t *testing.T, out string, desired string) {
 
 func wantN(t *testing.T, out string, desired string, n int) {
 	if strings.Count(out, desired) != n {
-		t.Errorf("expected exactly %d occurences of %s in \n%s", n, desired, out)
+		t.Errorf("expected exactly %d occurrences of %s in \n%s", n, desired, out)
+	}
+}
+
+func TestPathStuff(t *testing.T) {
+	sep := string(filepath.Separator)
+	if path, whine := parseLogPath("file:///c:foo"); path != "c:foo" || whine != "" { // good path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if path, whine := parseLogPath("file:///foo"); path != sep+"foo" || whine != "" { // good path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if path, whine := parseLogPath("foo"); path != "" || whine == "" { // BAD path
+		t.Errorf("path='%s', whine='%s'", path, whine)
+	}
+	if sep == "\\" { // On WINDOWS ONLY
+		if path, whine := parseLogPath("C:/foo"); path != "C:\\foo" || whine != "" { // good path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+		if path, whine := parseLogPath("c:foo"); path != "" || whine == "" { // BAD path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+		if path, whine := parseLogPath("/foo"); path != "" || whine == "" { // BAD path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
+	} else { // ON UNIX ONLY
+		if path, whine := parseLogPath("/foo"); path != sep+"foo" || whine != "" { // good path
+			t.Errorf("path='%s', whine='%s'", path, whine)
+		}
 	}
 }
 
@@ -180,21 +208,20 @@ func s15a8(x *[15]int64) [15]int64 {
 			`"relatedInformation":[{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"}]}`)
 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
 		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
-		want(t, slogged, `{"range":{"start":{"line":21,"character":21},"end":{"line":21,"character":21}},"severity":3,"code":"cannotInlineCall","source":"go compiler","message":"foo cannot be inlined (escaping closure variable)"}`)
 		// escape analysis explanation
 		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0",`+
 			`"relatedInformation":[`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y = \u003cN\u003e (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r1 = y:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~R0 = y:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~r1:"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~r1) (return)"}]}`)
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u003cN\u003e (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
 	})
 }
 

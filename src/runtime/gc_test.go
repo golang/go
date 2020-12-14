@@ -518,7 +518,7 @@ func BenchmarkReadMemStats(b *testing.B) {
 	hugeSink = nil
 }
 
-func BenchmarkReadMemStatsLatency(b *testing.B) {
+func applyGCLoad(b *testing.B) func() {
 	// We’ll apply load to the runtime with maxProcs-1 goroutines
 	// and use one more to actually benchmark. It doesn't make sense
 	// to try to run this test with only 1 P (that's what
@@ -563,6 +563,14 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 			runtime.KeepAlive(hold)
 		}()
 	}
+	return func() {
+		close(done)
+		wg.Wait()
+	}
+}
+
+func BenchmarkReadMemStatsLatency(b *testing.B) {
+	stop := applyGCLoad(b)
 
 	// Spend this much time measuring latencies.
 	latencies := make([]time.Duration, 0, 1024)
@@ -579,12 +587,11 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 		runtime.ReadMemStats(&ms)
 		latencies = append(latencies, time.Now().Sub(start))
 	}
-	close(done)
-	// Make sure to stop the timer before we wait! The goroutines above
-	// are very heavy-weight and not easy to stop, so we could end up
+	// Make sure to stop the timer before we wait! The load created above
+	// is very heavy-weight and not easy to stop, so we could end up
 	// confusing the benchmarking framework for small b.N.
 	b.StopTimer()
-	wg.Wait()
+	stop()
 
 	// Disable the default */op metrics.
 	// ns/op doesn't mean anything because it's an average, but we
@@ -763,6 +770,10 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
 }
 
 func BenchmarkMSpanCountAlloc(b *testing.B) {
+	// Allocate one dummy mspan for the whole benchmark.
+	s := runtime.AllocMSpan()
+	defer runtime.FreeMSpan(s)
+
 	// n is the number of bytes to benchmark against.
 	// n must always be a multiple of 8, since gcBits is
 	// always rounded up 8 bytes.
@@ -774,7 +785,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				runtime.MSpanCountAlloc(bits)
+				runtime.MSpanCountAlloc(s, bits)
 			}
 		})
 	}

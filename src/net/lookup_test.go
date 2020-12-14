@@ -511,7 +511,7 @@ func TestDNSFlood(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 
 	var N = 5000
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// On Darwin this test consumes kernel threads much
 		// than other platforms for some reason.
 		// When we monitor the number of allocated Ms by
@@ -628,7 +628,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 27992)
 	}
 	mustHaveExternalNetwork(t)

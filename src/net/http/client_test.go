@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	. "net/http"
@@ -35,7 +34,7 @@ var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
 	fmt.Fprintf(w, "User-agent: go\nDisallow: /something/")
 })
 
-// pedanticReadAll works like ioutil.ReadAll but additionally
+// pedanticReadAll works like io.ReadAll but additionally
 // verifies that r obeys the documented io.Reader contract.
 func pedanticReadAll(r io.Reader) (b []byte, err error) {
 	var bufa [64]byte
@@ -190,7 +189,7 @@ func TestPostFormRequestFormat(t *testing.T) {
 	if g, e := tr.req.ContentLength, int64(len(expectedBody)); g != e {
 		t.Errorf("got ContentLength %d, want %d", g, e)
 	}
-	bodyb, err := ioutil.ReadAll(tr.req.Body)
+	bodyb, err := io.ReadAll(tr.req.Body)
 	if err != nil {
 		t.Fatalf("ReadAll on req.Body: %v", err)
 	}
@@ -421,7 +420,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		log.Lock()
-		slurp, _ := ioutil.ReadAll(r.Body)
+		slurp, _ := io.ReadAll(r.Body)
 		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
 		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
 			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
@@ -452,7 +451,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 	for _, tt := range table {
 		content := tt.redirectBody
 		req, _ := NewRequest(method, ts.URL+tt.suffix, strings.NewReader(content))
-		req.GetBody = func() (io.ReadCloser, error) { return ioutil.NopCloser(strings.NewReader(content)), nil }
+		req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader(content)), nil }
 		res, err := c.Do(req)
 
 		if err != nil {
@@ -522,7 +521,7 @@ func TestClientRedirectUseResponse(t *testing.T) {
 		t.Errorf("status = %d; want %d", res.StatusCode, StatusFound)
 	}
 	defer res.Body.Close()
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1042,7 +1041,7 @@ func testClientHeadContentLength(t *testing.T, h2 bool) {
 		if res.ContentLength != tt.want {
 			t.Errorf("Content-Length = %d; want %d", res.ContentLength, tt.want)
 		}
-		bs, err := ioutil.ReadAll(res.Body)
+		bs, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1257,7 +1256,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 
 	errc := make(chan error, 1)
 	go func() {
-		_, err := ioutil.ReadAll(res.Body)
+		_, err := io.ReadAll(res.Body)
 		errc <- err
 		res.Body.Close()
 	}()
@@ -1348,7 +1347,7 @@ func TestClientTimeoutCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 	cancel()
-	_, err = io.Copy(ioutil.Discard, res.Body)
+	_, err = io.Copy(io.Discard, res.Body)
 	if err != ExportErrRequestCanceled {
 		t.Fatalf("error = %v; want errRequestCanceled", err)
 	}
@@ -1372,7 +1371,7 @@ func testClientRedirectEatsBody(t *testing.T, h2 bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ioutil.ReadAll(res.Body)
+	_, err = io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -1450,7 +1449,7 @@ func (issue15577Tripper) RoundTrip(*Request) (*Response, error) {
 	resp := &Response{
 		StatusCode: 303,
 		Header:     map[string][]string{"Location": {"http://www.example.com/"}},
-		Body:       ioutil.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader("")),
 	}
 	return resp, nil
 }
@@ -1591,7 +1590,7 @@ func TestClientCopyHostOnRedirect(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatal(resp.Status)
 	}
-	if got, err := ioutil.ReadAll(resp.Body); err != nil || string(got) != wantBody {
+	if got, err := io.ReadAll(resp.Body); err != nil || string(got) != wantBody {
 		t.Errorf("body = %q; want %q", got, wantBody)
 	}
 }
@@ -2020,9 +2019,66 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 		}
 	}()
 
-	if b, err := ioutil.ReadAll(resp.Body); err != nil {
+	if b, err := io.ReadAll(resp.Body); err != nil {
 		t.Errorf("read error from substitute Response.Body: %v", err)
 	} else if len(b) != 0 {
 		t.Errorf("substitute Response.Body was unexpectedly non-empty: %q", b)
 	}
+}
+
+// Issue 40382: Client calls Close multiple times on Request.Body.
+func TestClientCallsCloseOnlyOnce(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusNoContent)
+	}))
+	defer cst.close()
+
+	// Issue occurred non-deterministically: needed to occur after a successful
+	// write (into TCP buffer) but before end of body.
+	for i := 0; i < 50 && !t.Failed(); i++ {
+		body := &issue40382Body{t: t, n: 300000}
+		req, err := NewRequest(MethodPost, cst.ts.URL, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := cst.tr.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+}
+
+// issue40382Body is an io.ReadCloser for TestClientCallsCloseOnlyOnce.
+// Its Read reads n bytes before returning io.EOF.
+// Its Close returns nil but fails the test if called more than once.
+type issue40382Body struct {
+	t                *testing.T
+	n                int
+	closeCallsAtomic int32
+}
+
+func (b *issue40382Body) Read(p []byte) (int, error) {
+	switch {
+	case b.n == 0:
+		return 0, io.EOF
+	case b.n < len(p):
+		p = p[:b.n]
+		fallthrough
+	default:
+		for i := range p {
+			p[i] = 'x'
+		}
+		b.n -= len(p)
+		return len(p), nil
+	}
+}
+
+func (b *issue40382Body) Close() error {
+	if atomic.AddInt32(&b.closeCallsAtomic, 1) == 2 {
+		b.t.Error("Body closed more than once")
+	}
+	return nil
 }

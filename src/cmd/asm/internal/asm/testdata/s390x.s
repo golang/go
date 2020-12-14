@@ -412,6 +412,8 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	UNDEF                          // 00000000
 	NOPH                           // 0700
 
+	SYNC                           // 07e0
+
 	// vector add and sub instructions
 	VAB	V3, V4, V4              // e743400000f3
 	VAH	V3, V4, V4              // e743400010f3

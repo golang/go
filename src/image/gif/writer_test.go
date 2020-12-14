@@ -11,7 +11,7 @@ import (
 	"image/color/palette"
 	"image/draw"
 	_ "image/png"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"reflect"
@@ -285,7 +285,7 @@ func TestEncodeMismatchDelay(t *testing.T) {
 		Image: images,
 		Delay: make([]int, 1),
 	}
-	if err := EncodeAll(ioutil.Discard, g0); err == nil {
+	if err := EncodeAll(io.Discard, g0); err == nil {
 		t.Error("expected error from mismatched delay and image slice lengths")
 	}
 
@@ -297,13 +297,13 @@ func TestEncodeMismatchDelay(t *testing.T) {
 	for i := range g1.Disposal {
 		g1.Disposal[i] = DisposalNone
 	}
-	if err := EncodeAll(ioutil.Discard, g1); err == nil {
+	if err := EncodeAll(io.Discard, g1); err == nil {
 		t.Error("expected error from mismatched disposal and image slice lengths")
 	}
 }
 
 func TestEncodeZeroGIF(t *testing.T) {
-	if err := EncodeAll(ioutil.Discard, &GIF{}); err == nil {
+	if err := EncodeAll(io.Discard, &GIF{}); err == nil {
 		t.Error("expected error from providing empty gif")
 	}
 }
@@ -324,7 +324,7 @@ func TestEncodeAllFramesOutOfBounds(t *testing.T) {
 				Height: upperBound,
 			},
 		}
-		err := EncodeAll(ioutil.Discard, g)
+		err := EncodeAll(io.Discard, g)
 		if upperBound >= 8 {
 			if err != nil {
 				t.Errorf("upperBound=%d: %v", upperBound, err)
@@ -430,7 +430,7 @@ func TestEncodeImplicitConfigSize(t *testing.T) {
 			Image: images,
 			Delay: make([]int, len(images)),
 		}
-		err := EncodeAll(ioutil.Discard, g)
+		err := EncodeAll(io.Discard, g)
 		if lowerBound >= 0 {
 			if err != nil {
 				t.Errorf("lowerBound=%d: %v", lowerBound, err)
@@ -509,7 +509,7 @@ func TestEncodeBadPalettes(t *testing.T) {
 				}
 			}
 
-			err := EncodeAll(ioutil.Discard, &GIF{
+			err := EncodeAll(io.Discard, &GIF{
 				Image: []*image.Paletted{
 					image.NewPaletted(image.Rect(0, 0, w, h), pal),
 				},
@@ -668,7 +668,7 @@ func BenchmarkEncodeRandomPaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, paletted, nil)
+		Encode(io.Discard, paletted, nil)
 	}
 }
 
@@ -691,7 +691,7 @@ func BenchmarkEncodeRandomRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, rgba, nil)
+		Encode(io.Discard, rgba, nil)
 	}
 }
 
@@ -708,7 +708,7 @@ func BenchmarkEncodeRealisticPaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, paletted, nil)
+		Encode(io.Discard, paletted, nil)
 	}
 }
 
@@ -729,6 +729,6 @@ func BenchmarkEncodeRealisticRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, rgba, nil)
+		Encode(io.Discard, rgba, nil)
 	}
 }

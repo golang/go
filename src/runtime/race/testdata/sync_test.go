@@ -126,11 +126,11 @@ func TestNoRaceAfterFunc1(t *testing.T) {
 
 func TestNoRaceAfterFunc2(t *testing.T) {
 	var x int
+	_ = x
 	timer := time.AfterFunc(10, func() {
 		x = 1
 	})
 	defer timer.Stop()
-	_ = x
 }
 
 func TestNoRaceAfterFunc3(t *testing.T) {

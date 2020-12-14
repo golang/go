@@ -45,6 +45,10 @@ func (ts *StTimespec_t) Nano() int64 {
  * Wrapped
  */
 
+func Access(path string, mode uint32) (err error) {
+	return Faccessat(_AT_FDCWD, path, mode, 0)
+}
+
 // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
 // There is no way to create a custom fcntl and to keep //sys fcntl easily,
 // because we need fcntl name for its libc symbol. This is linked with the script.
@@ -212,6 +216,11 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 		*wstatus = WaitStatus(status)
 	}
 	return
+}
+
+//sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+func Fsync(fd int) error {
+	return fsyncRange(fd, O_SYNC, 0, 0)
 }
 
 /*
@@ -600,7 +609,6 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Fsync(fd int) (err error)
 //sysnb	Getgid() (gid int)
 //sysnb	Getpid() (pid int)
 //sys	Geteuid() (euid int)

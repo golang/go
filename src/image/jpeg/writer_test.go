@@ -10,7 +10,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"testing"
@@ -261,7 +261,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.ResetTimer()
 	options := &Options{Quality: 90}
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img, options)
+		Encode(io.Discard, img, options)
 	}
 }
 
@@ -283,6 +283,6 @@ func BenchmarkEncodeYCbCr(b *testing.B) {
 	b.ResetTimer()
 	options := &Options{Quality: 90}
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img, options)
+		Encode(io.Discard, img, options)
 	}
 }

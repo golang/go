@@ -127,7 +127,7 @@ func (b *builder) addLegend() {
 	}
 	title := labels[0]
 	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, title)
-	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(labels, `\l`))
+	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeAllForDot(labels), `\l`))
 	if b.config.LegendURL != "" {
 		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
 	}
@@ -187,7 +187,7 @@ func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
 
 	// Create DOT attribute for node.
 	attr := fmt.Sprintf(`label="%s" id="node%d" fontsize=%d shape=%s tooltip="%s (%s)" color="%s" fillcolor="%s"`,
-		label, nodeID, fontSize, shape, node.Info.PrintableName(), cumValue,
+		label, nodeID, fontSize, shape, escapeForDot(node.Info.PrintableName()), cumValue,
 		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), false),
 		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), true))
 
@@ -305,7 +305,8 @@ func (b *builder) addEdge(edge *Edge, from, to int, hasNodelets bool) {
 		arrow = "..."
 	}
 	tooltip := fmt.Sprintf(`"%s %s %s (%s)"`,
-		edge.Src.Info.PrintableName(), arrow, edge.Dest.Info.PrintableName(), w)
+		escapeForDot(edge.Src.Info.PrintableName()), arrow,
+		escapeForDot(edge.Dest.Info.PrintableName()), w)
 	attr = fmt.Sprintf(`%s tooltip=%s labeltooltip=%s`, attr, tooltip, tooltip)
 
 	if edge.Residual {
@@ -382,7 +383,7 @@ func dotColor(score float64, isBackground bool) string {
 
 func multilinePrintableName(info *NodeInfo) string {
 	infoCopy := *info
-	infoCopy.Name = ShortenFunctionName(infoCopy.Name)
+	infoCopy.Name = escapeForDot(ShortenFunctionName(infoCopy.Name))
 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
 	if infoCopy.File != "" {
@@ -471,4 +472,20 @@ func min64(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+// escapeAllForDot applies escapeForDot to all strings in the given slice.
+func escapeAllForDot(in []string) []string {
+	var out = make([]string, len(in))
+	for i := range in {
+		out[i] = escapeForDot(in[i])
+	}
+	return out
+}
+
+// escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
+// "center" character (\n) with a left-justified character.
+// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
+func escapeForDot(str string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, `\`, `\\`), `"`, `\"`), "\n", `\l`)
 }

@@ -50,7 +50,7 @@ type Order struct {
 // Order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *Node) {
-	if Debug['W'] > 1 {
+	if Debug.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 	}
@@ -288,20 +288,13 @@ func (o *Order) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
-// to *out for each temporary above the mark on the temporary stack.
+// cleanTempNoPop emits VARKILL instructions to *out
+// for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
 func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 	var out []*Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		if n.Name.Keepalive() {
-			n.Name.SetKeepalive(false)
-			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
-			live := nod(OVARLIVE, n, nil)
-			live = typecheck(live, ctxStmt)
-			out = append(out, live)
-		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, ctxStmt)
 		out = append(out, kill)
@@ -330,12 +323,7 @@ func (o *Order) stmtList(l Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []*Node) {
-	const go115makeslicecopy = true
-	if !go115makeslicecopy {
-		return
-	}
-
-	if Debug['N'] != 0 || instrumenting {
+	if Debug.N != 0 || instrumenting {
 		return
 	}
 
@@ -500,8 +488,9 @@ func (o *Order) call(n *Node) {
 		// still alive when we pop the temp stack.
 		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
 			x := o.copyExpr(arg.Left, arg.Left.Type, false)
-			x.Name.SetKeepalive(true)
 			arg.Left = x
+			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
+			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
 		}
 	}
 
@@ -902,7 +891,7 @@ func (o *Order) stmt(n *Node) {
 				// c is always evaluated; x and ok are only evaluated when assigned.
 				r.Right.Left = o.expr(r.Right.Left, nil)
 
-				if r.Right.Left.Op != ONAME {
+				if !r.Right.Left.IsAutoTmp() {
 					r.Right.Left = o.copyExpr(r.Right.Left, r.Right.Left.Type, false)
 				}
 
@@ -1108,7 +1097,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		haslit := false
 		for _, n1 := range n.List.Slice() {
 			hasbyte = hasbyte || n1.Op == OBYTES2STR
-			haslit = haslit || n1.Op == OLITERAL && len(strlit(n1)) != 0
+			haslit = haslit || n1.Op == OLITERAL && len(n1.StringVal()) != 0
 		}
 
 		if haslit && hasbyte {
@@ -1280,7 +1269,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			var t *types.Type
 			switch n.Op {
 			case OSLICELIT:
-				t = types.NewArray(n.Type.Elem(), n.Right.Int64())
+				t = types.NewArray(n.Type.Elem(), n.Right.Int64Val())
 			case OCALLPART:
 				t = partialCallType(n)
 			}

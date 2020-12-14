@@ -396,13 +396,21 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// If there is inlining info, print the inner frames.
 			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 				inltree := (*[1 << 20]inlinedCall)(inldata)
+				var inlFunc _func
+				inlFuncInfo := funcInfo{&inlFunc, f.datap}
 				for {
 					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
 					if ix < 0 {
 						break
 					}
-					if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, inltree[ix].funcID, lastFuncID) {
-						name := funcnameFromNameoff(f, inltree[ix].func_)
+
+					// Create a fake _func for the
+					// inlined function.
+					inlFunc.nameoff = inltree[ix].func_
+					inlFunc.funcID = inltree[ix].funcID
+
+					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
+						name := funcname(inlFuncInfo)
 						file, line := funcline(f, tracepc)
 						print(name, "(...)\n")
 						print("\t", file, ":", line, "\n")
@@ -450,7 +458,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 		n++
 
-		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
+		if f.funcID == funcID_cgocallback && len(cgoCtxt) > 0 {
 			ctxt := cgoCtxt[len(cgoCtxt)-1]
 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
 
@@ -811,6 +819,9 @@ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool 
 // showfuncinfo reports whether a function with the given characteristics should
 // be printed during a traceback.
 func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
+	// Note that f may be a synthesized funcInfo for an inlined
+	// function, in which case only nameoff and funcID are set.
+
 	level, _, _ := gotraceback()
 	if level > 1 {
 		// Show all frames.

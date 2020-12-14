@@ -107,10 +107,13 @@ func (t *Tokenizer) Next() ScanToken {
 		if t.tok != scanner.Comment {
 			break
 		}
-		length := strings.Count(s.TokenText(), "\n")
-		t.line += length
-		// TODO: If we ever have //go: comments in assembly, will need to keep them here.
-		// For now, just discard all comments.
+		text := s.TokenText()
+		t.line += strings.Count(text, "\n")
+		// TODO: Use constraint.IsGoBuild once it exists.
+		if strings.HasPrefix(text, "//go:build") {
+			t.tok = BuildComment
+			break
+		}
 	}
 	switch t.tok {
 	case '\n':

@@ -314,45 +314,42 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4-R11, R14], (R13)	// push {r4-r11, lr}
-	SUB	$36, R13		// space for locals
+	// On entry, the trampoline in zcallback_windows_arm.s left
+	// the callback index in R12 (which is volatile in the C ABI).
 
-	// save callback arguments to stack. We currently support up to 4 arguments
-	ADD	$16, R13, R4
-	MOVM.IA	[R0-R3], (R4)
+	// Push callback register arguments r0-r3. We do this first so
+	// they're contiguous with stack arguments.
+	MOVM.DB.W [R0-R3], (R13)
+	// Push C callee-save registers r4-r11 and lr.
+	MOVM.DB.W [R4-R11, R14], (R13)
+	SUB	$(16 + callbackArgs__size), R13	// space for locals
 
-	// load cbctxts[i]. The trampoline in zcallback_windows.s puts the callback
-	// index in R12
-	MOVW	runtime·cbctxts(SB), R4
-	MOVW	R12<<2(R4), R4		// R4 holds pointer to wincallbackcontext structure
+	// Create a struct callbackArgs on our stack.
+	MOVW	R12, (16+callbackArgs_index)(R13)	// callback index
+	MOVW	$(16+callbackArgs__size+4*9)(R13), R0
+	MOVW	R0, (16+callbackArgs_args)(R13)		// address of args vector
+	MOVW	$0, R0
+	MOVW	R0, (16+callbackArgs_result)(R13)	// result
 
-	// extract callback context
-	MOVW	wincallbackcontext_argsize(R4), R5
-	MOVW	wincallbackcontext_gobody(R4), R4
-
-	// we currently support up to 4 arguments
-	CMP	$(4 * 4), R5
-	BL.GT	runtime·abort(SB)
-
-	// extend argsize by size of return value
-	ADD	$4, R5
-
-	// Build 'type args struct'
-	MOVW	R4, 4(R13)		// fn
-	ADD	$16, R13, R0		// arg (points to r0-r3, ret on stack)
-	MOVW	R0, 8(R13)
-	MOVW	R5, 12(R13)		// argsize
-
+	// Prepare for entry to Go.
 	BL	runtime·load_g(SB)
-	BL	runtime·cgocallback_gofunc(SB)
 
-	ADD	$16, R13, R0		// load arg
-	MOVW	12(R13), R1		// load argsize
-	SUB	$4, R1			// offset to return value
-	MOVW	R1<<0(R0), R0		// load return value
+	// Call cgocallback, which will call callbackWrap(frame).
+	MOVW	$0, R0
+	MOVW	R0, 12(R13)	// context
+	MOVW	$16(R13), R1	// R1 = &callbackArgs{...}
+	MOVW	R1, 8(R13)	// frame (address of callbackArgs)
+	MOVW	$·callbackWrap(SB), R1
+	MOVW	R1, 4(R13)	// PC of function to call
+	BL	runtime·cgocallback(SB)
 
-	ADD	$36, R13		// free locals
-	MOVM.IA.W (R13), [R4-R11, R15]	// pop {r4-r11, pc}
+	// Get callback result.
+	MOVW	(16+callbackArgs_result)(R13), R0
+
+	ADD	$(16 + callbackArgs__size), R13	// free locals
+	MOVM.IA.W (R13), [R4-R11, R12]	// pop {r4-r11, lr=>r12}
+	ADD	$(4*4), R13	// skip r0-r3
+	B	(R12)	// return
 
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
@@ -467,6 +464,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
 	BL	(R3)
 	MOVW	R4, R13			// Restore SP
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+
+// Runs on OS stack. Duration (in 100ns units) is in R0.
+// TODO: neeeds to be implemented properly.
+TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0
+	B	runtime·abort(SB)
 
 // Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0

@@ -125,23 +125,7 @@ func writebarrier(f *Func) {
 			// lazily initialize global values for write barrier test and calls
 			// find SB and SP values in entry block
 			initpos := f.Entry.Pos
-			for _, v := range f.Entry.Values {
-				if v.Op == OpSB {
-					sb = v
-				}
-				if v.Op == OpSP {
-					sp = v
-				}
-				if sb != nil && sp != nil {
-					break
-				}
-			}
-			if sb == nil {
-				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
-			}
-			if sp == nil {
-				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
-			}
+			sp, sb = f.spSb()
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
@@ -501,29 +485,33 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
+	var ACArgs []Param
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
 		off += taddr.Type.Size()
 	}
 
 	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
 	off += ptr.Type.Size()
 
 	if val != nil {
 		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
+	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn, ACArgs, nil), mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
 	return mem
 }
@@ -539,7 +527,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		return true
 	}
 	return false
@@ -582,7 +570,7 @@ func IsNewObject(v *Value, mem *Value) bool {
 	if mem.Op != OpStaticCall {
 		return false
 	}
-	if !isSameSym(mem.Aux, "runtime.newobject") {
+	if !isSameCall(mem.Aux, "runtime.newobject") {
 		return false
 	}
 	if v.Args[0].Op != OpOffPtr {
@@ -605,7 +593,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		// Stack addresses are always safe.
 		return true
 	case OpITab, OpStringPtr, OpGetClosurePtr:
@@ -621,7 +609,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 // isVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
 func isVolatile(v *Value) bool {
-	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy || v.Op == OpSelectNAddr {
 		v = v.Args[0]
 	}
 	return v.Op == OpSP

@@ -53,6 +53,8 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+
 static void*
 threadentry(void *v)
 {

@@ -17,9 +17,10 @@ import (
 	"encoding/xml"
 	"flag"
 	"go/format"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"text/template"
 	"time"
@@ -71,7 +72,7 @@ func readWindowsZones() ([]*zone, error) {
 	}
 	defer r.Body.Close()
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -187,16 +187,104 @@ stdout '^example.com/main_test \[example.com/main.test\]$'
 stdout '^example.com/main/testonly.test$'
 stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
 
+rm vendor
+
+# Convert all modules to go 1.16 to enable lazy loading.
+go mod edit -go=1.16 a/go.mod
+go mod edit -go=1.16 b/go.mod
+go mod edit -go=1.16 c/go.mod
+go mod edit -go=1.16 d/go.mod
+go mod edit -go=1.16 q/go.mod
+go mod edit -go=1.16 r/go.mod
+go mod edit -go=1.16 s/go.mod
+go mod edit -go=1.16 t/go.mod
+go mod edit -go=1.16 u/go.mod
+go mod edit -go=1.16 w/go.mod
+go mod edit -go=1.16 x/go.mod
+go mod edit -go=1.16
+
+# With lazy loading, 'go list all' with neither -mod=vendor nor -test should
+# match -mod=vendor without -test in 1.15.
+
+go list -f $PKGFMT all
+stdout -count=8 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+
+# 'go list -test all' should expand that to include the test variants of the
+# packages in 'all', but not the dependencies of outside tests.
+
+go list -test -f $PKGFMT all
+stdout -count=25 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/a.test$'
+stdout '^example.com/a_test \[example.com/a.test\]$'
+stdout '^example.com/b.test$'
+stdout '^example.com/b_test \[example.com/b.test\]$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q.test$'
+stdout '^example.com/q_test \[example.com/q.test\]$'
+stdout '^example.com/r.test$'
+stdout '^example.com/r_test \[example.com/r.test\]$'
+stdout '^example.com/t.test$'
+stdout '^example.com/t_test \[example.com/t.test\]$'
+stdout '^example.com/u.test$'
+stdout '^example.com/u_test \[example.com/u.test\]$'
+
+# 'go list -test -deps all' should include the dependencies of those tests,
+# but not the tests of the dependencies of outside tests.
+
+go list -test -deps -f $PKGFMT all
+stdout -count=28 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+stdout '^example.com/a.test$'
+stdout '^example.com/a_test \[example.com/a.test\]$'
+stdout '^example.com/b.test$'
+stdout '^example.com/b_test \[example.com/b.test\]$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q.test$'
+stdout '^example.com/q_test \[example.com/q.test\]$'
+stdout '^example.com/r.test$'
+stdout '^example.com/r_test \[example.com/r.test\]$'
+stdout '^example.com/t.test$'
+stdout '^example.com/t_test \[example.com/t.test\]$'
+stdout '^example.com/u.test$'
+stdout '^example.com/u_test \[example.com/u.test\]$'
+
+
 # TODO(#36460):
-
-# With lazy loading, 'go list all' without -mod=vendor should match
-# 'go mod vendor'.
-
-# 'go list -test all' should expand that to cover test dependencies
-# of packages imported by the main module.
-
-# 'go list -m all' should cover the packages in 'go list -test all'.
-
+# 'go list -m all' should exactly cover the packages in 'go list -test all'.
 
 -- go.mod --
 module example.com/main

@@ -69,7 +69,7 @@ func initConfVal() {
 	// Darwin pops up annoying dialog boxes if programs try to do
 	// their own DNS requests. So always use cgo instead, which
 	// avoids that.
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		confVal.forceCgoLookupHost = true
 		return
 	}
@@ -201,11 +201,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
 			return fallbackOrder
-		}
-		if c.goos == "linux" {
-			// glibc says the default is "dns [!UNAVAIL=return] files"
-			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
-			return hostLookupDNSFiles
 		}
 		return hostLookupFilesDNS
 	}

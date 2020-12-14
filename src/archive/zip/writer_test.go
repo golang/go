@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"math/rand"
 	"os"
 	"strings"
@@ -23,7 +23,7 @@ type WriteTest struct {
 	Name   string
 	Data   []byte
 	Method uint16
-	Mode   os.FileMode
+	Mode   fs.FileMode
 }
 
 var writeTests = []WriteTest{
@@ -43,19 +43,19 @@ var writeTests = []WriteTest{
 		Name:   "setuid",
 		Data:   []byte("setuid file"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSetuid,
+		Mode:   0755 | fs.ModeSetuid,
 	},
 	{
 		Name:   "setgid",
 		Data:   []byte("setgid file"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSetgid,
+		Mode:   0755 | fs.ModeSetgid,
 	},
 	{
 		Name:   "symlink",
 		Data:   []byte("../link/target"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSymlink,
+		Mode:   0755 | fs.ModeSymlink,
 	},
 }
 
@@ -237,7 +237,7 @@ func TestWriterTime(t *testing.T) {
 		t.Fatalf("unexpected Close error: %v", err)
 	}
 
-	want, err := ioutil.ReadFile("testdata/time-go.zip")
+	want, err := os.ReadFile("testdata/time-go.zip")
 	if err != nil {
 		t.Fatalf("unexpected ReadFile error: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestWriterFlush(t *testing.T) {
 }
 
 func TestWriterDir(t *testing.T) {
-	w := NewWriter(ioutil.Discard)
+	w := NewWriter(io.Discard)
 	dw, err := w.Create("dir/")
 	if err != nil {
 		t.Fatal(err)
@@ -380,7 +380,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if err != nil {
 		t.Fatal("opening:", err)
 	}
-	b, err := ioutil.ReadAll(rc)
+	b, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal("reading:", err)
 	}

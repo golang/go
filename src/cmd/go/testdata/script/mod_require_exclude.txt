@@ -20,7 +20,7 @@ cmp go.mod go.mod.orig
 # With the selected version excluded, commands that load only modules should
 # drop the excluded module.
 
-go list -m all
+go list -m -mod=mod all
 stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
 stdout '^x$'
 ! stdout '^rsc.io/sampler'
@@ -30,7 +30,7 @@ cmp go.mod go.moddrop
 # from the next-highest version.
 
 cp go.mod.orig go.mod
-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
 stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
 stdout '^x $'
 ! stdout '^rsc.io/sampler v1.99.99'
@@ -38,13 +38,13 @@ stdout '^rsc.io/sampler v1.3.0'
 
 # build with newer version available
 cp go.mod2 go.mod
-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
 stderr '^go: dropping requirement on excluded version rsc.io/quote v1\.5\.1$'
 stdout 'rsc.io/quote v1.5.2'
 
 # build with excluded newer version
 cp go.mod3 go.mod
-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
 ! stderr '^go: dropping requirement'
 stdout 'rsc.io/quote v1.5.1'
 

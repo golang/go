@@ -13,7 +13,6 @@ import (
 	"internal/profile"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -262,7 +261,7 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 // as interpreted by matches, and returns the parsed profile.
 func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			// nothing
@@ -280,11 +279,15 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 
 	broken := false
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
 		broken = true
 	case "openbsd":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			broken = true
+		}
+	case "windows":
+		if runtime.GOARCH == "arm" {
+			broken = true // See https://golang.org/issues/42862
 		}
 	}
 
@@ -1175,7 +1178,7 @@ func TestLabelRace(t *testing.T) {
 // Check that there is no deadlock when the program receives SIGPROF while in
 // 64bit atomics' critical section. Used to happen on mips{,le}. See #20146.
 func TestAtomicLoadStore64(t *testing.T) {
-	f, err := ioutil.TempFile("", "profatomic")
+	f, err := os.CreateTemp("", "profatomic")
 	if err != nil {
 		t.Fatalf("TempFile: %v", err)
 	}
@@ -1204,7 +1207,7 @@ func TestAtomicLoadStore64(t *testing.T) {
 func TestTracebackAll(t *testing.T) {
 	// With gccgo, if a profiling signal arrives at the wrong time
 	// during traceback, it may crash or hang. See issue #29448.
-	f, err := ioutil.TempFile("", "proftraceback")
+	f, err := os.CreateTemp("", "proftraceback")
 	if err != nil {
 		t.Fatalf("TempFile: %v", err)
 	}

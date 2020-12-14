@@ -119,6 +119,13 @@ type Flock_t struct {
 	_      [4]byte
 }
 
+type DmNameList struct {
+	Dev  uint64
+	Next uint32
+	Name [0]byte
+	_    [4]byte
+}
+
 const (
 	FADV_DONTNEED = 0x4
 	FADV_NOREUSE  = 0x5
@@ -601,3 +608,19 @@ type TIPCSIOCNodeIDReq struct {
 	Peer uint32
 	Id   [16]uint8
 }
+
+type PPSKInfo struct {
+	Assert_sequence uint32
+	Clear_sequence  uint32
+	Assert_tu       PPSKTime
+	Clear_tu        PPSKTime
+	Current_mode    int32
+	_               [4]byte
+}
+
+const (
+	PPS_GETPARAMS = 0x400870a1
+	PPS_SETPARAMS = 0x800870a2
+	PPS_GETCAP    = 0x400870a3
+	PPS_FETCH     = 0xc00870a4
+)

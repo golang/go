@@ -5,27 +5,52 @@
 package runtime
 
 import (
+	"runtime/internal/sys"
 	"unsafe"
 )
 
-type callbacks struct {
-	lock mutex
-	ctxt [cb_max]*wincallbackcontext
-	n    int
+// cbs stores all registered Go callbacks.
+var cbs struct {
+	lock  mutex
+	ctxt  [cb_max]winCallback
+	index map[winCallbackKey]int
+	n     int
 }
 
-func (c *wincallbackcontext) isCleanstack() bool {
-	return c.cleanstack
+// winCallback records information about a registered Go callback.
+type winCallback struct {
+	fn     *funcval // Go function
+	retPop uintptr  // For 386 cdecl, how many bytes to pop on return
+
+	// abiMap specifies how to translate from a C frame to a Go
+	// frame. This does not specify how to translate back because
+	// the result is always a uintptr. If the C ABI is fastcall,
+	// this assumes the four fastcall registers were first spilled
+	// to the shadow space.
+	abiMap []abiPart
+	// retOffset is the offset of the uintptr-sized result in the Go
+	// frame.
+	retOffset uintptr
 }
 
-func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
-	c.cleanstack = cleanstack
+// abiPart encodes a step in translating between calling ABIs.
+type abiPart struct {
+	src, dst uintptr
+	len      uintptr
 }
 
-var (
-	cbs     callbacks
-	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
-)
+func (a *abiPart) tryMerge(b abiPart) bool {
+	if a.src+a.len == b.src && a.dst+a.len == b.dst {
+		a.len += b.len
+		return true
+	}
+	return false
+}
+
+type winCallbackKey struct {
+	fn    *funcval
+	cdecl bool
+}
 
 func callbackasm()
 
@@ -53,57 +78,174 @@ func callbackasmAddr(i int) uintptr {
 	return funcPC(callbackasm) + uintptr(i*entrySize)
 }
 
+const callbackMaxFrame = 64 * sys.PtrSize
+
+// compileCallback converts a Go function fn into a C function pointer
+// that can be passed to Windows APIs.
+//
+// On 386, if cdecl is true, the returned C function will use the
+// cdecl calling convention; otherwise, it will use stdcall. On amd64,
+// it always uses fastcall. On arm, it always uses the ARM convention.
+//
 //go:linkname compileCallback syscall.compileCallback
-func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+func compileCallback(fn eface, cdecl bool) (code uintptr) {
+	if GOARCH != "386" {
+		// cdecl is only meaningful on 386.
+		cdecl = false
+	}
+
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
+
+	// Check arguments and construct ABI translation.
+	var abiMap []abiPart
+	var src, dst uintptr
+	for _, t := range ft.in() {
+		if t.size > sys.PtrSize {
+			// We don't support this right now. In
+			// stdcall/cdecl, 64-bit ints and doubles are
+			// passed as two words (little endian); and
+			// structs are pushed on the stack. In
+			// fastcall, arguments larger than the word
+			// size are passed by reference. On arm,
+			// 8-byte aligned arguments round up to the
+			// next even register and can be split across
+			// registers and the stack.
+			panic("compileCallback: argument size is larger than uintptr")
+		}
+		if k := t.kind & kindMask; (GOARCH == "amd64" || GOARCH == "arm") && (k == kindFloat32 || k == kindFloat64) {
+			// In fastcall, floating-point arguments in
+			// the first four positions are passed in
+			// floating-point registers, which we don't
+			// currently spill. arm passes floating-point
+			// arguments in VFP registers, which we also
+			// don't support.
+			panic("compileCallback: float arguments not supported")
+		}
+
+		// The Go ABI aligns arguments.
+		dst = alignUp(dst, uintptr(t.align))
+		// In the C ABI, we're already on a word boundary.
+		// Also, sub-word-sized fastcall register arguments
+		// are stored to the least-significant bytes of the
+		// argument word and all supported Windows
+		// architectures are little endian, so src is already
+		// pointing to the right place for smaller arguments.
+		// The same is true on arm.
+
+		// Copy just the size of the argument. Note that this
+		// could be a small by-value struct, but C and Go
+		// struct layouts are compatible, so we can copy these
+		// directly, too.
+		part := abiPart{src, dst, t.size}
+		// Add this step to the adapter.
+		if len(abiMap) == 0 || !abiMap[len(abiMap)-1].tryMerge(part) {
+			abiMap = append(abiMap, part)
+		}
+
+		// cdecl, stdcall, fastcall, and arm pad arguments to word size.
+		src += sys.PtrSize
+		// The Go ABI packs arguments.
+		dst += t.size
+	}
+	// The Go ABI aligns the result to the word size. src is
+	// already aligned.
+	dst = alignUp(dst, sys.PtrSize)
+	retOffset := dst
+
 	if len(ft.out()) != 1 {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	uintptrSize := unsafe.Sizeof(uintptr(0))
-	if ft.out()[0].size != uintptrSize {
+	if ft.out()[0].size != sys.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	argsize := uintptr(0)
-	for _, t := range ft.in() {
-		if t.size > uintptrSize {
-			panic("compileCallback: argument size is larger than uintptr")
-		}
-		argsize += uintptrSize
+	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
+		// In cdecl and stdcall, float results are returned in
+		// ST(0). In fastcall, they're returned in XMM0.
+		// Either way, it's not AX.
+		panic("compileCallback: float results not supported")
 	}
+	// Make room for the uintptr-sized result.
+	dst += sys.PtrSize
+
+	if dst > callbackMaxFrame {
+		panic("compileCallback: function argument frame too large")
+	}
+
+	// For cdecl, the callee is responsible for popping its
+	// arguments from the C stack.
+	var retPop uintptr
+	if cdecl {
+		retPop = src
+	}
+
+	key := winCallbackKey{(*funcval)(fn.data), cdecl}
 
 	lock(&cbs.lock) // We don't unlock this in a defer because this is used from the system stack.
 
-	n := cbs.n
-	for i := 0; i < n; i++ {
-		if cbs.ctxt[i].gobody == fn.data && cbs.ctxt[i].isCleanstack() == cleanstack {
-			r := callbackasmAddr(i)
-			unlock(&cbs.lock)
-			return r
-		}
+	// Check if this callback is already registered.
+	if n, ok := cbs.index[key]; ok {
+		unlock(&cbs.lock)
+		return callbackasmAddr(n)
 	}
-	if n >= cb_max {
+
+	// Register the callback.
+	if cbs.index == nil {
+		cbs.index = make(map[winCallbackKey]int)
+	}
+	n := cbs.n
+	if n >= len(cbs.ctxt) {
 		unlock(&cbs.lock)
 		throw("too many callback functions")
 	}
-
-	c := new(wincallbackcontext)
-	c.gobody = fn.data
-	c.argsize = argsize
-	c.setCleanstack(cleanstack)
-	if cleanstack && argsize != 0 {
-		c.restorestack = argsize
-	} else {
-		c.restorestack = 0
-	}
+	c := winCallback{key.fn, retPop, abiMap, retOffset}
 	cbs.ctxt[n] = c
+	cbs.index[key] = n
 	cbs.n++
 
-	r := callbackasmAddr(n)
 	unlock(&cbs.lock)
-	return r
+	return callbackasmAddr(n)
+}
+
+type callbackArgs struct {
+	index uintptr
+	// args points to the argument block.
+	//
+	// For cdecl and stdcall, all arguments are on the stack.
+	//
+	// For fastcall, the trampoline spills register arguments to
+	// the reserved spill slots below the stack arguments,
+	// resulting in a layout equivalent to stdcall.
+	//
+	// For arm, the trampoline stores the register arguments just
+	// below the stack arguments, so again we can treat it as one
+	// big stack arguments frame.
+	args unsafe.Pointer
+	// Below are out-args from callbackWrap
+	result uintptr
+	retPop uintptr // For 386 cdecl, how many bytes to pop on return
+}
+
+// callbackWrap is called by callbackasm to invoke a registered C callback.
+func callbackWrap(a *callbackArgs) {
+	c := cbs.ctxt[a.index]
+	a.retPop = c.retPop
+
+	// Convert from C to Go ABI.
+	var frame [callbackMaxFrame]byte
+	goArgs := unsafe.Pointer(&frame)
+	for _, part := range c.abiMap {
+		memmove(add(goArgs, part.dst), add(a.args, part.src), part.len)
+	}
+
+	// Even though this is copying back results, we can pass a nil
+	// type because those results must not require write barriers.
+	reflectcall(nil, unsafe.Pointer(c.fn), noescape(goArgs), uint32(c.retOffset)+sys.PtrSize, uint32(c.retOffset))
+
+	// Extract the result.
+	a.result = *(*uintptr)(unsafe.Pointer(&frame[c.retOffset]))
 }
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800

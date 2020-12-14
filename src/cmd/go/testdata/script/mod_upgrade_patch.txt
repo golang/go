@@ -2,11 +2,17 @@ env GO111MODULE=on
 [short] skip
 
 # Initially, we are at v1.0.0 for all dependencies.
+go get -d
 cp go.mod go.mod.orig
 go list -m all
 stdout '^patch.example.com/direct v1.0.0'
 stdout '^patch.example.com/indirect v1.0.0'
 ! stdout '^patch.example.com/depofdirectpatch'
+
+# @patch should be rejected for modules not already in the build list.
+! go get -d patch.example.com/depofdirectpatch@patch
+stderr '^go get: can''t query version "patch" of module patch.example.com/depofdirectpatch: no existing version is required$'
+cmp go.mod.orig go.mod
 
 # get -u=patch, with no arguments, should patch-update all dependencies
 # of the package in the current directory, pulling in transitive dependencies
@@ -18,13 +24,22 @@ stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
 stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
-# 'get all@patch' should be equivalent to 'get -u=patch all'
+# 'get all@patch' should patch the modules that provide packages in 'all'.
 cp go.mod.orig go.mod
 go get -d all@patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
 stdout '^patch.example.com/depofdirectpatch v1.0.0'
+
+# ...but 'all@patch' should fail if any of the affected modules do not already
+# have a selected version.
+cp go.mod.orig go.mod
+go mod edit -droprequire=patch.example.com/direct
+cp go.mod go.mod.dropped
+! go get -d all@patch
+stderr '^go get all@patch: can''t query version "patch" of module patch.example.com/direct: no existing version is required$'
+cmp go.mod.dropped go.mod
 
 # Requesting the direct dependency with -u=patch but without an explicit version
 # should patch-update it and its dependencies.
@@ -68,10 +83,10 @@ stdout '^patch.example.com/direct v1.1.0'
 stdout '^patch.example.com/indirect v1.0.1'
 ! stdout '^patch.example.com/depofdirectpatch'
 
-# Standard-library packages cannot be upgraded explicitly.
+# Standard library packages cannot be upgraded explicitly.
 cp go.mod.orig go.mod
 ! go get cmd/vet@patch
-stderr 'cannot use pattern .* with explicit version'
+stderr 'go get: can''t request explicit version "patch" of standard library package cmd/vet$'
 
 # However, standard-library packages without explicit versions are fine.
 go get -d -u=patch -d cmd/go
@@ -83,6 +98,7 @@ stdout '^example.com/noroot v1.0.0$'
 go get -d example.com/noroot@patch
 go list -m all
 stdout '^example.com/noroot v1.0.1$'
+
 
 -- go.mod --
 module x

@@ -18,6 +18,13 @@ var p *T
 var e interface{}
 
 func main() {
-	p = new(T) // used T, but never converted to interface
+	p = new(T) // used T, but never converted to interface in any reachable code
 	e.(I).M()  // used I and I.M
 }
+
+func Unused() { // convert T to interface, but this function is not reachable
+	var i I = T(0)
+	i.M()
+}
+
+var Unused2 interface{} = T(1) // convert T to interface, in an unreachable global initializer

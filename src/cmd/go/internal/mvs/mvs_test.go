@@ -54,7 +54,7 @@ build A: A B C D2 E2
 
 name: cross1V
 A: B2 C D2 E1
-B1: 
+B1:
 B2: D1
 C: D2
 D1: E2
@@ -63,7 +63,7 @@ build A: A B2 C D2 E2
 
 name: cross1U
 A: B1 C
-B1: 
+B1:
 B2: D1
 C: D2
 D1: E2
@@ -72,7 +72,7 @@ build A: A B1 C D2 E1
 upgrade A B2: A B2 C D2 E2
 
 name: cross1R
-A: B C 
+A: B C
 B: D2
 C: D1
 D1: E2
@@ -165,7 +165,7 @@ M: A1 B1
 A1: X1
 B1: X2
 X1: I1
-X2: 
+X2:
 build M: M A1 B1 I1 X2
 
 # Upgrade from B1 to B2 should not drop the transitive dep on D.
@@ -229,28 +229,31 @@ E1:
 F1:
 downgrade A F1: A B1 E1
 
-name: down3
-A: 
+name: downcycle
+A: A B2
+B2: A
+B1:
+downgrade A B1: A B1
 
 # golang.org/issue/25542.
 name: noprev1
 A: B4 C2
-B2.hidden: 
-C2: 
+B2.hidden:
+C2:
 downgrade A B2.hidden: A B2.hidden C2
 
 name: noprev2
 A: B4 C2
-B2.hidden: 
-B1: 
-C2: 
+B2.hidden:
+B1:
+C2:
 downgrade A B2.hidden: A B2.hidden C2
 
 name: noprev3
 A: B4 C2
-B3: 
-B2.hidden: 
-C2: 
+B3:
+B2.hidden:
+C2:
 downgrade A B2.hidden: A B2.hidden C2
 
 # Cycles involving the target.
@@ -315,8 +318,15 @@ M: A1 B1
 A1: X1
 B1: X2
 X1: I1
-X2: 
+X2:
 req M: A1 B1
+
+name: reqnone
+M: Anone B1 D1 E1
+B1: Cnone D1
+E1: Fnone
+build M: M B1 D1 E1
+req M: B1 E1
 `
 
 func Test(t *testing.T) {
@@ -330,6 +340,9 @@ func Test(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				for _, fn := range fns {
 					fn(t)
+				}
+				if len(fns) == 0 {
+					t.Errorf("no functions tested")
 				}
 			})
 		}
@@ -478,9 +491,9 @@ func (r reqsMap) Max(v1, v2 string) string {
 }
 
 func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
-	var u module.Version
+	u := module.Version{Version: "none"}
 	for k := range r {
-		if k.Path == m.Path && u.Version < k.Version && !strings.HasSuffix(k.Version, ".hidden") {
+		if k.Path == m.Path && r.Max(u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
 			u = k
 		}
 	}

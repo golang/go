@@ -74,7 +74,14 @@ func (fd *FD) destroy() error {
 	// Poller may want to unregister fd in readiness notification mechanism,
 	// so this must be executed before CloseFunc.
 	fd.pd.close()
+
+	// We don't use ignoringEINTR here because POSIX does not define
+	// whether the descriptor is closed if close returns EINTR.
+	// If the descriptor is indeed closed, using a loop would race
+	// with some other goroutine opening a new descriptor.
+	// (The Linux kernel guarantees that it is closed on an EINTR error.)
 	err := CloseFunc(fd.Sysfd)
+
 	fd.Sysfd = -1
 	runtime_Semrelease(&fd.csema)
 	return err
@@ -435,6 +442,17 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 		// Do not call eofError; caller does not expect to see io.EOF.
 		return n, err
 	}
+}
+
+// Fchmod wraps syscall.Fchmod.
+func (fd *FD) Fchmod(mode uint32) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return ignoringEINTR(func() error {
+		return syscall.Fchmod(fd.Sysfd, mode)
+	})
 }
 
 // Fchdir wraps syscall.Fchdir.

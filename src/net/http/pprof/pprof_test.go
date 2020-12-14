@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/profile"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -63,7 +63,7 @@ func TestHandlers(t *testing.T) {
 				t.Errorf("status code: got %d; want %d", got, want)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Errorf("when reading response body, expected non-nil err; got %v", err)
 			}
@@ -227,7 +227,7 @@ func query(endpoint string) (*profile.Profile, error) {
 		return nil, fmt.Errorf("failed to fetch %q: %v", url, r.Status)
 	}
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	r.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read and parse the result from %q: %v", url, err)

@@ -6,7 +6,11 @@
 ! go build cgoasm
 stderr 'package using cgo has Go assembly file'
 
--- cgoasm/p.go --
+-- go.mod --
+module cgoasm
+
+go 1.16
+-- p.go --
 package p
 
 /*
@@ -15,7 +19,7 @@ package p
 import "C"
 
 func F() {}
--- cgoasm/p.s --
+-- p.s --
 TEXT asm(SB),$0
 	RET
 

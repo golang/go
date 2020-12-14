@@ -518,9 +518,10 @@ func sigaltstack(new, old *stackt) {
 }
 
 //go:nosplit
-func getsystemcfg(label uint) uintptr {
+//go:linkname internal_cpu_getsystemcfg internal/cpu.getsystemcfg
+func internal_cpu_getsystemcfg(label uint) uint {
 	r, _ := syscall1(&libc_getsystemcfg, uintptr(label))
-	return r
+	return uint(r)
 }
 
 func usleep1(us uint32)

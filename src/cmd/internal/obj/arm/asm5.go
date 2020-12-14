@@ -390,7 +390,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var p *obj.Prog
 	var op *obj.Prog
 
-	p = cursym.Func.Text
+	p = cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -482,8 +482,8 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		bflag = 0
 		pc = 0
 		times++
-		c.cursym.Func.Text.Pc = 0 // force re-layout the code.
-		for p = c.cursym.Func.Text; p != nil; p = p.Link {
+		c.cursym.Func().Text.Pc = 0 // force re-layout the code.
+		for p = c.cursym.Func().Text; p != nil; p = p.Link {
 			o = c.oplook(p)
 			if int64(pc) > p.Pc {
 				p.Pc = int64(pc)
@@ -558,7 +558,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
 
-	p = c.cursym.Func.Text
+	p = c.cursym.Func().Text
 	c.autosize = p.To.Offset + 4
 	c.cursym.Grow(c.cursym.Size)
 

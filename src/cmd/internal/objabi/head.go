@@ -54,7 +54,7 @@ func (h *HeadType) Set(s string) error {
 	switch s {
 	case "aix":
 		*h = Haix
-	case "darwin":
+	case "darwin", "ios":
 		*h = Hdarwin
 	case "dragonfly":
 		*h = Hdragonfly

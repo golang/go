@@ -268,6 +268,9 @@ var __tsan_acquire byte
 //go:linkname __tsan_release __tsan_release
 var __tsan_release byte
 
+//go:linkname __tsan_release_acquire __tsan_release_acquire
+var __tsan_release_acquire byte
+
 //go:linkname __tsan_release_merge __tsan_release_merge
 var __tsan_release_merge byte
 
@@ -293,6 +296,7 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_free
 //go:cgo_import_static __tsan_acquire
 //go:cgo_import_static __tsan_release
+//go:cgo_import_static __tsan_release_acquire
 //go:cgo_import_static __tsan_release_merge
 //go:cgo_import_static __tsan_go_ignore_sync_begin
 //go:cgo_import_static __tsan_go_ignore_sync_end
@@ -533,6 +537,19 @@ func racereleaseg(gp *g, addr unsafe.Pointer) {
 		return
 	}
 	racecall(&__tsan_release, gp.racectx, uintptr(addr), 0, 0)
+}
+
+//go:nosplit
+func racereleaseacquire(addr unsafe.Pointer) {
+	racereleaseacquireg(getg(), addr)
+}
+
+//go:nosplit
+func racereleaseacquireg(gp *g, addr unsafe.Pointer) {
+	if getg().raceignore != 0 || !isvalidaddr(addr) {
+		return
+	}
+	racecall(&__tsan_release_acquire, gp.racectx, uintptr(addr), 0, 0)
 }
 
 //go:nosplit

@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -38,7 +37,7 @@ TEXT runtime·callbackasm(SB),7,$0
 	}
 
 	filename := fmt.Sprintf("zcallback_windows.s")
-	err := ioutil.WriteFile(filename, buf.Bytes(), 0666)
+	err := os.WriteFile(filename, buf.Bytes(), 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wincallback: %s\n", err)
 		os.Exit(2)
@@ -66,7 +65,7 @@ TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
 		buf.WriteString("\tB\truntime·callbackasm1(SB)\n")
 	}
 
-	err := ioutil.WriteFile("zcallback_windows_arm.s", buf.Bytes(), 0666)
+	err := os.WriteFile("zcallback_windows_arm.s", buf.Bytes(), 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wincallback: %s\n", err)
 		os.Exit(2)
@@ -82,7 +81,7 @@ package runtime
 
 const cb_max = %d // maximum number of windows callbacks allowed
 `, maxCallback))
-	err := ioutil.WriteFile("zcallback_windows.go", buf.Bytes(), 0666)
+	err := os.WriteFile("zcallback_windows.go", buf.Bytes(), 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wincallback: %s\n", err)
 		os.Exit(2)

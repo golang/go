@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jan 14, 2020",
+	"Subtitle": "Version of Oct 7, 2020",
 	"Path": "/ref/spec"
 }-->
 
@@ -3594,23 +3594,33 @@ replaced by its left operand alone.
 </p>
 
 <pre>
+var a [1024]byte
 var s uint = 33
-var i = 1&lt;&lt;s                  // 1 has type int
-var j int32 = 1&lt;&lt;s            // 1 has type int32; j == 0
-var k = uint64(1&lt;&lt;s)          // 1 has type uint64; k == 1&lt;&lt;33
-var m int = 1.0&lt;&lt;s            // 1.0 has type int; m == 0 if ints are 32bits in size
-var n = 1.0&lt;&lt;s == j           // 1.0 has type int32; n == true
-var o = 1&lt;&lt;s == 2&lt;&lt;s          // 1 and 2 have type int; o == true if ints are 32bits in size
-var p = 1&lt;&lt;s == 1&lt;&lt;33         // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
-var u = 1.0&lt;&lt;s                // illegal: 1.0 has type float64, cannot shift
-var u1 = 1.0&lt;&lt;s != 0          // illegal: 1.0 has type float64, cannot shift
-var u2 = 1&lt;&lt;s != 1.0          // illegal: 1 has type float64, cannot shift
-var v float32 = 1&lt;&lt;s          // illegal: 1 has type float32, cannot shift
-var w int64 = 1.0&lt;&lt;33         // 1.0&lt;&lt;33 is a constant shift expression
-var x = a[1.0&lt;&lt;s]             // 1.0 has type int; x == a[0] if ints are 32bits in size
-var a = make([]byte, 1.0&lt;&lt;s)  // 1.0 has type int; len(a) == 0 if ints are 32bits in size
-</pre>
 
+// The results of the following examples are given for 64-bit ints.
+var i = 1&lt;&lt;s                   // 1 has type int
+var j int32 = 1&lt;&lt;s             // 1 has type int32; j == 0
+var k = uint64(1&lt;&lt;s)           // 1 has type uint64; k == 1&lt;&lt;33
+var m int = 1.0&lt;&lt;s             // 1.0 has type int; m == 1&lt;&lt;33
+var n = 1.0&lt;&lt;s == j            // 1.0 has type int; n == true
+var o = 1&lt;&lt;s == 2&lt;&lt;s           // 1 and 2 have type int; o == false
+var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
+var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
+var u1 = 1.0&lt;&lt;s != 0           // illegal: 1.0 has type float64, cannot shift
+var u2 = 1&lt;&lt;s != 1.0           // illegal: 1 has type float64, cannot shift
+var v float32 = 1&lt;&lt;s           // illegal: 1 has type float32, cannot shift
+var w int64 = 1.0&lt;&lt;33          // 1.0&lt;&lt;33 is a constant shift expression; w == 1&lt;&lt;33
+var x = a[1.0&lt;&lt;s]              // panics: 1.0 has type int, but 1&lt;&lt;33 overflows array bounds
+var b = make([]byte, 1.0&lt;&lt;s)   // 1.0 has type int; len(b) == 1&lt;&lt;33
+
+// The results of the following examples are given for 32-bit ints,
+// which means the shifts will overflow.
+var mm int = 1.0&lt;&lt;s            // 1.0 has type int; mm == 0
+var oo = 1&lt;&lt;s == 2&lt;&lt;s          // 1 and 2 have type int; oo == true
+var pp = 1&lt;&lt;s == 1&lt;&lt;33         // illegal: 1 has type int, but 1&lt;&lt;33 overflows int
+var xx = a[1.0&lt;&lt;s]             // 1.0 has type int; xx == a[0]
+var bb = make([]byte, 1.0&lt;&lt;s)  // 1.0 has type int; len(bb) == 0
+</pre>
 
 <h4 id="Operator_precedence">Operator precedence</h4>
 <p>
@@ -3646,7 +3656,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 x &lt;= f()
 ^a &gt;&gt; b
 f() || g()
-x == y+1 &amp;&amp; &lt;-chanPtr &gt; 0
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
 </pre>
 
 

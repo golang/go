@@ -12,8 +12,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 )
 
@@ -29,7 +29,7 @@ func testprint(out io.Writer, file *ast.File) {
 func initialize() {
 	const filename = "testdata/parser.go"
 
-	src, err := ioutil.ReadFile(filename)
+	src, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -53,6 +53,6 @@ func BenchmarkPrint(b *testing.B) {
 		initialize()
 	}
 	for i := 0; i < b.N; i++ {
-		testprint(ioutil.Discard, testfile)
+		testprint(io.Discard, testfile)
 	}
 }

@@ -1,0 +1,87 @@
+# Both example.net/ambiguous v0.1.0 and example.net/ambiguous/pkg v0.1.0 exist.
+# 'go mod tidy' would arbitrarily choose the one with the longer path,
+# but 'go mod tidy' also arbitrarily chooses the latest version.
+
+cp go.mod go.mod.orig
+
+
+# From a clean slate, 'go get' currently does the same thing as 'go mod tidy':
+# it resolves the package from the module with the longest matching prefix.
+
+go get -d example.net/ambiguous/nested/pkg@v0.1.0
+go list -m all
+stdout '^example.net/ambiguous/nested v0.1.0$'
+! stdout '^example.net/ambiguous '
+
+
+# From an initial state that already depends on the shorter path,
+# the same 'go get' command should (somewhat arbitrarily) keep the
+# existing path, since it is a valid interpretation of the command.
+
+cp go.mod.orig go.mod
+go mod edit -require=example.net/ambiguous@v0.1.0
+
+go get -d example.net/ambiguous/nested/pkg@v0.1.0
+go list -m all
+stdout '^example.net/ambiguous v0.1.0$'
+! stdout '^example.net/ambiguous/nested '
+
+
+# The user should be able to make the command unambiguous by explicitly
+# upgrading the conflicting module...
+
+go get -d example.net/ambiguous@v0.2.0 example.net/ambiguous/nested/pkg@v0.1.0
+go list -m all
+stdout '^example.net/ambiguous/nested v0.1.0$'
+stdout '^example.net/ambiguous v0.2.0$'
+
+
+# ...or by explicitly NOT adding the conflicting module.
+
+cp go.mod.orig go.mod
+go mod edit -require=example.net/ambiguous@v0.1.0
+
+go get -d example.net/ambiguous/nested/pkg@v0.1.0 example.net/ambiguous/nested@none
+go list -m all
+! stdout '^example.net/ambiguous/nested '
+stdout '^example.net/ambiguous v0.1.0$'
+
+
+# The user should also be able to fix it by *downgrading* the conflicting module
+# away.
+
+cp go.mod.orig go.mod
+go mod edit -require=example.net/ambiguous@v0.1.0
+
+go get -d example.net/ambiguous@none example.net/ambiguous/nested/pkg@v0.1.0
+go list -m all
+stdout '^example.net/ambiguous/nested v0.1.0$'
+! stdout '^example.net/ambiguous '
+
+
+# In contrast, if we do the same thing tacking a wildcard pattern ('/...') on
+# the end of the package path, we get different behaviors depending on the
+# initial state, and no error. (This seems to contradict the “same meaning
+# regardless of the initial state” point above, but maybe that's ok?)
+
+cp go.mod.orig go.mod
+
+go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
+go list -m all
+stdout '^example.net/ambiguous/nested v0.1.0$'
+! stdout '^example.net/ambiguous '
+
+
+cp go.mod.orig go.mod
+go mod edit -require=example.net/ambiguous@v0.1.0
+
+go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
+go list -m all
+! stdout '^example.net/ambiguous/nested '
+stdout '^example.net/ambiguous v0.1.0$'
+
+
+-- go.mod --
+module test
+
+go 1.16

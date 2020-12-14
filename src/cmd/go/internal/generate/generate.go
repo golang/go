@@ -13,7 +13,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -201,7 +200,7 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 
 // generate runs the generation directives for a single file.
 func generate(absFile string) bool {
-	src, err := ioutil.ReadFile(absFile)
+	src, err := os.ReadFile(absFile)
 	if err != nil {
 		log.Fatalf("generate: %s", err)
 	}

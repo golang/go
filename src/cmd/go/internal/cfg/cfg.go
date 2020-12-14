@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"go/build"
 	"internal/cfg"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"cmd/go/internal/fsys"
 
 	"cmd/internal/objabi"
 )
@@ -27,7 +29,8 @@ var (
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
 	BuildMod               string             // -mod flag
-	BuildModReason         string             // reason -mod flag is set, if set by default
+	BuildModExplicit       bool               // whether -mod was set explicitly
+	BuildModReason         string             // reason -mod was set, if set by default
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
@@ -47,6 +50,8 @@ var (
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
+
+	Insecure bool // -insecure flag
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
@@ -99,6 +104,15 @@ func defaultContext() build.Context {
 		// So ctxt.CgoEnabled (== go/build.Default.CgoEnabled) is correct
 		// as is and can be left unmodified.
 		// Nothing to do here.
+	}
+
+	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+		return fsys.Open(path)
+	}
+	ctxt.ReadDir = fsys.ReadDir
+	ctxt.IsDir = func(path string) bool {
+		isDir, err := fsys.IsDir(path)
+		return err == nil && isDir
 	}
 
 	return ctxt
@@ -172,7 +186,7 @@ func initEnvCache() {
 	if file == "" {
 		return
 	}
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return
 	}
@@ -253,6 +267,7 @@ var (
 	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
 	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
 	GOINSECURE = Getenv("GOINSECURE")
+	GOVCS      = Getenv("GOVCS")
 )
 
 var SumdbDir = gopathDir("pkg/sumdb")

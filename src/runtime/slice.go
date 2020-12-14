@@ -146,7 +146,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if old.len < 1024 {
+		if old.cap < 1024 {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
@@ -243,12 +243,13 @@ func isPowerOfTwo(x uintptr) bool {
 	return x&(x-1) == 0
 }
 
-func slicecopy(toPtr unsafe.Pointer, toLen int, fmPtr unsafe.Pointer, fmLen int, width uintptr) int {
-	if fmLen == 0 || toLen == 0 {
+// slicecopy is used to copy from a string or slice of pointerless elements into a slice.
+func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen int, width uintptr) int {
+	if fromLen == 0 || toLen == 0 {
 		return 0
 	}
 
-	n := fmLen
+	n := fromLen
 	if toLen < n {
 		n = toLen
 	}
@@ -257,46 +258,23 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fmPtr unsafe.Pointer, fmLen int,
 		return n
 	}
 
+	size := uintptr(n) * width
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racereadrangepc(fmPtr, uintptr(n*int(width)), callerpc, pc)
-		racewriterangepc(toPtr, uintptr(n*int(width)), callerpc, pc)
+		racereadrangepc(fromPtr, size, callerpc, pc)
+		racewriterangepc(toPtr, size, callerpc, pc)
 	}
 	if msanenabled {
-		msanread(fmPtr, uintptr(n*int(width)))
-		msanwrite(toPtr, uintptr(n*int(width)))
+		msanread(fromPtr, size)
+		msanwrite(toPtr, size)
 	}
 
-	size := uintptr(n) * width
 	if size == 1 { // common case worth about 2x to do here
 		// TODO: is this still worth it with new memmove impl?
-		*(*byte)(toPtr) = *(*byte)(fmPtr) // known to be a byte pointer
+		*(*byte)(toPtr) = *(*byte)(fromPtr) // known to be a byte pointer
 	} else {
-		memmove(toPtr, fmPtr, size)
+		memmove(toPtr, fromPtr, size)
 	}
-	return n
-}
-
-func slicestringcopy(toPtr *byte, toLen int, fm string) int {
-	if len(fm) == 0 || toLen == 0 {
-		return 0
-	}
-
-	n := len(fm)
-	if toLen < n {
-		n = toLen
-	}
-
-	if raceenabled {
-		callerpc := getcallerpc()
-		pc := funcPC(slicestringcopy)
-		racewriterangepc(unsafe.Pointer(toPtr), uintptr(n), callerpc, pc)
-	}
-	if msanenabled {
-		msanwrite(unsafe.Pointer(toPtr), uintptr(n))
-	}
-
-	memmove(unsafe.Pointer(toPtr), stringStructOf(&fm).str, uintptr(n))
 	return n
 }

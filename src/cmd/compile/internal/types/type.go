@@ -66,8 +66,9 @@ const (
 	TCHANARGS
 
 	// SSA backend types
-	TSSA   // internal types used by SSA backend (flags, memory, etc.)
-	TTUPLE // a pair of types, used by SSA backend
+	TSSA     // internal types used by SSA backend (flags, memory, etc.)
+	TTUPLE   // a pair of types, used by SSA backend
+	TRESULTS // multiple types; the result of calling a function or method, with a memory at the end.
 
 	NTYPE
 )
@@ -104,14 +105,14 @@ var (
 	Errortype *Type
 
 	// Types to represent untyped string and boolean constants.
-	Idealstring *Type
-	Idealbool   *Type
+	UntypedString *Type
+	UntypedBool   *Type
 
 	// Types to represent untyped numeric constants.
-	Idealint     = New(TIDEAL)
-	Idealrune    = New(TIDEAL)
-	Idealfloat   = New(TIDEAL)
-	Idealcomplex = New(TIDEAL)
+	UntypedInt     = New(TIDEAL)
+	UntypedRune    = New(TIDEAL)
+	UntypedFloat   = New(TIDEAL)
+	UntypedComplex = New(TIDEAL)
 )
 
 // A Type represents a Go type.
@@ -330,6 +331,11 @@ type Tuple struct {
 	// Any tuple with a memory type must put that memory type second.
 }
 
+// Results are the output from calls that will be late-expanded.
+type Results struct {
+	Types []*Type // Last element is memory output from call.
+}
+
 // Array contains Type fields specific to array types.
 type Array struct {
 	Elem  *Type // element type
@@ -466,6 +472,8 @@ func New(et EType) *Type {
 		t.Extra = new(Chan)
 	case TTUPLE:
 		t.Extra = new(Tuple)
+	case TRESULTS:
+		t.Extra = new(Results)
 	}
 	return t
 }
@@ -509,6 +517,12 @@ func NewTuple(t1, t2 *Type) *Type {
 	t := New(TTUPLE)
 	t.Extra.(*Tuple).first = t1
 	t.Extra.(*Tuple).second = t2
+	return t
+}
+
+func NewResults(types []*Type) *Type {
+	t := New(TRESULTS)
+	t.Extra.(*Results).Types = types
 	return t
 }
 
@@ -688,7 +702,7 @@ func (t *Type) copy() *Type {
 	case TARRAY:
 		x := *t.Extra.(*Array)
 		nt.Extra = &x
-	case TTUPLE, TSSA:
+	case TTUPLE, TSSA, TRESULTS:
 		Fatalf("ssa types cannot be copied")
 	}
 	// TODO(mdempsky): Find out why this is necessary and explain.
@@ -1051,6 +1065,23 @@ func (t *Type) cmp(x *Type) Cmp {
 		}
 		return ttup.second.Compare(xtup.second)
 
+	case TRESULTS:
+		xResults := x.Extra.(*Results)
+		tResults := t.Extra.(*Results)
+		xl, tl := len(xResults.Types), len(tResults.Types)
+		if tl != xl {
+			if tl < xl {
+				return CMPlt
+			}
+			return CMPgt
+		}
+		for i := 0; i < tl; i++ {
+			if c := tResults.Types[i].Compare(xResults.Types[i]); c != CMPeq {
+				return c
+			}
+		}
+		return CMPeq
+
 	case TMAP:
 		if c := t.Key().cmp(x.Key()); c != CMPeq {
 			return c
@@ -1230,6 +1261,11 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.Etype == TUNSAFEPTR
 }
 
+// IsUintptr reports whether t is an uintptr.
+func (t *Type) IsUintptr() bool {
+	return t.Etype == TUINTPTR
+}
+
 // IsPtrShaped reports whether t is represented by a single machine pointer.
 // In addition to regular Go pointer types, this includes map, channel, and
 // function types and unsafe.Pointer. It does not include array or struct types
@@ -1299,6 +1335,9 @@ func (t *Type) FieldType(i int) *Type {
 		default:
 			panic("bad tuple index")
 		}
+	}
+	if t.Etype == TRESULTS {
+		return t.Extra.(*Results).Types[i]
 	}
 	return t.Field(i).Type
 }
@@ -1377,18 +1416,27 @@ func (t *Type) ChanDir() ChanDir {
 }
 
 func (t *Type) IsMemory() bool {
-	return t == TypeMem || t.Etype == TTUPLE && t.Extra.(*Tuple).second == TypeMem
+	if t == TypeMem || t.Etype == TTUPLE && t.Extra.(*Tuple).second == TypeMem {
+		return true
+	}
+	if t.Etype == TRESULTS {
+		if types := t.Extra.(*Results).Types; len(types) > 0 && types[len(types)-1] == TypeMem {
+			return true
+		}
+	}
+	return false
 }
-func (t *Type) IsFlags() bool { return t == TypeFlags }
-func (t *Type) IsVoid() bool  { return t == TypeVoid }
-func (t *Type) IsTuple() bool { return t.Etype == TTUPLE }
+func (t *Type) IsFlags() bool   { return t == TypeFlags }
+func (t *Type) IsVoid() bool    { return t == TypeVoid }
+func (t *Type) IsTuple() bool   { return t.Etype == TTUPLE }
+func (t *Type) IsResults() bool { return t.Etype == TRESULTS }
 
 // IsUntyped reports whether t is an untyped type.
 func (t *Type) IsUntyped() bool {
 	if t == nil {
 		return false
 	}
-	if t == Idealstring || t == Idealbool {
+	if t == UntypedString || t == UntypedBool {
 		return true
 	}
 	switch t.Etype {
@@ -1426,6 +1474,15 @@ func (t *Type) HasPointers() bool {
 	case TTUPLE:
 		ttup := t.Extra.(*Tuple)
 		return ttup.first.HasPointers() || ttup.second.HasPointers()
+
+	case TRESULTS:
+		types := t.Extra.(*Results).Types
+		for _, et := range types {
+			if et.HasPointers() {
+				return true
+			}
+		}
+		return false
 	}
 
 	return true

@@ -38,6 +38,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"reflect"
@@ -138,6 +139,12 @@ type fun struct {
 
 var emptyPass pass = pass{
 	name: "empty pass",
+}
+
+// AuxCallLSym returns an AuxCall initialized with an LSym that should pass "check"
+// as the Aux of a static call.
+func AuxCallLSym(name string) *AuxCall {
+	return &AuxCall{Fn: &obj.LSym{}}
 }
 
 // Fun takes the name of an entry bloc and a series of Bloc calls, and

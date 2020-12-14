@@ -7,7 +7,7 @@ package modload
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,9 +40,9 @@ func readVendorList() {
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+		data, err := os.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
 		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
+			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
 			}
 			return

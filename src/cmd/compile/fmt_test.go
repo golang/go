@@ -52,6 +52,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -89,7 +90,7 @@ func TestFormats(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // more restrictive than necessary, but that's ok
 
 	// process all directories
-	filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(".", func(path string, info fs.DirEntry, err error) error {
 		if info.IsDir() {
 			if info.Name() == "testdata" {
 				return filepath.SkipDir

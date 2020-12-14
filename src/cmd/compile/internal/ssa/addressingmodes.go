@@ -59,22 +59,22 @@ func addressingModes(f *Func) {
 				v.AuxInt += p.AuxInt
 			case [2]auxType{auxSymValAndOff, auxInt32}:
 				vo := ValAndOff(v.AuxInt)
-				if !vo.canAdd(p.AuxInt) {
+				if !vo.canAdd64(p.AuxInt) {
 					continue
 				}
-				v.AuxInt = vo.add(p.AuxInt)
+				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
 			case [2]auxType{auxSymValAndOff, auxSymOff}:
 				vo := ValAndOff(v.AuxInt)
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
-				if !vo.canAdd(p.AuxInt) {
+				if !vo.canAdd64(p.AuxInt) {
 					continue
 				}
 				if p.Aux != nil {
 					v.Aux = p.Aux
 				}
-				v.AuxInt = vo.add(p.AuxInt)
+				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
 			case [2]auxType{auxSymOff, auxNone}:
 				// nothing to do
 			case [2]auxType{auxSymValAndOff, auxNone}:

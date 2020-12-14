@@ -65,6 +65,7 @@ const (
 	SERVICE_ACCEPT_HARDWAREPROFILECHANGE = 32
 	SERVICE_ACCEPT_POWEREVENT            = 64
 	SERVICE_ACCEPT_SESSIONCHANGE         = 128
+	SERVICE_ACCEPT_PRESHUTDOWN           = 256
 
 	SERVICE_CONTROL_STOP                  = 1
 	SERVICE_CONTROL_PAUSE                 = 2
@@ -80,6 +81,7 @@ const (
 	SERVICE_CONTROL_HARDWAREPROFILECHANGE = 12
 	SERVICE_CONTROL_POWEREVENT            = 13
 	SERVICE_CONTROL_SESSIONCHANGE         = 14
+	SERVICE_CONTROL_PRESHUTDOWN           = 15
 
 	SERVICE_ACTIVE    = 1
 	SERVICE_INACTIVE  = 2
@@ -126,6 +128,10 @@ const (
 	SERVICE_NOTIFY_CREATED          = 0x00000080
 	SERVICE_NOTIFY_DELETED          = 0x00000100
 	SERVICE_NOTIFY_DELETE_PENDING   = 0x00000200
+
+	SC_EVENT_DATABASE_CHANGE = 0
+	SC_EVENT_PROPERTY_CHANGE = 1
+	SC_EVENT_STATUS_CHANGE   = 2
 )
 
 type SERVICE_STATUS struct {
@@ -227,3 +233,5 @@ type QUERY_SERVICE_LOCK_STATUS struct {
 //sys	EnumServicesStatusEx(mgr Handle, infoLevel uint32, serviceType uint32, serviceState uint32, services *byte, bufSize uint32, bytesNeeded *uint32, servicesReturned *uint32, resumeHandle *uint32, groupName *uint16) (err error) = advapi32.EnumServicesStatusExW
 //sys	QueryServiceStatusEx(service Handle, infoLevel uint32, buff *byte, buffSize uint32, bytesNeeded *uint32) (err error) = advapi32.QueryServiceStatusEx
 //sys	NotifyServiceStatusChange(service Handle, notifyMask uint32, notifier *SERVICE_NOTIFY) (ret error) = advapi32.NotifyServiceStatusChangeW
+//sys	SubscribeServiceChangeNotifications(service Handle, eventType uint32, callback uintptr, callbackCtx uintptr, subscription *uintptr) (ret error) = sechost.SubscribeServiceChangeNotifications?
+//sys	UnsubscribeServiceChangeNotifications(subscription uintptr) = sechost.UnsubscribeServiceChangeNotifications?

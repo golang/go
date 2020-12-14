@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http/internal"
 	"strings"
@@ -226,7 +225,7 @@ func TestTransportBodyAltRewind(t *testing.T) {
 		TLSNextProto: map[string]func(string, *tls.Conn) RoundTripper{
 			"foo": func(authority string, c *tls.Conn) RoundTripper {
 				return roundTripFunc(func(r *Request) (*Response, error) {
-					n, _ := io.Copy(ioutil.Discard, r.Body)
+					n, _ := io.Copy(io.Discard, r.Body)
 					if n == 0 {
 						t.Error("body length is zero")
 					}

@@ -66,26 +66,28 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly    bool     // binary-only package (no longer supported)
         ForTest       string   // package is only for use in named test
         Export        string   // file containing export data (when using -export)
+        BuildID       string   // build ID of the compiled package (when using -export)
         Module        *Module  // info about package's containing module, if any (can be nil)
         Match         []string // command-line patterns matching this package
         DepOnly       bool     // package is only a dependency, not explicitly listed
 
         // Source files
-        GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles        []string // .go source files that import "C"
-        CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
-        IgnoredGoFiles  []string // .go source files ignored due to build constraints
-        CFiles          []string // .c source files
-        CXXFiles        []string // .cc, .cxx and .cpp source files
-        MFiles          []string // .m source files
-        HFiles          []string // .h, .hh, .hpp and .hxx source files
-        FFiles          []string // .f, .F, .for and .f90 Fortran source files
-        SFiles          []string // .s source files
-        SwigFiles       []string // .swig files
-        SwigCXXFiles    []string // .swigcxx files
-        SysoFiles       []string // .syso object files to add to archive
-        TestGoFiles     []string // _test.go files in package
-        XTestGoFiles    []string // _test.go files outside package
+        GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles        []string   // .go source files that import "C"
+        CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+        IgnoredGoFiles  []string   // .go source files ignored due to build constraints
+        IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+        CFiles          []string   // .c source files
+        CXXFiles        []string   // .cc, .cxx and .cpp source files
+        MFiles          []string   // .m source files
+        HFiles          []string   // .h, .hh, .hpp and .hxx source files
+        FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+        SFiles          []string   // .s source files
+        SwigFiles       []string   // .swig files
+        SwigCXXFiles    []string   // .swigcxx files
+        SysoFiles       []string   // .syso object files to add to archive
+        TestGoFiles     []string   // _test.go files in package
+        XTestGoFiles    []string   // _test.go files outside package
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -325,7 +327,7 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	modload.LoadTests = *listTest
+	load.ModResolveTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
@@ -413,7 +415,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -436,8 +438,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				}
 			}
 		}
-
-		modload.LoadBuildList(ctx)
 
 		mods := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
 		if !*listE {
@@ -545,7 +545,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Note that -deps is applied after -test,
 		// so that you only get descriptions of tests for the things named
 		// explicitly on the command line, not for all dependencies.
-		pkgs = load.PackageList(pkgs)
+		pkgs = loadPackageList(pkgs)
 	}
 
 	// Do we need to run a build to gather information?
@@ -570,6 +570,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
+		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
+		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
@@ -580,7 +582,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listTest {
 		all := pkgs
 		if !*listDeps {
-			all = load.PackageList(pkgs)
+			all = loadPackageList(pkgs)
 		}
 		// Update import paths to distinguish the real package p
 		// from p recompiled for q.test.
@@ -695,6 +697,23 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	for _, p := range pkgs {
 		do(&p.PackagePublic)
 	}
+}
+
+// loadPackageList is like load.PackageList, but prints error messages and exits
+// with nonzero status if listE is not set and any package in the expanded list
+// has errors.
+func loadPackageList(roots []*load.Package) []*load.Package {
+	pkgs := load.PackageList(roots)
+
+	if !*listE {
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+			}
+		}
+	}
+
+	return pkgs
 }
 
 // TrackingWriter tracks the last byte written on every write so

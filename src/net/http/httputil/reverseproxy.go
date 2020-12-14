@@ -58,9 +58,9 @@ type ReverseProxy struct {
 	// A negative value means to flush immediately
 	// after each write to the client.
 	// The FlushInterval is ignored when ReverseProxy
-	// recognizes a response as a streaming response;
-	// for such responses, writes are flushed to the client
-	// immediately.
+	// recognizes a response as a streaming response, or
+	// if its ContentLength is -1; for such responses, writes
+	// are flushed to the client immediately.
 	FlushInterval time.Duration
 
 	// ErrorLog specifies an optional logger for errors
@@ -325,7 +325,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(res.StatusCode)
 
-	err = p.copyResponse(rw, res.Body, p.flushInterval(req, res))
+	err = p.copyResponse(rw, res.Body, p.flushInterval(res))
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
@@ -397,7 +397,7 @@ func removeConnectionHeaders(h http.Header) {
 
 // flushInterval returns the p.FlushInterval value, conditionally
 // overriding its value for a specific request/response.
-func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
+func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 	resCT := res.Header.Get("Content-Type")
 
 	// For Server-Sent Events responses, flush immediately.
@@ -406,7 +406,11 @@ func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time
 		return -1 // negative means immediately
 	}
 
-	// TODO: more specific cases? e.g. res.ContentLength == -1?
+	// We might have the case of streaming for which Content-Length might be unset.
+	if res.ContentLength == -1 {
+		return -1
+	}
+
 	return p.FlushInterval
 }
 
@@ -545,8 +549,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		return
 	}
 
-	copyHeader(res.Header, rw.Header())
-
 	hj, ok := rw.(http.Hijacker)
 	if !ok {
 		p.getErrorHandler()(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
@@ -577,6 +579,10 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		return
 	}
 	defer conn.Close()
+
+	copyHeader(rw.Header(), res.Header)
+
+	res.Header = rw.Header()
 	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
 	if err := res.Write(brw); err != nil {
 		p.getErrorHandler()(rw, req, fmt.Errorf("response write: %v", err))

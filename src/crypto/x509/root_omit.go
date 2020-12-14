@@ -24,6 +24,3 @@ func loadSystemRoots() (*CertPool, error) {
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
-
-// loadSystemRootsWithCgo is not available on iOS.
-var loadSystemRootsWithCgo func() (*CertPool, error)

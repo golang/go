@@ -14,7 +14,6 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -93,11 +92,12 @@ type Action struct {
 	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending   int         // number of deps yet to complete
-	priority  int         // relative execution priority
-	Failed    bool        // whether the action failed
-	json      *actionJSON // action graph information
-	traceSpan *trace.Span
+	pending      int               // number of deps yet to complete
+	priority     int               // relative execution priority
+	Failed       bool              // whether the action failed
+	json         *actionJSON       // action graph information
+	nonGoOverlay map[string]string // map from non-.go source files to copied files in objdir. Nil if no overlay is used.
+	traceSpan    *trace.Span
 }
 
 // BuildActionID returns the action ID section of a's build ID.
@@ -252,7 +252,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		tmp, err := ioutil.TempDir(cfg.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
 		}
