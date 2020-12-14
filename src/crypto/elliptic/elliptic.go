@@ -391,6 +391,7 @@ func initAll() {
 	initP256()
 	initP384()
 	initP521()
+	initSecp256k1()
 }
 
 func initP384() {
@@ -452,4 +453,16 @@ func P384() Curve {
 func P521() Curve {
 	initonce.Do(initAll)
 	return p521
+}
+
+// P256k1 returns a Curve which implements secp256k1 (https://www.secg.org/sec2-v2.pdf, section 2.4.1),
+// also known as secp521k1. The CurveParams.Name of this Curve is "P-256k1".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
+//
+// The cryptographic operations do not use constant-time algorithms.
+func P256k1() Curve {
+	initonce.Do(initAll)
+	return secp256k1
 }

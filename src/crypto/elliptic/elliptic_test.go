@@ -465,6 +465,7 @@ func TestInfinity(t *testing.T) {
 		{"P-256/Generic", P256().Params()},
 		{"P-384", P384()},
 		{"P-521", P521()},
+		{"P-256k1", P256k1()},
 	}
 	if testing.Short() {
 		tests = tests[:1]
@@ -584,21 +585,33 @@ func BenchmarkScalarMultP256(b *testing.B) {
 }
 
 func TestMarshal(t *testing.T) {
-	p224 := P224()
-	_, x, y, err := GenerateKey(p224, rand.Reader)
-	if err != nil {
-		t.Error(err)
-		return
+	tests := []struct {
+		curve Curve
+	}{
+		{P224()},
+		{P256()},
+		{P256().Params()},
+		{P384()},
+		{P521()},
+		{P256k1()},
 	}
-	serialized := Marshal(p224, x, y)
-	xx, yy := Unmarshal(p224, serialized)
-	if xx == nil {
-		t.Error("failed to unmarshal")
-		return
-	}
-	if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
-		t.Error("unmarshal returned different values")
-		return
+	for _, test := range tests {
+		curve := test.curve
+		_, x, y, err := GenerateKey(curve, rand.Reader)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		serialized := Marshal(curve, x, y)
+		xx, yy := Unmarshal(curve, serialized)
+		if xx == nil {
+			t.Error("failed to unmarshal")
+			return
+		}
+		if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+			t.Error("unmarshal returned different values")
+			return
+		}
 	}
 }
 
@@ -697,6 +710,13 @@ func TestMarshalCompressed(t *testing.T) {
 			t.Fatal(err)
 		}
 		testMarshalCompressed(t, P521(), x, y, nil)
+	})
+	t.Run("P-256k1", func(t *testing.T) {
+		_, x, y, err := GenerateKey(P256k1(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testMarshalCompressed(t, P256k1(), x, y, nil)
 	})
 }
 
