@@ -31,6 +31,10 @@ stdout 'testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc02102
 stdout 'unexpectedly'
 grep '\Aad\z' testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67
 
+-- go.mod --
+module m
+
+go 1.16
 -- fuzz_crash_test.go --
 package fuzz_crash
 
