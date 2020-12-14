@@ -282,9 +282,18 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
-	// With all types checked, it's now safe to verify map keys. One single
-	// check past phase 9 isn't sufficient, as we may exit with other errors
-	// before then, thus skipping map key errors.
+
+	// Phase 3.11: Check external declarations.
+	// TODO(mdempsky): This should be handled when type checking their
+	// corresponding ODCL nodes.
+	timings.Start("fe", "typecheck", "externdcls")
+	for i, n := range externdcl {
+		if n.Op() == ir.ONAME {
+			externdcl[i] = typecheck(externdcl[i], ctxExpr)
+		}
+	}
+
+	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys.
 	checkMapKeys()
 	base.ExitIfErrors()
 
@@ -417,18 +426,6 @@ func Main(archInit func(*Arch)) {
 		base.Ctxt.DwFixups = nil
 		base.Flag.GenDwarfInl = 0
 	}
-
-	// Phase 9: Check external declarations.
-	timings.Start("be", "externaldcls")
-	for i, n := range externdcl {
-		if n.Op() == ir.ONAME {
-			externdcl[i] = typecheck(externdcl[i], ctxExpr)
-		}
-	}
-	// Check the map keys again, since we typechecked the external
-	// declarations.
-	checkMapKeys()
-	base.ExitIfErrors()
 
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
