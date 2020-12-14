@@ -18,11 +18,11 @@ import (
 
 //go:cgo_import_dynamic libc___n_pthreads __n_pthreads "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libc___mod_init __mod_init "libc.a/shr_64.o"
-//go:linkname libc___n_pthreads libc___n_pthread
+//go:linkname libc___n_pthreads libc___n_pthreads
 //go:linkname libc___mod_init libc___mod_init
 
 var (
-	libc___n_pthread,
+	libc___n_pthreads,
 	libc___mod_init libFunc
 )
 

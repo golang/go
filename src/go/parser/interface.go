@@ -13,7 +13,7 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -39,7 +39,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 		return nil, errors.New("invalid source")
 	}
-	return ioutil.ReadFile(filename)
+	return os.ReadFile(filename)
 }
 
 // A Mode value is a set of flags (or 0).
@@ -134,29 +134,39 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 // first error encountered are returned.
 //
 func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
-	list, err := ioutil.ReadDir(path)
+	list, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	pkgs = make(map[string]*ast.Package)
 	for _, d := range list {
-		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := filepath.Join(path, d.Name())
-			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
-				name := src.Name.Name
-				pkg, found := pkgs[name]
-				if !found {
-					pkg = &ast.Package{
-						Name:  name,
-						Files: make(map[string]*ast.File),
-					}
-					pkgs[name] = pkg
-				}
-				pkg.Files[filename] = src
-			} else if first == nil {
-				first = err
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+			continue
+		}
+		if filter != nil {
+			info, err := d.Info()
+			if err != nil {
+				return nil, err
 			}
+			if !filter(info) {
+				continue
+			}
+		}
+		filename := filepath.Join(path, d.Name())
+		if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+			name := src.Name.Name
+			pkg, found := pkgs[name]
+			if !found {
+				pkg = &ast.Package{
+					Name:  name,
+					Files: make(map[string]*ast.File),
+				}
+				pkgs[name] = pkg
+			}
+			pkg.Files[filename] = src
+		} else if first == nil {
+			first = err
 		}
 	}
 

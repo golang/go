@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"internal/testenv"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -30,7 +29,7 @@ func TestConcurrentReadsAndWrites(t *testing.T) {
 		testenv.SkipFlaky(t, 33041)
 	}
 
-	dir, err := ioutil.TempDir("", "renameio")
+	dir, err := os.MkdirTemp("", "renameio")
 	if err != nil {
 		t.Fatal(err)
 	}

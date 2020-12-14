@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
 
@@ -15,5 +16,5 @@ func npos(pos src.XPos, n ir.Node) ir.Node {
 }
 
 func builtinCall(op ir.Op) ir.Node {
-	return ir.Nod(ir.OCALL, mkname(ir.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+	return ir.Nod(ir.OCALL, mkname(types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }

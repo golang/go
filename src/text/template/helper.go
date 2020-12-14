@@ -9,7 +9,7 @@ package template
 import (
 	"fmt"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 )
@@ -164,7 +164,7 @@ func parseFS(t *Template, fsys fs.FS, patterns []string) (*Template, error) {
 
 func readFileOS(file string) (name string, b []byte, err error) {
 	name = filepath.Base(file)
-	b, err = ioutil.ReadFile(file)
+	b, err = os.ReadFile(file)
 	return
 }
 

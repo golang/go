@@ -1104,12 +1104,16 @@ type StructField struct {
 
 // A StructTag is the tag string in a struct field.
 //
-// By convention, tag strings are a concatenation of
-// optionally space-separated key:"value" pairs.
-// Each key is a non-empty string consisting of non-control
-// characters other than space (U+0020 ' '), quote (U+0022 '"'),
-// and colon (U+003A ':').  Each value is quoted using U+0022 '"'
-// characters and Go string literal syntax.
+// By convention, tag strings are a mapping of keys to values.
+// The format is key:"value". Each key is a non-empty string consisting
+// of non-control characters other than space (U+0020 ' '),
+// quote (U+0022 '"'), and colon (U+003A ':'). Each value is quoted
+// using U+0022 '"' characters and Go string literal syntax.
+// Multiple key-value mappings are separated by zero or more spaces, as in
+//   key1:"value1" key2:"value2"
+// Multiple keys may map to a single shared value by separating the keys
+// with spaces, as in
+//   key1 key2:"value"
 type StructTag string
 
 // Get returns the value associated with key in the tag string.

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -426,11 +425,11 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
-	data1, err := ioutil.ReadFile(ofile)
+	data1, err := os.ReadFile(ofile)
 	if err != nil {
 		return err
 	}
-	data2, err := ioutil.ReadFile(ofile + ".new")
+	data2, err := os.ReadFile(ofile + ".new")
 	if err != nil {
 		return err
 	}
@@ -580,7 +579,7 @@ func pluginPath(a *Action) string {
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
-		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
+		data, err := os.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {
 			base.Fatalf("go: %s", err)
 		}

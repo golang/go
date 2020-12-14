@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"internal/poll"
 	"io"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	. "os"
 	"path/filepath"
 	"strconv"
@@ -173,7 +173,7 @@ func TestCopyFileRange(t *testing.T) {
 	})
 	t.Run("Nil", func(t *testing.T) {
 		var nilFile *File
-		anyFile, err := ioutil.TempFile("", "")
+		anyFile, err := os.CreateTemp("", "")
 		if err != nil {
 			t.Fatal(err)
 		}

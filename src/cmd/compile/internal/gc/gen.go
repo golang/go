@@ -31,13 +31,13 @@ func sysvar(name string) *obj.LSym {
 // isParamStackCopy reports whether this is the on-stack copy of a
 // function parameter that moved to the heap.
 func isParamStackCopy(n ir.Node) bool {
-	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Param.Heapaddr != nil
+	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Heapaddr != nil
 }
 
 // isParamHeapCopy reports whether this is the on-heap copy of
 // a function parameter that moved to the heap.
 func isParamHeapCopy(n ir.Node) bool {
-	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy != nil
+	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy != nil
 }
 
 // autotmpname returns the name for an autotmp variable numbered n.
@@ -52,7 +52,7 @@ func autotmpname(n int) string {
 }
 
 // make a new Node off the books
-func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
+func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for tempAt")
 	}
@@ -65,24 +65,24 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
 	}
 
 	s := &types.Sym{
-		Name: autotmpname(len(curfn.Func().Dcl)),
-		Pkg:  ir.LocalPkg,
+		Name: autotmpname(len(curfn.Dcl)),
+		Pkg:  types.LocalPkg,
 	}
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
 	n.SetClass(ir.PAUTO)
 	n.SetEsc(EscNever)
-	n.Name().Curfn = curfn
-	n.Name().SetUsed(true)
-	n.Name().SetAutoTemp(true)
-	curfn.Func().Dcl = append(curfn.Func().Dcl, n)
+	n.Curfn = curfn
+	n.SetUsed(true)
+	n.SetAutoTemp(true)
+	curfn.Dcl = append(curfn.Dcl, n)
 
 	dowidth(t)
 
-	return n.Orig()
+	return n
 }
 
-func temp(t *types.Type) ir.Node {
+func temp(t *types.Type) *ir.Name {
 	return tempAt(base.Pos, Curfn, t)
 }

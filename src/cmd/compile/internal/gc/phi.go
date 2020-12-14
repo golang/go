@@ -23,6 +23,14 @@ const smallBlocks = 500
 
 const debugPhi = false
 
+// FwdRefAux wraps an arbitrary ir.Node as an ssa.Aux for use with OpFwdref.
+type FwdRefAux struct {
+	_ [0]func() // ensure ir.Node isn't compared for equality
+	N ir.Node
+}
+
+func (FwdRefAux) CanBeAnSSAAux() {}
+
 // insertPhis finds all the places in the function where a phi is
 // necessary and inserts them.
 // Uses FwdRef ops to find all uses of variables, and s.defvars to find
@@ -79,7 +87,7 @@ func (s *phiState) insertPhis() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			var_ := v.Aux.(ir.Node)
+			var_ := v.Aux.(FwdRefAux).N
 
 			// Optimization: look back 1 block for the definition.
 			if len(b.Preds) == 1 {
@@ -179,6 +187,11 @@ levels:
 		for _, v := range b.Values {
 			if v.Op == ssa.OpPhi {
 				v.AuxInt = 0
+			}
+			// Any remaining FwdRefs are dead code.
+			if v.Op == ssa.OpFwdRef {
+				v.Op = ssa.OpUnknown
+				v.Aux = nil
 			}
 		}
 	}
@@ -319,7 +332,7 @@ func (s *phiState) resolveFwdRefs() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			n := s.varnum[v.Aux.(ir.Node)]
+			n := s.varnum[v.Aux.(FwdRefAux).N]
 			v.Op = ssa.OpCopy
 			v.Aux = nil
 			v.AddArg(values[n])
@@ -450,7 +463,7 @@ func (s *simplePhiState) insertPhis() {
 				continue
 			}
 			s.fwdrefs = append(s.fwdrefs, v)
-			var_ := v.Aux.(ir.Node)
+			var_ := v.Aux.(FwdRefAux).N
 			if _, ok := s.defvars[b.ID][var_]; !ok {
 				s.defvars[b.ID][var_] = v // treat FwdDefs as definitions.
 			}
@@ -464,7 +477,7 @@ loop:
 		v := s.fwdrefs[len(s.fwdrefs)-1]
 		s.fwdrefs = s.fwdrefs[:len(s.fwdrefs)-1]
 		b := v.Block
-		var_ := v.Aux.(ir.Node)
+		var_ := v.Aux.(FwdRefAux).N
 		if b == s.f.Entry {
 			// No variable should be live at entry.
 			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
@@ -531,7 +544,7 @@ func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ ir.
 		}
 	}
 	// Generate a FwdRef for the variable and return that.
-	v := b.NewValue0A(line, ssa.OpFwdRef, t, var_)
+	v := b.NewValue0A(line, ssa.OpFwdRef, t, FwdRefAux{N: var_})
 	s.defvars[b.ID][var_] = v
 	s.s.addNamedValue(var_, v)
 	s.fwdrefs = append(s.fwdrefs, v)

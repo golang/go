@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -142,6 +143,36 @@ func TestFindAndHash(t *testing.T) {
 				if hash != h {
 					errorf("bufSize=%d j=%d k=%d: findAndHash: matches correct, but hash=%x, want %x", bufSize, j, k, hash, h)
 				}
+			}
+		}
+	}
+}
+
+func TestExcludedReader(t *testing.T) {
+	const s = "0123456789abcdefghijklmn"
+	tests := []struct {
+		start, end int64    // excluded range
+		results    []string // expected results of reads
+	}{
+		{12, 15, []string{"0123456789", "ab\x00\x00\x00fghij", "klmn"}},                              // within one read
+		{8, 21, []string{"01234567\x00\x00", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "\x00lmn"}}, // across multiple reads
+		{10, 20, []string{"0123456789", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "klmn"}},         // a whole read
+		{0, 5, []string{"\x00\x00\x00\x00\x0056789", "abcdefghij", "klmn"}},                          // start
+		{12, 24, []string{"0123456789", "ab\x00\x00\x00\x00\x00\x00\x00\x00", "\x00\x00\x00\x00"}},   // end
+	}
+	p := make([]byte, 10)
+	for _, test := range tests {
+		r := &excludedReader{strings.NewReader(s), 0, test.start, test.end}
+		for _, res := range test.results {
+			n, err := r.Read(p)
+			if err != nil {
+				t.Errorf("read failed: %v", err)
+			}
+			if n != len(res) {
+				t.Errorf("unexpected number of bytes read: want %d, got %d", len(res), n)
+			}
+			if string(p[:n]) != res {
+				t.Errorf("unexpected bytes: want %q, got %q", res, p[:n])
 			}
 		}
 	}

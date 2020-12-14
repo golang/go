@@ -56,7 +56,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 
 func libc_sendfile_trampoline()
 
-//go:linkname libc_sendfile libc_sendfile
 //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
 
 // Implemented in the runtime package (runtime/sys_darwin_64.go)

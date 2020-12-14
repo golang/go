@@ -15,7 +15,6 @@ import (
 	"go/build"
 	"internal/testenv"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,6 +141,9 @@ func (ts *testScript) setup() {
 		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
 	}
+	if !testenv.HasExternalNetwork() {
+		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+	}
 
 	if runtime.GOOS == "plan9" {
 		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
@@ -217,7 +219,7 @@ func (ts *testScript) run() {
 	for _, f := range a.Files {
 		name := ts.mkabs(ts.expand(f.Name, false))
 		ts.check(os.MkdirAll(filepath.Dir(name), 0777))
-		ts.check(ioutil.WriteFile(name, f.Data, 0666))
+		ts.check(os.WriteFile(name, f.Data, 0666))
 	}
 
 	// With -v or -testwork, start log with full environment.
@@ -374,19 +376,19 @@ var (
 
 func isCaseSensitive(t *testing.T) bool {
 	onceCaseSensitive.Do(func() {
-		tmpdir, err := ioutil.TempDir("", "case-sensitive")
+		tmpdir, err := os.MkdirTemp("", "case-sensitive")
 		if err != nil {
 			t.Fatal("failed to create directory to determine case-sensitivity:", err)
 		}
 		defer os.RemoveAll(tmpdir)
 
 		fcap := filepath.Join(tmpdir, "FILE")
-		if err := ioutil.WriteFile(fcap, []byte{}, 0644); err != nil {
+		if err := os.WriteFile(fcap, []byte{}, 0644); err != nil {
 			t.Fatal("error writing file to determine case-sensitivity:", err)
 		}
 
 		flow := filepath.Join(tmpdir, "file")
-		_, err = ioutil.ReadFile(flow)
+		_, err = os.ReadFile(flow)
 		switch {
 		case err == nil:
 			caseSensitive = false
@@ -447,9 +449,9 @@ func (ts *testScript) cmdAddcrlf(want simpleStatus, args []string) {
 
 	for _, file := range args {
 		file = ts.mkabs(file)
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		ts.check(err)
-		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
+		ts.check(os.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
 }
 
@@ -554,12 +556,12 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 	} else if name1 == "stderr" {
 		text1 = ts.stderr
 	} else {
-		data, err := ioutil.ReadFile(ts.mkabs(name1))
+		data, err := os.ReadFile(ts.mkabs(name1))
 		ts.check(err)
 		text1 = string(data)
 	}
 
-	data, err := ioutil.ReadFile(ts.mkabs(name2))
+	data, err := os.ReadFile(ts.mkabs(name2))
 	ts.check(err)
 	text2 = string(data)
 
@@ -611,14 +613,14 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 			info, err := os.Stat(src)
 			ts.check(err)
 			mode = info.Mode() & 0777
-			data, err = ioutil.ReadFile(src)
+			data, err = os.ReadFile(src)
 			ts.check(err)
 		}
 		targ := dst
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		err := ioutil.WriteFile(targ, data, mode)
+		err := os.WriteFile(targ, data, mode)
 		switch want {
 		case failure:
 			if err == nil {
@@ -894,7 +896,7 @@ func scriptMatch(ts *testScript, want simpleStatus, args []string, text, name st
 	isGrep := name == "grep"
 	if isGrep {
 		name = args[1] // for error messages
-		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
+		data, err := os.ReadFile(ts.mkabs(args[1]))
 		ts.check(err)
 		text = string(data)
 	}

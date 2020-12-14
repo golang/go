@@ -259,8 +259,8 @@ func iexport(out *bufio.Writer) {
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
 		stringIndex: map[string]uint64{},
-		declIndex:   map[ir.Node]uint64{},
-		inlineIndex: map[ir.Node]uint64{},
+		declIndex:   map[*types.Sym]uint64{},
+		inlineIndex: map[*types.Sym]uint64{},
 		typIndex:    map[*types.Type]uint64{},
 	}
 
@@ -290,6 +290,10 @@ func iexport(out *bufio.Writer) {
 	w.writeIndex(p.inlineIndex, false)
 	w.flush()
 
+	if *base.Flag.LowerV {
+		fmt.Printf("export: hdr strings %v, data %v, index %v\n", p.strings.Len(), dataLen, p.data0.Len())
+	}
+
 	// Assemble header.
 	var hdr intWriter
 	hdr.WriteByte('i')
@@ -310,37 +314,34 @@ func iexport(out *bufio.Writer) {
 	out.Write(base.Ctxt.Fingerprint[:])
 }
 
-// writeIndex writes out an object index. mainIndex indicates whether
+// writeIndex writes out a symbol index. mainIndex indicates whether
 // we're writing out the main index, which is also read by
 // non-compiler tools and includes a complete package description
 // (i.e., name and height).
-func (w *exportWriter) writeIndex(index map[ir.Node]uint64, mainIndex bool) {
-	// Build a map from packages to objects from that package.
-	pkgObjs := map[*types.Pkg][]ir.Node{}
+func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
+	// Build a map from packages to symbols from that package.
+	pkgSyms := map[*types.Pkg][]*types.Sym{}
 
 	// For the main index, make sure to include every package that
 	// we reference, even if we're not exporting (or reexporting)
 	// any symbols from it.
 	if mainIndex {
-		pkgObjs[ir.LocalPkg] = nil
+		pkgSyms[types.LocalPkg] = nil
 		for pkg := range w.p.allPkgs {
-			pkgObjs[pkg] = nil
+			pkgSyms[pkg] = nil
 		}
 	}
 
-	for n := range index {
-		pkgObjs[n.Sym().Pkg] = append(pkgObjs[n.Sym().Pkg], n)
+	// Group symbols by package.
+	for sym := range index {
+		pkgSyms[sym.Pkg] = append(pkgSyms[sym.Pkg], sym)
 	}
 
+	// Sort packages by path.
 	var pkgs []*types.Pkg
-	for pkg, objs := range pkgObjs {
+	for pkg := range pkgSyms {
 		pkgs = append(pkgs, pkg)
-
-		sort.Slice(objs, func(i, j int) bool {
-			return objs[i].Sym().Name < objs[j].Sym().Name
-		})
 	}
-
 	sort.Slice(pkgs, func(i, j int) bool {
 		return pkgs[i].Path < pkgs[j].Path
 	})
@@ -353,11 +354,16 @@ func (w *exportWriter) writeIndex(index map[ir.Node]uint64, mainIndex bool) {
 			w.uint64(uint64(pkg.Height))
 		}
 
-		objs := pkgObjs[pkg]
-		w.uint64(uint64(len(objs)))
-		for _, n := range objs {
-			w.string(n.Sym().Name)
-			w.uint64(index[n])
+		// Sort symbols within a package by name.
+		syms := pkgSyms[pkg]
+		sort.Slice(syms, func(i, j int) bool {
+			return syms[i].Name < syms[j].Name
+		})
+
+		w.uint64(uint64(len(syms)))
+		for _, sym := range syms {
+			w.string(sym.Name)
+			w.uint64(index[sym])
 		}
 	}
 }
@@ -368,14 +374,14 @@ type iexporter struct {
 	// main index.
 	allPkgs map[*types.Pkg]bool
 
-	declTodo ir.NodeQueue
+	declTodo ir.NameQueue
 
 	strings     intWriter
 	stringIndex map[string]uint64
 
 	data0       intWriter
-	declIndex   map[ir.Node]uint64
-	inlineIndex map[ir.Node]uint64
+	declIndex   map[*types.Sym]uint64
+	inlineIndex map[*types.Sym]uint64
 	typIndex    map[*types.Type]uint64
 }
 
@@ -387,6 +393,10 @@ func (p *iexporter) stringOff(s string) uint64 {
 		off = uint64(p.strings.Len())
 		p.stringIndex[s] = off
 
+		if *base.Flag.LowerV {
+			fmt.Printf("export: str %v %.40q\n", off, s)
+		}
+
 		p.strings.uint64(uint64(len(s)))
 		p.strings.WriteString(s)
 	}
@@ -394,21 +404,21 @@ func (p *iexporter) stringOff(s string) uint64 {
 }
 
 // pushDecl adds n to the declaration work queue, if not already present.
-func (p *iexporter) pushDecl(n ir.Node) {
-	if n.Sym() == nil || ir.AsNode(n.Sym().Def) != n && n.Op() != ir.OTYPE {
+func (p *iexporter) pushDecl(n *ir.Name) {
+	if n.Sym() == nil || n.Sym().Def != n && n.Op() != ir.OTYPE {
 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == ir.BuiltinPkg || n.Sym().Pkg == unsafepkg {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == unsafepkg {
 		return
 	}
 
-	if _, ok := p.declIndex[n]; ok {
+	if _, ok := p.declIndex[n.Sym()]; ok {
 		return
 	}
 
-	p.declIndex[n] = ^uint64(0) // mark n present in work queue
+	p.declIndex[n.Sym()] = ^uint64(0) // mark n present in work queue
 	p.declTodo.PushRight(n)
 }
 
@@ -423,7 +433,7 @@ type exportWriter struct {
 	prevColumn int64
 }
 
-func (p *iexporter) doDecl(n ir.Node) {
+func (p *iexporter) doDecl(n *ir.Name) {
 	w := p.newWriter()
 	w.setPkg(n.Sym().Pkg, false)
 
@@ -454,7 +464,8 @@ func (p *iexporter) doDecl(n ir.Node) {
 
 	case ir.OLITERAL:
 		// Constant.
-		n = typecheck(n, ctxExpr)
+		// TODO(mdempsky): Do we still need this typecheck? If so, why?
+		n = typecheck(n, ctxExpr).(*ir.Name)
 		w.tag('C')
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
@@ -472,15 +483,15 @@ func (p *iexporter) doDecl(n ir.Node) {
 		w.tag('T')
 		w.pos(n.Pos())
 
-		underlying := n.Type().Orig
-		if underlying == types.Errortype.Orig {
+		underlying := n.Type().Underlying()
+		if underlying == types.ErrorType.Underlying() {
 			// For "type T error", use error as the
 			// underlying type instead of error's own
 			// underlying anonymous interface. This
 			// ensures consistency with how importers may
 			// declare error (e.g., go/types uses nil Pkg
 			// for predeclared objects).
-			underlying = types.Errortype
+			underlying = types.ErrorType
 		}
 		w.typ(underlying)
 
@@ -508,20 +519,28 @@ func (p *iexporter) doDecl(n ir.Node) {
 		base.Fatalf("unexpected node: %v", n)
 	}
 
-	p.declIndex[n] = w.flush()
+	w.finish("dcl", p.declIndex, n.Sym())
 }
 
 func (w *exportWriter) tag(tag byte) {
 	w.data.WriteByte(tag)
 }
 
-func (p *iexporter) doInline(f ir.Node) {
+func (w *exportWriter) finish(what string, index map[*types.Sym]uint64, sym *types.Sym) {
+	off := w.flush()
+	if *base.Flag.LowerV {
+		fmt.Printf("export: %v %v %v\n", what, off, sym)
+	}
+	index[sym] = off
+}
+
+func (p *iexporter) doInline(f *ir.Name) {
 	w := p.newWriter()
 	w.setPkg(fnpkg(f), false)
 
 	w.stmtList(ir.AsNodes(f.Func().Inl.Body))
 
-	p.inlineIndex[f] = w.flush()
+	w.finish("inl", p.inlineIndex, f.Sym())
 }
 
 func (w *exportWriter) pos(pos src.XPos) {
@@ -572,7 +591,7 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
 
 func (w *exportWriter) qualifiedIdent(n ir.Node) {
 	// Ensure any referenced declarations are written out too.
-	w.p.pushDecl(n)
+	w.p.pushDecl(n.Name())
 
 	s := n.Sym()
 	w.string(s.Name)
@@ -593,7 +612,7 @@ func (w *exportWriter) selector(s *types.Sym) {
 	} else {
 		pkg := w.currPkg
 		if types.IsExported(name) {
-			pkg = ir.LocalPkg
+			pkg = types.LocalPkg
 		}
 		if s.Pkg != pkg {
 			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
@@ -622,7 +641,11 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
 	if !ok {
 		w := p.newWriter()
 		w.doTyp(t)
-		off = predeclReserved + w.flush()
+		rawOff := w.flush()
+		if *base.Flag.LowerV {
+			fmt.Printf("export: typ %v %v\n", rawOff, t)
+		}
+		off = predeclReserved + rawOff
 		p.typIndex[t] = off
 	}
 	return off
@@ -633,17 +656,17 @@ func (w *exportWriter) startType(k itag) {
 }
 
 func (w *exportWriter) doTyp(t *types.Type) {
-	if t.Sym != nil {
-		if t.Sym.Pkg == ir.BuiltinPkg || t.Sym.Pkg == unsafepkg {
+	if t.Sym() != nil {
+		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == unsafepkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
 		w.startType(definedType)
-		w.qualifiedIdent(typenod(t))
+		w.qualifiedIdent(t.Obj().(*ir.Name))
 		return
 	}
 
-	switch t.Etype {
+	switch t.Kind() {
 	case types.TPTR:
 		w.startType(pointerType)
 		w.typ(t.Elem())
@@ -717,10 +740,8 @@ func (w *exportWriter) doTyp(t *types.Type) {
 }
 
 func (w *exportWriter) setPkg(pkg *types.Pkg, write bool) {
-	if pkg == nil {
-		// TODO(mdempsky): Proactively set Pkg for types and
-		// remove this fallback logic.
-		pkg = ir.LocalPkg
+	if pkg == types.NoPkg {
+		base.Fatalf("missing pkg")
 	}
 
 	if write {
@@ -747,7 +768,7 @@ func (w *exportWriter) paramList(fs []*types.Field) {
 
 func (w *exportWriter) param(f *types.Field) {
 	w.pos(f.Pos)
-	w.localIdent(ir.OrigSym(f.Sym), 0)
+	w.localIdent(types.OrigSym(f.Sym), 0)
 	w.typ(f.Type)
 }
 
@@ -761,7 +782,7 @@ func constTypeOf(typ *types.Type) constant.Kind {
 		return constant.Complex
 	}
 
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TBOOL:
 		return constant.Bool
 	case types.TSTRING:
@@ -808,7 +829,7 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 		return true, Mpprec / 8
 	}
 
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TFLOAT32, types.TCOMPLEX64:
 		return true, 3
 	case types.TFLOAT64, types.TCOMPLEX128:
@@ -820,7 +841,7 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 
 	// The go/types API doesn't expose sizes to importers, so they
 	// don't know how big these types are.
-	switch typ.Etype {
+	switch typ.Kind() {
 	case types.TINT, types.TUINT, types.TUINTPTR:
 		maxBytes = 8
 	}
@@ -960,7 +981,7 @@ func (w *exportWriter) varExt(n ir.Node) {
 	w.symIdx(n.Sym())
 }
 
-func (w *exportWriter) funcExt(n ir.Node) {
+func (w *exportWriter) funcExt(n *ir.Name) {
 	w.linkname(n.Sym())
 	w.symIdx(n.Sym())
 
@@ -979,14 +1000,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
 		}
 
 		// Endlineno for inlined function.
-		if n.Name().Defn != nil {
-			w.pos(n.Name().Defn.Func().Endlineno)
-		} else {
-			// When the exported node was defined externally,
-			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
-			// Keep it as we don't distinguish this case in iimport.go.
-			w.pos(n.Func().Endlineno)
-		}
+		w.pos(n.Func().Endlineno)
 	} else {
 		w.uint64(0)
 	}
@@ -994,7 +1008,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
 
 func (w *exportWriter) methExt(m *types.Field) {
 	w.bool(m.Nointerface())
-	w.funcExt(ir.AsNode(m.Nname))
+	w.funcExt(m.Nname.(*ir.Name))
 }
 
 func (w *exportWriter) linkname(s *types.Sym) {
@@ -1056,14 +1070,22 @@ func (w *exportWriter) stmt(n ir.Node) {
 	}
 
 	switch op := n.Op(); op {
+	case ir.OBLOCK:
+		// No OBLOCK in export data.
+		// Inline content into this statement list,
+		// like the init list above.
+		// (At the moment neither the parser nor the typechecker
+		// generate OBLOCK nodes except to denote an empty
+		// function body, although that may change.)
+		for _, n := range n.List().Slice() {
+			w.stmt(n)
+		}
+
 	case ir.ODCL:
 		w.op(ir.ODCL)
 		w.pos(n.Left().Pos())
 		w.localName(n.Left())
 		w.typ(n.Left().Type())
-
-	// case ODCLFIELD:
-	//	unimplemented - handled by default case
 
 	case ir.OAS:
 		// Don't export "v = <N>" initializing statements, hope they're always
@@ -1085,17 +1107,11 @@ func (w *exportWriter) stmt(n ir.Node) {
 			w.expr(n.Right())
 		}
 
-	case ir.OAS2:
+	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		w.op(ir.OAS2)
 		w.pos(n.Pos())
 		w.exprList(n.List())
 		w.exprList(n.Rlist())
-
-	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		w.op(ir.OAS2)
-		w.pos(n.Pos())
-		w.exprList(n.List())
-		w.exprList(ir.AsNodes([]ir.Node{n.Right()}))
 
 	case ir.ORETURN:
 		w.op(ir.ORETURN)
@@ -1146,18 +1162,14 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.op(ir.OFALL)
 		w.pos(n.Pos())
 
-	case ir.OBREAK, ir.OCONTINUE:
+	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
 		w.op(op)
 		w.pos(n.Pos())
-		w.exprsOrNil(n.Left(), nil)
-
-	case ir.OEMPTY:
-		// nothing to emit
-
-	case ir.OGOTO, ir.OLABEL:
-		w.op(op)
-		w.pos(n.Pos())
-		w.string(n.Sym().Name)
+		label := ""
+		if sym := n.Sym(); sym != nil {
+			label = sym.Name
+		}
+		w.string(label)
 
 	default:
 		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op())
@@ -1211,11 +1223,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		if !n.Type().HasNil() {
 			base.Fatalf("unexpected type for nil: %v", n.Type())
 		}
-		if n.Orig() != nil && n.Orig() != n {
-			w.expr(n.Orig())
-			break
-		}
-		w.op(ir.OLITERAL)
+		w.op(ir.ONIL)
 		w.pos(n.Pos())
 		w.typ(n.Type())
 
@@ -1304,8 +1312,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OXDOT)
 		w.pos(n.Pos())
 		w.expr(n.Left())
-		// Right node should be ONAME
-		w.selector(n.Right().Sym())
+		w.selector(n.Sym())
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
 		w.op(ir.OXDOT)
@@ -1464,7 +1471,7 @@ func (w *exportWriter) localName(n ir.Node) {
 	// PPARAM/PPARAMOUT, because we only want to include vargen in
 	// non-param names.
 	var v int32
-	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Param.Stackcopy == nil) {
+	if n.Class() == ir.PAUTO || (n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
 		v = n.Name().Vargen
 	}
 

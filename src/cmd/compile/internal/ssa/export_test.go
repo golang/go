@@ -12,7 +12,6 @@ import (
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
-	"fmt"
 	"testing"
 )
 
@@ -69,7 +68,7 @@ type TestFrontend struct {
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
-func (TestFrontend) Auto(pos src.XPos, t *types.Type) ir.Node {
+func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
 	n.SetClass(ir.PAUTO)
 	return n
@@ -138,24 +137,11 @@ func init() {
 	// Initialize just enough of the universe and the types package to make our tests function.
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
-
-	types.Tconv = func(t *types.Type, flag, mode int) string {
-		return t.Etype.String()
-	}
-	types.Sconv = func(s *types.Sym, flag, mode int) string {
-		return "sym"
-	}
-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
-		fmt.Fprintf(s, "sym")
-	}
-	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
-		fmt.Fprintf(s, "%v", t.Etype)
-	}
 	types.Dowidth = func(t *types.Type) {}
 
 	for _, typ := range [...]struct {
 		width int64
-		et    types.EType
+		et    types.Kind
 	}{
 		{1, types.TINT8},
 		{1, types.TUINT8},

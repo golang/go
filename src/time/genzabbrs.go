@@ -18,9 +18,9 @@ import (
 	"flag"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"text/template"
 	"time"
@@ -128,7 +128,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

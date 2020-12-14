@@ -126,8 +126,8 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if n.Name().Param.Stackcopy != nil {
-				n.Name().Param.Stackcopy.SetOffset(o)
+			if n.Name().Stackcopy != nil {
+				n.Name().Stackcopy.SetOffset(o)
 				n.SetOffset(0)
 			} else {
 				n.SetOffset(o)
@@ -185,10 +185,17 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 	// We implement a simple DFS loop-finding algorithm. This
 	// could be faster, but type cycles are rare.
 
-	if t.Sym != nil {
+	if t.Sym() != nil {
 		// Declared type. Check for loops and otherwise
 		// recurse on the type expression used in the type
 		// declaration.
+
+		// Type imported from package, so it can't be part of
+		// a type loop (otherwise that package should have
+		// failed to compile).
+		if t.Sym().Pkg != types.LocalPkg {
+			return false
+		}
 
 		for i, x := range *path {
 			if x == t {
@@ -198,14 +205,14 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if p := ir.AsNode(t.Nod).Name().Param; p != nil && findTypeLoop(p.Ntype.Type(), path) {
+		if findTypeLoop(t.Obj().(*ir.Name).Ntype.Type(), path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
 	} else {
 		// Anonymous type. Recurse on contained types.
 
-		switch t.Etype {
+		switch t.Kind() {
 		case types.TARRAY:
 			if findTypeLoop(t.Elem(), path) {
 				return true
@@ -307,22 +314,22 @@ func dowidth(t *types.Type) {
 	defercheckwidth()
 
 	lno := base.Pos
-	if ir.AsNode(t.Nod) != nil {
-		base.Pos = ir.AsNode(t.Nod).Pos()
+	if pos := t.Pos(); pos.IsKnown() {
+		base.Pos = pos
 	}
 
 	t.Width = -2
 	t.Align = 0 // 0 means use t.Width, below
 
-	et := t.Etype
+	et := t.Kind()
 	switch et {
 	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
 		break
 
 	// simtype == 0 during bootstrap
 	default:
-		if simtype[t.Etype] != 0 {
-			et = simtype[t.Etype]
+		if simtype[t.Kind()] != 0 {
+			et = simtype[t.Kind()]
 		}
 	}
 

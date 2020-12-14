@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"unicode"
@@ -33,13 +34,12 @@ type Sym struct {
 	Name string // object name
 
 	// saved and restored by dcopy
-	Def        IRNode    // definition: ONAME OTYPE OPACK or OLITERAL
+	Def        Object   // definition: ONAME OTYPE OPACK or OLITERAL
 	Block      int32    // blocknumber to catch redeclaration
 	Lastlineno src.XPos // last declaration for diagnostic
 
 	flags   bitset8
-	Label   IRNode // corresponding label (ephemeral)
-	Origpkg *Pkg  // original package for . import
+	Origpkg *Pkg // original package for . import
 }
 
 const (
@@ -89,9 +89,9 @@ func (sym *Sym) Linksym() *obj.LSym {
 	}
 	if sym.Func() {
 		// This is a function symbol. Mark it as "internal ABI".
-		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
+		return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
 	}
-	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
+	return base.Ctxt.LookupInit(sym.LinksymName(), initPkg)
 }
 
 // Less reports whether symbol a is ordered before symbol b.

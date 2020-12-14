@@ -115,7 +115,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 
 func libc_getfsstat_trampoline()
 
-//go:linkname libc_getfsstat libc_getfsstat
 //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
 func setattrlistTimes(path string, times []Timespec) error {
@@ -148,7 +147,6 @@ func setattrlistTimes(path string, times []Timespec) error {
 
 func libc_setattrlist_trampoline()
 
-//go:linkname libc_setattrlist libc_setattrlist
 //go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
 
 func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
@@ -276,7 +274,6 @@ func fdopendir(fd int) (dir uintptr, err error) {
 
 func libc_fdopendir_trampoline()
 
-//go:linkname libc_fdopendir libc_fdopendir
 //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {

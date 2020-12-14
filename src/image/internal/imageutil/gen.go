@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -36,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile("impl.go", out, 0660); err != nil {
+	if err := os.WriteFile("impl.go", out, 0660); err != nil {
 		log.Fatal(err)
 	}
 }

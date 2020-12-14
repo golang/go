@@ -63,7 +63,6 @@ var ErrNoTrustSettings = errors.New("no trust settings found")
 
 const errSecNoTrustSettings = -25263
 
-//go:linkname x509_SecTrustSettingsCopyCertificates x509_SecTrustSettingsCopyCertificates
 //go:cgo_import_dynamic x509_SecTrustSettingsCopyCertificates SecTrustSettingsCopyCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustSettingsCopyCertificates(domain SecTrustSettingsDomain) (certArray CFRef, err error) {
@@ -80,7 +79,6 @@ func x509_SecTrustSettingsCopyCertificates_trampoline()
 
 const kSecFormatX509Cert int32 = 9
 
-//go:linkname x509_SecItemExport x509_SecItemExport
 //go:cgo_import_dynamic x509_SecItemExport SecItemExport "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecItemExport(cert CFRef) (data CFRef, err error) {
@@ -95,7 +93,6 @@ func x509_SecItemExport_trampoline()
 
 const errSecItemNotFound = -25300
 
-//go:linkname x509_SecTrustSettingsCopyTrustSettings x509_SecTrustSettingsCopyTrustSettings
 //go:cgo_import_dynamic x509_SecTrustSettingsCopyTrustSettings SecTrustSettingsCopyTrustSettings "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain) (trustSettings CFRef, err error) {
@@ -110,7 +107,6 @@ func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain
 }
 func x509_SecTrustSettingsCopyTrustSettings_trampoline()
 
-//go:linkname x509_SecPolicyCopyProperties x509_SecPolicyCopyProperties
 //go:cgo_import_dynamic x509_SecPolicyCopyProperties SecPolicyCopyProperties "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecPolicyCopyProperties(policy CFRef) CFRef {

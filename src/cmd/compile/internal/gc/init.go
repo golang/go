@@ -19,13 +19,16 @@ var renameinitgen int
 
 // Function collecting autotmps generated during typechecking,
 // to be included in the package-level init function.
-var initTodo = ir.Nod(ir.ODCLFUNC, nil, nil)
+var initTodo = ir.NewFunc(base.Pos)
 
 func renameinit() *types.Sym {
 	s := lookupN("init.", renameinitgen)
 	renameinitgen++
 	return s
 }
+
+// List of imported packages, in source code order. See #31636.
+var sourceOrderImports []*types.Pkg
 
 // fninit makes an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
@@ -40,32 +43,39 @@ func fninit(n []ir.Node) {
 	var fns []*obj.LSym  // functions to call for package initialization
 
 	// Find imported packages with init tasks.
-	for _, s := range types.InitSyms {
-		deps = append(deps, s.Linksym())
+	for _, pkg := range sourceOrderImports {
+		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
+		if n == nil {
+			continue
+		}
+		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
+			base.Fatalf("bad inittask: %v", n)
+		}
+		deps = append(deps, n.Sym().Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
 	if len(nf) > 0 {
 		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
-		fn := dclfunc(initializers, ir.Nod(ir.OTFUNC, nil, nil))
-		for _, dcl := range initTodo.Func().Dcl {
-			dcl.Name().Curfn = fn
+		fn := dclfunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+		for _, dcl := range initTodo.Dcl {
+			dcl.Curfn = fn
 		}
-		fn.Func().Dcl = append(fn.Func().Dcl, initTodo.Func().Dcl...)
-		initTodo.Func().Dcl = nil
+		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
+		initTodo.Dcl = nil
 
 		fn.PtrBody().Set(nf)
 		funcbody()
 
-		fn = typecheck(fn, ctxStmt)
+		typecheckFunc(fn)
 		Curfn = fn
 		typecheckslice(nf, ctxStmt)
 		Curfn = nil
 		xtop = append(xtop, fn)
 		fns = append(fns, initializers.Linksym())
 	}
-	if initTodo.Func().Dcl != nil {
+	if initTodo.Dcl != nil {
 		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
@@ -78,13 +88,15 @@ func fninit(n []ir.Node) {
 		s := lookupN("init.", i)
 		fn := ir.AsNode(s.Def).Name().Defn
 		// Skip init functions with empty bodies.
-		if fn.Body().Len() == 1 && fn.Body().First().Op() == ir.OEMPTY {
-			continue
+		if fn.Body().Len() == 1 {
+			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.List().Len() == 0 {
+				continue
+			}
 		}
 		fns = append(fns, s.Linksym())
 	}
 
-	if len(deps) == 0 && len(fns) == 0 && ir.LocalPkg.Name != "main" && ir.LocalPkg.Name != "runtime" {
+	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
 		return // nothing to initialize
 	}
 

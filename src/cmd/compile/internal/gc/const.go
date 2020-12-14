@@ -115,17 +115,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
-		// Can't always set n.Type directly on OLITERAL nodes.
-		// See discussion on CL 20813.
-		n = n.RawCopy()
-	}
-
 	// Nil is technically not a constant, so handle it specially.
-	if n.Type().Etype == types.TNIL {
+	if n.Type().Kind() == types.TNIL {
 		if n.Op() != ir.ONIL {
 			base.Fatalf("unexpected op: %v (%v)", n, n.Op())
 		}
+		n = ir.Copy(n)
 		if t == nil {
 			base.Errorf("use of untyped nil")
 			n.SetDiag(true)
@@ -142,7 +137,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if t == nil || !ir.OKForConst[t.Etype] {
+	if t == nil || !ir.OKForConst[t.Kind()] {
 		t = defaultType(n.Type())
 	}
 
@@ -153,10 +148,11 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	case ir.OLITERAL:
 		v := convertVal(n.Val(), t, explicit)
 		if v.Kind() == constant.Unknown {
+			n = ir.NewConstExpr(n.Val(), n)
 			break
 		}
+		n = ir.NewConstExpr(v, n)
 		n.SetType(t)
-		n.SetVal(v)
 		return n
 
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.OREAL, ir.OIMAG:
@@ -240,7 +236,7 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
 			return complexForFloat(t)
 		}
 	default:
-		if okfor[op][t.Etype] {
+		if okfor[op][t.Kind()] {
 			return t
 		}
 	}
@@ -388,7 +384,7 @@ func overflow(v constant.Value, t *types.Type) bool {
 		return true
 	}
 	if doesoverflow(v, t) {
-		base.Errorf("constant %v overflows %v", ir.FmtConst(v, 0), t)
+		base.Errorf("constant %v overflows %v", types.FmtConst(v, false), t)
 		return true
 	}
 	return false
@@ -494,12 +490,12 @@ func evalConst(n ir.Node) ir.Node {
 		}
 
 	case ir.OCONV, ir.ORUNESTR:
-		if ir.OKForConst[n.Type().Etype] && nl.Op() == ir.OLITERAL {
+		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			return origConst(n, convertVal(nl.Val(), n.Type(), true))
 		}
 
 	case ir.OCONVNOP:
-		if ir.OKForConst[n.Type().Etype] && nl.Op() == ir.OLITERAL {
+		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			// set so n.Orig gets OCONV instead of OCONVNOP
 			n.SetOp(ir.OCONV)
 			return origConst(n, nl.Val())
@@ -521,7 +517,7 @@ func evalConst(n ir.Node) ir.Node {
 		if need == 1 {
 			var strs []string
 			for _, c := range s {
-				strs = append(strs, c.StringVal())
+				strs = append(strs, ir.StringVal(c))
 			}
 			return origConst(n, constant.MakeString(strings.Join(strs, "")))
 		}
@@ -532,12 +528,13 @@ func evalConst(n ir.Node) ir.Node {
 				var strs []string
 				i2 := i
 				for i2 < len(s) && ir.IsConst(s[i2], constant.String) {
-					strs = append(strs, s[i2].StringVal())
+					strs = append(strs, ir.StringVal(s[i2]))
 					i2++
 				}
 
-				nl := origConst(s[i], constant.MakeString(strings.Join(strs, "")))
-				nl.SetOrig(nl) // it's bigger than just s[i]
+				nl := ir.Copy(n)
+				nl.PtrList().Set(s[i:i2])
+				nl = origConst(nl, constant.MakeString(strings.Join(strs, "")))
 				newList = append(newList, nl)
 				i = i2 - 1
 			} else {
@@ -550,13 +547,13 @@ func evalConst(n ir.Node) ir.Node {
 		return n
 
 	case ir.OCAP, ir.OLEN:
-		switch nl.Type().Etype {
+		switch nl.Type().Kind() {
 		case types.TSTRING:
 			if ir.IsConst(nl, constant.String) {
-				return origIntConst(n, int64(len(nl.StringVal())))
+				return origIntConst(n, int64(len(ir.StringVal(nl))))
 			}
 		case types.TARRAY:
-			if !hascallchan(nl) {
+			if !hasCallOrChan(nl) {
 				return origIntConst(n, nl.Type().NumElem())
 			}
 		}
@@ -640,12 +637,7 @@ func origConst(n ir.Node, v constant.Value) ir.Node {
 		return n
 	}
 
-	orig := n
-	n = ir.NodAt(orig.Pos(), ir.OLITERAL, nil, nil)
-	n.SetOrig(orig)
-	n.SetType(orig.Type())
-	n.SetVal(v)
-	return n
+	return ir.NewConstExpr(v, n)
 }
 
 func origBoolConst(n ir.Node, v bool) ir.Node {
@@ -724,7 +716,7 @@ func mixUntyped(t1, t2 *types.Type) *types.Type {
 }
 
 func defaultType(t *types.Type) *types.Type {
-	if !t.IsUntyped() || t.Etype == types.TNIL {
+	if !t.IsUntyped() || t.Kind() == types.TNIL {
 		return t
 	}
 
@@ -736,7 +728,7 @@ func defaultType(t *types.Type) *types.Type {
 	case types.UntypedInt:
 		return types.Types[types.TINT]
 	case types.UntypedRune:
-		return types.Runetype
+		return types.RuneType
 	case types.UntypedFloat:
 		return types.Types[types.TFLOAT64]
 	case types.UntypedComplex:
@@ -764,7 +756,7 @@ func indexconst(n ir.Node) int64 {
 	if n.Op() != ir.OLITERAL {
 		return -1
 	}
-	if !n.Type().IsInteger() && n.Type().Etype != types.TIDEAL {
+	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 		return -1
 	}
 
@@ -775,7 +767,7 @@ func indexconst(n ir.Node) int64 {
 	if doesoverflow(v, types.Types[types.TINT]) {
 		return -2
 	}
-	return ir.Int64Val(types.Types[types.TINT], v)
+	return ir.IntVal(types.Types[types.TINT], v)
 }
 
 // isGoConst reports whether n is a Go language constant (as opposed to a
@@ -787,49 +779,35 @@ func isGoConst(n ir.Node) bool {
 	return n.Op() == ir.OLITERAL
 }
 
-func hascallchan(n ir.Node) bool {
-	if n == nil {
-		return false
-	}
-	switch n.Op() {
-	case ir.OAPPEND,
-		ir.OCALL,
-		ir.OCALLFUNC,
-		ir.OCALLINTER,
-		ir.OCALLMETH,
-		ir.OCAP,
-		ir.OCLOSE,
-		ir.OCOMPLEX,
-		ir.OCOPY,
-		ir.ODELETE,
-		ir.OIMAG,
-		ir.OLEN,
-		ir.OMAKE,
-		ir.ONEW,
-		ir.OPANIC,
-		ir.OPRINT,
-		ir.OPRINTN,
-		ir.OREAL,
-		ir.ORECOVER,
-		ir.ORECV:
-		return true
-	}
-
-	if hascallchan(n.Left()) || hascallchan(n.Right()) {
-		return true
-	}
-	for _, n1 := range n.List().Slice() {
-		if hascallchan(n1) {
-			return true
+// hasCallOrChan reports whether n contains any calls or channel operations.
+func hasCallOrChan(n ir.Node) bool {
+	found := ir.Find(n, func(n ir.Node) interface{} {
+		switch n.Op() {
+		case ir.OAPPEND,
+			ir.OCALL,
+			ir.OCALLFUNC,
+			ir.OCALLINTER,
+			ir.OCALLMETH,
+			ir.OCAP,
+			ir.OCLOSE,
+			ir.OCOMPLEX,
+			ir.OCOPY,
+			ir.ODELETE,
+			ir.OIMAG,
+			ir.OLEN,
+			ir.OMAKE,
+			ir.ONEW,
+			ir.OPANIC,
+			ir.OPRINT,
+			ir.OPRINTN,
+			ir.OREAL,
+			ir.ORECOVER,
+			ir.ORECV:
+			return n
 		}
-	}
-	for _, n2 := range n.Rlist().Slice() {
-		if hascallchan(n2) {
-			return true
-		}
-	}
-
-	return false
+		return nil
+	})
+	return found != nil
 }
 
 // A constSet represents a set of Go constant expressions.
@@ -880,9 +858,9 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 
 	typ := n.Type()
 	switch typ {
-	case types.Bytetype:
+	case types.ByteType:
 		typ = types.Types[types.TUINT8]
-	case types.Runetype:
+	case types.RuneType:
 		typ = types.Types[types.TINT32]
 	}
 	k := constSetKey{typ, ir.ConstValue(n)}
@@ -909,7 +887,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 //
 // TODO(mdempsky): This could probably be a fmt.go flag.
 func nodeAndVal(n ir.Node) string {
-	show := n.String()
+	show := fmt.Sprint(n)
 	val := ir.ConstValue(n)
 	if s := fmt.Sprintf("%#v", val); show != s {
 		show += " (value " + s + ")"

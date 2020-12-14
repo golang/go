@@ -139,7 +139,7 @@ func parseFiles(filenames []string) (lines uint) {
 			testdclstack()
 		}
 
-		ir.LocalPkg.Height = myheight
+		types.LocalPkg.Height = myheight
 		return
 	}
 
@@ -160,7 +160,11 @@ func parseFiles(filenames []string) (lines uint) {
 		testdclstack()
 	}
 
-	ir.LocalPkg.Height = myheight
+	for _, p := range noders {
+		p.processPragmas()
+	}
+
+	types.LocalPkg.Height = myheight
 	return
 }
 
@@ -279,7 +283,7 @@ func (p *noder) use(x *syntax.Name) types2.Object {
 	return p.typeInfo.Uses[x]
 }
 
-func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
+func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	oldScope := p.scope
 	p.scope = 0
 	funchdr(fn)
@@ -287,12 +291,12 @@ func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
 	if block != nil {
 		body := p.stmts(block.List)
 		if body == nil {
-			body = []ir.Node{ir.Nod(ir.OEMPTY, nil, nil)}
+			body = []ir.Node{ir.Nod(ir.OBLOCK, nil, nil)}
 		}
 		fn.PtrBody().Set(body)
 
 		base.Pos = p.makeXPos(block.Rbrace)
-		fn.Func().Endlineno = base.Pos
+		fn.Endlineno = base.Pos
 	}
 
 	funcbody()
@@ -303,9 +307,9 @@ func (p *noder) openScope(pos syntax.Pos) {
 	types.Markdcl()
 
 	if trackScopes {
-		Curfn.Func().Parents = append(Curfn.Func().Parents, p.scope)
-		p.scopeVars = append(p.scopeVars, len(Curfn.Func().Dcl))
-		p.scope = ir.ScopeID(len(Curfn.Func().Parents))
+		Curfn.Parents = append(Curfn.Parents, p.scope)
+		p.scopeVars = append(p.scopeVars, len(Curfn.Dcl))
+		p.scope = ir.ScopeID(len(Curfn.Parents))
 
 		p.markScope(pos)
 	}
@@ -318,29 +322,29 @@ func (p *noder) closeScope(pos syntax.Pos) {
 	if trackScopes {
 		scopeVars := p.scopeVars[len(p.scopeVars)-1]
 		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
-		if scopeVars == len(Curfn.Func().Dcl) {
+		if scopeVars == len(Curfn.Dcl) {
 			// no variables were declared in this scope, so we can retract it.
 
-			if int(p.scope) != len(Curfn.Func().Parents) {
+			if int(p.scope) != len(Curfn.Parents) {
 				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
 			}
 
-			p.scope = Curfn.Func().Parents[p.scope-1]
-			Curfn.Func().Parents = Curfn.Func().Parents[:len(Curfn.Func().Parents)-1]
+			p.scope = Curfn.Parents[p.scope-1]
+			Curfn.Parents = Curfn.Parents[:len(Curfn.Parents)-1]
 
-			nmarks := len(Curfn.Func().Marks)
-			Curfn.Func().Marks[nmarks-1].Scope = p.scope
+			nmarks := len(Curfn.Marks)
+			Curfn.Marks[nmarks-1].Scope = p.scope
 			prevScope := ir.ScopeID(0)
 			if nmarks >= 2 {
-				prevScope = Curfn.Func().Marks[nmarks-2].Scope
+				prevScope = Curfn.Marks[nmarks-2].Scope
 			}
-			if Curfn.Func().Marks[nmarks-1].Scope == prevScope {
-				Curfn.Func().Marks = Curfn.Func().Marks[:nmarks-1]
+			if Curfn.Marks[nmarks-1].Scope == prevScope {
+				Curfn.Marks = Curfn.Marks[:nmarks-1]
 			}
 			return
 		}
 
-		p.scope = Curfn.Func().Parents[p.scope-1]
+		p.scope = Curfn.Parents[p.scope-1]
 
 		p.markScope(pos)
 	}
@@ -348,10 +352,10 @@ func (p *noder) closeScope(pos syntax.Pos) {
 
 func (p *noder) markScope(pos syntax.Pos) {
 	xpos := p.makeXPos(pos)
-	if i := len(Curfn.Func().Marks); i > 0 && Curfn.Func().Marks[i-1].Pos == xpos {
-		Curfn.Func().Marks[i-1].Scope = p.scope
+	if i := len(Curfn.Marks); i > 0 && Curfn.Marks[i-1].Pos == xpos {
+		Curfn.Marks[i-1].Scope = p.scope
 	} else {
-		Curfn.Func().Marks = append(Curfn.Func().Marks, ir.Mark{Pos: xpos, Scope: p.scope})
+		Curfn.Marks = append(Curfn.Marks, ir.Mark{Pos: xpos, Scope: p.scope})
 	}
 }
 
@@ -385,23 +389,27 @@ func (p *noder) node() {
 
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
-	for _, n := range p.linknames {
+	base.Pos = src.NoXPos
+	clearImports()
+}
+
+func (p *noder) processPragmas() {
+	for _, l := range p.linknames {
 		if !p.importedUnsafe {
-			p.errorAt(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+			p.errorAt(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 			continue
 		}
-		s := lookup(n.local)
-		if n.remote != "" {
-			s.Linkname = n.remote
-		} else {
-			// Use the default object symbol name if the
-			// user didn't provide one.
-			if base.Ctxt.Pkgpath == "" {
-				p.errorAt(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
-			} else {
-				s.Linkname = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + n.local
-			}
+		n := ir.AsNode(lookup(l.local).Def)
+		if n == nil || n.Op() != ir.ONAME {
+			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
+			// base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
+			continue
 		}
+		if n.Sym().Linkname != "" {
+			p.errorAt(l.pos, "duplicate //go:linkname for %s", l.local)
+			continue
+		}
+		n.Sym().Linkname = l.remote
 	}
 
 	// The linker expects an ABI0 wrapper for all cgo-exported
@@ -417,8 +425,6 @@ func (p *noder) node() {
 	}
 
 	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
-	base.Pos = src.NoXPos
-	clearImports()
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
@@ -474,6 +480,9 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		p.importedEmbed = true
 	}
 
+	if !ipkg.Direct {
+		sourceOrderImports = append(sourceOrderImports, ipkg)
+	}
 	ipkg.Direct = true
 
 	var my *types.Sym
@@ -483,9 +492,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		my = lookup(ipkg.Name)
 	}
 
-	pack := p.nod(imp, ir.OPACK, nil, nil)
-	pack.SetSym(my)
-	pack.Name().Pkg = ipkg
+	pack := ir.NewPkgName(p.pos(imp), my, ipkg)
 
 	switch my.Name {
 	case ".":
@@ -541,7 +548,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 // constant declarations are handled correctly (e.g., issue 15550).
 type constState struct {
 	group  *syntax.Group
-	typ    ir.Node
+	typ    ir.Ntype
 	values []ir.Node
 	iota   int64
 }
@@ -573,20 +580,21 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 
 	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
+		n := n.(*ir.Name)
 		if i >= len(values) {
 			base.Errorf("missing value in const declaration")
 			break
 		}
 		v := values[i]
 		if decl.Values == nil {
-			v = treecopy(v, n.Pos())
+			v = ir.DeepCopy(n.Pos(), v)
 		}
 
 		n.SetOp(ir.OLITERAL)
 		declare(n, dclcontext)
 
-		n.Name().Param.Ntype = typ
-		n.Name().Defn = v
+		n.Ntype = typ
+		n.Defn = v
 		n.SetIota(cs.iota)
 
 		nn = append(nn, p.nod(decl, ir.ODCLCONST, n, nil))
@@ -609,19 +617,18 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
 
-	param := n.Name().Param
-	param.Ntype = typ
-	param.SetAlias(decl.Alias)
+	n.Ntype = typ
+	n.SetAlias(decl.Alias)
 	if pragma, ok := decl.Pragma.(*Pragma); ok {
 		if !decl.Alias {
-			param.SetPragma(pragma.Flag & TypePragmas)
+			n.SetPragma(pragma.Flag & TypePragmas)
 			pragma.Flag &^= TypePragmas
 		}
 		p.checkUnused(pragma)
 	}
 
 	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
-	if param.Alias() && !langSupported(1, 9, ir.LocalPkg) {
+	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -635,16 +642,14 @@ func (p *noder) declNames(names []*syntax.Name) []ir.Node {
 	return nodes
 }
 
-func (p *noder) declName(name *syntax.Name) ir.Node {
-	n := dclname(p.name(name))
-	n.SetPos(p.pos(name))
-	return n
+func (p *noder) declName(name *syntax.Name) *ir.Name {
+	return ir.NewDeclNameAt(p.pos(name), p.name(name))
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	name := p.name(fun.Name)
 	t := p.signature(fun.Recv, fun.Type)
-	f := p.nod(fun, ir.ODCLFUNC, nil, nil)
+	f := ir.NewFunc(p.pos(fun))
 
 	if fun.Recv == nil {
 		if name.Name == "init" {
@@ -654,22 +659,22 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 			}
 		}
 
-		if ir.LocalPkg.Name == "main" && name.Name == "main" {
+		if types.LocalPkg.Name == "main" && name.Name == "main" {
 			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
 				base.ErrorfAt(f.Pos(), "func main must have no arguments and no return values")
 			}
 		}
 	} else {
-		f.Func().Shortname = name
+		f.Shortname = name
 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
 	}
 
-	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
-	f.Func().Nname.Name().Defn = f
-	f.Func().Nname.Name().Param.Ntype = t
+	f.Nname = newFuncNameAt(p.pos(fun.Name), name, f)
+	f.Nname.Defn = f
+	f.Nname.Ntype = t
 
 	if pragma, ok := fun.Pragma.(*Pragma); ok {
-		f.Func().Pragma = pragma.Flag & FuncPragmas
+		f.Pragma = pragma.Flag & FuncPragmas
 		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
 			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
 		}
@@ -678,13 +683,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	}
 
 	if fun.Recv == nil {
-		declare(f.Func().Nname, ir.PFUNC)
+		declare(f.Nname, ir.PFUNC)
 	}
 
 	p.funcBody(f, fun.Body)
 
 	if fun.Body != nil {
-		if f.Func().Pragma&ir.Noescape != 0 {
+		if f.Pragma&ir.Noescape != 0 {
 			base.ErrorfAt(f.Pos(), "can only use //go:noescape with external func implementations")
 		}
 	} else {
@@ -707,18 +712,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	return f
 }
 
-func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) ir.Node {
-	n := p.nod(typ, ir.OTFUNC, nil, nil)
+func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) *ir.FuncType {
+	var rcvr *ir.Field
 	if recv != nil {
-		n.SetLeft(p.param(recv, false, false))
+		rcvr = p.param(recv, false, false)
 	}
-	n.PtrList().Set(p.params(typ.ParamList, true))
-	n.PtrRlist().Set(p.params(typ.ResultList, false))
-	return n
+	return ir.NewFuncType(p.pos(typ), rcvr,
+		p.params(typ.ParamList, true),
+		p.params(typ.ResultList, false))
 }
 
-func (p *noder) params(params []*syntax.Field, dddOk bool) []ir.Node {
-	nodes := make([]ir.Node, 0, len(params))
+func (p *noder) params(params []*syntax.Field, dddOk bool) []*ir.Field {
+	nodes := make([]*ir.Field, 0, len(params))
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
@@ -726,17 +731,17 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []ir.Node {
 	return nodes
 }
 
-func (p *noder) param(param *syntax.Field, dddOk, final bool) ir.Node {
+func (p *noder) param(param *syntax.Field, dddOk, final bool) *ir.Field {
 	var name *types.Sym
 	if param.Name != nil {
 		name = p.name(param.Name)
 	}
 
 	typ := p.typeExpr(param.Type)
-	n := p.nodSym(param, ir.ODCLFIELD, typ, name)
+	n := ir.NewField(p.pos(param), name, typ, nil)
 
 	// rewrite ...T parameter
-	if typ.Op() == ir.ODDD {
+	if typ, ok := typ.(*ir.SliceType); ok && typ.DDD {
 		if !dddOk {
 			// We mark these as syntax errors to get automatic elimination
 			// of multiple such errors per line (see ErrorfAt in subr.go).
@@ -748,13 +753,8 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) ir.Node {
 				p.errorAt(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
 			}
 		}
-		typ.SetOp(ir.OTARRAY)
-		typ.SetRight(typ.Left())
-		typ.SetLeft(nil)
-		n.SetIsDDD(true)
-		if n.Left() != nil {
-			n.Left().SetIsDDD(true)
-		}
+		typ.DDD = false
+		n.IsDDD = true
 	}
 
 	return n
@@ -812,8 +812,9 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		// parser.new_dotname
 		obj := p.expr(expr.X)
 		if obj.Op() == ir.OPACK {
-			obj.Name().SetUsed(true)
-			return importName(obj.Name().Pkg.Lookup(expr.Sel.Value))
+			pack := obj.(*ir.PkgName)
+			pack.Used = true
+			return importName(pack.Pkg.Lookup(expr.Sel.Value))
 		}
 		n := nodSym(ir.OXDOT, obj, p.name(expr.Sel))
 		n.SetPos(p.pos(expr)) // lineno may have been changed by p.expr(expr.X)
@@ -855,14 +856,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		var len ir.Node
 		if expr.Len != nil {
 			len = p.expr(expr.Len)
-		} else {
-			len = p.nod(expr, ir.ODDD, nil, nil)
 		}
-		return p.nod(expr, ir.OTARRAY, len, p.typeExpr(expr.Elem))
+		return ir.NewArrayType(p.pos(expr), len, p.typeExpr(expr.Elem))
 	case *syntax.SliceType:
-		return p.nod(expr, ir.OTARRAY, nil, p.typeExpr(expr.Elem))
+		return ir.NewSliceType(p.pos(expr), p.typeExpr(expr.Elem))
 	case *syntax.DotsType:
-		return p.nod(expr, ir.ODDD, p.typeExpr(expr.Elem), nil)
+		t := ir.NewSliceType(p.pos(expr), p.typeExpr(expr.Elem))
+		t.DDD = true
+		return t
 	case *syntax.StructType:
 		return p.structType(expr)
 	case *syntax.InterfaceType:
@@ -870,21 +871,21 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.FuncType:
 		return p.signature(nil, expr)
 	case *syntax.MapType:
-		return p.nod(expr, ir.OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
+		return ir.NewMapType(p.pos(expr),
+			p.typeExpr(expr.Key), p.typeExpr(expr.Value))
 	case *syntax.ChanType:
-		n := p.nod(expr, ir.OTCHAN, p.typeExpr(expr.Elem), nil)
-		n.SetTChanDir(p.chanDir(expr.Dir))
-		return n
+		return ir.NewChanType(p.pos(expr),
+			p.typeExpr(expr.Elem), p.chanDir(expr.Dir))
 
 	case *syntax.TypeSwitchGuard:
-		n := p.nod(expr, ir.OTYPESW, nil, p.expr(expr.X))
+		var tag *ir.Ident
 		if expr.Lhs != nil {
-			n.SetLeft(p.declName(expr.Lhs))
-			if ir.IsBlank(n.Left()) {
-				base.Errorf("invalid variable name %v in type switch", n.Left())
+			tag = ir.NewIdent(p.pos(expr.Lhs), p.name(expr.Lhs))
+			if ir.IsBlank(tag) {
+				base.Errorf("invalid variable name %v in type switch", tag)
 			}
 		}
-		return n
+		return ir.NewTypeSwitchGuard(p.pos(expr), tag, p.expr(expr.X))
 	}
 	panic("unhandled Expr")
 }
@@ -933,7 +934,7 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 	n := p.expr(x)
 	if ir.IsConst(n, constant.String) && n.Sym() == nil {
 		nstr = n
-		chunks = append(chunks, nstr.StringVal())
+		chunks = append(chunks, ir.StringVal(nstr))
 	}
 
 	for i := len(adds) - 1; i >= 0; i-- {
@@ -943,12 +944,12 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 		if ir.IsConst(r, constant.String) && r.Sym() == nil {
 			if nstr != nil {
 				// Collapse r into nstr instead of adding to n.
-				chunks = append(chunks, r.StringVal())
+				chunks = append(chunks, ir.StringVal(r))
 				continue
 			}
 
 			nstr = r
-			chunks = append(chunks, nstr.StringVal())
+			chunks = append(chunks, ir.StringVal(nstr))
 		} else {
 			if len(chunks) > 1 {
 				nstr.SetVal(constant.MakeString(strings.Join(chunks, "")))
@@ -965,14 +966,21 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 	return n
 }
 
-func (p *noder) typeExpr(typ syntax.Expr) ir.Node {
+func (p *noder) typeExpr(typ syntax.Expr) ir.Ntype {
 	// TODO(mdempsky): Be stricter? typecheck should handle errors anyway.
-	return p.expr(typ)
+	n := p.expr(typ)
+	if n == nil {
+		return nil
+	}
+	if _, ok := n.(ir.Ntype); !ok {
+		ir.Dump("NOT NTYPE", n)
+	}
+	return n.(ir.Ntype)
 }
 
-func (p *noder) typeExprOrNil(typ syntax.Expr) ir.Node {
+func (p *noder) typeExprOrNil(typ syntax.Expr) ir.Ntype {
 	if typ != nil {
-		return p.expr(typ)
+		return p.typeExpr(typ)
 	}
 	return nil
 }
@@ -990,55 +998,54 @@ func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 }
 
 func (p *noder) structType(expr *syntax.StructType) ir.Node {
-	l := make([]ir.Node, 0, len(expr.FieldList))
+	l := make([]*ir.Field, 0, len(expr.FieldList))
 	for i, field := range expr.FieldList {
 		p.setlineno(field)
-		var n ir.Node
+		var n *ir.Field
 		if field.Name == nil {
 			n = p.embedded(field.Type)
 		} else {
-			n = p.nodSym(field, ir.ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
+			n = ir.NewField(p.pos(field), p.name(field.Name), p.typeExpr(field.Type), nil)
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
-			n.SetVal(p.basicLit(expr.TagList[i]))
+			n.Note = constant.StringVal(p.basicLit(expr.TagList[i]))
 		}
 		l = append(l, n)
 	}
 
 	p.setlineno(expr)
-	n := p.nod(expr, ir.OTSTRUCT, nil, nil)
-	n.PtrList().Set(l)
-	return n
+	return ir.NewStructType(p.pos(expr), l)
 }
 
 func (p *noder) interfaceType(expr *syntax.InterfaceType) ir.Node {
-	l := make([]ir.Node, 0, len(expr.MethodList))
+	l := make([]*ir.Field, 0, len(expr.MethodList))
 	for _, method := range expr.MethodList {
 		p.setlineno(method)
-		var n ir.Node
+		var n *ir.Field
 		if method.Name == nil {
-			n = p.nodSym(method, ir.ODCLFIELD, importName(p.packname(method.Type)), nil)
+			n = ir.NewField(p.pos(method), nil, importName(p.packname(method.Type)).(ir.Ntype), nil)
 		} else {
 			mname := p.name(method.Name)
-			sig := p.typeExpr(method.Type)
-			sig.SetLeft(fakeRecv())
-			n = p.nodSym(method, ir.ODCLFIELD, sig, mname)
-			ifacedcl(n)
+			if mname.IsBlank() {
+				base.Errorf("methods must have a unique non-blank name")
+				continue
+			}
+			sig := p.typeExpr(method.Type).(*ir.FuncType)
+			sig.Recv = fakeRecv()
+			n = ir.NewField(p.pos(method), mname, sig, nil)
 		}
 		l = append(l, n)
 	}
 
-	n := p.nod(expr, ir.OTINTER, nil, nil)
-	n.PtrList().Set(l)
-	return n
+	return ir.NewInterfaceType(p.pos(expr), l)
 }
 
 func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	switch expr := expr.(type) {
 	case *syntax.Name:
 		name := p.name(expr)
-		if n := oldname(name); n.Name() != nil && n.Name().Pack != nil {
-			n.Name().Pack.Name().SetUsed(true)
+		if n := oldname(name); n.Name() != nil && n.Name().PkgName != nil {
+			n.Name().PkgName.Used = true
 		}
 		return name
 	case *syntax.SelectorExpr:
@@ -1051,17 +1058,18 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 		var pkg *types.Pkg
 		if def.Op() != ir.OPACK {
 			base.Errorf("%v is not a package", name)
-			pkg = ir.LocalPkg
+			pkg = types.LocalPkg
 		} else {
-			def.Name().SetUsed(true)
-			pkg = def.Name().Pkg
+			def := def.(*ir.PkgName)
+			def.Used = true
+			pkg = def.Pkg
 		}
 		return pkg.Lookup(expr.Sel.Value)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
 
-func (p *noder) embedded(typ syntax.Expr) ir.Node {
+func (p *noder) embedded(typ syntax.Expr) *ir.Field {
 	op, isStar := typ.(*syntax.Operation)
 	if isStar {
 		if op.Op != syntax.Mul || op.Y != nil {
@@ -1071,11 +1079,11 @@ func (p *noder) embedded(typ syntax.Expr) ir.Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ir.ODCLFIELD, importName(sym), lookup(sym.Name))
-	n.SetEmbedded(true)
+	n := ir.NewField(p.pos(typ), lookup(sym.Name), importName(sym).(ir.Ntype), nil)
+	n.Embedded = true
 
 	if isStar {
-		n.SetLeft(p.nod(op, ir.ODEREF, n.Left(), nil))
+		n.Ntype = ir.NewStarExpr(p.pos(op), n.Ntype)
 	}
 	return n
 }
@@ -1089,7 +1097,9 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op() == ir.OBLOCK && s.Init().Len() == 0 {
+		} else if s.Op() == ir.OBLOCK && s.List().Len() > 0 {
+			// Inline non-empty block.
+			// Empty blocks must be preserved for checkreturn.
 			nodes = append(nodes, s.List().Slice()...)
 		} else {
 			nodes = append(nodes, s)
@@ -1113,7 +1123,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		l := p.blockStmt(stmt)
 		if len(l) == 0 {
 			// TODO(mdempsky): Line number?
-			return ir.Nod(ir.OEMPTY, nil, nil)
+			return ir.Nod(ir.OBLOCK, nil, nil)
 		}
 		return liststmt(l)
 	case *syntax.ExprStmt:
@@ -1130,20 +1140,17 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 			return n
 		}
 
-		n := p.nod(stmt, ir.OAS, nil, nil) // assume common case
-
 		rhs := p.exprList(stmt.Rhs)
-		lhs := p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)
-
-		if len(lhs) == 1 && len(rhs) == 1 {
-			// common case
-			n.SetLeft(lhs[0])
-			n.SetRight(rhs[0])
-		} else {
-			n.SetOp(ir.OAS2)
-			n.PtrList().Set(lhs)
+		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
+			n := p.nod(stmt, ir.OAS2, nil, nil)
+			n.PtrList().Set(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def))
 			n.PtrRlist().Set(rhs)
+			return n
 		}
+
+		n := p.nod(stmt, ir.OAS, nil, nil)
+		n.SetLeft(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)[0])
+		n.SetRight(rhs[0])
 		return n
 
 	case *syntax.BranchStmt:
@@ -1187,14 +1194,14 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		n := p.nod(stmt, ir.ORETURN, nil, nil)
 		n.PtrList().Set(results)
 		if n.List().Len() == 0 && Curfn != nil {
-			for _, ln := range Curfn.Func().Dcl {
+			for _, ln := range Curfn.Dcl {
 				if ln.Class() == ir.PPARAM {
 					continue
 				}
 				if ln.Class() != ir.PPARAMOUT {
 					break
 				}
-				if ir.AsNode(ln.Sym().Def) != ln {
+				if ln.Sym().Def != ln {
 					base.Errorf("%s is shadowed during return", ln.Sym().Name)
 				}
 			}
@@ -1261,7 +1268,7 @@ func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node
 		newOrErr = true
 		n := NewName(sym)
 		declare(n, dclcontext)
-		n.Name().Defn = defn
+		n.Defn = defn
 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
 		res[i] = n
 	}
@@ -1291,7 +1298,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	n.PtrBody().Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
-		if e.Op() == ir.OBLOCK && e.Init().Len() == 0 {
+		if e.Op() == ir.OBLOCK {
 			n.PtrRlist().Set(e.List().Slice())
 		} else {
 			n.PtrRlist().Set1(e)
@@ -1368,7 +1375,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch ir.Node, rbrac
 			declare(nn, dclcontext)
 			n.PtrRlist().Set1(nn)
 			// keep track of the instances for reporting unused
-			nn.Name().Defn = tswitch
+			nn.Defn = tswitch
 		}
 
 		// Trim trailing empty statements. We omit them from
@@ -1429,17 +1436,22 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 }
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
-	lhs := p.nodSym(label, ir.OLABEL, nil, p.name(label.Label))
+	sym := p.name(label.Label)
+	lhs := p.nodSym(label, ir.OLABEL, nil, sym)
 
 	var ls ir.Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
 		ls = p.stmtFall(label.Stmt, fallOK)
+		switch label.Stmt.(type) {
+		case *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
+			// Attach label directly to control statement too.
+			ls.SetSym(sym)
+		}
 	}
 
-	lhs.Name().Defn = ls
 	l := []ir.Node{lhs}
 	if ls != nil {
-		if ls.Op() == ir.OBLOCK && ls.Init().Len() == 0 {
+		if ls.Op() == ir.OBLOCK {
 			l = append(l, ls.List().Slice()...)
 		} else {
 			l = append(l, ls)
@@ -1502,7 +1514,7 @@ func (p *noder) binOp(op syntax.Operator) ir.Op {
 // literal is not compatible with the current language version.
 func checkLangCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || langSupported(1, 13, ir.LocalPkg) {
+	if len(s) <= 2 || langSupported(1, 13, types.LocalPkg) {
 		return
 	}
 	// len(s) > 2
@@ -1716,6 +1728,13 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		var target string
 		if len(f) == 3 {
 			target = f[2]
+		} else if base.Ctxt.Pkgpath != "" {
+			// Use the default object symbol name if the
+			// user didn't provide one.
+			target = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + f[1]
+		} else {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname requires linkname argument or -p compiler flag"})
+			break
 		}
 		p.linknames = append(p.linknames, linkname{pos, f[1], target})
 
@@ -1797,8 +1816,8 @@ func safeArg(name string) bool {
 
 func mkname(sym *types.Sym) ir.Node {
 	n := oldname(sym)
-	if n.Name() != nil && n.Name().Pack != nil {
-		n.Name().Pack.Name().SetUsed(true)
+	if n.Name() != nil && n.Name().PkgName != nil {
+		n.Name().PkgName.Used = true
 	}
 	return n
 }
