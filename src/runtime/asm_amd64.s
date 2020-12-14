@@ -1728,67 +1728,67 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicIndex(SB)
+	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicIndexU(SB)
+	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
+	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
+	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
+	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
+	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicSliceB(SB)
+	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicSliceBU(SB)
+	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
+	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
+	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
+	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	DX, x+0(FP)
 	MOVQ	BX, y+8(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
+	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSlice3B(SB)
+	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	CX, x+0(FP)
 	MOVQ	DX, y+8(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
+	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicSlice3C(SB)
+	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
+	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 
 #ifdef GOOS_android
 // Use the free TLS_SLOT_APP slot #2 on Android Q.
