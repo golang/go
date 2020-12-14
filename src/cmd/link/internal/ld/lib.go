@@ -1560,10 +1560,22 @@ func (ctxt *Link) hostlink() {
 		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
+		// Determine which linker we're using. Add in the extldflags in
+		// case used has specified "-fuse-ld=...".
+		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
+		usingLLD := false
+		if out, err := cmd.CombinedOutput(); err == nil {
+			if bytes.Contains(out, []byte("LLD ")) {
+				usingLLD = true
+			}
+		}
+
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
-		p := writeGDBLinkerScript()
-		argv = append(argv, "-Wl,-T,"+p)
+		if !usingLLD {
+			p := writeGDBLinkerScript()
+			argv = append(argv, "-Wl,-T,"+p)
+		}
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
