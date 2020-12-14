@@ -1815,6 +1815,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
 		state.assignToSection(sect, symn, sym.SRODATA)
+		setCarrierSize(symn, state.datsize-symnStartValue)
 		if ctxt.HeadType == objabi.Haix {
 			// Read-only symbols might be wrapped inside their outer
 			// symbol.
@@ -1902,6 +1903,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				}
 			}
 			state.assignToSection(sect, symn, sym.SRODATA)
+			setCarrierSize(symn, state.datsize-symnStartValue)
 			if ctxt.HeadType == objabi.Haix {
 				// Read-only symbols might be wrapped inside their outer
 				// symbol.
@@ -1949,6 +1951,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
 	}
