@@ -1937,7 +1937,6 @@ var excluded = map[string]bool{
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"shift1.go":       true, // issue #42989
-	"switch3.go":      true, // issue #43110
 	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
 	"typecheck.go":    true, // invalid function is not causing errors when called
 
