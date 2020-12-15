@@ -721,8 +721,8 @@ func TestFoo(t *testing.T) {
     <p><!-- CL 250357 -->
       The case of I/O on a closed network connection, or I/O on a network
       connection that is closed before any of the I/O completes, can now
-      be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
-      A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+      be detected using the new <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
       In earlier releases the only way to reliably detect this case was to
       match the string returned by the <code>Error</code> method
       with <code>"use of closed network connection"</code>.
@@ -786,9 +786,10 @@ func TestFoo(t *testing.T) {
     </p>
 
     <p><!-- CL 249440 -->
-      The <a href="/pkg/net/http/#ProxyFromEnvironment">ProxyFromEnvironment</a> function
-      no longer returns the setting of the <code>HTTP_PROXY</code> environment
-      variable for <code>https://</code> URLs when <code>HTTPS_PROXY</code> is unset.
+      The <a href="/pkg/net/http/#ProxyFromEnvironment"><code>ProxyFromEnvironment</code></a>
+      function no longer returns the setting of the <code>HTTP_PROXY</code>
+      environment variable for <code>https://</code> URLs when
+      <code>HTTPS_PROXY</code> is unset.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -796,7 +797,7 @@ func TestFoo(t *testing.T) {
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 260637 -->
-      The <a href="/pkg/net/http/httputil/#ReverseProxy">ReverseProxy</a>
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
       now flushes buffered data more aggressively when proxying
       streamed responses with unknown body lengths.
     </p>
