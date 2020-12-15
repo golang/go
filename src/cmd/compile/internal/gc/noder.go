@@ -114,9 +114,10 @@ func parseFiles(filenames []string) (lines uint) {
 			},
 		}
 		info := types2.Info{
-			Types: make(map[syntax.Expr]types2.TypeAndValue),
-			Defs:  make(map[*syntax.Name]types2.Object),
-			Uses:  make(map[*syntax.Name]types2.Object),
+			Types:      make(map[syntax.Expr]types2.TypeAndValue),
+			Defs:       make(map[*syntax.Name]types2.Object),
+			Uses:       make(map[*syntax.Name]types2.Object),
+			Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
 			// expand as needed
 		}
 		conf.Check(base.Ctxt.Pkgpath, files, &info)
@@ -281,6 +282,11 @@ func (p *noder) def(x *syntax.Name) types2.Object {
 // use returns the object for the given name outside its declaration.
 func (p *noder) use(x *syntax.Name) types2.Object {
 	return p.typeInfo.Uses[x]
+}
+
+// sel returns the selection information for the given selector expression.
+func (p *noder) sel(x *syntax.SelectorExpr) *types2.Selection {
+	return p.typeInfo.Selections[x]
 }
 
 func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
