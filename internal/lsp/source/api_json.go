@@ -166,7 +166,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:       "codelenses",
 				Type:       "map[string]bool",
-				Doc:        "codelenses overrides the enabled/disabled state of code lenses. See the \"Code Lenses\"\nsection of settings.md for the list of supported lenses.\n\nExample Usage:\n```json5\n\"gopls\": {\n...\n  \"codelens\": {\n    \"generate\": false,  // Don't show the `go generate` lens.\n    \"gc_details\": true  // Show a code lens toggling the display of gc's choices.\n  }\n...\n}\n```\n",
+				Doc:        "codelenses overrides the enabled/disabled state of code lenses. See the \"Code Lenses\"\nsection of settings.md for the list of supported lenses.\n\nExample Usage:\n```json5\n\"gopls\": {\n...\n  \"codelenses\": {\n    \"generate\": false,  // Don't show the `go generate` lens.\n    \"gc_details\": true  // Show a code lens toggling the display of gc's choices.\n  }\n...\n}\n```\n",
 				EnumValues: nil,
 				Default:    "{\"gc_details\":false,\"generate\":true,\"regenerate_cgo\":true,\"tidy\":true,\"upgrade_dependency\":true,\"vendor\":true}",
 			},

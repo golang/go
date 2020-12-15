@@ -235,7 +235,7 @@ type UserOptions struct {
 	// ```json5
 	// "gopls": {
 	// ...
-	//   "codelens": {
+	//   "codelenses": {
 	//     "generate": false,  // Don't show the `go generate` lens.
 	//     "gc_details": true  // Show a code lens toggling the display of gc's choices.
 	//   }
