@@ -1458,7 +1458,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
-	if ctxt.compressDWARF && linkerFlagSupported(argv[0], altLinker, compressDWARF) {
+	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
 
@@ -1548,7 +1548,7 @@ func (ctxt *Link) hostlink() {
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared && !(ctxt.IsDarwin() && ctxt.IsARM64()) {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			if linkerFlagSupported(argv[0], altLinker, nopie) {
+			if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1657,7 +1657,7 @@ func (ctxt *Link) hostlink() {
 
 var createTrivialCOnce sync.Once
 
-func linkerFlagSupported(linker, altLinker, flag string) bool {
+func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
@@ -1691,7 +1691,7 @@ func linkerFlagSupported(linker, altLinker, flag string) bool {
 		"-target",
 	}
 
-	var flags []string
+	flags := hostlinkArchArgs(arch)
 	keep := false
 	skip := false
 	extldflags := strings.Fields(*flagExtldflags)
