@@ -605,6 +605,10 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
+		if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
+			check.errorf(&x, "cannot switch on %s (%s is not comparable)", &x, x.typ)
+			x.mode = invalid
+		}
 	} else {
 		// spec: "A missing switch expression is
 		// equivalent to the boolean value true."
