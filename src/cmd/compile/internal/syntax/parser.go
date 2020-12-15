@@ -499,21 +499,16 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 		p.clearPragma()
 		p.next() // must consume "(" after calling clearPragma!
 		p.list(_Semi, _Rparen, func() bool {
-			list = append(list, f(g))
+			if x := f(g); x != nil {
+				list = append(list, x)
+			}
 			return false
 		})
 	} else {
-		list = append(list, f(nil))
-	}
-
-	if debug {
-		for _, d := range list {
-			if d == nil {
-				panic("nil list entry")
-			}
+		if x := f(nil); x != nil {
+			list = append(list, x)
 		}
 	}
-
 	return list
 }
 
@@ -540,8 +535,13 @@ func (p *parser) importDecl(group *Group) Decl {
 	if d.Path == nil {
 		p.syntaxError("missing import path")
 		p.advance(_Semi, _Rparen)
-		return nil
+		return d
 	}
+	if !d.Path.Bad && d.Path.Kind != StringLit {
+		p.syntaxError("import path must be a string")
+		d.Path.Bad = true
+	}
+	// d.Path.Bad || d.Path.Kind == StringLit
 
 	return d
 }
