@@ -19,18 +19,18 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
-// If Strict is set, the type-checker enforces additional
+// If forceStrict is set, the type-checker enforces additional
 // rules not specified by the Go 1 spec, but which will
 // catch guaranteed run-time errors if the respective
 // code is executed. In other words, programs passing in
-// Strict mode are Go 1 compliant, but not all Go 1 programs
-// will pass in Strict mode. The additional rules are:
+// strict mode are Go 1 compliant, but not all Go 1 programs
+// will pass in strict mode. The additional rules are:
 //
 // - A type assertion x.(T) where T is an interface type
 //   is invalid if any (statically known) method that exists
 //   for both x and T have different signatures.
 //
-const strict = false
+const forceStrict = false
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -192,6 +192,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		fset:   fset,
 		pkg:    pkg,
 		Info:   info,
+		nextId: 1,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
 		posMap: make(map[*Interface][]token.Pos),
@@ -277,6 +278,10 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	}
 
 	check.recordUntyped()
+
+	if check.Info != nil {
+		sanitizeInfo(check.Info)
+	}
 
 	check.pkg.complete = true
 	return
@@ -377,6 +382,14 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 			}
 			x = p.X
 		}
+	}
+}
+
+func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
+	assert(call != nil)
+	assert(sig != nil)
+	if m := check.Inferred; m != nil {
+		m[call] = Inferred{targs, sig}
 	}
 }
 
