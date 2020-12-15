@@ -76,7 +76,7 @@ func fieldalignment(pass *analysis.Pass, node *ast.StructType, typ *types.Struct
 	// TODO: Preserve multi-named fields instead of flattening.
 	var flat []*ast.Field
 	for _, f := range node.Fields.List {
-		if len(f.Names) == 1 {
+		if len(f.Names) <= 1 {
 			flat = append(flat, f)
 			continue
 		}
