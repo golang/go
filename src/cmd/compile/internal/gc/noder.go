@@ -463,7 +463,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
 }
 
 func (p *noder) importDecl(imp *syntax.ImportDecl) {
-	if imp.Path.Bad {
+	if imp.Path == nil || imp.Path.Bad {
 		return // avoid follow-on errors if there was a syntax error
 	}
 

@@ -55,8 +55,8 @@ type (
 	ImportDecl struct {
 		Group        *Group // nil means not part of a group
 		Pragma       Pragma
-		LocalPkgName *Name // including "."; nil means no rename present
-		Path         *BasicLit
+		LocalPkgName *Name     // including "."; nil means no rename present
+		Path         *BasicLit // Path.Bad || Path.Kind == StringLit; nil means no path
 		decl
 	}
 
