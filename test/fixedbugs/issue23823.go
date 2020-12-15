@@ -7,7 +7,7 @@
 package p
 
 type I1 = interface {
-	I2 // GCCGO_ERROR "invalid recursive interface"
+	I2
 }
 
 // BAD: type loop should mention I1; see also #41669
