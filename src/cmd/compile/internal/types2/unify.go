@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -17,7 +16,7 @@ import "sort"
 // (even if that also contains possibly the same type parameters). This
 // is crucial to infer the type parameters of self-recursive calls:
 //
-//	func f[type P](a P) { f(a) }
+//	func f[P any](a P) { f(a) }
 //
 // For the call f(a) we want to infer that the type argument for P is P.
 // During unification, the parameter type P must be resolved to the type
@@ -63,9 +62,9 @@ type tparamsList struct {
 	unifier *unifier
 	tparams []*TypeName
 	// For each tparams element, there is a corresponding type slot index in indices.
-	// index  < 0: unifier.types[-index] == nil
+	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
-	// index  > 0: unifier.types[index] == typ
+	// index  > 0: unifier.types[index-1] == typ
 	// Joined tparams elements share the same type slot and thus have the same index.
 	// By using a negative index for nil types we don't need to check unifier.types
 	// to see if we have a type or not.
