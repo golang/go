@@ -343,7 +343,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if _, ok := T.Underlying().(*Interface); ok && !strict {
+	if _, ok := T.Underlying().(*Interface); ok && !forceStrict {
 		return
 	}
 	return check.missingMethod(T, V, false)
