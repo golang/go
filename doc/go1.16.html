@@ -840,9 +840,9 @@ func TestFoo(t *testing.T) {
 <dl id="path"><dt><a href="/pkg/path/">path</a></dt>
   <dd>
     <p><!-- CL 264397, golang.org/issues/28614 -->
-      The <code>Match</code> and <code>Glob</code> functions now
-      return an error if the unmatched part of the pattern has a
-      syntax error. Previously, the functions returned early on a failed
+      The <a href="/pkg/path/#Match"><code>Match</code></a> function now
+      returns an error if the unmatched part of the pattern has a
+      syntax error. Previously, the function returned early on a failed
       match, and thus did not report any later syntax error in the
       pattern.
     </p>
@@ -852,7 +852,8 @@ func TestFoo(t *testing.T) {
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
     <p><!-- CL 264397, golang.org/issues/28614 -->
-      The <code>Match</code> and <code>Glob</code> functions now
+      The <a href="/pkg/path/filepath#Match"><code>Match</code></a> and
+      <a href="/pkg/path/filepath#Glob"><code>Glob</code></a> functions now
       return an error if the unmatched part of the pattern has a
       syntax error. Previously, the functions returned early on a failed
       match, and thus did not report any later syntax error in the
