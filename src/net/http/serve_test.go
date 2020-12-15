@@ -4794,10 +4794,8 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	ctxc := make(chan context.Context, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			t.Error("should not be Done in ServeHTTP")
-		default:
 		}
 		ctxc <- ctx
 	}))
@@ -4808,9 +4806,7 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	}
 	res.Body.Close()
 	ctx := <-ctxc
-	select {
-	case <-ctx.Done():
-	default:
+	if ctx.Err() != nil {
 		t.Error("context should be done after ServeHTTP completes")
 	}
 }
@@ -5850,10 +5846,8 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 			t.Errorf("Peek = %q, %v; want foo, nil", peek, err)
 		}
 
-		select {
-		case <-r.Context().Done():
+		if r.Context().Err() != nil {
 			t.Error("context unexpectedly canceled")
-		default:
 		}
 	}))
 	defer ts.Close()

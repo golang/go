@@ -16,11 +16,9 @@ func ctxDriverPrepare(ctx context.Context, ci driver.Conn, query string) (driver
 	}
 	si, err := ci.Prepare(query)
 	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			si.Close()
-			return nil, ctx.Err()
+			return nil, err
 		}
 	}
 	return si, err
@@ -35,11 +33,10 @@ func ctxDriverExec(ctx context.Context, execerCtx driver.ExecerContext, execer d
 		return nil, err
 	}
 
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+
 	return execer.Exec(query, dargs)
 }
 
@@ -52,11 +49,10 @@ func ctxDriverQuery(ctx context.Context, queryerCtx driver.QueryerContext, query
 		return nil, err
 	}
 
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+
 	return queryer.Query(query, dargs)
 }
 
@@ -69,11 +65,10 @@ func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.Nam
 		return nil, err
 	}
 
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+
 	return si.Exec(dargs)
 }
 
@@ -86,11 +81,10 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 		return nil, err
 	}
 
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+
 	return si.Query(dargs)
 }
 
@@ -123,14 +117,14 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 	}
 
 	txi, err := ci.Begin()
+
 	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			txi.Rollback()
-			return nil, ctx.Err()
+			return nil, err
 		}
 	}
+
 	return txi, err
 }
 

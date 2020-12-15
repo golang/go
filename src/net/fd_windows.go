@@ -104,15 +104,13 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
 
 	// Call ConnectEx API.
 	if err := fd.pfd.ConnectEx(ra); err != nil {
-		select {
-		case <-ctx.Done():
-			return nil, mapErr(ctx.Err())
-		default:
-			if _, ok := err.(syscall.Errno); ok {
-				err = os.NewSyscallError("connectex", err)
-			}
-			return nil, err
+		if err := ctx.Err(); err != nil {
+			return nil, mapErr(err)
 		}
+		if _, ok := err.(syscall.Errno); ok {
+			err = os.NewSyscallError("connectex", err)
+		}
+		return nil, err
 	}
 	// Refresh socket properties.
 	return nil, os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.pfd.Sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.pfd.Sysfd)), int32(unsafe.Sizeof(fd.pfd.Sysfd))))

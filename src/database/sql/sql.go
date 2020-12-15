@@ -1209,11 +1209,9 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		return nil, errDBClosed
 	}
 	// Check if the context is expired.
-	select {
-	default:
-	case <-ctx.Done():
+	if err := ctx.Err(); err != nil {
 		db.mu.Unlock()
-		return nil, ctx.Err()
+		return nil, err
 	}
 	lifetime := db.maxLifetime
 
@@ -2125,10 +2123,8 @@ func (tx *Tx) close(err error) {
 var hookTxGrabConn func()
 
 func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	// closemu.RLock must come before the check for isDone to prevent the Tx from
@@ -2170,14 +2166,13 @@ func (tx *Tx) Commit() error {
 	// Check context first to avoid transaction leak.
 	// If put it behind tx.done CompareAndSwap statement, we can't ensure
 	// the consistency between tx.done and the real COMMIT operation.
-	select {
-	default:
-	case <-tx.ctx.Done():
+	if err := tx.ctx.Err(); err != nil {
 		if atomic.LoadInt32(&tx.done) == 1 {
 			return ErrTxDone
 		}
 		return tx.ctx.Err()
 	}
+
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}

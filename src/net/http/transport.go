@@ -557,11 +557,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			req.closeBody()
 			return nil, ctx.Err()
-		default:
 		}
 
 		// treq gets modified by roundTrip, so we need to recreate for each retry.

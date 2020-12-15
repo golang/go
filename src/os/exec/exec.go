@@ -391,14 +391,10 @@ func (c *Cmd) Start() error {
 	if c.Process != nil {
 		return errors.New("exec: already started")
 	}
-	if c.ctx != nil {
-		select {
-		case <-c.ctx.Done():
-			c.closeDescriptors(c.closeAfterStart)
-			c.closeDescriptors(c.closeAfterWait)
-			return c.ctx.Err()
-		default:
-		}
+	if c.ctx != nil && c.ctx.Err() != nil {
+		c.closeDescriptors(c.closeAfterStart)
+		c.closeDescriptors(c.closeAfterWait)
+		return c.ctx.Err()
 	}
 
 	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))

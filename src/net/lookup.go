@@ -243,12 +243,10 @@ var _ context.Context = (*onlyValuesCtx)(nil)
 
 // Value performs a lookup if the original context hasn't expired.
 func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
-	select {
-	case <-ovc.lookupValues.Done():
+	if ovc.lookupValues.Err() != nil {
 		return nil
-	default:
-		return ovc.lookupValues.Value(key)
 	}
+	return ovc.lookupValues.Value(key)
 }
 
 // withUnexpiredValuesPreserved returns a context.Context that only uses lookupCtx

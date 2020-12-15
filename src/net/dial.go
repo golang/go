@@ -525,10 +525,8 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 	var firstErr error // The error from the first address is most relevant.
 
 	for i, ra := range ras {
-		select {
-		case <-ctx.Done():
-			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
-		default:
+		if err := ctx.Err(); err != nil {
+			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(err)}
 		}
 
 		dialCtx := ctx
