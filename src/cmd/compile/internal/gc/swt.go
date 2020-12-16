@@ -302,7 +302,7 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 		// Process body.
 		body.Append(npos(ncase.Pos(), nodSym(ir.OLABEL, nil, label)))
 		body.Append(ncase.Body().Slice()...)
-		if fall, pos := hasFall(ncase.Body().Slice()); !fall {
+		if fall, pos := endsInFallthrough(ncase.Body().Slice()); !fall {
 			br := ir.Nod(ir.OBREAK, nil, nil)
 			br.SetPos(pos)
 			body.Append(br)
@@ -481,8 +481,8 @@ func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
 	return true
 }
 
-// hasFall reports whether stmts ends with a "fallthrough" statement.
-func hasFall(stmts []ir.Node) (bool, src.XPos) {
+// endsInFallthrough reports whether stmts ends with a "fallthrough" statement.
+func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
 	// Search backwards for the index of the fallthrough
 	// statement. Do not assume it'll be in the last
 	// position, since in some cases (e.g. when the statement

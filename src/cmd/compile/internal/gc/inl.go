@@ -465,7 +465,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 func isBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
-	return ir.Find(fn, func(n ir.Node) bool {
+	return ir.Any(fn, func(n ir.Node) bool {
 		budget--
 		return budget <= 0
 	})
@@ -733,7 +733,7 @@ func reassigned(name *ir.Name) bool {
 	if name.Curfn == nil {
 		return true
 	}
-	return ir.Find(name.Curfn, func(n ir.Node) bool {
+	return ir.Any(name.Curfn, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAS:
 			if n.Left() == name && n != name.Defn {

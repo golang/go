@@ -3765,9 +3765,9 @@ func usefield(n ir.Node) {
 	Curfn.FieldTrack[sym] = struct{}{}
 }
 
-// hasSideEffects reports whether n contains any operations that could have observable side effects.
-func hasSideEffects(n ir.Node) bool {
-	return ir.Find(n, func(n ir.Node) bool {
+// anySideEffects reports whether n contains any operations that could have observable side effects.
+func anySideEffects(n ir.Node) bool {
+	return ir.Any(n, func(n ir.Node) bool {
 		switch n.Op() {
 		// Assume side effects unless we know otherwise.
 		default:
