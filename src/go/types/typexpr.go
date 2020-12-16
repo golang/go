@@ -122,6 +122,45 @@ func (check *Checker) typ(e ast.Expr) Type {
 	return check.definedType(e, nil)
 }
 
+// varType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must not be an (uninstantiated) generic type and it must be ordinary
+// (see ordinaryType).
+func (check *Checker) varType(e ast.Expr) Type {
+	typ := check.definedType(e, nil)
+	check.ordinaryType(e, typ)
+	return typ
+}
+
+// ordinaryType reports an error if typ is an interface type containing
+// type lists or is (or embeds) the predeclared type comparable.
+func (check *Checker) ordinaryType(pos positioner, typ Type) {
+	// We don't want to call under() (via asInterface) or complete interfaces
+	// while we are in the middle of type-checking parameter declarations that
+	// might belong to interface methods. Delay this check to the end of
+	// type-checking.
+	check.atEnd(func() {
+		if t := asInterface(typ); t != nil {
+			check.completeInterface(pos.Pos(), t) // TODO(gri) is this the correct position?
+			if t.allTypes != nil {
+				check.softErrorf(pos, 0, "interface contains type constraints (%s)", t.allTypes)
+				return
+			}
+			if t.IsComparable() {
+				check.softErrorf(pos, 0, "interface is (or embeds) comparable")
+			}
+		}
+	})
+}
+
+// anyType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type may be generic or instantiated.
+func (check *Checker) anyType(e ast.Expr) Type {
+	typ := check.typInternal(e, nil)
+	assert(isTyped(typ))
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
+}
+
 // definedType is like typ but also accepts a type name def.
 // If def != nil, e is the type specification for the defined type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
@@ -161,7 +200,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		var recv *Var
 		switch len(recvList) {
 		case 0:
-			check.error(recvPar, _BadRecv, "method is missing receiver")
+			// TODO(rFindley) this is now redundant with resolver.go. Clean up when
+			//                importing remaining typexpr.go changes.
+			// check.error(recvPar, _BadRecv, "method is missing receiver")
 			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
