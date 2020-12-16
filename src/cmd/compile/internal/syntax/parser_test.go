@@ -29,6 +29,14 @@ func TestParse(t *testing.T) {
 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
 }
 
+func TestVerify(t *testing.T) {
+	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	if err != nil {
+		return // error already reported
+	}
+	verifyPrint(t, *src_, ast)
+}
+
 func TestParseGo2(t *testing.T) {
 	dir := filepath.Join(testdata, "go2")
 	list, err := ioutil.ReadDir(dir)
@@ -91,7 +99,7 @@ func testStdLib(t *testing.T, mode Mode) {
 					return
 				}
 				if *verify {
-					verifyPrint(filename, ast)
+					verifyPrint(t, filename, ast)
 				}
 				results <- parseResult{filename, ast.EOF.Line()}
 			})
@@ -159,12 +167,13 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
 	}
 }
 
-func verifyPrint(filename string, ast1 *File) {
+func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	var buf1 bytes.Buffer
 	_, err := Fprint(&buf1, ast1, true)
 	if err != nil {
 		panic(err)
 	}
+	bytes1 := buf1.Bytes()
 
 	ast2, err := Parse(NewFileBase(filename), &buf1, nil, nil, 0)
 	if err != nil {
@@ -176,16 +185,18 @@ func verifyPrint(filename string, ast1 *File) {
 	if err != nil {
 		panic(err)
 	}
+	bytes2 := buf2.Bytes()
 
-	if bytes.Compare(buf1.Bytes(), buf2.Bytes()) != 0 {
+	if bytes.Compare(bytes1, bytes2) != 0 {
 		fmt.Printf("--- %s ---\n", filename)
-		fmt.Printf("%s\n", buf1.Bytes())
+		fmt.Printf("%s\n", bytes1)
 		fmt.Println()
 
 		fmt.Printf("--- %s ---\n", filename)
-		fmt.Printf("%s\n", buf2.Bytes())
+		fmt.Printf("%s\n", bytes2)
 		fmt.Println()
-		panic("not equal")
+
+		t.Error("printed syntax trees do not match")
 	}
 }
 
