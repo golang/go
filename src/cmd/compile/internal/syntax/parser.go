@@ -595,7 +595,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 			p.xnest--
 			if name0, ok := x.(*Name); p.mode&AllowGenerics != 0 && ok && p.tok != _Rbrack {
 				// generic type
-				d.TParamList = p.paramList(name0, _Rbrack)
+				d.TParamList = p.paramList(name0, _Rbrack, true)
 				pos := p.pos()
 				if p.gotAssign() {
 					p.syntaxErrorAt(pos, "generic type cannot be alias")
@@ -664,7 +664,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Pragma = p.takePragma()
 
 	if p.got(_Lparen) {
-		rcvr := p.paramList(nil, _Rparen)
+		rcvr := p.paramList(nil, _Rparen, false)
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
@@ -688,7 +688,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 			p.syntaxError("empty type parameter list")
 			p.next()
 		} else {
-			f.TParamList = p.paramList(nil, _Rbrack)
+			f.TParamList = p.paramList(nil, _Rbrack, true)
 		}
 	}
 	f.Type = p.funcType()
@@ -1313,7 +1313,7 @@ func (p *parser) funcType() *FuncType {
 	typ := new(FuncType)
 	typ.pos = p.pos()
 	p.want(_Lparen)
-	typ.ParamList = p.paramList(nil, _Rparen)
+	typ.ParamList = p.paramList(nil, _Rparen, false)
 	typ.ResultList = p.funcResult()
 
 	return typ
@@ -1453,7 +1453,7 @@ func (p *parser) funcResult() []*Field {
 	}
 
 	if p.got(_Lparen) {
-		return p.paramList(nil, _Rparen)
+		return p.paramList(nil, _Rparen, false)
 	}
 
 	pos := p.pos()
@@ -1677,7 +1677,7 @@ func (p *parser) methodDecl() *Field {
 
 			// A type argument list looks like a parameter list with only
 			// types. Parse a parameter list and decide afterwards.
-			list := p.paramList(nil, _Rbrack)
+			list := p.paramList(nil, _Rbrack, false)
 			if len(list) == 0 {
 				// The type parameter list is not [] but we got nothing
 				// due to other errors (reported by paramList). Treat
@@ -1792,7 +1792,8 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 // ParameterList = ParameterDecl { "," ParameterDecl } .
 // "(" or "[" has already been consumed.
 // If name != nil, it is the first name after "(" or "[".
-func (p *parser) paramList(name *Name, close token) (list []*Field) {
+// In the result list, either all fields have a name, or no field has a name.
+func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*Field) {
 	if trace {
 		defer p.trace("paramList")()
 	}
@@ -1813,7 +1814,11 @@ func (p *parser) paramList(name *Name, close token) (list []*Field) {
 		return false
 	})
 
-	// distribute parameter types
+	if len(list) == 0 {
+		return
+	}
+
+	// distribute parameter types (len(list) > 0)
 	if named == 0 {
 		// all unnamed => found names are named types
 		for _, par := range list {
@@ -1822,9 +1827,12 @@ func (p *parser) paramList(name *Name, close token) (list []*Field) {
 				par.Name = nil
 			}
 		}
+		if requireNames {
+			p.syntaxErrorAt(list[0].Type.Pos(), "type parameters must be named")
+		}
 	} else if named != len(list) {
 		// some named => all must have names and types
-		var pos Pos // error position (or unknown)
+		var pos Pos // left-most error position (or unknown)
 		var typ Expr
 		for i := len(list) - 1; i >= 0; i-- {
 			if par := list[i]; par.Type != nil {
@@ -1844,7 +1852,13 @@ func (p *parser) paramList(name *Name, close token) (list []*Field) {
 			}
 		}
 		if pos.IsKnown() {
-			p.syntaxErrorAt(pos, "mixed named and unnamed parameters")
+			var msg string
+			if requireNames {
+				msg = "type parameters must be named"
+			} else {
+				msg = "mixed named and unnamed parameters"
+			}
+			p.syntaxErrorAt(pos, msg)
 		}
 	}
 
