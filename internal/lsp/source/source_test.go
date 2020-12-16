@@ -533,7 +533,10 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		d := myers.ComputeEdits(spn.URI(), want, got)
+		d, err := myers.ComputeEdits(spn.URI(), want, got)
+		if err != nil {
+			t.Fatal(err)
+		}
 		t.Errorf("import failed for %s: %s", spn.URI().Filename(), diff.ToUnified("want", "got", want, d))
 	}
 }
@@ -578,7 +581,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 			return []byte(hover), nil
 		}))
 		if hover != expectHover {
-			t.Errorf("hover for %s failed:\n%s", d.Src, tests.Diff(expectHover, hover))
+			t.Errorf("hover for %s failed:\n%s", d.Src, tests.Diff(t, expectHover, hover))
 		}
 	}
 	if !d.OnlyHover {
@@ -885,7 +888,7 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if diff := tests.Diff(want, got); diff != "" {
+	if diff := tests.Diff(t, want, got); diff != "" {
 		t.Error(diff)
 	}
 }
@@ -917,7 +920,11 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 		Signatures:      []protocol.SignatureInformation{*gotSignature},
 		ActiveParameter: float64(gotActiveParameter),
 	}
-	if diff := tests.DiffSignatures(spn, want, got); diff != "" {
+	diff, err := tests.DiffSignatures(spn, want, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff != "" {
 		t.Error(diff)
 	}
 }

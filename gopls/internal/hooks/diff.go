@@ -5,14 +5,25 @@
 package hooks
 
 import (
+	"fmt"
+
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/span"
 )
 
-func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
+func ComputeEdits(uri span.URI, before, after string) (edits []diff.TextEdit, err error) {
+	// The go-diff library has an unresolved panic (see golang/go#278774).
+	// TOOD(rstambler): Remove the recover once the issue has been fixed
+	// upstream.
+	defer func() {
+		if r := recover(); r != nil {
+			edits = nil
+			err = fmt.Errorf("unable to compute edits for %s: %s", uri.Filename(), r)
+		}
+	}()
 	diffs := diffmatchpatch.New().DiffMain(before, after, true)
-	edits := make([]diff.TextEdit, 0, len(diffs))
+	edits = make([]diff.TextEdit, 0, len(diffs))
 	offset := 0
 	for _, d := range diffs {
 		start := span.NewPoint(0, 0, offset)
@@ -26,5 +37,5 @@ func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
 			edits = append(edits, diff.TextEdit{Span: span.New(uri, start, span.Point{}), NewText: d.Text})
 		}
 	}
-	return edits
+	return edits, nil
 }

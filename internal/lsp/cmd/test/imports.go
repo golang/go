@@ -20,7 +20,10 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		d := myers.ComputeEdits(uri, want, got)
+		d, err := myers.ComputeEdits(uri, want, got)
+		if err != nil {
+			t.Fatal(err)
+		}
 		t.Errorf("imports failed for %s, expected:\n%s", filename, diff.ToUnified("want", "got", want, d))
 	}
 }

@@ -16,7 +16,7 @@ import (
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
-func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
+func ComputeEdits(uri span.URI, before, after string) ([]diff.TextEdit, error) {
 	ops := operations(splitLines(before), splitLines(after))
 	edits := make([]diff.TextEdit, 0, len(ops))
 	for _, op := range ops {
@@ -32,7 +32,7 @@ func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
 			}
 		}
 	}
-	return edits
+	return edits, nil
 }
 
 type operation struct {

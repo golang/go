@@ -453,7 +453,10 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		d := myers.ComputeEdits(uri, want, got)
+		d, err := myers.ComputeEdits(uri, want, got)
+		if err != nil {
+			t.Fatal(err)
+		}
 		t.Errorf("import failed for %s: %s", filename, diff.ToUnified("want", "got", want, d))
 	}
 }
@@ -549,7 +552,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), tests.Diff(want, got))
+			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
 		}
 	}
 }
@@ -628,7 +631,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), tests.Diff(want, got))
+			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
 		}
 	}
 }
@@ -680,7 +683,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 			return []byte(hover.Contents.Value), nil
 		}))
 		if hover.Contents.Value != expectHover {
-			t.Errorf("%s:\n%s", d.Src, tests.Diff(expectHover, hover.Contents.Value))
+			t.Errorf("%s:\n%s", d.Src, tests.Diff(t, expectHover, hover.Contents.Value))
 		}
 	}
 	if !d.OnlyHover {
@@ -905,7 +908,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		t.Errorf("rename failed for %s:\n%s", newText, tests.Diff(want, got))
+		t.Errorf("rename failed for %s:\n%s", newText, tests.Diff(t, want, got))
 	}
 }
 
@@ -1052,7 +1055,7 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if diff := tests.Diff(want, got); diff != "" {
+	if diff := tests.Diff(t, want, got); diff != "" {
 		t.Error(diff)
 	}
 }
@@ -1092,7 +1095,11 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	if got == nil {
 		t.Fatalf("expected %v, got nil", want)
 	}
-	if diff := tests.DiffSignatures(spn, want, got); diff != "" {
+	diff, err := tests.DiffSignatures(spn, want, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff != "" {
 		t.Error(diff)
 	}
 }

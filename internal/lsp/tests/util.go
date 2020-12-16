@@ -237,25 +237,28 @@ func summarizeCodeLens(i int, uri span.URI, want, got []protocol.CodeLens, reaso
 	return msg.String()
 }
 
-func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
+func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, error) {
 	decorate := func(f string, args ...interface{}) string {
 		return fmt.Sprintf("invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
 	if len(got.Signatures) != 1 {
-		return decorate("wanted 1 signature, got %d", len(got.Signatures))
+		return decorate("wanted 1 signature, got %d", len(got.Signatures)), nil
 	}
 	if got.ActiveSignature != 0 {
-		return decorate("wanted active signature of 0, got %d", int(got.ActiveSignature))
+		return decorate("wanted active signature of 0, got %d", int(got.ActiveSignature)), nil
 	}
 	if want.ActiveParameter != got.ActiveParameter {
-		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, int(got.ActiveParameter))
+		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, int(got.ActiveParameter)), nil
 	}
 	g := got.Signatures[0]
 	w := want.Signatures[0]
 	if w.Label != g.Label {
 		wLabel := w.Label + "\n"
-		d := myers.ComputeEdits("", wLabel, g.Label+"\n")
-		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", wLabel, d))
+		d, err := myers.ComputeEdits("", wLabel, g.Label+"\n")
+		if err != nil {
+			return "", err
+		}
+		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", wLabel, d)), err
 	}
 	var paramParts []string
 	for _, p := range g.Parameters {
@@ -263,9 +266,9 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	}
 	paramsStr := strings.Join(paramParts, ", ")
 	if !strings.Contains(g.Label, paramsStr) {
-		return decorate("expected signature %q to contain params %q", g.Label, paramsStr)
+		return decorate("expected signature %q to contain params %q", g.Label, paramsStr), nil
 	}
-	return ""
+	return "", nil
 }
 
 // DiffCallHierarchyItems returns the diff between expected and actual call locations for incoming/outgoing call hierarchies
@@ -535,13 +538,16 @@ func WorkspaceSymbolsTestTypeToMatcher(typ WorkspaceSymbolsTestType) source.Symb
 	}
 }
 
-func Diff(want, got string) string {
+func Diff(t *testing.T, want, got string) string {
 	if want == got {
 		return ""
 	}
 	// Add newlines to avoid newline messages in diff.
 	want += "\n"
 	got += "\n"
-	d := myers.ComputeEdits("", want, got)
+	d, err := myers.ComputeEdits("", want, got)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
 }

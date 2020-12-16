@@ -51,7 +51,10 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 			return []byte(got), nil
 		})))
 		if expect != "" && !strings.HasPrefix(got, expect) {
-			d := myers.ComputeEdits("", expect, got)
+			d, err := myers.ComputeEdits("", expect, got)
+			if err != nil {
+				t.Fatal(err)
+			}
 			t.Errorf("definition %v failed with %#v\n%s", tag, args, diff.ToUnified("expect", "got", expect, d))
 		}
 	}

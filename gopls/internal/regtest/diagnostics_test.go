@@ -531,7 +531,7 @@ func _() {
 		env.SaveBuffer("main.go")
 		fixed := env.ReadWorkspaceFile("main.go")
 		if original != fixed {
-			t.Fatalf("generated file was changed by quick fixes:\n%s", tests.Diff(original, fixed))
+			t.Fatalf("generated file was changed by quick fixes:\n%s", tests.Diff(t, original, fixed))
 		}
 	})
 }

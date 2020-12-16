@@ -21,7 +21,7 @@ type TextEdit struct {
 
 // ComputeEdits is the type for a function that produces a set of edits that
 // convert from the before content to the after content.
-type ComputeEdits func(uri span.URI, before, after string) []TextEdit
+type ComputeEdits func(uri span.URI, before, after string) ([]TextEdit, error)
 
 // SortTextEdits attempts to order all edits by their starting points.
 // The sort is stable so that edits with the same starting point will not

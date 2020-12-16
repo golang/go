@@ -146,7 +146,7 @@ go 1.12
 require golang.org/x/hello v1.3.3
 `
 				if got != wantGoMod {
-					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(wantGoMod, got))
+					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
 				}
 			})
 		})
@@ -208,7 +208,7 @@ go 1.14
 require golang.org/x/hello v1.0.0
 `
 		if got != wantGoMod {
-			t.Fatalf("go.mod tidy failed:\n%s", tests.Diff(wantGoMod, got))
+			t.Fatalf("go.mod tidy failed:\n%s", tests.Diff(t, wantGoMod, got))
 		}
 	}, ProxyFiles(proxy))
 }

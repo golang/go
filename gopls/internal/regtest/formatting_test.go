@@ -32,7 +32,7 @@ func TestFormatting(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.golden")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -54,7 +54,7 @@ func f() {}
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.formatted")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -78,7 +78,7 @@ func f() { fmt.Println() }
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -99,7 +99,7 @@ func f() {}
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -145,7 +145,7 @@ func TestOrganizeImports(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.organized")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -157,7 +157,7 @@ func TestFormattingOnSave(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.formatted")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
@@ -229,7 +229,7 @@ type Tree struct {
 				got := env.Editor.BufferText("main.go")
 				got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
 				if tt.want != got {
-					t.Errorf("unexpected content after save:\n%s", tests.Diff(tt.want, got))
+					t.Errorf("unexpected content after save:\n%s", tests.Diff(t, tt.want, got))
 				}
 			})
 		})

@@ -128,7 +128,7 @@ func main() {
 		}
 		want := "```go\nfunc (error).Error() string\n```"
 		if content.Value != want {
-			t.Fatalf("hover failed:\n%s", tests.Diff(want, content.Value))
+			t.Fatalf("hover failed:\n%s", tests.Diff(t, want, content.Value))
 		}
 	})
 }

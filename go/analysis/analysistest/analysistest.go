@@ -195,7 +195,10 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 								continue
 							}
 							if want != string(formatted) {
-								d := myers.ComputeEdits("", want, string(formatted))
+								d, err := myers.ComputeEdits("", want, string(formatted))
+								if err != nil {
+									t.Errorf("failed to compute suggested fixes: %v", err)
+								}
 								t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, d))
 							}
 							break
@@ -221,7 +224,10 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					continue
 				}
 				if want != string(formatted) {
-					d := myers.ComputeEdits("", want, string(formatted))
+					d, err := myers.ComputeEdits("", want, string(formatted))
+					if err != nil {
+						t.Errorf("failed to compute edits: %s", err)
+					}
 					t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(file.Name()+".golden", "actual", want, d))
 				}
 			}

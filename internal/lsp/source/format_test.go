@@ -33,7 +33,7 @@ func TestImportPrefix(t *testing.T) {
 	} {
 		got := importPrefix([]byte(tt.input))
 		if got != tt.want {
-			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(tt.want, got))
+			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, tt.want, got))
 		}
 	}
 }
@@ -61,18 +61,21 @@ Hi description
 		got := importPrefix([]byte(strings.ReplaceAll(tt.input, "\n", "\r\n")))
 		want := strings.ReplaceAll(tt.want, "\n", "\r\n")
 		if got != want {
-			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(want, got))
+			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, want, got))
 		}
 	}
 }
 
-func diffStr(want, got string) string {
+func diffStr(t *testing.T, want, got string) string {
 	if want == got {
 		return ""
 	}
 	// Add newlines to avoid newline messages in diff.
 	want += "\n"
 	got += "\n"
-	d := myers.ComputeEdits("", want, got)
+	d, err := myers.ComputeEdits("", want, got)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
 }

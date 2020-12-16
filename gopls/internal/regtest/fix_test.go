@@ -58,7 +58,7 @@ func Foo() {
 }
 `
 		if got := env.Editor.BufferText("main.go"); got != want {
-			t.Fatalf("TestFillStruct failed:\n%s", tests.Diff(want, got))
+			t.Fatalf("TestFillStruct failed:\n%s", tests.Diff(t, want, got))
 		}
 	})
 }
