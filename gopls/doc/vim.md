@@ -1,6 +1,20 @@
 # Vim / Neovim
 
-## vim-go
+* [vim-go](#vimgo)
+* [LanguageClient-neovim](#lcneovim)
+* [Ale](#ale)
+* [vim-lsp](#vimlsp)
+* [vim-lsc](#vimlsc)
+* [coc.nvim](#cocnvim)
+* [govim](#govim)
+* [Neovim v0.5.0+](#neovim)
+  * [Installation](#neovim-install)
+  * [Custom Configuration](#neovim-config)
+  * [Imports](#neovim-imports)
+  * [Omnifunc](#neovim-omnifunc)
+  * [Additional Links](#neovim-links)
+
+## <a href="#vimgo" id="vimgo">vim-go</a>
 
 Use [vim-go] ver 1.20+, with the following configuration:
 
@@ -9,7 +23,7 @@ let g:go_def_mode='gopls'
 let g:go_info_mode='gopls'
 ```
 
-## LanguageClient-neovim
+## <a href="#lcneovim" id="lcneovim">LanguageClient-neovim</a>
 
 Use [LanguageClient-neovim], with the following configuration:
 
@@ -22,7 +36,7 @@ let g:LanguageClient_serverCommands = {
 autocmd BufWritePre *.go :call LanguageClient#textDocument_formatting_sync()
 ```
 
-## Ale
+## <a href="#ale" id="ale">Ale</a>
 
 Use [ale]:
 
@@ -34,7 +48,7 @@ let g:ale_linters = {
 
 see [this issue][ale-issue-2179]
 
-## vim-lsp
+## <a href="#vimlsp" id="vimlsp">vim-lsp</a>
 
 Use [prabirshrestha/vim-lsp], with the following configuration:
 
@@ -53,7 +67,7 @@ augroup LspGo
 augroup END
 ```
 
-## vim-lsc
+## <a href="#vimlsc" id="vimlsc">vim-lsc</a>
 
 Use [natebosch/vim-lsc], with the following configuration:
 
@@ -71,7 +85,7 @@ The `log_level` and `suppress_stderr` parts are needed to prevent breakage from 
 issues [#180](https://github.com/natebosch/vim-lsc/issues/180) and
 [#213](https://github.com/natebosch/vim-lsc/issues/213).
 
-## coc.nvim
+## <a href="#cocnvim" id="cocnvim">coc.nvim</a>
 
 Use [coc.nvim], with the following `coc-settings.json` configuration:
 
@@ -96,26 +110,38 @@ The `editor.action.organizeImport` code action will auto-format code and add mis
 autocmd BufWritePre *.go :call CocAction('runCommand', 'editor.action.organizeImport')
 ```
 
-## govim
+## <a href="#govim" id="govim">govim</a>
 
 In vim classic only, use the experimental [`govim`], simply follow the [install steps][govim-install].
 
-## Neovim v0.5.0+
+## <a href="#neovim" id="neovim">Neovim v0.5.0+</a>
 
 To use the new (still experimental) native LSP client in Neovim, make sure you
 [install][nvim-install] the prerelease v0.5.0 version of Neovim (aka “nightly”),
 the `nvim-lspconfig` configuration helper plugin, and check the
 [`gopls` configuration section][nvim-lspconfig] there.
 
-### Custom configuration
+### <a href="#neovim-install" id="neovim-install">Installation</a>
+
+You can use Neovim's native plugin system.  On a Unix system, you can do that by
+cloning the `nvim-lspconfig` repository into the correct directory:
+
+```sh
+dir="${HOME}/.local/share/nvim/site/pack/nvim-lspconfig/opt/nvim-lspconfig/"
+mkdir -p "$dir"
+cd "$dir"
+git clone 'https://github.com/neovim/nvim-lspconfig.git' .
+```
+
+### <a href="#neovim-config" id="neovim-config">Custom Configuration</a>
 
 You can add custom configuration using Lua.  Here is an example of enabling the
 `unusedparams` check as well as `staticcheck`:
 
 ```vim
 lua <<EOF
-  nvim_lsp = require "lspconfig"
-  nvim_lsp.gopls.setup {
+  lspconfig = require "lspconfig"
+  lspconfig.gopls.setup {
     cmd = {"gopls", "serve"},
     settings = {
       gopls = {
@@ -129,7 +155,7 @@ lua <<EOF
 EOF
 ```
 
-### Imports
+### <a href="#neovim-imports" id="neovim-imports">Imports</a>
 
 To get your imports ordered on save, like `goimports` does, you can define
 a helper function in Lua:
@@ -164,7 +190,7 @@ autocmd BufWritePre *.go lua goimports(1000)
 
 (Taken from the [discussion][nvim-lspconfig-imports] on Neovim issue tracker.)
 
-### Omnifunc
+### <a href="#neovim-omnifunc" id="neovim-omnifunc">Omnifunc</a>
 
 To make your <kbd>Ctrl</kbd>+<kbd>x</kbd>,<kbd>Ctrl</kbd>+<kbd>o</kbd> work, add
 this to your `init.vim`:
@@ -173,7 +199,7 @@ this to your `init.vim`:
 autocmd FileType go setlocal omnifunc=v:lua.vim.lsp.omnifunc
 ```
 
-### Additional Links
+### <a href="#neovim-links" id="neovim-links">Additional Links</a>
 
 * [Neovim's official LSP documentation][nvim-docs].
 
