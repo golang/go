@@ -269,7 +269,7 @@ L:
 func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]ast.Expr) (T Type) {
 L:
 	for _, e := range types {
-		T = check.typOrNil(e)
+		T = check.typeOrNil(e)
 		if T == Typ[Invalid] {
 			continue L
 		}
