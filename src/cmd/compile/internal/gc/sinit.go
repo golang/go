@@ -60,7 +60,7 @@ func (s *InitSchedule) tryStaticInit(n ir.Node) bool {
 	if n.Op() != ir.OAS {
 		return false
 	}
-	if ir.IsBlank(n.Left()) && !hasSideEffects(n.Right()) {
+	if ir.IsBlank(n.Left()) && !anySideEffects(n.Right()) {
 		// Discard.
 		return true
 	}
@@ -546,7 +546,7 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
 
 	for _, r := range n.List().Slice() {
 		a, value := splitnode(r)
-		if a == ir.BlankNode && !hasSideEffects(value) {
+		if a == ir.BlankNode && !anySideEffects(value) {
 			// Discard.
 			continue
 		}

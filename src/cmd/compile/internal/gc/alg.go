@@ -741,7 +741,7 @@ func geneq(t *types.Type) *obj.LSym {
 	//   return (or goto ret)
 	fn.PtrBody().Append(nodSym(ir.OLABEL, nil, neq))
 	fn.PtrBody().Append(ir.Nod(ir.OAS, nr, nodbool(false)))
-	if EqCanPanic(t) || hasCall(fn) {
+	if EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
 		fn.PtrBody().Append(nodSym(ir.OGOTO, nil, ret))
 	} else {
@@ -782,8 +782,8 @@ func geneq(t *types.Type) *obj.LSym {
 	return closure
 }
 
-func hasCall(fn *ir.Func) bool {
-	return ir.Find(fn, func(n ir.Node) bool {
+func anyCall(fn *ir.Func) bool {
+	return ir.Any(fn, func(n ir.Node) bool {
 		// TODO(rsc): No methods?
 		op := n.Op()
 		return op == ir.OCALL || op == ir.OCALLFUNC

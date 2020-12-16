@@ -574,7 +574,7 @@ func evalConst(n ir.Node) ir.Node {
 				return origIntConst(n, int64(len(ir.StringVal(nl))))
 			}
 		case types.TARRAY:
-			if !hasCallOrChan(nl) {
+			if !anyCallOrChan(nl) {
 				return origIntConst(n, nl.Type().NumElem())
 			}
 		}
@@ -803,9 +803,9 @@ func isGoConst(n ir.Node) bool {
 	return n.Op() == ir.OLITERAL
 }
 
-// hasCallOrChan reports whether n contains any calls or channel operations.
-func hasCallOrChan(n ir.Node) bool {
-	return ir.Find(n, func(n ir.Node) bool {
+// anyCallOrChan reports whether n contains any calls or channel operations.
+func anyCallOrChan(n ir.Node) bool {
+	return ir.Any(n, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAPPEND,
 			ir.OCALL,

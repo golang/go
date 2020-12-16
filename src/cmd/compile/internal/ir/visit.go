@@ -71,16 +71,16 @@ import (
 //		}
 //	}
 //
-// The Find function illustrates a different simplification of the pattern,
+// The Any function illustrates a different simplification of the pattern,
 // visiting each node and then its children, recursively, until finding
-// a node x for which find(x) returns true, at which point the entire
+// a node x for which cond(x) returns true, at which point the entire
 // traversal stops and returns true.
 //
-//	func Find(n ir.Node, find func(ir.Node)) bool {
+//	func Any(n ir.Node, find cond(ir.Node)) bool {
 //		stop := errors.New("stop")
 //		var do func(ir.Node) error
 //		do = func(x ir.Node) error {
-//			if find(x) {
+//			if cond(x) {
 //				return stop
 //			}
 //			return ir.DoChildren(x, do)
@@ -88,9 +88,9 @@ import (
 //		return do(n) == stop
 //	}
 //
-// Visit and Find are presented above as examples of how to use
+// Visit and Any are presented above as examples of how to use
 // DoChildren effectively, but of course, usage that fits within the
-// simplifications captured by Visit or Find will be best served
+// simplifications captured by Visit or Any will be best served
 // by directly calling the ones provided by this package.
 func DoChildren(n Node, do func(Node) error) error {
 	if n == nil {
@@ -138,19 +138,19 @@ func VisitList(list Nodes, visit func(Node)) {
 
 var stop = errors.New("stop")
 
-// Find looks for a non-nil node x in the IR tree rooted at n
-// for which find(x) returns true.
-// Find considers nodes in a depth-first, preorder traversal.
-// When Find finds a node x such that find(x) is true,
-// Find ends the traversal and returns true immediately.
-// Otherwise Find returns false after completing the entire traversal.
-func Find(n Node, find func(Node) bool) bool {
+// Any looks for a non-nil node x in the IR tree rooted at n
+// for which cond(x) returns true.
+// Any considers nodes in a depth-first, preorder traversal.
+// When Any finds a node x such that cond(x) is true,
+// Any ends the traversal and returns true immediately.
+// Otherwise Any returns false after completing the entire traversal.
+func Any(n Node, cond func(Node) bool) bool {
 	if n == nil {
 		return false
 	}
 	var do func(Node) error
 	do = func(x Node) error {
-		if find(x) {
+		if cond(x) {
 			return stop
 		}
 		return DoChildren(x, do)
@@ -158,13 +158,13 @@ func Find(n Node, find func(Node) bool) bool {
 	return do(n) == stop
 }
 
-// FindList calls Find(x, find) for each node x in the list, in order.
-// If any call Find(x, find) returns true, FindList stops and
-// returns that result, skipping the remainder of the list.
-// Otherwise FindList returns false.
-func FindList(list Nodes, find func(Node) bool) bool {
+// AnyList calls Any(x, cond) for each node x in the list, in order.
+// If any call returns true, AnyList stops and returns true.
+// Otherwise, AnyList returns false after calling Any(x, cond)
+// for every x in the list.
+func AnyList(list Nodes, cond func(Node) bool) bool {
 	for _, x := range list.Slice() {
-		if Find(x, find) {
+		if Any(x, cond) {
 			return true
 		}
 	}
