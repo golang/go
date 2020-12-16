@@ -567,3 +567,11 @@ Error:
 	x.mode = invalid
 	x.expr = e
 }
+
+// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
+func (check *Checker) instantiatedOperand(x *operand) {
+	if x.mode == typexpr && isGeneric(x.typ) {
+		check.errorf(x, 0, "cannot use generic type %s without instantiation", x.typ)
+		x.typ = Typ[Invalid]
+	}
+}
