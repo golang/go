@@ -14,6 +14,12 @@ go get -d m/use-indirect
 cmp go.mod go.mod.use
 cp go.mod.orig go.mod
 
+# We can also promote implicit requirements using 'go get' on them, or their
+# packages. This gives us "// indirect" requirements, since 'go get' doesn't
+# know they're needed by the main module. See #43131 for the rationale.
+go get -d indirect-with-pkg indirect-without-pkg
+cmp go.mod go.mod.indirect
+
 -- go.mod.orig --
 module m
 
