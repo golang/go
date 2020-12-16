@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -21,7 +20,8 @@ func isNamed(typ Type) bool {
 	return false
 }
 
-// isGeneric reports whether a type is a generic, uninstantiated type (generic signatures are not included).
+// isGeneric reports whether a type is a generic, uninstantiated type (generic
+// signatures are not included).
 func isGeneric(typ Type) bool {
 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
@@ -90,9 +90,16 @@ func Comparable(T Type) bool {
 	return comparable(T, nil)
 }
 
-// comparable should only be called by Comparable.
 func comparable(T Type, seen map[Type]bool) bool {
-	// If T is a type parameter not constraint by any type
+	if seen[T] {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	seen[T] = true
+
+	// If T is a type parameter not constrained by any type
 	// list (i.e., it's underlying type is the top type),
 	// T is comparable if it has the == method. Otherwise,
 	// the underlying type "wins". For instance
@@ -103,14 +110,6 @@ func comparable(T Type, seen map[Type]bool) bool {
 	if t := T.TypeParam(); t != nil && optype(t) == theTop {
 		return t.Bound().IsComparable()
 	}
-
-	if seen[T] {
-		return true
-	}
-	if seen == nil {
-		seen = make(map[Type]bool)
-	}
-	seen[T] = true
 
 	switch t := optype(T.Under()).(type) {
 	case *Basic:
@@ -129,7 +128,10 @@ func comparable(T Type, seen map[Type]bool) bool {
 	case *Array:
 		return comparable(t.elem, seen)
 	case *Sum:
-		return t.is(Comparable)
+		pred := func(t Type) bool {
+			return comparable(t, seen)
+		}
+		return t.is(pred)
 	case *TypeParam:
 		return t.Bound().IsComparable()
 	}
