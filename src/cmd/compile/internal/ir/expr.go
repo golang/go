@@ -530,8 +530,6 @@ func (n *MakeExpr) SetOp(op Op) {
 type MethodExpr struct {
 	miniExpr
 	T         *types.Type
-	X_Delete  Node
-	M_Delete  Node // TODO(rsc): Delete (breaks toolstash b/c inlining costs go down)
 	Method    *types.Field
 	FuncName_ *Name
 }
@@ -540,8 +538,6 @@ func NewMethodExpr(pos src.XPos, t *types.Type, method *types.Field) *MethodExpr
 	n := &MethodExpr{T: t, Method: method}
 	n.pos = pos
 	n.op = OMETHEXPR
-	n.X_Delete = TypeNode(t)                // TODO(rsc): Delete.
-	n.M_Delete = NewNameAt(pos, method.Sym) // TODO(rsc): Delete.
 	return n
 }
 
@@ -618,6 +614,21 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
 
 func (n *ResultExpr) Offset() int64     { return n.Offset_ }
 func (n *ResultExpr) SetOffset(x int64) { n.Offset_ = x }
+
+// A NameOffsetExpr refers to an offset within a variable.
+// It is like a SelectorExpr but without the field name.
+type NameOffsetExpr struct {
+	miniExpr
+	Name_   *Name
+	Offset_ int64
+}
+
+func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
+	n := &NameOffsetExpr{Name_: name, Offset_: offset}
+	n.typ = typ
+	n.op = ONAMEOFFSET
+	return n
+}
 
 // A SelectorExpr is a selector expression X.Sym.
 type SelectorExpr struct {
