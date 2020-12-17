@@ -495,11 +495,13 @@ L: // unpack receiver type
 		case *syntax.ParenExpr:
 			rtyp = t.X
 		// case *ast.StarExpr:
+		//      ptr = true
 		// 	rtyp = t.X
 		case *syntax.Operation:
 			if t.Op != syntax.Mul || t.Y != nil {
 				break
 			}
+			ptr = true
 			rtyp = t.X
 		default:
 			break L
