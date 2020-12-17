@@ -1,8 +1,5 @@
 pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
 pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
-pkg crypto/tls, method (*CertificateRequestInfo) Context() context.Context
-pkg crypto/tls, method (*ClientHelloInfo) Context() context.Context
-pkg crypto/tls, method (*Conn) HandshakeContext(context.Context) error
 pkg crypto/x509, method (SystemRootsError) Unwrap() error
 pkg crypto/x509, type CertificateRequest struct, BasicConstraintsValid bool
 pkg crypto/x509, type CertificateRequest struct, ExtKeyUsage []ExtKeyUsage
