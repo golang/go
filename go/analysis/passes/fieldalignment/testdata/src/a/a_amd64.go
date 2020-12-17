@@ -38,3 +38,11 @@ type MultiField struct { // want "struct of size 40 could be 24"
 	a3     [3]bool
 	_      [0]func()
 }
+
+type Issue43233 struct { // want "struct with 88 pointer bytes could be 80"
+	AllowedEvents []*string // allowed events
+	BlockedEvents []*string // blocked events
+	APIVersion    string    `mapstructure:"api_version"`
+	BaseURL       string    `mapstructure:"base_url"`
+	AccessToken   string    `mapstructure:"access_token"`
+}

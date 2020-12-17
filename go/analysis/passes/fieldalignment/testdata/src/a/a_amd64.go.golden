@@ -39,3 +39,11 @@ type MultiField struct {
 	a3 [3]bool
 	b  bool
 }
+
+type Issue43233 struct {
+	APIVersion    string `mapstructure:"api_version"`
+	BaseURL       string `mapstructure:"base_url"`
+	AccessToken   string `mapstructure:"access_token"`
+	AllowedEvents []*string
+	BlockedEvents []*string
+}
