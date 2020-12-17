@@ -730,3 +730,43 @@ func main() {}
 		)
 	})
 }
+
+func TestSumUpdateFixesDiagnostics(t *testing.T) {
+	t.Skipf("golang/go#42815 is not yet resolved.")
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require (
+	example.com v1.2.3
+)
+-- go.sum --
+-- main.go --
+package main
+
+import (
+	"example.com/blah"
+)
+
+func main() {
+	blah.Hello()
+}
+`
+	withOptions(
+		ProxyFiles(workspaceProxy),
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexp("go.mod", "module"),
+			env.DiagnosticAtRegexp("go.mod", "example.com"),
+		)
+		d := &protocol.PublishDiagnosticsParams{}
+		ReadDiagnostics("go.mod", d)
+		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		env.Await(
+			EmptyDiagnostics("go.mod"),
+		)
+	})
+}
