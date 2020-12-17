@@ -71,27 +71,29 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		})
 	}
 
-	_, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
-	if err != nil {
-		return nil, err
+	if len(fns.Benchmarks) > 0 {
+		_, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
+		if err != nil {
+			return nil, err
+		}
+		// add a code lens to the top of the file which runs all benchmarks in the file
+		rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
+		if err != nil {
+			return nil, err
+		}
+		args, err := MarshalArgs(fh.URI(), []string{}, fns.Benchmarks)
+		if err != nil {
+			return nil, err
+		}
+		codeLens = append(codeLens, protocol.CodeLens{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "run file benchmarks",
+				Command:   CommandTest.ID(),
+				Arguments: args,
+			},
+		})
 	}
-	// add a code lens to the top of the file which runs all benchmarks in the file
-	rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
-	if err != nil {
-		return nil, err
-	}
-	args, err := MarshalArgs(fh.URI(), []string{}, fns.Benchmarks)
-	if err != nil {
-		return nil, err
-	}
-	codeLens = append(codeLens, protocol.CodeLens{
-		Range: rng,
-		Command: protocol.Command{
-			Title:     "run file benchmarks",
-			Command:   CommandTest.ID(),
-			Arguments: args,
-		},
-	})
 	return codeLens, nil
 }
 
