@@ -68,7 +68,7 @@ type Hash struct {
 // The buffer ensures that writes depend only on the sequence of bytes,
 // not the sequence of WriteByte/Write/WriteString calls,
 // by always calling rthash with a full buffer (except for the tail).
-const bufSize = 64
+const bufSize = 128
 
 // initSeed seeds the hash if necessary.
 // initSeed is called lazily before any operation that actually uses h.seed/h.state.
