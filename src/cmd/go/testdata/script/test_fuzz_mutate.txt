@@ -7,7 +7,7 @@
 
 [short] skip
 
-go test -fuzz=FuzzA -parallel=1 -log=fuzz
+go test -fuzz=FuzzA -fuzztime=5s -parallel=1 -log=fuzz
 go run check_logs.go fuzz fuzz.worker
 
 -- go.mod --

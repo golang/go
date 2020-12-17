@@ -16,12 +16,14 @@ import (
 
 func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
+	fuzzDuration = flag.Duration("test.fuzztime", 0, "time to spend fuzzing; default (0) is to run indefinitely")
 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
 }
 
 var (
 	matchFuzz    *string
+	fuzzDuration *time.Duration
 	fuzzCacheDir *string
 	isFuzzWorker *bool
 
@@ -136,7 +138,7 @@ func (f *F) Fuzz(ff interface{}) {
 		}
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
-		err := f.context.coordinateFuzzing(*parallel, seed, corpusTargetDir, cacheTargetDir)
+		err := f.context.coordinateFuzzing(*fuzzDuration, *parallel, seed, corpusTargetDir, cacheTargetDir)
 		if err != nil {
 			f.Fail()
 			f.result = FuzzResult{Error: err}
@@ -279,7 +281,7 @@ func (r FuzzResult) String() string {
 type fuzzContext struct {
 	runMatch          *matcher
 	fuzzMatch         *matcher
-	coordinateFuzzing func(int, [][]byte, string, string) error
+	coordinateFuzzing func(time.Duration, int, [][]byte, string, string) error
 	runFuzzWorker     func(func([]byte) error) error
 	readCorpus        func(string) ([][]byte, error)
 }

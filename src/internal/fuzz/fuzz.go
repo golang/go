@@ -8,6 +8,7 @@
 package fuzz
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 )
 
 // CoordinateFuzzing creates several worker processes and communicates with
@@ -39,14 +39,13 @@ import (
 //
 // If a crash occurs, the function will return an error containing information
 // about the crash, which can be reported to the user.
-func CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) (err error) {
+func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusDir, cacheDir string) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
-	// TODO(jayconrod): support fuzzing indefinitely or with a given duration.
-	// The value below is just a placeholder until we figure out how to handle
-	// interrupts.
-	duration := 5 * time.Second
 
 	corpus, err := readCorpusAndCache(seed, corpusDir, cacheDir)
 	if err != nil {
@@ -121,26 +120,28 @@ func CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) 
 	defer func() {
 		close(c.doneC)
 		wg.Wait()
-		if err == nil {
-			for _, err = range workerErrs {
-				if err != nil {
-					// Return the first error found.
-					return
+		if err == nil || err == ctx.Err() {
+			for _, werr := range workerErrs {
+				if werr != nil {
+					// Return the first error found, replacing ctx.Err() if a more
+					// interesting error is found.
+					err = werr
 				}
 			}
 		}
 	}()
 
 	// Main event loop.
-	stopC := time.After(duration)
 	i := 0
 	for {
 		select {
-		// TODO(jayconrod): handle interruptions like SIGINT.
-
-		case <-stopC:
-			// Time's up.
-			return nil
+		case <-ctx.Done():
+			// Interrupted, cancelled, or timed out.
+			// TODO(jayconrod,katiehockman): On Windows, ^C only interrupts 'go test',
+			// not the coordinator or worker processes. 'go test' will stop running
+			// actions, but it won't interrupt its child processes. This makes it
+			// difficult to stop fuzzing on Windows without a timeout.
+			return ctx.Err()
 
 		case crasher := <-c.crasherC:
 			// A worker found a crasher. Write it to testdata and return it.

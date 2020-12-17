@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,15 +106,26 @@ func (w *worker) runFuzzing() error {
 				args := fuzzArgs{Duration: workerFuzzDuration}
 				value, resp, err := w.client.fuzz(input.b, args)
 				if err != nil {
-					// TODO(jayconrod): if we get an error here, something failed between
-					// main and the call to testing.F.Fuzz. The error here won't
-					// be useful. Collect stderr, clean it up, and return that.
-					// TODO(jayconrod): we can get EPIPE if w.stop is called concurrently
-					// and it kills the worker process. Suppress this message in
-					// that case.
+					// Error communicating with worker.
+					select {
+					case <-w.termC:
+						// Worker terminated, perhaps unexpectedly.
+						// We expect I/O errors due to partially sent or received RPCs,
+						// so ignore this error.
+					case <-w.coordinator.doneC:
+						// Timeout or interruption. Worker may also be interrupted.
+						// Again, ignore I/O errors.
+					default:
+						// TODO(jayconrod): if we get an error here, something failed between
+						// main and the call to testing.F.Fuzz. The error here won't
+						// be useful. Collect stderr, clean it up, and return that.
+						// TODO(jayconrod): we can get EPIPE if w.stop is called concurrently
+						// and it kills the worker process. Suppress this message in
+						// that case.
+						fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
+					}
 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
 					// TODO(jayconrod): time out if the test process hangs.
-					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
 				} else if resp.Err != "" {
 					// The worker found a crasher. Inform the coordinator.
 					crasher := crasherEntry{
@@ -301,13 +313,13 @@ func (w *worker) stop() error {
 //
 // RunFuzzWorker returns an error if it could not communicate with the
 // coordinator process.
-func RunFuzzWorker(fn func([]byte) error) error {
+func RunFuzzWorker(ctx context.Context, fn func([]byte) error) error {
 	comm, err := getWorkerComm()
 	if err != nil {
 		return err
 	}
 	srv := &workerServer{workerComm: comm, fuzzFn: fn}
-	return srv.serve()
+	return srv.serve(ctx)
 }
 
 // call is serialized and sent from the coordinator on fuzz_in. It acts as
@@ -370,21 +382,41 @@ type workerServer struct {
 // serve returns errors that occurred when communicating over pipes. serve
 // does not return errors from method calls; those are passed through serialized
 // responses.
-func (ws *workerServer) serve() error {
+func (ws *workerServer) serve(ctx context.Context) error {
+	// Stop handling messages when ctx.Done() is closed. This normally happens
+	// when the worker process receives a SIGINT signal, which on POSIX platforms
+	// is sent to the process group when ^C is pressed.
+	//
+	// Ordinarily, the coordinator process may stop a worker by closing fuzz_in.
+	// We simulate that and interrupt a blocked read here.
+	doneC := make(chan struct{})
+	defer func() { close(doneC) }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			ws.fuzzIn.Close()
+		case <-doneC:
+		}
+	}()
+
 	enc := json.NewEncoder(ws.fuzzOut)
 	dec := json.NewDecoder(ws.fuzzIn)
 	for {
 		var c call
-		if err := dec.Decode(&c); err == io.EOF {
-			return nil
-		} else if err != nil {
-			return err
+		if err := dec.Decode(&c); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			} else if err == io.EOF {
+				return nil
+			} else {
+				return err
+			}
 		}
 
 		var resp interface{}
 		switch {
 		case c.Fuzz != nil:
-			resp = ws.fuzz(*c.Fuzz)
+			resp = ws.fuzz(ctx, *c.Fuzz)
 		default:
 			return errors.New("no arguments provided for any call")
 		}
@@ -398,11 +430,13 @@ func (ws *workerServer) serve() error {
 // fuzz runs the test function on random variations of a given input value for
 // a given amount of time. fuzz returns early if it finds an input that crashes
 // the fuzz function or an input that expands coverage.
-func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
-	t := time.NewTimer(args.Duration)
+func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+	ctx, cancel := context.WithTimeout(ctx, args.Duration)
+	defer cancel()
+
 	for {
 		select {
-		case <-t.C:
+		case <-ctx.Done():
 			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
 			// real heuristic once we have one.
 			return fuzzResponse{Interesting: true}

@@ -12,13 +12,17 @@ package testdeps
 
 import (
 	"bufio"
+	"context"
 	"internal/fuzz"
 	"internal/testlog"
 	"io"
+	"os"
+	"os/signal"
 	"regexp"
 	"runtime/pprof"
 	"strings"
 	"sync"
+	"time"
 )
 
 // TestDeps is an implementation of the testing.testDeps interface,
@@ -128,12 +132,51 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) error {
-	return fuzz.CoordinateFuzzing(parallel, seed, corpusDir, cacheDir)
+func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]byte, corpusDir, cacheDir string) error {
+	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
+	// In either case, we'll stop worker processes gracefully and save
+	// crashers and interesting values.
+	ctx := context.Background()
+	cancel := func() {}
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	}
+	interruptC := make(chan os.Signal, 1)
+	signal.Notify(interruptC, os.Interrupt)
+	go func() {
+		<-interruptC
+		cancel()
+	}()
+	defer close(interruptC)
+
+	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+	if err == ctx.Err() {
+		return nil
+	}
+	return err
 }
 
 func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
-	return fuzz.RunFuzzWorker(fn)
+	// Worker processes may or may not receive a signal when the user presses ^C
+	// On POSIX operating systems, a signal sent to a process group is delivered
+	// to all processes in that group. This is not the case on Windows.
+	// If the worker is interrupted, return quickly and without error.
+	// If only the coordinator process is interrupted, it tells each worker
+	// process to stop by closing its "fuzz_in" pipe.
+	ctx, cancel := context.WithCancel(context.Background())
+	interruptC := make(chan os.Signal, 1)
+	signal.Notify(interruptC, os.Interrupt)
+	go func() {
+		<-interruptC
+		cancel()
+	}()
+	defer close(interruptC)
+
+	err := fuzz.RunFuzzWorker(ctx, fn)
+	if err == ctx.Err() {
+		return nil
+	}
+	return nil
 }
 
 func (TestDeps) ReadCorpus(dir string) ([][]byte, error) {

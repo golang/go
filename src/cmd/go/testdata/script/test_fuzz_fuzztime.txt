@@ -1,0 +1,27 @@
+[short] skip
+
+# There are no seed values, so 'go test' should finish quickly.
+go test
+
+# Fuzzing should exit 0 when after fuzztime, even if timeout is short.
+go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s -parallel=1
+
+# We should see the same behavior when invoking the test binary directly.
+go test -c
+exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
+
+# Timeout should not cause inputs to be written as crashers.
+! exists testdata/corpus
+
+-- go.mod --
+module fuzz
+
+go 1.16
+-- fuzz_test.go --
+package fuzz_test
+
+import "testing"
+
+func FuzzFast(f *testing.F) {
+	f.Fuzz(func (*testing.T, []byte) {})
+}
