@@ -686,33 +686,24 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 	var bound Type
 	for i, j := 0, 0; i < len(list); i = j {
 		f := list[i]
-		ftype := f.Type
 
 		// determine the range of type parameters list[i:j] with identical type bound
 		// (declared as in (type a, b, c B))
 		j = i + 1
-		for j < len(list) && list[j].Type == ftype {
+		for j < len(list) && list[j].Type == f.Type {
 			j++
 		}
 
 		// this should never be the case, but be careful
-		if ftype == nil {
+		if f.Type == nil {
 			continue
 		}
-
-		// If the type bound expects exactly one type argument, permit leaving
-		// it away and use the corresponding type parameter as implicit argument.
-		// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
-		// Enabled if enableImplicitTParam is set.
-		const enableImplicitTParam = false
 
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
 		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
 			bound = universeAny
-		} else if enableImplicitTParam {
-			bound = check.anyType(f.Type)
 		} else {
 			bound = check.typ(f.Type)
 		}
@@ -723,34 +714,6 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 		//           type C(type T C) interface {}
 		//           (issue #39724).
 		if _, ok := bound.Under().(*Interface); ok {
-			if enableImplicitTParam && isGeneric(bound) {
-				base := bound.(*Named) // only a *Named type can be generic
-				if j-i != 1 || len(base.tparams) != 1 {
-					// TODO(gri) make this error message better
-					check.errorf(ftype, "cannot use generic type %s without instantiation (more than one type parameter)", bound)
-					bound = Typ[Invalid]
-					continue
-				}
-				// We have exactly one type parameter.
-				// "Manually" instantiate the bound with each type
-				// parameter the bound applies to.
-				// TODO(gri) this code (in more general form) is also in
-				// checker.typInternal for the *ast.CallExpr case. Factor?
-				typ := new(instance)
-				typ.check = check
-				typ.pos = ftype.Pos()
-				typ.base = base
-				typ.targs = []Type{tparams[i].typ}
-				typ.poslist = []syntax.Pos{f.Name.Pos()}
-				// Make sure we check instantiation works at least once
-				// and that the resulting type is valid.
-				check.atEnd(func() {
-					check.validType(typ.expand(), nil)
-				})
-				// update bound and recorded type
-				bound = typ
-				check.recordTypeAndValue(ftype, typexpr, typ, nil)
-			}
 			// set the type bounds
 			for i < j {
 				tparams[i].typ.(*TypeParam).bound = bound
