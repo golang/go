@@ -632,14 +632,10 @@ func (n *MethodExpr) copy() Node {
 func (n *MethodExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X_Delete, err, do)
-	err = maybeDo(n.M_Delete, err, do)
 	return err
 }
 func (n *MethodExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	n.X_Delete = maybeEdit(n.X_Delete, edit)
-	n.M_Delete = maybeEdit(n.M_Delete, edit)
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
@@ -652,6 +648,21 @@ func (n *Name) doChildren(do func(Node) error) error {
 	return err
 }
 func (n *Name) editChildren(edit func(Node) Node) {
+}
+
+func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NameOffsetExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *NameOffsetExpr) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
+func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

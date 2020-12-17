@@ -345,6 +345,7 @@ const (
 	OVARLIVE     // variable is alive
 	ORESULT      // result of a function call; Xoffset is stack offset
 	OINLMARK     // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+	ONAMEOFFSET  // offset within a name
 
 	// arch-specific opcodes
 	ORETJMP // return to other function
