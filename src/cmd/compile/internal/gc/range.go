@@ -296,7 +296,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		// we only use a once, so no copy needed.
 		ha := a
 
-		hit := prealloc[nrange]
+		hit := nrange.Prealloc
 		th := hit.Type()
 		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
 		elemsym := th.Field(1).Sym // ditto

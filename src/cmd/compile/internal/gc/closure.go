@@ -378,7 +378,7 @@ func closureType(clo ir.Node) *types.Type {
 	return typ
 }
 
-func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
+func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	fn := clo.Func()
 
 	// If no closure vars, don't bother wrapping.
@@ -403,12 +403,12 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
 	cfn := convnop(addr, clo.Type())
 
 	// non-escaping temp to use, if any.
-	if x := prealloc[clo]; x != nil {
+	if x := clo.Prealloc; x != nil {
 		if !types.Identical(typ, x.Type()) {
 			panic("closure type does not match order's assigned type")
 		}
 		addr.SetRight(x)
-		delete(prealloc, clo)
+		clo.Prealloc = nil
 	}
 
 	return walkexpr(cfn, init)
@@ -552,12 +552,12 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	cfn := convnop(addr, n.Type())
 
 	// non-escaping temp to use, if any.
-	if x := prealloc[n]; x != nil {
+	if x := n.Prealloc; x != nil {
 		if !types.Identical(typ, x.Type()) {
 			panic("partial call type does not match order's assigned type")
 		}
 		addr.SetRight(x)
-		delete(prealloc, n)
+		n.Prealloc = nil
 	}
 
 	return walkexpr(cfn, init)

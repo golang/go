@@ -668,7 +668,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 	// set auto to point at new temp or heap (3 assign)
 	var a ir.Node
-	if x := prealloc[n]; x != nil {
+	if x := n.Prealloc; x != nil {
 		// temp allocated during order.go for dddarg
 		if !types.Identical(t, x.Type()) {
 			panic("dotdotdot base type does not match order's assigned type")

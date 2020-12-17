@@ -202,10 +202,7 @@ func walkstmt(n ir.Node) ir.Node {
 			if base.Flag.CompilingRuntime {
 				base.Errorf("%v escapes to heap, not allowed in runtime", v)
 			}
-			if prealloc[v] == nil {
-				prealloc[v] = callnew(v.Type())
-			}
-			nn := ir.Nod(ir.OAS, v.Name().Heapaddr, prealloc[v])
+			nn := ir.Nod(ir.OAS, v.Name().Heapaddr, callnew(v.Type()))
 			nn.SetColas(true)
 			return walkstmt(typecheck(nn, ctxStmt))
 		}
@@ -1638,7 +1635,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return mkcall1(chanfn("chansend1", 2, n.Left().Type()), nil, init, n.Left(), n1)
 
 	case ir.OCLOSURE:
-		return walkclosure(n, init)
+		return walkclosure(n.(*ir.ClosureExpr), init)
 
 	case ir.OCALLPART:
 		return walkpartialcall(n.(*ir.CallPartExpr), init)
@@ -2713,11 +2710,9 @@ func addstr(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 		fn = "concatstrings"
 
 		t := types.NewSlice(types.Types[types.TSTRING])
-		slice := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(t))
-		if prealloc[n] != nil {
-			prealloc[slice] = prealloc[n]
-		}
-		slice.PtrList().Set(args[1:]) // skip buf arg
+		// args[1:] to skip buf arg
+		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(t), args[1:])
+		slice.Prealloc = n.Prealloc
 		args = []ir.Node{buf, slice}
 		slice.SetEsc(EscNone)
 	}

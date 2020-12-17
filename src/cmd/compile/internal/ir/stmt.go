@@ -368,6 +368,7 @@ type RangeStmt struct {
 	Body_     Nodes
 	HasBreak_ bool
 	typ       *types.Type // TODO(rsc): Remove - use X.Type() instead
+	Prealloc  *Name
 }
 
 func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {

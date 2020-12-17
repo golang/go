@@ -89,7 +89,8 @@ func toNtype(x Node) Ntype {
 // An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
 type AddStringExpr struct {
 	miniExpr
-	List_ Nodes
+	List_    Nodes
+	Prealloc *Name
 }
 
 func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
@@ -233,9 +234,10 @@ func (n *CallExpr) SetOp(op Op) {
 // A CallPartExpr is a method expression X.Method (uncalled).
 type CallPartExpr struct {
 	miniExpr
-	Func_  *Func
-	X      Node
-	Method *types.Field
+	Func_    *Func
+	X        Node
+	Method   *types.Field
+	Prealloc *Name
 }
 
 func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
@@ -255,7 +257,8 @@ func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
 	miniExpr
-	Func_ *Func
+	Func_    *Func
+	Prealloc *Name
 }
 
 func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
@@ -287,9 +290,10 @@ func (n *ClosureReadExpr) Offset() int64     { return n.Offset_ }
 // Before type-checking, the type is Ntype.
 type CompLitExpr struct {
 	miniExpr
-	orig  Node
-	Ntype Ntype
-	List_ Nodes // initialized values
+	orig     Node
+	Ntype    Ntype
+	List_    Nodes // initialized values
+	Prealloc *Name
 }
 
 func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
