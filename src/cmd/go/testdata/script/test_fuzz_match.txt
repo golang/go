@@ -4,12 +4,12 @@ go test standalone_fuzz_test.go
 stdout '^ok'
 
 # Matches only for fuzzing.
-go test -fuzz Fuzz standalone_fuzz_test.go
+go test -fuzz Fuzz -fuzztime 5s -parallel 1 standalone_fuzz_test.go
 ! stdout '^ok.*\[no tests to run\]'
 stdout '^ok'
 
 # Matches none for fuzzing but will run the fuzz target as a test.
-go test -fuzz ThisWillNotMatch standalone_fuzz_test.go
+go test -fuzz ThisWillNotMatch -fuzztime 5s -parallel 1 standalone_fuzz_test.go
 ! stdout '^ok.*\[no tests to run\]'
 stdout ok
 stdout '\[no targets to fuzz\]'
@@ -27,7 +27,7 @@ stdout '^ok.*\[no tests to run\]'
 ! stdout '\[no targets to fuzz\]'
 
 # Matches more than one fuzz target for fuzzing.
-go test -fuzz Fuzz multiple_fuzz_test.go
+go test -fuzz Fuzz -fuzztime 5s -parallel 1 multiple_fuzz_test.go
 # The tests should run, but not be fuzzed
 ! stdout '\[no tests to run\]'
 ! stdout '\[no targets to fuzz\]'

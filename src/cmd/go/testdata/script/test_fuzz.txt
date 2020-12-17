@@ -1,5 +1,5 @@
 # Test that calling f.Error in a fuzz target causes a non-zero exit status.
-! go test -fuzz Fuzz error_fuzz_test.go
+! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 error_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
@@ -14,12 +14,12 @@ stdout ok
 ! stdout FAIL
 
 # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
-! go test -fuzz Fuzz fatal_fuzz_test.go
+! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 fatal_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that successful fuzzing exits cleanly.
-go test -fuzz Fuzz success_fuzz_test.go
+go test -fuzz=Fuzz -fuzztime=5s -parallel=1 success_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
