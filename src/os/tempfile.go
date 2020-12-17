@@ -4,10 +4,7 @@
 
 package os
 
-import (
-	"errors"
-	"strings"
-)
+import "errors"
 
 // fastrand provided by runtime.
 // We generate random temporary file names so that there's a good
@@ -62,7 +59,7 @@ func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
 			return "", "", errPatternHasSeparator
 		}
 	}
-	if pos := strings.LastIndex(pattern, "*"); pos != -1 {
+	if pos := lastIndex(pattern, '*'); pos != -1 {
 		prefix, suffix = pattern[:pos], pattern[pos+1:]
 	} else {
 		prefix = pattern
@@ -115,4 +112,14 @@ func joinPath(dir, name string) string {
 		return dir + name
 	}
 	return dir + string(PathSeparator) + name
+}
+
+// LastIndexByte from the strings package.
+func lastIndex(s string, sep byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == sep {
+			return i
+		}
+	}
+	return -1
 }
