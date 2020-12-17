@@ -68,7 +68,9 @@ type Hash struct {
 // which does call h.initSeed.)
 func (h *Hash) initSeed() {
 	if h.seed.s == 0 {
-		h.setSeed(MakeSeed())
+		seed := MakeSeed()
+		h.seed = seed
+		h.state = seed
 	}
 }
 
@@ -123,17 +125,12 @@ func (h *Hash) Seed() Seed {
 // Two Hash objects with different seeds will very likely behave differently.
 // Any bytes added to h before this call will be discarded.
 func (h *Hash) SetSeed(seed Seed) {
-	h.setSeed(seed)
-	h.n = 0
-}
-
-// setSeed sets seed without discarding accumulated data.
-func (h *Hash) setSeed(seed Seed) {
 	if seed.s == 0 {
 		panic("maphash: use of uninitialized Seed")
 	}
 	h.seed = seed
 	h.state = seed
+	h.n = 0
 }
 
 // Reset discards all bytes added to h.
