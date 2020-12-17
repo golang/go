@@ -572,12 +572,12 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	return ptr, length
 }
 
-func syslook(name string) ir.Node {
+func syslook(name string) *ir.Name {
 	s := Runtimepkg.Lookup(name)
 	if s == nil || s.Def == nil {
 		base.Fatalf("syslook: can't find runtime.%s", name)
 	}
-	return ir.AsNode(s.Def)
+	return ir.AsNode(s.Def).(*ir.Name)
 }
 
 // typehash computes a hash value for type t to use in type switch statements.
@@ -609,7 +609,7 @@ func calcHasCall(n ir.Node) bool {
 		base.Fatalf("calcHasCall %+v", n)
 		panic("unreachable")
 
-	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE:
+	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE, ir.ONAMEOFFSET:
 		if n.HasCall() {
 			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
 		}
@@ -770,7 +770,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	switch n.Op() {
-	case ir.ONAME, ir.OLITERAL, ir.ONIL:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
 		return n
 
 	case ir.OLEN, ir.OCAP:

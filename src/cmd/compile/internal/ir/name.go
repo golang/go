@@ -139,6 +139,12 @@ type Name struct {
 	Outer     *Name
 }
 
+// CloneName makes a cloned copy of the name.
+// It's not ir.Copy(n) because in general that operation is a mistake on names,
+// which uniquely identify variables.
+// Callers must use n.CloneName to make clear they intend to create a separate name.
+func (n *Name) CloneName() *Name { c := *n; return &c }
+
 func (n *Name) isExpr() {}
 
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
@@ -186,10 +192,16 @@ func (n *Name) Class() Class        { return n.Class_ }
 func (n *Name) SetClass(x Class)    { n.Class_ = x }
 func (n *Name) Func() *Func         { return n.fn }
 func (n *Name) SetFunc(x *Func)     { n.fn = x }
-func (n *Name) Offset() int64       { return n.Offset_ }
-func (n *Name) SetOffset(x int64)   { n.Offset_ = x }
-func (n *Name) Iota() int64         { return n.Offset_ }
-func (n *Name) SetIota(x int64)     { n.Offset_ = x }
+func (n *Name) Offset() int64       { panic("Name.Offset") }
+func (n *Name) SetOffset(x int64) {
+	if x != 0 {
+		panic("Name.SetOffset")
+	}
+}
+func (n *Name) FrameOffset() int64     { return n.Offset_ }
+func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+func (n *Name) Iota() int64            { return n.Offset_ }
+func (n *Name) SetIota(x int64)        { n.Offset_ = x }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}

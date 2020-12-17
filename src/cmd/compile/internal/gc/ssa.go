@@ -258,14 +258,14 @@ func (s *state) emitOpenDeferInfo() {
 		}
 	}
 	off = dvarint(x, off, maxargsize)
-	off = dvarint(x, off, -s.deferBitsTemp.Offset())
+	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
 	off = dvarint(x, off, int64(len(s.openDefers)))
 
 	// Write in reverse-order, for ease of running in that order at runtime
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
 		off = dvarint(x, off, r.n.Left().Type().ArgWidth())
-		off = dvarint(x, off, -r.closureNode.Offset())
+		off = dvarint(x, off, -r.closureNode.FrameOffset())
 		numArgs := len(r.argNodes)
 		if r.rcvrNode != nil {
 			// If there's an interface receiver, treat/place it as the first
@@ -275,13 +275,13 @@ func (s *state) emitOpenDeferInfo() {
 		}
 		off = dvarint(x, off, int64(numArgs))
 		if r.rcvrNode != nil {
-			off = dvarint(x, off, -r.rcvrNode.Offset())
+			off = dvarint(x, off, -r.rcvrNode.FrameOffset())
 			off = dvarint(x, off, s.config.PtrSize)
 			off = dvarint(x, off, 0)
 		}
 		for j, arg := range r.argNodes {
 			f := getParam(r.n, j)
-			off = dvarint(x, off, -arg.Offset())
+			off = dvarint(x, off, -arg.FrameOffset())
 			off = dvarint(x, off, f.Type.Size())
 			off = dvarint(x, off, f.Offset)
 		}
@@ -418,10 +418,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		switch n.Class() {
 		case ir.PPARAM:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.Offset())})
+			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
 		case ir.PPARAMOUT:
 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
-			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.Offset())})
+			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
 			if s.canSSA(n) {
 				// Save ssa-able PPARAMOUT variables so we can
 				// store them back to the stack at the end of
@@ -2097,6 +2097,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 		}
 		if s.canSSA(n) {
+			return s.variable(n, n.Type())
+		}
+		addr := s.addr(n)
+		return s.load(n.Type(), addr)
+	case ir.ONAMEOFFSET:
+		n := n.(*ir.NameOffsetExpr)
+		if s.canSSAName(n.Name_) && canSSAType(n.Type()) {
 			return s.variable(n, n.Type())
 		}
 		addr := s.addr(n)
@@ -4927,7 +4934,13 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	}
 
 	t := types.NewPtr(n.Type())
+	var offset int64
 	switch n.Op() {
+	case ir.ONAMEOFFSET:
+		no := n.(*ir.NameOffsetExpr)
+		offset = no.Offset_
+		n = no.Name_
+		fallthrough
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		switch n.Class() {
@@ -4935,8 +4948,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			// global variable
 			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym().Linksym(), s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
-			if n.Offset() != 0 {
-				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Offset(), v)
+			if offset != 0 {
+				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
 			}
 			return v
 		case ir.PPARAM:
@@ -5050,7 +5063,10 @@ func (s *state) canSSA(n ir.Node) bool {
 	if n.Op() != ir.ONAME {
 		return false
 	}
-	name := n.(*ir.Name)
+	return s.canSSAName(n.(*ir.Name)) && canSSAType(n.Type())
+}
+
+func (s *state) canSSAName(name *ir.Name) bool {
 	if name.Addrtaken() {
 		return false
 	}
@@ -5084,7 +5100,7 @@ func (s *state) canSSA(n ir.Node) bool {
 		// TODO: treat as a PPARAMOUT?
 		return false
 	}
-	return canSSAType(name.Type())
+	return true
 	// TODO: try to make more variables SSAable?
 }
 
@@ -6184,9 +6200,6 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
 		return
 	}
-	if n.Class() == ir.PAUTO && n.Offset() != 0 {
-		s.Fatalf("AUTO var with offset %v %d", n, n.Offset())
-	}
 	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
@@ -6309,7 +6322,7 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
 type byXoffset []*ir.Name
 
 func (s byXoffset) Len() int           { return len(s) }
-func (s byXoffset) Less(i, j int) bool { return s[i].Offset() < s[j].Offset() }
+func (s byXoffset) Less(i, j int) bool { return s[i].FrameOffset() < s[j].FrameOffset() }
 func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func emitStackObjects(e *ssafn, pp *Progs) {
@@ -6335,7 +6348,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 		// Note: arguments and return values have non-negative Xoffset,
 		// in which case the offset is relative to argp.
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
-		off = duintptr(x, off, uint64(v.Offset()))
+		off = duintptr(x, off, uint64(v.FrameOffset()))
 		if !typesym(v.Type()).Siggen() {
 			e.Fatalf(v.Pos(), "stack object's type symbol not generated for type %s", v.Type())
 		}
@@ -6708,13 +6721,13 @@ func defframe(s *SSAGenState, e *ssafn) {
 		if n.Class() != ir.PAUTO {
 			e.Fatalf(n.Pos(), "needzero class %d", n.Class())
 		}
-		if n.Type().Size()%int64(Widthptr) != 0 || n.Offset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
+		if n.Type().Size()%int64(Widthptr) != 0 || n.FrameOffset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset())
 		}
 
-		if lo != hi && n.Offset()+n.Type().Size() >= lo-int64(2*Widthreg) {
+		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*Widthreg) {
 			// Merge with range we already have.
-			lo = n.Offset()
+			lo = n.FrameOffset()
 			continue
 		}
 
@@ -6722,7 +6735,7 @@ func defframe(s *SSAGenState, e *ssafn) {
 		p = thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 
 		// Set new range.
-		lo = n.Offset()
+		lo = n.FrameOffset()
 		hi = lo + n.Type().Size()
 	}
 
@@ -6793,12 +6806,12 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
 			a.Name = obj.NAME_PARAM
 			a.Sym = ir.Orig(n).Sym().Linksym()
-			a.Offset += n.Offset()
+			a.Offset += n.FrameOffset()
 			break
 		}
 		a.Name = obj.NAME_AUTO
 		a.Sym = n.Sym().Linksym()
-		a.Offset += n.Offset()
+		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
@@ -6941,7 +6954,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	a.Type = obj.TYPE_MEM
 	a.Sym = n.Sym().Linksym()
 	a.Reg = int16(thearch.REGSP)
-	a.Offset = n.Offset() + off
+	a.Offset = n.FrameOffset() + off
 	if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
 		a.Name = obj.NAME_PARAM
 	} else {

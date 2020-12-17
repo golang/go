@@ -239,7 +239,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
 		dowidth(n.Type())
 		vstat := readonlystaticname(n.Type())
 		var s InitSchedule
-		s.staticassign(vstat, n)
+		s.staticassign(vstat, 0, n, n.Type())
 		if s.out != nil {
 			base.Fatalf("staticassign of const generated code: %+v", n)
 		}

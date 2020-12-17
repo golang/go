@@ -74,7 +74,7 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	}
 
 	if a.Class() != ir.PAUTO {
-		return a.Offset() < b.Offset()
+		return a.FrameOffset() < b.FrameOffset()
 	}
 
 	if a.Used() != b.Used() {
@@ -186,7 +186,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 			s.stksize = Rnd(s.stksize, int64(Widthptr))
 		}
-		n.SetOffset(-s.stksize)
+		n.SetFrameOffset(-s.stksize)
 	}
 
 	s.stksize = Rnd(s.stksize, int64(Widthreg))
@@ -536,10 +536,11 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
 
 func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
-	offs := n.Offset()
+	var offs int64
 
 	switch n.Class() {
 	case ir.PAUTO:
+		offs = n.FrameOffset()
 		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(Widthptr)
@@ -551,7 +552,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 
 	case ir.PPARAM, ir.PPARAMOUT:
 		abbrev = dwarf.DW_ABRV_PARAM
-		offs += base.Ctxt.FixedFrameSize()
+		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
 	default:
 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class(), n)
 	}
@@ -693,7 +694,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			Name:          n.Sym().Name,
 			IsReturnValue: isReturnValue,
 			Abbrev:        abbrev,
-			StackOffset:   int32(n.Offset()),
+			StackOffset:   int32(n.FrameOffset()),
 			Type:          base.Ctxt.Lookup(typename),
 			DeclFile:      declpos.RelFilename(),
 			DeclLine:      declpos.RelLine(),
@@ -737,6 +738,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 	var off int64
 	switch n.Class() {
 	case ir.PAUTO:
+		off = n.FrameOffset()
 		if base.Ctxt.FixedFrameSize() == 0 {
 			off -= int64(Widthptr)
 		}
@@ -745,9 +747,9 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 			off -= int64(Widthptr)
 		}
 	case ir.PPARAM, ir.PPARAMOUT:
-		off += base.Ctxt.FixedFrameSize()
+		off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
 	}
-	return int32(off + n.Offset() + slot.Off)
+	return int32(off + slot.Off)
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.
