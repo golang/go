@@ -639,10 +639,7 @@ func (n *MethodExpr) editChildren(edit func(Node) Node) {
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Name) copy() Node {
-	c := *n
-	return &c
-}
+func (n *Name) copy() Node                    { panic("Name.copy") }
 func (n *Name) doChildren(do func(Node) error) error {
 	var err error
 	return err

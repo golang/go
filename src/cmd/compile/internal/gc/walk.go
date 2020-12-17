@@ -530,7 +530,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
 		return n
 
-	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL:
+	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 		// Perhaps refactor to use Node.mayBeShared for these instead.
 		// If these return early, make sure to still call
@@ -1999,7 +1999,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			continue
 		}
 
-		var on ir.Node
+		var on *ir.Name
 		switch n.Type().Kind() {
 		case types.TINTER:
 			if n.Type().IsEmptyInterface() {
@@ -3958,8 +3958,8 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 // type syntax expression n.Type.
 // The result of substArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = substArgTypes(n.Left, t1, t2)
-func substArgTypes(old ir.Node, types_ ...*types.Type) ir.Node {
-	n := ir.Copy(old)
+func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+	n := old.CloneName()
 
 	for _, t := range types_ {
 		dowidth(t)

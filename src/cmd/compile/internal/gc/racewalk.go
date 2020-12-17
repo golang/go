@@ -83,9 +83,9 @@ func instrument(fn *ir.Func) {
 			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
-			nodpc := ir.Copy(nodfp).(*ir.Name)
+			nodpc := nodfp.CloneName()
 			nodpc.SetType(types.Types[types.TUINTPTR])
-			nodpc.SetOffset(int64(-Widthptr))
+			nodpc.SetFrameOffset(int64(-Widthptr))
 			fn.Dcl = append(fn.Dcl, nodpc)
 			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
 			fn.Exit.Append(mkcall("racefuncexit", nil, nil))

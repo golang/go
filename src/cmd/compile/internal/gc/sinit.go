@@ -67,14 +67,16 @@ func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
 	}
 	lno := setlineno(n)
 	defer func() { base.Pos = lno }()
-	return s.staticassign(n.Left().(*ir.Name), n.Right())
+	nam := n.Left().(*ir.Name)
+	return s.staticassign(nam, 0, n.Right(), nam.Type())
 }
 
 // like staticassign but we are copying an already
 // initialized value r.
-func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
 	if rn.Class() == ir.PFUNC {
-		pfuncsym(l, rn)
+		// TODO if roff != 0 { panic }
+		pfuncsym(l, loff, rn)
 		return true
 	}
 	if rn.Class() != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
@@ -92,7 +94,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
 	orig := rn
 	r := rn.Defn.(*ir.AssignStmt).Right()
 
-	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), l.Type()) {
+	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
 		r = r.(*ir.ConvExpr).Left()
 	}
 
@@ -102,12 +104,16 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
 		fallthrough
 	case ir.ONAME:
 		r := r.(*ir.Name)
-		if s.staticcopy(l, r) {
+		if s.staticcopy(l, loff, r, typ) {
 			return true
 		}
 		// We may have skipped past one or more OCONVNOPs, so
 		// use conv to ensure r is assignable to l (#13263).
-		s.append(ir.Nod(ir.OAS, l, conv(r, l.Type())))
+		dst := ir.Node(l)
+		if loff != 0 || !types.Identical(typ, l.Type()) {
+			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
+		}
+		s.append(ir.Nod(ir.OAS, dst, conv(r, typ)))
 		return true
 
 	case ir.ONIL:
@@ -117,13 +123,13 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
 		if isZero(r) {
 			return true
 		}
-		litsym(l, r, int(l.Type().Width))
+		litsym(l, loff, r, int(typ.Width))
 		return true
 
 	case ir.OADDR:
 		if a := r.Left(); a.Op() == ir.ONAME {
 			a := a.(*ir.Name)
-			addrsym(l, a)
+			addrsym(l, loff, a, 0)
 			return true
 		}
 
@@ -131,41 +137,35 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
 		switch r.Left().Op() {
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
 			// copy pointer
-			addrsym(l, s.inittemps[r])
+			addrsym(l, loff, s.inittemps[r], 0)
 			return true
 		}
 
 	case ir.OSLICELIT:
 		// copy slice
-		a := s.inittemps[r]
-		slicesym(l, a, ir.Int64Val(r.Right()))
+		slicesym(l, loff, s.inittemps[r], ir.Int64Val(r.Right()))
 		return true
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
 		p := s.initplans[r]
-
-		n := ir.Copy(l).(*ir.Name)
 		for i := range p.E {
 			e := &p.E[i]
-			n.SetOffset(l.Offset() + e.Xoffset)
-			n.SetType(e.Expr.Type())
+			typ := e.Expr.Type()
 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				litsym(n, e.Expr, int(n.Type().Width))
+				litsym(l, loff+e.Xoffset, e.Expr, int(typ.Width))
 				continue
 			}
-			ll := ir.SepCopy(n).(*ir.Name)
 			x := e.Expr
 			if x.Op() == ir.OMETHEXPR {
 				x = x.(*ir.MethodExpr).FuncName()
 			}
-			if x.Op() == ir.ONAME && s.staticcopy(ll, x.(*ir.Name)) {
+			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
 				continue
 			}
 			// Requires computation, but we're
 			// copying someone else's computation.
-			rr := ir.SepCopy(orig).(*ir.Name)
-			rr.SetType(ll.Type())
-			rr.SetOffset(rr.Offset() + e.Xoffset)
+			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
+			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
 			setlineno(rr)
 			s.append(ir.Nod(ir.OAS, ll, rr))
 		}
@@ -176,7 +176,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
 	return false
 }
 
-func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
 	for r.Op() == ir.OCONVNOP {
 		r = r.(*ir.ConvExpr).Left()
 	}
@@ -184,11 +184,11 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 	switch r.Op() {
 	case ir.ONAME:
 		r := r.(*ir.Name)
-		return s.staticcopy(l, r)
+		return s.staticcopy(l, loff, r, typ)
 
 	case ir.OMETHEXPR:
 		r := r.(*ir.MethodExpr)
-		return s.staticcopy(l, r.FuncName())
+		return s.staticcopy(l, loff, r.FuncName(), typ)
 
 	case ir.ONIL:
 		return true
@@ -197,12 +197,12 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 		if isZero(r) {
 			return true
 		}
-		litsym(l, r, int(l.Type().Width))
+		litsym(l, loff, r, int(typ.Width))
 		return true
 
 	case ir.OADDR:
-		if nam := stataddr(r.Left()); nam != nil {
-			addrsym(l, nam)
+		if name, offset, ok := stataddr(r.Left()); ok {
+			addrsym(l, loff, name, offset)
 			return true
 		}
 		fallthrough
@@ -214,10 +214,10 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 			a := staticname(r.Left().Type())
 
 			s.inittemps[r] = a
-			addrsym(l, a)
+			addrsym(l, loff, a, 0)
 
 			// Init underlying literal.
-			if !s.staticassign(a, r.Left()) {
+			if !s.staticassign(a, 0, r.Left(), a.Type()) {
 				s.append(ir.Nod(ir.OAS, a, r.Left()))
 			}
 			return true
@@ -227,7 +227,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 	case ir.OSTR2BYTES:
 		if l.Class() == ir.PEXTERN && r.Left().Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.Left())
-			slicebytes(l, sval)
+			slicebytes(l, loff, sval)
 			return true
 		}
 
@@ -239,27 +239,25 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 		ta.SetNoalg(true)
 		a := staticname(ta)
 		s.inittemps[r] = a
-		slicesym(l, a, bound)
+		slicesym(l, loff, a, bound)
 		// Fall through to init underlying array.
 		l = a
+		loff = 0
 		fallthrough
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
 		s.initplan(r)
 
 		p := s.initplans[r]
-		n := ir.Copy(l).(*ir.Name)
 		for i := range p.E {
 			e := &p.E[i]
-			n.SetOffset(l.Offset() + e.Xoffset)
-			n.SetType(e.Expr.Type())
 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				litsym(n, e.Expr, int(n.Type().Width))
+				litsym(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
 				continue
 			}
 			setlineno(e.Expr)
-			a := ir.SepCopy(n).(*ir.Name)
-			if !s.staticassign(a, e.Expr) {
+			if !s.staticassign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
+				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
 				s.append(ir.Nod(ir.OAS, a, e.Expr))
 			}
 		}
@@ -276,7 +274,8 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 			}
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
-			pfuncsym(l, r.Func().Nname)
+			// TODO if roff != 0 { panic }
+			pfuncsym(l, loff, r.Func().Nname)
 			return true
 		}
 		closuredebugruntimecheck(r)
@@ -303,18 +302,16 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 		markTypeUsedInInterface(val.Type(), l.Sym().Linksym())
 
 		var itab *ir.AddrExpr
-		if l.Type().IsEmptyInterface() {
+		if typ.IsEmptyInterface() {
 			itab = typename(val.Type())
 		} else {
-			itab = itabname(val.Type(), l.Type())
+			itab = itabname(val.Type(), typ)
 		}
 
 		// Create a copy of l to modify while we emit data.
-		n := ir.Copy(l).(*ir.Name)
 
 		// Emit itab, advance offset.
-		addrsym(n, itab.Left().(*ir.Name))
-		n.SetOffset(n.Offset() + int64(Widthptr))
+		addrsym(l, loff, itab.Left().(*ir.Name), 0)
 
 		// Emit data.
 		if isdirectiface(val.Type()) {
@@ -323,20 +320,19 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
 				return true
 			}
 			// Copy val directly into n.
-			n.SetType(val.Type())
 			setlineno(val)
-			a := ir.SepCopy(n).(*ir.Name)
-			if !s.staticassign(a, val) {
+			if !s.staticassign(l, loff+int64(Widthptr), val, val.Type()) {
+				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(Widthptr), val.Type())
 				s.append(ir.Nod(ir.OAS, a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := staticname(val.Type())
 			s.inittemps[val] = a
-			if !s.staticassign(a, val) {
+			if !s.staticassign(a, 0, val, val.Type()) {
 				s.append(ir.Nod(ir.OAS, a, val))
 			}
-			addrsym(n, a)
+			addrsym(l, loff+int64(Widthptr), a, 0)
 		}
 
 		return true
@@ -626,11 +622,11 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// copy static to slice
 		var_ = typecheck(var_, ctxExpr|ctxAssign)
-		nam := stataddr(var_)
-		if nam == nil || nam.Class() != ir.PEXTERN {
+		name, offset, ok := stataddr(var_)
+		if !ok || name.Class() != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
-		slicesym(nam, vstat, t.NumElem())
+		slicesym(name, offset, vstat, t.NumElem())
 		return
 	}
 
@@ -989,34 +985,32 @@ func getlit(lit ir.Node) int {
 }
 
 // stataddr returns the static address of n, if n has one, or else nil.
-func stataddr(n ir.Node) *ir.Name {
+func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 	if n == nil {
-		return nil
+		return nil, 0, false
 	}
 
 	switch n.Op() {
 	case ir.ONAME:
-		return ir.SepCopy(n).(*ir.Name)
+		n := n.(*ir.Name)
+		return n, 0, true
 
 	case ir.OMETHEXPR:
 		n := n.(*ir.MethodExpr)
 		return stataddr(n.FuncName())
 
 	case ir.ODOT:
-		nam := stataddr(n.Left())
-		if nam == nil {
+		if name, offset, ok = stataddr(n.Left()); !ok {
 			break
 		}
-		nam.SetOffset(nam.Offset() + n.Offset())
-		nam.SetType(n.Type())
-		return nam
+		offset += n.Offset()
+		return name, offset, true
 
 	case ir.OINDEX:
 		if n.Left().Type().IsSlice() {
 			break
 		}
-		nam := stataddr(n.Left())
-		if nam == nil {
+		if name, offset, ok = stataddr(n.Left()); !ok {
 			break
 		}
 		l := getlit(n.Right())
@@ -1028,12 +1022,11 @@ func stataddr(n ir.Node) *ir.Name {
 		if n.Type().Width != 0 && thearch.MAXWIDTH/n.Type().Width <= int64(l) {
 			break
 		}
-		nam.SetOffset(nam.Offset() + int64(l)*n.Type().Width)
-		nam.SetType(n.Type())
-		return nam
+		offset += int64(l) * n.Type().Width
+		return name, offset, true
 	}
 
-	return nil
+	return nil, 0, false
 }
 
 func (s *InitSchedule) initplan(n ir.Node) {
@@ -1154,23 +1147,26 @@ func genAsStatic(as *ir.AssignStmt) {
 		base.Fatalf("genAsStatic as.Left not typechecked")
 	}
 
-	nam := stataddr(as.Left())
-	if nam == nil || (nam.Class() != ir.PEXTERN && as.Left() != ir.BlankNode) {
+	name, offset, ok := stataddr(as.Left())
+	if !ok || (name.Class() != ir.PEXTERN && as.Left() != ir.BlankNode) {
 		base.Fatalf("genAsStatic: lhs %v", as.Left())
 	}
 
 	switch r := as.Right(); r.Op() {
 	case ir.OLITERAL:
-		litsym(nam, r, int(r.Type().Width))
+		litsym(name, offset, r, int(r.Type().Width))
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.MethodExpr)
-		pfuncsym(nam, r.FuncName())
+		pfuncsym(name, offset, r.FuncName())
 		return
 	case ir.ONAME:
 		r := r.(*ir.Name)
+		if r.Offset() != 0 {
+			base.Fatalf("genAsStatic %+v", as)
+		}
 		if r.Class() == ir.PFUNC {
-			pfuncsym(nam, r)
+			pfuncsym(name, offset, r)
 			return
 		}
 	}

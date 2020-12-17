@@ -488,6 +488,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		}
 		return n
 
+	case ir.ONAMEOFFSET:
+		// type already set
+		return n
+
 	case ir.OPACK:
 		base.Errorf("use of package %v without selector", n.Sym())
 		n.SetType(nil)
@@ -3105,6 +3109,9 @@ func islvalue(n ir.Node) bool {
 		if n.Class() == ir.PFUNC {
 			return false
 		}
+		return true
+
+	case ir.ONAMEOFFSET:
 		return true
 	}
 

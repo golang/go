@@ -878,7 +878,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	return call
 }
 
-func eqmemfunc(size int64, t *types.Type) (fn ir.Node, needsize bool) {
+func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
 	switch size {
 	default:
 		fn = syslook("memequal")

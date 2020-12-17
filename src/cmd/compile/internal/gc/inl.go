@@ -1220,11 +1220,19 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		if n.Sym() != nil {
 			return n
 		}
+		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
+			// This happens for unnamed OLITERAL.
+			// which should really not be a *Name, but for now it is.
+			// ir.Copy(n) is not allowed generally and would panic below,
+			// but it's OK in this situation.
+			n = n.CloneName()
+			n.SetPos(subst.updatedPos(n.Pos()))
+			return n
+		}
 
-		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
-
-	//		dump("Return before substitution", n);
 	case ir.ORETURN:
+		// Since we don't handle bodies with closures,
+		// this return is guaranteed to belong to the current inlined function.
 		init := subst.list(n.Init())
 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
 			as := ir.Nod(ir.OAS2, nil, nil)

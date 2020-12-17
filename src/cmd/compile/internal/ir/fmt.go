@@ -631,6 +631,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*MethodExpr)
 		fmt.Fprint(s, n.FuncName().Sym())
 
+	case ONAMEOFFSET:
+		n := n.(*NameOffsetExpr)
+		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
+
 	case OTYPE:
 		if n.Type() == nil && n.Sym() != nil {
 			fmt.Fprint(s, n.Sym())

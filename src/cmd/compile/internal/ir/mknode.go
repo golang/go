@@ -67,18 +67,23 @@ func main() {
 		fmt.Fprintf(&buf, "\n")
 		fmt.Fprintf(&buf, "func (n *%s) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }\n", name)
 
-		fmt.Fprintf(&buf, "func (n *%s) copy() Node { c := *n\n", name)
-		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
-			switch {
-			case is(nodesType):
-				fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
-			case is(ptrFieldType):
-				fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
-			case is(slicePtrFieldType):
-				fmt.Fprintf(&buf, "c.%s = copyFields(c.%s)\n", name, name)
-			}
-		})
-		fmt.Fprintf(&buf, "return &c }\n")
+		switch name {
+		case "Name":
+			fmt.Fprintf(&buf, "func (n *%s) copy() Node {panic(\"%s.copy\")}\n", name, name)
+		default:
+			fmt.Fprintf(&buf, "func (n *%s) copy() Node { c := *n\n", name)
+			forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+				switch {
+				case is(nodesType):
+					fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
+				case is(ptrFieldType):
+					fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
+				case is(slicePtrFieldType):
+					fmt.Fprintf(&buf, "c.%s = copyFields(c.%s)\n", name, name)
+				}
+			})
+			fmt.Fprintf(&buf, "return &c }\n")
+		}
 
 		fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) error) error { var err error\n", name)
 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {

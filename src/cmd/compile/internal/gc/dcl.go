@@ -96,7 +96,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	}
 
 	if ctxt == ir.PAUTO {
-		n.SetOffset(0)
+		n.SetFrameOffset(0)
 	}
 
 	if s.Block == types.Block {
