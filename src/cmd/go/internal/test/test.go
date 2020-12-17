@@ -731,6 +731,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 				continue
 			}
 
+			// There is nothing to cover, just make building fail.
+			if len(p.GoFiles) == 0 && !p.UsesCgo() && !p.UsesSwig() {
+				continue
+			}
+
 			if haveMatch {
 				testCoverPkgs = append(testCoverPkgs, p)
 			}
