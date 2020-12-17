@@ -5,6 +5,7 @@
 package regtest
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -768,5 +769,44 @@ func main() {
 		env.Await(
 			EmptyDiagnostics("go.mod"),
 		)
+	})
+}
+
+// This test confirms that editing a go.mod file only causes metadata
+// to be invalidated when it's saved.
+func TestGoModInvalidatesOnSave(t *testing.T) {
+	t.Skipf("golang/go#42529 has not been resolved yet.")
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func main() {
+	hello()
+}
+-- hello.go --
+package main
+
+func hello() {}
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.RegexpReplace("go.mod", "module", "modul")
+		// Confirm that we still have metadata with only on-disk edits.
+		env.OpenFile("main.go")
+		file, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "hello"))
+		if filepath.Base(file) != "hello.go" {
+			t.Fatalf("expected definition in hello.go, got %s", file)
+		}
+		// Confirm that we no longer have metadata when the file is saved.
+		env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod")
+		_, _, err := env.Editor.GoToDefinition(env.Ctx, "main.go", env.RegexpSearch("main.go", "hello"))
+		if err == nil {
+			t.Fatalf("expected error, got none")
+		}
 	})
 }
