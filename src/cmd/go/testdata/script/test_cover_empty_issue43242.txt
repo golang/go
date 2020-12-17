@@ -1,0 +1,10 @@
+go test -v -coverpkg=./... ./...
+
+-- go.mod --
+module test
+-- bar/bar.go --
+package bar
+-- bar/bar_test.go --
+package bar
+-- nogo/nogo_test.go --
+package nogo
