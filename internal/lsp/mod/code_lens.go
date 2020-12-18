@@ -148,7 +148,7 @@ func firstRequireRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.
 	}
 
 	firstRequire := pm.File.Require[0].Syntax
-	if firstRequire.Start.Byte < start.Byte {
+	if start.Byte == 0 || firstRequire.Start.Byte < start.Byte {
 		start, end = firstRequire.Start, firstRequire.End
 	}
 	return lineToRange(pm.Mapper, fh.URI(), start, end)
