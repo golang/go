@@ -294,6 +294,7 @@ type CompLitExpr struct {
 	Ntype    Ntype
 	List_    Nodes // initialized values
 	Prealloc *Name
+	Len      int64 // backing array length for OSLICELIT
 }
 
 func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
