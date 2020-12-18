@@ -179,6 +179,17 @@ func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	return newNameAt(pos, op, sym)
 }
 
+// NewConstAt returns a new OLITERAL Node associated with symbol s at position pos.
+func NewConstAt(pos src.XPos, sym *types.Sym, typ *types.Type, val constant.Value) *Name {
+	if sym == nil {
+		base.Fatalf("NewConstAt nil")
+	}
+	n := newNameAt(pos, OLITERAL, sym)
+	n.SetType(typ)
+	n.SetVal(val)
+	return n
+}
+
 // newNameAt is like NewNameAt but allows sym == nil.
 func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	n := new(Name)

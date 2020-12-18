@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"go/constant"
 )
 
 var basicTypes = [...]struct {
@@ -163,14 +164,10 @@ func initUniverse() {
 	}
 
 	s = types.BuiltinPkg.Lookup("true")
-	b := nodbool(true)
-	b.(*ir.Name).SetSym(lookup("true"))
-	s.Def = b
+	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(true))
 
 	s = types.BuiltinPkg.Lookup("false")
-	b = nodbool(false)
-	b.(*ir.Name).SetSym(lookup("false"))
-	s.Def = b
+	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(false))
 
 	s = lookup("_")
 	types.BlankSym = s
