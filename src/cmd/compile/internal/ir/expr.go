@@ -136,6 +136,25 @@ func (n *AddrExpr) SetOp(op Op) {
 	}
 }
 
+// A BasicLit is a literal of basic type.
+type BasicLit struct {
+	miniExpr
+	val constant.Value
+}
+
+func NewBasicLit(pos src.XPos, val constant.Value) Node {
+	n := &BasicLit{val: val}
+	n.op = OLITERAL
+	n.pos = pos
+	if k := val.Kind(); k != constant.Unknown {
+		n.SetType(idealType(k))
+	}
+	return n
+}
+
+func (n *BasicLit) Val() constant.Value       { return n.val }
+func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
+
 // A BinaryExpr is a binary expression X Op Y,
 // or Op(X, Y) for builtin functions that do not become calls.
 type BinaryExpr struct {

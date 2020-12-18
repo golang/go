@@ -116,6 +116,21 @@ func (n *AssignStmt) editChildren(edit func(Node) Node) {
 	n.Y = maybeEdit(n.Y, edit)
 }
 
+func (n *BasicLit) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *BasicLit) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *BasicLit) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
+func (n *BasicLit) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
+}
+
 func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *BinaryExpr) copy() Node {
 	c := *n
