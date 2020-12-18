@@ -369,7 +369,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 
 		// Some error messages can also be displayed as diagnostics.
 		if criticalErr := (*source.CriticalError)(nil); errors.As(err, &criticalErr) {
-			s.storeErrorDiagnostics(ctx, snapshot, typeCheckSource, criticalErr.ErrorList)
+			s.storeErrorDiagnostics(ctx, snapshot, modSource, criticalErr.ErrorList)
 		}
 		errMsg = strings.Replace(err.Error(), "\n", " ", -1)
 	}

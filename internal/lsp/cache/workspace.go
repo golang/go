@@ -271,7 +271,8 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 		gmURI := goplsModURI(w.root)
 		if change, ok := changes[gmURI]; ok {
 			if change.exists {
-				// Only invalidate if the gopls.mod actually parses. Otherwise, stick with the current gopls.mod
+				// Only invalidate if the gopls.mod actually parses.
+				// Otherwise, stick with the current gopls.mod.
 				parsedFile, parsedModules, err := parseGoplsMod(w.root, gmURI, change.content)
 				if err == nil {
 					modFile = parsedFile
