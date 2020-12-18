@@ -892,12 +892,12 @@ func (o *Order) stmt(n ir.Node) {
 
 			case ir.OSELRECV2:
 				// case x, ok = <-c
+				r := r.(*ir.AssignListStmt)
 				recv := r.Rlist().First().(*ir.UnaryExpr)
 				recv.SetLeft(o.expr(recv.Left(), nil))
 				if recv.Left().Op() != ir.ONAME {
 					recv.SetLeft(o.copyExpr(recv.Left()))
 				}
-				r := r.(*ir.AssignListStmt)
 				init := r.PtrInit().Slice()
 				r.PtrInit().Set(nil)
 
@@ -915,13 +915,11 @@ func (o *Order) stmt(n ir.Node) {
 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == n {
 							init = init[1:]
 						}
-						dcl := ir.Nod(ir.ODCL, n, nil)
-						dcl = typecheck(dcl, ctxStmt)
+						dcl := typecheck(ir.Nod(ir.ODCL, n, nil), ctxStmt)
 						ncas.PtrInit().Append(dcl)
 					}
 					tmp := o.newTemp(t, t.HasPointers())
-					as := ir.Nod(ir.OAS, n, conv(tmp, n.Type()))
-					as = typecheck(as, ctxStmt)
+					as := typecheck(ir.Nod(ir.OAS, n, conv(tmp, n.Type())), ctxStmt)
 					ncas.PtrInit().Append(as)
 					r.PtrList().SetIndex(i, tmp)
 				}

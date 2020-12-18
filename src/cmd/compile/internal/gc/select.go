@@ -207,8 +207,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 			} else {
 				// TODO(cuonglm): make this use selectnbrecv()
 				// if selectnbrecv2(&v, &received, c) { body } else { default body }
-				receivedp := ir.Nod(ir.OADDR, n.List().Second(), nil)
-				receivedp = typecheck(receivedp, ctxExpr)
+				receivedp := typecheck(nodAddr(n.List().Second()), ctxExpr)
 				call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
 			}
 		}
@@ -323,9 +322,11 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 
 		r := ir.Nod(ir.OIF, cond, nil)
 
-		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 && !ir.IsBlank(n.List().Second()) {
-			x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
-			r.PtrBody().Append(typecheck(x, ctxStmt))
+		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 {
+			if !ir.IsBlank(n.List().Second()) {
+				x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
+				r.PtrBody().Append(typecheck(x, ctxStmt))
+			}
 		}
 
 		r.PtrBody().AppendNodes(cas.PtrBody())
