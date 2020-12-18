@@ -452,7 +452,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
 		v.budget++
 
-	case ir.OCALLPART:
+	case ir.OCALLPART, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
 	}
 

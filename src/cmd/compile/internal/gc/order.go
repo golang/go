@@ -1281,7 +1281,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		n := n.(*ir.CompLitExpr)
 		o.exprList(n.List())
 		if n.Transient() {
-			t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
+			t := types.NewArray(n.Type().Elem(), n.Len)
 			n.Prealloc = o.newTemp(t, false)
 		}
 		return n

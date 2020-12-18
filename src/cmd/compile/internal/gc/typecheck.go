@@ -2850,7 +2850,8 @@ func typecheckcomplit(n *ir.CompLitExpr) (res ir.Node) {
 	case types.TSLICE:
 		length := typecheckarraylit(t.Elem(), -1, n.List().Slice(), "slice literal")
 		n.SetOp(ir.OSLICELIT)
-		n.SetRight(nodintconst(length))
+		n.SetRight(nil)
+		n.Len = length
 
 	case types.TMAP:
 		var cs constSet
