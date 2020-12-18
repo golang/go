@@ -723,6 +723,9 @@ func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Rang
 		return errors.Errorf("textDocument/codeAction: %w", err)
 	}
 	for _, action := range actions {
+		if action.Title == "" {
+			return errors.Errorf("empty title for code action")
+		}
 		var match bool
 		for _, o := range only {
 			if action.Kind == o {
