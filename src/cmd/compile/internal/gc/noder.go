@@ -441,7 +441,6 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 
 	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
-		n := n.(*ir.Name)
 		if i >= len(values) {
 			base.Errorf("missing value in const declaration")
 			break
@@ -492,8 +491,8 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	return nod
 }
 
-func (p *noder) declNames(op ir.Op, names []*syntax.Name) []ir.Node {
-	nodes := make([]ir.Node, 0, len(names))
+func (p *noder) declNames(op ir.Op, names []*syntax.Name) []*ir.Name {
+	nodes := make([]*ir.Name, 0, len(names))
 	for _, name := range names {
 		nodes = append(nodes, p.declName(op, name))
 	}
