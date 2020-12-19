@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -97,23 +96,13 @@ func resolve(n ir.Node) (res ir.Node) {
 			if pkgName := dotImportRefs[id]; pkgName != nil {
 				pkgName.Used = true
 			}
-
-			if sym.Def == nil {
-				if _, ok := declImporter[sym]; !ok {
-					return n // undeclared name
-				}
-				sym.Def = ir.NewDeclNameAt(src.NoXPos, sym)
-			}
-			n = ir.AsNode(sym.Def)
 		}
 
-		// Stub ir.Name left for us by iimport.
-		n := n.(*ir.Name)
 		if inimport {
 			base.Fatalf("recursive inimport")
 		}
 		inimport = true
-		expandDecl(n)
+		n = expandDecl(n)
 		inimport = false
 		return n
 	}

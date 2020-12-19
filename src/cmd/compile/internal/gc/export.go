@@ -77,126 +77,70 @@ func dumpexport(bout *bio.Writer) {
 	}
 }
 
-func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Name {
-	n := ir.AsNode(s.PkgDef())
-	if n == nil {
-		// iimport should have created a stub ONONAME
-		// declaration for all imported symbols. The exception
-		// is declarations for Runtimepkg, which are populated
-		// by loadsys instead.
-		if s.Pkg != Runtimepkg {
-			base.Fatalf("missing ONONAME for %v\n", s)
-		}
+func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class) *ir.Name {
+	if n := s.PkgDef(); n != nil {
+		base.Fatalf("importsym of symbol that already exists: %v", n)
+	}
 
-		n = ir.NewDeclNameAt(src.NoXPos, s)
-		s.SetPkgDef(n)
-		s.Importdef = ipkg
-	}
-	if n.Op() != ir.ONONAME && n.Op() != op {
-		redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
-	}
-	return n.(*ir.Name)
+	n := ir.NewDeclNameAt(pos, s)
+	n.SetOp(op) // TODO(mdempsky): Add as argument to NewDeclNameAt.
+	n.SetClass(ctxt)
+	s.SetPkgDef(n)
+	s.Importdef = ipkg
+	return n
 }
 
 // importtype returns the named type declared by symbol s.
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
-func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
-	n := importsym(ipkg, s, ir.OTYPE)
-	if n.Op() != ir.OTYPE {
-		t := types.NewNamed(n)
-		n.SetOp(ir.OTYPE)
-		n.SetPos(pos)
-		n.SetType(t)
-		n.SetClass(ir.PEXTERN)
-	}
-
-	t := n.Type()
-	if t == nil {
-		base.Fatalf("importtype %v", s)
-	}
-	return t
+func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *ir.Name {
+	n := importsym(ipkg, pos, s, ir.OTYPE, ir.PEXTERN)
+	n.SetType(types.NewNamed(n))
+	return n
 }
 
 // importobj declares symbol s as an imported object representable by op.
 // ipkg is the package being imported
-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) ir.Node {
-	n := importsym(ipkg, s, op)
-	if n.Op() != ir.ONONAME {
-		if n.Op() == op && (op == ir.ONAME && n.Class() != ctxt || !types.Identical(n.Type(), t)) {
-			redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
-		}
-		return nil
-	}
-
-	n.SetOp(op)
-	n.SetPos(pos)
-	n.SetClass(ctxt)
+func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) *ir.Name {
+	n := importsym(ipkg, pos, s, op, ctxt)
+	n.SetType(t)
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
 	}
-	n.SetType(t)
 	return n
 }
 
 // importconst declares symbol s as an imported constant with type t and value val.
 // ipkg is the package being imported
-func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) {
+func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) *ir.Name {
 	n := importobj(ipkg, pos, s, ir.OLITERAL, ir.PEXTERN, t)
-	if n == nil { // TODO: Check that value matches.
-		return
-	}
-
 	n.SetVal(val)
-
-	if base.Flag.E != 0 {
-		fmt.Printf("import const %v %L = %v\n", s, t, val)
-	}
+	return n
 }
 
 // importfunc declares symbol s as an imported function with type t.
 // ipkg is the package being imported
-func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
 	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
-	if n == nil {
-		return
-	}
-	name := n.(*ir.Name)
 
 	fn := ir.NewFunc(pos)
 	fn.SetType(t)
-	name.SetFunc(fn)
-	fn.Nname = name
+	n.SetFunc(fn)
+	fn.Nname = n
 
-	if base.Flag.E != 0 {
-		fmt.Printf("import func %v%S\n", s, t)
-	}
+	return n
 }
 
 // importvar declares symbol s as an imported variable with type t.
 // ipkg is the package being imported
-func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
-	if n == nil {
-		return
-	}
-
-	if base.Flag.E != 0 {
-		fmt.Printf("import var %v %L\n", s, t)
-	}
+func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+	return importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
 }
 
 // importalias declares symbol s as an imported type alias with type t.
 // ipkg is the package being imported
-func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
-	if n == nil {
-		return
-	}
-
-	if base.Flag.E != 0 {
-		fmt.Printf("import type %v = %L\n", s, t)
-	}
+func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+	return importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
 }
 
 func dumpasmhdr() {
