@@ -82,9 +82,8 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
 		base.Fatalf("importsym of symbol that already exists: %v", n)
 	}
 
-	n := ir.NewDeclNameAt(pos, s)
-	n.SetOp(op) // TODO(mdempsky): Add as argument to NewDeclNameAt.
-	n.SetClass(ctxt)
+	n := ir.NewDeclNameAt(pos, op, s)
+	n.SetClass(ctxt) // TODO(mdempsky): Move this into NewDeclNameAt too?
 	s.SetPkgDef(n)
 	s.Importdef = ipkg
 	return n

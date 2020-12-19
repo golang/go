@@ -971,7 +971,7 @@ func (r *importReader) node() ir.Node {
 	// statements
 	case ir.ODCL:
 		pos := r.pos()
-		lhs := ir.NewDeclNameAt(pos, r.ident())
+		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
 		typ := ir.TypeNode(r.typ())
 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
 

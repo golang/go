@@ -374,7 +374,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 }
 
 func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
-	names := p.declNames(decl.NameList)
+	names := p.declNames(ir.ONAME, decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
 	var exprs []ir.Node
@@ -425,7 +425,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		p.checkUnused(pragma)
 	}
 
-	names := p.declNames(decl.NameList)
+	names := p.declNames(ir.OLITERAL, decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
 	var values []ir.Node
@@ -450,8 +450,6 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		if decl.Values == nil {
 			v = ir.DeepCopy(n.Pos(), v)
 		}
-
-		n.SetOp(ir.OLITERAL)
 		declare(n, dclcontext)
 
 		n.Ntype = typ
@@ -471,8 +469,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
-	n := p.declName(decl.Name)
-	n.SetOp(ir.OTYPE)
+	n := p.declName(ir.OTYPE, decl.Name)
 	declare(n, dclcontext)
 
 	// decl.Type may be nil but in that case we got a syntax error during parsing
@@ -495,16 +492,16 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	return nod
 }
 
-func (p *noder) declNames(names []*syntax.Name) []ir.Node {
+func (p *noder) declNames(op ir.Op, names []*syntax.Name) []ir.Node {
 	nodes := make([]ir.Node, 0, len(names))
 	for _, name := range names {
-		nodes = append(nodes, p.declName(name))
+		nodes = append(nodes, p.declName(op, name))
 	}
 	return nodes
 }
 
-func (p *noder) declName(name *syntax.Name) *ir.Name {
-	return ir.NewDeclNameAt(p.pos(name), p.name(name))
+func (p *noder) declName(op ir.Op, name *syntax.Name) *ir.Name {
+	return ir.NewDeclNameAt(p.pos(name), op, p.name(name))
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
