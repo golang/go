@@ -24,7 +24,7 @@ const (
 	embedFiles
 )
 
-func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
+func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
 		imp, ok := decl.(*syntax.ImportDecl)
@@ -66,7 +66,7 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
 		return exprs
 	}
 
-	v := names[0].(*ir.Name)
+	v := names[0]
 	Target.Embeds = append(Target.Embeds, v)
 	v.Embed = new([]ir.Embed)
 	for _, e := range embeds {

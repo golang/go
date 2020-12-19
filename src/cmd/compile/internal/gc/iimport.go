@@ -972,8 +972,14 @@ func (r *importReader) node() ir.Node {
 	case ir.ODCL:
 		pos := r.pos()
 		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
-		typ := ir.TypeNode(r.typ())
-		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+		lhs.SetType(r.typ())
+
+		declare(lhs, ir.PAUTO)
+
+		var stmts ir.Nodes
+		stmts.Append(ir.Nod(ir.ODCL, lhs, nil))
+		stmts.Append(ir.Nod(ir.OAS, lhs, nil))
+		return npos(pos, liststmt(stmts.Slice()))
 
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter
