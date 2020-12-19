@@ -141,7 +141,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 		as2.PtrRlist().Set1(e)
 		for _, v := range vl {
 			v := v.(*ir.Name)
-			v.SetOp(ir.ONAME)
 			declare(v, dclcontext)
 			v.Ntype = t
 			v.Defn = as2
@@ -166,7 +165,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 			el = el[1:]
 		}
 
-		v.SetOp(ir.ONAME)
 		declare(v, dclcontext)
 		v.Ntype = t
 
