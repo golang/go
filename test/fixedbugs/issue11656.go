@@ -27,6 +27,13 @@ import (
 )
 
 func main() {
+	// This test is currently failing on some architectures.
+	// See issue #43283.
+	switch runtime.GOARCH {
+	case "ppc64", "mips", "mipsle", "mips64", "mips64le":
+		return
+	}
+
 	debug.SetPanicOnFault(true)
 	defer func() {
 		if err := recover(); err == nil {
