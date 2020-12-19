@@ -177,10 +177,7 @@ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
-	n := 0
-	for range s {
-		n++
-	}
+	n := len(s)
 
 	var a []rune
 	if buf != nil && n <= len(buf) {
