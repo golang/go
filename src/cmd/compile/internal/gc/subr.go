@@ -304,6 +304,14 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
+			// Call itabname so that (src, dst)
+			// gets added to itabs early, which allows
+			// us to de-virtualize calls through this
+			// type/interface pair later. See peekitabs in reflect.go
+			if isdirectiface(src) && !dst.IsEmptyInterface() {
+				itabname(src, dst)
+			}
+
 			return ir.OCONVIFACE, ""
 		}
 
@@ -1404,14 +1412,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		}
 	}
 
-	// We're going to emit an OCONVIFACE.
-	// Call itabname so that (t, iface)
-	// gets added to itabs early, which allows
-	// us to de-virtualize calls through this
-	// type/interface pair later. See peekitabs in reflect.go
-	if isdirectiface(t0) && !iface.IsEmptyInterface() {
-		itabname(t0, iface)
-	}
 	return true
 }
 
