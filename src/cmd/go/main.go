@@ -90,6 +90,12 @@ func main() {
 	log.SetFlags(0)
 
 	args := flag.Args()
+
+	// go go gadget build
+	if len(args) >= 2 && args[0] == "go" && args[1] == "gadget" {
+		args = args[2:]
+	}
+
 	if len(args) < 1 {
 		base.Usage()
 	}
