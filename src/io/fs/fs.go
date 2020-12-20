@@ -16,8 +16,7 @@ import (
 //
 // The FS interface is the minimum implementation required of the file system.
 // A file system may implement additional interfaces,
-// such as fsutil.ReadFileFS, to provide additional or optimized functionality.
-// See io/fsutil for details.
+// such as ReadFileFS, to provide additional or optimized functionality.
 type FS interface {
 	// Open opens the named file.
 	//

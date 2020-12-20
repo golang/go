@@ -8,9 +8,9 @@
 
 package p
 
-var _ = 1 / 1e-600000000i  // ERROR "complex division by zero"
-var _ = 1i / 1e-600000000  // ERROR "complex division by zero"
-var _ = 1i / 1e-600000000i // ERROR "complex division by zero"
+var _ = 1 / 1e-600000000i  // ERROR "division by zero"
+var _ = 1i / 1e-600000000  // ERROR "division by zero"
+var _ = 1i / 1e-600000000i // ERROR "division by zero"
 
-var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "complex division by zero"
-var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "complex division by zero"
+var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "division by zero"
+var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "division by zero"

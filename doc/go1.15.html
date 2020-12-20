@@ -397,6 +397,19 @@ Do not send CLs removing the interior tags from such phrases.
   documentation</a> for more information.
 </p>
 
+<p><!-- CL 250940 -->
+  In Go 1.15.3 and later, cgo will not permit Go code to allocate an
+  undefined struct type (a C struct defined as just <code>struct
+  S;</code> or similar) on the stack or heap.
+  Go code will only be permitted to use pointers to those types.
+  Allocating an instance of such a struct and passing a pointer, or a
+  full struct value, to C code was always unsafe and unlikely to work
+  correctly; it is now forbidden.
+  The fix is to either rewrite the Go code to use only pointers, or to
+  ensure that the Go code sees the full definition of the struct by
+  including the appropriate C header file.
+</p>
+
 <h3 id="commonname">X.509 CommonName deprecation</h3>
 
 <p><!-- CL 231379 -->

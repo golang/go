@@ -434,11 +434,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// directory.
 	if !*getD && len(pkgPatterns) > 0 {
 		work.BuildInit()
-		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
+		load.CheckPackageErrors(pkgs)
 		work.InstallPackages(ctx, pkgPatterns, pkgs)
 		// TODO(#40276): After Go 1.16, print a deprecation notice when building
 		// and installing main packages. 'go install pkg' or
 		// 'go install pkg@version' should be used instead.
+		// Give the specific argument to use if possible.
 	}
 
 	if !modload.HasModRoot() {

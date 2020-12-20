@@ -483,6 +483,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			symtype = s.Sym()
 			symtyperel = s.Sym()
 		}
+		setCarrierSym(sym.STYPE, symtype)
+		setCarrierSym(sym.STYPERELRO, symtyperel)
 	}
 
 	groupSym := func(name string, t sym.SymKind) loader.Sym {
@@ -490,6 +492,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		s.SetType(t)
 		s.SetSize(0)
 		s.SetLocal(true)
+		setCarrierSym(t, s.Sym())
 		return s.Sym()
 	}
 	var (
@@ -799,4 +802,24 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
 	}
 	return symGroupType
+}
+
+// CarrierSymByType tracks carrier symbols and their sizes.
+var CarrierSymByType [sym.SXREF]struct {
+	Sym  loader.Sym
+	Size int64
+}
+
+func setCarrierSym(typ sym.SymKind, s loader.Sym) {
+	if CarrierSymByType[typ].Sym != 0 {
+		panic(fmt.Sprintf("carrier symbol for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Sym = s
+}
+
+func setCarrierSize(typ sym.SymKind, sz int64) {
+	if CarrierSymByType[typ].Size != 0 {
+		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
+	}
+	CarrierSymByType[typ].Size = sz
 }

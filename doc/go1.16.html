@@ -99,10 +99,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="tools">Tools</h2>
 
-<p>
-  TODO
-</p>
-
 <h3 id="go-command">Go command</h3>
 
 <h4 id="modules">Modules</h4>
@@ -275,6 +271,20 @@ Do not send CLs removing the interior tags from such phrases.
   but without the extra step.
 </p>
 
+<h4 id="overlay-flag">The <code>-overlay</code> flag</h4>
+
+<p><!-- golang.org/issue/39958 -->
+  The <code>-overlay</code> flag specifies a JSON configuration file containing
+  a set of file path replacements. The <code>-overlay</code> flag may be used
+  with all build commands and <code>go</code> <code>mod</code> subcommands.
+  It is primarily intended to be used by editor tooling such as gopls to
+  understand the effects of unsaved changes to source files.  The config file
+  maps actual file paths to replacement file paths and the <code>go</code>
+  command and its builds will run as if the actual file paths exist with the
+  contents given by the replacement file paths, or don't exist if the replacement
+  file paths are empty.
+</p>
+
 <h3 id="cgo">Cgo</h3>
 
 <p><!-- CL 252378 -->
@@ -287,11 +297,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<p>
-  TODO
+<h4 id="vet-string-int">New warning for invalid testing.T use in
+goroutines</h4>
 
-  <!-- CL 235677: https://golang.org/cl/235677: cmd/vet: bring in pass to catch invalid uses of testing.T in goroutines -->
+<p><!-- CL 235677 -->
+  The vet tool now warns about invalid calls to the <code>testing.T</code>
+  method <code>Fatal</code> from within a goroutine created during the test.
+  This also warns on calls to <code>Fatalf</code>, <code>FailNow</code>, and
+  <code>Skip{,f,Now}</code> methods on <code>testing.T</code> tests or
+  <code>testing.B</code> benchmarks.
 </p>
+
+<p>
+  Calls to these methods stop the execution of the created goroutine and not
+  the <code>Test*</code> or <code>Benchmark*</code> function. So these are
+  <a href="/pkg/testing/#T.FailNow">required</a> to be called by the goroutine
+  running the test or benchmark function. For example:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Fatal("oops") // This exits the inner func instead of TestFoo.
+        }
+        ...
+    }()
+}
+</pre>
+
+<p>
+  Code calling <code>t.Fatal</code> (or a similar method) from a created
+  goroutine should be rewritten to signal the test failure using
+  <code>t.Error</code> and exit the goroutine early using an alternative
+  method, such as using a <code>return</code> statement. The previous example
+  could be rewritten as:
+</p>
+
+<pre>
+func TestFoo(t *testing.T) {
+    go func() {
+        if condition() {
+            t.Error("oops")
+            return
+        }
+        ...
+    }()
+}
+</pre>
 
 <p><!-- CL 248686, CL 276372 -->
   The vet tool now warns about amd64 assembly that clobbers the BP
@@ -326,7 +379,7 @@ Do not send CLs removing the interior tags from such phrases.
   summarizing its execution time and memory allocation. This trace can
   be used to find bottlenecks or regressions in Go startup
   performance.
-  The <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GODEBUG</code><
+  The <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GODEBUG</code>
   documentation</a> describes the format.
 </p>
 
@@ -408,7 +461,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   On the producer side of the interface,
-  the new <a href="/pkg/embed/#FS">embed.FS</code></a> type
+  the new <a href="/pkg/embed/#FS"><code>embed.FS</code></a> type
   implements <code>fs.FS</code>, as does
   <a href="/pkg/archive/zip/#Reader"><code>zip.Reader</code></a>.
   The new <a href="/pkg/os/#DirFS"><code>os.DirFS</code></a> function
@@ -438,10 +491,10 @@ Do not send CLs removing the interior tags from such phrases.
   implementations.
 </p>
 
-<p>
-  TODO: when the "Minor changes to the library" section is close to completion,
-  decide if any changes are worth factoring out and highlighting in "Core library"
-</p>
+<!-- okay-after-beta1
+  TODO: decide if any additional changes are worth factoring out from
+  "Minor changes to the library" and highlighting in "Core library"
+-->
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -449,10 +502,6 @@ Do not send CLs removing the interior tags from such phrases.
   As always, there are various minor changes and updates to the library,
   made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
   in mind.
-</p>
-
-<p>
-  TODO: complete this section, resolve TODOs below, add missing entries
 </p>
 
 <dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
@@ -488,16 +537,6 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/crypto/tls/#Conn.Close"><code>Conn.Close</code></a>
       before sending the "close notify" alert, in order to prevent blocking
       indefinitely.
-    </p>
-
-    <p><!-- CL 246338 -->
-      The new <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>Conn.HandshakeContext</code></a>
-      method allows cancellation of an in-progress handshake. The provided
-      context is accessible through the new
-      <a href="/pkg/crypto/tls#ClientHelloInfo.Context"><code>ClientHelloInfo.Context</code></a>
-      and <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-      <code>CertificateRequestInfo.Context</code></a> methods. Canceling the
-      context after the handshake has finished has no effect.
     </p>
 
     <p><!-- CL 239748 -->
@@ -672,8 +711,8 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 250357 -->
       The case of I/O on a closed network connection, or I/O on a network
       connection that is closed before any of the I/O completes, can now
-      be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
-      A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+      be detected using the new <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a>
+      error. A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
       In earlier releases the only way to reliably detect this case was to
       match the string returned by the <code>Error</code> method
       with <code>"use of closed network connection"</code>.
@@ -722,13 +761,6 @@ Do not send CLs removing the interior tags from such phrases.
       generating a SameSite key without a value.
     </p>
 
-    <p><!-- CL 246338 -->
-      The <a href="/pkg/net/http/"><code>net/http</code></a> package now passes the
-      <a href="/pkg/net/http/#Request.Context"><code>Request</code> context</a> to
-      <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>tls.Conn.HandshakeContext</code></a>
-      when performing TLS handshakes.
-    </p>
-
     <p><!-- CL 250039 -->
       The <a href="/pkg/net/http/#Client">Client</a> now sends
       an explicit <code>Content-Length:</code> <code>0</code>
@@ -737,9 +769,10 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 249440 -->
-      The <a href="/pkg/net/http/#ProxyFromEnvironment">ProxyFromEnvironment</a> function
-      no longer returns the setting of the <code>HTTP_PROXY</code> environment
-      variable for <code>https://</code> URLs when <code>HTTPS_PROXY</code> is unset.
+      The <a href="/pkg/net/http/#ProxyFromEnvironment"><code>ProxyFromEnvironment</code></a>
+      function no longer returns the setting of the <code>HTTP_PROXY</code>
+      environment variable for <code>https://</code> URLs when
+      <code>HTTPS_PROXY</code> is unset.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -747,7 +780,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 260637 -->
-      The <a href="/pkg/net/http/httputil/#ReverseProxy">ReverseProxy</a>
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
       now flushes buffered data more aggressively when proxying
       streamed responses with unknown body lengths.
     </p>
@@ -790,9 +823,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="path"><dt><a href="/pkg/path/">path</a></dt>
   <dd>
     <p><!-- CL 264397, golang.org/issues/28614 -->
-      The <code>Match</code> and <code>Glob</code> functions now
-      return an error if the unmatched part of the pattern has a
-      syntax error. Previously, the functions returned early on a failed
+      The <a href="/pkg/path/#Match"><code>Match</code></a> function now
+      returns an error if the unmatched part of the pattern has a
+      syntax error. Previously, the function returned early on a failed
       match, and thus did not report any later syntax error in the
       pattern.
     </p>
@@ -802,7 +835,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
     <p><!-- CL 264397, golang.org/issues/28614 -->
-      The <code>Match</code> and <code>Glob</code> functions now
+      The <a href="/pkg/path/filepath#Match"><code>Match</code></a> and
+      <a href="/pkg/path/filepath#Glob"><code>Glob</code></a> functions now
       return an error if the unmatched part of the pattern has a
       syntax error. Previously, the functions returned early on a failed
       match, and thus did not report any later syntax error in the
@@ -814,9 +848,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 248341, golang.org/issues/40281 -->
-      <code>StructTag</code> now allows multiple space-separated keys
-      in key:value pairs, as in <code>`json xml:"field1"`</code>
-      (equivalent to <code>`json:"field1" xml:"field1"`</code>).
+      <a href="/pkg/reflect/#StructTag"><code>StructTag</code></a>
+      now allows multiple space-separated keys in key:value pairs,
+      as in <code>`json xml:"field1"`</code> (equivalent to
+      <code>`json:"field1" xml:"field1"`</code>).
     </p>
   </dd>
 </dl><!-- reflect -->

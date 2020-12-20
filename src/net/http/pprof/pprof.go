@@ -91,7 +91,7 @@ func init() {
 func Cmdline(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
+	fmt.Fprint(w, strings.Join(os.Args, "\x00"))
 }
 
 func sleep(r *http.Request, d time.Duration) {

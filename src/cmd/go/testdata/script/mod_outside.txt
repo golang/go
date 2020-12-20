@@ -189,13 +189,16 @@ exists $GOPATH/bin/printversion$GOEXE
 
 # 'go install' should fail if a package argument must be resolved to a module.
 ! go install example.com/printversion
-stderr 'no required module provides package example.com/printversion: working directory is not part of a module'
+stderr '^go install: version is required when current directory is not in a module\n\tTry ''go install example.com/printversion@latest'' to install the latest version$'
 
 # 'go install' should fail if a source file imports a package that must be
 # resolved to a module.
 ! go install ./needmod/needmod.go
 stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module'
 
+# 'go install' should succeed with a package in GOROOT.
+go install cmd/addr2line
+! stderr .
 
 # 'go run' with a verison should fail due to syntax.
 ! go run example.com/printversion@v1.0.0
