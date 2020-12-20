@@ -894,7 +894,7 @@ func (o *Order) stmt(n ir.Node) {
 				// case x, ok = <-c
 				recv := r.Rlist().First().(*ir.UnaryExpr)
 				recv.SetLeft(o.expr(recv.Left(), nil))
-				if recv.Left().Op() != ir.ONAME {
+				if !ir.IsAutoTmp(recv.Left()) {
 					recv.SetLeft(o.copyExpr(recv.Left()))
 				}
 				r := r.(*ir.AssignListStmt)

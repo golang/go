@@ -6003,7 +6003,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 				// Load type out of itab, build interface with existing idata.
 				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
 				typ := s.load(byteptr, off)
-				idata := s.newValue1(ssa.OpIData, n.Type(), iface)
+				idata := s.newValue1(ssa.OpIData, byteptr, iface)
 				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
 				return
 			}
@@ -6025,7 +6025,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			bOk.AddEdgeTo(bEnd)
 			bFail.AddEdgeTo(bEnd)
 			s.startBlock(bEnd)
-			idata := s.newValue1(ssa.OpIData, n.Type(), iface)
+			idata := s.newValue1(ssa.OpIData, byteptr, iface)
 			res = s.newValue2(ssa.OpIMake, n.Type(), s.variable(typVar, byteptr), idata)
 			resok = cond
 			delete(s.vars, typVar)

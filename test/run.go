@@ -438,7 +438,7 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	if name == ctxt.GOOS || name == ctxt.GOARCH {
+	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
 		return true
 	}
 

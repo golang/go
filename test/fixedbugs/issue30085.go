@@ -7,6 +7,6 @@
 package main
 
 func main() {
-	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
-	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values"
+	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
+	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|wrong number of initializations"
 }
