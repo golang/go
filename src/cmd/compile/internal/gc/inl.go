@@ -832,15 +832,19 @@ func (v *reassignVisitor) visit(n *Node) *Node {
 		return nil
 	}
 	switch n.Op {
-	case OAS:
+	case OAS, OSELRECV:
 		if n.Left == v.name && n != v.name.Name.Defn {
 			return n
 		}
-	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
+	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
 		for _, p := range n.List.Slice() {
 			if p == v.name && n != v.name.Name.Defn {
 				return n
 			}
+		}
+	case OSELRECV2:
+		if (n.Left == v.name || n.List.First() == v.name) && n != v.name.Name.Defn {
+			return n
 		}
 	}
 	if a := v.visit(n.Left); a != nil {
