@@ -100,13 +100,26 @@ func autolabel(prefix string) *types.Sym {
 	return lookupN(prefix, int(n))
 }
 
-// find all the exported symbols in package opkg
+// dotImports tracks all PkgNames that have been dot-imported.
+var dotImports []*ir.PkgName
+
+// dotImportRefs maps idents introduced by importDot back to the
+// ir.PkgName they were dot-imported through.
+var dotImportRefs map[*ir.Ident]*ir.PkgName
+
+// find all the exported symbols in package referenced by PkgName,
 // and make them available in the current package
-func importdot(opkg *types.Pkg, pack *ir.PkgName) {
-	n := 0
+func importDot(pack *ir.PkgName) {
+	if dotImportRefs == nil {
+		dotImportRefs = make(map[*ir.Ident]*ir.PkgName)
+	}
+
+	opkg := pack.Pkg
 	for _, s := range opkg.Syms {
 		if s.Def == nil {
-			continue
+			if _, ok := declImporter[s]; !ok {
+				continue
+			}
 		}
 		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
@@ -118,21 +131,36 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
 			continue
 		}
 
-		s1.Def = s.Def
-		s1.Block = s.Block
-		if ir.AsNode(s1.Def).Name() == nil {
-			ir.Dump("s1def", ir.AsNode(s1.Def))
-			base.Fatalf("missing Name")
-		}
-		ir.AsNode(s1.Def).Name().PkgName = pack
-		s1.Origpkg = opkg
-		n++
+		id := ir.NewIdent(src.NoXPos, s)
+		dotImportRefs[id] = pack
+		s1.Def = id
+		s1.Block = 1
 	}
 
-	if n == 0 {
-		// can't possibly be used - there were no symbols
-		base.ErrorfAt(pack.Pos(), "imported and not used: %q", opkg.Path)
+	dotImports = append(dotImports, pack)
+}
+
+// checkDotImports reports errors for any unused dot imports.
+func checkDotImports() {
+	for _, pack := range dotImports {
+		if !pack.Used {
+			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
+		}
 	}
+
+	// No longer needed; release memory.
+	dotImports = nil
+	dotImportRefs = nil
+}
+
+// nodAddr returns a node representing &n at base.Pos.
+func nodAddr(n ir.Node) *ir.AddrExpr {
+	return nodAddrAt(base.Pos, n)
+}
+
+// nodAddrPos returns a node representing &n at position pos.
+func nodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+	return ir.NewAddrExpr(pos, n)
 }
 
 // newname returns a new ONAME Node associated with symbol s.
@@ -519,8 +547,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		op = ir.OCONV
 	}
 
-	r := ir.Nod(op, n, nil)
-	r.SetType(t)
+	r := ir.NewConvExpr(base.Pos, op, t, n)
 	r.SetTypecheck(1)
 	r.SetImplicit(true)
 	return r
@@ -528,7 +555,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 
 // backingArrayPtrLen extracts the pointer and length from a slice or string.
 // This constructs two nodes referring to n, so n must be a cheapexpr.
-func backingArrayPtrLen(n ir.Node) (ptr, len ir.Node) {
+func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	var init ir.Nodes
 	c := cheapexpr(n, &init)
 	if c != n || init.Len() != 0 {
@@ -540,17 +567,17 @@ func backingArrayPtrLen(n ir.Node) (ptr, len ir.Node) {
 	} else {
 		ptr.SetType(n.Type().Elem().PtrTo())
 	}
-	len = ir.Nod(ir.OLEN, n, nil)
-	len.SetType(types.Types[types.TINT])
-	return ptr, len
+	length = ir.Nod(ir.OLEN, n, nil)
+	length.SetType(types.Types[types.TINT])
+	return ptr, length
 }
 
-func syslook(name string) ir.Node {
+func syslook(name string) *ir.Name {
 	s := Runtimepkg.Lookup(name)
 	if s == nil || s.Def == nil {
 		base.Fatalf("syslook: can't find runtime.%s", name)
 	}
-	return ir.AsNode(s.Def)
+	return ir.AsNode(s.Def).(*ir.Name)
 }
 
 // typehash computes a hash value for type t to use in type switch statements.
@@ -578,7 +605,11 @@ func calcHasCall(n ir.Node) bool {
 	}
 
 	switch n.Op() {
-	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE:
+	default:
+		base.Fatalf("calcHasCall %+v", n)
+		panic("unreachable")
+
+	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE, ir.ONAMEOFFSET:
 		if n.HasCall() {
 			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
 		}
@@ -590,6 +621,7 @@ func calcHasCall(n ir.Node) bool {
 		if instrumenting {
 			return true
 		}
+		return n.Left().HasCall() || n.Right().HasCall()
 	case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
 		ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
 		// These ops might panic, make sure they are done
@@ -598,27 +630,68 @@ func calcHasCall(n ir.Node) bool {
 
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
-	case ir.OADD, ir.OSUB, ir.ONEG, ir.OMUL:
+	case ir.OADD, ir.OSUB, ir.OMUL:
 		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
+		return n.Left().HasCall() || n.Right().HasCall()
+	case ir.ONEG:
+		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
+			return true
+		}
+		return n.Left().HasCall()
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
 		if thearch.SoftFloat && (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()]) {
 			return true
 		}
+		return n.Left().HasCall() || n.Right().HasCall()
 	case ir.OCONV:
 		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()])) {
 			return true
 		}
-	}
+		return n.Left().HasCall()
 
-	if n.Left() != nil && n.Left().HasCall() {
-		return true
+	case ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOPY, ir.OCOMPLEX, ir.OEFACE:
+		return n.Left().HasCall() || n.Right().HasCall()
+
+	case ir.OAS:
+		return n.Left().HasCall() || n.Right() != nil && n.Right().HasCall()
+
+	case ir.OADDR:
+		return n.Left().HasCall()
+	case ir.OPAREN:
+		return n.Left().HasCall()
+	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
+		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
+		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
+		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.ONEWOBJ, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
+		return n.Left().HasCall()
+	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
+		return n.Left().HasCall()
+
+	case ir.OGETG, ir.OCLOSUREREAD, ir.OMETHEXPR:
+		return false
+
+	// TODO(rsc): These look wrong in various ways but are what calcHasCall has always done.
+	case ir.OADDSTR:
+		// TODO(rsc): This used to check left and right, which are not part of OADDSTR.
+		return false
+	case ir.OBLOCK:
+		// TODO(rsc): Surely the block's statements matter.
+		return false
+	case ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.OBYTES2STRTMP, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2BYTESTMP, ir.OSTR2RUNES, ir.ORUNESTR:
+		// TODO(rsc): Some conversions are themselves calls, no?
+		return n.Left().HasCall()
+	case ir.ODOTTYPE2:
+		// TODO(rsc): Shouldn't this be up with ODOTTYPE above?
+		return n.Left().HasCall()
+	case ir.OSLICEHEADER:
+		// TODO(rsc): What about len and cap?
+		return n.Left().HasCall()
+	case ir.OAS2DOTTYPE, ir.OAS2FUNC:
+		// TODO(rsc): Surely we need to check List and Rlist.
+		return false
 	}
-	if n.Right() != nil && n.Right().HasCall() {
-		return true
-	}
-	return false
 }
 
 func badtype(op ir.Op, tl, tr *types.Type) {
@@ -697,29 +770,35 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	switch n.Op() {
-	case ir.ONAME, ir.OLITERAL, ir.ONIL:
+	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
 		return n
 
-	case ir.ODOT, ir.OLEN, ir.OCAP:
+	case ir.OLEN, ir.OCAP:
 		l := safeexpr(n.Left(), init)
 		if l == n.Left() {
 			return n
 		}
-		r := ir.Copy(n)
-		r.SetLeft(l)
-		r = typecheck(r, ctxExpr)
-		r = walkexpr(r, init)
-		return r
-
-	case ir.ODOTPTR, ir.ODEREF:
-		l := safeexpr(n.Left(), init)
-		if l == n.Left() {
-			return n
-		}
-		a := ir.Copy(n)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.SetLeft(l)
-		a = walkexpr(a, init)
-		return a
+		return walkexpr(typecheck(a, ctxExpr), init)
+
+	case ir.ODOT, ir.ODOTPTR:
+		l := safeexpr(n.Left(), init)
+		if l == n.Left() {
+			return n
+		}
+		a := ir.Copy(n).(*ir.SelectorExpr)
+		a.SetLeft(l)
+		return walkexpr(typecheck(a, ctxExpr), init)
+
+	case ir.ODEREF:
+		l := safeexpr(n.Left(), init)
+		if l == n.Left() {
+			return n
+		}
+		a := ir.Copy(n).(*ir.StarExpr)
+		a.SetLeft(l)
+		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		l := safeexpr(n.Left(), init)
@@ -727,11 +806,10 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		if l == n.Left() && r == n.Right() {
 			return n
 		}
-		a := ir.Copy(n)
+		a := ir.Copy(n).(*ir.IndexExpr)
 		a.SetLeft(l)
 		a.SetRight(r)
-		a = walkexpr(a, init)
-		return a
+		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT:
 		if isStaticCompositeLiteral(n) {
@@ -748,10 +826,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 func copyexpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	l := temp(t)
-	a := ir.Nod(ir.OAS, l, n)
-	a = typecheck(a, ctxStmt)
-	a = walkexpr(a, init)
-	init.Append(a)
+	appendWalkStmt(init, ir.Nod(ir.OAS, l, n))
 	return l
 }
 
@@ -903,7 +978,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // find missing fields that
 // will give shortest unique addressing.
 // modify the tree with missing type names.
-func adddot(n ir.Node) ir.Node {
+func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
 	n.SetLeft(typecheck(n.Left(), ctxType|ctxExpr))
 	if n.Left().Diag() {
 		n.SetDiag(true)
@@ -926,8 +1001,9 @@ func adddot(n ir.Node) ir.Node {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			n.SetLeft(nodSym(ir.ODOT, n.Left(), path[c].field.Sym))
-			n.Left().SetImplicit(true)
+			dot := nodSym(ir.ODOT, n.Left(), path[c].field.Sym)
+			dot.SetImplicit(true)
+			n.SetLeft(dot)
 		}
 	case ambig:
 		base.Errorf("ambiguous selector %v", n)
@@ -1144,7 +1220,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		fn.PtrBody().Append(n)
 	}
 
-	dot := adddot(nodSym(ir.OXDOT, nthis, method.Sym))
+	dot := adddot(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
 
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
@@ -1155,12 +1231,12 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// value for that function.
 	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
-		dot = dot.Left() // skip final .M
+		left := dot.Left() // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
 		if !dotlist[0].field.Type.IsPtr() {
-			dot = ir.Nod(ir.OADDR, dot, nil)
+			left = nodAddr(left)
 		}
-		as := ir.Nod(ir.OAS, nthis, convnop(dot, rcvr))
+		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
 		fn.PtrBody().Append(as)
 		fn.PtrBody().Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
@@ -1169,11 +1245,12 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
 		if method.Type.NumResults() > 0 {
-			n := ir.Nod(ir.ORETURN, nil, nil)
-			n.PtrList().Set1(call)
-			call = n
+			ret := ir.Nod(ir.ORETURN, nil, nil)
+			ret.PtrList().Set1(call)
+			fn.PtrBody().Append(ret)
+		} else {
+			fn.PtrBody().Append(call)
 		}
-		fn.PtrBody().Append(call)
 	}
 
 	if false && base.Flag.LowerR != 0 {
@@ -1198,7 +1275,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	escapeFuncs([]*ir.Func{fn}, false)
 
 	Curfn = nil
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 }
 
 func paramNnames(ft *types.Type) []ir.Node {
@@ -1362,8 +1439,9 @@ func initExpr(init []ir.Node, n ir.Node) ir.Node {
 	}
 	if ir.MayBeShared(n) {
 		// Introduce OCONVNOP to hold init list.
-		n = ir.Nod(ir.OCONVNOP, n, nil)
-		n.SetType(n.Left().Type())
+		old := n
+		n = ir.Nod(ir.OCONVNOP, old, nil)
+		n.SetType(old.Type())
 		n.SetTypecheck(1)
 	}
 

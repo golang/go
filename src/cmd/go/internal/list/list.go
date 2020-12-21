@@ -471,11 +471,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	load.IgnoreImports = *listFind
-	var pkgs []*load.Package
-	if *listE {
-		pkgs = load.PackagesAndErrors(ctx, args)
-	} else {
-		pkgs = load.Packages(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if !*listE {
+		w := 0
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+				continue
+			}
+			pkgs[w] = pkg
+			w++
+		}
+		pkgs = pkgs[:w]
 		base.ExitIfErrors()
 	}
 

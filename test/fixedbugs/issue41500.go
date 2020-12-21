@@ -13,8 +13,8 @@ type s struct {
 func f() {
 	var x *s
 
-	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
-	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
-	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
-	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
+	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
+	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
 }

@@ -15,7 +15,7 @@ import (
 )
 
 // typecheckswitch typechecks a switch statement.
-func typecheckswitch(n ir.Node) {
+func typecheckswitch(n *ir.SwitchStmt) {
 	typecheckslice(n.Init().Slice(), ctxStmt)
 	if n.Left() != nil && n.Left().Op() == ir.OTYPESW {
 		typecheckTypeSwitch(n)
@@ -24,24 +24,26 @@ func typecheckswitch(n ir.Node) {
 	}
 }
 
-func typecheckTypeSwitch(n ir.Node) {
-	n.Left().SetRight(typecheck(n.Left().Right(), ctxExpr))
-	t := n.Left().Right().Type()
+func typecheckTypeSwitch(n *ir.SwitchStmt) {
+	guard := n.Left().(*ir.TypeSwitchGuard)
+	guard.SetRight(typecheck(guard.Right(), ctxExpr))
+	t := guard.Right().Type()
 	if t != nil && !t.IsInterface() {
-		base.ErrorfAt(n.Pos(), "cannot type switch on non-interface value %L", n.Left().Right())
+		base.ErrorfAt(n.Pos(), "cannot type switch on non-interface value %L", guard.Right())
 		t = nil
 	}
 
 	// We don't actually declare the type switch's guarded
 	// declaration itself. So if there are no cases, we won't
 	// notice that it went unused.
-	if v := n.Left().Left(); v != nil && !ir.IsBlank(v) && n.List().Len() == 0 {
+	if v := guard.Left(); v != nil && !ir.IsBlank(v) && n.List().Len() == 0 {
 		base.ErrorfAt(v.Pos(), "%v declared but not used", v.Sym())
 	}
 
 	var defCase, nilCase ir.Node
 	var ts typeSet
 	for _, ncase := range n.List().Slice() {
+		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List().Slice()
 		if len(ls) == 0 { // default:
 			if defCase != nil {
@@ -60,31 +62,33 @@ func typecheckTypeSwitch(n ir.Node) {
 
 			var missing, have *types.Field
 			var ptr int
-			switch {
-			case ir.IsNil(n1): // case nil:
+			if ir.IsNil(n1) { // case nil:
 				if nilCase != nil {
 					base.ErrorfAt(ncase.Pos(), "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
 				} else {
 					nilCase = ncase
 				}
-			case n1.Op() != ir.OTYPE:
+				continue
+			}
+			if n1.Op() != ir.OTYPE {
 				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
-			case !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) && !missing.Broke():
+				continue
+			}
+			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) && !missing.Broke() {
 				if have != nil && !have.Broke() {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left().Right(), n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.Right(), n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (%v method has pointer receiver)", n.Left().Right(), n1.Type(), missing.Sym)
+						" (%v method has pointer receiver)", guard.Right(), n1.Type(), missing.Sym)
 				} else {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (missing %v method)", n.Left().Right(), n1.Type(), missing.Sym)
+						" (missing %v method)", guard.Right(), n1.Type(), missing.Sym)
 				}
+				continue
 			}
 
-			if n1.Op() == ir.OTYPE {
-				ts.add(ncase.Pos(), n1.Type())
-			}
+			ts.add(ncase.Pos(), n1.Type())
 		}
 
 		if ncase.Rlist().Len() != 0 {
@@ -144,7 +148,7 @@ func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
 }
 
-func typecheckExprSwitch(n ir.Node) {
+func typecheckExprSwitch(n *ir.SwitchStmt) {
 	t := types.Types[types.TBOOL]
 	if n.Left() != nil {
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
@@ -175,6 +179,7 @@ func typecheckExprSwitch(n ir.Node) {
 	var defCase ir.Node
 	var cs constSet
 	for _, ncase := range n.List().Slice() {
+		ncase := ncase.(*ir.CaseStmt)
 		ls := ncase.List().Slice()
 		if len(ls) == 0 { // default:
 			if defCase != nil {
@@ -225,7 +230,7 @@ func typecheckExprSwitch(n ir.Node) {
 }
 
 // walkswitch walks a switch statement.
-func walkswitch(sw ir.Node) {
+func walkswitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
 	if sw.List().Len() == 0 && sw.Body().Len() > 0 {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
@@ -240,7 +245,7 @@ func walkswitch(sw ir.Node) {
 
 // walkExprSwitch generates an AST implementing sw.  sw is an
 // expression switch.
-func walkExprSwitch(sw ir.Node) {
+func walkExprSwitch(sw *ir.SwitchStmt) {
 	lno := setlineno(sw)
 
 	cond := sw.Left()
@@ -278,6 +283,7 @@ func walkExprSwitch(sw ir.Node) {
 	var defaultGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.List().Slice() {
+		ncase := ncase.(*ir.CaseStmt)
 		label := autolabel(".s")
 		jmp := npos(ncase.Pos(), nodSym(ir.OGOTO, nil, label))
 
@@ -296,7 +302,7 @@ func walkExprSwitch(sw ir.Node) {
 		// Process body.
 		body.Append(npos(ncase.Pos(), nodSym(ir.OLABEL, nil, label)))
 		body.Append(ncase.Body().Slice()...)
-		if fall, pos := hasFall(ncase.Body().Slice()); !fall {
+		if fall, pos := endsInFallthrough(ncase.Body().Slice()); !fall {
 			br := ir.Nod(ir.OBREAK, nil, nil)
 			br.SetPos(pos)
 			body.Append(br)
@@ -393,7 +399,7 @@ func (s *exprSwitch) flush() {
 			func(i int) ir.Node {
 				return ir.Nod(ir.OLE, ir.Nod(ir.OLEN, s.exprname, nil), nodintconst(runLen(runs[i-1])))
 			},
-			func(i int, nif ir.Node) {
+			func(i int, nif *ir.IfStmt) {
 				run := runs[i]
 				nif.SetLeft(ir.Nod(ir.OEQ, ir.Nod(ir.OLEN, s.exprname, nil), nodintconst(runLen(run))))
 				s.search(run, nif.PtrBody())
@@ -428,7 +434,7 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
 		func(i int) ir.Node {
 			return ir.Nod(ir.OLE, s.exprname, cc[i-1].hi)
 		},
-		func(i int, nif ir.Node) {
+		func(i int, nif *ir.IfStmt) {
 			c := &cc[i]
 			nif.SetLeft(c.test(s.exprname))
 			nif.PtrBody().Set1(c.jmp)
@@ -456,7 +462,7 @@ func (c *exprClause) test(exprname ir.Node) ir.Node {
 	return ir.NodAt(c.pos, ir.OEQ, exprname, c.lo)
 }
 
-func allCaseExprsAreSideEffectFree(sw ir.Node) bool {
+func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
 	// In theory, we could be more aggressive, allowing any
 	// side-effect-free expressions in cases, but it's a bit
 	// tricky because some of that information is unavailable due
@@ -465,9 +471,7 @@ func allCaseExprsAreSideEffectFree(sw ir.Node) bool {
 	// enough.
 
 	for _, ncase := range sw.List().Slice() {
-		if ncase.Op() != ir.OCASE {
-			base.Fatalf("switch string(byteslice) bad op: %v", ncase.Op())
-		}
+		ncase := ncase.(*ir.CaseStmt)
 		for _, v := range ncase.List().Slice() {
 			if v.Op() != ir.OLITERAL {
 				return false
@@ -477,8 +481,8 @@ func allCaseExprsAreSideEffectFree(sw ir.Node) bool {
 	return true
 }
 
-// hasFall reports whether stmts ends with a "fallthrough" statement.
-func hasFall(stmts []ir.Node) (bool, src.XPos) {
+// endsInFallthrough reports whether stmts ends with a "fallthrough" statement.
+func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
 	// Search backwards for the index of the fallthrough
 	// statement. Do not assume it'll be in the last
 	// position, since in some cases (e.g. when the statement
@@ -497,9 +501,9 @@ func hasFall(stmts []ir.Node) (bool, src.XPos) {
 
 // walkTypeSwitch generates an AST that implements sw, where sw is a
 // type switch.
-func walkTypeSwitch(sw ir.Node) {
+func walkTypeSwitch(sw *ir.SwitchStmt) {
 	var s typeSwitch
-	s.facename = sw.Left().Right()
+	s.facename = sw.Left().(*ir.TypeSwitchGuard).Right()
 	sw.SetLeft(nil)
 
 	s.facename = walkexpr(s.facename, sw.PtrInit())
@@ -541,6 +545,7 @@ func walkTypeSwitch(sw ir.Node) {
 	var defaultGoto, nilGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.List().Slice() {
+		ncase := ncase.(*ir.CaseStmt)
 		var caseVar ir.Node
 		if ncase.Rlist().Len() != 0 {
 			caseVar = ncase.Rlist().First()
@@ -654,9 +659,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 	dot := ir.NodAt(pos, ir.ODOTTYPE, s.facename, nil)
 	dot.SetType(typ) // iface.(type)
 	as.PtrRlist().Set1(dot)
-	as = typecheck(as, ctxStmt)
-	as = walkexpr(as, &body)
-	body.Append(as)
+	appendWalkStmt(&body, as)
 
 	// if ok { goto label }
 	nif := ir.NodAt(pos, ir.OIF, nil, nil)
@@ -706,7 +709,7 @@ func (s *typeSwitch) flush() {
 		func(i int) ir.Node {
 			return ir.Nod(ir.OLE, s.hashname, nodintconst(int64(cc[i-1].hash)))
 		},
-		func(i int, nif ir.Node) {
+		func(i int, nif *ir.IfStmt) {
 			// TODO(mdempsky): Omit hash equality check if
 			// there's only one type.
 			c := cc[i]
@@ -725,7 +728,7 @@ func (s *typeSwitch) flush() {
 //
 // leaf(i, nif) should setup nif (an OIF node) to test case i. In
 // particular, it should set nif.Left and nif.Nbody.
-func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif ir.Node)) {
+func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 
 	var do func(lo, hi int, out *ir.Nodes)
@@ -733,7 +736,7 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 		n := hi - lo
 		if n < binarySearchMin {
 			for i := lo; i < hi; i++ {
-				nif := ir.Nod(ir.OIF, nil, nil)
+				nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
 				leaf(i, nif)
 				base.Pos = base.Pos.WithNotStmt()
 				nif.SetLeft(typecheck(nif.Left(), ctxExpr))

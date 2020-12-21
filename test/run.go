@@ -438,7 +438,7 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
-	if name == ctxt.GOOS || name == ctxt.GOARCH {
+	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
 		return true
 	}
 
@@ -1936,6 +1936,7 @@ var excluded = map[string]bool{
 	"import6.go":      true, // issue #43109
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+	"mainsig.go":      true, // issue #43308
 	"shift1.go":       true, // issue #42989
 	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
 	"typecheck.go":    true, // invalid function is not causing errors when called

@@ -119,6 +119,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 		}
 		f.Offset = o
 		if n := ir.AsNode(f.Nname); n != nil {
+			n := n.Name()
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -127,10 +128,10 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
 			if n.Name().Stackcopy != nil {
-				n.Name().Stackcopy.SetOffset(o)
-				n.SetOffset(0)
+				n.Name().Stackcopy.SetFrameOffset(o)
+				n.SetFrameOffset(0)
 			} else {
-				n.SetOffset(o)
+				n.SetFrameOffset(o)
 			}
 		}
 

@@ -9,7 +9,7 @@
 
 package p
 
-type T struct{ T } // ERROR "invalid recursive type T|cycle"
+type T struct{ T } // ERROR "invalid recursive type .*T"
 
 func f() {
 	println(T{} == T{})

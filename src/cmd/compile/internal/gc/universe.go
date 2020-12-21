@@ -152,23 +152,27 @@ func initUniverse() {
 
 	for _, s := range &builtinFuncs {
 		s2 := types.BuiltinPkg.Lookup(s.name)
-		s2.Def = NewName(s2)
-		ir.AsNode(s2.Def).SetSubOp(s.op)
+		def := NewName(s2)
+		def.SetSubOp(s.op)
+		s2.Def = def
 	}
 
 	for _, s := range &unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
-		s2.Def = NewName(s2)
-		ir.AsNode(s2.Def).SetSubOp(s.op)
+		def := NewName(s2)
+		def.SetSubOp(s.op)
+		s2.Def = def
 	}
 
 	s = types.BuiltinPkg.Lookup("true")
-	s.Def = nodbool(true)
-	ir.AsNode(s.Def).SetSym(lookup("true"))
+	b := nodbool(true)
+	b.(*ir.Name).SetSym(lookup("true"))
+	s.Def = b
 
 	s = types.BuiltinPkg.Lookup("false")
-	s.Def = nodbool(false)
-	ir.AsNode(s.Def).SetSym(lookup("false"))
+	b = nodbool(false)
+	b.(*ir.Name).SetSym(lookup("false"))
+	s.Def = b
 
 	s = lookup("_")
 	types.BlankSym = s
@@ -187,8 +191,9 @@ func initUniverse() {
 
 	types.Types[types.TNIL] = types.New(types.TNIL)
 	s = types.BuiltinPkg.Lookup("nil")
-	s.Def = nodnil()
-	ir.AsNode(s.Def).SetSym(s)
+	nnil := nodnil()
+	nnil.(*ir.NilExpr).SetSym(s)
+	s.Def = nnil
 
 	s = types.BuiltinPkg.Lookup("iota")
 	s.Def = ir.NewIota(base.Pos, s)

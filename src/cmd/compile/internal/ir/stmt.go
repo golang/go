@@ -63,10 +63,9 @@ func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
 // If Def is true, the assignment is a :=.
 type AssignListStmt struct {
 	miniStmt
-	Lhs     Nodes
-	Def     bool
-	Rhs     Nodes
-	Offset_ int64 // for initorder
+	Lhs Nodes
+	Def bool
+	Rhs Nodes
 }
 
 func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
@@ -75,20 +74,17 @@ func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
 	n.SetOp(op)
 	n.Lhs.Set(lhs)
 	n.Rhs.Set(rhs)
-	n.Offset_ = types.BADWIDTH
 	return n
 }
 
-func (n *AssignListStmt) List() Nodes       { return n.Lhs }
-func (n *AssignListStmt) PtrList() *Nodes   { return &n.Lhs }
-func (n *AssignListStmt) SetList(x Nodes)   { n.Lhs = x }
-func (n *AssignListStmt) Rlist() Nodes      { return n.Rhs }
-func (n *AssignListStmt) PtrRlist() *Nodes  { return &n.Rhs }
-func (n *AssignListStmt) SetRlist(x Nodes)  { n.Rhs = x }
-func (n *AssignListStmt) Colas() bool       { return n.Def }
-func (n *AssignListStmt) SetColas(x bool)   { n.Def = x }
-func (n *AssignListStmt) Offset() int64     { return n.Offset_ }
-func (n *AssignListStmt) SetOffset(x int64) { n.Offset_ = x }
+func (n *AssignListStmt) List() Nodes      { return n.Lhs }
+func (n *AssignListStmt) PtrList() *Nodes  { return &n.Lhs }
+func (n *AssignListStmt) SetList(x Nodes)  { n.Lhs = x }
+func (n *AssignListStmt) Rlist() Nodes     { return n.Rhs }
+func (n *AssignListStmt) PtrRlist() *Nodes { return &n.Rhs }
+func (n *AssignListStmt) SetRlist(x Nodes) { n.Rhs = x }
+func (n *AssignListStmt) Colas() bool      { return n.Def }
+func (n *AssignListStmt) SetColas(x bool)  { n.Def = x }
 
 func (n *AssignListStmt) SetOp(op Op) {
 	switch op {
@@ -103,34 +99,30 @@ func (n *AssignListStmt) SetOp(op Op) {
 // If Def is true, the assignment is a :=.
 type AssignStmt struct {
 	miniStmt
-	X       Node
-	Def     bool
-	Y       Node
-	Offset_ int64 // for initorder
+	X   Node
+	Def bool
+	Y   Node
 }
 
 func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
 	n := &AssignStmt{X: x, Y: y}
 	n.pos = pos
 	n.op = OAS
-	n.Offset_ = types.BADWIDTH
 	return n
 }
 
-func (n *AssignStmt) Left() Node        { return n.X }
-func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
-func (n *AssignStmt) Right() Node       { return n.Y }
-func (n *AssignStmt) SetRight(y Node)   { n.Y = y }
-func (n *AssignStmt) Colas() bool       { return n.Def }
-func (n *AssignStmt) SetColas(x bool)   { n.Def = x }
-func (n *AssignStmt) Offset() int64     { return n.Offset_ }
-func (n *AssignStmt) SetOffset(x int64) { n.Offset_ = x }
+func (n *AssignStmt) Left() Node      { return n.X }
+func (n *AssignStmt) SetLeft(x Node)  { n.X = x }
+func (n *AssignStmt) Right() Node     { return n.Y }
+func (n *AssignStmt) SetRight(y Node) { n.Y = y }
+func (n *AssignStmt) Colas() bool     { return n.Def }
+func (n *AssignStmt) SetColas(x bool) { n.Def = x }
 
 func (n *AssignStmt) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OAS, OSELRECV:
+	case OAS:
 		n.op = op
 	}
 }
@@ -145,8 +137,8 @@ type AssignOpStmt struct {
 	IncDec bool // actually ++ or --
 }
 
-func NewAssignOpStmt(pos src.XPos, op Op, x, y Node) *AssignOpStmt {
-	n := &AssignOpStmt{AsOp: op, X: x, Y: y}
+func NewAssignOpStmt(pos src.XPos, asOp Op, x, y Node) *AssignOpStmt {
+	n := &AssignOpStmt{AsOp: asOp, X: x, Y: y}
 	n.pos = pos
 	n.op = OASOP
 	return n
@@ -376,6 +368,7 @@ type RangeStmt struct {
 	Body_     Nodes
 	HasBreak_ bool
 	typ       *types.Type // TODO(rsc): Remove - use X.Type() instead
+	Prealloc  *Name
 }
 
 func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {

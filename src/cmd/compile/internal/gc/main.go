@@ -51,10 +51,11 @@ func hidePanic() {
 	}
 }
 
+// Target is the package being compiled.
+var Target *ir.Package
+
 // timing data for compiler phases
 var timings Timings
-
-var nowritebarrierrecCheck *nowritebarrierrecChecker
 
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
@@ -188,6 +189,9 @@ func Main(archInit func(*Arch)) {
 		logopt.LogJsonOption(base.Flag.JSON)
 	}
 
+	IsIntrinsicCall = isIntrinsicCall
+	SSADumpInline = ssaDumpInline
+
 	ssaDump = os.Getenv("GOSSAFUNC")
 	ssaDir = os.Getenv("GOSSADIR")
 	if ssaDump != "" {
@@ -202,10 +206,10 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	trackScopes = base.Flag.Dwarf
-
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
+
+	Target = new(ir.Package)
 
 	// initialize types package
 	// (we need to do this to break dependencies that otherwise
@@ -221,6 +225,7 @@ func Main(archInit func(*Arch)) {
 
 	timings.Start("fe", "parse")
 	lines := parseFiles(flag.Args())
+	cgoSymABIs()
 	timings.Stop()
 	timings.AddEvent(int64(lines), "lines")
 	if base.Flag.G != 0 && base.Flag.G < 3 {
@@ -245,33 +250,33 @@ func Main(archInit func(*Arch)) {
 	//   to avoid cycles like #18640.
 	//   TODO(gri) Remove this again once we have a fix for #25838.
 
-	// Don't use range--typecheck can add closures to xtop.
+	// Don't use range--typecheck can add closures to Target.Decls.
 	timings.Start("fe", "typecheck", "top1")
-	for i := 0; i < len(xtop); i++ {
-		n := xtop[i]
-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Alias()) {
-			xtop[i] = typecheck(n, ctxStmt)
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).Left().Name().Alias()) {
+			Target.Decls[i] = typecheck(n, ctxStmt)
 		}
 	}
 
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
 
-	// Don't use range--typecheck can add closures to xtop.
+	// Don't use range--typecheck can add closures to Target.Decls.
 	timings.Start("fe", "typecheck", "top2")
-	for i := 0; i < len(xtop); i++ {
-		n := xtop[i]
-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Alias() {
-			xtop[i] = typecheck(n, ctxStmt)
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).Left().Name().Alias() {
+			Target.Decls[i] = typecheck(n, ctxStmt)
 		}
 	}
 
 	// Phase 3: Type check function bodies.
-	// Don't use range--typecheck can add closures to xtop.
+	// Don't use range--typecheck can add closures to Target.Decls.
 	timings.Start("fe", "typecheck", "func")
 	var fcount int64
-	for i := 0; i < len(xtop); i++ {
-		n := xtop[i]
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
 		if n.Op() == ir.ODCLFUNC {
 			Curfn = n.(*ir.Func)
 			decldepth = 1
@@ -287,21 +292,34 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
-	// With all types checked, it's now safe to verify map keys. One single
-	// check past phase 9 isn't sufficient, as we may exit with other errors
-	// before then, thus skipping map key errors.
+
+	// Phase 3.11: Check external declarations.
+	// TODO(mdempsky): This should be handled when type checking their
+	// corresponding ODCL nodes.
+	timings.Start("fe", "typecheck", "externdcls")
+	for i, n := range Target.Externs {
+		if n.Op() == ir.ONAME {
+			Target.Externs[i] = typecheck(Target.Externs[i], ctxExpr)
+		}
+	}
+
+	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys
+	// and unused dot imports.
 	checkMapKeys()
+	checkDotImports()
 	base.ExitIfErrors()
 
 	timings.AddEvent(fcount, "funcs")
 
-	fninit(xtop)
+	if initTask := fninit(); initTask != nil {
+		exportsym(initTask)
+	}
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
 	timings.Start("fe", "capturevars")
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
 			Curfn = n.(*ir.Func)
 			capturevars(Curfn)
@@ -326,7 +344,7 @@ func Main(archInit func(*Arch)) {
 
 	if base.Flag.LowerL != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list []*ir.Func, recursive bool) {
+		visitBottomUp(Target.Decls, func(list []*ir.Func, recursive bool) {
 			numfns := numNonClosures(list)
 			for _, n := range list {
 				if !recursive || numfns > 1 {
@@ -344,7 +362,7 @@ func Main(archInit func(*Arch)) {
 		})
 	}
 
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
 			devirtualize(n.(*ir.Func))
 		}
@@ -360,21 +378,21 @@ func Main(archInit func(*Arch)) {
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
 	timings.Start("fe", "escapes")
-	escapes(xtop)
+	escapes(Target.Decls)
 
 	// Collect information for go:nowritebarrierrec
 	// checking. This must happen before transformclosure.
 	// We'll do the final check after write barriers are
 	// inserted.
 	if base.Flag.CompilingRuntime {
-		nowritebarrierrecCheck = newNowritebarrierrecChecker()
+		EnableNoWriteBarrierRecCheck()
 	}
 
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
 	timings.Start("fe", "xclosures")
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
 			Curfn = n.(*ir.Func)
 			transformclosure(Curfn)
@@ -393,11 +411,11 @@ func Main(archInit func(*Arch)) {
 	peekitabs()
 
 	// Phase 8: Compile top level functions.
-	// Don't use range--walk can add functions to xtop.
+	// Don't use range--walk can add functions to Target.Decls.
 	timings.Start("be", "compilefuncs")
 	fcount = 0
-	for i := 0; i < len(xtop); i++ {
-		n := xtop[i]
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
 		if n.Op() == ir.ODCLFUNC {
 			funccompile(n.(*ir.Func))
 			fcount++
@@ -407,11 +425,9 @@ func Main(archInit func(*Arch)) {
 
 	compileFunctions()
 
-	if nowritebarrierrecCheck != nil {
-		// Write barriers are now known. Check the
-		// call graph.
-		nowritebarrierrecCheck.check()
-		nowritebarrierrecCheck = nil
+	if base.Flag.CompilingRuntime {
+		// Write barriers are now known. Check the call graph.
+		NoWriteBarrierRecCheck()
 	}
 
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
@@ -422,18 +438,6 @@ func Main(archInit func(*Arch)) {
 		base.Ctxt.DwFixups = nil
 		base.Flag.GenDwarfInl = 0
 	}
-
-	// Phase 9: Check external declarations.
-	timings.Start("be", "externaldcls")
-	for i, n := range externdcl {
-		if n.Op() == ir.ONAME {
-			externdcl[i] = typecheck(externdcl[i], ctxExpr)
-		}
-	}
-	// Check the map keys again, since we typechecked the external
-	// declarations.
-	checkMapKeys()
-	base.ExitIfErrors()
 
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
@@ -472,6 +476,20 @@ func Main(archInit func(*Arch)) {
 	if base.Flag.Bench != "" {
 		if err := writebench(base.Flag.Bench); err != nil {
 			log.Fatalf("cannot write benchmark data: %v", err)
+		}
+	}
+}
+
+func cgoSymABIs() {
+	// The linker expects an ABI0 wrapper for all cgo-exported
+	// functions.
+	for _, prag := range Target.CgoPragmas {
+		switch prag[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			if symabiRefs == nil {
+				symabiRefs = make(map[string]obj.ABI)
+			}
+			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
 }
@@ -961,10 +979,7 @@ func clearImports() {
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
-				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
-				name.PkgName.Used = true
-			}
+			// We'll report errors after type checking in checkDotImports.
 			s.Def = nil
 			continue
 		}

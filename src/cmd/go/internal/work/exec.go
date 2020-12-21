@@ -3236,7 +3236,7 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	cleanup = func() { os.Remove(tf.Name()) }
 	var buf bytes.Buffer
 	for _, arg := range cmd.Args[1:] {
-		fmt.Fprintf(&buf, "%s\n", arg)
+		fmt.Fprintf(&buf, "%s\n", encodeArg(arg))
 	}
 	if _, err := tf.Write(buf.Bytes()); err != nil {
 		tf.Close()
@@ -3251,6 +3251,12 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	return cleanup
 }
 
+// Windows has a limit of 32 KB arguments. To be conservative and not worry
+// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
+// less clear. The OS claims 256KB, but we've seen failures with arglen as
+// small as 50KB.
+const ArgLengthForResponseFile = (30 << 10)
+
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
@@ -3262,11 +3268,7 @@ func useResponseFile(path string, argLen int) bool {
 		return false
 	}
 
-	// Windows has a limit of 32 KB arguments. To be conservative and not
-	// worry about whether that includes spaces or not, just use 30 KB.
-	// Darwin's limit is less clear. The OS claims 256KB, but we've seen
-	// failures with arglen as small as 50KB.
-	if argLen > (30 << 10) {
+	if argLen > ArgLengthForResponseFile {
 		return true
 	}
 
@@ -3278,4 +3280,26 @@ func useResponseFile(path string, argLen int) bool {
 	}
 
 	return false
+}
+
+// encodeArg encodes an argument for response file writing.
+func encodeArg(arg string) string {
+	// If there aren't any characters we need to reencode, fastpath out.
+	if !strings.ContainsAny(arg, "\\\n") {
+		return arg
+	}
+	var b strings.Builder
+	for _, r := range arg {
+		switch r {
+		case '\\':
+			b.WriteByte('\\')
+			b.WriteByte('\\')
+		case '\n':
+			b.WriteByte('\\')
+			b.WriteByte('n')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

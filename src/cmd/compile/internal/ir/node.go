@@ -102,8 +102,6 @@ type Node interface {
 	SetBounded(x bool)
 	Typecheck() uint8
 	SetTypecheck(x uint8)
-	Initorder() uint8
-	SetInitorder(x uint8)
 	NonNil() bool
 	MarkNonNil()
 	HasCall() bool
@@ -276,7 +274,6 @@ const (
 	ORECOVER     // recover()
 	ORECV        // <-Left
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
-	OSELRECV     // like OAS: Left = Right where Right.Op = ORECV (appears as .Left of OCASE)
 	OSELRECV2    // like OAS2: List = Rlist where len(List)=2, len(Rlist)=1, Rlist[0].Op = ORECV (appears as .Left of OCASE)
 	OIOTA        // iota
 	OREAL        // real(Left)
@@ -348,6 +345,7 @@ const (
 	OVARLIVE     // variable is alive
 	ORESULT      // result of a function call; Xoffset is stack offset
 	OINLMARK     // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+	ONAMEOFFSET  // offset within a name
 
 	// arch-specific opcodes
 	ORETJMP // return to other function
@@ -359,7 +357,7 @@ const (
 // Nodes is a pointer to a slice of *Node.
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
-type Nodes struct{ slice *[]Node }
+type Nodes []Node
 
 // immutableEmptyNodes is an immutable, empty Nodes list.
 // The methods that would modify it panic instead.
@@ -367,43 +365,37 @@ var immutableEmptyNodes = Nodes{}
 
 // asNodes returns a slice of *Node as a Nodes value.
 func AsNodes(s []Node) Nodes {
-	return Nodes{&s}
+	return s
 }
 
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in
 // the Nodes.
 func (n Nodes) Slice() []Node {
-	if n.slice == nil {
-		return nil
-	}
-	return *n.slice
+	return n
 }
 
 // Len returns the number of entries in Nodes.
 func (n Nodes) Len() int {
-	if n.slice == nil {
-		return 0
-	}
-	return len(*n.slice)
+	return len(n)
 }
 
 // Index returns the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
 func (n Nodes) Index(i int) Node {
-	return (*n.slice)[i]
+	return n[i]
 }
 
 // First returns the first element of Nodes (same as n.Index(0)).
 // It panics if n has no elements.
 func (n Nodes) First() Node {
-	return (*n.slice)[0]
+	return n[0]
 }
 
 // Second returns the second element of Nodes (same as n.Index(1)).
 // It panics if n has fewer than two elements.
 func (n Nodes) Second() Node {
-	return (*n.slice)[1]
+	return n[1]
 }
 
 func (n *Nodes) mutate() {
@@ -422,64 +414,56 @@ func (n *Nodes) Set(s []Node) {
 		}
 		n.mutate()
 	}
-	if len(s) == 0 {
-		n.slice = nil
-	} else {
-		// Copy s and take address of t rather than s to avoid
-		// allocation in the case where len(s) == 0 (which is
-		// over 3x more common, dynamically, for make.bash).
-		t := s
-		n.slice = &t
-	}
+	*n = s
 }
 
 // Set1 sets n to a slice containing a single node.
 func (n *Nodes) Set1(n1 Node) {
 	n.mutate()
-	n.slice = &[]Node{n1}
+	*n = []Node{n1}
 }
 
 // Set2 sets n to a slice containing two nodes.
 func (n *Nodes) Set2(n1, n2 Node) {
 	n.mutate()
-	n.slice = &[]Node{n1, n2}
+	*n = []Node{n1, n2}
 }
 
 // Set3 sets n to a slice containing three nodes.
 func (n *Nodes) Set3(n1, n2, n3 Node) {
 	n.mutate()
-	n.slice = &[]Node{n1, n2, n3}
+	*n = []Node{n1, n2, n3}
 }
 
 // MoveNodes sets n to the contents of n2, then clears n2.
 func (n *Nodes) MoveNodes(n2 *Nodes) {
 	n.mutate()
-	n.slice = n2.slice
-	n2.slice = nil
+	*n = *n2
+	*n2 = nil
 }
 
 // SetIndex sets the i'th element of Nodes to node.
 // It panics if n does not have at least i+1 elements.
 func (n Nodes) SetIndex(i int, node Node) {
-	(*n.slice)[i] = node
+	n[i] = node
 }
 
 // SetFirst sets the first element of Nodes to node.
 // It panics if n does not have at least one elements.
 func (n Nodes) SetFirst(node Node) {
-	(*n.slice)[0] = node
+	n[0] = node
 }
 
 // SetSecond sets the second element of Nodes to node.
 // It panics if n does not have at least two elements.
 func (n Nodes) SetSecond(node Node) {
-	(*n.slice)[1] = node
+	n[1] = node
 }
 
 // Addr returns the address of the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
 func (n Nodes) Addr(i int) *Node {
-	return &(*n.slice)[i]
+	return &n[i]
 }
 
 // Append appends entries to Nodes.
@@ -488,13 +472,7 @@ func (n *Nodes) Append(a ...Node) {
 		return
 	}
 	n.mutate()
-	if n.slice == nil {
-		s := make([]Node, len(a))
-		copy(s, a)
-		n.slice = &s
-		return
-	}
-	*n.slice = append(*n.slice, a...)
+	*n = append(*n, a...)
 }
 
 // Prepend prepends entries to Nodes.
@@ -504,38 +482,29 @@ func (n *Nodes) Prepend(a ...Node) {
 		return
 	}
 	n.mutate()
-	if n.slice == nil {
-		n.slice = &a
-	} else {
-		*n.slice = append(a, *n.slice...)
-	}
+	*n = append(a, *n...)
+}
+
+// Take clears n, returning its former contents.
+func (n *Nodes) Take() []Node {
+	ret := *n
+	*n = nil
+	return ret
 }
 
 // AppendNodes appends the contents of *n2 to n, then clears n2.
 func (n *Nodes) AppendNodes(n2 *Nodes) {
 	n.mutate()
-	switch {
-	case n2.slice == nil:
-	case n.slice == nil:
-		n.slice = n2.slice
-	default:
-		*n.slice = append(*n.slice, *n2.slice...)
-	}
-	n2.slice = nil
+	*n = append(*n, n2.Take()...)
 }
 
 // Copy returns a copy of the content of the slice.
 func (n Nodes) Copy() Nodes {
-	var c Nodes
-	if n.slice == nil {
-		return c
+	if n == nil {
+		return nil
 	}
-	c.slice = new([]Node)
-	if *n.slice == nil {
-		return c
-	}
-	*c.slice = make([]Node, n.Len())
-	copy(*c.slice, n.Slice())
+	c := make(Nodes, n.Len())
+	copy(c, n)
 	return c
 }
 
@@ -697,12 +666,8 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 			typ = nright.(Ntype)
 		}
 		return NewCompLitExpr(pos, op, typ, nil)
-	case OAS, OSELRECV:
-		n := NewAssignStmt(pos, nleft, nright)
-		if op != OAS {
-			n.SetOp(op)
-		}
-		return n
+	case OAS:
+		return NewAssignStmt(pos, nleft, nright)
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
 		n := NewAssignListStmt(pos, op, nil, nil)
 		return n
@@ -769,8 +734,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
 		return newNameAt(pos, op, nil)
 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
 		return NewMakeExpr(pos, op, nleft, nright)
-	case OMETHEXPR:
-		return NewMethodExpr(pos, nleft, nright)
 	case ONIL:
 		return NewNilExpr(pos)
 	case OPACK:

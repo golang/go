@@ -39,6 +39,9 @@ import (
 	"strings"
 )
 
+// IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
+var IsIntrinsicCall = func(*ir.CallExpr) bool { return false }
+
 // Inlining budget parameters, gathered in one place
 const (
 	inlineMaxBudget       = 80
@@ -230,7 +233,7 @@ func caninl(fn *ir.Func) {
 
 // inlFlood marks n's inline body for export and recursively ensures
 // all called functions are marked too.
-func inlFlood(n *ir.Name) {
+func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
 	if n == nil {
 		return
 	}
@@ -255,16 +258,16 @@ func inlFlood(n *ir.Name) {
 	// Recursively identify all referenced functions for
 	// reexport. We want to include even non-called functions,
 	// because after inlining they might be callable.
-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
-			inlFlood(methodExprName(n))
+			inlFlood(methodExprName(n), exportsym)
 
 		case ir.ONAME:
 			n := n.(*ir.Name)
 			switch n.Class() {
 			case ir.PFUNC:
-				inlFlood(n)
+				inlFlood(n, exportsym)
 				exportsym(n)
 			case ir.PEXTERN:
 				exportsym(n)
@@ -282,7 +285,6 @@ func inlFlood(n *ir.Name) {
 			//     inlFlood(n.Func.Closure.Func.Nname)
 			base.Fatalf("unexpected closure in inlinable function")
 		}
-		return true
 	})
 }
 
@@ -321,22 +323,26 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 	switch n.Op() {
 	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLFUNC:
+		n := n.(*ir.CallExpr)
 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
 		//
 		// runtime.throw is a "cheap call" like panic in normal code.
-		if n.Left().Op() == ir.ONAME && n.Left().Class() == ir.PFUNC && isRuntimePkg(n.Left().Sym().Pkg) {
-			fn := n.Left().Sym().Name
-			if fn == "getcallerpc" || fn == "getcallersp" {
-				return errors.New("call to " + fn)
-			}
-			if fn == "throw" {
-				v.budget -= inlineExtraThrowCost
-				break
+		if n.Left().Op() == ir.ONAME {
+			name := n.Left().(*ir.Name)
+			if name.Class() == ir.PFUNC && isRuntimePkg(name.Sym().Pkg) {
+				fn := name.Sym().Name
+				if fn == "getcallerpc" || fn == "getcallersp" {
+					return errors.New("call to " + fn)
+				}
+				if fn == "throw" {
+					v.budget -= inlineExtraThrowCost
+					break
+				}
 			}
 		}
 
-		if isIntrinsicCall(n) {
+		if IsIntrinsicCall(n) {
 			// Treat like any other node.
 			break
 		}
@@ -402,11 +408,15 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// These nodes don't produce code; omit from inlining budget.
 		return nil
 
-	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH:
-		// ORANGE, OSELECT in "unhandled" above
+	case ir.OFOR, ir.OFORUNTIL:
 		if n.Sym() != nil {
 			return errors.New("labeled control")
 		}
+	case ir.OSWITCH:
+		if n.Sym() != nil {
+			return errors.New("labeled control")
+		}
+	// case ir.ORANGE, ir.OSELECT in "unhandled" above
 
 	case ir.OBREAK, ir.OCONTINUE:
 		if n.Sym() != nil {
@@ -458,14 +468,10 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 func isBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
-	over := ir.Find(fn, func(n ir.Node) interface{} {
+	return ir.Any(fn, func(n ir.Node) bool {
 		budget--
-		if budget <= 0 {
-			return n
-		}
-		return nil
+		return budget <= 0
 	})
-	return over != nil
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -493,7 +499,7 @@ func inlcalls(fn *ir.Func) {
 }
 
 // Turn an OINLCALL into a statement.
-func inlconv2stmt(inlcall ir.Node) ir.Node {
+func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
 	n := ir.NodAt(inlcall.Pos(), ir.OBLOCK, nil, nil)
 	n.SetList(inlcall.Init())
 	n.PtrList().AppendNodes(inlcall.PtrBody())
@@ -503,7 +509,7 @@ func inlconv2stmt(inlcall ir.Node) ir.Node {
 // Turn an OINLCALL into a single valued expression.
 // The result of inlconv2expr MUST be assigned back to n, e.g.
 // 	n.Left = inlconv2expr(n.Left)
-func inlconv2expr(n ir.Node) ir.Node {
+func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
 	r := n.Rlist().First()
 	return initExpr(append(n.Init().Slice(), n.Body().Slice()...), r)
 }
@@ -513,7 +519,7 @@ func inlconv2expr(n ir.Node) ir.Node {
 // containing the inlined statements on the first list element so
 // order will be preserved. Used in return, oas2func and call
 // statements.
-func inlconv2list(n ir.Node) []ir.Node {
+func inlconv2list(n *ir.InlinedCallExpr) []ir.Node {
 	if n.Op() != ir.OINLCALL || n.Rlist().Len() == 0 {
 		base.Fatalf("inlconv2list %+v\n", n)
 	}
@@ -543,9 +549,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	switch n.Op() {
 	case ir.ODEFER, ir.OGO:
-		switch n.Left().Op() {
+		switch call := n.Left(); call.Op() {
 		case ir.OCALLFUNC, ir.OCALLMETH:
-			n.Left().SetNoInline(true)
+			call.SetNoInline(true)
 		}
 
 	// TODO do them here (or earlier),
@@ -564,11 +570,13 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	ir.EditChildren(n, edit)
 
-	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
-		n.PtrRlist().Set(inlconv2list(n.Rlist().First()))
-		n.SetOp(ir.OAS2)
-		n.SetTypecheck(0)
-		n = typecheck(n, ctxStmt)
+	if as := n; as.Op() == ir.OAS2FUNC {
+		if as.Rlist().First().Op() == ir.OINLCALL {
+			as.PtrRlist().Set(inlconv2list(as.Rlist().First().(*ir.InlinedCallExpr)))
+			as.SetOp(ir.OAS2)
+			as.SetTypecheck(0)
+			n = typecheck(as, ctxStmt)
+		}
 	}
 
 	// with all the branches out of the way, it is now time to
@@ -581,45 +589,46 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		}
 	}
 
-	var call ir.Node
+	var call *ir.CallExpr
 	switch n.Op() {
 	case ir.OCALLFUNC:
-		call = n
+		call = n.(*ir.CallExpr)
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to func %+v\n", ir.Line(n), n.Left())
+			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Left())
 		}
-		if isIntrinsicCall(n) {
+		if IsIntrinsicCall(call) {
 			break
 		}
-		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
-			n = mkinlcall(n, fn, maxCost, inlMap, edit)
+		if fn := inlCallee(call.Left()); fn != nil && fn.Inl != nil {
+			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
 
 	case ir.OCALLMETH:
-		call = n
+		call = n.(*ir.CallExpr)
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to meth %L\n", ir.Line(n), n.Left().Right())
+			fmt.Printf("%v:call to meth %v\n", ir.Line(n), call.Left().(*ir.SelectorExpr).Sel)
 		}
 
 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
-		if n.Left().Type() == nil {
-			base.Fatalf("no function type for [%p] %+v\n", n.Left(), n.Left())
+		if call.Left().Type() == nil {
+			base.Fatalf("no function type for [%p] %+v\n", call.Left(), call.Left())
 		}
 
-		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap, edit)
+		n = mkinlcall(call, methodExprName(call.Left()).Func(), maxCost, inlMap, edit)
 	}
 
 	base.Pos = lno
 
 	if n.Op() == ir.OINLCALL {
-		switch call.(*ir.CallExpr).Use {
+		ic := n.(*ir.InlinedCallExpr)
+		switch call.Use {
 		default:
 			ir.Dump("call", call)
 			base.Fatalf("call missing use")
 		case ir.CallUseExpr:
-			n = inlconv2expr(n)
+			n = inlconv2expr(ic)
 		case ir.CallUseStmt:
-			n = inlconv2stmt(n)
+			n = inlconv2stmt(ic)
 		case ir.CallUseList:
 			// leave for caller to convert
 		}
@@ -632,19 +641,22 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 // that it refers to if statically known. Otherwise, it returns nil.
 func inlCallee(fn ir.Node) *ir.Func {
 	fn = staticValue(fn)
-	switch {
-	case fn.Op() == ir.OMETHEXPR:
+	switch fn.Op() {
+	case ir.OMETHEXPR:
+		fn := fn.(*ir.MethodExpr)
 		n := methodExprName(fn)
 		// Check that receiver type matches fn.Left.
 		// TODO(mdempsky): Handle implicit dereference
 		// of pointer receiver argument?
-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.Left().Type()) {
+		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
 			return nil
 		}
 		return n.Func()
-	case fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC:
-		return fn.Func()
-	case fn.Op() == ir.OCLOSURE:
+	case ir.ONAME:
+		if fn.Class() == ir.PFUNC {
+			return fn.Func()
+		}
+	case ir.OCLOSURE:
 		c := fn.Func()
 		caninl(c)
 		return c
@@ -655,7 +667,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 func staticValue(n ir.Node) ir.Node {
 	for {
 		if n.Op() == ir.OCONVNOP {
-			n = n.Left()
+			n = n.(*ir.ConvExpr).Left()
 			continue
 		}
 
@@ -670,8 +682,12 @@ func staticValue(n ir.Node) ir.Node {
 // staticValue1 implements a simple SSA-like optimization. If n is a local variable
 // that is initialized and never reassigned, staticValue1 returns the initializer
 // expression. Otherwise, it returns nil.
-func staticValue1(n ir.Node) ir.Node {
-	if n.Op() != ir.ONAME || n.Class() != ir.PAUTO || n.Name().Addrtaken() {
+func staticValue1(nn ir.Node) ir.Node {
+	if nn.Op() != ir.ONAME {
+		return nil
+	}
+	n := nn.(*ir.Name)
+	if n.Class() != ir.PAUTO || n.Name().Addrtaken() {
 		return nil
 	}
 
@@ -700,14 +716,12 @@ FindRHS:
 		base.Fatalf("RHS is nil: %v", defn)
 	}
 
-	if reassigned(n.(*ir.Name)) {
+	if reassigned(n) {
 		return nil
 	}
 
 	return rhs
 }
-
-var errFound = errors.New("found")
 
 // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
 // indicating whether the name has any assignments other than its declaration.
@@ -723,22 +737,21 @@ func reassigned(name *ir.Name) bool {
 	if name.Curfn == nil {
 		return true
 	}
-	a := ir.Find(name.Curfn, func(n ir.Node) interface{} {
+	return ir.Any(name.Curfn, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAS:
 			if n.Left() == name && n != name.Defn {
-				return n
+				return true
 			}
-		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OSELRECV2:
 			for _, p := range n.List().Slice() {
 				if p == name && n != name.Defn {
-					return n
+					return true
 				}
 			}
 		}
-		return nil
+		return false
 	})
-	return a != nil
 }
 
 func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
@@ -758,6 +771,10 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node 
 
 var inlgen int
 
+// SSADumpInline gives the SSA back end a chance to dump the function
+// when producing output for debugging the compiler itself.
+var SSADumpInline = func(*ir.Func) {}
+
 // If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
 // The returned node's Ninit has the parameter assignments, the Nbody is the
@@ -765,7 +782,7 @@ var inlgen int
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
+func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
 	if fn.Inl == nil {
 		if logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(Curfn),
@@ -825,9 +842,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
-	if ssaDump != "" && ssaDump == ir.FuncName(Curfn) {
-		ssaDumpInlined = append(ssaDumpInlined, fn)
-	}
+	SSADumpInline(fn)
 
 	ninit := n.Init()
 
@@ -838,8 +853,9 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 	if n.Op() == ir.OCALLFUNC {
 		callee := n.Left()
 		for callee.Op() == ir.OCONVNOP {
-			ninit.AppendNodes(callee.PtrInit())
-			callee = callee.Left()
+			conv := callee.(*ir.ConvExpr)
+			ninit.AppendNodes(conv.PtrInit())
+			callee = conv.Left()
 		}
 		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
 			base.Fatalf("unexpected callee expression: %v", callee)
@@ -878,7 +894,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 				addr.SetType(types.NewPtr(v.Type()))
 				ia := typecheck(inlvar(addr), ctxExpr)
 				ninit.Append(ir.Nod(ir.ODCL, ia, nil))
-				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, ir.Nod(ir.OADDR, o, nil)), ctxStmt))
+				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, nodAddr(o)), ctxStmt))
 				inlvars[addr] = ia
 
 				// When capturing by reference, all occurrence of the captured var
@@ -916,11 +932,10 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 	}
 
 	nreturns := 0
-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
 		if n != nil && n.Op() == ir.ORETURN {
 			nreturns++
 		}
-		return true
 	})
 
 	// We can delay declaring+initializing result parameters if:
@@ -961,16 +976,17 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 	as := ir.Nod(ir.OAS2, nil, nil)
 	as.SetColas(true)
 	if n.Op() == ir.OCALLMETH {
-		if n.Left().Left() == nil {
+		sel := n.Left().(*ir.SelectorExpr)
+		if sel.Left() == nil {
 			base.Fatalf("method call without receiver: %+v", n)
 		}
-		as.PtrRlist().Append(n.Left().Left())
+		as.PtrRlist().Append(sel.Left())
 	}
 	as.PtrRlist().Append(n.List().Slice()...)
 
 	// For non-dotted calls to variadic functions, we assign the
 	// variadic parameter's temp name separately.
-	var vas ir.Node
+	var vas *ir.AssignStmt
 
 	if recv := fn.Type().Recv(); recv != nil {
 		as.PtrList().Append(inlParam(recv, as, inlvars))
@@ -993,25 +1009,24 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 		}
 		varargs := as.List().Slice()[x:]
 
-		vas = ir.Nod(ir.OAS, nil, nil)
+		vas = ir.NewAssignStmt(base.Pos, nil, nil)
 		vas.SetLeft(inlParam(param, vas, inlvars))
 		if len(varargs) == 0 {
 			vas.SetRight(nodnil())
 			vas.Right().SetType(param.Type)
 		} else {
-			vas.SetRight(ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(param.Type)))
-			vas.Right().PtrList().Set(varargs)
+			lit := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(param.Type))
+			lit.PtrList().Set(varargs)
+			vas.SetRight(lit)
 		}
 	}
 
 	if as.Rlist().Len() != 0 {
-		as = typecheck(as, ctxStmt)
-		ninit.Append(as)
+		ninit.Append(typecheck(as, ctxStmt))
 	}
 
 	if vas != nil {
-		vas = typecheck(vas, ctxStmt)
-		ninit.Append(vas)
+		ninit.Append(typecheck(vas, ctxStmt))
 	}
 
 	if !delayretvars {
@@ -1019,8 +1034,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, 
 		for _, n := range retvars {
 			ninit.Append(ir.Nod(ir.ODCL, n, nil))
 			ras := ir.Nod(ir.OAS, n, nil)
-			ras = typecheck(ras, ctxStmt)
-			ninit.Append(ras)
+			ninit.Append(typecheck(ras, ctxStmt))
 		}
 	}
 
@@ -1211,11 +1225,19 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		if n.Sym() != nil {
 			return n
 		}
+		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
+			// This happens for unnamed OLITERAL.
+			// which should really not be a *Name, but for now it is.
+			// ir.Copy(n) is not allowed generally and would panic below,
+			// but it's OK in this situation.
+			n = n.CloneName()
+			n.SetPos(subst.updatedPos(n.Pos()))
+			return n
+		}
 
-		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
-
-	//		dump("Return before substitution", n);
 	case ir.ORETURN:
+		// Since we don't handle bodies with closures,
+		// this return is guaranteed to belong to the current inlined function.
 		init := subst.list(n.Init())
 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
 			as := ir.Nod(ir.OAS2, nil, nil)
@@ -1235,20 +1257,26 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 				}
 			}
 
-			as = typecheck(as, ctxStmt)
-			init = append(init, as)
+			init = append(init, typecheck(as, ctxStmt))
 		}
 		init = append(init, nodSym(ir.OGOTO, nil, subst.retlabel))
 		typecheckslice(init, ctxStmt)
 		return ir.NewBlockStmt(base.Pos, init)
 
-	case ir.OGOTO, ir.OLABEL:
-		m := ir.Copy(n)
+	case ir.OGOTO:
+		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
 		m.PtrInit().Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Sym().Name, inlgen)
 		m.SetSym(lookup(p))
+		return m
 
+	case ir.OLABEL:
+		m := ir.Copy(n).(*ir.LabelStmt)
+		m.SetPos(subst.updatedPos(m.Pos()))
+		m.PtrInit().Set(nil)
+		p := fmt.Sprintf("%s·%d", n.Sym().Name, inlgen)
+		m.SetSym(lookup(p))
 		return m
 	}
 
@@ -1291,40 +1319,40 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 // concrete-type method calls where applicable.
 func devirtualize(fn *ir.Func) {
 	Curfn = fn
-	ir.InspectList(fn.Body(), func(n ir.Node) bool {
+	ir.VisitList(fn.Body(), func(n ir.Node) {
 		if n.Op() == ir.OCALLINTER {
-			devirtualizeCall(n)
+			devirtualizeCall(n.(*ir.CallExpr))
 		}
-		return true
 	})
 }
 
-func devirtualizeCall(call ir.Node) {
-	recv := staticValue(call.Left().Left())
-	if recv.Op() != ir.OCONVIFACE {
+func devirtualizeCall(call *ir.CallExpr) {
+	sel := call.Left().(*ir.SelectorExpr)
+	r := staticValue(sel.Left())
+	if r.Op() != ir.OCONVIFACE {
 		return
 	}
+	recv := r.(*ir.ConvExpr)
 
 	typ := recv.Left().Type()
 	if typ.IsInterface() {
 		return
 	}
 
-	x := ir.NodAt(call.Left().Pos(), ir.ODOTTYPE, call.Left().Left(), nil)
-	x.SetType(typ)
-	x = nodlSym(call.Left().Pos(), ir.OXDOT, x, call.Left().Sym())
-	x = typecheck(x, ctxExpr|ctxCallee)
+	dt := ir.NodAt(sel.Pos(), ir.ODOTTYPE, sel.Left(), nil)
+	dt.SetType(typ)
+	x := typecheck(nodlSym(sel.Pos(), ir.OXDOT, dt, sel.Sym()), ctxExpr|ctxCallee)
 	switch x.Op() {
 	case ir.ODOTMETH:
 		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", call.Left(), typ)
+			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
 		call.SetOp(ir.OCALLMETH)
 		call.SetLeft(x)
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).
 		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", call.Left(), typ)
+			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}
 		call.SetOp(ir.OCALLINTER)
 		call.SetLeft(x)

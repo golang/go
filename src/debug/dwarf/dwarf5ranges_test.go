@@ -22,7 +22,12 @@ func TestDwarf5Ranges(t *testing.T) {
 	if err := d.AddSection(".debug_rnglists", rngLists); err != nil {
 		t.Fatal(err)
 	}
-	ret, err := d.dwarf5Ranges(nil, 0x5fbd, 0xc, [][2]uint64{})
+	u := &unit{
+		asize: 8,
+		vers:  5,
+		is64:  true,
+	}
+	ret, err := d.dwarf5Ranges(u, nil, 0x5fbd, 0xc, [][2]uint64{})
 	if err != nil {
 		t.Fatalf("could not read rnglist: %v", err)
 	}

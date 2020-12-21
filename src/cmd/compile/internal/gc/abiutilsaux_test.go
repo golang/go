@@ -75,11 +75,8 @@ func tokenize(src string) []string {
 }
 
 func verifyParamResultOffset(t *testing.T, f *types.Field, r ABIParamAssignment, which string, idx int) int {
-	n := ir.AsNode(f.Nname)
-	if n == nil {
-		panic("not expected")
-	}
-	if n.Offset() != int64(r.Offset) {
+	n := ir.AsNode(f.Nname).(*ir.Name)
+	if n.FrameOffset() != int64(r.Offset) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
 			which, idx, r.Offset, n.Offset(), f.Type)
 		return 1

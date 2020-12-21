@@ -15,9 +15,18 @@ import (
 	"strings"
 )
 
-// Declaration stack & operations
+func EnableNoWriteBarrierRecCheck() {
+	nowritebarrierrecCheck = newNowritebarrierrecChecker()
+}
 
-var externdcl []ir.Node
+func NoWriteBarrierRecCheck() {
+	// Write barriers are now known. Check the
+	// call graph.
+	nowritebarrierrecCheck.check()
+	nowritebarrierrecCheck = nil
+}
+
+var nowritebarrierrecCheck *nowritebarrierrecChecker
 
 func testdclstack() {
 	if !types.IsDclstackValid() {
@@ -28,12 +37,9 @@ func testdclstack() {
 // redeclare emits a diagnostic about symbol s being redeclared at pos.
 func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		pkg := s.Origpkg
-		if pkg == nil {
-			pkg = s.Pkg
-		}
+		pkgName := dotImportRefs[s.Def.(*ir.Ident)]
 		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\tprevious declaration during import %q", s, where, pkg.Path)
+			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
 	} else {
 		prevPos := s.Lastlineno
 
@@ -46,7 +52,7 @@ func redeclare(pos src.XPos, s *types.Sym, where string) {
 		}
 
 		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, base.FmtPos(prevPos))
+			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
 	}
 }
 
@@ -78,7 +84,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 		if s.Name == "main" && s.Pkg.Name == "main" {
 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
 		}
-		externdcl = append(externdcl, n)
+		Target.Externs = append(Target.Externs, n)
 	} else {
 		if Curfn == nil && ctxt == ir.PAUTO {
 			base.Pos = n.Pos()
@@ -99,7 +105,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	}
 
 	if ctxt == ir.PAUTO {
-		n.SetOffset(0)
+		n.SetFrameOffset(0)
 	}
 
 	if s.Block == types.Block {
@@ -168,10 +174,10 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 			if Curfn != nil {
 				init = append(init, ir.Nod(ir.ODCL, v, nil))
 			}
-			e = ir.Nod(ir.OAS, v, e)
-			init = append(init, e)
-			if e.Right() != nil {
-				v.Defn = e
+			as := ir.Nod(ir.OAS, v, e)
+			init = append(init, as)
+			if e != nil {
+				v.Defn = as
 			}
 		}
 	}
@@ -210,6 +216,10 @@ func symfield(s *types.Sym, typ *types.Type) *ir.Field {
 // Automatically creates a new closure variable if the referenced symbol was
 // declared in a different (containing) function.
 func oldname(s *types.Sym) ir.Node {
+	if s.Pkg != types.LocalPkg {
+		return ir.NewIdent(base.Pos, s)
+	}
+
 	n := ir.AsNode(s.Def)
 	if n == nil {
 		// Maybe a top-level declaration will come along later to
@@ -798,7 +808,7 @@ func makefuncsym(s *types.Sym) {
 }
 
 // setNodeNameFunc marks a node as a function.
-func setNodeNameFunc(n ir.Node) {
+func setNodeNameFunc(n *ir.Name) {
 	if n.Op() != ir.ONAME || n.Class() != ir.Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
@@ -849,27 +859,31 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// important to handle it for this check, so we model it
 	// directly. This has to happen before transformclosure since
 	// it's a lot harder to work out the argument after.
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
 		c.curfn = n.(*ir.Func)
-		ir.Inspect(n, c.findExtraCalls)
+		ir.Visit(n, c.findExtraCalls)
 	}
 	c.curfn = nil
 	return c
 }
 
-func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
-	if n.Op() != ir.OCALLFUNC {
-		return true
+func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+	if nn.Op() != ir.OCALLFUNC {
+		return
 	}
-	fn := n.Left()
-	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
-		return true
+	n := nn.(*ir.CallExpr)
+	if n.Left() == nil || n.Left().Op() != ir.ONAME {
+		return
+	}
+	fn := n.Left().(*ir.Name)
+	if fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
+		return
 	}
 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
-		return true
+		return
 	}
 
 	var callee *ir.Func
@@ -886,7 +900,6 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
 		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
 	}
 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
-	return true
 }
 
 // recordCall records a call from ODCLFUNC node "from", to function
@@ -921,7 +934,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
 	var q ir.NameQueue
 
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}

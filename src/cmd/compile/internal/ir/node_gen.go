@@ -632,26 +632,34 @@ func (n *MethodExpr) copy() Node {
 func (n *MethodExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDo(n.X, err, do)
-	err = maybeDo(n.M, err, do)
 	return err
 }
 func (n *MethodExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	n.X = maybeEdit(n.X, edit)
-	n.M = maybeEdit(n.M, edit)
 }
 
 func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
-func (n *Name) copy() Node {
-	c := *n
-	return &c
-}
+func (n *Name) copy() Node                    { panic("Name.copy") }
 func (n *Name) doChildren(do func(Node) error) error {
 	var err error
 	return err
 }
 func (n *Name) editChildren(edit func(Node) Node) {
+}
+
+func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+func (n *NameOffsetExpr) copy() Node {
+	c := *n
+	c.init = c.init.Copy()
+	return &c
+}
+func (n *NameOffsetExpr) doChildren(do func(Node) error) error {
+	var err error
+	err = maybeDoList(n.init, err, do)
+	return err
+}
+func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+	editList(n.init, edit)
 }
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

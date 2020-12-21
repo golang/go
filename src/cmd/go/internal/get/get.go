@@ -180,13 +180,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	pkgs := load.PackagesForBuild(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	load.CheckPackageErrors(pkgs)
 
 	// Phase 3. Install.
 	if *getD {
 		// Download only.
-		// Check delayed until now so that importPaths
-		// and packagesForBuild have a chance to print errors.
+		// Check delayed until now so that downloadPaths
+		// and CheckPackageErrors have a chance to print errors.
 		return
 	}
 

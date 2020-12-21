@@ -20,9 +20,9 @@ type P struct {
 type T struct{}
 
 var _ = S{
-	f: &T{}, // ERROR "cannot use &T{}"
+	f: &T{}, // ERROR "cannot use &T{}|incompatible type"
 }
 
 var _ = P{
-	f: T{}, // ERROR "cannot use T{}"
+	f: T{}, // ERROR "cannot use T{}|incompatible type"
 }

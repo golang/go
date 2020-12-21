@@ -165,17 +165,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
-			if _, ok := declImporter[s]; ok {
-				continue
+			if _, ok := declImporter[s]; !ok {
+				declImporter[s] = iimporterAndOffset{p, off}
 			}
-			declImporter[s] = iimporterAndOffset{p, off}
-
-			// Create stub declaration. If used, this will
-			// be overwritten by expandDecl.
-			if s.Def != nil {
-				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
-			}
-			s.Def = ir.NewDeclNameAt(src.NoXPos, s)
 		}
 	}
 
@@ -187,10 +179,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 			s := pkg.Lookup(p.stringAt(ird.uint64()))
 			off := ird.uint64()
 
-			if _, ok := inlineImporter[s]; ok {
-				continue
+			if _, ok := inlineImporter[s]; !ok {
+				inlineImporter[s] = iimporterAndOffset{p, off}
 			}
-			inlineImporter[s] = iimporterAndOffset{p, off}
 		}
 	}
 
@@ -442,10 +433,16 @@ func (r *importReader) ident() *types.Sym {
 	return pkg.Lookup(name)
 }
 
-func (r *importReader) qualifiedIdent() *types.Sym {
+func (r *importReader) qualifiedIdent() *ir.Name {
 	name := r.string()
 	pkg := r.pkg()
-	return pkg.Lookup(name)
+	sym := pkg.Lookup(name)
+	n := sym.PkgDef()
+	if n == nil {
+		n = ir.NewDeclNameAt(src.NoXPos, sym)
+		sym.SetPkgDef(n)
+	}
+	return n.(*ir.Name)
 }
 
 func (r *importReader) pos() src.XPos {
@@ -501,9 +498,9 @@ func (r *importReader) typ1() *types.Type {
 		// support inlining functions with local defined
 		// types. Therefore, this must be a package-scope
 		// type.
-		n := ir.AsNode(r.qualifiedIdent().PkgDef())
+		n := r.qualifiedIdent()
 		if n.Op() == ir.ONONAME {
-			expandDecl(n.(*ir.Name))
+			expandDecl(n)
 		}
 		if n.Op() != ir.OTYPE {
 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
@@ -756,7 +753,7 @@ func (r *importReader) stmtList() []ir.Node {
 }
 
 func (r *importReader) caseList(sw ir.Node) []ir.Node {
-	namedTypeSwitch := sw.Op() == ir.OSWITCH && sw.Left() != nil && sw.Left().Op() == ir.OTYPESW && sw.Left().Left() != nil
+	namedTypeSwitch := isNamedTypeSwitch(sw)
 
 	cases := make([]ir.Node, r.uint64())
 	for i := range cases {
@@ -769,7 +766,7 @@ func (r *importReader) caseList(sw ir.Node) []ir.Node {
 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			declare(caseVar, dclcontext)
 			cas.PtrRlist().Set1(caseVar)
-			caseVar.Defn = sw.Left()
+			caseVar.Defn = sw.(*ir.SwitchStmt).Left()
 		}
 		cas.PtrBody().Set(r.stmtList())
 		cases[i] = cas
@@ -821,10 +818,10 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ONONAME:
-		return mkname(r.qualifiedIdent())
+		return r.qualifiedIdent()
 
 	case ir.ONAME:
-		return mkname(r.ident())
+		return r.ident().Def.(*ir.Name)
 
 	// case OPACK, ONONAME:
 	// 	unreachable - should have been resolved by typechecking
@@ -897,10 +894,10 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to cases below by exporter
 
 	case ir.OINDEX:
-		return ir.NodAt(r.pos(), op, r.expr(), r.expr())
+		return ir.NodAt(r.pos(), ir.OINDEX, r.expr(), r.expr())
 
 	case ir.OSLICE, ir.OSLICE3:
-		n := ir.NodAt(r.pos(), op, r.expr(), nil)
+		n := ir.NewSliceExpr(r.pos(), op, r.expr())
 		low, high := r.exprsOrNil()
 		var max ir.Node
 		if n.Op().IsSlice3() {
@@ -918,14 +915,14 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
-		n := npos(r.pos(), builtinCall(op))
+		n := builtinCall(r.pos(), op)
 		n.PtrList().Set(r.exprList())
 		if op == ir.OAPPEND {
 			n.SetIsDDD(r.bool())
 		}
 		return n
 
-	// case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+	// case OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 	// 	unreachable - mapped to OCALL case below by exporter
 
 	case ir.OCALL:
@@ -937,19 +934,31 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
-		n := npos(r.pos(), builtinCall(ir.OMAKE))
+		n := builtinCall(r.pos(), ir.OMAKE)
 		n.PtrList().Append(ir.TypeNode(r.typ()))
 		n.PtrList().Append(r.exprList()...)
 		return n
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OADDR, ir.OBITNOT, ir.ODEREF, ir.ONOT, ir.ORECV:
-		return ir.NodAt(r.pos(), op, r.expr(), nil)
+	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
+		return ir.NewUnaryExpr(r.pos(), op, r.expr())
+
+	case ir.OADDR:
+		return nodAddrAt(r.pos(), r.expr())
+
+	case ir.ODEREF:
+		return ir.NewStarExpr(r.pos(), r.expr())
 
 	// binary expressions
-	case ir.OADD, ir.OAND, ir.OANDAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
-		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.OOROR, ir.ORSH, ir.OSEND, ir.OSUB, ir.OXOR:
-		return ir.NodAt(r.pos(), op, r.expr(), r.expr())
+	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
+		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR:
+		return ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
+
+	case ir.OANDAND, ir.OOROR:
+		return ir.NewLogicalExpr(r.pos(), op, r.expr(), r.expr())
+
+	case ir.OSEND:
+		return ir.NewSendStmt(r.pos(), r.expr(), r.expr())
 
 	case ir.OADDSTR:
 		pos := r.pos()
@@ -1004,7 +1013,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - generated by compiler for trampolin routines (not exported)
 
 	case ir.OGO, ir.ODEFER:
-		return ir.NodAt(r.pos(), op, r.expr(), nil)
+		return ir.NewGoDeferStmt(r.pos(), op, r.expr())
 
 	case ir.OIF:
 		n := ir.NodAt(r.pos(), ir.OIF, nil, nil)
@@ -1030,8 +1039,15 @@ func (r *importReader) node() ir.Node {
 		n.PtrBody().Set(r.stmtList())
 		return n
 
-	case ir.OSELECT, ir.OSWITCH:
-		n := ir.NodAt(r.pos(), op, nil, nil)
+	case ir.OSELECT:
+		n := ir.NodAt(r.pos(), ir.OSELECT, nil, nil)
+		n.PtrInit().Set(r.stmtList())
+		r.exprsOrNil() // TODO(rsc): Delete (and fix exporter). These are always nil.
+		n.PtrList().Set(r.caseList(n))
+		return n
+
+	case ir.OSWITCH:
+		n := ir.NodAt(r.pos(), ir.OSWITCH, nil, nil)
 		n.PtrInit().Set(r.stmtList())
 		left, _ := r.exprsOrNil()
 		n.SetLeft(left)
@@ -1048,12 +1064,16 @@ func (r *importReader) node() ir.Node {
 	// case OEMPTY:
 	// 	unreachable - not emitted by exporter
 
-	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
-		n := ir.NodAt(r.pos(), op, nil, nil)
+	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO:
+		var sym *types.Sym
+		pos := r.pos()
 		if label := r.string(); label != "" {
-			n.SetSym(lookup(label))
+			sym = lookup(label)
 		}
-		return n
+		return ir.NewBranchStmt(pos, op, sym)
+
+	case ir.OLABEL:
+		return ir.NewLabelStmt(r.pos(), lookup(r.string()))
 
 	case ir.OEND:
 		return nil
@@ -1088,4 +1108,13 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 		b = r.node()
 	}
 	return
+}
+
+func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+}
+
+func npos(pos src.XPos, n ir.Node) ir.Node {
+	n.SetPos(pos)
+	return n
 }
