@@ -95,9 +95,12 @@ func TypecheckPackage() {
 	// because variables captured by value do not escape.
 	timings.Start("fe", "capturevars")
 	for _, n := range Target.Decls {
-		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n.(*ir.Func)
-			capturevars(Curfn)
+		if n.Op() == ir.ODCLFUNC {
+			n := n.(*ir.Func)
+			if n.Func().OClosure != nil {
+				Curfn = n
+				capturevars(n)
+			}
 		}
 	}
 	capturevarscomplete = true
@@ -2078,6 +2081,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 		return n
 
 	case ir.OCLOSURE:
+		n := n.(*ir.ClosureExpr)
 		typecheckclosure(n, top)
 		if n.Type() == nil {
 			return n

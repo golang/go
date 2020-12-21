@@ -237,7 +237,7 @@ func caninl(fn *ir.Func) {
 
 	n.Func().Inl = &ir.Inline{
 		Cost: inlineMaxBudget - visitor.budget,
-		Dcl:  pruneUnusedAutos(n.Defn.Func().Dcl, &visitor),
+		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Func().Dcl, &visitor),
 		Body: ir.DeepCopyList(src.NoXPos, fn.Body().Slice()),
 	}
 
@@ -677,6 +677,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 			return fn.Func()
 		}
 	case ir.OCLOSURE:
+		fn := fn.(*ir.ClosureExpr)
 		c := fn.Func()
 		caninl(c)
 		return c

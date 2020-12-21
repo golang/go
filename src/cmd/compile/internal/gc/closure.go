@@ -76,7 +76,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a
 // separate pass from type-checking.
-func typecheckclosure(clo ir.Node, top int) {
+func typecheckclosure(clo *ir.ClosureExpr, top int) {
 	fn := clo.Func()
 	// Set current associated iota value, so iota can be used inside
 	// function in ConstSpec, see issue #22344
@@ -327,13 +327,13 @@ func transformclosure(fn *ir.Func) {
 
 // hasemptycvars reports whether closure clo has an
 // empty list of captured vars.
-func hasemptycvars(clo ir.Node) bool {
+func hasemptycvars(clo *ir.ClosureExpr) bool {
 	return len(clo.Func().ClosureVars) == 0
 }
 
 // closuredebugruntimecheck applies boilerplate checks for debug flags
 // and compiling runtime
-func closuredebugruntimecheck(clo ir.Node) {
+func closuredebugruntimecheck(clo *ir.ClosureExpr) {
 	if base.Debug.Closure > 0 {
 		if clo.Esc() == EscHeap {
 			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func().ClosureVars)
@@ -349,7 +349,7 @@ func closuredebugruntimecheck(clo ir.Node) {
 // closureType returns the struct type used to hold all the information
 // needed in the closure for clo (clo must be a OCLOSURE node).
 // The address of a variable of the returned type can be cast to a func.
-func closureType(clo ir.Node) *types.Type {
+func closureType(clo *ir.ClosureExpr) *types.Type {
 	// Create closure in the form of a composite literal.
 	// supposing the closure captures an int i and a string s
 	// and has one float64 argument and no results,

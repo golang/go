@@ -630,7 +630,7 @@ func (r *importReader) varExt(n ir.Node) {
 	r.symIdx(n.Sym())
 }
 
-func (r *importReader) funcExt(n ir.Node) {
+func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
@@ -654,7 +654,7 @@ func (r *importReader) methExt(m *types.Field) {
 	if r.bool() {
 		m.SetNointerface(true)
 	}
-	r.funcExt(ir.AsNode(m.Nname))
+	r.funcExt(m.Nname.(*ir.Name))
 }
 
 func (r *importReader) linkname(s *types.Sym) {

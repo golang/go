@@ -296,6 +296,7 @@ func (d *initDeps) visit(n ir.Node) {
 		}
 
 	case ir.OCLOSURE:
+		n := n.(*ir.ClosureExpr)
 		d.inspectList(n.Func().Body())
 
 	case ir.ODOTMETH, ir.OCALLPART:
