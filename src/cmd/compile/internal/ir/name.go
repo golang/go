@@ -34,16 +34,16 @@ func (*Ident) CanBeNtype() {}
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr
-	BuiltinOp  Op    // uint8
-	Class_     Class // uint8
-	flags      bitset16
-	pragma     PragmaFlag // int16
-	sym        *types.Sym
-	fn         *Func
-	Offset_    int64
-	val        constant.Value
-	orig       Node
-	embedFiles *[]string // list of embedded files, for ONAME var
+	BuiltinOp Op    // uint8
+	Class_    Class // uint8
+	flags     bitset16
+	pragma    PragmaFlag // int16
+	sym       *types.Sym
+	fn        *Func
+	Offset_   int64
+	val       constant.Value
+	orig      Node
+	Embed     *[]Embed // list of embedded files, for ONAME var
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
@@ -139,13 +139,13 @@ type Name struct {
 	Outer     *Name
 }
 
+func (n *Name) isExpr() {}
+
 // CloneName makes a cloned copy of the name.
 // It's not ir.Copy(n) because in general that operation is a mistake on names,
 // which uniquely identify variables.
 // Callers must use n.CloneName to make clear they intend to create a separate name.
 func (n *Name) CloneName() *Name { c := *n; return &c }
-
-func (n *Name) isExpr() {}
 
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
@@ -230,27 +230,6 @@ func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
 
 // SetAlias sets whether p, which must be for an OTYPE, is a type alias.
 func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
-
-// EmbedFiles returns the list of embedded files for p,
-// which must be for an ONAME var.
-func (n *Name) EmbedFiles() []string {
-	if n.embedFiles == nil {
-		return nil
-	}
-	return *n.embedFiles
-}
-
-// SetEmbedFiles sets the list of embedded files for p,
-// which must be for an ONAME var.
-func (n *Name) SetEmbedFiles(list []string) {
-	if n.embedFiles == nil && list == nil {
-		return
-	}
-	if n.embedFiles == nil {
-		n.embedFiles = new([]string)
-	}
-	*n.embedFiles = list
-}
 
 const (
 	nameCaptured = 1 << iota // is the variable captured by a closure
@@ -388,6 +367,11 @@ const (
 	// Careful: Class is stored in three bits in Node.flags.
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
+
+type Embed struct {
+	Pos      src.XPos
+	Patterns []string
+}
 
 // A Pack is an identifier referring to an imported package.
 type PkgName struct {

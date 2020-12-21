@@ -116,12 +116,13 @@ var (
 	okforadd   [types.NTYPE]bool
 	okforand   [types.NTYPE]bool
 	okfornone  [types.NTYPE]bool
-	okforcmp   [types.NTYPE]bool
 	okforbool  [types.NTYPE]bool
 	okforcap   [types.NTYPE]bool
 	okforlen   [types.NTYPE]bool
 	okforarith [types.NTYPE]bool
 )
+
+var okforcmp [types.NTYPE]bool
 
 var (
 	okfor [ir.OEND][]bool
@@ -148,9 +149,6 @@ var typecheckok bool
 // Whether we are adding any sort of code instrumentation, such as
 // when the race detector is enabled.
 var instrumenting bool
-
-// Whether we are tracking lexical scopes for DWARF.
-var trackScopes bool
 
 var nodfp *ir.Name
 

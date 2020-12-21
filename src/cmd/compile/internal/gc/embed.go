@@ -24,8 +24,6 @@ const (
 	embedFiles
 )
 
-var numLocalEmbed int
-
 func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
 	haveEmbed := false
 	for _, decl := range p.file.DeclList {
@@ -63,25 +61,39 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
 		p.errorAt(pos, "go:embed cannot apply to var without type")
 		return exprs
 	}
-
-	kind := embedKindApprox(typ)
-	if kind == embedUnknown {
-		p.errorAt(pos, "go:embed cannot apply to var of type %v", typ)
+	if dclcontext != ir.PEXTERN {
+		p.errorAt(pos, "go:embed cannot apply to var inside func")
 		return exprs
+	}
+
+	v := names[0].(*ir.Name)
+	Target.Embeds = append(Target.Embeds, v)
+	v.Embed = new([]ir.Embed)
+	for _, e := range embeds {
+		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+	}
+	return exprs
+}
+
+func embedFileList(v *ir.Name) []string {
+	kind := embedKind(v.Type())
+	if kind == embedUnknown {
+		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
+		return nil
 	}
 
 	// Build list of files to store.
 	have := make(map[string]bool)
 	var list []string
-	for _, e := range embeds {
+	for _, e := range *v.Embed {
 		for _, pattern := range e.Patterns {
 			files, ok := base.Flag.Cfg.Embed.Patterns[pattern]
 			if !ok {
-				p.errorAt(e.Pos, "invalid go:embed: build system did not map pattern: %s", pattern)
+				base.ErrorfAt(e.Pos, "invalid go:embed: build system did not map pattern: %s", pattern)
 			}
 			for _, file := range files {
 				if base.Flag.Cfg.Embed.Files[file] == "" {
-					p.errorAt(e.Pos, "invalid go:embed: build system did not map file: %s", file)
+					base.ErrorfAt(e.Pos, "invalid go:embed: build system did not map file: %s", file)
 					continue
 				}
 				if !have[file] {
@@ -103,25 +115,12 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
 
 	if kind == embedString || kind == embedBytes {
 		if len(list) > 1 {
-			p.errorAt(pos, "invalid go:embed: multiple files for type %v", typ)
-			return exprs
+			base.ErrorfAt(v.Pos(), "invalid go:embed: multiple files for type %v", v.Type())
+			return nil
 		}
 	}
 
-	v := names[0].(*ir.Name)
-	if dclcontext != ir.PEXTERN {
-		numLocalEmbed++
-		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
-		v.Sym().Def = v
-		v.Name().Ntype = typ
-		v.SetClass(ir.PEXTERN)
-		Target.Externs = append(Target.Externs, v)
-		exprs = []ir.Node{v}
-	}
-
-	v.Name().SetEmbedFiles(list)
-	Target.Embeds = append(Target.Embeds, v)
-	return exprs
+	return list
 }
 
 // embedKindApprox determines the kind of embedding variable, approximately.
@@ -192,8 +191,8 @@ func dumpembeds() {
 
 // initEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
-func initEmbed(v ir.Node) {
-	files := v.Name().EmbedFiles()
+func initEmbed(v *ir.Name) {
+	files := embedFileList(v)
 	switch kind := embedKind(v.Type()); kind {
 	case embedUnknown:
 		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
