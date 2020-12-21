@@ -30,6 +30,16 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
 // The user of this API is encouraged to re-use the same slice between calls for
 // efficiency, but is not required to do so.
 //
+// Note that re-use has some caveats. Notably, Values should not be read or
+// manipulated while a Read with that value is outstanding; that is a data race.
+// This property includes pointer-typed Values (e.g. Float64Histogram) whose
+// underlying storage will be reused by Read when possible. To safely use such
+// values in a concurrent setting, all data must be deep-copied.
+//
+// It is safe to execute multiple Read calls concurrently, but their arguments
+// must share no underlying memory. When in doubt, create a new []Sample from
+// scratch, which is always safe, though may be inefficient.
+//
 // Sample values with names not appearing in All will have their Value populated
 // as KindBad to indicate that the name is unknown.
 func Read(m []Sample) {

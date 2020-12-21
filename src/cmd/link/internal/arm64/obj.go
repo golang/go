@@ -55,6 +55,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
+		GenSymsLate:      gensymlate,
 		Machoreloc1:      machoreloc1,
 		MachorelocSize:   8,
 

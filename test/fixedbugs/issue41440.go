@@ -10,5 +10,5 @@ func f(...int) {}
 
 func g() {
 	var x []int
-	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)"
+	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)|too many arguments"
 }

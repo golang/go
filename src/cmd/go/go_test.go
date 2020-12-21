@@ -31,6 +31,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/work"
 	"cmd/internal/sys"
 )
 
@@ -1363,6 +1364,30 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 		}`)
 	tg.run("run", "-ldflags", `-X "main.extern=hello world"`, tg.path("main.go"))
 	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
+}
+
+func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
+	// Test the extremely long command line arguments that contain '\n' characters
+	// get encoded and passed correctly.
+	skipIfGccgo(t, "gccgo does not support -ldflags -X")
+	tooSlow(t)
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("main.go", `package main
+		var extern string
+		func main() {
+			print(extern)
+		}`)
+	testStr := "test test test test test \n\\ "
+	var buf bytes.Buffer
+	for buf.Len() < work.ArgLengthForResponseFile+1 {
+		buf.WriteString(testStr)
+	}
+	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
+	if tg.stderr.String() != buf.String() {
+		t.Errorf("strings differ")
+	}
 }
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {

@@ -241,7 +241,8 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
+			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1",
+				"-linkshared")
 			codegenArg = "-dynlink"
 			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
