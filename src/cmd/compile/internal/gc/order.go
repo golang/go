@@ -895,7 +895,7 @@ func (o *Order) stmt(n ir.Node) {
 				r := r.(*ir.AssignListStmt)
 				recv := r.Rlist().First().(*ir.UnaryExpr)
 				recv.SetLeft(o.expr(recv.Left(), nil))
-				if recv.Left().Op() != ir.ONAME {
+				if !ir.IsAutoTmp(recv.Left()) {
 					recv.SetLeft(o.copyExpr(recv.Left()))
 				}
 				init := r.PtrInit().Slice()

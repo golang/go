@@ -743,7 +743,7 @@ func reassigned(name *ir.Name) bool {
 			if n.Left() == name && n != name.Defn {
 				return true
 			}
-		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OSELRECV2:
 			for _, p := range n.List().Slice() {
 				if p == name && n != name.Defn {
 					return true

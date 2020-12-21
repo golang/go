@@ -77,24 +77,22 @@ func BytePtrFromString(s string) (*byte, error) {
 // See mksyscall.pl.
 var _zero uintptr
 
-// Unix returns ts as the number of seconds and nanoseconds elapsed since the
-// Unix epoch.
+// Unix returns the time stored in ts as seconds plus nanoseconds.
 func (ts *Timespec) Unix() (sec int64, nsec int64) {
 	return int64(ts.Sec), int64(ts.Nsec)
 }
 
-// Unix returns tv as the number of seconds and nanoseconds elapsed since the
-// Unix epoch.
+// Unix returns the time stored in tv as seconds plus nanoseconds.
 func (tv *Timeval) Unix() (sec int64, nsec int64) {
 	return int64(tv.Sec), int64(tv.Usec) * 1000
 }
 
-// Nano returns ts as the number of nanoseconds elapsed since the Unix epoch.
+// Nano returns the time stored in ts as nanoseconds.
 func (ts *Timespec) Nano() int64 {
 	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
 }
 
-// Nano returns tv as the number of nanoseconds elapsed since the Unix epoch.
+// Nano returns the time stored in tv as nanoseconds.
 func (tv *Timeval) Nano() int64 {
 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
 }

@@ -284,32 +284,31 @@ static inline void startThread(cb* c) {
 */
 import "C"
 
-import "time"
-
+var done chan bool
 var racy int
 
 //export goCallback
 func goCallback() {
 	racy++
+	done <- true
 }
 
 func main() {
+	done = make(chan bool)
 	var c C.cb
 	C.startThread(&c)
-	time.Sleep(time.Second)
 	racy++
+	<- done
 }
 `, `==================
 WARNING: DATA RACE
-Read at 0x[0-9,a-f]+ by main goroutine:
-  main\.main\(\)
-      .*/main\.go:34 \+0x[0-9,a-f]+
+Read at 0x[0-9,a-f]+ by .*:
+  main\..*
+      .*/main\.go:[0-9]+ \+0x[0-9,a-f]+(?s).*
 
-Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
-  main\.goCallback\(\)
-      .*/main\.go:27 \+0x[0-9,a-f]+
-  _cgoexp_[0-9a-z]+_goCallback\(\)
-      .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
+Previous write at 0x[0-9,a-f]+ by .*:
+  main\..*
+      .*/main\.go:[0-9]+ \+0x[0-9,a-f]+(?s).*
 
 Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)

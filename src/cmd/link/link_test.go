@@ -925,3 +925,57 @@ func TestIssue42396(t *testing.T) {
 		t.Fatalf("error message incorrect: expected it to contain %q but instead got:\n%s\n", want, out)
 	}
 }
+
+const testLargeRelocSrc = `
+package main
+
+var x = [1<<25]byte{1<<23: 23, 1<<24: 24}
+
+func main() {
+	check(x[1<<23-1], 0)
+	check(x[1<<23], 23)
+	check(x[1<<23+1], 0)
+	check(x[1<<24-1], 0)
+	check(x[1<<24], 24)
+	check(x[1<<24+1], 0)
+}
+
+func check(x, y byte) {
+	if x != y {
+		panic("FAIL")
+	}
+}
+`
+
+func TestLargeReloc(t *testing.T) {
+	// Test that large relocation addend is handled correctly.
+	// In particular, on darwin/arm64 when external linking,
+	// Mach-O relocation has only 24-bit addend. See issue #42738.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "x.go")
+	err = ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("build failed: %v. output:\n%s", err, out)
+	}
+
+	if testenv.HasCGO() { // currently all targets that support cgo can external link
+		cmd = exec.Command(testenv.GoToolPath(t), "run", "-ldflags=-linkmode=external", src)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed: %v. output:\n%s", err, out)
+		}
+	}
+}

@@ -119,10 +119,25 @@ The Go toolchain is written in Go. To build it, you need a Go compiler installed
 The scripts that do the initial build of the tools look for a "go" command
 in <code>$PATH</code>, so as long as you have Go installed in your
 system and configured in your <code>$PATH</code>, you are ready to build Go
-from source. 
+from source.
 Or if you prefer you can set <code>$GOROOT_BOOTSTRAP</code> to the
 root of a Go installation to use to build the new Go toolchain;
 <code>$GOROOT_BOOTSTRAP/bin/go</code> should be the go command to use.</p>
+
+<p>
+There are four possible ways to obtain a bootstrap toolchain:
+</p>
+
+<ul>
+<li>Download a recent binary release of Go.
+<li>Cross-compile a toolchain using a system with a working Go installation.
+<li>Use gccgo.
+<li>Compile a toolchain from Go 1.4, the last Go release with a compiler written in C.
+</ul>
+
+<p>
+These approaches are detailed below.
+</p>
 
 <h3 id="bootstrapFromBinaryRelease">Bootstrap toolchain from binary release</h3>
 
@@ -130,30 +145,6 @@ root of a Go installation to use to build the new Go toolchain;
 To use a binary release as a bootstrap toolchain, see
 <a href="/dl/">the downloads page</a> or use any other
 packaged Go distribution.
-</p>
-
-<h3 id="bootstrapFromSource">Bootstrap toolchain from source</h3>
-
-<p>
-To build a bootstrap toolchain from source, use
-either the git branch <code>release-branch.go1.4</code> or
-<a href="https://dl.google.com/go/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
-which contains the Go 1.4 source code plus accumulated fixes
-to keep the tools running on newer operating systems.
-(Go 1.4 was the last distribution in which the toolchain was written in C.)
-After unpacking the Go 1.4 source, <code>cd</code> to
-the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
-the environment, and run <code>make.bash</code> (or,
-on Windows, <code>make.bat</code>).
-</p>
-
-<p>
-Once the Go 1.4 source has been unpacked into your GOROOT_BOOTSTRAP directory,
-you must keep this git clone instance checked out to branch
-<code>release-branch.go1.4</code>.  Specifically, do not attempt to reuse
-this git clone in the later step named "Fetch the repository."  The go1.4
-bootstrap toolchain <b>must be able</b> to properly traverse the go1.4 sources
-that it assumes are present under this repository root.
 </p>
 
 <h3 id="bootstrapFromCrosscompiledSource">Bootstrap toolchain from cross-compiled source</h3>
@@ -193,6 +184,36 @@ $ sudo apt-get install gccgo-5
 $ sudo update-alternatives --set go /usr/bin/go-5
 $ GOROOT_BOOTSTRAP=/usr ./make.bash
 </pre>
+
+<h3 id="bootstrapFromSource">Bootstrap toolchain from C source code</h3>
+
+<p>
+To build a bootstrap toolchain from C source code, use
+either the git branch <code>release-branch.go1.4</code> or
+<a href="https://dl.google.com/go/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
+which contains the Go 1.4 source code plus accumulated fixes
+to keep the tools running on newer operating systems.
+(Go 1.4 was the last distribution in which the toolchain was written in C.)
+After unpacking the Go 1.4 source, <code>cd</code> to
+the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
+the environment, and run <code>make.bash</code> (or,
+on Windows, <code>make.bat</code>).
+</p>
+
+<p>
+Once the Go 1.4 source has been unpacked into your GOROOT_BOOTSTRAP directory,
+you must keep this git clone instance checked out to branch
+<code>release-branch.go1.4</code>.  Specifically, do not attempt to reuse
+this git clone in the later step named "Fetch the repository."  The go1.4
+bootstrap toolchain <b>must be able</b> to properly traverse the go1.4 sources
+that it assumes are present under this repository root.
+</p>
+
+<p>
+Note that Go 1.4 does not run on all systems that later versions of Go do.
+In particular, Go 1.4 does not support current versions of macOS.
+On such systems, the bootstrap toolchain must be obtained using one of the other methods.
+</p>
 
 <h2 id="git">Install Git, if needed</h2>
 

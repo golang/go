@@ -43,7 +43,7 @@ func extractMetricDocs(t *testing.T) map[string]string {
 		line := strings.TrimSpace(s.Text())
 		switch state {
 		case stateSearch:
-			if line == "Supported metrics" {
+			if line == "Below is the full list of supported metrics, ordered lexicographically." {
 				state = stateNextMetric
 			}
 		case stateNextMetric:
