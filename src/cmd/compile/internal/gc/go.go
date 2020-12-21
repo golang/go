@@ -129,8 +129,6 @@ var (
 	iscmp [ir.OEND]bool
 )
 
-var importlist []*ir.Func // imported functions and methods with inlinable bodies
-
 var (
 	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
 	funcsyms   []*types.Sym

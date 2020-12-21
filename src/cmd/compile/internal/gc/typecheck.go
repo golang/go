@@ -20,6 +20,96 @@ var (
 	NeedRuntimeType = func(*types.Type) {}
 )
 
+func TypecheckInit() {
+	types.Widthptr = Widthptr
+	types.Dowidth = dowidth
+	initUniverse()
+	dclcontext = ir.PEXTERN
+	timings.Start("fe", "loadsys")
+	loadsys()
+}
+
+func TypecheckPackage() {
+	finishUniverse()
+
+	typecheckok = true
+
+	// Process top-level declarations in phases.
+
+	// Phase 1: const, type, and names and types of funcs.
+	//   This will gather all the information about types
+	//   and methods but doesn't depend on any of it.
+	//
+	//   We also defer type alias declarations until phase 2
+	//   to avoid cycles like #18640.
+	//   TODO(gri) Remove this again once we have a fix for #25838.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	timings.Start("fe", "typecheck", "top1")
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
+		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).Left().Name().Alias()) {
+			Target.Decls[i] = typecheck(n, ctxStmt)
+		}
+	}
+
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
+
+	// Don't use range--typecheck can add closures to Target.Decls.
+	timings.Start("fe", "typecheck", "top2")
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
+		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).Left().Name().Alias() {
+			Target.Decls[i] = typecheck(n, ctxStmt)
+		}
+	}
+
+	// Phase 3: Type check function bodies.
+	// Don't use range--typecheck can add closures to Target.Decls.
+	timings.Start("fe", "typecheck", "func")
+	var fcount int64
+	for i := 0; i < len(Target.Decls); i++ {
+		n := Target.Decls[i]
+		if n.Op() == ir.ODCLFUNC {
+			TypecheckFuncBody(n.(*ir.Func))
+			fcount++
+		}
+	}
+
+	// Phase 4: Check external declarations.
+	// TODO(mdempsky): This should be handled when type checking their
+	// corresponding ODCL nodes.
+	timings.Start("fe", "typecheck", "externdcls")
+	for i, n := range Target.Externs {
+		if n.Op() == ir.ONAME {
+			Target.Externs[i] = typecheck(Target.Externs[i], ctxExpr)
+		}
+	}
+
+	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+	checkMapKeys()
+
+	// Phase 6: Decide how to capture closed variables.
+	// This needs to run before escape analysis,
+	// because variables captured by value do not escape.
+	timings.Start("fe", "capturevars")
+	for _, n := range Target.Decls {
+		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
+			Curfn = n.(*ir.Func)
+			capturevars(Curfn)
+		}
+	}
+	capturevarscomplete = true
+	Curfn = nil
+
+	if base.Debug.TypecheckInl != 0 {
+		// Typecheck imported function bodies if Debug.l > 1,
+		// otherwise lazily when used or re-exported.
+		TypecheckImports()
+	}
+}
+
 func TypecheckAssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
 func TypecheckExpr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
 func TypecheckStmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
@@ -43,6 +133,30 @@ func TypecheckCall(call *ir.CallExpr) {
 
 func TypecheckCallee(n ir.Node) ir.Node {
 	return typecheck(n, ctxExpr|ctxCallee)
+}
+
+func TypecheckFuncBody(n *ir.Func) {
+	Curfn = n
+	decldepth = 1
+	errorsBefore := base.Errors()
+	typecheckslice(n.Body(), ctxStmt)
+	checkreturn(n)
+	if base.Errors() > errorsBefore {
+		n.PtrBody().Set(nil) // type errors; do not compile
+	}
+	// Now that we've checked whether n terminates,
+	// we can eliminate some obviously dead code.
+	deadcode(n)
+}
+
+var importlist []*ir.Func
+
+func TypecheckImports() {
+	for _, n := range importlist {
+		if n.Inl != nil {
+			typecheckinl(n)
+		}
+	}
 }
 
 // To enable tracing support (-t flag), set enableTrace to true.

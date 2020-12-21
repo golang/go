@@ -26,6 +26,10 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 func walk(fn *ir.Func) {
 	Curfn = fn
 	errorsBefore := base.Errors()
+	order(fn)
+	if base.Errors() > errorsBefore {
+		return
+	}
 
 	if base.Flag.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Sym())
@@ -79,6 +83,10 @@ func walk(fn *ir.Func) {
 	if base.Flag.W != 0 && Curfn.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Sym())
 		ir.DumpList(s, Curfn.Enter)
+	}
+
+	if instrumenting {
+		instrument(fn)
 	}
 }
 

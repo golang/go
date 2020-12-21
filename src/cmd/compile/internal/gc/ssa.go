@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"bufio"
 	"bytes"
@@ -45,6 +46,22 @@ var ssaDumpInlined []*ir.Func
 func ssaDumpInline(fn *ir.Func) {
 	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
 		ssaDumpInlined = append(ssaDumpInlined, fn)
+	}
+}
+
+func initSSAEnv() {
+	ssaDump = os.Getenv("GOSSAFUNC")
+	ssaDir = os.Getenv("GOSSADIR")
+	if ssaDump != "" {
+		if strings.HasSuffix(ssaDump, "+") {
+			ssaDump = ssaDump[:len(ssaDump)-1]
+			ssaDumpStdout = true
+		}
+		spl := strings.Split(ssaDump, ":")
+		if len(spl) > 1 {
+			ssaDump = spl[0]
+			ssaDumpCFG = spl[1]
+		}
 	}
 }
 
@@ -3357,7 +3374,7 @@ type intrinsicKey struct {
 	fn   string
 }
 
-func init() {
+func initSSATables() {
 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
 
 	var all []*sys.Arch

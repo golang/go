@@ -222,23 +222,15 @@ func funccompile(fn *ir.Func) {
 }
 
 func compile(fn *ir.Func) {
-	errorsBefore := base.Errors()
-	order(fn)
-	if base.Errors() > errorsBefore {
-		return
-	}
-
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in markTypeUsedInInterface).
 	initLSym(fn, true)
 
+	errorsBefore := base.Errors()
 	walk(fn)
 	if base.Errors() > errorsBefore {
 		return
-	}
-	if instrumenting {
-		instrument(fn)
 	}
 
 	// From this point, there should be no uses of Curfn. Enforce that.
