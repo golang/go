@@ -15,7 +15,18 @@ import (
 	"strings"
 )
 
-// Declaration stack & operations
+func EnableNoWriteBarrierRecCheck() {
+	nowritebarrierrecCheck = newNowritebarrierrecChecker()
+}
+
+func NoWriteBarrierRecCheck() {
+	// Write barriers are now known. Check the
+	// call graph.
+	nowritebarrierrecCheck.check()
+	nowritebarrierrecCheck = nil
+}
+
+var nowritebarrierrecCheck *nowritebarrierrecChecker
 
 func testdclstack() {
 	if !types.IsDclstackValid() {
