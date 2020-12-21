@@ -205,8 +205,6 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
-	trackScopes = base.Flag.Dwarf
-
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
 
@@ -226,6 +224,7 @@ func Main(archInit func(*Arch)) {
 
 	timings.Start("fe", "parse")
 	lines := parseFiles(flag.Args())
+	cgoSymABIs()
 	timings.Stop()
 	timings.AddEvent(int64(lines), "lines")
 
@@ -473,6 +472,20 @@ func Main(archInit func(*Arch)) {
 	if base.Flag.Bench != "" {
 		if err := writebench(base.Flag.Bench); err != nil {
 			log.Fatalf("cannot write benchmark data: %v", err)
+		}
+	}
+}
+
+func cgoSymABIs() {
+	// The linker expects an ABI0 wrapper for all cgo-exported
+	// functions.
+	for _, prag := range Target.CgoPragmas {
+		switch prag[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			if symabiRefs == nil {
+				symabiRefs = make(map[string]obj.ABI)
+			}
+			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
 }

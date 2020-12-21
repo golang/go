@@ -20,7 +20,6 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -36,8 +35,9 @@ func parseFiles(filenames []string) uint {
 
 	for _, filename := range filenames {
 		p := &noder{
-			basemap: make(map[*syntax.PosBase]*src.PosBase),
-			err:     make(chan syntax.Error),
+			basemap:     make(map[*syntax.PosBase]*src.PosBase),
+			err:         make(chan syntax.Error),
+			trackScopes: base.Flag.Dwarf,
 		}
 		noders = append(noders, p)
 
@@ -151,7 +151,8 @@ type noder struct {
 
 	// scopeVars is a stack tracking the number of variables declared in the
 	// current function at the moment each open scope was opened.
-	scopeVars []int
+	trackScopes bool
+	scopeVars   []int
 
 	lastCloseScopePos syntax.Pos
 }
@@ -179,7 +180,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 func (p *noder) openScope(pos syntax.Pos) {
 	types.Markdcl()
 
-	if trackScopes {
+	if p.trackScopes {
 		Curfn.Parents = append(Curfn.Parents, p.scope)
 		p.scopeVars = append(p.scopeVars, len(Curfn.Dcl))
 		p.scope = ir.ScopeID(len(Curfn.Parents))
@@ -192,7 +193,7 @@ func (p *noder) closeScope(pos syntax.Pos) {
 	p.lastCloseScopePos = pos
 	types.Popdcl()
 
-	if trackScopes {
+	if p.trackScopes {
 		scopeVars := p.scopeVars[len(p.scopeVars)-1]
 		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
 		if scopeVars == len(Curfn.Dcl) {
@@ -284,19 +285,6 @@ func (p *noder) processPragmas() {
 		}
 		n.Sym().Linkname = l.remote
 	}
-
-	// The linker expects an ABI0 wrapper for all cgo-exported
-	// functions.
-	for _, prag := range p.pragcgobuf {
-		switch prag[0] {
-		case "cgo_export_static", "cgo_export_dynamic":
-			if symabiRefs == nil {
-				symabiRefs = make(map[string]obj.ABI)
-			}
-			symabiRefs[prag[1]] = obj.ABI0
-		}
-	}
-
 	Target.CgoPragmas = append(Target.CgoPragmas, p.pragcgobuf...)
 }
 
