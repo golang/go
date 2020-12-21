@@ -54,9 +54,6 @@ func hidePanic() {
 // Target is the package being compiled.
 var Target *ir.Package
 
-// timing data for compiler phases
-var timings Timings
-
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
 // code, and finally writes the compiled package definition to disk.
@@ -189,6 +186,7 @@ func Main(archInit func(*Arch)) {
 		logopt.LogJsonOption(base.Flag.JSON)
 	}
 
+	ir.EscFmt = escFmt
 	IsIntrinsicCall = isIntrinsicCall
 	SSADumpInline = ssaDumpInline
 	initSSAEnv()
@@ -962,9 +960,11 @@ type lang struct {
 // any language version is supported.
 var langWant lang
 
-// langSupported reports whether language version major.minor is
-// supported in a particular package.
-func langSupported(major, minor int, pkg *types.Pkg) bool {
+// AllowsGoVersion reports whether a particular package
+// is allowed to use Go version major.minor.
+// We assume the imported packages have all been checked,
+// so we only have to check the local package against the -lang flag.
+func AllowsGoVersion(pkg *types.Pkg, major, minor int) bool {
 	if pkg == nil {
 		// TODO(mdempsky): Set Pkg for local types earlier.
 		pkg = types.LocalPkg
@@ -973,11 +973,14 @@ func langSupported(major, minor int, pkg *types.Pkg) bool {
 		// Assume imported packages passed type-checking.
 		return true
 	}
-
 	if langWant.major == 0 && langWant.minor == 0 {
 		return true
 	}
 	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+}
+
+func langSupported(major, minor int, pkg *types.Pkg) bool {
+	return AllowsGoVersion(pkg, major, minor)
 }
 
 // checkLang verifies that the -lang flag holds a valid value, and
