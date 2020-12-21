@@ -28,7 +28,7 @@ func findScope(marks []ir.Mark, pos src.XPos) ir.ScopeID {
 	return marks[i-1].Scope
 }
 
-func assembleScopes(fnsym *obj.LSym, fn ir.Node, dwarfVars []*dwarf.Var, varScopes []ir.ScopeID) []dwarf.Scope {
+func assembleScopes(fnsym *obj.LSym, fn *ir.Func, dwarfVars []*dwarf.Var, varScopes []ir.ScopeID) []dwarf.Scope {
 	// Initialize the DWARF scope tree based on lexical scopes.
 	dwarfScopes := make([]dwarf.Scope, 1+len(fn.Func().Parents))
 	for i, parent := range fn.Func().Parents {

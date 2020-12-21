@@ -649,11 +649,12 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			n.PtrList().Prepend(n.Left().Func().ClosureEnter.Slice()...)
-			n.Left().Func().ClosureEnter.Set(nil)
+			clo := n.Left().(*ir.ClosureExpr)
+			n.PtrList().Prepend(clo.Func().ClosureEnter.Slice()...)
+			clo.Func().ClosureEnter.Set(nil)
 
 			// Replace OCLOSURE with ONAME/PFUNC.
-			n.SetLeft(n.Left().Func().Nname)
+			n.SetLeft(clo.Func().Nname)
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.

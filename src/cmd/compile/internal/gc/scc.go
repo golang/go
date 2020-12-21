@@ -56,8 +56,11 @@ func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)
 	v.analyze = analyze
 	v.nodeID = make(map[*ir.Func]uint32)
 	for _, n := range list {
-		if n.Op() == ir.ODCLFUNC && !n.Func().IsHiddenClosure() {
-			v.visit(n.(*ir.Func))
+		if n.Op() == ir.ODCLFUNC {
+			n := n.(*ir.Func)
+			if !n.Func().IsHiddenClosure() {
+				v.visit(n)
+			}
 		}
 	}
 }
@@ -109,6 +112,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 				}
 			}
 		case ir.OCLOSURE:
+			n := n.(*ir.ClosureExpr)
 			if m := v.visit(n.Func()); m < min {
 				min = m
 			}

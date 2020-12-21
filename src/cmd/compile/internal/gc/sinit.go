@@ -269,6 +269,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		break
 
 	case ir.OCLOSURE:
+		r := r.(*ir.ClosureExpr)
 		if hasemptycvars(r) {
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")

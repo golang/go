@@ -892,6 +892,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	case ir.ONAME:
 		callee = arg.Name().Defn.(*ir.Func)
 	case ir.OCLOSURE:
+		arg := arg.(*ir.ClosureExpr)
 		callee = arg.Func()
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)

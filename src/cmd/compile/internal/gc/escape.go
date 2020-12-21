@@ -678,6 +678,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		}
 
 	case ir.OCLOSURE:
+		n := n.(*ir.ClosureExpr)
 		k = e.spill(k, n)
 
 		// Link addresses of captured variables to closure.
@@ -879,7 +880,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 			case v.Op() == ir.ONAME && v.(*ir.Name).Class() == ir.PFUNC:
 				fn = v.(*ir.Name)
 			case v.Op() == ir.OCLOSURE:
-				fn = v.Func().Nname
+				fn = v.(*ir.ClosureExpr).Func().Nname
 			}
 		case ir.OCALLMETH:
 			fn = methodExprName(call.Left())
@@ -1883,7 +1884,7 @@ func heapAllocReason(n ir.Node) string {
 		return "too large for stack"
 	}
 
-	if n.Op() == ir.OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
+	if n.Op() == ir.OCLOSURE && closureType(n.(*ir.ClosureExpr)).Size() >= maxImplicitStackVarSize {
 		return "too large for stack"
 	}
 	if n.Op() == ir.OCALLPART && partialCallType(n.(*ir.CallPartExpr)).Size() >= maxImplicitStackVarSize {

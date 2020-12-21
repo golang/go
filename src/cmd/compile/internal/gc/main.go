@@ -270,9 +270,12 @@ func Main(archInit func(*Arch)) {
 	// before walk reaches a call of a closure.
 	timings.Start("fe", "xclosures")
 	for _, n := range Target.Decls {
-		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
-			Curfn = n.(*ir.Func)
-			transformclosure(Curfn)
+		if n.Op() == ir.ODCLFUNC {
+			n := n.(*ir.Func)
+			if n.Func().OClosure != nil {
+				Curfn = n
+				transformclosure(n)
+			}
 		}
 	}
 
