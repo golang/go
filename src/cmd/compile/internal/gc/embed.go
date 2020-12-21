@@ -17,8 +17,6 @@ import (
 	"strings"
 )
 
-var embedlist []ir.Node
-
 const (
 	embedUnknown = iota
 	embedBytes
@@ -117,12 +115,12 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
 		v.Sym().Def = v
 		v.Name().Ntype = typ
 		v.SetClass(ir.PEXTERN)
-		externdcl = append(externdcl, v)
+		Target.Externs = append(Target.Externs, v)
 		exprs = []ir.Node{v}
 	}
 
 	v.Name().SetEmbedFiles(list)
-	embedlist = append(embedlist, v)
+	Target.Embeds = append(Target.Embeds, v)
 	return exprs
 }
 
@@ -187,7 +185,7 @@ func embedFileLess(x, y string) bool {
 }
 
 func dumpembeds() {
-	for _, v := range embedlist {
+	for _, v := range Target.Embeds {
 		initEmbed(v)
 	}
 }

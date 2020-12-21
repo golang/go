@@ -1111,7 +1111,7 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 }
 
 func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
-	return ir.NewCallExpr(pos, ir.OCALL, mkname(types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }
 
 func npos(pos src.XPos, n ir.Node) ir.Node {

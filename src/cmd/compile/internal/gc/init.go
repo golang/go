@@ -27,9 +27,6 @@ func renameinit() *types.Sym {
 	return s
 }
 
-// List of imported packages, in source code order. See #31636.
-var sourceOrderImports []*types.Pkg
-
 // fninit makes an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:
@@ -43,7 +40,7 @@ func fninit(n []ir.Node) {
 	var fns []*obj.LSym  // functions to call for package initialization
 
 	// Find imported packages with init tasks.
-	for _, pkg := range sourceOrderImports {
+	for _, pkg := range Target.Imports {
 		n := resolve(oldname(pkg.Lookup(".inittask")))
 		if n.Op() == ir.ONONAME {
 			continue
@@ -72,7 +69,7 @@ func fninit(n []ir.Node) {
 		Curfn = fn
 		typecheckslice(nf, ctxStmt)
 		Curfn = nil
-		xtop = append(xtop, fn)
+		Target.Decls = append(Target.Decls, fn)
 		fns = append(fns, initializers.Linksym())
 	}
 	if initTodo.Dcl != nil {
@@ -84,16 +81,14 @@ func fninit(n []ir.Node) {
 	initTodo = nil
 
 	// Record user init functions.
-	for i := 0; i < renameinitgen; i++ {
-		s := lookupN("init.", i)
-		fn := ir.AsNode(s.Def).Name().Defn.(*ir.Func)
+	for _, fn := range Target.Inits {
 		// Skip init functions with empty bodies.
 		if fn.Body().Len() == 1 {
 			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
 				continue
 			}
 		}
-		fns = append(fns, s.Linksym())
+		fns = append(fns, fn.Nname.Sym().Linksym())
 	}
 
 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {

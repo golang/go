@@ -230,7 +230,7 @@ func caninl(fn *ir.Func) {
 
 // inlFlood marks n's inline body for export and recursively ensures
 // all called functions are marked too.
-func inlFlood(n *ir.Name) {
+func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
 	if n == nil {
 		return
 	}
@@ -258,13 +258,13 @@ func inlFlood(n *ir.Name) {
 	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
-			inlFlood(methodExprName(n))
+			inlFlood(methodExprName(n), exportsym)
 
 		case ir.ONAME:
 			n := n.(*ir.Name)
 			switch n.Class() {
 			case ir.PFUNC:
-				inlFlood(n)
+				inlFlood(n, exportsym)
 				exportsym(n)
 			case ir.PEXTERN:
 				exportsym(n)

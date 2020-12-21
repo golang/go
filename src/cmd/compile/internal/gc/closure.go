@@ -89,7 +89,7 @@ func typecheckclosure(clo ir.Node, top int) {
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
 	// Do not typecheck fn twice, otherwise, we will end up pushing
-	// fn to xtop multiple times, causing initLSym called twice.
+	// fn to Target.Decls multiple times, causing initLSym called twice.
 	// See #30709
 	if fn.Typecheck() == 1 {
 		return
@@ -118,7 +118,7 @@ func typecheckclosure(clo ir.Node, top int) {
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
 	// ready to type check code yet; we'll check it later, because the
-	// underlying closure function we create is added to xtop.
+	// underlying closure function we create is added to Target.Decls.
 	if Curfn != nil && clo.Type() != nil {
 		oldfn := Curfn
 		Curfn = fn
@@ -129,7 +129,7 @@ func typecheckclosure(clo ir.Node, top int) {
 		Curfn = oldfn
 	}
 
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 }
 
 // globClosgen is like Func.Closgen, but for the global scope.
@@ -499,7 +499,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	Curfn = fn
 	typecheckslice(fn.Body().Slice(), ctxStmt)
 	sym.Def = fn
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 	Curfn = savecurfn
 	base.Pos = saveLineNo
 

@@ -17,8 +17,6 @@ import (
 
 // Declaration stack & operations
 
-var externdcl []ir.Node
-
 func testdclstack() {
 	if !types.IsDclstackValid() {
 		base.Fatalf("mark left on the dclstack")
@@ -75,7 +73,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 		if s.Name == "main" && s.Pkg.Name == "main" {
 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
 		}
-		externdcl = append(externdcl, n)
+		Target.Externs = append(Target.Externs, n)
 	} else {
 		if Curfn == nil && ctxt == ir.PAUTO {
 			base.Pos = n.Pos()
@@ -850,7 +848,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// important to handle it for this check, so we model it
 	// directly. This has to happen before transformclosure since
 	// it's a lot harder to work out the argument after.
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
@@ -925,7 +923,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
 	var q ir.NameQueue
 
-	for _, n := range xtop {
+	for _, n := range Target.Decls {
 		if n.Op() != ir.ODCLFUNC {
 			continue
 		}
