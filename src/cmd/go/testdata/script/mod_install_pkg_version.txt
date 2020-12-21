@@ -175,6 +175,11 @@ stdout '^\tmod\texample.com/cmd\tv1.0.0\t'
 go install example.com/cmd/a@v1.9.0
 go version -m $GOPATH/bin/a$GOEXE
 stdout '^\tmod\texample.com/cmd\tv1.9.0\t'
+env GO111MODULE=
+
+# 'go install pkg@version' succeeds when -mod=readonly is set explicitly.
+# Verifies #43278.
+go install -mod=readonly example.com/cmd/a@v1.0.0
 
 -- m/go.mod --
 module m

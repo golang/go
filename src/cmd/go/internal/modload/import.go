@@ -58,7 +58,7 @@ func (e *ImportMissingError) Error() string {
 		if e.QueryErr != nil {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		if cfg.BuildMod == "mod" {
+		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
 			return "cannot find module providing package " + e.Path
 		}
 
@@ -365,7 +365,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
 	}
 
-	if cfg.BuildMod == "readonly" {
+	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
 		// the module. If readonly mode was enabled explicitly, include that in
 		// the error message.
@@ -547,7 +547,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 		mod = r
 	}
 
-	if cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+	if HasModRoot() && cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
