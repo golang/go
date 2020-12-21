@@ -94,7 +94,8 @@ func (s *Sym) SetPkgDef(n Object) {
 func (s *Sym) pkgDefPtr() *Object {
 	// Look for outermost saved declaration, which must be the
 	// package scope definition, if present.
-	for _, d := range dclstack {
+	for i := range dclstack {
+		d := &dclstack[i]
 		if s == d.sym {
 			return &d.def
 		}

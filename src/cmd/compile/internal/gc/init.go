@@ -27,31 +27,28 @@ func renameinit() *types.Sym {
 	return s
 }
 
-// List of imported packages, in source code order. See #31636.
-var sourceOrderImports []*types.Pkg
-
-// fninit makes an initialization record for the package.
+// fninit makes and returns an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:
 //   1) Initialize all of the packages the current package depends on.
 //   2) Initialize all the variables that have initializers.
 //   3) Run any init functions.
-func fninit(n []ir.Node) {
-	nf := initOrder(n)
+func fninit() *ir.Name {
+	nf := initOrder(Target.Decls)
 
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization
 
 	// Find imported packages with init tasks.
-	for _, pkg := range sourceOrderImports {
-		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
-		if n == nil {
+	for _, pkg := range Target.Imports {
+		n := resolve(ir.NewIdent(base.Pos, pkg.Lookup(".inittask")))
+		if n.Op() == ir.ONONAME {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.(*ir.Name).Class() != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
-		deps = append(deps, n.Sym().Linksym())
+		deps = append(deps, n.(*ir.Name).Sym().Linksym())
 	}
 
 	// Make a function that contains all the initialization statements.
@@ -72,7 +69,7 @@ func fninit(n []ir.Node) {
 		Curfn = fn
 		typecheckslice(nf, ctxStmt)
 		Curfn = nil
-		xtop = append(xtop, fn)
+		Target.Decls = append(Target.Decls, fn)
 		fns = append(fns, initializers.Linksym())
 	}
 	if initTodo.Dcl != nil {
@@ -84,29 +81,26 @@ func fninit(n []ir.Node) {
 	initTodo = nil
 
 	// Record user init functions.
-	for i := 0; i < renameinitgen; i++ {
-		s := lookupN("init.", i)
-		fn := ir.AsNode(s.Def).Name().Defn
+	for _, fn := range Target.Inits {
 		// Skip init functions with empty bodies.
 		if fn.Body().Len() == 1 {
-			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.List().Len() == 0 {
+			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
 				continue
 			}
 		}
-		fns = append(fns, s.Linksym())
+		fns = append(fns, fn.Nname.Sym().Linksym())
 	}
 
 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
-		return // nothing to initialize
+		return nil // nothing to initialize
 	}
 
 	// Make an .inittask structure.
 	sym := lookup(".inittask")
-	nn := NewName(sym)
-	nn.SetType(types.Types[types.TUINT8]) // fake type
-	nn.SetClass(ir.PEXTERN)
-	sym.Def = nn
-	exportsym(nn)
+	task := NewName(sym)
+	task.SetType(types.Types[types.TUINT8]) // fake type
+	task.SetClass(ir.PEXTERN)
+	sym.Def = task
 	lsym := sym.Linksym()
 	ot := 0
 	ot = duintptr(lsym, ot, 0) // state: not initialized yet
@@ -121,4 +115,5 @@ func fninit(n []ir.Node) {
 	// An initTask has pointers, but none into the Go heap.
 	// It's not quite read only, the state field must be modifiable.
 	ggloblsym(lsym, int32(ot), obj.NOPTR)
+	return task
 }

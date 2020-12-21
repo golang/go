@@ -6481,6 +6481,10 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != StatusSwitchingProtocols {
+		t.Fatalf("unexpected status code: %v", resp.StatusCode)
+	}
+
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
 		t.Fatalf("Response.Body is not a io.ReadWriteCloser: %T", resp.Body)

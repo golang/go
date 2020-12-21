@@ -64,12 +64,6 @@ func Copy(n Node) Node {
 	return c
 }
 
-func copyList(x Nodes) Nodes {
-	c := make([]Node, x.Len())
-	copy(c, x.Slice())
-	return AsNodes(c)
-}
-
 // DeepCopy returns a “deep” copy of n, with its entire structure copied
 // (except for shared nodes like ONAME, ONONAME, OLITERAL, and OTYPE).
 // If pos.IsKnown(), it sets the source position of newly allocated Nodes to pos.

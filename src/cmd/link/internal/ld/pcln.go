@@ -859,6 +859,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
 	ldr.MakeSymbolUpdater(state.carrier).SetType(sym.SPCLNTAB)
 	ldr.SetAttrReachable(state.carrier, true)
+	setCarrierSym(sym.SPCLNTAB, state.carrier)
 
 	state.generatePCHeader(ctxt)
 	nameOffsets := state.generateFuncnametab(ctxt, funcs)

@@ -140,15 +140,8 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		return
 	}
 
-	// special cases
-	switch v := x.Interface().(type) {
-	case Nodes:
-		// unpack Nodes since reflect cannot look inside
-		// due to the unexported field in its struct
-		x = reflect.ValueOf(v.Slice())
-
-	case src.XPos:
-		p.printf("%s", base.FmtPos(v))
+	if pos, ok := x.Interface().(src.XPos); ok {
+		p.printf("%s", base.FmtPos(pos))
 		return
 	}
 

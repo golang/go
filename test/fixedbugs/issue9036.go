@@ -18,8 +18,8 @@ const (
 )
 
 const x4 = 0x1p10 // valid hexadecimal float
-const x5 = 1p10   // ERROR "'p' exponent requires hexadecimal mantissa"
-const x6 = 0P0    // ERROR "'P' exponent requires hexadecimal mantissa"
+const x5 = 1p10   // ERROR "'p' exponent requires hexadecimal mantissa|invalid prefix"
+const x6 = 0P0    // ERROR "'P' exponent requires hexadecimal mantissa|invalid prefix"
 
 func main() {
 	fmt.Printf("%g %T\n", x1, x1)

@@ -11,7 +11,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/types"
 )
 
 // Package initialization
@@ -69,6 +68,8 @@ type InitOrder struct {
 	// ready is the queue of Pending initialization assignments
 	// that are ready for initialization.
 	ready declOrder
+
+	order map[ir.Node]int
 }
 
 // initOrder computes initialization order for a list l of
@@ -78,10 +79,11 @@ type InitOrder struct {
 func initOrder(l []ir.Node) []ir.Node {
 	s := InitSchedule{
 		initplans: make(map[ir.Node]*InitPlan),
-		inittemps: make(map[ir.Node]ir.Node),
+		inittemps: make(map[ir.Node]*ir.Name),
 	}
 	o := InitOrder{
 		blocking: make(map[ir.Node][]ir.Node),
+		order:    make(map[ir.Node]int),
 	}
 
 	// Process all package-level assignment in declaration order.
@@ -102,7 +104,7 @@ func initOrder(l []ir.Node) []ir.Node {
 	for _, n := range l {
 		switch n.Op() {
 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-			if n.Initorder() != InitDone {
+			if o.order[n] != orderDone {
 				// If there have already been errors
 				// printed, those errors may have
 				// confused us and there might not be
@@ -110,7 +112,7 @@ func initOrder(l []ir.Node) []ir.Node {
 				// first.
 				base.ExitIfErrors()
 
-				findInitLoopAndExit(firstLHS(n), new([]*ir.Name))
+				o.findInitLoopAndExit(firstLHS(n), new([]*ir.Name))
 				base.Fatalf("initialization unfinished, but failed to identify loop")
 			}
 		}
@@ -126,12 +128,10 @@ func initOrder(l []ir.Node) []ir.Node {
 }
 
 func (o *InitOrder) processAssign(n ir.Node) {
-	if n.Initorder() != InitNotStarted || n.Offset() != types.BADWIDTH {
-		base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Offset())
+	if _, ok := o.order[n]; ok {
+		base.Fatalf("unexpected state: %v, %v", n, o.order[n])
 	}
-
-	n.SetInitorder(InitPending)
-	n.SetOffset(0)
+	o.order[n] = 0
 
 	// Compute number of variable dependencies and build the
 	// inverse dependency ("blocking") graph.
@@ -139,17 +139,19 @@ func (o *InitOrder) processAssign(n ir.Node) {
 		defn := dep.Defn
 		// Skip dependencies on functions (PFUNC) and
 		// variables already initialized (InitDone).
-		if dep.Class() != ir.PEXTERN || defn.Initorder() == InitDone {
+		if dep.Class() != ir.PEXTERN || o.order[defn] == orderDone {
 			continue
 		}
-		n.SetOffset(n.Offset() + 1)
+		o.order[n]++
 		o.blocking[defn] = append(o.blocking[defn], n)
 	}
 
-	if n.Offset() == 0 {
+	if o.order[n] == 0 {
 		heap.Push(&o.ready, n)
 	}
 }
+
+const orderDone = -1000
 
 // flushReady repeatedly applies initialize to the earliest (in
 // declaration order) assignment ready for initialization and updates
@@ -157,20 +159,18 @@ func (o *InitOrder) processAssign(n ir.Node) {
 func (o *InitOrder) flushReady(initialize func(ir.Node)) {
 	for o.ready.Len() != 0 {
 		n := heap.Pop(&o.ready).(ir.Node)
-		if n.Initorder() != InitPending || n.Offset() != 0 {
-			base.Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Offset())
+		if order, ok := o.order[n]; !ok || order != 0 {
+			base.Fatalf("unexpected state: %v, %v, %v", n, ok, order)
 		}
 
 		initialize(n)
-		n.SetInitorder(InitDone)
-		n.SetOffset(types.BADWIDTH)
+		o.order[n] = orderDone
 
 		blocked := o.blocking[n]
 		delete(o.blocking, n)
 
 		for _, m := range blocked {
-			m.SetOffset(m.Offset() - 1)
-			if m.Offset() == 0 {
+			if o.order[m]--; o.order[m] == 0 {
 				heap.Push(&o.ready, m)
 			}
 		}
@@ -183,7 +183,7 @@ func (o *InitOrder) flushReady(initialize func(ir.Node)) {
 // path points to a slice used for tracking the sequence of
 // variables/functions visited. Using a pointer to a slice allows the
 // slice capacity to grow and limit reallocations.
-func findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
+func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 	// We implement a simple DFS loop-finding algorithm. This
 	// could be faster, but initialization cycles are rare.
 
@@ -203,11 +203,11 @@ func findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class() == ir.PEXTERN && ref.Defn.Initorder() == InitDone {
+		if ref.Class() == ir.PEXTERN && o.order[ref.Defn] == orderDone {
 			continue
 		}
 
-		findInitLoopAndExit(ref, path)
+		o.findInitLoopAndExit(ref, path)
 	}
 	*path = (*path)[:len(*path)-1]
 }
@@ -268,23 +268,31 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 type initDeps struct {
 	transitive bool
 	seen       ir.NameSet
+	cvisit     func(ir.Node)
 }
 
-func (d *initDeps) inspect(n ir.Node)      { ir.Inspect(n, d.visit) }
-func (d *initDeps) inspectList(l ir.Nodes) { ir.InspectList(l, d.visit) }
+func (d *initDeps) cachedVisit() func(ir.Node) {
+	if d.cvisit == nil {
+		d.cvisit = d.visit // cache closure
+	}
+	return d.cvisit
+}
+
+func (d *initDeps) inspect(n ir.Node)      { ir.Visit(n, d.cachedVisit()) }
+func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
 
 // visit calls foundDep on any package-level functions or variables
 // referenced by n, if any.
-func (d *initDeps) visit(n ir.Node) bool {
+func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
 	case ir.OMETHEXPR:
 		d.foundDep(methodExprName(n))
-		return false
 
 	case ir.ONAME:
+		n := n.(*ir.Name)
 		switch n.Class() {
 		case ir.PEXTERN, ir.PFUNC:
-			d.foundDep(n.(*ir.Name))
+			d.foundDep(n)
 		}
 
 	case ir.OCLOSURE:
@@ -293,8 +301,6 @@ func (d *initDeps) visit(n ir.Node) bool {
 	case ir.ODOTMETH, ir.OCALLPART:
 		d.foundDep(methodExprName(n))
 	}
-
-	return true
 }
 
 // foundDep records that we've found a dependency on n by adding it to
@@ -317,7 +323,7 @@ func (d *initDeps) foundDep(n *ir.Name) {
 	}
 	d.seen.Add(n)
 	if d.transitive && n.Class() == ir.PFUNC {
-		d.inspectList(n.Defn.Body())
+		d.inspectList(n.Defn.(*ir.Func).Body())
 	}
 }
 

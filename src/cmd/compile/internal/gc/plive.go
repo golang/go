@@ -206,8 +206,12 @@ type progeffectscache struct {
 // nor do we care about non-local variables,
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
-func livenessShouldTrack(n ir.Node) bool {
-	return n.Op() == ir.ONAME && (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
+func livenessShouldTrack(nn ir.Node) bool {
+	if nn.Op() != ir.ONAME {
+		return false
+	}
+	n := nn.(*ir.Name)
+	return (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -492,10 +496,10 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec)
 		node := vars[i]
 		switch node.Class() {
 		case ir.PAUTO:
-			onebitwalktype1(node.Type(), node.Offset()+lv.stkptrsize, locals)
+			onebitwalktype1(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
 
 		case ir.PPARAM, ir.PPARAMOUT:
-			onebitwalktype1(node.Type(), node.Offset(), args)
+			onebitwalktype1(node.Type(), node.FrameOffset(), args)
 		}
 	}
 }
@@ -1165,11 +1169,11 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
-	var maxArgNode ir.Node
+	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
 		switch n.Class() {
 		case ir.PPARAM, ir.PPARAMOUT:
-			if maxArgNode == nil || n.Offset() > maxArgNode.Offset() {
+			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
 				maxArgNode = n
 			}
 		}
@@ -1177,7 +1181,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Next, find the offset of the largest pointer in the largest node.
 	var maxArgs int64
 	if maxArgNode != nil {
-		maxArgs = maxArgNode.Offset() + typeptrdata(maxArgNode.Type())
+		maxArgs = maxArgNode.FrameOffset() + typeptrdata(maxArgNode.Type())
 	}
 
 	// Size locals bitmaps to be stkptrsize sized.
@@ -1229,10 +1233,10 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) LivenessMap {
 	// Construct the global liveness state.
-	vars, idx := getvariables(e.curfn)
-	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
+	vars, idx := getvariables(curfn)
+	lv := newliveness(curfn, f, vars, idx, stkptrsize)
 
 	// Run the dataflow framework.
 	lv.prologue()
@@ -1267,7 +1271,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	}
 
 	// Emit the live pointer map data structures
-	ls := e.curfn.LSym
+	ls := curfn.LSym
 	fninfo := ls.Func()
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 

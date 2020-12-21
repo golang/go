@@ -6,6 +6,7 @@
 package loadpe
 
 import (
+	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -308,7 +309,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
 
-				case IMAGE_REL_ARM_ADDR32:
+				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
 					rType = objabi.R_ADDR
 
 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
@@ -357,6 +358,20 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		}
 		if pesym.SectionNumber == IMAGE_SYM_DEBUG {
+			continue
+		}
+		if pesym.SectionNumber == IMAGE_SYM_ABSOLUTE && bytes.Equal(pesym.Name[:], []byte("@feat.00")) {
+			// Microsoft's linker looks at whether all input objects have an empty
+			// section called @feat.00. If all of them do, then it enables SEH;
+			// otherwise it doesn't enable that feature. So, since around the Windows
+			// XP SP2 era, most tools that make PE objects just tack on that section,
+			// so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
+			// so in theory, none of this really matters to us. But actually, if the
+			// linker tries to ingest an object with @feat.00 -- which are produced by
+			// LLVM's resource compiler, for example -- it chokes because of the
+			// IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
+			// @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
+			// are called @feat.00.
 			continue
 		}
 		var sect *pe.Section

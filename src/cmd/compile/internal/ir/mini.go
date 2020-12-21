@@ -61,14 +61,12 @@ func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
 const (
 	miniWalkdefShift   = 0
 	miniTypecheckShift = 2
-	miniInitorderShift = 4
-	miniDiag           = 1 << 6
-	miniHasCall        = 1 << 7 // for miniStmt
+	miniDiag           = 1 << 4
+	miniHasCall        = 1 << 5 // for miniStmt
 )
 
 func (n *miniNode) Walkdef() uint8   { return n.bits.get2(miniWalkdefShift) }
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
-func (n *miniNode) Initorder() uint8 { return n.bits.get2(miniInitorderShift) }
 func (n *miniNode) SetWalkdef(x uint8) {
 	if x > 3 {
 		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
@@ -80,12 +78,6 @@ func (n *miniNode) SetTypecheck(x uint8) {
 		panic(fmt.Sprintf("cannot SetTypecheck %d", x))
 	}
 	n.bits.set2(miniTypecheckShift, x)
-}
-func (n *miniNode) SetInitorder(x uint8) {
-	if x > 3 {
-		panic(fmt.Sprintf("cannot SetInitorder %d", x))
-	}
-	n.bits.set2(miniInitorderShift, x)
 }
 
 func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
@@ -114,22 +106,22 @@ func (n *miniNode) SetRight(x Node) {
 	}
 }
 func (n *miniNode) SetInit(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetInit"))
 	}
 }
 func (n *miniNode) SetBody(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetBody"))
 	}
 }
 func (n *miniNode) SetList(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetList"))
 	}
 }
 func (n *miniNode) SetRlist(x Nodes) {
-	if x != (Nodes{}) {
+	if x != nil {
 		panic(n.no("SetRlist"))
 	}
 }

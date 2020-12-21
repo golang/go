@@ -16,8 +16,7 @@ import (
 // An Ident is an identifier, possibly qualified.
 type Ident struct {
 	miniExpr
-	sym  *types.Sym
-	Used bool
+	sym *types.Sym
 }
 
 func NewIdent(pos src.XPos, sym *types.Sym) *Ident {
@@ -35,16 +34,16 @@ func (*Ident) CanBeNtype() {}
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
 type Name struct {
 	miniExpr
-	subOp      Op    // uint8
-	class      Class // uint8
-	flags      bitset16
-	pragma     PragmaFlag // int16
-	sym        *types.Sym
-	fn         *Func
-	offset     int64
-	val        constant.Value
-	orig       Node
-	embedFiles *[]string // list of embedded files, for ONAME var
+	BuiltinOp Op    // uint8
+	Class_    Class // uint8
+	flags     bitset16
+	pragma    PragmaFlag // int16
+	sym       *types.Sym
+	fn        *Func
+	Offset_   int64
+	val       constant.Value
+	orig      Node
+	Embed     *[]Embed // list of embedded files, for ONAME var
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
@@ -142,6 +141,12 @@ type Name struct {
 
 func (n *Name) isExpr() {}
 
+// CloneName makes a cloned copy of the name.
+// It's not ir.Copy(n) because in general that operation is a mistake on names,
+// which uniquely identify variables.
+// Callers must use n.CloneName to make clear they intend to create a separate name.
+func (n *Name) CloneName() *Name { c := *n; return &c }
+
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
 func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
@@ -181,16 +186,22 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 func (n *Name) Name() *Name         { return n }
 func (n *Name) Sym() *types.Sym     { return n.sym }
 func (n *Name) SetSym(x *types.Sym) { n.sym = x }
-func (n *Name) SubOp() Op           { return n.subOp }
-func (n *Name) SetSubOp(x Op)       { n.subOp = x }
-func (n *Name) Class() Class        { return n.class }
-func (n *Name) SetClass(x Class)    { n.class = x }
+func (n *Name) SubOp() Op           { return n.BuiltinOp }
+func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
+func (n *Name) Class() Class        { return n.Class_ }
+func (n *Name) SetClass(x Class)    { n.Class_ = x }
 func (n *Name) Func() *Func         { return n.fn }
 func (n *Name) SetFunc(x *Func)     { n.fn = x }
-func (n *Name) Offset() int64       { return n.offset }
-func (n *Name) SetOffset(x int64)   { n.offset = x }
-func (n *Name) Iota() int64         { return n.offset }
-func (n *Name) SetIota(x int64)     { n.offset = x }
+func (n *Name) Offset() int64       { panic("Name.Offset") }
+func (n *Name) SetOffset(x int64) {
+	if x != 0 {
+		panic("Name.SetOffset")
+	}
+}
+func (n *Name) FrameOffset() int64     { return n.Offset_ }
+func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+func (n *Name) Iota() int64            { return n.Offset_ }
+func (n *Name) SetIota(x int64)        { n.Offset_ = x }
 
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
@@ -219,27 +230,6 @@ func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
 
 // SetAlias sets whether p, which must be for an OTYPE, is a type alias.
 func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
-
-// EmbedFiles returns the list of embedded files for p,
-// which must be for an ONAME var.
-func (n *Name) EmbedFiles() []string {
-	if n.embedFiles == nil {
-		return nil
-	}
-	return *n.embedFiles
-}
-
-// SetEmbedFiles sets the list of embedded files for p,
-// which must be for an ONAME var.
-func (n *Name) SetEmbedFiles(list []string) {
-	if n.embedFiles == nil && list == nil {
-		return
-	}
-	if n.embedFiles == nil {
-		n.embedFiles = new([]string)
-	}
-	*n.embedFiles = list
-}
 
 const (
 	nameCaptured = 1 << iota // is the variable captured by a closure
@@ -377,6 +367,11 @@ const (
 	// Careful: Class is stored in three bits in Node.flags.
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
+
+type Embed struct {
+	Pos      src.XPos
+	Patterns []string
+}
 
 // A Pack is an identifier referring to an imported package.
 type PkgName struct {
