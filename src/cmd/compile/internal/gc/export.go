@@ -60,6 +60,11 @@ func autoexport(n *ir.Name, ctxt ir.Class) {
 }
 
 func dumpexport(bout *bio.Writer) {
+	p := &exporter{marked: make(map[*types.Type]bool)}
+	for _, n := range Target.Exports {
+		p.markObject(n)
+	}
+
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
 	off := bout.Offset()
