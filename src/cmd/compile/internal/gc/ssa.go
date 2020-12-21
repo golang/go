@@ -42,6 +42,12 @@ const maxOpenDefers = 8
 // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
 var ssaDumpInlined []*ir.Func
 
+func ssaDumpInline(fn *ir.Func) {
+	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
+		ssaDumpInlined = append(ssaDumpInlined, fn)
+	}
+}
+
 func initssaconfig() {
 	types_ := ssa.NewTypes()
 
@@ -1135,7 +1141,7 @@ func (s *state) stmt(n ir.Node) {
 	// Expression statements
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if isIntrinsicCall(n) {
+		if IsIntrinsicCall(n) {
 			s.intrinsicCall(n)
 			return
 		}
@@ -1204,7 +1210,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OAS2FUNC:
 		// We come here only when it is an intrinsic call returning two values.
 		call := n.Rlist().First().(*ir.CallExpr)
-		if !isIntrinsicCall(call) {
+		if !IsIntrinsicCall(call) {
 			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", call)
 		}
 		v := s.intrinsicCall(call)
@@ -2826,7 +2832,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if isIntrinsicCall(n) {
+		if IsIntrinsicCall(n) {
 			return s.intrinsicCall(n)
 		}
 		fallthrough
@@ -6375,7 +6381,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	s.livenessMap = liveness(e, f, pp)
+	s.livenessMap = liveness(e.curfn, f, e.stkptrsize, pp)
 	emitStackObjects(e, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo

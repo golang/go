@@ -769,7 +769,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		walkexprlistsafe(n.List().Slice(), init)
 		r = walkexpr(r, init)
 
-		if isIntrinsicCall(r.(*ir.CallExpr)) {
+		if IsIntrinsicCall(r.(*ir.CallExpr)) {
 			n.PtrRlist().Set1(r)
 			return n
 		}

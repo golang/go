@@ -191,6 +191,9 @@ func Main(archInit func(*Arch)) {
 		logopt.LogJsonOption(base.Flag.JSON)
 	}
 
+	IsIntrinsicCall = isIntrinsicCall
+	SSADumpInline = ssaDumpInline
+
 	ssaDump = os.Getenv("GOSSAFUNC")
 	ssaDir = os.Getenv("GOSSADIR")
 	if ssaDump != "" {
