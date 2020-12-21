@@ -57,8 +57,6 @@ var Target *ir.Package
 // timing data for compiler phases
 var timings Timings
 
-var nowritebarrierrecCheck *nowritebarrierrecChecker
-
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
 // code, and finally writes the compiled package definition to disk.
@@ -382,7 +380,7 @@ func Main(archInit func(*Arch)) {
 	// We'll do the final check after write barriers are
 	// inserted.
 	if base.Flag.CompilingRuntime {
-		nowritebarrierrecCheck = newNowritebarrierrecChecker()
+		EnableNoWriteBarrierRecCheck()
 	}
 
 	// Phase 7: Transform closure bodies to properly reference captured variables.
@@ -422,11 +420,9 @@ func Main(archInit func(*Arch)) {
 
 	compileFunctions()
 
-	if nowritebarrierrecCheck != nil {
-		// Write barriers are now known. Check the
-		// call graph.
-		nowritebarrierrecCheck.check()
-		nowritebarrierrecCheck = nil
+	if base.Flag.CompilingRuntime {
+		// Write barriers are now known. Check the call graph.
+		NoWriteBarrierRecCheck()
 	}
 
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
