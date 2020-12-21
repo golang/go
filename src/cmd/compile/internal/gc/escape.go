@@ -143,10 +143,6 @@ type EscEdge struct {
 	notes  *EscNote
 }
 
-func init() {
-	ir.EscFmt = escFmt
-}
-
 // escFmt is called from node printing to print information about escape analysis results.
 func escFmt(n ir.Node) string {
 	text := ""

@@ -685,6 +685,21 @@ func (r *importReader) typeExt(t *types.Type) {
 // so we can use index to reference the symbol.
 var typeSymIdx = make(map[*types.Type][2]int64)
 
+func BaseTypeIndex(t *types.Type) int64 {
+	tbase := t
+	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
+		tbase = t.Elem()
+	}
+	i, ok := typeSymIdx[tbase]
+	if !ok {
+		return -1
+	}
+	if t != tbase {
+		return i[1]
+	}
+	return i[0]
+}
+
 func (r *importReader) doInline(fn *ir.Func) {
 	if len(fn.Inl.Body) != 0 {
 		base.Fatalf("%v already has inline body", fn)

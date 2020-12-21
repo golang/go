@@ -5,6 +5,7 @@
 package ir
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
@@ -164,6 +165,12 @@ type BlockStmt struct {
 func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
 	n := &BlockStmt{}
 	n.pos = pos
+	if !pos.IsKnown() {
+		n.pos = base.Pos
+		if len(list) > 0 {
+			n.pos = list[0].Pos()
+		}
+	}
 	n.op = OBLOCK
 	n.List_.Set(list)
 	return n

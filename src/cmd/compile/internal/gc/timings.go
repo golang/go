@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var timings Timings
+
 // Timings collects the execution times of labeled phases
 // which are added trough a sequence of Start/Stop calls.
 // Events may be associated with each phase via AddEvent.
