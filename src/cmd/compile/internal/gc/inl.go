@@ -39,6 +39,9 @@ import (
 	"strings"
 )
 
+// IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
+var IsIntrinsicCall = func(*ir.CallExpr) bool { return false }
+
 // Inlining budget parameters, gathered in one place
 const (
 	inlineMaxBudget       = 80
@@ -339,7 +342,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 			}
 		}
 
-		if isIntrinsicCall(n) {
+		if IsIntrinsicCall(n) {
 			// Treat like any other node.
 			break
 		}
@@ -593,7 +596,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Left())
 		}
-		if isIntrinsicCall(call) {
+		if IsIntrinsicCall(call) {
 			break
 		}
 		if fn := inlCallee(call.Left()); fn != nil && fn.Inl != nil {
@@ -768,6 +771,10 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node 
 
 var inlgen int
 
+// SSADumpInline gives the SSA back end a chance to dump the function
+// when producing output for debugging the compiler itself.
+var SSADumpInline = func(*ir.Func) {}
+
 // If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
 // The returned node's Ninit has the parameter assignments, the Nbody is the
@@ -835,9 +842,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
-	if ssaDump != "" && ssaDump == ir.FuncName(Curfn) {
-		ssaDumpInlined = append(ssaDumpInlined, fn)
-	}
+	SSADumpInline(fn)
 
 	ninit := n.Init()
 

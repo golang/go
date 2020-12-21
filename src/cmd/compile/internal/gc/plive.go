@@ -1233,10 +1233,10 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) LivenessMap {
 	// Construct the global liveness state.
-	vars, idx := getvariables(e.curfn)
-	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
+	vars, idx := getvariables(curfn)
+	lv := newliveness(curfn, f, vars, idx, stkptrsize)
 
 	// Run the dataflow framework.
 	lv.prologue()
@@ -1271,7 +1271,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	}
 
 	// Emit the live pointer map data structures
-	ls := e.curfn.LSym
+	ls := curfn.LSym
 	fninfo := ls.Func()
 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
 
