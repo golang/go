@@ -315,20 +315,25 @@ func (ar *Archive) extractContents1(e *archive.Entry, out io.Writer) {
 }
 
 // isGoCompilerObjFile reports whether file is an object file created
-// by the Go compiler, which is an archive file with exactly two entries:
-// __.PKGDEF and _go_.o.
+// by the Go compiler, which is an archive file with exactly one entry
+// of __.PKGDEF, or _go_.o, or both entries.
 func isGoCompilerObjFile(a *archive.Archive) bool {
-	if len(a.Entries) != 2 {
+	switch len(a.Entries) {
+	case 1:
+		return (a.Entries[0].Type == archive.EntryGoObj && a.Entries[0].Name == "_go_.o") ||
+			(a.Entries[0].Type == archive.EntryPkgDef && a.Entries[0].Name == "__.PKGDEF")
+	case 2:
+		var foundPkgDef, foundGo bool
+		for _, e := range a.Entries {
+			if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
+				foundPkgDef = true
+			}
+			if e.Type == archive.EntryGoObj && e.Name == "_go_.o" {
+				foundGo = true
+			}
+		}
+		return foundPkgDef && foundGo
+	default:
 		return false
 	}
-	var foundPkgDef, foundGo bool
-	for _, e := range a.Entries {
-		if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
-			foundPkgDef = true
-		}
-		if e.Type == archive.EntryGoObj && e.Name == "_go_.o" {
-			foundGo = true
-		}
-	}
-	return foundPkgDef && foundGo
 }
