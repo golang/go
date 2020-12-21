@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 	thearch.LinkArch = &x86.Linkamd64
 	thearch.REGSP = x86.REGSP
 	thearch.MAXWIDTH = 1 << 50
+	MaxWidth = thearch.MAXWIDTH
 	base.Ctxt = obj.Linknew(thearch.LinkArch)
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors

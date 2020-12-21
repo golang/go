@@ -7,11 +7,13 @@ package gc
 import (
 	"bytes"
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"fmt"
 	"sort"
 )
+
+// MaxWidth is the maximum size of a value on the target architecture.
+var MaxWidth int64
 
 // sizeCalculationDisabled indicates whether it is safe
 // to calculate Types' widths and alignments. See dowidth.
@@ -84,7 +86,7 @@ func expandiface(t *types.Type) {
 
 	sort.Sort(methcmp(methods))
 
-	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
+	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
 		base.ErrorfAt(typePos(t), "interface too large")
 	}
 	for i, m := range methods {
@@ -118,8 +120,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
 		f.Offset = o
-		if n := ir.AsNode(f.Nname); n != nil {
-			n := n.Name()
+		if f.Nname != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -127,12 +128,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if n.Name().Stackcopy != nil {
-				n.Name().Stackcopy.SetFrameOffset(o)
-				n.SetFrameOffset(0)
-			} else {
-				n.SetFrameOffset(o)
-			}
+			f.Nname.(types.VarObject).RecordFrameOffset(o)
 		}
 
 		w := f.Type.Width
@@ -143,7 +139,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			lastzero = o
 		}
 		o += w
-		maxwidth := thearch.MAXWIDTH
+		maxwidth := MaxWidth
 		// On 32-bit systems, reflect tables impose an additional constraint
 		// that each field start offset must fit in 31 bits.
 		if maxwidth < 1<<32 {
@@ -206,7 +202,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if findTypeLoop(t.Obj().(*ir.Name).Ntype.Type(), path) {
+		if findTypeLoop(t.Obj().(types.TypeObject).TypeDefn(), path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -419,7 +415,7 @@ func dowidth(t *types.Type) {
 
 		dowidth(t.Elem())
 		if t.Elem().Width != 0 {
-			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
 				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
 			}
@@ -477,6 +473,13 @@ func dowidth(t *types.Type) {
 	base.Pos = lno
 
 	resumecheckwidth()
+}
+
+// CalcStructSize calculates the size of s,
+// filling in s.Width and s.Align,
+// even if size calculation is otherwise disabled.
+func CalcStructSize(s *types.Type) {
+	s.Width = widstruct(s, s, 0, 1) // sets align
 }
 
 // when a type's width should be known, we call checkwidth
