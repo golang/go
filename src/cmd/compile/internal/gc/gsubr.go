@@ -321,15 +321,9 @@ func ggloblsym(s *obj.LSym, width int32, flags int16) {
 }
 
 func Addrconst(a *obj.Addr, v int64) {
-	a.Sym = nil
-	a.Type = obj.TYPE_CONST
-	a.Offset = v
+	a.SetConst(v)
 }
 
 func Patch(p *obj.Prog, to *obj.Prog) {
-	if p.To.Type != obj.TYPE_BRANCH {
-		base.Fatalf("patch: not a branch")
-	}
 	p.To.SetTarget(to)
-	p.To.Offset = to.Pc
 }

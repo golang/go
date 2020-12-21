@@ -250,6 +250,12 @@ func (a *Addr) SetTarget(t *Prog) {
 	a.Val = t
 }
 
+func (a *Addr) SetConst(v int64) {
+	a.Sym = nil
+	a.Type = TYPE_CONST
+	a.Offset = v
+}
+
 // Prog describes a single machine instruction.
 //
 // The general instruction form is:
