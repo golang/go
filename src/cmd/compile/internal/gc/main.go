@@ -208,6 +208,7 @@ func Main(archInit func(*Arch)) {
 
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
+	MaxWidth = thearch.MAXWIDTH
 
 	Target = new(ir.Package)
 

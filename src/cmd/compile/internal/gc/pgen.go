@@ -164,7 +164,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 		dowidth(n.Type())
 		w := n.Type().Width
-		if w >= thearch.MAXWIDTH || w < 0 {
+		if w >= MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
 		if w == 0 && lastHasPtr {

@@ -1019,7 +1019,7 @@ func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		}
 
 		// Check for overflow.
-		if n.Type().Width != 0 && thearch.MAXWIDTH/n.Type().Width <= int64(l) {
+		if n.Type().Width != 0 && MaxWidth/n.Type().Width <= int64(l) {
 			break
 		}
 		offset += int64(l) * n.Type().Width
