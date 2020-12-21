@@ -55,6 +55,26 @@ const (
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
 )
 
+func InlinePackage() {
+	// Find functions that can be inlined and clone them before walk expands them.
+	visitBottomUp(Target.Decls, func(list []*ir.Func, recursive bool) {
+		numfns := numNonClosures(list)
+		for _, n := range list {
+			if !recursive || numfns > 1 {
+				// We allow inlining if there is no
+				// recursion, or the recursion cycle is
+				// across more than one function.
+				caninl(n)
+			} else {
+				if base.Flag.LowerM > 1 {
+					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+				}
+			}
+			inlcalls(n)
+		}
+	})
+}
+
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *ir.Name) *types.Pkg {

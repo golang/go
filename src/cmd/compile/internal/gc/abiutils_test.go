@@ -36,7 +36,13 @@ func TestMain(m *testing.M) {
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
-	initializeTypesPackage()
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+	TypecheckInit()
 	os.Exit(m.Run())
 }
 

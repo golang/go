@@ -442,6 +442,12 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
+func CheckFuncStack() {
+	if len(funcStack) != 0 {
+		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
+	}
+}
+
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
