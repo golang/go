@@ -394,7 +394,7 @@ func genhash(t *types.Type) *obj.LSym {
 	}
 
 	fn.SetNilCheckDisabled(true)
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
@@ -774,7 +774,7 @@ func geneq(t *types.Type) *obj.LSym {
 	// neither of which can be nil, and our comparisons
 	// are shallow.
 	fn.SetNilCheckDisabled(true)
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 
 	// Generate a closure which points at the function we just generated.
 	dsymptr(closure, 0, sym.Linksym(), 0)

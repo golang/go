@@ -27,7 +27,7 @@ import (
 
 // parseFiles concurrently parses files into *syntax.File structures.
 // Each declaration in every *syntax.File is converted to a syntax tree
-// and its root represented by *Node is appended to xtop.
+// and its root represented by *Node is appended to Target.Decls.
 // Returns the total count of parsed lines.
 func parseFiles(filenames []string) uint {
 	noders := make([]*noder, 0, len(filenames))
@@ -260,7 +260,7 @@ func (p *noder) node() {
 		p.checkUnused(pragma)
 	}
 
-	xtop = append(xtop, p.decls(p.file.DeclList)...)
+	Target.Decls = append(Target.Decls, p.decls(p.file.DeclList)...)
 
 	base.Pos = src.NoXPos
 	clearImports()
@@ -297,7 +297,7 @@ func (p *noder) processPragmas() {
 		}
 	}
 
-	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
+	Target.CgoPragmas = append(Target.CgoPragmas, p.pragcgobuf...)
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
@@ -354,7 +354,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	}
 
 	if !ipkg.Direct {
-		sourceOrderImports = append(sourceOrderImports, ipkg)
+		Target.Imports = append(Target.Imports, ipkg)
 	}
 	ipkg.Direct = true
 
@@ -530,6 +530,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 			if len(t.Params) > 0 || len(t.Results) > 0 {
 				base.ErrorfAt(f.Pos(), "func init must have no arguments and no return values")
 			}
+			Target.Inits = append(Target.Inits, f)
 		}
 
 		if types.LocalPkg.Name == "main" && name.Name == "main" {

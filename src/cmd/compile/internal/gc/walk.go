@@ -3942,7 +3942,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	typecheckFunc(fn)
 	typecheckslice(fn.Body().Slice(), ctxStmt)
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 
 	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.List().Slice())
 	return walkexpr(typecheck(call, ctxStmt), init)

@@ -1275,7 +1275,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	escapeFuncs([]*ir.Func{fn}, false)
 
 	Curfn = nil
-	xtop = append(xtop, fn)
+	Target.Decls = append(Target.Decls, fn)
 }
 
 func paramNnames(ft *types.Type) []ir.Node {

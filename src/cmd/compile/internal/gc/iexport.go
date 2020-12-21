@@ -251,7 +251,7 @@ func iexport(out *bufio.Writer) {
 	{
 		// TODO(mdempsky): Separate from bexport logic.
 		p := &exporter{marked: make(map[*types.Type]bool)}
-		for _, n := range exportlist {
+		for _, n := range Target.Exports {
 			p.markObject(n)
 		}
 	}
@@ -272,7 +272,7 @@ func iexport(out *bufio.Writer) {
 	}
 
 	// Initialize work queue with exported declarations.
-	for _, n := range exportlist {
+	for _, n := range Target.Exports {
 		p.pushDecl(n)
 	}
 

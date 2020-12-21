@@ -117,13 +117,14 @@ func dumpCompilerObj(bout *bio.Writer) {
 }
 
 func dumpdata() {
-	externs := len(externdcl)
-	xtops := len(xtop)
+	numExterns := len(Target.Externs)
+	numDecls := len(Target.Decls)
 
-	dumpglobls()
+	dumpglobls(Target.Externs)
+	dumpfuncsyms()
 	addptabs()
-	exportlistLen := len(exportlist)
-	addsignats(externdcl)
+	numExports := len(Target.Exports)
+	addsignats(Target.Externs)
 	dumpsignats()
 	dumptabs()
 	ptabsLen := len(ptabs)
@@ -140,28 +141,22 @@ func dumpdata() {
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
 	for {
-		for i := xtops; i < len(xtop); i++ {
-			n := xtop[i]
+		for i := numDecls; i < len(Target.Decls); i++ {
+			n := Target.Decls[i]
 			if n.Op() == ir.ODCLFUNC {
 				funccompile(n.(*ir.Func))
 			}
 		}
-		xtops = len(xtop)
+		numDecls = len(Target.Decls)
 		compileFunctions()
 		dumpsignats()
-		if xtops == len(xtop) {
+		if numDecls == len(Target.Decls) {
 			break
 		}
 	}
 
 	// Dump extra globals.
-	tmp := externdcl
-
-	if externdcl != nil {
-		externdcl = externdcl[externs:]
-	}
-	dumpglobls()
-	externdcl = tmp
+	dumpglobls(Target.Externs[numExterns:])
 
 	if zerosize > 0 {
 		zero := mappkg.Lookup("zero")
@@ -170,8 +165,8 @@ func dumpdata() {
 
 	addGCLocals()
 
-	if exportlistLen != len(exportlist) {
-		base.Fatalf("exportlist changed after compile functions loop")
+	if numExports != len(Target.Exports) {
+		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
 	if ptabsLen != len(ptabs) {
 		base.Fatalf("ptabs changed after compile functions loop")
@@ -184,11 +179,11 @@ func dumpdata() {
 func dumpLinkerObj(bout *bio.Writer) {
 	printObjHeader(bout)
 
-	if len(pragcgobuf) != 0 {
+	if len(Target.CgoPragmas) != 0 {
 		// write empty export section; must be before cgo section
 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+		if err := json.NewEncoder(bout).Encode(Target.CgoPragmas); err != nil {
 			base.Fatalf("serializing pragcgobuf: %v", err)
 		}
 		fmt.Fprintf(bout, "\n$$\n\n")
@@ -203,7 +198,7 @@ func addptabs() {
 	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
 		return
 	}
-	for _, exportn := range exportlist {
+	for _, exportn := range Target.Exports {
 		s := exportn.Sym()
 		nn := ir.AsNode(s.Def)
 		if nn == nil {
@@ -267,9 +262,9 @@ func dumpGlobalConst(n ir.Node) {
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.IntVal(t, v))
 }
 
-func dumpglobls() {
+func dumpglobls(externs []ir.Node) {
 	// add globals
-	for _, n := range externdcl {
+	for _, n := range externs {
 		switch n.Op() {
 		case ir.ONAME:
 			dumpGlobal(n.(*ir.Name))
@@ -277,7 +272,9 @@ func dumpglobls() {
 			dumpGlobalConst(n)
 		}
 	}
+}
 
+func dumpfuncsyms() {
 	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
@@ -286,9 +283,6 @@ func dumpglobls() {
 		dsymptr(sf, 0, s.Linksym(), 0)
 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
-
-	// Do not reprocess funcsyms on next dumpglobls call.
-	funcsyms = nil
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.

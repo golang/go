@@ -18,7 +18,7 @@ func (p *exporter) markObject(n ir.Node) {
 	if n.Op() == ir.ONAME {
 		n := n.(*ir.Name)
 		if n.Class() == ir.PFUNC {
-			inlFlood(n)
+			inlFlood(n, exportsym)
 		}
 	}
 
