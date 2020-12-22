@@ -328,6 +328,10 @@ var work struct {
 	nFlushCacheRoots                               int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
+	// Base indexes of each root type. Set by gcMarkRootPrepare.
+	baseFlushCache                                    uint32
+	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
+
 	// Each type of GC state transition is protected by a lock.
 	// Since multiple threads can simultaneously detect the state
 	// transition condition, any thread that detects a transition
