@@ -863,12 +863,21 @@ func loadFromRoots(params loaderParams) *loader {
 	for _, pkg := range ld.pkgs {
 		if pkg.mod == Target {
 			for _, dep := range pkg.imports {
-				if dep.mod.Path != "" {
+				if dep.mod.Path != "" && dep.mod.Path != Target.Path && index != nil {
+					_, explicit := index.require[dep.mod]
+					if allowWriteGoMod && cfg.BuildMod == "readonly" && !explicit {
+						// TODO(#40775): attach error to package instead of using
+						// base.Errorf. Ideally, 'go list' should not fail because of this,
+						// but today, LoadPackages calls WriteGoMod unconditionally, which
+						// would fail with a less clear message.
+						base.Errorf("go: %[1]s: package %[2]s imported from implicitly required module; try 'go get -d %[1]s' to add missing requirements", pkg.path, dep.path)
+					}
 					ld.direct[dep.mod.Path] = true
 				}
 			}
 		}
 	}
+	base.ExitIfErrors()
 
 	// If we didn't scan all of the imports from the main module, or didn't use
 	// imports.AnyTags, then we didn't necessarily load every package that
