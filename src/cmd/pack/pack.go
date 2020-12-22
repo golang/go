@@ -43,7 +43,7 @@ func main() {
 		ar = openArchive(os.Args[2], os.O_RDONLY, os.Args[3:])
 		ar.scan(ar.printContents)
 	case 'r':
-		ar = openArchive(os.Args[2], os.O_RDWR, os.Args[3:])
+		ar = openArchive(os.Args[2], os.O_RDWR|os.O_CREATE, os.Args[3:])
 		ar.addFiles()
 	case 'c':
 		ar = openArchive(os.Args[2], os.O_RDWR|os.O_TRUNC|os.O_CREATE, os.Args[3:])
@@ -124,10 +124,13 @@ func openArchive(name string, mode int, files []string) *Archive {
 		log.Fatal(err)
 	}
 	var a *archive.Archive
-	if mode&os.O_CREATE != 0 { // the c command
+	if mode&os.O_TRUNC != 0 { // the c command
 		a, err = archive.New(f)
 	} else {
 		a, err = archive.Parse(f, verbose)
+		if err != nil && mode&os.O_CREATE != 0 { // the r command
+			a, err = archive.New(f)
+		}
 	}
 	if err != nil {
 		log.Fatal(err)
