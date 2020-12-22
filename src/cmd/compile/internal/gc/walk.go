@@ -702,38 +702,38 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		} else {
 			n.(*ir.AssignStmt).SetLeft(left)
 		}
-		n := n.(*ir.AssignStmt)
+		as := n.(*ir.AssignStmt)
 
-		if oaslit(n, init) {
-			return ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
+		if oaslit(as, init) {
+			return ir.NodAt(as.Pos(), ir.OBLOCK, nil, nil)
 		}
 
-		if n.Right() == nil {
+		if as.Right() == nil {
 			// TODO(austin): Check all "implicit zeroing"
-			return n
+			return as
 		}
 
-		if !instrumenting && isZero(n.Right()) {
-			return n
+		if !instrumenting && isZero(as.Right()) {
+			return as
 		}
 
-		switch n.Right().Op() {
+		switch as.Right().Op() {
 		default:
-			n.SetRight(walkexpr(n.Right(), init))
+			as.SetRight(walkexpr(as.Right(), init))
 
 		case ir.ORECV:
-			// x = <-c; n.Left is x, n.Right.Left is c.
+			// x = <-c; as.Left is x, as.Right.Left is c.
 			// order.stmt made sure x is addressable.
-			recv := n.Right().(*ir.UnaryExpr)
+			recv := as.Right().(*ir.UnaryExpr)
 			recv.SetLeft(walkexpr(recv.Left(), init))
 
-			n1 := nodAddr(n.Left())
+			n1 := nodAddr(as.Left())
 			r := recv.Left() // the channel
 			return mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
 
 		case ir.OAPPEND:
 			// x = append(...)
-			call := n.Right().(*ir.CallExpr)
+			call := as.Right().(*ir.CallExpr)
 			if call.Type().Elem().NotInHeap() {
 				base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", call.Type().Elem())
 			}
@@ -745,24 +745,24 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			case call.IsDDD():
 				r = appendslice(call, init) // also works for append(slice, string).
 			default:
-				r = walkappend(call, init, n)
+				r = walkappend(call, init, as)
 			}
-			n.SetRight(r)
+			as.SetRight(r)
 			if r.Op() == ir.OAPPEND {
 				// Left in place for back end.
 				// Do not add a new write barrier.
 				// Set up address of type for back end.
 				r.(*ir.CallExpr).SetLeft(typename(r.Type().Elem()))
-				return n
+				return as
 			}
 			// Otherwise, lowered for race detector.
 			// Treat as ordinary assignment.
 		}
 
-		if n.Left() != nil && n.Right() != nil {
-			return convas(n, init)
+		if as.Left() != nil && as.Right() != nil {
+			return convas(as, init)
 		}
-		return n
+		return as
 
 	case ir.OAS2:
 		init.AppendNodes(n.PtrInit())
