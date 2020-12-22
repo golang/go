@@ -786,6 +786,25 @@ func TestPErsrc(t *testing.T) {
 	if !bytes.Contains(b, []byte("Hello Gophers!")) {
 		t.Fatalf("binary does not contain expected content")
 	}
+
+	pkgdir = filepath.Join("testdata", "testPErsrc-complex")
+	exe = filepath.Join(tmpdir, "a.exe")
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = pkgdir
+	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building failed: %v, output:\n%s", err, out)
+	}
+
+	// Check that the binary contains the rsrc data
+	b, err = ioutil.ReadFile(exe)
+	if err != nil {
+		t.Fatalf("reading output failed: %v", err)
+	}
+	if !bytes.Contains(b, []byte("resname RCDATA a.rc")) {
+		t.Fatalf("binary does not contain expected content")
+	}
 }
 
 func TestContentAddressableSymbols(t *testing.T) {
