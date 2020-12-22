@@ -80,6 +80,9 @@ func init() {
 }
 
 func TestTemplates(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("this test is not supported for Android")
+	}
 	cfg := &packages.Config{
 		Mode: packages.NeedTypesInfo | packages.LoadAllSyntax, // figure out what's necessary PJW
 	}
