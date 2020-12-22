@@ -13,12 +13,16 @@
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$454, AX
 	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
 	MOVL	AX, ret+20(FP)
 	RET
 
 TEXT runtime·thr_new(SB),NOSPLIT,$-4
 	MOVL	$455, AX
 	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -120,6 +124,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$12-16
 	MOVL	flags+0(FP), BX
 	MOVL	BX, 8(SP)
 	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
 	MOVL	AX, errno+12(FP)
 	RET
 
