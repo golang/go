@@ -304,6 +304,14 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
+			// Call itabname so that (src, dst)
+			// gets added to itabs early, which allows
+			// us to de-virtualize calls through this
+			// type/interface pair later. See peekitabs in reflect.go
+			if isdirectiface(src) && !dst.IsEmptyInterface() {
+				NeedITab(src, dst)
+			}
+
 			return ir.OCONVIFACE, ""
 		}
 
@@ -1003,6 +1011,7 @@ func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
 		for c := len(path) - 1; c >= 0; c-- {
 			dot := nodSym(ir.ODOT, n.Left(), path[c].field.Sym)
 			dot.SetImplicit(true)
+			dot.SetType(path[c].field.Type)
 			n.SetLeft(dot)
 		}
 	case ambig:
@@ -1232,8 +1241,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		left := dot.Left() // skip final .M
-		// TODO(mdempsky): Remove dependency on dotlist.
-		if !dotlist[0].field.Type.IsPtr() {
+		if !left.Type().IsPtr() {
 			left = nodAddr(left)
 		}
 		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
@@ -1404,14 +1412,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		}
 	}
 
-	// We're going to emit an OCONVIFACE.
-	// Call itabname so that (t, iface)
-	// gets added to itabs early, which allows
-	// us to de-virtualize calls through this
-	// type/interface pair later. See peekitabs in reflect.go
-	if isdirectiface(t0) && !iface.IsEmptyInterface() {
-		itabname(t0, iface)
-	}
 	return true
 }
 

@@ -55,6 +55,26 @@ const (
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
 )
 
+func InlinePackage() {
+	// Find functions that can be inlined and clone them before walk expands them.
+	visitBottomUp(Target.Decls, func(list []*ir.Func, recursive bool) {
+		numfns := numNonClosures(list)
+		for _, n := range list {
+			if !recursive || numfns > 1 {
+				// We allow inlining if there is no
+				// recursion, or the recursion cycle is
+				// across more than one function.
+				caninl(n)
+			} else {
+				if base.Flag.LowerM > 1 {
+					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+				}
+			}
+			inlcalls(n)
+		}
+	})
+}
+
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *ir.Name) *types.Pkg {
@@ -217,7 +237,7 @@ func caninl(fn *ir.Func) {
 
 	n.Func().Inl = &ir.Inline{
 		Cost: inlineMaxBudget - visitor.budget,
-		Dcl:  pruneUnusedAutos(n.Defn.Func().Dcl, &visitor),
+		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Func().Dcl, &visitor),
 		Body: ir.DeepCopyList(src.NoXPos, fn.Body().Slice()),
 	}
 
@@ -452,7 +472,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
 		v.budget++
 
-	case ir.OCALLPART:
+	case ir.OCALLPART, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
 	}
 
@@ -657,6 +677,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 			return fn.Func()
 		}
 	case ir.OCLOSURE:
+		fn := fn.(*ir.ClosureExpr)
 		c := fn.Func()
 		caninl(c)
 		return c

@@ -147,6 +147,24 @@ func (n *Name) isExpr() {}
 // Callers must use n.CloneName to make clear they intend to create a separate name.
 func (n *Name) CloneName() *Name { c := *n; return &c }
 
+// TypeDefn returns the type definition for a named OTYPE.
+// That is, given "type T Defn", it returns Defn.
+// It is used by package types.
+func (n *Name) TypeDefn() *types.Type {
+	return n.Ntype.Type()
+}
+
+// RecordFrameOffset records the frame offset for the name.
+// It is used by package types when laying out function arguments.
+func (n *Name) RecordFrameOffset(offset int64) {
+	if n.Stackcopy != nil {
+		n.Stackcopy.SetFrameOffset(offset)
+		n.SetFrameOffset(0)
+	} else {
+		n.SetFrameOffset(offset)
+	}
+}
+
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
 func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
@@ -164,13 +182,30 @@ func NewIota(pos src.XPos, sym *types.Sym) *Name {
 	return newNameAt(pos, OIOTA, sym)
 }
 
-// NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
+// NewDeclNameAt returns a new Name associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
-func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
+func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	if sym == nil {
 		base.Fatalf("NewDeclNameAt nil")
 	}
-	return newNameAt(pos, ONONAME, sym)
+	switch op {
+	case ONAME, OTYPE, OLITERAL:
+		// ok
+	default:
+		base.Fatalf("NewDeclNameAt op %v", op)
+	}
+	return newNameAt(pos, op, sym)
+}
+
+// NewConstAt returns a new OLITERAL Node associated with symbol s at position pos.
+func NewConstAt(pos src.XPos, sym *types.Sym, typ *types.Type, val constant.Value) *Name {
+	if sym == nil {
+		base.Fatalf("NewConstAt nil")
+	}
+	n := newNameAt(pos, OLITERAL, sym)
+	n.SetType(typ)
+	n.SetVal(val)
+	return n
 }
 
 // newNameAt is like NewNameAt but allows sym == nil.
@@ -206,18 +241,6 @@ func (n *Name) SetIota(x int64)        { n.Offset_ = x }
 func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
 func (*Name) CanBeAnSSAAux() {}
-
-func (n *Name) SetOp(op Op) {
-	if n.op != ONONAME {
-		base.Fatalf("%v already has Op %v", n, n.op)
-	}
-	switch op {
-	default:
-		panic(n.no("SetOp " + op.String()))
-	case OLITERAL, ONAME, OTYPE, OIOTA:
-		n.op = op
-	}
-}
 
 // Pragma returns the PragmaFlag for p, which must be for an OTYPE.
 func (n *Name) Pragma() PragmaFlag { return n.pragma }

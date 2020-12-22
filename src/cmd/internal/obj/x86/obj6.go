@@ -637,7 +637,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
+	if !p.From.Sym.NoSplit() || (p.From.Sym.Wrapper() && !p.From.Sym.ABIWrapper()) {
 		p = obj.Appendp(p, newprog)
 		p = load_g_cx(ctxt, p, newprog) // load g into CX
 	}
@@ -690,7 +690,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_BP
 	}
 
-	if cursym.Func().Text.From.Sym.Wrapper() {
+	if cursym.Func().Text.From.Sym.Wrapper() && !cursym.Func().Text.From.Sym.ABIWrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
 		// }

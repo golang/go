@@ -41,18 +41,23 @@ var (
 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
 )
 
-func expandDecl(n *ir.Name) {
-	if n.Op() != ir.ONONAME {
-		return
+func expandDecl(n ir.Node) ir.Node {
+	if n, ok := n.(*ir.Name); ok {
+		return n
 	}
 
-	r := importReaderFor(n, declImporter)
+	id := n.(*ir.Ident)
+	if n := id.Sym().PkgDef(); n != nil {
+		return n.(*ir.Name)
+	}
+
+	r := importReaderFor(id.Sym(), declImporter)
 	if r == nil {
 		// Can happen if user tries to reference an undeclared name.
-		return
+		return n
 	}
 
-	r.doDecl(n)
+	return r.doDecl(n.Sym())
 }
 
 func expandInline(fn *ir.Func) {
@@ -60,7 +65,7 @@ func expandInline(fn *ir.Func) {
 		return
 	}
 
-	r := importReaderFor(fn.Nname, inlineImporter)
+	r := importReaderFor(fn.Nname.Sym(), inlineImporter)
 	if r == nil {
 		base.Fatalf("missing import reader for %v", fn)
 	}
@@ -68,13 +73,13 @@ func expandInline(fn *ir.Func) {
 	r.doInline(fn)
 }
 
-func importReaderFor(n *ir.Name, importers map[*types.Sym]iimporterAndOffset) *importReader {
-	x, ok := importers[n.Sym()]
+func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
+	x, ok := importers[sym]
 	if !ok {
 		return nil
 	}
 
-	return x.p.newReader(x.off, n.Sym().Pkg)
+	return x.p.newReader(x.off, sym.Pkg)
 }
 
 type intReader struct {
@@ -272,11 +277,7 @@ func (r *importReader) setPkg() {
 	r.currPkg = r.pkg()
 }
 
-func (r *importReader) doDecl(n ir.Node) {
-	if n.Op() != ir.ONONAME {
-		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym(), n.Op())
-	}
-
+func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 	tag := r.byte()
 	pos := r.pos()
 
@@ -284,24 +285,26 @@ func (r *importReader) doDecl(n ir.Node) {
 	case 'A':
 		typ := r.typ()
 
-		importalias(r.p.ipkg, pos, n.Sym(), typ)
+		return importalias(r.p.ipkg, pos, sym, typ)
 
 	case 'C':
 		typ := r.typ()
 		val := r.value(typ)
 
-		importconst(r.p.ipkg, pos, n.Sym(), typ, val)
+		return importconst(r.p.ipkg, pos, sym, typ, val)
 
 	case 'F':
 		typ := r.signature(nil)
 
-		importfunc(r.p.ipkg, pos, n.Sym(), typ)
+		n := importfunc(r.p.ipkg, pos, sym, typ)
 		r.funcExt(n)
+		return n
 
 	case 'T':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
-		t := importtype(r.p.ipkg, pos, n.Sym())
+		n := importtype(r.p.ipkg, pos, sym)
+		t := n.Type()
 
 		// We also need to defer width calculations until
 		// after the underlying type has been assigned.
@@ -312,7 +315,7 @@ func (r *importReader) doDecl(n ir.Node) {
 
 		if underlying.IsInterface() {
 			r.typeExt(t)
-			break
+			return n
 		}
 
 		ms := make([]*types.Field, r.uint64())
@@ -339,15 +342,18 @@ func (r *importReader) doDecl(n ir.Node) {
 		for _, m := range ms {
 			r.methExt(m)
 		}
+		return n
 
 	case 'V':
 		typ := r.typ()
 
-		importvar(r.p.ipkg, pos, n.Sym(), typ)
+		n := importvar(r.p.ipkg, pos, sym, typ)
 		r.varExt(n)
+		return n
 
 	default:
 		base.Fatalf("unexpected tag: %v", tag)
+		panic("unreachable")
 	}
 }
 
@@ -433,16 +439,11 @@ func (r *importReader) ident() *types.Sym {
 	return pkg.Lookup(name)
 }
 
-func (r *importReader) qualifiedIdent() *ir.Name {
+func (r *importReader) qualifiedIdent() *ir.Ident {
 	name := r.string()
 	pkg := r.pkg()
 	sym := pkg.Lookup(name)
-	n := sym.PkgDef()
-	if n == nil {
-		n = ir.NewDeclNameAt(src.NoXPos, sym)
-		sym.SetPkgDef(n)
-	}
-	return n.(*ir.Name)
+	return ir.NewIdent(src.NoXPos, sym)
 }
 
 func (r *importReader) pos() src.XPos {
@@ -498,10 +499,7 @@ func (r *importReader) typ1() *types.Type {
 		// support inlining functions with local defined
 		// types. Therefore, this must be a package-scope
 		// type.
-		n := r.qualifiedIdent()
-		if n.Op() == ir.ONONAME {
-			expandDecl(n)
-		}
+		n := expandDecl(r.qualifiedIdent())
 		if n.Op() != ir.OTYPE {
 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
 		}
@@ -632,7 +630,7 @@ func (r *importReader) varExt(n ir.Node) {
 	r.symIdx(n.Sym())
 }
 
-func (r *importReader) funcExt(n ir.Node) {
+func (r *importReader) funcExt(n *ir.Name) {
 	r.linkname(n.Sym())
 	r.symIdx(n.Sym())
 
@@ -656,7 +654,7 @@ func (r *importReader) methExt(m *types.Field) {
 	if r.bool() {
 		m.SetNointerface(true)
 	}
-	r.funcExt(ir.AsNode(m.Nname))
+	r.funcExt(m.Nname.(*ir.Name))
 }
 
 func (r *importReader) linkname(s *types.Sym) {
@@ -686,6 +684,21 @@ func (r *importReader) typeExt(t *types.Type) {
 // Map imported type T to the index of type descriptor symbols of T and *T,
 // so we can use index to reference the symbol.
 var typeSymIdx = make(map[*types.Type][2]int64)
+
+func BaseTypeIndex(t *types.Type) int64 {
+	tbase := t
+	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
+		tbase = t.Elem()
+	}
+	i, ok := typeSymIdx[tbase]
+	if !ok {
+		return -1
+	}
+	if t != tbase {
+		return i[1]
+	}
+	return i[0]
+}
 
 func (r *importReader) doInline(fn *ir.Func) {
 	if len(fn.Inl.Body) != 0 {
@@ -973,9 +986,15 @@ func (r *importReader) node() ir.Node {
 	// statements
 	case ir.ODCL:
 		pos := r.pos()
-		lhs := ir.NewDeclNameAt(pos, r.ident())
-		typ := ir.TypeNode(r.typ())
-		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
+		lhs.SetType(r.typ())
+
+		declare(lhs, ir.PAUTO)
+
+		var stmts ir.Nodes
+		stmts.Append(ir.Nod(ir.ODCL, lhs, nil))
+		stmts.Append(ir.Nod(ir.OAS, lhs, nil))
+		return npos(pos, liststmt(stmts.Slice()))
 
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter

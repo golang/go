@@ -32,7 +32,6 @@ func emitptrargsmap(fn *ir.Func) {
 		return
 	}
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
-
 	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
@@ -165,7 +164,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 		dowidth(n.Type())
 		w := n.Type().Width
-		if w >= thearch.MAXWIDTH || w < 0 {
+		if w >= MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
 		if w == 0 && lastHasPtr {
@@ -223,23 +222,15 @@ func funccompile(fn *ir.Func) {
 }
 
 func compile(fn *ir.Func) {
-	errorsBefore := base.Errors()
-	order(fn)
-	if base.Errors() > errorsBefore {
-		return
-	}
-
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in markTypeUsedInInterface).
 	initLSym(fn, true)
 
+	errorsBefore := base.Errors()
 	walk(fn)
 	if base.Errors() > errorsBefore {
 		return
-	}
-	if instrumenting {
-		instrument(fn)
 	}
 
 	// From this point, there should be no uses of Curfn. Enforce that.
@@ -399,7 +390,11 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
-		if expect := fn.Sym().Linksym(); fnsym != expect {
+		expect := fn.Sym().Linksym()
+		if fnsym.ABI() == obj.ABI0 {
+			expect = fn.Sym().LinksymABI0()
+		}
+		if fnsym != expect {
 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 		}
 	}

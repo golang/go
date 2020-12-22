@@ -26,6 +26,10 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 func walk(fn *ir.Func) {
 	Curfn = fn
 	errorsBefore := base.Errors()
+	order(fn)
+	if base.Errors() > errorsBefore {
+		return
+	}
 
 	if base.Flag.W != 0 {
 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Sym())
@@ -79,6 +83,10 @@ func walk(fn *ir.Func) {
 	if base.Flag.W != 0 && Curfn.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Sym())
 		ir.DumpList(s, Curfn.Enter)
+	}
+
+	if instrumenting {
+		instrument(fn)
 	}
 }
 
@@ -641,11 +649,12 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			n.PtrList().Prepend(n.Left().Func().ClosureEnter.Slice()...)
-			n.Left().Func().ClosureEnter.Set(nil)
+			clo := n.Left().(*ir.ClosureExpr)
+			n.PtrList().Prepend(clo.Func().ClosureEnter.Slice()...)
+			clo.Func().ClosureEnter.Set(nil)
 
 			// Replace OCLOSURE with ONAME/PFUNC.
-			n.SetLeft(n.Left().Func().Nname)
+			n.SetLeft(clo.Func().Nname)
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
@@ -693,38 +702,38 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		} else {
 			n.(*ir.AssignStmt).SetLeft(left)
 		}
-		n := n.(*ir.AssignStmt)
+		as := n.(*ir.AssignStmt)
 
-		if oaslit(n, init) {
-			return ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
+		if oaslit(as, init) {
+			return ir.NodAt(as.Pos(), ir.OBLOCK, nil, nil)
 		}
 
-		if n.Right() == nil {
+		if as.Right() == nil {
 			// TODO(austin): Check all "implicit zeroing"
-			return n
+			return as
 		}
 
-		if !instrumenting && isZero(n.Right()) {
-			return n
+		if !instrumenting && isZero(as.Right()) {
+			return as
 		}
 
-		switch n.Right().Op() {
+		switch as.Right().Op() {
 		default:
-			n.SetRight(walkexpr(n.Right(), init))
+			as.SetRight(walkexpr(as.Right(), init))
 
 		case ir.ORECV:
-			// x = <-c; n.Left is x, n.Right.Left is c.
+			// x = <-c; as.Left is x, as.Right.Left is c.
 			// order.stmt made sure x is addressable.
-			recv := n.Right().(*ir.UnaryExpr)
+			recv := as.Right().(*ir.UnaryExpr)
 			recv.SetLeft(walkexpr(recv.Left(), init))
 
-			n1 := nodAddr(n.Left())
+			n1 := nodAddr(as.Left())
 			r := recv.Left() // the channel
 			return mkcall1(chanfn("chanrecv1", 2, r.Type()), nil, init, r, n1)
 
 		case ir.OAPPEND:
 			// x = append(...)
-			call := n.Right().(*ir.CallExpr)
+			call := as.Right().(*ir.CallExpr)
 			if call.Type().Elem().NotInHeap() {
 				base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", call.Type().Elem())
 			}
@@ -736,24 +745,24 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			case call.IsDDD():
 				r = appendslice(call, init) // also works for append(slice, string).
 			default:
-				r = walkappend(call, init, n)
+				r = walkappend(call, init, as)
 			}
-			n.SetRight(r)
+			as.SetRight(r)
 			if r.Op() == ir.OAPPEND {
 				// Left in place for back end.
 				// Do not add a new write barrier.
 				// Set up address of type for back end.
 				r.(*ir.CallExpr).SetLeft(typename(r.Type().Elem()))
-				return n
+				return as
 			}
 			// Otherwise, lowered for race detector.
 			// Treat as ordinary assignment.
 		}
 
-		if n.Left() != nil && n.Right() != nil {
-			return convas(n, init)
+		if as.Left() != nil && as.Right() != nil {
+			return convas(as, init)
 		}
-		return n
+		return as
 
 	case ir.OAS2:
 		init.AppendNodes(n.PtrInit())
@@ -2520,15 +2529,10 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
-	call := ir.Nod(ir.OCALL, fn, nil)
-	call.PtrList().Set(va)
-	ctx := ctxStmt
-	if fn.Type().NumResults() > 0 {
-		ctx = ctxExpr | ctxMultiOK
-	}
-	r1 := typecheck(call, ctx)
-	r1.SetType(t)
-	return walkexpr(r1, init).(*ir.CallExpr)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
+	TypecheckCall(call)
+	call.SetType(t)
+	return walkexpr(call, init).(*ir.CallExpr)
 }
 
 func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
