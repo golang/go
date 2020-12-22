@@ -95,7 +95,7 @@ var (
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	flagAbiWrap       = false
+	flagAbiWrap       = flag.Bool("abiwrap", objabi.Regabi_enabled != 0, "support ABI wrapper functions")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
 )
@@ -134,9 +134,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
 	objabi.Flagcount("v", "print link trace", &ctxt.Debugvlog)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
-	if objabi.Regabi_enabled != 0 {
-		flag.BoolVar(&flagAbiWrap, "abiwrap", true, "support ABI wrapper functions")
-	}
 
 	objabi.Flagparse(usage)
 

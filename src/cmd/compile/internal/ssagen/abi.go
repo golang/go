@@ -301,7 +301,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
 	var tail ir.Node
-	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 {
+	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+
 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
