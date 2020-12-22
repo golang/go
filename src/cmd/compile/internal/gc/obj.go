@@ -127,8 +127,7 @@ func dumpdata() {
 	addsignats(Target.Externs)
 	dumpsignats()
 	dumptabs()
-	ptabsLen := len(ptabs)
-	itabsLen := len(itabs)
+	numPTabs, numITabs := CountTabs()
 	dumpimportstrings()
 	dumpbasictypes()
 	dumpembeds()
@@ -168,10 +167,11 @@ func dumpdata() {
 	if numExports != len(Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
-	if ptabsLen != len(ptabs) {
+	newNumPTabs, newNumITabs := CountTabs()
+	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
 	}
-	if itabsLen != len(itabs) {
+	if newNumITabs != numITabs {
 		base.Fatalf("itabs changed after compile functions loop")
 	}
 }

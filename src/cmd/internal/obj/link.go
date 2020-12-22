@@ -635,6 +635,10 @@ const (
 	// ContentAddressable indicates this is a content-addressable symbol.
 	AttrContentAddressable
 
+	// ABI wrapper is set for compiler-generated text symbols that
+	// convert between ABI0 and ABIInternal calling conventions.
+	AttrABIWrapper
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -660,6 +664,7 @@ func (a Attribute) TopFrame() bool           { return a&AttrTopFrame != 0 }
 func (a Attribute) Indexed() bool            { return a&AttrIndexed != 0 }
 func (a Attribute) UsedInIface() bool        { return a&AttrUsedInIface != 0 }
 func (a Attribute) ContentAddressable() bool { return a&AttrContentAddressable != 0 }
+func (a Attribute) ABIWrapper() bool         { return a&AttrABIWrapper != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -695,6 +700,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
+	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.

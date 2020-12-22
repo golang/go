@@ -92,12 +92,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 
 // nodlit returns a new untyped constant with value v.
 func NewLiteral(v constant.Value) Node {
-	n := newNameAt(base.Pos, OLITERAL, nil)
-	if k := v.Kind(); k != constant.Unknown {
-		n.SetType(idealType(k))
-		n.SetVal(v)
-	}
-	return n
+	return NewBasicLit(base.Pos, v)
 }
 
 func idealType(ct constant.Kind) *types.Type {

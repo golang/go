@@ -142,8 +142,9 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 		}
 
 	case ir.OSLICELIT:
+		r := r.(*ir.CompLitExpr)
 		// copy slice
-		slicesym(l, loff, s.inittemps[r], ir.Int64Val(r.Right()))
+		slicesym(l, loff, s.inittemps[r], r.Len)
 		return true
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
@@ -232,14 +233,14 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		}
 
 	case ir.OSLICELIT:
+		r := r.(*ir.CompLitExpr)
 		s.initplan(r)
 		// Init slice.
-		bound := ir.Int64Val(r.Right())
-		ta := types.NewArray(r.Type().Elem(), bound)
+		ta := types.NewArray(r.Type().Elem(), r.Len)
 		ta.SetNoalg(true)
 		a := staticname(ta)
 		s.inittemps[r] = a
-		slicesym(l, loff, a, bound)
+		slicesym(l, loff, a, r.Len)
 		// Fall through to init underlying array.
 		l = a
 		loff = 0
@@ -268,6 +269,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		break
 
 	case ir.OCLOSURE:
+		r := r.(*ir.ClosureExpr)
 		if hasemptycvars(r) {
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")
@@ -425,10 +427,11 @@ func getdyn(n ir.Node, top bool) initGenType {
 		return initDynamic
 
 	case ir.OSLICELIT:
+		n := n.(*ir.CompLitExpr)
 		if !top {
 			return initDynamic
 		}
-		if ir.Int64Val(n.Right())/4 > int64(n.List().Len()) {
+		if n.Len/4 > int64(n.List().Len()) {
 			// <25% of entries have explicit values.
 			// Very rough estimation, it takes 4 bytes of instructions
 			// to initialize 1 byte of result. So don't use a static
@@ -603,14 +606,12 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 		return false
 	}
 
-	r := n.Right()
-
-	return smallintconst(r) && (n.Type().Elem().Width == 0 || ir.Int64Val(r) <= smallArrayBytes/n.Type().Elem().Width)
+	return n.Type().Elem().Width == 0 || n.Len <= smallArrayBytes/n.Type().Elem().Width
 }
 
 func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
-	t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
+	t := types.NewArray(n.Type().Elem(), n.Len)
 	dowidth(t)
 
 	if ctxt == inNonInitFunction {
@@ -1019,7 +1020,7 @@ func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		}
 
 		// Check for overflow.
-		if n.Type().Width != 0 && thearch.MAXWIDTH/n.Type().Width <= int64(l) {
+		if n.Type().Width != 0 && MaxWidth/n.Type().Width <= int64(l) {
 			break
 		}
 		offset += int64(l) * n.Type().Width

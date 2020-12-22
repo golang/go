@@ -51,4 +51,7 @@ const (
 	// Function is the top of the call stack. Call stack unwinders should stop
 	// at this function.
 	TOPFRAME = 2048
+
+	// Function is an ABI wrapper.
+	ABIWRAPPER = 4096
 )

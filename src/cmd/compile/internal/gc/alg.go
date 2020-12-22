@@ -816,7 +816,7 @@ func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	fn := syslook("memequal")
 	fn = substArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
-	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
+	TypecheckCall(call)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
 	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)
@@ -853,7 +853,7 @@ func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	tdata.SetTypecheck(1)
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
-	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
+	TypecheckCall(call)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
 	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)

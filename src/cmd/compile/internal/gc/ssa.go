@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"bufio"
 	"bytes"
@@ -45,6 +46,22 @@ var ssaDumpInlined []*ir.Func
 func ssaDumpInline(fn *ir.Func) {
 	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
 		ssaDumpInlined = append(ssaDumpInlined, fn)
+	}
+}
+
+func initSSAEnv() {
+	ssaDump = os.Getenv("GOSSAFUNC")
+	ssaDir = os.Getenv("GOSSADIR")
+	if ssaDump != "" {
+		if strings.HasSuffix(ssaDump, "+") {
+			ssaDump = ssaDump[:len(ssaDump)-1]
+			ssaDumpStdout = true
+		}
+		spl := strings.Split(ssaDump, ":")
+		if len(spl) > 1 {
+			ssaDump = spl[0]
+			ssaDumpCFG = spl[1]
+		}
 	}
 }
 
@@ -1421,7 +1438,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.ORETJMP:
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = n.Sym().Linksym()
+		b.Aux = callTargetLSym(n.Sym(), s.curfn.LSym)
 
 	case ir.OCONTINUE, ir.OBREAK:
 		var to *ssa.Block
@@ -3357,7 +3374,7 @@ type intrinsicKey struct {
 	fn   string
 }
 
-func init() {
+func initSSATables() {
 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
 
 	var all []*sys.Arch
@@ -4826,11 +4843,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			}
 		case sym != nil:
 			if testLateExpansion {
-				aux := ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults)
+				aux := ssa.StaticAuxCall(callTargetLSym(sym, s.curfn.LSym), ACArgs, ACResults)
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 				call.AddArgs(callArgs...)
 			} else {
-				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults), s.mem())
+				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(callTargetLSym(sym, s.curfn.LSym), ACArgs, ACResults), s.mem())
 			}
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
@@ -7290,4 +7307,47 @@ func clobberBase(n ir.Node) ir.Node {
 		}
 	}
 	return n
+}
+
+// callTargetLSym determines the correct LSym for 'callee' when called
+// from function 'caller'. There are a couple of different scenarios
+// to contend with here:
+//
+// 1. if 'caller' is an ABI wrapper, then we always want to use the
+//    LSym from the Func for the callee.
+//
+// 2. if 'caller' is not an ABI wrapper, then we looked at the callee
+//    to see if it corresponds to a "known" ABI0 symbol (e.g. assembly
+//    routine defined in the current package); if so, we want the call to
+//    directly target the ABI0 symbol (effectively bypassing the
+//    ABIInternal->ABI0 wrapper for 'callee').
+//
+// 3. in all other cases, want the regular ABIInternal linksym
+//
+func callTargetLSym(callee *types.Sym, callerLSym *obj.LSym) *obj.LSym {
+	lsym := callee.Linksym()
+	if !base.Flag.ABIWrap {
+		return lsym
+	}
+	if ir.AsNode(callee.Def) == nil {
+		return lsym
+	}
+	ndclfunc := ir.AsNode(callee.Def).Name().Defn
+	if ndclfunc == nil {
+		return lsym
+	}
+	// check for case 1 above
+	if callerLSym.ABIWrapper() {
+		if nlsym := ndclfunc.Func().LSym; nlsym != nil {
+			lsym = nlsym
+		}
+	} else {
+		// check for case 2 above
+		nam := ndclfunc.Func().Nname
+		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
+		if hasDefABI && defABI == obj.ABI0 {
+			lsym = nam.Sym().LinksymABI0()
+		}
+	}
+	return lsym
 }

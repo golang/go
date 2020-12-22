@@ -34,6 +34,10 @@ type ptabEntry struct {
 	t *types.Type
 }
 
+func CountTabs() (numPTabs, numITabs int) {
+	return len(ptabs), len(itabs)
+}
+
 // runtime interface and reflection data structures
 var (
 	signatmu    sync.Mutex // protects signatset and signatslice
@@ -331,8 +335,7 @@ func deferstruct(stksize int64) *types.Type {
 	// build struct holding the above fields
 	s := types.NewStruct(types.NoPkg, fields)
 	s.SetNoalg(true)
-	s.Width = widstruct(s, s, 0, 1)
-	s.Align = uint8(Widthptr)
+	CalcStructSize(s)
 	return s
 }
 
@@ -1159,13 +1162,9 @@ func dtypesym(t *types.Type) *obj.LSym {
 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
-			if i, ok := typeSymIdx[tbase]; ok {
+			if i := BaseTypeIndex(t); i >= 0 {
 				lsym.Pkg = tbase.Sym().Pkg.Prefix
-				if t != tbase {
-					lsym.SymIdx = int32(i[1])
-				} else {
-					lsym.SymIdx = int32(i[0])
-				}
+				lsym.SymIdx = int32(i)
 				lsym.Set(obj.AttrIndexed, true)
 			}
 			return lsym

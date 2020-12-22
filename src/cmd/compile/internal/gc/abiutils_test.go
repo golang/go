@@ -29,13 +29,20 @@ func TestMain(m *testing.M) {
 	thearch.LinkArch = &x86.Linkamd64
 	thearch.REGSP = x86.REGSP
 	thearch.MAXWIDTH = 1 << 50
+	MaxWidth = thearch.MAXWIDTH
 	base.Ctxt = obj.Linknew(thearch.LinkArch)
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
-	initializeTypesPackage()
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return typenamesym(t).Linksym()
+	}
+	TypecheckInit()
 	os.Exit(m.Run())
 }
 

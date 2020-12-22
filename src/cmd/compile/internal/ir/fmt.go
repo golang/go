@@ -1189,6 +1189,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case ODCLFUNC:
 		// Func has many fields we don't want to print.
 		// Bypass reflection and just print what we want.
+		n := n.(*Func)
 		fmt.Fprintf(w, "%+v", n.Op())
 		dumpNodeHeader(w, n)
 		fn := n.Func()

@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"go/constant"
 )
 
 var basicTypes = [...]struct {
@@ -97,8 +98,7 @@ func initUniverse() {
 
 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
 		sym := pkg.Lookup(name)
-		n := ir.NewDeclNameAt(src.NoXPos, sym)
-		n.SetOp(ir.OTYPE)
+		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
 		t := types.NewBasic(kind, n)
 		n.SetType(t)
 		sym.Def = n
@@ -134,8 +134,7 @@ func initUniverse() {
 
 	// error type
 	s := types.BuiltinPkg.Lookup("error")
-	n := ir.NewDeclNameAt(src.NoXPos, s)
-	n.SetOp(ir.OTYPE)
+	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
 	types.ErrorType = types.NewNamed(n)
 	types.ErrorType.SetUnderlying(makeErrorInterface())
 	n.SetType(types.ErrorType)
@@ -165,14 +164,10 @@ func initUniverse() {
 	}
 
 	s = types.BuiltinPkg.Lookup("true")
-	b := nodbool(true)
-	b.(*ir.Name).SetSym(lookup("true"))
-	s.Def = b
+	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(true))
 
 	s = types.BuiltinPkg.Lookup("false")
-	b = nodbool(false)
-	b.(*ir.Name).SetSym(lookup("false"))
-	s.Def = b
+	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(false))
 
 	s = lookup("_")
 	types.BlankSym = s

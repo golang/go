@@ -130,18 +130,16 @@ func declare(n *ir.Name, ctxt ir.Class) {
 
 // declare variables from grammar
 // new_name_list (type | [type] = expr_list)
-func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 	var init []ir.Node
 	doexpr := len(el) > 0
 
 	if len(el) == 1 && len(vl) > 1 {
 		e := el[0]
 		as2 := ir.Nod(ir.OAS2, nil, nil)
-		as2.PtrList().Set(vl)
 		as2.PtrRlist().Set1(e)
 		for _, v := range vl {
-			v := v.(*ir.Name)
-			v.SetOp(ir.ONAME)
+			as2.PtrList().Append(v)
 			declare(v, dclcontext)
 			v.Ntype = t
 			v.Defn = as2
@@ -153,20 +151,16 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 		return append(init, as2)
 	}
 
-	nel := len(el)
-	for _, v := range vl {
-		v := v.(*ir.Name)
+	for i, v := range vl {
 		var e ir.Node
 		if doexpr {
-			if len(el) == 0 {
-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
+			if i >= len(el) {
+				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
 				break
 			}
-			e = el[0]
-			el = el[1:]
+			e = el[i]
 		}
 
-		v.SetOp(ir.ONAME)
 		declare(v, dclcontext)
 		v.Ntype = t
 
@@ -182,8 +176,8 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
 		}
 	}
 
-	if len(el) != 0 {
-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
+	if len(el) > len(vl) {
+		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
 	}
 	return init
 }
@@ -446,6 +440,12 @@ var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
 type funcStackEnt struct {
 	curfn      *ir.Func
 	dclcontext ir.Class
+}
+
+func CheckFuncStack() {
+	if len(funcStack) != 0 {
+		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
+	}
 }
 
 // finish the body.
@@ -892,6 +892,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	case ir.ONAME:
 		callee = arg.Name().Defn.(*ir.Func)
 	case ir.OCLOSURE:
+		arg := arg.(*ir.ClosureExpr)
 		callee = arg.Func()
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)

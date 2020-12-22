@@ -20,6 +20,18 @@ type Object interface {
 	Type() *Type
 }
 
+// A TypeObject is an Object representing a named type.
+type TypeObject interface {
+	Object
+	TypeDefn() *Type // for "type T Defn", returns Defn
+}
+
+// A VarObject is an Object representing a function argument, variable, or struct field.
+type VarObject interface {
+	Object
+	RecordFrameOffset(int64) // save frame offset
+}
+
 //go:generate stringer -type EType -trimprefix T
 
 // EType describes a kind of type.
