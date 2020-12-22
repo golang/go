@@ -265,20 +265,21 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// to allocate any stack space). Doing this will require some
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
-	var call ir.Node
+	var tail ir.Node
 	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 {
-		call = nodSym(ir.ORETJMP, nil, f.Nname.Sym())
+		tail = nodSym(ir.ORETJMP, nil, f.Nname.Sym())
 	} else {
-		call = ir.Nod(ir.OCALL, f.Nname, nil)
+		call := ir.Nod(ir.OCALL, f.Nname, nil)
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
+		tail = call
 		if tfn.Type().NumResults() > 0 {
 			n := ir.Nod(ir.ORETURN, nil, nil)
 			n.PtrList().Set1(call)
-			call = n
+			tail = n
 		}
 	}
-	fn.PtrBody().Append(call)
+	fn.PtrBody().Append(tail)
 
 	funcbody()
 	if base.Debug.DclStack != 0 {
