@@ -95,6 +95,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Require []Require
 		Exclude []Module
 		Replace []Replace
+		Retract []Retract
 	}
 
 	type Require struct {
