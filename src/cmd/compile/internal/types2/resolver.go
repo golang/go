@@ -397,15 +397,16 @@ func (check *Checker) collectObjects() {
 				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
 				if d.Recv == nil {
 					// regular function
-					if name == "init" {
+					if name == "init" || name == "main" && pkg.name == "main" {
 						if d.TParamList != nil {
-							//check.softErrorf(d.TParamList.Pos(), "func init must have no type parameters")
-							check.softErrorf(d.Name, "func init must have no type parameters")
+							check.softErrorf(d, "func %s must have no type parameters", name)
 						}
 						if t := d.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(d, "func init must have no arguments and no return values")
+							check.softErrorf(d, "func %s must have no arguments and no return values", name)
 						}
-						// don't declare init functions in the package scope - they are invisible
+					}
+					// don't declare init functions in the package scope - they are invisible
+					if name == "init" {
 						obj.parent = pkg.scope
 						check.recordDef(d.Name, obj)
 						// init functions must have a body
