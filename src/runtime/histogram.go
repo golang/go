@@ -69,17 +69,15 @@ const (
 // for concurrent use. It is also safe to read all the values
 // atomically.
 type timeHistogram struct {
-	counts   [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
-	overflow uint64
+	counts    [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
+	underflow uint64
 }
 
 // record adds the given duration to the distribution.
-//
-// Although the duration is an int64 to facilitate ease-of-use
-// with e.g. nanotime, the duration must be non-negative.
 func (h *timeHistogram) record(duration int64) {
 	if duration < 0 {
-		throw("timeHistogram encountered negative duration")
+		atomic.Xadd64(&h.underflow, 1)
+		return
 	}
 	// The index of the exponential bucket is just the index
 	// of the highest set bit adjusted for how many bits we
@@ -92,15 +90,17 @@ func (h *timeHistogram) record(duration int64) {
 		superBucket = uint(sys.Len64(uint64(duration))) - timeHistSubBucketBits
 		if superBucket*timeHistNumSubBuckets >= uint(len(h.counts)) {
 			// The bucket index we got is larger than what we support, so
-			// add into the special overflow bucket.
-			atomic.Xadd64(&h.overflow, 1)
-			return
+			// include this count in the highest bucket, which extends to
+			// infinity.
+			superBucket = timeHistNumSuperBuckets - 1
+			subBucket = timeHistNumSubBuckets - 1
+		} else {
+			// The linear subbucket index is just the timeHistSubBucketsBits
+			// bits after the top bit. To extract that value, shift down
+			// the duration such that we leave the top bit and the next bits
+			// intact, then extract the index.
+			subBucket = uint((duration >> (superBucket - 1)) % timeHistNumSubBuckets)
 		}
-		// The linear subbucket index is just the timeHistSubBucketsBits
-		// bits after the top bit. To extract that value, shift down
-		// the duration such that we leave the top bit and the next bits
-		// intact, then extract the index.
-		subBucket = uint((duration >> (superBucket - 1)) % timeHistNumSubBuckets)
 	} else {
 		subBucket = uint(duration)
 	}
@@ -128,7 +128,7 @@ func timeHistogramMetricsBuckets() []float64 {
 		// index to combine it with the bucketMin.
 		subBucketShift := uint(0)
 		if i > 1 {
-			// The first two buckets are exact with respect to integers,
+			// The first two super buckets are exact with respect to integers,
 			// so we'll never have to shift the sub-bucket index. Thereafter,
 			// we shift up by 1 with each subsequent bucket.
 			subBucketShift = uint(i - 2)

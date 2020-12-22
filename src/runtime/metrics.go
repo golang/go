@@ -116,9 +116,9 @@ func initMetrics() {
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
+				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
 				for i := range hist.buckets {
-					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
 				}
 			},
 		},
