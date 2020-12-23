@@ -174,6 +174,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if errf == nil {
 		return r, nil
 	}
+	// If open a directory and use O_WRONLY and O_RDWR, need to return syscall.EISDIR
+	if errf == syscall.EISDIR && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+		return nil, &PathError{Op: "open", Path: name, Err: syscall.EISDIR}
+	}
 	r, errd := openDir(name)
 	if errd == nil {
 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
