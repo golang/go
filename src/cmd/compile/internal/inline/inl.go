@@ -24,9 +24,14 @@
 // The Debug.m flag enables diagnostic output.  a single -m is useful for verifying
 // which calls get inlined or not, more is for debugging, and may go away at any point.
 
-package gc
+package inline
 
 import (
+	"errors"
+	"fmt"
+	"go/constant"
+	"strings"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
@@ -34,10 +39,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"errors"
-	"fmt"
-	"go/constant"
-	"strings"
 )
 
 // Inlining budget parameters, gathered in one place
@@ -62,21 +63,21 @@ func InlinePackage() {
 				// We allow inlining if there is no
 				// recursion, or the recursion cycle is
 				// across more than one function.
-				caninl(n)
+				CanInline(n)
 			} else {
 				if base.Flag.LowerM > 1 {
 					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 				}
 			}
-			inlcalls(n)
+			InlineCalls(n)
 		}
 	})
 }
 
 // Caninl determines whether fn is inlineable.
-// If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
+// If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
 // fn and ->nbody will already have been typechecked.
-func caninl(fn *ir.Func) {
+func CanInline(fn *ir.Func) {
 	if fn.Nname == nil {
 		base.Fatalf("caninl no nname %+v", fn)
 	}
@@ -192,9 +193,9 @@ func caninl(fn *ir.Func) {
 	}
 }
 
-// inlFlood marks n's inline body for export and recursively ensures
+// Inline_Flood marks n's inline body for export and recursively ensures
 // all called functions are marked too.
-func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
+func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
 	if n == nil {
 		return
 	}
@@ -222,13 +223,13 @@ func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
 	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
-			inlFlood(ir.MethodExprName(n), exportsym)
+			Inline_Flood(ir.MethodExprName(n), exportsym)
 
 		case ir.ONAME:
 			n := n.(*ir.Name)
 			switch n.Class_ {
 			case ir.PFUNC:
-				inlFlood(n, exportsym)
+				Inline_Flood(n, exportsym)
 				exportsym(n)
 			case ir.PEXTERN:
 				exportsym(n)
@@ -442,7 +443,7 @@ func isBigFunc(fn *ir.Func) bool {
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
-func inlcalls(fn *ir.Func) {
+func InlineCalls(fn *ir.Func) {
 	savefn := ir.CurFunc
 	ir.CurFunc = fn
 	maxCost := int32(inlineMaxBudget)
@@ -631,7 +632,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 	case ir.OCLOSURE:
 		fn := fn.(*ir.ClosureExpr)
 		c := fn.Func
-		caninl(c)
+		CanInline(c)
 		return c
 	}
 	return nil
@@ -1202,9 +1203,9 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	return s
 }
 
-// devirtualize replaces interface method calls within fn with direct
+// Devirtualize replaces interface method calls within fn with direct
 // concrete-type method calls where applicable.
-func devirtualize(fn *ir.Func) {
+func Devirtualize(fn *ir.Func) {
 	ir.CurFunc = fn
 	ir.VisitList(fn.Body, func(n ir.Node) {
 		if n.Op() == ir.OCALLINTER {
@@ -1267,4 +1268,15 @@ func devirtualizeCall(call *ir.CallExpr) {
 	default:
 		call.SetType(ft.Results())
 	}
+}
+
+// numNonClosures returns the number of functions in list which are not closures.
+func numNonClosures(list []*ir.Func) int {
+	count := 0
+	for _, fn := range list {
+		if fn.OClosure == nil {
+			count++
+		}
+	}
+	return count
 }
