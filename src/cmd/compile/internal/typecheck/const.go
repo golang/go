@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package typecheck
 
 import (
-	"cmd/compile/internal/base"
-	"cmd/compile/internal/ir"
-	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -16,6 +12,11 @@ import (
 	"math/big"
 	"strings"
 	"unicode"
+
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 func roundFloat(v constant.Value, sz int64) constant.Value {
@@ -61,7 +62,7 @@ func trunccmplxlit(v constant.Value, t *types.Type) constant.Value {
 
 // TODO(mdempsky): Replace these with better APIs.
 func convlit(n ir.Node, t *types.Type) ir.Node    { return convlit1(n, t, false, nil) }
-func defaultlit(n ir.Node, t *types.Type) ir.Node { return convlit1(n, t, false, nil) }
+func DefaultLit(n ir.Node, t *types.Type) ir.Node { return convlit1(n, t, false, nil) }
 
 // convlit1 converts an untyped expression n to type t. If n already
 // has a type, convlit1 has no effect.
@@ -134,7 +135,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.OREAL, ir.OIMAG:
 		ot := operandType(n.Op(), t)
 		if ot == nil {
-			n = defaultlit(n, nil)
+			n = DefaultLit(n, nil)
 			break
 		}
 
@@ -150,7 +151,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 	case ir.OADD, ir.OSUB, ir.OMUL, ir.ODIV, ir.OMOD, ir.OOR, ir.OXOR, ir.OAND, ir.OANDNOT, ir.OOROR, ir.OANDAND, ir.OCOMPLEX:
 		ot := operandType(n.Op(), t)
 		if ot == nil {
-			n = defaultlit(n, nil)
+			n = DefaultLit(n, nil)
 			break
 		}
 
@@ -387,11 +388,11 @@ var tokenForOp = [...]token.Token{
 	ir.ORSH: token.SHR,
 }
 
-// evalConst returns a constant-evaluated expression equivalent to n.
-// If n is not a constant, evalConst returns n.
-// Otherwise, evalConst returns a new OLITERAL with the same value as n,
+// EvalConst returns a constant-evaluated expression equivalent to n.
+// If n is not a constant, EvalConst returns n.
+// Otherwise, EvalConst returns a new OLITERAL with the same value as n,
 // and with .Orig pointing back to n.
-func evalConst(n ir.Node) ir.Node {
+func EvalConst(n ir.Node) ir.Node {
 	// Pick off just the opcodes that can be constant evaluated.
 	switch n.Op() {
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
@@ -402,7 +403,7 @@ func evalConst(n ir.Node) ir.Node {
 			if n.Type().IsUnsigned() {
 				prec = uint(n.Type().Size() * 8)
 			}
-			return origConst(n, constant.UnaryOp(tokenForOp[n.Op()], nl.Val(), prec))
+			return OrigConst(n, constant.UnaryOp(tokenForOp[n.Op()], nl.Val(), prec))
 		}
 
 	case ir.OADD, ir.OSUB, ir.OMUL, ir.ODIV, ir.OMOD, ir.OOR, ir.OXOR, ir.OAND, ir.OANDNOT:
@@ -427,21 +428,21 @@ func evalConst(n ir.Node) ir.Node {
 			if n.Op() == ir.ODIV && n.Type().IsInteger() {
 				tok = token.QUO_ASSIGN // integer division
 			}
-			return origConst(n, constant.BinaryOp(nl.Val(), tok, rval))
+			return OrigConst(n, constant.BinaryOp(nl.Val(), tok, rval))
 		}
 
 	case ir.OOROR, ir.OANDAND:
 		n := n.(*ir.LogicalExpr)
 		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return origConst(n, constant.BinaryOp(nl.Val(), tokenForOp[n.Op()], nr.Val()))
+			return OrigConst(n, constant.BinaryOp(nl.Val(), tokenForOp[n.Op()], nr.Val()))
 		}
 
 	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
 		n := n.(*ir.BinaryExpr)
 		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return origBoolConst(n, constant.Compare(nl.Val(), tokenForOp[n.Op()], nr.Val()))
+			return OrigBool(n, constant.Compare(nl.Val(), tokenForOp[n.Op()], nr.Val()))
 		}
 
 	case ir.OLSH, ir.ORSH:
@@ -456,14 +457,14 @@ func evalConst(n ir.Node) ir.Node {
 				n.SetType(nil)
 				break
 			}
-			return origConst(n, constant.Shift(toint(nl.Val()), tokenForOp[n.Op()], uint(s)))
+			return OrigConst(n, constant.Shift(toint(nl.Val()), tokenForOp[n.Op()], uint(s)))
 		}
 
 	case ir.OCONV, ir.ORUNESTR:
 		n := n.(*ir.ConvExpr)
 		nl := n.X
 		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
-			return origConst(n, convertVal(nl.Val(), n.Type(), true))
+			return OrigConst(n, convertVal(nl.Val(), n.Type(), true))
 		}
 
 	case ir.OCONVNOP:
@@ -472,7 +473,7 @@ func evalConst(n ir.Node) ir.Node {
 		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			// set so n.Orig gets OCONV instead of OCONVNOP
 			n.SetOp(ir.OCONV)
-			return origConst(n, nl.Val())
+			return OrigConst(n, nl.Val())
 		}
 
 	case ir.OADDSTR:
@@ -494,7 +495,7 @@ func evalConst(n ir.Node) ir.Node {
 			for _, c := range s {
 				strs = append(strs, ir.StringVal(c))
 			}
-			return origConst(n, constant.MakeString(strings.Join(strs, "")))
+			return OrigConst(n, constant.MakeString(strings.Join(strs, "")))
 		}
 		newList := make([]ir.Node, 0, need)
 		for i := 0; i < len(s); i++ {
@@ -509,7 +510,7 @@ func evalConst(n ir.Node) ir.Node {
 
 				nl := ir.Copy(n).(*ir.AddStringExpr)
 				nl.List.Set(s[i:i2])
-				newList = append(newList, origConst(nl, constant.MakeString(strings.Join(strs, ""))))
+				newList = append(newList, OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
 				i = i2 - 1
 			} else {
 				newList = append(newList, s[i])
@@ -526,37 +527,37 @@ func evalConst(n ir.Node) ir.Node {
 		switch nl.Type().Kind() {
 		case types.TSTRING:
 			if ir.IsConst(nl, constant.String) {
-				return origIntConst(n, int64(len(ir.StringVal(nl))))
+				return OrigInt(n, int64(len(ir.StringVal(nl))))
 			}
 		case types.TARRAY:
 			if !anyCallOrChan(nl) {
-				return origIntConst(n, nl.Type().NumElem())
+				return OrigInt(n, nl.Type().NumElem())
 			}
 		}
 
 	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 		n := n.(*ir.UnaryExpr)
-		return origIntConst(n, evalunsafe(n))
+		return OrigInt(n, evalunsafe(n))
 
 	case ir.OREAL:
 		n := n.(*ir.UnaryExpr)
 		nl := n.X
 		if nl.Op() == ir.OLITERAL {
-			return origConst(n, constant.Real(nl.Val()))
+			return OrigConst(n, constant.Real(nl.Val()))
 		}
 
 	case ir.OIMAG:
 		n := n.(*ir.UnaryExpr)
 		nl := n.X
 		if nl.Op() == ir.OLITERAL {
-			return origConst(n, constant.Imag(nl.Val()))
+			return OrigConst(n, constant.Imag(nl.Val()))
 		}
 
 	case ir.OCOMPLEX:
 		n := n.(*ir.BinaryExpr)
 		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return origConst(n, makeComplex(nl.Val(), nr.Val()))
+			return OrigConst(n, makeComplex(nl.Val(), nr.Val()))
 		}
 	}
 
@@ -598,8 +599,8 @@ var overflowNames = [...]string{
 	ir.OBITNOT: "bitwise complement",
 }
 
-// origConst returns an OLITERAL with orig n and value v.
-func origConst(n ir.Node, v constant.Value) ir.Node {
+// OrigConst returns an OLITERAL with orig n and value v.
+func OrigConst(n ir.Node, v constant.Value) ir.Node {
 	lno := ir.SetPos(n)
 	v = convertVal(v, n.Type(), false)
 	base.Pos = lno
@@ -623,12 +624,12 @@ func origConst(n ir.Node, v constant.Value) ir.Node {
 	return ir.NewConstExpr(v, n)
 }
 
-func origBoolConst(n ir.Node, v bool) ir.Node {
-	return origConst(n, constant.MakeBool(v))
+func OrigBool(n ir.Node, v bool) ir.Node {
+	return OrigConst(n, constant.MakeBool(v))
 }
 
-func origIntConst(n ir.Node, v int64) ir.Node {
-	return origConst(n, constant.MakeInt64(v))
+func OrigInt(n ir.Node, v int64) ir.Node {
+	return OrigConst(n, constant.MakeInt64(v))
 }
 
 // defaultlit on both nodes simultaneously;
@@ -722,12 +723,12 @@ func defaultType(t *types.Type) *types.Type {
 	return nil
 }
 
-// indexconst checks if Node n contains a constant expression
+// IndexConst checks if Node n contains a constant expression
 // representable as a non-negative int and returns its value.
 // If n is not a constant expression, not representable as an
 // integer, or negative, it returns -1. If n is too large, it
 // returns -2.
-func indexconst(n ir.Node) int64 {
+func IndexConst(n ir.Node) int64 {
 	if n.Op() != ir.OLITERAL {
 		return -1
 	}
@@ -861,4 +862,83 @@ func nodeAndVal(n ir.Node) string {
 		show += " (value " + s + ")"
 	}
 	return show
+}
+
+// evalunsafe evaluates a package unsafe operation and returns the result.
+func evalunsafe(n ir.Node) int64 {
+	switch n.Op() {
+	case ir.OALIGNOF, ir.OSIZEOF:
+		n := n.(*ir.UnaryExpr)
+		n.X = Expr(n.X)
+		n.X = DefaultLit(n.X, nil)
+		tr := n.X.Type()
+		if tr == nil {
+			return 0
+		}
+		types.CalcSize(tr)
+		if n.Op() == ir.OALIGNOF {
+			return int64(tr.Align)
+		}
+		return tr.Width
+
+	case ir.OOFFSETOF:
+		// must be a selector.
+		n := n.(*ir.UnaryExpr)
+		if n.X.Op() != ir.OXDOT {
+			base.Errorf("invalid expression %v", n)
+			return 0
+		}
+		sel := n.X.(*ir.SelectorExpr)
+
+		// Remember base of selector to find it back after dot insertion.
+		// Since r->left may be mutated by typechecking, check it explicitly
+		// first to track it correctly.
+		sel.X = Expr(sel.X)
+		sbase := sel.X
+
+		tsel := Expr(sel)
+		n.X = tsel
+		if tsel.Type() == nil {
+			return 0
+		}
+		switch tsel.Op() {
+		case ir.ODOT, ir.ODOTPTR:
+			break
+		case ir.OCALLPART:
+			base.Errorf("invalid expression %v: argument is a method value", n)
+			return 0
+		default:
+			base.Errorf("invalid expression %v", n)
+			return 0
+		}
+
+		// Sum offsets for dots until we reach sbase.
+		var v int64
+		var next ir.Node
+		for r := tsel; r != sbase; r = next {
+			switch r.Op() {
+			case ir.ODOTPTR:
+				// For Offsetof(s.f), s may itself be a pointer,
+				// but accessing f must not otherwise involve
+				// indirection via embedded pointer types.
+				r := r.(*ir.SelectorExpr)
+				if r.X != sbase {
+					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.X)
+					return 0
+				}
+				fallthrough
+			case ir.ODOT:
+				r := r.(*ir.SelectorExpr)
+				v += r.Offset
+				next = r.X
+			default:
+				ir.Dump("unsafenmagic", tsel)
+				base.Fatalf("impossible %v node after dot insertion", r.Op())
+			}
+		}
+		return v
+	}
+
+	base.Fatalf("unexpected op %v", n.Op())
+	return 0
 }

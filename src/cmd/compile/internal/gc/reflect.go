@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
@@ -339,36 +340,6 @@ func deferstruct(stksize int64) *types.Type {
 	return s
 }
 
-// f is method type, with receiver.
-// return function type, receiver as first argument (or not).
-func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
-	inLen := f.Params().Fields().Len()
-	if receiver != nil {
-		inLen++
-	}
-	in := make([]*ir.Field, 0, inLen)
-
-	if receiver != nil {
-		d := ir.NewField(base.Pos, nil, nil, receiver)
-		in = append(in, d)
-	}
-
-	for _, t := range f.Params().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		d.IsDDD = t.IsDDD()
-		in = append(in, d)
-	}
-
-	outLen := f.Results().Fields().Len()
-	out := make([]*ir.Field, 0, outLen)
-	for _, t := range f.Results().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		out = append(out, d)
-	}
-
-	return functype(nil, in, out)
-}
-
 // methods returns the methods of the non-interface type t, sorted by name.
 // Generates stub functions as needed.
 func methods(t *types.Type) []*Sig {
@@ -378,7 +349,7 @@ func methods(t *types.Type) []*Sig {
 	if mt == nil {
 		return nil
 	}
-	expandmeth(mt)
+	typecheck.CalcMethods(mt)
 
 	// type stored in interface word
 	it := t
@@ -418,8 +389,8 @@ func methods(t *types.Type) []*Sig {
 			name:  method,
 			isym:  ir.MethodSym(it, method),
 			tsym:  ir.MethodSym(t, method),
-			type_: methodfunc(f.Type, t),
-			mtype: methodfunc(f.Type, nil),
+			type_: typecheck.NewMethodType(f.Type, t),
+			mtype: typecheck.NewMethodType(f.Type, nil),
 		}
 		ms = append(ms, sig)
 
@@ -463,7 +434,7 @@ func imethods(t *types.Type) []*Sig {
 		sig := &Sig{
 			name:  f.Sym,
 			mtype: f.Type,
-			type_: methodfunc(f.Type, nil),
+			type_: typecheck.NewMethodType(f.Type, nil),
 		}
 		methods = append(methods, sig)
 
@@ -916,7 +887,7 @@ func typename(t *types.Type) *ir.AddrExpr {
 		s.Def = n
 	}
 
-	n := nodAddr(ir.AsNode(s.Def))
+	n := typecheck.NodAddr(ir.AsNode(s.Def))
 	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
@@ -928,7 +899,7 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
 	}
 	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
-		n := NewName(s)
+		n := typecheck.NewName(s)
 		n.SetType(types.Types[types.TUINT8])
 		n.Class_ = ir.PEXTERN
 		n.SetTypecheck(1)
@@ -936,7 +907,7 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
 	}
 
-	n := nodAddr(ir.AsNode(s.Def))
+	n := typecheck.NodAddr(ir.AsNode(s.Def))
 	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
@@ -1033,7 +1004,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
-			if i := BaseTypeIndex(t); i >= 0 {
+			if i := typecheck.BaseTypeIndex(t); i >= 0 {
 				lsym.Pkg = tbase.Sym().Pkg.Prefix
 				lsym.SymIdx = int32(i)
 				lsym.Set(obj.AttrIndexed, true)
@@ -1492,7 +1463,7 @@ func dumpbasictypes() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(types.NewPtr(types.ErrorType))
 
-		dtypesym(functype(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
+		dtypesym(typecheck.NewFuncType(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(ir.Pkgs.Runtime)
@@ -1744,13 +1715,13 @@ func zeroaddr(size int64) ir.Node {
 	}
 	s := ir.Pkgs.Map.Lookup("zero")
 	if s.Def == nil {
-		x := NewName(s)
+		x := typecheck.NewName(s)
 		x.SetType(types.Types[types.TUINT8])
 		x.Class_ = ir.PEXTERN
 		x.SetTypecheck(1)
 		s.Def = x
 	}
-	z := nodAddr(ir.AsNode(s.Def))
+	z := typecheck.NodAddr(ir.AsNode(s.Def))
 	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	z.SetTypecheck(1)
 	return z

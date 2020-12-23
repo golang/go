@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"reflect"
@@ -41,7 +42,7 @@ func TestCmpstackvar(t *testing.T) {
 		if s == nil {
 			s = &types.Sym{Name: "."}
 		}
-		n := NewName(s)
+		n := typecheck.NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
 		n.Class_ = cl
@@ -156,7 +157,7 @@ func TestCmpstackvar(t *testing.T) {
 
 func TestStackvarSort(t *testing.T) {
 	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
-		n := NewName(s)
+		n := typecheck.NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
 		n.Class_ = cl
