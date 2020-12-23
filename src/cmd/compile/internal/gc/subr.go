@@ -13,10 +13,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
-	"strings"
 	"sync"
-	"unicode"
-	"unicode/utf8"
 )
 
 // largeStack is info about a function whose stack frame is too large (rare).
@@ -31,55 +28,6 @@ var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
 	largeStackFrames   []largeStack
 )
-
-// dotImports tracks all PkgNames that have been dot-imported.
-var dotImports []*ir.PkgName
-
-// find all the exported symbols in package referenced by PkgName,
-// and make them available in the current package
-func importDot(pack *ir.PkgName) {
-	if typecheck.DotImportRefs == nil {
-		typecheck.DotImportRefs = make(map[*ir.Ident]*ir.PkgName)
-	}
-
-	opkg := pack.Pkg
-	for _, s := range opkg.Syms {
-		if s.Def == nil {
-			if _, ok := typecheck.DeclImporter[s]; !ok {
-				continue
-			}
-		}
-		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
-			continue
-		}
-		s1 := typecheck.Lookup(s.Name)
-		if s1.Def != nil {
-			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
-			typecheck.Redeclared(base.Pos, s1, pkgerror)
-			continue
-		}
-
-		id := ir.NewIdent(src.NoXPos, s)
-		typecheck.DotImportRefs[id] = pack
-		s1.Def = id
-		s1.Block = 1
-	}
-
-	dotImports = append(dotImports, pack)
-}
-
-// checkDotImports reports errors for any unused dot imports.
-func checkDotImports() {
-	for _, pack := range dotImports {
-		if !pack.Used {
-			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
-		}
-	}
-
-	// No longer needed; release memory.
-	dotImports = nil
-	typecheck.DotImportRefs = nil
-}
 
 // backingArrayPtrLen extracts the pointer and length from a slice or string.
 // This constructs two nodes referring to n, so n must be a cheapexpr.
@@ -511,59 +459,6 @@ func ngotype(n ir.Node) *types.Sym {
 		return typenamesym(n.Type())
 	}
 	return nil
-}
-
-// The linker uses the magic symbol prefixes "go." and "type."
-// Avoid potential confusion between import paths and symbols
-// by rejecting these reserved imports for now. Also, people
-// "can do weird things in GOPATH and we'd prefer they didn't
-// do _that_ weird thing" (per rsc). See also #4257.
-var reservedimports = []string{
-	"go",
-	"type",
-}
-
-func isbadimport(path string, allowSpace bool) bool {
-	if strings.Contains(path, "\x00") {
-		base.Errorf("import path contains NUL")
-		return true
-	}
-
-	for _, ri := range reservedimports {
-		if path == ri {
-			base.Errorf("import path %q is reserved and cannot be used", path)
-			return true
-		}
-	}
-
-	for _, r := range path {
-		if r == utf8.RuneError {
-			base.Errorf("import path contains invalid UTF-8 sequence: %q", path)
-			return true
-		}
-
-		if r < 0x20 || r == 0x7f {
-			base.Errorf("import path contains control character: %q", path)
-			return true
-		}
-
-		if r == '\\' {
-			base.Errorf("import path contains backslash; use slash: %q", path)
-			return true
-		}
-
-		if !allowSpace && unicode.IsSpace(r) {
-			base.Errorf("import path contains space character: %q", path)
-			return true
-		}
-
-		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
-			base.Errorf("import path contains invalid character '%c': %q", r, path)
-			return true
-		}
-	}
-
-	return false
 }
 
 // itabType loads the _type field from a runtime.itab struct.
