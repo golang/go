@@ -13,18 +13,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// A function named init is a special case.
-// It is called by the initialization before main is run.
-// To make it unique within a package and also uncallable,
-// the name, normally "pkg.init", is altered to "pkg.init.0".
-var renameinitgen int
-
-func renameinit() *types.Sym {
-	s := typecheck.LookupNum("init.", renameinitgen)
-	renameinitgen++
-	return s
-}
-
 // fninit makes and returns an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:

@@ -8,14 +8,12 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -25,57 +23,6 @@ const (
 	embedString
 	embedFiles
 )
-
-func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
-	haveEmbed := false
-	for _, decl := range p.file.DeclList {
-		imp, ok := decl.(*syntax.ImportDecl)
-		if !ok {
-			// imports always come first
-			break
-		}
-		path, _ := strconv.Unquote(imp.Path.Value)
-		if path == "embed" {
-			haveEmbed = true
-			break
-		}
-	}
-
-	pos := embeds[0].Pos
-	if !haveEmbed {
-		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
-		return exprs
-	}
-	if base.Flag.Cfg.Embed.Patterns == nil {
-		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
-		return exprs
-	}
-	if len(names) > 1 {
-		p.errorAt(pos, "go:embed cannot apply to multiple vars")
-		return exprs
-	}
-	if len(exprs) > 0 {
-		p.errorAt(pos, "go:embed cannot apply to var with initializer")
-		return exprs
-	}
-	if typ == nil {
-		// Should not happen, since len(exprs) == 0 now.
-		p.errorAt(pos, "go:embed cannot apply to var without type")
-		return exprs
-	}
-	if typecheck.DeclContext != ir.PEXTERN {
-		p.errorAt(pos, "go:embed cannot apply to var inside func")
-		return exprs
-	}
-
-	v := names[0]
-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
-	v.Embed = new([]ir.Embed)
-	for _, e := range embeds {
-		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
-	}
-	return exprs
-}
 
 func embedFileList(v *ir.Name) []string {
 	kind := embedKind(v.Type())

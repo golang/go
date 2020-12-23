@@ -7,70 +7,10 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
-
-func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
-	xtype := p.typeExpr(expr.Type)
-	ntype := p.typeExpr(expr.Type)
-
-	fn := ir.NewFunc(p.pos(expr))
-	fn.SetIsHiddenClosure(ir.CurFunc != nil)
-	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
-	fn.Nname.Ntype = xtype
-	fn.Nname.Defn = fn
-
-	clo := ir.NewClosureExpr(p.pos(expr), fn)
-	fn.ClosureType = ntype
-	fn.OClosure = clo
-
-	p.funcBody(fn, expr.Body)
-
-	// closure-specific variables are hanging off the
-	// ordinary ones in the symbol table; see oldname.
-	// unhook them.
-	// make the list of pointers for the closure call.
-	for _, v := range fn.ClosureVars {
-		// Unlink from v1; see comment in syntax.go type Param for these fields.
-		v1 := v.Defn
-		v1.Name().Innermost = v.Outer
-
-		// If the closure usage of v is not dense,
-		// we need to make it dense; now that we're out
-		// of the function in which v appeared,
-		// look up v.Sym in the enclosing function
-		// and keep it around for use in the compiled code.
-		//
-		// That is, suppose we just finished parsing the innermost
-		// closure f4 in this code:
-		//
-		//	func f() {
-		//		v := 1
-		//		func() { // f2
-		//			use(v)
-		//			func() { // f3
-		//				func() { // f4
-		//					use(v)
-		//				}()
-		//			}()
-		//		}()
-		//	}
-		//
-		// At this point v.Outer is f2's v; there is no f3's v.
-		// To construct the closure f4 from within f3,
-		// we need to use f3's v and in this case we need to create f3's v.
-		// We are now in the context of f3, so calling oldname(v.Sym)
-		// obtains f3's v, creating it if necessary (as it is in the example).
-		//
-		// capturevars will decide whether to use v directly or &v.
-		v.Outer = oldname(v.Sym()).(*ir.Name)
-	}
-
-	return clo
-}
 
 // transformclosure is called in a separate phase after escape analysis.
 // It transform closure bodies to properly reference captured variables.

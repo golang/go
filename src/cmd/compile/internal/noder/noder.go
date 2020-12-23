@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package noder
 
 import (
 	"fmt"
@@ -25,11 +25,11 @@ import (
 	"cmd/internal/src"
 )
 
-// parseFiles concurrently parses files into *syntax.File structures.
+// ParseFiles concurrently parses files into *syntax.File structures.
 // Each declaration in every *syntax.File is converted to a syntax tree
 // and its root represented by *Node is appended to Target.Decls.
 // Returns the total count of parsed lines.
-func parseFiles(filenames []string) uint {
+func ParseFiles(filenames []string) uint {
 	noders := make([]*noder, 0, len(filenames))
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
@@ -257,7 +257,7 @@ func (p *noder) node() {
 	p.setlineno(p.file.PkgName)
 	mkpackage(p.file.PkgName.Value)
 
-	if pragma, ok := p.file.Pragma.(*Pragma); ok {
+	if pragma, ok := p.file.Pragma.(*pragmas); ok {
 		pragma.Flag &^= ir.GoBuildPragma
 		p.checkUnused(pragma)
 	}
@@ -323,7 +323,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return // avoid follow-on errors if there was a syntax error
 	}
 
-	if pragma, ok := imp.Pragma.(*Pragma); ok {
+	if pragma, ok := imp.Pragma.(*pragmas); ok {
 		p.checkUnused(pragma)
 	}
 
@@ -383,7 +383,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 		exprs = p.exprList(decl.Values)
 	}
 
-	if pragma, ok := decl.Pragma.(*Pragma); ok {
+	if pragma, ok := decl.Pragma.(*pragmas); ok {
 		if len(pragma.Embeds) > 0 {
 			if !p.importedEmbed {
 				// This check can't be done when building the list pragma.Embeds
@@ -422,7 +422,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		}
 	}
 
-	if pragma, ok := decl.Pragma.(*Pragma); ok {
+	if pragma, ok := decl.Pragma.(*pragmas); ok {
 		p.checkUnused(pragma)
 	}
 
@@ -477,10 +477,10 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 
 	n.Ntype = typ
 	n.SetAlias(decl.Alias)
-	if pragma, ok := decl.Pragma.(*Pragma); ok {
+	if pragma, ok := decl.Pragma.(*pragmas); ok {
 		if !decl.Alias {
-			n.SetPragma(pragma.Flag & TypePragmas)
-			pragma.Flag &^= TypePragmas
+			n.SetPragma(pragma.Flag & typePragmas)
+			pragma.Flag &^= typePragmas
 		}
 		p.checkUnused(pragma)
 	}
@@ -532,12 +532,12 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
 	f.Nname.Defn = f
 	f.Nname.Ntype = t
 
-	if pragma, ok := fun.Pragma.(*Pragma); ok {
-		f.Pragma = pragma.Flag & FuncPragmas
+	if pragma, ok := fun.Pragma.(*pragmas); ok {
+		f.Pragma = pragma.Flag & funcPragmas
 		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
 			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
 		}
-		pragma.Flag &^= FuncPragmas
+		pragma.Flag &^= funcPragmas
 		p.checkUnused(pragma)
 	}
 
@@ -1525,24 +1525,24 @@ var allowedStdPragmas = map[string]bool{
 	"go:generate":           true,
 }
 
-// *Pragma is the value stored in a syntax.Pragma during parsing.
-type Pragma struct {
+// *pragmas is the value stored in a syntax.pragmas during parsing.
+type pragmas struct {
 	Flag   ir.PragmaFlag // collected bits
-	Pos    []PragmaPos   // position of each individual flag
-	Embeds []PragmaEmbed
+	Pos    []pragmaPos   // position of each individual flag
+	Embeds []pragmaEmbed
 }
 
-type PragmaPos struct {
+type pragmaPos struct {
 	Flag ir.PragmaFlag
 	Pos  syntax.Pos
 }
 
-type PragmaEmbed struct {
+type pragmaEmbed struct {
 	Pos      syntax.Pos
 	Patterns []string
 }
 
-func (p *noder) checkUnused(pragma *Pragma) {
+func (p *noder) checkUnused(pragma *pragmas) {
 	for _, pos := range pragma.Pos {
 		if pos.Flag&pragma.Flag != 0 {
 			p.errorAt(pos.Pos, "misplaced compiler directive")
@@ -1555,7 +1555,7 @@ func (p *noder) checkUnused(pragma *Pragma) {
 	}
 }
 
-func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	for _, pos := range pragma.Pos {
 		if pos.Flag&pragma.Flag != 0 {
 			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
@@ -1570,9 +1570,9 @@ func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
 
 // pragma is called concurrently if files are parsed concurrently.
 func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.Pragma) syntax.Pragma {
-	pragma, _ := old.(*Pragma)
+	pragma, _ := old.(*pragmas)
 	if pragma == nil {
-		pragma = new(Pragma)
+		pragma = new(pragmas)
 	}
 
 	if text == "" {
@@ -1626,7 +1626,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:embed pattern..."})
 			break
 		}
-		pragma.Embeds = append(pragma.Embeds, PragmaEmbed{pos, args})
+		pragma.Embeds = append(pragma.Embeds, pragmaEmbed{pos, args})
 
 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
 		// This is permitted for general use because Solaris
@@ -1665,7 +1665,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
 		pragma.Flag |= flag
-		pragma.Pos = append(pragma.Pos, PragmaPos{flag, pos})
+		pragma.Pos = append(pragma.Pos, pragmaPos{flag, pos})
 	}
 
 	return pragma
@@ -1760,4 +1760,179 @@ func parseGoEmbed(args string) ([]string, error) {
 		list = append(list, path)
 	}
 	return list, nil
+}
+
+func fakeRecv() *ir.Field {
+	return ir.NewField(base.Pos, nil, nil, types.FakeRecvType())
+}
+
+func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+	xtype := p.typeExpr(expr.Type)
+	ntype := p.typeExpr(expr.Type)
+
+	fn := ir.NewFunc(p.pos(expr))
+	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+	fn.Nname.Ntype = xtype
+	fn.Nname.Defn = fn
+
+	clo := ir.NewClosureExpr(p.pos(expr), fn)
+	fn.ClosureType = ntype
+	fn.OClosure = clo
+
+	p.funcBody(fn, expr.Body)
+
+	// closure-specific variables are hanging off the
+	// ordinary ones in the symbol table; see oldname.
+	// unhook them.
+	// make the list of pointers for the closure call.
+	for _, v := range fn.ClosureVars {
+		// Unlink from v1; see comment in syntax.go type Param for these fields.
+		v1 := v.Defn
+		v1.Name().Innermost = v.Outer
+
+		// If the closure usage of v is not dense,
+		// we need to make it dense; now that we're out
+		// of the function in which v appeared,
+		// look up v.Sym in the enclosing function
+		// and keep it around for use in the compiled code.
+		//
+		// That is, suppose we just finished parsing the innermost
+		// closure f4 in this code:
+		//
+		//	func f() {
+		//		v := 1
+		//		func() { // f2
+		//			use(v)
+		//			func() { // f3
+		//				func() { // f4
+		//					use(v)
+		//				}()
+		//			}()
+		//		}()
+		//	}
+		//
+		// At this point v.Outer is f2's v; there is no f3's v.
+		// To construct the closure f4 from within f3,
+		// we need to use f3's v and in this case we need to create f3's v.
+		// We are now in the context of f3, so calling oldname(v.Sym)
+		// obtains f3's v, creating it if necessary (as it is in the example).
+		//
+		// capturevars will decide whether to use v directly or &v.
+		v.Outer = oldname(v.Sym()).(*ir.Name)
+	}
+
+	return clo
+}
+
+// A function named init is a special case.
+// It is called by the initialization before main is run.
+// To make it unique within a package and also uncallable,
+// the name, normally "pkg.init", is altered to "pkg.init.0".
+var renameinitgen int
+
+func renameinit() *types.Sym {
+	s := typecheck.LookupNum("init.", renameinitgen)
+	renameinitgen++
+	return s
+}
+
+// oldname returns the Node that declares symbol s in the current scope.
+// If no such Node currently exists, an ONONAME Node is returned instead.
+// Automatically creates a new closure variable if the referenced symbol was
+// declared in a different (containing) function.
+func oldname(s *types.Sym) ir.Node {
+	if s.Pkg != types.LocalPkg {
+		return ir.NewIdent(base.Pos, s)
+	}
+
+	n := ir.AsNode(s.Def)
+	if n == nil {
+		// Maybe a top-level declaration will come along later to
+		// define s. resolve will check s.Def again once all input
+		// source has been processed.
+		return ir.NewIdent(base.Pos, s)
+	}
+
+	if ir.CurFunc != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != ir.CurFunc {
+		// Inner func is referring to var in outer func.
+		//
+		// TODO(rsc): If there is an outer variable x and we
+		// are parsing x := 5 inside the closure, until we get to
+		// the := it looks like a reference to the outer x so we'll
+		// make x a closure variable unnecessarily.
+		n := n.(*ir.Name)
+		c := n.Name().Innermost
+		if c == nil || c.Curfn != ir.CurFunc {
+			// Do not have a closure var for the active closure yet; make one.
+			c = typecheck.NewName(s)
+			c.Class_ = ir.PAUTOHEAP
+			c.SetIsClosureVar(true)
+			c.SetIsDDD(n.IsDDD())
+			c.Defn = n
+
+			// Link into list of active closure variables.
+			// Popped from list in func funcLit.
+			c.Outer = n.Name().Innermost
+			n.Name().Innermost = c
+
+			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
+		}
+
+		// return ref to closure var, not original
+		return c
+	}
+
+	return n
+}
+
+func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) (newExprs []ir.Node) {
+	haveEmbed := false
+	for _, decl := range p.file.DeclList {
+		imp, ok := decl.(*syntax.ImportDecl)
+		if !ok {
+			// imports always come first
+			break
+		}
+		path, _ := strconv.Unquote(imp.Path.Value)
+		if path == "embed" {
+			haveEmbed = true
+			break
+		}
+	}
+
+	pos := embeds[0].Pos
+	if !haveEmbed {
+		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
+		return exprs
+	}
+	if base.Flag.Cfg.Embed.Patterns == nil {
+		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
+		return exprs
+	}
+	if len(names) > 1 {
+		p.errorAt(pos, "go:embed cannot apply to multiple vars")
+		return exprs
+	}
+	if len(exprs) > 0 {
+		p.errorAt(pos, "go:embed cannot apply to var with initializer")
+		return exprs
+	}
+	if typ == nil {
+		// Should not happen, since len(exprs) == 0 now.
+		p.errorAt(pos, "go:embed cannot apply to var without type")
+		return exprs
+	}
+	if typecheck.DeclContext != ir.PEXTERN {
+		p.errorAt(pos, "go:embed cannot apply to var inside func")
+		return exprs
+	}
+
+	v := names[0]
+	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
+	v.Embed = new([]ir.Embed)
+	for _, e := range embeds {
+		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+	}
+	return exprs
 }

@@ -2,21 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package noder
 
 import (
-	"cmd/compile/internal/base"
+	"fmt"
+	"strings"
+
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/internal/objabi"
-	"cmd/internal/src"
-	"fmt"
-	"strings"
 )
-
-func makePos(b *src.PosBase, line, col uint) src.XPos {
-	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
-}
 
 func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
@@ -27,7 +22,7 @@ func isQuoted(s string) bool {
 }
 
 const (
-	FuncPragmas = ir.Nointerface |
+	funcPragmas = ir.Nointerface |
 		ir.Noescape |
 		ir.Norace |
 		ir.Nosplit |
@@ -40,7 +35,7 @@ const (
 		ir.Nowritebarrierrec |
 		ir.Yeswritebarrierrec
 
-	TypePragmas = ir.NotInHeap
+	typePragmas = ir.NotInHeap
 )
 
 func pragmaFlag(verb string) ir.PragmaFlag {
