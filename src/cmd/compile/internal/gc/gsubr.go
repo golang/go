@@ -32,6 +32,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -141,7 +142,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	escapeFuncs([]*ir.Func{fn}, false)
+	escape.Batch([]*ir.Func{fn}, false)
 
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 

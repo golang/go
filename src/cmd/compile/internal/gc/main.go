@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
@@ -183,7 +184,7 @@ func Main(archInit func(*Arch)) {
 		logopt.LogJsonOption(base.Flag.JSON)
 	}
 
-	ir.EscFmt = escFmt
+	ir.EscFmt = escape.Fmt
 	ir.IsIntrinsicCall = isIntrinsicCall
 	inline.SSADumpInline = ssaDumpInline
 	initSSAEnv()
@@ -252,7 +253,7 @@ func Main(archInit func(*Arch)) {
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
 	base.Timer.Start("fe", "escapes")
-	escapes(typecheck.Target.Decls)
+	escape.Funcs(typecheck.Target.Decls)
 
 	// Collect information for go:nowritebarrierrec
 	// checking. This must happen before transformclosure.

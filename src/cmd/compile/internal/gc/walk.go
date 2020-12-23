@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -1455,7 +1456,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 		}
 		if n.Esc() == ir.EscNone {
-			if why := heapAllocReason(n); why != "" {
+			if why := escape.HeapAllocReason(n); why != "" {
 				base.Fatalf("%v has EscNone, but %v", n, why)
 			}
 			// var arr [r]T

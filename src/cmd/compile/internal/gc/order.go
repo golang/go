@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -521,7 +522,7 @@ func (o *Order) call(nn ir.Node) {
 
 	// Check for "unsafe-uintptr" tag provided by escape analysis.
 	for i, param := range n.X.Type().Params().FieldSlice() {
-		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
+		if param.Note == escape.UnsafeUintptrNote || param.Note == escape.UintptrEscapesNote {
 			if arg := n.Args[i]; arg.Op() == ir.OSLICELIT {
 				arg := arg.(*ir.CompLitExpr)
 				for _, elt := range arg.List {
