@@ -13,7 +13,7 @@ go test -parallel=1
 
 # Running the fuzzer should find a crashing input quickly.
 ! go test -fuzz=FuzzWithBug -parallel=1
-stdout 'testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603'
+stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603'
 stdout 'this input caused a crash!'
 grep '\Aab\z' testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603
 
@@ -22,12 +22,12 @@ grep '\Aab\z' testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298
 ! go test -parallel=1
 
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -parallel=1
-stdout 'testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1'
+stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1'
 stdout 'runtime.Goexit'
 grep '\Aac\z' testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1
 
 ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -parallel=1
-stdout 'testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67'
+stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67'
 stdout 'unexpectedly'
 grep '\Aad\z' testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67
 
