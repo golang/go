@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -216,7 +217,7 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 			return err
 		}
 		return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "list", []string{"all"})
-	case source.CommandAddDependency, source.CommandUpgradeDependency, source.CommandRemoveDependency:
+	case source.CommandAddDependency, source.CommandUpgradeDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
 		var addRequire bool
@@ -229,6 +230,56 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 			return err
 		}
 		return s.runGoGetModule(ctx, snapshot, uri.SpanURI(), addRequire, goCmdArgs)
+	case source.CommandRemoveDependency:
+		var uri protocol.DocumentURI
+		var modulePath string
+		var onlyError bool
+		if err := source.UnmarshalArgs(args, &uri, &onlyError, &modulePath); err != nil {
+			return err
+		}
+		snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		defer release()
+		if !ok {
+			return err
+		}
+		// If the module is tidied apart from the one unused diagnostic, we can
+		// run `go get module@none`, and then run `go mod tidy`. Otherwise, we
+		// must make textual edits.
+		// TODO(rstambler): In Go 1.17+, we will be able to use the go command
+		// without checking if the module is tidy.
+		if onlyError {
+			if err := s.runGoGetModule(ctx, snapshot, uri.SpanURI(), false, []string{modulePath + "@none"}); err != nil {
+				return err
+			}
+			return runSimpleGoCommand(ctx, snapshot, source.UpdateUserModFile|source.AllowNetwork, uri.SpanURI(), "mod", []string{"tidy"})
+		}
+		pm, err := snapshot.ParseMod(ctx, fh)
+		if err != nil {
+			return err
+		}
+		edits, err := dropDependency(snapshot, pm, modulePath)
+		if err != nil {
+			return err
+		}
+		response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: []protocol.TextDocumentEdit{{
+					TextDocument: protocol.VersionedTextDocumentIdentifier{
+						Version: fh.Version(),
+						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+							URI: protocol.URIFromSpanURI(fh.URI()),
+						},
+					},
+					Edits: edits,
+				}},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if !response.Applied {
+			return fmt.Errorf("edits not applied because of %s", response.FailureReason)
+		}
 	case source.CommandGoGetPackage:
 		var uri protocol.DocumentURI
 		var pkg string
@@ -301,6 +352,31 @@ func (s *Server) runCommand(ctx context.Context, work *workDone, command *source
 		return fmt.Errorf("unsupported command: %s", command.ID())
 	}
 	return nil
+}
+
+// dropDependency returns the edits to remove the given require from the go.mod
+// file.
+func dropDependency(snapshot source.Snapshot, pm *source.ParsedModule, modulePath string) ([]protocol.TextEdit, error) {
+	// We need a private copy of the parsed go.mod file, since we're going to
+	// modify it.
+	copied, err := modfile.Parse("", pm.Mapper.Content, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := copied.DropRequire(modulePath); err != nil {
+		return nil, err
+	}
+	copied.Cleanup()
+	newContent, err := copied.Format()
+	if err != nil {
+		return nil, err
+	}
+	// Calculate the edits to be made due to the change.
+	diff, err := snapshot.View().Options().ComputeEdits(pm.URI, string(pm.Mapper.Content), string(newContent))
+	if err != nil {
+		return nil, err
+	}
+	return source.ToProtocolEdits(pm.Mapper, diff)
 }
 
 func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, work *workDone, tests, benchmarks []string) error {

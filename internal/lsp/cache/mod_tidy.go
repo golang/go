@@ -274,13 +274,6 @@ func modTidyErrors(ctx context.Context, snapshot source.Snapshot, pm *source.Par
 		}
 		delete(unused, req.Mod.Path)
 	}
-	for _, req := range unused {
-		srcErr, err := unusedError(pm.Mapper, req, snapshot.View().Options().ComputeEdits)
-		if err != nil {
-			return nil, err
-		}
-		errors = append(errors, srcErr)
-	}
 	for _, req := range wrongDirectness {
 		// Handle dependencies that are incorrectly labeled indirect and
 		// vice versa.
@@ -380,16 +373,25 @@ func modTidyErrors(ctx context.Context, snapshot source.Snapshot, pm *source.Par
 			}
 		}
 	}
+	// Finally, add errors for any unused dependencies.
+	onlyError := len(errors) == 0 && len(unused) == 1
+	for _, req := range unused {
+		srcErr, err := unusedError(pm.Mapper, req, onlyError, snapshot.View().Options().ComputeEdits)
+		if err != nil {
+			return nil, err
+		}
+		errors = append(errors, srcErr)
+	}
 	return errors, nil
 }
 
 // unusedError returns a source.Error for an unused require.
-func unusedError(m *protocol.ColumnMapper, req *modfile.Require, computeEdits diff.ComputeEdits) (*source.Error, error) {
+func unusedError(m *protocol.ColumnMapper, req *modfile.Require, onlyError bool, computeEdits diff.ComputeEdits) (*source.Error, error) {
 	rng, err := rangeFromPositions(m, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return nil, err
 	}
-	args, err := source.MarshalArgs(m.URI, false, []string{req.Mod.Path + "@none"})
+	args, err := source.MarshalArgs(m.URI, onlyError, req.Mod.Path)
 	if err != nil {
 		return nil, err
 	}

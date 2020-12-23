@@ -816,3 +816,126 @@ func hello() {}
 		}
 	})
 }
+
+func TestRemoveUnusedDependency(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const proxy = `
+-- hasdep.com@v1.2.3/go.mod --
+module hasdep.com
+
+go 1.12
+
+require example.com v1.2.3
+-- hasdep.com@v1.2.3/a/a.go --
+package a
+-- example.com@v1.2.3/go.mod --
+module example.com
+
+go 1.12
+-- example.com@v1.2.3/blah/blah.go --
+package blah
+
+const Name = "Blah"
+-- random.com@v1.2.3/go.mod --
+module random.com
+
+go 1.12
+-- random.com@v1.2.3/blah/blah.go --
+package blah
+
+const Name = "Blah"
+`
+	t.Run("almost tidied", func(t *testing.T) {
+		const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require hasdep.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
+hasdep.com v1.2.3 h1:00y+N5oD+SpKoqV1zP2VOPawcW65Zb9NebANY3GSzGI=
+hasdep.com v1.2.3/go.mod h1:ePVZOlez+KZEOejfLPGL2n4i8qiAjrkhQZ4wcImqAes=
+-- main.go --
+package main
+
+func main() {}
+`
+		withOptions(
+			ProxyFiles(proxy),
+		).run(t, mod, func(t *testing.T, env *Env) {
+			d := &protocol.PublishDiagnosticsParams{}
+			env.Await(
+				OnceMet(
+					env.DiagnosticAtRegexp("go.mod", "require hasdep.com v1.2.3"),
+					ReadDiagnostics("go.mod", d),
+				),
+			)
+			const want = `module mod.com
+
+go 1.12
+`
+			env.ApplyQuickFixes("go.mod", d.Diagnostics)
+			if got := env.ReadWorkspaceFile("go.mod"); got != want {
+				t.Fatalf("unexpected content in go.mod:\n%s", tests.Diff(t, want, got))
+			}
+		})
+	})
+
+	t.Run("not tidied", func(t *testing.T) {
+		const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require hasdep.com v1.2.3
+require random.com v1.2.3
+-- go.sum --
+example.com v1.2.3 h1:ihBTGWGjTU3V4ZJ9OmHITkU9WQ4lGdQkMjgyLFk0FaY=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
+hasdep.com v1.2.3 h1:00y+N5oD+SpKoqV1zP2VOPawcW65Zb9NebANY3GSzGI=
+hasdep.com v1.2.3/go.mod h1:ePVZOlez+KZEOejfLPGL2n4i8qiAjrkhQZ4wcImqAes=
+random.com v1.2.3 h1:PzYTykzqqH6+qU0dIgh9iPFbfb4Mm8zNBjWWreRKtx0=
+random.com v1.2.3/go.mod h1:8EGj+8a4Hw1clAp8vbaeHAsKE4sbm536FP7nKyXO+qQ=
+-- main.go --
+package main
+
+func main() {}
+`
+		withOptions(
+			ProxyFiles(proxy),
+		).run(t, mod, func(t *testing.T, env *Env) {
+			d := &protocol.PublishDiagnosticsParams{}
+			env.OpenFile("go.mod")
+			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3")
+			env.Await(
+				OnceMet(
+					DiagnosticAt("go.mod", pos.Line, pos.Column),
+					ReadDiagnostics("go.mod", d),
+				),
+			)
+			const want = `module mod.com
+
+go 1.12
+
+require random.com v1.2.3
+`
+			var diagnostics []protocol.Diagnostic
+			for _, d := range d.Diagnostics {
+				if d.Range.Start.Line != float64(pos.Line) {
+					continue
+				}
+				diagnostics = append(diagnostics, d)
+			}
+			env.ApplyQuickFixes("go.mod", diagnostics)
+			if got := env.Editor.BufferText("go.mod"); got != want {
+				t.Fatalf("unexpected content in go.mod:\n%s", tests.Diff(t, want, got))
+			}
+		})
+	})
+
+}
