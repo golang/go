@@ -141,7 +141,10 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	}
 	for _, pkg := range pkgs {
 		if !containsDir || s.view.Options().VerboseOutput {
-			event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.PackagePath.Of(pkg.PkgPath), tag.Files.Of(pkg.CompiledGoFiles))
+			event.Log(ctx, "go/packages.Load",
+				tag.Snapshot.Of(s.ID()),
+				tag.Package.Of(pkg.ID),
+				tag.Files.Of(pkg.CompiledGoFiles))
 		}
 		// Ignore packages with no sources, since we will never be able to
 		// correctly invalidate that metadata.

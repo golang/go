@@ -19,7 +19,7 @@ var (
 	File          = keys.NewString("file", "")
 	Directory     = keys.New("directory", "")
 	URI           = keys.New("URI", "")
-	Package       = keys.NewString("package", "")
+	Package       = keys.NewString("package", "") // Package ID
 	PackagePath   = keys.NewString("package_path", "")
 	Query         = keys.New("query", "")
 	Snapshot      = keys.NewUInt64("snapshot", "")

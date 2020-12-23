@@ -207,7 +207,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			event.Log(ctx, fmt.Sprintf("analysis panicked: %s", r), tag.Package.Of(pkg.PkgPath()))
+			event.Log(ctx, fmt.Sprintf("analysis panicked: %s", r), tag.Package.Of(pkg.ID()))
 			data.err = errors.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
 		}
 	}()
