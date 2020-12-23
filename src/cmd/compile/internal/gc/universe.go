@@ -340,8 +340,8 @@ func finishUniverse() {
 		s1.Block = s.Block
 	}
 
-	nodfp = NewName(lookup(".fp"))
-	nodfp.SetType(types.Types[types.TINT32])
-	nodfp.Class_ = ir.PPARAM
-	nodfp.SetUsed(true)
+	ir.RegFP = NewName(lookup(".fp"))
+	ir.RegFP.SetType(types.Types[types.TINT32])
+	ir.RegFP.Class_ = ir.PPARAM
+	ir.RegFP.SetUsed(true)
 }

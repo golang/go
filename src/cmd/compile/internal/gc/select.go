@@ -13,7 +13,7 @@ import (
 // select
 func typecheckselect(sel *ir.SelectStmt) {
 	var def ir.Node
-	lno := setlineno(sel)
+	lno := ir.SetPos(sel)
 	typecheckslice(sel.Init(), ctxStmt)
 	for _, ncase := range sel.Cases {
 		ncase := ncase.(*ir.CaseStmt)
@@ -94,7 +94,7 @@ func typecheckselect(sel *ir.SelectStmt) {
 }
 
 func walkselect(sel *ir.SelectStmt) {
-	lno := setlineno(sel)
+	lno := ir.SetPos(sel)
 	if len(sel.Compiled) != 0 {
 		base.Fatalf("double walkselect")
 	}
@@ -123,7 +123,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	// optimization: one-case select: single op.
 	if ncas == 1 {
 		cas := cases[0].(*ir.CaseStmt)
-		setlineno(cas)
+		ir.SetPos(cas)
 		l := cas.Init()
 		if cas.Comm != nil { // not default:
 			n := cas.Comm
@@ -158,7 +158,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	var dflt *ir.CaseStmt
 	for _, cas := range cases {
 		cas := cas.(*ir.CaseStmt)
-		setlineno(cas)
+		ir.SetPos(cas)
 		n := cas.Comm
 		if n == nil {
 			dflt = cas
@@ -187,7 +187,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 		}
 
 		n := cas.Comm
-		setlineno(n)
+		ir.SetPos(n)
 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		r.PtrInit().Set(cas.Init())
 		var call ir.Node
@@ -245,7 +245,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	var pc0, pcs ir.Node
 	if base.Flag.Race {
 		pcs = temp(types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
-		pc0 = typecheck(nodAddr(ir.NewIndexExpr(base.Pos, pcs, nodintconst(0))), ctxExpr)
+		pc0 = typecheck(nodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(0))), ctxExpr)
 	} else {
 		pc0 = nodnil()
 	}
@@ -253,7 +253,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	// register cases
 	for _, cas := range cases {
 		cas := cas.(*ir.CaseStmt)
-		setlineno(cas)
+		ir.SetPos(cas)
 
 		init = append(init, cas.Init()...)
 		cas.PtrInit().Set(nil)
@@ -286,7 +286,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 		casorder[i] = cas
 
 		setField := func(f string, val ir.Node) {
-			r := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, ir.NewIndexExpr(base.Pos, selv, nodintconst(int64(i))), lookup(f)), val)
+			r := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, ir.NewIndexExpr(base.Pos, selv, ir.NewInt(int64(i))), lookup(f)), val)
 			init = append(init, typecheck(r, ctxStmt))
 		}
 
@@ -300,7 +300,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r := mkcall("selectsetpc", nil, nil, nodAddr(ir.NewIndexExpr(base.Pos, pcs, nodintconst(int64(i)))))
+			r := mkcall("selectsetpc", nil, nil, nodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -315,7 +315,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	r.Lhs = []ir.Node{chosen, recvOK}
 	fn := syslook("selectgo")
-	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, nodintconst(int64(nsends)), nodintconst(int64(nrecvs)), nodbool(dflt == nil))}
+	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(int64(nsends)), ir.NewInt(int64(nrecvs)), ir.NewBool(dflt == nil))}
 	init = append(init, typecheck(r, ctxStmt))
 
 	// selv and order are no longer alive after selectgo.
@@ -346,12 +346,12 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 	}
 
 	if dflt != nil {
-		setlineno(dflt)
-		dispatch(ir.NewBinaryExpr(base.Pos, ir.OLT, chosen, nodintconst(0)), dflt)
+		ir.SetPos(dflt)
+		dispatch(ir.NewBinaryExpr(base.Pos, ir.OLT, chosen, ir.NewInt(0)), dflt)
 	}
 	for i, cas := range casorder {
-		setlineno(cas)
-		dispatch(ir.NewBinaryExpr(base.Pos, ir.OEQ, chosen, nodintconst(int64(i))), cas)
+		ir.SetPos(cas)
+		dispatch(ir.NewBinaryExpr(base.Pos, ir.OEQ, chosen, ir.NewInt(int64(i))), cas)
 	}
 
 	return init
@@ -359,7 +359,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
 
 // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
 func bytePtrToIndex(n ir.Node, i int64) ir.Node {
-	s := nodAddr(ir.NewIndexExpr(base.Pos, n, nodintconst(i)))
+	s := nodAddr(ir.NewIndexExpr(base.Pos, n, ir.NewInt(i)))
 	t := types.NewPtr(types.Types[types.TUINT8])
 	return convnop(s, t)
 }
@@ -370,8 +370,8 @@ var scase *types.Type
 func scasetype() *types.Type {
 	if scase == nil {
 		scase = tostruct([]*ir.Field{
-			namedfield("c", types.Types[types.TUNSAFEPTR]),
-			namedfield("elem", types.Types[types.TUNSAFEPTR]),
+			ir.NewField(base.Pos, lookup("c"), nil, types.Types[types.TUNSAFEPTR]),
+			ir.NewField(base.Pos, lookup("elem"), nil, types.Types[types.TUNSAFEPTR]),
 		})
 		scase.SetNoalg(true)
 	}

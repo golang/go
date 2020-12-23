@@ -18,8 +18,8 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
 	ntype := p.typeExpr(expr.Type)
 
 	fn := ir.NewFunc(p.pos(expr))
-	fn.SetIsHiddenClosure(Curfn != nil)
-	fn.Nname = newFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
 	fn.Nname.Ntype = xtype
 	fn.Nname.Defn = fn
 
@@ -111,22 +111,22 @@ func typecheckclosure(clo *ir.ClosureExpr, top int) {
 		}
 	}
 
-	fn.Nname.SetSym(closurename(Curfn))
-	setNodeNameFunc(fn.Nname)
+	fn.Nname.SetSym(closurename(ir.CurFunc))
+	ir.MarkFunc(fn.Nname)
 	typecheckFunc(fn)
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
 	// ready to type check code yet; we'll check it later, because the
 	// underlying closure function we create is added to Target.Decls.
-	if Curfn != nil && clo.Type() != nil {
-		oldfn := Curfn
-		Curfn = fn
+	if ir.CurFunc != nil && clo.Type() != nil {
+		oldfn := ir.CurFunc
+		ir.CurFunc = fn
 		olddd := decldepth
 		decldepth = 1
 		typecheckslice(fn.Body, ctxStmt)
 		decldepth = olddd
-		Curfn = oldfn
+		ir.CurFunc = oldfn
 	}
 
 	Target.Decls = append(Target.Decls, fn)
@@ -335,13 +335,13 @@ func hasemptycvars(clo *ir.ClosureExpr) bool {
 // and compiling runtime
 func closuredebugruntimecheck(clo *ir.ClosureExpr) {
 	if base.Debug.Closure > 0 {
-		if clo.Esc() == EscHeap {
+		if clo.Esc() == ir.EscHeap {
 			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
 		} else {
 			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
 		}
 	}
-	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
+	if base.Flag.CompilingRuntime && clo.Esc() == ir.EscHeap {
 		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
 	}
 }
@@ -364,14 +364,14 @@ func closureType(clo *ir.ClosureExpr) *types.Type {
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
 	fields := []*ir.Field{
-		namedfield(".F", types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, lookup(".F"), nil, types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars {
 		typ := v.Type()
 		if !v.Byval() {
 			typ = types.NewPtr(typ)
 		}
-		fields = append(fields, symfield(v.Sym(), typ))
+		fields = append(fields, ir.NewField(base.Pos, v.Sym(), nil, typ))
 	}
 	typ := tostruct(fields)
 	typ.SetNoalg(true)
@@ -435,16 +435,16 @@ func typecheckpartialcall(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
 // for partial calls.
 func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
 	rcvrtype := dot.X.Type()
-	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
 		return sym.Def.(*ir.Func)
 	}
 	sym.SetUniq(true)
 
-	savecurfn := Curfn
+	savecurfn := ir.CurFunc
 	saveLineNo := base.Pos
-	Curfn = nil
+	ir.CurFunc = nil
 
 	// Set line number equal to the line number where the method is declared.
 	var m *types.Field
@@ -480,7 +480,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	}
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
-	call.Args.Set(paramNnames(tfn.Type()))
+	call.Args.Set(ir.ParamNames(tfn.Type()))
 	call.IsDDD = tfn.Type().IsVariadic()
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
@@ -496,11 +496,11 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	typecheckFunc(fn)
 	// Need to typecheck the body of the just-generated wrapper.
 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
-	Curfn = fn
+	ir.CurFunc = fn
 	typecheckslice(fn.Body, ctxStmt)
 	sym.Def = fn
 	Target.Decls = append(Target.Decls, fn)
-	Curfn = savecurfn
+	ir.CurFunc = savecurfn
 	base.Pos = saveLineNo
 
 	return fn
@@ -511,8 +511,8 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 // The address of a variable of the returned type can be cast to a func.
 func partialCallType(n *ir.CallPartExpr) *types.Type {
 	t := tostruct([]*ir.Field{
-		namedfield("F", types.Types[types.TUINTPTR]),
-		namedfield("R", n.X.Type()),
+		ir.NewField(base.Pos, lookup("F"), nil, types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, lookup("R"), nil, n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t
@@ -561,10 +561,4 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	}
 
 	return walkexpr(cfn, init)
-}
-
-// callpartMethod returns the *types.Field representing the method
-// referenced by method value n.
-func callpartMethod(n ir.Node) *types.Field {
-	return n.(*ir.CallPartExpr).Method
 }

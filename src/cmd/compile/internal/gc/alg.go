@@ -147,10 +147,10 @@ func genhash(t *types.Type) *obj.LSym {
 
 	// func sym(p *T, h uintptr) uintptr
 	args := []*ir.Field{
-		namedfield("p", types.NewPtr(t)),
-		namedfield("h", types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, lookup("p"), nil, types.NewPtr(t)),
+		ir.NewField(base.Pos, lookup("h"), nil, types.Types[types.TUINTPTR]),
 	}
-	results := []*ir.Field{anonfield(types.Types[types.TUINTPTR])}
+	results := []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR])}
 	tfn := ir.NewFuncType(base.Pos, nil, args, results)
 
 	fn := dclfunc(sym, tfn)
@@ -166,9 +166,9 @@ func genhash(t *types.Type) *obj.LSym {
 
 		// for i := 0; i < nelem; i++
 		ni := temp(types.Types[types.TINT])
-		init := ir.NewAssignStmt(base.Pos, ni, nodintconst(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, nodintconst(t.NumElem()))
-		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, nodintconst(1)))
+		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(t.NumElem()))
+		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(1)))
 		loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
 		loop.PtrInit().Append(init)
 
@@ -219,7 +219,7 @@ func genhash(t *types.Type) *obj.LSym {
 			na := nodAddr(nx)
 			call.Args.Append(na)
 			call.Args.Append(nh)
-			call.Args.Append(nodintconst(size))
+			call.Args.Append(ir.NewInt(size))
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
 
 			i = next
@@ -239,9 +239,9 @@ func genhash(t *types.Type) *obj.LSym {
 	fn.SetDupok(true)
 	typecheckFunc(fn)
 
-	Curfn = fn
+	ir.CurFunc = fn
 	typecheckslice(fn.Body, ctxStmt)
-	Curfn = nil
+	ir.CurFunc = nil
 
 	if base.Debug.DclStack != 0 {
 		types.CheckDclstack()
@@ -285,12 +285,12 @@ func hashfor(t *types.Type) ir.Node {
 	}
 
 	n := NewName(sym)
-	setNodeNameFunc(n)
+	ir.MarkFunc(n)
 	n.SetType(functype(nil, []*ir.Field{
-		anonfield(types.NewPtr(t)),
-		anonfield(types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
 	}, []*ir.Field{
-		anonfield(types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
 	}))
 	return n
 }
@@ -376,8 +376,8 @@ func geneq(t *types.Type) *obj.LSym {
 
 	// func sym(p, q *T) bool
 	tfn := ir.NewFuncType(base.Pos, nil,
-		[]*ir.Field{namedfield("p", types.NewPtr(t)), namedfield("q", types.NewPtr(t))},
-		[]*ir.Field{namedfield("r", types.Types[types.TBOOL])})
+		[]*ir.Field{ir.NewField(base.Pos, lookup("p"), nil, types.NewPtr(t)), ir.NewField(base.Pos, lookup("q"), nil, types.NewPtr(t))},
+		[]*ir.Field{ir.NewField(base.Pos, lookup("r"), nil, types.Types[types.TBOOL])})
 
 	fn := dclfunc(sym, tfn)
 	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
@@ -440,20 +440,20 @@ func geneq(t *types.Type) *obj.LSym {
 				// Generate a series of checks.
 				for i := int64(0); i < nelem; i++ {
 					// if check {} else { goto neq }
-					nif := ir.NewIfStmt(base.Pos, checkIdx(nodintconst(i)), nil, nil)
+					nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(i)), nil, nil)
 					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 					fn.Body.Append(nif)
 				}
 				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(nodintconst(nelem))))
+					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
 				}
 			} else {
 				// Generate a for loop.
 				// for i := 0; i < nelem; i++
 				i := temp(types.Types[types.TINT])
-				init := ir.NewAssignStmt(base.Pos, i, nodintconst(0))
-				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, nodintconst(nelem))
-				post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, nodintconst(1)))
+				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
+				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(nelem))
+				post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
 				loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
 				loop.PtrInit().Append(init)
 				// if eq(pi, qi) {} else { goto neq }
@@ -462,7 +462,7 @@ func geneq(t *types.Type) *obj.LSym {
 				loop.Body.Append(nif)
 				fn.Body.Append(loop)
 				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
+					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
 				}
 			}
 		}
@@ -572,7 +572,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 		if len(flatConds) == 0 {
-			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
+			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
 		} else {
 			for _, c := range flatConds[:len(flatConds)-1] {
 				// if cond {} else { goto neq }
@@ -594,7 +594,7 @@ func geneq(t *types.Type) *obj.LSym {
 	//   r = false
 	//   return (or goto ret)
 	fn.Body.Append(ir.NewLabelStmt(base.Pos, neq))
-	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(false)))
+	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(false)))
 	if EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
 		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
@@ -615,9 +615,9 @@ func geneq(t *types.Type) *obj.LSym {
 	fn.SetDupok(true)
 	typecheckFunc(fn)
 
-	Curfn = fn
+	ir.CurFunc = fn
 	typecheckslice(fn.Body, ctxStmt)
-	Curfn = nil
+	ir.CurFunc = nil
 
 	if base.Debug.DclStack != 0 {
 		types.CheckDclstack()
@@ -726,7 +726,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	call.Args.Append(nx)
 	call.Args.Append(ny)
 	if needsize {
-		call.Args.Append(nodintconst(size))
+		call.Args.Append(ir.NewInt(size))
 	}
 
 	return call

@@ -327,7 +327,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 
 			fn := ir.NewFunc(mpos)
 			fn.SetType(mtyp)
-			m := newFuncNameAt(mpos, methodSym(recv.Type, msym), fn)
+			m := ir.NewFuncNameAt(mpos, ir.MethodSym(recv.Type, msym), fn)
 			m.SetType(mtyp)
 			m.Class_ = ir.PFUNC
 			// methodSym already marked m.Sym as a function.
@@ -1009,7 +1009,7 @@ func (r *importReader) node() ir.Node {
 		n.AsOp = r.op()
 		n.X = r.expr()
 		if !r.bool() {
-			n.Y = nodintconst(1)
+			n.Y = ir.NewInt(1)
 			n.IncDec = true
 		} else {
 			n.Y = r.expr()

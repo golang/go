@@ -290,7 +290,7 @@ func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
 	case ir.OMETHEXPR:
 		n := n.(*ir.MethodExpr)
-		d.foundDep(methodExprName(n))
+		d.foundDep(ir.MethodExprName(n))
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
@@ -304,7 +304,7 @@ func (d *initDeps) visit(n ir.Node) {
 		d.inspectList(n.Func.Body)
 
 	case ir.ODOTMETH, ir.OCALLPART:
-		d.foundDep(methodExprName(n))
+		d.foundDep(ir.MethodExprName(n))
 	}
 }
 

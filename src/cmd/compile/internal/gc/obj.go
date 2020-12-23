@@ -255,7 +255,7 @@ func dumpGlobalConst(n ir.Node) {
 	if t.IsUntyped() {
 		// Export untyped integers as int (if they fit).
 		t = types.Types[types.TINT]
-		if doesoverflow(v, t) {
+		if ir.ConstOverflow(v, t) {
 			return
 		}
 	}
@@ -279,7 +279,7 @@ func dumpfuncsyms() {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
 	for _, s := range funcsyms {
-		sf := s.Pkg.Lookup(funcsymname(s)).Linksym()
+		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
 		dsymptr(sf, 0, s.Linksym(), 0)
 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}

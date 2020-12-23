@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
-	"go/constant"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,40 +30,6 @@ var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
 	largeStackFrames   []largeStack
 )
-
-// hasUniquePos reports whether n has a unique position that can be
-// used for reporting error messages.
-//
-// It's primarily used to distinguish references to named objects,
-// whose Pos will point back to their declaration position rather than
-// their usage position.
-func hasUniquePos(n ir.Node) bool {
-	switch n.Op() {
-	case ir.ONAME, ir.OPACK:
-		return false
-	case ir.OLITERAL, ir.ONIL, ir.OTYPE:
-		if n.Sym() != nil {
-			return false
-		}
-	}
-
-	if !n.Pos().IsKnown() {
-		if base.Flag.K != 0 {
-			base.Warn("setlineno: unknown position (line 0)")
-		}
-		return false
-	}
-
-	return true
-}
-
-func setlineno(n ir.Node) src.XPos {
-	lno := base.Pos
-	if n != nil && hasUniquePos(n) {
-		base.Pos = n.Pos()
-	}
-	return lno
-}
 
 func lookup(name string) *types.Sym {
 	return types.LocalPkg.Lookup(name)
@@ -89,8 +54,8 @@ func autolabel(prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		base.Fatalf("autolabel prefix must start with '.', have %q", prefix)
 	}
-	fn := Curfn
-	if Curfn == nil {
+	fn := ir.CurFunc
+	if ir.CurFunc == nil {
 		base.Fatalf("autolabel outside function")
 	}
 	n := fn.Label
@@ -164,26 +129,14 @@ func nodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
 // newname returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
-	n.Curfn = Curfn
+	n.Curfn = ir.CurFunc
 	return n
-}
-
-func nodintconst(v int64) ir.Node {
-	return ir.NewLiteral(constant.MakeInt64(v))
 }
 
 func nodnil() ir.Node {
 	n := ir.NewNilExpr(base.Pos)
 	n.SetType(types.Types[types.TNIL])
 	return n
-}
-
-func nodbool(b bool) ir.Node {
-	return ir.NewLiteral(constant.MakeBool(b))
-}
-
-func nodstr(s string) ir.Node {
-	return ir.NewLiteral(constant.MakeString(s))
 }
 
 func isptrto(t *types.Type, et types.Kind) bool {
@@ -778,7 +731,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	// make a copy; must not be used as an lvalue
-	if islvalue(n) {
+	if ir.IsAssignable(n) {
 		base.Fatalf("missing lvalue case in safeexpr: %v", n)
 	}
 	return cheapexpr(n, init)
@@ -1109,7 +1062,7 @@ func structargs(tl *types.Type, mustname bool) []*ir.Field {
 			s = lookupN(".anon", gen)
 			gen++
 		}
-		a := symfield(s, t.Type)
+		a := ir.NewField(base.Pos, s, nil, t.Type)
 		a.Pos = t.Pos
 		a.IsDDD = t.IsDDD()
 		args = append(args, a)
@@ -1160,7 +1113,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	dclcontext = ir.PEXTERN
 
 	tfn := ir.NewFuncType(base.Pos,
-		namedfield(".this", rcvr),
+		ir.NewField(base.Pos, lookup(".this"), nil, rcvr),
 		structargs(method.Type.Params(), true),
 		structargs(method.Type.Results(), false))
 
@@ -1198,11 +1151,11 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		}
 		as := ir.NewAssignStmt(base.Pos, nthis, convnop(left, rcvr))
 		fn.Body.Append(as)
-		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, methodSym(methodrcvr, method.Sym)))
+		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, ir.MethodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.Args.Set(paramNnames(tfn.Type()))
+		call.Args.Set(ir.ParamNames(tfn.Type()))
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)
@@ -1223,7 +1176,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	}
 
 	typecheckFunc(fn)
-	Curfn = fn
+	ir.CurFunc = fn
 	typecheckslice(fn.Body, ctxStmt)
 
 	// Inline calls within (*T).M wrappers. This is safe because we only
@@ -1234,29 +1187,21 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	}
 	escapeFuncs([]*ir.Func{fn}, false)
 
-	Curfn = nil
+	ir.CurFunc = nil
 	Target.Decls = append(Target.Decls, fn)
-}
-
-func paramNnames(ft *types.Type) []ir.Node {
-	args := make([]ir.Node, ft.NumParams())
-	for i, f := range ft.Params().FieldSlice() {
-		args[i] = ir.AsNode(f.Nname)
-	}
-	return args
 }
 
 func hashmem(t *types.Type) ir.Node {
 	sym := ir.Pkgs.Runtime.Lookup("memhash")
 
 	n := NewName(sym)
-	setNodeNameFunc(n)
+	ir.MarkFunc(n)
 	n.SetType(functype(nil, []*ir.Field{
-		anonfield(types.NewPtr(t)),
-		anonfield(types.Types[types.TUINTPTR]),
-		anonfield(types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
 	}, []*ir.Field{
-		anonfield(types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
 	}))
 	return n
 }
@@ -1367,39 +1312,11 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 	return true
 }
 
-func liststmt(l []ir.Node) ir.Node {
-	n := ir.NewBlockStmt(base.Pos, nil)
-	n.List.Set(l)
-	if len(l) != 0 {
-		n.SetPos(l[0].Pos())
-	}
-	return n
-}
-
 func ngotype(n ir.Node) *types.Sym {
 	if n.Type() != nil {
 		return typenamesym(n.Type())
 	}
 	return nil
-}
-
-// The result of initExpr MUST be assigned back to n, e.g.
-// 	n.Left = initExpr(init, n.Left)
-func initExpr(init []ir.Node, n ir.Node) ir.Node {
-	if len(init) == 0 {
-		return n
-	}
-	if ir.MayBeShared(n) {
-		// Introduce OCONVNOP to hold init list.
-		old := n
-		n = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, old)
-		n.SetType(old.Type())
-		n.SetTypecheck(1)
-	}
-
-	n.PtrInit().Prepend(init...)
-	n.SetHasCall(true)
-	return n
 }
 
 // The linker uses the magic symbol prefixes "go." and "type."

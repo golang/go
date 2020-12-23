@@ -504,3 +504,99 @@ func IsBlank(n Node) bool {
 func IsMethod(n Node) bool {
 	return n.Type().Recv() != nil
 }
+
+func HasNamedResults(fn *Func) bool {
+	typ := fn.Type()
+	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
+}
+
+// HasUniquePos reports whether n has a unique position that can be
+// used for reporting error messages.
+//
+// It's primarily used to distinguish references to named objects,
+// whose Pos will point back to their declaration position rather than
+// their usage position.
+func HasUniquePos(n Node) bool {
+	switch n.Op() {
+	case ONAME, OPACK:
+		return false
+	case OLITERAL, ONIL, OTYPE:
+		if n.Sym() != nil {
+			return false
+		}
+	}
+
+	if !n.Pos().IsKnown() {
+		if base.Flag.K != 0 {
+			base.Warn("setlineno: unknown position (line 0)")
+		}
+		return false
+	}
+
+	return true
+}
+
+func SetPos(n Node) src.XPos {
+	lno := base.Pos
+	if n != nil && HasUniquePos(n) {
+		base.Pos = n.Pos()
+	}
+	return lno
+}
+
+// The result of InitExpr MUST be assigned back to n, e.g.
+// 	n.Left = InitExpr(init, n.Left)
+func InitExpr(init []Node, n Node) Node {
+	if len(init) == 0 {
+		return n
+	}
+	if MayBeShared(n) {
+		// Introduce OCONVNOP to hold init list.
+		old := n
+		n = NewConvExpr(base.Pos, OCONVNOP, nil, old)
+		n.SetType(old.Type())
+		n.SetTypecheck(1)
+	}
+
+	n.PtrInit().Prepend(init...)
+	n.SetHasCall(true)
+	return n
+}
+
+// what's the outer value that a write to n affects?
+// outer value means containing struct or array.
+func OuterValue(n Node) Node {
+	for {
+		switch nn := n; nn.Op() {
+		case OXDOT:
+			base.Fatalf("OXDOT in walk")
+		case ODOT:
+			nn := nn.(*SelectorExpr)
+			n = nn.X
+			continue
+		case OPAREN:
+			nn := nn.(*ParenExpr)
+			n = nn.X
+			continue
+		case OCONVNOP:
+			nn := nn.(*ConvExpr)
+			n = nn.X
+			continue
+		case OINDEX:
+			nn := nn.(*IndexExpr)
+			if nn.X.Type() != nil && nn.X.Type().IsArray() {
+				n = nn.X
+				continue
+			}
+		}
+
+		return n
+	}
+}
+
+const (
+	EscUnknown = iota
+	EscNone    // Does not escape to heap, result, or parameters.
+	EscHeap    // Reachable from the heap
+	EscNever   // By construction will not escape.
+)

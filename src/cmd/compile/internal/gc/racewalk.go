@@ -35,7 +35,7 @@ func instrument(fn *ir.Func) {
 			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
-			nodpc := nodfp.CloneName()
+			nodpc := ir.RegFP.CloneName()
 			nodpc.SetType(types.Types[types.TUINTPTR])
 			nodpc.SetFrameOffset(int64(-Widthptr))
 			fn.Dcl = append(fn.Dcl, nodpc)

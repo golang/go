@@ -816,7 +816,7 @@ func (w *exportWriter) value(typ *types.Type, v constant.Value) {
 
 func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 	if typ.IsUntyped() {
-		return true, Mpprec / 8
+		return true, ir.ConstPrec / 8
 	}
 
 	switch typ.Kind() {
@@ -927,7 +927,7 @@ func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 // multi-precision integer) and then the exponent, except exponent is
 // omitted if mantissa is zero.
 func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
-	f := bigFloatVal(v)
+	f := ir.BigFloat(v)
 	if f.IsInf() {
 		base.Fatalf("infinite constant")
 	}
