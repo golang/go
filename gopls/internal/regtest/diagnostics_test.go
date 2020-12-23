@@ -760,9 +760,7 @@ func _() {
 	runner.Run(t, simplePackage, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")
 		env.CreateBuffer("a/a2.go", ``)
-		if err := env.Editor.SaveBufferWithoutActions(env.Ctx, "a/a2.go"); err != nil {
-			t.Fatal(err)
-		}
+		env.SaveBufferWithoutActions("a/a2.go")
 		env.Await(
 			OnceMet(
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
@@ -825,7 +823,7 @@ func TestHello(t *testing.T) {
 		env.CreateBuffer("hello/hello_x_test.go", ``)
 
 		// Save the empty file (no actions since formatting will fail).
-		env.Editor.SaveBufferWithoutActions(env.Ctx, "hello/hello_x_test.go")
+		env.SaveBufferWithoutActions("hello/hello_x_test.go")
 
 		// Add the content. The missing import is for the package under test.
 		env.EditBuffer("hello/hello_x_test.go", fake.NewEdit(0, 0, 0, 0, `package hello_test
@@ -1177,7 +1175,7 @@ package main
 		env.CreateBuffer("main.go", "")
 		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 
-		env.Editor.SaveBufferWithoutActions(env.Ctx, "main.go")
+		env.SaveBufferWithoutActions("main.go")
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
@@ -1515,10 +1513,14 @@ package main
 
 go 1.hello
 `))
+		// As of golang/go#42529, go.mod changes do not reload the workspace until
+		// they are saved.
+		env.SaveBufferWithoutActions("go.mod")
 		env.Await(
 			OutstandingWork(lsp.WorkspaceLoadFailure, "invalid go version"),
 		)
 		env.RegexpReplace("go.mod", "go 1.hello", "go 1.12")
+		env.SaveBufferWithoutActions("go.mod")
 		env.Await(
 			NoOutstandingWork(),
 		)

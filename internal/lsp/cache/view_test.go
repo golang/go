@@ -96,7 +96,7 @@ module fg
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
 		excludeNothing := func(string) bool { return false }
-		got, err := findWorkspaceRoot(ctx, folderURI, osFileSource{}, excludeNothing, test.experimental)
+		got, err := findWorkspaceRoot(ctx, folderURI, &osFileSource{}, excludeNothing, test.experimental)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -159,7 +159,7 @@ require a.com master
 		}
 		// Try directly parsing the given, invalid go.mod file. Then, extract a
 		// position from the error message.
-		src := osFileSource{}
+		src := &osFileSource{}
 		modFH, err := src.GetFile(ctx, uri)
 		if err != nil {
 			t.Fatal(err)

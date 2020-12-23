@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/fake"
@@ -15,9 +16,64 @@ import (
 )
 
 // osFileSource is a fileSource that just reads from the operating system.
-type osFileSource struct{}
+type osFileSource struct {
+	overlays map[span.URI]fakeOverlay
+}
 
-func (s osFileSource) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+type fakeOverlay struct {
+	source.VersionedFileHandle
+	uri     span.URI
+	content string
+	err     error
+	saved   bool
+}
+
+func (o fakeOverlay) Saved() bool { return o.saved }
+
+func (o fakeOverlay) Read() ([]byte, error) {
+	if o.err != nil {
+		return nil, o.err
+	}
+	return []byte(o.content), nil
+}
+
+func (o fakeOverlay) URI() span.URI {
+	return o.uri
+}
+
+// change updates the file source with the given file content. For convenience,
+// empty content signals a deletion. If saved is true, these changes are
+// persisted to disk.
+func (s *osFileSource) change(ctx context.Context, uri span.URI, content string, saved bool) (*fileChange, error) {
+	if content == "" {
+		delete(s.overlays, uri)
+		if saved {
+			if err := os.Remove(uri.Filename()); err != nil {
+				return nil, err
+			}
+		}
+		fh, err := s.GetFile(ctx, uri)
+		if err != nil {
+			return nil, err
+		}
+		data, err := fh.Read()
+		return &fileChange{exists: err == nil, content: data, fileHandle: &closedFile{fh}}, nil
+	}
+	if s.overlays == nil {
+		s.overlays = map[span.URI]fakeOverlay{}
+	}
+	s.overlays[uri] = fakeOverlay{uri: uri, content: content, saved: saved}
+	return &fileChange{
+		exists:     content != "",
+		content:    []byte(content),
+		fileHandle: s.overlays[uri],
+	}, nil
+}
+
+func (s *osFileSource) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+	if overlay, ok := s.overlays[uri]; ok {
+		return overlay, nil
+	}
 	fi, statErr := os.Stat(uri.Filename())
 	if statErr != nil {
 		return &fileHandle{
@@ -32,20 +88,28 @@ func (s osFileSource) GetFile(ctx context.Context, uri span.URI) (source.FileHan
 	return fh, nil
 }
 
+type wsState struct {
+	source  workspaceSource
+	modules []string
+	dirs    []string
+	sum     string
+}
+
+type wsChange struct {
+	content string
+	saved   bool
+}
+
 func TestWorkspaceModule(t *testing.T) {
 	tests := []struct {
-		desc           string
-		initial        string // txtar-encoded
-		legacyMode     bool
-		initialSource  workspaceSource
-		initialModules []string
-		initialDirs    []string
-		initialSum     string
-		updates        map[string]string
-		finalSource    workspaceSource
-		finalModules   []string
-		finalDirs      []string
-		finalSum       string
+		desc         string
+		initial      string // txtar-encoded
+		legacyMode   bool
+		initialState wsState
+		updates      map[string]wsChange
+		wantChanged  bool
+		wantReload   bool
+		finalState   wsState
 	}{
 		{
 			desc: "legacy mode",
@@ -56,11 +120,13 @@ module mod.com
 golang.org/x/mod v0.3.0 h1:deadbeef
 -- a/go.mod --
 module moda.com`,
-			legacyMode:     true,
-			initialModules: []string{"./go.mod"},
-			initialSource:  legacyWorkspace,
-			initialDirs:    []string{"."},
-			initialSum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
+			legacyMode: true,
+			initialState: wsState{
+				modules: []string{"./go.mod"},
+				source:  legacyWorkspace,
+				dirs:    []string{"."},
+				sum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
+			},
 		},
 		{
 			desc: "nested module",
@@ -69,9 +135,11 @@ module moda.com`,
 module mod.com
 -- a/go.mod --
 module moda.com`,
-			initialModules: []string{"./go.mod", "a/go.mod"},
-			initialSource:  fileSystemWorkspace,
-			initialDirs:    []string{".", "a"},
+			initialState: wsState{
+				modules: []string{"./go.mod", "a/go.mod"},
+				source:  fileSystemWorkspace,
+				dirs:    []string{".", "a"},
+			},
 		},
 		{
 			desc: "removing module",
@@ -84,20 +152,26 @@ golang.org/x/mod v0.3.0 h1:deadbeef
 module modb.com
 -- b/go.sum --
 golang.org/x/mod v0.3.0 h1:beefdead`,
-			initialModules: []string{"a/go.mod", "b/go.mod"},
-			initialSource:  fileSystemWorkspace,
-			initialDirs:    []string{".", "a", "b"},
-			initialSum:     "golang.org/x/mod v0.3.0 h1:beefdead\ngolang.org/x/mod v0.3.0 h1:deadbeef\n",
-			updates: map[string]string{
-				"gopls.mod": `module gopls-workspace
+			initialState: wsState{
+				modules: []string{"a/go.mod", "b/go.mod"},
+				source:  fileSystemWorkspace,
+				dirs:    []string{".", "a", "b"},
+				sum:     "golang.org/x/mod v0.3.0 h1:beefdead\ngolang.org/x/mod v0.3.0 h1:deadbeef\n",
+			},
+			updates: map[string]wsChange{
+				"gopls.mod": {`module gopls-workspace
 
 require moda.com v0.0.0-goplsworkspace
-replace moda.com => $SANDBOX_WORKDIR/a`,
+replace moda.com => $SANDBOX_WORKDIR/a`, true},
 			},
-			finalModules: []string{"a/go.mod"},
-			finalSource:  goplsModWorkspace,
-			finalDirs:    []string{".", "a"},
-			finalSum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
+			wantChanged: true,
+			wantReload:  true,
+			finalState: wsState{
+				modules: []string{"a/go.mod"},
+				source:  goplsModWorkspace,
+				dirs:    []string{".", "a"},
+				sum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
+			},
 		},
 		{
 			desc: "adding module",
@@ -109,21 +183,27 @@ replace moda.com => $SANDBOX_WORKDIR/a
 module moda.com
 -- b/go.mod --
 module modb.com`,
-			initialModules: []string{"a/go.mod"},
-			initialSource:  goplsModWorkspace,
-			initialDirs:    []string{".", "a"},
-			updates: map[string]string{
-				"gopls.mod": `module gopls-workspace
+			initialState: wsState{
+				modules: []string{"a/go.mod"},
+				source:  goplsModWorkspace,
+				dirs:    []string{".", "a"},
+			},
+			updates: map[string]wsChange{
+				"gopls.mod": {`module gopls-workspace
 
 require moda.com v0.0.0-goplsworkspace
 require modb.com v0.0.0-goplsworkspace
 
 replace moda.com => $SANDBOX_WORKDIR/a
-replace modb.com => $SANDBOX_WORKDIR/b`,
+replace modb.com => $SANDBOX_WORKDIR/b`, true},
 			},
-			finalModules: []string{"a/go.mod", "b/go.mod"},
-			finalSource:  goplsModWorkspace,
-			finalDirs:    []string{".", "a", "b"},
+			wantChanged: true,
+			wantReload:  true,
+			finalState: wsState{
+				modules: []string{"a/go.mod", "b/go.mod"},
+				source:  goplsModWorkspace,
+				dirs:    []string{".", "a", "b"},
+			},
 		},
 		{
 			desc: "deleting gopls.mod",
@@ -137,15 +217,21 @@ replace moda.com => $SANDBOX_WORKDIR/a
 module moda.com
 -- b/go.mod --
 module modb.com`,
-			initialModules: []string{"a/go.mod"},
-			initialSource:  goplsModWorkspace,
-			initialDirs:    []string{".", "a"},
-			updates: map[string]string{
-				"gopls.mod": "",
+			initialState: wsState{
+				modules: []string{"a/go.mod"},
+				source:  goplsModWorkspace,
+				dirs:    []string{".", "a"},
 			},
-			finalModules: []string{"a/go.mod", "b/go.mod"},
-			finalSource:  fileSystemWorkspace,
-			finalDirs:    []string{".", "a", "b"},
+			updates: map[string]wsChange{
+				"gopls.mod": {"", true},
+			},
+			wantChanged: true,
+			wantReload:  true,
+			finalState: wsState{
+				modules: []string{"a/go.mod", "b/go.mod"},
+				source:  fileSystemWorkspace,
+				dirs:    []string{".", "a", "b"},
+			},
 		},
 		{
 			desc: "broken module parsing",
@@ -157,20 +243,26 @@ require gopls.test v0.0.0-goplsworkspace
 replace gopls.test => ../../gopls.test // (this path shouldn't matter)
 -- b/go.mod --
 module modb.com`,
-			initialModules: []string{"a/go.mod", "b/go.mod"},
-			initialSource:  fileSystemWorkspace,
-			initialDirs:    []string{".", "a", "b", "../gopls.test"},
-			updates: map[string]string{
-				"a/go.mod": `modul moda.com
+			initialState: wsState{
+				modules: []string{"a/go.mod", "b/go.mod"},
+				source:  fileSystemWorkspace,
+				dirs:    []string{".", "a", "b", "../gopls.test"},
+			},
+			updates: map[string]wsChange{
+				"a/go.mod": {`modul moda.com
 
 require gopls.test v0.0.0-goplsworkspace
-replace gopls.test => ../../gopls.test2`,
+replace gopls.test => ../../gopls.test2`, false},
 			},
-			finalModules: []string{"a/go.mod", "b/go.mod"},
-			finalSource:  fileSystemWorkspace,
-			// finalDirs should be unchanged: we should preserve dirs in the presence
-			// of a broken modfile.
-			finalDirs: []string{".", "a", "b", "../gopls.test"},
+			wantChanged: true,
+			wantReload:  false,
+			finalState: wsState{
+				modules: []string{"a/go.mod", "b/go.mod"},
+				source:  fileSystemWorkspace,
+				// finalDirs should be unchanged: we should preserve dirs in the presence
+				// of a broken modfile.
+				dirs: []string{".", "a", "b", "../gopls.test"},
+			},
 		},
 	}
 
@@ -184,80 +276,49 @@ replace gopls.test => ../../gopls.test2`,
 			defer os.RemoveAll(dir)
 			root := span.URIFromPath(dir)
 
-			fs := osFileSource{}
+			fs := &osFileSource{}
 			excludeNothing := func(string) bool { return false }
 			w, err := newWorkspace(ctx, root, fs, excludeNothing, false, !test.legacyMode)
 			if err != nil {
 				t.Fatal(err)
 			}
 			rel := fake.RelativeTo(dir)
-			checkWorkspaceModule(t, rel, w, test.initialSource, test.initialModules)
-			gotDirs := w.dirs(ctx, fs)
-			checkWorkspaceDirs(t, rel, gotDirs, test.initialDirs)
-
-			// Verify the initial sum.
-			gotSumBytes, err := w.sumFile(ctx, fs)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if gotSum := string(gotSumBytes); gotSum != test.initialSum {
-				t.Errorf("got initial sum %q, want %q", gotSum, test.initialSum)
-			}
+			checkState(ctx, t, fs, rel, w, test.initialState)
 
 			// Apply updates.
 			if test.updates != nil {
 				changes := make(map[span.URI]*fileChange)
 				for k, v := range test.updates {
-					if v == "" {
-						// for convenience, use this to signal a deletion. TODO: more doc
-						err := os.Remove(rel.AbsPath(k))
-						if err != nil {
-							t.Fatal(err)
-						}
-					} else {
-						fake.WriteFileData(k, []byte(v), rel)
-					}
+					content := strings.ReplaceAll(v.content, "$SANDBOX_WORKDIR", string(rel))
 					uri := span.URIFromPath(rel.AbsPath(k))
-					fh, err := fs.GetFile(ctx, uri)
+					changes[uri], err = fs.change(ctx, uri, content, v.saved)
 					if err != nil {
 						t.Fatal(err)
 					}
-					content, err := fh.Read()
-					changes[uri] = &fileChange{
-						content:    content,
-						exists:     err == nil,
-						fileHandle: &closedFile{fh},
-					}
 				}
-				w, _ := w.invalidate(ctx, changes)
-				checkWorkspaceModule(t, rel, w, test.finalSource, test.finalModules)
-				gotDirs := w.dirs(ctx, fs)
-				checkWorkspaceDirs(t, rel, gotDirs, test.finalDirs)
-
-				// Verify that the final sumfile reflects any changes (for example,
-				// that modules may have gone out of scope).
-				gotSumBytes, err := w.sumFile(ctx, fs)
-				if err != nil {
-					t.Fatal(err)
+				got, gotChanged, gotReload := w.invalidate(ctx, changes)
+				if gotChanged != test.wantChanged {
+					t.Errorf("w.invalidate(): got changed %t, want %t", gotChanged, test.wantChanged)
 				}
-				if gotSum := string(gotSumBytes); gotSum != test.finalSum {
-					t.Errorf("got final sum %q, want %q", gotSum, test.finalSum)
+				if gotReload != test.wantReload {
+					t.Errorf("w.invalidate(): got reload %t, want %t", gotReload, test.wantReload)
 				}
+				checkState(ctx, t, fs, rel, got, test.finalState)
 			}
 		})
 	}
 }
 
-func checkWorkspaceModule(t *testing.T, rel fake.RelativeTo, got *workspace, wantSource workspaceSource, want []string) {
+func checkState(ctx context.Context, t *testing.T, fs source.FileSource, rel fake.RelativeTo, got *workspace, want wsState) {
 	t.Helper()
-	if got.moduleSource != wantSource {
-		t.Errorf("module source = %v, want %v", got.moduleSource, wantSource)
+	if got.moduleSource != want.source {
+		t.Errorf("module source = %v, want %v", got.moduleSource, want.source)
 	}
 	modules := make(map[span.URI]struct{})
 	for k := range got.getActiveModFiles() {
 		modules[k] = struct{}{}
 	}
-	for _, modPath := range want {
+	for _, modPath := range want.modules {
 		path := rel.AbsPath(modPath)
 		uri := span.URIFromPath(path)
 		if _, ok := modules[uri]; !ok {
@@ -268,15 +329,12 @@ func checkWorkspaceModule(t *testing.T, rel fake.RelativeTo, got *workspace, wan
 	for remaining := range modules {
 		t.Errorf("unexpected module %q", remaining)
 	}
-}
-
-func checkWorkspaceDirs(t *testing.T, rel fake.RelativeTo, got []span.URI, want []string) {
-	t.Helper()
+	gotDirs := got.dirs(ctx, fs)
 	gotM := make(map[span.URI]bool)
-	for _, dir := range got {
+	for _, dir := range gotDirs {
 		gotM[dir] = true
 	}
-	for _, dir := range want {
+	for _, dir := range want.dirs {
 		path := rel.AbsPath(dir)
 		uri := span.URIFromPath(path)
 		if !gotM[uri] {
@@ -286,5 +344,12 @@ func checkWorkspaceDirs(t *testing.T, rel fake.RelativeTo, got []span.URI, want 
 	}
 	for remaining := range gotM {
 		t.Errorf("unexpected dir %q", remaining)
+	}
+	gotSumBytes, err := got.sumFile(ctx, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotSum := string(gotSumBytes); gotSum != want.sum {
+		t.Errorf("got final sum %q, want %q", gotSum, want.sum)
 	}
 }

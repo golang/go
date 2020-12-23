@@ -6,6 +6,7 @@ package regtest
 
 import (
 	"io"
+	"path"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/fake"
@@ -146,6 +147,13 @@ func (e *Env) SaveBuffer(name string) {
 	}
 }
 
+func (e *Env) SaveBufferWithoutActions(name string) {
+	e.T.Helper()
+	if err := e.Editor.SaveBufferWithoutActions(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // GoToDefinition goes to definition in the editor, calling t.Fatal on any
 // error.
 func (e *Env) GoToDefinition(name string, pos fake.Pos) (string, fake.Pos) {
@@ -247,10 +255,14 @@ func (e *Env) RunGoCommand(verb string, args ...string) {
 	}
 }
 
-func (e *Env) DumpGoSum() {
+func (e *Env) DumpGoSum(dir string) {
 	e.T.Helper()
-	e.RunGoCommand("list", "-mod=mod", "...")
-	e.T.Log("\n\n-- go.sum --\n" + e.ReadWorkspaceFile("go.sum"))
+
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, "list", []string{"-mod=mod", "..."}); err != nil {
+		e.T.Fatal(err)
+	}
+	sumFile := path.Join(dir, "/go.sum")
+	e.T.Log("\n\n-- " + sumFile + " --\n" + e.ReadWorkspaceFile(sumFile))
 	e.T.Fatal("see contents above")
 }
 

@@ -387,7 +387,7 @@ func Hello() int {
 			),
 		)
 		env.RegexpReplace("modb/go.mod", "modul", "module")
-		env.Editor.SaveBufferWithoutActions(env.Ctx, "modb/go.mod")
+		env.SaveBufferWithoutActions("modb/go.mod")
 		env.Await(
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 		)
@@ -443,14 +443,22 @@ replace a.com => $SANDBOX_WORKDIR/moda/a
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
 		// that we go to the module cache.
 		env.OpenFile("moda/a/a.go")
-		location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
-		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(location, want) {
-			t.Errorf("expected %s, got %v", want, location)
+
+		// To verify which modules are loaded, we'll jump to the definition of
+		// b.Hello.
+		checkHelloLocation := func(want string) {
+			location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+			if !strings.HasSuffix(location, want) {
+				t.Errorf("expected %s, got %v", want, location)
+			}
 		}
-		workdir := env.Sandbox.Workdir.RootURI().SpanURI().Filename()
+
+		// Initially this should be in the module cache, as b.com is not replaced.
+		checkHelloLocation("b.com@v1.2.3/b/b.go")
 
 		// Now, modify the gopls.mod file on disk to activate the b.com module in
 		// the workspace.
+		workdir := env.Sandbox.Workdir.RootURI().SpanURI().Filename()
 		env.WriteWorkspaceFile("gopls.mod", fmt.Sprintf(`module gopls-workspace
 
 require (
@@ -475,13 +483,10 @@ replace b.com => %s/modb
 		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
 		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
 		// Jumping to definition should now go to b.com in the workspace.
-		location, _ = env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
-		if want := "modb/b/b.go"; !strings.HasSuffix(location, want) {
-			t.Errorf("expected %s, got %v", want, location)
-		}
+		checkHelloLocation("modb/b/b.go")
 
 		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
-		// this change is also picked up.
+		// this change is only picked up once it is saved.
 		env.OpenFile("gopls.mod")
 		env.SetBufferContent("gopls.mod", fmt.Sprintf(`module gopls-workspace
 
@@ -491,16 +496,18 @@ require (
 
 replace a.com => %s/moda/a
 `, workdir))
+
+		// Editing the gopls.mod removes modb from the workspace modules, and so
+		// should clear outstanding diagnostics...
 		env.Await(OnceMet(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
 			EmptyDiagnostics("modb/go.mod"),
 		))
-
-		// Just as before, check that we now jump to the module cache.
-		location, _ = env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
-		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(location, want) {
-			t.Errorf("expected %s, got %v", want, location)
-		}
+		// ...but does not yet cause a workspace reload, so we should still jump to modb.
+		checkHelloLocation("modb/b/b.go")
+		// Saving should reload the workspace.
+		env.SaveBufferWithoutActions("gopls.mod")
+		checkHelloLocation("b.com@v1.2.3/b/b.go")
 	})
 }
 
@@ -533,7 +540,7 @@ func TestMultiModuleV2(t *testing.T) {
 -- moda/a/go.mod --
 module a.com
 
-require b.com/v2 v2.0.0
+require b.com/v2 v2.1.9
 -- moda/a/a.go --
 package a
 
@@ -708,6 +715,11 @@ module include.com
 go 1.12
 
 require exclude.com v1.0.0
+
+-- include/go.sum --
+exclude.com v1.0.0 h1:Q5QSfDXY5qyNCBeUiWovUGqcLCRZKoTs9XdBeVz+w1I=
+exclude.com v1.0.0/go.mod h1:hFox2uDlNB2s2Jfd9tHlQVfgqUiLVTmh6ZKat4cvnj4=
+
 -- include/include.go --
 package include
 

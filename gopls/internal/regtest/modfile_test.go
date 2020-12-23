@@ -733,7 +733,7 @@ func main() {}
 }
 
 func TestSumUpdateFixesDiagnostics(t *testing.T) {
-	t.Skipf("golang/go#42815 is not yet resolved.")
+	testenv.NeedsGo1Point(t, 14)
 
 	const mod = `
 -- go.mod --
@@ -753,18 +753,21 @@ import (
 )
 
 func main() {
-	blah.Hello()
+	println(blah.Name)
 }
 `
 	withOptions(
+		Modes(Singleton), // workspace modules don't use -mod=readonly (golang/go#43346)
 		ProxyFiles(workspaceProxy),
 	).run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
-			env.DiagnosticAtRegexp("go.mod", "module"),
-			env.DiagnosticAtRegexp("go.mod", "example.com"),
-		)
 		d := &protocol.PublishDiagnosticsParams{}
-		ReadDiagnostics("go.mod", d)
+		env.OpenFile("go.mod")
+		env.Await(
+			OnceMet(
+				DiagnosticAt("go.mod", 0, 0),
+				ReadDiagnostics("go.mod", d),
+			),
+		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		env.Await(
 			EmptyDiagnostics("go.mod"),
@@ -775,8 +778,6 @@ func main() {
 // This test confirms that editing a go.mod file only causes metadata
 // to be invalidated when it's saved.
 func TestGoModInvalidatesOnSave(t *testing.T) {
-	t.Skipf("golang/go#42529 has not been resolved yet.")
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -793,7 +794,12 @@ package main
 
 func hello() {}
 `
-	run(t, mod, func(t *testing.T, env *Env) {
+	withOptions(
+		// TODO(rFindley) this doesn't work in multi-module workspace mode, because
+		// it keeps around the last parsing modfile. Update this test to also
+		// exercise the workspace module.
+		Modes(Singleton),
+	).run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "module", "modul")
 		// Confirm that we still have metadata with only on-disk edits.
@@ -803,7 +809,7 @@ func hello() {}
 			t.Fatalf("expected definition in hello.go, got %s", file)
 		}
 		// Confirm that we no longer have metadata when the file is saved.
-		env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod")
+		env.SaveBufferWithoutActions("go.mod")
 		_, _, err := env.Editor.GoToDefinition(env.Ctx, "main.go", env.RegexpSearch("main.go", "hello"))
 		if err == nil {
 			t.Fatalf("expected error, got none")

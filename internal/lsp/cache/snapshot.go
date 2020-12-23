@@ -1159,12 +1159,8 @@ func generationName(v *View, snapshotID uint64) string {
 }
 
 func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
-	// Track some important types of changes.
-	var (
-		vendorChanged  bool
-		modulesChanged bool
-	)
-	newWorkspace, workspaceChanged := s.workspace.invalidate(ctx, changes)
+	var vendorChanged bool
+	newWorkspace, workspaceChanged, workspaceReload := s.workspace.invalidate(ctx, changes)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1253,7 +1249,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// It maps id->invalidateMetadata.
 	directIDs := map[packageID]bool{}
 	// Invalidate all package metadata if the workspace module has changed.
-	if workspaceChanged {
+	if workspaceReload {
 		for k := range s.metadata {
 			directIDs[k] = true
 		}
@@ -1273,7 +1269,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// Check if the file's package name or imports have changed,
 		// and if so, invalidate this file's packages' metadata.
 		shouldInvalidateMetadata, pkgNameChanged := s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
-		invalidateMetadata := forceReloadMetadata || shouldInvalidateMetadata
+		invalidateMetadata := forceReloadMetadata || workspaceReload || shouldInvalidateMetadata
 
 		// Mark all of the package IDs containing the given file.
 		// TODO: if the file has moved into a new package, we should invalidate that too.
@@ -1306,9 +1302,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			// If the view's go.mod file's contents have changed, invalidate
 			// the metadata for every known package in the snapshot.
 			delete(result.parseModHandles, uri)
-			if _, ok := result.workspace.getActiveModFiles()[uri]; ok {
-				modulesChanged = true
-			}
 		}
 		// Handle the invalidated file; it may have new contents or not exist.
 		if !change.exists {
@@ -1316,6 +1309,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		} else {
 			result.files[uri] = change.fileHandle
 		}
+
 		// Make sure to remove the changed file from the unloadable set.
 		delete(result.unloadableFiles, uri)
 	}
@@ -1447,7 +1441,7 @@ copyIDs:
 	}
 
 	// The snapshot may need to be reinitialized.
-	if modulesChanged || workspaceChanged || vendorChanged {
+	if workspaceReload || vendorChanged {
 		if workspaceChanged || result.initializedErr != nil {
 			result.initializeOnce = &sync.Once{}
 		}
@@ -1531,13 +1525,6 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	// If the file hasn't changed, there's no need to reload.
 	if originalFH.FileIdentity() == currentFH.FileIdentity() {
 		return false, false
-	}
-	// If a go.mod in the workspace has been changed, invalidate metadata.
-	if kind := originalFH.Kind(); kind == source.Mod {
-		if !source.InDir(filepath.Dir(s.view.rootURI.Filename()), originalFH.URI().Filename()) {
-			return false, false
-		}
-		return currentFH.Saved(), false
 	}
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the
