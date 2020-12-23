@@ -296,7 +296,7 @@ func transformclosure(fn *ir.Func) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.SetClass(ir.PAUTO)
 				fn.Dcl = append(fn.Dcl, v)
-				body = append(body, ir.Nod(ir.OAS, v, cr))
+				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
@@ -311,7 +311,7 @@ func transformclosure(fn *ir.Func) {
 				if v.Byval() {
 					src = nodAddr(cr)
 				}
-				body = append(body, ir.Nod(ir.OAS, addr, src))
+				body = append(body, ir.NewAssignStmt(base.Pos, addr, src))
 			}
 		}
 
@@ -392,9 +392,9 @@ func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	typ := closureType(clo)
 
-	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(clo.Esc())
-	clos.PtrList().Set(append([]ir.Node{ir.Nod(ir.OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
+	clos.PtrList().Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter.Slice()...))
 
 	addr := nodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -473,17 +473,17 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	var body []ir.Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
 		ptr.SetType(rcvrtype)
-		body = append(body, ir.Nod(ir.OAS, ptr, cr))
+		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
 	} else {
 		ptr.SetType(types.NewPtr(rcvrtype))
-		body = append(body, ir.Nod(ir.OAS, ptr, nodAddr(cr)))
+		body = append(body, ir.NewAssignStmt(base.Pos, ptr, nodAddr(cr)))
 	}
 
-	call := ir.Nod(ir.OCALL, nodSym(ir.OXDOT, ptr, meth), nil)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
 	call.PtrList().Set(paramNnames(tfn.Type()))
 	call.SetIsDDD(tfn.Type().IsVariadic())
 	if t0.NumResults() != 0 {
-		ret := ir.Nod(ir.ORETURN, nil, nil)
+		ret := ir.NewReturnStmt(base.Pos, nil)
 		ret.PtrList().Set1(call)
 		body = append(body, ret)
 	} else {
@@ -532,18 +532,18 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 		n.SetLeft(cheapexpr(n.Left(), init))
 		n.SetLeft(walkexpr(n.Left(), nil))
 
-		tab := typecheck(ir.Nod(ir.OITAB, n.Left(), nil), ctxExpr)
+		tab := typecheck(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.Left()), ctxExpr)
 
-		c := ir.Nod(ir.OCHECKNIL, tab, nil)
+		c := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
 		c.SetTypecheck(1)
 		init.Append(c)
 	}
 
 	typ := partialCallType(n)
 
-	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(n.Esc())
-	clos.PtrList().Set2(ir.Nod(ir.OCFUNC, n.Func().Nname, nil), n.Left())
+	clos.PtrList().Set2(ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func().Nname), n.Left())
 
 	addr := nodAddr(clos)
 	addr.SetEsc(n.Esc())

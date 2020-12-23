@@ -136,7 +136,7 @@ func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 
 	if len(el) == 1 && len(vl) > 1 {
 		e := el[0]
-		as2 := ir.Nod(ir.OAS2, nil, nil)
+		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 		as2.PtrRlist().Set1(e)
 		for _, v := range vl {
 			as2.PtrList().Append(v)
@@ -144,7 +144,7 @@ func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 			v.Ntype = t
 			v.Defn = as2
 			if Curfn != nil {
-				init = append(init, ir.Nod(ir.ODCL, v, nil))
+				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
 			}
 		}
 
@@ -166,9 +166,9 @@ func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 
 		if e != nil || Curfn != nil || ir.IsBlank(v) {
 			if Curfn != nil {
-				init = append(init, ir.Nod(ir.ODCL, v, nil))
+				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
 			}
-			as := ir.Nod(ir.OAS, v, e)
+			as := ir.NewAssignStmt(base.Pos, v, e)
 			init = append(init, as)
 			if e != nil {
 				v.Defn = as
@@ -312,7 +312,7 @@ func colasdefn(left []ir.Node, defn ir.Node) {
 		n := NewName(n.Sym())
 		declare(n, dclcontext)
 		n.Defn = defn
-		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+		defn.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
 		left[i] = n
 	}
 

@@ -520,7 +520,7 @@ func inlcalls(fn *ir.Func) {
 
 // Turn an OINLCALL into a statement.
 func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
-	n := ir.NodAt(inlcall.Pos(), ir.OBLOCK, nil, nil)
+	n := ir.NewBlockStmt(inlcall.Pos(), nil)
 	n.SetList(inlcall.Init())
 	n.PtrList().AppendNodes(inlcall.PtrBody())
 	return n
@@ -785,7 +785,7 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node 
 	if inlvar == nil {
 		base.Fatalf("missing inlvar for %v", n)
 	}
-	as.PtrInit().Append(ir.Nod(ir.ODCL, inlvar, nil))
+	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar))
 	inlvar.Name().Defn = as
 	return inlvar
 }
@@ -907,20 +907,20 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 			if v.Byval() {
 				iv := typecheck(inlvar(v), ctxExpr)
-				ninit.Append(ir.Nod(ir.ODCL, iv, nil))
-				ninit.Append(typecheck(ir.Nod(ir.OAS, iv, o), ctxStmt))
+				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv))
+				ninit.Append(typecheck(ir.NewAssignStmt(base.Pos, iv, o), ctxStmt))
 				inlvars[v] = iv
 			} else {
 				addr := NewName(lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
 				ia := typecheck(inlvar(addr), ctxExpr)
-				ninit.Append(ir.Nod(ir.ODCL, ia, nil))
-				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, nodAddr(o)), ctxStmt))
+				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia))
+				ninit.Append(typecheck(ir.NewAssignStmt(base.Pos, ia, nodAddr(o)), ctxStmt))
 				inlvars[addr] = ia
 
 				// When capturing by reference, all occurrence of the captured var
 				// must be substituted with dereference of the temporary address
-				inlvars[v] = typecheck(ir.Nod(ir.ODEREF, ia, nil), ctxExpr)
+				inlvars[v] = typecheck(ir.NewStarExpr(base.Pos, ia), ctxExpr)
 			}
 		}
 	}
@@ -994,7 +994,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	// Assign arguments to the parameters' temp names.
-	as := ir.Nod(ir.OAS2, nil, nil)
+	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	as.SetColas(true)
 	if n.Op() == ir.OCALLMETH {
 		sel := n.Left().(*ir.SelectorExpr)
@@ -1036,7 +1036,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			vas.SetRight(nodnil())
 			vas.Right().SetType(param.Type)
 		} else {
-			lit := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(param.Type))
+			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type).(ir.Ntype), nil)
 			lit.PtrList().Set(varargs)
 			vas.SetRight(lit)
 		}
@@ -1053,8 +1053,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	if !delayretvars {
 		// Zero the return parameters.
 		for _, n := range retvars {
-			ninit.Append(ir.Nod(ir.ODCL, n, nil))
-			ras := ir.Nod(ir.OAS, n, nil)
+			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n))
+			ras := ir.NewAssignStmt(base.Pos, n, nil)
 			ninit.Append(typecheck(ras, ctxStmt))
 		}
 	}
@@ -1076,7 +1076,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// to put a breakpoint. Not sure if that's really necessary or not
 	// (in which case it could go at the end of the function instead).
 	// Note issue 28603.
-	inlMark := ir.Nod(ir.OINLMARK, nil, nil)
+	inlMark := ir.NewInlineMarkStmt(base.Pos, types.BADWIDTH)
 	inlMark.SetPos(n.Pos().WithIsStmt())
 	inlMark.SetOffset(int64(newIndex))
 	ninit.Append(inlMark)
@@ -1100,7 +1100,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	body := subst.list(ir.AsNodes(fn.Inl.Body))
 
-	lab := nodSym(ir.OLABEL, nil, retlabel)
+	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
 	typecheckslice(body, ctxStmt)
@@ -1113,7 +1113,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	//dumplist("ninit post", ninit);
 
-	call := ir.Nod(ir.OINLCALL, nil, nil)
+	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
 	call.PtrInit().Set(ninit.Slice())
 	call.PtrBody().Set(body)
 	call.PtrRlist().Set(retvars)
@@ -1261,7 +1261,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		// this return is guaranteed to belong to the current inlined function.
 		init := subst.list(n.Init())
 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
-			as := ir.Nod(ir.OAS2, nil, nil)
+			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 
 			// Make a shallow copy of retvars.
 			// Otherwise OINLCALL.Rlist will be the same list,
@@ -1273,14 +1273,14 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 
 			if subst.delayretvars {
 				for _, n := range as.List().Slice() {
-					as.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
 					n.Name().Defn = as
 				}
 			}
 
 			init = append(init, typecheck(as, ctxStmt))
 		}
-		init = append(init, nodSym(ir.OGOTO, nil, subst.retlabel))
+		init = append(init, ir.NewBranchStmt(base.Pos, ir.OGOTO, subst.retlabel))
 		typecheckslice(init, ctxStmt)
 		return ir.NewBlockStmt(base.Pos, init)
 
@@ -1360,9 +1360,9 @@ func devirtualizeCall(call *ir.CallExpr) {
 		return
 	}
 
-	dt := ir.NodAt(sel.Pos(), ir.ODOTTYPE, sel.Left(), nil)
+	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.Left(), nil)
 	dt.SetType(typ)
-	x := typecheck(nodlSym(sel.Pos(), ir.OXDOT, dt, sel.Sym()), ctxExpr|ctxCallee)
+	x := typecheck(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sym()), ctxExpr|ctxCallee)
 	switch x.Op() {
 	case ir.ODOTMETH:
 		if base.Flag.LowerM != 0 {

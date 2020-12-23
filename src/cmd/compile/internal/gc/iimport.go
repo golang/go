@@ -770,7 +770,7 @@ func (r *importReader) caseList(sw ir.Node) []ir.Node {
 
 	cases := make([]ir.Node, r.uint64())
 	for i := range cases {
-		cas := ir.NodAt(r.pos(), ir.OCASE, nil, nil)
+		cas := ir.NewCaseStmt(r.pos(), nil, nil)
 		cas.PtrList().Set(r.stmtList())
 		if namedTypeSwitch {
 			// Note: per-case variables will have distinct, dotted
@@ -864,7 +864,7 @@ func (r *importReader) node() ir.Node {
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
 		savedlineno := base.Pos
 		base.Pos = r.pos()
-		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
+		n := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(r.typ()).(ir.Ntype), nil)
 		n.PtrList().Set(r.elemList()) // special handling of field names
 		base.Pos = savedlineno
 		return n
@@ -873,14 +873,14 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to case OCOMPLIT below by exporter
 
 	case ir.OCOMPLIT:
-		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
+		n := ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()).(ir.Ntype), nil)
 		n.PtrList().Set(r.exprList())
 		return n
 
 	case ir.OKEY:
 		pos := r.pos()
 		left, right := r.exprsOrNil()
-		return ir.NodAt(pos, ir.OKEY, left, right)
+		return ir.NewKeyExpr(pos, left, right)
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -893,13 +893,13 @@ func (r *importReader) node() ir.Node {
 
 	case ir.OXDOT:
 		// see parser.new_dotname
-		return npos(r.pos(), nodSym(ir.OXDOT, r.expr(), r.ident()))
+		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.ident())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
 
 	case ir.ODOTTYPE:
-		n := ir.NodAt(r.pos(), ir.ODOTTYPE, r.expr(), nil)
+		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), nil)
 		n.SetType(r.typ())
 		return n
 
@@ -907,7 +907,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to cases below by exporter
 
 	case ir.OINDEX:
-		return ir.NodAt(r.pos(), ir.OINDEX, r.expr(), r.expr())
+		return ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
 
 	case ir.OSLICE, ir.OSLICE3:
 		n := ir.NewSliceExpr(r.pos(), op, r.expr())
@@ -923,7 +923,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case ir.OCONV:
-		n := ir.NodAt(r.pos(), ir.OCONV, r.expr(), nil)
+		n := ir.NewConvExpr(r.pos(), ir.OCONV, nil, r.expr())
 		n.SetType(r.typ())
 		return n
 
@@ -939,7 +939,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to OCALL case below by exporter
 
 	case ir.OCALL:
-		n := ir.NodAt(r.pos(), ir.OCALL, nil, nil)
+		n := ir.NewCallExpr(r.pos(), ir.OCALL, nil, nil)
 		n.PtrInit().Set(r.stmtList())
 		n.SetLeft(r.expr())
 		n.PtrList().Set(r.exprList())
@@ -978,7 +978,7 @@ func (r *importReader) node() ir.Node {
 		list := r.exprList()
 		x := npos(pos, list[0])
 		for _, y := range list[1:] {
-			x = ir.NodAt(pos, ir.OADD, x, y)
+			x = ir.NewBinaryExpr(pos, ir.OADD, x, y)
 		}
 		return x
 
@@ -992,18 +992,18 @@ func (r *importReader) node() ir.Node {
 		declare(lhs, ir.PAUTO)
 
 		var stmts ir.Nodes
-		stmts.Append(ir.Nod(ir.ODCL, lhs, nil))
-		stmts.Append(ir.Nod(ir.OAS, lhs, nil))
-		return npos(pos, liststmt(stmts.Slice()))
+		stmts.Append(ir.NewDecl(base.Pos, ir.ODCL, lhs))
+		stmts.Append(ir.NewAssignStmt(base.Pos, lhs, nil))
+		return ir.NewBlockStmt(pos, stmts.Slice())
 
 	// case OAS, OASWB:
 	// 	unreachable - mapped to OAS case below by exporter
 
 	case ir.OAS:
-		return ir.NodAt(r.pos(), ir.OAS, r.expr(), r.expr())
+		return ir.NewAssignStmt(r.pos(), r.expr(), r.expr())
 
 	case ir.OASOP:
-		n := ir.NodAt(r.pos(), ir.OASOP, nil, nil)
+		n := ir.NewAssignOpStmt(r.pos(), ir.OXXX, nil, nil)
 		n.SetSubOp(r.op())
 		n.SetLeft(r.expr())
 		if !r.bool() {
@@ -1018,13 +1018,13 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to OAS2 case below by exporter
 
 	case ir.OAS2:
-		n := ir.NodAt(r.pos(), ir.OAS2, nil, nil)
+		n := ir.NewAssignListStmt(r.pos(), ir.OAS2, nil, nil)
 		n.PtrList().Set(r.exprList())
 		n.PtrRlist().Set(r.exprList())
 		return n
 
 	case ir.ORETURN:
-		n := ir.NodAt(r.pos(), ir.ORETURN, nil, nil)
+		n := ir.NewReturnStmt(r.pos(), nil)
 		n.PtrList().Set(r.exprList())
 		return n
 
@@ -1035,7 +1035,7 @@ func (r *importReader) node() ir.Node {
 		return ir.NewGoDeferStmt(r.pos(), op, r.expr())
 
 	case ir.OIF:
-		n := ir.NodAt(r.pos(), ir.OIF, nil, nil)
+		n := ir.NewIfStmt(r.pos(), nil, nil, nil)
 		n.PtrInit().Set(r.stmtList())
 		n.SetLeft(r.expr())
 		n.PtrBody().Set(r.stmtList())
@@ -1043,7 +1043,7 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OFOR:
-		n := ir.NodAt(r.pos(), ir.OFOR, nil, nil)
+		n := ir.NewForStmt(r.pos(), nil, nil, nil, nil)
 		n.PtrInit().Set(r.stmtList())
 		left, right := r.exprsOrNil()
 		n.SetLeft(left)
@@ -1052,21 +1052,21 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ORANGE:
-		n := ir.NodAt(r.pos(), ir.ORANGE, nil, nil)
+		n := ir.NewRangeStmt(r.pos(), nil, nil, nil)
 		n.PtrList().Set(r.stmtList())
 		n.SetRight(r.expr())
 		n.PtrBody().Set(r.stmtList())
 		return n
 
 	case ir.OSELECT:
-		n := ir.NodAt(r.pos(), ir.OSELECT, nil, nil)
+		n := ir.NewSelectStmt(r.pos(), nil)
 		n.PtrInit().Set(r.stmtList())
 		r.exprsOrNil() // TODO(rsc): Delete (and fix exporter). These are always nil.
 		n.PtrList().Set(r.caseList(n))
 		return n
 
 	case ir.OSWITCH:
-		n := ir.NodAt(r.pos(), ir.OSWITCH, nil, nil)
+		n := ir.NewSwitchStmt(r.pos(), nil, nil)
 		n.PtrInit().Set(r.stmtList())
 		left, _ := r.exprsOrNil()
 		n.SetLeft(left)
@@ -1077,7 +1077,7 @@ func (r *importReader) node() ir.Node {
 	//	handled by caseList
 
 	case ir.OFALL:
-		n := ir.NodAt(r.pos(), ir.OFALL, nil, nil)
+		n := ir.NewBranchStmt(r.pos(), ir.OFALL, nil)
 		return n
 
 	// case OEMPTY:
@@ -1113,7 +1113,7 @@ func (r *importReader) elemList() []ir.Node {
 	list := make([]ir.Node, c)
 	for i := range list {
 		s := r.ident()
-		list[i] = nodSym(ir.OSTRUCTKEY, r.expr(), s)
+		list[i] = ir.NewStructKeyExpr(base.Pos, s, r.expr())
 	}
 	return list
 }

@@ -267,14 +267,14 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// OTAILCALL or something to this effect.
 	var tail ir.Node
 	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 {
-		tail = nodSym(ir.ORETJMP, nil, f.Nname.Sym())
+		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
 	} else {
-		call := ir.Nod(ir.OCALL, f.Nname, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
 		tail = call
 		if tfn.Type().NumResults() > 0 {
-			n := ir.Nod(ir.ORETURN, nil, nil)
+			n := ir.NewReturnStmt(base.Pos, nil)
 			n.PtrList().Set1(call)
 			tail = n
 		}

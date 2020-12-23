@@ -165,7 +165,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 	if block != nil {
 		body := p.stmts(block.List)
 		if body == nil {
-			body = []ir.Node{ir.Nod(ir.OBLOCK, nil, nil)}
+			body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 		}
 		fn.PtrBody().Set(body)
 
@@ -455,7 +455,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 		n.Defn = v
 		n.SetIota(cs.iota)
 
-		nn = append(nn, p.nod(decl, ir.ODCLCONST, n, nil))
+		nn = append(nn, ir.NewDecl(p.pos(decl), ir.ODCLCONST, n))
 	}
 
 	if len(values) > len(names) {
@@ -484,7 +484,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 		p.checkUnused(pragma)
 	}
 
-	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
+	nod := ir.NewDecl(p.pos(decl), ir.ODCLTYPE, n)
 	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
@@ -648,7 +648,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
 		return n
 	case *syntax.CompositeLit:
-		n := p.nod(expr, ir.OCOMPLIT, nil, nil)
+		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, nil, nil)
 		if expr.Type != nil {
 			n.SetRight(p.expr(expr.Type))
 		}
@@ -661,11 +661,11 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		return n
 	case *syntax.KeyValueExpr:
 		// use position of expr.Key rather than of expr (which has position of ':')
-		return p.nod(expr.Key, ir.OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+		return ir.NewKeyExpr(p.pos(expr.Key), p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
 	case *syntax.ParenExpr:
-		return p.nod(expr, ir.OPAREN, p.expr(expr.X), nil)
+		return ir.NewParenExpr(p.pos(expr), p.expr(expr.X))
 	case *syntax.SelectorExpr:
 		// parser.new_dotname
 		obj := p.expr(expr.X)
@@ -674,11 +674,11 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 			pack.Used = true
 			return importName(pack.Pkg.Lookup(expr.Sel.Value))
 		}
-		n := nodSym(ir.OXDOT, obj, p.name(expr.Sel))
+		n := ir.NewSelectorExpr(base.Pos, ir.OXDOT, obj, p.name(expr.Sel))
 		n.SetPos(p.pos(expr)) // lineno may have been changed by p.expr(expr.X)
 		return n
 	case *syntax.IndexExpr:
-		return p.nod(expr, ir.OINDEX, p.expr(expr.X), p.expr(expr.Index))
+		return ir.NewIndexExpr(p.pos(expr), p.expr(expr.X), p.expr(expr.Index))
 	case *syntax.SliceExpr:
 		op := ir.OSLICE
 		if expr.Full {
@@ -694,7 +694,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		n.SetSliceBounds(index[0], index[1], index[2])
 		return n
 	case *syntax.AssertExpr:
-		return p.nod(expr, ir.ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
+		return ir.NewTypeAssertExpr(p.pos(expr), p.expr(expr.X), p.typeExpr(expr.Type).(ir.Ntype))
 	case *syntax.Operation:
 		if expr.Op == syntax.Add && expr.Y != nil {
 			return p.sum(expr)
@@ -718,7 +718,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		}
 		return ir.NewBinaryExpr(pos, op, x, y)
 	case *syntax.CallExpr:
-		n := p.nod(expr, ir.OCALL, p.expr(expr.Fun), nil)
+		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil)
 		n.PtrList().Set(p.exprs(expr.ArgList))
 		n.SetIsDDD(expr.HasDots)
 		return n
@@ -828,7 +828,7 @@ func (p *noder) sum(x syntax.Expr) ir.Node {
 			nstr = nil
 			chunks = chunks[:0]
 		}
-		n = p.nod(add, ir.OADD, n, r)
+		n = ir.NewBinaryExpr(p.pos(add), ir.OADD, n, r)
 	}
 	if len(chunks) > 1 {
 		nstr.SetVal(constant.MakeString(strings.Join(chunks, "")))
@@ -994,13 +994,13 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		l := p.blockStmt(stmt)
 		if len(l) == 0 {
 			// TODO(mdempsky): Line number?
-			return ir.Nod(ir.OBLOCK, nil, nil)
+			return ir.NewBlockStmt(base.Pos, nil)
 		}
 		return liststmt(l)
 	case *syntax.ExprStmt:
 		return p.wrapname(stmt, p.expr(stmt.X))
 	case *syntax.SendStmt:
-		return p.nod(stmt, ir.OSEND, p.expr(stmt.Chan), p.expr(stmt.Value))
+		return ir.NewSendStmt(p.pos(stmt), p.expr(stmt.Chan), p.expr(stmt.Value))
 	case *syntax.DeclStmt:
 		return liststmt(p.decls(stmt.DeclList))
 	case *syntax.AssignStmt:
@@ -1012,14 +1012,14 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 
 		rhs := p.exprList(stmt.Rhs)
 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
-			n := p.nod(stmt, ir.OAS2, nil, nil)
+			n := ir.NewAssignListStmt(p.pos(stmt), ir.OAS2, nil, nil)
 			n.SetColas(stmt.Op == syntax.Def)
 			n.PtrList().Set(p.assignList(stmt.Lhs, n, n.Colas()))
 			n.PtrRlist().Set(rhs)
 			return n
 		}
 
-		n := p.nod(stmt, ir.OAS, nil, nil)
+		n := ir.NewAssignStmt(p.pos(stmt), nil, nil)
 		n.SetColas(stmt.Op == syntax.Def)
 		n.SetLeft(p.assignList(stmt.Lhs, n, n.Colas())[0])
 		n.SetRight(rhs[0])
@@ -1063,7 +1063,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		if stmt.Results != nil {
 			results = p.exprList(stmt.Results)
 		}
-		n := p.nod(stmt, ir.ORETURN, nil, nil)
+		n := ir.NewReturnStmt(p.pos(stmt), nil)
 		n.PtrList().Set(results)
 		if n.List().Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Dcl {
@@ -1139,7 +1139,7 @@ func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node
 		n := NewName(sym)
 		declare(n, dclcontext)
 		n.Defn = defn
-		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+		defn.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
 		res[i] = n
 	}
 
@@ -1158,7 +1158,7 @@ func (p *noder) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := p.nod(stmt, ir.OIF, nil, nil)
+	n := ir.NewIfStmt(p.pos(stmt), nil, nil, nil)
 	if stmt.Init != nil {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
@@ -1185,7 +1185,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 			panic("unexpected RangeClause")
 		}
 
-		n := p.nod(r, ir.ORANGE, nil, p.expr(r.X))
+		n := ir.NewRangeStmt(p.pos(r), nil, p.expr(r.X), nil)
 		if r.Lhs != nil {
 			n.SetColas(r.Def)
 			n.PtrList().Set(p.assignList(r.Lhs, n, n.Colas()))
@@ -1195,7 +1195,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 		return n
 	}
 
-	n := p.nod(stmt, ir.OFOR, nil, nil)
+	n := ir.NewForStmt(p.pos(stmt), nil, nil, nil, nil)
 	if stmt.Init != nil {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
@@ -1212,7 +1212,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	p.openScope(stmt.Pos())
-	n := p.nod(stmt, ir.OSWITCH, nil, nil)
+	n := ir.NewSwitchStmt(p.pos(stmt), nil, nil)
 	if stmt.Init != nil {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
@@ -1239,7 +1239,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, ir.OCASE, nil, nil)
+		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
 		if clause.Cases != nil {
 			n.PtrList().Set(p.exprList(clause.Cases))
 		}
@@ -1281,7 +1281,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 }
 
 func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
-	n := p.nod(stmt, ir.OSELECT, nil, nil)
+	n := ir.NewSelectStmt(p.pos(stmt), nil)
 	n.PtrList().Set(p.commClauses(stmt.Body, stmt.Rbrace))
 	return n
 }
@@ -1295,7 +1295,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 		}
 		p.openScope(clause.Pos())
 
-		n := p.nod(clause, ir.OCASE, nil, nil)
+		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
 		if clause.Comm != nil {
 			n.PtrList().Set1(p.stmt(clause.Comm))
 		}
@@ -1310,7 +1310,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 	sym := p.name(label.Label)
-	lhs := p.nodSym(label, ir.OLABEL, nil, sym)
+	lhs := ir.NewLabelStmt(p.pos(label), sym)
 
 	var ls ir.Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
@@ -1478,21 +1478,11 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 		}
 		fallthrough
 	case ir.ONAME, ir.ONONAME, ir.OPACK:
-		p := p.nod(n, ir.OPAREN, x, nil)
+		p := ir.NewParenExpr(p.pos(n), x)
 		p.SetImplicit(true)
 		return p
 	}
 	return x
-}
-
-func (p *noder) nod(orig syntax.Node, op ir.Op, left, right ir.Node) ir.Node {
-	return ir.NodAt(p.pos(orig), op, left, right)
-}
-
-func (p *noder) nodSym(orig syntax.Node, op ir.Op, left ir.Node, sym *types.Sym) ir.Node {
-	n := nodSym(op, left, sym)
-	n.SetPos(p.pos(orig))
-	return n
 }
 
 func (p *noder) pos(n syntax.Node) src.XPos {
