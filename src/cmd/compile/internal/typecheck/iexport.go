@@ -1155,7 +1155,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.exprsOrNil(nil, nil) // TODO(rsc): Delete (and fix importer).
-		w.caseList(n)
+		w.caseList(n.Cases, false)
 
 	case ir.OSWITCH:
 		n := n.(*ir.SwitchStmt)
@@ -1163,7 +1163,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.exprsOrNil(n.Tag, nil)
-		w.caseList(n)
+		w.caseList(n.Cases, isNamedTypeSwitch(n.Tag))
 
 	// case OCASE:
 	//	handled by caseList
@@ -1187,27 +1187,12 @@ func (w *exportWriter) stmt(n ir.Node) {
 	}
 }
 
-func isNamedTypeSwitch(n ir.Node) bool {
-	if n.Op() != ir.OSWITCH {
-		return false
-	}
-	sw := n.(*ir.SwitchStmt)
-	if sw.Tag == nil || sw.Tag.Op() != ir.OTYPESW {
-		return false
-	}
-	guard := sw.Tag.(*ir.TypeSwitchGuard)
-	return guard.Tag != nil
+func isNamedTypeSwitch(x ir.Node) bool {
+	guard, ok := x.(*ir.TypeSwitchGuard)
+	return ok && guard.Tag != nil
 }
 
-func (w *exportWriter) caseList(sw ir.Node) {
-	namedTypeSwitch := isNamedTypeSwitch(sw)
-
-	var cases []ir.Node
-	if sw.Op() == ir.OSWITCH {
-		cases = sw.(*ir.SwitchStmt).Cases
-	} else {
-		cases = sw.(*ir.SelectStmt).Cases
-	}
+func (w *exportWriter) caseList(cases []ir.Node, namedTypeSwitch bool) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
 		cas := cas.(*ir.CaseStmt)
