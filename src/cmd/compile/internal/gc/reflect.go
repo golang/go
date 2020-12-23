@@ -489,7 +489,7 @@ func dimportpath(p *types.Pkg) {
 	// If we are compiling the runtime package, there are two runtime packages around
 	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
-	if base.Ctxt.Pkgpath == "runtime" && p == Runtimepkg {
+	if base.Ctxt.Pkgpath == "runtime" && p == ir.Pkgs.Runtime {
 		return
 	}
 
@@ -926,7 +926,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *types.Type, f *types.Field) *types.Sym {
-	return trackpkg.Lookup(t.ShortString() + "." + f.Sym.Name)
+	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name)
 }
 
 func typesymprefix(prefix string, t *types.Type) *types.Sym {
@@ -975,7 +975,7 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
 		base.Fatalf("itabname(%v, %v)", t, itype)
 	}
-	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
+	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
 		n := NewName(s)
 		n.SetType(types.Types[types.TUINT8])
@@ -1544,13 +1544,13 @@ func dumpbasictypes() {
 		dtypesym(functype(nil, []*ir.Field{anonfield(types.ErrorType)}, []*ir.Field{anonfield(types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
-		dimportpath(Runtimepkg)
+		dimportpath(ir.Pkgs.Runtime)
 
 		if base.Flag.Race {
-			dimportpath(racepkg)
+			dimportpath(ir.Pkgs.Race)
 		}
 		if base.Flag.MSan {
-			dimportpath(msanpkg)
+			dimportpath(ir.Pkgs.Msan)
 		}
 		dimportpath(types.NewPkg("main", ""))
 	}
@@ -1642,7 +1642,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("gcbits.%x", ptrmask)
 
-	sym := Runtimepkg.Lookup(p)
+	sym := ir.Pkgs.Runtime.Lookup(p)
 	lsym := sym.Linksym()
 	if !sym.Uniq() {
 		sym.SetUniq(true)
@@ -1791,7 +1791,7 @@ func zeroaddr(size int64) ir.Node {
 	if zerosize < size {
 		zerosize = size
 	}
-	s := mappkg.Lookup("zero")
+	s := ir.Pkgs.Map.Lookup("zero")
 	if s.Def == nil {
 		x := NewName(s)
 		x.SetType(types.Types[types.TUINT8])

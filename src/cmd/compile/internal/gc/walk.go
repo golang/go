@@ -946,15 +946,15 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			return l
 		}
 
-		if staticuint64s == nil {
-			staticuint64s = NewName(Runtimepkg.Lookup("staticuint64s"))
-			staticuint64s.Class_ = ir.PEXTERN
+		if ir.Names.Staticuint64s == nil {
+			ir.Names.Staticuint64s = NewName(ir.Pkgs.Runtime.Lookup("staticuint64s"))
+			ir.Names.Staticuint64s.Class_ = ir.PEXTERN
 			// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
 			// individual bytes.
-			staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
-			zerobase = NewName(Runtimepkg.Lookup("zerobase"))
-			zerobase.Class_ = ir.PEXTERN
-			zerobase.SetType(types.Types[types.TUINTPTR])
+			ir.Names.Staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
+			ir.Names.Zerobase = NewName(ir.Pkgs.Runtime.Lookup("zerobase"))
+			ir.Names.Zerobase.Class_ = ir.PEXTERN
+			ir.Names.Zerobase.SetType(types.Types[types.TUINTPTR])
 		}
 
 		// Optimize convT2{E,I} for many cases in which T is not pointer-shaped,
@@ -965,7 +965,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		case fromType.Size() == 0:
 			// n.Left is zero-sized. Use zerobase.
 			cheapexpr(n.X, init) // Evaluate n.Left for side-effects. See issue 19246.
-			value = zerobase
+			value = ir.Names.Zerobase
 		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
 			// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
 			// and staticuint64s[n.Left * 8 + 7] on big-endian.
@@ -975,7 +975,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			if thearch.LinkArch.ByteOrder == binary.BigEndian {
 				index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, nodintconst(7))
 			}
-			xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
+			xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
 			xe.SetBounded(true)
 			value = xe
 		case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PEXTERN && n.X.(*ir.Name).Readonly():

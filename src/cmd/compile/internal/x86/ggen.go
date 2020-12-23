@@ -6,6 +6,7 @@ package x86
 
 import (
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 )
@@ -26,7 +27,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog 
 	} else if cnt <= int64(128*gc.Widthreg) {
 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
-		p.To.Sym = gc.Duffzero
+		p.To.Sym = ir.Syms.Duffzero
 	} else {
 		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)

@@ -6,6 +6,7 @@ package mips64
 
 import (
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
 )
@@ -23,7 +24,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 		p.Reg = mips.REGSP
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Duffzero
+		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
 	} else {
 		//	ADDV	$(8+frame+lo-8), SP, r1

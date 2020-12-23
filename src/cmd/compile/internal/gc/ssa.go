@@ -91,43 +91,43 @@ func initssaconfig() {
 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
 
 	// Set up some runtime functions we'll need to call.
-	assertE2I = sysfunc("assertE2I")
-	assertE2I2 = sysfunc("assertE2I2")
-	assertI2I = sysfunc("assertI2I")
-	assertI2I2 = sysfunc("assertI2I2")
-	deferproc = sysfunc("deferproc")
-	deferprocStack = sysfunc("deferprocStack")
-	Deferreturn = sysfunc("deferreturn")
-	Duffcopy = sysfunc("duffcopy")
-	Duffzero = sysfunc("duffzero")
-	gcWriteBarrier = sysfunc("gcWriteBarrier")
-	goschedguarded = sysfunc("goschedguarded")
-	growslice = sysfunc("growslice")
-	msanread = sysfunc("msanread")
-	msanwrite = sysfunc("msanwrite")
-	msanmove = sysfunc("msanmove")
-	newobject = sysfunc("newobject")
-	newproc = sysfunc("newproc")
-	panicdivide = sysfunc("panicdivide")
-	panicdottypeE = sysfunc("panicdottypeE")
-	panicdottypeI = sysfunc("panicdottypeI")
-	panicnildottype = sysfunc("panicnildottype")
-	panicoverflow = sysfunc("panicoverflow")
-	panicshift = sysfunc("panicshift")
-	raceread = sysfunc("raceread")
-	racereadrange = sysfunc("racereadrange")
-	racewrite = sysfunc("racewrite")
-	racewriterange = sysfunc("racewriterange")
-	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
-	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
-	x86HasFMA = sysvar("x86HasFMA")             // bool
-	armHasVFPv4 = sysvar("armHasVFPv4")         // bool
-	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
-	typedmemclr = sysfunc("typedmemclr")
-	typedmemmove = sysfunc("typedmemmove")
-	Udiv = sysvar("udiv")                 // asm func with special ABI
-	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
-	zerobaseSym = sysvar("zerobase")
+	ir.Syms.AssertE2I = sysfunc("assertE2I")
+	ir.Syms.AssertE2I2 = sysfunc("assertE2I2")
+	ir.Syms.AssertI2I = sysfunc("assertI2I")
+	ir.Syms.AssertI2I2 = sysfunc("assertI2I2")
+	ir.Syms.Deferproc = sysfunc("deferproc")
+	ir.Syms.DeferprocStack = sysfunc("deferprocStack")
+	ir.Syms.Deferreturn = sysfunc("deferreturn")
+	ir.Syms.Duffcopy = sysfunc("duffcopy")
+	ir.Syms.Duffzero = sysfunc("duffzero")
+	ir.Syms.GCWriteBarrier = sysfunc("gcWriteBarrier")
+	ir.Syms.Goschedguarded = sysfunc("goschedguarded")
+	ir.Syms.Growslice = sysfunc("growslice")
+	ir.Syms.Msanread = sysfunc("msanread")
+	ir.Syms.Msanwrite = sysfunc("msanwrite")
+	ir.Syms.Msanmove = sysfunc("msanmove")
+	ir.Syms.Newobject = sysfunc("newobject")
+	ir.Syms.Newproc = sysfunc("newproc")
+	ir.Syms.Panicdivide = sysfunc("panicdivide")
+	ir.Syms.PanicdottypeE = sysfunc("panicdottypeE")
+	ir.Syms.PanicdottypeI = sysfunc("panicdottypeI")
+	ir.Syms.Panicnildottype = sysfunc("panicnildottype")
+	ir.Syms.Panicoverflow = sysfunc("panicoverflow")
+	ir.Syms.Panicshift = sysfunc("panicshift")
+	ir.Syms.Raceread = sysfunc("raceread")
+	ir.Syms.Racereadrange = sysfunc("racereadrange")
+	ir.Syms.Racewrite = sysfunc("racewrite")
+	ir.Syms.Racewriterange = sysfunc("racewriterange")
+	ir.Syms.X86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
+	ir.Syms.X86HasSSE41 = sysvar("x86HasSSE41")         // bool
+	ir.Syms.X86HasFMA = sysvar("x86HasFMA")             // bool
+	ir.Syms.ARMHasVFPv4 = sysvar("armHasVFPv4")         // bool
+	ir.Syms.ARM64HasATOMICS = sysvar("arm64HasATOMICS") // bool
+	ir.Syms.Typedmemclr = sysfunc("typedmemclr")
+	ir.Syms.Typedmemmove = sysfunc("typedmemmove")
+	ir.Syms.Udiv = sysvar("udiv")                 // asm func with special ABI
+	ir.Syms.WriteBarrier = sysvar("writeBarrier") // struct { bool; ... }
+	ir.Syms.Zerobase = sysvar("zerobase")
 
 	// asm funcs with special ABI
 	if thearch.LinkArch.Name == "amd64" {
@@ -198,12 +198,12 @@ func initssaconfig() {
 	}
 
 	// Wasm (all asm funcs with special ABIs)
-	WasmMove = sysvar("wasmMove")
-	WasmZero = sysvar("wasmZero")
-	WasmDiv = sysvar("wasmDiv")
-	WasmTruncS = sysvar("wasmTruncS")
-	WasmTruncU = sysvar("wasmTruncU")
-	SigPanic = sysfunc("sigpanic")
+	ir.Syms.WasmMove = sysvar("wasmMove")
+	ir.Syms.WasmZero = sysvar("wasmZero")
+	ir.Syms.WasmDiv = sysvar("wasmDiv")
+	ir.Syms.WasmTruncS = sysvar("wasmTruncS")
+	ir.Syms.WasmTruncU = sysvar("wasmTruncU")
+	ir.Syms.SigPanic = sysfunc("sigpanic")
 }
 
 // getParam returns the Field of ith param of node n (which is a
@@ -1051,11 +1051,11 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 	if base.Flag.MSan {
 		switch kind {
 		case instrumentRead:
-			fn = msanread
+			fn = ir.Syms.Msanread
 		case instrumentWrite:
-			fn = msanwrite
+			fn = ir.Syms.Msanwrite
 		case instrumentMove:
-			fn = msanmove
+			fn = ir.Syms.Msanmove
 		default:
 			panic("unreachable")
 		}
@@ -1066,9 +1066,9 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 		// composites with only one element don't have subobjects, though.
 		switch kind {
 		case instrumentRead:
-			fn = racereadrange
+			fn = ir.Syms.Racereadrange
 		case instrumentWrite:
-			fn = racewriterange
+			fn = ir.Syms.Racewriterange
 		default:
 			panic("unreachable")
 		}
@@ -1078,9 +1078,9 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 		// address, as any write must write the first byte.
 		switch kind {
 		case instrumentRead:
-			fn = raceread
+			fn = ir.Syms.Raceread
 		case instrumentWrite:
-			fn = racewrite
+			fn = ir.Syms.Racewrite
 		default:
 			panic("unreachable")
 		}
@@ -1170,7 +1170,7 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.X.Sym().Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
+				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -1677,7 +1677,7 @@ func (s *state) exit() *ssa.Block {
 			}
 			s.openDeferExit()
 		} else {
-			s.rtcall(Deferreturn, true, nil)
+			s.rtcall(ir.Syms.Deferreturn, true, nil)
 		}
 	}
 
@@ -2612,7 +2612,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		bt := b.Type
 		if bt.IsSigned() {
 			cmp := s.newValue2(s.ssaOp(ir.OLE, bt), types.Types[types.TBOOL], s.zeroVal(bt), b)
-			s.check(cmp, panicshift)
+			s.check(cmp, ir.Syms.Panicshift)
 			bt = bt.ToUnsigned()
 		}
 		return s.newValue2(s.ssaShiftOp(n.Op(), n.Type(), bt), a.Type, a, b)
@@ -2909,10 +2909,10 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ONEWOBJ:
 		n := n.(*ir.UnaryExpr)
 		if n.Type().Elem().Size() == 0 {
-			return s.newValue1A(ssa.OpAddr, n.Type(), zerobaseSym, s.sb)
+			return s.newValue1A(ssa.OpAddr, n.Type(), ir.Syms.Zerobase, s.sb)
 		}
 		typ := s.expr(n.X)
-		vv := s.rtcall(newobject, true, []*types.Type{n.Type()}, typ)
+		vv := s.rtcall(ir.Syms.Newobject, true, []*types.Type{n.Type()}, typ)
 		return vv[0]
 
 	default:
@@ -3006,7 +3006,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// Call growslice
 	s.startBlock(grow)
 	taddr := s.expr(n.X)
-	r := s.rtcall(growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
+	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
 
 	if inplace {
 		if sn.Op() == ir.ONAME {
@@ -3635,7 +3635,7 @@ func initSSATables() {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// Target Atomic feature is identified by dynamic detection
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), arm64HasATOMICS, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
@@ -3860,7 +3860,7 @@ func initSSATables() {
 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
 				return s.variable(n, types.Types[types.TFLOAT64])
 			}
-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasFMA)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
@@ -3892,7 +3892,7 @@ func initSSATables() {
 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
 				return s.variable(n, types.Types[types.TFLOAT64])
 			}
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), armHasVFPv4, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
@@ -3922,7 +3922,7 @@ func initSSATables() {
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasSSE41)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasSSE41)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
@@ -4128,7 +4128,7 @@ func initSSATables() {
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasPOPCNT)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasPOPCNT)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
@@ -4212,9 +4212,9 @@ func initSSATables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// check for divide-by-zero/overflow and panic with appropriate message
 			cmpZero := s.newValue2(s.ssaOp(ir.ONE, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[2], s.zeroVal(types.Types[types.TUINT64]))
-			s.check(cmpZero, panicdivide)
+			s.check(cmpZero, ir.Syms.Panicdivide)
 			cmpOverflow := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[0], args[2])
-			s.check(cmpOverflow, panicoverflow)
+			s.check(cmpOverflow, ir.Syms.Panicoverflow)
 			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64)
@@ -4768,7 +4768,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
-		aux := ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults)
+		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults)
 		if testLateExpansion {
 			callArgs = append(callArgs, addr, s.mem())
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
@@ -4844,7 +4844,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// call target
 		switch {
 		case k == callDefer:
-			aux := ssa.StaticAuxCall(deferproc, ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
 			if testLateExpansion {
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 				call.AddArgs(callArgs...)
@@ -4852,7 +4852,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
 			}
 		case k == callGo:
-			aux := ssa.StaticAuxCall(newproc, ACArgs, ACResults)
+			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
 			if testLateExpansion {
 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 				call.AddArgs(callArgs...)
@@ -5359,7 +5359,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	if needcheck {
 		// do a size-appropriate check for zero
 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
-		s.check(cmp, panicdivide)
+		s.check(cmp, ir.Syms.Panicdivide)
 	}
 	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 }
@@ -6063,7 +6063,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			if !commaok {
 				// On failure, panic by calling panicnildottype.
 				s.startBlock(bFail)
-				s.rtcall(panicnildottype, false, nil, target)
+				s.rtcall(ir.Syms.Panicnildottype, false, nil, target)
 
 				// On success, return (perhaps modified) input interface.
 				s.startBlock(bOk)
@@ -6108,16 +6108,16 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		}
 		if n.X.Type().IsEmptyInterface() {
 			if commaok {
-				call := s.rtcall(assertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+				call := s.rtcall(ir.Syms.AssertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
 				return call[0], call[1]
 			}
-			return s.rtcall(assertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+			return s.rtcall(ir.Syms.AssertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
 		}
 		if commaok {
-			call := s.rtcall(assertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+			call := s.rtcall(ir.Syms.AssertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
 			return call[0], call[1]
 		}
-		return s.rtcall(assertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+		return s.rtcall(ir.Syms.AssertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
 	}
 
 	if base.Debug.TypeAssert > 0 {
@@ -6165,9 +6165,9 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		s.startBlock(bFail)
 		taddr := s.expr(n.Ntype.(*ir.AddrExpr).Alloc)
 		if n.X.Type().IsEmptyInterface() {
-			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
+			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {
-			s.rtcall(panicdottypeI, false, nil, itab, target, taddr)
+			s.rtcall(ir.Syms.PanicdottypeI, false, nil, itab, target, taddr)
 		}
 
 		// on success, return data from interface
@@ -6623,7 +6623,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
 		s.pp.nextLive = s.livenessMap.deferreturn
-		gencallret(pp, Deferreturn)
+		gencallret(pp, ir.Syms.Deferreturn)
 	}
 
 	if inlMarks != nil {
@@ -7082,14 +7082,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
 	if !idx.StackMapValid() {
 		// See Liveness.hasStackMap.
-		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
+		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
 			base.Fatalf("missing stack map index for %v", v.LongString())
 		}
 	}
 
 	call, ok := v.Aux.(*ssa.AuxCall)
 
-	if ok && call.Fn == Deferreturn {
+	if ok && call.Fn == ir.Syms.Deferreturn {
 		// Deferred calls will appear to be returning to
 		// the CALL deferreturn(SB) that we are about to emit.
 		// However, the stack trace code will show the line
@@ -7321,15 +7321,15 @@ func (e *ssafn) UseWriteBarrier() bool {
 func (e *ssafn) Syslook(name string) *obj.LSym {
 	switch name {
 	case "goschedguarded":
-		return goschedguarded
+		return ir.Syms.Goschedguarded
 	case "writeBarrier":
-		return writeBarrier
+		return ir.Syms.WriteBarrier
 	case "gcWriteBarrier":
-		return gcWriteBarrier
+		return ir.Syms.GCWriteBarrier
 	case "typedmemmove":
-		return typedmemmove
+		return ir.Syms.Typedmemmove
 	case "typedmemclr":
-		return typedmemclr
+		return ir.Syms.Typedmemclr
 	}
 	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
 	return nil

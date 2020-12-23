@@ -626,7 +626,7 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	// Find the package the receiver type appeared in. For
 	// anonymous receiver types (i.e., anonymous structs with
 	// embedded fields), use the "go" pseudo-package instead.
-	rpkg := gopkg
+	rpkg := ir.Pkgs.Go
 	if rsym != nil {
 		rpkg = rsym.Pkg
 	}

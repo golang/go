@@ -7,6 +7,7 @@ package amd64
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
@@ -102,7 +103,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		}
 		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
-		p.To.Sym = gc.Duffzero
+		p.To.Sym = ir.Syms.Duffzero
 
 		if cnt%16 != 0 {
 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
