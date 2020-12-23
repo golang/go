@@ -36,6 +36,7 @@ func main() {
 	fmt.Fprintln(&b, "package typecheck")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, `import (`)
+	fmt.Fprintln(&b, `      "cmd/compile/internal/base"`)
 	fmt.Fprintln(&b, `      "cmd/compile/internal/ir"`)
 	fmt.Fprintln(&b, `      "cmd/compile/internal/types"`)
 	fmt.Fprintln(&b, `)`)
@@ -169,7 +170,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 		}
 		return fmt.Sprintf("types.NewChan(%s, %s)", i.subtype(t.Value), dir)
 	case *ast.FuncType:
-		return fmt.Sprintf("functype(nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
+		return fmt.Sprintf("NewFuncType(nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
 	case *ast.InterfaceType:
 		if len(t.Methods.List) != 0 {
 			log.Fatal("non-empty interfaces unsupported")
@@ -180,7 +181,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 	case *ast.StarExpr:
 		return fmt.Sprintf("types.NewPtr(%s)", i.subtype(t.X))
 	case *ast.StructType:
-		return fmt.Sprintf("tostruct(%s)", i.fields(t.Fields, true))
+		return fmt.Sprintf("NewStructType(%s)", i.fields(t.Fields, true))
 
 	default:
 		log.Fatalf("unhandled type: %#v", t)
@@ -196,13 +197,13 @@ func (i *typeInterner) fields(fl *ast.FieldList, keepNames bool) string {
 	for _, f := range fl.List {
 		typ := i.subtype(f.Type)
 		if len(f.Names) == 0 {
-			res = append(res, fmt.Sprintf("anonfield(%s)", typ))
+			res = append(res, fmt.Sprintf("ir.NewField(base.Pos, nil, nil, %s)", typ))
 		} else {
 			for _, name := range f.Names {
 				if keepNames {
-					res = append(res, fmt.Sprintf("namedfield(%q, %s)", name.Name, typ))
+					res = append(res, fmt.Sprintf("ir.NewField(base.Pos, Lookup(%q), nil, %s)", name.Name, typ))
 				} else {
-					res = append(res, fmt.Sprintf("anonfield(%s)", typ))
+					res = append(res, fmt.Sprintf("ir.NewField(base.Pos, nil, nil, %s)", typ))
 				}
 			}
 		}
