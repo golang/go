@@ -261,3 +261,30 @@ func PkgFuncName(n Node) string {
 	}
 	return p + "." + s.Name
 }
+
+var CurFunc *Func
+
+func FuncSymName(s *types.Sym) string {
+	return s.Name + "·f"
+}
+
+// NewFuncNameAt generates a new name node for a function or method.
+func NewFuncNameAt(pos src.XPos, s *types.Sym, fn *Func) *Name {
+	if fn.Nname != nil {
+		base.Fatalf("newFuncName - already have name")
+	}
+	n := NewNameAt(pos, s)
+	n.SetFunc(fn)
+	fn.Nname = n
+	return n
+}
+
+// MarkFunc marks a node as a function.
+func MarkFunc(n *Name) {
+	if n.Op() != ONAME || n.Class_ != Pxxx {
+		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
+	}
+
+	n.Class_ = PFUNC
+	n.Sym().SetFunc(true)
+}

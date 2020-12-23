@@ -131,7 +131,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 				switch n.Class_ {
 				case ir.PPARAM, ir.PPARAMOUT:
 					// Don't modify nodfp; it is a global.
-					if n != nodfp {
+					if n != ir.RegFP {
 						n.Name().SetUsed(true)
 					}
 				case ir.PAUTO:
@@ -193,8 +193,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 }
 
 func funccompile(fn *ir.Func) {
-	if Curfn != nil {
-		base.Fatalf("funccompile %v inside %v", fn.Sym(), Curfn.Sym())
+	if ir.CurFunc != nil {
+		base.Fatalf("funccompile %v inside %v", fn.Sym(), ir.CurFunc.Sym())
 	}
 
 	if fn.Type() == nil {
@@ -215,9 +215,9 @@ func funccompile(fn *ir.Func) {
 	}
 
 	dclcontext = ir.PAUTO
-	Curfn = fn
+	ir.CurFunc = fn
 	compile(fn)
-	Curfn = nil
+	ir.CurFunc = nil
 	dclcontext = ir.PEXTERN
 }
 
@@ -234,7 +234,7 @@ func compile(fn *ir.Func) {
 	}
 
 	// From this point, there should be no uses of Curfn. Enforce that.
-	Curfn = nil
+	ir.CurFunc = nil
 
 	if ir.FuncName(fn) == "_" {
 		// We don't need to generate code for this function, just report errors in its body.

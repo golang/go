@@ -18,30 +18,6 @@ import (
 	"unicode"
 )
 
-const (
-	// Maximum size in bits for big.Ints before signalling
-	// overflow and also mantissa precision for big.Floats.
-	Mpprec = 512
-)
-
-func bigFloatVal(v constant.Value) *big.Float {
-	f := new(big.Float)
-	f.SetPrec(Mpprec)
-	switch u := constant.Val(v).(type) {
-	case int64:
-		f.SetInt64(u)
-	case *big.Int:
-		f.SetInt(u)
-	case *big.Float:
-		f.Set(u)
-	case *big.Rat:
-		f.SetRat(u)
-	default:
-		base.Fatalf("unexpected: %v", u)
-	}
-	return f
-}
-
 func roundFloat(v constant.Value, sz int64) constant.Value {
 	switch sz {
 	case 4:
@@ -334,8 +310,8 @@ func toint(v constant.Value) constant.Value {
 	// something that looks like an integer we omit the
 	// value from the error message.
 	// (See issue #11371).
-	f := bigFloatVal(v)
-	if f.MantExp(nil) > 2*Mpprec {
+	f := ir.BigFloat(v)
+	if f.MantExp(nil) > 2*ir.ConstPrec {
 		base.Errorf("integer too large")
 	} else {
 		var t big.Float
@@ -352,38 +328,6 @@ func toint(v constant.Value) constant.Value {
 	return constant.MakeInt64(1)
 }
 
-// doesoverflow reports whether constant value v is too large
-// to represent with type t.
-func doesoverflow(v constant.Value, t *types.Type) bool {
-	switch {
-	case t.IsInteger():
-		bits := uint(8 * t.Size())
-		if t.IsUnsigned() {
-			x, ok := constant.Uint64Val(v)
-			return !ok || x>>bits != 0
-		}
-		x, ok := constant.Int64Val(v)
-		if x < 0 {
-			x = ^x
-		}
-		return !ok || x>>(bits-1) != 0
-	case t.IsFloat():
-		switch t.Size() {
-		case 4:
-			f, _ := constant.Float32Val(v)
-			return math.IsInf(float64(f), 0)
-		case 8:
-			f, _ := constant.Float64Val(v)
-			return math.IsInf(f, 0)
-		}
-	case t.IsComplex():
-		ft := types.FloatForComplex(t)
-		return doesoverflow(constant.Real(v), ft) || doesoverflow(constant.Imag(v), ft)
-	}
-	base.Fatalf("doesoverflow: %v, %v", v, t)
-	panic("unreachable")
-}
-
 // overflow reports whether constant value v is too large
 // to represent with type t, and emits an error message if so.
 func overflow(v constant.Value, t *types.Type) bool {
@@ -392,11 +336,11 @@ func overflow(v constant.Value, t *types.Type) bool {
 	if t.IsUntyped() {
 		return false
 	}
-	if v.Kind() == constant.Int && constant.BitLen(v) > Mpprec {
+	if v.Kind() == constant.Int && constant.BitLen(v) > ir.ConstPrec {
 		base.Errorf("integer too large")
 		return true
 	}
-	if doesoverflow(v, t) {
+	if ir.ConstOverflow(v, t) {
 		base.Errorf("constant %v overflows %v", types.FmtConst(v, false), t)
 		return true
 	}
@@ -656,13 +600,13 @@ var overflowNames = [...]string{
 
 // origConst returns an OLITERAL with orig n and value v.
 func origConst(n ir.Node, v constant.Value) ir.Node {
-	lno := setlineno(n)
+	lno := ir.SetPos(n)
 	v = convertVal(v, n.Type(), false)
 	base.Pos = lno
 
 	switch v.Kind() {
 	case constant.Int:
-		if constant.BitLen(v) <= Mpprec {
+		if constant.BitLen(v) <= ir.ConstPrec {
 			break
 		}
 		fallthrough
@@ -778,14 +722,6 @@ func defaultType(t *types.Type) *types.Type {
 	return nil
 }
 
-func smallintconst(n ir.Node) bool {
-	if n.Op() == ir.OLITERAL {
-		v, ok := constant.Int64Val(n.Val())
-		return ok && int64(int32(v)) == v
-	}
-	return false
-}
-
 // indexconst checks if Node n contains a constant expression
 // representable as a non-negative int and returns its value.
 // If n is not a constant expression, not representable as an
@@ -803,19 +739,10 @@ func indexconst(n ir.Node) int64 {
 	if v.Kind() != constant.Int || constant.Sign(v) < 0 {
 		return -1
 	}
-	if doesoverflow(v, types.Types[types.TINT]) {
+	if ir.ConstOverflow(v, types.Types[types.TINT]) {
 		return -2
 	}
 	return ir.IntVal(types.Types[types.TINT], v)
-}
-
-// isGoConst reports whether n is a Go language constant (as opposed to a
-// compile-time constant).
-//
-// Expressions derived from nil, like string([]byte(nil)), while they
-// may be known at compile time, are not Go language constants.
-func isGoConst(n ir.Node) bool {
-	return n.Op() == ir.OLITERAL
 }
 
 // anyCallOrChan reports whether n contains any calls or channel operations.
@@ -875,7 +802,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 		}
 	}
 
-	if !isGoConst(n) {
+	if !ir.IsConstNode(n) {
 		return
 	}
 	if n.Type().IsUntyped() {
@@ -906,7 +833,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 	}
 	k := constSetKey{typ, ir.ConstValue(n)}
 
-	if hasUniquePos(n) {
+	if ir.HasUniquePos(n) {
 		pos = n.Pos()
 	}
 

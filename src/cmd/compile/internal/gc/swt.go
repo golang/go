@@ -190,7 +190,7 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 		}
 
 		for i := range ls {
-			setlineno(ncase)
+			ir.SetPos(ncase)
 			ls[i] = typecheck(ls[i], ctxExpr)
 			ls[i] = defaultlit(ls[i], t)
 			n1 := ls[i]
@@ -246,14 +246,14 @@ func walkswitch(sw *ir.SwitchStmt) {
 // walkExprSwitch generates an AST implementing sw.  sw is an
 // expression switch.
 func walkExprSwitch(sw *ir.SwitchStmt) {
-	lno := setlineno(sw)
+	lno := ir.SetPos(sw)
 
 	cond := sw.Tag
 	sw.Tag = nil
 
 	// convert switch {...} to switch true {...}
 	if cond == nil {
-		cond = nodbool(true)
+		cond = ir.NewBool(true)
 		cond = typecheck(cond, ctxExpr)
 		cond = defaultlit(cond, nil)
 	}
@@ -398,11 +398,11 @@ func (s *exprSwitch) flush() {
 		// Perform two-level binary search.
 		binarySearch(len(runs), &s.done,
 			func(i int) ir.Node {
-				return ir.NewBinaryExpr(base.Pos, ir.OLE, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), nodintconst(runLen(runs[i-1])))
+				return ir.NewBinaryExpr(base.Pos, ir.OLE, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(runs[i-1])))
 			},
 			func(i int, nif *ir.IfStmt) {
 				run := runs[i]
-				nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), nodintconst(runLen(run)))
+				nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, ir.NewUnaryExpr(base.Pos, ir.OLEN, s.exprname), ir.NewInt(runLen(run)))
 				s.search(run, &nif.Body)
 			},
 		)
@@ -708,13 +708,13 @@ func (s *typeSwitch) flush() {
 
 	binarySearch(len(cc), &s.done,
 		func(i int) ir.Node {
-			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, nodintconst(int64(cc[i-1].hash)))
+			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(int64(cc[i-1].hash)))
 		},
 		func(i int, nif *ir.IfStmt) {
 			// TODO(mdempsky): Omit hash equality check if
 			// there's only one type.
 			c := cc[i]
-			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, nodintconst(int64(c.hash)))
+			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, ir.NewInt(int64(c.hash)))
 			nif.Body.Append(c.body.Take()...)
 		},
 	)

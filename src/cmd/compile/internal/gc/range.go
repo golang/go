@@ -160,7 +160,7 @@ func cheapComputableIndex(width int64) bool {
 func walkrange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
 		m := nrange.X
-		lno := setlineno(m)
+		lno := ir.SetPos(m)
 		n := mapClear(m)
 		base.Pos = lno
 		return n
@@ -180,7 +180,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 	t := nrange.Type()
 
 	a := nrange.X
-	lno := setlineno(a)
+	lno := ir.SetPos(a)
 
 	var v1, v2 ir.Node
 	l := len(nrange.Vars)
@@ -228,7 +228,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		init = append(init, ir.NewAssignStmt(base.Pos, hn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
 
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
-		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, nodintconst(1)))
+		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))
 
 		// for range ha { body }
 		if v1 == nil {
@@ -272,7 +272,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		nfor.SetOp(ir.OFORUNTIL)
 
 		hp := temp(types.NewPtr(nrange.Type().Elem()))
-		tmp := ir.NewIndexExpr(base.Pos, ha, nodintconst(0))
+		tmp := ir.NewIndexExpr(base.Pos, ha, ir.NewInt(0))
 		tmp.SetBounded(true)
 		init = append(init, ir.NewAssignStmt(base.Pos, hp, nodAddr(tmp)))
 
@@ -335,7 +335,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		}
 		hb := temp(types.Types[types.TBOOL])
 
-		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, nodbool(false))
+		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, ir.NewBool(false))
 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2RECV, nil, nil)
 		a.SetTypecheck(1)
 		a.Lhs = []ir.Node{hv1, hb}
@@ -392,10 +392,10 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 
 		// if hv2 < utf8.RuneSelf
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, nodintconst(utf8.RuneSelf))
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(utf8.RuneSelf))
 
 		// hv1++
-		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, nodintconst(1)))}
+		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))}
 
 		// } else {
 		eif := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
@@ -488,7 +488,7 @@ func isMapClear(n *ir.RangeStmt) bool {
 	}
 
 	m := n.X
-	if delete := stmt.(*ir.CallExpr); !samesafeexpr(delete.Args[0], m) || !samesafeexpr(delete.Args[1], k) {
+	if delete := stmt.(*ir.CallExpr); !ir.SameSafeExpr(delete.Args[0], m) || !ir.SameSafeExpr(delete.Args[1], k) {
 		return false
 	}
 
@@ -545,12 +545,12 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	}
 	lhs := stmt.X.(*ir.IndexExpr)
 
-	if !samesafeexpr(lhs.X, a) || !samesafeexpr(lhs.Index, v1) {
+	if !ir.SameSafeExpr(lhs.X, a) || !ir.SameSafeExpr(lhs.Index, v1) {
 		return nil
 	}
 
 	elemsize := loop.Type().Elem().Width
-	if elemsize <= 0 || !isZero(stmt.Y) {
+	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
 		return nil
 	}
 
@@ -563,25 +563,25 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	// }
 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 	n.Body.Set(nil)
-	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(0))
+	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
 
 	// hp = &a[0]
 	hp := temp(types.Types[types.TUNSAFEPTR])
 
-	ix := ir.NewIndexExpr(base.Pos, a, nodintconst(0))
+	ix := ir.NewIndexExpr(base.Pos, a, ir.NewInt(0))
 	ix.SetBounded(true)
 	addr := convnop(nodAddr(ix), types.Types[types.TUNSAFEPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hp, addr))
 
 	// hn = len(a) * sizeof(elem(a))
 	hn := temp(types.Types[types.TUINTPTR])
-	mul := conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(elemsize)), types.Types[types.TUINTPTR])
+	mul := conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(elemsize)), types.Types[types.TUINTPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hn, mul))
 
 	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
-		Curfn.SetWBPos(stmt.Pos())
+		ir.CurFunc.SetWBPos(stmt.Pos())
 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
 	} else {
 		// memclrNoHeapPointers(hp, hn)
@@ -591,7 +591,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	n.Body.Append(fn)
 
 	// i = len(a) - 1
-	v1 = ir.NewAssignStmt(base.Pos, v1, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(1)))
+	v1 = ir.NewAssignStmt(base.Pos, v1, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(1)))
 
 	n.Body.Append(v1)
 
@@ -608,7 +608,7 @@ func addptr(p ir.Node, n int64) ir.Node {
 	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(types.Types[types.TUINTPTR])
 
-	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, nodintconst(n))
+	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(n))
 
 	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(t)

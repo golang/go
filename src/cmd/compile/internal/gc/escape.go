@@ -147,16 +147,16 @@ type EscEdge struct {
 func escFmt(n ir.Node) string {
 	text := ""
 	switch n.Esc() {
-	case EscUnknown:
+	case ir.EscUnknown:
 		break
 
-	case EscHeap:
+	case ir.EscHeap:
 		text = "esc(h)"
 
-	case EscNone:
+	case ir.EscNone:
 		text = "esc(no)"
 
-	case EscNever:
+	case ir.EscNever:
 		text = "esc(N)"
 
 	default:
@@ -281,7 +281,7 @@ func (e *Escape) stmt(n ir.Node) {
 		return
 	}
 
-	lno := setlineno(n)
+	lno := ir.SetPos(n)
 	defer func() {
 		base.Pos = lno
 	}()
@@ -483,7 +483,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		return
 	}
 
-	lno := setlineno(n)
+	lno := ir.SetPos(n)
 	defer func() {
 		base.Pos = lno
 	}()
@@ -564,7 +564,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
-		if checkPtr(e.curfn, 2) && n.Type().IsUnsafePtr() && n.X.Type().IsPtr() {
+		if ir.ShouldCheckPtr(e.curfn, 2) && n.Type().IsUnsafePtr() && n.X.Type().IsPtr() {
 			// When -d=checkptr=2 is enabled, treat
 			// conversions to unsafe.Pointer as an
 			// escaping operation. This allows better
@@ -618,7 +618,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		n := n.(*ir.CallPartExpr)
 		closureK := e.spill(k, n)
 
-		m := callpartMethod(n)
+		m := n.Method
 
 		// We don't know how the method value will be called
 		// later, so conservatively assume the result
@@ -725,7 +725,7 @@ func (e *Escape) unsafeValue(k EscHole, n ir.Node) {
 		}
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
-		if isReflectHeaderDataField(n) {
+		if ir.IsReflectHeaderDataField(n) {
 			e.expr(k.deref(n, "reflect.Header.Data"), n.X)
 		} else {
 			e.discard(n.X)
@@ -825,7 +825,7 @@ func (e *Escape) assign(dst, src ir.Node, why string, where ir.Node) {
 	}
 
 	k := e.addr(dst)
-	if dst != nil && dst.Op() == ir.ODOTPTR && isReflectHeaderDataField(dst) {
+	if dst != nil && dst.Op() == ir.ODOTPTR && ir.IsReflectHeaderDataField(dst) {
 		e.unsafeValue(e.heapHole().note(where, why), src)
 	} else {
 		if ignore {
@@ -847,7 +847,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 	if topLevelDefer {
 		// force stack allocation of defer record, unless
 		// open-coded defers are used (see ssa.go)
-		where.SetEsc(EscNever)
+		where.SetEsc(ir.EscNever)
 	}
 
 	argument := func(k EscHole, arg ir.Node) {
@@ -876,14 +876,14 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			switch v := staticValue(call.X); {
+			switch v := ir.StaticValue(call.X); {
 			case v.Op() == ir.ONAME && v.(*ir.Name).Class_ == ir.PFUNC:
 				fn = v.(*ir.Name)
 			case v.Op() == ir.OCLOSURE:
 				fn = v.(*ir.ClosureExpr).Func.Nname
 			}
 		case ir.OCALLMETH:
-			fn = methodExprName(call.X)
+			fn = ir.MethodExprName(call.X)
 		}
 
 		fntype := call.X.Type()
@@ -1532,13 +1532,13 @@ func (e *Escape) finish(fns []*ir.Func) {
 					logopt.LogOpt(n.Pos(), "escape", "escape", ir.FuncName(e.curfn))
 				}
 			}
-			n.SetEsc(EscHeap)
+			n.SetEsc(ir.EscHeap)
 			addrescapes(n)
 		} else {
 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
-			n.SetEsc(EscNone)
+			n.SetEsc(ir.EscNone)
 			if loc.transient {
 				switch n.Op() {
 				case ir.OCLOSURE:
@@ -1656,7 +1656,7 @@ func ParseLeaks(s string) EscLeaks {
 }
 
 func escapes(all []ir.Node) {
-	visitBottomUp(all, escapeFuncs)
+	ir.VisitFuncsBottomUp(all, escapeFuncs)
 }
 
 const (
@@ -1679,13 +1679,6 @@ func max8(a, b int8) int8 {
 	}
 	return b
 }
-
-const (
-	EscUnknown = iota
-	EscNone    // Does not escape to heap, result, or parameters.
-	EscHeap    // Reachable from the heap
-	EscNever   // By construction will not escape.
-)
 
 // funcSym returns fn.Nname.Sym if no nils are encountered along the way.
 func funcSym(fn *ir.Func) *types.Sym {
@@ -1801,14 +1794,14 @@ func isSelfAssign(dst, src ir.Node) bool {
 		// Safe trailing accessors that are permitted to differ.
 		dst := dst.(*ir.SelectorExpr)
 		src := src.(*ir.SelectorExpr)
-		return samesafeexpr(dst.X, src.X)
+		return ir.SameSafeExpr(dst.X, src.X)
 	case ir.OINDEX:
 		dst := dst.(*ir.IndexExpr)
 		src := src.(*ir.IndexExpr)
 		if mayAffectMemory(dst.Index) || mayAffectMemory(src.Index) {
 			return false
 		}
-		return samesafeexpr(dst.X, src.X)
+		return ir.SameSafeExpr(dst.X, src.X)
 	default:
 		return false
 	}
@@ -1876,18 +1869,18 @@ func heapAllocReason(n ir.Node) string {
 		}
 	}
 
-	if n.Type().Width > maxStackVarSize {
+	if n.Type().Width > ir.MaxStackVarSize {
 		return "too large for stack"
 	}
 
-	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width >= maxImplicitStackVarSize {
+	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
-	if n.Op() == ir.OCLOSURE && closureType(n.(*ir.ClosureExpr)).Size() >= maxImplicitStackVarSize {
+	if n.Op() == ir.OCLOSURE && closureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OCALLPART && partialCallType(n.(*ir.CallPartExpr)).Size() >= maxImplicitStackVarSize {
+	if n.Op() == ir.OCALLPART && partialCallType(n.(*ir.CallPartExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
@@ -1897,10 +1890,10 @@ func heapAllocReason(n ir.Node) string {
 		if r == nil {
 			r = n.Len
 		}
-		if !smallintconst(r) {
+		if !ir.IsSmallIntConst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) >= maxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) >= ir.MaxImplicitStackVarSize/t.Elem().Width {
 			return "too large for stack"
 		}
 	}
@@ -1922,13 +1915,13 @@ func addrescapes(n ir.Node) {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		if n == nodfp {
+		if n == ir.RegFP {
 			break
 		}
 
 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
 		// on PPARAM it means something different.
-		if n.Class_ == ir.PAUTO && n.Esc() == EscNever {
+		if n.Class_ == ir.PAUTO && n.Esc() == ir.EscNever {
 			break
 		}
 
@@ -1954,12 +1947,12 @@ func addrescapes(n ir.Node) {
 		//
 		// then we're analyzing the inner closure but we need to move x to the
 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
-		oldfn := Curfn
-		Curfn = n.Curfn
+		oldfn := ir.CurFunc
+		ir.CurFunc = n.Curfn
 		ln := base.Pos
-		base.Pos = Curfn.Pos()
+		base.Pos = ir.CurFunc.Pos()
 		moveToHeap(n)
-		Curfn = oldfn
+		ir.CurFunc = oldfn
 		base.Pos = ln
 
 	// ODOTPTR has already been introduced,
@@ -2039,9 +2032,9 @@ func moveToHeap(n *ir.Name) {
 		// liveness and other analyses use the underlying stack slot
 		// and not the now-pseudo-variable n.
 		found := false
-		for i, d := range Curfn.Dcl {
+		for i, d := range ir.CurFunc.Dcl {
 			if d == n {
-				Curfn.Dcl[i] = stackcopy
+				ir.CurFunc.Dcl[i] = stackcopy
 				found = true
 				break
 			}
@@ -2054,14 +2047,14 @@ func moveToHeap(n *ir.Name) {
 		if !found {
 			base.Fatalf("cannot find %v in local variable list", n)
 		}
-		Curfn.Dcl = append(Curfn.Dcl, n)
+		ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 	}
 
 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
 	n.Class_ = ir.PAUTOHEAP
 	n.SetFrameOffset(0)
 	n.Heapaddr = heapaddr
-	n.SetEsc(EscHeap)
+	n.SetEsc(ir.EscHeap)
 	if base.Flag.LowerM != 0 {
 		base.WarnfAt(n.Pos(), "moved to heap: %v", n)
 	}

@@ -413,3 +413,25 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p.pos = pos
 	return p
 }
+
+// IsParamStackCopy reports whether this is the on-stack copy of a
+// function parameter that moved to the heap.
+func IsParamStackCopy(n Node) bool {
+	if n.Op() != ONAME {
+		return false
+	}
+	name := n.(*Name)
+	return (name.Class_ == PPARAM || name.Class_ == PPARAMOUT) && name.Heapaddr != nil
+}
+
+// IsParamHeapCopy reports whether this is the on-heap copy of
+// a function parameter that moved to the heap.
+func IsParamHeapCopy(n Node) bool {
+	if n.Op() != ONAME {
+		return false
+	}
+	name := n.(*Name)
+	return name.Class_ == PAUTOHEAP && name.Name().Stackcopy != nil
+}
+
+var RegFP *Name

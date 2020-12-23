@@ -66,9 +66,9 @@ func fninit() *ir.Name {
 		funcbody()
 
 		typecheckFunc(fn)
-		Curfn = fn
+		ir.CurFunc = fn
 		typecheckslice(nf, ctxStmt)
-		Curfn = nil
+		ir.CurFunc = nil
 		Target.Decls = append(Target.Decls, fn)
 		fns = append(fns, initializers.Linksym())
 	}

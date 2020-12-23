@@ -230,7 +230,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n ir.Node) bool {
-	return islvalue(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
+	return ir.IsAssignable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.
@@ -381,13 +381,13 @@ func orderMakeSliceCopy(s []ir.Node) {
 	}
 
 	mk := as.Y.(*ir.MakeExpr)
-	if mk.Esc() == EscNone || mk.Len == nil || mk.Cap != nil {
+	if mk.Esc() == ir.EscNone || mk.Len == nil || mk.Cap != nil {
 		return
 	}
 	mk.SetOp(ir.OMAKESLICECOPY)
 	mk.Cap = cp.Y
 	// Set bounded when m = OMAKESLICE([]T, len(s)); OCOPY(m, s)
-	mk.SetBounded(mk.Len.Op() == ir.OLEN && samesafeexpr(mk.Len.(*ir.UnaryExpr).X, cp.Y))
+	mk.SetBounded(mk.Len.Op() == ir.OLEN && ir.SameSafeExpr(mk.Len.(*ir.UnaryExpr).X, cp.Y))
 	as.Y = typecheck(mk, ctxExpr)
 	s[1] = nil // remove separate copy call
 }
@@ -404,7 +404,7 @@ func (o *Order) edge() {
 	counter.Name().SetLibfuzzerExtraCounter(true)
 
 	// counter += 1
-	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, nodintconst(1))
+	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
 	o.append(incr)
 }
 
@@ -429,7 +429,7 @@ func (o *Order) exprInPlace(n ir.Node) ir.Node {
 	var order Order
 	order.free = o.free
 	n = order.expr(n, nil)
-	n = initExpr(order.out, n)
+	n = ir.InitExpr(order.out, n)
 
 	// insert new temporaries from order
 	// at head of outer list.
@@ -448,7 +448,7 @@ func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
 	mark := order.markTemp()
 	order.stmt(n)
 	order.cleanTemp(mark)
-	return liststmt(order.out)
+	return ir.NewBlockStmt(src.NoXPos, order.out)
 }
 
 // init moves n's init list to o.out.
@@ -615,7 +615,7 @@ func (o *Order) stmt(n ir.Node) {
 		return
 	}
 
-	lno := setlineno(n)
+	lno := ir.SetPos(n)
 	o.init(n)
 
 	switch n.Op() {
@@ -909,7 +909,7 @@ func (o *Order) stmt(n ir.Node) {
 		for _, ncas := range n.Cases {
 			ncas := ncas.(*ir.CaseStmt)
 			r := ncas.Comm
-			setlineno(ncas)
+			ir.SetPos(ncas)
 
 			// Append any new body prologue to ninit.
 			// The next loop will insert ninit into nbody.
@@ -1089,7 +1089,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
 	if n == nil {
 		return n
 	}
-	lno := setlineno(n)
+	lno := ir.SetPos(n)
 	n = o.expr1(n, lhs)
 	base.Pos = lno
 	return n
@@ -1283,7 +1283,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 			o.exprList(n.Args)
 		}
 
-		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.Args[0]) {
+		if lhs == nil || lhs.Op() != ir.ONAME && !ir.SameSafeExpr(lhs, n.Args[0]) {
 			return o.copyExpr(n)
 		}
 		return n
@@ -1299,7 +1299,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		max = o.expr(max, nil)
 		max = o.cheapExpr(max)
 		n.SetSliceBounds(low, high, max)
-		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.X) {
+		if lhs == nil || lhs.Op() != ir.ONAME && !ir.SameSafeExpr(lhs, n.X) {
 			return o.copyExpr(n)
 		}
 		return n

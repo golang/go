@@ -1159,7 +1159,7 @@ func (s *state) stmt(n ir.Node) {
 	// Expression statements
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if IsIntrinsicCall(n) {
+		if ir.IsIntrinsicCall(n) {
 			s.intrinsicCall(n)
 			return
 		}
@@ -1186,7 +1186,7 @@ func (s *state) stmt(n ir.Node) {
 			var defertype string
 			if s.hasOpenDefers {
 				defertype = "open-coded"
-			} else if n.Esc() == EscNever {
+			} else if n.Esc() == ir.EscNever {
 				defertype = "stack-allocated"
 			} else {
 				defertype = "heap-allocated"
@@ -1197,7 +1197,7 @@ func (s *state) stmt(n ir.Node) {
 			s.openDeferRecord(n.Call.(*ir.CallExpr))
 		} else {
 			d := callDefer
-			if n.Esc() == EscNever {
+			if n.Esc() == ir.EscNever {
 				d = callDeferStack
 			}
 			s.callResult(n.Call.(*ir.CallExpr), d)
@@ -1232,7 +1232,7 @@ func (s *state) stmt(n ir.Node) {
 		// We come here only when it is an intrinsic call returning two values.
 		n := n.(*ir.AssignListStmt)
 		call := n.Rhs[0].(*ir.CallExpr)
-		if !IsIntrinsicCall(call) {
+		if !ir.IsIntrinsicCall(call) {
 			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", call)
 		}
 		v := s.intrinsicCall(call)
@@ -1300,7 +1300,7 @@ func (s *state) stmt(n ir.Node) {
 				// All literals with nonzero fields have already been
 				// rewritten during walk. Any that remain are just T{}
 				// or equivalents. Use the zero value.
-				if !isZero(rhs) {
+				if !ir.IsZero(rhs) {
 					s.Fatalf("literal with nonzero value in SSA: %v", rhs)
 				}
 				rhs = nil
@@ -1309,7 +1309,7 @@ func (s *state) stmt(n ir.Node) {
 				// Check whether we're writing the result of an append back to the same slice.
 				// If so, we handle it specially to avoid write barriers on the fast
 				// (non-growth) path.
-				if !samesafeexpr(n.X, rhs.Args[0]) || base.Flag.N != 0 {
+				if !ir.SameSafeExpr(n.X, rhs.Args[0]) || base.Flag.N != 0 {
 					break
 				}
 				// If the slice can be SSA'd, it'll be on the stack,
@@ -1362,7 +1362,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		var skip skipMask
-		if rhs != nil && (rhs.Op() == ir.OSLICE || rhs.Op() == ir.OSLICE3 || rhs.Op() == ir.OSLICESTR) && samesafeexpr(rhs.(*ir.SliceExpr).X, n.X) {
+		if rhs != nil && (rhs.Op() == ir.OSLICE || rhs.Op() == ir.OSLICE3 || rhs.Op() == ir.OSLICESTR) && ir.SameSafeExpr(rhs.(*ir.SliceExpr).X, n.X) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
 			rhs := rhs.(*ir.SliceExpr)
@@ -2085,7 +2085,7 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n ir.Node) *ssa.Value {
-	if hasUniquePos(n) {
+	if ir.HasUniquePos(n) {
 		// ONAMEs and named OLITERALs have the line number
 		// of the decl, not the use. See issue 14742.
 		s.pushLine(n.Pos())
@@ -2726,7 +2726,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			// All literals with nonzero fields have already been
 			// rewritten during walk. Any that remain are just T{}
 			// or equivalents. Use the zero value.
-			if !isZero(n.X) {
+			if !ir.IsZero(n.X) {
 				s.Fatalf("literal with nonzero value in SSA: %v", n.X)
 			}
 			return s.zeroVal(n.Type())
@@ -2735,7 +2735,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		// SSA, then load just the selected field. This
 		// prevents false memory dependencies in race/msan
 		// instrumentation.
-		if islvalue(n) && !s.canSSA(n) {
+		if ir.IsAssignable(n) && !s.canSSA(n) {
 			p := s.addr(n)
 			return s.load(n.Type(), p)
 		}
@@ -2880,7 +2880,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if IsIntrinsicCall(n) {
+		if ir.IsIntrinsicCall(n) {
 			return s.intrinsicCall(n)
 		}
 		fallthrough
@@ -2901,7 +2901,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		// rewritten during walk. Any that remain are just T{}
 		// or equivalents. Use the zero value.
 		n := n.(*ir.CompLitExpr)
-		if !isZero(n) {
+		if !ir.IsZero(n) {
 			s.Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type())
@@ -3236,7 +3236,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 
 	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left)
-	if isReflectHeaderDataField(left) {
+	if ir.IsReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
 		// reflect.SliceHeader and reflect.StringHeader's Data fields
 		// is valid, even though they have type uintptr (#19168).
@@ -5021,7 +5021,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 			if v != nil {
 				return v
 			}
-			if n == nodfp {
+			if n == ir.RegFP {
 				// Special arg that points to the frame pointer (Used by ORECOVER).
 				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
 			}
@@ -5141,7 +5141,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	if name.Addrtaken() {
 		return false
 	}
-	if isParamHeapCopy(name) {
+	if ir.IsParamHeapCopy(name) {
 		return false
 	}
 	if name.Class_ == ir.PAUTOHEAP {
@@ -7271,7 +7271,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	ir.AsNode(s.Def).Name().SetUsed(true)
 	n.SetType(t)
 	n.Class_ = ir.PAUTO
-	n.SetEsc(EscNever)
+	n.SetEsc(ir.EscNever)
 	n.Curfn = e.curfn
 	e.curfn.Dcl = append(e.curfn.Dcl, n)
 	dowidth(t)

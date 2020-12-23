@@ -28,26 +28,6 @@ func sysvar(name string) *obj.LSym {
 	return ir.Pkgs.Runtime.Lookup(name).Linksym()
 }
 
-// isParamStackCopy reports whether this is the on-stack copy of a
-// function parameter that moved to the heap.
-func isParamStackCopy(n ir.Node) bool {
-	if n.Op() != ir.ONAME {
-		return false
-	}
-	name := n.(*ir.Name)
-	return (name.Class_ == ir.PPARAM || name.Class_ == ir.PPARAMOUT) && name.Heapaddr != nil
-}
-
-// isParamHeapCopy reports whether this is the on-heap copy of
-// a function parameter that moved to the heap.
-func isParamHeapCopy(n ir.Node) bool {
-	if n.Op() != ir.ONAME {
-		return false
-	}
-	name := n.(*ir.Name)
-	return name.Class_ == ir.PAUTOHEAP && name.Name().Stackcopy != nil
-}
-
 // autotmpname returns the name for an autotmp variable numbered n.
 func autotmpname(n int) string {
 	// Give each tmp a different name so that they can be registerized.
@@ -80,7 +60,7 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	s.Def = n
 	n.SetType(t)
 	n.Class_ = ir.PAUTO
-	n.SetEsc(EscNever)
+	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
 	n.SetUsed(true)
 	n.SetAutoTemp(true)
@@ -92,5 +72,5 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 }
 
 func temp(t *types.Type) *ir.Name {
-	return tempAt(base.Pos, Curfn, t)
+	return tempAt(base.Pos, ir.CurFunc, t)
 }

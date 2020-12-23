@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
-
-import "cmd/compile/internal/ir"
+package ir
 
 // Strongly connected components.
 //
@@ -32,13 +30,13 @@ import "cmd/compile/internal/ir"
 // when analyzing a set of mutually recursive functions.
 
 type bottomUpVisitor struct {
-	analyze  func([]*ir.Func, bool)
+	analyze  func([]*Func, bool)
 	visitgen uint32
-	nodeID   map[*ir.Func]uint32
-	stack    []*ir.Func
+	nodeID   map[*Func]uint32
+	stack    []*Func
 }
 
-// visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
+// VisitFuncsBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
 // It calls analyze with successive groups of functions, working from
 // the bottom of the call graph upward. Each time analyze is called with
 // a list of functions, every function on that list only calls other functions
@@ -51,13 +49,13 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)) {
+func VisitFuncsBottomUp(list []Node, analyze func(list []*Func, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
-	v.nodeID = make(map[*ir.Func]uint32)
+	v.nodeID = make(map[*Func]uint32)
 	for _, n := range list {
-		if n.Op() == ir.ODCLFUNC {
-			n := n.(*ir.Func)
+		if n.Op() == ODCLFUNC {
+			n := n.(*Func)
 			if !n.IsHiddenClosure() {
 				v.visit(n)
 			}
@@ -65,7 +63,7 @@ func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)
 	}
 }
 
-func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
+func (v *bottomUpVisitor) visit(n *Func) uint32 {
 	if id := v.nodeID[n]; id > 0 {
 		// already visited
 		return id
@@ -78,45 +76,45 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 	min := v.visitgen
 	v.stack = append(v.stack, n)
 
-	ir.Visit(n, func(n ir.Node) {
+	Visit(n, func(n Node) {
 		switch n.Op() {
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			if n.Class_ == ir.PFUNC {
+		case ONAME:
+			n := n.(*Name)
+			if n.Class_ == PFUNC {
 				if n != nil && n.Name().Defn != nil {
-					if m := v.visit(n.Name().Defn.(*ir.Func)); m < min {
+					if m := v.visit(n.Name().Defn.(*Func)); m < min {
 						min = m
 					}
 				}
 			}
-		case ir.OMETHEXPR:
-			n := n.(*ir.MethodExpr)
-			fn := methodExprName(n)
+		case OMETHEXPR:
+			n := n.(*MethodExpr)
+			fn := MethodExprName(n)
 			if fn != nil && fn.Defn != nil {
-				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
+				if m := v.visit(fn.Defn.(*Func)); m < min {
 					min = m
 				}
 			}
-		case ir.ODOTMETH:
-			n := n.(*ir.SelectorExpr)
-			fn := methodExprName(n)
-			if fn != nil && fn.Op() == ir.ONAME && fn.Class_ == ir.PFUNC && fn.Defn != nil {
-				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
+		case ODOTMETH:
+			n := n.(*SelectorExpr)
+			fn := MethodExprName(n)
+			if fn != nil && fn.Op() == ONAME && fn.Class_ == PFUNC && fn.Defn != nil {
+				if m := v.visit(fn.Defn.(*Func)); m < min {
 					min = m
 				}
 			}
-		case ir.OCALLPART:
-			n := n.(*ir.CallPartExpr)
-			fn := ir.AsNode(callpartMethod(n).Nname)
-			if fn != nil && fn.Op() == ir.ONAME {
-				if fn := fn.(*ir.Name); fn.Class_ == ir.PFUNC && fn.Name().Defn != nil {
-					if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
+		case OCALLPART:
+			n := n.(*CallPartExpr)
+			fn := AsNode(n.Method.Nname)
+			if fn != nil && fn.Op() == ONAME {
+				if fn := fn.(*Name); fn.Class_ == PFUNC && fn.Name().Defn != nil {
+					if m := v.visit(fn.Name().Defn.(*Func)); m < min {
 						min = m
 					}
 				}
 			}
-		case ir.OCLOSURE:
-			n := n.(*ir.ClosureExpr)
+		case OCLOSURE:
+			n := n.(*ClosureExpr)
 			if m := v.visit(n.Func); m < min {
 				min = m
 			}

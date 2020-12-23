@@ -349,12 +349,12 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	in := make([]*ir.Field, 0, inLen)
 
 	if receiver != nil {
-		d := anonfield(receiver)
+		d := ir.NewField(base.Pos, nil, nil, receiver)
 		in = append(in, d)
 	}
 
 	for _, t := range f.Params().Fields().Slice() {
-		d := anonfield(t.Type)
+		d := ir.NewField(base.Pos, nil, nil, t.Type)
 		d.IsDDD = t.IsDDD()
 		in = append(in, d)
 	}
@@ -362,7 +362,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 	outLen := f.Results().Fields().Len()
 	out := make([]*ir.Field, 0, outLen)
 	for _, t := range f.Results().Fields().Slice() {
-		d := anonfield(t.Type)
+		d := ir.NewField(base.Pos, nil, nil, t.Type)
 		out = append(out, d)
 	}
 
@@ -416,8 +416,8 @@ func methods(t *types.Type) []*Sig {
 
 		sig := &Sig{
 			name:  method,
-			isym:  methodSym(it, method),
-			tsym:  methodSym(t, method),
+			isym:  ir.MethodSym(it, method),
+			tsym:  ir.MethodSym(t, method),
 			type_: methodfunc(f.Type, t),
 			mtype: methodfunc(f.Type, nil),
 		}
@@ -471,7 +471,7 @@ func imethods(t *types.Type) []*Sig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := methodSym(t, f.Sym)
+		isym := ir.MethodSym(t, f.Sym)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
 			genwrapper(t, f, isym)
@@ -1541,7 +1541,7 @@ func dumpbasictypes() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(types.NewPtr(types.ErrorType))
 
-		dtypesym(functype(nil, []*ir.Field{anonfield(types.ErrorType)}, []*ir.Field{anonfield(types.Types[types.TSTRING])}))
+		dtypesym(functype(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(ir.Pkgs.Runtime)
