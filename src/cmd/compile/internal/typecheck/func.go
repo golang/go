@@ -73,17 +73,17 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
-	fields := []*ir.Field{
-		ir.NewField(base.Pos, Lookup(".F"), nil, types.Types[types.TUINTPTR]),
+	fields := []*types.Field{
+		types.NewField(base.Pos, Lookup(".F"), types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars {
 		typ := v.Type()
 		if !v.Byval() {
 			typ = types.NewPtr(typ)
 		}
-		fields = append(fields, ir.NewField(base.Pos, v.Sym(), nil, typ))
+		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := NewStructType(fields)
+	typ := types.NewStruct(types.NoPkg, fields)
 	typ.SetNoalg(true)
 	return typ
 }
@@ -92,9 +92,9 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // needed in the closure for n (n must be a OCALLPART node).
 // The address of a variable of the returned type can be cast to a func.
 func PartialCallType(n *ir.CallPartExpr) *types.Type {
-	t := NewStructType([]*ir.Field{
-		ir.NewField(base.Pos, Lookup("F"), nil, types.Types[types.TUINTPTR]),
-		ir.NewField(base.Pos, Lookup("R"), nil, n.X.Type()),
+	t := types.NewStruct(types.NoPkg, []*types.Field{
+		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
+		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t

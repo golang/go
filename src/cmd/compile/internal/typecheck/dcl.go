@@ -676,30 +676,26 @@ func autotmpname(n int) string {
 
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
-func NewMethodType(f *types.Type, receiver *types.Type) *types.Type {
-	inLen := f.Params().Fields().Len()
-	if receiver != nil {
-		inLen++
-	}
-	in := make([]*ir.Field, 0, inLen)
-
-	if receiver != nil {
-		d := ir.NewField(base.Pos, nil, nil, receiver)
-		in = append(in, d)
+func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+	nrecvs := 0
+	if recv != nil {
+		nrecvs++
 	}
 
-	for _, t := range f.Params().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		d.IsDDD = t.IsDDD()
-		in = append(in, d)
+	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
+	if recv != nil {
+		params[0] = types.NewField(base.Pos, nil, recv)
+	}
+	for i, param := range sig.Params().Fields().Slice() {
+		d := types.NewField(base.Pos, nil, param.Type)
+		d.SetIsDDD(param.IsDDD())
+		params[nrecvs+i] = d
 	}
 
-	outLen := f.Results().Fields().Len()
-	out := make([]*ir.Field, 0, outLen)
-	for _, t := range f.Results().Fields().Slice() {
-		d := ir.NewField(base.Pos, nil, nil, t.Type)
-		out = append(out, d)
+	results := make([]*types.Field, sig.Results().Fields().Len())
+	for i, t := range sig.Results().Fields().Slice() {
+		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return NewFuncType(nil, in, out)
+	return types.NewSignature(types.LocalPkg, nil, params, results)
 }
