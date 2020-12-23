@@ -7332,18 +7332,20 @@ func callTargetLSym(callee *types.Sym, callerLSym *obj.LSym) *obj.LSym {
 	if ir.AsNode(callee.Def) == nil {
 		return lsym
 	}
-	ndclfunc := ir.AsNode(callee.Def).Name().Defn
-	if ndclfunc == nil {
+	defn := ir.AsNode(callee.Def).Name().Defn
+	if defn == nil {
 		return lsym
 	}
+	ndclfunc := defn.(*ir.Func)
+
 	// check for case 1 above
 	if callerLSym.ABIWrapper() {
-		if nlsym := ndclfunc.Func().LSym; nlsym != nil {
+		if nlsym := ndclfunc.LSym; nlsym != nil {
 			lsym = nlsym
 		}
 	} else {
 		// check for case 2 above
-		nam := ndclfunc.Func().Nname
+		nam := ndclfunc.Nname
 		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
 		if hasDefABI && defABI == obj.ABI0 {
 			lsym = nam.Sym().LinksymABI0()
