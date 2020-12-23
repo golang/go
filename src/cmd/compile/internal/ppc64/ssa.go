@@ -6,10 +6,10 @@ package ppc64
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
@@ -19,7 +19,7 @@ import (
 )
 
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
-func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	//	flive := b.FlagsLiveAtEnd
 	//	if b.Control != nil && b.Control.Type.IsFlags() {
 	//		flive = true
@@ -101,7 +101,7 @@ func storeByType(t *types.Type) obj.As {
 	panic("bad store type")
 }
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy:
 		t := v.Type
@@ -469,7 +469,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
-		gc.CheckLoweredGetClosurePtr(v)
+		ssagen.CheckLoweredGetClosurePtr(v)
 
 	case ssa.OpPPC64LoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
@@ -491,7 +491,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpLoadReg:
 		loadOp := loadByType(v.Type)
 		p := s.Prog(loadOp)
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
@@ -500,7 +500,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(storeOp)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
 
 	case ssa.OpPPC64DIVD:
 		// For now,
@@ -758,7 +758,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Reg = v.Args[0].Reg()
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = v.Reg()
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 
 		}
 
@@ -819,7 +819,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_ADDR
 			p.From.Reg = v.Args[0].Reg()
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = v.Reg()
 			// Load go.string using 0 offset
@@ -837,7 +837,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
@@ -871,7 +871,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = ppc64.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 
 	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
 		p := s.Prog(v.Op.Asm())
@@ -879,7 +879,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 
 	case ssa.OpPPC64MOVDstoreidx, ssa.OpPPC64MOVWstoreidx, ssa.OpPPC64MOVHstoreidx, ssa.OpPPC64MOVBstoreidx,
 		ssa.OpPPC64FMOVDstoreidx, ssa.OpPPC64FMOVSstoreidx, ssa.OpPPC64MOVDBRstoreidx, ssa.OpPPC64MOVWBRstoreidx,
@@ -1809,7 +1809,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(16) // space used in callee args area by assembly stubs
 
 	case ssa.OpPPC64LoweredNilCheck:
@@ -1847,7 +1847,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := s.Prog(ppc64.AMOVBZ)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = v.Args[0].Reg()
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REGTMP
 		}
@@ -1893,7 +1893,7 @@ var blockJump = [...]struct {
 	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
 	case ssa.BlockDefer:
 		// defer returns in R3:
@@ -1907,18 +1907,18 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 
 		p = s.Prog(ppc64.ABNE)
 		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
 	case ssa.BlockRet:

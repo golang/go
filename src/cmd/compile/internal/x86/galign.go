@@ -6,14 +6,14 @@ package x86
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"fmt"
 	"os"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &x86.Link386
 	arch.REGSP = x86.REGSP
 	arch.SSAGenValue = ssaGenValue

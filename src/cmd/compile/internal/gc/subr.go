@@ -8,24 +8,11 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
-	"sync"
-)
-
-// largeStack is info about a function whose stack frame is too large (rare).
-type largeStack struct {
-	locals int64
-	args   int64
-	callee int64
-	pos    src.XPos
-}
-
-var (
-	largeStackFramesMu sync.Mutex // protects largeStackFrames
-	largeStackFrames   []largeStack
 )
 
 // backingArrayPtrLen extracts the pointer and length from a slice or string.
@@ -91,25 +78,25 @@ func calcHasCall(n ir.Node) bool {
 	// so we ensure they are evaluated first.
 	case ir.OADD, ir.OSUB, ir.OMUL:
 		n := n.(*ir.BinaryExpr)
-		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall() || n.Y.HasCall()
 	case ir.ONEG:
 		n := n.(*ir.UnaryExpr)
-		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall()
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
 		n := n.(*ir.BinaryExpr)
-		if thearch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
+		if ssagen.Arch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall() || n.Y.HasCall()
 	case ir.OCONV:
 		n := n.(*ir.ConvExpr)
-		if thearch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
+		if ssagen.Arch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
 			return true
 		}
 		return n.X.HasCall()

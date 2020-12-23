@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
@@ -15,7 +16,7 @@ import (
 )
 
 func cheapComputableIndex(width int64) bool {
-	switch thearch.LinkArch.Family {
+	switch ssagen.Arch.LinkArch.Family {
 	// MIPS does not have R+R addressing
 	// Arm64 may lack ability to generate this code in our assembler,
 	// but the architecture supports it.

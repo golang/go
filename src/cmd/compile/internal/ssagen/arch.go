@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package ssagen
 
 import (
 	"cmd/compile/internal/objw"
@@ -10,11 +10,11 @@ import (
 	"cmd/internal/obj"
 )
 
-var pragcgobuf [][]string
+var Arch ArchInfo
 
 // interface to back end
 
-type Arch struct {
+type ArchInfo struct {
 	LinkArch *obj.LinkArch
 
 	REGSP     int
@@ -31,22 +31,12 @@ type Arch struct {
 	Ginsnopdefer func(*objw.Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
-	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+	SSAMarkMoves func(*State, *ssa.Block)
 
 	// SSAGenValue emits Prog(s) for the Value.
-	SSAGenValue func(*SSAGenState, *ssa.Value)
+	SSAGenValue func(*State, *ssa.Value)
 
 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
 	// for all values in the block before SSAGenBlock.
-	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
+	SSAGenBlock func(s *State, b, next *ssa.Block)
 }
-
-var thearch Arch
-
-var (
-	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
-	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
-)
-
-// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
-var GCWriteBarrierReg map[int16]*obj.LSym

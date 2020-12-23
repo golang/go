@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -26,12 +27,9 @@ import (
 	"cmd/internal/src"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
-	"sort"
-	"strings"
 )
 
 func hidePanic() {
@@ -52,14 +50,14 @@ func hidePanic() {
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
 // code, and finally writes the compiled package definition to disk.
-func Main(archInit func(*Arch)) {
+func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
 
 	defer hidePanic()
 
-	archInit(&thearch)
+	archInit(&ssagen.Arch)
 
-	base.Ctxt = obj.Linknew(thearch.LinkArch)
+	base.Ctxt = obj.Linknew(ssagen.Arch.LinkArch)
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -151,7 +149,7 @@ func Main(archInit func(*Arch)) {
 	types.ParseLangFlag()
 
 	if base.Flag.SymABIs != "" {
-		readSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
+		ssagen.ReadSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
 	}
 
 	if base.Compiling(base.NoInstrumentPkgs) {
@@ -159,7 +157,7 @@ func Main(archInit func(*Arch)) {
 		base.Flag.MSan = false
 	}
 
-	thearch.LinkArch.Init(base.Ctxt)
+	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
 	if base.Flag.Race {
 		ir.Pkgs.Race = types.NewPkg("runtime/race", "")
@@ -174,7 +172,7 @@ func Main(archInit func(*Arch)) {
 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
 	}
 	if base.Debug.SoftFloat != 0 {
-		thearch.SoftFloat = true
+		ssagen.Arch.SoftFloat = true
 	}
 
 	if base.Flag.JSON != "" { // parse version,destination from json logging optimization.
@@ -182,14 +180,14 @@ func Main(archInit func(*Arch)) {
 	}
 
 	ir.EscFmt = escape.Fmt
-	ir.IsIntrinsicCall = isIntrinsicCall
-	inline.SSADumpInline = ssaDumpInline
-	initSSAEnv()
-	initSSATables()
+	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
+	inline.SSADumpInline = ssagen.DumpInline
+	ssagen.InitEnv()
+	ssagen.InitTables()
 
-	types.PtrSize = thearch.LinkArch.PtrSize
-	types.RegSize = thearch.LinkArch.RegSize
-	types.MaxWidth = thearch.MAXWIDTH
+	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
+	types.RegSize = ssagen.Arch.LinkArch.RegSize
+	types.MaxWidth = ssagen.Arch.MAXWIDTH
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return reflectdata.TypeSym(t).Linksym()
 	}
@@ -210,7 +208,7 @@ func Main(archInit func(*Arch)) {
 	// Parse input.
 	base.Timer.Start("fe", "parse")
 	lines := noder.ParseFiles(flag.Args())
-	cgoSymABIs()
+	ssagen.CgoSymABIs()
 	base.Timer.Stop()
 	base.Timer.AddEvent(int64(lines), "lines")
 	recordPackageName()
@@ -257,7 +255,7 @@ func Main(archInit func(*Arch)) {
 	// We'll do the final check after write barriers are
 	// inserted.
 	if base.Flag.CompilingRuntime {
-		EnableNoWriteBarrierRecCheck()
+		ssagen.EnableNoWriteBarrierRecCheck()
 	}
 
 	// Transform closure bodies to properly reference captured variables.
@@ -277,7 +275,7 @@ func Main(archInit func(*Arch)) {
 	// Prepare for SSA compilation.
 	// This must be before peekitabs, because peekitabs
 	// can trigger function compilation.
-	initssaconfig()
+	ssagen.InitConfig()
 
 	// Just before compilation, compile itabs found on
 	// the right side of OCONVIFACE so that methods
@@ -302,7 +300,7 @@ func Main(archInit func(*Arch)) {
 
 	if base.Flag.CompilingRuntime {
 		// Write barriers are now known. Check the call graph.
-		NoWriteBarrierRecCheck()
+		ssagen.NoWriteBarrierRecCheck()
 	}
 
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
@@ -323,7 +321,7 @@ func Main(archInit func(*Arch)) {
 		dumpasmhdr()
 	}
 
-	CheckLargeStacks()
+	ssagen.CheckLargeStacks()
 	typecheck.CheckFuncStack()
 
 	if len(compilequeue) != 0 {
@@ -339,34 +337,6 @@ func Main(archInit func(*Arch)) {
 	if base.Flag.Bench != "" {
 		if err := writebench(base.Flag.Bench); err != nil {
 			log.Fatalf("cannot write benchmark data: %v", err)
-		}
-	}
-}
-
-func CheckLargeStacks() {
-	// Check whether any of the functions we have compiled have gigantic stack frames.
-	sort.Slice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
-	})
-	for _, large := range largeStackFrames {
-		if large.callee != 0 {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
-		} else {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
-		}
-	}
-}
-
-func cgoSymABIs() {
-	// The linker expects an ABI0 wrapper for all cgo-exported
-	// functions.
-	for _, prag := range typecheck.Target.CgoPragmas {
-		switch prag[0] {
-		case "cgo_export_static", "cgo_export_dynamic":
-			if symabiRefs == nil {
-				symabiRefs = make(map[string]obj.ABI)
-			}
-			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
 }
@@ -392,77 +362,6 @@ func writebench(filename string) error {
 	}
 
 	return f.Close()
-}
-
-// symabiDefs and symabiRefs record the defined and referenced ABIs of
-// symbols required by non-Go code. These are keyed by link symbol
-// name, where the local package prefix is always `"".`
-var symabiDefs, symabiRefs map[string]obj.ABI
-
-// readSymABIs reads a symabis file that specifies definitions and
-// references of text symbols by ABI.
-//
-// The symabis format is a set of lines, where each line is a sequence
-// of whitespace-separated fields. The first field is a verb and is
-// either "def" for defining a symbol ABI or "ref" for referencing a
-// symbol using an ABI. For both "def" and "ref", the second field is
-// the symbol name and the third field is the ABI name, as one of the
-// named cmd/internal/obj.ABI constants.
-func readSymABIs(file, myimportpath string) {
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatalf("-symabis: %v", err)
-	}
-
-	symabiDefs = make(map[string]obj.ABI)
-	symabiRefs = make(map[string]obj.ABI)
-
-	localPrefix := ""
-	if myimportpath != "" {
-		// Symbols in this package may be written either as
-		// "".X or with the package's import path already in
-		// the symbol.
-		localPrefix = objabi.PathToPrefix(myimportpath) + "."
-	}
-
-	for lineNum, line := range strings.Split(string(data), "\n") {
-		lineNum++ // 1-based
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		parts := strings.Fields(line)
-		switch parts[0] {
-		case "def", "ref":
-			// Parse line.
-			if len(parts) != 3 {
-				log.Fatalf(`%s:%d: invalid symabi: syntax is "%s sym abi"`, file, lineNum, parts[0])
-			}
-			sym, abistr := parts[1], parts[2]
-			abi, valid := obj.ParseABI(abistr)
-			if !valid {
-				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abistr)
-			}
-
-			// If the symbol is already prefixed with
-			// myimportpath, rewrite it to start with ""
-			// so it matches the compiler's internal
-			// symbol names.
-			if localPrefix != "" && strings.HasPrefix(sym, localPrefix) {
-				sym = `"".` + sym[len(localPrefix):]
-			}
-
-			// Record for later.
-			if parts[0] == "def" {
-				symabiDefs[sym] = abi
-			} else {
-				symabiRefs[sym] = abi
-			}
-		default:
-			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
-		}
-	}
 }
 
 // recordFlags records the specified command-line flags to be placed
@@ -530,29 +429,6 @@ func recordPackageName() {
 	s.Set(obj.AttrDuplicateOK, true)
 	base.Ctxt.Data = append(base.Ctxt.Data, s)
 	s.P = []byte(types.LocalPkg.Name)
-}
-
-// useNewABIWrapGen returns TRUE if the compiler should generate an
-// ABI wrapper for the function 'f'.
-func useABIWrapGen(f *ir.Func) bool {
-	if !base.Flag.ABIWrap {
-		return false
-	}
-
-	// Support limit option for bisecting.
-	if base.Flag.ABIWrapLimit == 1 {
-		return false
-	}
-	if base.Flag.ABIWrapLimit < 1 {
-		return true
-	}
-	base.Flag.ABIWrapLimit--
-	if base.Debug.ABIWrap != 0 && base.Flag.ABIWrapLimit == 1 {
-		fmt.Fprintf(os.Stderr, "=-= limit reached after new wrapper for %s\n",
-			f.LSym.Name)
-	}
-
-	return true
 }
 
 func makePos(b *src.PosBase, line, col uint) src.XPos {

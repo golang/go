@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package ssagen
 
 import (
+	"container/heap"
+	"fmt"
+
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"container/heap"
-	"fmt"
 )
 
 // This file contains the algorithm to place phi nodes in a function.
@@ -23,13 +24,13 @@ const smallBlocks = 500
 
 const debugPhi = false
 
-// FwdRefAux wraps an arbitrary ir.Node as an ssa.Aux for use with OpFwdref.
-type FwdRefAux struct {
+// fwdRefAux wraps an arbitrary ir.Node as an ssa.Aux for use with OpFwdref.
+type fwdRefAux struct {
 	_ [0]func() // ensure ir.Node isn't compared for equality
 	N ir.Node
 }
 
-func (FwdRefAux) CanBeAnSSAAux() {}
+func (fwdRefAux) CanBeAnSSAAux() {}
 
 // insertPhis finds all the places in the function where a phi is
 // necessary and inserts them.
@@ -87,7 +88,7 @@ func (s *phiState) insertPhis() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			var_ := v.Aux.(FwdRefAux).N
+			var_ := v.Aux.(fwdRefAux).N
 
 			// Optimization: look back 1 block for the definition.
 			if len(b.Preds) == 1 {
@@ -334,7 +335,7 @@ func (s *phiState) resolveFwdRefs() {
 			if v.Op != ssa.OpFwdRef {
 				continue
 			}
-			n := s.varnum[v.Aux.(FwdRefAux).N]
+			n := s.varnum[v.Aux.(fwdRefAux).N]
 			v.Op = ssa.OpCopy
 			v.Aux = nil
 			v.AddArg(values[n])
@@ -465,7 +466,7 @@ func (s *simplePhiState) insertPhis() {
 				continue
 			}
 			s.fwdrefs = append(s.fwdrefs, v)
-			var_ := v.Aux.(FwdRefAux).N
+			var_ := v.Aux.(fwdRefAux).N
 			if _, ok := s.defvars[b.ID][var_]; !ok {
 				s.defvars[b.ID][var_] = v // treat FwdDefs as definitions.
 			}
@@ -479,7 +480,7 @@ loop:
 		v := s.fwdrefs[len(s.fwdrefs)-1]
 		s.fwdrefs = s.fwdrefs[:len(s.fwdrefs)-1]
 		b := v.Block
-		var_ := v.Aux.(FwdRefAux).N
+		var_ := v.Aux.(fwdRefAux).N
 		if b == s.f.Entry {
 			// No variable should be live at entry.
 			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
@@ -546,7 +547,7 @@ func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ ir.
 		}
 	}
 	// Generate a FwdRef for the variable and return that.
-	v := b.NewValue0A(line, ssa.OpFwdRef, t, FwdRefAux{N: var_})
+	v := b.NewValue0A(line, ssa.OpFwdRef, t, fwdRefAux{N: var_})
 	s.defvars[b.ID][var_] = v
 	if var_.Op() == ir.ONAME {
 		s.s.addNamedValue(var_.(*ir.Name), v)
