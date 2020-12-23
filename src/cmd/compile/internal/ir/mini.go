@@ -35,11 +35,6 @@ type miniNode struct {
 	esc  uint16
 }
 
-func (n *miniNode) Format(s fmt.State, verb rune)        { panic(1) }
-func (n *miniNode) copy() Node                           { panic(1) }
-func (n *miniNode) doChildren(do func(Node) error) error { panic(1) }
-func (n *miniNode) editChildren(edit func(Node) Node)    { panic(1) }
-
 // posOr returns pos if known, or else n.pos.
 // For use in DeepCopy.
 func (n *miniNode) posOr(pos src.XPos) src.XPos {
@@ -85,44 +80,11 @@ func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
 
 // Empty, immutable graph structure.
 
-func (n *miniNode) Left() Node       { return nil }
-func (n *miniNode) Right() Node      { return nil }
-func (n *miniNode) Init() Nodes      { return Nodes{} }
-func (n *miniNode) PtrInit() *Nodes  { return &immutableEmptyNodes }
-func (n *miniNode) Body() Nodes      { return Nodes{} }
-func (n *miniNode) PtrBody() *Nodes  { return &immutableEmptyNodes }
-func (n *miniNode) List() Nodes      { return Nodes{} }
-func (n *miniNode) PtrList() *Nodes  { return &immutableEmptyNodes }
-func (n *miniNode) Rlist() Nodes     { return Nodes{} }
-func (n *miniNode) PtrRlist() *Nodes { return &immutableEmptyNodes }
-func (n *miniNode) SetLeft(x Node) {
-	if x != nil {
-		panic(n.no("SetLeft"))
-	}
-}
-func (n *miniNode) SetRight(x Node) {
-	if x != nil {
-		panic(n.no("SetRight"))
-	}
-}
+func (n *miniNode) Init() Nodes     { return Nodes{} }
+func (n *miniNode) PtrInit() *Nodes { return &immutableEmptyNodes }
 func (n *miniNode) SetInit(x Nodes) {
 	if x != nil {
 		panic(n.no("SetInit"))
-	}
-}
-func (n *miniNode) SetBody(x Nodes) {
-	if x != nil {
-		panic(n.no("SetBody"))
-	}
-}
-func (n *miniNode) SetList(x Nodes) {
-	if x != nil {
-		panic(n.no("SetList"))
-	}
-}
-func (n *miniNode) SetRlist(x Nodes) {
-	if x != nil {
-		panic(n.no("SetRlist"))
 	}
 }
 
@@ -130,61 +92,15 @@ func (n *miniNode) SetRlist(x Nodes) {
 
 func (n *miniNode) no(name string) string { return "cannot " + name + " on " + n.op.String() }
 
-func (n *miniNode) SetOp(Op)            { panic(n.no("SetOp")) }
-func (n *miniNode) SubOp() Op           { panic(n.no("SubOp")) }
-func (n *miniNode) SetSubOp(Op)         { panic(n.no("SetSubOp")) }
-func (n *miniNode) Type() *types.Type   { return nil }
-func (n *miniNode) SetType(*types.Type) { panic(n.no("SetType")) }
-func (n *miniNode) Func() *Func         { return nil }
-func (n *miniNode) Name() *Name         { return nil }
-func (n *miniNode) Sym() *types.Sym     { return nil }
-func (n *miniNode) SetSym(*types.Sym)   { panic(n.no("SetSym")) }
-func (n *miniNode) Offset() int64       { return types.BADWIDTH }
-func (n *miniNode) SetOffset(x int64)   { panic(n.no("SetOffset")) }
-func (n *miniNode) Class() Class        { return Pxxx }
-func (n *miniNode) SetClass(Class)      { panic(n.no("SetClass")) }
-func (n *miniNode) Likely() bool        { panic(n.no("Likely")) }
-func (n *miniNode) SetLikely(bool)      { panic(n.no("SetLikely")) }
-func (n *miniNode) SliceBounds() (low, high, max Node) {
-	panic(n.no("SliceBounds"))
-}
-func (n *miniNode) SetSliceBounds(low, high, max Node) {
-	panic(n.no("SetSliceBounds"))
-}
-func (n *miniNode) Iota() int64               { panic(n.no("Iota")) }
-func (n *miniNode) SetIota(int64)             { panic(n.no("SetIota")) }
-func (n *miniNode) Colas() bool               { return false }
-func (n *miniNode) SetColas(bool)             { panic(n.no("SetColas")) }
-func (n *miniNode) NoInline() bool            { panic(n.no("NoInline")) }
-func (n *miniNode) SetNoInline(bool)          { panic(n.no("SetNoInline")) }
-func (n *miniNode) Transient() bool           { panic(n.no("Transient")) }
-func (n *miniNode) SetTransient(bool)         { panic(n.no("SetTransient")) }
-func (n *miniNode) Implicit() bool            { return false }
-func (n *miniNode) SetImplicit(bool)          { panic(n.no("SetImplicit")) }
-func (n *miniNode) IsDDD() bool               { return false }
-func (n *miniNode) SetIsDDD(bool)             { panic(n.no("SetIsDDD")) }
-func (n *miniNode) Embedded() bool            { return false }
-func (n *miniNode) SetEmbedded(bool)          { panic(n.no("SetEmbedded")) }
-func (n *miniNode) IndexMapLValue() bool      { panic(n.no("IndexMapLValue")) }
-func (n *miniNode) SetIndexMapLValue(bool)    { panic(n.no("SetIndexMapLValue")) }
-func (n *miniNode) ResetAux()                 { panic(n.no("ResetAux")) }
-func (n *miniNode) HasBreak() bool            { panic(n.no("HasBreak")) }
-func (n *miniNode) SetHasBreak(bool)          { panic(n.no("SetHasBreak")) }
-func (n *miniNode) Val() constant.Value       { panic(n.no("Val")) }
-func (n *miniNode) SetVal(v constant.Value)   { panic(n.no("SetVal")) }
-func (n *miniNode) Int64Val() int64           { panic(n.no("Int64Val")) }
-func (n *miniNode) Uint64Val() uint64         { panic(n.no("Uint64Val")) }
-func (n *miniNode) CanInt64() bool            { panic(n.no("CanInt64")) }
-func (n *miniNode) BoolVal() bool             { panic(n.no("BoolVal")) }
-func (n *miniNode) StringVal() string         { panic(n.no("StringVal")) }
-func (n *miniNode) HasCall() bool             { return false }
-func (n *miniNode) SetHasCall(bool)           { panic(n.no("SetHasCall")) }
-func (n *miniNode) NonNil() bool              { return false }
-func (n *miniNode) MarkNonNil()               { panic(n.no("MarkNonNil")) }
-func (n *miniNode) Bounded() bool             { return false }
-func (n *miniNode) SetBounded(bool)           { panic(n.no("SetBounded")) }
-func (n *miniNode) Opt() interface{}          { return nil }
-func (n *miniNode) SetOpt(interface{})        { panic(n.no("SetOpt")) }
-func (n *miniNode) MarkReadonly()             { panic(n.no("MarkReadonly")) }
-func (n *miniNode) TChanDir() types.ChanDir   { panic(n.no("TChanDir")) }
-func (n *miniNode) SetTChanDir(types.ChanDir) { panic(n.no("SetTChanDir")) }
+func (n *miniNode) Type() *types.Type       { return nil }
+func (n *miniNode) SetType(*types.Type)     { panic(n.no("SetType")) }
+func (n *miniNode) Name() *Name             { return nil }
+func (n *miniNode) Sym() *types.Sym         { return nil }
+func (n *miniNode) Val() constant.Value     { panic(n.no("Val")) }
+func (n *miniNode) SetVal(v constant.Value) { panic(n.no("SetVal")) }
+func (n *miniNode) HasCall() bool           { return false }
+func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
+func (n *miniNode) NonNil() bool            { return false }
+func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }
+func (n *miniNode) Opt() interface{}        { return nil }
+func (n *miniNode) SetOpt(interface{})      { panic(n.no("SetOpt")) }

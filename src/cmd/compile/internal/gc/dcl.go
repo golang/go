@@ -229,6 +229,7 @@ func oldname(s *types.Sym) ir.Node {
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
+		n := n.(*ir.Name)
 		c := n.Name().Innermost
 		if c == nil || c.Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
@@ -890,6 +891,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	arg := n.List().First()
 	switch arg.Op() {
 	case ir.ONAME:
+		arg := arg.(*ir.Name)
 		callee = arg.Name().Defn.(*ir.Func)
 	case ir.OCLOSURE:
 		arg := arg.(*ir.ClosureExpr)

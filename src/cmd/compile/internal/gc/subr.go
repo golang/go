@@ -612,6 +612,7 @@ func calcHasCall(n ir.Node) bool {
 		return true
 	case ir.OANDAND, ir.OOROR:
 		// hard with instrumented code
+		n := n.(*ir.LogicalExpr)
 		if instrumenting {
 			return true
 		}
@@ -625,42 +626,52 @@ func calcHasCall(n ir.Node) bool {
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
 	case ir.OADD, ir.OSUB, ir.OMUL:
+		n := n.(*ir.BinaryExpr)
 		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.Left().HasCall() || n.Right().HasCall()
 	case ir.ONEG:
+		n := n.(*ir.UnaryExpr)
 		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.Left().HasCall()
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
+		n := n.(*ir.BinaryExpr)
 		if thearch.SoftFloat && (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()]) {
 			return true
 		}
 		return n.Left().HasCall() || n.Right().HasCall()
 	case ir.OCONV:
+		n := n.(*ir.ConvExpr)
 		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()])) {
 			return true
 		}
 		return n.Left().HasCall()
 
 	case ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOPY, ir.OCOMPLEX, ir.OEFACE:
+		n := n.(*ir.BinaryExpr)
 		return n.Left().HasCall() || n.Right().HasCall()
 
 	case ir.OAS:
+		n := n.(*ir.AssignStmt)
 		return n.Left().HasCall() || n.Right() != nil && n.Right().HasCall()
 
 	case ir.OADDR:
+		n := n.(*ir.AddrExpr)
 		return n.Left().HasCall()
 	case ir.OPAREN:
+		n := n.(*ir.ParenExpr)
 		return n.Left().HasCall()
 	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
 		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
 		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
 		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.ONEWOBJ, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
+		n := n.(*ir.UnaryExpr)
 		return n.Left().HasCall()
 	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
+		n := n.(*ir.SelectorExpr)
 		return n.Left().HasCall()
 
 	case ir.OGETG, ir.OCLOSUREREAD, ir.OMETHEXPR:
@@ -675,12 +686,15 @@ func calcHasCall(n ir.Node) bool {
 		return false
 	case ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.OBYTES2STRTMP, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2BYTESTMP, ir.OSTR2RUNES, ir.ORUNESTR:
 		// TODO(rsc): Some conversions are themselves calls, no?
+		n := n.(*ir.ConvExpr)
 		return n.Left().HasCall()
 	case ir.ODOTTYPE2:
 		// TODO(rsc): Shouldn't this be up with ODOTTYPE above?
+		n := n.(*ir.TypeAssertExpr)
 		return n.Left().HasCall()
 	case ir.OSLICEHEADER:
 		// TODO(rsc): What about len and cap?
+		n := n.(*ir.SliceHeaderExpr)
 		return n.Left().HasCall()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC:
 		// TODO(rsc): Surely we need to check List and Rlist.
@@ -768,6 +782,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return n
 
 	case ir.OLEN, ir.OCAP:
+		n := n.(*ir.UnaryExpr)
 		l := safeexpr(n.Left(), init)
 		if l == n.Left() {
 			return n
@@ -777,6 +792,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.ODOT, ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
 		l := safeexpr(n.Left(), init)
 		if l == n.Left() {
 			return n
@@ -786,6 +802,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.ODEREF:
+		n := n.(*ir.StarExpr)
 		l := safeexpr(n.Left(), init)
 		if l == n.Left() {
 			return n
@@ -795,6 +812,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OINDEX, ir.OINDEXMAP:
+		n := n.(*ir.IndexExpr)
 		l := safeexpr(n.Left(), init)
 		r := safeexpr(n.Right(), init)
 		if l == n.Left() && r == n.Right() {
@@ -806,6 +824,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT:
+		n := n.(*ir.CompLitExpr)
 		if isStaticCompositeLiteral(n) {
 			return n
 		}

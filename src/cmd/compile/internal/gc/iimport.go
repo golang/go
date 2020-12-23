@@ -756,6 +756,7 @@ func (r *importReader) stmtList() []ir.Node {
 		// but the handling of ODCL calls liststmt, which creates one.
 		// Inline them into the statement list.
 		if n.Op() == ir.OBLOCK {
+			n := n.(*ir.BlockStmt)
 			list = append(list, n.List().Slice()...)
 		} else {
 			list = append(list, n)
@@ -802,6 +803,7 @@ func (r *importReader) exprList() []ir.Node {
 func (r *importReader) expr() ir.Node {
 	n := r.node()
 	if n != nil && n.Op() == ir.OBLOCK {
+		n := n.(*ir.BlockStmt)
 		base.Fatalf("unexpected block node: %v", n)
 	}
 	return n

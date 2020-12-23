@@ -13,6 +13,7 @@ import (
 func evalunsafe(n ir.Node) int64 {
 	switch n.Op() {
 	case ir.OALIGNOF, ir.OSIZEOF:
+		n := n.(*ir.UnaryExpr)
 		n.SetLeft(typecheck(n.Left(), ctxExpr))
 		n.SetLeft(defaultlit(n.Left(), nil))
 		tr := n.Left().Type()
@@ -27,6 +28,7 @@ func evalunsafe(n ir.Node) int64 {
 
 	case ir.OOFFSETOF:
 		// must be a selector.
+		n := n.(*ir.UnaryExpr)
 		if n.Left().Op() != ir.OXDOT {
 			base.Errorf("invalid expression %v", n)
 			return 0
@@ -64,12 +66,14 @@ func evalunsafe(n ir.Node) int64 {
 				// For Offsetof(s.f), s may itself be a pointer,
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
+				r := r.(*ir.SelectorExpr)
 				if r.Left() != sbase {
 					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.Left())
 					return 0
 				}
 				fallthrough
 			case ir.ODOT:
+				r := r.(*ir.SelectorExpr)
 				v += r.Offset()
 				next = r.Left()
 			default:

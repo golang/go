@@ -254,10 +254,13 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 	d := initDeps{transitive: transitive}
 	switch n.Op() {
 	case ir.OAS:
+		n := n.(*ir.AssignStmt)
 		d.inspect(n.Right())
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+		n := n.(*ir.AssignListStmt)
 		d.inspect(n.Rlist().First())
 	case ir.ODCLFUNC:
+		n := n.(*ir.Func)
 		d.inspectList(n.Body())
 	default:
 		base.Fatalf("unexpected Op: %v", n.Op())
@@ -286,6 +289,7 @@ func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
 func (d *initDeps) visit(n ir.Node) {
 	switch n.Op() {
 	case ir.OMETHEXPR:
+		n := n.(*ir.MethodExpr)
 		d.foundDep(methodExprName(n))
 
 	case ir.ONAME:
@@ -355,8 +359,10 @@ func (s *declOrder) Pop() interface{} {
 func firstLHS(n ir.Node) *ir.Name {
 	switch n.Op() {
 	case ir.OAS:
+		n := n.(*ir.AssignStmt)
 		return n.Left().Name()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2RECV, ir.OAS2MAPR:
+		n := n.(*ir.AssignListStmt)
 		return n.List().First().Name()
 	}
 
