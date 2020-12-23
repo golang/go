@@ -11,33 +11,6 @@ import (
 	"cmd/internal/src"
 )
 
-// range
-func typecheckrange(n *ir.RangeStmt) {
-	// Typechecking order is important here:
-	// 0. first typecheck range expression (slice/map/chan),
-	//	it is evaluated only once and so logically it is not part of the loop.
-	// 1. typecheck produced values,
-	//	this part can declare new vars and so it must be typechecked before body,
-	//	because body can contain a closure that captures the vars.
-	// 2. decldepth++ to denote loop body.
-	// 3. typecheck body.
-	// 4. decldepth--.
-	typecheckrangeExpr(n)
-
-	// second half of dance, the first half being typecheckrangeExpr
-	n.SetTypecheck(1)
-	ls := n.Vars
-	for i1, n1 := range ls {
-		if n1.Typecheck() == 0 {
-			ls[i1] = AssignExpr(ls[i1])
-		}
-	}
-
-	decldepth++
-	Stmts(n.Body)
-	decldepth--
-}
-
 func typecheckrangeExpr(n *ir.RangeStmt) {
 	n.X = Expr(n.X)
 
@@ -136,8 +109,326 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 	}
 }
 
+// type check assignment.
+// if this assignment is the definition of a var on the left side,
+// fill in the var's type.
+func tcAssign(n *ir.AssignStmt) {
+	if base.EnableTrace && base.Flag.LowerT {
+		defer tracePrint("typecheckas", n)(nil)
+	}
+
+	// delicate little dance.
+	// the definition of n may refer to this assignment
+	// as its definition, in which case it will call typecheckas.
+	// in that case, do not call typecheck back, or it will cycle.
+	// if the variable has a type (ntype) then typechecking
+	// will not look at defn, so it is okay (and desirable,
+	// so that the conversion below happens).
+	n.X = Resolve(n.X)
+
+	if !ir.DeclaredBy(n.X, n) || n.X.Name().Ntype != nil {
+		n.X = AssignExpr(n.X)
+	}
+
+	// Use ctxMultiOK so we can emit an "N variables but M values" error
+	// to be consistent with typecheckas2 (#26616).
+	n.Y = typecheck(n.Y, ctxExpr|ctxMultiOK)
+	checkassign(n, n.X)
+	if n.Y != nil && n.Y.Type() != nil {
+		if n.Y.Type().IsFuncArgStruct() {
+			base.Errorf("assignment mismatch: 1 variable but %v returns %d values", n.Y.(*ir.CallExpr).X, n.Y.Type().NumFields())
+			// Multi-value RHS isn't actually valid for OAS; nil out
+			// to indicate failed typechecking.
+			n.Y.SetType(nil)
+		} else if n.X.Type() != nil {
+			n.Y = AssignConv(n.Y, n.X.Type(), "assignment")
+		}
+	}
+
+	if ir.DeclaredBy(n.X, n) && n.X.Name().Ntype == nil {
+		n.Y = DefaultLit(n.Y, nil)
+		n.X.SetType(n.Y.Type())
+	}
+
+	// second half of dance.
+	// now that right is done, typecheck the left
+	// just to get it over with.  see dance above.
+	n.SetTypecheck(1)
+
+	if n.X.Typecheck() == 0 {
+		n.X = AssignExpr(n.X)
+	}
+	if !ir.IsBlank(n.X) {
+		types.CheckSize(n.X.Type()) // ensure width is calculated for backend
+	}
+}
+
+func tcAssignList(n *ir.AssignListStmt) {
+	if base.EnableTrace && base.Flag.LowerT {
+		defer tracePrint("typecheckas2", n)(nil)
+	}
+
+	ls := n.Lhs
+	for i1, n1 := range ls {
+		// delicate little dance.
+		n1 = Resolve(n1)
+		ls[i1] = n1
+
+		if !ir.DeclaredBy(n1, n) || n1.Name().Ntype != nil {
+			ls[i1] = AssignExpr(ls[i1])
+		}
+	}
+
+	cl := len(n.Lhs)
+	cr := len(n.Rhs)
+	if cl > 1 && cr == 1 {
+		n.Rhs[0] = typecheck(n.Rhs[0], ctxExpr|ctxMultiOK)
+	} else {
+		Exprs(n.Rhs)
+	}
+	checkassignlist(n, n.Lhs)
+
+	var l ir.Node
+	var r ir.Node
+	if cl == cr {
+		// easy
+		ls := n.Lhs
+		rs := n.Rhs
+		for il, nl := range ls {
+			nr := rs[il]
+			if nl.Type() != nil && nr.Type() != nil {
+				rs[il] = AssignConv(nr, nl.Type(), "assignment")
+			}
+			if ir.DeclaredBy(nl, n) && nl.Name().Ntype == nil {
+				rs[il] = DefaultLit(rs[il], nil)
+				nl.SetType(rs[il].Type())
+			}
+		}
+
+		goto out
+	}
+
+	l = n.Lhs[0]
+	r = n.Rhs[0]
+
+	// x,y,z = f()
+	if cr == 1 {
+		if r.Type() == nil {
+			goto out
+		}
+		switch r.Op() {
+		case ir.OCALLMETH, ir.OCALLINTER, ir.OCALLFUNC:
+			if !r.Type().IsFuncArgStruct() {
+				break
+			}
+			cr = r.Type().NumFields()
+			if cr != cl {
+				goto mismatch
+			}
+			r.(*ir.CallExpr).Use = ir.CallUseList
+			n.SetOp(ir.OAS2FUNC)
+			for i, l := range n.Lhs {
+				f := r.Type().Field(i)
+				if f.Type != nil && l.Type() != nil {
+					checkassignto(f.Type, l)
+				}
+				if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
+					l.SetType(f.Type)
+				}
+			}
+			goto out
+		}
+	}
+
+	// x, ok = y
+	if cl == 2 && cr == 1 {
+		if r.Type() == nil {
+			goto out
+		}
+		switch r.Op() {
+		case ir.OINDEXMAP, ir.ORECV, ir.ODOTTYPE:
+			switch r.Op() {
+			case ir.OINDEXMAP:
+				n.SetOp(ir.OAS2MAPR)
+			case ir.ORECV:
+				n.SetOp(ir.OAS2RECV)
+			case ir.ODOTTYPE:
+				r := r.(*ir.TypeAssertExpr)
+				n.SetOp(ir.OAS2DOTTYPE)
+				r.SetOp(ir.ODOTTYPE2)
+			}
+			if l.Type() != nil {
+				checkassignto(r.Type(), l)
+			}
+			if ir.DeclaredBy(l, n) {
+				l.SetType(r.Type())
+			}
+			l := n.Lhs[1]
+			if l.Type() != nil && !l.Type().IsBoolean() {
+				checkassignto(types.Types[types.TBOOL], l)
+			}
+			if ir.DeclaredBy(l, n) && l.Name().Ntype == nil {
+				l.SetType(types.Types[types.TBOOL])
+			}
+			goto out
+		}
+	}
+
+mismatch:
+	switch r.Op() {
+	default:
+		base.Errorf("assignment mismatch: %d variables but %d values", cl, cr)
+	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+		r := r.(*ir.CallExpr)
+		base.Errorf("assignment mismatch: %d variables but %v returns %d values", cl, r.X, cr)
+	}
+
+	// second half of dance
+out:
+	n.SetTypecheck(1)
+	ls = n.Lhs
+	for i1, n1 := range ls {
+		if n1.Typecheck() == 0 {
+			ls[i1] = AssignExpr(ls[i1])
+		}
+	}
+}
+
+// tcFor typechecks an OFOR node.
+func tcFor(n *ir.ForStmt) ir.Node {
+	Stmts(n.Init())
+	decldepth++
+	n.Cond = Expr(n.Cond)
+	n.Cond = DefaultLit(n.Cond, nil)
+	if n.Cond != nil {
+		t := n.Cond.Type()
+		if t != nil && !t.IsBoolean() {
+			base.Errorf("non-bool %L used as for condition", n.Cond)
+		}
+	}
+	n.Post = Stmt(n.Post)
+	if n.Op() == ir.OFORUNTIL {
+		Stmts(n.Late)
+	}
+	Stmts(n.Body)
+	decldepth--
+	return n
+}
+
+func tcGoDefer(n *ir.GoDeferStmt) {
+	what := "defer"
+	if n.Op() == ir.OGO {
+		what = "go"
+	}
+
+	switch n.Call.Op() {
+	// ok
+	case ir.OCALLINTER,
+		ir.OCALLMETH,
+		ir.OCALLFUNC,
+		ir.OCLOSE,
+		ir.OCOPY,
+		ir.ODELETE,
+		ir.OPANIC,
+		ir.OPRINT,
+		ir.OPRINTN,
+		ir.ORECOVER:
+		return
+
+	case ir.OAPPEND,
+		ir.OCAP,
+		ir.OCOMPLEX,
+		ir.OIMAG,
+		ir.OLEN,
+		ir.OMAKE,
+		ir.OMAKESLICE,
+		ir.OMAKECHAN,
+		ir.OMAKEMAP,
+		ir.ONEW,
+		ir.OREAL,
+		ir.OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
+		if orig := ir.Orig(n.Call); orig.Op() == ir.OCONV {
+			break
+		}
+		base.ErrorfAt(n.Pos(), "%s discards result of %v", what, n.Call)
+		return
+	}
+
+	// type is broken or missing, most likely a method call on a broken type
+	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+	if n.Call.Type() == nil || n.Call.Type().Broke() {
+		return
+	}
+
+	if !n.Diag() {
+		// The syntax made sure it was a call, so this must be
+		// a conversion.
+		n.SetDiag(true)
+		base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
+	}
+}
+
+// tcIf typechecks an OIF node.
+func tcIf(n *ir.IfStmt) ir.Node {
+	Stmts(n.Init())
+	n.Cond = Expr(n.Cond)
+	n.Cond = DefaultLit(n.Cond, nil)
+	if n.Cond != nil {
+		t := n.Cond.Type()
+		if t != nil && !t.IsBoolean() {
+			base.Errorf("non-bool %L used as if condition", n.Cond)
+		}
+	}
+	Stmts(n.Body)
+	Stmts(n.Else)
+	return n
+}
+
+// range
+func tcRange(n *ir.RangeStmt) {
+	// Typechecking order is important here:
+	// 0. first typecheck range expression (slice/map/chan),
+	//	it is evaluated only once and so logically it is not part of the loop.
+	// 1. typecheck produced values,
+	//	this part can declare new vars and so it must be typechecked before body,
+	//	because body can contain a closure that captures the vars.
+	// 2. decldepth++ to denote loop body.
+	// 3. typecheck body.
+	// 4. decldepth--.
+	typecheckrangeExpr(n)
+
+	// second half of dance, the first half being typecheckrangeExpr
+	n.SetTypecheck(1)
+	ls := n.Vars
+	for i1, n1 := range ls {
+		if n1.Typecheck() == 0 {
+			ls[i1] = AssignExpr(ls[i1])
+		}
+	}
+
+	decldepth++
+	Stmts(n.Body)
+	decldepth--
+}
+
+// tcReturn typechecks an ORETURN node.
+func tcReturn(n *ir.ReturnStmt) ir.Node {
+	typecheckargs(n)
+	if ir.CurFunc == nil {
+		base.Errorf("return outside function")
+		n.SetType(nil)
+		return n
+	}
+
+	if ir.HasNamedResults(ir.CurFunc) && len(n.Results) == 0 {
+		return n
+	}
+	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
+	return n
+}
+
 // select
-func typecheckselect(sel *ir.SelectStmt) {
+func tcSelect(sel *ir.SelectStmt) {
 	var def ir.Node
 	lno := ir.SetPos(sel)
 	Stmts(sel.Init())
@@ -219,35 +510,43 @@ func typecheckselect(sel *ir.SelectStmt) {
 	base.Pos = lno
 }
 
-type typeSet struct {
-	m map[string][]typeSetEntry
-}
-
-func (s *typeSet) add(pos src.XPos, typ *types.Type) {
-	if s.m == nil {
-		s.m = make(map[string][]typeSetEntry)
+// tcSend typechecks an OSEND node.
+func tcSend(n *ir.SendStmt) ir.Node {
+	n.Chan = Expr(n.Chan)
+	n.Value = Expr(n.Value)
+	n.Chan = DefaultLit(n.Chan, nil)
+	t := n.Chan.Type()
+	if t == nil {
+		return n
+	}
+	if !t.IsChan() {
+		base.Errorf("invalid operation: %v (send to non-chan type %v)", n, t)
+		return n
 	}
 
-	// LongString does not uniquely identify types, so we need to
-	// disambiguate collisions with types.Identical.
-	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.LongString()
-	prevs := s.m[ls]
-	for _, prev := range prevs {
-		if types.Identical(typ, prev.typ) {
-			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
-			return
-		}
+	if !t.ChanDir().CanSend() {
+		base.Errorf("invalid operation: %v (send to receive-only type %v)", n, t)
+		return n
 	}
-	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
+
+	n.Value = AssignConv(n.Value, t.Elem(), "send")
+	if n.Value.Type() == nil {
+		return n
+	}
+	return n
 }
 
-type typeSetEntry struct {
-	pos src.XPos
-	typ *types.Type
+// tcSwitch typechecks a switch statement.
+func tcSwitch(n *ir.SwitchStmt) {
+	Stmts(n.Init())
+	if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
+		tcSwitchType(n)
+	} else {
+		tcSwitchExpr(n)
+	}
 }
 
-func typecheckExprSwitch(n *ir.SwitchStmt) {
+func tcSwitchExpr(n *ir.SwitchStmt) {
 	t := types.Types[types.TBOOL]
 	if n.Tag != nil {
 		n.Tag = Expr(n.Tag)
@@ -328,7 +627,7 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 	}
 }
 
-func typecheckTypeSwitch(n *ir.SwitchStmt) {
+func tcSwitchType(n *ir.SwitchStmt) {
 	guard := n.Tag.(*ir.TypeSwitchGuard)
 	guard.X = Expr(guard.X)
 	t := guard.X.Type()
@@ -358,7 +657,7 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 		}
 
 		for i := range ls {
-			ls[i] = check(ls[i], ctxExpr|ctxType)
+			ls[i] = typecheck(ls[i], ctxExpr|ctxType)
 			n1 := ls[i]
 			if t == nil || n1.Type() == nil {
 				continue
@@ -424,12 +723,30 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 	}
 }
 
-// typecheckswitch typechecks a switch statement.
-func typecheckswitch(n *ir.SwitchStmt) {
-	Stmts(n.Init())
-	if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
-		typecheckTypeSwitch(n)
-	} else {
-		typecheckExprSwitch(n)
+type typeSet struct {
+	m map[string][]typeSetEntry
+}
+
+type typeSetEntry struct {
+	pos src.XPos
+	typ *types.Type
+}
+
+func (s *typeSet) add(pos src.XPos, typ *types.Type) {
+	if s.m == nil {
+		s.m = make(map[string][]typeSetEntry)
 	}
+
+	// LongString does not uniquely identify types, so we need to
+	// disambiguate collisions with types.Identical.
+	// TODO(mdempsky): Add a method that *is* unique.
+	ls := typ.LongString()
+	prevs := s.m[ls]
+	for _, prev := range prevs {
+		if types.Identical(typ, prev.typ) {
+			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
+			return
+		}
+	}
+	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
 }
