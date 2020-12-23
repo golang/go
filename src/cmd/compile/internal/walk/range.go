@@ -32,11 +32,11 @@ func cheapComputableIndex(width int64) bool {
 	return false
 }
 
-// walkrange transforms various forms of ORANGE into
+// walkRange transforms various forms of ORANGE into
 // simpler forms.  The result must be assigned back to n.
 // Node n may also be modified in place, and may also be
 // the returned node.
-func walkrange(nrange *ir.RangeStmt) ir.Node {
+func walkRange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
 		m := nrange.X
 		lno := ir.SetPos(m)
@@ -325,7 +325,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		n = ifGuard
 	}
 
-	n = walkstmt(n)
+	n = walkStmt(n)
 
 	base.Pos = lno
 	return n
@@ -387,7 +387,7 @@ func mapClear(m ir.Node) ir.Node {
 	fn := typecheck.LookupRuntime("mapclear")
 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
 	n := mkcall1(fn, nil, nil, reflectdata.TypePtr(t), m)
-	return walkstmt(typecheck.Stmt(n))
+	return walkStmt(typecheck.Stmt(n))
 }
 
 // Lower n into runtime·memclr if possible, for
@@ -477,7 +477,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	n.Cond = typecheck.Expr(n.Cond)
 	n.Cond = typecheck.DefaultLit(n.Cond, nil)
 	typecheck.Stmts(n.Body)
-	return walkstmt(n)
+	return walkStmt(n)
 }
 
 // addptr returns (*T)(uintptr(p) + n).

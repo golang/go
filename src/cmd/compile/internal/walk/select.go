@@ -11,7 +11,7 @@ import (
 	"cmd/compile/internal/types"
 )
 
-func walkselect(sel *ir.SelectStmt) {
+func walkSelect(sel *ir.SelectStmt) {
 	lno := ir.SetPos(sel)
 	if len(sel.Compiled) != 0 {
 		base.Fatalf("double walkselect")
@@ -20,16 +20,16 @@ func walkselect(sel *ir.SelectStmt) {
 	init := sel.Init()
 	sel.PtrInit().Set(nil)
 
-	init = append(init, walkselectcases(sel.Cases)...)
+	init = append(init, walkSelectCases(sel.Cases)...)
 	sel.Cases = ir.Nodes{}
 
 	sel.Compiled.Set(init)
-	walkstmtlist(sel.Compiled)
+	walkStmtList(sel.Compiled)
 
 	base.Pos = lno
 }
 
-func walkselectcases(cases ir.Nodes) []ir.Node {
+func walkSelectCases(cases ir.Nodes) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 

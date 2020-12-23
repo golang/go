@@ -7,12 +7,29 @@ package walk
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
+
+// walkCompLit walks a composite literal node:
+// OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT (all CompLitExpr), or OPTRLIT (AddrExpr).
+func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
+	if isStaticCompositeLiteral(n) && !ssagen.TypeOK(n.Type()) {
+		n := n.(*ir.CompLitExpr) // not OPTRLIT
+		// n can be directly represented in the read-only data section.
+		// Make direct reference to the static data. See issue 12841.
+		vstat := readonlystaticname(n.Type())
+		fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+		return typecheck.Expr(vstat)
+	}
+	var_ := typecheck.Temp(n.Type())
+	anylit(n, var_, init)
+	return var_
+}
 
 // initContext is the context in which static data is populated.
 // It is either in an init function or in any other function.
@@ -245,7 +262,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 			genAsStatic(as)
 		case initKindDynamic, initKindLocalCode:
 			a = orderStmtInPlace(as, map[string][]*ir.Name{})
-			a = walkstmt(a)
+			a = walkStmt(a)
 			init.Append(a)
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
@@ -403,7 +420,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		ir.SetPos(value)
 		as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, a, value))
 		as = orderStmtInPlace(as, map[string][]*ir.Name{})
-		as = walkstmt(as)
+		as = walkStmt(as)
 		init.Append(as)
 	}
 
@@ -412,7 +429,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 	a = typecheck.Stmt(a)
 	a = orderStmtInPlace(a, map[string][]*ir.Name{})
-	a = walkstmt(a)
+	a = walkStmt(a)
 	init.Append(a)
 }
 

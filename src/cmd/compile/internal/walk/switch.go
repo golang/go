@@ -16,23 +16,23 @@ import (
 	"cmd/internal/src"
 )
 
-// walkswitch walks a switch statement.
-func walkswitch(sw *ir.SwitchStmt) {
+// walkSwitch walks a switch statement.
+func walkSwitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
 	if len(sw.Cases) == 0 && len(sw.Compiled) > 0 {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
 	}
 
 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
-		walkTypeSwitch(sw)
+		walkSwitchType(sw)
 	} else {
-		walkExprSwitch(sw)
+		walkSwitchExpr(sw)
 	}
 }
 
-// walkExprSwitch generates an AST implementing sw.  sw is an
+// walkSwitchExpr generates an AST implementing sw.  sw is an
 // expression switch.
-func walkExprSwitch(sw *ir.SwitchStmt) {
+func walkSwitchExpr(sw *ir.SwitchStmt) {
 	lno := ir.SetPos(sw)
 
 	cond := sw.Tag
@@ -57,9 +57,9 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 		cond.SetOp(ir.OBYTES2STRTMP)
 	}
 
-	cond = walkexpr(cond, sw.PtrInit())
+	cond = walkExpr(cond, sw.PtrInit())
 	if cond.Op() != ir.OLITERAL && cond.Op() != ir.ONIL {
-		cond = copyexpr(cond, cond.Type(), &sw.Compiled)
+		cond = copyExpr(cond, cond.Type(), &sw.Compiled)
 	}
 
 	base.Pos = lno
@@ -107,7 +107,7 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 	s.Emit(&sw.Compiled)
 	sw.Compiled.Append(defaultGoto)
 	sw.Compiled.Append(body.Take()...)
-	walkstmtlist(sw.Compiled)
+	walkStmtList(sw.Compiled)
 }
 
 // An exprSwitch walks an expression switch.
@@ -287,15 +287,15 @@ func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
 	return stmts[i].Op() == ir.OFALL, stmts[i].Pos()
 }
 
-// walkTypeSwitch generates an AST that implements sw, where sw is a
+// walkSwitchType generates an AST that implements sw, where sw is a
 // type switch.
-func walkTypeSwitch(sw *ir.SwitchStmt) {
+func walkSwitchType(sw *ir.SwitchStmt) {
 	var s typeSwitch
 	s.facename = sw.Tag.(*ir.TypeSwitchGuard).X
 	sw.Tag = nil
 
-	s.facename = walkexpr(s.facename, sw.PtrInit())
-	s.facename = copyexpr(s.facename, s.facename.Type(), &sw.Compiled)
+	s.facename = walkExpr(s.facename, sw.PtrInit())
+	s.facename = copyExpr(s.facename, s.facename.Type(), &sw.Compiled)
 	s.okname = typecheck.Temp(types.Types[types.TBOOL])
 
 	// Get interface descriptor word.
@@ -327,7 +327,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime.itab
 	}
 	dotHash.SetBounded(true) // guaranteed not to fault
-	s.hashname = copyexpr(dotHash, dotHash.Type(), &sw.Compiled)
+	s.hashname = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
 
 	br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
 	var defaultGoto, nilGoto ir.Node
@@ -409,7 +409,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 	sw.Compiled.Append(defaultGoto)
 	sw.Compiled.Append(body.Take()...)
 
-	walkstmtlist(sw.Compiled)
+	walkStmtList(sw.Compiled)
 }
 
 // A typeSwitch walks a type switch.
