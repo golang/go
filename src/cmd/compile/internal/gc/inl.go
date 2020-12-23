@@ -377,6 +377,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 
 	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLMETH:
+		n := n.(*ir.CallExpr)
 		t := n.Left().Type()
 		if t == nil {
 			base.Fatalf("no function type for [%p] %+v\n", n.Left(), n.Left())
@@ -429,22 +430,26 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		return nil
 
 	case ir.OFOR, ir.OFORUNTIL:
+		n := n.(*ir.ForStmt)
 		if n.Sym() != nil {
 			return errors.New("labeled control")
 		}
 	case ir.OSWITCH:
+		n := n.(*ir.SwitchStmt)
 		if n.Sym() != nil {
 			return errors.New("labeled control")
 		}
 	// case ir.ORANGE, ir.OSELECT in "unhandled" above
 
 	case ir.OBREAK, ir.OCONTINUE:
+		n := n.(*ir.BranchStmt)
 		if n.Sym() != nil {
 			// Should have short-circuited due to labeled control error above.
 			base.Fatalf("unexpected labeled break/continue: %v", n)
 		}
 
 	case ir.OIF:
+		n := n.(*ir.IfStmt)
 		if ir.IsConst(n.Left(), constant.Bool) {
 			// This if and the condition cost nothing.
 			// TODO(rsc): It seems strange that we visit the dead branch.
@@ -569,8 +574,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	switch n.Op() {
 	case ir.ODEFER, ir.OGO:
+		n := n.(*ir.GoDeferStmt)
 		switch call := n.Left(); call.Op() {
 		case ir.OCALLFUNC, ir.OCALLMETH:
+			call := call.(*ir.CallExpr)
 			call.SetNoInline(true)
 		}
 
@@ -581,6 +588,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	case ir.OCALLMETH:
 		// Prevent inlining some reflect.Value methods when using checkptr,
 		// even when package reflect was compiled without it (#35073).
+		n := n.(*ir.CallExpr)
 		if s := n.Left().Sym(); base.Debug.Checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
 			return n
 		}
@@ -591,6 +599,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	ir.EditChildren(n, edit)
 
 	if as := n; as.Op() == ir.OAS2FUNC {
+		as := as.(*ir.AssignListStmt)
 		if as.Rlist().First().Op() == ir.OINLCALL {
 			as.PtrRlist().Set(inlconv2list(as.Rlist().First().(*ir.InlinedCallExpr)))
 			as.SetOp(ir.OAS2)
@@ -604,6 +613,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	// switch at the top of this function.
 	switch n.Op() {
 	case ir.OCALLFUNC, ir.OCALLMETH:
+		n := n.(*ir.CallExpr)
 		if n.NoInline() {
 			return n
 		}
@@ -673,6 +683,7 @@ func inlCallee(fn ir.Node) *ir.Func {
 		}
 		return n.Func()
 	case ir.ONAME:
+		fn := fn.(*ir.Name)
 		if fn.Class() == ir.PFUNC {
 			return fn.Func()
 		}
@@ -721,8 +732,10 @@ func staticValue1(nn ir.Node) ir.Node {
 FindRHS:
 	switch defn.Op() {
 	case ir.OAS:
+		defn := defn.(*ir.AssignStmt)
 		rhs = defn.Right()
 	case ir.OAS2:
+		defn := defn.(*ir.AssignListStmt)
 		for i, lhs := range defn.List().Slice() {
 			if lhs == n {
 				rhs = defn.Rlist().Index(i)
@@ -761,10 +774,12 @@ func reassigned(name *ir.Name) bool {
 	return ir.Any(name.Curfn, func(n ir.Node) bool {
 		switch n.Op() {
 		case ir.OAS:
+			n := n.(*ir.AssignStmt)
 			if n.Left() == name && n != name.Defn {
 				return true
 			}
 		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OSELRECV2:
+			n := n.(*ir.AssignListStmt)
 			for _, p := range n.List().Slice() {
 				if p == name && n != name.Defn {
 					return true
@@ -1237,6 +1252,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return n
 
 	case ir.OMETHEXPR:
+		n := n.(*ir.MethodExpr)
 		return n
 
 	case ir.OLITERAL, ir.ONIL, ir.OTYPE:
@@ -1259,6 +1275,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	case ir.ORETURN:
 		// Since we don't handle bodies with closures,
 		// this return is guaranteed to belong to the current inlined function.
+		n := n.(*ir.ReturnStmt)
 		init := subst.list(n.Init())
 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
 			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
@@ -1285,6 +1302,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return ir.NewBlockStmt(base.Pos, init)
 
 	case ir.OGOTO:
+		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
 		m.PtrInit().Set(nil)
@@ -1293,6 +1311,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return m
 
 	case ir.OLABEL:
+		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
 		m.PtrInit().Set(nil)
@@ -1365,6 +1384,7 @@ func devirtualizeCall(call *ir.CallExpr) {
 	x := typecheck(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sym()), ctxExpr|ctxCallee)
 	switch x.Op() {
 	case ir.ODOTMETH:
+		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
@@ -1372,6 +1392,7 @@ func devirtualizeCall(call *ir.CallExpr) {
 		call.SetLeft(x)
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).
+		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}

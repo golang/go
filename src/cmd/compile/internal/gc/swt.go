@@ -266,6 +266,7 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 	// conversion into a runtime call.
 	// See issue 24937 for more discussion.
 	if cond.Op() == ir.OBYTES2STR && allCaseExprsAreSideEffectFree(sw) {
+		cond := cond.(*ir.ConvExpr)
 		cond.SetOp(ir.OBYTES2STRTMP)
 	}
 

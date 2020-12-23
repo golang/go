@@ -33,59 +33,15 @@ type Node interface {
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op
-	SetOp(x Op)
-	SubOp() Op
-	SetSubOp(x Op)
-	Left() Node
-	SetLeft(x Node)
-	Right() Node
-	SetRight(x Node)
 	Init() Nodes
 	PtrInit() *Nodes
 	SetInit(x Nodes)
-	Body() Nodes
-	PtrBody() *Nodes
-	SetBody(x Nodes)
-	List() Nodes
-	SetList(x Nodes)
-	PtrList() *Nodes
-	Rlist() Nodes
-	SetRlist(x Nodes)
-	PtrRlist() *Nodes
 
 	// Fields specific to certain Ops only.
 	Type() *types.Type
 	SetType(t *types.Type)
-	Func() *Func
 	Name() *Name
 	Sym() *types.Sym
-	SetSym(x *types.Sym)
-	Offset() int64
-	SetOffset(x int64)
-	Class() Class
-	SetClass(x Class)
-	Likely() bool
-	SetLikely(x bool)
-	SliceBounds() (low, high, max Node)
-	SetSliceBounds(low, high, max Node)
-	Iota() int64
-	SetIota(x int64)
-	Colas() bool
-	SetColas(x bool)
-	NoInline() bool
-	SetNoInline(x bool)
-	Transient() bool
-	SetTransient(x bool)
-	Implicit() bool
-	SetImplicit(x bool)
-	IsDDD() bool
-	SetIsDDD(x bool)
-	IndexMapLValue() bool
-	SetIndexMapLValue(x bool)
-	ResetAux()
-	HasBreak() bool
-	SetHasBreak(x bool)
-	MarkReadonly()
 	Val() constant.Value
 	SetVal(v constant.Value)
 
@@ -98,8 +54,6 @@ type Node interface {
 	SetOpt(x interface{})
 	Diag() bool
 	SetDiag(x bool)
-	Bounded() bool
-	SetBounded(x bool)
 	Typecheck() uint8
 	SetTypecheck(x uint8)
 	NonNil() bool

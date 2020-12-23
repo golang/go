@@ -1169,6 +1169,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
+			e := e.(*ir.BlockStmt)
 			n.PtrRlist().Set(e.List().Slice())
 		} else {
 			n.PtrRlist().Set1(e)
@@ -1319,12 +1320,16 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 		if ls != nil {
 			switch ls.Op() {
 			case ir.OFOR:
+				ls := ls.(*ir.ForStmt)
 				ls.SetSym(sym)
 			case ir.ORANGE:
+				ls := ls.(*ir.RangeStmt)
 				ls.SetSym(sym)
 			case ir.OSWITCH:
+				ls := ls.(*ir.SwitchStmt)
 				ls.SetSym(sym)
 			case ir.OSELECT:
+				ls := ls.(*ir.SelectStmt)
 				ls.SetSym(sym)
 			}
 		}
@@ -1333,6 +1338,7 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 	l := []ir.Node{lhs}
 	if ls != nil {
 		if ls.Op() == ir.OBLOCK {
+			ls := ls.(*ir.BlockStmt)
 			l = append(l, ls.List().Slice()...)
 		} else {
 			l = append(l, ls)
