@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -25,7 +26,7 @@ func instrument(fn *ir.Func) {
 		lno := base.Pos
 		base.Pos = src.NoXPos
 
-		if thearch.LinkArch.Arch.Family != sys.AMD64 {
+		if ssagen.Arch.LinkArch.Arch.Family != sys.AMD64 {
 			fn.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
 			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
 		} else {

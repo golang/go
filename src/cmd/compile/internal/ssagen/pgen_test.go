@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package ssagen
 
 import (
+	"reflect"
+	"sort"
+	"testing"
+
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"reflect"
-	"sort"
-	"testing"
 )
 
 func typeWithoutPointers() *types.Type {

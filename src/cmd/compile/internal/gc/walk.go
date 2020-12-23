@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -977,7 +978,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			n.X = cheapexpr(n.X, init)
 			// byteindex widens n.Left so that the multiplication doesn't overflow.
 			index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n.X), ir.NewInt(3))
-			if thearch.LinkArch.ByteOrder == binary.BigEndian {
+			if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
 				index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(7))
 			}
 			xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
@@ -1675,7 +1676,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT, ir.OPTRLIT:
-		if isStaticCompositeLiteral(n) && !canSSAType(n.Type()) {
+		if isStaticCompositeLiteral(n) && !ssagen.TypeOK(n.Type()) {
 			n := n.(*ir.CompLitExpr) // not OPTRLIT
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
@@ -1739,11 +1740,11 @@ func markUsedIfaceMethod(n *ir.CallExpr) {
 //
 // If no such function is necessary, it returns (Txxx, Txxx).
 func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
-	if thearch.SoftFloat {
+	if ssagen.Arch.SoftFloat {
 		return types.Txxx, types.Txxx
 	}
 
-	switch thearch.LinkArch.Family {
+	switch ssagen.Arch.LinkArch.Family {
 	case sys.ARM, sys.MIPS:
 		if src.IsFloat() {
 			switch dst.Kind() {
@@ -3229,7 +3230,7 @@ func walkcompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	unalignedLoad := canMergeLoads()
 	if unalignedLoad {
 		// Keep this low enough to generate less code than a function call.
-		maxcmpsize = 2 * int64(thearch.LinkArch.RegSize)
+		maxcmpsize = 2 * int64(ssagen.Arch.LinkArch.RegSize)
 	}
 
 	switch t.Kind() {
@@ -3469,8 +3470,8 @@ func walkcompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		combine64bit := false
 		if canCombineLoads {
 			// Keep this low enough to generate less code than a function call.
-			maxRewriteLen = 2 * thearch.LinkArch.RegSize
-			combine64bit = thearch.LinkArch.RegSize >= 8
+			maxRewriteLen = 2 * ssagen.Arch.LinkArch.RegSize
+			combine64bit = ssagen.Arch.LinkArch.RegSize >= 8
 		}
 
 		var and ir.Op
@@ -3909,12 +3910,12 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 // larger, possibly unaligned, load. Note that currently the
 // optimizations must be able to handle little endian byte order.
 func canMergeLoads() bool {
-	switch thearch.LinkArch.Family {
+	switch ssagen.Arch.LinkArch.Family {
 	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
 		return true
 	case sys.PPC64:
 		// Load combining only supported on ppc64le.
-		return thearch.LinkArch.ByteOrder == binary.LittleEndian
+		return ssagen.Arch.LinkArch.ByteOrder == binary.LittleEndian
 	}
 	return false
 }
@@ -4032,3 +4033,7 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 	}
 	init.Append(n)
 }
+
+// The max number of defers in a function using open-coded defers. We enforce this
+// limit because the deferBits bitmask is currently a single byte (to minimize code size)
+const maxOpenDefers = 8

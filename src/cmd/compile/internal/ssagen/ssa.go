@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package ssagen
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -14,8 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"bufio"
-	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
@@ -41,20 +41,16 @@ var ssaDumpStdout bool // whether to dump to stdout
 var ssaDumpCFG string  // generate CFGs for these phases
 const ssaDumpFile = "ssa.html"
 
-// The max number of defers in a function using open-coded defers. We enforce this
-// limit because the deferBits bitmask is currently a single byte (to minimize code size)
-const maxOpenDefers = 8
-
 // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
 var ssaDumpInlined []*ir.Func
 
-func ssaDumpInline(fn *ir.Func) {
+func DumpInline(fn *ir.Func) {
 	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
 		ssaDumpInlined = append(ssaDumpInlined, fn)
 	}
 }
 
-func initSSAEnv() {
+func InitEnv() {
 	ssaDump = os.Getenv("GOSSAFUNC")
 	ssaDir = os.Getenv("GOSSADIR")
 	if ssaDump != "" {
@@ -70,10 +66,10 @@ func initSSAEnv() {
 	}
 }
 
-func initssaconfig() {
+func InitConfig() {
 	types_ := ssa.NewTypes()
 
-	if thearch.SoftFloat {
+	if Arch.SoftFloat {
 		softfloatInit()
 	}
 
@@ -91,7 +87,7 @@ func initssaconfig() {
 	_ = types.NewPtr(types.ErrorType)                                       // *error
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0)
-	ssaConfig.SoftFloat = thearch.SoftFloat
+	ssaConfig.SoftFloat = Arch.SoftFloat
 	ssaConfig.Race = base.Flag.Race
 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
 
@@ -148,7 +144,7 @@ func initssaconfig() {
 		}
 	}
 
-	if thearch.LinkArch.Family == sys.Wasm {
+	if Arch.LinkArch.Family == sys.Wasm {
 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("goPanicIndex")
 		BoundsCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeFunc("goPanicIndexU")
 		BoundsCheckFunc[ssa.BoundsSliceAlen] = typecheck.LookupRuntimeFunc("goPanicSliceAlen")
@@ -183,7 +179,7 @@ func initssaconfig() {
 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("panicSlice3C")
 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("panicSlice3CU")
 	}
-	if thearch.LinkArch.PtrSize == 4 {
+	if Arch.LinkArch.PtrSize == 4 {
 		ExtendCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeVar("panicExtendIndex")
 		ExtendCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeVar("panicExtendIndexU")
 		ExtendCheckFunc[ssa.BoundsSliceAlen] = typecheck.LookupRuntimeVar("panicExtendSliceAlen")
@@ -1215,7 +1211,7 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.AssignListStmt)
 		res, resok := s.dottype(n.Rhs[0].(*ir.TypeAssertExpr), true)
 		deref := false
-		if !canSSAType(n.Rhs[0].Type()) {
+		if !TypeOK(n.Rhs[0].Type()) {
 			if res.Op != ssa.OpLoad {
 				s.Fatalf("dottype of non-load")
 			}
@@ -1351,7 +1347,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		var r *ssa.Value
-		deref := !canSSAType(t)
+		deref := !TypeOK(t)
 		if deref {
 			if rhs == nil {
 				r = nil // Signal assign to use OpZero.
@@ -2133,7 +2129,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		return s.load(n.Type(), addr)
 	case ir.ONAMEOFFSET:
 		n := n.(*ir.NameOffsetExpr)
-		if s.canSSAName(n.Name_) && canSSAType(n.Type()) {
+		if s.canSSAName(n.Name_) && TypeOK(n.Type()) {
 			return s.variable(n, n.Type())
 		}
 		addr := s.addr(n)
@@ -2352,18 +2348,18 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.RegSize == 4 && thearch.LinkArch.Family != sys.MIPS && !s.softFloat {
+			if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}
-			if thearch.LinkArch.Family == sys.ARM64 || thearch.LinkArch.Family == sys.Wasm || thearch.LinkArch.Family == sys.S390X || s.softFloat {
+			if Arch.LinkArch.Family == sys.ARM64 || Arch.LinkArch.Family == sys.Wasm || Arch.LinkArch.Family == sys.S390X || s.softFloat {
 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}
 
-			if thearch.LinkArch.Family == sys.MIPS && !s.softFloat {
+			if Arch.LinkArch.Family == sys.MIPS && !s.softFloat {
 				if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
 					// tt is float32 or float64, and ft is also unsigned
 					if tt.Size() == 4 {
@@ -2713,7 +2709,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
 			return s.rawLoad(n.Type(), addr)
 		}
-		if canSSAType(n.Type()) {
+		if TypeOK(n.Type()) {
 			return s.newValue1I(ssa.OpSelectN, n.Type(), which, s.prevCall)
 		} else {
 			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(n.Type()), which, s.prevCall)
@@ -2779,7 +2775,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			p := s.addr(n)
 			return s.load(n.X.Type().Elem(), p)
 		case n.X.Type().IsArray():
-			if canSSAType(n.X.Type()) {
+			if TypeOK(n.X.Type()) {
 				// SSA can handle arrays of length at most 1.
 				bound := n.X.Type().NumElem()
 				a := s.expr(n.X)
@@ -3055,7 +3051,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 	args := make([]argRec, 0, nargs)
 	for _, n := range n.Args[1:] {
-		if canSSAType(n.Type()) {
+		if TypeOK(n.Type()) {
 			args = append(args, argRec{v: s.expr(n), store: true})
 		} else {
 			v := s.addr(n)
@@ -3418,7 +3414,7 @@ type intrinsicKey struct {
 	fn   string
 }
 
-func initSSATables() {
+func InitTables() {
 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
 
 	var all []*sys.Arch
@@ -4297,7 +4293,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	}
 	// Skip intrinsifying math functions (which may contain hard-float
 	// instructions) when soft-float
-	if thearch.SoftFloat && pkg == "math" {
+	if Arch.SoftFloat && pkg == "math" {
 		return nil
 	}
 
@@ -4309,10 +4305,10 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 			return nil
 		}
 	}
-	return intrinsics[intrinsicKey{thearch.LinkArch.Arch, pkg, fn}]
+	return intrinsics[intrinsicKey{Arch.LinkArch.Arch, pkg, fn}]
 }
 
-func isIntrinsicCall(n *ir.CallExpr) bool {
+func IsIntrinsicCall(n *ir.CallExpr) bool {
 	if n == nil {
 		return false
 	}
@@ -4427,7 +4423,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 	}
 	for _, argn := range n.Rargs {
 		var v *ssa.Value
-		if canSSAType(argn.Type()) {
+		if TypeOK(argn.Type()) {
 			v = s.openDeferSave(nil, argn.Type(), s.expr(argn))
 		} else {
 			v = s.openDeferSave(argn, argn.Type(), nil)
@@ -4456,7 +4452,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 // evaluated (via s.addr() below) to get the value that is to be stored. The
 // function returns an SSA value representing a pointer to the autotmp location.
 func (s *state) openDeferSave(n ir.Node, t *types.Type, val *ssa.Value) *ssa.Value {
-	canSSA := canSSAType(t)
+	canSSA := TypeOK(t)
 	var pos src.XPos
 	if canSSA {
 		pos = val.Pos
@@ -4570,7 +4566,7 @@ func (s *state) openDeferExit() {
 			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
 			if testLateExpansion {
 				var a *ssa.Value
-				if !canSSAType(f.Type) {
+				if !TypeOK(f.Type) {
 					a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
 				} else {
 					a = s.load(f.Type, argAddrVal)
@@ -4578,7 +4574,7 @@ func (s *state) openDeferExit() {
 				callArgs = append(callArgs, a)
 			} else {
 				addr := s.constOffPtrSP(pt, argStart+f.Offset)
-				if !canSSAType(f.Type) {
+				if !TypeOK(f.Type) {
 					s.move(f.Type, addr, argAddrVal)
 				} else {
 					argVal := s.load(f.Type, argAddrVal)
@@ -4946,7 +4942,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 // maybeNilCheckClosure checks if a nil check of a closure is needed in some
 // architecture-dependent situations and, if so, emits the nil check.
 func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
-	if thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
+	if Arch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
 		// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
 		// TODO(neelance): On other architectures this should be eliminated by the optimization steps
 		s.nilCheck(closure)
@@ -5139,7 +5135,7 @@ func (s *state) canSSA(n ir.Node) bool {
 	if n.Op() != ir.ONAME {
 		return false
 	}
-	return s.canSSAName(n.(*ir.Name)) && canSSAType(n.Type())
+	return s.canSSAName(n.(*ir.Name)) && TypeOK(n.Type())
 }
 
 func (s *state) canSSAName(name *ir.Name) bool {
@@ -5181,7 +5177,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
 }
 
 // canSSA reports whether variables of type t are SSA-able.
-func canSSAType(t *types.Type) bool {
+func TypeOK(t *types.Type) bool {
 	types.CalcSize(t)
 	if t.Width > int64(4*types.PtrSize) {
 		// 4*Widthptr is an arbitrary constant. We want it
@@ -5195,7 +5191,7 @@ func canSSAType(t *types.Type) bool {
 		// not supported on SSA variables.
 		// TODO: allow if all indexes are constant.
 		if t.NumElem() <= 1 {
-			return canSSAType(t.Elem())
+			return TypeOK(t.Elem())
 		}
 		return false
 	case types.TSTRUCT:
@@ -5203,7 +5199,7 @@ func canSSAType(t *types.Type) bool {
 			return false
 		}
 		for _, t1 := range t.Fields().Slice() {
-			if !canSSAType(t1.Type) {
+			if !TypeOK(t1.Type) {
 				return false
 			}
 		}
@@ -5307,7 +5303,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 	b.AddEdgeTo(bPanic)
 
 	s.startBlock(bPanic)
-	if thearch.LinkArch.Family == sys.Wasm {
+	if Arch.LinkArch.Family == sys.Wasm {
 		// TODO(khr): figure out how to do "register" based calling convention for bounds checks.
 		// Should be similar to gcWriteBarrier, but I can't make it work.
 		s.rtcall(BoundsCheckFunc[kind], false, nil, idx, len)
@@ -5435,7 +5431,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	if testLateExpansion {
 		for i, t := range results {
 			off = types.Rnd(off, t.Alignment())
-			if canSSAType(t) {
+			if TypeOK(t) {
 				res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
 			} else {
 				addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
@@ -5575,7 +5571,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 func (s *state) putArg(n ir.Node, t *types.Type, off int64, forLateExpandedCall bool) (ssa.Param, *ssa.Value) {
 	var a *ssa.Value
 	if forLateExpandedCall {
-		if !canSSAType(t) {
+		if !TypeOK(t) {
 			a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
 		} else {
 			a = s.expr(n)
@@ -5596,7 +5592,7 @@ func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off 
 		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
 	}
 
-	if !canSSAType(t) {
+	if !TypeOK(t) {
 		a := s.addr(n)
 		s.move(t, addr, a)
 		return
@@ -6146,7 +6142,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 
 	var tmp ir.Node     // temporary for use with large types
 	var addr *ssa.Value // address of tmp
-	if commaok && !canSSAType(n.Type()) {
+	if commaok && !TypeOK(n.Type()) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
 		tmp = typecheck.TempAt(n.Pos(), s.curfn, n.Type())
@@ -6250,7 +6246,7 @@ func (s *state) variable(n ir.Node, t *types.Type) *ssa.Value {
 	}
 	// Make a FwdRef, which records a value that's live on block input.
 	// We'll find the matching definition as part of insertPhis.
-	v = s.newValue0A(ssa.OpFwdRef, t, FwdRefAux{N: n})
+	v = s.newValue0A(ssa.OpFwdRef, t, fwdRefAux{N: n})
 	s.fwdVars[n] = v
 	if n.Op() == ir.ONAME {
 		s.addNamedValue(n.(*ir.Name), v)
@@ -6300,8 +6296,8 @@ type Branch struct {
 	B *ssa.Block // target
 }
 
-// SSAGenState contains state needed during Prog generation.
-type SSAGenState struct {
+// State contains state needed during Prog generation.
+type State struct {
 	pp *objw.Progs
 
 	// Branches remembers all the branch instructions we've seen
@@ -6330,7 +6326,7 @@ type SSAGenState struct {
 }
 
 // Prog appends a new Prog.
-func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
+func (s *State) Prog(as obj.As) *obj.Prog {
 	p := s.pp.Prog(as)
 	if ssa.LosesStmtMark(as) {
 		return p
@@ -6347,19 +6343,19 @@ func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
 }
 
 // Pc returns the current Prog.
-func (s *SSAGenState) Pc() *obj.Prog {
+func (s *State) Pc() *obj.Prog {
 	return s.pp.Next
 }
 
 // SetPos sets the current source position.
-func (s *SSAGenState) SetPos(pos src.XPos) {
+func (s *State) SetPos(pos src.XPos) {
 	s.pp.Pos = pos
 }
 
 // Br emits a single branch instruction and returns the instruction.
 // Not all architectures need the returned instruction, but otherwise
 // the boilerplate is common to all.
-func (s *SSAGenState) Br(op obj.As, target *ssa.Block) *obj.Prog {
+func (s *State) Br(op obj.As, target *ssa.Block) *obj.Prog {
 	p := s.Prog(op)
 	p.To.Type = obj.TYPE_BRANCH
 	s.Branches = append(s.Branches, Branch{P: p, B: target})
@@ -6371,7 +6367,7 @@ func (s *SSAGenState) Br(op obj.As, target *ssa.Block) *obj.Prog {
 // Spill/fill/copy instructions from the register allocator,
 // phi functions, and instructions with a no-pos position
 // are examples of instructions that can cause churn.
-func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
+func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpPhi, ssa.OpCopy, ssa.OpLoadReg, ssa.OpStoreReg:
 		// These are not statements
@@ -6447,7 +6443,7 @@ func emitStackObjects(e *ssafn, pp *objw.Progs) {
 
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *objw.Progs) {
-	var s SSAGenState
+	var s State
 
 	e := f.Frontend().(*ssafn)
 
@@ -6525,7 +6521,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
 
 		// Emit values in block
-		thearch.SSAMarkMoves(&s, b)
+		Arch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := s.pp.Next
 			s.DebugFriendlySetPosFrom(v)
@@ -6552,7 +6548,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 					v.Fatalf("OpConvert should be a no-op: %s; %s", v.Args[0].LongString(), v.LongString())
 				}
 			case ssa.OpInlMark:
-				p := thearch.Ginsnop(s.pp)
+				p := Arch.Ginsnop(s.pp)
 				if inlMarks == nil {
 					inlMarks = map[*obj.Prog]int32{}
 					inlMarksByPos = map[src.XPos][]*obj.Prog{}
@@ -6573,7 +6569,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 					firstPos = src.NoXPos
 				}
 				// let the backend handle it
-				thearch.SSAGenValue(&s, v)
+				Arch.SSAGenValue(&s, v)
 			}
 
 			if base.Ctxt.Flag_locationlists {
@@ -6588,7 +6584,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		}
 		// If this is an empty infinite loop, stick a hardware NOP in there so that debuggers are less confused.
 		if s.bstart[b.ID] == s.pp.Next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
-			p := thearch.Ginsnop(s.pp)
+			p := Arch.Ginsnop(s.pp)
 			p.Pos = p.Pos.WithIsStmt()
 			if b.Pos == src.NoXPos {
 				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
@@ -6609,7 +6605,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		}
 		x := s.pp.Next
 		s.SetPos(b.Pos)
-		thearch.SSAGenBlock(&s, b, next)
+		Arch.SSAGenBlock(&s, b, next)
 		if f.PrintOrHtmlSSA {
 			for ; x != s.pp.Next; x = x.Link {
 				progToBlock[x] = b
@@ -6621,7 +6617,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// still be inside the function in question. So if
 		// it ends in a call which doesn't return, add a
 		// nop (which will never execute) after the call.
-		thearch.Ginsnop(pp)
+		Arch.Ginsnop(pp)
 	}
 	if openDeferInfo != nil {
 		// When doing open-coded defers, generate a disconnected call to
@@ -6636,7 +6632,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// going to emit anyway, and use those instructions instead of the
 		// inline marks.
 		for p := pp.Text; p != nil; p = p.Link {
-			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || thearch.LinkArch.Family == sys.Wasm {
+			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || Arch.LinkArch.Family == sys.Wasm {
 				// Don't use 0-sized instructions as inline marks, because we need
 				// to identify inline mark instructions by pc offset.
 				// (Some of these instructions are sometimes zero-sized, sometimes not.
@@ -6677,7 +6673,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	}
 
 	if base.Ctxt.Flag_locationlists {
-		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
+		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
 		e.curfn.DebugInfo = debugInfo
 		bstart := s.bstart
 		// Note that at this moment, Prog.Pc is a sequence number; it's
@@ -6766,12 +6762,12 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	f.HTMLWriter = nil
 }
 
-func defframe(s *SSAGenState, e *ssafn) {
+func defframe(s *State, e *ssafn) {
 	pp := s.pp
 
 	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
-	if thearch.PadFrame != nil {
-		frame = thearch.PadFrame(frame)
+	if Arch.PadFrame != nil {
+		frame = Arch.PadFrame(frame)
 	}
 
 	// Fill in argument and frame size.
@@ -6808,7 +6804,7 @@ func defframe(s *SSAGenState, e *ssafn) {
 		}
 
 		// Zero old range
-		p = thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
+		p = Arch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 
 		// Set new range.
 		lo = n.FrameOffset()
@@ -6816,7 +6812,7 @@ func defframe(s *SSAGenState, e *ssafn) {
 	}
 
 	// Zero final range.
-	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
+	Arch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 }
 
 // For generating consecutive jump instructions to model a specific branching
@@ -6825,14 +6821,14 @@ type IndexJump struct {
 	Index int
 }
 
-func (s *SSAGenState) oneJump(b *ssa.Block, jump *IndexJump) {
+func (s *State) oneJump(b *ssa.Block, jump *IndexJump) {
 	p := s.Br(jump.Jump, b.Succs[jump.Index].Block())
 	p.Pos = b.Pos
 }
 
 // CombJump generates combinational instructions (2 at present) for a block jump,
 // thereby the behaviour of non-standard condition codes could be simulated
-func (s *SSAGenState) CombJump(b, next *ssa.Block, jumps *[2][2]IndexJump) {
+func (s *State) CombJump(b, next *ssa.Block, jumps *[2][2]IndexJump) {
 	switch next {
 	case b.Succs[0].Block():
 		s.oneJump(b, &jumps[0][0])
@@ -7019,7 +7015,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	n, off := ssa.AutoVar(v)
 	a.Type = obj.TYPE_MEM
 	a.Sym = n.Sym().Linksym()
-	a.Reg = int16(thearch.REGSP)
+	a.Reg = int16(Arch.REGSP)
 	a.Offset = n.FrameOffset() + off
 	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
 		a.Name = obj.NAME_PARAM
@@ -7028,20 +7024,20 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	}
 }
 
-func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+func (s *State) AddrScratch(a *obj.Addr) {
 	if s.ScratchFpMem == nil {
 		panic("no scratch memory available; forgot to declare usesScratch for Op?")
 	}
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
 	a.Sym = s.ScratchFpMem.Sym().Linksym()
-	a.Reg = int16(thearch.REGSP)
+	a.Reg = int16(Arch.REGSP)
 	a.Offset = s.ScratchFpMem.Offset_
 }
 
 // Call returns a new CALL instruction for the SSA value v.
 // It uses PrepareCall to prepare the call.
-func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+func (s *State) Call(v *ssa.Value) *obj.Prog {
 	pPosIsStmt := s.pp.Pos.IsStmt() // The statement-ness fo the call comes from ssaGenState
 	s.PrepareCall(v)
 
@@ -7057,7 +7053,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		p.To.Sym = sym.Fn
 	} else {
 		// TODO(mdempsky): Can these differences be eliminated?
-		switch thearch.LinkArch.Family {
+		switch Arch.LinkArch.Family {
 		case sys.AMD64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm:
 			p.To.Type = obj.TYPE_REG
 		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
@@ -7073,7 +7069,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 // PrepareCall prepares to emit a CALL instruction for v and does call-related bookkeeping.
 // It must be called immediately before emitting the actual CALL instruction,
 // since it emits PCDATA for the stack map at the call (calls are safe points).
-func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+func (s *State) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
 	if !idx.StackMapValid() {
 		// See Liveness.hasStackMap.
@@ -7093,7 +7089,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		// insert an actual hardware NOP that will have the right line number.
 		// This is different from obj.ANOP, which is a virtual no-op
 		// that doesn't make it into the instruction stream.
-		thearch.Ginsnopdefer(s.pp)
+		Arch.Ginsnopdefer(s.pp)
 	}
 
 	if ok {
@@ -7111,7 +7107,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 
 // UseArgs records the fact that an instruction needs a certain amount of
 // callee args space for its use.
-func (s *SSAGenState) UseArgs(n int64) {
+func (s *State) UseArgs(n int64) {
 	if s.maxarg < n {
 		s.maxarg = n
 	}
@@ -7223,7 +7219,7 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	} else {
 		t = types.Types[types.TUINT32]
 	}
-	if thearch.LinkArch.ByteOrder == binary.BigEndian {
+	if Arch.LinkArch.ByteOrder == binary.BigEndian {
 		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[types.TUINT32])
 	}
 	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[types.TUINT32])
@@ -7274,7 +7270,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 }
 
 func (e *ssafn) CanSSA(t *types.Type) bool {
-	return canSSAType(t)
+	return TypeOK(t)
 }
 
 func (e *ssafn) Line(pos src.XPos) string {
@@ -7453,3 +7449,11 @@ func deferstruct(stksize int64) *types.Type {
 	types.CalcStructSize(s)
 	return s
 }
+
+var (
+	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
+)
+
+// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+var GCWriteBarrierReg map[int16]*obj.LSym

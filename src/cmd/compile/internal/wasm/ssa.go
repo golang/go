@@ -6,18 +6,18 @@ package wasm
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
 	"cmd/internal/objabi"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &wasm.Linkwasm
 	arch.REGSP = wasm.REG_SP
 	arch.MAXWIDTH = 1 << 50
@@ -52,10 +52,10 @@ func ginsnop(pp *objw.Progs) *obj.Prog {
 	return pp.Prog(wasm.ANop)
 }
 
-func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if next != b.Succs[0].Block() {
@@ -121,7 +121,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	}
 }
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
 		s.PrepareCall(v)
@@ -188,7 +188,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		getReg(s, wasm.REG_SP)
 		getValue64(s, v.Args[0])
 		p := s.Prog(storeOp(v.Type))
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
 
 	default:
 		if v.Type.IsMemory() {
@@ -208,7 +208,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 	switch v.Op {
 	case ssa.OpWasmLoweredGetClosurePtr:
 		getReg(s, wasm.REG_CTXT)
@@ -243,10 +243,10 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		p.From.Type = obj.TYPE_ADDR
 		switch v.Aux.(type) {
 		case *obj.LSym:
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		case *ir.Name:
 			p.From.Reg = v.Args[0].Reg()
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		default:
 			panic("wasm: bad LoweredAddr")
 		}
@@ -363,7 +363,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 
 	case ssa.OpLoadReg:
 		p := s.Prog(loadOp(v.Type))
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 
 	case ssa.OpCopy:
 		getValue64(s, v.Args[0])
@@ -385,7 +385,7 @@ func isCmp(v *ssa.Value) bool {
 	}
 }
 
-func getValue32(s *gc.SSAGenState, v *ssa.Value) {
+func getValue32(s *ssagen.State, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, false)
@@ -402,7 +402,7 @@ func getValue32(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func getValue64(s *gc.SSAGenState, v *ssa.Value) {
+func getValue64(s *ssagen.State, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, true)
@@ -416,32 +416,32 @@ func getValue64(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func i32Const(s *gc.SSAGenState, val int32) {
+func i32Const(s *ssagen.State, val int32) {
 	p := s.Prog(wasm.AI32Const)
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(val)}
 }
 
-func i64Const(s *gc.SSAGenState, val int64) {
+func i64Const(s *ssagen.State, val int64) {
 	p := s.Prog(wasm.AI64Const)
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: val}
 }
 
-func f32Const(s *gc.SSAGenState, val float64) {
+func f32Const(s *ssagen.State, val float64) {
 	p := s.Prog(wasm.AF32Const)
 	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
 }
 
-func f64Const(s *gc.SSAGenState, val float64) {
+func f64Const(s *ssagen.State, val float64) {
 	p := s.Prog(wasm.AF64Const)
 	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
 }
 
-func getReg(s *gc.SSAGenState, reg int16) {
+func getReg(s *ssagen.State, reg int16) {
 	p := s.Prog(wasm.AGet)
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
 
-func setReg(s *gc.SSAGenState, reg int16) {
+func setReg(s *ssagen.State, reg int16) {
 	p := s.Prog(wasm.ASet)
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
