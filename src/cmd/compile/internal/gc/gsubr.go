@@ -270,16 +270,16 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
 	} else {
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.PtrList().Set(paramNnames(tfn.Type()))
-		call.SetIsDDD(tfn.Type().IsVariadic())
+		call.Args.Set(paramNnames(tfn.Type()))
+		call.IsDDD = tfn.Type().IsVariadic()
 		tail = call
 		if tfn.Type().NumResults() > 0 {
 			n := ir.NewReturnStmt(base.Pos, nil)
-			n.PtrList().Set1(call)
+			n.Results.Set1(call)
 			tail = n
 		}
 	}
-	fn.PtrBody().Append(tail)
+	fn.Body.Append(tail)
 
 	funcbody()
 	if base.Debug.DclStack != 0 {
@@ -288,7 +288,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	typecheckFunc(fn)
 	Curfn = fn
-	typecheckslice(fn.Body().Slice(), ctxStmt)
+	typecheckslice(fn.Body.Slice(), ctxStmt)
 
 	escapeFuncs([]*ir.Func{fn}, false)
 

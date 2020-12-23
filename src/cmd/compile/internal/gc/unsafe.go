@@ -14,9 +14,9 @@ func evalunsafe(n ir.Node) int64 {
 	switch n.Op() {
 	case ir.OALIGNOF, ir.OSIZEOF:
 		n := n.(*ir.UnaryExpr)
-		n.SetLeft(typecheck(n.Left(), ctxExpr))
-		n.SetLeft(defaultlit(n.Left(), nil))
-		tr := n.Left().Type()
+		n.X = typecheck(n.X, ctxExpr)
+		n.X = defaultlit(n.X, nil)
+		tr := n.X.Type()
 		if tr == nil {
 			return 0
 		}
@@ -29,20 +29,20 @@ func evalunsafe(n ir.Node) int64 {
 	case ir.OOFFSETOF:
 		// must be a selector.
 		n := n.(*ir.UnaryExpr)
-		if n.Left().Op() != ir.OXDOT {
+		if n.X.Op() != ir.OXDOT {
 			base.Errorf("invalid expression %v", n)
 			return 0
 		}
-		sel := n.Left().(*ir.SelectorExpr)
+		sel := n.X.(*ir.SelectorExpr)
 
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		sel.SetLeft(typecheck(sel.Left(), ctxExpr))
-		sbase := sel.Left()
+		sel.X = typecheck(sel.X, ctxExpr)
+		sbase := sel.X
 
 		tsel := typecheck(sel, ctxExpr)
-		n.SetLeft(tsel)
+		n.X = tsel
 		if tsel.Type() == nil {
 			return 0
 		}
@@ -67,15 +67,15 @@ func evalunsafe(n ir.Node) int64 {
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
 				r := r.(*ir.SelectorExpr)
-				if r.Left() != sbase {
-					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.Left())
+				if r.X != sbase {
+					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.X)
 					return 0
 				}
 				fallthrough
 			case ir.ODOT:
 				r := r.(*ir.SelectorExpr)
-				v += r.Offset()
-				next = r.Left()
+				v += r.Offset
+				next = r.X
 			default:
 				ir.Dump("unsafenmagic", tsel)
 				base.Fatalf("impossible %v node after dot insertion", r.Op())

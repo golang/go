@@ -35,7 +35,7 @@ func isParamStackCopy(n ir.Node) bool {
 		return false
 	}
 	name := n.(*ir.Name)
-	return (name.Class() == ir.PPARAM || name.Class() == ir.PPARAMOUT) && name.Heapaddr != nil
+	return (name.Class_ == ir.PPARAM || name.Class_ == ir.PPARAMOUT) && name.Heapaddr != nil
 }
 
 // isParamHeapCopy reports whether this is the on-heap copy of
@@ -45,7 +45,7 @@ func isParamHeapCopy(n ir.Node) bool {
 		return false
 	}
 	name := n.(*ir.Name)
-	return name.Class() == ir.PAUTOHEAP && name.Name().Stackcopy != nil
+	return name.Class_ == ir.PAUTOHEAP && name.Name().Stackcopy != nil
 }
 
 // autotmpname returns the name for an autotmp variable numbered n.
@@ -79,7 +79,7 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
-	n.SetClass(ir.PAUTO)
+	n.Class_ = ir.PAUTO
 	n.SetEsc(EscNever)
 	n.Curfn = curfn
 	n.SetUsed(true)

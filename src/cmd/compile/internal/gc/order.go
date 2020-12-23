@@ -55,10 +55,10 @@ type Order struct {
 func order(fn *ir.Func) {
 	if base.Flag.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Sym())
-		ir.DumpList(s, fn.Body())
+		ir.DumpList(s, fn.Body)
 	}
 
-	orderBlock(fn.PtrBody(), map[string][]*ir.Name{})
+	orderBlock(&fn.Body, map[string][]*ir.Name{})
 }
 
 // append typechecks stmt and appends it to out.
@@ -136,12 +136,12 @@ func (o *Order) cheapExpr(n ir.Node) ir.Node {
 		return n
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
-		l := o.cheapExpr(n.Left())
-		if l == n.Left() {
+		l := o.cheapExpr(n.X)
+		if l == n.X {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.UnaryExpr)
-		a.SetLeft(l)
+		a.X = l
 		return typecheck(a, ctxExpr)
 	}
 
@@ -162,59 +162,59 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
-		l := o.safeExpr(n.Left())
-		if l == n.Left() {
+		l := o.safeExpr(n.X)
+		if l == n.X {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.UnaryExpr)
-		a.SetLeft(l)
+		a.X = l
 		return typecheck(a, ctxExpr)
 
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
-		l := o.safeExpr(n.Left())
-		if l == n.Left() {
+		l := o.safeExpr(n.X)
+		if l == n.X {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.SelectorExpr)
-		a.SetLeft(l)
+		a.X = l
 		return typecheck(a, ctxExpr)
 
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
-		l := o.cheapExpr(n.Left())
-		if l == n.Left() {
+		l := o.cheapExpr(n.X)
+		if l == n.X {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.SelectorExpr)
-		a.SetLeft(l)
+		a.X = l
 		return typecheck(a, ctxExpr)
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
-		l := o.cheapExpr(n.Left())
-		if l == n.Left() {
+		l := o.cheapExpr(n.X)
+		if l == n.X {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.StarExpr)
-		a.SetLeft(l)
+		a.X = l
 		return typecheck(a, ctxExpr)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
 		var l ir.Node
-		if n.Left().Type().IsArray() {
-			l = o.safeExpr(n.Left())
+		if n.X.Type().IsArray() {
+			l = o.safeExpr(n.X)
 		} else {
-			l = o.cheapExpr(n.Left())
+			l = o.cheapExpr(n.X)
 		}
-		r := o.cheapExpr(n.Right())
-		if l == n.Left() && r == n.Right() {
+		r := o.cheapExpr(n.Index)
+		if l == n.X && r == n.Index {
 			return n
 		}
 		a := ir.SepCopy(n).(*ir.IndexExpr)
-		a.SetLeft(l)
-		a.SetRight(r)
+		a.X = l
+		a.Index = r
 		return typecheck(a, ctxExpr)
 
 	default:
@@ -230,7 +230,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n ir.Node) bool {
-	return islvalue(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class() == ir.PEXTERN || ir.IsAutoTmp(n))
+	return islvalue(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
 }
 
 // addrTemp ensures that n is okay to pass by address to runtime routines.
@@ -292,17 +292,17 @@ func mapKeyReplaceStrConv(n ir.Node) bool {
 		replaced = true
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, elem := range n.List().Slice() {
+		for _, elem := range n.List.Slice() {
 			elem := elem.(*ir.StructKeyExpr)
-			if mapKeyReplaceStrConv(elem.Left()) {
+			if mapKeyReplaceStrConv(elem.Value) {
 				replaced = true
 			}
 		}
 	case ir.OARRAYLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, elem := range n.List().Slice() {
+		for _, elem := range n.List.Slice() {
 			if elem.Op() == ir.OKEY {
-				elem = elem.(*ir.KeyExpr).Right()
+				elem = elem.(*ir.KeyExpr).Value
 			}
 			if mapKeyReplaceStrConv(elem) {
 				replaced = true
@@ -371,24 +371,24 @@ func orderMakeSliceCopy(s []ir.Node) {
 
 	as := s[0].(*ir.AssignStmt)
 	cp := s[1].(*ir.BinaryExpr)
-	if as.Right() == nil || as.Right().Op() != ir.OMAKESLICE || ir.IsBlank(as.Left()) ||
-		as.Left().Op() != ir.ONAME || cp.Left().Op() != ir.ONAME || cp.Right().Op() != ir.ONAME ||
-		as.Left().Name() != cp.Left().Name() || cp.Left().Name() == cp.Right().Name() {
+	if as.Y == nil || as.Y.Op() != ir.OMAKESLICE || ir.IsBlank(as.X) ||
+		as.X.Op() != ir.ONAME || cp.X.Op() != ir.ONAME || cp.Y.Op() != ir.ONAME ||
+		as.X.Name() != cp.X.Name() || cp.X.Name() == cp.Y.Name() {
 		// The line above this one is correct with the differing equality operators:
 		// we want as.X and cp.X to be the same name,
 		// but we want the initial data to be coming from a different name.
 		return
 	}
 
-	mk := as.Right().(*ir.MakeExpr)
-	if mk.Esc() == EscNone || mk.Left() == nil || mk.Right() != nil {
+	mk := as.Y.(*ir.MakeExpr)
+	if mk.Esc() == EscNone || mk.Len == nil || mk.Cap != nil {
 		return
 	}
 	mk.SetOp(ir.OMAKESLICECOPY)
-	mk.SetRight(cp.Right())
+	mk.Cap = cp.Y
 	// Set bounded when m = OMAKESLICE([]T, len(s)); OCOPY(m, s)
-	mk.SetBounded(mk.Left().Op() == ir.OLEN && samesafeexpr(mk.Left().(*ir.UnaryExpr).Left(), cp.Right()))
-	as.SetRight(typecheck(mk, ctxExpr))
+	mk.SetBounded(mk.Len.Op() == ir.OLEN && samesafeexpr(mk.Len.(*ir.UnaryExpr).X, cp.Y))
+	as.Y = typecheck(mk, ctxExpr)
 	s[1] = nil // remove separate copy call
 }
 
@@ -479,25 +479,25 @@ func (o *Order) call(nn ir.Node) {
 		default:
 			base.Fatalf("unexpected call: %+v", n)
 		case *ir.UnaryExpr:
-			n.SetLeft(o.expr(n.Left(), nil))
+			n.X = o.expr(n.X, nil)
 		case *ir.ConvExpr:
-			n.SetLeft(o.expr(n.Left(), nil))
+			n.X = o.expr(n.X, nil)
 		case *ir.BinaryExpr:
-			n.SetLeft(o.expr(n.Left(), nil))
-			n.SetRight(o.expr(n.Right(), nil))
+			n.X = o.expr(n.X, nil)
+			n.Y = o.expr(n.Y, nil)
 		case *ir.MakeExpr:
-			n.SetLeft(o.expr(n.Left(), nil))
-			n.SetRight(o.expr(n.Right(), nil))
+			n.Len = o.expr(n.Len, nil)
+			n.Cap = o.expr(n.Cap, nil)
 		case *ir.CallExpr:
-			o.exprList(n.List())
+			o.exprList(n.Args)
 		}
 		return
 	}
 
 	n := nn.(*ir.CallExpr)
 	fixVariadicCall(n)
-	n.SetLeft(o.expr(n.Left(), nil))
-	o.exprList(n.List())
+	n.X = o.expr(n.X, nil)
+	o.exprList(n.Args)
 
 	if n.Op() == ir.OCALLINTER {
 		return
@@ -509,21 +509,21 @@ func (o *Order) call(nn ir.Node) {
 		// still alive when we pop the temp stack.
 		if arg.Op() == ir.OCONVNOP {
 			arg := arg.(*ir.ConvExpr)
-			if arg.Left().Type().IsUnsafePtr() {
-				x := o.copyExpr(arg.Left())
-				arg.SetLeft(x)
+			if arg.X.Type().IsUnsafePtr() {
+				x := o.copyExpr(arg.X)
+				arg.X = x
 				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
-				n.PtrBody().Append(typecheck(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x), ctxStmt))
+				n.Body.Append(typecheck(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x), ctxStmt))
 			}
 		}
 	}
 
 	// Check for "unsafe-uintptr" tag provided by escape analysis.
-	for i, param := range n.Left().Type().Params().FieldSlice() {
+	for i, param := range n.X.Type().Params().FieldSlice() {
 		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
-			if arg := n.List().Index(i); arg.Op() == ir.OSLICELIT {
+			if arg := n.Args.Index(i); arg.Op() == ir.OSLICELIT {
 				arg := arg.(*ir.CompLitExpr)
-				for _, elt := range arg.List().Slice() {
+				for _, elt := range arg.List.Slice() {
 					keepAlive(elt)
 				}
 			} else {
@@ -555,34 +555,34 @@ func (o *Order) mapAssign(n ir.Node) {
 
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		if n.Left().Op() == ir.OINDEXMAP {
-			n.SetRight(o.safeMapRHS(n.Right()))
+		if n.X.Op() == ir.OINDEXMAP {
+			n.Y = o.safeMapRHS(n.Y)
 		}
 		o.out = append(o.out, n)
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
-		if n.Left().Op() == ir.OINDEXMAP {
-			n.SetRight(o.safeMapRHS(n.Right()))
+		if n.X.Op() == ir.OINDEXMAP {
+			n.Y = o.safeMapRHS(n.Y)
 		}
 		o.out = append(o.out, n)
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
 		var post []ir.Node
-		for i, m := range n.List().Slice() {
+		for i, m := range n.Lhs.Slice() {
 			switch {
 			case m.Op() == ir.OINDEXMAP:
 				m := m.(*ir.IndexExpr)
-				if !ir.IsAutoTmp(m.Left()) {
-					m.SetLeft(o.copyExpr(m.Left()))
+				if !ir.IsAutoTmp(m.X) {
+					m.X = o.copyExpr(m.X)
 				}
-				if !ir.IsAutoTmp(m.Right()) {
-					m.SetRight(o.copyExpr(m.Right()))
+				if !ir.IsAutoTmp(m.Index) {
+					m.Index = o.copyExpr(m.Index)
 				}
 				fallthrough
 			case instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
 				t := o.newTemp(m.Type(), false)
-				n.List().SetIndex(i, t)
+				n.Lhs.SetIndex(i, t)
 				a := ir.NewAssignStmt(base.Pos, m, t)
 				post = append(post, typecheck(a, ctxStmt))
 			}
@@ -598,7 +598,7 @@ func (o *Order) safeMapRHS(r ir.Node) ir.Node {
 	// We need to make sure the RHS won't panic.  See issue 22881.
 	if r.Op() == ir.OAPPEND {
 		r := r.(*ir.CallExpr)
-		s := r.List().Slice()[1:]
+		s := r.Args.Slice()[1:]
 		for i, n := range s {
 			s[i] = o.cheapExpr(n)
 		}
@@ -628,32 +628,32 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), n.Left()))
+		n.X = o.expr(n.X, nil)
+		n.Y = o.expr(n.Y, n.X)
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
+		n.X = o.expr(n.X, nil)
+		n.Y = o.expr(n.Y, nil)
 
-		if instrumenting || n.Left().Op() == ir.OINDEXMAP && (n.SubOp() == ir.ODIV || n.SubOp() == ir.OMOD) {
+		if instrumenting || n.X.Op() == ir.OINDEXMAP && (n.AsOp == ir.ODIV || n.AsOp == ir.OMOD) {
 			// Rewrite m[k] op= r into m[k] = m[k] op r so
 			// that we can ensure that if op panics
 			// because r is zero, the panic happens before
 			// the map assignment.
 			// DeepCopy is a big hammer here, but safeExpr
 			// makes sure there is nothing too deep being copied.
-			l1 := o.safeExpr(n.Left())
+			l1 := o.safeExpr(n.X)
 			l2 := ir.DeepCopy(src.NoXPos, l1)
 			if l2.Op() == ir.OINDEXMAP {
 				l2 := l2.(*ir.IndexExpr)
-				l2.SetIndexMapLValue(false)
+				l2.Assigned = false
 			}
 			l2 = o.copyExpr(l2)
-			r := o.expr(typecheck(ir.NewBinaryExpr(n.Pos(), n.SubOp(), l2, n.Right()), ctxExpr), nil)
+			r := o.expr(typecheck(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y), ctxExpr), nil)
 			as := typecheck(ir.NewAssignStmt(n.Pos(), l1, r), ctxStmt)
 			o.mapAssign(as)
 			o.cleanTemp(t)
@@ -666,8 +666,8 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OAS2:
 		n := n.(*ir.AssignListStmt)
 		t := o.markTemp()
-		o.exprList(n.List())
-		o.exprList(n.Rlist())
+		o.exprList(n.Lhs)
+		o.exprList(n.Rhs)
 		o.mapAssign(n)
 		o.cleanTemp(t)
 
@@ -675,9 +675,9 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
 		t := o.markTemp()
-		o.exprList(n.List())
-		o.init(n.Rlist().First())
-		o.call(n.Rlist().First())
+		o.exprList(n.Lhs)
+		o.init(n.Rhs.First())
+		o.call(n.Rhs.First())
 		o.as2(n)
 		o.cleanTemp(t)
 
@@ -690,22 +690,22 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OAS2MAPR:
 		n := n.(*ir.AssignListStmt)
 		t := o.markTemp()
-		o.exprList(n.List())
+		o.exprList(n.Lhs)
 
-		switch r := n.Rlist().First(); r.Op() {
+		switch r := n.Rhs.First(); r.Op() {
 		case ir.ODOTTYPE2:
 			r := r.(*ir.TypeAssertExpr)
-			r.SetLeft(o.expr(r.Left(), nil))
+			r.X = o.expr(r.X, nil)
 		case ir.ORECV:
 			r := r.(*ir.UnaryExpr)
-			r.SetLeft(o.expr(r.Left(), nil))
+			r.X = o.expr(r.X, nil)
 		case ir.OINDEXMAP:
 			r := r.(*ir.IndexExpr)
-			r.SetLeft(o.expr(r.Left(), nil))
-			r.SetRight(o.expr(r.Right(), nil))
+			r.X = o.expr(r.X, nil)
+			r.Index = o.expr(r.Index, nil)
 			// See similar conversion for OINDEXMAP below.
-			_ = mapKeyReplaceStrConv(r.Right())
-			r.SetRight(o.mapKeyTemp(r.Left().Type(), r.Right()))
+			_ = mapKeyReplaceStrConv(r.Index)
+			r.Index = o.mapKeyTemp(r.X.Type(), r.Index)
 		default:
 			base.Fatalf("order.stmt: %v", r.Op())
 		}
@@ -716,7 +716,7 @@ func (o *Order) stmt(n ir.Node) {
 	// Special: does not save n onto out.
 	case ir.OBLOCK:
 		n := n.(*ir.BlockStmt)
-		o.stmtList(n.List())
+		o.stmtList(n.List)
 
 	// Special: n->left is not an expression; save as is.
 	case ir.OBREAK,
@@ -741,22 +741,22 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OCLOSE, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
+		n.X = o.expr(n.X, nil)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
 	case ir.OCOPY:
 		n := n.(*ir.BinaryExpr)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
+		n.X = o.expr(n.X, nil)
+		n.Y = o.expr(n.Y, nil)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
 	case ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
-		o.exprList(n.List())
+		o.exprList(n.Args)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -764,17 +764,17 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.ODEFER, ir.OGO:
 		n := n.(*ir.GoDeferStmt)
 		t := o.markTemp()
-		o.init(n.Left())
-		o.call(n.Left())
+		o.init(n.Call)
+		o.call(n.Call)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
 	case ir.ODELETE:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
-		n.List().SetFirst(o.expr(n.List().First(), nil))
-		n.List().SetSecond(o.expr(n.List().Second(), nil))
-		n.List().SetSecond(o.mapKeyTemp(n.List().First().Type(), n.List().Second()))
+		n.Args.SetFirst(o.expr(n.Args.First(), nil))
+		n.Args.SetSecond(o.expr(n.Args.Second(), nil))
+		n.Args.SetSecond(o.mapKeyTemp(n.Args.First().Type(), n.Args.Second()))
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -783,10 +783,10 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		t := o.markTemp()
-		n.SetLeft(o.exprInPlace(n.Left()))
-		n.PtrBody().Prepend(o.cleanTempNoPop(t)...)
-		orderBlock(n.PtrBody(), o.free)
-		n.SetRight(orderStmtInPlace(n.Right(), o.free))
+		n.Cond = o.exprInPlace(n.Cond)
+		n.Body.Prepend(o.cleanTempNoPop(t)...)
+		orderBlock(&n.Body, o.free)
+		n.Post = orderStmtInPlace(n.Post, o.free)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -795,12 +795,12 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
 		t := o.markTemp()
-		n.SetLeft(o.exprInPlace(n.Left()))
-		n.PtrBody().Prepend(o.cleanTempNoPop(t)...)
-		n.PtrRlist().Prepend(o.cleanTempNoPop(t)...)
+		n.Cond = o.exprInPlace(n.Cond)
+		n.Body.Prepend(o.cleanTempNoPop(t)...)
+		n.Else.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
-		orderBlock(n.PtrBody(), o.free)
-		orderBlock(n.PtrRlist(), o.free)
+		orderBlock(&n.Body, o.free)
+		orderBlock(&n.Else, o.free)
 		o.out = append(o.out, n)
 
 	// Special: argument will be converted to interface using convT2E
@@ -808,9 +808,9 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		if !n.Left().Type().IsInterface() {
-			n.SetLeft(o.addrTemp(n.Left()))
+		n.X = o.expr(n.X, nil)
+		if !n.X.Type().IsInterface() {
+			n.X = o.addrTemp(n.X)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -830,12 +830,12 @@ func (o *Order) stmt(n ir.Node) {
 		// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
 		n := n.(*ir.RangeStmt)
-		if n.Right().Op() == ir.OSTR2BYTES {
-			n.Right().(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
+		if n.X.Op() == ir.OSTR2BYTES {
+			n.X.(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
 		}
 
 		t := o.markTemp()
-		n.SetRight(o.expr(n.Right(), nil))
+		n.X = o.expr(n.X, nil)
 
 		orderBody := true
 		switch n.Type().Kind() {
@@ -843,7 +843,7 @@ func (o *Order) stmt(n ir.Node) {
 			base.Fatalf("order.stmt range %v", n.Type())
 
 		case types.TARRAY, types.TSLICE:
-			if n.List().Len() < 2 || ir.IsBlank(n.List().Second()) {
+			if n.Vars.Len() < 2 || ir.IsBlank(n.Vars.Second()) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
 				break
@@ -853,7 +853,7 @@ func (o *Order) stmt(n ir.Node) {
 		case types.TCHAN, types.TSTRING:
 			// chan, string, slice, array ranges use value multiple times.
 			// make copy.
-			r := n.Right()
+			r := n.X
 
 			if r.Type().IsString() && r.Type() != types.Types[types.TSTRING] {
 				r = ir.NewConvExpr(base.Pos, ir.OCONV, nil, r)
@@ -861,7 +861,7 @@ func (o *Order) stmt(n ir.Node) {
 				r = typecheck(r, ctxExpr)
 			}
 
-			n.SetRight(o.copyExpr(r))
+			n.X = o.copyExpr(r)
 
 		case types.TMAP:
 			if isMapClear(n) {
@@ -875,23 +875,23 @@ func (o *Order) stmt(n ir.Node) {
 			// copy the map value in case it is a map literal.
 			// TODO(rsc): Make tmp = literal expressions reuse tmp.
 			// For maps tmp is just one word so it hardly matters.
-			r := n.Right()
-			n.SetRight(o.copyExpr(r))
+			r := n.X
+			n.X = o.copyExpr(r)
 
 			// n.Prealloc is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
 			n.Prealloc = o.newTemp(hiter(n.Type()), true)
 		}
-		o.exprListInPlace(n.List())
+		o.exprListInPlace(n.Vars)
 		if orderBody {
-			orderBlock(n.PtrBody(), o.free)
+			orderBlock(&n.Body, o.free)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
-		o.exprList(n.List())
+		o.exprList(n.Results)
 		o.out = append(o.out, n)
 
 	// Special: clean case temporaries in each block entry.
@@ -906,9 +906,9 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OSELECT:
 		n := n.(*ir.SelectStmt)
 		t := o.markTemp()
-		for _, ncas := range n.List().Slice() {
+		for _, ncas := range n.Cases.Slice() {
 			ncas := ncas.(*ir.CaseStmt)
-			r := ncas.Left()
+			r := ncas.Comm
 			setlineno(ncas)
 
 			// Append any new body prologue to ninit.
@@ -927,17 +927,17 @@ func (o *Order) stmt(n ir.Node) {
 			case ir.OSELRECV2:
 				// case x, ok = <-c
 				r := r.(*ir.AssignListStmt)
-				recv := r.Rlist().First().(*ir.UnaryExpr)
-				recv.SetLeft(o.expr(recv.Left(), nil))
-				if !ir.IsAutoTmp(recv.Left()) {
-					recv.SetLeft(o.copyExpr(recv.Left()))
+				recv := r.Rhs.First().(*ir.UnaryExpr)
+				recv.X = o.expr(recv.X, nil)
+				if !ir.IsAutoTmp(recv.X) {
+					recv.X = o.copyExpr(recv.X)
 				}
 				init := r.PtrInit().Slice()
 				r.PtrInit().Set(nil)
 
-				colas := r.Colas()
+				colas := r.Def
 				do := func(i int, t *types.Type) {
-					n := r.List().Index(i)
+					n := r.Lhs.Index(i)
 					if ir.IsBlank(n) {
 						return
 					}
@@ -946,7 +946,7 @@ func (o *Order) stmt(n ir.Node) {
 					// declaration (and possible allocation) until inside the case body.
 					// Delete the ODCL nodes here and recreate them inside the body below.
 					if colas {
-						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == n {
+						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
 							init = init[1:]
 						}
 						dcl := typecheck(ir.NewDecl(base.Pos, ir.ODCL, n), ctxStmt)
@@ -955,9 +955,9 @@ func (o *Order) stmt(n ir.Node) {
 					tmp := o.newTemp(t, t.HasPointers())
 					as := typecheck(ir.NewAssignStmt(base.Pos, n, conv(tmp, n.Type())), ctxStmt)
 					ncas.PtrInit().Append(as)
-					r.PtrList().SetIndex(i, tmp)
+					(&r.Lhs).SetIndex(i, tmp)
 				}
-				do(0, recv.Left().Type().Elem())
+				do(0, recv.X.Type().Elem())
 				do(1, types.Types[types.TBOOL])
 				if len(init) != 0 {
 					ir.DumpList("ninit", r.Init())
@@ -974,28 +974,28 @@ func (o *Order) stmt(n ir.Node) {
 
 				// case c <- x
 				// r->left is c, r->right is x, both are always evaluated.
-				r.SetLeft(o.expr(r.Left(), nil))
+				r.Chan = o.expr(r.Chan, nil)
 
-				if !ir.IsAutoTmp(r.Left()) {
-					r.SetLeft(o.copyExpr(r.Left()))
+				if !ir.IsAutoTmp(r.Chan) {
+					r.Chan = o.copyExpr(r.Chan)
 				}
-				r.SetRight(o.expr(r.Right(), nil))
-				if !ir.IsAutoTmp(r.Right()) {
-					r.SetRight(o.copyExpr(r.Right()))
+				r.Value = o.expr(r.Value, nil)
+				if !ir.IsAutoTmp(r.Value) {
+					r.Value = o.copyExpr(r.Value)
 				}
 			}
 		}
 		// Now that we have accumulated all the temporaries, clean them.
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
-		for _, cas := range n.List().Slice() {
+		for _, cas := range n.Cases.Slice() {
 			cas := cas.(*ir.CaseStmt)
-			orderBlock(cas.PtrBody(), o.free)
-			cas.PtrBody().Prepend(o.cleanTempNoPop(t)...)
+			orderBlock(&cas.Body, o.free)
+			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkselect appears to walk Ninit.
-			cas.PtrBody().Prepend(cas.Init().Slice()...)
+			cas.Body.Prepend(cas.Init().Slice()...)
 			cas.PtrInit().Set(nil)
 		}
 
@@ -1006,14 +1006,14 @@ func (o *Order) stmt(n ir.Node) {
 	case ir.OSEND:
 		n := n.(*ir.SendStmt)
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
+		n.Chan = o.expr(n.Chan, nil)
+		n.Value = o.expr(n.Value, nil)
 		if instrumenting {
 			// Force copying to the stack so that (chan T)(nil) <- x
 			// is still instrumented as a read of x.
-			n.SetRight(o.copyExpr(n.Right()))
+			n.Value = o.copyExpr(n.Value)
 		} else {
-			n.SetRight(o.addrTemp(n.Right()))
+			n.Value = o.addrTemp(n.Value)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -1029,15 +1029,15 @@ func (o *Order) stmt(n ir.Node) {
 		n := n.(*ir.SwitchStmt)
 		if base.Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
 			// Add empty "default:" case for instrumentation.
-			n.PtrList().Append(ir.NewCaseStmt(base.Pos, nil, nil))
+			n.Cases.Append(ir.NewCaseStmt(base.Pos, nil, nil))
 		}
 
 		t := o.markTemp()
-		n.SetLeft(o.expr(n.Left(), nil))
-		for _, ncas := range n.List().Slice() {
+		n.Tag = o.expr(n.Tag, nil)
+		for _, ncas := range n.Cases.Slice() {
 			ncas := ncas.(*ir.CaseStmt)
-			o.exprListInPlace(ncas.List())
-			orderBlock(ncas.PtrBody(), o.free)
+			o.exprListInPlace(ncas.List)
+			orderBlock(&ncas.Body, o.free)
 		}
 
 		o.out = append(o.out, n)
@@ -1048,9 +1048,9 @@ func (o *Order) stmt(n ir.Node) {
 }
 
 func hasDefaultCase(n *ir.SwitchStmt) bool {
-	for _, ncas := range n.List().Slice() {
+	for _, ncas := range n.Cases.Slice() {
 		ncas := ncas.(*ir.CaseStmt)
-		if ncas.List().Len() == 0 {
+		if ncas.List.Len() == 0 {
 			return true
 		}
 	}
@@ -1111,10 +1111,10 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 	// Fewer than 5 strings use direct runtime helpers.
 	case ir.OADDSTR:
 		n := n.(*ir.AddStringExpr)
-		o.exprList(n.List())
+		o.exprList(n.List)
 
-		if n.List().Len() > 5 {
-			t := types.NewArray(types.Types[types.TSTRING], int64(n.List().Len()))
+		if n.List.Len() > 5 {
+			t := types.NewArray(types.Types[types.TSTRING], int64(n.List.Len()))
 			n.Prealloc = o.newTemp(t, false)
 		}
 
@@ -1128,13 +1128,13 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		hasbyte := false
 
 		haslit := false
-		for _, n1 := range n.List().Slice() {
+		for _, n1 := range n.List.Slice() {
 			hasbyte = hasbyte || n1.Op() == ir.OBYTES2STR
 			haslit = haslit || n1.Op() == ir.OLITERAL && len(ir.StringVal(n1)) != 0
 		}
 
 		if haslit && hasbyte {
-			for _, n2 := range n.List().Slice() {
+			for _, n2 := range n.List.Slice() {
 				if n2.Op() == ir.OBYTES2STR {
 					n2 := n2.(*ir.ConvExpr)
 					n2.SetOp(ir.OBYTES2STRTMP)
@@ -1145,16 +1145,16 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 	case ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
+		n.X = o.expr(n.X, nil)
+		n.Index = o.expr(n.Index, nil)
 		needCopy := false
 
-		if !n.IndexMapLValue() {
+		if !n.Assigned {
 			// Enforce that any []byte slices we are not copying
 			// can not be changed before the map index by forcing
 			// the map index to happen immediately following the
 			// conversions. See copyExpr a few lines below.
-			needCopy = mapKeyReplaceStrConv(n.Right())
+			needCopy = mapKeyReplaceStrConv(n.Index)
 
 			if instrumenting {
 				// Race detector needs the copy.
@@ -1163,7 +1163,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		}
 
 		// key must be addressable
-		n.SetRight(o.mapKeyTemp(n.Left().Type(), n.Right()))
+		n.Index = o.mapKeyTemp(n.X.Type(), n.Index)
 		if needCopy {
 			return o.copyExpr(n)
 		}
@@ -1173,22 +1173,22 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 	// temporary to pass to the runtime conversion routine.
 	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
-		if n.Left().Type().IsInterface() {
+		n.X = o.expr(n.X, nil)
+		if n.X.Type().IsInterface() {
 			return n
 		}
-		if _, needsaddr := convFuncName(n.Left().Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.Left()) {
+		if _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
 			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
-			n.SetLeft(o.addrTemp(n.Left()))
+			n.X = o.addrTemp(n.X)
 		}
 		return n
 
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
-		if n.Type().IsKind(types.TUNSAFEPTR) && n.Left().Type().IsKind(types.TUINTPTR) && (n.Left().Op() == ir.OCALLFUNC || n.Left().Op() == ir.OCALLINTER || n.Left().Op() == ir.OCALLMETH) {
-			call := n.Left().(*ir.CallExpr)
+		if n.Type().IsKind(types.TUNSAFEPTR) && n.X.Type().IsKind(types.TUINTPTR) && (n.X.Op() == ir.OCALLFUNC || n.X.Op() == ir.OCALLINTER || n.X.Op() == ir.OCALLMETH) {
+			call := n.X.(*ir.CallExpr)
 			// When reordering unsafe.Pointer(f()) into a separate
 			// statement, the conversion and function call must stay
 			// together. See golang.org/issue/15329.
@@ -1198,7 +1198,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 				return o.copyExpr(n)
 			}
 		} else {
-			n.SetLeft(o.expr(n.Left(), nil))
+			n.X = o.expr(n.X, nil)
 		}
 		return n
 
@@ -1216,7 +1216,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		r := o.newTemp(n.Type(), false)
 
 		// Evaluate left-hand side.
-		lhs := o.expr(n.Left(), nil)
+		lhs := o.expr(n.X, nil)
 		o.out = append(o.out, typecheck(ir.NewAssignStmt(base.Pos, r, lhs), ctxStmt))
 
 		// Evaluate right-hand side, save generated code.
@@ -1224,7 +1224,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		o.out = nil
 		t := o.markTemp()
 		o.edge()
-		rhs := o.expr(n.Right(), nil)
+		rhs := o.expr(n.Y, nil)
 		o.out = append(o.out, typecheck(ir.NewAssignStmt(base.Pos, r, rhs), ctxStmt))
 		o.cleanTemp(t)
 		gen := o.out
@@ -1233,9 +1233,9 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
 		nif := ir.NewIfStmt(base.Pos, r, nil, nil)
 		if n.Op() == ir.OANDAND {
-			nif.PtrBody().Set(gen)
+			nif.Body.Set(gen)
 		} else {
-			nif.PtrRlist().Set(gen)
+			nif.Else.Set(gen)
 		}
 		o.out = append(o.out, nif)
 		return r
@@ -1261,8 +1261,8 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 		if isRuneCount(n) {
 			// len([]rune(s)) is rewritten to runtime.countrunes(s) later.
-			conv := n.(*ir.UnaryExpr).Left().(*ir.ConvExpr)
-			conv.SetLeft(o.expr(conv.Left(), nil))
+			conv := n.(*ir.UnaryExpr).X.(*ir.ConvExpr)
+			conv.X = o.expr(conv.X, nil)
 		} else {
 			o.call(n)
 		}
@@ -1276,21 +1276,21 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		// Check for append(x, make([]T, y)...) .
 		n := n.(*ir.CallExpr)
 		if isAppendOfMake(n) {
-			n.List().SetFirst(o.expr(n.List().First(), nil)) // order x
-			mk := n.List().Second().(*ir.MakeExpr)
-			mk.SetLeft(o.expr(mk.Left(), nil)) // order y
+			n.Args.SetFirst(o.expr(n.Args.First(), nil)) // order x
+			mk := n.Args.Second().(*ir.MakeExpr)
+			mk.Len = o.expr(mk.Len, nil) // order y
 		} else {
-			o.exprList(n.List())
+			o.exprList(n.Args)
 		}
 
-		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.List().First()) {
+		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.Args.First()) {
 			return o.copyExpr(n)
 		}
 		return n
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
+		n.X = o.expr(n.X, nil)
 		low, high, max := n.SliceBounds()
 		low = o.expr(low, nil)
 		low = o.cheapExpr(low)
@@ -1299,21 +1299,21 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		max = o.expr(max, nil)
 		max = o.cheapExpr(max)
 		n.SetSliceBounds(low, high, max)
-		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.Left()) {
+		if lhs == nil || lhs.Op() != ir.ONAME && !samesafeexpr(lhs, n.X) {
 			return o.copyExpr(n)
 		}
 		return n
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		if n.Transient() && len(n.Func().ClosureVars) > 0 {
+		if n.Transient() && len(n.Func.ClosureVars) > 0 {
 			n.Prealloc = o.newTemp(closureType(n), false)
 		}
 		return n
 
 	case ir.OCALLPART:
 		n := n.(*ir.CallPartExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
+		n.X = o.expr(n.X, nil)
 		if n.Transient() {
 			t := partialCallType(n)
 			n.Prealloc = o.newTemp(t, false)
@@ -1322,7 +1322,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 	case ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
-		o.exprList(n.List())
+		o.exprList(n.List)
 		if n.Transient() {
 			t := types.NewArray(n.Type().Elem(), n.Len)
 			n.Prealloc = o.newTemp(t, false)
@@ -1331,7 +1331,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
+		n.X = o.expr(n.X, nil)
 		if !isdirectiface(n.Type()) || instrumenting {
 			return o.copyExprClear(n)
 		}
@@ -1339,32 +1339,32 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 	case ir.ORECV:
 		n := n.(*ir.UnaryExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
+		n.X = o.expr(n.X, nil)
 		return o.copyExprClear(n)
 
 	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
 		n := n.(*ir.BinaryExpr)
-		n.SetLeft(o.expr(n.Left(), nil))
-		n.SetRight(o.expr(n.Right(), nil))
+		n.X = o.expr(n.X, nil)
+		n.Y = o.expr(n.Y, nil)
 
-		t := n.Left().Type()
+		t := n.X.Type()
 		switch {
 		case t.IsString():
 			// Mark string(byteSlice) arguments to reuse byteSlice backing
 			// buffer during conversion. String comparison does not
 			// memorize the strings for later use, so it is safe.
-			if n.Left().Op() == ir.OBYTES2STR {
-				n.Left().(*ir.ConvExpr).SetOp(ir.OBYTES2STRTMP)
+			if n.X.Op() == ir.OBYTES2STR {
+				n.X.(*ir.ConvExpr).SetOp(ir.OBYTES2STRTMP)
 			}
-			if n.Right().Op() == ir.OBYTES2STR {
-				n.Right().(*ir.ConvExpr).SetOp(ir.OBYTES2STRTMP)
+			if n.Y.Op() == ir.OBYTES2STR {
+				n.Y.(*ir.ConvExpr).SetOp(ir.OBYTES2STRTMP)
 			}
 
 		case t.IsStruct() || t.IsArray():
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
-			n.SetLeft(o.addrTemp(n.Left()))
-			n.SetRight(o.addrTemp(n.Right()))
+			n.X = o.addrTemp(n.X)
+			n.Y = o.addrTemp(n.Y)
 		}
 		return n
 
@@ -1385,13 +1385,13 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		// the keys and values before storing any of them to the map.
 		// See issue 26552.
 		n := n.(*ir.CompLitExpr)
-		entries := n.List().Slice()
+		entries := n.List.Slice()
 		statics := entries[:0]
 		var dynamics []*ir.KeyExpr
 		for _, r := range entries {
 			r := r.(*ir.KeyExpr)
 
-			if !isStaticCompositeLiteral(r.Left()) || !isStaticCompositeLiteral(r.Right()) {
+			if !isStaticCompositeLiteral(r.Key) || !isStaticCompositeLiteral(r.Value) {
 				dynamics = append(dynamics, r)
 				continue
 			}
@@ -1399,14 +1399,14 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 			// Recursively ordering some static entries can change them to dynamic;
 			// e.g., OCONVIFACE nodes. See #31777.
 			r = o.expr(r, nil).(*ir.KeyExpr)
-			if !isStaticCompositeLiteral(r.Left()) || !isStaticCompositeLiteral(r.Right()) {
+			if !isStaticCompositeLiteral(r.Key) || !isStaticCompositeLiteral(r.Value) {
 				dynamics = append(dynamics, r)
 				continue
 			}
 
 			statics = append(statics, r)
 		}
-		n.PtrList().Set(statics)
+		n.List.Set(statics)
 
 		if len(dynamics) == 0 {
 			return n
@@ -1420,7 +1420,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 		// Emit eval+insert of dynamic entries, one at a time.
 		for _, r := range dynamics {
-			as := ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, r.Left()), r.Right())
+			as := ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, r.Key), r.Value)
 			typecheck(as, ctxStmt) // Note: this converts the OINDEX to an OINDEXMAP
 			o.stmt(as)
 		}
@@ -1441,10 +1441,10 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 func (o *Order) as2(n *ir.AssignListStmt) {
 	tmplist := []ir.Node{}
 	left := []ir.Node{}
-	for ni, l := range n.List().Slice() {
+	for ni, l := range n.Lhs.Slice() {
 		if !ir.IsBlank(l) {
 			tmp := o.newTemp(l.Type(), l.Type().HasPointers())
-			n.List().SetIndex(ni, tmp)
+			n.Lhs.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
 		}
@@ -1453,8 +1453,8 @@ func (o *Order) as2(n *ir.AssignListStmt) {
 	o.out = append(o.out, n)
 
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.PtrList().Set(left)
-	as.PtrRlist().Set(tmplist)
+	as.Lhs.Set(left)
+	as.Rhs.Set(tmplist)
 	o.stmt(typecheck(as, ctxStmt))
 }
 
@@ -1462,25 +1462,25 @@ func (o *Order) as2(n *ir.AssignListStmt) {
 // Just like as2, this also adds temporaries to ensure left-to-right assignment.
 func (o *Order) okAs2(n *ir.AssignListStmt) {
 	var tmp1, tmp2 ir.Node
-	if !ir.IsBlank(n.List().First()) {
-		typ := n.Rlist().First().Type()
+	if !ir.IsBlank(n.Lhs.First()) {
+		typ := n.Rhs.First().Type()
 		tmp1 = o.newTemp(typ, typ.HasPointers())
 	}
 
-	if !ir.IsBlank(n.List().Second()) {
+	if !ir.IsBlank(n.Lhs.Second()) {
 		tmp2 = o.newTemp(types.Types[types.TBOOL], false)
 	}
 
 	o.out = append(o.out, n)
 
 	if tmp1 != nil {
-		r := ir.NewAssignStmt(base.Pos, n.List().First(), tmp1)
+		r := ir.NewAssignStmt(base.Pos, n.Lhs.First(), tmp1)
 		o.mapAssign(typecheck(r, ctxStmt))
-		n.List().SetFirst(tmp1)
+		n.Lhs.SetFirst(tmp1)
 	}
 	if tmp2 != nil {
-		r := ir.NewAssignStmt(base.Pos, n.List().Second(), conv(tmp2, n.List().Second().Type()))
+		r := ir.NewAssignStmt(base.Pos, n.Lhs.Second(), conv(tmp2, n.Lhs.Second().Type()))
 		o.mapAssign(typecheck(r, ctxStmt))
-		n.List().SetSecond(tmp2)
+		n.Lhs.SetSecond(tmp2)
 	}
 }

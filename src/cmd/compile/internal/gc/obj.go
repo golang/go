@@ -214,7 +214,7 @@ func addptabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
-		if n.Type().Kind() == types.TFUNC && n.Class() == ir.PFUNC {
+		if n.Type().Kind() == types.TFUNC && n.Class_ == ir.PFUNC {
 			// function
 			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
 		} else {
@@ -228,7 +228,7 @@ func dumpGlobal(n *ir.Name) {
 	if n.Type() == nil {
 		base.Fatalf("external %v nil type\n", n)
 	}
-	if n.Class() == ir.PFUNC {
+	if n.Class_ == ir.PFUNC {
 		return
 	}
 	if n.Sym().Pkg != types.LocalPkg {
@@ -560,8 +560,8 @@ func pfuncsym(n *ir.Name, noff int64, f *ir.Name) {
 	if n.Sym() == nil {
 		base.Fatalf("pfuncsym nil n sym")
 	}
-	if f.Class() != ir.PFUNC {
-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class())
+	if f.Class_ != ir.PFUNC {
+		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
 	}
 	s := n.Sym().Linksym()
 	s.WriteAddr(base.Ctxt, noff, Widthptr, funcsym(f.Sym()).Linksym(), 0)

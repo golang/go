@@ -167,7 +167,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
 		if body == nil {
 			body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 		}
-		fn.PtrBody().Set(body)
+		fn.Body.Set(body)
 
 		base.Pos = p.makeXPos(block.Rbrace)
 		fn.Endlineno = base.Pos
@@ -650,13 +650,13 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 	case *syntax.CompositeLit:
 		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, nil, nil)
 		if expr.Type != nil {
-			n.SetRight(p.expr(expr.Type))
+			n.Ntype = ir.Node(p.expr(expr.Type)).(ir.Ntype)
 		}
 		l := p.exprs(expr.ElemList)
 		for i, e := range l {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
-		n.PtrList().Set(l)
+		n.List.Set(l)
 		base.Pos = p.makeXPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
@@ -719,8 +719,8 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		return ir.NewBinaryExpr(pos, op, x, y)
 	case *syntax.CallExpr:
 		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil)
-		n.PtrList().Set(p.exprs(expr.ArgList))
-		n.SetIsDDD(expr.HasDots)
+		n.Args.Set(p.exprs(expr.ArgList))
+		n.IsDDD = expr.HasDots
 		return n
 
 	case *syntax.ArrayType:
@@ -968,10 +968,10 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op() == ir.OBLOCK && s.(*ir.BlockStmt).List().Len() > 0 {
+		} else if s.Op() == ir.OBLOCK && s.(*ir.BlockStmt).List.Len() > 0 {
 			// Inline non-empty block.
 			// Empty blocks must be preserved for checkreturn.
-			nodes = append(nodes, s.(*ir.BlockStmt).List().Slice()...)
+			nodes = append(nodes, s.(*ir.BlockStmt).List.Slice()...)
 		} else {
 			nodes = append(nodes, s)
 		}
@@ -1006,23 +1006,23 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := ir.NewAssignOpStmt(p.pos(stmt), p.binOp(stmt.Op), p.expr(stmt.Lhs), p.expr(stmt.Rhs))
-			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
+			n.IncDec = stmt.Rhs == syntax.ImplicitOne
 			return n
 		}
 
 		rhs := p.exprList(stmt.Rhs)
 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
 			n := ir.NewAssignListStmt(p.pos(stmt), ir.OAS2, nil, nil)
-			n.SetColas(stmt.Op == syntax.Def)
-			n.PtrList().Set(p.assignList(stmt.Lhs, n, n.Colas()))
-			n.PtrRlist().Set(rhs)
+			n.Def = stmt.Op == syntax.Def
+			n.Lhs.Set(p.assignList(stmt.Lhs, n, n.Def))
+			n.Rhs.Set(rhs)
 			return n
 		}
 
 		n := ir.NewAssignStmt(p.pos(stmt), nil, nil)
-		n.SetColas(stmt.Op == syntax.Def)
-		n.SetLeft(p.assignList(stmt.Lhs, n, n.Colas())[0])
-		n.SetRight(rhs[0])
+		n.Def = stmt.Op == syntax.Def
+		n.X = p.assignList(stmt.Lhs, n, n.Def)[0]
+		n.Y = rhs[0]
 		return n
 
 	case *syntax.BranchStmt:
@@ -1064,13 +1064,13 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 			results = p.exprList(stmt.Results)
 		}
 		n := ir.NewReturnStmt(p.pos(stmt), nil)
-		n.PtrList().Set(results)
-		if n.List().Len() == 0 && Curfn != nil {
+		n.Results.Set(results)
+		if n.Results.Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Dcl {
-				if ln.Class() == ir.PPARAM {
+				if ln.Class_ == ir.PPARAM {
 					continue
 				}
-				if ln.Class() != ir.PPARAMOUT {
+				if ln.Class_ != ir.PPARAMOUT {
 					break
 				}
 				if ln.Sym().Def != ln {
@@ -1163,16 +1163,16 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
 	if stmt.Cond != nil {
-		n.SetLeft(p.expr(stmt.Cond))
+		n.Cond = p.expr(stmt.Cond)
 	}
-	n.PtrBody().Set(p.blockStmt(stmt.Then))
+	n.Body.Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
 			e := e.(*ir.BlockStmt)
-			n.PtrRlist().Set(e.List().Slice())
+			n.Else.Set(e.List.Slice())
 		} else {
-			n.PtrRlist().Set1(e)
+			n.Else.Set1(e)
 		}
 	}
 	p.closeAnotherScope()
@@ -1188,10 +1188,10 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 
 		n := ir.NewRangeStmt(p.pos(r), nil, p.expr(r.X), nil)
 		if r.Lhs != nil {
-			n.SetColas(r.Def)
-			n.PtrList().Set(p.assignList(r.Lhs, n, n.Colas()))
+			n.Def = r.Def
+			n.Vars.Set(p.assignList(r.Lhs, n, n.Def))
 		}
-		n.PtrBody().Set(p.blockStmt(stmt.Body))
+		n.Body.Set(p.blockStmt(stmt.Body))
 		p.closeAnotherScope()
 		return n
 	}
@@ -1201,12 +1201,12 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
 	if stmt.Cond != nil {
-		n.SetLeft(p.expr(stmt.Cond))
+		n.Cond = p.expr(stmt.Cond)
 	}
 	if stmt.Post != nil {
-		n.SetRight(p.stmt(stmt.Post))
+		n.Post = p.stmt(stmt.Post)
 	}
-	n.PtrBody().Set(p.blockStmt(stmt.Body))
+	n.Body.Set(p.blockStmt(stmt.Body))
 	p.closeAnotherScope()
 	return n
 }
@@ -1218,14 +1218,14 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 		n.PtrInit().Set1(p.stmt(stmt.Init))
 	}
 	if stmt.Tag != nil {
-		n.SetLeft(p.expr(stmt.Tag))
+		n.Tag = p.expr(stmt.Tag)
 	}
 
 	var tswitch *ir.TypeSwitchGuard
-	if l := n.Left(); l != nil && l.Op() == ir.OTYPESW {
+	if l := n.Tag; l != nil && l.Op() == ir.OTYPESW {
 		tswitch = l.(*ir.TypeSwitchGuard)
 	}
-	n.PtrList().Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+	n.Cases.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
 
 	p.closeScope(stmt.Rbrace)
 	return n
@@ -1242,12 +1242,12 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 
 		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
 		if clause.Cases != nil {
-			n.PtrList().Set(p.exprList(clause.Cases))
+			n.List.Set(p.exprList(clause.Cases))
 		}
-		if tswitch != nil && tswitch.Left() != nil {
-			nn := NewName(tswitch.Left().Sym())
+		if tswitch != nil && tswitch.Tag != nil {
+			nn := NewName(tswitch.Tag.Sym())
 			declare(nn, dclcontext)
-			n.PtrRlist().Set1(nn)
+			n.Vars.Set1(nn)
 			// keep track of the instances for reporting unused
 			nn.Defn = tswitch
 		}
@@ -1263,8 +1263,8 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 			body = body[:len(body)-1]
 		}
 
-		n.PtrBody().Set(p.stmtsFall(body, true))
-		if l := n.Body().Len(); l > 0 && n.Body().Index(l-1).Op() == ir.OFALL {
+		n.Body.Set(p.stmtsFall(body, true))
+		if l := n.Body.Len(); l > 0 && n.Body.Index(l-1).Op() == ir.OFALL {
 			if tswitch != nil {
 				base.Errorf("cannot fallthrough in type switch")
 			}
@@ -1283,7 +1283,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 
 func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
 	n := ir.NewSelectStmt(p.pos(stmt), nil)
-	n.PtrList().Set(p.commClauses(stmt.Body, stmt.Rbrace))
+	n.Cases.Set(p.commClauses(stmt.Body, stmt.Rbrace))
 	return n
 }
 
@@ -1298,9 +1298,9 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 
 		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
 		if clause.Comm != nil {
-			n.PtrList().Set1(p.stmt(clause.Comm))
+			n.List.Set1(p.stmt(clause.Comm))
 		}
-		n.PtrBody().Set(p.stmts(clause.Body))
+		n.Body.Set(p.stmts(clause.Body))
 		nodes = append(nodes, n)
 	}
 	if len(clauses) > 0 {
@@ -1321,16 +1321,16 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 			switch ls.Op() {
 			case ir.OFOR:
 				ls := ls.(*ir.ForStmt)
-				ls.SetSym(sym)
+				ls.Label = sym
 			case ir.ORANGE:
 				ls := ls.(*ir.RangeStmt)
-				ls.SetSym(sym)
+				ls.Label = sym
 			case ir.OSWITCH:
 				ls := ls.(*ir.SwitchStmt)
-				ls.SetSym(sym)
+				ls.Label = sym
 			case ir.OSELECT:
 				ls := ls.(*ir.SelectStmt)
-				ls.SetSym(sym)
+				ls.Label = sym
 			}
 		}
 	}
@@ -1339,7 +1339,7 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 	if ls != nil {
 		if ls.Op() == ir.OBLOCK {
 			ls := ls.(*ir.BlockStmt)
-			l = append(l, ls.List().Slice()...)
+			l = append(l, ls.List.Slice()...)
 		} else {
 			l = append(l, ls)
 		}

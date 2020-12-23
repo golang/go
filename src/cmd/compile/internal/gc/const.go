@@ -163,8 +163,8 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		}
 
 		n := n.(*ir.UnaryExpr)
-		n.SetLeft(convlit(n.Left(), ot))
-		if n.Left().Type() == nil {
+		n.X = convlit(n.X, ot)
+		if n.X.Type() == nil {
 			n.SetType(nil)
 			return n
 		}
@@ -181,13 +181,13 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		var l, r ir.Node
 		switch n := n.(type) {
 		case *ir.BinaryExpr:
-			n.SetLeft(convlit(n.Left(), ot))
-			n.SetRight(convlit(n.Right(), ot))
-			l, r = n.Left(), n.Right()
+			n.X = convlit(n.X, ot)
+			n.Y = convlit(n.Y, ot)
+			l, r = n.X, n.Y
 		case *ir.LogicalExpr:
-			n.SetLeft(convlit(n.Left(), ot))
-			n.SetRight(convlit(n.Right(), ot))
-			l, r = n.Left(), n.Right()
+			n.X = convlit(n.X, ot)
+			n.Y = convlit(n.Y, ot)
+			l, r = n.X, n.Y
 		}
 
 		if l.Type() == nil || r.Type() == nil {
@@ -213,8 +213,8 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 
 	case ir.OLSH, ir.ORSH:
 		n := n.(*ir.BinaryExpr)
-		n.SetLeft(convlit1(n.Left(), t, explicit, nil))
-		n.SetType(n.Left().Type())
+		n.X = convlit1(n.X, t, explicit, nil)
+		n.SetType(n.X.Type())
 		if n.Type() != nil && !n.Type().IsInteger() {
 			base.Errorf("invalid operation: %v (shift of type %v)", n, n.Type())
 			n.SetType(nil)
@@ -452,7 +452,7 @@ func evalConst(n ir.Node) ir.Node {
 	switch n.Op() {
 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
 		n := n.(*ir.UnaryExpr)
-		nl := n.Left()
+		nl := n.X
 		if nl.Op() == ir.OLITERAL {
 			var prec uint
 			if n.Type().IsUnsigned() {
@@ -463,7 +463,7 @@ func evalConst(n ir.Node) ir.Node {
 
 	case ir.OADD, ir.OSUB, ir.OMUL, ir.ODIV, ir.OMOD, ir.OOR, ir.OXOR, ir.OAND, ir.OANDNOT:
 		n := n.(*ir.BinaryExpr)
-		nl, nr := n.Left(), n.Right()
+		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
 			rval := nr.Val()
 
@@ -488,21 +488,21 @@ func evalConst(n ir.Node) ir.Node {
 
 	case ir.OOROR, ir.OANDAND:
 		n := n.(*ir.LogicalExpr)
-		nl, nr := n.Left(), n.Right()
+		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
 			return origConst(n, constant.BinaryOp(nl.Val(), tokenForOp[n.Op()], nr.Val()))
 		}
 
 	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
 		n := n.(*ir.BinaryExpr)
-		nl, nr := n.Left(), n.Right()
+		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
 			return origBoolConst(n, constant.Compare(nl.Val(), tokenForOp[n.Op()], nr.Val()))
 		}
 
 	case ir.OLSH, ir.ORSH:
 		n := n.(*ir.BinaryExpr)
-		nl, nr := n.Left(), n.Right()
+		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
 			// shiftBound from go/types; "so we can express smallestFloat64"
 			const shiftBound = 1023 - 1 + 52
@@ -517,14 +517,14 @@ func evalConst(n ir.Node) ir.Node {
 
 	case ir.OCONV, ir.ORUNESTR:
 		n := n.(*ir.ConvExpr)
-		nl := n.Left()
+		nl := n.X
 		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			return origConst(n, convertVal(nl.Val(), n.Type(), true))
 		}
 
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
-		nl := n.Left()
+		nl := n.X
 		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
 			// set so n.Orig gets OCONV instead of OCONVNOP
 			n.SetOp(ir.OCONV)
@@ -534,7 +534,7 @@ func evalConst(n ir.Node) ir.Node {
 	case ir.OADDSTR:
 		// Merge adjacent constants in the argument list.
 		n := n.(*ir.AddStringExpr)
-		s := n.List().Slice()
+		s := n.List.Slice()
 		need := 0
 		for i := 0; i < len(s); i++ {
 			if i == 0 || !ir.IsConst(s[i-1], constant.String) || !ir.IsConst(s[i], constant.String) {
@@ -564,7 +564,7 @@ func evalConst(n ir.Node) ir.Node {
 				}
 
 				nl := ir.Copy(n).(*ir.AddStringExpr)
-				nl.PtrList().Set(s[i:i2])
+				nl.List.Set(s[i:i2])
 				newList = append(newList, origConst(nl, constant.MakeString(strings.Join(strs, ""))))
 				i = i2 - 1
 			} else {
@@ -573,12 +573,12 @@ func evalConst(n ir.Node) ir.Node {
 		}
 
 		nn := ir.Copy(n).(*ir.AddStringExpr)
-		nn.PtrList().Set(newList)
+		nn.List.Set(newList)
 		return nn
 
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
-		nl := n.Left()
+		nl := n.X
 		switch nl.Type().Kind() {
 		case types.TSTRING:
 			if ir.IsConst(nl, constant.String) {
@@ -596,21 +596,21 @@ func evalConst(n ir.Node) ir.Node {
 
 	case ir.OREAL:
 		n := n.(*ir.UnaryExpr)
-		nl := n.Left()
+		nl := n.X
 		if nl.Op() == ir.OLITERAL {
 			return origConst(n, constant.Real(nl.Val()))
 		}
 
 	case ir.OIMAG:
 		n := n.(*ir.UnaryExpr)
-		nl := n.Left()
+		nl := n.X
 		if nl.Op() == ir.OLITERAL {
 			return origConst(n, constant.Imag(nl.Val()))
 		}
 
 	case ir.OCOMPLEX:
 		n := n.(*ir.BinaryExpr)
-		nl, nr := n.Left(), n.Right()
+		nl, nr := n.X, n.Y
 		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
 			return origConst(n, makeComplex(nl.Val(), nr.Val()))
 		}
@@ -871,7 +871,7 @@ func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
 	if conv := n; conv.Op() == ir.OCONVIFACE {
 		conv := conv.(*ir.ConvExpr)
 		if conv.Implicit() {
-			n = conv.Left()
+			n = conv.X
 		}
 	}
 

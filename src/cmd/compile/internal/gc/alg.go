@@ -324,11 +324,11 @@ func genhash(t *types.Type) *obj.LSym {
 		nx := ir.NewIndexExpr(base.Pos, np, ni)
 		nx.SetBounded(true)
 		na := nodAddr(nx)
-		call.PtrList().Append(na)
-		call.PtrList().Append(nh)
-		loop.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
+		call.Args.Append(na)
+		call.Args.Append(nh)
+		loop.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
 
-		fn.PtrBody().Append(loop)
+		fn.Body.Append(loop)
 
 	case types.TSTRUCT:
 		// Walk the struct using memhash for runs of AMEM
@@ -348,9 +348,9 @@ func genhash(t *types.Type) *obj.LSym {
 				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := nodAddr(nx)
-				call.PtrList().Append(na)
-				call.PtrList().Append(nh)
-				fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
+				call.Args.Append(na)
+				call.Args.Append(nh)
+				fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
 				i++
 				continue
 			}
@@ -363,21 +363,21 @@ func genhash(t *types.Type) *obj.LSym {
 			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := nodAddr(nx)
-			call.PtrList().Append(na)
-			call.PtrList().Append(nh)
-			call.PtrList().Append(nodintconst(size))
-			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
+			call.Args.Append(na)
+			call.Args.Append(nh)
+			call.Args.Append(nodintconst(size))
+			fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
 
 			i = next
 		}
 	}
 
 	r := ir.NewReturnStmt(base.Pos, nil)
-	r.PtrList().Append(nh)
-	fn.PtrBody().Append(r)
+	r.Results.Append(nh)
+	fn.Body.Append(r)
 
 	if base.Flag.LowerR != 0 {
-		ir.DumpList("genhash body", fn.Body())
+		ir.DumpList("genhash body", fn.Body)
 	}
 
 	funcbody()
@@ -386,7 +386,7 @@ func genhash(t *types.Type) *obj.LSym {
 	typecheckFunc(fn)
 
 	Curfn = fn
-	typecheckslice(fn.Body().Slice(), ctxStmt)
+	typecheckslice(fn.Body.Slice(), ctxStmt)
 	Curfn = nil
 
 	if base.Debug.DclStack != 0 {
@@ -587,11 +587,11 @@ func geneq(t *types.Type) *obj.LSym {
 				for i := int64(0); i < nelem; i++ {
 					// if check {} else { goto neq }
 					nif := ir.NewIfStmt(base.Pos, checkIdx(nodintconst(i)), nil, nil)
-					nif.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-					fn.PtrBody().Append(nif)
+					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+					fn.Body.Append(nif)
 				}
 				if last {
-					fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(nodintconst(nelem))))
+					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(nodintconst(nelem))))
 				}
 			} else {
 				// Generate a for loop.
@@ -604,11 +604,11 @@ func geneq(t *types.Type) *obj.LSym {
 				loop.PtrInit().Append(init)
 				// if eq(pi, qi) {} else { goto neq }
 				nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
-				nif.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-				loop.PtrBody().Append(nif)
-				fn.PtrBody().Append(loop)
+				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+				loop.Body.Append(nif)
+				fn.Body.Append(loop)
 				if last {
-					fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
+					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
 				}
 			}
 		}
@@ -718,42 +718,42 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 		if len(flatConds) == 0 {
-			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
+			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
 		} else {
 			for _, c := range flatConds[:len(flatConds)-1] {
 				// if cond {} else { goto neq }
 				n := ir.NewIfStmt(base.Pos, c, nil, nil)
-				n.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-				fn.PtrBody().Append(n)
+				n.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+				fn.Body.Append(n)
 			}
-			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, flatConds[len(flatConds)-1]))
+			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, flatConds[len(flatConds)-1]))
 		}
 	}
 
 	// ret:
 	//   return
 	ret := autolabel(".ret")
-	fn.PtrBody().Append(ir.NewLabelStmt(base.Pos, ret))
-	fn.PtrBody().Append(ir.NewReturnStmt(base.Pos, nil))
+	fn.Body.Append(ir.NewLabelStmt(base.Pos, ret))
+	fn.Body.Append(ir.NewReturnStmt(base.Pos, nil))
 
 	// neq:
 	//   r = false
 	//   return (or goto ret)
-	fn.PtrBody().Append(ir.NewLabelStmt(base.Pos, neq))
-	fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(false)))
+	fn.Body.Append(ir.NewLabelStmt(base.Pos, neq))
+	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, nodbool(false)))
 	if EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
-		fn.PtrBody().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
+		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
 	} else {
 		// Epilogue is small, so don't bother sharing.
-		fn.PtrBody().Append(ir.NewReturnStmt(base.Pos, nil))
+		fn.Body.Append(ir.NewReturnStmt(base.Pos, nil))
 	}
 	// TODO(khr): the epilogue size detection condition above isn't perfect.
 	// We should really do a generic CL that shares epilogues across
 	// the board. See #24936.
 
 	if base.Flag.LowerR != 0 {
-		ir.DumpList("geneq body", fn.Body())
+		ir.DumpList("geneq body", fn.Body)
 	}
 
 	funcbody()
@@ -762,7 +762,7 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheckFunc(fn)
 
 	Curfn = fn
-	typecheckslice(fn.Body().Slice(), ctxStmt)
+	typecheckslice(fn.Body.Slice(), ctxStmt)
 	Curfn = nil
 
 	if base.Debug.DclStack != 0 {
@@ -869,10 +869,10 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-	call.PtrList().Append(nx)
-	call.PtrList().Append(ny)
+	call.Args.Append(nx)
+	call.Args.Append(ny)
 	if needsize {
-		call.PtrList().Append(nodintconst(size))
+		call.Args.Append(nodintconst(size))
 	}
 
 	return call

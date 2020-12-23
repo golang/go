@@ -39,7 +39,7 @@ type Name struct {
 	flags     bitset16
 	pragma    PragmaFlag // int16
 	sym       *types.Sym
-	fn        *Func
+	Func      *Func
 	Offset_   int64
 	val       constant.Value
 	orig      Node
@@ -225,8 +225,7 @@ func (n *Name) SubOp() Op           { return n.BuiltinOp }
 func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
 func (n *Name) Class() Class        { return n.Class_ }
 func (n *Name) SetClass(x Class)    { n.Class_ = x }
-func (n *Name) Func() *Func         { return n.fn }
-func (n *Name) SetFunc(x *Func)     { n.fn = x }
+func (n *Name) SetFunc(x *Func)     { n.Func = x }
 func (n *Name) Offset() int64       { panic("Name.Offset") }
 func (n *Name) SetOffset(x int64) {
 	if x != 0 {

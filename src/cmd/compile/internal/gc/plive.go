@@ -211,7 +211,7 @@ func livenessShouldTrack(nn ir.Node) bool {
 		return false
 	}
 	n := nn.(*ir.Name)
-	return (n.Class() == ir.PAUTO || n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Type().HasPointers()
+	return (n.Class_ == ir.PAUTO || n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -238,7 +238,7 @@ func (lv *Liveness) initcache() {
 	lv.cache.initialized = true
 
 	for i, node := range lv.vars {
-		switch node.Class() {
+		switch node.Class_ {
 		case ir.PPARAM:
 			// A return instruction with a p.to is a tail return, which brings
 			// the stack pointer back up (if it ever went down) and then jumps
@@ -494,7 +494,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec)
 			break
 		}
 		node := vars[i]
-		switch node.Class() {
+		switch node.Class_ {
 		case ir.PAUTO:
 			onebitwalktype1(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
 
@@ -795,7 +795,7 @@ func (lv *Liveness) epilogue() {
 	// don't need to keep the stack copy live?
 	if lv.fn.HasDefer() {
 		for i, n := range lv.vars {
-			if n.Class() == ir.PPARAMOUT {
+			if n.Class_ == ir.PPARAMOUT {
 				if n.Name().IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					base.Fatalf("variable %v both output param and heap output param", n)
@@ -893,7 +893,7 @@ func (lv *Liveness) epilogue() {
 				if !liveout.Get(int32(i)) {
 					continue
 				}
-				if n.Class() == ir.PPARAM {
+				if n.Class_ == ir.PPARAM {
 					continue // ok
 				}
 				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
@@ -926,7 +926,7 @@ func (lv *Liveness) epilogue() {
 	// the only things that can possibly be live are the
 	// input parameters.
 	for j, n := range lv.vars {
-		if n.Class() != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
+		if n.Class_ != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
 			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
 		}
 	}
@@ -1171,7 +1171,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
 	var maxArgNode *ir.Name
 	for _, n := range lv.vars {
-		switch n.Class() {
+		switch n.Class_ {
 		case ir.PPARAM, ir.PPARAMOUT:
 			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
 				maxArgNode = n

@@ -120,7 +120,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
 	s.Lastlineno = base.Pos
 	s.Def = n
 	n.Vargen = int32(gen)
-	n.SetClass(ctxt)
+	n.Class_ = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
 	}
@@ -137,9 +137,9 @@ func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
 	if len(el) == 1 && len(vl) > 1 {
 		e := el[0]
 		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-		as2.PtrRlist().Set1(e)
+		as2.Rhs.Set1(e)
 		for _, v := range vl {
-			as2.PtrList().Append(v)
+			as2.Lhs.Append(v)
 			declare(v, dclcontext)
 			v.Ntype = t
 			v.Defn = as2
@@ -234,7 +234,7 @@ func oldname(s *types.Sym) ir.Node {
 		if c == nil || c.Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = NewName(s)
-			c.SetClass(ir.PAUTOHEAP)
+			c.Class_ = ir.PAUTOHEAP
 			c.SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
 			c.Defn = n
@@ -810,11 +810,11 @@ func makefuncsym(s *types.Sym) {
 
 // setNodeNameFunc marks a node as a function.
 func setNodeNameFunc(n *ir.Name) {
-	if n.Op() != ir.ONAME || n.Class() != ir.Pxxx {
+	if n.Op() != ir.ONAME || n.Class_ != ir.Pxxx {
 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
 	}
 
-	n.SetClass(ir.PFUNC)
+	n.Class_ = ir.PFUNC
 	n.Sym().SetFunc(true)
 }
 
@@ -876,11 +876,11 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 		return
 	}
 	n := nn.(*ir.CallExpr)
-	if n.Left() == nil || n.Left().Op() != ir.ONAME {
+	if n.X == nil || n.X.Op() != ir.ONAME {
 		return
 	}
-	fn := n.Left().(*ir.Name)
-	if fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
+	fn := n.X.(*ir.Name)
+	if fn.Class_ != ir.PFUNC || fn.Name().Defn == nil {
 		return
 	}
 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
@@ -888,14 +888,14 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	}
 
 	var callee *ir.Func
-	arg := n.List().First()
+	arg := n.Args.First()
 	switch arg.Op() {
 	case ir.ONAME:
 		arg := arg.(*ir.Name)
 		callee = arg.Name().Defn.(*ir.Func)
 	case ir.OCLOSURE:
 		arg := arg.(*ir.ClosureExpr)
-		callee = arg.Func()
+		callee = arg.Func
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
@@ -973,7 +973,7 @@ func (c *nowritebarrierrecChecker) check() {
 		q.PushRight(target.Nname)
 	}
 	for !q.Empty() {
-		fn := q.PopLeft().Func()
+		fn := q.PopLeft().Func
 
 		// Check fn.
 		if fn.WBPos.IsKnown() {

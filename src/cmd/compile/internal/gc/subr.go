@@ -616,7 +616,7 @@ func calcHasCall(n ir.Node) bool {
 		if instrumenting {
 			return true
 		}
-		return n.Left().HasCall() || n.Right().HasCall()
+		return n.X.HasCall() || n.Y.HasCall()
 	case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
 		ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
 		// These ops might panic, make sure they are done
@@ -630,49 +630,49 @@ func calcHasCall(n ir.Node) bool {
 		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
-		return n.Left().HasCall() || n.Right().HasCall()
+		return n.X.HasCall() || n.Y.HasCall()
 	case ir.ONEG:
 		n := n.(*ir.UnaryExpr)
 		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
 			return true
 		}
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
 		n := n.(*ir.BinaryExpr)
-		if thearch.SoftFloat && (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()]) {
+		if thearch.SoftFloat && (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()]) {
 			return true
 		}
-		return n.Left().HasCall() || n.Right().HasCall()
+		return n.X.HasCall() || n.Y.HasCall()
 	case ir.OCONV:
 		n := n.(*ir.ConvExpr)
-		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.Left().Type().Kind()] || isComplex[n.Left().Type().Kind()])) {
+		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()])) {
 			return true
 		}
-		return n.Left().HasCall()
+		return n.X.HasCall()
 
 	case ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOPY, ir.OCOMPLEX, ir.OEFACE:
 		n := n.(*ir.BinaryExpr)
-		return n.Left().HasCall() || n.Right().HasCall()
+		return n.X.HasCall() || n.Y.HasCall()
 
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		return n.Left().HasCall() || n.Right() != nil && n.Right().HasCall()
+		return n.X.HasCall() || n.Y != nil && n.Y.HasCall()
 
 	case ir.OADDR:
 		n := n.(*ir.AddrExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.OPAREN:
 		n := n.(*ir.ParenExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
 		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
 		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
 		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.ONEWOBJ, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
 		n := n.(*ir.UnaryExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
 		n := n.(*ir.SelectorExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 
 	case ir.OGETG, ir.OCLOSUREREAD, ir.OMETHEXPR:
 		return false
@@ -687,15 +687,15 @@ func calcHasCall(n ir.Node) bool {
 	case ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.OBYTES2STRTMP, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2BYTESTMP, ir.OSTR2RUNES, ir.ORUNESTR:
 		// TODO(rsc): Some conversions are themselves calls, no?
 		n := n.(*ir.ConvExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.ODOTTYPE2:
 		// TODO(rsc): Shouldn't this be up with ODOTTYPE above?
 		n := n.(*ir.TypeAssertExpr)
-		return n.Left().HasCall()
+		return n.X.HasCall()
 	case ir.OSLICEHEADER:
 		// TODO(rsc): What about len and cap?
 		n := n.(*ir.SliceHeaderExpr)
-		return n.Left().HasCall()
+		return n.Ptr.HasCall()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC:
 		// TODO(rsc): Surely we need to check List and Rlist.
 		return false
@@ -783,44 +783,44 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
-		l := safeexpr(n.Left(), init)
-		if l == n.Left() {
+		l := safeexpr(n.X, init)
+		if l == n.X {
 			return n
 		}
 		a := ir.Copy(n).(*ir.UnaryExpr)
-		a.SetLeft(l)
+		a.X = l
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.ODOT, ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
-		l := safeexpr(n.Left(), init)
-		if l == n.Left() {
+		l := safeexpr(n.X, init)
+		if l == n.X {
 			return n
 		}
 		a := ir.Copy(n).(*ir.SelectorExpr)
-		a.SetLeft(l)
+		a.X = l
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
-		l := safeexpr(n.Left(), init)
-		if l == n.Left() {
+		l := safeexpr(n.X, init)
+		if l == n.X {
 			return n
 		}
 		a := ir.Copy(n).(*ir.StarExpr)
-		a.SetLeft(l)
+		a.X = l
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
-		l := safeexpr(n.Left(), init)
-		r := safeexpr(n.Right(), init)
-		if l == n.Left() && r == n.Right() {
+		l := safeexpr(n.X, init)
+		r := safeexpr(n.Index, init)
+		if l == n.X && r == n.Index {
 			return n
 		}
 		a := ir.Copy(n).(*ir.IndexExpr)
-		a.SetLeft(l)
-		a.SetRight(r)
+		a.X = l
+		a.Index = r
 		return walkexpr(typecheck(a, ctxExpr), init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT:
@@ -992,20 +992,20 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
-	n.SetLeft(typecheck(n.Left(), ctxType|ctxExpr))
-	if n.Left().Diag() {
+	n.X = typecheck(n.X, ctxType|ctxExpr)
+	if n.X.Diag() {
 		n.SetDiag(true)
 	}
-	t := n.Left().Type()
+	t := n.X.Type()
 	if t == nil {
 		return n
 	}
 
-	if n.Left().Op() == ir.OTYPE {
+	if n.X.Op() == ir.OTYPE {
 		return n
 	}
 
-	s := n.Sym()
+	s := n.Sel
 	if s == nil {
 		return n
 	}
@@ -1014,14 +1014,14 @@ func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			dot := ir.NewSelectorExpr(base.Pos, ir.ODOT, n.Left(), path[c].field.Sym)
+			dot := ir.NewSelectorExpr(base.Pos, ir.ODOT, n.X, path[c].field.Sym)
 			dot.SetImplicit(true)
 			dot.SetType(path[c].field.Type)
-			n.SetLeft(dot)
+			n.X = dot
 		}
 	case ambig:
 		base.Errorf("ambiguous selector %v", n)
-		n.SetLeft(nil)
+		n.X = nil
 	}
 
 	return n
@@ -1228,10 +1228,10 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		n.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, nodnil()))
+		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, nodnil())
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, syslook("panicwrap"), nil)
-		n.PtrBody().Set1(call)
-		fn.PtrBody().Append(n)
+		n.Body.Set1(call)
+		fn.Body.Append(n)
 	}
 
 	dot := adddot(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
@@ -1245,29 +1245,29 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// value for that function.
 	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
-		left := dot.Left() // skip final .M
+		left := dot.X // skip final .M
 		if !left.Type().IsPtr() {
 			left = nodAddr(left)
 		}
 		as := ir.NewAssignStmt(base.Pos, nthis, convnop(left, rcvr))
-		fn.PtrBody().Append(as)
-		fn.PtrBody().Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, methodSym(methodrcvr, method.Sym)))
+		fn.Body.Append(as)
+		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, methodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.PtrList().Set(paramNnames(tfn.Type()))
-		call.SetIsDDD(tfn.Type().IsVariadic())
+		call.Args.Set(paramNnames(tfn.Type()))
+		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)
-			ret.PtrList().Set1(call)
-			fn.PtrBody().Append(ret)
+			ret.Results.Set1(call)
+			fn.Body.Append(ret)
 		} else {
-			fn.PtrBody().Append(call)
+			fn.Body.Append(call)
 		}
 	}
 
 	if false && base.Flag.LowerR != 0 {
-		ir.DumpList("genwrapper body", fn.Body())
+		ir.DumpList("genwrapper body", fn.Body)
 	}
 
 	funcbody()
@@ -1277,7 +1277,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	typecheckFunc(fn)
 	Curfn = fn
-	typecheckslice(fn.Body().Slice(), ctxStmt)
+	typecheckslice(fn.Body.Slice(), ctxStmt)
 
 	// Inline calls within (*T).M wrappers. This is safe because we only
 	// generate those wrappers within the same compilation unit as (T).M.
@@ -1422,7 +1422,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 
 func liststmt(l []ir.Node) ir.Node {
 	n := ir.NewBlockStmt(base.Pos, nil)
-	n.PtrList().Set(l)
+	n.List.Set(l)
 	if len(l) != 0 {
 		n.SetPos(l[0].Pos())
 	}
@@ -1542,8 +1542,8 @@ func itabType(itab ir.Node) ir.Node {
 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
 	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	typ.SetTypecheck(1)
-	typ.SetOffset(int64(Widthptr)) // offset of _type in runtime.itab
-	typ.SetBounded(true)           // guaranteed not to fault
+	typ.Offset = int64(Widthptr) // offset of _type in runtime.itab
+	typ.SetBounded(true)         // guaranteed not to fault
 	return typ
 }
 
