@@ -1217,7 +1217,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 		if tswitch != nil && tswitch.Tag != nil {
 			nn := typecheck.NewName(tswitch.Tag.Sym())
 			typecheck.Declare(nn, typecheck.DeclContext)
-			n.Vars = []ir.Node{nn}
+			n.Var = nn
 			// keep track of the instances for reporting unused
 			nn.Defn = tswitch
 		}

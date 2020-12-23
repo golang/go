@@ -176,7 +176,7 @@ func (n *BranchStmt) Sym() *types.Sym { return n.Label }
 // A CaseStmt is a case statement in a switch or select: case List: Body.
 type CaseStmt struct {
 	miniStmt
-	Vars Nodes // declared variable for this case in type switch
+	Var  Node  // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
 	Comm Node  // communication case (Exprs[0]) after select is type-checked
 	Body Nodes

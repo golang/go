@@ -694,7 +694,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			ts.add(ncase.Pos(), n1.Type())
 		}
 
-		if len(ncase.Vars) != 0 {
+		if ncase.Var != nil {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
@@ -707,7 +707,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				}
 			}
 
-			nvar := ncase.Vars[0]
+			nvar := ncase.Var
 			nvar.SetType(vt)
 			if vt != nil {
 				nvar = AssignExpr(nvar)
@@ -716,7 +716,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				nvar.SetTypecheck(1)
 				nvar.SetWalkdef(1)
 			}
-			ncase.Vars[0] = nvar
+			ncase.Var = nvar
 		}
 
 		Stmts(ncase.Body)

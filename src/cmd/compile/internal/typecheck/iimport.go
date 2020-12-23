@@ -780,7 +780,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []ir.Node {
 			// Sym for diagnostics anyway.
 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
 			Declare(caseVar, DeclContext)
-			cas.Vars = []ir.Node{caseVar}
+			cas.Var = caseVar
 			caseVar.Defn = switchExpr
 		}
 		cas.Body.Set(r.stmtList())
