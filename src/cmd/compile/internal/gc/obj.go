@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -112,14 +113,14 @@ func dumpdata() {
 
 	dumpglobls(typecheck.Target.Externs)
 	staticdata.WriteFuncSyms()
-	addptabs()
+	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
-	dumpsignats()
-	dumptabs()
-	numPTabs, numITabs := CountTabs()
-	dumpimportstrings()
-	dumpbasictypes()
+	reflectdata.WriteRuntimeTypes()
+	reflectdata.WriteTabs()
+	numPTabs, numITabs := reflectdata.CountTabs()
+	reflectdata.WriteImportStrings()
+	reflectdata.WriteBasicTypes()
 	dumpembeds()
 
 	// Calls to dumpsignats can generate functions,
@@ -138,7 +139,7 @@ func dumpdata() {
 		}
 		numDecls = len(typecheck.Target.Decls)
 		compileFunctions()
-		dumpsignats()
+		reflectdata.WriteRuntimeTypes()
 		if numDecls == len(typecheck.Target.Decls) {
 			break
 		}
@@ -147,9 +148,9 @@ func dumpdata() {
 	// Dump extra globals.
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
-	if zerosize > 0 {
+	if reflectdata.ZeroSize > 0 {
 		zero := ir.Pkgs.Map.Lookup("zero")
-		objw.Global(zero.Linksym(), int32(zerosize), obj.DUPOK|obj.RODATA)
+		objw.Global(zero.Linksym(), int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 	}
 
 	addGCLocals()
@@ -157,7 +158,7 @@ func dumpdata() {
 	if numExports != len(typecheck.Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
-	newNumPTabs, newNumITabs := CountTabs()
+	newNumPTabs, newNumITabs := reflectdata.CountTabs()
 	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
 	}
@@ -182,36 +183,6 @@ func dumpLinkerObj(bout *bio.Writer) {
 	fmt.Fprintf(bout, "\n!\n")
 
 	obj.WriteObjFile(base.Ctxt, bout)
-}
-
-func addptabs() {
-	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
-		return
-	}
-	for _, exportn := range typecheck.Target.Exports {
-		s := exportn.Sym()
-		nn := ir.AsNode(s.Def)
-		if nn == nil {
-			continue
-		}
-		if nn.Op() != ir.ONAME {
-			continue
-		}
-		n := nn.(*ir.Name)
-		if !types.IsExported(s.Name) {
-			continue
-		}
-		if s.Pkg.Name != "main" {
-			continue
-		}
-		if n.Type().Kind() == types.TFUNC && n.Class_ == ir.PFUNC {
-			// function
-			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type()})
-		} else {
-			// variable
-			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(s.Def.Type())})
-		}
-	}
 }
 
 func dumpGlobal(n *ir.Name) {
@@ -371,5 +342,14 @@ func ggloblnod(nam ir.Node) {
 func dumpembeds() {
 	for _, v := range typecheck.Target.Embeds {
 		staticdata.WriteEmbed(v)
+	}
+}
+
+func addsignats(dcls []ir.Node) {
+	// copy types from dcl list to signatset
+	for _, n := range dcls {
+		if n.Op() == ir.OTYPE {
+			reflectdata.NeedRuntimeType(n.Type())
+		}
 	}
 }
