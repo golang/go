@@ -9,6 +9,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -19,8 +20,8 @@ import (
 
 func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
 	field := types.NewField(src.NoXPos, s, t)
-	n := NewName(s)
-	n.SetClass(which)
+	n := typecheck.NewName(s)
+	n.Class_ = which
 	field.Nname = n
 	n.SetType(t)
 	return field
@@ -42,7 +43,7 @@ func mkstruct(fieldtypes []*types.Type) *types.Type {
 }
 
 func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.Type {
-	q := lookup("?")
+	q := typecheck.Lookup("?")
 	inf := []*types.Field{}
 	for _, it := range ins {
 		inf = append(inf, mkParamResultField(it, q, ir.PPARAM))
@@ -78,7 +79,7 @@ func verifyParamResultOffset(t *testing.T, f *types.Field, r ABIParamAssignment,
 	n := ir.AsNode(f.Nname).(*ir.Name)
 	if n.FrameOffset() != int64(r.Offset) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
-			which, idx, r.Offset, n.Offset(), f.Type)
+			which, idx, r.Offset, n.Offset_, f.Type)
 		return 1
 	}
 	return 0
@@ -106,7 +107,7 @@ func difftokens(atoks []string, etoks []string) string {
 
 func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 
-	dowidth(ft)
+	types.CalcSize(ft)
 
 	// Analyze with full set of registers.
 	regRes := ABIAnalyze(ft, configAMD64)

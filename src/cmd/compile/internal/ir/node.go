@@ -33,59 +33,15 @@ type Node interface {
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op
-	SetOp(x Op)
-	SubOp() Op
-	SetSubOp(x Op)
-	Left() Node
-	SetLeft(x Node)
-	Right() Node
-	SetRight(x Node)
 	Init() Nodes
 	PtrInit() *Nodes
 	SetInit(x Nodes)
-	Body() Nodes
-	PtrBody() *Nodes
-	SetBody(x Nodes)
-	List() Nodes
-	SetList(x Nodes)
-	PtrList() *Nodes
-	Rlist() Nodes
-	SetRlist(x Nodes)
-	PtrRlist() *Nodes
 
 	// Fields specific to certain Ops only.
 	Type() *types.Type
 	SetType(t *types.Type)
-	Func() *Func
 	Name() *Name
 	Sym() *types.Sym
-	SetSym(x *types.Sym)
-	Offset() int64
-	SetOffset(x int64)
-	Class() Class
-	SetClass(x Class)
-	Likely() bool
-	SetLikely(x bool)
-	SliceBounds() (low, high, max Node)
-	SetSliceBounds(low, high, max Node)
-	Iota() int64
-	SetIota(x int64)
-	Colas() bool
-	SetColas(x bool)
-	NoInline() bool
-	SetNoInline(x bool)
-	Transient() bool
-	SetTransient(x bool)
-	Implicit() bool
-	SetImplicit(x bool)
-	IsDDD() bool
-	SetIsDDD(x bool)
-	IndexMapLValue() bool
-	SetIndexMapLValue(x bool)
-	ResetAux()
-	HasBreak() bool
-	SetHasBreak(x bool)
-	MarkReadonly()
 	Val() constant.Value
 	SetVal(v constant.Value)
 
@@ -98,8 +54,6 @@ type Node interface {
 	SetOpt(x interface{})
 	Diag() bool
 	SetDiag(x bool)
-	Bounded() bool
-	SetBounded(x bool)
 	Typecheck() uint8
 	SetTypecheck(x uint8)
 	NonNil() bool
@@ -363,41 +317,6 @@ type Nodes []Node
 // The methods that would modify it panic instead.
 var immutableEmptyNodes = Nodes{}
 
-// asNodes returns a slice of *Node as a Nodes value.
-func AsNodes(s []Node) Nodes {
-	return s
-}
-
-// Slice returns the entries in Nodes as a slice.
-// Changes to the slice entries (as in s[i] = n) will be reflected in
-// the Nodes.
-func (n Nodes) Slice() []Node {
-	return n
-}
-
-// Len returns the number of entries in Nodes.
-func (n Nodes) Len() int {
-	return len(n)
-}
-
-// Index returns the i'th element of Nodes.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) Index(i int) Node {
-	return n[i]
-}
-
-// First returns the first element of Nodes (same as n.Index(0)).
-// It panics if n has no elements.
-func (n Nodes) First() Node {
-	return n[0]
-}
-
-// Second returns the second element of Nodes (same as n.Index(1)).
-// It panics if n has fewer than two elements.
-func (n Nodes) Second() Node {
-	return n[1]
-}
-
 func (n *Nodes) mutate() {
 	if n == &immutableEmptyNodes {
 		panic("immutable Nodes.Set")
@@ -415,55 +334,6 @@ func (n *Nodes) Set(s []Node) {
 		n.mutate()
 	}
 	*n = s
-}
-
-// Set1 sets n to a slice containing a single node.
-func (n *Nodes) Set1(n1 Node) {
-	n.mutate()
-	*n = []Node{n1}
-}
-
-// Set2 sets n to a slice containing two nodes.
-func (n *Nodes) Set2(n1, n2 Node) {
-	n.mutate()
-	*n = []Node{n1, n2}
-}
-
-// Set3 sets n to a slice containing three nodes.
-func (n *Nodes) Set3(n1, n2, n3 Node) {
-	n.mutate()
-	*n = []Node{n1, n2, n3}
-}
-
-// MoveNodes sets n to the contents of n2, then clears n2.
-func (n *Nodes) MoveNodes(n2 *Nodes) {
-	n.mutate()
-	*n = *n2
-	*n2 = nil
-}
-
-// SetIndex sets the i'th element of Nodes to node.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) SetIndex(i int, node Node) {
-	n[i] = node
-}
-
-// SetFirst sets the first element of Nodes to node.
-// It panics if n does not have at least one elements.
-func (n Nodes) SetFirst(node Node) {
-	n[0] = node
-}
-
-// SetSecond sets the second element of Nodes to node.
-// It panics if n does not have at least two elements.
-func (n Nodes) SetSecond(node Node) {
-	n[1] = node
-}
-
-// Addr returns the address of the i'th element of Nodes.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) Addr(i int) *Node {
-	return &n[i]
 }
 
 // Append appends entries to Nodes.
@@ -492,18 +362,12 @@ func (n *Nodes) Take() []Node {
 	return ret
 }
 
-// AppendNodes appends the contents of *n2 to n, then clears n2.
-func (n *Nodes) AppendNodes(n2 *Nodes) {
-	n.mutate()
-	*n = append(*n, n2.Take()...)
-}
-
 // Copy returns a copy of the content of the slice.
 func (n Nodes) Copy() Nodes {
 	if n == nil {
 		return nil
 	}
-	c := make(Nodes, n.Len())
+	c := make(Nodes, len(n))
 	copy(c, n)
 	return c
 }
@@ -641,122 +505,98 @@ func IsMethod(n Node) bool {
 	return n.Type().Recv() != nil
 }
 
-func Nod(op Op, nleft, nright Node) Node {
-	return NodAt(base.Pos, op, nleft, nright)
+func HasNamedResults(fn *Func) bool {
+	typ := fn.Type()
+	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
 }
 
-func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
-	switch op {
-	default:
-		panic("NodAt " + op.String())
-	case OADD, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
-		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX,
-		OEFACE:
-		return NewBinaryExpr(pos, op, nleft, nright)
-	case OADDR:
-		return NewAddrExpr(pos, nleft)
-	case OADDSTR:
-		return NewAddStringExpr(pos, nil)
-	case OANDAND, OOROR:
-		return NewLogicalExpr(pos, op, nleft, nright)
-	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
-		var typ Ntype
-		if nright != nil {
-			typ = nright.(Ntype)
+// HasUniquePos reports whether n has a unique position that can be
+// used for reporting error messages.
+//
+// It's primarily used to distinguish references to named objects,
+// whose Pos will point back to their declaration position rather than
+// their usage position.
+func HasUniquePos(n Node) bool {
+	switch n.Op() {
+	case ONAME, OPACK:
+		return false
+	case OLITERAL, ONIL, OTYPE:
+		if n.Sym() != nil {
+			return false
 		}
-		return NewCompLitExpr(pos, op, typ, nil)
-	case OAS:
-		return NewAssignStmt(pos, nleft, nright)
-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
-		n := NewAssignListStmt(pos, op, nil, nil)
+	}
+
+	if !n.Pos().IsKnown() {
+		if base.Flag.K != 0 {
+			base.Warn("setlineno: unknown position (line 0)")
+		}
+		return false
+	}
+
+	return true
+}
+
+func SetPos(n Node) src.XPos {
+	lno := base.Pos
+	if n != nil && HasUniquePos(n) {
+		base.Pos = n.Pos()
+	}
+	return lno
+}
+
+// The result of InitExpr MUST be assigned back to n, e.g.
+// 	n.Left = InitExpr(init, n.Left)
+func InitExpr(init []Node, n Node) Node {
+	if len(init) == 0 {
 		return n
-	case OASOP:
-		return NewAssignOpStmt(pos, OXXX, nleft, nright)
-	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
-		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW, ONEWOBJ,
-		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
-		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
-		if nright != nil {
-			panic("unary nright")
+	}
+	if MayBeShared(n) {
+		// Introduce OCONVNOP to hold init list.
+		old := n
+		n = NewConvExpr(base.Pos, OCONVNOP, nil, old)
+		n.SetType(old.Type())
+		n.SetTypecheck(1)
+	}
+
+	n.PtrInit().Prepend(init...)
+	n.SetHasCall(true)
+	return n
+}
+
+// what's the outer value that a write to n affects?
+// outer value means containing struct or array.
+func OuterValue(n Node) Node {
+	for {
+		switch nn := n; nn.Op() {
+		case OXDOT:
+			base.Fatalf("OXDOT in walk")
+		case ODOT:
+			nn := nn.(*SelectorExpr)
+			n = nn.X
+			continue
+		case OPAREN:
+			nn := nn.(*ParenExpr)
+			n = nn.X
+			continue
+		case OCONVNOP:
+			nn := nn.(*ConvExpr)
+			n = nn.X
+			continue
+		case OINDEX:
+			nn := nn.(*IndexExpr)
+			if nn.X.Type() != nil && nn.X.Type().IsArray() {
+				n = nn.X
+				continue
+			}
 		}
-		return NewUnaryExpr(pos, op, nleft)
-	case OBLOCK:
-		return NewBlockStmt(pos, nil)
-	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
-		return NewBranchStmt(pos, op, nil)
-	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
-		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
-		return NewCallExpr(pos, op, nleft, nil)
-	case OCASE:
-		return NewCaseStmt(pos, nil, nil)
-	case OCONV, OCONVIFACE, OCONVNOP, ORUNESTR:
-		return NewConvExpr(pos, op, nil, nleft)
-	case ODCL, ODCLCONST, ODCLTYPE:
-		return NewDecl(pos, op, nleft)
-	case ODCLFUNC:
-		return NewFunc(pos)
-	case ODEFER, OGO:
-		return NewGoDeferStmt(pos, op, nleft)
-	case ODEREF:
-		return NewStarExpr(pos, nleft)
-	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
-		return NewSelectorExpr(pos, op, nleft, nil)
-	case ODOTTYPE, ODOTTYPE2:
-		var typ Ntype
-		if nright != nil {
-			typ = nright.(Ntype)
-		}
-		n := NewTypeAssertExpr(pos, nleft, typ)
-		if op != ODOTTYPE {
-			n.SetOp(op)
-		}
+
 		return n
-	case OFOR:
-		return NewForStmt(pos, nil, nleft, nright, nil)
-	case OIF:
-		return NewIfStmt(pos, nleft, nil, nil)
-	case OINDEX, OINDEXMAP:
-		n := NewIndexExpr(pos, nleft, nright)
-		if op != OINDEX {
-			n.SetOp(op)
-		}
-		return n
-	case OINLMARK:
-		return NewInlineMarkStmt(pos, types.BADWIDTH)
-	case OKEY:
-		return NewKeyExpr(pos, nleft, nright)
-	case OSTRUCTKEY:
-		return NewStructKeyExpr(pos, nil, nleft)
-	case OLABEL:
-		return NewLabelStmt(pos, nil)
-	case OLITERAL, OTYPE, OIOTA:
-		return newNameAt(pos, op, nil)
-	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
-		return NewMakeExpr(pos, op, nleft, nright)
-	case ONIL:
-		return NewNilExpr(pos)
-	case OPACK:
-		return NewPkgName(pos, nil, nil)
-	case OPAREN:
-		return NewParenExpr(pos, nleft)
-	case ORANGE:
-		return NewRangeStmt(pos, nil, nright, nil)
-	case ORESULT:
-		return NewResultExpr(pos, nil, types.BADWIDTH)
-	case ORETURN:
-		return NewReturnStmt(pos, nil)
-	case OSELECT:
-		return NewSelectStmt(pos, nil)
-	case OSEND:
-		return NewSendStmt(pos, nleft, nright)
-	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
-		return NewSliceExpr(pos, op, nleft)
-	case OSLICEHEADER:
-		return NewSliceHeaderExpr(pos, nil, nleft, nil, nil)
-	case OSWITCH:
-		return NewSwitchStmt(pos, nleft, nil)
-	case OINLCALL:
-		return NewInlinedCallExpr(pos, nil, nil)
 	}
 }
+
+const (
+	EscUnknown = iota
+	EscNone    // Does not escape to heap, result, or parameters.
+	EscHeap    // Reachable from the heap
+	EscNever   // By construction will not escape.
+)

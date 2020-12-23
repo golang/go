@@ -39,7 +39,7 @@ type Name struct {
 	flags     bitset16
 	pragma    PragmaFlag // int16
 	sym       *types.Sym
-	fn        *Func
+	Func      *Func
 	Offset_   int64
 	val       constant.Value
 	orig      Node
@@ -225,8 +225,7 @@ func (n *Name) SubOp() Op           { return n.BuiltinOp }
 func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
 func (n *Name) Class() Class        { return n.Class_ }
 func (n *Name) SetClass(x Class)    { n.Class_ = x }
-func (n *Name) Func() *Func         { return n.fn }
-func (n *Name) SetFunc(x *Func)     { n.fn = x }
+func (n *Name) SetFunc(x *Func)     { n.Func = x }
 func (n *Name) Offset() int64       { panic("Name.Offset") }
 func (n *Name) SetOffset(x int64) {
 	if x != 0 {
@@ -414,3 +413,25 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p.pos = pos
 	return p
 }
+
+// IsParamStackCopy reports whether this is the on-stack copy of a
+// function parameter that moved to the heap.
+func IsParamStackCopy(n Node) bool {
+	if n.Op() != ONAME {
+		return false
+	}
+	name := n.(*Name)
+	return (name.Class_ == PPARAM || name.Class_ == PPARAMOUT) && name.Heapaddr != nil
+}
+
+// IsParamHeapCopy reports whether this is the on-heap copy of
+// a function parameter that moved to the heap.
+func IsParamHeapCopy(n Node) bool {
+	if n.Op() != ONAME {
+		return false
+	}
+	name := n.(*Name)
+	return name.Class_ == PAUTOHEAP && name.Name().Stackcopy != nil
+}
+
+var RegFP *Name

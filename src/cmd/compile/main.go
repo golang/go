@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/ppc64"
 	"cmd/compile/internal/riscv64"
 	"cmd/compile/internal/s390x"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/wasm"
 	"cmd/compile/internal/x86"
 	"cmd/internal/objabi"
@@ -23,7 +24,7 @@ import (
 	"os"
 )
 
-var archInits = map[string]func(*gc.Arch){
+var archInits = map[string]func(*ssagen.ArchInfo){
 	"386":      x86.Init,
 	"amd64":    amd64.Init,
 	"arm":      arm.Init,

@@ -6,6 +6,8 @@ package types
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"strconv"
@@ -658,4 +660,13 @@ func FmtConst(v constant.Value, sharp bool) string {
 	}
 
 	return v.String()
+}
+
+// TypeHash computes a hash value for type t to use in type switch statements.
+func TypeHash(t *Type) uint32 {
+	p := t.LongString()
+
+	// Using MD5 is overkill, but reduces accidental collisions.
+	h := md5.Sum([]byte(p))
+	return binary.LittleEndian.Uint32(h[:4])
 }

@@ -72,7 +72,7 @@ func Markdcl() {
 	Block = blockgen
 }
 
-func IsDclstackValid() bool {
+func isDclstackValid() bool {
 	for _, d := range dclstack {
 		if d.sym == nil {
 			return false
@@ -104,4 +104,10 @@ func (s *Sym) pkgDefPtr() *Object {
 	// Otherwise, the declaration hasn't been shadowed within a
 	// function scope.
 	return &s.Def
+}
+
+func CheckDclstack() {
+	if !isDclstackValid() {
+		base.Fatalf("mark left on the dclstack")
+	}
 }
