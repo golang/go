@@ -113,7 +113,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 		if loff != 0 || !types.Identical(typ, l.Type()) {
 			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
 		}
-		s.append(ir.Nod(ir.OAS, dst, conv(r, typ)))
+		s.append(ir.NewAssignStmt(base.Pos, dst, conv(r, typ)))
 		return true
 
 	case ir.ONIL:
@@ -168,7 +168,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
 			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
 			setlineno(rr)
-			s.append(ir.Nod(ir.OAS, ll, rr))
+			s.append(ir.NewAssignStmt(base.Pos, ll, rr))
 		}
 
 		return true
@@ -219,7 +219,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 
 			// Init underlying literal.
 			if !s.staticassign(a, 0, r.Left(), a.Type()) {
-				s.append(ir.Nod(ir.OAS, a, r.Left()))
+				s.append(ir.NewAssignStmt(base.Pos, a, r.Left()))
 			}
 			return true
 		}
@@ -259,7 +259,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			setlineno(e.Expr)
 			if !s.staticassign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
 				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
-				s.append(ir.Nod(ir.OAS, a, e.Expr))
+				s.append(ir.NewAssignStmt(base.Pos, a, e.Expr))
 			}
 		}
 
@@ -325,14 +325,14 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			setlineno(val)
 			if !s.staticassign(l, loff+int64(Widthptr), val, val.Type()) {
 				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(Widthptr), val.Type())
-				s.append(ir.Nod(ir.OAS, a, val))
+				s.append(ir.NewAssignStmt(base.Pos, a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := staticname(val.Type())
 			s.inittemps[val] = a
 			if !s.staticassign(a, 0, val, val.Type()) {
-				s.append(ir.Nod(ir.OAS, a, val))
+				s.append(ir.NewAssignStmt(base.Pos, a, val))
 			}
 			addrsym(l, loff+int64(Widthptr), a, 0)
 		}
@@ -405,7 +405,7 @@ func isSimpleName(nn ir.Node) bool {
 }
 
 func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
-	appendWalkStmt(init, ir.Nod(ir.OAS, l, r))
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, r))
 }
 
 // initGenType is a bitmap indicating the types of generation that will occur for a static value.
@@ -537,7 +537,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				}
 				r = kv.Right()
 			}
-			a := ir.Nod(ir.OINDEX, var_, nodintconst(k))
+			a := ir.NewIndexExpr(base.Pos, var_, nodintconst(k))
 			k++
 			if isBlank {
 				return ir.BlankNode, r
@@ -551,7 +551,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				return ir.BlankNode, r.Left()
 			}
 			setlineno(r)
-			return nodSym(ir.ODOT, var_, r.Sym()), r.Left()
+			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Sym()), r.Left()
 		}
 	default:
 		base.Fatalf("fixedlit bad op: %v", n.Op())
@@ -676,37 +676,37 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		}
 
 		if vstat == nil {
-			a = ir.Nod(ir.OAS, x, nil)
+			a = ir.NewAssignStmt(base.Pos, x, nil)
 			a = typecheck(a, ctxStmt)
 			init.Append(a) // zero new temp
 		} else {
 			// Declare that we're about to initialize all of x.
 			// (Which happens at the *vauto = vstat below.)
-			init.Append(ir.Nod(ir.OVARDEF, x, nil))
+			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, x))
 		}
 
 		a = nodAddr(x)
 	} else if n.Esc() == EscNone {
 		a = temp(t)
 		if vstat == nil {
-			a = ir.Nod(ir.OAS, temp(t), nil)
+			a = ir.NewAssignStmt(base.Pos, temp(t), nil)
 			a = typecheck(a, ctxStmt)
 			init.Append(a) // zero new temp
 			a = a.(*ir.AssignStmt).Left()
 		} else {
-			init.Append(ir.Nod(ir.OVARDEF, a, nil))
+			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, a))
 		}
 
 		a = nodAddr(a)
 	} else {
-		a = ir.Nod(ir.ONEW, ir.TypeNode(t), nil)
+		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
-	appendWalkStmt(init, ir.Nod(ir.OAS, vauto, a))
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, vauto, a))
 
 	if vstat != nil {
 		// copy static to heap (4)
-		a = ir.Nod(ir.ODEREF, vauto, nil)
-		appendWalkStmt(init, ir.Nod(ir.OAS, a, vstat))
+		a = ir.NewStarExpr(base.Pos, vauto)
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, a, vstat))
 	}
 
 	// put dynamics into array (5)
@@ -720,7 +720,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			}
 			value = kv.Right()
 		}
-		a := ir.Nod(ir.OINDEX, vauto, nodintconst(index))
+		a := ir.NewIndexExpr(base.Pos, vauto, nodintconst(index))
 		a.SetBounded(true)
 		index++
 
@@ -748,14 +748,14 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// build list of vauto[c] = expr
 		setlineno(value)
-		as := typecheck(ir.Nod(ir.OAS, a, value), ctxStmt)
+		as := typecheck(ir.NewAssignStmt(base.Pos, a, value), ctxStmt)
 		as = orderStmtInPlace(as, map[string][]*ir.Name{})
 		as = walkstmt(as)
 		init.Append(as)
 	}
 
 	// make slice out of heap (6)
-	a = ir.Nod(ir.OAS, var_, ir.Nod(ir.OSLICE, vauto, nil))
+	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto))
 
 	a = typecheck(a, ctxStmt)
 	a = orderStmtInPlace(a, map[string][]*ir.Name{})
@@ -765,7 +765,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
-	a := ir.Nod(ir.OMAKE, nil, nil)
+	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
 	a.SetEsc(n.Esc())
 	a.PtrList().Set2(ir.TypeNode(n.Type()), nodintconst(int64(n.List().Len())))
 	litas(m, a, init)
@@ -813,19 +813,19 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		//	map[vstatk[i]] = vstate[i]
 		// }
 		i := temp(types.Types[types.TINT])
-		rhs := ir.Nod(ir.OINDEX, vstate, i)
+		rhs := ir.NewIndexExpr(base.Pos, vstate, i)
 		rhs.SetBounded(true)
 
-		kidx := ir.Nod(ir.OINDEX, vstatk, i)
+		kidx := ir.NewIndexExpr(base.Pos, vstatk, i)
 		kidx.SetBounded(true)
-		lhs := ir.Nod(ir.OINDEX, m, kidx)
+		lhs := ir.NewIndexExpr(base.Pos, m, kidx)
 
-		zero := ir.Nod(ir.OAS, i, nodintconst(0))
-		cond := ir.Nod(ir.OLT, i, nodintconst(tk.NumElem()))
-		incr := ir.Nod(ir.OAS, i, ir.Nod(ir.OADD, i, nodintconst(1)))
-		body := ir.Nod(ir.OAS, lhs, rhs)
+		zero := ir.NewAssignStmt(base.Pos, i, nodintconst(0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, nodintconst(tk.NumElem()))
+		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, nodintconst(1)))
+		body := ir.NewAssignStmt(base.Pos, lhs, rhs)
 
-		loop := ir.Nod(ir.OFOR, cond, incr)
+		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
 		loop.PtrBody().Set1(body)
 		loop.PtrInit().Set1(zero)
 
@@ -845,17 +845,17 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		index, elem := r.Left(), r.Right()
 
 		setlineno(index)
-		appendWalkStmt(init, ir.Nod(ir.OAS, tmpkey, index))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpkey, index))
 
 		setlineno(elem)
-		appendWalkStmt(init, ir.Nod(ir.OAS, tmpelem, elem))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpelem, elem))
 
 		setlineno(tmpelem)
-		appendWalkStmt(init, ir.Nod(ir.OAS, ir.Nod(ir.OINDEX, m, tmpkey), tmpelem))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, tmpkey), tmpelem))
 	}
 
-	appendWalkStmt(init, ir.Nod(ir.OVARKILL, tmpkey, nil))
-	appendWalkStmt(init, ir.Nod(ir.OVARKILL, tmpelem, nil))
+	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpkey))
+	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpelem))
 }
 
 func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
@@ -879,15 +879,15 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		var r ir.Node
 		if n.Right() != nil {
 			// n.Right is stack temporary used as backing store.
-			appendWalkStmt(init, ir.Nod(ir.OAS, n.Right(), nil)) // zero backing store, just in case (#18410)
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Right(), nil)) // zero backing store, just in case (#18410)
 			r = nodAddr(n.Right())
 		} else {
-			r = ir.Nod(ir.ONEW, ir.TypeNode(n.Left().Type()), nil)
+			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.Left().Type()))
 			r.SetEsc(n.Esc())
 		}
-		appendWalkStmt(init, ir.Nod(ir.OAS, var_, r))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, r))
 
-		var_ = ir.Nod(ir.ODEREF, var_, nil)
+		var_ = ir.NewStarExpr(base.Pos, var_)
 		var_ = typecheck(var_, ctxExpr|ctxAssign)
 		anylit(n.Left(), var_, init)
 
@@ -908,7 +908,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
 			// copy static to var
-			appendWalkStmt(init, ir.Nod(ir.OAS, var_, vstat))
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, vstat))
 
 			// add expressions to automatic
 			fixedlit(inInitFunction, initKindDynamic, n, var_, init)
@@ -923,7 +923,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
 		if isSimpleName(var_) || int64(n.List().Len()) < components {
-			appendWalkStmt(init, ir.Nod(ir.OAS, var_, nil))
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))
 		}
 
 		fixedlit(inInitFunction, initKindLocalCode, n, var_, init)

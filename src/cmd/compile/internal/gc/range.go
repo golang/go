@@ -166,7 +166,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		return n
 	}
 
-	nfor := ir.NodAt(nrange.Pos(), ir.OFOR, nil, nil)
+	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
 	nfor.SetInit(nrange.Init())
 	nfor.SetSym(nrange.Sym())
 
@@ -224,11 +224,11 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		hv1 := temp(types.Types[types.TINT])
 		hn := temp(types.Types[types.TINT])
 
-		init = append(init, ir.Nod(ir.OAS, hv1, nil))
-		init = append(init, ir.Nod(ir.OAS, hn, ir.Nod(ir.OLEN, ha, nil)))
+		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
+		init = append(init, ir.NewAssignStmt(base.Pos, hn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
 
-		nfor.SetLeft(ir.Nod(ir.OLT, hv1, hn))
-		nfor.SetRight(ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1))))
+		nfor.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn))
+		nfor.SetRight(ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, nodintconst(1))))
 
 		// for range ha { body }
 		if v1 == nil {
@@ -237,18 +237,18 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 
 		// for v1 := range ha { body }
 		if v2 == nil {
-			body = []ir.Node{ir.Nod(ir.OAS, v1, hv1)}
+			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, hv1)}
 			break
 		}
 
 		// for v1, v2 := range ha { body }
 		if cheapComputableIndex(nrange.Type().Elem().Width) {
 			// v1, v2 = hv1, ha[hv1]
-			tmp := ir.Nod(ir.OINDEX, ha, hv1)
+			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
 			// Use OAS2 to correctly handle assignments
 			// of the form "v1, a[v1] := range".
-			a := ir.Nod(ir.OAS2, nil, nil)
+			a := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 			a.PtrList().Set2(v1, v2)
 			a.PtrRlist().Set2(hv1, tmp)
 			body = []ir.Node{a}
@@ -268,19 +268,19 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		// elimination on the index variable (see #20711).
 		// Enhance the prove pass to understand this.
 		ifGuard = ir.NewIfStmt(base.Pos, nil, nil, nil)
-		ifGuard.SetLeft(ir.Nod(ir.OLT, hv1, hn))
+		ifGuard.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn))
 		nfor.SetOp(ir.OFORUNTIL)
 
 		hp := temp(types.NewPtr(nrange.Type().Elem()))
-		tmp := ir.Nod(ir.OINDEX, ha, nodintconst(0))
+		tmp := ir.NewIndexExpr(base.Pos, ha, nodintconst(0))
 		tmp.SetBounded(true)
-		init = append(init, ir.Nod(ir.OAS, hp, nodAddr(tmp)))
+		init = append(init, ir.NewAssignStmt(base.Pos, hp, nodAddr(tmp)))
 
 		// Use OAS2 to correctly handle assignments
 		// of the form "v1, a[v1] := range".
-		a := ir.Nod(ir.OAS2, nil, nil)
+		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 		a.PtrList().Set2(v1, v2)
-		a.PtrRlist().Set2(hv1, ir.Nod(ir.ODEREF, hp, nil))
+		a.PtrRlist().Set2(hv1, ir.NewStarExpr(base.Pos, hp))
 		body = append(body, a)
 
 		// Advance pointer as part of the late increment.
@@ -288,7 +288,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		// This runs *after* the condition check, so we know
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
-		as := ir.Nod(ir.OAS, hp, addptr(hp, t.Elem().Width))
+		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Width))
 		nfor.PtrList().Set1(typecheck(as, ctxStmt))
 
 	case types.TMAP:
@@ -305,20 +305,20 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 
 		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, nodAddr(hit)))
-		nfor.SetLeft(ir.Nod(ir.ONE, nodSym(ir.ODOT, hit, keysym), nodnil()))
+		nfor.SetLeft(ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), nodnil()))
 
 		fn = syslook("mapiternext")
 		fn = substArgTypes(fn, th)
 		nfor.SetRight(mkcall1(fn, nil, nil, nodAddr(hit)))
 
-		key := ir.Nod(ir.ODEREF, nodSym(ir.ODOT, hit, keysym), nil)
+		key := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym))
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
-			body = []ir.Node{ir.Nod(ir.OAS, v1, key)}
+			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, key)}
 		} else {
-			elem := ir.Nod(ir.ODEREF, nodSym(ir.ODOT, hit, elemsym), nil)
-			a := ir.Nod(ir.OAS2, nil, nil)
+			elem := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, elemsym))
+			a := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 			a.PtrList().Set2(v1, v2)
 			a.PtrRlist().Set2(key, elem)
 			body = []ir.Node{a}
@@ -331,25 +331,25 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		hv1 := temp(t.Elem())
 		hv1.SetTypecheck(1)
 		if t.Elem().HasPointers() {
-			init = append(init, ir.Nod(ir.OAS, hv1, nil))
+			init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
 		}
 		hb := temp(types.Types[types.TBOOL])
 
-		nfor.SetLeft(ir.Nod(ir.ONE, hb, nodbool(false)))
-		a := ir.Nod(ir.OAS2RECV, nil, nil)
+		nfor.SetLeft(ir.NewBinaryExpr(base.Pos, ir.ONE, hb, nodbool(false)))
+		a := ir.NewAssignListStmt(base.Pos, ir.OAS2RECV, nil, nil)
 		a.SetTypecheck(1)
 		a.PtrList().Set2(hv1, hb)
-		a.PtrRlist().Set1(ir.Nod(ir.ORECV, ha, nil))
+		a.PtrRlist().Set1(ir.NewUnaryExpr(base.Pos, ir.ORECV, ha))
 		nfor.Left().PtrInit().Set1(a)
 		if v1 == nil {
 			body = nil
 		} else {
-			body = []ir.Node{ir.Nod(ir.OAS, v1, hv1)}
+			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, hv1)}
 		}
 		// Zero hv1. This prevents hv1 from being the sole, inaccessible
 		// reference to an otherwise GC-able value during the next channel receive.
 		// See issue 15281.
-		body = append(body, ir.Nod(ir.OAS, hv1, nil))
+		body = append(body, ir.NewAssignStmt(base.Pos, hv1, nil))
 
 	case types.TSTRING:
 		// Transform string range statements like "for v1, v2 = range a" into
@@ -375,30 +375,30 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		hv2 := temp(types.RuneType)
 
 		// hv1 := 0
-		init = append(init, ir.Nod(ir.OAS, hv1, nil))
+		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
 
 		// hv1 < len(ha)
-		nfor.SetLeft(ir.Nod(ir.OLT, hv1, ir.Nod(ir.OLEN, ha, nil)))
+		nfor.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
 
 		if v1 != nil {
 			// hv1t = hv1
-			body = append(body, ir.Nod(ir.OAS, hv1t, hv1))
+			body = append(body, ir.NewAssignStmt(base.Pos, hv1t, hv1))
 		}
 
 		// hv2 := rune(ha[hv1])
-		nind := ir.Nod(ir.OINDEX, ha, hv1)
+		nind := ir.NewIndexExpr(base.Pos, ha, hv1)
 		nind.SetBounded(true)
-		body = append(body, ir.Nod(ir.OAS, hv2, conv(nind, types.RuneType)))
+		body = append(body, ir.NewAssignStmt(base.Pos, hv2, conv(nind, types.RuneType)))
 
 		// if hv2 < utf8.RuneSelf
-		nif := ir.Nod(ir.OIF, nil, nil)
-		nif.SetLeft(ir.Nod(ir.OLT, hv2, nodintconst(utf8.RuneSelf)))
+		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nif.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, nodintconst(utf8.RuneSelf)))
 
 		// hv1++
-		nif.PtrBody().Set1(ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1))))
+		nif.PtrBody().Set1(ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, nodintconst(1))))
 
 		// } else {
-		eif := ir.Nod(ir.OAS2, nil, nil)
+		eif := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 		nif.PtrRlist().Set1(eif)
 
 		// hv2, hv1 = decoderune(ha, hv1)
@@ -411,13 +411,13 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		if v1 != nil {
 			if v2 != nil {
 				// v1, v2 = hv1t, hv2
-				a := ir.Nod(ir.OAS2, nil, nil)
+				a := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 				a.PtrList().Set2(v1, v2)
 				a.PtrRlist().Set2(hv1t, hv2)
 				body = append(body, a)
 			} else {
 				// v1 = hv1t
-				body = append(body, ir.Nod(ir.OAS, v1, hv1t))
+				body = append(body, ir.NewAssignStmt(base.Pos, v1, hv1t))
 			}
 		}
 	}
@@ -561,22 +561,22 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	// 	memclr{NoHeap,Has}Pointers(hp, hn)
 	// 	i = len(a) - 1
 	// }
-	n := ir.Nod(ir.OIF, nil, nil)
+	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 	n.PtrBody().Set(nil)
-	n.SetLeft(ir.Nod(ir.ONE, ir.Nod(ir.OLEN, a, nil), nodintconst(0)))
+	n.SetLeft(ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(0)))
 
 	// hp = &a[0]
 	hp := temp(types.Types[types.TUNSAFEPTR])
 
-	ix := ir.Nod(ir.OINDEX, a, nodintconst(0))
+	ix := ir.NewIndexExpr(base.Pos, a, nodintconst(0))
 	ix.SetBounded(true)
 	addr := convnop(nodAddr(ix), types.Types[types.TUNSAFEPTR])
-	n.PtrBody().Append(ir.Nod(ir.OAS, hp, addr))
+	n.PtrBody().Append(ir.NewAssignStmt(base.Pos, hp, addr))
 
 	// hn = len(a) * sizeof(elem(a))
 	hn := temp(types.Types[types.TUINTPTR])
-	mul := conv(ir.Nod(ir.OMUL, ir.Nod(ir.OLEN, a, nil), nodintconst(elemsize)), types.Types[types.TUINTPTR])
-	n.PtrBody().Append(ir.Nod(ir.OAS, hn, mul))
+	mul := conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(elemsize)), types.Types[types.TUINTPTR])
+	n.PtrBody().Append(ir.NewAssignStmt(base.Pos, hn, mul))
 
 	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
@@ -591,7 +591,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	n.PtrBody().Append(fn)
 
 	// i = len(a) - 1
-	v1 = ir.Nod(ir.OAS, v1, ir.Nod(ir.OSUB, ir.Nod(ir.OLEN, a, nil), nodintconst(1)))
+	v1 = ir.NewAssignStmt(base.Pos, v1, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), nodintconst(1)))
 
 	n.PtrBody().Append(v1)
 
@@ -605,12 +605,12 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 func addptr(p ir.Node, n int64) ir.Node {
 	t := p.Type()
 
-	p = ir.Nod(ir.OCONVNOP, p, nil)
+	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(types.Types[types.TUINTPTR])
 
-	p = ir.Nod(ir.OADD, p, nodintconst(n))
+	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, nodintconst(n))
 
-	p = ir.Nod(ir.OCONVNOP, p, nil)
+	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(t)
 
 	return p

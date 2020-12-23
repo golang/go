@@ -170,20 +170,6 @@ func NewName(s *types.Sym) *ir.Name {
 	return n
 }
 
-// nodSym makes a Node with Op op and with the Left field set to left
-// and the Sym field set to sym. This is for ODOT and friends.
-func nodSym(op ir.Op, left ir.Node, sym *types.Sym) ir.Node {
-	return nodlSym(base.Pos, op, left, sym)
-}
-
-// nodlSym makes a Node with position Pos, with Op op, and with the Left field set to left
-// and the Sym field set to sym. This is for ODOT and friends.
-func nodlSym(pos src.XPos, op ir.Op, left ir.Node, sym *types.Sym) ir.Node {
-	n := ir.NodAt(pos, op, left, nil)
-	n.SetSym(sym)
-	return n
-}
-
 // methcmp sorts methods by symbol.
 type methcmp []*types.Field
 
@@ -196,7 +182,7 @@ func nodintconst(v int64) ir.Node {
 }
 
 func nodnil() ir.Node {
-	n := ir.Nod(ir.ONIL, nil, nil)
+	n := ir.NewNilExpr(base.Pos)
 	n.SetType(types.Types[types.TNIL])
 	return n
 }
@@ -537,7 +523,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 	// if the next step is non-bool (like interface{}).
 	if n.Type() == types.UntypedBool && !t.IsBoolean() {
 		if n.Op() == ir.ONAME || n.Op() == ir.OLITERAL {
-			r := ir.Nod(ir.OCONVNOP, n, nil)
+			r := ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
 			r.SetType(types.Types[types.TBOOL])
 			r.SetTypecheck(1)
 			r.SetImplicit(true)
@@ -569,13 +555,13 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	if c != n || init.Len() != 0 {
 		base.Fatalf("backingArrayPtrLen not cheap: %v", n)
 	}
-	ptr = ir.Nod(ir.OSPTR, n, nil)
+	ptr = ir.NewUnaryExpr(base.Pos, ir.OSPTR, n)
 	if n.Type().IsString() {
 		ptr.SetType(types.Types[types.TUINT8].PtrTo())
 	} else {
 		ptr.SetType(n.Type().Elem().PtrTo())
 	}
-	length = ir.Nod(ir.OLEN, n, nil)
+	length = ir.NewUnaryExpr(base.Pos, ir.OLEN, n)
 	length.SetType(types.Types[types.TINT])
 	return ptr, length
 }
@@ -834,7 +820,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 
 func copyexpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	l := temp(t)
-	appendWalkStmt(init, ir.Nod(ir.OAS, l, n))
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, n))
 	return l
 }
 
@@ -1009,7 +995,7 @@ func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			dot := nodSym(ir.ODOT, n.Left(), path[c].field.Sym)
+			dot := ir.NewSelectorExpr(base.Pos, ir.ODOT, n.Left(), path[c].field.Sym)
 			dot.SetImplicit(true)
 			dot.SetType(path[c].field.Type)
 			n.SetLeft(dot)
@@ -1222,9 +1208,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// generate nil pointer check for better error
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
-		n := ir.Nod(ir.OIF, nil, nil)
-		n.SetLeft(ir.Nod(ir.OEQ, nthis, nodnil()))
-		call := ir.Nod(ir.OCALL, syslook("panicwrap"), nil)
+		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		n.SetLeft(ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, nodnil()))
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, syslook("panicwrap"), nil)
 		n.PtrBody().Set1(call)
 		fn.PtrBody().Append(n)
 	}
@@ -1244,16 +1230,16 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		if !left.Type().IsPtr() {
 			left = nodAddr(left)
 		}
-		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
+		as := ir.NewAssignStmt(base.Pos, nthis, convnop(left, rcvr))
 		fn.PtrBody().Append(as)
-		fn.PtrBody().Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
+		fn.PtrBody().Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, methodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		call := ir.Nod(ir.OCALL, dot, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
 		call.PtrList().Set(paramNnames(tfn.Type()))
 		call.SetIsDDD(tfn.Type().IsVariadic())
 		if method.Type.NumResults() > 0 {
-			ret := ir.Nod(ir.ORETURN, nil, nil)
+			ret := ir.NewReturnStmt(base.Pos, nil)
 			ret.PtrList().Set1(call)
 			fn.PtrBody().Append(ret)
 		} else {
@@ -1416,7 +1402,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 }
 
 func liststmt(l []ir.Node) ir.Node {
-	n := ir.Nod(ir.OBLOCK, nil, nil)
+	n := ir.NewBlockStmt(base.Pos, nil)
 	n.PtrList().Set(l)
 	if len(l) != 0 {
 		n.SetPos(l[0].Pos())
@@ -1440,7 +1426,7 @@ func initExpr(init []ir.Node, n ir.Node) ir.Node {
 	if ir.MayBeShared(n) {
 		// Introduce OCONVNOP to hold init list.
 		old := n
-		n = ir.Nod(ir.OCONVNOP, old, nil)
+		n = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, old)
 		n.SetType(old.Type())
 		n.SetTypecheck(1)
 	}
@@ -1534,7 +1520,7 @@ func isdirectiface(t *types.Type) bool {
 
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab ir.Node) ir.Node {
-	typ := nodSym(ir.ODOTPTR, itab, nil)
+	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
 	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	typ.SetTypecheck(1)
 	typ.SetOffset(int64(Widthptr)) // offset of _type in runtime.itab
@@ -1549,7 +1535,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	if t.IsInterface() {
 		base.Fatalf("ifaceData interface: %v", t)
 	}
-	ptr := ir.NodAt(pos, ir.OIDATA, n, nil)
+	ptr := ir.NewUnaryExpr(pos, ir.OIDATA, n)
 	if isdirectiface(t) {
 		ptr.SetType(t)
 		ptr.SetTypecheck(1)
@@ -1557,7 +1543,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	}
 	ptr.SetType(types.NewPtr(t))
 	ptr.SetTypecheck(1)
-	ind := ir.NodAt(pos, ir.ODEREF, ptr, nil)
+	ind := ir.NewStarExpr(pos, ptr)
 	ind.SetType(t)
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)

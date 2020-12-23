@@ -312,21 +312,21 @@ func genhash(t *types.Type) *obj.LSym {
 
 		// for i := 0; i < nelem; i++
 		ni := temp(types.Types[types.TINT])
-		init := ir.Nod(ir.OAS, ni, nodintconst(0))
-		cond := ir.Nod(ir.OLT, ni, nodintconst(t.NumElem()))
-		post := ir.Nod(ir.OAS, ni, ir.Nod(ir.OADD, ni, nodintconst(1)))
-		loop := ir.Nod(ir.OFOR, cond, post)
+		init := ir.NewAssignStmt(base.Pos, ni, nodintconst(0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, nodintconst(t.NumElem()))
+		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, nodintconst(1)))
+		loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
 		loop.PtrInit().Append(init)
 
 		// h = hashel(&p[i], h)
-		call := ir.Nod(ir.OCALL, hashel, nil)
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 
-		nx := ir.Nod(ir.OINDEX, np, ni)
+		nx := ir.NewIndexExpr(base.Pos, np, ni)
 		nx.SetBounded(true)
 		na := nodAddr(nx)
 		call.PtrList().Append(na)
 		call.PtrList().Append(nh)
-		loop.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
+		loop.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
 
 		fn.PtrBody().Append(loop)
 
@@ -345,12 +345,12 @@ func genhash(t *types.Type) *obj.LSym {
 			// Hash non-memory fields with appropriate hash function.
 			if !IsRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
-				call := ir.Nod(ir.OCALL, hashel, nil)
-				nx := nodSym(ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := nodAddr(nx)
 				call.PtrList().Append(na)
 				call.PtrList().Append(nh)
-				fn.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
+				fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
 				i++
 				continue
 			}
@@ -360,19 +360,19 @@ func genhash(t *types.Type) *obj.LSym {
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
-			call := ir.Nod(ir.OCALL, hashel, nil)
-			nx := nodSym(ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := nodAddr(nx)
 			call.PtrList().Append(na)
 			call.PtrList().Append(nh)
 			call.PtrList().Append(nodintconst(size))
-			fn.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
+			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nh, call))
 
 			i = next
 		}
 	}
 
-	r := ir.Nod(ir.ORETURN, nil, nil)
+	r := ir.NewReturnStmt(base.Pos, nil)
 	r.PtrList().Append(nh)
 	fn.PtrBody().Append(r)
 
@@ -568,11 +568,11 @@ func geneq(t *types.Type) *obj.LSym {
 			// checkIdx generates a node to check for equality at index i.
 			checkIdx := func(i ir.Node) ir.Node {
 				// pi := p[i]
-				pi := ir.Nod(ir.OINDEX, np, i)
+				pi := ir.NewIndexExpr(base.Pos, np, i)
 				pi.SetBounded(true)
 				pi.SetType(t.Elem())
 				// qi := q[i]
-				qi := ir.Nod(ir.OINDEX, nq, i)
+				qi := ir.NewIndexExpr(base.Pos, nq, i)
 				qi.SetBounded(true)
 				qi.SetType(t.Elem())
 				return eq(pi, qi)
@@ -586,29 +586,29 @@ func geneq(t *types.Type) *obj.LSym {
 				// Generate a series of checks.
 				for i := int64(0); i < nelem; i++ {
 					// if check {} else { goto neq }
-					nif := ir.Nod(ir.OIF, checkIdx(nodintconst(i)), nil)
-					nif.PtrRlist().Append(nodSym(ir.OGOTO, nil, neq))
+					nif := ir.NewIfStmt(base.Pos, checkIdx(nodintconst(i)), nil, nil)
+					nif.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 					fn.PtrBody().Append(nif)
 				}
 				if last {
-					fn.PtrBody().Append(ir.Nod(ir.OAS, nr, checkIdx(nodintconst(nelem))))
+					fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(nodintconst(nelem))))
 				}
 			} else {
 				// Generate a for loop.
 				// for i := 0; i < nelem; i++
 				i := temp(types.Types[types.TINT])
-				init := ir.Nod(ir.OAS, i, nodintconst(0))
-				cond := ir.Nod(ir.OLT, i, nodintconst(nelem))
-				post := ir.Nod(ir.OAS, i, ir.Nod(ir.OADD, i, nodintconst(1)))
-				loop := ir.Nod(ir.OFOR, cond, post)
+				init := ir.NewAssignStmt(base.Pos, i, nodintconst(0))
+				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, nodintconst(nelem))
+				post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, nodintconst(1)))
+				loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
 				loop.PtrInit().Append(init)
 				// if eq(pi, qi) {} else { goto neq }
-				nif := ir.Nod(ir.OIF, checkIdx(i), nil)
-				nif.PtrRlist().Append(nodSym(ir.OGOTO, nil, neq))
+				nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
+				nif.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 				loop.PtrBody().Append(nif)
 				fn.PtrBody().Append(loop)
 				if last {
-					fn.PtrBody().Append(ir.Nod(ir.OAS, nr, nodbool(true)))
+					fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
 				}
 			}
 		}
@@ -631,13 +631,13 @@ func geneq(t *types.Type) *obj.LSym {
 		case types.TFLOAT32, types.TFLOAT64:
 			checkAll(2, true, func(pi, qi ir.Node) ir.Node {
 				// p[i] == q[i]
-				return ir.Nod(ir.OEQ, pi, qi)
+				return ir.NewBinaryExpr(base.Pos, ir.OEQ, pi, qi)
 			})
 		// TODO: pick apart structs, do them piecemeal too
 		default:
 			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// p[i] == q[i]
-				return ir.Nod(ir.OEQ, pi, qi)
+				return ir.NewBinaryExpr(base.Pos, ir.OEQ, pi, qi)
 			})
 		}
 
@@ -669,15 +669,15 @@ func geneq(t *types.Type) *obj.LSym {
 					// Enforce ordering by starting a new set of reorderable conditions.
 					conds = append(conds, []ir.Node{})
 				}
-				p := nodSym(ir.OXDOT, np, f.Sym)
-				q := nodSym(ir.OXDOT, nq, f.Sym)
+				p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
+				q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
 				switch {
 				case f.Type.IsString():
 					eqlen, eqmem := eqstring(p, q)
 					and(eqlen)
 					and(eqmem)
 				default:
-					and(ir.Nod(ir.OEQ, p, q))
+					and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
 				}
 				if EqCanPanic(f.Type) {
 					// Also enforce ordering after something that can panic.
@@ -718,35 +718,35 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 		if len(flatConds) == 0 {
-			fn.PtrBody().Append(ir.Nod(ir.OAS, nr, nodbool(true)))
+			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(true)))
 		} else {
 			for _, c := range flatConds[:len(flatConds)-1] {
 				// if cond {} else { goto neq }
-				n := ir.Nod(ir.OIF, c, nil)
-				n.PtrRlist().Append(nodSym(ir.OGOTO, nil, neq))
+				n := ir.NewIfStmt(base.Pos, c, nil, nil)
+				n.PtrRlist().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 				fn.PtrBody().Append(n)
 			}
-			fn.PtrBody().Append(ir.Nod(ir.OAS, nr, flatConds[len(flatConds)-1]))
+			fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, flatConds[len(flatConds)-1]))
 		}
 	}
 
 	// ret:
 	//   return
 	ret := autolabel(".ret")
-	fn.PtrBody().Append(nodSym(ir.OLABEL, nil, ret))
-	fn.PtrBody().Append(ir.Nod(ir.ORETURN, nil, nil))
+	fn.PtrBody().Append(ir.NewLabelStmt(base.Pos, ret))
+	fn.PtrBody().Append(ir.NewReturnStmt(base.Pos, nil))
 
 	// neq:
 	//   r = false
 	//   return (or goto ret)
-	fn.PtrBody().Append(nodSym(ir.OLABEL, nil, neq))
-	fn.PtrBody().Append(ir.Nod(ir.OAS, nr, nodbool(false)))
+	fn.PtrBody().Append(ir.NewLabelStmt(base.Pos, neq))
+	fn.PtrBody().Append(ir.NewAssignStmt(base.Pos, nr, nodbool(false)))
 	if EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
-		fn.PtrBody().Append(nodSym(ir.OGOTO, nil, ret))
+		fn.PtrBody().Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
 	} else {
 		// Epilogue is small, so don't bother sharing.
-		fn.PtrBody().Append(ir.Nod(ir.ORETURN, nil, nil))
+		fn.PtrBody().Append(ir.NewReturnStmt(base.Pos, nil))
 	}
 	// TODO(khr): the epilogue size detection condition above isn't perfect.
 	// We should really do a generic CL that shares epilogues across
@@ -793,9 +793,9 @@ func anyCall(fn *ir.Func) bool {
 // eqfield returns the node
 // 	p.field == q.field
 func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
-	nx := nodSym(ir.OXDOT, p, field)
-	ny := nodSym(ir.OXDOT, q, field)
-	ne := ir.Nod(ir.OEQ, nx, ny)
+	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
+	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
+	ne := ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny)
 	return ne
 }
 
@@ -808,10 +808,10 @@ func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	s = conv(s, types.Types[types.TSTRING])
 	t = conv(t, types.Types[types.TSTRING])
-	sptr := ir.Nod(ir.OSPTR, s, nil)
-	tptr := ir.Nod(ir.OSPTR, t, nil)
-	slen := conv(ir.Nod(ir.OLEN, s, nil), types.Types[types.TUINTPTR])
-	tlen := conv(ir.Nod(ir.OLEN, t, nil), types.Types[types.TUINTPTR])
+	sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
+	tptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, t)
+	slen := conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
+	tlen := conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
 
 	fn := syslook("memequal")
 	fn = substArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
@@ -843,10 +843,10 @@ func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 		fn = syslook("ifaceeq")
 	}
 
-	stab := ir.Nod(ir.OITAB, s, nil)
-	ttab := ir.Nod(ir.OITAB, t, nil)
-	sdata := ir.Nod(ir.OIDATA, s, nil)
-	tdata := ir.Nod(ir.OIDATA, t, nil)
+	stab := ir.NewUnaryExpr(base.Pos, ir.OITAB, s)
+	ttab := ir.NewUnaryExpr(base.Pos, ir.OITAB, t)
+	sdata := ir.NewUnaryExpr(base.Pos, ir.OIDATA, s)
+	tdata := ir.NewUnaryExpr(base.Pos, ir.OIDATA, t)
 	sdata.SetType(types.Types[types.TUNSAFEPTR])
 	tdata.SetType(types.Types[types.TUNSAFEPTR])
 	sdata.SetTypecheck(1)
@@ -864,11 +864,11 @@ func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
-	nx := typecheck(nodAddr(nodSym(ir.OXDOT, p, field)), ctxExpr)
-	ny := typecheck(nodAddr(nodSym(ir.OXDOT, q, field)), ctxExpr)
+	nx := typecheck(nodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)), ctxExpr)
+	ny := typecheck(nodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)), ctxExpr)
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
-	call := ir.Nod(ir.OCALL, fn, nil)
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.PtrList().Append(nx)
 	call.PtrList().Append(ny)
 	if needsize {

@@ -1553,7 +1553,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				return n
 			}
 
-			n := ir.NodAt(n.Pos(), ir.OCONV, arg, nil)
+			n := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
 			n.SetType(l.Type())
 			return typecheck1(n, top)
 		}
@@ -1979,7 +1979,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 				n.SetType(nil)
 				return n
 			}
-			nn = ir.NodAt(n.Pos(), ir.OMAKESLICE, l, r)
+			nn = ir.NewMakeExpr(n.Pos(), ir.OMAKESLICE, l, r)
 
 		case types.TMAP:
 			if i < len(args) {
@@ -1998,7 +1998,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			} else {
 				l = nodintconst(0)
 			}
-			nn = ir.NodAt(n.Pos(), ir.OMAKEMAP, l, nil)
+			nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
 			nn.SetEsc(n.Esc())
 
 		case types.TCHAN:
@@ -2019,7 +2019,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			} else {
 				l = nodintconst(0)
 			}
-			nn = ir.NodAt(n.Pos(), ir.OMAKECHAN, l, nil)
+			nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
 		}
 
 		if i < len(args) {
@@ -2170,7 +2170,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
 			// See issues 7538, 11589, 11593.
-			n = ir.NodAt(n.Pos(), ir.OBLOCK, nil, nil)
+			n = ir.NewBlockStmt(n.Pos(), nil)
 		}
 		return n
 
@@ -2300,7 +2300,7 @@ func typecheckargs(n ir.Node) {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
-	as := ir.Nod(ir.OAS2, nil, nil)
+	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	as.PtrRlist().Append(list...)
 
 	// If we're outside of function context, then this call will
@@ -2315,7 +2315,7 @@ func typecheckargs(n ir.Node) {
 	list = nil
 	for _, f := range t.FieldSlice() {
 		t := temp(f.Type)
-		as.PtrInit().Append(ir.Nod(ir.ODCL, t, nil))
+		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
 		as.PtrList().Append(t)
 		list = append(list, t)
 	}
@@ -2440,7 +2440,7 @@ func implicitstar(n ir.Node) ir.Node {
 	if !t.IsArray() {
 		return n
 	}
-	star := ir.Nod(ir.ODEREF, n, nil)
+	star := ir.NewStarExpr(base.Pos, n)
 	star.SetImplicit(true)
 	return typecheck(star, ctxExpr)
 }
@@ -2619,7 +2619,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 		n.SetType(f1.Type)
 		if t.IsInterface() {
 			if n.Left().Type().IsPtr() {
-				star := ir.Nod(ir.ODEREF, n.Left(), nil)
+				star := ir.NewStarExpr(base.Pos, n.Left())
 				star.SetImplicit(true)
 				n.SetLeft(typecheck(star, ctxExpr))
 			}
@@ -2645,7 +2645,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 				addr.SetImplicit(true)
 				n.SetLeft(typecheck(addr, ctxType|ctxExpr))
 			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
-				star := ir.Nod(ir.ODEREF, n.Left(), nil)
+				star := ir.NewStarExpr(base.Pos, n.Left())
 				star.SetImplicit(true)
 				n.SetLeft(typecheck(star, ctxType|ctxExpr))
 			} else if tt.IsPtr() && tt.Elem().IsPtr() && types.Identical(derefall(tt), derefall(rcvr)) {
@@ -2655,7 +2655,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 					if rcvr.IsPtr() && !tt.Elem().IsPtr() {
 						break
 					}
-					star := ir.Nod(ir.ODEREF, n.Left(), nil)
+					star := ir.NewStarExpr(base.Pos, n.Left())
 					star.SetImplicit(true)
 					n.SetLeft(typecheck(star, ctxType|ctxExpr))
 					tt = tt.Elem()
@@ -3055,7 +3055,7 @@ func typecheckcomplit(n *ir.CompLitExpr) (res ir.Node) {
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = assignconv(n1, f.Type, "field value")
-				sk := nodSym(ir.OSTRUCTKEY, n1, f.Sym)
+				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
 				sk.SetOffset(f.Offset)
 				ls[i] = sk
 			}
@@ -3614,11 +3614,11 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	var l []ir.Node
 	i := 0
 	for _, r := range ir.StringVal(n.Left()) {
-		l = append(l, ir.Nod(ir.OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
+		l = append(l, ir.NewKeyExpr(base.Pos, nodintconst(int64(i)), nodintconst(int64(r))))
 		i++
 	}
 
-	nn := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(n.Type()))
+	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()).(ir.Ntype), nil)
 	nn.PtrList().Set(l)
 	return typecheck(nn, ctxExpr)
 }
@@ -4064,7 +4064,7 @@ func deadcode(fn *ir.Func) {
 		}
 	}
 
-	fn.PtrBody().Set([]ir.Node{ir.Nod(ir.OBLOCK, nil, nil)})
+	fn.PtrBody().Set([]ir.Node{ir.NewBlockStmt(base.Pos, nil)})
 }
 
 func deadcodeslice(nn *ir.Nodes) {
