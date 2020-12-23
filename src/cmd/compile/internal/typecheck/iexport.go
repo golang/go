@@ -858,8 +858,6 @@ func intSize(typ *types.Type) (signed bool, maxBytes uint) {
 // according to the maximum number of bytes needed to encode a value
 // of type typ. As a special case, 8-bit types are always encoded as a
 // single byte.
-//
-// TODO(mdempsky): Is this level of complexity really worthwhile?
 func (w *exportWriter) mpint(x constant.Value, typ *types.Type) {
 	signed, maxBytes := intSize(typ)
 
@@ -1154,7 +1152,6 @@ func (w *exportWriter) stmt(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
-		w.exprsOrNil(nil, nil) // TODO(rsc): Delete (and fix importer).
 		w.caseList(n.Cases, false)
 
 	case ir.OSWITCH:
@@ -1298,7 +1295,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			s = n.Tag.Sym()
 		}
 		w.localIdent(s, 0) // declared pseudo-variable, if any
-		w.exprsOrNil(n.X, nil)
+		w.expr(n.X)
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	// 	should have been resolved by typechecking - handled by default case
@@ -1333,7 +1330,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.KeyExpr)
 		w.op(ir.OKEY)
 		w.pos(n.Pos())
-		w.exprsOrNil(n.Key, n.Value)
+		w.expr(n.Key)
+		w.expr(n.Value)
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -1397,8 +1395,8 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.ConvExpr)
 		w.op(ir.OCONV)
 		w.pos(n.Pos())
-		w.expr(n.X)
 		w.typ(n.Type())
+		w.expr(n.X)
 
 	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
@@ -1529,6 +1527,7 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
 	w.uint64(uint64(len(list)))
 	for _, n := range list {
 		n := n.(*ir.StructKeyExpr)
+		w.pos(n.Pos())
 		w.selector(n.Field)
 		w.expr(n.Value)
 	}
