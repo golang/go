@@ -319,7 +319,7 @@ func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
 
 func ggloblnod(nam ir.Node) {
 	s := nam.Sym().Linksym()
-	s.Gotype = ngotype(nam).Linksym()
+	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
 	flags := 0
 	if nam.Name().Readonly() {
 		flags = obj.RODATA

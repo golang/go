@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package dwarfgen
 
 import (
+	"bytes"
+	"flag"
+	"fmt"
 	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -18,7 +22,7 @@ import (
 	"cmd/internal/src"
 )
 
-func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
@@ -86,7 +90,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 				continue
 			}
 			apdecls = append(apdecls, n)
-			fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+			fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
 		}
 	}
 
@@ -236,7 +240,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			ChildIndex:    -1,
 		})
 		// Record go type of to insure that it gets emitted by the linker.
-		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+		fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
 	}
 
 	return decls, vars
@@ -305,7 +309,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	}
 
 	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
-	delete(fnsym.Func().Autot, ngotype(n).Linksym())
+	delete(fnsym.Func().Autot, reflectdata.TypeSym(n.Type()).Linksym())
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.Name().InlFormal() || n.Name().InlLocal() {
@@ -372,7 +376,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		return nil
 	}
 
-	gotype := ngotype(n).Linksym()
+	gotype := reflectdata.TypeSym(n.Type()).Linksym()
 	delete(fnsym.Func().Autot, gotype)
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0
@@ -409,4 +413,71 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		}
 	}
 	return dvar
+}
+
+// RecordFlags records the specified command-line flags to be placed
+// in the DWARF info.
+func RecordFlags(flags ...string) {
+	if base.Ctxt.Pkgpath == "" {
+		// We can't record the flags if we don't know what the
+		// package name is.
+		return
+	}
+
+	type BoolFlag interface {
+		IsBoolFlag() bool
+	}
+	type CountFlag interface {
+		IsCountFlag() bool
+	}
+	var cmd bytes.Buffer
+	for _, name := range flags {
+		f := flag.Lookup(name)
+		if f == nil {
+			continue
+		}
+		getter := f.Value.(flag.Getter)
+		if getter.String() == f.DefValue {
+			// Flag has default value, so omit it.
+			continue
+		}
+		if bf, ok := f.Value.(BoolFlag); ok && bf.IsBoolFlag() {
+			val, ok := getter.Get().(bool)
+			if ok && val {
+				fmt.Fprintf(&cmd, " -%s", f.Name)
+				continue
+			}
+		}
+		if cf, ok := f.Value.(CountFlag); ok && cf.IsCountFlag() {
+			val, ok := getter.Get().(int)
+			if ok && val == 1 {
+				fmt.Fprintf(&cmd, " -%s", f.Name)
+				continue
+			}
+		}
+		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
+	}
+
+	if cmd.Len() == 0 {
+		return
+	}
+	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + base.Ctxt.Pkgpath)
+	s.Type = objabi.SDWARFCUINFO
+	// Sometimes (for example when building tests) we can link
+	// together two package main archives. So allow dups.
+	s.Set(obj.AttrDuplicateOK, true)
+	base.Ctxt.Data = append(base.Ctxt.Data, s)
+	s.P = cmd.Bytes()[1:]
+}
+
+// RecordPackageName records the name of the package being
+// compiled, so that the linker can save it in the compile unit's DIE.
+func RecordPackageName() {
+	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + base.Ctxt.Pkgpath)
+	s.Type = objabi.SDWARFCUINFO
+	// Sometimes (for example when building tests) we can link
+	// together two package main archives. So allow dups.
+	s.Set(obj.AttrDuplicateOK, true)
+	base.Ctxt.Data = append(base.Ctxt.Data, s)
+	s.P = []byte(types.LocalPkg.Name)
 }

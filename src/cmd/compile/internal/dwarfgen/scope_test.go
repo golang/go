@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc_test
+package dwarfgen
 
 import (
-	"cmd/internal/objfile"
 	"debug/dwarf"
 	"fmt"
 	"internal/testenv"
@@ -18,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"cmd/internal/objfile"
 )
 
 type testline struct {
