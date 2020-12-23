@@ -323,6 +323,8 @@ var longBuilders = map[string]string{
 	"openbsd-amd64-64":        "golang.org/issues/42789",
 	"openbsd-386-64":          "golang.org/issues/42789",
 	"openbsd-386-68":          "golang.org/issues/42789",
+	"openbsd-amd64-68":        "golang.org/issues/42789",
+	"linux-arm":               "golang.org/issues/43355",
 	"darwin-amd64-10_12":      "",
 	"freebsd-amd64-race":      "",
 	"illumos-amd64":           "",
