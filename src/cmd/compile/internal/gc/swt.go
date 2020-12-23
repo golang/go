@@ -16,7 +16,7 @@ import (
 
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *ir.SwitchStmt) {
-	typecheckslice(n.Init().Slice(), ctxStmt)
+	typecheckslice(n.Init(), ctxStmt)
 	if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
 		typecheckTypeSwitch(n)
 	} else {
@@ -36,15 +36,15 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 	// We don't actually declare the type switch's guarded
 	// declaration itself. So if there are no cases, we won't
 	// notice that it went unused.
-	if v := guard.Tag; v != nil && !ir.IsBlank(v) && n.Cases.Len() == 0 {
+	if v := guard.Tag; v != nil && !ir.IsBlank(v) && len(n.Cases) == 0 {
 		base.ErrorfAt(v.Pos(), "%v declared but not used", v.Sym())
 	}
 
 	var defCase, nilCase ir.Node
 	var ts typeSet
-	for _, ncase := range n.Cases.Slice() {
+	for _, ncase := range n.Cases {
 		ncase := ncase.(*ir.CaseStmt)
-		ls := ncase.List.Slice()
+		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
 				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
@@ -91,7 +91,7 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 			ts.add(ncase.Pos(), n1.Type())
 		}
 
-		if ncase.Vars.Len() != 0 {
+		if len(ncase.Vars) != 0 {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
@@ -104,7 +104,7 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 				}
 			}
 
-			nvar := ncase.Vars.First()
+			nvar := ncase.Vars[0]
 			nvar.SetType(vt)
 			if vt != nil {
 				nvar = typecheck(nvar, ctxExpr|ctxAssign)
@@ -113,10 +113,10 @@ func typecheckTypeSwitch(n *ir.SwitchStmt) {
 				nvar.SetTypecheck(1)
 				nvar.SetWalkdef(1)
 			}
-			ncase.Vars.SetFirst(nvar)
+			ncase.Vars[0] = nvar
 		}
 
-		typecheckslice(ncase.Body.Slice(), ctxStmt)
+		typecheckslice(ncase.Body, ctxStmt)
 	}
 }
 
@@ -178,9 +178,9 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 
 	var defCase ir.Node
 	var cs constSet
-	for _, ncase := range n.Cases.Slice() {
+	for _, ncase := range n.Cases {
 		ncase := ncase.(*ir.CaseStmt)
-		ls := ncase.List.Slice()
+		ls := ncase.List
 		if len(ls) == 0 { // default:
 			if defCase != nil {
 				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
@@ -225,14 +225,14 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 			}
 		}
 
-		typecheckslice(ncase.Body.Slice(), ctxStmt)
+		typecheckslice(ncase.Body, ctxStmt)
 	}
 }
 
 // walkswitch walks a switch statement.
 func walkswitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
-	if sw.Cases.Len() == 0 && sw.Compiled.Len() > 0 {
+	if len(sw.Cases) == 0 && len(sw.Compiled) > 0 {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
 	}
 
@@ -283,27 +283,27 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 
 	var defaultGoto ir.Node
 	var body ir.Nodes
-	for _, ncase := range sw.Cases.Slice() {
+	for _, ncase := range sw.Cases {
 		ncase := ncase.(*ir.CaseStmt)
 		label := autolabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
 		// Process case dispatch.
-		if ncase.List.Len() == 0 {
+		if len(ncase.List) == 0 {
 			if defaultGoto != nil {
 				base.Fatalf("duplicate default case not detected during typechecking")
 			}
 			defaultGoto = jmp
 		}
 
-		for _, n1 := range ncase.List.Slice() {
+		for _, n1 := range ncase.List {
 			s.Add(ncase.Pos(), n1, jmp)
 		}
 
 		// Process body.
 		body.Append(ir.NewLabelStmt(ncase.Pos(), label))
-		body.Append(ncase.Body.Slice()...)
-		if fall, pos := endsInFallthrough(ncase.Body.Slice()); !fall {
+		body.Append(ncase.Body...)
+		if fall, pos := endsInFallthrough(ncase.Body); !fall {
 			br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
 			br.SetPos(pos)
 			body.Append(br)
@@ -319,8 +319,8 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 
 	s.Emit(&sw.Compiled)
 	sw.Compiled.Append(defaultGoto)
-	sw.Compiled.AppendNodes(&body)
-	walkstmtlist(sw.Compiled.Slice())
+	sw.Compiled.Append(body.Take()...)
+	walkstmtlist(sw.Compiled)
 }
 
 // An exprSwitch walks an expression switch.
@@ -351,7 +351,7 @@ func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
 
 func (s *exprSwitch) Emit(out *ir.Nodes) {
 	s.flush()
-	out.AppendNodes(&s.done)
+	out.Append(s.done.Take()...)
 }
 
 func (s *exprSwitch) flush() {
@@ -438,7 +438,7 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
 		func(i int, nif *ir.IfStmt) {
 			c := &cc[i]
 			nif.Cond = c.test(s.exprname)
-			nif.Body.Set1(c.jmp)
+			nif.Body = []ir.Node{c.jmp}
 		},
 	)
 }
@@ -471,9 +471,9 @@ func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
 	// Restricting to constants is simple and probably powerful
 	// enough.
 
-	for _, ncase := range sw.Cases.Slice() {
+	for _, ncase := range sw.Cases {
 		ncase := ncase.(*ir.CaseStmt)
-		for _, v := range ncase.List.Slice() {
+		for _, v := range ncase.List {
 			if v.Op() != ir.OLITERAL {
 				return false
 			}
@@ -545,33 +545,33 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 	br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
 	var defaultGoto, nilGoto ir.Node
 	var body ir.Nodes
-	for _, ncase := range sw.Cases.Slice() {
+	for _, ncase := range sw.Cases {
 		ncase := ncase.(*ir.CaseStmt)
 		var caseVar ir.Node
-		if ncase.Vars.Len() != 0 {
-			caseVar = ncase.Vars.First()
+		if len(ncase.Vars) != 0 {
+			caseVar = ncase.Vars[0]
 		}
 
 		// For single-type cases with an interface type,
 		// we initialize the case variable as part of the type assertion.
 		// In other cases, we initialize it in the body.
 		var singleType *types.Type
-		if ncase.List.Len() == 1 && ncase.List.First().Op() == ir.OTYPE {
-			singleType = ncase.List.First().Type()
+		if len(ncase.List) == 1 && ncase.List[0].Op() == ir.OTYPE {
+			singleType = ncase.List[0].Type()
 		}
 		caseVarInitialized := false
 
 		label := autolabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
-		if ncase.List.Len() == 0 { // default:
+		if len(ncase.List) == 0 { // default:
 			if defaultGoto != nil {
 				base.Fatalf("duplicate default case not detected during typechecking")
 			}
 			defaultGoto = jmp
 		}
 
-		for _, n1 := range ncase.List.Slice() {
+		for _, n1 := range ncase.List {
 			if ir.IsNil(n1) { // case nil:
 				if nilGoto != nil {
 					base.Fatalf("duplicate nil case not detected during typechecking")
@@ -605,7 +605,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 			typecheckslice(l, ctxStmt)
 			body.Append(l...)
 		}
-		body.Append(ncase.Body.Slice()...)
+		body.Append(ncase.Body...)
 		body.Append(br)
 	}
 	sw.Cases.Set(nil)
@@ -616,13 +616,13 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 	if nilGoto == nil {
 		nilGoto = defaultGoto
 	}
-	ifNil.Body.Set1(nilGoto)
+	ifNil.Body = []ir.Node{nilGoto}
 
 	s.Emit(&sw.Compiled)
 	sw.Compiled.Append(defaultGoto)
-	sw.Compiled.AppendNodes(&body)
+	sw.Compiled.Append(body.Take()...)
 
-	walkstmtlist(sw.Compiled.Slice())
+	walkstmtlist(sw.Compiled)
 }
 
 // A typeSwitch walks a type switch.
@@ -656,16 +656,16 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 
 	// cv, ok = iface.(type)
 	as := ir.NewAssignListStmt(pos, ir.OAS2, nil, nil)
-	as.Lhs.Set2(caseVar, s.okname) // cv, ok =
+	as.Lhs = []ir.Node{caseVar, s.okname} // cv, ok =
 	dot := ir.NewTypeAssertExpr(pos, s.facename, nil)
 	dot.SetType(typ) // iface.(type)
-	as.Rhs.Set1(dot)
+	as.Rhs = []ir.Node{dot}
 	appendWalkStmt(&body, as)
 
 	// if ok { goto label }
 	nif := ir.NewIfStmt(pos, nil, nil, nil)
 	nif.Cond = s.okname
-	nif.Body.Set1(jmp)
+	nif.Body = []ir.Node{jmp}
 	body.Append(nif)
 
 	if !typ.IsInterface() {
@@ -677,12 +677,12 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 	}
 
 	s.flush()
-	s.done.AppendNodes(&body)
+	s.done.Append(body.Take()...)
 }
 
 func (s *typeSwitch) Emit(out *ir.Nodes) {
 	s.flush()
-	out.AppendNodes(&s.done)
+	out.Append(s.done.Take()...)
 }
 
 func (s *typeSwitch) flush() {
@@ -699,7 +699,7 @@ func (s *typeSwitch) flush() {
 	for _, c := range cc[1:] {
 		last := &merged[len(merged)-1]
 		if last.hash == c.hash {
-			last.body.AppendNodes(&c.body)
+			last.body.Append(c.body.Take()...)
 		} else {
 			merged = append(merged, c)
 		}
@@ -715,7 +715,7 @@ func (s *typeSwitch) flush() {
 			// there's only one type.
 			c := cc[i]
 			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, nodintconst(int64(c.hash)))
-			nif.Body.AppendNodes(&c.body)
+			nif.Body.Append(c.body.Take()...)
 		},
 	)
 }

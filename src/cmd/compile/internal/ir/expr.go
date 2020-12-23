@@ -624,16 +624,16 @@ func (n *SliceExpr) SetOp(op Op) {
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *SliceExpr) SliceBounds() (low, high, max Node) {
-	if n.List.Len() == 0 {
+	if len(n.List) == 0 {
 		return nil, nil, nil
 	}
 
 	switch n.Op() {
 	case OSLICE, OSLICEARR, OSLICESTR:
-		s := n.List.Slice()
+		s := n.List
 		return s[0], s[1], nil
 	case OSLICE3, OSLICE3ARR:
-		s := n.List.Slice()
+		s := n.List
 		return s[0], s[1], s[2]
 	}
 	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
@@ -648,24 +648,24 @@ func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
 		if max != nil {
 			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
 		}
-		s := n.List.Slice()
+		s := n.List
 		if s == nil {
 			if low == nil && high == nil {
 				return
 			}
-			n.List.Set2(low, high)
+			n.List = []Node{low, high}
 			return
 		}
 		s[0] = low
 		s[1] = high
 		return
 	case OSLICE3, OSLICE3ARR:
-		s := n.List.Slice()
+		s := n.List
 		if s == nil {
 			if low == nil && high == nil && max == nil {
 				return
 			}
-			n.List.Set3(low, high, max)
+			n.List = []Node{low, high, max}
 			return
 		}
 		s[0] = low
@@ -701,7 +701,7 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	n.pos = pos
 	n.op = OSLICEHEADER
 	n.typ = typ
-	n.LenCap.Set2(len, cap)
+	n.LenCap = []Node{len, cap}
 	return n
 }
 

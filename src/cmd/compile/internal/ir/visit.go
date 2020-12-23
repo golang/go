@@ -106,7 +106,7 @@ func DoChildren(n Node, do func(Node) error) error {
 // Note that DoList only calls do on the nodes in the list, not their children.
 // If x's children should be processed, do(x) must call DoChildren(x, do) itself.
 func DoList(list Nodes, do func(Node) error) error {
-	for _, x := range list.Slice() {
+	for _, x := range list {
 		if x != nil {
 			if err := do(x); err != nil {
 				return err
@@ -131,7 +131,7 @@ func Visit(n Node, visit func(Node)) {
 
 // VisitList calls Visit(x, visit) for each node x in the list.
 func VisitList(list Nodes, visit func(Node)) {
-	for _, x := range list.Slice() {
+	for _, x := range list {
 		Visit(x, visit)
 	}
 }
@@ -163,7 +163,7 @@ func Any(n Node, cond func(Node) bool) bool {
 // Otherwise, AnyList returns false after calling Any(x, cond)
 // for every x in the list.
 func AnyList(list Nodes, cond func(Node) bool) bool {
-	for _, x := range list.Slice() {
+	for _, x := range list {
 		if Any(x, cond) {
 			return true
 		}
@@ -217,8 +217,8 @@ func EditChildren(n Node, edit func(Node) Node) {
 // Note that editList only calls edit on the nodes in the list, not their children.
 // If x's children should be processed, edit(x) must call EditChildren(x, edit) itself.
 func editList(list Nodes, edit func(Node) Node) {
-	s := list.Slice()
-	for i, x := range list.Slice() {
+	s := list
+	for i, x := range list {
 		if x != nil {
 			s[i] = edit(x)
 		}

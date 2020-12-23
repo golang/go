@@ -552,7 +552,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	var init ir.Nodes
 	c := cheapexpr(n, &init)
-	if c != n || init.Len() != 0 {
+	if c != n || len(init) != 0 {
 		base.Fatalf("backingArrayPtrLen not cheap: %v", n)
 	}
 	ptr = ir.NewUnaryExpr(base.Pos, ir.OSPTR, n)
@@ -593,7 +593,7 @@ func updateHasCall(n ir.Node) {
 }
 
 func calcHasCall(n ir.Node) bool {
-	if n.Init().Len() != 0 {
+	if len(n.Init()) != 0 {
 		// TODO(mdempsky): This seems overly conservative.
 		return true
 	}
@@ -772,9 +772,9 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		return nil
 	}
 
-	if n.Init().Len() != 0 {
-		walkstmtlist(n.Init().Slice())
-		init.AppendNodes(n.PtrInit())
+	if len(n.Init()) != 0 {
+		walkstmtlist(n.Init())
+		init.Append(n.PtrInit().Take()...)
 	}
 
 	switch n.Op() {
@@ -1230,7 +1230,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, nodnil())
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, syslook("panicwrap"), nil)
-		n.Body.Set1(call)
+		n.Body = []ir.Node{call}
 		fn.Body.Append(n)
 	}
 
@@ -1259,7 +1259,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)
-			ret.Results.Set1(call)
+			ret.Results = []ir.Node{call}
 			fn.Body.Append(ret)
 		} else {
 			fn.Body.Append(call)
@@ -1277,7 +1277,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	typecheckFunc(fn)
 	Curfn = fn
-	typecheckslice(fn.Body.Slice(), ctxStmt)
+	typecheckslice(fn.Body, ctxStmt)
 
 	// Inline calls within (*T).M wrappers. This is safe because we only
 	// generate those wrappers within the same compilation unit as (T).M.

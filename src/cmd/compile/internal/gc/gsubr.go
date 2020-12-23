@@ -275,7 +275,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 		tail = call
 		if tfn.Type().NumResults() > 0 {
 			n := ir.NewReturnStmt(base.Pos, nil)
-			n.Results.Set1(call)
+			n.Results = []ir.Node{call}
 			tail = n
 		}
 	}
@@ -288,7 +288,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	typecheckFunc(fn)
 	Curfn = fn
-	typecheckslice(fn.Body.Slice(), ctxStmt)
+	typecheckslice(fn.Body, ctxStmt)
 
 	escapeFuncs([]*ir.Func{fn}, false)
 

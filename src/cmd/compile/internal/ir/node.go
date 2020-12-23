@@ -317,41 +317,6 @@ type Nodes []Node
 // The methods that would modify it panic instead.
 var immutableEmptyNodes = Nodes{}
 
-// asNodes returns a slice of *Node as a Nodes value.
-func AsNodes(s []Node) Nodes {
-	return s
-}
-
-// Slice returns the entries in Nodes as a slice.
-// Changes to the slice entries (as in s[i] = n) will be reflected in
-// the Nodes.
-func (n Nodes) Slice() []Node {
-	return n
-}
-
-// Len returns the number of entries in Nodes.
-func (n Nodes) Len() int {
-	return len(n)
-}
-
-// Index returns the i'th element of Nodes.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) Index(i int) Node {
-	return n[i]
-}
-
-// First returns the first element of Nodes (same as n.Index(0)).
-// It panics if n has no elements.
-func (n Nodes) First() Node {
-	return n[0]
-}
-
-// Second returns the second element of Nodes (same as n.Index(1)).
-// It panics if n has fewer than two elements.
-func (n Nodes) Second() Node {
-	return n[1]
-}
-
 func (n *Nodes) mutate() {
 	if n == &immutableEmptyNodes {
 		panic("immutable Nodes.Set")
@@ -369,55 +334,6 @@ func (n *Nodes) Set(s []Node) {
 		n.mutate()
 	}
 	*n = s
-}
-
-// Set1 sets n to a slice containing a single node.
-func (n *Nodes) Set1(n1 Node) {
-	n.mutate()
-	*n = []Node{n1}
-}
-
-// Set2 sets n to a slice containing two nodes.
-func (n *Nodes) Set2(n1, n2 Node) {
-	n.mutate()
-	*n = []Node{n1, n2}
-}
-
-// Set3 sets n to a slice containing three nodes.
-func (n *Nodes) Set3(n1, n2, n3 Node) {
-	n.mutate()
-	*n = []Node{n1, n2, n3}
-}
-
-// MoveNodes sets n to the contents of n2, then clears n2.
-func (n *Nodes) MoveNodes(n2 *Nodes) {
-	n.mutate()
-	*n = *n2
-	*n2 = nil
-}
-
-// SetIndex sets the i'th element of Nodes to node.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) SetIndex(i int, node Node) {
-	n[i] = node
-}
-
-// SetFirst sets the first element of Nodes to node.
-// It panics if n does not have at least one elements.
-func (n Nodes) SetFirst(node Node) {
-	n[0] = node
-}
-
-// SetSecond sets the second element of Nodes to node.
-// It panics if n does not have at least two elements.
-func (n Nodes) SetSecond(node Node) {
-	n[1] = node
-}
-
-// Addr returns the address of the i'th element of Nodes.
-// It panics if n does not have at least i+1 elements.
-func (n Nodes) Addr(i int) *Node {
-	return &n[i]
 }
 
 // Append appends entries to Nodes.
@@ -446,18 +362,12 @@ func (n *Nodes) Take() []Node {
 	return ret
 }
 
-// AppendNodes appends the contents of *n2 to n, then clears n2.
-func (n *Nodes) AppendNodes(n2 *Nodes) {
-	n.mutate()
-	*n = append(*n, n2.Take()...)
-}
-
 // Copy returns a copy of the content of the slice.
 func (n Nodes) Copy() Nodes {
 	if n == nil {
 		return nil
 	}
-	c := make(Nodes, n.Len())
+	c := make(Nodes, len(n))
 	copy(c, n)
 	return c
 }

@@ -113,7 +113,7 @@ func typecheckinl(fn *ir.Func) {
 	}
 
 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
+		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
 	}
 
 	savefn := Curfn
@@ -196,7 +196,7 @@ func caninl(fn *ir.Func) {
 	}
 
 	// If fn has no body (is defined outside of Go), cannot inline it.
-	if fn.Body.Len() == 0 {
+	if len(fn.Body) == 0 {
 		reason = "no function body"
 		return
 	}
@@ -238,11 +238,11 @@ func caninl(fn *ir.Func) {
 	n.Func.Inl = &ir.Inline{
 		Cost: inlineMaxBudget - visitor.budget,
 		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
-		Body: ir.DeepCopyList(src.NoXPos, fn.Body.Slice()),
+		Body: ir.DeepCopyList(src.NoXPos, fn.Body),
 	}
 
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.AsNodes(n.Func.Inl.Body))
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.Nodes(n.Func.Inl.Body))
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
 	}
@@ -278,7 +278,7 @@ func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
 	// Recursively identify all referenced functions for
 	// reexport. We want to include even non-called functions,
 	// because after inlining they might be callable.
-	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
+	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
 			inlFlood(methodExprName(n), exportsym)
@@ -527,7 +527,7 @@ func inlcalls(fn *ir.Func) {
 func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
 	n := ir.NewBlockStmt(inlcall.Pos(), nil)
 	n.List = inlcall.Init()
-	n.List.AppendNodes(&inlcall.Body)
+	n.List.Append(inlcall.Body.Take()...)
 	return n
 }
 
@@ -535,8 +535,8 @@ func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
 // The result of inlconv2expr MUST be assigned back to n, e.g.
 // 	n.Left = inlconv2expr(n.Left)
 func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
-	r := n.ReturnVars.First()
-	return initExpr(append(n.Init().Slice(), n.Body.Slice()...), r)
+	r := n.ReturnVars[0]
+	return initExpr(append(n.Init(), n.Body...), r)
 }
 
 // Turn the rlist (with the return values) of the OINLCALL in
@@ -545,12 +545,12 @@ func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
 // order will be preserved. Used in return, oas2func and call
 // statements.
 func inlconv2list(n *ir.InlinedCallExpr) []ir.Node {
-	if n.Op() != ir.OINLCALL || n.ReturnVars.Len() == 0 {
+	if n.Op() != ir.OINLCALL || len(n.ReturnVars) == 0 {
 		base.Fatalf("inlconv2list %+v\n", n)
 	}
 
-	s := n.ReturnVars.Slice()
-	s[0] = initExpr(append(n.Init().Slice(), n.Body.Slice()...), s[0])
+	s := n.ReturnVars
+	s[0] = initExpr(append(n.Init(), n.Body...), s[0])
 	return s
 }
 
@@ -600,8 +600,8 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	if as := n; as.Op() == ir.OAS2FUNC {
 		as := as.(*ir.AssignListStmt)
-		if as.Rhs.First().Op() == ir.OINLCALL {
-			as.Rhs.Set(inlconv2list(as.Rhs.First().(*ir.InlinedCallExpr)))
+		if as.Rhs[0].Op() == ir.OINLCALL {
+			as.Rhs.Set(inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr)))
 			as.SetOp(ir.OAS2)
 			as.SetTypecheck(0)
 			n = typecheck(as, ctxStmt)
@@ -736,9 +736,9 @@ FindRHS:
 		rhs = defn.Y
 	case ir.OAS2:
 		defn := defn.(*ir.AssignListStmt)
-		for i, lhs := range defn.Lhs.Slice() {
+		for i, lhs := range defn.Lhs {
 			if lhs == n {
-				rhs = defn.Rhs.Index(i)
+				rhs = defn.Rhs[i]
 				break FindRHS
 			}
 		}
@@ -780,7 +780,7 @@ func reassigned(name *ir.Name) bool {
 			}
 		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
-			for _, p := range n.Lhs.Slice() {
+			for _, p := range n.Lhs {
 				if p == name && n != name.Defn {
 					return true
 				}
@@ -870,7 +870,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	// We have a function node, and it has an inlineable body.
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
+		fmt.Printf("%v: inlining call to %v %v { %v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.Nodes(fn.Inl.Body))
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
 	}
@@ -890,7 +890,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		callee := n.X
 		for callee.Op() == ir.OCONVNOP {
 			conv := callee.(*ir.ConvExpr)
-			ninit.AppendNodes(conv.PtrInit())
+			ninit.Append(conv.PtrInit().Take()...)
 			callee = conv.X
 		}
 		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
@@ -968,7 +968,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	nreturns := 0
-	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
+	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
 		if n != nil && n.Op() == ir.ORETURN {
 			nreturns++
 		}
@@ -1018,7 +1018,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 		as.Rhs.Append(sel.X)
 	}
-	as.Rhs.Append(n.Args.Slice()...)
+	as.Rhs.Append(n.Args...)
 
 	// For non-dotted calls to variadic functions, we assign the
 	// variadic parameter's temp name separately.
@@ -1039,11 +1039,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		// Otherwise, we need to collect the remaining values
 		// to pass as a slice.
 
-		x := as.Lhs.Len()
-		for as.Lhs.Len() < as.Rhs.Len() {
-			as.Lhs.Append(argvar(param.Type, as.Lhs.Len()))
+		x := len(as.Lhs)
+		for len(as.Lhs) < len(as.Rhs) {
+			as.Lhs.Append(argvar(param.Type, len(as.Lhs)))
 		}
-		varargs := as.Lhs.Slice()[x:]
+		varargs := as.Lhs[x:]
 
 		vas = ir.NewAssignStmt(base.Pos, nil, nil)
 		vas.X = inlParam(param, vas, inlvars)
@@ -1057,7 +1057,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 	}
 
-	if as.Rhs.Len() != 0 {
+	if len(as.Rhs) != 0 {
 		ninit.Append(typecheck(as, ctxStmt))
 	}
 
@@ -1113,7 +1113,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 	subst.edit = subst.node
 
-	body := subst.list(ir.AsNodes(fn.Inl.Body))
+	body := subst.list(ir.Nodes(fn.Inl.Body))
 
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
@@ -1129,7 +1129,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	//dumplist("ninit post", ninit);
 
 	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
-	call.PtrInit().Set(ninit.Slice())
+	call.PtrInit().Set(ninit)
 	call.Body.Set(body)
 	call.ReturnVars.Set(retvars)
 	call.SetType(n.Type())
@@ -1220,8 +1220,8 @@ type inlsubst struct {
 
 // list inlines a list of nodes.
 func (subst *inlsubst) list(ll ir.Nodes) []ir.Node {
-	s := make([]ir.Node, 0, ll.Len())
-	for _, n := range ll.Slice() {
+	s := make([]ir.Node, 0, len(ll))
+	for _, n := range ll {
 		s = append(s, subst.node(n))
 	}
 	return s
@@ -1277,7 +1277,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		// this return is guaranteed to belong to the current inlined function.
 		n := n.(*ir.ReturnStmt)
 		init := subst.list(n.Init())
-		if len(subst.retvars) != 0 && n.Results.Len() != 0 {
+		if len(subst.retvars) != 0 && len(n.Results) != 0 {
 			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 
 			// Make a shallow copy of retvars.
@@ -1289,7 +1289,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			as.Rhs.Set(subst.list(n.Results))
 
 			if subst.delayretvars {
-				for _, n := range as.Lhs.Slice() {
+				for _, n := range as.Lhs {
 					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
 					n.Name().Defn = as
 				}

@@ -258,7 +258,7 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 		d.inspect(n.Y)
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		n := n.(*ir.AssignListStmt)
-		d.inspect(n.Rhs.First())
+		d.inspect(n.Rhs[0])
 	case ir.ODCLFUNC:
 		n := n.(*ir.Func)
 		d.inspectList(n.Body)
@@ -363,7 +363,7 @@ func firstLHS(n ir.Node) *ir.Name {
 		return n.X.Name()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2RECV, ir.OAS2MAPR:
 		n := n.(*ir.AssignListStmt)
-		return n.Lhs.First().Name()
+		return n.Lhs[0].Name()
 	}
 
 	base.Fatalf("unexpected Op: %v", n.Op())

@@ -83,8 +83,8 @@ func fninit() *ir.Name {
 	// Record user init functions.
 	for _, fn := range Target.Inits {
 		// Skip init functions with empty bodies.
-		if fn.Body.Len() == 1 {
-			if stmt := fn.Body.First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List.Len() == 0 {
+		if len(fn.Body) == 1 {
+			if stmt := fn.Body[0]; stmt.Op() == ir.OBLOCK && len(stmt.(*ir.BlockStmt).List) == 0 {
 				continue
 			}
 		}

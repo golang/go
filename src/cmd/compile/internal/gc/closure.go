@@ -124,7 +124,7 @@ func typecheckclosure(clo *ir.ClosureExpr, top int) {
 		Curfn = fn
 		olddd := decldepth
 		decldepth = 1
-		typecheckslice(fn.Body.Slice(), ctxStmt)
+		typecheckslice(fn.Body, ctxStmt)
 		decldepth = olddd
 		Curfn = oldfn
 	}
@@ -394,7 +394,7 @@ func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(clo.Esc())
-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter.Slice()...))
+	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter...))
 
 	addr := nodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -484,7 +484,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	call.IsDDD = tfn.Type().IsVariadic()
 	if t0.NumResults() != 0 {
 		ret := ir.NewReturnStmt(base.Pos, nil)
-		ret.Results.Set1(call)
+		ret.Results = []ir.Node{call}
 		body = append(body, ret)
 	} else {
 		body = append(body, call)
@@ -497,7 +497,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	// Need to typecheck the body of the just-generated wrapper.
 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
 	Curfn = fn
-	typecheckslice(fn.Body.Slice(), ctxStmt)
+	typecheckslice(fn.Body, ctxStmt)
 	sym.Def = fn
 	Target.Decls = append(Target.Decls, fn)
 	Curfn = savecurfn
@@ -543,7 +543,7 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
 	clos.SetEsc(n.Esc())
-	clos.List.Set2(ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func.Nname), n.X)
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func.Nname), n.X}
 
 	addr := nodAddr(clos)
 	addr.SetEsc(n.Esc())

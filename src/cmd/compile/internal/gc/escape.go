@@ -368,10 +368,10 @@ func (e *Escape) stmt(n ir.Node) {
 		typesw := n.Tag != nil && n.Tag.Op() == ir.OTYPESW
 
 		var ks []EscHole
-		for _, cas := range n.Cases.Slice() { // cases
+		for _, cas := range n.Cases { // cases
 			cas := cas.(*ir.CaseStmt)
 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
-				cv := cas.Vars.First()
+				cv := cas.Vars[0]
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if cv.Type().HasPointers() {
 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
@@ -390,15 +390,15 @@ func (e *Escape) stmt(n ir.Node) {
 
 	case ir.OSELECT:
 		n := n.(*ir.SelectStmt)
-		for _, cas := range n.Cases.Slice() {
+		for _, cas := range n.Cases {
 			cas := cas.(*ir.CaseStmt)
 			e.stmt(cas.Comm)
 			e.block(cas.Body)
 		}
 	case ir.OSELRECV2:
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs.First(), n.Rhs.First(), "selrecv", n)
-		e.assign(n.Lhs.Second(), nil, "selrecv", n)
+		e.assign(n.Lhs[0], n.Rhs[0], "selrecv", n)
+		e.assign(n.Lhs[1], nil, "selrecv", n)
 	case ir.ORECV:
 		// TODO(mdempsky): Consider e.discard(n.Left).
 		n := n.(*ir.UnaryExpr)
@@ -416,31 +416,31 @@ func (e *Escape) stmt(n ir.Node) {
 		e.assign(n.X, n.Y, "assign", n)
 	case ir.OAS2:
 		n := n.(*ir.AssignListStmt)
-		for i, nl := range n.Lhs.Slice() {
-			e.assign(nl, n.Rhs.Index(i), "assign-pair", n)
+		for i, nl := range n.Lhs {
+			e.assign(nl, n.Rhs[i], "assign-pair", n)
 		}
 
 	case ir.OAS2DOTTYPE: // v, ok = x.(type)
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs.First(), n.Rhs.First(), "assign-pair-dot-type", n)
-		e.assign(n.Lhs.Second(), nil, "assign-pair-dot-type", n)
+		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-dot-type", n)
+		e.assign(n.Lhs[1], nil, "assign-pair-dot-type", n)
 	case ir.OAS2MAPR: // v, ok = m[k]
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs.First(), n.Rhs.First(), "assign-pair-mapr", n)
-		e.assign(n.Lhs.Second(), nil, "assign-pair-mapr", n)
+		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-mapr", n)
+		e.assign(n.Lhs[1], nil, "assign-pair-mapr", n)
 	case ir.OAS2RECV: // v, ok = <-ch
 		n := n.(*ir.AssignListStmt)
-		e.assign(n.Lhs.First(), n.Rhs.First(), "assign-pair-receive", n)
-		e.assign(n.Lhs.Second(), nil, "assign-pair-receive", n)
+		e.assign(n.Lhs[0], n.Rhs[0], "assign-pair-receive", n)
+		e.assign(n.Lhs[1], nil, "assign-pair-receive", n)
 
 	case ir.OAS2FUNC:
 		n := n.(*ir.AssignListStmt)
-		e.stmts(n.Rhs.First().Init())
-		e.call(e.addrs(n.Lhs), n.Rhs.First(), nil)
+		e.stmts(n.Rhs[0].Init())
+		e.call(e.addrs(n.Lhs), n.Rhs[0], nil)
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
 		results := e.curfn.Type().Results().FieldSlice()
-		for i, v := range n.Results.Slice() {
+		for i, v := range n.Results {
 			e.assign(ir.AsNode(results[i].Nname), v, "return", n)
 		}
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
@@ -456,7 +456,7 @@ func (e *Escape) stmt(n ir.Node) {
 }
 
 func (e *Escape) stmts(l ir.Nodes) {
-	for _, n := range l.Slice() {
+	for _, n := range l {
 		e.stmt(n)
 	}
 }
@@ -641,7 +641,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 
 	case ir.OARRAYLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, elt := range n.List.Slice() {
+		for _, elt := range n.List {
 			if elt.Op() == ir.OKEY {
 				elt = elt.(*ir.KeyExpr).Value
 			}
@@ -653,7 +653,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		k = e.spill(k, n)
 		k.uintptrEscapesHack = uintptrEscapesHack // for ...uintptr parameters
 
-		for _, elt := range n.List.Slice() {
+		for _, elt := range n.List {
 			if elt.Op() == ir.OKEY {
 				elt = elt.(*ir.KeyExpr).Value
 			}
@@ -662,7 +662,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, elt := range n.List.Slice() {
+		for _, elt := range n.List {
 			e.expr(k.note(n, "struct literal element"), elt.(*ir.StructKeyExpr).Value)
 		}
 
@@ -671,7 +671,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		e.spill(k, n)
 
 		// Map keys and values are always stored in the heap.
-		for _, elt := range n.List.Slice() {
+		for _, elt := range n.List {
 			elt := elt.(*ir.KeyExpr)
 			e.assignHeap(elt.Key, "map literal key", n)
 			e.assignHeap(elt.Value, "map literal value", n)
@@ -755,7 +755,7 @@ func (e *Escape) discard(n ir.Node) {
 }
 
 func (e *Escape) discards(l ir.Nodes) {
-	for _, n := range l.Slice() {
+	for _, n := range l {
 		e.discard(n)
 	}
 }
@@ -810,7 +810,7 @@ func (e *Escape) addr(n ir.Node) EscHole {
 
 func (e *Escape) addrs(l ir.Nodes) []EscHole {
 	var ks []EscHole
-	for _, n := range l.Slice() {
+	for _, n := range l {
 		ks = append(ks, e.addr(n))
 	}
 	return ks
@@ -904,14 +904,14 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 			argument(e.discardHole(), call.X)
 		}
 
-		args := call.Args.Slice()
+		args := call.Args
 		for i, param := range fntype.Params().FieldSlice() {
 			argument(e.tagHole(ks, fn, param), args[i])
 		}
 
 	case ir.OAPPEND:
 		call := call.(*ir.CallExpr)
-		args := call.Args.Slice()
+		args := call.Args
 
 		// Appendee slice may flow directly to the result, if
 		// it has enough capacity. Alternatively, a new heap
@@ -955,7 +955,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 		argument(e.discardHole(), call.Y)
 	case ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		call := call.(*ir.CallExpr)
-		for _, arg := range call.Args.Slice() {
+		for _, arg := range call.Args {
 			argument(e.discardHole(), arg)
 		}
 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
@@ -2084,7 +2084,7 @@ func (e *Escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		return fmt.Sprintf("arg#%d", narg)
 	}
 
-	if fn.Body.Len() == 0 {
+	if len(fn.Body) == 0 {
 		// Assume that uintptr arguments must be held live across the call.
 		// This is most important for syscall.Syscall.
 		// See golang.org/issue/13372.
