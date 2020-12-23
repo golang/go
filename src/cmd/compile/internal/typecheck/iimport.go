@@ -851,8 +851,7 @@ func (r *importReader) node() ir.Node {
 		if s := r.ident(); s != nil {
 			tag = ir.NewIdent(pos, s)
 		}
-		expr, _ := r.exprsOrNil()
-		return ir.NewTypeSwitchGuard(pos, tag, expr)
+		return ir.NewTypeSwitchGuard(pos, tag, r.expr())
 
 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
 	//      unreachable - should have been resolved by typechecking
@@ -864,19 +863,16 @@ func (r *importReader) node() ir.Node {
 	//	unreachable - mapped to case OADDR below by exporter
 
 	case ir.OSTRUCTLIT:
-		pos := r.pos()
-		return ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(r.typ()).(ir.Ntype), r.elemList(pos))
+		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.fieldList())
 
 	// case OARRAYLIT, OSLICELIT, OMAPLIT:
 	// 	unreachable - mapped to case OCOMPLIT below by exporter
 
 	case ir.OCOMPLIT:
-		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()).(ir.Ntype), r.exprList())
+		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.exprList())
 
 	case ir.OKEY:
-		pos := r.pos()
-		key, value := r.exprsOrNil()
-		return ir.NewKeyExpr(pos, key, value)
+		return ir.NewKeyExpr(r.pos(), r.expr(), r.expr())
 
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
@@ -919,9 +915,7 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case ir.OCONV:
-		pos := r.pos()
-		x := r.expr()
-		return ir.NewConvExpr(pos, ir.OCONV, r.typ(), x)
+		return ir.NewConvExpr(r.pos(), ir.OCONV, r.typ(), r.expr())
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := builtinCall(r.pos(), op)
@@ -973,7 +967,6 @@ func (r *importReader) node() ir.Node {
 		pos := r.pos()
 		list := r.exprList()
 		x := list[0]
-		x.SetPos(pos) // TODO(mdempsky): Remove toolstash bandage.
 		for _, y := range list[1:] {
 			x = ir.NewBinaryExpr(pos, ir.OADD, x, y)
 		}
@@ -1041,7 +1034,6 @@ func (r *importReader) node() ir.Node {
 	case ir.OSELECT:
 		pos := r.pos()
 		init := r.stmtList()
-		r.exprsOrNil() // TODO(rsc): Delete (and fix exporter). These are always nil.
 		n := ir.NewSelectStmt(pos, r.caseList(nil))
 		n.PtrInit().Set(init)
 		return n
@@ -1088,12 +1080,10 @@ func (r *importReader) op() ir.Op {
 	return ir.Op(r.uint64())
 }
 
-func (r *importReader) elemList(pos src.XPos) []ir.Node {
-	c := r.uint64()
-	list := make([]ir.Node, c)
+func (r *importReader) fieldList() []ir.Node {
+	list := make([]ir.Node, r.uint64())
 	for i := range list {
-		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
-		list[i] = ir.NewStructKeyExpr(pos, r.ident(), r.expr())
+		list[i] = ir.NewStructKeyExpr(r.pos(), r.ident(), r.expr())
 	}
 	return list
 }
