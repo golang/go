@@ -945,19 +945,16 @@ func tracebackothers(me *g) {
 		traceback(^uintptr(0), ^uintptr(0), 0, curgp)
 	}
 
-	// We can't take allglock here because this may be during fatal
-	// throw/panic, where locking allglock could be out-of-order or a
-	// direct deadlock.
+	// We can't call locking forEachG here because this may be during fatal
+	// throw/panic, where locking could be out-of-order or a direct
+	// deadlock.
 	//
-	// Instead, use atomic access to allgs which requires no locking. We
-	// don't lock against concurrent creation of new Gs, but even with
-	// allglock we may miss Gs created after this loop.
-	ptr, length := atomicAllG()
-	for i := uintptr(0); i < length; i++ {
-		gp := atomicAllGIndex(ptr, i)
-
+	// Instead, use forEachGRace, which requires no locking. We don't lock
+	// against concurrent creation of new Gs, but even with allglock we may
+	// miss Gs created after this loop.
+	forEachGRace(func(gp *g) {
 		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
-			continue
+			return
 		}
 		print("\n")
 		goroutineheader(gp)
@@ -971,7 +968,7 @@ func tracebackothers(me *g) {
 		} else {
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
 		}
-	}
+	})
 }
 
 // tracebackHexdump hexdumps part of stk around frame.sp and frame.fp

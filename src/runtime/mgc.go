@@ -2229,14 +2229,12 @@ func gcSweep(mode gcMode) {
 //
 //go:systemstack
 func gcResetMarkState() {
-	// This may be called during a concurrent phase, so make sure
+	// This may be called during a concurrent phase, so lock to make sure
 	// allgs doesn't change.
-	lock(&allglock)
-	for _, gp := range allgs {
+	forEachG(func(gp *g) {
 		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
-	}
-	unlock(&allglock)
+	})
 
 	// Clear page marks. This is just 1MB per 64GB of heap, so the
 	// time here is pretty trivial.

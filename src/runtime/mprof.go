@@ -731,12 +731,13 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 
 	stopTheWorld("profile")
 
+	// World is stopped, no locking required.
 	n = 1
-	for _, gp1 := range allgs {
+	forEachGRace(func(gp1 *g) {
 		if isOK(gp1) {
 			n++
 		}
-	}
+	})
 
 	if n <= len(p) {
 		ok = true
@@ -757,21 +758,23 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
 		}
 
 		// Save other goroutines.
-		for _, gp1 := range allgs {
-			if isOK(gp1) {
-				if len(r) == 0 {
-					// Should be impossible, but better to return a
-					// truncated profile than to crash the entire process.
-					break
-				}
-				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
-				if labels != nil {
-					lbl[0] = gp1.labels
-					lbl = lbl[1:]
-				}
-				r = r[1:]
+		forEachGRace(func(gp1 *g) {
+			if !isOK(gp1) {
+				return
 			}
-		}
+
+			if len(r) == 0 {
+				// Should be impossible, but better to return a
+				// truncated profile than to crash the entire process.
+				return
+			}
+			saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+			if labels != nil {
+				lbl[0] = gp1.labels
+				lbl = lbl[1:]
+			}
+			r = r[1:]
+		})
 	}
 
 	startTheWorld()
