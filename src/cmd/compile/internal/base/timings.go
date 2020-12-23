@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package base
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var timings Timings
+var Timer Timings
 
 // Timings collects the execution times of labeled phases
 // which are added trough a sequence of Start/Stop calls.

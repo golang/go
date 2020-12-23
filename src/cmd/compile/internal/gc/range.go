@@ -460,7 +460,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 //
 // where == for keys of map m is reflexive.
 func isMapClear(n *ir.RangeStmt) bool {
-	if base.Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return false
 	}
 
@@ -523,7 +523,7 @@ func mapClear(m ir.Node) ir.Node {
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
 func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
-	if base.Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return nil
 	}
 

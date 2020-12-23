@@ -270,7 +270,7 @@ func reportTypeLoop(t *types.Type) {
 func dowidth(t *types.Type) {
 	// Calling dowidth when typecheck tracing enabled is not safe.
 	// See issue #33658.
-	if enableTrace && skipDowidthForTracing {
+	if base.EnableTrace && skipDowidthForTracing {
 		return
 	}
 	if Widthptr == 0 {
