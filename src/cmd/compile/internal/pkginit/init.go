@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package pkginit
 
 import (
 	"cmd/compile/internal/base"
@@ -13,13 +13,13 @@ import (
 	"cmd/internal/obj"
 )
 
-// fninit makes and returns an initialization record for the package.
+// Task makes and returns an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:
 //   1) Initialize all of the packages the current package depends on.
 //   2) Initialize all the variables that have initializers.
 //   3) Run any init functions.
-func fninit() *ir.Name {
+func Task() *ir.Name {
 	nf := initOrder(typecheck.Target.Decls)
 
 	var deps []*obj.LSym // initTask records for packages the current package depends on

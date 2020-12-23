@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/noder"
+	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
@@ -223,7 +224,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.ExitIfErrors()
 
 	// Build init task.
-	if initTask := fninit(); initTask != nil {
+	if initTask := pkginit.Task(); initTask != nil {
 		typecheck.Export(initTask)
 	}
 
