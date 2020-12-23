@@ -1367,7 +1367,7 @@ func (s *state) stmt(n ir.Node) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
 			rhs := rhs.(*ir.SliceExpr)
-			i, j, k := rhs.SliceBounds()
+			i, j, k := rhs.Low, rhs.High, rhs.Max
 			if i != nil && (i.Op() == ir.OLITERAL && i.Val().Kind() == constant.Int && ir.Int64Val(i) == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
@@ -2852,15 +2852,14 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.SliceExpr)
 		v := s.expr(n.X)
 		var i, j, k *ssa.Value
-		low, high, max := n.SliceBounds()
-		if low != nil {
-			i = s.expr(low)
+		if n.Low != nil {
+			i = s.expr(n.Low)
 		}
-		if high != nil {
-			j = s.expr(high)
+		if n.High != nil {
+			j = s.expr(n.High)
 		}
-		if max != nil {
-			k = s.expr(max)
+		if n.Max != nil {
+			k = s.expr(n.Max)
 		}
 		p, l, c := s.slice(v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
@@ -2869,12 +2868,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.SliceExpr)
 		v := s.expr(n.X)
 		var i, j *ssa.Value
-		low, high, _ := n.SliceBounds()
-		if low != nil {
-			i = s.expr(low)
+		if n.Low != nil {
+			i = s.expr(n.Low)
 		}
-		if high != nil {
-			j = s.expr(high)
+		if n.High != nil {
+			j = s.expr(n.High)
 		}
 		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)

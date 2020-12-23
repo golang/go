@@ -838,20 +838,23 @@ func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *SliceExpr) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.List = c.List.Copy()
 	return &c
 }
 func (n *SliceExpr) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
 	err = maybeDo(n.X, err, do)
-	err = maybeDoList(n.List, err, do)
+	err = maybeDo(n.Low, err, do)
+	err = maybeDo(n.High, err, do)
+	err = maybeDo(n.Max, err, do)
 	return err
 }
 func (n *SliceExpr) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
 	n.X = maybeEdit(n.X, edit)
-	editList(n.List, edit)
+	n.Low = maybeEdit(n.Low, edit)
+	n.High = maybeEdit(n.High, edit)
+	n.Max = maybeEdit(n.Max, edit)
 }
 
 func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

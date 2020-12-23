@@ -700,17 +700,15 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nodes.Append(nif)
 
 	// s = s[:n]
-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
-	nt.SetSliceBounds(nil, nn, nil)
+	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
 	nt.SetBounded(true)
 	nodes.Append(ir.NewAssignStmt(base.Pos, s, nt))
 
 	var ncopy ir.Node
 	if elemtype.HasPointers() {
 		// copy(s[len(l1):], l2)
-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 		slice.SetType(s.Type())
-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 
 		ir.CurFunc.SetWBPos(n.Pos())
 
@@ -724,9 +722,8 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		// rely on runtime to instrument:
 		//  copy(s[len(l1):], l2)
 		// l2 can be a slice or string.
-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 		slice.SetType(s.Type())
-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
 
 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
 		ptr2, len2 := backingArrayPtrLen(l2)
@@ -870,8 +867,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nodes = append(nodes, nif)
 
 	// s = s[:n]
-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
-	nt.SetSliceBounds(nil, nn, nil)
+	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
 	nt.SetBounded(true)
 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, nt))
 

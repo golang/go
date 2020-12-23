@@ -682,15 +682,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
 		if expr.Full {
 			op = ir.OSLICE3
 		}
-		n := ir.NewSliceExpr(p.pos(expr), op, p.expr(expr.X))
+		x := p.expr(expr.X)
 		var index [3]ir.Node
-		for i, x := range &expr.Index {
-			if x != nil {
-				index[i] = p.expr(x)
+		for i, n := range &expr.Index {
+			if n != nil {
+				index[i] = p.expr(n)
 			}
 		}
-		n.SetSliceBounds(index[0], index[1], index[2])
-		return n
+		return ir.NewSliceExpr(p.pos(expr), op, x, index[0], index[1], index[2])
 	case *syntax.AssertExpr:
 		return ir.NewTypeAssertExpr(p.pos(expr), p.expr(expr.X), p.typeExpr(expr.Type))
 	case *syntax.Operation:

@@ -902,14 +902,13 @@ func (r *importReader) node() ir.Node {
 		return ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
 
 	case ir.OSLICE, ir.OSLICE3:
-		n := ir.NewSliceExpr(r.pos(), op, r.expr())
+		pos, x := r.pos(), r.expr()
 		low, high := r.exprsOrNil()
 		var max ir.Node
-		if n.Op().IsSlice3() {
+		if op.IsSlice3() {
 			max = r.expr()
 		}
-		n.SetSliceBounds(low, high, max)
-		return n
+		return ir.NewSliceExpr(pos, op, x, low, high, max)
 
 	// case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, ORUNES2STR, OSTR2BYTES, OSTR2RUNES, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter

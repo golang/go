@@ -95,8 +95,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	nn := typecheck.Temp(types.Types[types.TINT])
 	l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns))) // n = len(s)
 
-	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns) // ...s[:n+argc]
-	slice.SetSliceBounds(nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil)
+	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns, nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil) // ...s[:n+argc]
 	slice.SetBounded(true)
 	l = append(l, ir.NewAssignStmt(base.Pos, ns, slice)) // s = s[:n+argc]
 
@@ -407,9 +406,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 		t = types.NewArray(t.Elem(), i) // [r]T
 		var_ := typecheck.Temp(t)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil)) // zero temp
-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_)             // arr[:l]
-		r.SetSliceBounds(nil, l, nil)
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
+		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
 		// The conv is necessary in case n.Type is named.
 		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
 	}

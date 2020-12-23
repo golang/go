@@ -1296,14 +1296,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		n.X = o.expr(n.X, nil)
-		low, high, max := n.SliceBounds()
-		low = o.expr(low, nil)
-		low = o.cheapExpr(low)
-		high = o.expr(high, nil)
-		high = o.cheapExpr(high)
-		max = o.expr(max, nil)
-		max = o.cheapExpr(max)
-		n.SetSliceBounds(low, high, max)
+		n.Low = o.cheapExpr(o.expr(n.Low, nil))
+		n.High = o.cheapExpr(o.expr(n.High, nil))
+		n.Max = o.cheapExpr(o.expr(n.Max, nil))
 		if lhs == nil || lhs.Op() != ir.ONAME && !ir.SameSafeExpr(lhs, n.X) {
 			return o.copyExpr(n)
 		}

@@ -425,7 +425,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	}
 
 	// make slice out of heap (6)
-	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto))
+	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
 
 	a = typecheck.Stmt(a)
 	a = orderStmtInPlace(a, map[string][]*ir.Name{})

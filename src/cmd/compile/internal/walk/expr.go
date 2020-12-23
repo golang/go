@@ -786,21 +786,19 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 		n.X = walkExpr(n.X, init)
 	}
 
-	low, high, max := n.SliceBounds()
-	low = walkExpr(low, init)
-	if low != nil && ir.IsZero(low) {
+	n.Low = walkExpr(n.Low, init)
+	if n.Low != nil && ir.IsZero(n.Low) {
 		// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
-		low = nil
+		n.Low = nil
 	}
-	high = walkExpr(high, init)
-	max = walkExpr(max, init)
-	n.SetSliceBounds(low, high, max)
+	n.High = walkExpr(n.High, init)
+	n.Max = walkExpr(n.Max, init)
 	if checkSlice {
-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, max)
+		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n.Max)
 	}
 
 	if n.Op().IsSlice3() {
-		if max != nil && max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, max.(*ir.UnaryExpr).X) {
+		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
 			// Reduce x[i:j:cap(x)] to x[i:j].
 			if n.Op() == ir.OSLICE3 {
 				n.SetOp(ir.OSLICE)
@@ -824,13 +822,11 @@ func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
 
 // TODO(josharian): combine this with its caller and simplify
 func reduceSlice(n *ir.SliceExpr) ir.Node {
-	low, high, max := n.SliceBounds()
-	if high != nil && high.Op() == ir.OLEN && ir.SameSafeExpr(n.X, high.(*ir.UnaryExpr).X) {
+	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
 		// Reduce x[i:len(x)] to x[i:].
-		high = nil
+		n.High = nil
 	}
-	n.SetSliceBounds(low, high, max)
-	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && low == nil && high == nil {
+	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
 		// Reduce x[:] to x.
 		if base.Debug.Slice > 0 {
 			base.Warn("slice: omit slice operation")
