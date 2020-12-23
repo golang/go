@@ -67,9 +67,9 @@ const (
 	MAXELEMSIZE = 128
 )
 
-func structfieldSize() int { return 3 * Widthptr }       // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imethod{})
-func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
+func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
+func imethodSize() int     { return 4 + 4 }                   // Sizeof(runtime.imethod{})
+func commonSize() int      { return 4*types.PtrSize + 8 + 8 } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym() == nil && len(methods(t)) == 0 {
@@ -91,8 +91,8 @@ func bmap(t *types.Type) *types.Type {
 
 	keytype := t.Key()
 	elemtype := t.Elem()
-	dowidth(keytype)
-	dowidth(elemtype)
+	types.CalcSize(keytype)
+	types.CalcSize(elemtype)
 	if keytype.Width > MAXKEYSIZE {
 		keytype = types.NewPtr(keytype)
 	}
@@ -132,7 +132,7 @@ func bmap(t *types.Type) *types.Type {
 	// link up fields
 	bucket := types.NewStruct(types.NoPkg, field[:])
 	bucket.SetNoalg(true)
-	dowidth(bucket)
+	types.CalcSize(bucket)
 
 	// Check invariants that map code depends on.
 	if !types.IsComparable(t.Key()) {
@@ -180,7 +180,7 @@ func bmap(t *types.Type) *types.Type {
 
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end.
-	if overflow.Offset != bucket.Width-int64(Widthptr) {
+	if overflow.Offset != bucket.Width-int64(types.PtrSize) {
 		base.Fatalf("bad offset of overflow in bmap for %v", t)
 	}
 
@@ -226,11 +226,11 @@ func hmap(t *types.Type) *types.Type {
 
 	hmap := types.NewStruct(types.NoPkg, fields)
 	hmap.SetNoalg(true)
-	dowidth(hmap)
+	types.CalcSize(hmap)
 
 	// The size of hmap should be 48 bytes on 64 bit
 	// and 28 bytes on 32 bit platforms.
-	if size := int64(8 + 5*Widthptr); hmap.Width != size {
+	if size := int64(8 + 5*types.PtrSize); hmap.Width != size {
 		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
 	}
 
@@ -289,9 +289,9 @@ func hiter(t *types.Type) *types.Type {
 	// build iterator struct holding the above fields
 	hiter := types.NewStruct(types.NoPkg, fields)
 	hiter.SetNoalg(true)
-	dowidth(hiter)
-	if hiter.Width != int64(12*Widthptr) {
-		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
+	types.CalcSize(hiter)
+	if hiter.Width != int64(12*types.PtrSize) {
+		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*types.PtrSize)
 	}
 	t.MapType().Hiter = hiter
 	hiter.StructType().Map = t
@@ -335,7 +335,7 @@ func deferstruct(stksize int64) *types.Type {
 	// build struct holding the above fields
 	s := types.NewStruct(types.NoPkg, fields)
 	s.SetNoalg(true)
-	CalcStructSize(s)
+	types.CalcStructSize(s)
 	return s
 }
 
@@ -642,7 +642,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	if t.Sym() == nil && len(m) == 0 {
 		return ot
 	}
-	noff := int(Rnd(int64(ot), int64(Widthptr)))
+	noff := int(types.Rnd(int64(ot), int64(types.PtrSize)))
 	if noff != ot {
 		base.Fatalf("unexpected alignment in dextratype for %v", t)
 	}
@@ -745,55 +745,6 @@ var kinds = []int{
 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
-// typeptrdata returns the length in bytes of the prefix of t
-// containing pointer data. Anything after this offset is scalar data.
-func typeptrdata(t *types.Type) int64 {
-	if !t.HasPointers() {
-		return 0
-	}
-
-	switch t.Kind() {
-	case types.TPTR,
-		types.TUNSAFEPTR,
-		types.TFUNC,
-		types.TCHAN,
-		types.TMAP:
-		return int64(Widthptr)
-
-	case types.TSTRING:
-		// struct { byte *str; intgo len; }
-		return int64(Widthptr)
-
-	case types.TINTER:
-		// struct { Itab *tab;	void *data; } or
-		// struct { Type *type; void *data; }
-		// Note: see comment in plive.go:onebitwalktype1.
-		return 2 * int64(Widthptr)
-
-	case types.TSLICE:
-		// struct { byte *array; uintgo len; uintgo cap; }
-		return int64(Widthptr)
-
-	case types.TARRAY:
-		// haspointers already eliminated t.NumElem() == 0.
-		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
-
-	case types.TSTRUCT:
-		// Find the last field that has pointers.
-		var lastPtrField *types.Field
-		for _, t1 := range t.Fields().Slice() {
-			if t1.Type.HasPointers() {
-				lastPtrField = t1
-			}
-		}
-		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
-
-	default:
-		base.Fatalf("typeptrdata: unexpected type, %v", t)
-		return 0
-	}
-}
-
 // tflag is documented in reflect/type.go.
 //
 // tflag values must be kept in sync with copies in:
@@ -815,7 +766,7 @@ var (
 
 // dcommontype dumps the contents of a reflect.rtype (runtime._type).
 func dcommontype(lsym *obj.LSym, t *types.Type) int {
-	dowidth(t)
+	types.CalcSize(t)
 	eqfunc := geneq(t)
 
 	sptrWeak := true
@@ -1148,11 +1099,11 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 		ot = duint16(lsym, ot, uint16(inCount))
 		ot = duint16(lsym, ot, uint16(outCount))
-		if Widthptr == 8 {
+		if types.PtrSize == 8 {
 			ot += 4 // align for *rtype
 		}
 
-		dataAdd := (inCount + t.NumResults()) * Widthptr
+		dataAdd := (inCount + t.NumResults()) * types.PtrSize
 		ot = dextratype(lsym, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
@@ -1182,7 +1133,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 		ot = dgopkgpath(lsym, ot, tpkg)
 
-		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+		ot = dsymptr(lsym, ot, lsym, ot+3*types.PtrSize+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(n))
 		ot = duintptr(lsym, ot, uint64(n))
 		dataAdd := imethodSize() * n
@@ -1217,14 +1168,14 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
 		// and maptype builder in ../../../../reflect/type.go:MapOf.
 		if t.Key().Width > MAXKEYSIZE {
-			ot = duint8(lsym, ot, uint8(Widthptr))
+			ot = duint8(lsym, ot, uint8(types.PtrSize))
 			flags |= 1 // indirect key
 		} else {
 			ot = duint8(lsym, ot, uint8(t.Key().Width))
 		}
 
 		if t.Elem().Width > MAXELEMSIZE {
-			ot = duint8(lsym, ot, uint8(Widthptr))
+			ot = duint8(lsym, ot, uint8(types.PtrSize))
 			flags |= 2 // indirect value
 		} else {
 			ot = duint8(lsym, ot, uint8(t.Elem().Width))
@@ -1281,7 +1232,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 
 		ot = dcommontype(lsym, t)
 		ot = dgopkgpath(lsym, ot, spkg)
-		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+		ot = dsymptr(lsym, ot, lsym, ot+3*types.PtrSize+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(len(fields)))
 		ot = duintptr(lsym, ot, uint64(len(fields)))
 
@@ -1343,7 +1294,7 @@ func ifaceMethodOffset(ityp *types.Type, i int64) int64 {
 	//   [...]imethod
 	// }
 	// The size of imethod is 8.
-	return int64(commonSize()+4*Widthptr+uncommonSize(ityp)) + i*8
+	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
 }
 
 // for each itabEntry, gather the methods on
@@ -1416,7 +1367,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	}
 
 	// keep this arithmetic in sync with *itab layout
-	methodnum := int((offset - 2*int64(Widthptr) - 8) / int64(Widthptr))
+	methodnum := int((offset - 2*int64(types.PtrSize) - 8) / int64(types.PtrSize))
 	if methodnum >= len(syms) {
 		return nil
 	}
@@ -1625,8 +1576,8 @@ const maxPtrmaskBytes = 2048
 // along with a boolean reporting whether the UseGCProg bit should be set in
 // the type kind, and the ptrdata field to record in the reflect type information.
 func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
-	ptrdata = typeptrdata(t)
-	if ptrdata/int64(Widthptr) <= maxPtrmaskBytes*8 {
+	ptrdata = types.PtrDataSize(t)
+	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
 		lsym = dgcptrmask(t)
 		return
 	}
@@ -1638,7 +1589,7 @@ func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
 func dgcptrmask(t *types.Type) *obj.LSym {
-	ptrmask := make([]byte, (typeptrdata(t)/int64(Widthptr)+7)/8)
+	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("gcbits.%x", ptrmask)
 
@@ -1669,7 +1620,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	vec := bvalloc(8 * int32(len(ptrmask)))
 	onebitwalktype1(t, 0, vec)
 
-	nptr := typeptrdata(t) / int64(Widthptr)
+	nptr := types.PtrDataSize(t) / int64(types.PtrSize)
 	for i := int64(0); i < nptr; i++ {
 		if vec.Get(int32(i)) {
 			ptrmask[i/8] |= 1 << (uint(i) % 8)
@@ -1682,7 +1633,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 // In practice, the size is typeptrdata(t) except for non-trivial arrays.
 // For non-trivial arrays, the program describes the full t.Width size.
 func dgcprog(t *types.Type) (*obj.LSym, int64) {
-	dowidth(t)
+	types.CalcSize(t)
 	if t.Width == types.BADWIDTH {
 		base.Fatalf("dgcprog: %v badwidth", t)
 	}
@@ -1690,9 +1641,9 @@ func dgcprog(t *types.Type) (*obj.LSym, int64) {
 	var p GCProg
 	p.init(lsym)
 	p.emit(t, 0)
-	offset := p.w.BitIndex() * int64(Widthptr)
+	offset := p.w.BitIndex() * int64(types.PtrSize)
 	p.end()
-	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
+	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Width {
 		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
 	}
 	return lsym, offset
@@ -1728,12 +1679,12 @@ func (p *GCProg) end() {
 }
 
 func (p *GCProg) emit(t *types.Type, offset int64) {
-	dowidth(t)
+	types.CalcSize(t)
 	if !t.HasPointers() {
 		return
 	}
-	if t.Width == int64(Widthptr) {
-		p.w.Ptr(offset / int64(Widthptr))
+	if t.Width == int64(types.PtrSize) {
+		p.w.Ptr(offset / int64(types.PtrSize))
 		return
 	}
 	switch t.Kind() {
@@ -1741,14 +1692,14 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 		base.Fatalf("GCProg.emit: unexpected type %v", t)
 
 	case types.TSTRING:
-		p.w.Ptr(offset / int64(Widthptr))
+		p.w.Ptr(offset / int64(types.PtrSize))
 
 	case types.TINTER:
 		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
-		p.w.Ptr(offset/int64(Widthptr) + 1)
+		p.w.Ptr(offset/int64(types.PtrSize) + 1)
 
 	case types.TSLICE:
-		p.w.Ptr(offset / int64(Widthptr))
+		p.w.Ptr(offset / int64(types.PtrSize))
 
 	case types.TARRAY:
 		if t.NumElem() == 0 {
@@ -1764,7 +1715,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 			elem = elem.Elem()
 		}
 
-		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {
+		if !p.w.ShouldRepeat(elem.Width/int64(types.PtrSize), count) {
 			// Cheaper to just emit the bits.
 			for i := int64(0); i < count; i++ {
 				p.emit(elem, offset+i*elem.Width)
@@ -1772,8 +1723,8 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
 			return
 		}
 		p.emit(elem, offset)
-		p.w.ZeroUntil((offset + elem.Width) / int64(Widthptr))
-		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
+		p.w.ZeroUntil((offset + elem.Width) / int64(types.PtrSize))
+		p.w.Repeat(elem.Width/int64(types.PtrSize), count-1)
 
 	case types.TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {

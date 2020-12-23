@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
 )
 
 // evalunsafe evaluates a package unsafe operation and returns the result.
@@ -20,7 +21,7 @@ func evalunsafe(n ir.Node) int64 {
 		if tr == nil {
 			return 0
 		}
-		dowidth(tr)
+		types.CalcSize(tr)
 		if n.Op() == ir.OALIGNOF {
 			return int64(tr.Align)
 		}

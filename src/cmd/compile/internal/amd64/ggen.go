@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
@@ -63,9 +64,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		return p
 	}
 
-	if cnt%int64(gc.Widthreg) != 0 {
+	if cnt%int64(types.RegSize) != 0 {
 		// should only happen with nacl
-		if cnt%int64(gc.Widthptr) != 0 {
+		if cnt%int64(types.PtrSize) != 0 {
 			base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 		}
 		if *state&ax == 0 {
@@ -73,8 +74,8 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 			*state |= ax
 		}
 		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
-		off += int64(gc.Widthptr)
-		cnt -= int64(gc.Widthptr)
+		off += int64(types.PtrSize)
+		cnt -= int64(types.PtrSize)
 	}
 
 	if cnt == 8 {
@@ -83,7 +84,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 			*state |= ax
 		}
 		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
-	} else if !isPlan9 && cnt <= int64(8*gc.Widthreg) {
+	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
 		if *state&x0 == 0 {
 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*state |= x0
@@ -96,7 +97,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 		if cnt%16 != 0 {
 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
-	} else if !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
+	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
 		if *state&x0 == 0 {
 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*state |= x0
@@ -114,7 +115,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 			*state |= ax
 		}
 
-		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
 		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
 		p = pp.Appendpp(p, x86.ASTOSQ, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)

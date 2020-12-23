@@ -1014,7 +1014,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64LoweredGetCallerSP:
 		// caller's SP is the address of the first arg
 		mov := x86.AMOVQ
-		if gc.Widthptr == 4 {
+		if types.PtrSize == 4 {
 			mov = x86.AMOVL
 		}
 		p := s.Prog(mov)
@@ -1036,7 +1036,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(int64(2 * gc.Widthptr)) // space used in callee args area by assembly stubs
+		s.UseArgs(int64(2 * types.PtrSize)) // space used in callee args area by assembly stubs
 
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,

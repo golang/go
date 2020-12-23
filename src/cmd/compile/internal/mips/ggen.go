@@ -7,6 +7,7 @@ package mips
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
 )
@@ -17,8 +18,8 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	if cnt == 0 {
 		return p
 	}
-	if cnt < int64(4*gc.Widthptr) {
-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+	if cnt < int64(4*types.PtrSize) {
+		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
 			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.FixedFrameSize()+off+i)
 		}
 	} else {
@@ -33,9 +34,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 		p.Reg = mips.REGSP
 		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
 		p.Reg = mips.REGRT1
-		p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(gc.Widthptr))
+		p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(types.PtrSize))
 		p1 := p
-		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, int64(gc.Widthptr), obj.TYPE_REG, mips.REGRT1, 0)
+		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, mips.REGRT1, 0)
 		p = pp.Appendpp(p, mips.ABNE, obj.TYPE_REG, mips.REGRT1, 0, obj.TYPE_BRANCH, 0, 0)
 		p.Reg = mips.REGRT2
 		gc.Patch(p, p1)

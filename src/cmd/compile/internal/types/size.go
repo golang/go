@@ -2,22 +2,64 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package types
 
 import (
 	"bytes"
-	"cmd/compile/internal/base"
-	"cmd/compile/internal/types"
 	"fmt"
 	"sort"
+
+	"cmd/compile/internal/base"
+	"cmd/internal/src"
 )
+
+var PtrSize int
+
+var RegSize int
+
+// Slices in the runtime are represented by three components:
+//
+// type slice struct {
+// 	ptr unsafe.Pointer
+// 	len int
+// 	cap int
+// }
+//
+// Strings in the runtime are represented by two components:
+//
+// type string struct {
+// 	ptr unsafe.Pointer
+// 	len int
+// }
+//
+// These variables are the offsets of fields and sizes of these structs.
+var (
+	SlicePtrOffset int64
+	SliceLenOffset int64
+	SliceCapOffset int64
+
+	SliceSize  int64
+	StringSize int64
+)
+
+var SkipSizeForTracing bool
+
+// typePos returns the position associated with t.
+// This is where t was declared or where it appeared as a type expression.
+func typePos(t *Type) src.XPos {
+	if pos := t.Pos(); pos.IsKnown() {
+		return pos
+	}
+	base.Fatalf("bad type: %v", t)
+	panic("unreachable")
+}
 
 // MaxWidth is the maximum size of a value on the target architecture.
 var MaxWidth int64
 
-// sizeCalculationDisabled indicates whether it is safe
+// CalcSizeDisabled indicates whether it is safe
 // to calculate Types' widths and alignments. See dowidth.
-var sizeCalculationDisabled bool
+var CalcSizeDisabled bool
 
 // machine size and rounding alignment is dictated around
 // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
@@ -32,15 +74,15 @@ func Rnd(o int64, r int64) int64 {
 
 // expandiface computes the method set for interface type t by
 // expanding embedded interfaces.
-func expandiface(t *types.Type) {
-	seen := make(map[*types.Sym]*types.Field)
-	var methods []*types.Field
+func expandiface(t *Type) {
+	seen := make(map[*Sym]*Field)
+	var methods []*Field
 
-	addMethod := func(m *types.Field, explicit bool) {
+	addMethod := func(m *Field, explicit bool) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case types.AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && types.Identical(m.Type, prev.Type):
+		case AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && Identical(m.Type, prev.Type):
 			return
 		default:
 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -53,7 +95,7 @@ func expandiface(t *types.Type) {
 			continue
 		}
 
-		checkwidth(m.Type)
+		CheckSize(m.Type)
 		addMethod(m, true)
 	}
 
@@ -79,26 +121,26 @@ func expandiface(t *types.Type) {
 		// method set.
 		for _, t1 := range m.Type.Fields().Slice() {
 			// Use m.Pos rather than t1.Pos to preserve embedding position.
-			f := types.NewField(m.Pos, t1.Sym, t1.Type)
+			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
 		}
 	}
 
-	sort.Sort(types.MethodsByName(methods))
+	sort.Sort(MethodsByName(methods))
 
-	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
+	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
 		base.ErrorfAt(typePos(t), "interface too large")
 	}
 	for i, m := range methods {
-		m.Offset = int64(i) * int64(Widthptr)
+		m.Offset = int64(i) * int64(PtrSize)
 	}
 
 	// Access fields directly to avoid recursively calling dowidth
 	// within Type.Fields().
-	t.Extra.(*types.Interface).Fields.Set(methods)
+	t.Extra.(*Interface).Fields.Set(methods)
 }
 
-func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	starto := o
 	maxalign := int32(flag)
 	if maxalign < 1 {
@@ -112,7 +154,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			continue
 		}
 
-		dowidth(f.Type)
+		CalcSize(f.Type)
 		if int32(f.Type.Align) > maxalign {
 			maxalign = int32(f.Type.Align)
 		}
@@ -128,7 +170,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			f.Nname.(types.VarObject).RecordFrameOffset(o)
+			f.Nname.(VarObject).RecordFrameOffset(o)
 		}
 
 		w := f.Type.Width
@@ -178,7 +220,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 // path points to a slice used for tracking the sequence of types
 // visited. Using a pointer to a slice allows the slice capacity to
 // grow and limit reallocations.
-func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+func findTypeLoop(t *Type, path *[]*Type) bool {
 	// We implement a simple DFS loop-finding algorithm. This
 	// could be faster, but type cycles are rare.
 
@@ -190,7 +232,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Type imported from package, so it can't be part of
 		// a type loop (otherwise that package should have
 		// failed to compile).
-		if t.Sym().Pkg != types.LocalPkg {
+		if t.Sym().Pkg != LocalPkg {
 			return false
 		}
 
@@ -202,7 +244,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		}
 
 		*path = append(*path, t)
-		if findTypeLoop(t.Obj().(types.TypeObject).TypeDefn(), path) {
+		if findTypeLoop(t.Obj().(TypeObject).TypeDefn(), path) {
 			return true
 		}
 		*path = (*path)[:len(*path)-1]
@@ -210,17 +252,17 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 		// Anonymous type. Recurse on contained types.
 
 		switch t.Kind() {
-		case types.TARRAY:
+		case TARRAY:
 			if findTypeLoop(t.Elem(), path) {
 				return true
 			}
-		case types.TSTRUCT:
+		case TSTRUCT:
 			for _, f := range t.Fields().Slice() {
 				if findTypeLoop(f.Type, path) {
 					return true
 				}
 			}
-		case types.TINTER:
+		case TINTER:
 			for _, m := range t.Methods().Slice() {
 				if m.Type.IsInterface() { // embedded interface
 					if findTypeLoop(m.Type, path) {
@@ -234,12 +276,12 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
 	return false
 }
 
-func reportTypeLoop(t *types.Type) {
+func reportTypeLoop(t *Type) {
 	if t.Broke() {
 		return
 	}
 
-	var l []*types.Type
+	var l []*Type
 	if !findTypeLoop(t, &l) {
 		base.Fatalf("failed to find type loop for: %v", t)
 	}
@@ -263,18 +305,20 @@ func reportTypeLoop(t *types.Type) {
 	base.ErrorfAt(typePos(l[0]), msg.String())
 }
 
-// dowidth calculates and stores the size and alignment for t.
+// CalcSize calculates and stores the size and alignment for t.
 // If sizeCalculationDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
-func dowidth(t *types.Type) {
+func CalcSize(t *Type) {
 	// Calling dowidth when typecheck tracing enabled is not safe.
 	// See issue #33658.
-	if base.EnableTrace && skipDowidthForTracing {
+	if base.EnableTrace && SkipSizeForTracing {
 		return
 	}
-	if Widthptr == 0 {
-		base.Fatalf("dowidth without betypeinit")
+	if PtrSize == 0 {
+
+		// Assume this is a test.
+		return
 	}
 
 	if t == nil {
@@ -292,7 +336,7 @@ func dowidth(t *types.Type) {
 		return
 	}
 
-	if sizeCalculationDisabled {
+	if CalcSizeDisabled {
 		if t.Broke() {
 			// break infinite recursion from Fatal call below
 			return
@@ -308,7 +352,7 @@ func dowidth(t *types.Type) {
 	}
 
 	// defer checkwidth calls until after we're done
-	defercheckwidth()
+	DeferCheckSize()
 
 	lno := base.Pos
 	if pos := t.Pos(); pos.IsKnown() {
@@ -320,13 +364,13 @@ func dowidth(t *types.Type) {
 
 	et := t.Kind()
 	switch et {
-	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
+	case TFUNC, TCHAN, TMAP, TSTRING:
 		break
 
 	// simtype == 0 during bootstrap
 	default:
-		if types.SimType[t.Kind()] != 0 {
-			et = types.SimType[t.Kind()]
+		if SimType[t.Kind()] != 0 {
+			et = SimType[t.Kind()]
 		}
 	}
 
@@ -336,84 +380,84 @@ func dowidth(t *types.Type) {
 		base.Fatalf("dowidth: unknown type: %v", t)
 
 	// compiler-specific stuff
-	case types.TINT8, types.TUINT8, types.TBOOL:
+	case TINT8, TUINT8, TBOOL:
 		// bool is int8
 		w = 1
 
-	case types.TINT16, types.TUINT16:
+	case TINT16, TUINT16:
 		w = 2
 
-	case types.TINT32, types.TUINT32, types.TFLOAT32:
+	case TINT32, TUINT32, TFLOAT32:
 		w = 4
 
-	case types.TINT64, types.TUINT64, types.TFLOAT64:
+	case TINT64, TUINT64, TFLOAT64:
 		w = 8
-		t.Align = uint8(Widthreg)
+		t.Align = uint8(RegSize)
 
-	case types.TCOMPLEX64:
+	case TCOMPLEX64:
 		w = 8
 		t.Align = 4
 
-	case types.TCOMPLEX128:
+	case TCOMPLEX128:
 		w = 16
-		t.Align = uint8(Widthreg)
+		t.Align = uint8(RegSize)
 
-	case types.TPTR:
-		w = int64(Widthptr)
-		checkwidth(t.Elem())
+	case TPTR:
+		w = int64(PtrSize)
+		CheckSize(t.Elem())
 
-	case types.TUNSAFEPTR:
-		w = int64(Widthptr)
+	case TUNSAFEPTR:
+		w = int64(PtrSize)
 
-	case types.TINTER: // implemented as 2 pointers
-		w = 2 * int64(Widthptr)
-		t.Align = uint8(Widthptr)
+	case TINTER: // implemented as 2 pointers
+		w = 2 * int64(PtrSize)
+		t.Align = uint8(PtrSize)
 		expandiface(t)
 
-	case types.TCHAN: // implemented as pointer
-		w = int64(Widthptr)
+	case TCHAN: // implemented as pointer
+		w = int64(PtrSize)
 
-		checkwidth(t.Elem())
+		CheckSize(t.Elem())
 
 		// make fake type to check later to
 		// trigger channel argument check.
-		t1 := types.NewChanArgs(t)
-		checkwidth(t1)
+		t1 := NewChanArgs(t)
+		CheckSize(t1)
 
-	case types.TCHANARGS:
+	case TCHANARGS:
 		t1 := t.ChanArgs()
-		dowidth(t1) // just in case
+		CalcSize(t1) // just in case
 		if t1.Elem().Width >= 1<<16 {
 			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
 		}
 		w = 1 // anything will do
 
-	case types.TMAP: // implemented as pointer
-		w = int64(Widthptr)
-		checkwidth(t.Elem())
-		checkwidth(t.Key())
+	case TMAP: // implemented as pointer
+		w = int64(PtrSize)
+		CheckSize(t.Elem())
+		CheckSize(t.Key())
 
-	case types.TFORW: // should have been filled in
+	case TFORW: // should have been filled in
 		reportTypeLoop(t)
 		w = 1 // anything will do
 
-	case types.TANY:
+	case TANY:
 		// not a real type; should be replaced before use.
 		base.Fatalf("dowidth any")
 
-	case types.TSTRING:
-		if sizeofString == 0 {
+	case TSTRING:
+		if StringSize == 0 {
 			base.Fatalf("early dowidth string")
 		}
-		w = sizeofString
-		t.Align = uint8(Widthptr)
+		w = StringSize
+		t.Align = uint8(PtrSize)
 
-	case types.TARRAY:
+	case TARRAY:
 		if t.Elem() == nil {
 			break
 		}
 
-		dowidth(t.Elem())
+		CalcSize(t.Elem())
 		if t.Elem().Width != 0 {
 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
@@ -423,42 +467,42 @@ func dowidth(t *types.Type) {
 		w = t.NumElem() * t.Elem().Width
 		t.Align = t.Elem().Align
 
-	case types.TSLICE:
+	case TSLICE:
 		if t.Elem() == nil {
 			break
 		}
-		w = sizeofSlice
-		checkwidth(t.Elem())
-		t.Align = uint8(Widthptr)
+		w = SliceSize
+		CheckSize(t.Elem())
+		t.Align = uint8(PtrSize)
 
-	case types.TSTRUCT:
+	case TSTRUCT:
 		if t.IsFuncArgStruct() {
 			base.Fatalf("dowidth fn struct %v", t)
 		}
-		w = widstruct(t, t, 0, 1)
+		w = calcStructOffset(t, t, 0, 1)
 
 	// make fake type to check later to
 	// trigger function argument computation.
-	case types.TFUNC:
-		t1 := types.NewFuncArgs(t)
-		checkwidth(t1)
-		w = int64(Widthptr) // width of func type is pointer
+	case TFUNC:
+		t1 := NewFuncArgs(t)
+		CheckSize(t1)
+		w = int64(PtrSize) // width of func type is pointer
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
-	case types.TFUNCARGS:
+	case TFUNCARGS:
 		t1 := t.FuncArgs()
-		w = widstruct(t1, t1.Recvs(), 0, 0)
-		w = widstruct(t1, t1.Params(), w, Widthreg)
-		w = widstruct(t1, t1.Results(), w, Widthreg)
-		t1.Extra.(*types.Func).Argwid = w
-		if w%int64(Widthreg) != 0 {
+		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
+		w = calcStructOffset(t1, t1.Params(), w, RegSize)
+		w = calcStructOffset(t1, t1.Results(), w, RegSize)
+		t1.Extra.(*Func).Argwid = w
+		if w%int64(RegSize) != 0 {
 			base.Warn("bad type %v %d\n", t1, w)
 		}
 		t.Align = 1
 	}
 
-	if Widthptr == 4 && w != int64(int32(w)) {
+	if PtrSize == 4 && w != int64(int32(w)) {
 		base.ErrorfAt(typePos(t), "type %v too large", t)
 	}
 
@@ -472,14 +516,14 @@ func dowidth(t *types.Type) {
 
 	base.Pos = lno
 
-	resumecheckwidth()
+	ResumeCheckSize()
 }
 
 // CalcStructSize calculates the size of s,
 // filling in s.Width and s.Align,
 // even if size calculation is otherwise disabled.
-func CalcStructSize(s *types.Type) {
-	s.Width = widstruct(s, s, 0, 1) // sets align
+func CalcStructSize(s *Type) {
+	s.Width = calcStructOffset(s, s, 0, 1) // sets align
 }
 
 // when a type's width should be known, we call checkwidth
@@ -498,9 +542,9 @@ func CalcStructSize(s *types.Type) {
 // is needed immediately.  checkwidth makes sure the
 // size is evaluated eventually.
 
-var deferredTypeStack []*types.Type
+var deferredTypeStack []*Type
 
-func checkwidth(t *types.Type) {
+func CheckSize(t *Type) {
 	if t == nil {
 		return
 	}
@@ -512,7 +556,7 @@ func checkwidth(t *types.Type) {
 	}
 
 	if defercalc == 0 {
-		dowidth(t)
+		CalcSize(t)
 		return
 	}
 
@@ -523,19 +567,68 @@ func checkwidth(t *types.Type) {
 	}
 }
 
-func defercheckwidth() {
+func DeferCheckSize() {
 	defercalc++
 }
 
-func resumecheckwidth() {
+func ResumeCheckSize() {
 	if defercalc == 1 {
 		for len(deferredTypeStack) > 0 {
 			t := deferredTypeStack[len(deferredTypeStack)-1]
 			deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
 			t.SetDeferwidth(false)
-			dowidth(t)
+			CalcSize(t)
 		}
 	}
 
 	defercalc--
+}
+
+// PtrDataSize returns the length in bytes of the prefix of t
+// containing pointer data. Anything after this offset is scalar data.
+func PtrDataSize(t *Type) int64 {
+	if !t.HasPointers() {
+		return 0
+	}
+
+	switch t.Kind() {
+	case TPTR,
+		TUNSAFEPTR,
+		TFUNC,
+		TCHAN,
+		TMAP:
+		return int64(PtrSize)
+
+	case TSTRING:
+		// struct { byte *str; intgo len; }
+		return int64(PtrSize)
+
+	case TINTER:
+		// struct { Itab *tab;	void *data; } or
+		// struct { Type *type; void *data; }
+		// Note: see comment in plive.go:onebitwalktype1.
+		return 2 * int64(PtrSize)
+
+	case TSLICE:
+		// struct { byte *array; uintgo len; uintgo cap; }
+		return int64(PtrSize)
+
+	case TARRAY:
+		// haspointers already eliminated t.NumElem() == 0.
+		return (t.NumElem()-1)*t.Elem().Width + PtrDataSize(t.Elem())
+
+	case TSTRUCT:
+		// Find the last field that has pointers.
+		var lastPtrField *Field
+		for _, t1 := range t.Fields().Slice() {
+			if t1.Type.HasPointers() {
+				lastPtrField = t1
+			}
+		}
+		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
+
+	default:
+		base.Fatalf("typeptrdata: unexpected type, %v", t)
+		return 0
+	}
 }

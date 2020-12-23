@@ -188,7 +188,7 @@ func capturevars(fn *ir.Func) {
 
 		// type check the & of closed variables outside the closure,
 		// so that the outer frame also grabs them and knows they escape.
-		dowidth(v.Type())
+		types.CalcSize(v.Type())
 
 		var outer ir.Node
 		outer = v.Outer
@@ -276,23 +276,23 @@ func transformclosure(fn *ir.Func) {
 			fn.Dcl = append(decls, fn.Dcl...)
 		}
 
-		dowidth(f.Type())
+		types.CalcSize(f.Type())
 		fn.SetType(f.Type()) // update type of ODCLFUNC
 	} else {
 		// The closure is not called, so it is going to stay as closure.
 		var body []ir.Node
-		offset := int64(Widthptr)
+		offset := int64(types.PtrSize)
 		for _, v := range fn.ClosureVars {
 			// cv refers to the field inside of closure OSTRUCTLIT.
 			typ := v.Type()
 			if !v.Byval() {
 				typ = types.NewPtr(typ)
 			}
-			offset = Rnd(offset, int64(typ.Align))
+			offset = types.Rnd(offset, int64(typ.Align))
 			cr := ir.NewClosureRead(typ, offset)
 			offset += typ.Width
 
-			if v.Byval() && v.Type().Width <= int64(2*Widthptr) {
+			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.Class_ = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, v)
@@ -466,7 +466,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
 	fn.SetNeedctxt(true)
 
 	// Declare and initialize variable holding receiver.
-	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
+	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
 	ptr := NewName(lookup(".this"))
 	declare(ptr, ir.PAUTO)
 	ptr.SetUsed(true)

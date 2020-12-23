@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
 )
@@ -20,20 +21,20 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	// Adjust the frame to account for LR.
 	off += base.Ctxt.FixedFrameSize()
 
-	if cnt < int64(4*gc.Widthptr) {
-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+	if cnt < int64(4*types.PtrSize) {
+		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
 			p = pp.Appendpp(p, riscv.AMOV, obj.TYPE_REG, riscv.REG_ZERO, 0, obj.TYPE_MEM, riscv.REG_SP, off+i)
 		}
 		return p
 	}
 
-	if cnt <= int64(128*gc.Widthptr) {
+	if cnt <= int64(128*types.PtrSize) {
 		p = pp.Appendpp(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_A0, 0)
 		p.Reg = riscv.REG_SP
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
+		p.To.Offset = 8 * (128 - cnt/int64(types.PtrSize))
 		return p
 	}
 
@@ -50,7 +51,7 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	p.Reg = riscv.REG_T0
 	p = pp.Appendpp(p, riscv.AMOV, obj.TYPE_REG, riscv.REG_ZERO, 0, obj.TYPE_MEM, riscv.REG_T0, 0)
 	loop := p
-	p = pp.Appendpp(p, riscv.AADD, obj.TYPE_CONST, 0, int64(gc.Widthptr), obj.TYPE_REG, riscv.REG_T0, 0)
+	p = pp.Appendpp(p, riscv.AADD, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, riscv.REG_T0, 0)
 	p = pp.Appendpp(p, riscv.ABNE, obj.TYPE_REG, riscv.REG_T0, 0, obj.TYPE_BRANCH, 0, 0)
 	p.Reg = riscv.REG_T1
 	gc.Patch(p, loop)

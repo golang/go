@@ -330,8 +330,8 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			}
 			// Copy val directly into n.
 			ir.SetPos(val)
-			if !s.staticassign(l, loff+int64(Widthptr), val, val.Type()) {
-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(Widthptr), val.Type())
+			if !s.staticassign(l, loff+int64(types.PtrSize), val, val.Type()) {
+				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
 				s.append(ir.NewAssignStmt(base.Pos, a, val))
 			}
 		} else {
@@ -341,7 +341,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			if !s.staticassign(a, 0, val, val.Type()) {
 				s.append(ir.NewAssignStmt(base.Pos, a, val))
 			}
-			addrsym(l, loff+int64(Widthptr), a, 0)
+			addrsym(l, loff+int64(types.PtrSize), a, 0)
 		}
 
 		return true
@@ -622,7 +622,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
-	dowidth(t)
+	types.CalcSize(t)
 
 	if ctxt == inNonInitFunction {
 		// put everything into static array
@@ -801,8 +801,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		tk.SetNoalg(true)
 		te.SetNoalg(true)
 
-		dowidth(tk)
-		dowidth(te)
+		types.CalcSize(tk)
+		types.CalcSize(te)
 
 		// make and initialize static arrays
 		vstatk := readonlystaticname(tk)
@@ -1034,7 +1034,7 @@ func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 		}
 
 		// Check for overflow.
-		if n.Type().Width != 0 && MaxWidth/n.Type().Width <= int64(l) {
+		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
 			break
 		}
 		offset += int64(l) * n.Type().Width

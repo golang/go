@@ -1377,8 +1377,8 @@ func itabType(itab ir.Node) ir.Node {
 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
 	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
 	typ.SetTypecheck(1)
-	typ.Offset = int64(Widthptr) // offset of _type in runtime.itab
-	typ.SetBounded(true)         // guaranteed not to fault
+	typ.Offset = int64(types.PtrSize) // offset of _type in runtime.itab
+	typ.SetBounded(true)              // guaranteed not to fault
 	return typ
 }
 
@@ -1402,14 +1402,4 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)
 	return ind
-}
-
-// typePos returns the position associated with t.
-// This is where t was declared or where it appeared as a type expression.
-func typePos(t *types.Type) src.XPos {
-	if pos := t.Pos(); pos.IsKnown() {
-		return pos
-	}
-	base.Fatalf("bad type: %v", t)
-	panic("unreachable")
 }
