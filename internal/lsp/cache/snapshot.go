@@ -993,6 +993,84 @@ func (s *snapshot) isOpenLocked(uri span.URI) bool {
 }
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
+	err := s.awaitLoadedAllErrors(ctx)
+
+	// If we still have absolutely no metadata, check if the view failed to
+	// initialize and return any errors.
+	// TODO(rstambler): Should we clear the error after we return it?
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.metadata) == 0 {
+		return err
+	}
+	return nil
+}
+
+func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
+	loadErr := s.awaitLoadedAllErrors(ctx)
+
+	// Even if packages didn't fail to load, we still may want to show
+	// additional warnings.
+	if loadErr == nil {
+		wsPkgs, _ := s.WorkspacePackages(ctx)
+		if msg := shouldShowAdHocPackagesWarning(s, wsPkgs); msg != "" {
+			return &source.CriticalError{
+				MainError: fmt.Errorf(msg),
+			}
+		}
+		// Even if workspace packages were returned, there still may be an error
+		// with the user's workspace layout. Workspace packages that only have the
+		// ID "command-line-arguments" are usually a symptom of a bad workspace
+		// configuration.
+		if containsCommandLineArguments(wsPkgs) {
+			return s.workspaceLayoutError(ctx)
+		}
+		return nil
+	}
+
+	if strings.Contains(loadErr.Error(), "cannot find main module") {
+		return s.workspaceLayoutError(ctx)
+	}
+	criticalErr := &source.CriticalError{
+		MainError: loadErr,
+	}
+	// Attempt to place diagnostics in the relevant go.mod files, if any.
+	for _, uri := range s.ModFiles() {
+		fh, err := s.GetFile(ctx, uri)
+		if err != nil {
+			continue
+		}
+		criticalErr.ErrorList = append(criticalErr.ErrorList, s.extractGoCommandErrors(ctx, s, fh, loadErr.Error())...)
+	}
+	return criticalErr
+}
+
+const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH/src.
+If you are using modules, please open your editor to a directory in your module.
+If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`
+
+func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Package) string {
+	if snapshot.ValidBuildConfiguration() {
+		return ""
+	}
+	for _, pkg := range pkgs {
+		if len(pkg.MissingDependencies()) > 0 {
+			return adHocPackagesWarning
+		}
+	}
+	return ""
+}
+
+func containsCommandLineArguments(pkgs []source.Package) bool {
+	for _, pkg := range pkgs {
+		if strings.Contains(pkg.ID(), "command-line-arguments") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) error {
 	// Do not return results until the snapshot's view has been initialized.
 	s.AwaitInitialized(ctx)
 
@@ -1002,15 +1080,10 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	if err := s.reloadOrphanedFiles(ctx); err != nil {
 		return err
 	}
-	// If we still have absolutely no metadata, check if the view failed to
-	// initialize and return any errors.
-	// TODO(rstambler): Should we clear the error after we return it?
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.metadata) == 0 {
-		return s.initializedErr
-	}
-	return nil
+	// TODO(rstambler): Should we be more careful about returning the
+	// initialization error? Is it possible for the initialization error to be
+	// corrected without a successful reinitialization?
+	return s.initializedErr
 }
 
 func (s *snapshot) AwaitInitialized(ctx context.Context) {

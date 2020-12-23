@@ -128,13 +128,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
 	if len(pkgs) == 0 {
-		if err != nil {
-			// Try to extract the load error into a structured error with
-			// diagnostics.
-			if criticalErr := s.parseLoadError(ctx, err); criticalErr != nil {
-				return criticalErr
-			}
-		} else {
+		if err == nil {
 			err = fmt.Errorf("no packages returned")
 		}
 		return errors.Errorf("%v: %w", err, source.PackagesLoadError)
@@ -182,31 +176,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	return nil
 }
 
-func (s *snapshot) parseLoadError(ctx context.Context, loadErr error) *source.CriticalError {
-	if strings.Contains(loadErr.Error(), "cannot find main module") {
-		return s.WorkspaceLayoutError(ctx)
-	}
-	criticalErr := &source.CriticalError{
-		MainError: loadErr,
-	}
-	// Attempt to place diagnostics in the relevant go.mod files, if any.
-	for _, uri := range s.ModFiles() {
-		fh, err := s.GetFile(ctx, uri)
-		if err != nil {
-			continue
-		}
-		srcErr := s.extractGoCommandError(ctx, s, fh, loadErr.Error())
-		if srcErr == nil {
-			continue
-		}
-		criticalErr.ErrorList = append(criticalErr.ErrorList, srcErr)
-	}
-	return criticalErr
-}
-
 // workspaceLayoutErrors returns a diagnostic for every open file, as well as
 // an error message if there are no open files.
-func (s *snapshot) WorkspaceLayoutError(ctx context.Context) *source.CriticalError {
+func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalError {
 	if len(s.workspace.getKnownModFiles()) == 0 {
 		return nil
 	}

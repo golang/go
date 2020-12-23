@@ -147,10 +147,8 @@ type Snapshot interface {
 	// WorkspacePackages returns the snapshot's top-level packages.
 	WorkspacePackages(ctx context.Context) ([]Package, error)
 
-	// WorkspaceLayoutError reports whether there might be any problems with
-	// the user's workspace configuration, which would cause bad or incorrect
-	// diagnostics.
-	WorkspaceLayoutError(ctx context.Context) *CriticalError
+	// GetCriticalError returns any critical errors in the workspace.
+	GetCriticalError(ctx context.Context) *CriticalError
 }
 
 // PackageFilter sets how a package is filtered out from a set of packages

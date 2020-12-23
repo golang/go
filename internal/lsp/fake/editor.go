@@ -757,6 +757,10 @@ func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Rang
 				return err
 			}
 		}
+		// Some commands may edit files on disk.
+		if err := e.sandbox.Workdir.CheckForFileChanges(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }

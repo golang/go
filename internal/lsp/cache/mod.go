@@ -73,7 +73,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		// Attempt to convert the error to a standardized parse error.
 		var parseErrors []*source.Error
 		if err != nil {
-			if parseErr, extractErr := extractErrorWithPosition(ctx, err.Error(), s); extractErr == nil {
+			if parseErr := extractErrorWithPosition(ctx, err.Error(), s); parseErr != nil {
 				parseErrors = []*source.Error{parseErr}
 			}
 		}
@@ -341,29 +341,39 @@ var moduleAtVersionRe = regexp.MustCompile(`^(?P<module>.*)@(?P<version>.*)$`)
 
 // extractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
-func (s *snapshot) extractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, goCmdError string) *source.Error {
+func (s *snapshot) extractGoCommandErrors(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, goCmdError string) []*source.Error {
+	var srcErrs []*source.Error
+	if srcErr := s.parseModError(ctx, fh, goCmdError); srcErr != nil {
+		srcErrs = append(srcErrs, srcErr)
+	}
 	// If the error message contains a position, use that. Don't pass a file
 	// handle in, as it might not be the file associated with the error.
-	if srcErr, err := extractErrorWithPosition(ctx, goCmdError, s); err == nil {
-		return srcErr
+	if srcErr := extractErrorWithPosition(ctx, goCmdError, s); srcErr != nil {
+		srcErrs = append(srcErrs, srcErr)
+	} else if srcErr := s.matchErrorToModule(ctx, fh, goCmdError); srcErr != nil {
+		srcErrs = append(srcErrs, srcErr)
 	}
-	// We try to match module versions in error messages. Some examples:
-	//
-	//  example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
-	//  go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
-	//  go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
-	//
-	// We split on colons and whitespace, and attempt to match on something
-	// that matches module@version. If we're able to find a match, we try to
-	// find anything that matches it in the go.mod file.
+	return srcErrs
+}
+
+// matchErrorToModule attempts to match module version in error messages.
+// Some examples:
+//
+//    example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
+//    go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
+//    go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
+//
+// We split on colons and whitespace, and attempt to match on something
+// that matches module@version. If we're able to find a match, we try to
+// find anything that matches it in the go.mod file.
+func (s *snapshot) matchErrorToModule(ctx context.Context, fh source.FileHandle, goCmdError string) *source.Error {
 	var v module.Version
 	fields := strings.FieldsFunc(goCmdError, func(r rune) bool {
 		return unicode.IsSpace(r) || r == ':'
 	})
-	for _, s := range fields {
-		s = strings.TrimSpace(s)
-		match := moduleAtVersionRe.FindStringSubmatch(s)
-		if match == nil || len(match) < 3 {
+	for _, field := range fields {
+		match := moduleAtVersionRe.FindStringSubmatch(field)
+		if match == nil {
 			continue
 		}
 		path, version := match[1], match[2]
@@ -378,7 +388,7 @@ func (s *snapshot) extractGoCommandError(ctx context.Context, snapshot source.Sn
 		v.Path, v.Version = path, version
 		break
 	}
-	pm, err := snapshot.ParseMod(ctx, fh)
+	pm, err := s.ParseMod(ctx, fh)
 	if err != nil {
 		return nil
 	}
@@ -387,13 +397,19 @@ func (s *snapshot) extractGoCommandError(ctx context.Context, snapshot source.Sn
 		if err != nil {
 			return nil
 		}
-		if v.Path != "" && strings.Contains(goCmdError, "disabled by GOPROXY=off") {
+		disabledByGOPROXY := strings.Contains(goCmdError, "disabled by GOPROXY=off")
+		shouldAddDep := strings.Contains(goCmdError, "to add it")
+		if v.Path != "" && (disabledByGOPROXY || shouldAddDep) {
 			args, err := source.MarshalArgs(fh.URI(), false, []string{fmt.Sprintf("%v@%v", v.Path, v.Version)})
 			if err != nil {
 				return nil
 			}
+			msg := goCmdError
+			if disabledByGOPROXY {
+				msg = fmt.Sprintf("%v@%v has not been downloaded", v.Path, v.Version)
+			}
 			return &source.Error{
-				Message: fmt.Sprintf("%v@%v has not been downloaded", v.Path, v.Version),
+				Message: msg,
 				Kind:    source.ListError,
 				Range:   rng,
 				URI:     fh.URI(),
@@ -411,6 +427,7 @@ func (s *snapshot) extractGoCommandError(ctx context.Context, snapshot source.Sn
 			Message: goCmdError,
 			Range:   rng,
 			URI:     fh.URI(),
+			Kind:    source.ListError,
 		}
 	}
 	// Check if there are any require, exclude, or replace statements that
@@ -449,10 +466,10 @@ var errorPositionRe = regexp.MustCompile(`(?P<pos>.*:([\d]+)(:([\d]+))?): (?P<ms
 // information for the given unstructured error. If a file handle is provided,
 // the error position will be on that file. This is useful for parse errors,
 // where we already know the file with the error.
-func extractErrorWithPosition(ctx context.Context, goCmdError string, src source.FileSource) (*source.Error, error) {
+func extractErrorWithPosition(ctx context.Context, goCmdError string, src source.FileSource) *source.Error {
 	matches := errorPositionRe.FindStringSubmatch(strings.TrimSpace(goCmdError))
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("error message doesn't contain a position")
+		return nil
 	}
 	var pos, msg string
 	for i, name := range errorPositionRe.SubexpNames() {
@@ -466,11 +483,11 @@ func extractErrorWithPosition(ctx context.Context, goCmdError string, src source
 	spn := span.Parse(pos)
 	fh, err := src.GetFile(ctx, spn.URI())
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	content, err := fh.Read()
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	m := &protocol.ColumnMapper{
 		URI:       spn.URI(),
@@ -479,7 +496,7 @@ func extractErrorWithPosition(ctx context.Context, goCmdError string, src source
 	}
 	rng, err := m.Range(spn)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	category := GoCommandError
 	if fh != nil {
@@ -490,5 +507,5 @@ func extractErrorWithPosition(ctx context.Context, goCmdError string, src source
 		Message:  msg,
 		Range:    rng,
 		URI:      spn.URI(),
-	}, nil
+	}
 }

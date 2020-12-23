@@ -178,29 +178,13 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	if s.shouldIgnoreError(ctx, snapshot, err) {
 		return
 	}
-	// Even if packages didn't fail to load, we still may want to show
-	// additional warnings.
-	if err == nil {
-		if msg := shouldShowAdHocPackagesWarning(snapshot, wsPkgs); msg != "" {
-			err = fmt.Errorf(msg)
-		}
-	}
-
-	// Even if workspace packages were returned, there still may be an error
-	// with the user's workspace layout. Workspace packages that only have the
-	// ID "command-line-arguments" are usually a symptom of a bad workspace
-	// configuration.
-	if containsCommandLineArguments(wsPkgs) {
-		if criticalErr := snapshot.WorkspaceLayoutError(ctx); criticalErr != nil {
-			err = criticalErr
-		}
-	}
+	criticalErr := snapshot.GetCriticalError(ctx)
 
 	// Show the error as a progress error report so that it appears in the
 	// status bar. If a client doesn't support progress reports, the error
 	// will still be shown as a ShowMessage. If there is no error, any running
 	// error progress reports will be closed.
-	s.showCriticalErrorStatus(ctx, snapshot, err)
+	s.showCriticalErrorStatus(ctx, snapshot, criticalErr)
 
 	// If there are no workspace packages, there is nothing to diagnose and
 	// there are no orphaned files.
@@ -337,27 +321,11 @@ func (s *Server) clearDiagnosticSource(dsource diagnosticSource) {
 	}
 }
 
-const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH/src.
-If you are using modules, please open your editor to a directory in your module.
-If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`
-
-func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Package) string {
-	if snapshot.ValidBuildConfiguration() {
-		return ""
-	}
-	for _, pkg := range pkgs {
-		if len(pkg.MissingDependencies()) > 0 {
-			return adHocPackagesWarning
-		}
-	}
-	return ""
-}
-
 const WorkspaceLoadFailure = "Error loading workspace"
 
 // showCriticalErrorStatus shows the error as a progress report.
 // If the error is nil, it clears any existing error progress report.
-func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Snapshot, err error) {
+func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Snapshot, err *source.CriticalError) {
 	s.criticalErrorStatusMu.Lock()
 	defer s.criticalErrorStatusMu.Unlock()
 
@@ -577,13 +545,4 @@ func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot
 		return errors.New("done")
 	})
 	return !hasGo
-}
-
-func containsCommandLineArguments(pkgs []source.Package) bool {
-	for _, pkg := range pkgs {
-		if strings.Contains(pkg.ID(), "command-line-arguments") {
-			return true
-		}
-	}
-	return false
 }

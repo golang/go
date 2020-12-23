@@ -172,9 +172,9 @@ require a.com master
 		if parseErr == nil {
 			t.Fatalf("%s: expected an unparseable go.mod file", uri.Filename())
 		}
-		srcErr, err := extractErrorWithPosition(ctx, parseErr.Error(), src)
-		if err != nil {
-			t.Fatal(err)
+		srcErr := extractErrorWithPosition(ctx, parseErr.Error(), src)
+		if srcErr == nil {
+			t.Fatalf("unable to extract positions from %v", parseErr.Error())
 		}
 		if srcErr.URI != uri {
 			t.Errorf("unexpected URI: got %s, wanted %s", srcErr.URI, uri)

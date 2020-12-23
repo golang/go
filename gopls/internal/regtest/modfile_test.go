@@ -937,5 +937,59 @@ require random.com v1.2.3
 			}
 		})
 	})
+}
 
+func TestSumUpdateQuickFix(t *testing.T) {
+	// Error messages changed in 1.16 that changed the diagnostic positions.
+	testenv.NeedsGo1Point(t, 16)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require (
+	example.com v1.2.3
+)
+-- go.sum --
+-- main.go --
+package main
+
+import (
+	"example.com/blah"
+)
+
+func main() {
+	blah.Hello()
+}
+`
+	withOptions(
+		ProxyFiles(workspaceProxy),
+		Modes(Singleton),
+	).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		pos := env.RegexpSearch("go.mod", "example.com")
+		params := &protocol.PublishDiagnosticsParams{}
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("go.mod", "example.com"),
+				ReadDiagnostics("go.mod", params),
+			),
+		)
+		var diagnostic protocol.Diagnostic
+		for _, d := range params.Diagnostics {
+			if d.Range.Start.Line == float64(pos.Line) {
+				diagnostic = d
+				break
+			}
+		}
+		env.ApplyQuickFixes("go.mod", []protocol.Diagnostic{diagnostic})
+		const want = `example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
+`
+		if got := env.ReadWorkspaceFile("go.sum"); got != want {
+			t.Fatalf("unexpected go.sum contents:\n%s", tests.Diff(t, want, got))
+		}
+	})
 }

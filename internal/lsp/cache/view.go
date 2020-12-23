@@ -580,6 +580,10 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 			} else {
 				s.initializedErr = err
 			}
+		} else {
+			// Clear out the initialization error, in case it had been set
+			// previously.
+			s.initializedErr = nil
 		}
 	})
 }
