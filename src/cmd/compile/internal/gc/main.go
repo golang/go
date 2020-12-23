@@ -22,6 +22,7 @@ import (
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/walk"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -268,7 +269,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 			n := n.(*ir.Func)
 			if n.OClosure != nil {
 				ir.CurFunc = n
-				transformclosure(n)
+				walk.Closure(n)
 			}
 		}
 	}
