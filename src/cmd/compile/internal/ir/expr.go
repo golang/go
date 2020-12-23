@@ -695,16 +695,16 @@ func (o Op) IsSlice3() bool {
 // A SliceHeader expression constructs a slice header from its parts.
 type SliceHeaderExpr struct {
 	miniExpr
-	Ptr    Node
-	LenCap Nodes // TODO(rsc): Split into two Node fields
+	Ptr Node
+	Len Node
+	Cap Node
 }
 
 func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *SliceHeaderExpr {
-	n := &SliceHeaderExpr{Ptr: ptr}
+	n := &SliceHeaderExpr{Ptr: ptr, Len: len, Cap: cap}
 	n.pos = pos
 	n.op = OSLICEHEADER
 	n.typ = typ
-	n.LenCap = []Node{len, cap}
 	return n
 }
 

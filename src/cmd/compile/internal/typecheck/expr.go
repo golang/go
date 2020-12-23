@@ -924,30 +924,22 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 		base.Fatalf("need unsafe.Pointer for OSLICEHEADER")
 	}
 
-	if x := len(n.LenCap); x != 2 {
-		base.Fatalf("expected 2 params (len, cap) for OSLICEHEADER, got %d", x)
-	}
-
 	n.Ptr = Expr(n.Ptr)
-	l := Expr(n.LenCap[0])
-	c := Expr(n.LenCap[1])
-	l = DefaultLit(l, types.Types[types.TINT])
-	c = DefaultLit(c, types.Types[types.TINT])
+	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
+	n.Cap = DefaultLit(Expr(n.Cap), types.Types[types.TINT])
 
-	if ir.IsConst(l, constant.Int) && ir.Int64Val(l) < 0 {
+	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
 		base.Fatalf("len for OSLICEHEADER must be non-negative")
 	}
 
-	if ir.IsConst(c, constant.Int) && ir.Int64Val(c) < 0 {
+	if ir.IsConst(n.Cap, constant.Int) && ir.Int64Val(n.Cap) < 0 {
 		base.Fatalf("cap for OSLICEHEADER must be non-negative")
 	}
 
-	if ir.IsConst(l, constant.Int) && ir.IsConst(c, constant.Int) && constant.Compare(l.Val(), token.GTR, c.Val()) {
+	if ir.IsConst(n.Len, constant.Int) && ir.IsConst(n.Cap, constant.Int) && constant.Compare(n.Len.Val(), token.GTR, n.Cap.Val()) {
 		base.Fatalf("len larger than cap for OSLICEHEADER")
 	}
 
-	n.LenCap[0] = l
-	n.LenCap[1] = c
 	return n
 }
 

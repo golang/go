@@ -438,7 +438,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	fn := typecheck.LookupRuntime(fnname)
 	m.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
 	m.Ptr.MarkNonNil()
-	m.LenCap = []ir.Node{typecheck.Conv(len, types.Types[types.TINT]), typecheck.Conv(cap, types.Types[types.TINT])}
+	m.Len = typecheck.Conv(len, types.Types[types.TINT])
+	m.Cap = typecheck.Conv(cap, types.Types[types.TINT])
 	return walkExpr(typecheck.Expr(m), init)
 }
 
@@ -471,7 +472,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		sh := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
 		sh.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, size, typecheck.NodNil(), ir.NewBool(false))
 		sh.Ptr.MarkNonNil()
-		sh.LenCap = []ir.Node{length, length}
+		sh.Len = length
+		sh.Cap = length
 		sh.SetType(t)
 
 		s := typecheck.Temp(t)
@@ -493,7 +495,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	s := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
 	s.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
 	s.Ptr.MarkNonNil()
-	s.LenCap = []ir.Node{length, length}
+	s.Len = length
+	s.Cap = length
 	s.SetType(t)
 	return walkExpr(typecheck.Expr(s), init)
 }

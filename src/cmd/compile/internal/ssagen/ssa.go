@@ -2844,8 +2844,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.OSLICEHEADER:
 		n := n.(*ir.SliceHeaderExpr)
 		p := s.expr(n.Ptr)
-		l := s.expr(n.LenCap[0])
-		c := s.expr(n.LenCap[1])
+		l := s.expr(n.Len)
+		c := s.expr(n.Cap)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:

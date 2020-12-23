@@ -817,8 +817,8 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 // walkSliceHeader walks an OSLICEHEADER node.
 func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
 	n.Ptr = walkExpr(n.Ptr, init)
-	n.LenCap[0] = walkExpr(n.LenCap[0], init)
-	n.LenCap[1] = walkExpr(n.LenCap[1], init)
+	n.Len = walkExpr(n.Len, init)
+	n.Cap = walkExpr(n.Cap, init)
 	return n
 }
 
