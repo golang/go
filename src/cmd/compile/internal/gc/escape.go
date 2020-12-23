@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -870,7 +871,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		fixVariadicCall(call)
+		typecheck.FixVariadicCall(call)
 
 		// Pick out the function callee, if statically known.
 		var fn *ir.Name
@@ -1877,10 +1878,10 @@ func heapAllocReason(n ir.Node) string {
 		return "too large for stack"
 	}
 
-	if n.Op() == ir.OCLOSURE && closureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OCALLPART && partialCallType(n.(*ir.CallPartExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.CallPartExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
@@ -1992,8 +1993,8 @@ func moveToHeap(n *ir.Name) {
 
 	// Allocate a local stack variable to hold the pointer to the heap copy.
 	// temp will add it to the function declaration list automatically.
-	heapaddr := temp(types.NewPtr(n.Type()))
-	heapaddr.SetSym(lookup("&" + n.Sym().Name))
+	heapaddr := typecheck.Temp(types.NewPtr(n.Type()))
+	heapaddr.SetSym(typecheck.Lookup("&" + n.Sym().Name))
 	heapaddr.SetPos(n.Pos())
 
 	// Unset AutoTemp to persist the &foo variable name through SSA to
@@ -2013,7 +2014,7 @@ func moveToHeap(n *ir.Name) {
 		// Preserve a copy so we can still write code referring to the original,
 		// and substitute that copy into the function declaration list
 		// so that analyses of the local (on-stack) variables use it.
-		stackcopy := NewName(n.Sym())
+		stackcopy := typecheck.NewName(n.Sym())
 		stackcopy.SetType(n.Type())
 		stackcopy.SetFrameOffset(n.FrameOffset())
 		stackcopy.Class_ = n.Class_

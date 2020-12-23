@@ -9,6 +9,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -19,7 +20,7 @@ import (
 
 func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
 	field := types.NewField(src.NoXPos, s, t)
-	n := NewName(s)
+	n := typecheck.NewName(s)
 	n.Class_ = which
 	field.Nname = n
 	n.SetType(t)
@@ -42,7 +43,7 @@ func mkstruct(fieldtypes []*types.Type) *types.Type {
 }
 
 func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.Type {
-	q := lookup("?")
+	q := typecheck.Lookup("?")
 	inf := []*types.Field{}
 	for _, it := range ins {
 		inf = append(inf, mkParamResultField(it, q, ir.PPARAM))

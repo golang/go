@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 
@@ -61,13 +62,13 @@ func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds 
 		p.errorAt(pos, "go:embed cannot apply to var without type")
 		return exprs
 	}
-	if dclcontext != ir.PEXTERN {
+	if typecheck.DeclContext != ir.PEXTERN {
 		p.errorAt(pos, "go:embed cannot apply to var inside func")
 		return exprs
 	}
 
 	v := names[0]
-	Target.Embeds = append(Target.Embeds, v)
+	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
 	v.Embed = new([]ir.Embed)
 	for _, e := range embeds {
 		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
@@ -184,7 +185,7 @@ func embedFileLess(x, y string) bool {
 }
 
 func dumpembeds() {
-	for _, v := range Target.Embeds {
+	for _, v := range typecheck.Target.Embeds {
 		initEmbed(v)
 	}
 }

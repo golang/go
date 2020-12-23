@@ -2,4 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+//go:generate go run mkbuiltin.go
+
+package typecheck
+
+import "cmd/compile/internal/ir"
+
+// Target is the package being compiled.
+var Target *ir.Package

@@ -2,16 +2,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(gri) This file should probably become part of package types.
-
-package gc
+package typecheck
 
 import (
+	"go/constant"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"go/constant"
+)
+
+var (
+	okfor [ir.OEND][]bool
+	iscmp [ir.OEND]bool
+)
+
+var (
+	okforeq    [types.NTYPE]bool
+	okforadd   [types.NTYPE]bool
+	okforand   [types.NTYPE]bool
+	okfornone  [types.NTYPE]bool
+	okforbool  [types.NTYPE]bool
+	okforcap   [types.NTYPE]bool
+	okforlen   [types.NTYPE]bool
+	okforarith [types.NTYPE]bool
 )
 
 var basicTypes = [...]struct {
@@ -169,7 +184,7 @@ func initUniverse() {
 	s = types.BuiltinPkg.Lookup("false")
 	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(false))
 
-	s = lookup("_")
+	s = Lookup("_")
 	types.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
@@ -186,7 +201,7 @@ func initUniverse() {
 
 	types.Types[types.TNIL] = types.New(types.TNIL)
 	s = types.BuiltinPkg.Lookup("nil")
-	nnil := nodnil()
+	nnil := NodNil()
 	nnil.(*ir.NilExpr).SetSym(s)
 	s.Def = nnil
 
@@ -317,12 +332,12 @@ func makeErrorInterface() *types.Type {
 	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
 	})
-	method := types.NewField(src.NoXPos, lookup("Error"), sig)
+	method := types.NewField(src.NoXPos, Lookup("Error"), sig)
 	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 
-// finishUniverse makes the universe block visible within the current package.
-func finishUniverse() {
+// declareUniverse makes the universe block visible within the current package.
+func declareUniverse() {
 	// Operationally, this is similar to a dot import of builtinpkg, except
 	// that we silently skip symbols that are already declared in the
 	// package block rather than emitting a redeclared symbol error.
@@ -331,7 +346,7 @@ func finishUniverse() {
 		if s.Def == nil {
 			continue
 		}
-		s1 := lookup(s.Name)
+		s1 := Lookup(s.Name)
 		if s1.Def != nil {
 			continue
 		}
@@ -340,7 +355,7 @@ func finishUniverse() {
 		s1.Block = s.Block
 	}
 
-	ir.RegFP = NewName(lookup(".fp"))
+	ir.RegFP = NewName(Lookup(".fp"))
 	ir.RegFP.SetType(types.Types[types.TINT32])
 	ir.RegFP.Class_ = ir.PPARAM
 	ir.RegFP.SetUsed(true)

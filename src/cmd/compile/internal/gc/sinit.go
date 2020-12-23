@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
@@ -112,7 +113,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 		if loff != 0 || !types.Identical(typ, l.Type()) {
 			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
 		}
-		s.append(ir.NewAssignStmt(base.Pos, dst, conv(r, typ)))
+		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(r, typ)))
 		return true
 
 	case ir.ONIL:
@@ -387,9 +388,9 @@ var statuniqgen int // name generator for static temps
 // Use readonlystaticname for read-only node.
 func staticname(t *types.Type) *ir.Name {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
-	n := NewName(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
 	statuniqgen++
-	declare(n, ir.PEXTERN)
+	typecheck.Declare(n, ir.PEXTERN)
 	n.SetType(t)
 	n.Sym().Linksym().Set(obj.AttrLocal, true)
 	return n
@@ -541,7 +542,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		splitnode = func(r ir.Node) (ir.Node, ir.Node) {
 			if r.Op() == ir.OKEY {
 				kv := r.(*ir.KeyExpr)
-				k = indexconst(kv.Key)
+				k = typecheck.IndexConst(kv.Key)
 				if k < 0 {
 					base.Fatalf("fixedlit: invalid index %v", kv.Key)
 				}
@@ -596,7 +597,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		// build list of assignments: var[index] = expr
 		ir.SetPos(a)
 		as := ir.NewAssignStmt(base.Pos, a, value)
-		as = typecheck(as, ctxStmt).(*ir.AssignStmt)
+		as = typecheck.Stmt(as).(*ir.AssignStmt)
 		switch kind {
 		case initKindStatic:
 			genAsStatic(as)
@@ -632,7 +633,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
 
 		// copy static to slice
-		var_ = typecheck(var_, ctxExpr|ctxAssign)
+		var_ = typecheck.AssignExpr(var_)
 		name, offset, ok := stataddr(var_)
 		if !ok || name.Class_ != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
@@ -675,7 +676,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	}
 
 	// make new auto *array (3 declare)
-	vauto := temp(types.NewPtr(t))
+	vauto := typecheck.Temp(types.NewPtr(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a ir.Node
@@ -687,7 +688,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		if vstat == nil {
 			a = ir.NewAssignStmt(base.Pos, x, nil)
-			a = typecheck(a, ctxStmt)
+			a = typecheck.Stmt(a)
 			init.Append(a) // zero new temp
 		} else {
 			// Declare that we're about to initialize all of x.
@@ -695,19 +696,19 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, x))
 		}
 
-		a = nodAddr(x)
+		a = typecheck.NodAddr(x)
 	} else if n.Esc() == ir.EscNone {
-		a = temp(t)
+		a = typecheck.Temp(t)
 		if vstat == nil {
-			a = ir.NewAssignStmt(base.Pos, temp(t), nil)
-			a = typecheck(a, ctxStmt)
+			a = ir.NewAssignStmt(base.Pos, typecheck.Temp(t), nil)
+			a = typecheck.Stmt(a)
 			init.Append(a) // zero new temp
 			a = a.(*ir.AssignStmt).X
 		} else {
 			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, a))
 		}
 
-		a = nodAddr(a)
+		a = typecheck.NodAddr(a)
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
@@ -724,7 +725,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	for _, value := range n.List {
 		if value.Op() == ir.OKEY {
 			kv := value.(*ir.KeyExpr)
-			index = indexconst(kv.Key)
+			index = typecheck.IndexConst(kv.Key)
 			if index < 0 {
 				base.Fatalf("slicelit: invalid index %v", kv.Key)
 			}
@@ -758,7 +759,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
-		as := typecheck(ir.NewAssignStmt(base.Pos, a, value), ctxStmt)
+		as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, a, value))
 		as = orderStmtInPlace(as, map[string][]*ir.Name{})
 		as = walkstmt(as)
 		init.Append(as)
@@ -767,7 +768,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto))
 
-	a = typecheck(a, ctxStmt)
+	a = typecheck.Stmt(a)
 	a = orderStmtInPlace(a, map[string][]*ir.Name{})
 	a = walkstmt(a)
 	init.Append(a)
@@ -822,7 +823,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		// for i = 0; i < len(vstatk); i++ {
 		//	map[vstatk[i]] = vstate[i]
 		// }
-		i := temp(types.Types[types.TINT])
+		i := typecheck.Temp(types.Types[types.TINT])
 		rhs := ir.NewIndexExpr(base.Pos, vstate, i)
 		rhs.SetBounded(true)
 
@@ -847,8 +848,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// Build list of var[c] = expr.
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
-	tmpkey := temp(m.Type().Key())
-	tmpelem := temp(m.Type().Elem())
+	tmpkey := typecheck.Temp(m.Type().Key())
+	tmpelem := typecheck.Temp(m.Type().Elem())
 
 	for _, r := range entries {
 		r := r.(*ir.KeyExpr)
@@ -892,7 +893,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		if n.Alloc != nil {
 			// n.Right is stack temporary used as backing store.
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Alloc, nil)) // zero backing store, just in case (#18410)
-			r = nodAddr(n.Alloc)
+			r = typecheck.NodAddr(n.Alloc)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
@@ -900,7 +901,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, r))
 
 		var_ = ir.NewStarExpr(base.Pos, var_)
-		var_ = typecheck(var_, ctxExpr|ctxAssign)
+		var_ = typecheck.AssignExpr(var_)
 		anylit(n.X, var_, init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT:
@@ -1060,7 +1061,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
 		for _, a := range n.List {
 			if a.Op() == ir.OKEY {
 				kv := a.(*ir.KeyExpr)
-				k = indexconst(kv.Key)
+				k = typecheck.IndexConst(kv.Key)
 				if k < 0 {
 					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
 				}

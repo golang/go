@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -63,7 +64,7 @@ func order(fn *ir.Func) {
 
 // append typechecks stmt and appends it to out.
 func (o *Order) append(stmt ir.Node) {
-	o.out = append(o.out, typecheck(stmt, ctxStmt))
+	o.out = append(o.out, typecheck.Stmt(stmt))
 }
 
 // newTemp allocates a new temporary with the given type,
@@ -85,7 +86,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
 		}
 	}
 	if v == nil {
-		v = temp(t)
+		v = typecheck.Temp(t)
 	}
 	if clear {
 		o.append(ir.NewAssignStmt(base.Pos, v, nil))
@@ -142,7 +143,7 @@ func (o *Order) cheapExpr(n ir.Node) ir.Node {
 		}
 		a := ir.SepCopy(n).(*ir.UnaryExpr)
 		a.X = l
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 	}
 
 	return o.copyExpr(n)
@@ -168,7 +169,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 		}
 		a := ir.SepCopy(n).(*ir.UnaryExpr)
 		a.X = l
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
@@ -178,7 +179,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 		}
 		a := ir.SepCopy(n).(*ir.SelectorExpr)
 		a.X = l
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
@@ -188,7 +189,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 		}
 		a := ir.SepCopy(n).(*ir.SelectorExpr)
 		a.X = l
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
@@ -198,7 +199,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 		}
 		a := ir.SepCopy(n).(*ir.StarExpr)
 		a.X = l
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
@@ -215,7 +216,7 @@ func (o *Order) safeExpr(n ir.Node) ir.Node {
 		a := ir.SepCopy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
-		return typecheck(a, ctxExpr)
+		return typecheck.Expr(a)
 
 	default:
 		base.Fatalf("order.safeExpr %v", n.Op())
@@ -241,7 +242,7 @@ func isaddrokay(n ir.Node) bool {
 func (o *Order) addrTemp(n ir.Node) ir.Node {
 	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
 		// TODO: expand this to all static composite literal nodes?
-		n = defaultlit(n, nil)
+		n = typecheck.DefaultLit(n, nil)
 		types.CalcSize(n.Type())
 		vstat := readonlystaticname(n.Type())
 		var s InitSchedule
@@ -249,7 +250,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
 		if s.out != nil {
 			base.Fatalf("staticassign of const generated code: %+v", n)
 		}
-		vstat = typecheck(vstat, ctxExpr).(*ir.Name)
+		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
 	}
 	if isaddrokay(n) {
@@ -336,7 +337,7 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []ir.Node {
 	var out []ir.Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		out = append(out, typecheck(ir.NewUnaryExpr(base.Pos, ir.OVARKILL, n), ctxStmt))
+		out = append(out, typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARKILL, n)))
 	}
 	return out
 }
@@ -388,7 +389,7 @@ func orderMakeSliceCopy(s []ir.Node) {
 	mk.Cap = cp.Y
 	// Set bounded when m = OMAKESLICE([]T, len(s)); OCOPY(m, s)
 	mk.SetBounded(mk.Len.Op() == ir.OLEN && ir.SameSafeExpr(mk.Len.(*ir.UnaryExpr).X, cp.Y))
-	as.Y = typecheck(mk, ctxExpr)
+	as.Y = typecheck.Expr(mk)
 	s[1] = nil // remove separate copy call
 }
 
@@ -495,7 +496,7 @@ func (o *Order) call(nn ir.Node) {
 	}
 
 	n := nn.(*ir.CallExpr)
-	fixVariadicCall(n)
+	typecheck.FixVariadicCall(n)
 	n.X = o.expr(n.X, nil)
 	o.exprList(n.Args)
 
@@ -513,7 +514,7 @@ func (o *Order) call(nn ir.Node) {
 				x := o.copyExpr(arg.X)
 				arg.X = x
 				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
-				n.Body.Append(typecheck(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x), ctxStmt))
+				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
 			}
 		}
 	}
@@ -584,7 +585,7 @@ func (o *Order) mapAssign(n ir.Node) {
 				t := o.newTemp(m.Type(), false)
 				n.Lhs[i] = t
 				a := ir.NewAssignStmt(base.Pos, m, t)
-				post = append(post, typecheck(a, ctxStmt))
+				post = append(post, typecheck.Stmt(a))
 			}
 		}
 
@@ -653,8 +654,8 @@ func (o *Order) stmt(n ir.Node) {
 				l2.Assigned = false
 			}
 			l2 = o.copyExpr(l2)
-			r := o.expr(typecheck(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y), ctxExpr), nil)
-			as := typecheck(ir.NewAssignStmt(n.Pos(), l1, r), ctxStmt)
+			r := o.expr(typecheck.Expr(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y)), nil)
+			as := typecheck.Stmt(ir.NewAssignStmt(n.Pos(), l1, r))
 			o.mapAssign(as)
 			o.cleanTemp(t)
 			return
@@ -858,7 +859,7 @@ func (o *Order) stmt(n ir.Node) {
 			if r.Type().IsString() && r.Type() != types.Types[types.TSTRING] {
 				r = ir.NewConvExpr(base.Pos, ir.OCONV, nil, r)
 				r.SetType(types.Types[types.TSTRING])
-				r = typecheck(r, ctxExpr)
+				r = typecheck.Expr(r)
 			}
 
 			n.X = o.copyExpr(r)
@@ -949,11 +950,11 @@ func (o *Order) stmt(n ir.Node) {
 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
 							init = init[1:]
 						}
-						dcl := typecheck(ir.NewDecl(base.Pos, ir.ODCL, n), ctxStmt)
+						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n))
 						ncas.PtrInit().Append(dcl)
 					}
 					tmp := o.newTemp(t, t.HasPointers())
-					as := typecheck(ir.NewAssignStmt(base.Pos, n, conv(tmp, n.Type())), ctxStmt)
+					as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, n, typecheck.Conv(tmp, n.Type())))
 					ncas.PtrInit().Append(as)
 					r.Lhs[i] = tmp
 				}
@@ -1217,7 +1218,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 
 		// Evaluate left-hand side.
 		lhs := o.expr(n.X, nil)
-		o.out = append(o.out, typecheck(ir.NewAssignStmt(base.Pos, r, lhs), ctxStmt))
+		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, lhs)))
 
 		// Evaluate right-hand side, save generated code.
 		saveout := o.out
@@ -1225,7 +1226,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		t := o.markTemp()
 		o.edge()
 		rhs := o.expr(n.Y, nil)
-		o.out = append(o.out, typecheck(ir.NewAssignStmt(base.Pos, r, rhs), ctxStmt))
+		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, rhs)))
 		o.cleanTemp(t)
 		gen := o.out
 		o.out = saveout
@@ -1307,7 +1308,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
 		if n.Transient() && len(n.Func.ClosureVars) > 0 {
-			n.Prealloc = o.newTemp(closureType(n), false)
+			n.Prealloc = o.newTemp(typecheck.ClosureType(n), false)
 		}
 		return n
 
@@ -1315,7 +1316,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		n := n.(*ir.CallPartExpr)
 		n.X = o.expr(n.X, nil)
 		if n.Transient() {
-			t := partialCallType(n)
+			t := typecheck.PartialCallType(n)
 			n.Prealloc = o.newTemp(t, false)
 		}
 		return n
@@ -1415,13 +1416,13 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 		// Emit the creation of the map (with all its static entries).
 		m := o.newTemp(n.Type(), false)
 		as := ir.NewAssignStmt(base.Pos, m, n)
-		typecheck(as, ctxStmt)
+		typecheck.Stmt(as)
 		o.stmt(as)
 
 		// Emit eval+insert of dynamic entries, one at a time.
 		for _, r := range dynamics {
 			as := ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, r.Key), r.Value)
-			typecheck(as, ctxStmt) // Note: this converts the OINDEX to an OINDEXMAP
+			typecheck.Stmt(as) // Note: this converts the OINDEX to an OINDEXMAP
 			o.stmt(as)
 		}
 		return m
@@ -1455,7 +1456,7 @@ func (o *Order) as2(n *ir.AssignListStmt) {
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	as.Lhs.Set(left)
 	as.Rhs.Set(tmplist)
-	o.stmt(typecheck(as, ctxStmt))
+	o.stmt(typecheck.Stmt(as))
 }
 
 // okAs2 orders OAS2XXX with ok.
@@ -1475,12 +1476,12 @@ func (o *Order) okAs2(n *ir.AssignListStmt) {
 
 	if tmp1 != nil {
 		r := ir.NewAssignStmt(base.Pos, n.Lhs[0], tmp1)
-		o.mapAssign(typecheck(r, ctxStmt))
+		o.mapAssign(typecheck.Stmt(r))
 		n.Lhs[0] = tmp1
 	}
 	if tmp2 != nil {
-		r := ir.NewAssignStmt(base.Pos, n.Lhs[1], conv(tmp2, n.Lhs[1].Type()))
-		o.mapAssign(typecheck(r, ctxStmt))
+		r := ir.NewAssignStmt(base.Pos, n.Lhs[1], typecheck.Conv(tmp2, n.Lhs[1].Type()))
+		o.mapAssign(typecheck.Stmt(r))
 		n.Lhs[1] = tmp2
 	}
 }

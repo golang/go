@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -14,36 +13,12 @@ import (
 
 var pragcgobuf [][]string
 
-var decldepth int32
-
-var inimport bool // set during import
-
 var zerosize int64
-
-var (
-	okforeq    [types.NTYPE]bool
-	okforadd   [types.NTYPE]bool
-	okforand   [types.NTYPE]bool
-	okfornone  [types.NTYPE]bool
-	okforbool  [types.NTYPE]bool
-	okforcap   [types.NTYPE]bool
-	okforlen   [types.NTYPE]bool
-	okforarith [types.NTYPE]bool
-)
-
-var (
-	okfor [ir.OEND][]bool
-	iscmp [ir.OEND]bool
-)
 
 var (
 	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
 	funcsyms   []*types.Sym
 )
-
-var dclcontext ir.Class // PEXTERN/PAUTO
-
-var typecheckok bool
 
 // interface to back end
 

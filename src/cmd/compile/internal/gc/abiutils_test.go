@@ -7,6 +7,7 @@ package gc
 import (
 	"bufio"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
@@ -42,7 +43,7 @@ func TestMain(m *testing.M) {
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return typenamesym(t).Linksym()
 	}
-	TypecheckInit()
+	typecheck.Init()
 	os.Exit(m.Run())
 }
 

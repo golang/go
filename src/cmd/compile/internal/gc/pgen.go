@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
@@ -146,7 +147,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	if f.Config.NeedsFpScratch && scratchUsed {
-		s.scratchFpMem = tempAt(src.NoXPos, s.curfn, types.Types[types.TUINT64])
+		s.scratchFpMem = typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT64])
 	}
 
 	sort.Sort(byStackVar(fn.Dcl))
@@ -214,11 +215,11 @@ func funccompile(fn *ir.Func) {
 		return
 	}
 
-	dclcontext = ir.PAUTO
+	typecheck.DeclContext = ir.PAUTO
 	ir.CurFunc = fn
 	compile(fn)
 	ir.CurFunc = nil
-	dclcontext = ir.PEXTERN
+	typecheck.DeclContext = ir.PEXTERN
 }
 
 func compile(fn *ir.Func) {

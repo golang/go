@@ -4,7 +4,7 @@
 
 // +build darwin dragonfly freebsd linux netbsd openbsd
 
-package gc
+package typecheck
 
 import (
 	"os"

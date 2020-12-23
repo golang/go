@@ -7,227 +7,13 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"go/constant"
 	"go/token"
 	"sort"
 )
-
-// typecheckswitch typechecks a switch statement.
-func typecheckswitch(n *ir.SwitchStmt) {
-	typecheckslice(n.Init(), ctxStmt)
-	if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
-		typecheckTypeSwitch(n)
-	} else {
-		typecheckExprSwitch(n)
-	}
-}
-
-func typecheckTypeSwitch(n *ir.SwitchStmt) {
-	guard := n.Tag.(*ir.TypeSwitchGuard)
-	guard.X = typecheck(guard.X, ctxExpr)
-	t := guard.X.Type()
-	if t != nil && !t.IsInterface() {
-		base.ErrorfAt(n.Pos(), "cannot type switch on non-interface value %L", guard.X)
-		t = nil
-	}
-
-	// We don't actually declare the type switch's guarded
-	// declaration itself. So if there are no cases, we won't
-	// notice that it went unused.
-	if v := guard.Tag; v != nil && !ir.IsBlank(v) && len(n.Cases) == 0 {
-		base.ErrorfAt(v.Pos(), "%v declared but not used", v.Sym())
-	}
-
-	var defCase, nilCase ir.Node
-	var ts typeSet
-	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
-		ls := ncase.List
-		if len(ls) == 0 { // default:
-			if defCase != nil {
-				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
-			} else {
-				defCase = ncase
-			}
-		}
-
-		for i := range ls {
-			ls[i] = typecheck(ls[i], ctxExpr|ctxType)
-			n1 := ls[i]
-			if t == nil || n1.Type() == nil {
-				continue
-			}
-
-			var missing, have *types.Field
-			var ptr int
-			if ir.IsNil(n1) { // case nil:
-				if nilCase != nil {
-					base.ErrorfAt(ncase.Pos(), "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
-				} else {
-					nilCase = ncase
-				}
-				continue
-			}
-			if n1.Op() != ir.OTYPE {
-				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
-				continue
-			}
-			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) && !missing.Broke() {
-				if have != nil && !have.Broke() {
-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-				} else if ptr != 0 {
-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)
-				} else {
-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
-						" (missing %v method)", guard.X, n1.Type(), missing.Sym)
-				}
-				continue
-			}
-
-			ts.add(ncase.Pos(), n1.Type())
-		}
-
-		if len(ncase.Vars) != 0 {
-			// Assign the clause variable's type.
-			vt := t
-			if len(ls) == 1 {
-				if ls[0].Op() == ir.OTYPE {
-					vt = ls[0].Type()
-				} else if !ir.IsNil(ls[0]) {
-					// Invalid single-type case;
-					// mark variable as broken.
-					vt = nil
-				}
-			}
-
-			nvar := ncase.Vars[0]
-			nvar.SetType(vt)
-			if vt != nil {
-				nvar = typecheck(nvar, ctxExpr|ctxAssign)
-			} else {
-				// Clause variable is broken; prevent typechecking.
-				nvar.SetTypecheck(1)
-				nvar.SetWalkdef(1)
-			}
-			ncase.Vars[0] = nvar
-		}
-
-		typecheckslice(ncase.Body, ctxStmt)
-	}
-}
-
-type typeSet struct {
-	m map[string][]typeSetEntry
-}
-
-type typeSetEntry struct {
-	pos src.XPos
-	typ *types.Type
-}
-
-func (s *typeSet) add(pos src.XPos, typ *types.Type) {
-	if s.m == nil {
-		s.m = make(map[string][]typeSetEntry)
-	}
-
-	// LongString does not uniquely identify types, so we need to
-	// disambiguate collisions with types.Identical.
-	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.LongString()
-	prevs := s.m[ls]
-	for _, prev := range prevs {
-		if types.Identical(typ, prev.typ) {
-			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
-			return
-		}
-	}
-	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
-}
-
-func typecheckExprSwitch(n *ir.SwitchStmt) {
-	t := types.Types[types.TBOOL]
-	if n.Tag != nil {
-		n.Tag = typecheck(n.Tag, ctxExpr)
-		n.Tag = defaultlit(n.Tag, nil)
-		t = n.Tag.Type()
-	}
-
-	var nilonly string
-	if t != nil {
-		switch {
-		case t.IsMap():
-			nilonly = "map"
-		case t.Kind() == types.TFUNC:
-			nilonly = "func"
-		case t.IsSlice():
-			nilonly = "slice"
-
-		case !types.IsComparable(t):
-			if t.IsStruct() {
-				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, types.IncomparableField(t).Type)
-			} else {
-				base.ErrorfAt(n.Pos(), "cannot switch on %L", n.Tag)
-			}
-			t = nil
-		}
-	}
-
-	var defCase ir.Node
-	var cs constSet
-	for _, ncase := range n.Cases {
-		ncase := ncase.(*ir.CaseStmt)
-		ls := ncase.List
-		if len(ls) == 0 { // default:
-			if defCase != nil {
-				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
-			} else {
-				defCase = ncase
-			}
-		}
-
-		for i := range ls {
-			ir.SetPos(ncase)
-			ls[i] = typecheck(ls[i], ctxExpr)
-			ls[i] = defaultlit(ls[i], t)
-			n1 := ls[i]
-			if t == nil || n1.Type() == nil {
-				continue
-			}
-
-			if nilonly != "" && !ir.IsNil(n1) {
-				base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Tag)
-			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
-				base.ErrorfAt(ncase.Pos(), "invalid case %L in switch (incomparable type)", n1)
-			} else {
-				op1, _ := assignop(n1.Type(), t)
-				op2, _ := assignop(t, n1.Type())
-				if op1 == ir.OXXX && op2 == ir.OXXX {
-					if n.Tag != nil {
-						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)
-					} else {
-						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type())
-					}
-				}
-			}
-
-			// Don't check for duplicate bools. Although the spec allows it,
-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-			// (2) it would disallow useful things like
-			//       case GOARCH == "arm" && GOARM == "5":
-			//       case GOARCH == "arm":
-			//     which would both evaluate to false for non-ARM compiles.
-			if !n1.Type().IsBoolean() {
-				cs.add(ncase.Pos(), n1, "case", "switch")
-			}
-		}
-
-		typecheckslice(ncase.Body, ctxStmt)
-	}
-}
 
 // walkswitch walks a switch statement.
 func walkswitch(sw *ir.SwitchStmt) {
@@ -254,8 +40,8 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 	// convert switch {...} to switch true {...}
 	if cond == nil {
 		cond = ir.NewBool(true)
-		cond = typecheck(cond, ctxExpr)
-		cond = defaultlit(cond, nil)
+		cond = typecheck.Expr(cond)
+		cond = typecheck.DefaultLit(cond, nil)
 	}
 
 	// Given "switch string(byteslice)",
@@ -285,7 +71,7 @@ func walkExprSwitch(sw *ir.SwitchStmt) {
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
 		ncase := ncase.(*ir.CaseStmt)
-		label := autolabel(".s")
+		label := typecheck.AutoLabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
 		// Process case dispatch.
@@ -509,7 +295,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 
 	s.facename = walkexpr(s.facename, sw.PtrInit())
 	s.facename = copyexpr(s.facename, s.facename.Type(), &sw.Compiled)
-	s.okname = temp(types.Types[types.TBOOL])
+	s.okname = typecheck.Temp(types.Types[types.TBOOL])
 
 	// Get interface descriptor word.
 	// For empty interfaces this will be the type.
@@ -523,10 +309,10 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 	//     h := e._type.hash
 	// Use a similar strategy for non-empty interfaces.
 	ifNil := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, itab, nodnil())
+	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, itab, typecheck.NodNil())
 	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
-	ifNil.Cond = typecheck(ifNil.Cond, ctxExpr)
-	ifNil.Cond = defaultlit(ifNil.Cond, nil)
+	ifNil.Cond = typecheck.Expr(ifNil.Cond)
+	ifNil.Cond = typecheck.DefaultLit(ifNil.Cond, nil)
 	// ifNil.Nbody assigned at end.
 	sw.Compiled.Append(ifNil)
 
@@ -561,7 +347,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 		}
 		caseVarInitialized := false
 
-		label := autolabel(".s")
+		label := typecheck.AutoLabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
 		if len(ncase.List) == 0 { // default:
@@ -602,7 +388,7 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 				ir.NewDecl(ncase.Pos(), ir.ODCL, caseVar),
 				ir.NewAssignStmt(ncase.Pos(), caseVar, val),
 			}
-			typecheckslice(l, ctxStmt)
+			typecheck.Stmts(l)
 			body.Append(l...)
 		}
 		body.Append(ncase.Body...)
@@ -648,7 +434,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 			ir.NewDecl(pos, ir.ODCL, caseVar),
 			ir.NewAssignStmt(pos, caseVar, nil),
 		}
-		typecheckslice(l, ctxStmt)
+		typecheck.Stmts(l)
 		body.Append(l...)
 	} else {
 		caseVar = ir.BlankNode
@@ -740,8 +526,8 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 				nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
 				leaf(i, nif)
 				base.Pos = base.Pos.WithNotStmt()
-				nif.Cond = typecheck(nif.Cond, ctxExpr)
-				nif.Cond = defaultlit(nif.Cond, nil)
+				nif.Cond = typecheck.Expr(nif.Cond)
+				nif.Cond = typecheck.DefaultLit(nif.Cond, nil)
 				out.Append(nif)
 				out = &nif.Else
 			}
@@ -752,8 +538,8 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		nif.Cond = less(half)
 		base.Pos = base.Pos.WithNotStmt()
-		nif.Cond = typecheck(nif.Cond, ctxExpr)
-		nif.Cond = defaultlit(nif.Cond, nil)
+		nif.Cond = typecheck.Expr(nif.Cond)
+		nif.Cond = typecheck.DefaultLit(nif.Cond, nil)
 		do(lo, half, &nif.Body)
 		do(half, hi, &nif.Else)
 		out.Append(nif)

@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
@@ -117,14 +118,14 @@ func dumpCompilerObj(bout *bio.Writer) {
 }
 
 func dumpdata() {
-	numExterns := len(Target.Externs)
-	numDecls := len(Target.Decls)
+	numExterns := len(typecheck.Target.Externs)
+	numDecls := len(typecheck.Target.Decls)
 
-	dumpglobls(Target.Externs)
+	dumpglobls(typecheck.Target.Externs)
 	dumpfuncsyms()
 	addptabs()
-	numExports := len(Target.Exports)
-	addsignats(Target.Externs)
+	numExports := len(typecheck.Target.Exports)
+	addsignats(typecheck.Target.Externs)
 	dumpsignats()
 	dumptabs()
 	numPTabs, numITabs := CountTabs()
@@ -140,22 +141,22 @@ func dumpdata() {
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
 	for {
-		for i := numDecls; i < len(Target.Decls); i++ {
-			n := Target.Decls[i]
+		for i := numDecls; i < len(typecheck.Target.Decls); i++ {
+			n := typecheck.Target.Decls[i]
 			if n.Op() == ir.ODCLFUNC {
 				funccompile(n.(*ir.Func))
 			}
 		}
-		numDecls = len(Target.Decls)
+		numDecls = len(typecheck.Target.Decls)
 		compileFunctions()
 		dumpsignats()
-		if numDecls == len(Target.Decls) {
+		if numDecls == len(typecheck.Target.Decls) {
 			break
 		}
 	}
 
 	// Dump extra globals.
-	dumpglobls(Target.Externs[numExterns:])
+	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if zerosize > 0 {
 		zero := ir.Pkgs.Map.Lookup("zero")
@@ -164,7 +165,7 @@ func dumpdata() {
 
 	addGCLocals()
 
-	if numExports != len(Target.Exports) {
+	if numExports != len(typecheck.Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
 	newNumPTabs, newNumITabs := CountTabs()
@@ -179,11 +180,11 @@ func dumpdata() {
 func dumpLinkerObj(bout *bio.Writer) {
 	printObjHeader(bout)
 
-	if len(Target.CgoPragmas) != 0 {
+	if len(typecheck.Target.CgoPragmas) != 0 {
 		// write empty export section; must be before cgo section
 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		if err := json.NewEncoder(bout).Encode(Target.CgoPragmas); err != nil {
+		if err := json.NewEncoder(bout).Encode(typecheck.Target.CgoPragmas); err != nil {
 			base.Fatalf("serializing pragcgobuf: %v", err)
 		}
 		fmt.Fprintf(bout, "\n$$\n\n")
@@ -198,7 +199,7 @@ func addptabs() {
 	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
 		return
 	}
-	for _, exportn := range Target.Exports {
+	for _, exportn := range typecheck.Target.Exports {
 		s := exportn.Sym()
 		nn := ir.AsNode(s.Def)
 		if nn == nil {
@@ -474,7 +475,7 @@ func slicedata(pos src.XPos, s string) *ir.Name {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
 	sym := types.LocalPkg.Lookup(symname)
-	symnode := NewName(sym)
+	symnode := typecheck.NewName(sym)
 	sym.Def = symnode
 
 	lsym := sym.Linksym()

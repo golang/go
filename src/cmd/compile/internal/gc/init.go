@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
@@ -17,12 +18,8 @@ import (
 // the name, normally "pkg.init", is altered to "pkg.init.0".
 var renameinitgen int
 
-// Function collecting autotmps generated during typechecking,
-// to be included in the package-level init function.
-var initTodo = ir.NewFunc(base.Pos)
-
 func renameinit() *types.Sym {
-	s := lookupN("init.", renameinitgen)
+	s := typecheck.LookupNum("init.", renameinitgen)
 	renameinitgen++
 	return s
 }
@@ -34,14 +31,14 @@ func renameinit() *types.Sym {
 //   2) Initialize all the variables that have initializers.
 //   3) Run any init functions.
 func fninit() *ir.Name {
-	nf := initOrder(Target.Decls)
+	nf := initOrder(typecheck.Target.Decls)
 
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization
 
 	// Find imported packages with init tasks.
-	for _, pkg := range Target.Imports {
-		n := resolve(ir.NewIdent(base.Pos, pkg.Lookup(".inittask")))
+	for _, pkg := range typecheck.Target.Imports {
+		n := typecheck.Resolve(ir.NewIdent(base.Pos, pkg.Lookup(".inittask")))
 		if n.Op() == ir.ONONAME {
 			continue
 		}
@@ -54,34 +51,34 @@ func fninit() *ir.Name {
 	// Make a function that contains all the initialization statements.
 	if len(nf) > 0 {
 		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
-		initializers := lookup("init")
-		fn := dclfunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
-		for _, dcl := range initTodo.Dcl {
+		initializers := typecheck.Lookup("init")
+		fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+		for _, dcl := range typecheck.InitTodoFunc.Dcl {
 			dcl.Curfn = fn
 		}
-		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
-		initTodo.Dcl = nil
+		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
+		typecheck.InitTodoFunc.Dcl = nil
 
 		fn.Body.Set(nf)
-		funcbody()
+		typecheck.FinishFuncBody()
 
-		typecheckFunc(fn)
+		typecheck.Func(fn)
 		ir.CurFunc = fn
-		typecheckslice(nf, ctxStmt)
+		typecheck.Stmts(nf)
 		ir.CurFunc = nil
-		Target.Decls = append(Target.Decls, fn)
+		typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 		fns = append(fns, initializers.Linksym())
 	}
-	if initTodo.Dcl != nil {
+	if typecheck.InitTodoFunc.Dcl != nil {
 		// We only generate temps using initTodo if there
 		// are package-scope initialization statements, so
 		// something's weird if we get here.
 		base.Fatalf("initTodo still has declarations")
 	}
-	initTodo = nil
+	typecheck.InitTodoFunc = nil
 
 	// Record user init functions.
-	for _, fn := range Target.Inits {
+	for _, fn := range typecheck.Target.Inits {
 		// Skip init functions with empty bodies.
 		if len(fn.Body) == 1 {
 			if stmt := fn.Body[0]; stmt.Op() == ir.OBLOCK && len(stmt.(*ir.BlockStmt).List) == 0 {
@@ -96,8 +93,8 @@ func fninit() *ir.Name {
 	}
 
 	// Make an .inittask structure.
-	sym := lookup(".inittask")
-	task := NewName(sym)
+	sym := typecheck.Lookup(".inittask")
+	task := typecheck.NewName(sym)
 	task.SetType(types.Types[types.TUINT8]) // fake type
 	task.Class_ = ir.PEXTERN
 	sym.Def = task

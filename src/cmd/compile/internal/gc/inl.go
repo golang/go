@@ -30,6 +30,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -54,7 +55,7 @@ const (
 
 func InlinePackage() {
 	// Find functions that can be inlined and clone them before walk expands them.
-	ir.VisitFuncsBottomUp(Target.Decls, func(list []*ir.Func, recursive bool) {
+	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		numfns := numNonClosures(list)
 		for _, n := range list {
 			if !recursive || numfns > 1 {
@@ -70,63 +71,6 @@ func InlinePackage() {
 			inlcalls(n)
 		}
 	})
-}
-
-// Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
-// the ->sym can be re-used in the local package, so peel it off the receiver's type.
-func fnpkg(fn *ir.Name) *types.Pkg {
-	if ir.IsMethod(fn) {
-		// method
-		rcvr := fn.Type().Recv().Type
-
-		if rcvr.IsPtr() {
-			rcvr = rcvr.Elem()
-		}
-		if rcvr.Sym() == nil {
-			base.Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym(), fn, rcvr)
-		}
-		return rcvr.Sym().Pkg
-	}
-
-	// non-method
-	return fn.Sym().Pkg
-}
-
-// Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
-// because they're a copy of an already checked body.
-func typecheckinl(fn *ir.Func) {
-	lno := ir.SetPos(fn.Nname)
-
-	expandInline(fn)
-
-	// typecheckinl is only for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before caninl copied it.
-	pkg := fnpkg(fn.Nname)
-
-	if pkg == types.LocalPkg || pkg == nil {
-		return // typecheckinl on local function
-	}
-
-	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	savefn := ir.CurFunc
-	ir.CurFunc = fn
-	typecheckslice(fn.Inl.Body, ctxStmt)
-	ir.CurFunc = savefn
-
-	// During expandInline (which imports fn.Func.Inl.Body),
-	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
-	// to fn.Func.Inl.Dcl for consistency with how local functions
-	// behave. (Append because typecheckinl may be called multiple
-	// times.)
-	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
-	fn.Dcl = nil
-
-	base.Pos = lno
 }
 
 // Caninl determines whether fn is inlineable.
@@ -270,7 +214,7 @@ func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
 	}
 	fn.SetExportInline(true)
 
-	typecheckinl(fn)
+	typecheck.ImportedBody(fn)
 
 	// Recursively identify all referenced functions for
 	// reexport. We want to include even non-called functions,
@@ -601,7 +545,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 			as.Rhs.Set(inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr)))
 			as.SetOp(ir.OAS2)
 			as.SetTypecheck(0)
-			n = typecheck(as, ctxStmt)
+			n = typecheck.Stmt(as)
 		}
 	}
 
@@ -768,7 +712,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		inlMap[fn] = false
 	}()
 	if base.Debug.TypecheckInl == 0 {
-		typecheckinl(fn)
+		typecheck.ImportedBody(fn)
 	}
 
 	// We have a function node, and it has an inlineable body.
@@ -824,21 +768,21 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			}
 
 			if v.Byval() {
-				iv := typecheck(inlvar(v), ctxExpr)
+				iv := typecheck.Expr(inlvar(v))
 				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv))
-				ninit.Append(typecheck(ir.NewAssignStmt(base.Pos, iv, o), ctxStmt))
+				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, iv, o)))
 				inlvars[v] = iv
 			} else {
-				addr := NewName(lookup("&" + v.Sym().Name))
+				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
 				addr.SetType(types.NewPtr(v.Type()))
-				ia := typecheck(inlvar(addr), ctxExpr)
+				ia := typecheck.Expr(inlvar(addr))
 				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia))
-				ninit.Append(typecheck(ir.NewAssignStmt(base.Pos, ia, nodAddr(o)), ctxStmt))
+				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ia, typecheck.NodAddr(o))))
 				inlvars[addr] = ia
 
 				// When capturing by reference, all occurrence of the captured var
 				// must be substituted with dereference of the temporary address
-				inlvars[v] = typecheck(ir.NewStarExpr(base.Pos, ia), ctxExpr)
+				inlvars[v] = typecheck.Expr(ir.NewStarExpr(base.Pos, ia))
 			}
 		}
 	}
@@ -857,7 +801,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			// nothing should have moved to the heap yet.
 			base.Fatalf("impossible: %v", ln)
 		}
-		inlf := typecheck(inlvar(ln), ctxExpr)
+		inlf := typecheck.Expr(inlvar(ln))
 		inlvars[ln] = inlf
 		if base.Flag.GenDwarfInl > 0 {
 			if ln.Class_ == ir.PPARAM {
@@ -889,7 +833,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		if n := ir.AsNode(t.Nname); n != nil && !ir.IsBlank(n) && !strings.HasPrefix(n.Sym().Name, "~r") {
 			n := n.(*ir.Name)
 			m = inlvar(n)
-			m = typecheck(m, ctxExpr)
+			m = typecheck.Expr(m)
 			inlvars[n] = m
 			delayretvars = false // found a named result parameter
 		} else {
@@ -951,7 +895,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		vas = ir.NewAssignStmt(base.Pos, nil, nil)
 		vas.X = inlParam(param, vas, inlvars)
 		if len(varargs) == 0 {
-			vas.Y = nodnil()
+			vas.Y = typecheck.NodNil()
 			vas.Y.SetType(param.Type)
 		} else {
 			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type).(ir.Ntype), nil)
@@ -961,11 +905,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	if len(as.Rhs) != 0 {
-		ninit.Append(typecheck(as, ctxStmt))
+		ninit.Append(typecheck.Stmt(as))
 	}
 
 	if vas != nil {
-		ninit.Append(typecheck(vas, ctxStmt))
+		ninit.Append(typecheck.Stmt(vas))
 	}
 
 	if !delayretvars {
@@ -973,11 +917,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		for _, n := range retvars {
 			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n))
 			ras := ir.NewAssignStmt(base.Pos, n, nil)
-			ninit.Append(typecheck(ras, ctxStmt))
+			ninit.Append(typecheck.Stmt(ras))
 		}
 	}
 
-	retlabel := autolabel(".i")
+	retlabel := typecheck.AutoLabel(".i")
 
 	inlgen++
 
@@ -1021,7 +965,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
-	typecheckslice(body, ctxStmt)
+	typecheck.Stmts(body)
 
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {
@@ -1061,7 +1005,7 @@ func inlvar(var_ ir.Node) ir.Node {
 		fmt.Printf("inlvar %+v\n", var_)
 	}
 
-	n := NewName(var_.Sym())
+	n := typecheck.NewName(var_.Sym())
 	n.SetType(var_.Type())
 	n.Class_ = ir.PAUTO
 	n.SetUsed(true)
@@ -1074,7 +1018,7 @@ func inlvar(var_ ir.Node) ir.Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *types.Field, i int) ir.Node {
-	n := NewName(lookupN("~R", i))
+	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
 	n.Class_ = ir.PAUTO
 	n.SetUsed(true)
@@ -1086,7 +1030,7 @@ func retvar(t *types.Field, i int) ir.Node {
 // Synthesize a variable to store the inlined function's arguments
 // when they come from a multiple return call.
 func argvar(t *types.Type, i int) ir.Node {
-	n := NewName(lookupN("~arg", i))
+	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
 	n.SetType(t.Elem())
 	n.Class_ = ir.PAUTO
 	n.SetUsed(true)
@@ -1198,10 +1142,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 				}
 			}
 
-			init = append(init, typecheck(as, ctxStmt))
+			init = append(init, typecheck.Stmt(as))
 		}
 		init = append(init, ir.NewBranchStmt(base.Pos, ir.OGOTO, subst.retlabel))
-		typecheckslice(init, ctxStmt)
+		typecheck.Stmts(init)
 		return ir.NewBlockStmt(base.Pos, init)
 
 	case ir.OGOTO:
@@ -1210,7 +1154,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		m.SetPos(subst.updatedPos(m.Pos()))
 		m.PtrInit().Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
-		m.Label = lookup(p)
+		m.Label = typecheck.Lookup(p)
 		return m
 
 	case ir.OLABEL:
@@ -1219,7 +1163,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		m.SetPos(subst.updatedPos(m.Pos()))
 		m.PtrInit().Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
-		m.Label = lookup(p)
+		m.Label = typecheck.Lookup(p)
 		return m
 	}
 
@@ -1284,7 +1228,7 @@ func devirtualizeCall(call *ir.CallExpr) {
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
 	dt.SetType(typ)
-	x := typecheck(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel), ctxExpr|ctxCallee)
+	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
 	switch x.Op() {
 	case ir.ODOTMETH:
 		x := x.(*ir.SelectorExpr)
