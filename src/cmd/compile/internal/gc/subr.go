@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
@@ -484,7 +485,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
 		inline.InlineCalls(fn)
 	}
-	escapeFuncs([]*ir.Func{fn}, false)
+	escape.Batch([]*ir.Func{fn}, false)
 
 	ir.CurFunc = nil
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
