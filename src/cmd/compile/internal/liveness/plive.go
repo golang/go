@@ -179,11 +179,7 @@ type progeffectscache struct {
 // nor do we care about non-local variables,
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
-func ShouldTrack(nn ir.Node) bool {
-	if nn.Op() != ir.ONAME {
-		return false
-	}
-	n := nn.(*ir.Name)
+func ShouldTrack(n *ir.Name) bool {
 	return (n.Class_ == ir.PAUTO || n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT) && n.Type().HasPointers()
 }
 
@@ -248,19 +244,17 @@ const (
 // liveness effects v has on that variable.
 // If v does not affect any tracked variables, it returns -1, 0.
 func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
-	n, e := affectedNode(v)
-	if e == 0 || n == nil || n.Op() != ir.ONAME { // cheapest checks first
+	n, e := affectedVar(v)
+	if e == 0 || n == nil { // cheapest checks first
 		return -1, 0
 	}
-
-	nn := n.(*ir.Name)
 	// AllocFrame has dropped unused variables from
 	// lv.fn.Func.Dcl, but they might still be referenced by
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !nn.Name().Used() {
+		if !n.Name().Used() {
 			return -1, 0
 		}
 	}
@@ -283,14 +277,14 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		return -1, 0
 	}
 
-	if pos, ok := lv.idx[nn]; ok {
+	if pos, ok := lv.idx[n]; ok {
 		return pos, effect
 	}
 	return -1, 0
 }
 
-// affectedNode returns the *Node affected by v
-func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
+// affectedVar returns the *ir.Name node affected by v
+func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 	// Special cases.
 	switch v.Op {
 	case ssa.OpLoadReg:
