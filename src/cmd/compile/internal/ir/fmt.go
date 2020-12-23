@@ -800,10 +800,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OSLICEHEADER:
 		n := n.(*SliceHeaderExpr)
-		if len(n.LenCap) != 2 {
-			base.Fatalf("bad OSLICEHEADER list length %d", len(n.LenCap))
-		}
-		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap[0], n.LenCap[1])
+		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.Len, n.Cap)
 
 	case OCOMPLEX, OCOPY:
 		n := n.(*BinaryExpr)
