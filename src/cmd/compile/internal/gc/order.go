@@ -362,7 +362,7 @@ func (o *Order) stmtList(l ir.Nodes) {
 // and rewrites it to:
 //  m = OMAKESLICECOPY([]T, x, s); nil
 func orderMakeSliceCopy(s []ir.Node) {
-	if base.Flag.N != 0 || instrumenting {
+	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return
 	}
 	if len(s) < 2 || s[0] == nil || s[0].Op() != ir.OAS || s[1] == nil || s[1].Op() != ir.OCOPY {
@@ -580,7 +580,7 @@ func (o *Order) mapAssign(n ir.Node) {
 					m.Index = o.copyExpr(m.Index)
 				}
 				fallthrough
-			case instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
+			case base.Flag.Cfg.Instrumenting && n.Op() == ir.OAS2FUNC && !ir.IsBlank(m):
 				t := o.newTemp(m.Type(), false)
 				n.Lhs[i] = t
 				a := ir.NewAssignStmt(base.Pos, m, t)
@@ -639,7 +639,7 @@ func (o *Order) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 		n.Y = o.expr(n.Y, nil)
 
-		if instrumenting || n.X.Op() == ir.OINDEXMAP && (n.AsOp == ir.ODIV || n.AsOp == ir.OMOD) {
+		if base.Flag.Cfg.Instrumenting || n.X.Op() == ir.OINDEXMAP && (n.AsOp == ir.ODIV || n.AsOp == ir.OMOD) {
 			// Rewrite m[k] op= r into m[k] = m[k] op r so
 			// that we can ensure that if op panics
 			// because r is zero, the panic happens before
@@ -1008,7 +1008,7 @@ func (o *Order) stmt(n ir.Node) {
 		t := o.markTemp()
 		n.Chan = o.expr(n.Chan, nil)
 		n.Value = o.expr(n.Value, nil)
-		if instrumenting {
+		if base.Flag.Cfg.Instrumenting {
 			// Force copying to the stack so that (chan T)(nil) <- x
 			// is still instrumented as a read of x.
 			n.Value = o.copyExpr(n.Value)
@@ -1156,7 +1156,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 			// conversions. See copyExpr a few lines below.
 			needCopy = mapKeyReplaceStrConv(n.Index)
 
-			if instrumenting {
+			if base.Flag.Cfg.Instrumenting {
 				// Race detector needs the copy.
 				needCopy = true
 			}
@@ -1194,7 +1194,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 			// together. See golang.org/issue/15329.
 			o.init(call)
 			o.call(call)
-			if lhs == nil || lhs.Op() != ir.ONAME || instrumenting {
+			if lhs == nil || lhs.Op() != ir.ONAME || base.Flag.Cfg.Instrumenting {
 				return o.copyExpr(n)
 			}
 		} else {
@@ -1267,7 +1267,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 			o.call(n)
 		}
 
-		if lhs == nil || lhs.Op() != ir.ONAME || instrumenting {
+		if lhs == nil || lhs.Op() != ir.ONAME || base.Flag.Cfg.Instrumenting {
 			return o.copyExpr(n)
 		}
 		return n
@@ -1332,7 +1332,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
 		n.X = o.expr(n.X, nil)
-		if !isdirectiface(n.Type()) || instrumenting {
+		if !isdirectiface(n.Type()) || base.Flag.Cfg.Instrumenting {
 			return o.copyExprClear(n)
 		}
 		return n

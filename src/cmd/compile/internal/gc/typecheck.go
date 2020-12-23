@@ -25,7 +25,7 @@ func TypecheckInit() {
 	types.Dowidth = dowidth
 	initUniverse()
 	dclcontext = ir.PEXTERN
-	timings.Start("fe", "loadsys")
+	base.Timer.Start("fe", "loadsys")
 	loadsys()
 }
 
@@ -45,7 +45,7 @@ func TypecheckPackage() {
 	//   TODO(gri) Remove this again once we have a fix for #25838.
 
 	// Don't use range--typecheck can add closures to Target.Decls.
-	timings.Start("fe", "typecheck", "top1")
+	base.Timer.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(Target.Decls); i++ {
 		n := Target.Decls[i]
 		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Name().Alias()) {
@@ -57,7 +57,7 @@ func TypecheckPackage() {
 	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to Target.Decls.
-	timings.Start("fe", "typecheck", "top2")
+	base.Timer.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(Target.Decls); i++ {
 		n := Target.Decls[i]
 		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Name().Alias() {
@@ -67,7 +67,7 @@ func TypecheckPackage() {
 
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to Target.Decls.
-	timings.Start("fe", "typecheck", "func")
+	base.Timer.Start("fe", "typecheck", "func")
 	var fcount int64
 	for i := 0; i < len(Target.Decls); i++ {
 		n := Target.Decls[i]
@@ -80,7 +80,7 @@ func TypecheckPackage() {
 	// Phase 4: Check external declarations.
 	// TODO(mdempsky): This should be handled when type checking their
 	// corresponding ODCL nodes.
-	timings.Start("fe", "typecheck", "externdcls")
+	base.Timer.Start("fe", "typecheck", "externdcls")
 	for i, n := range Target.Externs {
 		if n.Op() == ir.ONAME {
 			Target.Externs[i] = typecheck(Target.Externs[i], ctxExpr)
@@ -93,7 +93,7 @@ func TypecheckPackage() {
 	// Phase 6: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
-	timings.Start("fe", "capturevars")
+	base.Timer.Start("fe", "capturevars")
 	for _, n := range Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
 			n := n.(*ir.Func)
@@ -161,9 +161,6 @@ func TypecheckImports() {
 		}
 	}
 }
-
-// To enable tracing support (-t flag), set enableTrace to true.
-const enableTrace = false
 
 var traceIndent []byte
 var skipDowidthForTracing bool
@@ -234,7 +231,7 @@ func resolve(n ir.Node) (res ir.Node) {
 	}
 
 	// only trace if there's work to do
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("resolve", n)(&res)
 	}
 
@@ -379,7 +376,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	}
 
 	// only trace if there's work to do
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheck", n)(&res)
 	}
 
@@ -568,7 +565,7 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) (res ir.Node) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheck1", n)(&res)
 	}
 
@@ -2552,7 +2549,7 @@ func lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
 // typecheckMethodExpr checks selector expressions (ODOT) where the
 // base expression is a type expression (OTYPE).
 func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckMethodExpr", n)(&res)
 	}
 
@@ -2991,7 +2988,7 @@ func pushtype(nn ir.Node, t *types.Type) ir.Node {
 // The result of typecheckcomplit MUST be assigned back to n, e.g.
 // 	n.Left = typecheckcomplit(n.Left)
 func typecheckcomplit(n *ir.CompLitExpr) (res ir.Node) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckcomplit", n)(&res)
 	}
 
@@ -3435,7 +3432,7 @@ func samesafeexpr(l ir.Node, r ir.Node) bool {
 // if this assignment is the definition of a var on the left side,
 // fill in the var's type.
 func typecheckas(n *ir.AssignStmt) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckas", n)(nil)
 	}
 
@@ -3493,7 +3490,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 }
 
 func typecheckas2(n *ir.AssignListStmt) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckas2", n)(nil)
 	}
 
@@ -3627,7 +3624,7 @@ out:
 // To be called by typecheck, not directly.
 // (Call typecheckFunc instead.)
 func typecheckfunc(n *ir.Func) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckfunc", n)(nil)
 	}
 
@@ -3691,7 +3688,7 @@ func checkMapKeys() {
 }
 
 func typecheckdeftype(n *ir.Name) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
 	}
 
@@ -3723,7 +3720,7 @@ func typecheckdeftype(n *ir.Name) {
 }
 
 func typecheckdef(n ir.Node) {
-	if enableTrace && base.Flag.LowerT {
+	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdef", n)(nil)
 	}
 

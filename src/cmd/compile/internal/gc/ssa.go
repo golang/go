@@ -2281,7 +2281,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			return nil
 		}
 
-		if instrumenting {
+		if base.Flag.Cfg.Instrumenting {
 			// These appear to be fine, but they fail the
 			// integer constraint below, so okay them here.
 			// Sample non-integer conversion: map[string]string -> *uint8
@@ -3490,7 +3490,7 @@ func initSSATables() {
 	}
 
 	/******** runtime ********/
-	if !instrumenting {
+	if !base.Flag.Cfg.Instrumenting {
 		add("runtime", "slicebytetostringtmp",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
