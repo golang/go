@@ -427,7 +427,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p2)
+		p4.To.SetTarget(p2)
 	case ssa.OpMIPSLoweredMove:
 		// SUBU	$4, R1
 		// MOVW	4(R1), Rtmp
@@ -480,7 +480,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p6.From.Reg = v.Args[2].Reg()
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p6, p2)
+		p6.To.SetTarget(p2)
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
 	case ssa.OpMIPSLoweredWB:
@@ -577,7 +577,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicAdd:
@@ -613,7 +613,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -657,7 +657,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -701,7 +701,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -750,12 +750,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Reg0()
 		p5.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p5, p1)
+		p5.To.SetTarget(p1)
 
 		s.Prog(mips.ASYNC)
 
 		p6 := s.Prog(obj.ANOP)
-		gc.Patch(p2, p6)
+		p2.To.SetTarget(p6)
 
 	case ssa.OpMIPSLoweredNilCheck:
 		// Issue a load which will fault if arg is nil.

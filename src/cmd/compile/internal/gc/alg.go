@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -110,9 +111,9 @@ func genhash(t *types.Type) *obj.LSym {
 			memhashvarlen = typecheck.LookupRuntimeFunc("memhash_varlen")
 		}
 		ot := 0
-		ot = dsymptr(closure, ot, memhashvarlen, 0)
-		ot = duintptr(closure, ot, uint64(t.Width)) // size encoded in closure
-		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
+		ot = objw.SymPtr(closure, ot, memhashvarlen, 0)
+		ot = objw.Uintptr(closure, ot, uint64(t.Width)) // size encoded in closure
+		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:
 		break
@@ -253,8 +254,8 @@ func genhash(t *types.Type) *obj.LSym {
 
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
-	dsymptr(closure, 0, sym.Linksym(), 0)
-	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 
 	return closure
 }
@@ -302,8 +303,8 @@ func sysClosure(name string) *obj.LSym {
 	s := typecheck.LookupRuntimeVar(name + "·f")
 	if len(s.P) == 0 {
 		f := typecheck.LookupRuntimeFunc(name)
-		dsymptr(s, 0, f, 0)
-		ggloblsym(s, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+		objw.SymPtr(s, 0, f, 0)
+		objw.Global(s, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	}
 	return s
 }
@@ -353,9 +354,9 @@ func geneq(t *types.Type) *obj.LSym {
 			memequalvarlen = typecheck.LookupRuntimeVar("memequal_varlen") // asm func
 		}
 		ot := 0
-		ot = dsymptr(closure, ot, memequalvarlen, 0)
-		ot = duintptr(closure, ot, uint64(t.Width))
-		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
+		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
+		ot = objw.Uintptr(closure, ot, uint64(t.Width))
+		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:
 		break
@@ -632,8 +633,8 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	// Generate a closure which points at the function we just generated.
-	dsymptr(closure, 0, sym.Linksym(), 0)
-	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+	objw.SymPtr(closure, 0, sym.Linksym(), 0)
+	objw.Global(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	return closure
 }
 

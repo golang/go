@@ -709,7 +709,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		bne := s.Prog(s390x.ABLT)
 		bne.To.Type = obj.TYPE_BRANCH
-		gc.Patch(bne, mvc)
+		bne.To.SetTarget(mvc)
 
 		if v.AuxInt > 0 {
 			mvc := s.Prog(s390x.AMVC)
@@ -751,7 +751,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		bne := s.Prog(s390x.ABLT)
 		bne.To.Type = obj.TYPE_BRANCH
-		gc.Patch(bne, clear)
+		bne.To.SetTarget(clear)
 
 		if v.AuxInt > 0 {
 			clear := s.Prog(s390x.ACLEAR)
@@ -846,7 +846,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// NOP (so the BNE has somewhere to land)
 		nop := s.Prog(obj.ANOP)
-		gc.Patch(bne, nop)
+		bne.To.SetTarget(nop)
 	case ssa.OpS390XLoweredAtomicExchange32, ssa.OpS390XLoweredAtomicExchange64:
 		// Loop until the CS{,G} succeeds.
 		//     MOV{WZ,D} arg0, ret
@@ -873,7 +873,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BNE cs
 		bne := s.Prog(s390x.ABNE)
 		bne.To.Type = obj.TYPE_BRANCH
-		gc.Patch(bne, cs)
+		bne.To.SetTarget(cs)
 	case ssa.OpS390XSYNC:
 		s.Prog(s390x.ASYNC)
 	case ssa.OpClobber:

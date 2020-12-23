@@ -502,7 +502,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Reg = riscv.REG_TMP
 		p4.Reg = riscv.REG_ZERO
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p1)
+		p4.To.SetTarget(p1)
 
 		p5 := s.Prog(riscv.AMOV)
 		p5.From.Type = obj.TYPE_CONST
@@ -511,7 +511,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.To.Reg = out
 
 		p6 := s.Prog(obj.ANOP)
-		gc.Patch(p2, p6)
+		p2.To.SetTarget(p6)
 
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)
@@ -537,7 +537,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.Reg = v.Args[0].Reg()
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = v.Args[1].Reg()
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 	case ssa.OpRISCV64LoweredMove:
 		mov, sz := largestMove(v.AuxInt)
@@ -577,7 +577,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.Reg = v.Args[1].Reg()
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Args[2].Reg()
-		gc.Patch(p5, p)
+		p5.To.SetTarget(p)
 
 	case ssa.OpRISCV64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
