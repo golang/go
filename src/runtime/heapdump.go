@@ -403,9 +403,10 @@ func dumpgoroutine(gp *g) {
 }
 
 func dumpgs() {
+	assertWorldStopped()
+
 	// goroutines & stacks
-	for i := 0; uintptr(i) < allglen; i++ {
-		gp := allgs[i]
+	forEachG(func(gp *g) {
 		status := readgstatus(gp) // The world is stopped so gp will not be in a scan state.
 		switch status {
 		default:
@@ -418,7 +419,7 @@ func dumpgs() {
 			_Gwaiting:
 			dumpgoroutine(gp)
 		}
-	}
+	})
 }
 
 func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, ot *ptrtype) {
