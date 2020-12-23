@@ -439,7 +439,7 @@ func getdyn(n ir.Node, top bool) initGenType {
 		if !top {
 			return initDynamic
 		}
-		if n.Len/4 > int64(n.List.Len()) {
+		if n.Len/4 > int64(len(n.List)) {
 			// <25% of entries have explicit values.
 			// Very rough estimation, it takes 4 bytes of instructions
 			// to initialize 1 byte of result. So don't use a static
@@ -454,7 +454,7 @@ func getdyn(n ir.Node, top bool) initGenType {
 	lit := n.(*ir.CompLitExpr)
 
 	var mode initGenType
-	for _, n1 := range lit.List.Slice() {
+	for _, n1 := range lit.List {
 		switch n1.Op() {
 		case ir.OKEY:
 			n1 = n1.(*ir.KeyExpr).Value
@@ -476,7 +476,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 		return false
 	case ir.OARRAYLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, r := range n.List.Slice() {
+		for _, r := range n.List {
 			if r.Op() == ir.OKEY {
 				r = r.(*ir.KeyExpr).Value
 			}
@@ -487,7 +487,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 		return true
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, r := range n.List.Slice() {
+		for _, r := range n.List {
 			r := r.(*ir.StructKeyExpr)
 			if !isStaticCompositeLiteral(r.Value) {
 				return false
@@ -568,7 +568,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		base.Fatalf("fixedlit bad op: %v", n.Op())
 	}
 
-	for _, r := range n.List.Slice() {
+	for _, r := range n.List {
 		a, value := splitnode(r)
 		if a == ir.BlankNode && !anySideEffects(value) {
 			// Discard.
@@ -722,7 +722,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 	// put dynamics into array (5)
 	var index int64
-	for _, value := range n.List.Slice() {
+	for _, value := range n.List {
 		if value.Op() == ir.OKEY {
 			kv := value.(*ir.KeyExpr)
 			index = indexconst(kv.Key)
@@ -778,10 +778,10 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
 	a.SetEsc(n.Esc())
-	a.Args.Set2(ir.TypeNode(n.Type()), nodintconst(int64(n.List.Len())))
+	a.Args = []ir.Node{ir.TypeNode(n.Type()), nodintconst(int64(len(n.List)))}
 	litas(m, a, init)
 
-	entries := n.List.Slice()
+	entries := n.List
 
 	// The order pass already removed any dynamic (runtime-computed) entries.
 	// All remaining entries are static. Double-check that.
@@ -837,8 +837,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		body := ir.NewAssignStmt(base.Pos, lhs, rhs)
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
-		loop.Body.Set1(body)
-		loop.PtrInit().Set1(zero)
+		loop.Body = []ir.Node{body}
+		*loop.PtrInit() = []ir.Node{zero}
 
 		appendWalkStmt(init, loop)
 		return
@@ -910,7 +910,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			base.Fatalf("anylit: not struct/array")
 		}
 
-		if isSimpleName(var_) && n.List.Len() > 4 {
+		if isSimpleName(var_) && len(n.List) > 4 {
 			// lay out static data
 			vstat := readonlystaticname(t)
 
@@ -935,7 +935,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			components = int64(t.NumFields())
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
-		if isSimpleName(var_) || int64(n.List.Len()) < components {
+		if isSimpleName(var_) || int64(len(n.List)) < components {
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))
 		}
 
@@ -1058,7 +1058,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
 	case ir.OARRAYLIT, ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
 		var k int64
-		for _, a := range n.List.Slice() {
+		for _, a := range n.List {
 			if a.Op() == ir.OKEY {
 				kv := a.(*ir.KeyExpr)
 				k = indexconst(kv.Key)
@@ -1073,7 +1073,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
 
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, a := range n.List.Slice() {
+		for _, a := range n.List {
 			if a.Op() != ir.OSTRUCTKEY {
 				base.Fatalf("initplan structlit")
 			}
@@ -1086,7 +1086,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
 
 	case ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, a := range n.List.Slice() {
+		for _, a := range n.List {
 			if a.Op() != ir.OKEY {
 				base.Fatalf("initplan maplit")
 			}
@@ -1135,7 +1135,7 @@ func isZero(n ir.Node) bool {
 
 	case ir.OARRAYLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, n1 := range n.List.Slice() {
+		for _, n1 := range n.List {
 			if n1.Op() == ir.OKEY {
 				n1 = n1.(*ir.KeyExpr).Value
 			}
@@ -1147,7 +1147,7 @@ func isZero(n ir.Node) bool {
 
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
-		for _, n1 := range n.List.Slice() {
+		for _, n1 := range n.List {
 			n1 := n1.(*ir.StructKeyExpr)
 			if !isZero(n1.Value) {
 				return false

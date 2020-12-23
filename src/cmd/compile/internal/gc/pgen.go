@@ -207,7 +207,7 @@ func funccompile(fn *ir.Func) {
 	// assign parameter offsets
 	dowidth(fn.Type())
 
-	if fn.Body.Len() == 0 {
+	if len(fn.Body) == 0 {
 		// Initialize ABI wrappers if necessary.
 		initLSym(fn, false)
 		emitptrargsmap(fn)
@@ -360,7 +360,7 @@ func compileFunctions() {
 			// since they're most likely to be the slowest.
 			// This helps avoid stragglers.
 			sort.Slice(compilequeue, func(i, j int) bool {
-				return compilequeue[i].Body.Len() > compilequeue[j].Body.Len()
+				return len(compilequeue[i].Body) > len(compilequeue[j].Body)
 			})
 		}
 		var wg sync.WaitGroup

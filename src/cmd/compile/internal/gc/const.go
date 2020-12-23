@@ -534,7 +534,7 @@ func evalConst(n ir.Node) ir.Node {
 	case ir.OADDSTR:
 		// Merge adjacent constants in the argument list.
 		n := n.(*ir.AddStringExpr)
-		s := n.List.Slice()
+		s := n.List
 		need := 0
 		for i := 0; i < len(s); i++ {
 			if i == 0 || !ir.IsConst(s[i-1], constant.String) || !ir.IsConst(s[i], constant.String) {

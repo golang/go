@@ -313,10 +313,10 @@ func stmtFmt(n Node, s fmt.State) {
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so
-	simpleinit := n.Init().Len() == 1 && n.Init().First().Init().Len() == 0 && StmtWithInit(n.Op())
+	simpleinit := len(n.Init()) == 1 && len(n.Init()[0].Init()) == 0 && StmtWithInit(n.Op())
 
 	// otherwise, print the inits as separate statements
-	complexinit := n.Init().Len() != 0 && !simpleinit && exportFormat
+	complexinit := len(n.Init()) != 0 && !simpleinit && exportFormat
 
 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
 	extrablock := complexinit && StmtWithInit(n.Op())
@@ -368,7 +368,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OBLOCK:
 		n := n.(*BlockStmt)
-		if n.List.Len() != 0 {
+		if len(n.List) != 0 {
 			fmt.Fprintf(s, "%v", n.List)
 		}
 
@@ -395,11 +395,11 @@ func stmtFmt(n Node, s fmt.State) {
 	case OIF:
 		n := n.(*IfStmt)
 		if simpleinit {
-			fmt.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Cond, n.Body)
+			fmt.Fprintf(s, "if %v; %v { %v }", n.Init()[0], n.Cond, n.Body)
 		} else {
 			fmt.Fprintf(s, "if %v { %v }", n.Cond, n.Body)
 		}
-		if n.Else.Len() != 0 {
+		if len(n.Else) != 0 {
 			fmt.Fprintf(s, " else { %v }", n.Else)
 		}
 
@@ -416,7 +416,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 		fmt.Fprint(s, opname)
 		if simpleinit {
-			fmt.Fprintf(s, " %v;", n.Init().First())
+			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
 			fmt.Fprint(s, " ;")
 		}
@@ -431,7 +431,7 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprint(s, ";")
 		}
 
-		if n.Op() == OFORUNTIL && n.Late.Len() != 0 {
+		if n.Op() == OFORUNTIL && len(n.Late) != 0 {
 			fmt.Fprintf(s, "; %v", n.Late)
 		}
 
@@ -444,7 +444,7 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		if n.Vars.Len() == 0 {
+		if len(n.Vars) == 0 {
 			fmt.Fprintf(s, "for range %v { %v }", n.X, n.Body)
 			break
 		}
@@ -467,7 +467,7 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 		fmt.Fprintf(s, "switch")
 		if simpleinit {
-			fmt.Fprintf(s, " %v;", n.Init().First())
+			fmt.Fprintf(s, " %v;", n.Init()[0])
 		}
 		if n.Tag != nil {
 			fmt.Fprintf(s, " %v ", n.Tag)
@@ -476,7 +476,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OCASE:
 		n := n.(*CaseStmt)
-		if n.List.Len() != 0 {
+		if len(n.List) != 0 {
 			fmt.Fprintf(s, "case %.v", n.List)
 		} else {
 			fmt.Fprint(s, "default")
@@ -704,7 +704,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				return
 			}
 			if n.Ntype != nil {
-				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(n.List.Len() != 0))
+				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
 				return
 			}
 
@@ -720,7 +720,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		n := n.(*CompLitExpr)
 		if !exportFormat {
-			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List.Len() != 0))
+			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(len(n.List) != 0))
 			return
 		}
 		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
@@ -800,10 +800,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OSLICEHEADER:
 		n := n.(*SliceHeaderExpr)
-		if n.LenCap.Len() != 2 {
-			base.Fatalf("bad OSLICEHEADER list length %d", n.LenCap.Len())
+		if len(n.LenCap) != 2 {
+			base.Fatalf("bad OSLICEHEADER list length %d", len(n.LenCap))
 		}
-		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap.First(), n.LenCap.Second())
+		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap[0], n.LenCap[1])
 
 	case OCOMPLEX, OCOPY:
 		n := n.(*BinaryExpr)
@@ -936,7 +936,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OADDSTR:
 		n := n.(*AddStringExpr)
-		for i, n1 := range n.List.Slice() {
+		for i, n1 := range n.List {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
 			}
@@ -980,9 +980,9 @@ func (l Nodes) Format(s fmt.State, verb rune) {
 		sep = ", "
 	}
 
-	for i, n := range l.Slice() {
+	for i, n := range l {
 		fmt.Fprint(s, n)
-		if i+1 < l.Len() {
+		if i+1 < len(l) {
 			fmt.Fprint(s, sep)
 		}
 	}
@@ -1131,7 +1131,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		return
 	}
 
-	if n.Init().Len() != 0 {
+	if len(n.Init()) != 0 {
 		fmt.Fprintf(w, "%+v-init", n.Op())
 		dumpNodes(w, n.Init(), depth+1)
 		indent(w, depth)
@@ -1200,7 +1200,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 				dumpNode(w, dcl, depth+1)
 			}
 		}
-		if fn.Body.Len() > 0 {
+		if len(fn.Body) > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-body", n.Op())
 			dumpNodes(w, fn.Body, depth+1)
@@ -1247,7 +1247,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			}
 			dumpNode(w, val, depth+1)
 		case Nodes:
-			if val.Len() == 0 {
+			if len(val) == 0 {
 				continue
 			}
 			if name != "" {
@@ -1260,12 +1260,12 @@ func dumpNode(w io.Writer, n Node, depth int) {
 }
 
 func dumpNodes(w io.Writer, list Nodes, depth int) {
-	if list.Len() == 0 {
+	if len(list) == 0 {
 		fmt.Fprintf(w, " <nil>")
 		return
 	}
 
-	for _, n := range list.Slice() {
+	for _, n := range list {
 		dumpNode(w, n, depth)
 	}
 }

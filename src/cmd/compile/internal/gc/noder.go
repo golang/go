@@ -968,10 +968,10 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
 	for i, stmt := range stmts {
 		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
 		if s == nil {
-		} else if s.Op() == ir.OBLOCK && s.(*ir.BlockStmt).List.Len() > 0 {
+		} else if s.Op() == ir.OBLOCK && len(s.(*ir.BlockStmt).List) > 0 {
 			// Inline non-empty block.
 			// Empty blocks must be preserved for checkreturn.
-			nodes = append(nodes, s.(*ir.BlockStmt).List.Slice()...)
+			nodes = append(nodes, s.(*ir.BlockStmt).List...)
 		} else {
 			nodes = append(nodes, s)
 		}
@@ -1065,7 +1065,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
 		}
 		n := ir.NewReturnStmt(p.pos(stmt), nil)
 		n.Results.Set(results)
-		if n.Results.Len() == 0 && Curfn != nil {
+		if len(n.Results) == 0 && Curfn != nil {
 			for _, ln := range Curfn.Dcl {
 				if ln.Class_ == ir.PPARAM {
 					continue
@@ -1160,7 +1160,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	p.openScope(stmt.Pos())
 	n := ir.NewIfStmt(p.pos(stmt), nil, nil, nil)
 	if stmt.Init != nil {
-		n.PtrInit().Set1(p.stmt(stmt.Init))
+		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
 	}
 	if stmt.Cond != nil {
 		n.Cond = p.expr(stmt.Cond)
@@ -1170,9 +1170,9 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 		e := p.stmt(stmt.Else)
 		if e.Op() == ir.OBLOCK {
 			e := e.(*ir.BlockStmt)
-			n.Else.Set(e.List.Slice())
+			n.Else.Set(e.List)
 		} else {
-			n.Else.Set1(e)
+			n.Else = []ir.Node{e}
 		}
 	}
 	p.closeAnotherScope()
@@ -1198,7 +1198,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
 
 	n := ir.NewForStmt(p.pos(stmt), nil, nil, nil, nil)
 	if stmt.Init != nil {
-		n.PtrInit().Set1(p.stmt(stmt.Init))
+		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
 	}
 	if stmt.Cond != nil {
 		n.Cond = p.expr(stmt.Cond)
@@ -1215,7 +1215,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	p.openScope(stmt.Pos())
 	n := ir.NewSwitchStmt(p.pos(stmt), nil, nil)
 	if stmt.Init != nil {
-		n.PtrInit().Set1(p.stmt(stmt.Init))
+		*n.PtrInit() = []ir.Node{p.stmt(stmt.Init)}
 	}
 	if stmt.Tag != nil {
 		n.Tag = p.expr(stmt.Tag)
@@ -1247,7 +1247,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 		if tswitch != nil && tswitch.Tag != nil {
 			nn := NewName(tswitch.Tag.Sym())
 			declare(nn, dclcontext)
-			n.Vars.Set1(nn)
+			n.Vars = []ir.Node{nn}
 			// keep track of the instances for reporting unused
 			nn.Defn = tswitch
 		}
@@ -1264,7 +1264,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
 		}
 
 		n.Body.Set(p.stmtsFall(body, true))
-		if l := n.Body.Len(); l > 0 && n.Body.Index(l-1).Op() == ir.OFALL {
+		if l := len(n.Body); l > 0 && n.Body[l-1].Op() == ir.OFALL {
 			if tswitch != nil {
 				base.Errorf("cannot fallthrough in type switch")
 			}
@@ -1298,7 +1298,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
 
 		n := ir.NewCaseStmt(p.pos(clause), nil, nil)
 		if clause.Comm != nil {
-			n.List.Set1(p.stmt(clause.Comm))
+			n.List = []ir.Node{p.stmt(clause.Comm)}
 		}
 		n.Body.Set(p.stmts(clause.Body))
 		nodes = append(nodes, n)
@@ -1339,7 +1339,7 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
 	if ls != nil {
 		if ls.Op() == ir.OBLOCK {
 			ls := ls.(*ir.BlockStmt)
-			l = append(l, ls.List.Slice()...)
+			l = append(l, ls.List...)
 		} else {
 			l = append(l, ls)
 		}
