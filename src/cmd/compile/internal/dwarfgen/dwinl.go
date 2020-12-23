@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package dwarfgen
 
 import (
+	"fmt"
+	"strings"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"fmt"
-	"strings"
 )
 
 // To identify variables by original source position.
@@ -206,7 +207,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 // late in the compilation when it is determined that we need an
 // abstract function DIE for an inlined routine imported from a
 // previously compiled package.
-func genAbstractFunc(fn *obj.LSym) {
+func AbstractFunc(fn *obj.LSym) {
 	ifn := base.Ctxt.DwFixups.GetPrecursorFunc(fn)
 	if ifn == nil {
 		base.Ctxt.Diag("failed to locate precursor fn for %v", fn)

@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
@@ -114,7 +115,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
@@ -134,8 +135,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	if base.Flag.Dwarf {
-		base.Ctxt.DebugInfo = debuginfo
-		base.Ctxt.GenAbstractFunc = genAbstractFunc
+		base.Ctxt.DebugInfo = dwarfgen.Info
+		base.Ctxt.GenAbstractFunc = dwarfgen.AbstractFunc
 		base.Ctxt.DwFixups = obj.NewDwarfFixupTable(base.Ctxt)
 	} else {
 		// turn off inline generation if no dwarf at all
@@ -211,7 +212,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ssagen.CgoSymABIs()
 	base.Timer.Stop()
 	base.Timer.AddEvent(int64(lines), "lines")
-	recordPackageName()
+	dwarfgen.RecordPackageName()
 
 	// Typecheck.
 	typecheck.Package()
@@ -362,73 +363,6 @@ func writebench(filename string) error {
 	}
 
 	return f.Close()
-}
-
-// recordFlags records the specified command-line flags to be placed
-// in the DWARF info.
-func recordFlags(flags ...string) {
-	if base.Ctxt.Pkgpath == "" {
-		// We can't record the flags if we don't know what the
-		// package name is.
-		return
-	}
-
-	type BoolFlag interface {
-		IsBoolFlag() bool
-	}
-	type CountFlag interface {
-		IsCountFlag() bool
-	}
-	var cmd bytes.Buffer
-	for _, name := range flags {
-		f := flag.Lookup(name)
-		if f == nil {
-			continue
-		}
-		getter := f.Value.(flag.Getter)
-		if getter.String() == f.DefValue {
-			// Flag has default value, so omit it.
-			continue
-		}
-		if bf, ok := f.Value.(BoolFlag); ok && bf.IsBoolFlag() {
-			val, ok := getter.Get().(bool)
-			if ok && val {
-				fmt.Fprintf(&cmd, " -%s", f.Name)
-				continue
-			}
-		}
-		if cf, ok := f.Value.(CountFlag); ok && cf.IsCountFlag() {
-			val, ok := getter.Get().(int)
-			if ok && val == 1 {
-				fmt.Fprintf(&cmd, " -%s", f.Name)
-				continue
-			}
-		}
-		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
-	}
-
-	if cmd.Len() == 0 {
-		return
-	}
-	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + base.Ctxt.Pkgpath)
-	s.Type = objabi.SDWARFCUINFO
-	// Sometimes (for example when building tests) we can link
-	// together two package main archives. So allow dups.
-	s.Set(obj.AttrDuplicateOK, true)
-	base.Ctxt.Data = append(base.Ctxt.Data, s)
-	s.P = cmd.Bytes()[1:]
-}
-
-// recordPackageName records the name of the package being
-// compiled, so that the linker can save it in the compile unit's DIE.
-func recordPackageName() {
-	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + base.Ctxt.Pkgpath)
-	s.Type = objabi.SDWARFCUINFO
-	// Sometimes (for example when building tests) we can link
-	// together two package main archives. So allow dups.
-	s.Set(obj.AttrDuplicateOK, true)
-	base.Ctxt.Data = append(base.Ctxt.Data, s)
-	s.P = []byte(types.LocalPkg.Name)
 }
 
 func makePos(b *src.PosBase, line, col uint) src.XPos {

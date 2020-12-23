@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package dwarfgen
 
 import (
+	"sort"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"sort"
 )
 
 // See golang.org/issue/20390.

@@ -7,7 +7,6 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -303,13 +302,6 @@ func cheapexpr(n ir.Node, init *ir.Nodes) ir.Node {
 	}
 
 	return copyexpr(n, n.Type(), init)
-}
-
-func ngotype(n ir.Node) *types.Sym {
-	if n.Type() != nil {
-		return reflectdata.TypeSym(n.Type())
-	}
-	return nil
 }
 
 // itabType loads the _type field from a runtime.itab struct.
