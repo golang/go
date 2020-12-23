@@ -115,7 +115,7 @@ func Closure(fn *ir.Func) {
 	base.Pos = lno
 }
 
-func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	fn := clo.Func
 
 	// If no closure vars, don't bother wrapping.
@@ -148,10 +148,10 @@ func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		clo.Prealloc = nil
 	}
 
-	return walkexpr(cfn, init)
+	return walkExpr(cfn, init)
 }
 
-func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -162,8 +162,8 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 	if n.X.Type().IsInterface() {
 		// Trigger panic for method on nil interface now.
 		// Otherwise it happens in the wrapper and is confusing.
-		n.X = cheapexpr(n.X, init)
-		n.X = walkexpr(n.X, nil)
+		n.X = cheapExpr(n.X, init)
+		n.X = walkExpr(n.X, nil)
 
 		tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
 
@@ -193,5 +193,5 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
 		n.Prealloc = nil
 	}
 
-	return walkexpr(cfn, init)
+	return walkExpr(cfn, init)
 }
