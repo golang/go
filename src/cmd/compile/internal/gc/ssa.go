@@ -21,6 +21,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -2115,13 +2116,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
 	case ir.OMETHEXPR:
 		n := n.(*ir.MethodExpr)
-		sym := funcsym(n.FuncName().Sym()).Linksym()
+		sym := staticdata.FuncSym(n.FuncName().Sym()).Linksym()
 		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.Class_ == ir.PFUNC {
 			// "value" of a function is the address of the function's closure
-			sym := funcsym(n.Sym()).Linksym()
+			sym := staticdata.FuncSym(n.Sym()).Linksym()
 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
 		}
 		if s.canSSA(n) {
@@ -7160,7 +7161,7 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 	if e.strings == nil {
 		e.strings = make(map[string]*obj.LSym)
 	}
-	data := stringsym(e.curfn.Pos(), s)
+	data := staticdata.StringSym(e.curfn.Pos(), s)
 	e.strings[s] = data
 	return data
 }

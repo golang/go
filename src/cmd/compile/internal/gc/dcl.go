@@ -28,57 +28,6 @@ func NoWriteBarrierRecCheck() {
 
 var nowritebarrierrecCheck *nowritebarrierrecChecker
 
-// funcsym returns s·f.
-func funcsym(s *types.Sym) *types.Sym {
-	// funcsymsmu here serves to protect not just mutations of funcsyms (below),
-	// but also the package lookup of the func sym name,
-	// since this function gets called concurrently from the backend.
-	// There are no other concurrent package lookups in the backend,
-	// except for the types package, which is protected separately.
-	// Reusing funcsymsmu to also cover this package lookup
-	// avoids a general, broader, expensive package lookup mutex.
-	// Note makefuncsym also does package look-up of func sym names,
-	// but that it is only called serially, from the front end.
-	funcsymsmu.Lock()
-	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
-	// Don't export s·f when compiling for dynamic linking.
-	// When dynamically linking, the necessary function
-	// symbols will be created explicitly with makefuncsym.
-	// See the makefuncsym comment for details.
-	if !base.Ctxt.Flag_dynlink && !existed {
-		funcsyms = append(funcsyms, s)
-	}
-	funcsymsmu.Unlock()
-	return sf
-}
-
-// makefuncsym ensures that s·f is exported.
-// It is only used with -dynlink.
-// When not compiling for dynamic linking,
-// the funcsyms are created as needed by
-// the packages that use them.
-// Normally we emit the s·f stubs as DUPOK syms,
-// but DUPOK doesn't work across shared library boundaries.
-// So instead, when dynamic linking, we only create
-// the s·f stubs in s's package.
-func makefuncsym(s *types.Sym) {
-	if !base.Ctxt.Flag_dynlink {
-		base.Fatalf("makefuncsym dynlink")
-	}
-	if s.IsBlank() {
-		return
-	}
-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
-		// runtime.getg(), getclosureptr(), getcallerpc(), and
-		// getcallersp() are not real functions and so do not
-		// get funcsyms.
-		return
-	}
-	if _, existed := s.Pkg.LookupOK(ir.FuncSymName(s)); !existed {
-		funcsyms = append(funcsyms, s)
-	}
-}
-
 type nowritebarrierrecChecker struct {
 	// extraCalls contains extra function calls that may not be
 	// visible during later analysis. It maps from the ODCLFUNC of

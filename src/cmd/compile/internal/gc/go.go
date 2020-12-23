@@ -7,19 +7,12 @@ package gc
 import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"sync"
 )
 
 var pragcgobuf [][]string
 
 var zerosize int64
-
-var (
-	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
-	funcsyms   []*types.Sym
-)
 
 // interface to back end
 

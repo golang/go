@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -76,7 +77,7 @@ func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
 func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
 	if rn.Class_ == ir.PFUNC {
 		// TODO if roff != 0 { panic }
-		pfuncsym(l, loff, rn)
+		staticdata.InitFunc(l, loff, rn)
 		return true
 	}
 	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
@@ -130,7 +131,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 		r := r.(*ir.AddrExpr)
 		if a := r.X; a.Op() == ir.ONAME {
 			a := a.(*ir.Name)
-			addrsym(l, loff, a, 0)
+			staticdata.InitAddr(l, loff, a, 0)
 			return true
 		}
 
@@ -139,14 +140,14 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
 		switch r.X.Op() {
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
 			// copy pointer
-			addrsym(l, loff, s.inittemps[r], 0)
+			staticdata.InitAddr(l, loff, s.inittemps[r], 0)
 			return true
 		}
 
 	case ir.OSLICELIT:
 		r := r.(*ir.CompLitExpr)
 		// copy slice
-		slicesym(l, loff, s.inittemps[r], r.Len)
+		staticdata.InitSlice(l, loff, s.inittemps[r], r.Len)
 		return true
 
 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
@@ -207,7 +208,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 	case ir.OADDR:
 		r := r.(*ir.AddrExpr)
 		if name, offset, ok := stataddr(r.X); ok {
-			addrsym(l, loff, name, offset)
+			staticdata.InitAddr(l, loff, name, offset)
 			return true
 		}
 		fallthrough
@@ -220,7 +221,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			a := staticname(r.X.Type())
 
 			s.inittemps[r] = a
-			addrsym(l, loff, a, 0)
+			staticdata.InitAddr(l, loff, a, 0)
 
 			// Init underlying literal.
 			if !s.staticassign(a, 0, r.X, a.Type()) {
@@ -234,7 +235,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		r := r.(*ir.ConvExpr)
 		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.X)
-			slicebytes(l, loff, sval)
+			staticdata.InitSliceBytes(l, loff, sval)
 			return true
 		}
 
@@ -246,7 +247,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		ta.SetNoalg(true)
 		a := staticname(ta)
 		s.inittemps[r] = a
-		slicesym(l, loff, a, r.Len)
+		staticdata.InitSlice(l, loff, a, r.Len)
 		// Fall through to init underlying array.
 		l = a
 		loff = 0
@@ -284,7 +285,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			// TODO if roff != 0 { panic }
-			pfuncsym(l, loff, r.Func.Nname)
+			staticdata.InitFunc(l, loff, r.Func.Nname)
 			return true
 		}
 		closuredebugruntimecheck(r)
@@ -321,7 +322,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		// Create a copy of l to modify while we emit data.
 
 		// Emit itab, advance offset.
-		addrsym(l, loff, itab.X.(*ir.Name), 0)
+		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
 
 		// Emit data.
 		if types.IsDirectIface(val.Type()) {
@@ -342,7 +343,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 			if !s.staticassign(a, 0, val, val.Type()) {
 				s.append(ir.NewAssignStmt(base.Pos, a, val))
 			}
-			addrsym(l, loff+int64(types.PtrSize), a, 0)
+			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
 		}
 
 		return true
@@ -638,7 +639,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if !ok || name.Class_ != ir.PEXTERN {
 			base.Fatalf("slicelit: %v", var_)
 		}
-		slicesym(name, offset, vstat, t.NumElem())
+		staticdata.InitSlice(name, offset, vstat, t.NumElem())
 		return
 	}
 
@@ -1138,7 +1139,7 @@ func genAsStatic(as *ir.AssignStmt) {
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.MethodExpr)
-		pfuncsym(name, offset, r.FuncName())
+		staticdata.InitFunc(name, offset, r.FuncName())
 		return
 	case ir.ONAME:
 		r := r.(*ir.Name)
@@ -1146,7 +1147,7 @@ func genAsStatic(as *ir.AssignStmt) {
 			base.Fatalf("genAsStatic %+v", as)
 		}
 		if r.Class_ == ir.PFUNC {
-			pfuncsym(name, offset, r)
+			staticdata.InitFunc(name, offset, r)
 			return
 		}
 	}

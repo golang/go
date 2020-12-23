@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -526,7 +527,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		// Emit string symbol now to avoid emitting
 		// any concurrently during the backend.
 		if v := n.Val(); v.Kind() == constant.String {
-			_ = stringsym(n.Pos(), constant.StringVal(v))
+			_ = staticdata.StringSym(n.Pos(), constant.StringVal(v))
 		}
 	}
 
