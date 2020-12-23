@@ -26,7 +26,7 @@ const (
 )
 
 // Version is a manually-updated mechanism for tracking versions.
-var Version = "master"
+const Version = "master"
 
 // ServerVersion is the format used by gopls to report its version to the
 // client. This format is structured so that the client can parse it easily.
