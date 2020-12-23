@@ -190,9 +190,9 @@ func Main(archInit func(*Arch)) {
 	initSSAEnv()
 	initSSATables()
 
-	Widthptr = thearch.LinkArch.PtrSize
-	Widthreg = thearch.LinkArch.RegSize
-	MaxWidth = thearch.MAXWIDTH
+	types.PtrSize = thearch.LinkArch.PtrSize
+	types.RegSize = thearch.LinkArch.RegSize
+	types.MaxWidth = thearch.MAXWIDTH
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
 		return typenamesym(t).Linksym()
 	}

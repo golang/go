@@ -91,7 +91,7 @@ func ABIAnalyze(t *types.Type, config ABIConfig) ABIParamResultInfo {
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(f.Type))
 	}
-	s.stackOffset = Rnd(s.stackOffset, int64(Widthreg))
+	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
 
 	// Record number of spill slots needed.
 	result.intSpillSlots = s.rUsed.intRegs
@@ -160,7 +160,7 @@ type assignState struct {
 // specified type.
 func (state *assignState) stackSlot(t *types.Type) int64 {
 	if t.Align > 0 {
-		state.stackOffset = Rnd(state.stackOffset, int64(t.Align))
+		state.stackOffset = types.Rnd(state.stackOffset, int64(t.Align))
 	}
 	rv := state.stackOffset
 	state.stackOffset += t.Width
@@ -226,7 +226,7 @@ func (state *assignState) floatUsed() int {
 // can register allocate, FALSE otherwise (and updates state
 // accordingly).
 func (state *assignState) regassignIntegral(t *types.Type) bool {
-	regsNeeded := int(Rnd(t.Width, int64(Widthptr)) / int64(Widthptr))
+	regsNeeded := int(types.Rnd(t.Width, int64(types.PtrSize)) / int64(types.PtrSize))
 
 	// Floating point and complex.
 	if t.IsFloat() || t.IsComplex() {

@@ -2248,8 +2248,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			return v
 		}
 
-		dowidth(from)
-		dowidth(to)
+		types.CalcSize(from)
+		types.CalcSize(to)
 		if from.Width != to.Width {
 			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
 			return nil
@@ -3016,7 +3016,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 			}
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceCapOffset, addr)
 		s.store(types.Types[types.TINT], capaddr, r[2])
 		s.store(pt, addr, r[0])
 		// load the value we just stored to avoid having to spill it
@@ -3037,7 +3037,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceLenOffset, addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceLenOffset, addr)
 		s.store(types.Types[types.TINT], lenaddr, nl)
 	}
 
@@ -3153,7 +3153,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 		return
 	}
 	t := left.Type()
-	dowidth(t)
+	types.CalcSize(t)
 	if s.canSSA(left) {
 		if deref {
 			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
@@ -4706,7 +4706,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			closure = iclosure
 		}
 	}
-	dowidth(fn.Type())
+	types.CalcSize(fn.Type())
 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
 
 	// Run all assignments of temps.
@@ -4778,11 +4778,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			s.store(types.Types[types.TUINTPTR], arg0, addr)
 			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
 		}
-		if stksize < int64(Widthptr) {
+		if stksize < int64(types.PtrSize) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
 			// TODO Revisit this if/when we pass args in registers.
-			stksize = int64(Widthptr)
+			stksize = int64(types.PtrSize)
 		}
 		call.AuxInt = stksize
 	} else {
@@ -4800,15 +4800,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 				addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
 				s.store(types.Types[types.TUINT32], addr, argsize)
 			}
-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(Widthptr)})
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
 			if testLateExpansion {
 				callArgs = append(callArgs, closure)
 			} else {
-				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
+				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(types.PtrSize))
 				s.store(types.Types[types.TUINTPTR], addr, closure)
 			}
-			stksize += 2 * int64(Widthptr)
-			argStart += 2 * int64(Widthptr)
+			stksize += 2 * int64(types.PtrSize)
+			argStart += 2 * int64(types.PtrSize)
 		}
 
 		// Set receiver (for interface calls).
@@ -4970,7 +4970,7 @@ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) 
 	i := s.expr(fn.X)
 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
 	s.nilCheck(itab)
-	itabidx := fn.Offset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
+	itabidx := fn.Offset + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
@@ -5177,8 +5177,8 @@ func (s *state) canSSAName(name *ir.Name) bool {
 
 // canSSA reports whether variables of type t are SSA-able.
 func canSSAType(t *types.Type) bool {
-	dowidth(t)
-	if t.Width > int64(4*Widthptr) {
+	types.CalcSize(t)
+	if t.Width > int64(4*types.PtrSize) {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
@@ -5379,7 +5379,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	for _, arg := range args {
 		t := arg.Type
-		off = Rnd(off, t.Alignment())
+		off = types.Rnd(off, t.Alignment())
 		size := t.Size()
 		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
 		if testLateExpansion {
@@ -5390,12 +5390,12 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		}
 		off += size
 	}
-	off = Rnd(off, int64(Widthreg))
+	off = types.Rnd(off, int64(types.RegSize))
 
 	// Accumulate results types and offsets
 	offR := off
 	for _, t := range results {
-		offR = Rnd(offR, t.Alignment())
+		offR = types.Rnd(offR, t.Alignment())
 		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
 		offR += t.Size()
 	}
@@ -5429,7 +5429,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	res := make([]*ssa.Value, len(results))
 	if testLateExpansion {
 		for i, t := range results {
-			off = Rnd(off, t.Alignment())
+			off = types.Rnd(off, t.Alignment())
 			if canSSAType(t) {
 				res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
 			} else {
@@ -5440,13 +5440,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		}
 	} else {
 		for i, t := range results {
-			off = Rnd(off, t.Alignment())
+			off = types.Rnd(off, t.Alignment())
 			ptr := s.constOffPtrSP(types.NewPtr(t), off)
 			res[i] = s.load(t, ptr)
 			off += t.Size()
 		}
 	}
-	off = Rnd(off, int64(Widthptr))
+	off = types.Rnd(off, int64(types.PtrSize))
 
 	// Remember how much callee stack space we needed.
 	call.AuxInt = off
@@ -6072,7 +6072,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 					return
 				}
 				// Load type out of itab, build interface with existing idata.
-				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
+				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
 				typ := s.load(byteptr, off)
 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
 				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
@@ -6082,7 +6082,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			s.startBlock(bOk)
 			// nonempty -> empty
 			// Need to load type from itab
-			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
+			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
 			s.vars[typVar] = s.load(byteptr, off)
 			s.endBlock()
 
@@ -6764,14 +6764,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 func defframe(s *SSAGenState, e *ssafn) {
 	pp := s.pp
 
-	frame := Rnd(s.maxarg+e.stksize, int64(Widthreg))
+	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
 	if thearch.PadFrame != nil {
 		frame = thearch.PadFrame(frame)
 	}
 
 	// Fill in argument and frame size.
 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
-	pp.Text.To.Val = int32(Rnd(e.curfn.Type().ArgWidth(), int64(Widthreg)))
+	pp.Text.To.Val = int32(types.Rnd(e.curfn.Type().ArgWidth(), int64(types.RegSize)))
 	pp.Text.To.Offset = frame
 
 	// Insert code to zero ambiguously live variables so that the
@@ -6792,11 +6792,11 @@ func defframe(s *SSAGenState, e *ssafn) {
 		if n.Class_ != ir.PAUTO {
 			e.Fatalf(n.Pos(), "needzero class %d", n.Class_)
 		}
-		if n.Type().Size()%int64(Widthptr) != 0 || n.FrameOffset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
+		if n.Type().Size()%int64(types.PtrSize) != 0 || n.FrameOffset()%int64(types.PtrSize) != 0 || n.Type().Size() == 0 {
 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset_)
 		}
 
-		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*Widthreg) {
+		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*types.RegSize) {
 			// Merge with range we already have.
 			lo = n.FrameOffset()
 			continue
@@ -7274,7 +7274,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	n.SetEsc(ir.EscNever)
 	n.Curfn = e.curfn
 	e.curfn.Dcl = append(e.curfn.Dcl, n)
-	dowidth(t)
+	types.CalcSize(t)
 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
 }
 

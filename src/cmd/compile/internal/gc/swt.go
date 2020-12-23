@@ -535,9 +535,9 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
 	dotHash.SetType(types.Types[types.TUINT32])
 	dotHash.SetTypecheck(1)
 	if s.facename.Type().IsEmptyInterface() {
-		dotHash.Offset = int64(2 * Widthptr) // offset of hash in runtime._type
+		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime._type
 	} else {
-		dotHash.Offset = int64(2 * Widthptr) // offset of hash in runtime.itab
+		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime.itab
 	}
 	dotHash.SetBounded(true) // guaranteed not to fault
 	s.hashname = copyexpr(dotHash, dotHash.Type(), &sw.Compiled)

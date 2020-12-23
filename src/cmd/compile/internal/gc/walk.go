@@ -470,7 +470,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
 		switch n.Type().Kind() {
 		case types.TBLANK, types.TNIL, types.TIDEAL:
 		default:
-			checkwidth(n.Type())
+			types.CheckSize(n.Type())
 		}
 	}
 
@@ -1031,9 +1031,9 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			// ptr = convT2X(val)
 			// e = iface{typ/tab, ptr}
 			fn := syslook(fnname)
-			dowidth(fromType)
+			types.CalcSize(fromType)
 			fn = substArgTypes(fn, fromType)
-			dowidth(fn.Type())
+			types.CalcSize(fn.Type())
 			call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 			call.Args = []ir.Node{n.X}
 			e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeexpr(walkexpr(typecheck(call, ctxExpr), init), init))
@@ -1065,10 +1065,10 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 			v = nodAddr(v)
 		}
 
-		dowidth(fromType)
+		types.CalcSize(fromType)
 		fn := syslook(fnname)
 		fn = substArgTypes(fn, fromType, toType)
-		dowidth(fn.Type())
+		types.CalcSize(fn.Type())
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 		call.Args = []ir.Node{tab, v}
 		return walkexpr(typecheck(call, ctxExpr), init)
@@ -1116,7 +1116,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		// rewrite 64-bit div and mod on 32-bit architectures.
 		// TODO: Remove this code once we can introduce
 		// runtime calls late in SSA processing.
-		if Widthreg < 8 && (et == types.TINT64 || et == types.TUINT64) {
+		if types.RegSize < 8 && (et == types.TINT64 || et == types.TUINT64) {
 			if n.Y.Op() == ir.OLITERAL {
 				// Leave div/mod by constant powers of 2 or small 16-bit constants.
 				// The SSA backend will handle those.
@@ -1724,7 +1724,7 @@ func markUsedIfaceMethod(n *ir.CallExpr) {
 	r.Sym = tsym
 	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
 	// in itab).
-	midx := dot.Offset / int64(Widthptr)
+	midx := dot.Offset / int64(types.PtrSize)
 	r.Add = ifaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
 }
@@ -2133,7 +2133,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 }
 
 func callnew(t *types.Type) ir.Node {
-	dowidth(t)
+	types.CalcSize(t)
 	n := ir.NewUnaryExpr(base.Pos, ir.ONEWOBJ, typename(t))
 	n.SetType(types.NewPtr(t))
 	n.SetTypecheck(1)
@@ -2168,7 +2168,7 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 		n.Y = assignconv(n.Y, lt, "assignment")
 		n.Y = walkexpr(n.Y, init)
 	}
-	dowidth(n.Y.Type())
+	types.CalcSize(n.Y.Type())
 
 	return n
 }
@@ -2655,7 +2655,7 @@ func mapfast(t *types.Type) int {
 		if !t.Key().HasPointers() {
 			return mapfast32
 		}
-		if Widthptr == 4 {
+		if types.PtrSize == 4 {
 			return mapfast32ptr
 		}
 		base.Fatalf("small pointer %v", t.Key())
@@ -2663,7 +2663,7 @@ func mapfast(t *types.Type) int {
 		if !t.Key().HasPointers() {
 			return mapfast64
 		}
-		if Widthptr == 8 {
+		if types.PtrSize == 8 {
 			return mapfast64ptr
 		}
 		// Two-word object, at least one of which is a pointer.
@@ -3408,7 +3408,7 @@ func walkcompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	} else {
 		step := int64(1)
 		remains := t.NumElem() * t.Elem().Width
-		combine64bit := unalignedLoad && Widthreg == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
+		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
 		combine32bit := unalignedLoad && t.Elem().Width <= 2 && t.Elem().IsInteger()
 		combine16bit := unalignedLoad && t.Elem().Width == 1 && t.Elem().IsInteger()
 		for i := int64(0); remains > 0; {
@@ -3973,7 +3973,7 @@ func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 	n := old.CloneName()
 
 	for _, t := range types_ {
-		dowidth(t)
+		types.CalcSize(t)
 	}
 	n.SetType(types.SubstAny(n.Type(), &types_))
 	if len(types_) > 0 {

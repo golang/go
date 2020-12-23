@@ -37,7 +37,7 @@ func instrument(fn *ir.Func) {
 			// race in the future.
 			nodpc := ir.RegFP.CloneName()
 			nodpc.SetType(types.Types[types.TUINTPTR])
-			nodpc.SetFrameOffset(int64(-Widthptr))
+			nodpc.SetFrameOffset(int64(-types.PtrSize))
 			fn.Dcl = append(fn.Dcl, nodpc)
 			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
 			fn.Exit.Append(mkcall("racefuncexit", nil, nil))

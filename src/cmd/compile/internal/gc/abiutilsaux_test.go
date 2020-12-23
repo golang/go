@@ -106,7 +106,7 @@ func difftokens(atoks []string, etoks []string) string {
 
 func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 
-	dowidth(ft)
+	types.CalcSize(ft)
 
 	// Analyze with full set of registers.
 	regRes := ABIAnalyze(ft, configAMD64)

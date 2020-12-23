@@ -253,7 +253,7 @@ func genhash(t *types.Type) *obj.LSym {
 	// Build closure. It doesn't close over any variables, so
 	// it contains just the function pointer.
 	dsymptr(closure, 0, sym.Linksym(), 0)
-	ggloblsym(closure, int32(Widthptr), obj.DUPOK|obj.RODATA)
+	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 
 	return closure
 }
@@ -302,7 +302,7 @@ func sysClosure(name string) *obj.LSym {
 	if len(s.P) == 0 {
 		f := sysfunc(name)
 		dsymptr(s, 0, f, 0)
-		ggloblsym(s, int32(Widthptr), obj.DUPOK|obj.RODATA)
+		ggloblsym(s, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	}
 	return s
 }
@@ -632,7 +632,7 @@ func geneq(t *types.Type) *obj.LSym {
 
 	// Generate a closure which points at the function we just generated.
 	dsymptr(closure, 0, sym.Linksym(), 0)
-	ggloblsym(closure, int32(Widthptr), obj.DUPOK|obj.RODATA)
+	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	return closure
 }
 

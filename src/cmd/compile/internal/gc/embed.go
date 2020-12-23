@@ -215,7 +215,7 @@ func initEmbed(v *ir.Name) {
 		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
 		off := 0
 		// []files pointed at by Files
-		off = dsymptr(slicedata, off, slicedata, 3*Widthptr) // []file, pointing just past slice
+		off = dsymptr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice
 		off = duintptr(slicedata, off, uint64(len(files)))
 		off = duintptr(slicedata, off, uint64(len(files)))
 

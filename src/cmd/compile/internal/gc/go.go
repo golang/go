@@ -12,31 +12,6 @@ import (
 	"sync"
 )
 
-// Slices in the runtime are represented by three components:
-//
-// type slice struct {
-// 	ptr unsafe.Pointer
-// 	len int
-// 	cap int
-// }
-//
-// Strings in the runtime are represented by two components:
-//
-// type string struct {
-// 	ptr unsafe.Pointer
-// 	len int
-// }
-//
-// These variables are the offsets of fields and sizes of these structs.
-var (
-	slicePtrOffset int64
-	sliceLenOffset int64
-	sliceCapOffset int64
-
-	sizeofSlice  int64
-	sizeofString int64
-)
-
 var pragcgobuf [][]string
 
 var decldepth int32
@@ -67,10 +42,6 @@ var (
 )
 
 var dclcontext ir.Class // PEXTERN/PAUTO
-
-var Widthptr int
-
-var Widthreg int
 
 var typecheckok bool
 

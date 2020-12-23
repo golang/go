@@ -423,23 +423,23 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 
 	switch t.Kind() {
 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
-		if off&int64(Widthptr-1) != 0 {
+		if off&int64(types.PtrSize-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(off / int64(Widthptr))) // pointer
+		bv.Set(int32(off / int64(types.PtrSize))) // pointer
 
 	case types.TSTRING:
 		// struct { byte *str; intgo len; }
-		if off&int64(Widthptr-1) != 0 {
+		if off&int64(types.PtrSize-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bv.Set(int32(off / int64(Widthptr))) //pointer in first slot
+		bv.Set(int32(off / int64(types.PtrSize))) //pointer in first slot
 
 	case types.TINTER:
 		// struct { Itab *tab;	void *data; }
 		// or, when isnilinter(t)==true:
 		// struct { Type *type; void *data; }
-		if off&int64(Widthptr-1) != 0 {
+		if off&int64(types.PtrSize-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
 		// The first word of an interface is a pointer, but we don't
@@ -454,14 +454,14 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 		//      the underlying type so it won't be GCd.
 		// If we ever have a moving GC, we need to change this for 2b (as
 		// well as scan itabs to update their itab._type fields).
-		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
+		bv.Set(int32(off/int64(types.PtrSize) + 1)) // pointer in second slot
 
 	case types.TSLICE:
 		// struct { byte *array; uintgo len; uintgo cap; }
-		if off&int64(Widthptr-1) != 0 {
+		if off&int64(types.PtrSize-1) != 0 {
 			base.Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
 		}
-		bv.Set(int32(off / int64(Widthptr))) // pointer in first slot (BitsPointer)
+		bv.Set(int32(off / int64(types.PtrSize))) // pointer in first slot (BitsPointer)
 
 	case types.TARRAY:
 		elt := t.Elem()
@@ -1181,7 +1181,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Next, find the offset of the largest pointer in the largest node.
 	var maxArgs int64
 	if maxArgNode != nil {
-		maxArgs = maxArgNode.FrameOffset() + typeptrdata(maxArgNode.Type())
+		maxArgs = maxArgNode.FrameOffset() + types.PtrDataSize(maxArgNode.Type())
 	}
 
 	// Size locals bitmaps to be stkptrsize sized.
@@ -1196,11 +1196,11 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 	// Temporary symbols for encoding bitmaps.
 	var argsSymTmp, liveSymTmp obj.LSym
 
-	args := bvalloc(int32(maxArgs / int64(Widthptr)))
+	args := bvalloc(int32(maxArgs / int64(types.PtrSize)))
 	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
 
-	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
+	locals := bvalloc(int32(maxLocals / int64(types.PtrSize)))
 	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
 	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
 

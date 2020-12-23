@@ -308,10 +308,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 
 		// We also need to defer width calculations until
 		// after the underlying type has been assigned.
-		defercheckwidth()
+		types.DeferCheckSize()
 		underlying := r.typ()
 		t.SetUnderlying(underlying)
-		resumecheckwidth()
+		types.ResumeCheckSize()
 
 		if underlying.IsInterface() {
 			r.typeExt(t)
@@ -565,7 +565,7 @@ func (r *importReader) typ1() *types.Type {
 		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
 
 		// Ensure we expand the interface in the frontend (#25055).
-		checkwidth(t)
+		types.CheckSize(t)
 		return t
 	}
 }

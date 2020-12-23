@@ -1315,7 +1315,7 @@ func devirtualizeCall(call *ir.CallExpr) {
 	// Receiver parameter size may have changed; need to update
 	// call.Type to get correct stack offsets for result
 	// parameters.
-	checkwidth(x.Type())
+	types.CheckSize(x.Type())
 	switch ft := x.Type(); ft.NumResults() {
 	case 0:
 	case 1:

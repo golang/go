@@ -32,7 +32,7 @@ func emitptrargsmap(fn *ir.Func) {
 		return
 	}
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
-	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
+	nptr := int(fn.Type().ArgWidth() / int64(types.PtrSize))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
 	if fn.Type().NumResults() > 0 {
@@ -162,9 +162,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			break
 		}
 
-		dowidth(n.Type())
+		types.CalcSize(n.Type())
 		w := n.Type().Width
-		if w >= MaxWidth || w < 0 {
+		if w >= types.MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
 		if w == 0 && lastHasPtr {
@@ -175,7 +175,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = Rnd(s.stksize, int64(n.Type().Align))
+		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
@@ -183,13 +183,13 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			lastHasPtr = false
 		}
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
-			s.stksize = Rnd(s.stksize, int64(Widthptr))
+			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
 		}
 		n.SetFrameOffset(-s.stksize)
 	}
 
-	s.stksize = Rnd(s.stksize, int64(Widthreg))
-	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
+	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
+	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
 }
 
 func funccompile(fn *ir.Func) {
@@ -205,7 +205,7 @@ func funccompile(fn *ir.Func) {
 	}
 
 	// assign parameter offsets
-	dowidth(fn.Type())
+	types.CalcSize(fn.Type())
 
 	if len(fn.Body) == 0 {
 		// Initialize ABI wrappers if necessary.
@@ -346,7 +346,7 @@ func init() {
 // and waits for them to complete.
 func compileFunctions() {
 	if len(compilequeue) != 0 {
-		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
+		types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
 		if race.Enabled {
 			// Randomize compilation order to try to shake out races.
 			tmp := make([]*ir.Func, len(compilequeue))
@@ -382,7 +382,7 @@ func compileFunctions() {
 		compilequeue = nil
 		wg.Wait()
 		base.Ctxt.InParallel = false
-		sizeCalculationDisabled = false
+		types.CalcSizeDisabled = false
 	}
 }
 
@@ -538,11 +538,11 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		offs = n.FrameOffset()
 		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
-			offs -= int64(Widthptr)
+			offs -= int64(types.PtrSize)
 		}
 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
-			offs -= int64(Widthptr)
+			offs -= int64(types.PtrSize)
 		}
 
 	case ir.PPARAM, ir.PPARAMOUT:
@@ -735,11 +735,11 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 	case ir.PAUTO:
 		off = n.FrameOffset()
 		if base.Ctxt.FixedFrameSize() == 0 {
-			off -= int64(Widthptr)
+			off -= int64(types.PtrSize)
 		}
 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
-			off -= int64(Widthptr)
+			off -= int64(types.PtrSize)
 		}
 	case ir.PPARAM, ir.PPARAMOUT:
 		off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
