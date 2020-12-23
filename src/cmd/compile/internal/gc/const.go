@@ -242,11 +242,11 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
 	switch op {
 	case ir.OCOMPLEX:
 		if t.IsComplex() {
-			return floatForComplex(t)
+			return types.FloatForComplex(t)
 		}
 	case ir.OREAL, ir.OIMAG:
 		if t.IsFloat() {
-			return complexForFloat(t)
+			return types.ComplexForFloat(t)
 		}
 	default:
 		if okfor[op][t.Kind()] {
@@ -377,7 +377,7 @@ func doesoverflow(v constant.Value, t *types.Type) bool {
 			return math.IsInf(f, 0)
 		}
 	case t.IsComplex():
-		ft := floatForComplex(t)
+		ft := types.FloatForComplex(t)
 		return doesoverflow(constant.Real(v), ft) || doesoverflow(constant.Imag(v), ft)
 	}
 	base.Fatalf("doesoverflow: %v, %v", v, t)

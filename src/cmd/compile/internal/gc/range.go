@@ -493,7 +493,7 @@ func isMapClear(n *ir.RangeStmt) bool {
 	}
 
 	// Keys where equality is not reflexive can not be deleted from maps.
-	if !isreflexive(m.Type().Key()) {
+	if !types.IsReflexive(m.Type().Key()) {
 		return false
 	}
 

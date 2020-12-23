@@ -461,7 +461,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.value(n.Type(), n.Val())
 
 	case ir.OTYPE:
-		if IsAlias(n.Sym()) {
+		if types.IsDotAlias(n.Sym()) {
 			// Alias.
 			w.tag('A')
 			w.pos(n.Pos())
@@ -1028,8 +1028,8 @@ func (w *exportWriter) typeExt(t *types.Type) {
 		w.int64(i[1])
 		return
 	}
-	w.symIdx(typesym(t))
-	w.symIdx(typesym(t.PtrTo()))
+	w.symIdx(types.TypeSym(t))
+	w.symIdx(types.TypeSym(t.PtrTo()))
 }
 
 // Inline bodies.

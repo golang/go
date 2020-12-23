@@ -1916,28 +1916,6 @@ func (s *state) ssaOp(op ir.Op, t *types.Type) ssa.Op {
 	return x
 }
 
-func floatForComplex(t *types.Type) *types.Type {
-	switch t.Kind() {
-	case types.TCOMPLEX64:
-		return types.Types[types.TFLOAT32]
-	case types.TCOMPLEX128:
-		return types.Types[types.TFLOAT64]
-	}
-	base.Fatalf("unexpected type: %v", t)
-	return nil
-}
-
-func complexForFloat(t *types.Type) *types.Type {
-	switch t.Kind() {
-	case types.TFLOAT32:
-		return types.Types[types.TCOMPLEX64]
-	case types.TFLOAT64:
-		return types.Types[types.TCOMPLEX128]
-	}
-	base.Fatalf("unexpected type: %v", t)
-	return nil
-}
-
 type opAndTwoTypes struct {
 	op     ir.Op
 	etype1 types.Kind
@@ -2458,8 +2436,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			} else {
 				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
 			}
-			ftp := floatForComplex(ft)
-			ttp := floatForComplex(tt)
+			ftp := types.FloatForComplex(ft)
+			ttp := types.FloatForComplex(tt)
 			return s.newValue2(ssa.OpComplexMake, tt,
 				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
 				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
@@ -2479,7 +2457,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		a := s.expr(n.X)
 		b := s.expr(n.Y)
 		if n.X.Type().IsComplex() {
-			pt := floatForComplex(n.X.Type())
+			pt := types.FloatForComplex(n.X.Type())
 			op := s.ssaOp(ir.OEQ, pt)
 			r := s.newValueOrSfCall2(op, types.Types[types.TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
 			i := s.newValueOrSfCall2(op, types.Types[types.TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
@@ -2516,8 +2494,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			mulop := ssa.OpMul64F
 			addop := ssa.OpAdd64F
 			subop := ssa.OpSub64F
-			pt := floatForComplex(n.Type())   // Could be Float32 or Float64
-			wt := types.Types[types.TFLOAT64] // Compute in Float64 to minimize cancellation error
+			pt := types.FloatForComplex(n.Type()) // Could be Float32 or Float64
+			wt := types.Types[types.TFLOAT64]     // Compute in Float64 to minimize cancellation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
@@ -2560,8 +2538,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			addop := ssa.OpAdd64F
 			subop := ssa.OpSub64F
 			divop := ssa.OpDiv64F
-			pt := floatForComplex(n.Type())   // Could be Float32 or Float64
-			wt := types.Types[types.TFLOAT64] // Compute in Float64 to minimize cancellation error
+			pt := types.FloatForComplex(n.Type()) // Could be Float32 or Float64
+			wt := types.Types[types.TFLOAT64]     // Compute in Float64 to minimize cancellation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
@@ -2606,7 +2584,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		a := s.expr(n.X)
 		b := s.expr(n.Y)
 		if n.Type().IsComplex() {
-			pt := floatForComplex(n.Type())
+			pt := types.FloatForComplex(n.Type())
 			op := s.ssaOp(n.Op(), pt)
 			return s.newValue2(ssa.OpComplexMake, n.Type(),
 				s.newValueOrSfCall2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
@@ -2694,7 +2672,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.UnaryExpr)
 		a := s.expr(n.X)
 		if n.Type().IsComplex() {
-			tp := floatForComplex(n.Type())
+			tp := types.FloatForComplex(n.Type())
 			negop := s.ssaOp(n.Op(), tp)
 			return s.newValue2(ssa.OpComplexMake, n.Type(),
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexReal, tp, a)),
@@ -6147,7 +6125,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	}
 
 	// Converting to a concrete type.
-	direct := isdirectiface(n.Type())
+	direct := types.IsDirectIface(n.Type())
 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
 	if base.Debug.TypeAssert > 0 {
 		base.WarnfAt(n.Pos(), "type assertion inlined")
@@ -6442,7 +6420,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 		// in which case the offset is relative to argp.
 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
 		off = duintptr(x, off, uint64(v.FrameOffset()))
-		if !typesym(v.Type()).Siggen() {
+		if !types.TypeSym(v.Type()).Siggen() {
 			e.Fatalf(v.Pos(), "stack object's type symbol not generated for type %s", v.Type())
 		}
 		off = dsymptr(x, off, dtypesym(v.Type()), 0)

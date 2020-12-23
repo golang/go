@@ -40,7 +40,7 @@ func expandiface(t *types.Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
+		case types.AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && types.Identical(m.Type, prev.Type):
 			return
 		default:
 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -84,7 +84,7 @@ func expandiface(t *types.Type) {
 		}
 	}
 
-	sort.Sort(methcmp(methods))
+	sort.Sort(types.MethodsByName(methods))
 
 	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
 		base.ErrorfAt(typePos(t), "interface too large")
@@ -325,8 +325,8 @@ func dowidth(t *types.Type) {
 
 	// simtype == 0 during bootstrap
 	default:
-		if simtype[t.Kind()] != 0 {
-			et = simtype[t.Kind()]
+		if types.SimType[t.Kind()] != 0 {
+			et = types.SimType[t.Kind()]
 		}
 	}
 

@@ -135,7 +135,7 @@ func bmap(t *types.Type) *types.Type {
 	dowidth(bucket)
 
 	// Check invariants that map code depends on.
-	if !IsComparable(t.Key()) {
+	if !types.IsComparable(t.Key()) {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
 	if BUCKETSIZE < 8 {
@@ -373,7 +373,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 // Generates stub functions as needed.
 func methods(t *types.Type) []*Sig {
 	// method type
-	mt := methtype(t)
+	mt := types.ReceiverBaseType(t)
 
 	if mt == nil {
 		return nil
@@ -383,7 +383,7 @@ func methods(t *types.Type) []*Sig {
 	// type stored in interface word
 	it := t
 
-	if !isdirectiface(it) {
+	if !types.IsDirectIface(it) {
 		it = types.NewPtr(t)
 	}
 
@@ -410,7 +410,7 @@ func methods(t *types.Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		if !isMethodApplicable(t, f) {
+		if !types.IsMethodApplicable(t, f) {
 			continue
 		}
 
@@ -848,7 +848,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot := 0
 	ot = duintptr(lsym, ot, uint64(t.Width))
 	ot = duintptr(lsym, ot, uint64(ptrdata))
-	ot = duint32(lsym, ot, typehash(t))
+	ot = duint32(lsym, ot, types.TypeHash(t))
 
 	var tflag uint8
 	if uncommonSize(t) != 0 {
@@ -895,7 +895,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = duint8(lsym, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Kind()]
-	if isdirectiface(t) {
+	if types.IsDirectIface(t) {
 		i |= objabi.KindDirectIface
 	}
 	if useGCProg {
@@ -923,40 +923,6 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	return ot
 }
 
-// typeHasNoAlg reports whether t does not have any associated hash/eq
-// algorithms because t, or some component of t, is marked Noalg.
-func typeHasNoAlg(t *types.Type) bool {
-	a, bad := algtype1(t)
-	return a == ANOEQ && bad.Noalg()
-}
-
-func typesymname(t *types.Type) string {
-	name := t.ShortString()
-	// Use a separate symbol name for Noalg types for #17752.
-	if typeHasNoAlg(t) {
-		name = "noalg." + name
-	}
-	return name
-}
-
-// Fake package for runtime type info (headers)
-// Don't access directly, use typeLookup below.
-var (
-	typepkgmu sync.Mutex // protects typepkg lookups
-	typepkg   = types.NewPkg("type", "type")
-)
-
-func typeLookup(name string) *types.Sym {
-	typepkgmu.Lock()
-	s := typepkg.Lookup(name)
-	typepkgmu.Unlock()
-	return s
-}
-
-func typesym(t *types.Type) *types.Sym {
-	return typeLookup(typesymname(t))
-}
-
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *types.Type, f *types.Field) *types.Sym {
@@ -965,7 +931,7 @@ func tracksym(t *types.Type, f *types.Field) *types.Sym {
 
 func typesymprefix(prefix string, t *types.Type) *types.Sym {
 	p := prefix + "." + t.ShortString()
-	s := typeLookup(p)
+	s := types.TypeSymLookup(p)
 
 	// This function is for looking up type-related generated functions
 	// (e.g. eq and hash). Make sure they are indeed generated.
@@ -982,7 +948,7 @@ func typenamesym(t *types.Type) *types.Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		base.Fatalf("typenamesym %v", t)
 	}
-	s := typesym(t)
+	s := types.TypeSym(t)
 	signatmu.Lock()
 	addsignat(t)
 	signatmu.Unlock()
@@ -1023,52 +989,6 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
 	n.SetType(types.NewPtr(s.Def.Type()))
 	n.SetTypecheck(1)
 	return n
-}
-
-// isreflexive reports whether t has a reflexive equality operator.
-// That is, if x==x for all x of type t.
-func isreflexive(t *types.Type) bool {
-	switch t.Kind() {
-	case types.TBOOL,
-		types.TINT,
-		types.TUINT,
-		types.TINT8,
-		types.TUINT8,
-		types.TINT16,
-		types.TUINT16,
-		types.TINT32,
-		types.TUINT32,
-		types.TINT64,
-		types.TUINT64,
-		types.TUINTPTR,
-		types.TPTR,
-		types.TUNSAFEPTR,
-		types.TSTRING,
-		types.TCHAN:
-		return true
-
-	case types.TFLOAT32,
-		types.TFLOAT64,
-		types.TCOMPLEX64,
-		types.TCOMPLEX128,
-		types.TINTER:
-		return false
-
-	case types.TARRAY:
-		return isreflexive(t.Elem())
-
-	case types.TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
-			if !isreflexive(t1.Type) {
-				return false
-			}
-		}
-		return true
-
-	default:
-		base.Fatalf("bad type for map key: %v", t)
-		return false
-	}
 }
 
 // needkeyupdate reports whether map updates with t as a key
@@ -1139,7 +1059,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		base.Fatalf("dtypesym %v", t)
 	}
 
-	s := typesym(t)
+	s := types.TypeSym(t)
 	lsym := s.Linksym()
 	if s.Siggen() {
 		return lsym
@@ -1310,7 +1230,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			ot = duint8(lsym, ot, uint8(t.Elem().Width))
 		}
 		ot = duint16(lsym, ot, uint16(bmap(t).Width))
-		if isreflexive(t.Key()) {
+		if types.IsReflexive(t.Key()) {
 			flags |= 4 // reflexive key
 		}
 		if needkeyupdate(t.Key()) {
@@ -1404,7 +1324,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 	}
 	// Do not put Noalg types in typelinks.  See issue #22605.
-	if typeHasNoAlg(t) {
+	if types.TypeHasNoAlg(t) {
 		keep = false
 	}
 	lsym.Set(obj.AttrMakeTypelink, keep)
@@ -1528,7 +1448,7 @@ func dumpsignats() {
 		signats = signats[:0]
 		// Transfer entries to a slice and sort, for reproducible builds.
 		for _, t := range signatslice {
-			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
+			signats = append(signats, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
 			delete(signatset, t)
 		}
 		signatslice = signatslice[:0]
@@ -1556,8 +1476,8 @@ func dumptabs() {
 		// }
 		o := dsymptr(i.lsym, 0, dtypesym(i.itype), 0)
 		o = dsymptr(i.lsym, o, dtypesym(i.t), 0)
-		o = duint32(i.lsym, o, typehash(i.t)) // copy of type hash
-		o += 4                                // skip unused field
+		o = duint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
+		o += 4                                      // skip unused field
 		for _, fn := range genfun(i.t, i.itype) {
 			o = dsymptr(i.lsym, o, fn, 0) // method pointer for each method
 		}

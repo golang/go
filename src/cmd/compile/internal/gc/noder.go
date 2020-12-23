@@ -72,7 +72,7 @@ func parseFiles(filenames []string) uint {
 			base.ErrorExit()
 		}
 		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
-		testdclstack()
+		types.CheckDclstack()
 	}
 
 	for _, p := range noders {
@@ -485,7 +485,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
 	}
 
 	nod := ir.NewDecl(p.pos(decl), ir.ODCLTYPE, n)
-	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
+	if n.Alias() && !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
 	}
 	return nod
@@ -1401,7 +1401,7 @@ func (p *noder) binOp(op syntax.Operator) ir.Op {
 // literal is not compatible with the current language version.
 func checkLangCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || langSupported(1, 13, types.LocalPkg) {
+	if len(s) <= 2 || types.AllowsGoVersion(types.LocalPkg, 1, 13) {
 		return
 	}
 	// len(s) > 2
