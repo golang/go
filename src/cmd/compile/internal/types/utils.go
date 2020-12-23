@@ -14,8 +14,6 @@ const BADWIDTH = -1000000000
 // They are here to break import cycles.
 // TODO(gri) eliminate these dependencies.
 var (
-	Widthptr    int
-	Dowidth     func(*Type)
 	TypeLinkSym func(*Type) *obj.LSym
 )
 

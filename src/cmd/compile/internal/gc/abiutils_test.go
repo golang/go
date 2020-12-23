@@ -7,6 +7,9 @@ package gc
 import (
 	"bufio"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
@@ -26,23 +29,23 @@ var configAMD64 = ABIConfig{
 }
 
 func TestMain(m *testing.M) {
-	thearch.LinkArch = &x86.Linkamd64
-	thearch.REGSP = x86.REGSP
-	thearch.MAXWIDTH = 1 << 50
-	MaxWidth = thearch.MAXWIDTH
-	base.Ctxt = obj.Linknew(thearch.LinkArch)
+	ssagen.Arch.LinkArch = &x86.Linkamd64
+	ssagen.Arch.REGSP = x86.REGSP
+	ssagen.Arch.MAXWIDTH = 1 << 50
+	types.MaxWidth = ssagen.Arch.MAXWIDTH
+	base.Ctxt = obj.Linknew(ssagen.Arch.LinkArch)
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
-	Widthptr = thearch.LinkArch.PtrSize
-	Widthreg = thearch.LinkArch.RegSize
+	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
+	types.RegSize = ssagen.Arch.LinkArch.RegSize
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
+		return reflectdata.TypeSym(t).Linksym()
 	}
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
+		return reflectdata.TypeSym(t).Linksym()
 	}
-	TypecheckInit()
+	typecheck.Init()
 	os.Exit(m.Run())
 }
 

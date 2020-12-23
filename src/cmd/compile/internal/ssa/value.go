@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -495,3 +496,13 @@ func (v *Value) removeable() bool {
 
 // TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
 func (*Value) CanBeAnSSAAux() {}
+
+// AutoVar returns a *Name and int64 representing the auto variable and offset within it
+// where v should be spilled.
+func AutoVar(v *Value) (*ir.Name, int64) {
+	loc := v.Block.Func.RegAlloc[v.ID].(LocalSlot)
+	if v.Type.Size() > loc.Type.Size() {
+		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+	}
+	return loc.N, loc.Off
+}

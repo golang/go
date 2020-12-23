@@ -49,9 +49,9 @@ import (
 // pointer from the Func back to the OCALLPART.
 type Func struct {
 	miniNode
-	typ   *types.Type
-	Body_ Nodes
-	iota  int64
+	typ  *types.Type
+	Body Nodes
+	Iota int64
 
 	Nname    *Name        // ONAME node
 	OClosure *ClosureExpr // OCLOSURE node
@@ -110,20 +110,14 @@ func NewFunc(pos src.XPos) *Func {
 	f := new(Func)
 	f.pos = pos
 	f.op = ODCLFUNC
-	f.iota = -1
+	f.Iota = -1
 	return f
 }
 
 func (f *Func) isStmt() {}
 
-func (f *Func) Func() *Func           { return f }
-func (f *Func) Body() Nodes           { return f.Body_ }
-func (f *Func) PtrBody() *Nodes       { return &f.Body_ }
-func (f *Func) SetBody(x Nodes)       { f.Body_ = x }
 func (f *Func) Type() *types.Type     { return f.typ }
 func (f *Func) SetType(x *types.Type) { f.typ = x }
-func (f *Func) Iota() int64           { return f.iota }
-func (f *Func) SetIota(x int64)       { f.iota = x }
 
 func (f *Func) Sym() *types.Sym {
 	if f.Nname != nil {
@@ -218,11 +212,11 @@ func FuncName(n Node) string {
 	case *Func:
 		f = n
 	case *Name:
-		f = n.Func()
+		f = n.Func
 	case *CallPartExpr:
-		f = n.Func()
+		f = n.Func
 	case *ClosureExpr:
-		f = n.Func()
+		f = n.Func
 	}
 	if f == nil || f.Nname == nil {
 		return "<nil>"
@@ -245,9 +239,9 @@ func PkgFuncName(n Node) string {
 		var f *Func
 		switch n := n.(type) {
 		case *CallPartExpr:
-			f = n.Func()
+			f = n.Func
 		case *ClosureExpr:
-			f = n.Func()
+			f = n.Func
 		case *Func:
 			f = n
 		}
@@ -266,4 +260,52 @@ func PkgFuncName(n Node) string {
 		return s.Name
 	}
 	return p + "." + s.Name
+}
+
+var CurFunc *Func
+
+func FuncSymName(s *types.Sym) string {
+	return s.Name + "·f"
+}
+
+// NewFuncNameAt generates a new name node for a function or method.
+func NewFuncNameAt(pos src.XPos, s *types.Sym, fn *Func) *Name {
+	if fn.Nname != nil {
+		base.Fatalf("newFuncName - already have name")
+	}
+	n := NewNameAt(pos, s)
+	n.SetFunc(fn)
+	fn.Nname = n
+	return n
+}
+
+// MarkFunc marks a node as a function.
+func MarkFunc(n *Name) {
+	if n.Op() != ONAME || n.Class_ != Pxxx {
+		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
+	}
+
+	n.Class_ = PFUNC
+	n.Sym().SetFunc(true)
+}
+
+// ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
+// and compiling runtime
+func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
+	if base.Debug.Closure > 0 {
+		if clo.Esc() == EscHeap {
+			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
+		} else {
+			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
+		}
+	}
+	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
+		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
+	}
+}
+
+// IsTrivialClosure reports whether closure clo has an
+// empty list of captured vars.
+func IsTrivialClosure(clo *ClosureExpr) bool {
+	return len(clo.Func.ClosureVars) == 0
 }

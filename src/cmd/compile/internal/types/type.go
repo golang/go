@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"sync"
 )
 
 // IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
@@ -595,8 +596,8 @@ func NewPtr(elem *Type) *Type {
 
 	t := New(TPTR)
 	t.Extra = Ptr{Elem: elem}
-	t.Width = int64(Widthptr)
-	t.Align = uint8(Widthptr)
+	t.Width = int64(PtrSize)
+	t.Align = uint8(PtrSize)
 	if NewPtrCacheEnabled {
 		elem.cache.ptr = t
 	}
@@ -861,7 +862,7 @@ func (t *Type) Fields() *Fields {
 	case TSTRUCT:
 		return &t.Extra.(*Struct).fields
 	case TINTER:
-		Dowidth(t)
+		CalcSize(t)
 		return &t.Extra.(*Interface).Fields
 	}
 	base.Fatalf("Fields: type %v does not have fields", t)
@@ -928,12 +929,12 @@ func (t *Type) Size() int64 {
 		}
 		return 0
 	}
-	Dowidth(t)
+	CalcSize(t)
 	return t.Width
 }
 
 func (t *Type) Alignment() int64 {
-	Dowidth(t)
+	CalcSize(t)
 	return int64(t.Align)
 }
 
@@ -1695,3 +1696,204 @@ func anyBroke(fields []*Field) bool {
 	}
 	return false
 }
+
+var (
+	IsInt     [NTYPE]bool
+	IsFloat   [NTYPE]bool
+	IsComplex [NTYPE]bool
+	IsSimple  [NTYPE]bool
+)
+
+var IsOrdered [NTYPE]bool
+
+// IsReflexive reports whether t has a reflexive equality operator.
+// That is, if x==x for all x of type t.
+func IsReflexive(t *Type) bool {
+	switch t.Kind() {
+	case TBOOL,
+		TINT,
+		TUINT,
+		TINT8,
+		TUINT8,
+		TINT16,
+		TUINT16,
+		TINT32,
+		TUINT32,
+		TINT64,
+		TUINT64,
+		TUINTPTR,
+		TPTR,
+		TUNSAFEPTR,
+		TSTRING,
+		TCHAN:
+		return true
+
+	case TFLOAT32,
+		TFLOAT64,
+		TCOMPLEX64,
+		TCOMPLEX128,
+		TINTER:
+		return false
+
+	case TARRAY:
+		return IsReflexive(t.Elem())
+
+	case TSTRUCT:
+		for _, t1 := range t.Fields().Slice() {
+			if !IsReflexive(t1.Type) {
+				return false
+			}
+		}
+		return true
+
+	default:
+		base.Fatalf("bad type for map key: %v", t)
+		return false
+	}
+}
+
+// Can this type be stored directly in an interface word?
+// Yes, if the representation is a single pointer.
+func IsDirectIface(t *Type) bool {
+	if t.Broke() {
+		return false
+	}
+
+	switch t.Kind() {
+	case TPTR:
+		// Pointers to notinheap types must be stored indirectly. See issue 42076.
+		return !t.Elem().NotInHeap()
+	case TCHAN,
+		TMAP,
+		TFUNC,
+		TUNSAFEPTR:
+		return true
+
+	case TARRAY:
+		// Array of 1 direct iface type can be direct.
+		return t.NumElem() == 1 && IsDirectIface(t.Elem())
+
+	case TSTRUCT:
+		// Struct with 1 field of direct iface type can be direct.
+		return t.NumFields() == 1 && IsDirectIface(t.Field(0).Type)
+	}
+
+	return false
+}
+
+// IsInterfaceMethod reports whether (field) m is
+// an interface method. Such methods have the
+// special receiver type types.FakeRecvType().
+func IsInterfaceMethod(f *Type) bool {
+	return f.Recv().Type == FakeRecvType()
+}
+
+// IsMethodApplicable reports whether method m can be called on a
+// value of type t. This is necessary because we compute a single
+// method set for both T and *T, but some *T methods are not
+// applicable to T receivers.
+func IsMethodApplicable(t *Type, m *Field) bool {
+	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || IsInterfaceMethod(m.Type) || m.Embedded == 2
+}
+
+// IsRuntimePkg reports whether p is package runtime.
+func IsRuntimePkg(p *Pkg) bool {
+	if base.Flag.CompilingRuntime && p == LocalPkg {
+		return true
+	}
+	return p.Path == "runtime"
+}
+
+// IsReflectPkg reports whether p is package reflect.
+func IsReflectPkg(p *Pkg) bool {
+	if p == LocalPkg {
+		return base.Ctxt.Pkgpath == "reflect"
+	}
+	return p.Path == "reflect"
+}
+
+// ReceiverBaseType returns the underlying type, if any,
+// that owns methods with receiver parameter t.
+// The result is either a named type or an anonymous struct.
+func ReceiverBaseType(t *Type) *Type {
+	if t == nil {
+		return nil
+	}
+
+	// Strip away pointer if it's there.
+	if t.IsPtr() {
+		if t.Sym() != nil {
+			return nil
+		}
+		t = t.Elem()
+		if t == nil {
+			return nil
+		}
+	}
+
+	// Must be a named type or anonymous struct.
+	if t.Sym() == nil && !t.IsStruct() {
+		return nil
+	}
+
+	// Check types.
+	if IsSimple[t.Kind()] {
+		return t
+	}
+	switch t.Kind() {
+	case TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRING, TSTRUCT:
+		return t
+	}
+	return nil
+}
+
+func FloatForComplex(t *Type) *Type {
+	switch t.Kind() {
+	case TCOMPLEX64:
+		return Types[TFLOAT32]
+	case TCOMPLEX128:
+		return Types[TFLOAT64]
+	}
+	base.Fatalf("unexpected type: %v", t)
+	return nil
+}
+
+func ComplexForFloat(t *Type) *Type {
+	switch t.Kind() {
+	case TFLOAT32:
+		return Types[TCOMPLEX64]
+	case TFLOAT64:
+		return Types[TCOMPLEX128]
+	}
+	base.Fatalf("unexpected type: %v", t)
+	return nil
+}
+
+func TypeSym(t *Type) *Sym {
+	return TypeSymLookup(TypeSymName(t))
+}
+
+func TypeSymLookup(name string) *Sym {
+	typepkgmu.Lock()
+	s := typepkg.Lookup(name)
+	typepkgmu.Unlock()
+	return s
+}
+
+func TypeSymName(t *Type) string {
+	name := t.ShortString()
+	// Use a separate symbol name for Noalg types for #17752.
+	if TypeHasNoAlg(t) {
+		name = "noalg." + name
+	}
+	return name
+}
+
+// Fake package for runtime type info (headers)
+// Don't access directly, use typeLookup below.
+var (
+	typepkgmu sync.Mutex // protects typepkg lookups
+	typepkg   = NewPkg("type", "type")
+)
+
+var SimType [NTYPE]Kind

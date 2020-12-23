@@ -222,7 +222,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 					omitted = true
 					continue // exclude zero-valued fields
 				}
-				if n, ok := x.Interface().(Nodes); ok && n.Len() == 0 {
+				if n, ok := x.Interface().(Nodes); ok && len(n) == 0 {
 					omitted = true
 					continue // exclude empty Nodes slices
 				}

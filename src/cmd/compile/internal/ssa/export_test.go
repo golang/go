@@ -137,7 +137,6 @@ func init() {
 	// Initialize just enough of the universe and the types package to make our tests function.
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
-	types.Dowidth = func(t *types.Type) {}
 
 	for _, typ := range [...]struct {
 		width int64
