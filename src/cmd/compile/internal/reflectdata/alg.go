@@ -2,38 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package reflectdata
 
 import (
+	"fmt"
+	"sort"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"fmt"
-	"sort"
 )
 
-// IsRegularMemory reports whether t can be compared/hashed as regular memory.
-func IsRegularMemory(t *types.Type) bool {
+// isRegularMemory reports whether t can be compared/hashed as regular memory.
+func isRegularMemory(t *types.Type) bool {
 	a, _ := types.AlgType(t)
 	return a == types.AMEM
 }
 
-// EqCanPanic reports whether == on type t could panic (has an interface somewhere).
+// eqCanPanic reports whether == on type t could panic (has an interface somewhere).
 // t must be comparable.
-func EqCanPanic(t *types.Type) bool {
+func eqCanPanic(t *types.Type) bool {
 	switch t.Kind() {
 	default:
 		return false
 	case types.TINTER:
 		return true
 	case types.TARRAY:
-		return EqCanPanic(t.Elem())
+		return eqCanPanic(t.Elem())
 	case types.TSTRUCT:
 		for _, f := range t.FieldSlice() {
-			if !f.Sym.IsBlank() && EqCanPanic(f.Type) {
+			if !f.Sym.IsBlank() && eqCanPanic(f.Type) {
 				return true
 			}
 		}
@@ -41,9 +42,9 @@ func EqCanPanic(t *types.Type) bool {
 	}
 }
 
-// algtype is like algtype1, except it returns the fixed-width AMEMxx variants
+// AlgType is like algtype1, except it returns the fixed-width AMEMxx variants
 // instead of the general AMEM kind when possible.
-func algtype(t *types.Type) types.AlgKind {
+func AlgType(t *types.Type) types.AlgKind {
 	a, _ := types.AlgType(t)
 	if a == types.AMEM {
 		switch t.Width {
@@ -69,7 +70,7 @@ func algtype(t *types.Type) types.AlgKind {
 // the hash of a value of type t.
 // Note: the generated function must match runtime.typehash exactly.
 func genhash(t *types.Type) *obj.LSym {
-	switch algtype(t) {
+	switch AlgType(t) {
 	default:
 		// genhash is only called for types that have equality
 		base.Fatalf("genhash %v", t)
@@ -119,7 +120,7 @@ func genhash(t *types.Type) *obj.LSym {
 		break
 	}
 
-	closure := typesymprefix(".hashfunc", t).Linksym()
+	closure := TypeSymPrefix(".hashfunc", t).Linksym()
 	if len(closure.P) > 0 { // already generated
 		return closure
 	}
@@ -139,7 +140,7 @@ func genhash(t *types.Type) *obj.LSym {
 		}
 	}
 
-	sym := typesymprefix(".hash", t)
+	sym := TypeSymPrefix(".hash", t)
 	if base.Flag.LowerR != 0 {
 		fmt.Printf("genhash %v %v %v\n", closure, sym, t)
 	}
@@ -199,7 +200,7 @@ func genhash(t *types.Type) *obj.LSym {
 			}
 
 			// Hash non-memory fields with appropriate hash function.
-			if !IsRegularMemory(f.Type) {
+			if !isRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
 				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
@@ -283,7 +284,7 @@ func hashfor(t *types.Type) ir.Node {
 	default:
 		// Note: the caller of hashfor ensured that this symbol
 		// exists and has a body by calling genhash for t.
-		sym = typesymprefix(".hash", t)
+		sym = TypeSymPrefix(".hash", t)
 	}
 
 	n := typecheck.NewName(sym)
@@ -312,7 +313,7 @@ func sysClosure(name string) *obj.LSym {
 // geneq returns a symbol which is the closure used to compute
 // equality for two objects of type t.
 func geneq(t *types.Type) *obj.LSym {
-	switch algtype(t) {
+	switch AlgType(t) {
 	case types.ANOEQ:
 		// The runtime will panic if it tries to compare
 		// a type with a nil equality function.
@@ -362,11 +363,11 @@ func geneq(t *types.Type) *obj.LSym {
 		break
 	}
 
-	closure := typesymprefix(".eqfunc", t).Linksym()
+	closure := TypeSymPrefix(".eqfunc", t).Linksym()
 	if len(closure.P) > 0 { // already generated
 		return closure
 	}
-	sym := typesymprefix(".eq", t)
+	sym := TypeSymPrefix(".eq", t)
 	if base.Flag.LowerR != 0 {
 		fmt.Printf("geneq %v\n", t)
 	}
@@ -476,12 +477,12 @@ func geneq(t *types.Type) *obj.LSym {
 			// TODO: when the array size is small, unroll the length match checks.
 			checkAll(3, false, func(pi, qi ir.Node) ir.Node {
 				// Compare lengths.
-				eqlen, _ := eqstring(pi, qi)
+				eqlen, _ := EqString(pi, qi)
 				return eqlen
 			})
 			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// Compare contents.
-				_, eqmem := eqstring(pi, qi)
+				_, eqmem := EqString(pi, qi)
 				return eqmem
 			})
 		case types.TFLOAT32, types.TFLOAT64:
@@ -520,8 +521,8 @@ func geneq(t *types.Type) *obj.LSym {
 			}
 
 			// Compare non-memory fields with field equality.
-			if !IsRegularMemory(f.Type) {
-				if EqCanPanic(f.Type) {
+			if !isRegularMemory(f.Type) {
+				if eqCanPanic(f.Type) {
 					// Enforce ordering by starting a new set of reorderable conditions.
 					conds = append(conds, []ir.Node{})
 				}
@@ -529,13 +530,13 @@ func geneq(t *types.Type) *obj.LSym {
 				q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
 				switch {
 				case f.Type.IsString():
-					eqlen, eqmem := eqstring(p, q)
+					eqlen, eqmem := EqString(p, q)
 					and(eqlen)
 					and(eqmem)
 				default:
 					and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
 				}
-				if EqCanPanic(f.Type) {
+				if eqCanPanic(f.Type) {
 					// Also enforce ordering after something that can panic.
 					conds = append(conds, []ir.Node{})
 				}
@@ -597,7 +598,7 @@ func geneq(t *types.Type) *obj.LSym {
 	//   return (or goto ret)
 	fn.Body.Append(ir.NewLabelStmt(base.Pos, neq))
 	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(false)))
-	if EqCanPanic(t) || anyCall(fn) {
+	if eqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
 		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
 	} else {
@@ -655,13 +656,13 @@ func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
 	return ne
 }
 
-// eqstring returns the nodes
+// EqString returns the nodes
 //   len(s) == len(t)
 // and
 //   memequal(s.ptr, t.ptr, len(s))
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
-func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	s = typecheck.Conv(s, types.Types[types.TSTRING])
 	t = typecheck.Conv(t, types.Types[types.TSTRING])
 	sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
@@ -680,13 +681,13 @@ func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	return cmp, call
 }
 
-// eqinterface returns the nodes
+// EqInterface returns the nodes
 //   s.tab == t.tab (or s.typ == t.typ, as appropriate)
 // and
 //   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
 // which can be used to construct interface equality comparison.
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
-func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	if !types.Identical(s.Type(), t.Type()) {
 		base.Fatalf("eqinterface %v %v", s.Type(), t.Type())
 	}
@@ -764,9 +765,24 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if f := t.Field(next); f.Sym.IsBlank() || !IsRegularMemory(f.Type) {
+		if f := t.Field(next); f.Sym.IsBlank() || !isRegularMemory(f.Type) {
 			break
 		}
 	}
 	return t.Field(next-1).End() - t.Field(start).Offset, next
+}
+
+func hashmem(t *types.Type) ir.Node {
+	sym := ir.Pkgs.Runtime.Lookup("memhash")
+
+	n := typecheck.NewName(sym)
+	ir.MarkFunc(n)
+	n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
+		ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+	}, []*ir.Field{
+		ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR]),
+	}))
+	return n
 }

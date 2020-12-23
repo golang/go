@@ -7,6 +7,7 @@ package gc
 import (
 	"bufio"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -38,10 +39,10 @@ func TestMain(m *testing.M) {
 	types.PtrSize = thearch.LinkArch.PtrSize
 	types.RegSize = thearch.LinkArch.RegSize
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
+		return reflectdata.TypeSym(t).Linksym()
 	}
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return typenamesym(t).Linksym()
+		return reflectdata.TypeSym(t).Linksym()
 	}
 	typecheck.Init()
 	os.Exit(m.Run())

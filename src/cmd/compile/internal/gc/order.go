@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -882,7 +883,7 @@ func (o *Order) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// hiter contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(hiter(n.Type()), true)
+			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
 		}
 		o.exprListInPlace(n.Vars)
 		if orderBody {

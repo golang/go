@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -314,9 +315,9 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
-			itab = typename(val.Type())
+			itab = reflectdata.TypePtr(val.Type())
 		} else {
-			itab = itabname(val.Type(), typ)
+			itab = reflectdata.ITabAddr(val.Type(), typ)
 		}
 
 		// Create a copy of l to modify while we emit data.

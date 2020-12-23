@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -225,7 +226,7 @@ func compile(fn *ir.Func) {
 		switch n.Class_ {
 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
 			if liveness.ShouldTrack(n) && n.Addrtaken() {
-				dtypesym(n.Type())
+				reflectdata.WriteType(n.Type())
 				// Also make sure we allocate a linker symbol
 				// for the stack object data, for the same reason.
 				if fn.LSym.Func().StackObjects == nil {

@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
@@ -180,7 +181,7 @@ func walkrange(nrange *ir.RangeStmt) ir.Node {
 		fn := typecheck.LookupRuntime("mapiterinit")
 
 		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
-		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, typecheck.NodAddr(hit)))
+		init = append(init, mkcall1(fn, nil, nil, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
 		fn = typecheck.LookupRuntime("mapiternext")
@@ -383,7 +384,7 @@ func mapClear(m ir.Node) ir.Node {
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear")
 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
-	n := mkcall1(fn, nil, nil, typename(t), m)
+	n := mkcall1(fn, nil, nil, reflectdata.TypePtr(t), m)
 	return walkstmt(typecheck.Stmt(n))
 }
 
