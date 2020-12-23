@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
@@ -184,7 +185,7 @@ func Main(archInit func(*Arch)) {
 
 	ir.EscFmt = escFmt
 	ir.IsIntrinsicCall = isIntrinsicCall
-	SSADumpInline = ssaDumpInline
+	inline.SSADumpInline = ssaDumpInline
 	initSSAEnv()
 	initSSATables()
 
@@ -231,13 +232,13 @@ func Main(archInit func(*Arch)) {
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
-		InlinePackage()
+		inline.InlinePackage()
 	}
 
 	// Devirtualize.
 	for _, n := range typecheck.Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
-			devirtualize(n.(*ir.Func))
+			inline.Devirtualize(n.(*ir.Func))
 		}
 	}
 	ir.CurFunc = nil
@@ -370,17 +371,6 @@ func cgoSymABIs() {
 			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
-}
-
-// numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []*ir.Func) int {
-	count := 0
-	for _, fn := range list {
-		if fn.OClosure == nil {
-			count++
-		}
-	}
-	return count
 }
 
 func writebench(filename string) error {

@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -83,7 +84,7 @@ func (p *exporter) markObject(n ir.Node) {
 	if n.Op() == ir.ONAME {
 		n := n.(*ir.Name)
 		if n.Class_ == ir.PFUNC {
-			inlFlood(n, typecheck.Export)
+			inline.Inline_Flood(n, typecheck.Export)
 		}
 	}
 
