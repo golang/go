@@ -334,10 +334,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
 		ncase := ncase.(*ir.CaseStmt)
-		var caseVar ir.Node
-		if len(ncase.Vars) != 0 {
-			caseVar = ncase.Vars[0]
-		}
+		caseVar := ncase.Var
 
 		// For single-type cases with an interface type,
 		// we initialize the case variable as part of the type assertion.

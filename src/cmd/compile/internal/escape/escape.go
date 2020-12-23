@@ -373,7 +373,7 @@ func (e *escape) stmt(n ir.Node) {
 		for _, cas := range n.Cases { // cases
 			cas := cas.(*ir.CaseStmt)
 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
-				cv := cas.Vars[0]
+				cv := cas.Var
 				k := e.dcl(cv) // type switch variables have no ODCL.
 				if cv.Type().HasPointers() {
 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))

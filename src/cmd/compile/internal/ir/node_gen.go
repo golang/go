@@ -230,7 +230,6 @@ func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
 func (n *CaseStmt) copy() Node {
 	c := *n
 	c.init = c.init.Copy()
-	c.Vars = c.Vars.Copy()
 	c.List = c.List.Copy()
 	c.Body = c.Body.Copy()
 	return &c
@@ -238,7 +237,7 @@ func (n *CaseStmt) copy() Node {
 func (n *CaseStmt) doChildren(do func(Node) error) error {
 	var err error
 	err = maybeDoList(n.init, err, do)
-	err = maybeDoList(n.Vars, err, do)
+	err = maybeDo(n.Var, err, do)
 	err = maybeDoList(n.List, err, do)
 	err = maybeDo(n.Comm, err, do)
 	err = maybeDoList(n.Body, err, do)
@@ -246,7 +245,7 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
 }
 func (n *CaseStmt) editChildren(edit func(Node) Node) {
 	editList(n.init, edit)
-	editList(n.Vars, edit)
+	n.Var = maybeEdit(n.Var, edit)
 	editList(n.List, edit)
 	n.Comm = maybeEdit(n.Comm, edit)
 	editList(n.Body, edit)
