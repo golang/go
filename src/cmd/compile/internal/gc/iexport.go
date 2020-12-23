@@ -400,7 +400,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == unsafepkg {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
 		return
 	}
 
@@ -647,7 +647,7 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	if t.Sym() != nil {
-		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == unsafepkg {
+		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == ir.Pkgs.Unsafe {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 

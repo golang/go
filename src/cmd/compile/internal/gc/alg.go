@@ -265,19 +265,19 @@ func hashfor(t *types.Type) ir.Node {
 	case types.AMEM:
 		base.Fatalf("hashfor with AMEM type")
 	case types.AINTER:
-		sym = Runtimepkg.Lookup("interhash")
+		sym = ir.Pkgs.Runtime.Lookup("interhash")
 	case types.ANILINTER:
-		sym = Runtimepkg.Lookup("nilinterhash")
+		sym = ir.Pkgs.Runtime.Lookup("nilinterhash")
 	case types.ASTRING:
-		sym = Runtimepkg.Lookup("strhash")
+		sym = ir.Pkgs.Runtime.Lookup("strhash")
 	case types.AFLOAT32:
-		sym = Runtimepkg.Lookup("f32hash")
+		sym = ir.Pkgs.Runtime.Lookup("f32hash")
 	case types.AFLOAT64:
-		sym = Runtimepkg.Lookup("f64hash")
+		sym = ir.Pkgs.Runtime.Lookup("f64hash")
 	case types.ACPLX64:
-		sym = Runtimepkg.Lookup("c64hash")
+		sym = ir.Pkgs.Runtime.Lookup("c64hash")
 	case types.ACPLX128:
-		sym = Runtimepkg.Lookup("c128hash")
+		sym = ir.Pkgs.Runtime.Lookup("c128hash")
 	default:
 		// Note: the caller of hashfor ensured that this symbol
 		// exists and has a body by calling genhash for t.

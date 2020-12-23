@@ -86,32 +86,32 @@ func Main(archInit func(*Arch)) {
 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = types.NewPkg("unsafe", "unsafe")
+	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
 
 	// Pseudo-package that contains the compiler's builtin
 	// declarations for package runtime. These are declared in a
 	// separate package to avoid conflicts with package runtime's
 	// actual declarations, which may differ intentionally but
 	// insignificantly.
-	Runtimepkg = types.NewPkg("go.runtime", "runtime")
-	Runtimepkg.Prefix = "runtime"
+	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
+	ir.Pkgs.Runtime.Prefix = "runtime"
 
 	// pseudo-packages used in symbol tables
-	itabpkg = types.NewPkg("go.itab", "go.itab")
-	itabpkg.Prefix = "go.itab" // not go%2eitab
+	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
+	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
 
-	itablinkpkg = types.NewPkg("go.itablink", "go.itablink")
-	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
+	ir.Pkgs.Itablink = types.NewPkg("go.itablink", "go.itablink")
+	ir.Pkgs.Itablink.Prefix = "go.itablink" // not go%2eitablink
 
-	trackpkg = types.NewPkg("go.track", "go.track")
-	trackpkg.Prefix = "go.track" // not go%2etrack
+	ir.Pkgs.Track = types.NewPkg("go.track", "go.track")
+	ir.Pkgs.Track.Prefix = "go.track" // not go%2etrack
 
 	// pseudo-package used for map zero values
-	mappkg = types.NewPkg("go.map", "go.map")
-	mappkg.Prefix = "go.map"
+	ir.Pkgs.Map = types.NewPkg("go.map", "go.map")
+	ir.Pkgs.Map.Prefix = "go.map"
 
 	// pseudo-package used for methods with anonymous receivers
-	gopkg = types.NewPkg("go", "")
+	ir.Pkgs.Go = types.NewPkg("go", "")
 
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
@@ -165,10 +165,10 @@ func Main(archInit func(*Arch)) {
 	thearch.LinkArch.Init(base.Ctxt)
 	startProfile()
 	if base.Flag.Race {
-		racepkg = types.NewPkg("runtime/race", "")
+		ir.Pkgs.Race = types.NewPkg("runtime/race", "")
 	}
 	if base.Flag.MSan {
-		msanpkg = types.NewPkg("runtime/msan", "")
+		ir.Pkgs.Msan = types.NewPkg("runtime/msan", "")
 	}
 	if base.Flag.Race || base.Flag.MSan {
 		base.Flag.Cfg.Instrumenting = true
@@ -592,13 +592,13 @@ func loadsys() {
 
 	typs := runtimeTypes()
 	for _, d := range &runtimeDecls {
-		sym := Runtimepkg.Lookup(d.name)
+		sym := ir.Pkgs.Runtime.Lookup(d.name)
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importfunc(Runtimepkg, src.NoXPos, sym, typ)
+			importfunc(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
 		case varTag:
-			importvar(Runtimepkg, src.NoXPos, sym, typ)
+			importvar(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
 		default:
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
@@ -647,7 +647,7 @@ func importfile(f constant.Value) *types.Pkg {
 	}
 
 	if path_ == "unsafe" {
-		return unsafepkg
+		return ir.Pkgs.Unsafe
 	}
 
 	if islocalname(path_) {

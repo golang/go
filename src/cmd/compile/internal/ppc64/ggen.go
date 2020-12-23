@@ -7,6 +7,7 @@ package ppc64
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 )
@@ -24,7 +25,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 		p.Reg = ppc64.REGSP
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Duffzero
+		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {
 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)

@@ -124,7 +124,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
 		s.PrepareCall(v)
-		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == gc.Deferreturn {
+		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
 			// add a resume point before call to deferreturn so it can be called again via jmpdefer
 			s.Prog(wasm.ARESUMEPOINT)
 		}
@@ -149,20 +149,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		getValue32(s, v.Args[1])
 		i32Const(s, int32(v.AuxInt))
 		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmMove}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmMove}
 
 	case ssa.OpWasmLoweredZero:
 		getValue32(s, v.Args[0])
 		i32Const(s, int32(v.AuxInt))
 		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmZero}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmZero}
 
 	case ssa.OpWasmLoweredNilCheck:
 		getValue64(s, v.Args[0])
 		s.Prog(wasm.AI64Eqz)
 		s.Prog(wasm.AIf)
 		p := s.Prog(wasm.ACALLNORESUME)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.SigPanic}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.SigPanic}
 		s.Prog(wasm.AEnd)
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
@@ -314,7 +314,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		if v.Type.Size() == 8 {
 			// Division of int64 needs helper function wasmDiv to handle the MinInt64 / -1 case.
 			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmDiv}
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmDiv}
 			break
 		}
 		s.Prog(wasm.AI64DivS)
@@ -328,7 +328,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 				s.Prog(wasm.AF64PromoteF32)
 			}
 			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmTruncS}
 		}
 
 	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
@@ -340,7 +340,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 				s.Prog(wasm.AF64PromoteF32)
 			}
 			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmTruncU}
 		}
 
 	case ssa.OpWasmF32DemoteF64:

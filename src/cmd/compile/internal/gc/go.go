@@ -64,24 +64,6 @@ var decldepth int32
 
 var inimport bool // set during import
 
-var itabpkg *types.Pkg // fake pkg for itab entries
-
-var itablinkpkg *types.Pkg // fake package for runtime itab entries
-
-var Runtimepkg *types.Pkg // fake package runtime
-
-var racepkg *types.Pkg // package runtime/race
-
-var msanpkg *types.Pkg // package runtime/msan
-
-var unsafepkg *types.Pkg // package unsafe
-
-var trackpkg *types.Pkg // fake package for field tracking
-
-var mappkg *types.Pkg // fake package for map zero value
-
-var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver types
-
 var zerosize int64
 
 var (
@@ -149,57 +131,8 @@ type Arch struct {
 var thearch Arch
 
 var (
-	staticuint64s *ir.Name
-	zerobase      *ir.Name
-
-	assertE2I,
-	assertE2I2,
-	assertI2I,
-	assertI2I2,
-	deferproc,
-	deferprocStack,
-	Deferreturn,
-	Duffcopy,
-	Duffzero,
-	gcWriteBarrier,
-	goschedguarded,
-	growslice,
-	msanread,
-	msanwrite,
-	msanmove,
-	newobject,
-	newproc,
-	panicdivide,
-	panicshift,
-	panicdottypeE,
-	panicdottypeI,
-	panicnildottype,
-	panicoverflow,
-	raceread,
-	racereadrange,
-	racewrite,
-	racewriterange,
-	x86HasPOPCNT,
-	x86HasSSE41,
-	x86HasFMA,
-	armHasVFPv4,
-	arm64HasATOMICS,
-	typedmemclr,
-	typedmemmove,
-	Udiv,
-	writeBarrier,
-	zerobaseSym *obj.LSym
-
 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
-
-	// Wasm
-	WasmMove,
-	WasmZero,
-	WasmDiv,
-	WasmTruncS,
-	WasmTruncU,
-	SigPanic *obj.LSym
 )
 
 // GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.

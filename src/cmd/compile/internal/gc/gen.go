@@ -16,7 +16,7 @@ import (
 // sysfunc looks up Go function name in package runtime. This function
 // must follow the internal calling convention.
 func sysfunc(name string) *obj.LSym {
-	s := Runtimepkg.Lookup(name)
+	s := ir.Pkgs.Runtime.Lookup(name)
 	s.SetFunc(true)
 	return s.Linksym()
 }
@@ -25,7 +25,7 @@ func sysfunc(name string) *obj.LSym {
 // runtime. If this is a function, it may have a special calling
 // convention.
 func sysvar(name string) *obj.LSym {
-	return Runtimepkg.Lookup(name).Linksym()
+	return ir.Pkgs.Runtime.Lookup(name).Linksym()
 }
 
 // isParamStackCopy reports whether this is the on-stack copy of a
