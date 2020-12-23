@@ -332,75 +332,75 @@ func stmtFmt(n Node, s fmt.State) {
 	switch n.Op() {
 	case ODCL:
 		n := n.(*Decl)
-		fmt.Fprintf(s, "var %v %v", n.Left().Sym(), n.Left().Type())
+		fmt.Fprintf(s, "var %v %v", n.X.Sym(), n.X.Type())
 
 	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS:
 		n := n.(*AssignStmt)
-		if n.Colas() && !complexinit {
-			fmt.Fprintf(s, "%v := %v", n.Left(), n.Right())
+		if n.Def && !complexinit {
+			fmt.Fprintf(s, "%v := %v", n.X, n.Y)
 		} else {
-			fmt.Fprintf(s, "%v = %v", n.Left(), n.Right())
+			fmt.Fprintf(s, "%v = %v", n.X, n.Y)
 		}
 
 	case OASOP:
 		n := n.(*AssignOpStmt)
-		if n.Implicit() {
-			if n.SubOp() == OADD {
-				fmt.Fprintf(s, "%v++", n.Left())
+		if n.IncDec {
+			if n.AsOp == OADD {
+				fmt.Fprintf(s, "%v++", n.X)
 			} else {
-				fmt.Fprintf(s, "%v--", n.Left())
+				fmt.Fprintf(s, "%v--", n.X)
 			}
 			break
 		}
 
-		fmt.Fprintf(s, "%v %v= %v", n.Left(), n.SubOp(), n.Right())
+		fmt.Fprintf(s, "%v %v= %v", n.X, n.AsOp, n.Y)
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		n := n.(*AssignListStmt)
-		if n.Colas() && !complexinit {
-			fmt.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
+		if n.Def && !complexinit {
+			fmt.Fprintf(s, "%.v := %.v", n.Lhs, n.Rhs)
 		} else {
-			fmt.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
+			fmt.Fprintf(s, "%.v = %.v", n.Lhs, n.Rhs)
 		}
 
 	case OBLOCK:
 		n := n.(*BlockStmt)
-		if n.List().Len() != 0 {
-			fmt.Fprintf(s, "%v", n.List())
+		if n.List.Len() != 0 {
+			fmt.Fprintf(s, "%v", n.List)
 		}
 
 	case ORETURN:
 		n := n.(*ReturnStmt)
-		fmt.Fprintf(s, "return %.v", n.List())
+		fmt.Fprintf(s, "return %.v", n.Results)
 
 	case ORETJMP:
 		n := n.(*BranchStmt)
-		fmt.Fprintf(s, "retjmp %v", n.Sym())
+		fmt.Fprintf(s, "retjmp %v", n.Label)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)
-		fmt.Fprintf(s, "inlmark %d", n.Offset())
+		fmt.Fprintf(s, "inlmark %d", n.Index)
 
 	case OGO:
 		n := n.(*GoDeferStmt)
-		fmt.Fprintf(s, "go %v", n.Left())
+		fmt.Fprintf(s, "go %v", n.Call)
 
 	case ODEFER:
 		n := n.(*GoDeferStmt)
-		fmt.Fprintf(s, "defer %v", n.Left())
+		fmt.Fprintf(s, "defer %v", n.Call)
 
 	case OIF:
 		n := n.(*IfStmt)
 		if simpleinit {
-			fmt.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Left(), n.Body())
+			fmt.Fprintf(s, "if %v; %v { %v }", n.Init().First(), n.Cond, n.Body)
 		} else {
-			fmt.Fprintf(s, "if %v { %v }", n.Left(), n.Body())
+			fmt.Fprintf(s, "if %v { %v }", n.Cond, n.Body)
 		}
-		if n.Rlist().Len() != 0 {
-			fmt.Fprintf(s, " else { %v }", n.Rlist())
+		if n.Else.Len() != 0 {
+			fmt.Fprintf(s, " else { %v }", n.Else)
 		}
 
 	case OFOR, OFORUNTIL:
@@ -417,25 +417,25 @@ func stmtFmt(n Node, s fmt.State) {
 		fmt.Fprint(s, opname)
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init().First())
-		} else if n.Right() != nil {
+		} else if n.Post != nil {
 			fmt.Fprint(s, " ;")
 		}
 
-		if n.Left() != nil {
-			fmt.Fprintf(s, " %v", n.Left())
+		if n.Cond != nil {
+			fmt.Fprintf(s, " %v", n.Cond)
 		}
 
-		if n.Right() != nil {
-			fmt.Fprintf(s, "; %v", n.Right())
+		if n.Post != nil {
+			fmt.Fprintf(s, "; %v", n.Post)
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
 		}
 
-		if n.Op() == OFORUNTIL && n.List().Len() != 0 {
-			fmt.Fprintf(s, "; %v", n.List())
+		if n.Op() == OFORUNTIL && n.Late.Len() != 0 {
+			fmt.Fprintf(s, "; %v", n.Late)
 		}
 
-		fmt.Fprintf(s, " { %v }", n.Body())
+		fmt.Fprintf(s, " { %v }", n.Body)
 
 	case ORANGE:
 		n := n.(*RangeStmt)
@@ -444,12 +444,12 @@ func stmtFmt(n Node, s fmt.State) {
 			break
 		}
 
-		if n.List().Len() == 0 {
-			fmt.Fprintf(s, "for range %v { %v }", n.Right(), n.Body())
+		if n.Vars.Len() == 0 {
+			fmt.Fprintf(s, "for range %v { %v }", n.X, n.Body)
 			break
 		}
 
-		fmt.Fprintf(s, "for %.v = range %v { %v }", n.List(), n.Right(), n.Body())
+		fmt.Fprintf(s, "for %.v = range %v { %v }", n.Vars, n.X, n.Body)
 
 	case OSELECT:
 		n := n.(*SelectStmt)
@@ -457,7 +457,7 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, "%v statement", n.Op())
 			break
 		}
-		fmt.Fprintf(s, "select { %v }", n.List())
+		fmt.Fprintf(s, "select { %v }", n.Cases)
 
 	case OSWITCH:
 		n := n.(*SwitchStmt)
@@ -469,31 +469,31 @@ func stmtFmt(n Node, s fmt.State) {
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init().First())
 		}
-		if n.Left() != nil {
-			fmt.Fprintf(s, " %v ", n.Left())
+		if n.Tag != nil {
+			fmt.Fprintf(s, " %v ", n.Tag)
 		}
-		fmt.Fprintf(s, " { %v }", n.List())
+		fmt.Fprintf(s, " { %v }", n.Cases)
 
 	case OCASE:
 		n := n.(*CaseStmt)
-		if n.List().Len() != 0 {
-			fmt.Fprintf(s, "case %.v", n.List())
+		if n.List.Len() != 0 {
+			fmt.Fprintf(s, "case %.v", n.List)
 		} else {
 			fmt.Fprint(s, "default")
 		}
-		fmt.Fprintf(s, ": %v", n.Body())
+		fmt.Fprintf(s, ": %v", n.Body)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
 		n := n.(*BranchStmt)
-		if n.Sym() != nil {
-			fmt.Fprintf(s, "%v %v", n.Op(), n.Sym())
+		if n.Label != nil {
+			fmt.Fprintf(s, "%v %v", n.Op(), n.Label)
 		} else {
 			fmt.Fprintf(s, "%v", n.Op())
 		}
 
 	case OLABEL:
 		n := n.(*LabelStmt)
-		fmt.Fprintf(s, "%v: ", n.Sym())
+		fmt.Fprintf(s, "%v: ", n.Label)
 	}
 
 	if extrablock {
@@ -527,19 +527,19 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		case OADDR:
 			nn := nn.(*AddrExpr)
 			if nn.Implicit() {
-				n = nn.Left()
+				n = nn.X
 				continue
 			}
 		case ODEREF:
 			nn := nn.(*StarExpr)
 			if nn.Implicit() {
-				n = nn.Left()
+				n = nn.X
 				continue
 			}
 		case OCONV, OCONVNOP, OCONVIFACE:
 			nn := nn.(*ConvExpr)
 			if nn.Implicit() {
-				n = nn.Left()
+				n = nn.X
 				continue
 			}
 		}
@@ -560,7 +560,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	switch n.Op() {
 	case OPAREN:
 		n := n.(*ParenExpr)
-		fmt.Fprintf(s, "(%v)", n.Left())
+		fmt.Fprintf(s, "(%v)", n.X)
 
 	case ONIL:
 		fmt.Fprint(s, "nil")
@@ -694,7 +694,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			fmt.Fprint(s, "func literal")
 			return
 		}
-		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
+		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func.Body)
 
 	case OCOMPLIT:
 		n := n.(*CompLitExpr)
@@ -703,84 +703,84 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				fmt.Fprintf(s, "... argument")
 				return
 			}
-			if n.Right() != nil {
-				fmt.Fprintf(s, "%v{%s}", n.Right(), ellipsisIf(n.List().Len() != 0))
+			if n.Ntype != nil {
+				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(n.List.Len() != 0))
 				return
 			}
 
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Right(), n.List())
+		fmt.Fprintf(s, "(%v{ %.v })", n.Ntype, n.List)
 
 	case OPTRLIT:
 		n := n.(*AddrExpr)
-		fmt.Fprintf(s, "&%v", n.Left())
+		fmt.Fprintf(s, "&%v", n.X)
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		n := n.(*CompLitExpr)
 		if !exportFormat {
-			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List().Len() != 0))
+			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(n.List.Len() != 0))
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List())
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
 
 	case OKEY:
 		n := n.(*KeyExpr)
-		if n.Left() != nil && n.Right() != nil {
-			fmt.Fprintf(s, "%v:%v", n.Left(), n.Right())
+		if n.Key != nil && n.Value != nil {
+			fmt.Fprintf(s, "%v:%v", n.Key, n.Value)
 			return
 		}
 
-		if n.Left() == nil && n.Right() != nil {
-			fmt.Fprintf(s, ":%v", n.Right())
+		if n.Key == nil && n.Value != nil {
+			fmt.Fprintf(s, ":%v", n.Value)
 			return
 		}
-		if n.Left() != nil && n.Right() == nil {
-			fmt.Fprintf(s, "%v:", n.Left())
+		if n.Key != nil && n.Value == nil {
+			fmt.Fprintf(s, "%v:", n.Key)
 			return
 		}
 		fmt.Fprint(s, ":")
 
 	case OSTRUCTKEY:
 		n := n.(*StructKeyExpr)
-		fmt.Fprintf(s, "%v:%v", n.Sym(), n.Left())
+		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
 
 	case OCALLPART:
 		n := n.(*CallPartExpr)
-		exprFmt(n.Left(), s, nprec)
-		if n.Sym() == nil {
+		exprFmt(n.X, s, nprec)
+		if n.Method.Sym == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
+		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Method.Sym))
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		n := n.(*SelectorExpr)
-		exprFmt(n.Left(), s, nprec)
-		if n.Sym() == nil {
+		exprFmt(n.X, s, nprec)
+		if n.Sel == nil {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
+		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sel))
 
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
-		exprFmt(n.Left(), s, nprec)
-		if n.Right() != nil {
-			fmt.Fprintf(s, ".(%v)", n.Right())
+		exprFmt(n.X, s, nprec)
+		if n.Ntype != nil {
+			fmt.Fprintf(s, ".(%v)", n.Ntype)
 			return
 		}
 		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:
 		n := n.(*IndexExpr)
-		exprFmt(n.Left(), s, nprec)
-		fmt.Fprintf(s, "[%v]", n.Right())
+		exprFmt(n.X, s, nprec)
+		fmt.Fprintf(s, "[%v]", n.Index)
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
 		n := n.(*SliceExpr)
-		exprFmt(n.Left(), s, nprec)
+		exprFmt(n.X, s, nprec)
 		fmt.Fprint(s, "[")
 		low, high, max := n.SliceBounds()
 		if low != nil {
@@ -800,14 +800,14 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OSLICEHEADER:
 		n := n.(*SliceHeaderExpr)
-		if n.List().Len() != 2 {
-			base.Fatalf("bad OSLICEHEADER list length %d", n.List().Len())
+		if n.LenCap.Len() != 2 {
+			base.Fatalf("bad OSLICEHEADER list length %d", n.LenCap.Len())
 		}
-		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left(), n.List().First(), n.List().Second())
+		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap.First(), n.LenCap.Second())
 
 	case OCOMPLEX, OCOPY:
 		n := n.(*BinaryExpr)
-		fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.Left(), n.Right())
+		fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.X, n.Y)
 
 	case OCONV,
 		OCONVIFACE,
@@ -823,7 +823,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		} else {
 			fmt.Fprintf(s, "%v", n.Type())
 		}
-		fmt.Fprintf(s, "(%v)", n.Left())
+		fmt.Fprintf(s, "(%v)", n.X)
 
 	case OREAL,
 		OIMAG,
@@ -836,7 +836,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OOFFSETOF,
 		OSIZEOF:
 		n := n.(*UnaryExpr)
-		fmt.Fprintf(s, "%v(%v)", n.Op(), n.Left())
+		fmt.Fprintf(s, "%v(%v)", n.Op(), n.X)
 
 	case OAPPEND,
 		ODELETE,
@@ -845,58 +845,58 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OPRINT,
 		OPRINTN:
 		n := n.(*CallExpr)
-		if n.IsDDD() {
-			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.List())
+		if n.IsDDD {
+			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.Args)
 			return
 		}
-		fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
+		fmt.Fprintf(s, "%v(%.v)", n.Op(), n.Args)
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n := n.(*CallExpr)
-		exprFmt(n.Left(), s, nprec)
-		if n.IsDDD() {
-			fmt.Fprintf(s, "(%.v...)", n.List())
+		exprFmt(n.X, s, nprec)
+		if n.IsDDD {
+			fmt.Fprintf(s, "(%.v...)", n.Args)
 			return
 		}
-		fmt.Fprintf(s, "(%.v)", n.List())
+		fmt.Fprintf(s, "(%.v)", n.Args)
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		n := n.(*MakeExpr)
-		if n.Right() != nil {
-			fmt.Fprintf(s, "make(%v, %v, %v)", n.Type(), n.Left(), n.Right())
+		if n.Cap != nil {
+			fmt.Fprintf(s, "make(%v, %v, %v)", n.Type(), n.Len, n.Cap)
 			return
 		}
-		if n.Left() != nil && (n.Op() == OMAKESLICE || !n.Left().Type().IsUntyped()) {
-			fmt.Fprintf(s, "make(%v, %v)", n.Type(), n.Left())
+		if n.Len != nil && (n.Op() == OMAKESLICE || !n.Len.Type().IsUntyped()) {
+			fmt.Fprintf(s, "make(%v, %v)", n.Type(), n.Len)
 			return
 		}
 		fmt.Fprintf(s, "make(%v)", n.Type())
 
 	case OMAKESLICECOPY:
 		n := n.(*MakeExpr)
-		fmt.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Left(), n.Right())
+		fmt.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Len, n.Cap)
 
 	case OPLUS, ONEG, OBITNOT, ONOT, ORECV:
 		// Unary
 		n := n.(*UnaryExpr)
 		fmt.Fprintf(s, "%v", n.Op())
-		if n.Left() != nil && n.Left().Op() == n.Op() {
+		if n.X != nil && n.X.Op() == n.Op() {
 			fmt.Fprint(s, " ")
 		}
-		exprFmt(n.Left(), s, nprec+1)
+		exprFmt(n.X, s, nprec+1)
 
 	case OADDR:
 		n := n.(*AddrExpr)
 		fmt.Fprintf(s, "%v", n.Op())
-		if n.Left() != nil && n.Left().Op() == n.Op() {
+		if n.X != nil && n.X.Op() == n.Op() {
 			fmt.Fprint(s, " ")
 		}
-		exprFmt(n.Left(), s, nprec+1)
+		exprFmt(n.X, s, nprec+1)
 
 	case ODEREF:
 		n := n.(*StarExpr)
 		fmt.Fprintf(s, "%v", n.Op())
-		exprFmt(n.Left(), s, nprec+1)
+		exprFmt(n.X, s, nprec+1)
 
 		// Binary
 	case OADD,
@@ -917,26 +917,26 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OSUB,
 		OXOR:
 		n := n.(*BinaryExpr)
-		exprFmt(n.Left(), s, nprec)
+		exprFmt(n.X, s, nprec)
 		fmt.Fprintf(s, " %v ", n.Op())
-		exprFmt(n.Right(), s, nprec+1)
+		exprFmt(n.Y, s, nprec+1)
 
 	case OANDAND,
 		OOROR:
 		n := n.(*LogicalExpr)
-		exprFmt(n.Left(), s, nprec)
+		exprFmt(n.X, s, nprec)
 		fmt.Fprintf(s, " %v ", n.Op())
-		exprFmt(n.Right(), s, nprec+1)
+		exprFmt(n.Y, s, nprec+1)
 
 	case OSEND:
 		n := n.(*SendStmt)
-		exprFmt(n.Left(), s, nprec)
+		exprFmt(n.Chan, s, nprec)
 		fmt.Fprintf(s, " <- ")
-		exprFmt(n.Right(), s, nprec+1)
+		exprFmt(n.Value, s, nprec+1)
 
 	case OADDSTR:
 		n := n.(*AddStringExpr)
-		for i, n1 := range n.List().Slice() {
+		for i, n1 := range n.List.Slice() {
 			if i != 0 {
 				fmt.Fprint(s, " + ")
 			}
@@ -1098,7 +1098,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 
 	if n.Op() == OCLOSURE {
 		n := n.(*ClosureExpr)
-		if fn := n.Func(); fn != nil && fn.Nname.Sym() != nil {
+		if fn := n.Func; fn != nil && fn.Nname.Sym() != nil {
 			fmt.Fprintf(w, " fnName(%+v)", fn.Nname.Sym())
 		}
 	}
@@ -1169,7 +1169,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 
 	case OASOP:
 		n := n.(*AssignOpStmt)
-		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.SubOp())
+		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.AsOp)
 		dumpNodeHeader(w, n)
 
 	case OTYPE:
@@ -1192,18 +1192,18 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		n := n.(*Func)
 		fmt.Fprintf(w, "%+v", n.Op())
 		dumpNodeHeader(w, n)
-		fn := n.Func()
+		fn := n
 		if len(fn.Dcl) > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-Dcl", n.Op())
-			for _, dcl := range n.Func().Dcl {
+			for _, dcl := range n.Dcl {
 				dumpNode(w, dcl, depth+1)
 			}
 		}
-		if fn.Body().Len() > 0 {
+		if fn.Body.Len() > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-body", n.Op())
-			dumpNodes(w, fn.Body(), depth+1)
+			dumpNodes(w, fn.Body, depth+1)
 		}
 		return
 	}

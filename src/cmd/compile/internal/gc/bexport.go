@@ -17,7 +17,7 @@ type exporter struct {
 func (p *exporter) markObject(n ir.Node) {
 	if n.Op() == ir.ONAME {
 		n := n.(*ir.Name)
-		if n.Class() == ir.PFUNC {
+		if n.Class_ == ir.PFUNC {
 			inlFlood(n, exportsym)
 		}
 	}

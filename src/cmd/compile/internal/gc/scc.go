@@ -58,7 +58,7 @@ func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)
 	for _, n := range list {
 		if n.Op() == ir.ODCLFUNC {
 			n := n.(*ir.Func)
-			if !n.Func().IsHiddenClosure() {
+			if !n.IsHiddenClosure() {
 				v.visit(n)
 			}
 		}
@@ -82,7 +82,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 		switch n.Op() {
 		case ir.ONAME:
 			n := n.(*ir.Name)
-			if n.Class() == ir.PFUNC {
+			if n.Class_ == ir.PFUNC {
 				if n != nil && n.Name().Defn != nil {
 					if m := v.visit(n.Name().Defn.(*ir.Func)); m < min {
 						min = m
@@ -100,7 +100,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 		case ir.ODOTMETH:
 			n := n.(*ir.SelectorExpr)
 			fn := methodExprName(n)
-			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Defn != nil {
+			if fn != nil && fn.Op() == ir.ONAME && fn.Class_ == ir.PFUNC && fn.Defn != nil {
 				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
 					min = m
 				}
@@ -109,7 +109,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 			n := n.(*ir.CallPartExpr)
 			fn := ir.AsNode(callpartMethod(n).Nname)
 			if fn != nil && fn.Op() == ir.ONAME {
-				if fn := fn.(*ir.Name); fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+				if fn := fn.(*ir.Name); fn.Class_ == ir.PFUNC && fn.Name().Defn != nil {
 					if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
 						min = m
 					}
@@ -117,7 +117,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
 			}
 		case ir.OCLOSURE:
 			n := n.(*ir.ClosureExpr)
-			if m := v.visit(n.Func()); m < min {
+			if m := v.visit(n.Func); m < min {
 				min = m
 			}
 		}

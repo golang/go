@@ -139,7 +139,7 @@ func (o *InitOrder) processAssign(n ir.Node) {
 		defn := dep.Defn
 		// Skip dependencies on functions (PFUNC) and
 		// variables already initialized (InitDone).
-		if dep.Class() != ir.PEXTERN || o.order[defn] == orderDone {
+		if dep.Class_ != ir.PEXTERN || o.order[defn] == orderDone {
 			continue
 		}
 		o.order[n]++
@@ -203,7 +203,7 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
 	*path = append(*path, n)
 	for _, ref := range refers {
 		// Short-circuit variables that were initialized.
-		if ref.Class() == ir.PEXTERN && o.order[ref.Defn] == orderDone {
+		if ref.Class_ == ir.PEXTERN && o.order[ref.Defn] == orderDone {
 			continue
 		}
 
@@ -220,7 +220,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	// the start.
 	i := -1
 	for j, n := range l {
-		if n.Class() == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
+		if n.Class_ == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
 			i = j
 		}
 	}
@@ -255,13 +255,13 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
 	switch n.Op() {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		d.inspect(n.Right())
+		d.inspect(n.Y)
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		n := n.(*ir.AssignListStmt)
-		d.inspect(n.Rlist().First())
+		d.inspect(n.Rhs.First())
 	case ir.ODCLFUNC:
 		n := n.(*ir.Func)
-		d.inspectList(n.Body())
+		d.inspectList(n.Body)
 	default:
 		base.Fatalf("unexpected Op: %v", n.Op())
 	}
@@ -294,14 +294,14 @@ func (d *initDeps) visit(n ir.Node) {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		switch n.Class() {
+		switch n.Class_ {
 		case ir.PEXTERN, ir.PFUNC:
 			d.foundDep(n)
 		}
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		d.inspectList(n.Func().Body())
+		d.inspectList(n.Func.Body)
 
 	case ir.ODOTMETH, ir.OCALLPART:
 		d.foundDep(methodExprName(n))
@@ -327,8 +327,8 @@ func (d *initDeps) foundDep(n *ir.Name) {
 		return
 	}
 	d.seen.Add(n)
-	if d.transitive && n.Class() == ir.PFUNC {
-		d.inspectList(n.Defn.(*ir.Func).Body())
+	if d.transitive && n.Class_ == ir.PFUNC {
+		d.inspectList(n.Defn.(*ir.Func).Body)
 	}
 }
 
@@ -360,10 +360,10 @@ func firstLHS(n ir.Node) *ir.Name {
 	switch n.Op() {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		return n.Left().Name()
+		return n.X.Name()
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2RECV, ir.OAS2MAPR:
 		n := n.(*ir.AssignListStmt)
-		return n.List().First().Name()
+		return n.Lhs.First().Name()
 	}
 
 	base.Fatalf("unexpected Op: %v", n.Op())

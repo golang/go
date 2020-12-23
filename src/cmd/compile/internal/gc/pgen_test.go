@@ -44,7 +44,7 @@ func TestCmpstackvar(t *testing.T) {
 		n := NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
-		n.SetClass(cl)
+		n.Class_ = cl
 		return n
 	}
 	testdata := []struct {
@@ -159,7 +159,7 @@ func TestStackvarSort(t *testing.T) {
 		n := NewName(s)
 		n.SetType(t)
 		n.SetFrameOffset(xoffset)
-		n.SetClass(cl)
+		n.Class_ = cl
 		return n
 	}
 	inp := []*ir.Name{

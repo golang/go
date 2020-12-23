@@ -272,7 +272,7 @@ func Main(archInit func(*Arch)) {
 	for _, n := range Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
 			n := n.(*ir.Func)
-			if n.Func().OClosure != nil {
+			if n.OClosure != nil {
 				Curfn = n
 				transformclosure(n)
 			}

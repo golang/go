@@ -45,7 +45,7 @@ func fninit() *ir.Name {
 		if n.Op() == ir.ONONAME {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.(*ir.Name).Class() != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.(*ir.Name).Class_ != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
 		deps = append(deps, n.(*ir.Name).Sym().Linksym())
@@ -62,7 +62,7 @@ func fninit() *ir.Name {
 		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
 		initTodo.Dcl = nil
 
-		fn.PtrBody().Set(nf)
+		fn.Body.Set(nf)
 		funcbody()
 
 		typecheckFunc(fn)
@@ -83,8 +83,8 @@ func fninit() *ir.Name {
 	// Record user init functions.
 	for _, fn := range Target.Inits {
 		// Skip init functions with empty bodies.
-		if fn.Body().Len() == 1 {
-			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
+		if fn.Body.Len() == 1 {
+			if stmt := fn.Body.First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List.Len() == 0 {
 				continue
 			}
 		}
@@ -99,7 +99,7 @@ func fninit() *ir.Name {
 	sym := lookup(".inittask")
 	task := NewName(sym)
 	task.SetType(types.Types[types.TUINT8]) // fake type
-	task.SetClass(ir.PEXTERN)
+	task.Class_ = ir.PEXTERN
 	sym.Def = task
 	lsym := sym.Linksym()
 	ot := 0
