@@ -287,9 +287,9 @@ var scase *types.Type
 // Keep in sync with src/runtime/select.go.
 func scasetype() *types.Type {
 	if scase == nil {
-		scase = typecheck.NewStructType([]*ir.Field{
-			ir.NewField(base.Pos, typecheck.Lookup("c"), nil, types.Types[types.TUNSAFEPTR]),
-			ir.NewField(base.Pos, typecheck.Lookup("elem"), nil, types.Types[types.TUNSAFEPTR]),
+		scase = types.NewStruct(types.NoPkg, []*types.Field{
+			types.NewField(base.Pos, typecheck.Lookup("c"), types.Types[types.TUNSAFEPTR]),
+			types.NewField(base.Pos, typecheck.Lookup("elem"), types.Types[types.TUNSAFEPTR]),
 		})
 		scase.SetNoalg(true)
 	}

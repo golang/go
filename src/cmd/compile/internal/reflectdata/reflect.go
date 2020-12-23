@@ -1419,7 +1419,11 @@ func WriteBasicTypes() {
 		// The latter is the type of an auto-generated wrapper.
 		WriteType(types.NewPtr(types.ErrorType))
 
-		WriteType(typecheck.NewFuncType(nil, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.ErrorType)}, []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TSTRING])}))
+		WriteType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+			types.NewField(base.Pos, nil, types.ErrorType),
+		}, []*types.Field{
+			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
+		}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(ir.Pkgs.Runtime)

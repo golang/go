@@ -428,11 +428,11 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
 		sym := reflectdata.TypeSymPrefix(".eq", t)
 		n := typecheck.NewName(sym)
 		ir.MarkFunc(n)
-		n.SetType(typecheck.NewFuncType(nil, []*ir.Field{
-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-			ir.NewField(base.Pos, nil, nil, types.NewPtr(t)),
-		}, []*ir.Field{
-			ir.NewField(base.Pos, nil, nil, types.Types[types.TBOOL]),
+		n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+			types.NewField(base.Pos, nil, types.NewPtr(t)),
+			types.NewField(base.Pos, nil, types.NewPtr(t)),
+		}, []*types.Field{
+			types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
 		}))
 		return n, false
 	}
