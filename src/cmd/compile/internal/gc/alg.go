@@ -13,56 +13,10 @@ import (
 	"sort"
 )
 
-// AlgKind describes the kind of algorithms used for comparing and
-// hashing a Type.
-type AlgKind int
-
-//go:generate stringer -type AlgKind -trimprefix A
-
-const (
-	// These values are known by runtime.
-	ANOEQ AlgKind = iota
-	AMEM0
-	AMEM8
-	AMEM16
-	AMEM32
-	AMEM64
-	AMEM128
-	ASTRING
-	AINTER
-	ANILINTER
-	AFLOAT32
-	AFLOAT64
-	ACPLX64
-	ACPLX128
-
-	// Type can be compared/hashed as regular memory.
-	AMEM AlgKind = 100
-
-	// Type needs special comparison/hashing functions.
-	ASPECIAL AlgKind = -1
-)
-
-// IsComparable reports whether t is a comparable type.
-func IsComparable(t *types.Type) bool {
-	a, _ := algtype1(t)
-	return a != ANOEQ
-}
-
 // IsRegularMemory reports whether t can be compared/hashed as regular memory.
 func IsRegularMemory(t *types.Type) bool {
-	a, _ := algtype1(t)
-	return a == AMEM
-}
-
-// IncomparableField returns an incomparable Field of struct Type t, if any.
-func IncomparableField(t *types.Type) *types.Field {
-	for _, f := range t.FieldSlice() {
-		if !IsComparable(f.Type) {
-			return f
-		}
-	}
-	return nil
+	a, _ := types.AlgType(t)
+	return a == types.AMEM
 }
 
 // EqCanPanic reports whether == on type t could panic (has an interface somewhere).
@@ -87,126 +41,26 @@ func EqCanPanic(t *types.Type) bool {
 
 // algtype is like algtype1, except it returns the fixed-width AMEMxx variants
 // instead of the general AMEM kind when possible.
-func algtype(t *types.Type) AlgKind {
-	a, _ := algtype1(t)
-	if a == AMEM {
+func algtype(t *types.Type) types.AlgKind {
+	a, _ := types.AlgType(t)
+	if a == types.AMEM {
 		switch t.Width {
 		case 0:
-			return AMEM0
+			return types.AMEM0
 		case 1:
-			return AMEM8
+			return types.AMEM8
 		case 2:
-			return AMEM16
+			return types.AMEM16
 		case 4:
-			return AMEM32
+			return types.AMEM32
 		case 8:
-			return AMEM64
+			return types.AMEM64
 		case 16:
-			return AMEM128
+			return types.AMEM128
 		}
 	}
 
 	return a
-}
-
-// algtype1 returns the AlgKind used for comparing and hashing Type t.
-// If it returns ANOEQ, it also returns the component type of t that
-// makes it incomparable.
-func algtype1(t *types.Type) (AlgKind, *types.Type) {
-	if t.Broke() {
-		return AMEM, nil
-	}
-	if t.Noalg() {
-		return ANOEQ, t
-	}
-
-	switch t.Kind() {
-	case types.TANY, types.TFORW:
-		// will be defined later.
-		return ANOEQ, t
-
-	case types.TINT8, types.TUINT8, types.TINT16, types.TUINT16,
-		types.TINT32, types.TUINT32, types.TINT64, types.TUINT64,
-		types.TINT, types.TUINT, types.TUINTPTR,
-		types.TBOOL, types.TPTR,
-		types.TCHAN, types.TUNSAFEPTR:
-		return AMEM, nil
-
-	case types.TFUNC, types.TMAP:
-		return ANOEQ, t
-
-	case types.TFLOAT32:
-		return AFLOAT32, nil
-
-	case types.TFLOAT64:
-		return AFLOAT64, nil
-
-	case types.TCOMPLEX64:
-		return ACPLX64, nil
-
-	case types.TCOMPLEX128:
-		return ACPLX128, nil
-
-	case types.TSTRING:
-		return ASTRING, nil
-
-	case types.TINTER:
-		if t.IsEmptyInterface() {
-			return ANILINTER, nil
-		}
-		return AINTER, nil
-
-	case types.TSLICE:
-		return ANOEQ, t
-
-	case types.TARRAY:
-		a, bad := algtype1(t.Elem())
-		switch a {
-		case AMEM:
-			return AMEM, nil
-		case ANOEQ:
-			return ANOEQ, bad
-		}
-
-		switch t.NumElem() {
-		case 0:
-			// We checked above that the element type is comparable.
-			return AMEM, nil
-		case 1:
-			// Single-element array is same as its lone element.
-			return a, nil
-		}
-
-		return ASPECIAL, nil
-
-	case types.TSTRUCT:
-		fields := t.FieldSlice()
-
-		// One-field struct is same as that one field alone.
-		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
-			return algtype1(fields[0].Type)
-		}
-
-		ret := AMEM
-		for i, f := range fields {
-			// All fields must be comparable.
-			a, bad := algtype1(f.Type)
-			if a == ANOEQ {
-				return ANOEQ, bad
-			}
-
-			// Blank fields, padded fields, fields with non-memory
-			// equality need special compare.
-			if a != AMEM || f.Sym.IsBlank() || ispaddedfield(t, i) {
-				ret = ASPECIAL
-			}
-		}
-
-		return ret, nil
-	}
-
-	base.Fatalf("algtype1: unexpected type %v", t)
-	return 0, nil
 }
 
 // genhash returns a symbol which is the closure used to compute
@@ -217,37 +71,37 @@ func genhash(t *types.Type) *obj.LSym {
 	default:
 		// genhash is only called for types that have equality
 		base.Fatalf("genhash %v", t)
-	case AMEM0:
+	case types.AMEM0:
 		return sysClosure("memhash0")
-	case AMEM8:
+	case types.AMEM8:
 		return sysClosure("memhash8")
-	case AMEM16:
+	case types.AMEM16:
 		return sysClosure("memhash16")
-	case AMEM32:
+	case types.AMEM32:
 		return sysClosure("memhash32")
-	case AMEM64:
+	case types.AMEM64:
 		return sysClosure("memhash64")
-	case AMEM128:
+	case types.AMEM128:
 		return sysClosure("memhash128")
-	case ASTRING:
+	case types.ASTRING:
 		return sysClosure("strhash")
-	case AINTER:
+	case types.AINTER:
 		return sysClosure("interhash")
-	case ANILINTER:
+	case types.ANILINTER:
 		return sysClosure("nilinterhash")
-	case AFLOAT32:
+	case types.AFLOAT32:
 		return sysClosure("f32hash")
-	case AFLOAT64:
+	case types.AFLOAT64:
 		return sysClosure("f64hash")
-	case ACPLX64:
+	case types.ACPLX64:
 		return sysClosure("c64hash")
-	case ACPLX128:
+	case types.ACPLX128:
 		return sysClosure("c128hash")
-	case AMEM:
+	case types.AMEM:
 		// For other sizes of plain memory, we build a closure
 		// that calls memhash_varlen. The size of the memory is
 		// encoded in the first slot of the closure.
-		closure := typeLookup(fmt.Sprintf(".hashfunc%d", t.Width)).Linksym()
+		closure := types.TypeSymLookup(fmt.Sprintf(".hashfunc%d", t.Width)).Linksym()
 		if len(closure.P) > 0 { // already generated
 			return closure
 		}
@@ -259,7 +113,7 @@ func genhash(t *types.Type) *obj.LSym {
 		ot = duintptr(closure, ot, uint64(t.Width)) // size encoded in closure
 		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
-	case ASPECIAL:
+	case types.ASPECIAL:
 		break
 	}
 
@@ -390,7 +244,7 @@ func genhash(t *types.Type) *obj.LSym {
 	Curfn = nil
 
 	if base.Debug.DclStack != 0 {
-		testdclstack()
+		types.CheckDclstack()
 	}
 
 	fn.SetNilCheckDisabled(true)
@@ -407,22 +261,22 @@ func genhash(t *types.Type) *obj.LSym {
 func hashfor(t *types.Type) ir.Node {
 	var sym *types.Sym
 
-	switch a, _ := algtype1(t); a {
-	case AMEM:
+	switch a, _ := types.AlgType(t); a {
+	case types.AMEM:
 		base.Fatalf("hashfor with AMEM type")
-	case AINTER:
+	case types.AINTER:
 		sym = Runtimepkg.Lookup("interhash")
-	case ANILINTER:
+	case types.ANILINTER:
 		sym = Runtimepkg.Lookup("nilinterhash")
-	case ASTRING:
+	case types.ASTRING:
 		sym = Runtimepkg.Lookup("strhash")
-	case AFLOAT32:
+	case types.AFLOAT32:
 		sym = Runtimepkg.Lookup("f32hash")
-	case AFLOAT64:
+	case types.AFLOAT64:
 		sym = Runtimepkg.Lookup("f64hash")
-	case ACPLX64:
+	case types.ACPLX64:
 		sym = Runtimepkg.Lookup("c64hash")
-	case ACPLX128:
+	case types.ACPLX128:
 		sym = Runtimepkg.Lookup("c128hash")
 	default:
 		// Note: the caller of hashfor ensured that this symbol
@@ -457,40 +311,40 @@ func sysClosure(name string) *obj.LSym {
 // equality for two objects of type t.
 func geneq(t *types.Type) *obj.LSym {
 	switch algtype(t) {
-	case ANOEQ:
+	case types.ANOEQ:
 		// The runtime will panic if it tries to compare
 		// a type with a nil equality function.
 		return nil
-	case AMEM0:
+	case types.AMEM0:
 		return sysClosure("memequal0")
-	case AMEM8:
+	case types.AMEM8:
 		return sysClosure("memequal8")
-	case AMEM16:
+	case types.AMEM16:
 		return sysClosure("memequal16")
-	case AMEM32:
+	case types.AMEM32:
 		return sysClosure("memequal32")
-	case AMEM64:
+	case types.AMEM64:
 		return sysClosure("memequal64")
-	case AMEM128:
+	case types.AMEM128:
 		return sysClosure("memequal128")
-	case ASTRING:
+	case types.ASTRING:
 		return sysClosure("strequal")
-	case AINTER:
+	case types.AINTER:
 		return sysClosure("interequal")
-	case ANILINTER:
+	case types.ANILINTER:
 		return sysClosure("nilinterequal")
-	case AFLOAT32:
+	case types.AFLOAT32:
 		return sysClosure("f32equal")
-	case AFLOAT64:
+	case types.AFLOAT64:
 		return sysClosure("f64equal")
-	case ACPLX64:
+	case types.ACPLX64:
 		return sysClosure("c64equal")
-	case ACPLX128:
+	case types.ACPLX128:
 		return sysClosure("c128equal")
-	case AMEM:
+	case types.AMEM:
 		// make equality closure. The size of the type
 		// is encoded in the closure.
-		closure := typeLookup(fmt.Sprintf(".eqfunc%d", t.Width)).Linksym()
+		closure := types.TypeSymLookup(fmt.Sprintf(".eqfunc%d", t.Width)).Linksym()
 		if len(closure.P) != 0 {
 			return closure
 		}
@@ -502,7 +356,7 @@ func geneq(t *types.Type) *obj.LSym {
 		ot = duintptr(closure, ot, uint64(t.Width))
 		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
-	case ASPECIAL:
+	case types.ASPECIAL:
 		break
 	}
 
@@ -766,7 +620,7 @@ func geneq(t *types.Type) *obj.LSym {
 	Curfn = nil
 
 	if base.Debug.DclStack != 0 {
-		testdclstack()
+		types.CheckDclstack()
 	}
 
 	// Disable checknils while compiling this code.
@@ -904,7 +758,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 			break
 		}
 		// Stop run after a padded field.
-		if ispaddedfield(t, next-1) {
+		if types.IsPaddedField(t, next-1) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
@@ -913,17 +767,4 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 		}
 	}
 	return t.Field(next-1).End() - t.Field(start).Offset, next
-}
-
-// ispaddedfield reports whether the i'th field of struct type t is followed
-// by padding.
-func ispaddedfield(t *types.Type, i int) bool {
-	if !t.IsStruct() {
-		base.Fatalf("ispaddedfield called non-struct %v", t)
-	}
-	end := t.Width
-	if i+1 < t.NumFields() {
-		end = t.Field(i + 1).Offset
-	}
-	return t.Field(i).End() != end
 }

@@ -939,7 +939,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		}
 
 		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
-		if isdirectiface(fromType) {
+		if types.IsDirectIface(fromType) {
 			l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), n.X)
 			l.SetType(toType)
 			l.SetTypecheck(n.Typecheck())
@@ -1101,14 +1101,14 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		// rewrite complex div into function call.
 		et := n.X.Type().Kind()
 
-		if isComplex[et] && n.Op() == ir.ODIV {
+		if types.IsComplex[et] && n.Op() == ir.ODIV {
 			t := n.Type()
 			call := mkcall("complex128div", types.Types[types.TCOMPLEX128], init, conv(n.X, types.Types[types.TCOMPLEX128]), conv(n.Y, types.Types[types.TCOMPLEX128]))
 			return conv(call, t)
 		}
 
 		// Nothing to do for float divisions.
-		if isFloat[et] {
+		if types.IsFloat[et] {
 			return n
 		}
 
@@ -2078,7 +2078,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type()) // any-1
 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
-			if isRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
+			if types.IsRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
 				on = syslook("printhex")
 			} else {
 				on = syslook("printuint")
@@ -2706,7 +2706,7 @@ func mapfast(t *types.Type) int {
 		return mapslow
 	}
 	switch algtype(t.Key()) {
-	case AMEM32:
+	case types.AMEM32:
 		if !t.Key().HasPointers() {
 			return mapfast32
 		}
@@ -2714,7 +2714,7 @@ func mapfast(t *types.Type) int {
 			return mapfast32ptr
 		}
 		base.Fatalf("small pointer %v", t.Key())
-	case AMEM64:
+	case types.AMEM64:
 		if !t.Key().HasPointers() {
 			return mapfast64
 		}
@@ -2723,7 +2723,7 @@ func mapfast(t *types.Type) int {
 		}
 		// Two-word object, at least one of which is a pointer.
 		// Use the slow path.
-	case ASTRING:
+	case types.ASTRING:
 		return mapfaststr
 	}
 	return mapslow
@@ -3256,12 +3256,12 @@ func eqfor(t *types.Type) (n ir.Node, needsize bool) {
 	// a struct/array containing a non-memory field/element.
 	// Small memory is handled inline, and single non-memory
 	// is handled by walkcompare.
-	switch a, _ := algtype1(t); a {
-	case AMEM:
+	switch a, _ := types.AlgType(t); a {
+	case types.AMEM:
 		n := syslook("memequal")
 		n = substArgTypes(n, t, t)
 		return n, true
-	case ASPECIAL:
+	case types.ASPECIAL:
 		sym := typesymprefix(".eq", t)
 		n := NewName(sym)
 		setNodeNameFunc(n)
@@ -3398,7 +3398,7 @@ func walkcompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		return n
 	case types.TARRAY:
 		// We can compare several elements at once with 2/4/8 byte integer compares
-		inline = t.NumElem() <= 1 || (issimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
+		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
 	case types.TSTRUCT:
 		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
 	}
@@ -3793,7 +3793,7 @@ func usemethod(n *ir.CallExpr) {
 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
 	//       (including global variables such as numImports - was issue #19028).
 	// Also need to check for reflect package itself (see Issue #38515).
-	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
+	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
 		Curfn.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		Curfn.LSym.Set(obj.AttrReflectMethod, true)

@@ -9,8 +9,6 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"crypto/md5"
-	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"sort"
@@ -170,13 +168,6 @@ func NewName(s *types.Sym) *ir.Name {
 	return n
 }
 
-// methcmp sorts methods by symbol.
-type methcmp []*types.Field
-
-func (x methcmp) Len() int           { return len(x) }
-func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
-
 func nodintconst(v int64) ir.Node {
 	return ir.NewLiteral(constant.MakeInt64(v))
 }
@@ -210,41 +201,6 @@ func isptrto(t *types.Type, et types.Kind) bool {
 		return false
 	}
 	return true
-}
-
-// methtype returns the underlying type, if any,
-// that owns methods with receiver parameter t.
-// The result is either a named type or an anonymous struct.
-func methtype(t *types.Type) *types.Type {
-	if t == nil {
-		return nil
-	}
-
-	// Strip away pointer if it's there.
-	if t.IsPtr() {
-		if t.Sym() != nil {
-			return nil
-		}
-		t = t.Elem()
-		if t == nil {
-			return nil
-		}
-	}
-
-	// Must be a named type or anonymous struct.
-	if t.Sym() == nil && !t.IsStruct() {
-		return nil
-	}
-
-	// Check types.
-	if issimple[t.Kind()] {
-		return t
-	}
-	switch t.Kind() {
-	case types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRING, types.TSTRUCT:
-		return t
-	}
-	return nil
 }
 
 // Is type src assignment compatible to type dst?
@@ -294,7 +250,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
 			// gets added to itabs early, which allows
 			// us to de-virtualize calls through this
 			// type/interface pair later. See peekitabs in reflect.go
-			if isdirectiface(src) && !dst.IsEmptyInterface() {
+			if types.IsDirectIface(src) && !dst.IsEmptyInterface() {
 				NeedITab(src, dst)
 			}
 
@@ -429,7 +385,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 
 	// 4. src and dst are both integer or floating point types.
 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
-		if simtype[src.Kind()] == simtype[dst.Kind()] {
+		if types.SimType[src.Kind()] == types.SimType[dst.Kind()] {
 			return ir.OCONVNOP, ""
 		}
 		return ir.OCONV, ""
@@ -437,7 +393,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 
 	// 5. src and dst are both complex types.
 	if src.IsComplex() && dst.IsComplex() {
-		if simtype[src.Kind()] == simtype[dst.Kind()] {
+		if types.SimType[src.Kind()] == types.SimType[dst.Kind()] {
 			return ir.OCONVNOP, ""
 		}
 		return ir.OCONV, ""
@@ -574,15 +530,6 @@ func syslook(name string) *ir.Name {
 	return ir.AsNode(s.Def).(*ir.Name)
 }
 
-// typehash computes a hash value for type t to use in type switch statements.
-func typehash(t *types.Type) uint32 {
-	p := t.LongString()
-
-	// Using MD5 is overkill, but reduces accidental collisions.
-	h := md5.Sum([]byte(p))
-	return binary.LittleEndian.Uint32(h[:4])
-}
-
 // updateHasCall checks whether expression n contains any function
 // calls and sets the n.HasCall flag if so.
 func updateHasCall(n ir.Node) {
@@ -627,25 +574,25 @@ func calcHasCall(n ir.Node) bool {
 	// so we ensure they are evaluated first.
 	case ir.OADD, ir.OSUB, ir.OMUL:
 		n := n.(*ir.BinaryExpr)
-		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
+		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall() || n.Y.HasCall()
 	case ir.ONEG:
 		n := n.(*ir.UnaryExpr)
-		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
+		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall()
 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
 		n := n.(*ir.BinaryExpr)
-		if thearch.SoftFloat && (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()]) {
+		if thearch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
 			return true
 		}
 		return n.X.HasCall() || n.Y.HasCall()
 	case ir.OCONV:
 		n := n.(*ir.ConvExpr)
-		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()])) {
+		if thearch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
 			return true
 		}
 		return n.X.HasCall()
@@ -893,7 +840,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
 		u = t.Elem()
 	}
-	u = methtype(u)
+	u = types.ReceiverBaseType(u)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
@@ -1056,7 +1003,7 @@ func expand0(t *types.Type) {
 		return
 	}
 
-	u = methtype(t)
+	u = types.ReceiverBaseType(t)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
 			if f.Sym.Uniq() {
@@ -1147,7 +1094,7 @@ func expandmeth(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods().Slice()...)
-	sort.Sort(methcmp(ms))
+	sort.Sort(types.MethodsByName(ms))
 	t.AllMethods().Set(ms)
 }
 
@@ -1243,7 +1190,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		left := dot.X // skip final .M
 		if !left.Type().IsPtr() {
@@ -1272,7 +1219,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 
 	funcbody()
 	if base.Debug.DclStack != 0 {
-		testdclstack()
+		types.CheckDclstack()
 	}
 
 	typecheckFunc(fn)
@@ -1373,7 +1320,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		return true
 	}
 
-	t = methtype(t)
+	t = types.ReceiverBaseType(t)
 	var tms []*types.Field
 	if t != nil {
 		expandmeth(t)
@@ -1405,7 +1352,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr := tm.Type.Recv().Type
-		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
+		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !types.IsInterfaceMethod(tm.Type) {
 			if false && base.Flag.LowerR != 0 {
 				base.Errorf("interface pointer mismatch")
 			}
@@ -1508,35 +1455,6 @@ func isbadimport(path string, allowSpace bool) bool {
 	return false
 }
 
-// Can this type be stored directly in an interface word?
-// Yes, if the representation is a single pointer.
-func isdirectiface(t *types.Type) bool {
-	if t.Broke() {
-		return false
-	}
-
-	switch t.Kind() {
-	case types.TPTR:
-		// Pointers to notinheap types must be stored indirectly. See issue 42076.
-		return !t.Elem().NotInHeap()
-	case types.TCHAN,
-		types.TMAP,
-		types.TFUNC,
-		types.TUNSAFEPTR:
-		return true
-
-	case types.TARRAY:
-		// Array of 1 direct iface type can be direct.
-		return t.NumElem() == 1 && isdirectiface(t.Elem())
-
-	case types.TSTRUCT:
-		// Struct with 1 field of direct iface type can be direct.
-		return t.NumFields() == 1 && isdirectiface(t.Field(0).Type)
-	}
-
-	return false
-}
-
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab ir.Node) ir.Node {
 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
@@ -1555,7 +1473,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 		base.Fatalf("ifaceData interface: %v", t)
 	}
 	ptr := ir.NewUnaryExpr(pos, ir.OIDATA, n)
-	if isdirectiface(t) {
+	if types.IsDirectIface(t) {
 		ptr.SetType(t)
 		ptr.SetTypecheck(1)
 		return ptr

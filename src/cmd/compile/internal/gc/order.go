@@ -1332,7 +1332,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
 		n.X = o.expr(n.X, nil)
-		if !isdirectiface(n.Type()) || base.Flag.Cfg.Instrumenting {
+		if !types.IsDirectIface(n.Type()) || base.Flag.Cfg.Instrumenting {
 			return o.copyExprClear(n)
 		}
 		return n

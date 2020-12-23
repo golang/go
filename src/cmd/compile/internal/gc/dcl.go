@@ -28,12 +28,6 @@ func NoWriteBarrierRecCheck() {
 
 var nowritebarrierrecCheck *nowritebarrierrecChecker
 
-func testdclstack() {
-	if !types.IsDclstackValid() {
-		base.Fatalf("mark left on the dclstack")
-	}
-}
-
 // redeclare emits a diagnostic about symbol s being redeclared at pos.
 func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
@@ -555,13 +549,6 @@ func fakeRecvField() *types.Field {
 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
 }
 
-// isifacemethod reports whether (field) m is
-// an interface method. Such methods have the
-// special receiver type types.FakeRecvType().
-func isifacemethod(f *types.Type) bool {
-	return f.Recv().Type == types.FakeRecvType()
-}
-
 // turn a parsed function declaration into a type
 func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
 	funarg := func(n *ir.Field) *types.Field {
@@ -685,7 +672,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
 		return nil
 	}
 
-	mt := methtype(rf.Type)
+	mt := types.ReceiverBaseType(rf.Type)
 	if mt == nil || mt.Sym() == nil {
 		pa := rf.Type
 		t := pa
@@ -883,7 +870,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	if fn.Class_ != ir.PFUNC || fn.Name().Defn == nil {
 		return
 	}
-	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
 		return
 	}
 

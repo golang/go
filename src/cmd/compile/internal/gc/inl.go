@@ -350,7 +350,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		// runtime.throw is a "cheap call" like panic in normal code.
 		if n.X.Op() == ir.ONAME {
 			name := n.X.(*ir.Name)
-			if name.Class_ == ir.PFUNC && isRuntimePkg(name.Sym().Pkg) {
+			if name.Class_ == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
 				fn := name.Sym().Name
 				if fn == "getcallerpc" || fn == "getcallersp" {
 					return errors.New("call to " + fn)
@@ -382,7 +382,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
 		if t == nil {
 			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
 		}
-		if isRuntimePkg(n.X.Sym().Pkg) {
+		if types.IsRuntimePkg(n.X.Sym().Pkg) {
 			fn := n.X.Sym().Name
 			if fn == "heapBits.nextArena" {
 				// Special case: explicitly allow
@@ -589,7 +589,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		// Prevent inlining some reflect.Value methods when using checkptr,
 		// even when package reflect was compiled without it (#35073).
 		n := n.(*ir.CallExpr)
-		if s := n.X.Sym(); base.Debug.Checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+		if s := n.X.Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
 			return n
 		}
 	}
@@ -844,7 +844,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		return n
 	}
 
-	if base.Flag.Cfg.Instrumenting && isRuntimePkg(fn.Sym().Pkg) {
+	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
 		// Runtime package must not be instrumented.
 		// Instrument skips runtime package. However, some runtime code can be
 		// inlined into other packages and instrumented there. To avoid this,

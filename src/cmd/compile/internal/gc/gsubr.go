@@ -283,7 +283,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	funcbody()
 	if base.Debug.DclStack != 0 {
-		testdclstack()
+		types.CheckDclstack()
 	}
 
 	typecheckFunc(fn)

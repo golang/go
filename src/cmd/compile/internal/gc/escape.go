@@ -579,7 +579,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
 		}
 	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
-		if !n.X.Type().IsInterface() && !isdirectiface(n.X.Type()) {
+		if !n.X.Type().IsInterface() && !types.IsDirectIface(n.X.Type()) {
 			k = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.X)
@@ -1064,7 +1064,7 @@ func (k EscHole) deref(where ir.Node, why string) EscHole { return k.shift(1).no
 func (k EscHole) addr(where ir.Node, why string) EscHole  { return k.shift(-1).note(where, why) }
 
 func (k EscHole) dotType(t *types.Type, where ir.Node, why string) EscHole {
-	if !t.IsInterface() && !isdirectiface(t) {
+	if !t.IsInterface() && !types.IsDirectIface(t) {
 		k = k.shift(1)
 	}
 	return k.note(where, why)

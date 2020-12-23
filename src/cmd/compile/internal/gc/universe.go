@@ -90,7 +90,7 @@ func initUniverse() {
 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
 
 	for et := types.Kind(0); et < types.NTYPE; et++ {
-		simtype[et] = et
+		types.SimType[et] = et
 	}
 
 	types.Types[types.TANY] = types.New(types.TANY)
@@ -117,7 +117,7 @@ func initUniverse() {
 		if Widthptr == 8 {
 			sameas = s.sameas64
 		}
-		simtype[s.etype] = sameas
+		types.SimType[s.etype] = sameas
 
 		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
 	}
@@ -144,10 +144,10 @@ func initUniverse() {
 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, unsafepkg, "Pointer")
 
 	// simple aliases
-	simtype[types.TMAP] = types.TPTR
-	simtype[types.TCHAN] = types.TPTR
-	simtype[types.TFUNC] = types.TPTR
-	simtype[types.TUNSAFEPTR] = types.TPTR
+	types.SimType[types.TMAP] = types.TPTR
+	types.SimType[types.TCHAN] = types.TPTR
+	types.SimType[types.TFUNC] = types.TPTR
+	types.SimType[types.TUNSAFEPTR] = types.TPTR
 
 	for _, s := range &builtinFuncs {
 		s2 := types.BuiltinPkg.Lookup(s.name)
@@ -194,49 +194,49 @@ func initUniverse() {
 	s.Def = ir.NewIota(base.Pos, s)
 
 	for et := types.TINT8; et <= types.TUINT64; et++ {
-		isInt[et] = true
+		types.IsInt[et] = true
 	}
-	isInt[types.TINT] = true
-	isInt[types.TUINT] = true
-	isInt[types.TUINTPTR] = true
+	types.IsInt[types.TINT] = true
+	types.IsInt[types.TUINT] = true
+	types.IsInt[types.TUINTPTR] = true
 
-	isFloat[types.TFLOAT32] = true
-	isFloat[types.TFLOAT64] = true
+	types.IsFloat[types.TFLOAT32] = true
+	types.IsFloat[types.TFLOAT64] = true
 
-	isComplex[types.TCOMPLEX64] = true
-	isComplex[types.TCOMPLEX128] = true
+	types.IsComplex[types.TCOMPLEX64] = true
+	types.IsComplex[types.TCOMPLEX128] = true
 
 	// initialize okfor
 	for et := types.Kind(0); et < types.NTYPE; et++ {
-		if isInt[et] || et == types.TIDEAL {
+		if types.IsInt[et] || et == types.TIDEAL {
 			okforeq[et] = true
-			okforcmp[et] = true
+			types.IsOrdered[et] = true
 			okforarith[et] = true
 			okforadd[et] = true
 			okforand[et] = true
 			ir.OKForConst[et] = true
-			issimple[et] = true
+			types.IsSimple[et] = true
 		}
 
-		if isFloat[et] {
+		if types.IsFloat[et] {
 			okforeq[et] = true
-			okforcmp[et] = true
+			types.IsOrdered[et] = true
 			okforadd[et] = true
 			okforarith[et] = true
 			ir.OKForConst[et] = true
-			issimple[et] = true
+			types.IsSimple[et] = true
 		}
 
-		if isComplex[et] {
+		if types.IsComplex[et] {
 			okforeq[et] = true
 			okforadd[et] = true
 			okforarith[et] = true
 			ir.OKForConst[et] = true
-			issimple[et] = true
+			types.IsSimple[et] = true
 		}
 	}
 
-	issimple[types.TBOOL] = true
+	types.IsSimple[types.TBOOL] = true
 
 	okforadd[types.TSTRING] = true
 
@@ -267,7 +267,7 @@ func initUniverse() {
 	okforeq[types.TARRAY] = true  // only if element type is comparable; refined in typecheck
 	okforeq[types.TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
 
-	okforcmp[types.TSTRING] = true
+	types.IsOrdered[types.TSTRING] = true
 
 	for i := range okfor {
 		okfor[i] = okfornone[:]
@@ -280,10 +280,10 @@ func initUniverse() {
 	okfor[ir.OANDNOT] = okforand[:]
 	okfor[ir.ODIV] = okforarith[:]
 	okfor[ir.OEQ] = okforeq[:]
-	okfor[ir.OGE] = okforcmp[:]
-	okfor[ir.OGT] = okforcmp[:]
-	okfor[ir.OLE] = okforcmp[:]
-	okfor[ir.OLT] = okforcmp[:]
+	okfor[ir.OGE] = types.IsOrdered[:]
+	okfor[ir.OGT] = types.IsOrdered[:]
+	okfor[ir.OLE] = types.IsOrdered[:]
+	okfor[ir.OLT] = types.IsOrdered[:]
 	okfor[ir.OMOD] = okforand[:]
 	okfor[ir.OMUL] = okforarith[:]
 	okfor[ir.ONE] = okforeq[:]

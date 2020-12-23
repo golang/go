@@ -166,9 +166,9 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 		case t.IsSlice():
 			nilonly = "slice"
 
-		case !IsComparable(t):
+		case !types.IsComparable(t):
 			if t.IsStruct() {
-				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, IncomparableField(t).Type)
+				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, types.IncomparableField(t).Type)
 			} else {
 				base.ErrorfAt(n.Pos(), "cannot switch on %L", n.Tag)
 			}
@@ -200,7 +200,7 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
 
 			if nilonly != "" && !ir.IsNil(n1) {
 				base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Tag)
-			} else if t.IsInterface() && !n1.Type().IsInterface() && !IsComparable(n1.Type()) {
+			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
 				base.ErrorfAt(ncase.Pos(), "invalid case %L in switch (incomparable type)", n1)
 			} else {
 				op1, _ := assignop(n1.Type(), t)
@@ -339,7 +339,7 @@ type exprClause struct {
 
 func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
 	c := exprClause{pos: pos, lo: expr, hi: expr, jmp: jmp}
-	if okforcmp[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
+	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
 	}
@@ -670,7 +670,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
 
 	if !typ.IsInterface() {
 		s.clauses = append(s.clauses, typeClause{
-			hash: typehash(typ),
+			hash: types.TypeHash(typ),
 			body: body,
 		})
 		return

@@ -324,7 +324,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
 		addrsym(l, loff, itab.X.(*ir.Name), 0)
 
 		// Emit data.
-		if isdirectiface(val.Type()) {
+		if types.IsDirectIface(val.Type()) {
 			if val.Op() == ir.ONIL {
 				// Nil is zero, nothing to do.
 				return true
@@ -506,7 +506,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 		if val.Type().IsInterface() {
 			return val.Op() == ir.ONIL
 		}
-		if isdirectiface(val.Type()) && val.Op() == ir.ONIL {
+		if types.IsDirectIface(val.Type()) && val.Op() == ir.ONIL {
 			return true
 		}
 		return isStaticCompositeLiteral(val)
