@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -194,7 +195,7 @@ func Main(archInit func(*Arch)) {
 
 	typecheck.Target = new(ir.Package)
 
-	typecheck.NeedFuncSym = makefuncsym
+	typecheck.NeedFuncSym = staticdata.NeedFuncSym
 	typecheck.NeedITab = func(t, iface *types.Type) { itabname(t, iface) }
 	typecheck.NeedRuntimeType = addsignat // TODO(rsc): typenamesym for lock?
 

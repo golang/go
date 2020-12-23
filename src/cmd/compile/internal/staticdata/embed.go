@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package staticdata
 
 import (
-	"cmd/compile/internal/base"
-	"cmd/compile/internal/ir"
-	"cmd/compile/internal/objw"
-	"cmd/compile/internal/typecheck"
-	"cmd/compile/internal/types"
-	"cmd/internal/obj"
-
 	"path"
 	"sort"
 	"strings"
+
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
+	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 )
 
 const (
@@ -132,15 +131,9 @@ func embedFileLess(x, y string) bool {
 	return xdir < ydir || xdir == ydir && xelem < yelem
 }
 
-func dumpembeds() {
-	for _, v := range typecheck.Target.Embeds {
-		initEmbed(v)
-	}
-}
-
-// initEmbed emits the init data for a //go:embed variable,
+// WriteEmbed emits the init data for a //go:embed variable,
 // which is either a string, a []byte, or an embed.FS.
-func initEmbed(v *ir.Name) {
+func WriteEmbed(v *ir.Name) {
 	files := embedFileList(v)
 	switch kind := embedKind(v.Type()); kind {
 	case embedUnknown:
@@ -176,7 +169,7 @@ func initEmbed(v *ir.Name) {
 		const hashSize = 16
 		hash := make([]byte, hashSize)
 		for _, file := range files {
-			off = objw.SymPtr(slicedata, off, stringsym(v.Pos(), file), 0) // file string
+			off = objw.SymPtr(slicedata, off, StringSym(v.Pos(), file), 0) // file string
 			off = objw.Uintptr(slicedata, off, uint64(len(file)))
 			if strings.HasSuffix(file, "/") {
 				// entry for directory - no data
