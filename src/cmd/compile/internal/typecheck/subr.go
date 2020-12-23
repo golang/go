@@ -81,7 +81,7 @@ func NodNil() ir.Node {
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
-	n.X = check(n.X, ctxType|ctxExpr)
+	n.X = typecheck(n.X, ctxType|ctxExpr)
 	if n.X.Diag() {
 		n.SetDiag(true)
 	}
