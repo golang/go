@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package test
+
+import "testing"
 
 // Test to make sure we make copies of the values we
 // put in interfaces.
-
-import (
-	"testing"
-)
 
 var x int
 

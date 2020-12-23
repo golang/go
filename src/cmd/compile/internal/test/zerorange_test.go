@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gc
+package test
 
-import (
-	"testing"
-)
+import "testing"
 
 var glob = 3
 var globp *int64
