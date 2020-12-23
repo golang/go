@@ -665,6 +665,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			result.errorf("invalid type %T, expect map", value)
 			break
 		}
+		if o.Env == nil {
+			o.Env = make(map[string]string)
+		}
 		for k, v := range menv {
 			o.Env[k] = fmt.Sprint(v)
 		}
