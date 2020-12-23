@@ -1370,17 +1370,15 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OSLICE)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		low, high, _ := n.SliceBounds()
-		w.exprsOrNil(low, high)
+		w.exprsOrNil(n.Low, n.High)
 
 	case ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		w.op(ir.OSLICE3)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		low, high, max := n.SliceBounds()
-		w.exprsOrNil(low, high)
-		w.expr(max)
+		w.exprsOrNil(n.Low, n.High)
+		w.expr(n.Max)
 
 	case ir.OCOPY, ir.OCOMPLEX:
 		// treated like other builtin calls (see e.g., OREAL)

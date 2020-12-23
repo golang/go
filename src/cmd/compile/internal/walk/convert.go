@@ -260,7 +260,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		}
 
 		// Slice the [n]byte to a []byte.
-		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p)
+		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p, nil, nil, nil)
 		slice.SetType(n.Type())
 		slice.SetTypecheck(1)
 		return walkExpr(slice, init)

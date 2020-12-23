@@ -559,10 +559,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR:
 		n := n.(*ir.SliceExpr)
 		e.expr(k.note(n, "slice"), n.X)
-		low, high, max := n.SliceBounds()
-		e.discard(low)
-		e.discard(high)
-		e.discard(max)
+		e.discard(n.Low)
+		e.discard(n.High)
+		e.discard(n.Max)
 
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)

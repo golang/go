@@ -782,18 +782,17 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*SliceExpr)
 		exprFmt(n.X, s, nprec)
 		fmt.Fprint(s, "[")
-		low, high, max := n.SliceBounds()
-		if low != nil {
-			fmt.Fprint(s, low)
+		if n.Low != nil {
+			fmt.Fprint(s, n.Low)
 		}
 		fmt.Fprint(s, ":")
-		if high != nil {
-			fmt.Fprint(s, high)
+		if n.High != nil {
+			fmt.Fprint(s, n.High)
 		}
 		if n.Op().IsSlice3() {
 			fmt.Fprint(s, ":")
-			if max != nil {
-				fmt.Fprint(s, max)
+			if n.Max != nil {
+				fmt.Fprint(s, n.Max)
 			}
 		}
 		fmt.Fprint(s, "]")

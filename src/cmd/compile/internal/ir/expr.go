@@ -605,11 +605,13 @@ func (*SelectorExpr) CanBeNtype() {}
 type SliceExpr struct {
 	miniExpr
 	X    Node
-	List Nodes // TODO(rsc): Use separate Nodes
+	Low  Node
+	High Node
+	Max  Node
 }
 
-func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
-	n := &SliceExpr{X: x}
+func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {
+	n := &SliceExpr{X: x, Low: low, High: high, Max: max}
 	n.pos = pos
 	n.op = op
 	return n
@@ -622,61 +624,6 @@ func (n *SliceExpr) SetOp(op Op) {
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		n.op = op
 	}
-}
-
-// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
-// n must be a slice expression. max is nil if n is a simple slice expression.
-func (n *SliceExpr) SliceBounds() (low, high, max Node) {
-	if len(n.List) == 0 {
-		return nil, nil, nil
-	}
-
-	switch n.Op() {
-	case OSLICE, OSLICEARR, OSLICESTR:
-		s := n.List
-		return s[0], s[1], nil
-	case OSLICE3, OSLICE3ARR:
-		s := n.List
-		return s[0], s[1], s[2]
-	}
-	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
-	return nil, nil, nil
-}
-
-// SetSliceBounds sets n's slice bounds, where n is a slice expression.
-// n must be a slice expression. If max is non-nil, n must be a full slice expression.
-func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
-	switch n.Op() {
-	case OSLICE, OSLICEARR, OSLICESTR:
-		if max != nil {
-			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
-		}
-		s := n.List
-		if s == nil {
-			if low == nil && high == nil {
-				return
-			}
-			n.List = []Node{low, high}
-			return
-		}
-		s[0] = low
-		s[1] = high
-		return
-	case OSLICE3, OSLICE3ARR:
-		s := n.List
-		if s == nil {
-			if low == nil && high == nil && max == nil {
-				return
-			}
-			n.List = []Node{low, high, max}
-			return
-		}
-		s[0] = low
-		s[1] = high
-		s[2] = max
-		return
-	}
-	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
 }
 
 // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
