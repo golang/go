@@ -281,72 +281,6 @@ func CheckFuncStack() {
 	}
 }
 
-// turn a parsed function declaration into a type
-func NewFuncType(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
-	funarg := func(n *ir.Field) *types.Field {
-		lno := base.Pos
-		base.Pos = n.Pos
-
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-
-		f := types.NewField(n.Pos, n.Sym, n.Type)
-		f.SetIsDDD(n.IsDDD)
-		if n.Decl != nil {
-			n.Decl.SetType(f.Type)
-			f.Nname = n.Decl
-		}
-
-		base.Pos = lno
-		return f
-	}
-	funargs := func(nn []*ir.Field) []*types.Field {
-		res := make([]*types.Field, len(nn))
-		for i, n := range nn {
-			res[i] = funarg(n)
-		}
-		return res
-	}
-
-	var recv *types.Field
-	if nrecv != nil {
-		recv = funarg(nrecv)
-	}
-
-	t := types.NewSignature(types.LocalPkg, recv, funargs(nparams), funargs(nresults))
-	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
-	return t
-}
-
-// convert a parsed id/type list into
-// a type for struct/interface/arglist
-func NewStructType(l []*ir.Field) *types.Type {
-	lno := base.Pos
-
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		base.Pos = n.Pos
-
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-		f := types.NewField(n.Pos, n.Sym, n.Type)
-		if n.Embedded {
-			checkembeddedtype(n.Type)
-			f.Embedded = 1
-		}
-		f.Note = n.Note
-		fields[i] = f
-	}
-	checkdupfields("field", fields)
-
-	base.Pos = lno
-	return types.NewStruct(types.LocalPkg, fields)
-}
-
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
@@ -602,27 +536,6 @@ func funcargs2(t *types.Type) {
 
 func initname(s string) bool {
 	return s == "init"
-}
-
-func tointerface(nmethods []*ir.Field) *types.Type {
-	if len(nmethods) == 0 {
-		return types.Types[types.TINTER]
-	}
-
-	lno := base.Pos
-
-	methods := make([]*types.Field, len(nmethods))
-	for i, n := range nmethods {
-		base.Pos = n.Pos
-		if n.Ntype != nil {
-			n.Type = typecheckNtype(n.Ntype).Type()
-			n.Ntype = nil
-		}
-		methods[i] = types.NewField(n.Pos, n.Sym, n.Type)
-	}
-
-	base.Pos = lno
-	return types.NewInterface(types.LocalPkg, methods)
 }
 
 var vargen int
